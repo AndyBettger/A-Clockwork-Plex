@@ -1,0 +1,32 @@
+.main-nav {
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+
+.nav-button {
+  min-width: clamp(82px, 12vmin, 120px);
+  text-align: center;
+}
+
+.nav-button.is-active {
+  color: #07101d;
+  background: var(--text);
+  border-color: var(--text);
+  box-shadow: 0 0 18px rgba(247, 249, 255, 0.22);
+}
+
+.nav-button.is-active:hover,
+.nav-button.is-active:active {
+  background: var(--text);
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .main-nav {
+    gap: 6px;
+  }
+
+  .nav-button {
+    min-width: 74px;
+    padding-inline: 10px;
+  }
+}
