@@ -12,6 +12,9 @@
     "pause_url": "http://localhost:32500/player/playback/pause",
     "service_name": "plexamp.service"
   },
+  "airplay": {
+    "display_name": "Bedroom Plexamp"
+  },
   "display": {
     "x_display": ":0",
     "xauthority": "/home/andy/.Xauthority",
