@@ -22,12 +22,27 @@
     "dashboard_url": "http://localhost:8088",
     "airplay_url": "http://localhost:8088/airplay",
     "clock_url": "http://localhost:8088/clock",
+    "weather_url": "http://localhost:8088/weather",
     "plexamp_url": "http://localhost:32500"
   },
   "weather": {
     "provider": "ecowitt_push",
     "display_units": "metric",
-    "station_name": "Weather or Not"
+    "station_name": "Weather or Not",
+    "units": {
+      "temperature": "c",
+      "pressure": "hpa",
+      "rain": "mm",
+      "wind": "mph"
+    },
+    "clock_cards": [
+      "outdoor_temp",
+      "humidity",
+      "wind_speed",
+      "wind_gust",
+      "daily_rain",
+      "pressure"
+    ]
   },
   "alarm": {
     "enabled": false,
