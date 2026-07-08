@@ -34,8 +34,8 @@ body.mode-airplay {
   height: 100dvh;
   padding: var(--safe-pad);
   display: grid;
-  grid-template-rows: auto auto auto;
-  align-content: center;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  align-content: stretch;
   gap: var(--safe-gap);
   overflow: hidden;
 }
@@ -50,15 +50,15 @@ body.mode-airplay {
 }
 
 .time {
-  font-size: clamp(5.2rem, 19.8vmin, 9.4rem);
-  line-height: 0.80;
+  font-size: clamp(5.8rem, 22vmin, 10.5rem);
+  line-height: 0.78;
   font-weight: 800;
   letter-spacing: -0.07em;
 }
 
 .date {
-  margin-top: clamp(2px, 0.5vmin, 6px);
-  font-size: clamp(1.22rem, 3.8vmin, 1.9rem);
+  margin-top: clamp(2px, 0.45vmin, 5px);
+  font-size: clamp(1.22rem, 3.7vmin, 1.9rem);
   line-height: 1.02;
   color: var(--muted);
 }
@@ -101,7 +101,7 @@ p {
 }
 
 .weather-panel {
-  align-self: center;
+  align-self: end;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -152,6 +152,7 @@ p {
 }
 
 .button-row {
+  align-self: end;
   display: flex;
   gap: clamp(8px, 1.5vmin, 14px);
   justify-content: center;
@@ -195,7 +196,7 @@ code {
   }
 
   .time {
-    font-size: clamp(5rem, 26vw, 7.9rem);
+    font-size: clamp(5.4rem, 28vw, 8.7rem);
   }
 
   .date {
