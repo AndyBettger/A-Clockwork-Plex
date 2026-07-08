@@ -46,18 +46,22 @@ body.mode-airplay {
 }
 
 .clock-hero {
-  align-self: end;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-top: 0;
 }
 
 .time {
-  font-size: clamp(5.8rem, 22vmin, 10.5rem);
-  line-height: 0.78;
+  font-size: clamp(7.2rem, 31vmin, 15rem);
+  line-height: 0.74;
   font-weight: 800;
-  letter-spacing: -0.07em;
+  letter-spacing: -0.075em;
 }
 
 .date {
-  margin-top: clamp(2px, 0.45vmin, 5px);
+  margin-top: clamp(0px, 0.25vmin, 4px);
   font-size: clamp(1.22rem, 3.7vmin, 1.9rem);
   line-height: 1.02;
   color: var(--muted);
@@ -196,7 +200,7 @@ code {
   }
 
   .time {
-    font-size: clamp(5.4rem, 28vw, 8.7rem);
+    font-size: clamp(6.4rem, 35vw, 10.8rem);
   }
 
   .date {
