@@ -6,6 +6,8 @@
   --muted: #aab4c4;
   --accent: #8fd3ff;
   --accent-strong: #ffffff;
+  --safe-gap: clamp(8px, 1.6vmin, 16px);
+  --safe-pad: clamp(10px, 2vmin, 22px);
 }
 
 * {
@@ -15,7 +17,9 @@
 html,
 body {
   margin: 0;
-  min-height: 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: radial-gradient(circle at top left, #243b61 0, #070b14 45%, #02040a 100%);
   color: var(--text);
@@ -27,34 +31,40 @@ body.mode-airplay {
 
 .screen {
   width: 100vw;
-  min-height: calc(100vh - 42px);
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  justify-content: center;
+  height: 100dvh;
+  padding: var(--safe-pad);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--safe-gap);
+  overflow: hidden;
 }
 
 .hero {
   text-align: center;
+  min-height: 0;
+}
+
+.clock-hero {
+  align-self: end;
 }
 
 .time {
-  font-size: clamp(5rem, 22vw, 10rem);
-  line-height: 0.9;
+  font-size: clamp(4.2rem, 16vmin, 8rem);
+  line-height: 0.82;
   font-weight: 800;
   letter-spacing: -0.07em;
 }
 
 .date {
-  margin-top: 12px;
-  font-size: clamp(1.4rem, 4vw, 2.4rem);
+  margin-top: clamp(4px, 1vmin, 10px);
+  font-size: clamp(1.25rem, 4.2vmin, 2rem);
+  line-height: 1.05;
   color: var(--muted);
 }
 
 .icon {
-  font-size: clamp(4rem, 12vw, 7rem);
-  margin-bottom: 12px;
+  font-size: clamp(3.4rem, 12vmin, 6rem);
+  margin-bottom: 8px;
 }
 
 h1,
@@ -64,50 +74,66 @@ p {
 }
 
 h1 {
-  font-size: clamp(2.4rem, 7vw, 5rem);
-  margin-bottom: 0.2em;
+  font-size: clamp(2rem, 7.5vmin, 4.6rem);
+  line-height: 0.95;
+  margin-bottom: clamp(12px, 2vmin, 22px);
 }
 
 h2 {
-  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-size: clamp(1.2rem, 3.5vmin, 1.8rem);
 }
 
 p {
-  font-size: clamp(1.1rem, 3vw, 1.8rem);
+  font-size: clamp(1rem, 2.8vmin, 1.5rem);
 }
 
 .panel {
-  width: min(100%, 960px);
+  width: min(100%, 1120px);
+  min-height: 0;
   margin: 0 auto;
-  padding: 22px;
-  border-radius: 24px;
+  padding: clamp(14px, 2.4vmin, 24px);
+  border-radius: clamp(18px, 3vmin, 28px);
   background: var(--panel);
   border: 1px solid var(--panel-border);
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.weather-panel {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .weather-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(116px, 19vw, 180px), 1fr));
+  gap: clamp(8px, 1.6vmin, 14px);
 }
 
 .weather-card {
-  padding: 16px;
-  border-radius: 18px;
+  min-width: 0;
+  padding: clamp(10px, 2vmin, 16px);
+  border-radius: clamp(14px, 2.4vmin, 18px);
   background: rgba(255, 255, 255, 0.08);
 }
 
 .weather-label {
   display: block;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: clamp(0.72rem, 2vmin, 0.95rem);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .weather-value {
   display: block;
   margin-top: 6px;
-  font-size: 1.7rem;
+  font-size: clamp(1.25rem, 4.2vmin, 2rem);
+  line-height: 1;
   font-weight: 700;
 }
 
@@ -116,24 +142,25 @@ p {
 }
 
 .small {
-  font-size: 1rem;
+  font-size: clamp(0.8rem, 2vmin, 1rem);
 }
 
 .button-row {
   display: flex;
-  gap: 14px;
+  gap: clamp(8px, 1.5vmin, 14px);
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .button {
   display: inline-block;
-  padding: 14px 22px;
+  padding: clamp(9px, 1.8vmin, 14px) clamp(16px, 3vmin, 24px);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.20);
   color: var(--text);
   text-decoration: none;
+  font-size: clamp(0.9rem, 2.2vmin, 1.1rem);
   font-weight: 700;
 }
 
@@ -143,22 +170,66 @@ p {
 }
 
 .status-bar {
-  height: 42px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--muted);
-  font-size: 0.8rem;
+  display: none;
 }
 
 .settings-list li {
-  font-size: 1.3rem;
-  margin: 0.45em 0;
+  font-size: clamp(1rem, 3vmin, 1.3rem);
+  margin: 0.35em 0;
 }
 
 code {
   color: var(--accent);
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .screen {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .time {
+    font-size: clamp(4rem, 24vw, 6.8rem);
+  }
+
+  .date {
+    font-size: clamp(1.1rem, 5vw, 1.55rem);
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 8vw, 3.1rem);
+    margin-bottom: 10px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .weather-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .weather-card {
+    padding: 10px;
+  }
+
+  .weather-label {
+    font-size: 0.72rem;
+  }
+
+  .weather-value {
+    font-size: 1.25rem;
+  }
+
+  .button {
+    padding: 8px 15px;
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .weather-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
