@@ -10,7 +10,7 @@
   --safe-pad: clamp(7px, 1.4vmin, 16px);
   --app-font: "DejaVu Sans", "Arial", "Liberation Sans", sans-serif;
   --segment-on: #f7f9ff;
-  --segment-off: rgba(247, 249, 255, 0.08);
+  --segment-off: rgba(247, 249, 255, 0.025);
   --segment-slant: -10deg;
 }
 
