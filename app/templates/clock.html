@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set active_page = 'clock' %}
 {% block title %}Clock - A Clockwork Plex{% endblock %}
 {% block content %}
 <section class="hero clock-hero">
@@ -29,11 +30,7 @@
   {% endif %}
 </section>
 
-<section class="button-row">
-  <a class="button" href="/plexamp">Plexamp</a>
-  <a class="button" href="/airplay">AirPlay</a>
-  <a class="button" href="/settings">Settings</a>
-</section>
+{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
 <script>
