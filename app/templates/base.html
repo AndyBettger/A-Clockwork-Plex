@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}A Clockwork Plex{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="mode-{{ state.mode }}">
+  <main class="screen">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="status-bar">
+    <span>A Clockwork Plex</span>
+    <span>Mode: {{ state.mode }}</span>
+    <span>{% if state.last_weather_update %}Weather: {{ state.last_weather_update }}{% else %}Weather: waiting{% endif %}</span>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
