@@ -61,7 +61,7 @@ body.mode-airplay {
 }
 
 .date {
-  margin-top: clamp(0px, 0.35vmin, 5px);
+  margin-top: clamp(8px, 1.5vmin, 16px);
   font-size: clamp(1.22rem, 3.7vmin, 1.9rem);
   line-height: 1.02;
   color: var(--muted);
