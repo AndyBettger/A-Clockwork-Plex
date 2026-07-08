@@ -1,0 +1,339 @@
+body.mode-weather {
+  background: radial-gradient(circle at top left, #244363 0, #07111f 48%, #02040a 100%);
+}
+
+body.mode-weather .screen {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.weather-detail-hero {
+  align-self: start;
+}
+
+.weather-detail-hero h1 {
+  font-size: clamp(1.8rem, 5.4vmin, 3.1rem);
+  margin-bottom: 4px;
+}
+
+.weather-detail-hero p {
+  margin-bottom: 0;
+  font-size: clamp(0.84rem, 2.1vmin, 1.05rem);
+}
+
+.weather-detail-page {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  scrollbar-width: none;
+}
+
+.weather-detail-page::-webkit-scrollbar {
+  display: none;
+}
+
+.weather-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 1.4vmin, 14px);
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding-bottom: 2px;
+}
+
+.detail-panel {
+  min-width: 0;
+  padding: clamp(9px, 1.45vmin, 15px);
+  border-radius: clamp(16px, 2.6vmin, 24px);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.22);
+}
+
+.detail-panel h2 {
+  margin-bottom: clamp(8px, 1.3vmin, 12px);
+}
+
+.main-conditions-panel,
+.rain-panel {
+  grid-column: span 2;
+}
+
+.detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: clamp(7px, 1.2vmin, 10px);
+}
+
+.detail-card {
+  min-width: 0;
+  padding: clamp(8px, 1.3vmin, 12px);
+  border-radius: clamp(12px, 2vmin, 18px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.detail-label {
+  display: block;
+  color: var(--muted);
+  font-size: clamp(0.68rem, 1.8vmin, 0.86rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-value {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(1rem, 3.2vmin, 1.45rem);
+  font-weight: 800;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.wind-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(12px, 2.2vmin, 18px);
+  align-items: center;
+}
+
+.compass {
+  position: relative;
+  width: clamp(118px, 20vmin, 160px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.25);
+}
+
+.compass-ring {
+  position: absolute;
+  inset: 17%;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+}
+
+.compass-letter {
+  position: absolute;
+  color: var(--muted);
+  font-size: clamp(0.7rem, 1.8vmin, 0.9rem);
+  font-weight: 800;
+}
+
+.compass-n {
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.compass-e {
+  top: 50%;
+  right: 7%;
+  transform: translateY(-50%);
+}
+
+.compass-s {
+  bottom: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.compass-w {
+  top: 50%;
+  left: 7%;
+  transform: translateY(-50%);
+}
+
+.compass-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 42%;
+  background: var(--text);
+  border-radius: 999px;
+  transform-origin: 50% 92%;
+  transform: translate(-50%, -92%) rotate(var(--wind-deg));
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.25);
+}
+
+.compass-arrow::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  width: 0;
+  height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
+  border-bottom: 22px solid var(--text);
+  transform: translateX(-50%);
+}
+
+.wind-direction {
+  font-size: clamp(1.3rem, 4.2vmin, 2rem);
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: clamp(8px, 1.3vmin, 12px);
+}
+
+.wind-readings div:not(.wind-direction) {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 5px 0;
+  color: var(--muted);
+  font-size: clamp(0.82rem, 2.1vmin, 1rem);
+}
+
+.wind-readings strong {
+  color: var(--text);
+}
+
+.rain-gauge-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: clamp(7px, 1.2vmin, 10px);
+  margin-bottom: clamp(8px, 1.4vmin, 12px);
+}
+
+.rain-gauge-card {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  align-items: end;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(143, 211, 255, 0.09);
+}
+
+.rain-gauge {
+  position: relative;
+  height: 74px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.rain-gauge span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 2px;
+  background: linear-gradient(180deg, rgba(143, 211, 255, 0.95), rgba(143, 211, 255, 0.45));
+}
+
+.rain-gauge-text span,
+.rain-gauge-text small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.rain-gauge-text strong {
+  display: block;
+  color: var(--text);
+  font-size: clamp(0.98rem, 2.6vmin, 1.25rem);
+  line-height: 1.05;
+  margin: 3px 0;
+}
+
+.barometer-readout {
+  padding: clamp(10px, 1.6vmin, 14px);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.09);
+  text-align: center;
+}
+
+.barometer-readout span {
+  display: block;
+  color: var(--muted);
+  font-size: clamp(0.76rem, 2vmin, 0.95rem);
+}
+
+.barometer-readout strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(1.45rem, 4.8vmin, 2.2rem);
+  line-height: 1;
+}
+
+.trend-pill {
+  display: inline-block;
+  margin: 8px 0 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.barometer-note p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: clamp(0.78rem, 2vmin, 0.95rem);
+}
+
+.station-grid {
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .weather-detail-hero h1 {
+    font-size: clamp(1.45rem, 5.6vw, 2.2rem);
+  }
+
+  .weather-detail-grid {
+    gap: 7px;
+  }
+
+  .detail-panel {
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .detail-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .detail-card {
+    padding: 7px;
+  }
+
+  .detail-label {
+    font-size: 0.64rem;
+  }
+
+  .detail-value {
+    font-size: 1rem;
+  }
+
+  .compass {
+    width: 112px;
+  }
+
+  .rain-gauge {
+    height: 58px;
+  }
+}
+
+@media (max-width: 720px) {
+  .weather-detail-grid,
+  .main-conditions-panel,
+  .rain-panel {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+
+  .detail-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
