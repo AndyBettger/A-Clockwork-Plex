@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set active_page = 'weather' %}
+{% block title %}Weather - A Clockwork Plex{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
+{% endblock %}
+{% block content %}
+<section class="hero weather-detail-hero">
+  <h1>{{ config.weather.station_name }}</h1>
+  <p class="muted">Detailed weather station view{% if state.last_weather_update %} · Updated {{ state.last_weather_update }}{% endif %}</p>
+</section>
+
+<section class="weather-detail-page" aria-label="Detailed weather station readings">
+  {% if weather_detail.main_conditions or weather_detail.rain_totals or weather_detail.station_status %}
+    <div class="weather-detail-grid">
+      <article class="detail-panel main-conditions-panel">
+        <h2>Main conditions</h2>
+        <div class="detail-card-grid">
+          {% for item in weather_detail.main_conditions %}
+            <div class="detail-card">
+              <span class="detail-label">{{ item.label }}</span>
+              <span class="detail-value">{{ item.value }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <article class="detail-panel wind-panel">
+        <h2>Wind</h2>
+        <div class="wind-layout">
+          <div class="compass" aria-label="Wind direction {{ weather_detail.compass.label }}">
+            <span class="compass-letter compass-n">N</span>
+            <span class="compass-letter compass-e">E</span>
+            <span class="compass-letter compass-s">S</span>
+            <span class="compass-letter compass-w">W</span>
+            <span class="compass-ring"></span>
+            <span class="compass-arrow" style="--wind-deg: {{ weather_detail.compass.degrees }}deg;"></span>
+          </div>
+          <div class="wind-readings">
+            <div class="wind-direction">{{ weather_detail.compass.label }}</div>
+            {% if weather_detail.compass.speed %}
+              <div><span>Speed</span><strong>{{ weather_detail.compass.speed.value }}</strong></div>
+            {% endif %}
+            {% if weather_detail.compass.gust %}
+              <div><span>Gust</span><strong>{{ weather_detail.compass.gust.value }}</strong></div>
+            {% endif %}
+            {% if weather_detail.compass.max_gust %}
+              <div><span>Max today</span><strong>{{ weather_detail.compass.max_gust.value }}</strong></div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+
+      <article class="detail-panel rain-panel">
+        <h2>Rain</h2>
+        {% if weather_detail.rain_gauges %}
+          <div class="rain-gauge-row">
+            {% for gauge in weather_detail.rain_gauges %}
+              <div class="rain-gauge-card">
+                <div class="rain-gauge" aria-hidden="true">
+                  <span style="height: {{ gauge.percent }}%;"></span>
+                </div>
+                <div class="rain-gauge-text">
+                  <span>{{ gauge.label }}</span>
+                  <strong>{{ gauge.value }}</strong>
+                  <small>Scale {{ gauge.max_label }}</small>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="detail-card-grid rain-total-grid">
+          {% for item in weather_detail.rain_totals %}
+            <div class="detail-card">
+              <span class="detail-label">{{ item.label }}</span>
+              <span class="detail-value">{{ item.value }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <article class="detail-panel barometer-panel">
+        <h2>Pressure / Barometer</h2>
+        {% if weather_detail.barometer.pressure %}
+          <div class="barometer-readout">
+            <span>Relative pressure</span>
+            <strong>{{ weather_detail.barometer.pressure.value }}</strong>
+          </div>
+        {% endif %}
+        {% if weather_detail.barometer.absolute_pressure %}
+          <p class="muted small">Absolute pressure: {{ weather_detail.barometer.absolute_pressure.value }}</p>
+        {% endif %}
+        <div class="barometer-note">
+          <span class="trend-pill">{{ weather_detail.barometer.trend }}</span>
+          <p>{{ weather_detail.barometer.prediction }}</p>
+        </div>
+      </article>
+
+      <article class="detail-panel station-panel">
+        <h2>Station status</h2>
+        <div class="detail-card-grid station-grid">
+          {% for item in weather_detail.station_status %}
+            <div class="detail-card">
+              <span class="detail-label">{{ item.label }}</span>
+              <span class="detail-value">{{ item.value }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+  {% else %}
+    <section class="panel weather-panel">
+      <h1>Waiting for weather data</h1>
+      <p class="muted">Point Ecowitt/custom uploads at <code>/api/weather/ecowitt</code>.</p>
+    </section>
+  {% endif %}
+</section>
+
+{% include "_nav.html" %}
+{% endblock %}
