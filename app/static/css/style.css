@@ -9,7 +9,8 @@
   --safe-gap: clamp(6px, 1.2vmin, 12px);
   --safe-pad: clamp(7px, 1.4vmin, 16px);
   --app-font: "DejaVu Sans", "Arial", "Liberation Sans", sans-serif;
-  --clock-font: "Arial Black", "Arial", "DejaVu Sans", "Liberation Sans", sans-serif;
+  --segment-on: #f7f9ff;
+  --segment-off: rgba(247, 249, 255, 0.08);
 }
 
 * {
@@ -59,29 +60,115 @@ body.mode-airplay {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 0;
-  font-family: var(--clock-font);
-  font-size: clamp(6rem, 26vmin, 12.8rem);
-  line-height: 0.80;
-  font-weight: 900;
-  letter-spacing: -0.075em;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1, "kern" 1;
+  gap: 0.08em;
+  font-size: clamp(5.7rem, 25vmin, 12.2rem);
+  line-height: 0.95;
 }
 
-.clock-colon {
+.digital-group {
+  display: inline-flex;
+  gap: 0.08em;
+  align-items: baseline;
+}
+
+.digital-digit {
+  position: relative;
   display: inline-block;
-  width: 0.35em;
-  margin-inline: -0.03em 0.01em;
-  text-align: center;
+  width: 0.62em;
+  height: 1em;
+}
+
+.segment {
+  position: absolute;
+  display: block;
+  background: var(--segment-off);
+  opacity: 1;
+  transition: background 120ms linear, box-shadow 120ms linear;
+}
+
+.segment.is-on {
+  background: var(--segment-on);
+  box-shadow: 0 0 0.035em rgba(255, 255, 255, 0.45);
+}
+
+.segment-a,
+.segment-d,
+.segment-g {
+  left: 0.13em;
+  width: 0.36em;
+  height: 0.085em;
+  border-radius: 0.08em;
+}
+
+.segment-a {
+  top: 0.02em;
+}
+
+.segment-g {
+  top: 0.457em;
+}
+
+.segment-d {
+  bottom: 0.02em;
+}
+
+.segment-b,
+.segment-c,
+.segment-e,
+.segment-f {
+  width: 0.085em;
+  height: 0.36em;
+  border-radius: 0.08em;
+}
+
+.segment-b,
+.segment-c {
+  right: 0.02em;
+}
+
+.segment-f,
+.segment-e {
+  left: 0.02em;
+}
+
+.segment-b,
+.segment-f {
+  top: 0.08em;
+}
+
+.segment-c,
+.segment-e {
+  bottom: 0.08em;
+}
+
+.digital-colon {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.19em;
+  width: 0.16em;
+  height: 1em;
+  margin-inline: 0.02em;
   animation: clock-colon-blink 1s steps(1, end) infinite;
 }
 
+.digital-colon span {
+  display: block;
+  width: 0.13em;
+  height: 0.13em;
+  border-radius: 50%;
+  background: var(--segment-on);
+  box-shadow: 0 0 0.035em rgba(255, 255, 255, 0.45);
+}
+
+.digital-colon-small {
+  font-size: 0.52em;
+  margin-left: 0.12em;
+}
+
 .clock-seconds {
-  margin-left: 0.14em;
-  font-size: 0.46em;
-  letter-spacing: -0.04em;
-  opacity: 0.92;
+  font-size: 0.52em;
+  gap: 0.07em;
 }
 
 @keyframes clock-colon-blink {
@@ -234,7 +321,7 @@ code {
   }
 
   .time {
-    font-size: clamp(5.6rem, 29vw, 9.2rem);
+    font-size: clamp(5.1rem, 26vw, 8.6rem);
   }
 
   .date {
