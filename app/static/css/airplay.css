@@ -1,0 +1,40 @@
+.airplay-glyph {
+  position: relative;
+  width: clamp(86px, 14vmin, 140px);
+  height: clamp(70px, 11vmin, 112px);
+  margin: 0 auto clamp(12px, 2vmin, 20px);
+}
+
+.airplay-screen {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  width: 88%;
+  height: 64%;
+  border: clamp(5px, 0.8vmin, 8px) solid var(--accent);
+  border-radius: clamp(10px, 1.8vmin, 18px);
+  transform: translateX(-50%);
+  opacity: 0.9;
+  box-shadow: 0 0 18px rgba(143, 211, 255, 0.18);
+}
+
+.airplay-triangle {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: 0;
+  height: 0;
+  border-left: clamp(24px, 4.1vmin, 42px) solid transparent;
+  border-right: clamp(24px, 4.1vmin, 42px) solid transparent;
+  border-bottom: clamp(40px, 6.8vmin, 72px) solid var(--text);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.22));
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-glyph {
+    width: 76px;
+    height: 62px;
+    margin-bottom: 10px;
+  }
+}
