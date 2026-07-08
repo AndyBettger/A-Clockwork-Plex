@@ -57,6 +57,53 @@ body.mode-airplay {
   padding-top: 0;
 }
 
+.airplay-hero {
+  align-self: end;
+}
+
+.airplay-glyph {
+  position: relative;
+  width: clamp(70px, 12vmin, 120px);
+  height: clamp(70px, 12vmin, 120px);
+  margin: 0 auto clamp(12px, 2vmin, 20px);
+}
+
+.airplay-ring {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  border: clamp(4px, 0.7vmin, 7px) solid var(--accent);
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  border-radius: 50%;
+  transform: translateX(-50%) rotate(-45deg);
+  opacity: 0.95;
+}
+
+.airplay-ring.ring-one {
+  width: 46%;
+  height: 46%;
+}
+
+.airplay-ring.ring-two {
+  width: 72%;
+  height: 72%;
+  opacity: 0.55;
+}
+
+.airplay-triangle {
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  width: 0;
+  height: 0;
+  border-left: clamp(22px, 4vmin, 42px) solid transparent;
+  border-right: clamp(22px, 4vmin, 42px) solid transparent;
+  border-bottom: clamp(38px, 6.5vmin, 70px) solid var(--text);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.22));
+}
+
 .time {
   display: flex;
   align-items: center;
@@ -231,6 +278,10 @@ p {
   overflow: hidden;
 }
 
+.airplay-panel {
+  align-self: end;
+}
+
 .weather-panel {
   align-self: end;
   display: flex;
@@ -332,6 +383,12 @@ code {
 
   .date {
     font-size: clamp(1.05rem, 4.4vw, 1.42rem);
+  }
+
+  .airplay-glyph {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 10px;
   }
 
   h1 {
