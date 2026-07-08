@@ -2,14 +2,18 @@
 {% block title %}AirPlay - A Clockwork Plex{% endblock %}
 {% block content %}
 <section class="hero airplay-hero">
-  <div class="icon">📡</div>
+  <div class="airplay-glyph" aria-hidden="true">
+    <span class="airplay-ring ring-one"></span>
+    <span class="airplay-ring ring-two"></span>
+    <span class="airplay-triangle"></span>
+  </div>
   <h1>AirPlay Active</h1>
   <p>Playing from iPhone</p>
   <p class="muted">Podcast audio is being sent to this Pi.</p>
 </section>
 
-<section class="panel">
-  <h2>Andy’s Office Plexamp</h2>
+<section class="panel airplay-panel">
+  <h2>{{ config.airplay.display_name | default('A Clockwork Plex') }}</h2>
   <p>Volume is controlled from the iPhone or the stereo.</p>
   <p class="muted small">Stop AirPlay to return to the clock/Plexamp appliance mode.</p>
 </section>
