@@ -11,6 +11,7 @@
   --app-font: "DejaVu Sans", "Arial", "Liberation Sans", sans-serif;
   --segment-on: #f7f9ff;
   --segment-off: rgba(247, 249, 255, 0.08);
+  --segment-slant: -10deg;
 }
 
 * {
@@ -58,17 +59,19 @@ body.mode-airplay {
 
 .time {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   gap: 0.08em;
   font-size: clamp(5.7rem, 25vmin, 12.2rem);
-  line-height: 0.95;
+  line-height: 1;
 }
 
 .digital-group {
   display: inline-flex;
   gap: 0.08em;
-  align-items: baseline;
+  align-items: center;
+  transform: skewX(var(--segment-slant));
+  transform-origin: center;
 }
 
 .digital-digit {
@@ -142,13 +145,15 @@ body.mode-airplay {
 }
 
 .digital-colon {
+  align-self: center;
   display: inline-flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.19em;
+  justify-content: space-between;
   width: 0.16em;
-  height: 1em;
-  margin-inline: 0.02em;
+  height: 0.58em;
+  margin-inline: 0.04em 0.02em;
+  transform: skewX(var(--segment-slant));
+  transform-origin: center;
   animation: clock-colon-blink 1s steps(1, end) infinite;
 }
 
@@ -163,7 +168,8 @@ body.mode-airplay {
 
 .digital-colon-small {
   font-size: 0.52em;
-  margin-left: 0.12em;
+  height: 0.58em;
+  margin-inline: 0.08em 0.02em;
 }
 
 .clock-seconds {
