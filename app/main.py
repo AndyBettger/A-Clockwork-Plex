@@ -85,7 +85,8 @@ def normalise_weather_payload() -> dict[str, Any]:
     payload.update(request.args.to_dict(flat=True))
     payload.update(request.form.to_dict(flat=True))
 
-    return payload
+    # Ecowitt/WU-style posts sometimes include blank values. Keep meaningful keys only.
+    return {str(key): value for key, value in payload.items() if str(key).strip() and str(value).strip()}
 
 
 def pick_weather_fields(weather: dict[str, Any]) -> dict[str, Any]:
@@ -180,10 +181,33 @@ def api_mode(mode: str):
 def api_weather_ecowitt():
     config = load_config()
     state = load_state(config)
-    state["weather"] = normalise_weather_payload()
-    state["last_weather_update"] = datetime.now().isoformat(timespec="seconds")
-    save_json(STATE_PATH, state)
-    return jsonify({"ok": True, "received_fields": len(state["weather"])})
+    payload = normalise_weather_payload()
+
+    if payload:
+        state["weather"] = payload
+        state["last_weather_update"] = datetime.now().isoformat(timespec="seconds")
+        save_json(STATE_PATH, state)
+        return jsonify(
+            {
+                "ok": True,
+                "stored": True,
+                "received_fields": len(payload),
+                "last_weather_update": state["last_weather_update"],
+            }
+        )
+
+    # Do not clear cached weather when a browser/manual request hits the receiver URL.
+    return jsonify(
+        {
+            "ok": True,
+            "stored": False,
+            "received_fields": 0,
+            "message": "No weather fields received; existing cached weather was left unchanged.",
+            "cached_fields": len(state.get("weather", {})),
+            "last_weather_update": state.get("last_weather_update"),
+            "weather_display": pick_weather_fields(state.get("weather", {})),
+        }
+    )
 
 
 if __name__ == "__main__":
