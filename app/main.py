@@ -21,8 +21,41 @@ def load_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
     try:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"A Clockwork Plex: failed to load JSON from {path}: {exc}", flush=True)
         return fallback
+
+
+def json_file_status(path: Path) -> dict[str, Any]:
+    status: dict[str, Any] = {
+        "path": str(path),
+        "exists": path.exists(),
+        "valid": False,
+        "error": None,
+    }
+
+    if not path.exists():
+        status["error"] = "File does not exist."
+        return status
+
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            json.load(handle)
+        status["valid"] = True
+    except json.JSONDecodeError as exc:
+        status["error"] = f"Invalid JSON: {exc.msg} at line {exc.lineno}, column {exc.colno}."
+    except OSError as exc:
+        status["error"] = f"Could not read file: {exc}"
+
+    return status
+
+
+def config_diagnostics() -> dict[str, Any]:
+    return {
+        "base_dir": str(BASE_DIR),
+        "config": json_file_status(CONFIG_PATH),
+        "example_config": json_file_status(EXAMPLE_CONFIG_PATH),
+    }
 
 
 def save_json(path: Path, data: dict[str, Any]) -> None:
@@ -165,7 +198,14 @@ def plexamp():
 def api_status():
     config = load_config()
     state = load_state(config)
-    return jsonify({"state": state, "config": config, "weather_display": pick_weather_fields(state.get("weather", {}))})
+    return jsonify(
+        {
+            "state": state,
+            "config": config,
+            "config_diagnostics": config_diagnostics(),
+            "weather_display": pick_weather_fields(state.get("weather", {})),
+        }
+    )
 
 
 @app.route("/api/mode/<mode>", methods=["GET", "POST"])
