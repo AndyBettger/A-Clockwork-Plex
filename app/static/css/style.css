@@ -6,8 +6,8 @@
   --muted: #aab4c4;
   --accent: #8fd3ff;
   --accent-strong: #ffffff;
-  --safe-gap: clamp(8px, 1.6vmin, 16px);
-  --safe-pad: clamp(10px, 2vmin, 22px);
+  --safe-gap: clamp(7px, 1.4vmin, 14px);
+  --safe-pad: clamp(8px, 1.6vmin, 18px);
 }
 
 * {
@@ -34,7 +34,8 @@ body.mode-airplay {
   height: 100dvh;
   padding: var(--safe-pad);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  align-content: center;
   gap: var(--safe-gap);
   overflow: hidden;
 }
@@ -49,15 +50,15 @@ body.mode-airplay {
 }
 
 .time {
-  font-size: clamp(4.2rem, 16vmin, 8rem);
+  font-size: clamp(4.8rem, 18.5vmin, 9rem);
   line-height: 0.82;
   font-weight: 800;
   letter-spacing: -0.07em;
 }
 
 .date {
-  margin-top: clamp(4px, 1vmin, 10px);
-  font-size: clamp(1.25rem, 4.2vmin, 2rem);
+  margin-top: clamp(3px, 0.8vmin, 8px);
+  font-size: clamp(1.25rem, 4vmin, 2rem);
   line-height: 1.05;
   color: var(--muted);
 }
@@ -76,7 +77,7 @@ p {
 h1 {
   font-size: clamp(2rem, 7.5vmin, 4.6rem);
   line-height: 0.95;
-  margin-bottom: clamp(12px, 2vmin, 22px);
+  margin-bottom: clamp(10px, 1.8vmin, 18px);
 }
 
 h2 {
@@ -91,7 +92,7 @@ p {
   width: min(100%, 1120px);
   min-height: 0;
   margin: 0 auto;
-  padding: clamp(14px, 2.4vmin, 24px);
+  padding: clamp(10px, 1.8vmin, 18px);
   border-radius: clamp(18px, 3vmin, 28px);
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -100,21 +101,26 @@ p {
 }
 
 .weather-panel {
-  align-self: stretch;
+  align-self: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
+.weather-panel h1 {
+  font-size: clamp(1.9rem, 6vmin, 3.8rem);
+  margin-bottom: clamp(8px, 1.5vmin, 14px);
+}
+
 .weather-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(clamp(116px, 19vw, 180px), 1fr));
-  gap: clamp(8px, 1.6vmin, 14px);
+  gap: clamp(8px, 1.4vmin, 12px);
 }
 
 .weather-card {
   min-width: 0;
-  padding: clamp(10px, 2vmin, 16px);
+  padding: clamp(9px, 1.7vmin, 14px);
   border-radius: clamp(14px, 2.4vmin, 18px);
   background: rgba(255, 255, 255, 0.08);
 }
@@ -131,7 +137,7 @@ p {
 
 .weather-value {
   display: block;
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: clamp(1.25rem, 4.2vmin, 2rem);
   line-height: 1;
   font-weight: 700;
@@ -184,47 +190,52 @@ code {
 
 @media (max-height: 520px), (max-width: 860px) {
   .screen {
-    padding: 10px 14px;
-    gap: 8px;
+    padding: 8px 12px;
+    gap: 7px;
   }
 
   .time {
-    font-size: clamp(4rem, 24vw, 6.8rem);
+    font-size: clamp(4.8rem, 25vw, 7.4rem);
   }
 
   .date {
-    font-size: clamp(1.1rem, 5vw, 1.55rem);
+    font-size: clamp(1.08rem, 4.6vw, 1.45rem);
   }
 
   h1 {
     font-size: clamp(1.8rem, 8vw, 3.1rem);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .panel {
-    padding: 14px;
+    padding: 10px 12px;
+  }
+
+  .weather-panel h1 {
+    font-size: clamp(1.75rem, 6.8vw, 2.75rem);
+    margin-bottom: 8px;
   }
 
   .weather-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 7px;
   }
 
   .weather-card {
-    padding: 10px;
+    padding: 8px 9px;
   }
 
   .weather-label {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
   }
 
   .weather-value {
-    font-size: 1.25rem;
+    font-size: 1.22rem;
   }
 
   .button {
-    padding: 8px 15px;
-    font-size: 0.88rem;
+    padding: 7px 14px;
+    font-size: 0.86rem;
   }
 }
 
