@@ -8,6 +8,8 @@
   --accent-strong: #ffffff;
   --safe-gap: clamp(6px, 1.2vmin, 12px);
   --safe-pad: clamp(7px, 1.4vmin, 16px);
+  --app-font: "DejaVu Sans", "Arial", "Liberation Sans", sans-serif;
+  --clock-font: "Arial Black", "Arial", "DejaVu Sans", "Liberation Sans", sans-serif;
 }
 
 * {
@@ -20,7 +22,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--app-font);
   background: radial-gradient(circle at top left, #243b61 0, #070b14 45%, #02040a 100%);
   color: var(--text);
 }
@@ -54,10 +56,42 @@ body.mode-airplay {
 }
 
 .time {
-  font-size: clamp(6.6rem, 28vmin, 13.4rem);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0;
+  font-family: var(--clock-font);
+  font-size: clamp(6rem, 26vmin, 12.8rem);
   line-height: 0.80;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.075em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "kern" 1;
+}
+
+.clock-colon {
+  display: inline-block;
+  width: 0.35em;
+  margin-inline: -0.03em 0.01em;
+  text-align: center;
+  animation: clock-colon-blink 1s steps(1, end) infinite;
+}
+
+.clock-seconds {
+  margin-left: 0.14em;
+  font-size: 0.46em;
+  letter-spacing: -0.04em;
+  opacity: 0.92;
+}
+
+@keyframes clock-colon-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+
+  50%, 100% {
+    opacity: 0.12;
+  }
 }
 
 .date {
@@ -200,7 +234,7 @@ code {
   }
 
   .time {
-    font-size: clamp(6.1rem, 31vw, 9.8rem);
+    font-size: clamp(5.6rem, 29vw, 9.2rem);
   }
 
   .date {
