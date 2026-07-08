@@ -11,6 +11,9 @@ case "$MODE" in
   clock)
     URL="$DASHBOARD_BASE/clock"
     ;;
+  weather)
+    URL="$DASHBOARD_BASE/weather"
+    ;;
   airplay)
     URL="$DASHBOARD_BASE/airplay"
     ;;
