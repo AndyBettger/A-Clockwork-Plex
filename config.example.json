@@ -1,0 +1,34 @@
+{
+  "dashboard": {
+    "host": "0.0.0.0",
+    "port": 8088,
+    "default_mode": "clock",
+    "idle_timeout_seconds": 180,
+    "night_dim_start": "02:00",
+    "night_dim_end": "11:00"
+  },
+  "plexamp": {
+    "url": "http://localhost:32500",
+    "pause_url": "http://localhost:32500/player/playback/pause",
+    "service_name": "plexamp.service"
+  },
+  "display": {
+    "x_display": ":0",
+    "xauthority": "/home/andy/.Xauthority",
+    "browser_command": "chromium-browser",
+    "dashboard_url": "http://localhost:8088",
+    "airplay_url": "http://localhost:8088/airplay",
+    "clock_url": "http://localhost:8088/clock",
+    "plexamp_url": "http://localhost:32500"
+  },
+  "weather": {
+    "provider": "ecowitt_push",
+    "display_units": "metric",
+    "station_name": "Weather Station"
+  },
+  "alarm": {
+    "enabled": false,
+    "default_time": "11:00",
+    "snooze_minutes": 10
+  }
+}
