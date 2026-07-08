@@ -1,0 +1,16 @@
+[Unit]
+Description=A Clockwork Plex dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=andy
+Group=andy
+WorkingDirectory=/home/andy/A-Clockwork-Plex
+ExecStart=/home/andy/A-Clockwork-Plex/venv/bin/python /home/andy/A-Clockwork-Plex/app/main.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
