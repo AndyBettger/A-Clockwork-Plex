@@ -3,7 +3,11 @@
 {% block content %}
 <section class="hero clock-hero">
   <div class="time" id="clock-time" aria-label="Current time">
-    <span id="clock-hours">{{ now.strftime('%H') }}</span><span class="clock-colon" id="clock-colon">:</span><span id="clock-minutes">{{ now.strftime('%M') }}</span><span class="clock-seconds" id="clock-seconds">{{ now.strftime('%S') }}</span>
+    <span class="digital-group" id="clock-hours"></span>
+    <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
+    <span class="digital-group" id="clock-minutes"></span>
+    <span class="digital-colon digital-colon-small" aria-hidden="true"><span></span><span></span></span>
+    <span class="digital-group clock-seconds" id="clock-seconds"></span>
   </div>
   <div class="date" id="clock-date">{{ now.strftime('%A %-d %B %Y') }}</div>
 </section>
@@ -33,11 +37,46 @@
 {% endblock %}
 {% block scripts %}
 <script>
+const SEGMENTS = {
+  '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+  '1': ['b', 'c'],
+  '2': ['a', 'b', 'g', 'e', 'd'],
+  '3': ['a', 'b', 'g', 'c', 'd'],
+  '4': ['f', 'g', 'b', 'c'],
+  '5': ['a', 'f', 'g', 'c', 'd'],
+  '6': ['a', 'f', 'g', 'e', 'c', 'd'],
+  '7': ['a', 'b', 'c'],
+  '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+  '9': ['a', 'b', 'c', 'd', 'f', 'g']
+};
+
+function makeDigit(value) {
+  const digit = document.createElement('span');
+  digit.className = 'digital-digit';
+  digit.setAttribute('aria-hidden', 'true');
+
+  for (const segment of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+    const element = document.createElement('span');
+    element.className = `segment segment-${segment}`;
+    if (SEGMENTS[value].includes(segment)) {
+      element.classList.add('is-on');
+    }
+    digit.appendChild(element);
+  }
+
+  return digit;
+}
+
+function setDigits(elementId, value) {
+  const element = document.getElementById(elementId);
+  element.replaceChildren(...value.split('').map(makeDigit));
+}
+
 function updateClock() {
   const now = new Date();
-  const hours = now.toLocaleTimeString('en-GB', { hour: '2-digit', hour12: false });
-  const minutes = now.toLocaleTimeString('en-GB', { minute: '2-digit' });
-  const seconds = now.toLocaleTimeString('en-GB', { second: '2-digit' });
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
   const date = now.toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -45,9 +84,9 @@ function updateClock() {
     year: 'numeric'
   });
 
-  document.getElementById('clock-hours').textContent = hours;
-  document.getElementById('clock-minutes').textContent = minutes;
-  document.getElementById('clock-seconds').textContent = seconds;
+  setDigits('clock-hours', hours);
+  setDigits('clock-minutes', minutes);
+  setDigits('clock-seconds', seconds);
   document.getElementById('clock-date').textContent = date;
   document.getElementById('clock-time').setAttribute('aria-label', `${hours}:${minutes}:${seconds}`);
 }
