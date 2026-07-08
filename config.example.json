@@ -24,7 +24,7 @@
   "weather": {
     "provider": "ecowitt_push",
     "display_units": "metric",
-    "station_name": "Weather Station"
+    "station_name": "Weather or Not"
   },
   "alarm": {
     "enabled": false,
