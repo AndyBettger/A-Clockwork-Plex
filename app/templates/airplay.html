@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set active_page = 'airplay' %}
 {% block title %}AirPlay - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css') }}">
@@ -20,9 +21,5 @@
   <p class="muted small">Stop AirPlay to return to the clock/Plexamp appliance mode.</p>
 </section>
 
-<section class="button-row">
-  <a class="button" href="/clock">Clock</a>
-  <a class="button" href="/plexamp">Plexamp</a>
-  <a class="button" href="/settings">Settings</a>
-</section>
+{% include "_nav.html" %}
 {% endblock %}
