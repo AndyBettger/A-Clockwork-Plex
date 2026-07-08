@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Settings - A Clockwork Plex{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="icon">⚙️</div>
+  <h1>Settings</h1>
+  <p class="muted">Placeholder for the future touchscreen settings screen.</p>
+</section>
+
+<section class="panel settings-list">
+  <h2>Planned settings</h2>
+  <ul>
+    <li>Idle timeout</li>
+    <li>Day/night dimming times</li>
+    <li>Default return screen after AirPlay</li>
+    <li>Weather station source</li>
+    <li>Alarm time, snooze and source</li>
+  </ul>
+</section>
+
+<section class="button-row">
+  <a class="button" href="/clock">Back to clock</a>
+  <a class="button" href="/plexamp">Plexamp</a>
+</section>
+{% endblock %}
