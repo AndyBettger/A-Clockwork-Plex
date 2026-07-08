@@ -8,16 +8,18 @@ This project is intended as the next step beyond [`Plexamp-NFC-Listener`](https:
 
 | Mode | Purpose |
 |---|---|
-| **Clock** | Default idle screen with time, date and weather station data. |
+| **Clock** | Default idle screen with time, date and compact weather station data. |
+| **Weather** | Detailed weather station page with conditions, wind, rain, pressure and station status. |
 | **Plexamp** | Normal Plexamp Headless UI for albums, NFC playback and touchscreen control. |
 | **AirPlay** | Simple AirPlay active screen for podcast playback from an iPhone. |
-| **Settings** | Future touchscreen settings for idle timeout, day/night times and alarms. |
+| **Settings** | Future touchscreen settings for units, visible weather cards, idle timeout, day/night times and alarms. |
 
 ## Current first version
 
 This first version provides a small local Flask dashboard with:
 
 - a clock/weather idle page
+- a detailed weather station page
 - an AirPlay active page
 - a settings placeholder
 - simple mode/state API endpoints
@@ -92,10 +94,12 @@ http://localhost:8088
 |---|---|
 | `/` | Main dashboard, defaults to clock mode. |
 | `/clock` | Clock/weather screen. |
+| `/weather` | Detailed weather station screen. |
 | `/airplay` | AirPlay active screen. |
 | `/settings` | Settings placeholder. |
-| `/api/status` | Current mode and latest weather data. |
+| `/api/status` | Current mode, config diagnostics and redacted/latest weather data. |
 | `/api/mode/clock` | Set mode to clock. |
+| `/api/mode/weather` | Set mode to detailed weather. |
 | `/api/mode/airplay` | Set mode to AirPlay. |
 | `/api/mode/plexamp` | Set mode to Plexamp. |
 | `/api/weather/ecowitt` | Receiver endpoint for Ecowitt/custom weather uploads. |
@@ -117,41 +121,3 @@ sessioncontrol =
 ```
 
 The start script switches the dashboard to AirPlay mode, pauses Plexamp, then stops `plexamp.service` so Shairport can use the DAC. The end script restarts Plexamp and returns the display to clock mode.
-
-## NFC integration
-
-NFC tags should always return the screen to Plexamp mode because the tags are Plexamp album tags.
-
-The existing NFC listener can call this before triggering playback:
-
-```bash
-/home/andy/A-Clockwork-Plex/scripts/nfc-plexamp-mode.sh
-```
-
-In the first version, this simply switches the display to the Plexamp URL.
-
-## Weather station notes
-
-The first version includes a generic Ecowitt/custom upload receiver at:
-
-```text
-http://<pi-ip>:8088/api/weather/ecowitt
-```
-
-If your Ecowitt device can send a custom upload to a local server, point it at the Pi using that path. The dashboard stores the most recent received values and shows a few common fields on the clock page.
-
-If the station only supports cloud uploads, weather support can later be added via Weather Underground, Met Office WOW, Ecowitt cloud, Home Assistant, MQTT or another bridge.
-
-## Future ideas
-
-- richer Ecowitt/weather display
-- day/night brightness profiles
-- idle timeout rules
-- touchscreen settings page
-- AirPlay metadata/podcast details
-- alarm mode with snooze/stop buttons
-- optional Plexamp wake-up source
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
