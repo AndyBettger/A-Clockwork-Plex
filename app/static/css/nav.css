@@ -1,10 +1,10 @@
 .main-nav {
-  width: min(100%, 760px);
+  width: min(100%, 820px);
   margin-inline: auto;
 }
 
 .nav-button {
-  min-width: clamp(82px, 12vmin, 120px);
+  min-width: clamp(76px, 11vmin, 116px);
   text-align: center;
 }
 
@@ -26,7 +26,7 @@
   }
 
   .nav-button {
-    min-width: 74px;
-    padding-inline: 10px;
+    min-width: 68px;
+    padding-inline: 8px;
   }
 }
