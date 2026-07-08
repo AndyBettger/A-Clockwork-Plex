@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Clock - A Clockwork Plex{% endblock %}
-{% block head %}
-<meta http-equiv="refresh" content="60">
-{% endblock %}
 {% block content %}
 <section class="hero clock-hero">
-  <div class="time" id="clock-time">{{ now.strftime('%H:%M') }}</div>
-  <div class="date">{{ now.strftime('%A %-d %B %Y') }}</div>
+  <div class="time" id="clock-time" aria-label="Current time">
+    <span id="clock-hours">{{ now.strftime('%H') }}</span><span class="clock-colon" id="clock-colon">:</span><span id="clock-minutes">{{ now.strftime('%M') }}</span><span class="clock-seconds" id="clock-seconds">{{ now.strftime('%S') }}</span>
+  </div>
+  <div class="date" id="clock-date">{{ now.strftime('%A %-d %B %Y') }}</div>
 </section>
 
 <section class="panel weather-panel">
@@ -36,9 +35,23 @@
 <script>
 function updateClock() {
   const now = new Date();
-  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('clock-time').textContent = time;
+  const hours = now.toLocaleTimeString('en-GB', { hour: '2-digit', hour12: false });
+  const minutes = now.toLocaleTimeString('en-GB', { minute: '2-digit' });
+  const seconds = now.toLocaleTimeString('en-GB', { second: '2-digit' });
+  const date = now.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  document.getElementById('clock-hours').textContent = hours;
+  document.getElementById('clock-minutes').textContent = minutes;
+  document.getElementById('clock-seconds').textContent = seconds;
+  document.getElementById('clock-date').textContent = date;
+  document.getElementById('clock-time').setAttribute('aria-label', `${hours}:${minutes}:${seconds}`);
 }
+
 setInterval(updateClock, 1000);
 updateClock();
 </script>
