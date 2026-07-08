@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Clock - A Clockwork Plex{% endblock %}
+{% block head %}
+<meta http-equiv="refresh" content="60">
+{% endblock %}
+{% block content %}
+<section class="hero clock-hero">
+  <div class="time" id="clock-time">{{ now.strftime('%H:%M') }}</div>
+  <div class="date">{{ now.strftime('%A %-d %B %Y') }}</div>
+</section>
+
+<section class="panel weather-panel">
+  <h1>{{ config.weather.station_name }}</h1>
+  {% if picked_weather %}
+    <div class="weather-grid">
+      {% for label, value in picked_weather.items() %}
+        <div class="weather-card">
+          <span class="weather-label">{{ label }}</span>
+          <span class="weather-value">{{ value }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">Waiting for weather station data.</p>
+    <p class="muted small">Point Ecowitt/custom uploads at <code>/api/weather/ecowitt</code>.</p>
+  {% endif %}
+</section>
+
+<section class="button-row">
+  <a class="button" href="/plexamp">Plexamp</a>
+  <a class="button" href="/airplay">AirPlay</a>
+  <a class="button" href="/settings">Settings</a>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+function updateClock() {
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('clock-time').textContent = time;
+}
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+{% endblock %}
