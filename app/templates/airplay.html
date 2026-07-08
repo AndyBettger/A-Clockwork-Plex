@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% block title %}AirPlay - A Clockwork Plex{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css') }}">
+{% endblock %}
 {% block content %}
 <section class="hero airplay-hero">
   <div class="airplay-glyph" aria-hidden="true">
-    <span class="airplay-ring ring-one"></span>
-    <span class="airplay-ring ring-two"></span>
+    <span class="airplay-screen"></span>
     <span class="airplay-triangle"></span>
   </div>
   <h1>AirPlay Active</h1>
