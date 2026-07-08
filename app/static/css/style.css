@@ -49,19 +49,19 @@ body.mode-airplay {
   align-self: stretch;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
   padding-top: 0;
 }
 
 .time {
-  font-size: clamp(7.2rem, 31vmin, 15rem);
-  line-height: 0.74;
+  font-size: clamp(6.6rem, 28vmin, 13.4rem);
+  line-height: 0.80;
   font-weight: 800;
   letter-spacing: -0.075em;
 }
 
 .date {
-  margin-top: clamp(0px, 0.25vmin, 4px);
+  margin-top: clamp(0px, 0.35vmin, 5px);
   font-size: clamp(1.22rem, 3.7vmin, 1.9rem);
   line-height: 1.02;
   color: var(--muted);
@@ -200,7 +200,7 @@ code {
   }
 
   .time {
-    font-size: clamp(6.4rem, 35vw, 10.8rem);
+    font-size: clamp(6.1rem, 31vw, 9.8rem);
   }
 
   .date {
