@@ -1,0 +1,164 @@
+:root {
+  --bg: #070b14;
+  --panel: rgba(255, 255, 255, 0.08);
+  --panel-border: rgba(255, 255, 255, 0.16);
+  --text: #f7f9ff;
+  --muted: #aab4c4;
+  --accent: #8fd3ff;
+  --accent-strong: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, #243b61 0, #070b14 45%, #02040a 100%);
+  color: var(--text);
+}
+
+body.mode-airplay {
+  background: radial-gradient(circle at top, #234569 0, #09192c 50%, #02040a 100%);
+}
+
+.screen {
+  width: 100vw;
+  min-height: calc(100vh - 42px);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  justify-content: center;
+}
+
+.hero {
+  text-align: center;
+}
+
+.time {
+  font-size: clamp(5rem, 22vw, 10rem);
+  line-height: 0.9;
+  font-weight: 800;
+  letter-spacing: -0.07em;
+}
+
+.date {
+  margin-top: 12px;
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+  color: var(--muted);
+}
+
+.icon {
+  font-size: clamp(4rem, 12vw, 7rem);
+  margin-bottom: 12px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  margin-bottom: 0.2em;
+}
+
+h2 {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+}
+
+p {
+  font-size: clamp(1.1rem, 3vw, 1.8rem);
+}
+
+.panel {
+  width: min(100%, 960px);
+  margin: 0 auto;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+}
+
+.weather-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.weather-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.weather-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.weather-value {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 1rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button {
+  display: inline-block;
+  padding: 14px 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.button:active,
+.button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.status-bar {
+  height: 42px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.settings-list li {
+  font-size: 1.3rem;
+  margin: 0.45em 0;
+}
+
+code {
+  color: var(--accent);
+}
