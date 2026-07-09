@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="mode-{{ state.mode }}">
+<body class="mode-{{ state.mode }}" data-active-page="{{ active_page | default(state.mode) }}">
   <main class="screen">
     {% block content %}{% endblock %}
   </main>
@@ -18,6 +18,7 @@
     <span>{% if state.last_weather_update %}Weather: {{ state.last_weather_update }}{% else %}Weather: waiting{% endif %}</span>
   </footer>
   <script src="{{ url_for('static', filename='js/nav-drawer.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/mode-watch.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
