@@ -11,18 +11,48 @@
 </section>
 
 <section class="weather-detail-page" aria-label="Detailed weather station readings">
-  {% if weather_detail.main_conditions or weather_detail.rain_totals or weather_detail.station_status %}
+  {% if weather_detail.condition_rows or weather_detail.station_status %}
     <div class="weather-detail-grid">
       <article class="detail-panel main-conditions-panel">
         <h2>Main conditions</h2>
-        <div class="detail-card-grid">
-          {% for item in weather_detail.main_conditions %}
-            <div class="detail-card">
-              <span class="detail-label">{{ item.label }}</span>
-              <span class="detail-value">{{ item.value }}</span>
-            </div>
-          {% endfor %}
+        <div class="conditions-table-wrap">
+          <table class="conditions-table">
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Temp</th>
+                <th>Low</th>
+                <th>High</th>
+                <th>Humidity</th>
+                <th>Low</th>
+                <th>High</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in weather_detail.condition_rows %}
+                <tr>
+                  <th scope="row">{{ row.location }}</th>
+                  <td>{{ row.temperature.current }}</td>
+                  <td>{{ row.temperature.min }}</td>
+                  <td>{{ row.temperature.max }}</td>
+                  <td>{{ row.humidity.current }}</td>
+                  <td>{{ row.humidity.min }}</td>
+                  <td>{{ row.humidity.max }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+        {% if weather_detail.atmosphere %}
+          <div class="atmosphere-strip">
+            {% for item in weather_detail.atmosphere %}
+              <div class="mini-reading">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
       </article>
 
       <article class="detail-panel wind-panel">
@@ -51,34 +81,6 @@
         </div>
       </article>
 
-      <article class="detail-panel rain-panel">
-        <h2>Rain</h2>
-        {% if weather_detail.rain_gauges %}
-          <div class="rain-gauge-row">
-            {% for gauge in weather_detail.rain_gauges %}
-              <div class="rain-gauge-card">
-                <div class="rain-gauge" aria-hidden="true">
-                  <span style="height: {{ gauge.percent }}%;"></span>
-                </div>
-                <div class="rain-gauge-text">
-                  <span>{{ gauge.label }}</span>
-                  <strong>{{ gauge.value }}</strong>
-                  <small>Scale {{ gauge.max_label }}</small>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-        <div class="detail-card-grid rain-total-grid">
-          {% for item in weather_detail.rain_totals %}
-            <div class="detail-card">
-              <span class="detail-label">{{ item.label }}</span>
-              <span class="detail-value">{{ item.value }}</span>
-            </div>
-          {% endfor %}
-        </div>
-      </article>
-
       <article class="detail-panel barometer-panel">
         <h2>Pressure / Barometer</h2>
         {% if weather_detail.barometer.pressure %}
@@ -96,15 +98,64 @@
         </div>
       </article>
 
+      <article class="detail-panel rain-panel">
+        <h2>Rain</h2>
+        <div class="rain-sections">
+          <section class="rain-subpanel">
+            <h3>Mostly Moist Today</h3>
+            {% if weather_detail.rain_today_gauges %}
+              <div class="rain-gauge-row compact-gauges">
+                {% for gauge in weather_detail.rain_today_gauges %}
+                  <div class="rain-gauge-card">
+                    <div class="rain-gauge" aria-hidden="true">
+                      <span style="height: {{ gauge.percent }}%;"></span>
+                    </div>
+                    <div class="rain-gauge-text">
+                      <span>{{ gauge.label }}</span>
+                      <strong>{{ gauge.value }}</strong>
+                      <small>Scale {{ gauge.max_label }}</small>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </section>
+
+          <section class="rain-subpanel">
+            <h3>Rainy Day Fund</h3>
+            {% if weather_detail.rain_longer_gauges %}
+              <div class="rain-gauge-row">
+                {% for gauge in weather_detail.rain_longer_gauges %}
+                  <div class="rain-gauge-card">
+                    <div class="rain-gauge" aria-hidden="true">
+                      <span style="height: {{ gauge.percent }}%;"></span>
+                    </div>
+                    <div class="rain-gauge-text">
+                      <span>{{ gauge.label }}</span>
+                      <strong>{{ gauge.value }}</strong>
+                      <small>Scale {{ gauge.max_label }}</small>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </section>
+        </div>
+      </article>
+
       <article class="detail-panel station-panel">
         <h2>Station status</h2>
-        <div class="detail-card-grid station-grid">
-          {% for item in weather_detail.station_status %}
-            <div class="detail-card">
-              <span class="detail-label">{{ item.label }}</span>
-              <span class="detail-value">{{ item.value }}</span>
-            </div>
-          {% endfor %}
+        <div class="station-table-wrap">
+          <table class="station-table">
+            <tbody>
+              {% for item in weather_detail.station_status %}
+                <tr>
+                  <th scope="row">{{ item.label }}</th>
+                  <td title="{{ item.value }}">{{ item.value }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </article>
     </div>
