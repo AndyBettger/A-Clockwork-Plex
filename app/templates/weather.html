@@ -87,18 +87,30 @@
 
       <article class="detail-panel barometer-panel">
         <h2>Pressure / Barometer</h2>
-        {% if weather_detail.barometer.pressure %}
-          <div class="barometer-readout">
-            <span>Relative pressure</span>
-            <strong>{{ weather_detail.barometer.pressure.value }}</strong>
+        <div class="barometer-pressure-grid">
+          {% if weather_detail.barometer.pressure %}
+            <div class="barometer-reading-card is-relative">
+              <span>Relative pressure</span>
+              <strong>{{ weather_detail.barometer.pressure.value }}</strong>
+            </div>
+          {% endif %}
+          {% if weather_detail.barometer.absolute_pressure %}
+            <div class="barometer-reading-card">
+              <span>Absolute pressure</span>
+              <strong>{{ weather_detail.barometer.absolute_pressure.value }}</strong>
+            </div>
+          {% endif %}
+        </div>
+        <div class="barometer-forecast-card tone-{{ weather_detail.barometer.tone | default('steady') }}">
+          <div class="barometer-forecast-graphic" aria-hidden="true">
+            <span>{{ weather_detail.barometer.icon | default('⛅') }}</span>
           </div>
-        {% endif %}
-        {% if weather_detail.barometer.absolute_pressure %}
-          <p class="muted small">Absolute pressure: {{ weather_detail.barometer.absolute_pressure.value }}</p>
-        {% endif %}
-        <div class="barometer-note">
-          <span class="trend-pill">{{ weather_detail.barometer.trend }}</span>
-          <p>{{ weather_detail.barometer.prediction }}</p>
+          <div class="barometer-forecast-copy">
+            <span class="forecast-kicker">Barometer forecast</span>
+            <strong>{{ weather_detail.barometer.forecast_title | default('Steady') }}</strong>
+            <span class="trend-pill">{{ weather_detail.barometer.trend }}</span>
+            <p>{{ weather_detail.barometer.prediction }}</p>
+          </div>
         </div>
       </article>
 
