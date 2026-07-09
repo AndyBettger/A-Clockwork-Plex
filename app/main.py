@@ -805,7 +805,7 @@ def settings():
 def plexamp():
     set_mode("plexamp")
     plexamp_url = load_config().get("plexamp", {}).get("url", "http://localhost:32500")
-    return redirect(plexamp_url)
+    return render_template("plexamp.html", plexamp_url=plexamp_url)
 
 
 @app.route("/api/status")
