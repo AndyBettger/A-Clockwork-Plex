@@ -15,11 +15,6 @@ body.mode-weather .screen {
   margin-bottom: 4px;
 }
 
-.weather-detail-hero p {
-  margin-bottom: 0;
-  font-size: clamp(0.84rem, 2.1vmin, 1.05rem);
-}
-
 .weather-detail-page {
   min-height: 0;
   overflow-y: auto;
@@ -52,6 +47,21 @@ body.mode-weather .screen {
 
 .detail-panel h2 {
   margin-bottom: clamp(8px, 1.3vmin, 12px);
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: clamp(10px, 1.7vmin, 18px);
+}
+
+.section-heading small {
+  color: var(--muted);
+  font-size: clamp(0.62rem, 1.7vmin, 0.86rem);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: right;
 }
 
 .main-conditions-panel,
@@ -372,6 +382,14 @@ body.mode-weather .screen {
     border-radius: 16px;
   }
 
+  .section-heading {
+    align-items: flex-start;
+  }
+
+  .section-heading small {
+    font-size: 0.62rem;
+  }
+
   .conditions-table th,
   .conditions-table td,
   .station-table th,
@@ -408,6 +426,16 @@ body.mode-weather .screen {
   .station-panel {
     grid-template-columns: 1fr;
     grid-column: auto;
+  }
+
+  .section-heading {
+    display: block;
+  }
+
+  .section-heading small {
+    display: block;
+    margin-top: 4px;
+    text-align: left;
   }
 
   .rain-sections {
