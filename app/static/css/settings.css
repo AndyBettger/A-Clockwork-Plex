@@ -16,6 +16,10 @@ body.mode-settings .screen {
   scrollbar-width: none;
 }
 
+body.keyboard-open .settings-page {
+  padding-bottom: clamp(245px, 44vh, 330px);
+}
+
 .settings-page::-webkit-scrollbar {
   display: none;
 }
@@ -56,6 +60,14 @@ body.mode-settings .screen {
 
 .settings-card h2 {
   margin-bottom: clamp(8px, 1.4vmin, 12px);
+}
+
+.settings-subheading {
+  margin: clamp(8px, 1.45vmin, 12px) 0 7px;
+  color: var(--muted);
+  font-size: clamp(0.82rem, 2vmin, 1rem);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .settings-banner {
@@ -130,6 +142,12 @@ body.mode-settings .screen {
   font-size: clamp(0.92rem, 2.5vmin, 1.12rem);
 }
 
+.setting-field input:focus,
+.setting-field select:focus {
+  outline: 2px solid rgba(143, 211, 255, 0.65);
+  outline-offset: 2px;
+}
+
 .setting-field select option {
   color: #07101d;
 }
@@ -140,8 +158,7 @@ body.mode-settings .screen {
   align-items: center;
 }
 
-.setting-toggle input,
-.settings-pill input {
+.setting-toggle input {
   width: 24px;
   height: 24px;
   accent-color: var(--accent);
@@ -155,14 +172,24 @@ body.mode-settings .screen {
 
 .settings-pill {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   min-width: 0;
+  min-height: 42px;
   padding: clamp(8px, 1.35vmin, 12px);
   border-radius: 999px;
   background: rgba(143, 211, 255, 0.08);
   border: 1px solid rgba(143, 211, 255, 0.12);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
+
+.settings-pill.is-selected {
+  background: rgba(247, 249, 255, 0.92);
+  border-color: rgba(247, 249, 255, 0.95);
+  color: #07101d;
 }
 
 .settings-pill span {
@@ -171,6 +198,66 @@ body.mode-settings .screen {
   white-space: nowrap;
   font-size: clamp(0.78rem, 2vmin, 0.96rem);
   font-weight: 800;
+}
+
+.clock-card-order {
+  display: grid;
+  gap: 7px;
+}
+
+.clock-card-empty {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.clock-card-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto auto auto;
+  gap: 7px;
+  align-items: center;
+  padding: 7px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.clock-card-position {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(247, 249, 255, 0.15);
+  font-weight: 900;
+}
+
+.clock-card-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 850;
+}
+
+.clock-card-order-button,
+.clock-card-remove-button {
+  min-width: 38px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.11);
+  color: var(--text);
+  font: inherit;
+  font-weight: 900;
+}
+
+.clock-card-order-button:disabled {
+  opacity: 0.32;
+}
+
+.clock-card-remove-button {
+  color: #ffd8d8;
 }
 
 .settings-actions {
@@ -182,6 +269,10 @@ body.mode-settings .screen {
   gap: 10px;
   padding: 8px 0 4px;
   pointer-events: none;
+}
+
+body.keyboard-open .settings-actions {
+  bottom: clamp(245px, 44vh, 330px);
 }
 
 .settings-actions .button {
@@ -197,9 +288,108 @@ body.mode-settings .screen {
   background: rgba(255, 255, 255, 0.12);
 }
 
+.touch-keyboard {
+  position: fixed;
+  z-index: 150;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(44vh, 330px);
+  padding: 8px clamp(8px, 1.5vw, 18px) max(8px, env(safe-area-inset-bottom));
+  background: rgba(3, 7, 13, 0.96);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.42);
+  transform: translateY(105%);
+  transition: transform 170ms ease;
+  backdrop-filter: blur(16px);
+}
+
+body.keyboard-open .touch-keyboard {
+  transform: translateY(0);
+}
+
+.touch-keyboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.touch-keyboard-header span {
+  color: var(--muted);
+  font-size: clamp(0.76rem, 1.8vmin, 0.95rem);
+  font-weight: 850;
+}
+
+.touch-keyboard-command,
+.touch-key {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.11);
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(0.84rem, 2.1vmin, 1.06rem);
+  font-weight: 850;
+}
+
+.touch-keyboard-command {
+  padding: 7px 16px;
+  background: var(--text);
+  color: #07101d;
+}
+
+.touch-keyboard-quick {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.touch-quick-key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.touch-keyboard-keys {
+  display: grid;
+  gap: 6px;
+}
+
+.touch-key-row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.touch-key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 7px;
+}
+
+.touch-key.is-command,
+.touch-key[data-key="space"] {
+  flex-grow: 1.6;
+}
+
+.touch-key:active,
+.clock-card-order-button:active,
+.clock-card-remove-button:active,
+.settings-pill:active {
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.2);
+}
+
 @media (max-height: 520px), (max-width: 860px) {
   .settings-page {
     padding-bottom: 34px;
+  }
+
+  body.keyboard-open .settings-page {
+    padding-bottom: 238px;
   }
 
   .settings-hero {
@@ -235,6 +425,48 @@ body.mode-settings .screen {
   .setting-field input,
   .setting-field select {
     padding: 7px 8px;
+  }
+
+  .clock-card-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+    gap: 5px;
+  }
+
+  .clock-card-order-button,
+  .clock-card-remove-button {
+    min-width: 34px;
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 0.78rem;
+  }
+
+  .touch-keyboard {
+    max-height: 235px;
+    padding: 6px 8px 6px;
+  }
+
+  .touch-keyboard-header {
+    margin-bottom: 4px;
+  }
+
+  .touch-keyboard-quick,
+  .touch-keyboard-keys {
+    gap: 4px;
+  }
+
+  .touch-key-row {
+    gap: 4px;
+  }
+
+  .touch-keyboard-command,
+  .touch-key {
+    min-height: 28px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+  }
+
+  body.keyboard-open .settings-actions {
+    bottom: 232px;
   }
 }
 
