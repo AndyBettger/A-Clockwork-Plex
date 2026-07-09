@@ -49,19 +49,24 @@ body.mode-weather .screen {
   margin-bottom: clamp(8px, 1.3vmin, 12px);
 }
 
-.section-heading {
-  display: flex;
+.conditions-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(12px, 2vmin, 22px);
   align-items: baseline;
-  justify-content: space-between;
-  gap: clamp(10px, 1.7vmin, 18px);
+  margin-bottom: clamp(8px, 1.3vmin, 12px);
 }
 
-.section-heading small {
+.conditions-heading h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.conditions-heading p {
+  margin: 0;
   color: var(--muted);
-  font-size: clamp(0.62rem, 1.7vmin, 0.86rem);
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: right;
+  font-size: clamp(0.86rem, 2.15vmin, 1.08rem);
+  line-height: 1.25;
 }
 
 .main-conditions-panel,
@@ -382,12 +387,13 @@ body.mode-weather .screen {
     border-radius: 16px;
   }
 
-  .section-heading {
-    align-items: flex-start;
+  .conditions-heading {
+    display: block;
   }
 
-  .section-heading small {
-    font-size: 0.62rem;
+  .conditions-heading p {
+    margin-top: 4px;
+    font-size: clamp(0.78rem, 2.45vw, 0.95rem);
   }
 
   .conditions-table th,
@@ -426,16 +432,6 @@ body.mode-weather .screen {
   .station-panel {
     grid-template-columns: 1fr;
     grid-column: auto;
-  }
-
-  .section-heading {
-    display: block;
-  }
-
-  .section-heading small {
-    display: block;
-    margin-top: 4px;
-    text-align: left;
   }
 
   .rain-sections {
