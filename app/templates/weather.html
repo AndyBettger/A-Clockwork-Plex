@@ -5,16 +5,23 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
 {% endblock %}
 {% block content %}
+{% if state.last_weather_update %}
+  {% set updated_display = state.last_weather_update[8:10] ~ '/' ~ state.last_weather_update[5:7] ~ '/' ~ state.last_weather_update[0:4] ~ ' ' ~ state.last_weather_update[11:19] %}
+{% endif %}
 <section class="hero weather-detail-hero">
-  <h1>{{ config.weather.station_name }}</h1>
-  <p class="muted">Detailed weather station view{% if state.last_weather_update %} · Updated {{ state.last_weather_update }}{% endif %}</p>
+  <h1>{{ config.weather.station_name }} Detailed</h1>
 </section>
 
 <section class="weather-detail-page" aria-label="Detailed weather station readings">
   {% if weather_detail.condition_rows or weather_detail.station_status %}
     <div class="weather-detail-grid">
       <article class="detail-panel main-conditions-panel">
-        <h2>Main conditions</h2>
+        <h2 class="section-heading">
+          <span>Main conditions</span>
+          {% if updated_display %}
+            <small>And now the {{ config.weather.station_name }} report, issued by A Clockwork Plex on behalf of the weather station at {{ updated_display }}.</small>
+          {% endif %}
+        </h2>
         <div class="conditions-table-wrap">
           <table class="conditions-table">
             <thead>
