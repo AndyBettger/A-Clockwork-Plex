@@ -16,7 +16,7 @@
         <div class="conditions-heading">
           <h2>Main conditions</h2>
           {% if weather_detail.issued_at %}
-            <p>And now the {{ config.weather.station_name }} report, issued by A Clockwork Plex on behalf of {{ config.weather.reporting_station_name | default('Pennels Lodge Weather Station') }} at {{ weather_detail.issued_at }}.</p>
+            <p>And now the {{ config.weather.station_name }} report, issued by A Clockwork Plex on behalf of the {{ config.weather.reporting_station_name | default('Pennels Lodge Weather Station') }} at {{ weather_detail.issued_at }}.</p>
           {% endif %}
         </div>
         <div class="conditions-table-wrap">
