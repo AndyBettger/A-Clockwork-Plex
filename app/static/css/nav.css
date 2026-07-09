@@ -1,5 +1,29 @@
+.nav-drawer {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  width: min(calc(100vw - 20px), 840px);
+  padding: 8px;
+  border-radius: 999px;
+  background: rgba(6, 12, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(14px);
+  transform: translate(-50%, calc(100% + 18px));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+body.nav-open .nav-drawer {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .main-nav {
-  width: min(100%, 820px);
+  width: 100%;
   margin-inline: auto;
 }
 
@@ -20,13 +44,77 @@
   background: var(--text);
 }
 
+.nav-handle {
+  position: fixed;
+  z-index: 90;
+  left: 50%;
+  bottom: max(4px, env(safe-area-inset-bottom));
+  width: 116px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(7, 12, 22, 0.26);
+  color: var(--text);
+  transform: translateX(-50%);
+  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+  opacity: 0.72;
+  touch-action: none;
+}
+
+.nav-handle span {
+  display: block;
+  width: 58px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(247, 249, 255, 0.7);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
+}
+
+.nav-handle:active,
+.nav-handle:hover {
+  background: rgba(247, 249, 255, 0.13);
+  opacity: 1;
+}
+
+body.nav-open .nav-handle {
+  transform: translate(-50%, -64px);
+  opacity: 1;
+}
+
+body.nav-open .nav-handle span {
+  background: rgba(247, 249, 255, 0.92);
+}
+
 @media (max-height: 520px), (max-width: 860px) {
+  .nav-drawer {
+    width: min(calc(100vw - 14px), 820px);
+    padding: 6px;
+  }
+
   .main-nav {
     gap: 6px;
+    flex-wrap: nowrap;
   }
 
   .nav-button {
     min-width: 68px;
     padding-inline: 8px;
+  }
+
+  .nav-handle {
+    width: 104px;
+    height: 26px;
+  }
+
+  .nav-handle span {
+    width: 52px;
+    height: 4px;
+  }
+
+  body.nav-open .nav-handle {
+    transform: translate(-50%, -56px);
   }
 }
