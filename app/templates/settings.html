@@ -27,15 +27,15 @@
       <div class="settings-grid two-col">
         <label class="setting-field">
           <span>Weather page title</span>
-          <input name="station_name" value="{{ config.weather.station_name }}" autocomplete="off">
+          <input name="station_name" value="{{ config.weather.station_name }}" autocomplete="off" inputmode="none" data-keyboard="text">
         </label>
         <label class="setting-field">
           <span>Reporting station name</span>
-          <input name="reporting_station_name" value="{{ config.weather.reporting_station_name }}" autocomplete="off">
+          <input name="reporting_station_name" value="{{ config.weather.reporting_station_name }}" autocomplete="off" inputmode="none" data-keyboard="text">
         </label>
         <label class="setting-field">
           <span>Weather page refresh</span>
-          <input name="auto_refresh_seconds" type="number" min="0" max="3600" inputmode="numeric" value="{{ config.weather.auto_refresh_seconds }}">
+          <input name="auto_refresh_seconds" type="text" inputmode="none" value="{{ config.weather.auto_refresh_seconds }}" data-keyboard="number">
           <small>Seconds. Use 0 to disable automatic page refresh.</small>
         </label>
         <label class="setting-field">
@@ -83,17 +83,24 @@
       </div>
     </section>
 
-    <section class="settings-card">
+    <section class="settings-card" data-clock-card-settings>
       <h2>Clock weather cards</h2>
-      <p class="muted small">Choose which weather cards appear on the main clock screen.</p>
-      <div class="settings-pill-grid">
+      <p class="muted small">Choose the cards shown on the clock screen, then use the arrow buttons to set their order.</p>
+
+      <h3 class="settings-subheading">Clock order</h3>
+      <div class="clock-card-order" id="clock-card-order" aria-live="polite"></div>
+      <div id="clock-card-hidden-inputs"></div>
+
+      <h3 class="settings-subheading">Available cards</h3>
+      <div class="settings-pill-grid clock-card-palette">
         {% for card in clock_card_options %}
-          <label class="settings-pill">
-            <input type="checkbox" name="clock_cards" value="{{ card.id }}" {% if card.id in config.weather.clock_cards %}checked{% endif %}>
+          <button class="settings-pill clock-card-toggle" type="button" data-card-id="{{ card.id }}" data-card-label="{{ card.label }}">
             <span>{{ card.label }}</span>
-          </label>
+          </button>
         {% endfor %}
       </div>
+      <script id="clock-card-options-data" type="application/json">{{ clock_card_options | tojson }}</script>
+      <script id="clock-card-selected-data" type="application/json">{{ config.weather.clock_cards | tojson }}</script>
     </section>
 
     <section class="settings-card">
@@ -109,16 +116,16 @@
         </label>
         <label class="setting-field">
           <span>Idle timeout</span>
-          <input name="idle_timeout_seconds" type="number" min="0" max="86400" inputmode="numeric" value="{{ config.dashboard.idle_timeout_seconds }}">
+          <input name="idle_timeout_seconds" type="text" inputmode="none" value="{{ config.dashboard.idle_timeout_seconds }}" data-keyboard="number">
           <small>Reserved for future automatic return-to-clock behaviour.</small>
         </label>
         <label class="setting-field">
           <span>Night dim start</span>
-          <input name="night_dim_start" type="time" value="{{ config.dashboard.night_dim_start }}">
+          <input name="night_dim_start" type="text" inputmode="none" value="{{ config.dashboard.night_dim_start }}" data-keyboard="time" placeholder="HH:MM">
         </label>
         <label class="setting-field">
           <span>Night dim end</span>
-          <input name="night_dim_end" type="time" value="{{ config.dashboard.night_dim_end }}">
+          <input name="night_dim_end" type="text" inputmode="none" value="{{ config.dashboard.night_dim_end }}" data-keyboard="time" placeholder="HH:MM">
         </label>
       </div>
     </section>
@@ -128,19 +135,19 @@
       <div class="settings-grid two-col">
         <label class="setting-field wide">
           <span>Plexamp URL</span>
-          <input name="plexamp_url" value="{{ config.plexamp.url }}" autocomplete="off">
+          <input name="plexamp_url" value="{{ config.plexamp.url }}" autocomplete="off" inputmode="none" data-keyboard="url">
         </label>
         <label class="setting-field wide">
           <span>Plexamp pause URL</span>
-          <input name="plexamp_pause_url" value="{{ config.plexamp.pause_url }}" autocomplete="off">
+          <input name="plexamp_pause_url" value="{{ config.plexamp.pause_url }}" autocomplete="off" inputmode="none" data-keyboard="url">
         </label>
         <label class="setting-field">
           <span>Plexamp service</span>
-          <input name="plexamp_service_name" value="{{ config.plexamp.service_name }}" autocomplete="off">
+          <input name="plexamp_service_name" value="{{ config.plexamp.service_name }}" autocomplete="off" inputmode="none" data-keyboard="url">
         </label>
         <label class="setting-field">
           <span>AirPlay display name</span>
-          <input name="airplay_display_name" value="{{ config.airplay.display_name }}" autocomplete="off">
+          <input name="airplay_display_name" value="{{ config.airplay.display_name }}" autocomplete="off" inputmode="none" data-keyboard="text">
         </label>
       </div>
     </section>
@@ -154,11 +161,11 @@
         </label>
         <label class="setting-field">
           <span>Default alarm time</span>
-          <input name="alarm_default_time" type="time" value="{{ config.alarm.default_time }}">
+          <input name="alarm_default_time" type="text" inputmode="none" value="{{ config.alarm.default_time }}" data-keyboard="time" placeholder="HH:MM">
         </label>
         <label class="setting-field">
           <span>Snooze minutes</span>
-          <input name="alarm_snooze_minutes" type="number" min="1" max="120" inputmode="numeric" value="{{ config.alarm.snooze_minutes }}">
+          <input name="alarm_snooze_minutes" type="text" inputmode="none" value="{{ config.alarm.snooze_minutes }}" data-keyboard="number">
         </label>
       </div>
       <p class="muted small">The alarm UI is stored now; actual alarm playback logic is still a future chapter.</p>
@@ -171,5 +178,18 @@
   </form>
 </section>
 
+<div class="touch-keyboard" id="touch-keyboard" aria-hidden="true">
+  <div class="touch-keyboard-header">
+    <span id="touch-keyboard-label">Keyboard</span>
+    <button type="button" class="touch-keyboard-command" data-action="done">Done</button>
+  </div>
+  <div class="touch-keyboard-quick" id="touch-keyboard-quick"></div>
+  <div class="touch-keyboard-keys" id="touch-keyboard-keys"></div>
+</div>
+
 {% include "_nav.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings-clock-cards.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-keyboard.js') }}"></script>
 {% endblock %}
