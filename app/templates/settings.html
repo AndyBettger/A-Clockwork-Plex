@@ -1,24 +1,174 @@
 {% extends "base.html" %}
 {% set active_page = 'settings' %}
 {% block title %}Settings - A Clockwork Plex{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
 {% block content %}
-<section class="hero">
-  <div class="icon">⚙️</div>
-  <h1>Settings</h1>
-  <p class="muted">Placeholder for the future touchscreen settings screen.</p>
-</section>
+<section class="settings-page" aria-label="A Clockwork Plex settings">
+  <header class="settings-hero">
+    <div class="icon">⚙️</div>
+    <div>
+      <h1>Settings</h1>
+      <p class="muted">Touchscreen-friendly controls for the bits most likely to change.</p>
+    </div>
+  </header>
 
-<section class="panel settings-list">
-  <h2>Planned settings</h2>
-  <ul>
-    <li>Weather units: temperature, pressure, rain and wind</li>
-    <li>Clock weather cards: select visible cards and display order</li>
-    <li>Weather station source and display name</li>
-    <li>Idle timeout</li>
-    <li>Day/night dimming times</li>
-    <li>Default return screen after AirPlay</li>
-    <li>Alarm time, snooze and source</li>
-  </ul>
+  {% if settings_saved %}
+    <div class="settings-banner success">Settings saved. Some display changes may need a page refresh or service restart.</div>
+  {% endif %}
+  {% if settings_error %}
+    <div class="settings-banner error">{{ settings_error }}</div>
+  {% endif %}
+
+  <form class="settings-form" method="post">
+    <section class="settings-card">
+      <h2>Weather display</h2>
+      <div class="settings-grid two-col">
+        <label class="setting-field">
+          <span>Weather page title</span>
+          <input name="station_name" value="{{ config.weather.station_name }}" autocomplete="off">
+        </label>
+        <label class="setting-field">
+          <span>Reporting station name</span>
+          <input name="reporting_station_name" value="{{ config.weather.reporting_station_name }}" autocomplete="off">
+        </label>
+        <label class="setting-field">
+          <span>Weather page refresh</span>
+          <input name="auto_refresh_seconds" type="number" min="0" max="3600" inputmode="numeric" value="{{ config.weather.auto_refresh_seconds }}">
+          <small>Seconds. Use 0 to disable automatic page refresh.</small>
+        </label>
+        <label class="setting-field">
+          <span>Display unit style</span>
+          <select name="display_units">
+            <option value="metric" {% if config.weather.display_units == 'metric' %}selected{% endif %}>Metric</option>
+            <option value="imperial" {% if config.weather.display_units == 'imperial' %}selected{% endif %}>Imperial</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <h2>Units</h2>
+      <div class="settings-grid four-col">
+        <label class="setting-field">
+          <span>Temperature</span>
+          <select name="unit_temperature">
+            <option value="c" {% if config.weather.units.temperature == 'c' %}selected{% endif %}>°C</option>
+            <option value="f" {% if config.weather.units.temperature == 'f' %}selected{% endif %}>°F</option>
+          </select>
+        </label>
+        <label class="setting-field">
+          <span>Pressure</span>
+          <select name="unit_pressure">
+            <option value="hpa" {% if config.weather.units.pressure == 'hpa' %}selected{% endif %}>hPa</option>
+            <option value="inhg" {% if config.weather.units.pressure == 'inhg' %}selected{% endif %}>inHg</option>
+          </select>
+        </label>
+        <label class="setting-field">
+          <span>Rain</span>
+          <select name="unit_rain">
+            <option value="mm" {% if config.weather.units.rain == 'mm' %}selected{% endif %}>mm</option>
+            <option value="in" {% if config.weather.units.rain == 'in' %}selected{% endif %}>in</option>
+          </select>
+        </label>
+        <label class="setting-field">
+          <span>Wind</span>
+          <select name="unit_wind">
+            <option value="mph" {% if config.weather.units.wind == 'mph' %}selected{% endif %}>mph</option>
+            <option value="kmh" {% if config.weather.units.wind == 'kmh' %}selected{% endif %}>km/h</option>
+            <option value="m/s" {% if config.weather.units.wind in ['m/s', 'ms', 'mps'] %}selected{% endif %}>m/s</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <h2>Clock weather cards</h2>
+      <p class="muted small">Choose which weather cards appear on the main clock screen.</p>
+      <div class="settings-pill-grid">
+        {% for card in clock_card_options %}
+          <label class="settings-pill">
+            <input type="checkbox" name="clock_cards" value="{{ card.id }}" {% if card.id in config.weather.clock_cards %}checked{% endif %}>
+            <span>{{ card.label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <h2>Dashboard behaviour</h2>
+      <div class="settings-grid two-col">
+        <label class="setting-field">
+          <span>Default mode</span>
+          <select name="default_mode">
+            {% for mode in mode_options %}
+              <option value="{{ mode.id }}" {% if config.dashboard.default_mode == mode.id %}selected{% endif %}>{{ mode.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="setting-field">
+          <span>Idle timeout</span>
+          <input name="idle_timeout_seconds" type="number" min="0" max="86400" inputmode="numeric" value="{{ config.dashboard.idle_timeout_seconds }}">
+          <small>Reserved for future automatic return-to-clock behaviour.</small>
+        </label>
+        <label class="setting-field">
+          <span>Night dim start</span>
+          <input name="night_dim_start" type="time" value="{{ config.dashboard.night_dim_start }}">
+        </label>
+        <label class="setting-field">
+          <span>Night dim end</span>
+          <input name="night_dim_end" type="time" value="{{ config.dashboard.night_dim_end }}">
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <h2>Plexamp and AirPlay</h2>
+      <div class="settings-grid two-col">
+        <label class="setting-field wide">
+          <span>Plexamp URL</span>
+          <input name="plexamp_url" value="{{ config.plexamp.url }}" autocomplete="off">
+        </label>
+        <label class="setting-field wide">
+          <span>Plexamp pause URL</span>
+          <input name="plexamp_pause_url" value="{{ config.plexamp.pause_url }}" autocomplete="off">
+        </label>
+        <label class="setting-field">
+          <span>Plexamp service</span>
+          <input name="plexamp_service_name" value="{{ config.plexamp.service_name }}" autocomplete="off">
+        </label>
+        <label class="setting-field">
+          <span>AirPlay display name</span>
+          <input name="airplay_display_name" value="{{ config.airplay.display_name }}" autocomplete="off">
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <h2>Alarm placeholder</h2>
+      <div class="settings-grid three-col">
+        <label class="setting-toggle">
+          <input type="checkbox" name="alarm_enabled" {% if config.alarm.enabled %}checked{% endif %}>
+          <span>Alarm enabled</span>
+        </label>
+        <label class="setting-field">
+          <span>Default alarm time</span>
+          <input name="alarm_default_time" type="time" value="{{ config.alarm.default_time }}">
+        </label>
+        <label class="setting-field">
+          <span>Snooze minutes</span>
+          <input name="alarm_snooze_minutes" type="number" min="1" max="120" inputmode="numeric" value="{{ config.alarm.snooze_minutes }}">
+        </label>
+      </div>
+      <p class="muted small">The alarm UI is stored now; actual alarm playback logic is still a future chapter.</p>
+    </section>
+
+    <div class="settings-actions">
+      <button class="button settings-save" type="submit">Save settings</button>
+      <a class="button settings-secondary" href="/settings">Reload</a>
+    </div>
+  </form>
 </section>
 
 {% include "_nav.html" %}
