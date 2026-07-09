@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,9 @@ STATE_PATH = BASE_DIR / "state.json"
 
 VALID_MODES = {"clock", "weather", "airplay", "plexamp", "settings"}
 SENSITIVE_WEATHER_KEYS = {"passkey", "password", "secret", "token", "api_key", "apikey"}
+PRESSURE_HISTORY_HOURS = 24
+PRESSURE_TREND_MINUTES = 180
+PRESSURE_TREND_MINIMUM_MINUTES = 30
 
 COMPASS_POINTS = [
     "N",
@@ -61,7 +64,7 @@ WEATHER_FIELDS: dict[str, dict[str, Any]] = {
     "model": {"label": "Model", "keys": ["model"], "type": "text"},
     "frequency": {"label": "Frequency", "keys": ["freq"], "type": "text"},
     "upload_interval": {"label": "Upload interval", "keys": ["interval"], "type": "seconds"},
-    "last_station_update": {"label": "Station timestamp", "keys": ["dateutc"], "type": "text"},
+    "last_station_update": {"label": "Station timestamp", "keys": ["dateutc"], "type": "station_datetime"},
     "sensor_battery": {"label": "Sensor battery", "keys": ["wh65batt"], "type": "battery"},
 }
 
@@ -141,6 +144,7 @@ def default_state(config: dict[str, Any]) -> dict[str, Any]:
         "last_mode_change": datetime.now().isoformat(timespec="seconds"),
         "weather": {},
         "weather_extremes": {"date": datetime.now().date().isoformat(), "fields": {}},
+        "pressure_history": [],
         "last_weather_update": None,
     }
 
@@ -151,6 +155,8 @@ def load_state(config: dict[str, Any]) -> dict[str, Any]:
         state["mode"] = "clock"
     if not isinstance(state.get("weather_extremes"), dict):
         state["weather_extremes"] = {"date": datetime.now().date().isoformat(), "fields": {}}
+    if not isinstance(state.get("pressure_history"), list):
+        state["pressure_history"] = []
     return state
 
 
@@ -213,6 +219,23 @@ def parse_float(value: Any) -> float | None:
         return float(str(value).strip())
     except (TypeError, ValueError):
         return None
+
+
+def parse_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    text = str(value).strip().replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+
+def format_display_datetime(value: Any) -> str:
+    parsed = parse_datetime(value)
+    if parsed:
+        return parsed.strftime("%d/%m/%Y %H:%M:%S")
+    return str(value) if value else ""
 
 
 def weather_units(config: dict[str, Any]) -> dict[str, str]:
@@ -282,6 +305,14 @@ def source_key_is_fahrenheit(source_key: str | None) -> bool:
 
 def source_key_is_celsius(source_key: str | None) -> bool:
     return bool(source_key and source_key.endswith("c"))
+
+
+def pressure_hpa_from_weather(weather: dict[str, Any]) -> float | None:
+    source_key, raw_value = get_weather_value(weather, WEATHER_FIELDS["pressure"]["keys"])
+    numeric = parse_float(raw_value)
+    if numeric is None:
+        return None
+    return inhg_to_hpa(numeric) if source_key and source_key.endswith("in") else numeric
 
 
 def format_weather_value(field_id: str, weather: dict[str, Any], config: dict[str, Any]) -> dict[str, Any] | None:
@@ -383,6 +414,9 @@ def format_weather_value(field_id: str, weather: dict[str, Any], config: dict[st
         numeric_value = numeric
         value = "OK" if numeric == 0 else str(raw_value)
 
+    elif field_type == "station_datetime":
+        value = format_display_datetime(raw_value)
+
     return {
         "id": field_id,
         "label": field["label"],
@@ -470,6 +504,29 @@ def update_weather_extremes(state: dict[str, Any], weather: dict[str, Any]) -> N
         fields[field_id] = existing
 
     state["weather_extremes"] = extremes
+
+
+def update_pressure_history(state: dict[str, Any], weather: dict[str, Any]) -> None:
+    pressure_hpa = pressure_hpa_from_weather(weather)
+    if pressure_hpa is None:
+        return
+
+    now = datetime.now()
+    cutoff = now - timedelta(hours=PRESSURE_HISTORY_HOURS)
+    history = state.get("pressure_history", [])
+    cleaned: list[dict[str, Any]] = []
+
+    if isinstance(history, list):
+        for entry in history:
+            if not isinstance(entry, dict):
+                continue
+            timestamp = parse_datetime(entry.get("time"))
+            value = parse_float(entry.get("hpa"))
+            if timestamp and value is not None and timestamp >= cutoff:
+                cleaned.append({"time": timestamp.isoformat(timespec="seconds"), "hpa": round(value, 3)})
+
+    cleaned.append({"time": now.isoformat(timespec="seconds"), "hpa": round(pressure_hpa, 3)})
+    state["pressure_history"] = cleaned[-(PRESSURE_HISTORY_HOURS * 60 + 5):]
 
 
 def format_extreme_value(field_id: str, value: Any, config: dict[str, Any]) -> str:
@@ -599,20 +656,91 @@ def weather_compass(config: dict[str, Any], weather: dict[str, Any]) -> dict[str
     }
 
 
-def barometer_status(config: dict[str, Any], weather: dict[str, Any]) -> dict[str, Any]:
+def pressure_prediction(current_hpa: float, rate_3h: float) -> tuple[str, str]:
+    if rate_3h >= 3:
+        return "Rising quickly", "Pressure is climbing quickly; conditions may improve, although blustery leftovers can linger."
+    if rate_3h >= 0.8:
+        return "Rising", "Pressure is rising; becoming more settled is the barometer's best guess."
+    if rate_3h <= -3:
+        return "Falling quickly", "Pressure is dropping quickly; rain or wind may be on the way."
+    if rate_3h <= -0.8:
+        return "Falling", "Pressure is falling; conditions may become more unsettled."
+    if current_hpa >= 1020:
+        return "Steady high", "Pressure is high and steady; fair or settled weather is likely."
+    if current_hpa <= 1000:
+        return "Steady low", "Pressure is low and steady; dull or unsettled weather may hang around."
+    return "Steady", "Pressure is fairly steady; little change expected."
+
+
+def pressure_history_points(state: dict[str, Any]) -> list[dict[str, Any]]:
+    points: list[dict[str, Any]] = []
+    history = state.get("pressure_history", [])
+    if not isinstance(history, list):
+        return points
+
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        timestamp = parse_datetime(entry.get("time"))
+        value = parse_float(entry.get("hpa"))
+        if timestamp and value is not None:
+            points.append({"time": timestamp, "hpa": value})
+
+    return sorted(points, key=lambda point: point["time"])
+
+
+def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     pressure = weather_item("pressure", config, weather)
     absolute_pressure = weather_item("absolute_pressure", config, weather)
+    current_hpa = pressure_hpa_from_weather(weather)
+    points = pressure_history_points(state)
+
+    base_status = {
+        "pressure": pressure,
+        "absolute_pressure": absolute_pressure,
+        "history_points": len(points),
+        "trend": "Gathering history",
+        "prediction": "Pressure history has started; the barometer estimate becomes useful after about 30 minutes and much better after 3 hours.",
+    }
+
+    if current_hpa is None:
+        return {**base_status, "trend": "No pressure reading", "prediction": "Waiting for a pressure reading from the weather station."}
+
+    if len(points) < 2:
+        return base_status
+
+    latest = points[-1]
+    target_start = latest["time"] - timedelta(minutes=PRESSURE_TREND_MINUTES)
+    baseline = next((point for point in points if point["time"] >= target_start), points[0])
+    elapsed_minutes = max((latest["time"] - baseline["time"]).total_seconds() / 60, 0)
+
+    if elapsed_minutes < PRESSURE_TREND_MINIMUM_MINUTES:
+        return {
+            **base_status,
+            "trend": f"Gathering history ({round(elapsed_minutes)} min)",
+            "prediction": "Still collecting readings. Give it about 30 minutes for an early trend, and around 3 hours for a proper barometer-style estimate.",
+        }
+
+    change_hpa = latest["hpa"] - baseline["hpa"]
+    rate_3h = change_hpa / (elapsed_minutes / 180)
+    trend, prediction = pressure_prediction(current_hpa, rate_3h)
+    signed_rate = f"{rate_3h:+.1f} hPa / 3h"
 
     return {
         "pressure": pressure,
         "absolute_pressure": absolute_pressure,
-        "trend": "History needed",
-        "prediction": "Pressure trend will be calculated once the app starts storing past readings.",
+        "history_points": len(points),
+        "trend": f"{trend} {signed_rate}",
+        "prediction": prediction,
+        "change_hpa": round(change_hpa, 2),
+        "rate_3h": round(rate_3h, 2),
+        "history_span_minutes": round(elapsed_minutes),
     }
 
 
 def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     return {
+        "issued_at": format_display_datetime(state.get("last_weather_update")),
         "condition_rows": condition_rows(config, weather, state),
         "atmosphere": weather_items(["solar", "uv", "vpd"], config, weather),
         "rain_today_gauges": rain_gauges(["rain_rate", "hourly_rain", "daily_rain", "event_rain"], config, weather),
@@ -623,7 +751,7 @@ def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: 
             weather,
         ),
         "compass": weather_compass(config, weather),
-        "barometer": barometer_status(config, weather),
+        "barometer": barometer_status(config, weather, state),
     }
 
 
@@ -715,6 +843,7 @@ def api_weather_ecowitt():
         state["weather"] = payload
         state["last_weather_update"] = datetime.now().isoformat(timespec="seconds")
         update_weather_extremes(state, payload)
+        update_pressure_history(state, payload)
         save_json(STATE_PATH, state)
         return jsonify(
             {
