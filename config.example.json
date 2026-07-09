@@ -29,7 +29,7 @@
     "provider": "ecowitt_push",
     "display_units": "metric",
     "station_name": "Weather or Not",
-    "reporting_station_name": "Pennels Lodge Weather Station",
+    "reporting_station_name": "Weather Station Name",
     "auto_refresh_seconds": 60,
     "units": {
       "temperature": "c",
