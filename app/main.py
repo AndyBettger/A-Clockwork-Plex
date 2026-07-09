@@ -58,7 +58,7 @@ CONDITION_EXTREME_FIELDS = ["outdoor_temp", "indoor_temp", "humidity", "indoor_h
 CLOCK_CARD_FIELD_IDS = [
     "outdoor_temp", "indoor_temp", "humidity", "indoor_humidity",
     "wind_speed", "wind_gust", "max_daily_gust", "daily_rain",
-    "hourly_rain", "event_rain", "pressure", "solar", "uv",
+    "hourly_rain", "event_rain", "pressure", "barometer", "solar", "uv",
 ]
 DEFAULT_CLOCK_CARDS = ["outdoor_temp", "humidity", "wind_speed", "wind_gust", "daily_rain", "pressure"]
 
@@ -404,8 +404,25 @@ def normalise_clock_cards(config: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(cards)) or DEFAULT_CLOCK_CARDS
 
 
-def pick_weather_fields(config: dict[str, Any], weather: dict[str, Any]) -> dict[str, Any]:
-    return {item["label"]: item["value"] for item in weather_items(normalise_clock_cards(config), config, weather)}
+def clock_weather_items(config: dict[str, Any], weather: dict[str, Any], state: dict[str, Any]) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    for field_id in normalise_clock_cards(config):
+        if field_id == "barometer":
+            status = barometer_status(config, weather, state)
+            trend = status.get("trend")
+            forecast = status.get("forecast_title")
+            if trend:
+                items.append({"label": "Barometer", "value": f"{forecast} · {trend}" if forecast else str(trend)})
+            continue
+
+        item = weather_item(field_id, config, weather)
+        if item:
+            items.append({"label": item["label"], "value": item["value"]})
+    return items
+
+
+def pick_weather_fields(config: dict[str, Any], weather: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    return {item["label"]: item["value"] for item in clock_weather_items(config, weather, state)}
 
 
 def canonical_extreme_value(field_id: str, weather: dict[str, Any]) -> float | None:
@@ -592,6 +609,25 @@ def pressure_prediction(current_hpa: float, rate_3h: float) -> tuple[str, str]:
     return "Steady", "Pressure is fairly steady; little change expected."
 
 
+def barometer_visual(status: str) -> dict[str, str]:
+    status_text = status.lower()
+    if "rising quickly" in status_text:
+        return {"icon": "↗", "forecast_title": "Improving", "tone": "rising"}
+    if "rising" in status_text:
+        return {"icon": "↗", "forecast_title": "Settling", "tone": "rising"}
+    if "falling quickly" in status_text:
+        return {"icon": "↘", "forecast_title": "Turning wet", "tone": "falling"}
+    if "falling" in status_text:
+        return {"icon": "↘", "forecast_title": "Unsettled", "tone": "falling"}
+    if "steady high" in status_text:
+        return {"icon": "☀", "forecast_title": "Settled", "tone": "settled"}
+    if "steady low" in status_text:
+        return {"icon": "☁", "forecast_title": "Dull", "tone": "low"}
+    if "gathering" in status_text:
+        return {"icon": "…", "forecast_title": "Learning", "tone": "waiting"}
+    return {"icon": "⛅", "forecast_title": "Steady", "tone": "steady"}
+
+
 def pressure_history_points(state: dict[str, Any]) -> list[dict[str, Any]]:
     points: list[dict[str, Any]] = []
     history = state.get("pressure_history", [])
@@ -618,9 +654,10 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
         "history_points": len(points),
         "trend": "Gathering history",
         "prediction": "Pressure history has started; the barometer estimate becomes useful after about 30 minutes and much better after 3 hours.",
+        **barometer_visual("Gathering history"),
     }
     if current_hpa is None:
-        return {**base_status, "trend": "No pressure reading", "prediction": "Waiting for a pressure reading from the weather station."}
+        return {**base_status, "trend": "No pressure reading", "prediction": "Waiting for a pressure reading from the weather station.", **barometer_visual("gathering")}
     if len(points) < 2:
         return base_status
 
@@ -629,24 +666,28 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
     baseline = next((point for point in points if point["time"] >= target_start), points[0])
     elapsed_minutes = max((latest["time"] - baseline["time"]).total_seconds() / 60, 0)
     if elapsed_minutes < PRESSURE_TREND_MINIMUM_MINUTES:
+        trend = f"Gathering history ({round(elapsed_minutes)} min)"
         return {
             **base_status,
-            "trend": f"Gathering history ({round(elapsed_minutes)} min)",
+            "trend": trend,
             "prediction": "Still collecting readings. Give it about 30 minutes for an early trend, and around 3 hours for a proper barometer-style estimate.",
+            **barometer_visual(trend),
         }
 
     change_hpa = latest["hpa"] - baseline["hpa"]
     rate_3h = change_hpa / (elapsed_minutes / 180)
     trend, prediction = pressure_prediction(current_hpa, rate_3h)
+    trend_text = f"{trend} {rate_3h:+.1f} hPa / 3h"
     return {
         "pressure": pressure,
         "absolute_pressure": absolute_pressure,
         "history_points": len(points),
-        "trend": f"{trend} {rate_3h:+.1f} hPa / 3h",
+        "trend": trend_text,
         "prediction": prediction,
         "change_hpa": round(change_hpa, 2),
         "rate_3h": round(rate_3h, 2),
         "history_span_minutes": round(elapsed_minutes),
+        **barometer_visual(trend),
     }
 
 
@@ -693,6 +734,12 @@ def ordered_clock_cards_from_form() -> list[str]:
     return ordered_cards or DEFAULT_CLOCK_CARDS
 
 
+def clock_card_option_label(field_id: str) -> str:
+    if field_id == "barometer":
+        return "Barometer"
+    return WEATHER_FIELDS[field_id]["label"]
+
+
 def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
     dashboard = config.setdefault("dashboard", {})
     weather = config.setdefault("weather", {})
@@ -733,7 +780,7 @@ def settings_page_context(config: dict[str, Any], saved: bool = False, error: st
     return {
         "settings_saved": saved,
         "settings_error": error,
-        "clock_card_options": [{"id": field_id, "label": WEATHER_FIELDS[field_id]["label"]} for field_id in CLOCK_CARD_FIELD_IDS],
+        "clock_card_options": [{"id": field_id, "label": clock_card_option_label(field_id)} for field_id in CLOCK_CARD_FIELD_IDS],
         "mode_options": [
             {"id": "clock", "label": "Clock"},
             {"id": "weather", "label": "Weather"},
@@ -755,7 +802,7 @@ def inject_globals() -> dict[str, Any]:
         "config": config,
         "state": safe_state(state),
         "now": datetime.now(),
-        "picked_weather": pick_weather_fields(config, weather),
+        "picked_weather": pick_weather_fields(config, weather, state),
         "weather_detail": weather_detail_data(config, weather, state),
     }
 
@@ -816,7 +863,7 @@ def api_status():
             "state": safe_state(state),
             "config": config,
             "config_diagnostics": config_diagnostics(),
-            "weather_display": pick_weather_fields(config, weather),
+            "weather_display": pick_weather_fields(config, weather, state),
             "weather_detail": weather_detail_data(config, weather, state),
         }
     )
@@ -858,7 +905,7 @@ def api_weather_ecowitt():
             "message": "No weather fields received; existing cached weather was left unchanged.",
             "cached_fields": len(state.get("weather", {})),
             "last_weather_update": state.get("last_weather_update"),
-            "weather_display": pick_weather_fields(config, state.get("weather", {})),
+            "weather_display": pick_weather_fields(config, state.get("weather", {}), state),
             "weather_detail": weather_detail_data(config, state.get("weather", {}), state),
         }
     )
