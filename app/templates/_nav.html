@@ -1,7 +1,12 @@
-<section class="button-row main-nav" aria-label="Main navigation">
-  <a class="button nav-button {% if active_page == 'clock' %}is-active{% endif %}" href="/clock">Clock</a>
-  <a class="button nav-button {% if active_page == 'weather' %}is-active{% endif %}" href="/weather">Weather</a>
-  <a class="button nav-button {% if active_page == 'plexamp' %}is-active{% endif %}" href="/plexamp">Plexamp</a>
-  <a class="button nav-button {% if active_page == 'airplay' %}is-active{% endif %}" href="/airplay">AirPlay</a>
-  <a class="button nav-button {% if active_page == 'settings' %}is-active{% endif %}" href="/settings">Settings</a>
-</section>
+<nav class="nav-drawer" id="nav-drawer" aria-label="Main navigation" aria-hidden="true">
+  <section class="button-row main-nav">
+    <a class="button nav-button {% if active_page == 'clock' %}is-active{% endif %}" href="/clock">Clock</a>
+    <a class="button nav-button {% if active_page == 'weather' %}is-active{% endif %}" href="/weather">Weather</a>
+    <a class="button nav-button {% if active_page == 'plexamp' %}is-active{% endif %}" href="/plexamp">Plexamp</a>
+    <a class="button nav-button {% if active_page == 'airplay' %}is-active{% endif %}" href="/airplay">AirPlay</a>
+    <a class="button nav-button {% if active_page == 'settings' %}is-active{% endif %}" href="/settings">Settings</a>
+  </section>
+</nav>
+<button class="nav-handle" id="nav-handle" type="button" aria-controls="nav-drawer" aria-expanded="false" aria-label="Show navigation">
+  <span aria-hidden="true"></span>
+</button>
