@@ -60,6 +60,7 @@ CLOCK_CARD_FIELD_IDS = [
     "wind_speed", "wind_gust", "max_daily_gust", "daily_rain",
     "hourly_rain", "event_rain", "pressure", "solar", "uv",
 ]
+DEFAULT_CLOCK_CARDS = ["outdoor_temp", "humidity", "wind_speed", "wind_gust", "daily_rain", "pressure"]
 
 
 def load_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
@@ -162,9 +163,7 @@ def normalise_weather_payload() -> dict[str, Any]:
     clean: dict[str, Any] = {}
     for key, value in payload.items():
         key_text = str(key).strip()
-        if not key_text or not str(value).strip():
-            continue
-        if key_text.lower() in SENSITIVE_WEATHER_KEYS:
+        if not key_text or not str(value).strip() or key_text.lower() in SENSITIVE_WEATHER_KEYS:
             continue
         clean[key_text] = value
     return clean
@@ -314,7 +313,6 @@ def format_weather_value(field_id: str, weather: dict[str, Any], config: dict[st
         unit = "°C" if target == "c" else "°F"
         numeric_value = converted
         value = f"{format_float(converted, 1)}{unit}"
-
     elif field_type == "pressure" and numeric is not None:
         source_is_inhg = bool(source_key and source_key.endswith("in"))
         if units["pressure"] in {"hpa", "mbar"}:
@@ -326,7 +324,6 @@ def format_weather_value(field_id: str, weather: dict[str, Any], config: dict[st
             unit = "inHg"
             value = f"{format_float(converted, 3)} {unit}"
         numeric_value = converted
-
     elif field_type in {"rain", "rain_rate"} and numeric is not None:
         source_is_inches = bool(source_key and source_key.endswith("in"))
         if units["rain"] == "mm":
@@ -338,7 +335,6 @@ def format_weather_value(field_id: str, weather: dict[str, Any], config: dict[st
             unit = "in/hr" if field_type == "rain_rate" else "in"
             value = f"{format_float(converted, 3)} {unit}"
         numeric_value = converted
-
     elif field_type == "wind" and numeric is not None:
         target = units["wind"]
         if target == "kmh":
@@ -349,41 +345,33 @@ def format_weather_value(field_id: str, weather: dict[str, Any], config: dict[st
             converted, unit = numeric, "mph"
         numeric_value = converted
         value = f"{format_float(converted, 1)} {unit}"
-
     elif field_type == "direction" and numeric is not None:
         degrees = numeric % 360
         numeric_value = degrees
         unit = "°"
         value = f"{round(degrees)}° {compass_label(degrees)}"
-
     elif field_type == "percent" and numeric is not None:
         numeric_value = numeric
         unit = "%"
         value = f"{round(numeric)}%"
-
     elif field_type == "solar" and numeric is not None:
         numeric_value = numeric
         unit = "W/m²"
         value = f"{format_float(numeric, 1)} {unit}"
-
     elif field_type == "uv" and numeric is not None:
         numeric_value = numeric
         value = format_float(numeric, 1).rstrip("0").rstrip(".")
-
     elif field_type == "vpd" and numeric is not None:
         numeric_value = numeric
         unit = "kPa"
         value = f"{format_float(numeric, 2)} {unit}"
-
     elif field_type == "seconds" and numeric is not None:
         numeric_value = numeric
         unit = "sec"
         value = f"{round(numeric)} sec"
-
     elif field_type == "battery" and numeric is not None:
         numeric_value = numeric
         value = "OK" if numeric == 0 else str(raw_value)
-
     elif field_type == "station_datetime":
         value = format_display_datetime(raw_value)
 
@@ -408,14 +396,16 @@ def weather_items(field_ids: list[str], config: dict[str, Any], weather: dict[st
     return [item for field_id in field_ids if (item := weather_item(field_id, config, weather))]
 
 
+def normalise_clock_cards(config: dict[str, Any]) -> list[str]:
+    configured = config.get("weather", {}).get("clock_cards", [])
+    if not isinstance(configured, list):
+        configured = []
+    cards = [str(field_id) for field_id in configured if str(field_id) in CLOCK_CARD_FIELD_IDS]
+    return list(dict.fromkeys(cards)) or DEFAULT_CLOCK_CARDS
+
+
 def pick_weather_fields(config: dict[str, Any], weather: dict[str, Any]) -> dict[str, Any]:
-    clock_cards = config.get("weather", {}).get("clock_cards", [])
-    if not isinstance(clock_cards, list) or not clock_cards:
-        clock_cards = ["outdoor_temp", "humidity", "wind_speed", "wind_gust", "daily_rain", "pressure"]
-    return {
-        item["label"]: item["value"]
-        for item in weather_items([str(field_id) for field_id in clock_cards], config, weather)
-    }
+    return {item["label"]: item["value"] for item in weather_items(normalise_clock_cards(config), config, weather)}
 
 
 def canonical_extreme_value(field_id: str, weather: dict[str, Any]) -> float | None:
@@ -438,7 +428,6 @@ def update_weather_extremes(state: dict[str, Any], weather: dict[str, Any]) -> N
     extremes = state.get("weather_extremes")
     if not isinstance(extremes, dict) or extremes.get("date") != today:
         extremes = {"date": today, "fields": {}}
-
     fields = extremes.setdefault("fields", {})
     if not isinstance(fields, dict):
         fields = {}
@@ -456,7 +445,6 @@ def update_weather_extremes(state: dict[str, Any], weather: dict[str, Any]) -> N
         existing["max"] = max(float(existing.get("max", value)), value)
         existing["updated"] = datetime.now().isoformat(timespec="seconds")
         fields[field_id] = existing
-
     state["weather_extremes"] = extremes
 
 
@@ -467,7 +455,6 @@ def update_pressure_history(state: dict[str, Any], weather: dict[str, Any]) -> N
     now = datetime.now()
     cutoff = now - timedelta(hours=PRESSURE_HISTORY_HOURS)
     cleaned: list[dict[str, Any]] = []
-
     history = state.get("pressure_history", [])
     if isinstance(history, list):
         for entry in history:
@@ -477,7 +464,6 @@ def update_pressure_history(state: dict[str, Any], weather: dict[str, Any]) -> N
             value = parse_float(entry.get("hpa"))
             if timestamp and value is not None and timestamp >= cutoff:
                 cleaned.append({"time": timestamp.isoformat(timespec="seconds"), "hpa": round(value, 3)})
-
     cleaned.append({"time": now.isoformat(timespec="seconds"), "hpa": round(pressure_hpa, 3)})
     state["pressure_history"] = cleaned[-(PRESSURE_HISTORY_HOURS * 60 + 5):]
 
@@ -626,7 +612,6 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
     absolute_pressure = weather_item("absolute_pressure", config, weather)
     current_hpa = pressure_hpa_from_weather(weather)
     points = pressure_history_points(state)
-
     base_status = {
         "pressure": pressure,
         "absolute_pressure": absolute_pressure,
@@ -634,7 +619,6 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
         "trend": "Gathering history",
         "prediction": "Pressure history has started; the barometer estimate becomes useful after about 30 minutes and much better after 3 hours.",
     }
-
     if current_hpa is None:
         return {**base_status, "trend": "No pressure reading", "prediction": "Waiting for a pressure reading from the weather station."}
     if len(points) < 2:
@@ -644,7 +628,6 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
     target_start = latest["time"] - timedelta(minutes=PRESSURE_TREND_MINUTES)
     baseline = next((point for point in points if point["time"] >= target_start), points[0])
     elapsed_minutes = max((latest["time"] - baseline["time"]).total_seconds() / 60, 0)
-
     if elapsed_minutes < PRESSURE_TREND_MINIMUM_MINUTES:
         return {
             **base_status,
@@ -685,8 +668,7 @@ def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: 
 
 
 def form_text(name: str, fallback: Any) -> str:
-    value = request.form.get(name, fallback)
-    return str(value).strip()
+    return str(request.form.get(name, fallback)).strip()
 
 
 def form_int(name: str, fallback: Any, minimum: int, maximum: int) -> int:
@@ -700,6 +682,15 @@ def form_int(name: str, fallback: Any, minimum: int, maximum: int) -> int:
 def form_choice(name: str, fallback: str, allowed: set[str]) -> str:
     value = str(request.form.get(name, fallback)).strip().lower()
     return value if value in allowed else fallback
+
+
+def ordered_clock_cards_from_form() -> list[str]:
+    ordered_cards: list[str] = []
+    for field_id in request.form.getlist("clock_cards"):
+        field_id = str(field_id)
+        if field_id in CLOCK_CARD_FIELD_IDS and field_id not in ordered_cards:
+            ordered_cards.append(field_id)
+    return ordered_cards or DEFAULT_CLOCK_CARDS
 
 
 def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
@@ -723,11 +714,7 @@ def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
     units["pressure"] = form_choice("unit_pressure", str(units.get("pressure", "hpa")), {"hpa", "inhg"})
     units["rain"] = form_choice("unit_rain", str(units.get("rain", "mm")), {"mm", "in"})
     units["wind"] = form_choice("unit_wind", str(units.get("wind", "mph")), {"mph", "kmh", "m/s"})
-
-    selected_cards = request.form.getlist("clock_cards")
-    weather["clock_cards"] = [field_id for field_id in CLOCK_CARD_FIELD_IDS if field_id in selected_cards] or [
-        "outdoor_temp", "humidity", "wind_speed", "wind_gust", "daily_rain", "pressure"
-    ]
+    weather["clock_cards"] = ordered_clock_cards_from_form()
 
     plexamp["url"] = form_text("plexamp_url", plexamp.get("url", "http://localhost:32500"))
     plexamp["pause_url"] = form_text("plexamp_pause_url", plexamp.get("pause_url", "http://localhost:32500/player/playback/pause"))
@@ -746,10 +733,7 @@ def settings_page_context(config: dict[str, Any], saved: bool = False, error: st
     return {
         "settings_saved": saved,
         "settings_error": error,
-        "clock_card_options": [
-            {"id": field_id, "label": WEATHER_FIELDS[field_id]["label"]}
-            for field_id in CLOCK_CARD_FIELD_IDS
-        ],
+        "clock_card_options": [{"id": field_id, "label": WEATHER_FIELDS[field_id]["label"]} for field_id in CLOCK_CARD_FIELD_IDS],
         "mode_options": [
             {"id": "clock", "label": "Clock"},
             {"id": "weather", "label": "Weather"},
@@ -803,7 +787,6 @@ def airplay():
 def settings():
     set_mode("settings")
     config = load_config()
-
     if request.method == "POST":
         try:
             save_settings_from_form(config)
@@ -813,11 +796,7 @@ def settings():
                 "settings.html",
                 **settings_page_context(config, saved=False, error=f"Could not save settings: {exc}"),
             ), 500
-
-    return render_template(
-        "settings.html",
-        **settings_page_context(config, saved=request.args.get("saved") == "1"),
-    )
+    return render_template("settings.html", **settings_page_context(config, saved=request.args.get("saved") == "1"))
 
 
 @app.route("/plexamp")
@@ -857,7 +836,6 @@ def api_weather_ecowitt():
     config = load_config()
     state = load_state(config)
     payload = normalise_weather_payload()
-
     if payload:
         state["weather"] = payload
         state["last_weather_update"] = datetime.now().isoformat(timespec="seconds")
@@ -872,7 +850,6 @@ def api_weather_ecowitt():
                 "last_weather_update": state["last_weather_update"],
             }
         )
-
     return jsonify(
         {
             "ok": True,
