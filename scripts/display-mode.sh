@@ -21,7 +21,7 @@ case "$MODE" in
     URL="$DASHBOARD_BASE/settings"
     ;;
   plexamp)
-    URL="$PLEXAMP_URL"
+    URL="$DASHBOARD_BASE/plexamp"
     ;;
   *)
     echo "Unknown mode: $MODE" >&2
