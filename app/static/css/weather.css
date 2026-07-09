@@ -55,39 +55,86 @@ body.mode-weather .screen {
 }
 
 .main-conditions-panel,
-.rain-panel {
+.rain-panel,
+.station-panel {
   grid-column: span 2;
 }
 
-.detail-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: clamp(7px, 1.2vmin, 10px);
+.conditions-table-wrap,
+.station-table-wrap {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.detail-card {
+.conditions-table,
+.station-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.conditions-table th,
+.conditions-table td,
+.station-table th,
+.station-table td {
+  padding: clamp(6px, 1.1vmin, 10px) clamp(7px, 1.2vmin, 12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.conditions-table tr:last-child th,
+.conditions-table tr:last-child td,
+.station-table tr:last-child th,
+.station-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.conditions-table thead th,
+.station-table th {
+  color: var(--muted);
+  font-size: clamp(0.68rem, 1.8vmin, 0.86rem);
+  font-weight: 700;
+}
+
+.conditions-table tbody th {
+  color: var(--text);
+  font-size: clamp(0.82rem, 2.1vmin, 1rem);
+  font-weight: 900;
+}
+
+.conditions-table td {
+  color: var(--text);
+  font-size: clamp(0.95rem, 2.7vmin, 1.35rem);
+  font-weight: 900;
+}
+
+.atmosphere-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(7px, 1.2vmin, 10px);
+  margin-top: clamp(8px, 1.4vmin, 12px);
+}
+
+.mini-reading {
   min-width: 0;
   padding: clamp(8px, 1.3vmin, 12px);
-  border-radius: clamp(12px, 2vmin, 18px);
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.08);
 }
 
-.detail-label {
+.mini-reading span {
   display: block;
   color: var(--muted);
   font-size: clamp(0.68rem, 1.8vmin, 0.86rem);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.detail-value {
+.mini-reading strong {
   display: block;
-  margin-top: 4px;
-  font-size: clamp(1rem, 3.2vmin, 1.45rem);
-  font-weight: 800;
+  margin-top: 3px;
+  font-size: clamp(1rem, 3vmin, 1.4rem);
   line-height: 1;
-  overflow-wrap: anywhere;
 }
 
 .wind-layout {
@@ -191,11 +238,28 @@ body.mode-weather .screen {
   color: var(--text);
 }
 
+.rain-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 1.4vmin, 14px);
+}
+
+.rain-subpanel {
+  min-width: 0;
+  padding: clamp(8px, 1.3vmin, 12px);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.rain-subpanel h3 {
+  margin: 0 0 clamp(7px, 1.1vmin, 10px);
+  font-size: clamp(1rem, 2.8vmin, 1.35rem);
+}
+
 .rain-gauge-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(7px, 1.2vmin, 10px);
-  margin-bottom: clamp(8px, 1.4vmin, 12px);
 }
 
 .rain-gauge-card {
@@ -211,7 +275,7 @@ body.mode-weather .screen {
 
 .rain-gauge {
   position: relative;
-  height: 74px;
+  height: 70px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.07);
@@ -281,8 +345,17 @@ body.mode-weather .screen {
   font-size: clamp(0.78rem, 2vmin, 0.95rem);
 }
 
-.station-grid {
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+.station-table th {
+  width: 32%;
+}
+
+.station-table td {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: clamp(0.86rem, 2.3vmin, 1.05rem);
+  font-weight: 800;
 }
 
 @media (max-height: 520px), (max-width: 860px) {
@@ -299,21 +372,24 @@ body.mode-weather .screen {
     border-radius: 16px;
   }
 
-  .detail-card-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 7px;
+  .conditions-table th,
+  .conditions-table td,
+  .station-table th,
+  .station-table td {
+    padding: 6px 7px;
   }
 
-  .detail-card {
-    padding: 7px;
+  .conditions-table thead th,
+  .station-table th {
+    font-size: 0.62rem;
   }
 
-  .detail-label {
-    font-size: 0.64rem;
+  .conditions-table tbody th {
+    font-size: 0.78rem;
   }
 
-  .detail-value {
-    font-size: 1rem;
+  .conditions-table td {
+    font-size: 0.92rem;
   }
 
   .compass {
@@ -328,12 +404,17 @@ body.mode-weather .screen {
 @media (max-width: 720px) {
   .weather-detail-grid,
   .main-conditions-panel,
-  .rain-panel {
+  .rain-panel,
+  .station-panel {
     grid-template-columns: 1fr;
     grid-column: auto;
   }
 
-  .detail-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .rain-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .atmosphere-strip {
+    grid-template-columns: 1fr;
   }
 }
