@@ -22,13 +22,18 @@
     <div class="airplay-copy">
       <span class="airplay-kicker" id="airplay-state-kicker">AirPlay route ready</span>
       <h1 id="airplay-title">{{ config.airplay.display_name | default('A Clockwork Plex') }}</h1>
-      <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay ready"></span><span id="airplay-status">Ready for AirPlay connections.</span></p>
+
+      <div class="airplay-meta-stack">
+        <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay ready"></span><span id="airplay-primary-meta">Ready for AirPlay connections.</span></p>
+        <p class="airplay-source-line" hidden><span id="airplay-source-title"></span></p>
+      </div>
+
       <p class="muted" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
 
       <div class="airplay-progress" id="airplay-progress" hidden>
         <div class="airplay-progress-times">
           <span id="airplay-progress-elapsed">0:00</span>
-          <span id="airplay-progress-duration">0:00</span>
+          <span id="airplay-progress-duration">-0:00</span>
         </div>
         <div class="airplay-progress-track" aria-hidden="true">
           <span id="airplay-progress-fill"></span>
@@ -49,21 +54,25 @@
     </div>
   </section>
 
-  <section class="airplay-info-grid" aria-label="Live AirPlay session details">
-    <article class="airplay-info-card is-live">
-      <span>Session</span>
-      <strong id="airplay-session-state">Ready</strong>
-      <p id="airplay-session-started">Waiting for AirPlay</p>
+  <section class="airplay-info-grid airplay-glance-grid" aria-label="Clock and weather glance">
+    <article class="airplay-info-card is-live is-clock">
+      <span>Clock</span>
+      <div class="airplay-mini-time" id="airplay-mini-clock" aria-label="Current time">
+        <span class="digital-group" id="airplay-mini-hours"></span>
+        <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
+        <span class="digital-group" id="airplay-mini-minutes"></span>
+      </div>
+      <p id="airplay-mini-date">Loading clock</p>
     </article>
     <article class="airplay-info-card is-live">
-      <span>Elapsed</span>
-      <strong id="airplay-elapsed">Standing by</strong>
-      <p id="airplay-last-update">Waiting for status</p>
+      <span>Outside</span>
+      <strong id="airplay-outside-now">Waiting</strong>
+      <p id="airplay-outside-detail">Weather data pending</p>
     </article>
     <article class="airplay-info-card is-live">
-      <span id="airplay-third-card-label">Plexamp</span>
-      <strong id="airplay-plexamp-state">Available</strong>
-      <p id="airplay-return-state">Pick this device to begin</p>
+      <span>Barometer</span>
+      <strong id="airplay-barometer-now">Waiting</strong>
+      <p id="airplay-barometer-detail">Pressure data pending</p>
     </article>
   </section>
 </section>
