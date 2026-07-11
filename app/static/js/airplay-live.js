@@ -60,7 +60,7 @@
 
   function updateElapsed() {
     if (!activeStartedAt) {
-      setText('elapsed', '—');
+      setText('elapsed', 'Standing by');
       return;
     }
 
@@ -71,34 +71,46 @@
   function renderStatus(payload) {
     const state = payload?.state ?? {};
     const config = payload?.config ?? {};
+    const airplay = state.airplay ?? {};
     const airplayName = config?.airplay?.display_name || 'A Clockwork Plex';
     const mode = state.mode || 'unknown';
-    const modeChangedAt = parseDashboardTime(state.last_mode_change);
-    const isActive = mode === 'airplay';
+    const startedAt = parseDashboardTime(airplay.started_at);
+    const endedAt = parseDashboardTime(airplay.ended_at);
+    const isActive = airplay.active === true;
 
     lastStatusMode = mode;
-    activeStartedAt = isActive ? modeChangedAt : null;
+    activeStartedAt = isActive ? startedAt : null;
 
     document.body.classList.toggle('airplay-session-active', isActive);
     document.body.classList.toggle('airplay-session-idle', !isActive);
 
     if (elements.liveDot) {
-      elements.liveDot.setAttribute('aria-label', isActive ? 'AirPlay active' : 'AirPlay idle');
+      elements.liveDot.setAttribute('aria-label', isActive ? 'AirPlay active' : 'AirPlay ready');
     }
 
     setText('title', airplayName);
-    setText('kicker', isActive ? 'AirPlay route active' : 'AirPlay route idle');
-    setText('status', isActive ? 'Receiving AirPlay audio now.' : 'AirPlay is not currently active.');
+    setText('kicker', isActive ? 'AirPlay route active' : 'AirPlay route ready');
+    setText(
+      'status',
+      isActive ? 'Receiving AirPlay audio now.' : 'Ready for AirPlay connections.'
+    );
     setText(
       'detail',
       isActive
         ? 'Plexamp has been paused and stopped so Shairport Sync can use the DAC without a tug-of-war.'
-        : 'The route is ready. Start AirPlay from the sending device and this screen will come alive.'
+        : `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`
     );
-    setText('sessionState', isActive ? 'Active' : 'Idle');
-    setText('sessionStarted', isActive ? `Started at ${formatClockTime(modeChangedAt)}` : `Last mode: ${mode}`);
-    setText('plexampState', isActive ? 'Stopped for DAC' : 'Ready to resume');
-    setText('returnState', isActive ? 'Clock returns after stop' : 'Waiting for AirPlay');
+    setText('sessionState', isActive ? 'Active' : 'Ready');
+    setText(
+      'sessionStarted',
+      isActive
+        ? `Started at ${formatClockTime(startedAt)}`
+        : endedAt
+          ? `Last AirPlay ended at ${formatClockTime(endedAt)}`
+          : 'Waiting for the first AirPlay session'
+    );
+    setText('plexampState', isActive ? 'Stopped for DAC' : 'Available');
+    setText('returnState', isActive ? 'Clock returns after stop' : `Pick ${airplayName} to begin`);
     setText('lastUpdate', `Updated ${formatClockTime(new Date())}`);
 
     updateElapsed();
