@@ -1,8 +1,50 @@
+body.mode-airplay {
+  background: radial-gradient(circle at 20% 0%, #31476c 0, #08111f 52%, #02040a 100%);
+}
+
+body.mode-airplay .screen {
+  display: block;
+  overflow: hidden;
+}
+
+.airplay-page {
+  width: min(100%, 1120px);
+  height: 100%;
+  margin: 0 auto;
+  padding-bottom: 42px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: clamp(9px, 1.5vmin, 15px);
+}
+
+.airplay-now-card,
+.airplay-info-card,
+.airplay-flow {
+  border-radius: clamp(18px, 3vmin, 28px);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.24);
+}
+
+.airplay-now-card {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(12px, 2.2vmin, 24px);
+  align-items: center;
+  padding: clamp(16px, 3vmin, 32px);
+}
+
+.airplay-glyph-wrap {
+  display: grid;
+  place-items: center;
+}
+
 .airplay-glyph {
   position: relative;
-  width: clamp(86px, 14vmin, 140px);
-  height: clamp(70px, 11vmin, 112px);
-  margin: 0 auto clamp(12px, 2vmin, 20px);
+  width: clamp(132px, 26vmin, 230px);
+  height: clamp(110px, 22vmin, 192px);
+  margin: 0 auto;
 }
 
 .airplay-screen {
@@ -11,11 +53,11 @@
   top: 6%;
   width: 88%;
   height: 64%;
-  border: clamp(5px, 0.8vmin, 8px) solid var(--accent);
-  border-radius: clamp(10px, 1.8vmin, 18px);
+  border: clamp(6px, 1.1vmin, 10px) solid var(--accent);
+  border-radius: clamp(13px, 2.3vmin, 24px);
   transform: translateX(-50%);
-  opacity: 0.9;
-  box-shadow: 0 0 18px rgba(143, 211, 255, 0.18);
+  opacity: 0.95;
+  box-shadow: 0 0 32px rgba(143, 211, 255, 0.28), inset 0 0 30px rgba(143, 211, 255, 0.08);
 }
 
 .airplay-triangle {
@@ -24,17 +66,195 @@
   bottom: 4%;
   width: 0;
   height: 0;
-  border-left: clamp(24px, 4.1vmin, 42px) solid transparent;
-  border-right: clamp(24px, 4.1vmin, 42px) solid transparent;
-  border-bottom: clamp(40px, 6.8vmin, 72px) solid var(--text);
+  border-left: clamp(34px, 6.2vmin, 58px) solid transparent;
+  border-right: clamp(34px, 6.2vmin, 58px) solid transparent;
+  border-bottom: clamp(55px, 10vmin, 98px) solid var(--text);
   transform: translateX(-50%);
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.22));
+  filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.3));
+}
+
+.airplay-pulse {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: 72%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(143, 211, 255, 0.32);
+  transform: translate(-50%, -50%);
+  animation: airplay-pulse 2.8s ease-out infinite;
+}
+
+.airplay-pulse.two {
+  animation-delay: 1.4s;
+}
+
+@keyframes airplay-pulse {
+  0% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.55);
+  }
+}
+
+.airplay-copy {
+  min-width: 0;
+}
+
+.airplay-kicker,
+.airplay-info-card span {
+  display: block;
+  color: var(--accent);
+  font-size: clamp(0.78rem, 2vmin, 0.98rem);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.airplay-copy h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(2.15rem, 7.2vmin, 4.35rem);
+  line-height: 0.95;
+}
+
+.airplay-status {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: clamp(1.1rem, 3.2vmin, 1.55rem);
+  font-weight: 850;
+}
+
+.airplay-copy .muted {
+  max-width: 34rem;
+  margin-bottom: 0;
+  font-size: clamp(0.9rem, 2.2vmin, 1.08rem);
+  line-height: 1.32;
+}
+
+.airplay-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(8px, 1.4vmin, 14px);
+}
+
+.airplay-info-card {
+  min-width: 0;
+  padding: clamp(10px, 1.7vmin, 16px);
+}
+
+.airplay-info-card strong {
+  display: block;
+  margin: 3px 0 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: clamp(1rem, 2.7vmin, 1.34rem);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.airplay-info-card p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: clamp(0.76rem, 1.95vmin, 0.92rem);
+  line-height: 1.22;
+}
+
+.airplay-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+}
+
+.airplay-flow div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: clamp(8px, 1.5vmin, 13px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.airplay-flow div:last-child {
+  border-right: 0;
+}
+
+.airplay-flow span {
+  display: grid;
+  place-items: center;
+  width: clamp(24px, 4vmin, 32px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(143, 211, 255, 0.16);
+  color: var(--accent);
+  font-weight: 950;
+}
+
+.airplay-flow strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(0.75rem, 2vmin, 0.96rem);
 }
 
 @media (max-height: 520px), (max-width: 860px) {
+  .airplay-page {
+    gap: 7px;
+    padding-bottom: 34px;
+  }
+
+  .airplay-now-card {
+    grid-template-columns: 150px minmax(0, 1fr);
+    padding: 12px;
+    gap: 12px;
+  }
+
   .airplay-glyph {
-    width: 76px;
-    height: 62px;
-    margin-bottom: 10px;
+    width: 132px;
+    height: 110px;
+  }
+
+  .airplay-copy h1 {
+    font-size: clamp(1.7rem, 5.6vw, 2.65rem);
+  }
+
+  .airplay-status {
+    font-size: clamp(0.95rem, 2.8vw, 1.25rem);
+  }
+
+  .airplay-copy .muted {
+    font-size: clamp(0.76rem, 2vw, 0.9rem);
+  }
+
+  .airplay-info-card {
+    padding: 8px;
+  }
+
+  .airplay-flow div {
+    padding: 7px;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 680px) {
+  .airplay-now-card,
+  .airplay-info-grid,
+  .airplay-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .airplay-flow div {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .airplay-flow div:last-child {
+    border-bottom: 0;
   }
 }
