@@ -62,9 +62,45 @@
     }
   }
 
+  function sourceLabel(metadata) {
+    const candidates = [
+      metadata?.source_name,
+      metadata?.source_model,
+      metadata?.player_name,
+    ];
+
+    const firstUseful = candidates
+      .map((value) => String(value || '').trim())
+      .find((value) => value && !/^airplay\//i.test(value));
+
+    if (firstUseful) {
+      return firstUseful;
+    }
+
+    const userAgent = String(metadata?.source_user_agent || '');
+    if (/airplay/i.test(userAgent)) {
+      return 'iPhone';
+    }
+
+    return 'the sending device';
+  }
+
+  function receivingText(metadata) {
+    const label = sourceLabel(metadata);
+    return label === 'the sending device'
+      ? 'Receiving AirPlay from the sending device.'
+      : `Receiving AirPlay from ${label}.`;
+  }
+
   function setArtwork(url, hasFreshMetadata) {
     const showArtwork = Boolean(url && hasFreshMetadata && elements.artworkImg);
     document.body.classList.toggle('airplay-has-artwork', showArtwork);
+
+    if (showArtwork) {
+      document.body.style.setProperty('--airplay-artwork-url', `url(${JSON.stringify(url)})`);
+    } else {
+      document.body.style.removeProperty('--airplay-artwork-url');
+    }
 
     if (elements.artworkImg) {
       if (showArtwork && elements.artworkImg.getAttribute('src') !== url) {
@@ -133,6 +169,7 @@
     const hasFreshMetadata = isActive && metadataIsFresh(metadata, startedAt);
     const title = hasFreshMetadata && metadata.title ? metadata.title : airplayName;
     const summary = hasFreshMetadata ? metadataSummary(metadata) : '';
+    const source = sourceLabel(metadata);
 
     lastStatusMode = mode;
     activeStartedAt = isActive ? startedAt : null;
@@ -150,16 +187,16 @@
     setText('kicker', isActive ? (hasFreshMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
 
     if (isActive && hasFreshMetadata) {
-      setText('status', summary || 'Metadata received from the sending device.');
+      setText('status', summary || receivingText(metadata));
       setText(
         'detail',
-        metadata.album
-          ? `Playing via ${airplayName}. The tune tunnel is open and behaving itself.`
-          : `Playing via ${airplayName}. The airwaves are carrying actual clues now.`
+        source === 'the sending device'
+          ? 'Receiving AirPlay from the sending device. The tune tunnel is open and behaving itself.'
+          : `Receiving AirPlay from ${source}. The tune tunnel is open and behaving itself.`
       );
     } else if (isActive) {
-      setText('status', 'Receiving AirPlay audio now.');
-      setText('detail', 'Waiting for track details from the sending device. Metadata goblin has been politely summoned.');
+      setText('status', receivingText(metadata));
+      setText('detail', 'Waiting for track details. The metadata goblin has been politely summoned.');
     } else {
       setText('status', 'Ready for AirPlay connections.');
       setText('detail', `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`);
@@ -169,17 +206,17 @@
     setText(
       'sessionStarted',
       isActive
-        ? `Started at ${formatClockTime(startedAt)}`
+        ? `Started ${formatClockTime(startedAt)}`
         : endedAt
-          ? `Last AirPlay ended at ${formatClockTime(endedAt)}`
-          : 'Waiting for the first AirPlay session'
+          ? `Ended ${formatClockTime(endedAt)}`
+          : 'Waiting for AirPlay'
     );
     setText('thirdCardLabel', hasFreshMetadata && metadata.volume ? 'Volume' : 'Plexamp');
-    setText('plexampState', hasFreshMetadata && metadata.volume ? metadata.volume : isActive ? 'Stopped for DAC' : 'Available');
+    setText('plexampState', hasFreshMetadata && metadata.volume ? metadata.volume : isActive ? 'DAC released' : 'Available');
     setText(
       'returnState',
       hasFreshMetadata && metadata.updated_at
-        ? `Metadata updated ${formatClockTime(parseDashboardTime(metadata.updated_at))}`
+        ? `Metadata ${formatClockTime(parseDashboardTime(metadata.updated_at))}`
         : isActive
           ? 'Clock returns after stop'
           : `Pick ${airplayName} to begin`
