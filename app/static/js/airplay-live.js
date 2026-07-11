@@ -2,15 +2,9 @@
   const elements = {
     kicker: document.getElementById('airplay-state-kicker'),
     title: document.getElementById('airplay-title'),
-    status: document.getElementById('airplay-status'),
+    primaryMeta: document.getElementById('airplay-primary-meta'),
+    sourceTitle: document.getElementById('airplay-source-title'),
     detail: document.getElementById('airplay-detail'),
-    sessionState: document.getElementById('airplay-session-state'),
-    sessionStarted: document.getElementById('airplay-session-started'),
-    elapsed: document.getElementById('airplay-elapsed'),
-    lastUpdate: document.getElementById('airplay-last-update'),
-    thirdCardLabel: document.getElementById('airplay-third-card-label'),
-    plexampState: document.getElementById('airplay-plexamp-state'),
-    returnState: document.getElementById('airplay-return-state'),
     liveDot: document.getElementById('airplay-live-dot'),
     artwork: document.getElementById('airplay-artwork'),
     artworkImg: document.getElementById('airplay-artwork-img'),
@@ -24,6 +18,27 @@
     volumeLabel: document.getElementById('airplay-volume-label'),
     playPauseButton: document.getElementById('airplay-play-pause'),
     playPauseIcon: document.getElementById('airplay-play-pause-icon'),
+    miniClock: document.getElementById('airplay-mini-clock'),
+    miniHours: document.getElementById('airplay-mini-hours'),
+    miniMinutes: document.getElementById('airplay-mini-minutes'),
+    miniDate: document.getElementById('airplay-mini-date'),
+    outsideNow: document.getElementById('airplay-outside-now'),
+    outsideDetail: document.getElementById('airplay-outside-detail'),
+    barometerNow: document.getElementById('airplay-barometer-now'),
+    barometerDetail: document.getElementById('airplay-barometer-detail'),
+  };
+
+  const SEGMENTS = {
+    '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+    '1': ['b', 'c'],
+    '2': ['a', 'b', 'g', 'e', 'd'],
+    '3': ['a', 'b', 'g', 'c', 'd'],
+    '4': ['f', 'g', 'b', 'c'],
+    '5': ['a', 'f', 'g', 'c', 'd'],
+    '6': ['a', 'f', 'g', 'e', 'c', 'd'],
+    '7': ['a', 'b', 'c'],
+    '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+    '9': ['a', 'b', 'c', 'd', 'f', 'g'],
   };
 
   let activeStartedAt = null;
@@ -87,6 +102,11 @@
     return Math.min(max, Math.max(min, number));
   }
 
+  function isUsefulValue(value) {
+    const text = String(value || '').trim();
+    return Boolean(text && text !== '—' && text.toLowerCase() !== 'none');
+  }
+
   function isPlayingStatus(status) {
     return String(status || '').toLowerCase() === 'playing';
   }
@@ -144,6 +164,50 @@
       .trim();
   }
 
+  function creatorText(metadata) {
+    return String(
+      metadata?.artist
+      || metadata?.album_artist
+      || metadata?.composer
+      || metadata?.genre
+      || ''
+    ).trim();
+  }
+
+  function sourceTitleText(metadata, cleanTitle) {
+    const candidates = [metadata?.album, metadata?.genre, metadata?.format]
+      .map((value) => cleanDisplayTitle(value))
+      .filter(Boolean)
+      .filter((value) => value !== cleanTitle);
+    return candidates[0] || '';
+  }
+
+  function setScrollingText(element, value) {
+    if (!element) {
+      return;
+    }
+
+    const text = String(value || '').trim();
+    const container = element.parentElement;
+    element.textContent = text;
+
+    if (container) {
+      container.hidden = !text;
+      container.classList.remove('is-overflowing');
+      container.style.removeProperty('--airplay-source-overflow');
+
+      if (text) {
+        window.requestAnimationFrame(() => {
+          const overflow = Math.max(0, element.scrollWidth - container.clientWidth);
+          if (overflow > 8) {
+            container.style.setProperty('--airplay-source-overflow', `${overflow}px`);
+            container.classList.add('is-overflowing');
+          }
+        });
+      }
+    }
+  }
+
   function setArtwork(url, showArtwork) {
     const shouldShow = Boolean(url && showArtwork && elements.artworkImg);
     document.body.classList.toggle('airplay-has-artwork', shouldShow);
@@ -177,25 +241,6 @@
     }
 
     return !startedAt || updatedAt >= startedAt;
-  }
-
-  function metadataSummary(metadata) {
-    const artist = metadata.artist || metadata.album_artist || '';
-    const album = metadata.album || '';
-    const genre = metadata.genre || '';
-    const parts = [];
-
-    if (artist) {
-      parts.push(artist);
-    }
-    if (album) {
-      parts.push(album);
-    }
-    if (!artist && !album && genre) {
-      parts.push(genre);
-    }
-
-    return parts.join(' · ');
   }
 
   function usefulMetadata(metadata) {
@@ -274,6 +319,7 @@
     return {
       elapsedSeconds,
       durationSeconds: progressState.durationSeconds,
+      remainingSeconds: Math.max(0, progressState.durationSeconds - elapsedSeconds),
       percent: clamp(percent, 0, 100),
     };
   }
@@ -292,7 +338,7 @@
 
     document.body.style.setProperty('--airplay-progress-percent', `${snapshot.percent}%`);
     setText('progressElapsed', formatDuration(snapshot.elapsedSeconds));
-    setText('progressDuration', formatDuration(snapshot.durationSeconds));
+    setText('progressDuration', `-${formatDuration(snapshot.remainingSeconds)}`);
   }
 
   function updateProgressFromMetadata(progress, hasFreshMetadata, playbackStatus) {
@@ -318,10 +364,6 @@
       };
     }
 
-    // Shairport often leaves the last prgr frame cached between /api/status polls.
-    // Treat identical progress frames as the anchor point only, then let the local
-    // clock move the display forward. Otherwise the UI keeps snapping back to the
-    // stale frame every refresh. Tiny time-loop goblin: contained.
     setProgressDisplay(currentProgressSnapshot(), true);
   }
 
@@ -414,21 +456,74 @@
           latestRemote = payload.remote;
         }
       } catch (error) {
-        setText('lastUpdate', 'Volume command missed');
+        setText('detail', 'Volume command missed. The volume goblin looked busy.');
       } finally {
         volumeHoldUntil = Date.now() + 3000;
       }
     }, 180);
   }
 
-  function updateElapsed() {
-    if (!activeStartedAt) {
-      setText('elapsed', 'Standing by');
-      return;
+  function makeDigit(value) {
+    const digit = document.createElement('span');
+    digit.className = 'digital-digit';
+    digit.setAttribute('aria-hidden', 'true');
+
+    for (const segment of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+      const element = document.createElement('span');
+      element.className = `segment segment-${segment}`;
+      if (SEGMENTS[value].includes(segment)) {
+        element.classList.add('is-on');
+      }
+      digit.appendChild(element);
     }
 
-    const elapsedSeconds = (Date.now() - activeStartedAt.getTime()) / 1000;
-    setText('elapsed', formatDuration(elapsedSeconds));
+    return digit;
+  }
+
+  function setDigits(element, value) {
+    if (!element) {
+      return;
+    }
+    element.replaceChildren(...value.split('').map(makeDigit));
+  }
+
+  function updateMiniClock() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const date = now.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+
+    setDigits(elements.miniHours, hours);
+    setDigits(elements.miniMinutes, minutes);
+    if (elements.miniClock) {
+      elements.miniClock.setAttribute('aria-label', `${hours}:${minutes}`);
+    }
+    setText('miniDate', date);
+  }
+
+  function updateWeatherGlance(payload) {
+    const detail = payload?.weather_detail || {};
+    const conditionRows = Array.isArray(detail.condition_rows) ? detail.condition_rows : [];
+    const outdoor = conditionRows.find((row) => String(row?.location || '').toLowerCase() === 'outdoor') || conditionRows[0] || {};
+    const temp = outdoor?.temperature?.current;
+    const humidity = outdoor?.humidity?.current;
+    const outsideParts = [temp, humidity].filter(isUsefulValue);
+
+    setText('outsideNow', outsideParts.length ? outsideParts.join(' · ') : 'Waiting');
+    setText('outsideDetail', outsideParts.length ? 'Outdoor temp and humidity' : 'Weather data pending');
+
+    const barometer = detail.barometer || {};
+    const forecast = barometer.forecast_title || 'Waiting';
+    const pressure = barometer.pressure?.value;
+    const trend = barometer.trend;
+    const barometerParts = [pressure, trend].filter(isUsefulValue);
+
+    setText('barometerNow', forecast);
+    setText('barometerDetail', barometerParts.length ? barometerParts.join(' · ') : 'Pressure data pending');
   }
 
   function setPlaybackButton(remote, isActive) {
@@ -457,13 +552,13 @@
     const airplayName = config?.airplay?.display_name || 'A Clockwork Plex';
     const mode = state.mode || 'unknown';
     const startedAt = parseDashboardTime(airplay.started_at);
-    const endedAt = parseDashboardTime(airplay.ended_at);
     const isActive = airplay.active === true;
     const hasFreshMetadata = isActive && metadataIsFresh(metadata, startedAt);
     const displayMetadata = displayMetadataForSession(metadata, isActive, hasFreshMetadata, startedAt);
     const hasDisplayMetadata = isActive && usefulMetadata(displayMetadata);
     const title = hasDisplayMetadata && displayMetadata.title ? cleanDisplayTitle(displayMetadata.title) : airplayName;
-    const summary = hasDisplayMetadata ? metadataSummary(displayMetadata) : '';
+    const creator = hasDisplayMetadata ? creatorText(displayMetadata) : '';
+    const sourceTitle = hasDisplayMetadata ? sourceTitleText(displayMetadata, title) : '';
     const source = sourceLabel(displayMetadata);
     const progress = normaliseProgress(displayMetadata.progress);
     const playbackStatus = activePlaybackStatus(remote);
@@ -497,46 +592,24 @@
     updateProgressFromMetadata(progress, hasDisplayMetadata, playbackStatus);
     setVolumeDisplay(displayMetadata, remote, hasDisplayMetadata);
     setPlaybackButton(remote, isActive);
+    updateWeatherGlance(payload);
+
     setText('title', title || airplayName);
     setText('kicker', isActive ? (hasDisplayMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
 
     if (isActive && hasDisplayMetadata) {
-      setText('status', summary || receivingText(displayMetadata));
+      setText('primaryMeta', creator || receivingText(displayMetadata));
+      setScrollingText(elements.sourceTitle, sourceTitle);
       setText('detail', `Receiving AirPlay from ${source}. The tune tunnel is open and behaving itself.`);
     } else if (isActive) {
-      setText('status', receivingText(displayMetadata));
+      setText('primaryMeta', receivingText(displayMetadata));
+      setScrollingText(elements.sourceTitle, '');
       setText('detail', 'Waiting for track details. The metadata goblin has been politely summoned.');
     } else {
-      setText('status', 'Ready for AirPlay connections.');
+      setText('primaryMeta', 'Ready for AirPlay connections.');
+      setScrollingText(elements.sourceTitle, '');
       setText('detail', `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`);
     }
-
-    const sessionLabel = isActive
-      ? (isPlayingStatus(playbackStatus) ? 'Playing' : String(playbackStatus || 'Active'))
-      : 'Ready';
-
-    setText('sessionState', sessionLabel);
-    setText(
-      'sessionStarted',
-      isActive
-        ? `Started ${formatClockTime(startedAt)}`
-        : endedAt
-          ? `Ended ${formatClockTime(endedAt)}`
-          : 'Waiting for AirPlay'
-    );
-    setText('thirdCardLabel', hasDisplayMetadata && displayMetadata.volume ? 'Volume' : 'Plexamp');
-    setText('plexampState', hasDisplayMetadata && displayMetadata.volume ? displayMetadata.volume : isActive ? 'DAC released' : 'Available');
-    setText(
-      'returnState',
-      hasDisplayMetadata && displayMetadata.updated_at
-        ? `Metadata ${formatClockTime(parseDashboardTime(displayMetadata.updated_at))}`
-        : isActive
-          ? 'Clock returns after stop'
-          : `Pick ${airplayName} to begin`
-    );
-    setText('lastUpdate', `Updated ${formatClockTime(new Date())}`);
-
-    updateElapsed();
   }
 
   async function refreshStatus() {
@@ -548,7 +621,7 @@
 
       renderStatus(await response.json());
     } catch (error) {
-      setText('lastUpdate', 'Status update missed');
+      setText('detail', 'Status update missed. The AirPlay goblin may be stretching its legs.');
     }
   }
 
@@ -589,7 +662,7 @@
         setPlaybackButton(latestRemote, true);
       }
     } catch (error) {
-      setText('lastUpdate', 'Playback command missed');
+      setText('detail', 'Playback command missed. The iPhone may have wandered off.');
     } finally {
       setTimeout(refreshStatus, 1200);
     }
@@ -620,9 +693,10 @@
 
   setInterval(refreshStatus, 2000);
   setInterval(() => {
-    updateElapsed();
+    updateMiniClock();
     updateProgressTick();
   }, 1000);
+  updateMiniClock();
   refreshStatus();
 
   // A tiny safety net: if the page is left visible while the mode changes,
