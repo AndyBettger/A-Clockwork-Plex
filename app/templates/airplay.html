@@ -28,7 +28,7 @@
         <p class="airplay-source-line" hidden><span id="airplay-source-title"></span></p>
       </div>
 
-      <p class="muted" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
+      <p class="muted airplay-detail" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
 
       <div class="airplay-progress" id="airplay-progress" hidden>
         <div class="airplay-progress-times">
@@ -55,22 +55,25 @@
   </section>
 
   <section class="airplay-info-grid airplay-glance-grid" aria-label="Clock and weather glance">
-    <article class="airplay-info-card is-live is-clock">
-      <span>Clock</span>
-      <div class="airplay-mini-time" id="airplay-mini-clock" aria-label="Current time">
-        <span class="digital-group" id="airplay-mini-hours"></span>
-        <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
-        <span class="digital-group" id="airplay-mini-minutes"></span>
+    <article class="airplay-info-card is-live is-clock" aria-label="Current time">
+      <div class="airplay-mini-clock-line">
+        <div class="airplay-mini-time" id="airplay-mini-clock" aria-label="Current time">
+          <span class="digital-group" id="airplay-mini-hours"></span>
+          <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
+          <span class="digital-group" id="airplay-mini-minutes"></span>
+          <span class="digital-colon digital-colon-small" aria-hidden="true"><span></span><span></span></span>
+          <span class="digital-group clock-seconds" id="airplay-mini-seconds"></span>
+        </div>
+        <p class="airplay-mini-date" id="airplay-mini-date">Loading date</p>
       </div>
-      <p id="airplay-mini-date">Loading clock</p>
     </article>
-    <article class="airplay-info-card is-live">
-      <span>Outside</span>
+    <article class="airplay-info-card is-live is-outside">
+      <span>Outdoor temp &amp; humidity</span>
       <strong id="airplay-outside-now">Waiting</strong>
-      <p id="airplay-outside-detail">Weather data pending</p>
+      <p id="airplay-outside-detail"></p>
     </article>
-    <article class="airplay-info-card is-live">
-      <span>Barometer</span>
+    <article class="airplay-info-card is-live is-barometer">
+      <span id="airplay-barometer-label">Barometer</span>
       <strong id="airplay-barometer-now">Waiting</strong>
       <p id="airplay-barometer-detail">Pressure data pending</p>
     </article>
