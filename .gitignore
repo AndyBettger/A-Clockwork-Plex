@@ -16,6 +16,9 @@ config.json
 state.json
 *.log
 
+# Generated runtime assets
+app/static/generated/
+
 # OS/editor
 .DS_Store
 Thumbs.db
