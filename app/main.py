@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,10 @@ SENSITIVE_WEATHER_KEYS = {"passkey", "password", "secret", "token", "api_key", "
 PRESSURE_HISTORY_HOURS = 24
 PRESSURE_TREND_MINUTES = 180
 PRESSURE_TREND_MINIMUM_MINUTES = 30
+
+MPRIS_SERVICE = "org.mpris.MediaPlayer2.ShairportSync"
+MPRIS_OBJECT = "/org/mpris/MediaPlayer2"
+MPRIS_PLAYER_INTERFACE = "org.mpris.MediaPlayer2.Player"
 
 COMPASS_POINTS = [
     "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
@@ -120,6 +125,32 @@ def config_diagnostics() -> dict[str, Any]:
     }
 
 
+def default_airplay_metadata() -> dict[str, Any]:
+    return {
+        "available": False,
+        "title": None,
+        "artist": None,
+        "album": None,
+        "album_artist": None,
+        "genre": None,
+        "composer": None,
+        "format": None,
+        "source_name": None,
+        "source_model": None,
+        "source_user_agent": None,
+        "source_format": None,
+        "output_format": None,
+        "player_name": None,
+        "volume": None,
+        "volume_db": None,
+        "client_ip": None,
+        "progress": None,
+        "artwork_url": None,
+        "updated_at": None,
+        "last_event": None,
+    }
+
+
 def default_airplay_state() -> dict[str, Any]:
     return {
         "active": False,
@@ -127,6 +158,7 @@ def default_airplay_state() -> dict[str, Any]:
         "ended_at": None,
         "updated_at": None,
         "source": None,
+        "metadata": default_airplay_metadata(),
     }
 
 
@@ -149,6 +181,14 @@ def normalise_airplay_state(state: dict[str, Any]) -> None:
     merged = default_airplay_state()
     merged.update(airplay)
     merged["active"] = bool(merged.get("active"))
+
+    metadata = merged.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    merged_metadata = default_airplay_metadata()
+    merged_metadata.update(metadata)
+    merged["metadata"] = merged_metadata
+
     state["airplay"] = merged
 
 
@@ -755,6 +795,126 @@ def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: 
     }
 
 
+def run_busctl(args: list[str], timeout: float = 1.5) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["/usr/bin/busctl", *args],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+def parse_busctl_string(text: str) -> str | None:
+    text = text.strip()
+    if not text.startswith("s "):
+        return None
+    value = text[2:].strip()
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value.strip('"')
+
+
+def parse_busctl_bool(text: str) -> bool | None:
+    text = text.strip().lower()
+    if text == "b true":
+        return True
+    if text == "b false":
+        return False
+    return None
+
+
+def parse_busctl_double(text: str) -> float | None:
+    parts = text.strip().split()
+    if len(parts) != 2 or parts[0] != "d":
+        return None
+    return parse_float(parts[1])
+
+
+def mpris_get_property(name: str) -> tuple[Any | None, str | None]:
+    result = run_busctl([
+        "--system",
+        "get-property",
+        MPRIS_SERVICE,
+        MPRIS_OBJECT,
+        MPRIS_PLAYER_INTERFACE,
+        name,
+    ])
+    if result.returncode != 0:
+        return None, (result.stderr or result.stdout).strip() or "busctl get-property failed"
+
+    output = result.stdout.strip()
+    if name in {"PlaybackStatus"}:
+        return parse_busctl_string(output), None
+    if name in {"Volume"}:
+        return parse_busctl_double(output), None
+    if name.startswith("Can"):
+        return parse_busctl_bool(output), None
+    return output, None
+
+
+def mpris_remote_status() -> dict[str, Any]:
+    status: dict[str, Any] = {
+        "available": False,
+        "playback_status": None,
+        "volume": None,
+        "can_control": False,
+        "can_play": False,
+        "can_pause": False,
+        "can_set_volume": True,
+        "error": None,
+    }
+
+    playback_status, error = mpris_get_property("PlaybackStatus")
+    if error:
+        status["error"] = error
+        return status
+
+    status["available"] = True
+    status["playback_status"] = playback_status
+
+    volume, _ = mpris_get_property("Volume")
+    if isinstance(volume, (float, int)):
+        status["volume"] = max(0, min(1, float(volume)))
+        status["volume_percent"] = round(status["volume"] * 100)
+
+    for property_name, key in [
+        ("CanControl", "can_control"),
+        ("CanPlay", "can_play"),
+        ("CanPause", "can_pause"),
+    ]:
+        value, _ = mpris_get_property(property_name)
+        if isinstance(value, bool):
+            status[key] = value
+
+    return status
+
+
+def mpris_call(method: str, signature: str | None = None, value: str | None = None) -> tuple[bool, str | None]:
+    args = [
+        "--system",
+        "call",
+        MPRIS_SERVICE,
+        MPRIS_OBJECT,
+        MPRIS_PLAYER_INTERFACE,
+        method,
+    ]
+    if signature is not None:
+        args.append(signature)
+    if value is not None:
+        args.append(value)
+
+    try:
+        result = run_busctl(args)
+    except subprocess.TimeoutExpired:
+        return False, "MPRIS command timed out."
+
+    if result.returncode != 0:
+        return False, (result.stderr or result.stdout).strip() or f"MPRIS command {method} failed."
+    return True, None
+
+
 def form_text(name: str, fallback: Any) -> str:
     return str(request.form.get(name, fallback)).strip()
 
@@ -905,9 +1065,12 @@ def api_status():
     config = load_config()
     state = load_state(config)
     weather = state.get("weather", {})
+    output_state = safe_state(state)
+    output_state.setdefault("airplay", {})["remote"] = mpris_remote_status()
+
     return jsonify(
         {
-            "state": safe_state(state),
+            "state": output_state,
             "config": config,
             "config_diagnostics": config_diagnostics(),
             "weather_display": pick_weather_fields(config, weather, state),
@@ -935,6 +1098,45 @@ def api_airplay_start():
 def api_airplay_end():
     state = set_airplay_session(False)
     return jsonify({"ok": True, "state": safe_state(state)})
+
+
+@app.route("/api/airplay/control", methods=["POST"])
+def api_airplay_control():
+    payload = request.get_json(silent=True) or {}
+    action = str(payload.get("action", "play_pause")).strip().lower()
+    methods = {
+        "play_pause": "PlayPause",
+        "playpause": "PlayPause",
+        "toggle": "PlayPause",
+        "play": "Play",
+        "pause": "Pause",
+        "stop": "Stop",
+        "next": "Next",
+        "previous": "Previous",
+    }
+    method = methods.get(action)
+    if not method:
+        return jsonify({"ok": False, "error": f"Unsupported AirPlay control action: {action}"}), 400
+
+    ok, error = mpris_call(method)
+    status = mpris_remote_status()
+    return jsonify({"ok": ok, "error": error, "remote": status}), (200 if ok else 502)
+
+
+@app.route("/api/airplay/volume", methods=["POST"])
+def api_airplay_volume():
+    payload = request.get_json(silent=True) or {}
+    raw_value = payload.get("volume_percent", payload.get("volume"))
+    value = parse_float(raw_value)
+    if value is None:
+        return jsonify({"ok": False, "error": "Missing or invalid volume value."}), 400
+
+    # The UI sends 0-100. Accept 0.0-1.0 too, so tests can use either.
+    volume = value / 100 if value > 1 else value
+    volume = max(0.0, min(1.0, volume))
+    ok, error = mpris_call("SetVolume", "d", f"{volume:.4f}")
+    status = mpris_remote_status()
+    return jsonify({"ok": ok, "error": error, "remote": status}), (200 if ok else 502)
 
 
 @app.route("/api/weather/ecowitt", methods=["GET", "POST"])
