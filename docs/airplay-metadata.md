@@ -93,6 +93,23 @@ When metadata arrives, look under:
 state.airplay.metadata
 ```
 
+## Metadata pipe format
+
+Shairport Sync sends metadata to the pipe in a line-oriented XML-style format, not as raw binary frames. Each item starts with a header line like this:
+
+```text
+73736e63`70626567`0
+636f7265`6d696e6d`11
+```
+
+The first value is the 4-byte metadata type as hex, the second is the 4-byte code as hex, and the third is the decoded payload length. Payloads, including artwork, are base64 encoded after a blank separator line.
+
+The A Clockwork Plex listener decodes that stream directly. If you see lots of old log lines like this, the listener is too old and should be updated:
+
+```text
+Skipping suspicious metadata frame ... length=...
+```
+
 ## What should appear
 
 Depending on the sending app, Shairport Sync may provide:
@@ -102,6 +119,8 @@ title
 artist
 album
 genre
+source_name
+source_model
 volume
 client_ip
 artwork_url
