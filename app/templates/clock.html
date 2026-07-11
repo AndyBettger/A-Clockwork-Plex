@@ -3,7 +3,7 @@
 {% block title %}Clock - A Clockwork Plex{% endblock %}
 {% block content %}
 <section class="hero clock-hero">
-  <div class="time" id="clock-time" aria-label="Current time">
+  <div class="time" id="clock-time" aria-label="Current time" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}">
     <span class="digital-group" id="clock-hours"></span>
     <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
     <span class="digital-group" id="clock-minutes"></span>
@@ -68,6 +68,24 @@ const WEATHER_LABELS_BY_ID = {
   uv: 'UV'
 };
 
+const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
+
+function normaliseClockFormat(value) {
+  return String(value || '').toLowerCase() === '12h' ? '12h' : '24h';
+}
+
+function selectedClockFormat() {
+  try {
+    const saved = window.localStorage.getItem(CLOCK_FORMAT_STORAGE_KEY);
+    if (saved === '12h' || saved === '24h') {
+      return saved;
+    }
+  } catch (error) {
+  }
+
+  return normaliseClockFormat(document.getElementById('clock-time')?.dataset.clockFormat || '24h');
+}
+
 function makeDigit(value) {
   const digit = document.createElement('span');
   digit.className = 'digital-digit';
@@ -92,9 +110,14 @@ function setDigits(elementId, value) {
 
 function updateClock() {
   const now = new Date();
-  const hours = String(now.getHours()).padStart(2, '0');
+  const format = selectedClockFormat();
+  const rawHours = now.getHours();
+  const displayHours = format === '12h'
+    ? String(((rawHours + 11) % 12) + 1).padStart(2, '0')
+    : String(rawHours).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
+  const suffix = rawHours >= 12 ? 'PM' : 'AM';
   const date = now.toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -102,11 +125,11 @@ function updateClock() {
     year: 'numeric'
   });
 
-  setDigits('clock-hours', hours);
+  setDigits('clock-hours', displayHours);
   setDigits('clock-minutes', minutes);
   setDigits('clock-seconds', seconds);
   document.getElementById('clock-date').textContent = date;
-  document.getElementById('clock-time').setAttribute('aria-label', `${hours}:${minutes}:${seconds}`);
+  document.getElementById('clock-time').setAttribute('aria-label', `${displayHours}:${minutes}:${seconds}${format === '12h' ? ` ${suffix}` : ''}`);
 }
 
 function makeWeatherCard(label, value) {
@@ -204,6 +227,12 @@ function startClockWeatherUpdates() {
   window.setInterval(updateClockWeather, refreshMilliseconds);
   window.setTimeout(updateClockWeather, 2000);
 }
+
+window.addEventListener('storage', (event) => {
+  if (event.key === CLOCK_FORMAT_STORAGE_KEY) {
+    updateClock();
+  }
+});
 
 setInterval(updateClock, 1000);
 updateClock();
