@@ -22,10 +22,17 @@
     volumeStrip: document.getElementById('airplay-volume-strip'),
     volumeSlider: document.getElementById('airplay-volume-slider'),
     volumeLabel: document.getElementById('airplay-volume-label'),
+    playPauseButton: document.getElementById('airplay-play-pause'),
+    playPauseIcon: document.getElementById('airplay-play-pause-icon'),
   };
 
   let activeStartedAt = null;
   let lastStatusMode = null;
+  let latestProgress = null;
+  let latestProgressUpdatedAt = null;
+  let latestPlaybackStatus = null;
+  let volumeDragActive = false;
+  let volumeCommitTimer = null;
 
   function parseDashboardTime(value) {
     if (!value) {
@@ -180,8 +187,27 @@
     };
   }
 
-  function setProgress(progress, hasFreshMetadata) {
-    const showProgress = Boolean(hasFreshMetadata && progress);
+  function liveProgress(progress) {
+    if (!progress) {
+      return null;
+    }
+
+    let elapsedSeconds = progress.elapsedSeconds;
+    if (latestPlaybackStatus === 'Playing' && latestProgressUpdatedAt) {
+      elapsedSeconds += (Date.now() - latestProgressUpdatedAt.getTime()) / 1000;
+    }
+
+    elapsedSeconds = clamp(elapsedSeconds, 0, progress.durationSeconds);
+    return {
+      elapsedSeconds,
+      durationSeconds: progress.durationSeconds,
+      percent: progress.durationSeconds > 0 ? clamp((elapsedSeconds / progress.durationSeconds) * 100, 0, 100) : progress.percent,
+    };
+  }
+
+  function renderProgress() {
+    const progress = liveProgress(latestProgress);
+    const showProgress = Boolean(progress);
 
     if (elements.progress) {
       elements.progress.hidden = !showProgress;
@@ -195,6 +221,12 @@
     document.body.style.setProperty('--airplay-progress-percent', `${progress.percent}%`);
     setText('progressElapsed', formatDuration(progress.elapsedSeconds));
     setText('progressDuration', formatDuration(progress.durationSeconds));
+  }
+
+  function setProgress(progress, hasFreshMetadata, metadataUpdatedAt) {
+    latestProgress = hasFreshMetadata ? progress : null;
+    latestProgressUpdatedAt = metadataUpdatedAt || null;
+    renderProgress();
   }
 
   function volumePercentFromDb(volumeDb) {
@@ -214,9 +246,17 @@
     return Math.round(clamp(((db + 30) / 30) * 100, 0, 100));
   }
 
-  function setVolumeDisplay(metadata, hasFreshMetadata) {
-    const volumePercent = volumePercentFromDb(metadata?.volume_db);
-    const showVolume = Boolean(hasFreshMetadata && volumePercent !== null && metadata?.volume);
+  function displayVolumePercent(metadata, remote) {
+    if (remote && Number.isFinite(Number(remote.volume_percent))) {
+      return Number(remote.volume_percent);
+    }
+    return volumePercentFromDb(metadata?.volume_db);
+  }
+
+  function setVolumeDisplay(metadata, remote, hasFreshMetadata) {
+    const volumePercent = displayVolumePercent(metadata, remote);
+    const volumeLabel = metadata?.volume || (Number.isFinite(volumePercent) ? `${Math.round(volumePercent)}%` : '');
+    const showVolume = Boolean(hasFreshMetadata && volumePercent !== null && volumeLabel);
 
     if (elements.volumeStrip) {
       elements.volumeStrip.hidden = !showVolume;
@@ -227,13 +267,34 @@
       return;
     }
 
-    document.body.style.setProperty('--airplay-volume-percent', `${volumePercent}%`);
+    const clampedPercent = clamp(Number(volumePercent), 0, 100);
+    document.body.style.setProperty('--airplay-volume-percent', `${clampedPercent}%`);
 
-    if (elements.volumeSlider) {
-      elements.volumeSlider.value = String(volumePercent);
+    if (elements.volumeSlider && !volumeDragActive) {
+      elements.volumeSlider.disabled = false;
+      elements.volumeSlider.value = String(Math.round(clampedPercent));
     }
 
-    setText('volumeLabel', metadata.volume);
+    setText('volumeLabel', volumeLabel);
+  }
+
+  function updatePlaybackControls(isActive, remote) {
+    latestPlaybackStatus = remote?.playback_status || null;
+    const isPlaying = latestPlaybackStatus === 'Playing';
+    const canControl = Boolean(isActive && remote?.available && remote?.can_control);
+
+    document.body.classList.toggle('airplay-remote-playing', isPlaying);
+    document.body.classList.toggle('airplay-remote-paused', latestPlaybackStatus === 'Paused');
+
+    if (elements.playPauseButton) {
+      elements.playPauseButton.disabled = !canControl;
+      elements.playPauseButton.setAttribute('aria-label', isPlaying ? 'Pause AirPlay' : 'Play AirPlay');
+      elements.playPauseButton.title = isPlaying ? 'Pause AirPlay' : 'Play AirPlay';
+    }
+
+    if (elements.playPauseIcon) {
+      elements.playPauseIcon.textContent = isPlaying ? '⏸' : '▶';
+    }
   }
 
   function updateElapsed() {
@@ -251,10 +312,12 @@
     const config = payload?.config ?? {};
     const airplay = state.airplay ?? {};
     const metadata = airplay.metadata ?? {};
+    const remote = airplay.remote ?? {};
     const airplayName = config?.airplay?.display_name || 'A Clockwork Plex';
     const mode = state.mode || 'unknown';
     const startedAt = parseDashboardTime(airplay.started_at);
     const endedAt = parseDashboardTime(airplay.ended_at);
+    const metadataUpdatedAt = parseDashboardTime(metadata.updated_at);
     const isActive = airplay.active === true;
     const hasFreshMetadata = isActive && metadataIsFresh(metadata, startedAt);
     const title = hasFreshMetadata && metadata.title ? metadata.title : airplayName;
@@ -273,9 +336,10 @@
       elements.liveDot.setAttribute('aria-label', isActive ? 'AirPlay active' : 'AirPlay ready');
     }
 
+    updatePlaybackControls(isActive, remote);
     setArtwork(metadata.artwork_url, hasFreshMetadata);
-    setProgress(progress, hasFreshMetadata);
-    setVolumeDisplay(metadata, hasFreshMetadata);
+    setProgress(progress, hasFreshMetadata, metadataUpdatedAt);
+    setVolumeDisplay(metadata, remote, hasFreshMetadata);
     setText('title', title);
     setText('kicker', isActive ? (hasFreshMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
 
@@ -290,7 +354,7 @@
       setText('detail', `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`);
     }
 
-    setText('sessionState', isActive ? 'Active' : 'Ready');
+    setText('sessionState', isActive ? (remote?.playback_status || 'Active') : 'Ready');
     setText(
       'sessionStarted',
       isActive
@@ -327,8 +391,85 @@
     }
   }
 
+  async function postJson(url, payload) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async function sendPlayPause() {
+    if (!elements.playPauseButton || elements.playPauseButton.disabled) {
+      return;
+    }
+
+    elements.playPauseButton.disabled = true;
+    try {
+      await postJson('/api/airplay/control', { action: 'play_pause' });
+      setTimeout(refreshStatus, 250);
+    } catch (error) {
+      setText('lastUpdate', 'Play/pause command failed');
+    } finally {
+      setTimeout(() => {
+        refreshStatus();
+      }, 900);
+    }
+  }
+
+  function commitVolume(value) {
+    const volumePercent = clamp(Number(value), 0, 100);
+    document.body.style.setProperty('--airplay-volume-percent', `${volumePercent}%`);
+    if (elements.volumeSlider) {
+      elements.volumeSlider.value = String(Math.round(volumePercent));
+    }
+    setText('volumeLabel', `${Math.round(volumePercent)}%`);
+
+    clearTimeout(volumeCommitTimer);
+    volumeCommitTimer = setTimeout(async () => {
+      try {
+        await postJson('/api/airplay/volume', { volume_percent: volumePercent });
+        setTimeout(refreshStatus, 350);
+      } catch (error) {
+        setText('volumeLabel', 'Volume failed');
+      }
+    }, 180);
+  }
+
+  if (elements.playPauseButton) {
+    elements.playPauseButton.addEventListener('click', sendPlayPause);
+  }
+
+  if (elements.volumeSlider) {
+    elements.volumeSlider.addEventListener('pointerdown', () => {
+      volumeDragActive = true;
+    });
+    elements.volumeSlider.addEventListener('pointerup', () => {
+      volumeDragActive = false;
+      commitVolume(elements.volumeSlider.value);
+    });
+    elements.volumeSlider.addEventListener('pointercancel', () => {
+      volumeDragActive = false;
+      refreshStatus();
+    });
+    elements.volumeSlider.addEventListener('input', () => {
+      commitVolume(elements.volumeSlider.value);
+    });
+    elements.volumeSlider.addEventListener('change', () => {
+      volumeDragActive = false;
+      commitVolume(elements.volumeSlider.value);
+    });
+  }
+
   setInterval(refreshStatus, 2000);
   setInterval(updateElapsed, 1000);
+  setInterval(renderProgress, 1000);
   refreshStatus();
 
   // A tiny safety net: if the page is left visible while the mode changes,
