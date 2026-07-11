@@ -29,6 +29,7 @@
   let activeStartedAt = null;
   let lastStatusMode = null;
   let lastGoodMetadata = null;
+  let lastTrackKey = null;
   let progressState = null;
   let optimisticPlayback = null;
   let volumeHoldUntil = 0;
@@ -184,6 +185,16 @@
     return Boolean(metadata?.title || metadata?.artist || metadata?.album || metadata?.artwork_url);
   }
 
+  function trackKeyForMetadata(metadata) {
+    if (!usefulMetadata(metadata)) {
+      return null;
+    }
+
+    return [metadata?.title, metadata?.artist || metadata?.album_artist, metadata?.album]
+      .map((value) => String(value || '').trim())
+      .join('\u0001');
+  }
+
   function displayMetadataForSession(metadata, isActive, hasFreshMetadata, startedAt) {
     if (hasFreshMetadata && usefulMetadata(metadata)) {
       lastGoodMetadata = { ...metadata, rememberedAt: Date.now() };
@@ -215,10 +226,16 @@
       return null;
     }
 
+    const sourceKey = String(
+      progress.raw
+      || `${progress.start ?? ''}/${progress.current ?? elapsedSeconds}/${progress.end ?? durationSeconds}`
+    );
+
     return {
       percent: clamp(percent, 0, 100),
       elapsedSeconds: clamp(elapsedSeconds, 0, durationSeconds),
       durationSeconds,
+      sourceKey,
       updatedAt: parseDashboardTime(progress.updated_at) || null,
     };
   }
@@ -269,13 +286,13 @@
 
     const now = Date.now();
     const incomingUpdatedAt = progress.updatedAt ? progress.updatedAt.getTime() : now;
-    const currentSnapshot = currentProgressSnapshot();
     const shouldAcceptIncoming = !progressState
-      || incomingUpdatedAt >= progressState.sourceUpdatedAtMs
-      || Math.abs(progress.elapsedSeconds - (currentSnapshot?.elapsedSeconds ?? progress.elapsedSeconds)) > 2.5;
+      || progress.sourceKey !== progressState.sourceKey
+      || Math.abs(progress.durationSeconds - progressState.durationSeconds) > 1;
 
     if (shouldAcceptIncoming) {
       progressState = {
+        sourceKey: progress.sourceKey,
         baseElapsedSeconds: progress.elapsedSeconds,
         durationSeconds: progress.durationSeconds,
         percent: progress.percent,
@@ -284,6 +301,10 @@
       };
     }
 
+    // Shairport often leaves the last prgr frame cached between /api/status polls.
+    // Treat identical progress frames as the anchor point only, then let the local
+    // clock move the display forward. Otherwise the UI keeps snapping back to the
+    // stale frame every refresh. Tiny time-loop goblin: contained.
     setProgressDisplay(currentProgressSnapshot(), true);
   }
 
@@ -429,6 +450,7 @@
     const source = sourceLabel(displayMetadata);
     const progress = normaliseProgress(displayMetadata.progress);
     const playbackStatus = activePlaybackStatus(remote);
+    const trackKey = hasDisplayMetadata ? trackKeyForMetadata(displayMetadata) : null;
 
     latestRemote = remote;
     lastStatusMode = mode;
@@ -437,6 +459,13 @@
     if (!isActive) {
       progressState = null;
       optimisticPlayback = null;
+      lastTrackKey = null;
+    } else if (trackKey && lastTrackKey && trackKey !== lastTrackKey) {
+      progressState = null;
+    }
+
+    if (trackKey) {
+      lastTrackKey = trackKey;
     }
 
     document.body.classList.toggle('airplay-session-active', isActive);
