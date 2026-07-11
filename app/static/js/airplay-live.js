@@ -15,6 +15,13 @@
     artwork: document.getElementById('airplay-artwork'),
     artworkImg: document.getElementById('airplay-artwork-img'),
     glyph: document.getElementById('airplay-glyph'),
+    progress: document.getElementById('airplay-progress'),
+    progressElapsed: document.getElementById('airplay-progress-elapsed'),
+    progressDuration: document.getElementById('airplay-progress-duration'),
+    progressFill: document.getElementById('airplay-progress-fill'),
+    volumeStrip: document.getElementById('airplay-volume-strip'),
+    volumeSlider: document.getElementById('airplay-volume-slider'),
+    volumeLabel: document.getElementById('airplay-volume-label'),
   };
 
   let activeStartedAt = null;
@@ -44,6 +51,10 @@
   }
 
   function formatDuration(totalSeconds) {
+    if (!Number.isFinite(totalSeconds)) {
+      return '—';
+    }
+
     const seconds = Math.max(0, Math.floor(totalSeconds));
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -60,6 +71,10 @@
     if (elements[name]) {
       elements[name].textContent = value;
     }
+  }
+
+  function clamp(number, min, max) {
+    return Math.min(max, Math.max(min, number));
   }
 
   function sourceLabel(metadata) {
@@ -145,6 +160,82 @@
     return parts.join(' · ');
   }
 
+  function normaliseProgress(progress) {
+    if (!progress || typeof progress !== 'object') {
+      return null;
+    }
+
+    const percent = Number(progress.percent);
+    const elapsedSeconds = Number(progress.elapsed_seconds);
+    const durationSeconds = Number(progress.duration_seconds);
+
+    if (!Number.isFinite(percent) || !Number.isFinite(elapsedSeconds) || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+      return null;
+    }
+
+    return {
+      percent: clamp(percent, 0, 100),
+      elapsedSeconds: clamp(elapsedSeconds, 0, durationSeconds),
+      durationSeconds,
+    };
+  }
+
+  function setProgress(progress, hasFreshMetadata) {
+    const showProgress = Boolean(hasFreshMetadata && progress);
+
+    if (elements.progress) {
+      elements.progress.hidden = !showProgress;
+    }
+
+    if (!showProgress) {
+      document.body.style.removeProperty('--airplay-progress-percent');
+      return;
+    }
+
+    document.body.style.setProperty('--airplay-progress-percent', `${progress.percent}%`);
+    setText('progressElapsed', formatDuration(progress.elapsedSeconds));
+    setText('progressDuration', formatDuration(progress.durationSeconds));
+  }
+
+  function volumePercentFromDb(volumeDb) {
+    const db = Number(volumeDb);
+    if (!Number.isFinite(db)) {
+      return null;
+    }
+    if (db <= -96) {
+      return 0;
+    }
+    if (db >= 0) {
+      return 100;
+    }
+
+    // AirPlay reports volume in dB below full scale. This is a display mapping,
+    // not a claim that the iPhone slider is perfectly linear.
+    return Math.round(clamp(((db + 30) / 30) * 100, 0, 100));
+  }
+
+  function setVolumeDisplay(metadata, hasFreshMetadata) {
+    const volumePercent = volumePercentFromDb(metadata?.volume_db);
+    const showVolume = Boolean(hasFreshMetadata && volumePercent !== null && metadata?.volume);
+
+    if (elements.volumeStrip) {
+      elements.volumeStrip.hidden = !showVolume;
+    }
+
+    if (!showVolume) {
+      document.body.style.removeProperty('--airplay-volume-percent');
+      return;
+    }
+
+    document.body.style.setProperty('--airplay-volume-percent', `${volumePercent}%`);
+
+    if (elements.volumeSlider) {
+      elements.volumeSlider.value = String(volumePercent);
+    }
+
+    setText('volumeLabel', metadata.volume);
+  }
+
   function updateElapsed() {
     if (!activeStartedAt) {
       setText('elapsed', 'Standing by');
@@ -169,6 +260,7 @@
     const title = hasFreshMetadata && metadata.title ? metadata.title : airplayName;
     const summary = hasFreshMetadata ? metadataSummary(metadata) : '';
     const source = sourceLabel(metadata);
+    const progress = normaliseProgress(metadata.progress);
 
     lastStatusMode = mode;
     activeStartedAt = isActive ? startedAt : null;
@@ -182,6 +274,8 @@
     }
 
     setArtwork(metadata.artwork_url, hasFreshMetadata);
+    setProgress(progress, hasFreshMetadata);
+    setVolumeDisplay(metadata, hasFreshMetadata);
     setText('title', title);
     setText('kicker', isActive ? (hasFreshMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
 
