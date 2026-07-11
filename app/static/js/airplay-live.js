@@ -21,9 +21,11 @@
     miniClock: document.getElementById('airplay-mini-clock'),
     miniHours: document.getElementById('airplay-mini-hours'),
     miniMinutes: document.getElementById('airplay-mini-minutes'),
+    miniSeconds: document.getElementById('airplay-mini-seconds'),
     miniDate: document.getElementById('airplay-mini-date'),
     outsideNow: document.getElementById('airplay-outside-now'),
     outsideDetail: document.getElementById('airplay-outside-detail'),
+    barometerLabel: document.getElementById('airplay-barometer-label'),
     barometerNow: document.getElementById('airplay-barometer-now'),
     barometerDetail: document.getElementById('airplay-barometer-detail'),
   };
@@ -61,18 +63,6 @@
     const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text);
     const date = new Date(hasTimezone ? text : text.replace(' ', 'T'));
     return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  function formatClockTime(date) {
-    if (!date) {
-      return '—';
-    }
-
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
   }
 
   function formatDuration(totalSeconds) {
@@ -138,8 +128,6 @@
       return 'iPhone';
     }
 
-    // Most real use here is iPhone → Pi. If Shairport later gives us a friendly
-    // source name, the candidates above will win and this fallback disappears.
     return 'iPhone';
   }
 
@@ -191,21 +179,30 @@
     const container = element.parentElement;
     element.textContent = text;
 
-    if (container) {
-      container.hidden = !text;
-      container.classList.remove('is-overflowing');
-      container.style.removeProperty('--airplay-source-overflow');
-
-      if (text) {
-        window.requestAnimationFrame(() => {
-          const overflow = Math.max(0, element.scrollWidth - container.clientWidth);
-          if (overflow > 8) {
-            container.style.setProperty('--airplay-source-overflow', `${overflow}px`);
-            container.classList.add('is-overflowing');
-          }
-        });
-      }
+    if (!container) {
+      return;
     }
+
+    container.hidden = !text;
+    container.classList.remove('is-overflowing');
+    container.style.removeProperty('--airplay-source-overflow');
+
+    if (!text) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const measuredOverflow = Math.max(0, element.scrollWidth - container.clientWidth);
+        const estimatedOverflow = Math.max(0, Math.ceil(text.length * 11.5) - container.clientWidth);
+        const overflow = Math.max(measuredOverflow, estimatedOverflow);
+
+        if (overflow > 8 || text.length > 34) {
+          container.style.setProperty('--airplay-source-overflow', `${Math.max(overflow, 48)}px`);
+          container.classList.add('is-overflowing');
+        }
+      });
+    });
   }
 
   function setArtwork(url, showArtwork) {
@@ -383,8 +380,6 @@
       return 100;
     }
 
-    // AirPlay reports volume in dB below full scale. This is a display mapping,
-    // not a claim that the iPhone slider is perfectly linear.
     return Math.round(clamp(((db + 30) / 30) * 100, 0, 100));
   }
 
@@ -491,16 +486,18 @@
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    const date = now.toLocaleDateString('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const weekday = now.toLocaleDateString('en-GB', { weekday: 'short' });
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const date = `${weekday} ${day}/${month}/${year}`;
 
     setDigits(elements.miniHours, hours);
     setDigits(elements.miniMinutes, minutes);
+    setDigits(elements.miniSeconds, seconds);
     if (elements.miniClock) {
-      elements.miniClock.setAttribute('aria-label', `${hours}:${minutes}`);
+      elements.miniClock.setAttribute('aria-label', `${hours}:${minutes}:${seconds}`);
     }
     setText('miniDate', date);
   }
@@ -514,16 +511,16 @@
     const outsideParts = [temp, humidity].filter(isUsefulValue);
 
     setText('outsideNow', outsideParts.length ? outsideParts.join(' · ') : 'Waiting');
-    setText('outsideDetail', outsideParts.length ? 'Outdoor temp and humidity' : 'Weather data pending');
+    setText('outsideDetail', '');
 
     const barometer = detail.barometer || {};
-    const forecast = barometer.forecast_title || 'Waiting';
+    const forecast = isUsefulValue(barometer.forecast_title) ? barometer.forecast_title : '';
     const pressure = barometer.pressure?.value;
     const trend = barometer.trend;
-    const barometerParts = [pressure, trend].filter(isUsefulValue);
 
-    setText('barometerNow', forecast);
-    setText('barometerDetail', barometerParts.length ? barometerParts.join(' · ') : 'Pressure data pending');
+    setText('barometerLabel', forecast ? `Barometer · ${forecast}` : 'Barometer');
+    setText('barometerNow', isUsefulValue(pressure) ? pressure : forecast || 'Waiting');
+    setText('barometerDetail', isUsefulValue(trend) ? trend : 'Pressure data pending');
   }
 
   function setPlaybackButton(remote, isActive) {
@@ -699,8 +696,6 @@
   updateMiniClock();
   refreshStatus();
 
-  // A tiny safety net: if the page is left visible while the mode changes,
-  // mode-watch.js will navigate away, but this gives the card immediate feedback.
   window.addEventListener('visibilitychange', () => {
     if (!document.hidden && lastStatusMode !== 'airplay') {
       refreshStatus();
