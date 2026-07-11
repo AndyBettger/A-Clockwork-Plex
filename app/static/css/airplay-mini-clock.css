@@ -1,7 +1,9 @@
 /* Segmented mini clock for the AirPlay glance row. */
 
 .airplay-glance-grid {
-  grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr) minmax(0, 1fr);
+  /* Give the clock more room, borrow it mostly from the outside card, and keep
+     the barometer card about the same visual weight as before. */
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 0.75fr) minmax(0, 1.1fr);
 }
 
 .airplay-info-card.is-clock {
@@ -14,9 +16,9 @@
 .airplay-mini-clock-line {
   width: 100%;
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: max-content minmax(max-content, 1fr);
   align-items: center;
-  column-gap: clamp(12px, 2.25vmin, 24px);
+  column-gap: clamp(18px, 3vmin, 34px);
   min-width: 0;
 }
 
@@ -24,11 +26,11 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 0.058em;
+  gap: 0.07em;
   min-width: max-content;
   margin: 0;
   color: var(--text);
-  font-size: clamp(1.35rem, 4.05vmin, 2.18rem);
+  font-size: clamp(2.15rem, 7.4vmin, 3.25rem);
   line-height: 1;
   white-space: nowrap;
 }
@@ -37,7 +39,7 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 0.065em;
+  gap: 0.07em;
   transform: skewX(var(--segment-slant));
 }
 
@@ -46,27 +48,27 @@
 }
 
 .airplay-mini-time.is-segmented .clock-seconds {
-  font-size: 0.52em;
-  gap: 0.06em;
+  font-size: 0.54em;
+  gap: 0.065em;
 }
 
 .airplay-mini-time.is-segmented .digital-colon {
   flex: 0 0 auto;
-  width: 0.14em;
-  height: 0.55em;
-  margin-inline: 0.02em 0;
+  width: 0.2em;
+  height: 0.72em;
+  margin-inline: 0.04em 0.02em;
   transform: skewX(var(--segment-slant));
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small {
-  font-size: 0.52em;
-  height: 0.55em;
-  margin-inline: 0.055em 0;
+  font-size: 0.58em;
+  height: 0.7em;
+  margin-inline: 0.08em 0.02em;
 }
 
 .airplay-mini-time.is-segmented .digital-colon span {
-  width: 0.11em;
-  height: 0.11em;
+  width: 0.145em;
+  height: 0.145em;
 }
 
 .airplay-mini-meridiem {
@@ -80,33 +82,44 @@
 }
 
 .airplay-mini-date {
-  justify-self: start;
-  min-width: 0;
+  justify-self: end;
+  min-width: max-content;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: clamp(0.78rem, 1.95vmin, 1rem);
 }
 
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-glance-grid {
-    grid-template-columns: minmax(0, 1.26fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.72fr) minmax(0, 1.12fr);
   }
 
   .airplay-mini-clock-line {
-    column-gap: clamp(10px, 1.85vw, 16px);
+    column-gap: clamp(12px, 2.25vw, 22px);
   }
 
   .airplay-mini-time.is-segmented {
-    font-size: clamp(1.12rem, 3.65vw, 1.62rem);
-    gap: 0.05em;
+    font-size: clamp(1.7rem, 6.25vw, 2.55rem);
+    gap: 0.058em;
   }
 
   .airplay-mini-time.is-segmented .digital-group {
-    gap: 0.052em;
+    gap: 0.058em;
+  }
+
+  .airplay-mini-time.is-segmented .digital-colon {
+    width: 0.19em;
+    height: 0.7em;
+  }
+
+  .airplay-mini-time.is-segmented .digital-colon span {
+    width: 0.14em;
+    height: 0.14em;
   }
 
   .airplay-mini-date {
-    font-size: clamp(0.64rem, 1.7vw, 0.82rem);
+    font-size: clamp(0.66rem, 1.75vw, 0.86rem);
   }
 }
 
@@ -118,5 +131,9 @@
   .airplay-mini-clock-line {
     justify-content: center;
     grid-template-columns: max-content max-content;
+  }
+
+  .airplay-mini-date {
+    justify-self: start;
   }
 }
