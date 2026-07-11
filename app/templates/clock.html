@@ -51,6 +51,23 @@ const SEGMENTS = {
   '9': ['a', 'b', 'c', 'd', 'f', 'g']
 };
 
+const WEATHER_LABELS_BY_ID = {
+  outdoor_temp: 'Outdoor temp',
+  indoor_temp: 'Indoor temp',
+  humidity: 'Humidity',
+  indoor_humidity: 'Indoor humidity',
+  wind_speed: 'Wind',
+  wind_gust: 'Gust',
+  max_daily_gust: 'Max gust today',
+  daily_rain: 'Rain today',
+  hourly_rain: 'Hourly rain',
+  event_rain: 'Event rain',
+  pressure: 'Pressure',
+  barometer: 'Barometer',
+  solar: 'Solar',
+  uv: 'UV'
+};
+
 function makeDigit(value) {
   const digit = document.createElement('span');
   digit.className = 'digital-digit';
@@ -108,6 +125,37 @@ function makeWeatherCard(label, value) {
   return card;
 }
 
+function weatherCardsFromStatus(status) {
+  if (Array.isArray(status?.weather_display_cards)) {
+    return status.weather_display_cards;
+  }
+
+  const display = status?.weather_display || {};
+  const configuredOrder = Array.isArray(status?.config?.weather?.clock_cards)
+    ? status.config.weather.clock_cards
+    : [];
+
+  const ordered = [];
+  const usedLabels = new Set();
+
+  configuredOrder.forEach((fieldId) => {
+    const label = WEATHER_LABELS_BY_ID[fieldId];
+    if (!label || !(label in display)) {
+      return;
+    }
+    ordered.push({ label, value: display[label] });
+    usedLabels.add(label);
+  });
+
+  Object.entries(display).forEach(([label, value]) => {
+    if (!usedLabels.has(label)) {
+      ordered.push({ label, value });
+    }
+  });
+
+  return ordered;
+}
+
 function renderWeatherCards(cards) {
   const content = document.getElementById('clock-weather-content');
   if (!content) {
@@ -142,11 +190,7 @@ async function updateClockWeather() {
       document.getElementById('clock-weather-title').textContent = title;
     }
 
-    const cards = Array.isArray(status?.weather_display_cards)
-      ? status.weather_display_cards
-      : Object.entries(status?.weather_display || {}).map(([label, value]) => ({ label, value }));
-
-    renderWeatherCards(cards.filter((card) => card.label && card.value));
+    renderWeatherCards(weatherCardsFromStatus(status).filter((card) => card.label && card.value));
   } catch (error) {
     // Leave the last good readings on screen if a transient update fails.
   }
