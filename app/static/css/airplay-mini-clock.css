@@ -3,7 +3,7 @@
 .airplay-glance-grid {
   /* Keep the weather cards useful, but give the clock enough room for a proper
      segmented display plus the date. */
-  grid-template-columns: minmax(0, 1.62fr) minmax(0, 1.03fr) minmax(0, 1.12fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
 }
 
 .airplay-info-card.is-clock {
@@ -18,12 +18,12 @@
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  column-gap: clamp(10px, 1.65vmin, 22px);
+  column-gap: clamp(8px, 1.35vmin, 18px);
   min-width: 0;
 }
 
 .airplay-mini-time.is-segmented {
-  --airplay-mini-digit-h: clamp(58px, 7.65vmin, 76px);
+  --airplay-mini-digit-h: clamp(52px, 6.9vmin, 68px);
   --digit-h: var(--airplay-mini-digit-h);
   --digit-w: calc(var(--digit-h) * 0.62);
   --seg-t: calc(var(--digit-h) * 0.095);
@@ -33,7 +33,7 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: calc(var(--airplay-mini-digit-h) * 0.048);
+  gap: calc(var(--airplay-mini-digit-h) * 0.044);
   min-width: max-content;
   height: var(--airplay-mini-digit-h);
   margin: 0;
@@ -53,18 +53,18 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: calc(var(--digit-h) * 0.048);
+  gap: calc(var(--digit-h) * 0.044);
   height: var(--digit-h);
   transform: skewX(var(--segment-slant));
 }
 
 .airplay-mini-time.is-segmented .clock-seconds {
-  --digit-h: calc(var(--airplay-mini-digit-h) * 0.56);
+  --digit-h: calc(var(--airplay-mini-digit-h) * 0.54);
   --digit-w: calc(var(--digit-h) * 0.62);
   --seg-t: calc(var(--digit-h) * 0.095);
   --seg-l: calc(var(--digit-h) * 0.36);
   --seg-r: calc(var(--digit-h) * 0.08);
-  gap: calc(var(--digit-h) * 0.052);
+  gap: calc(var(--digit-h) * 0.05);
   height: var(--digit-h);
 }
 
@@ -141,36 +141,36 @@
   display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
-  width: calc(var(--airplay-mini-digit-h) * 0.17);
-  height: calc(var(--airplay-mini-digit-h) * 0.64);
-  margin-inline: calc(var(--airplay-mini-digit-h) * 0.018) calc(var(--airplay-mini-digit-h) * 0.01);
+  width: calc(var(--airplay-mini-digit-h) * 0.15);
+  height: calc(var(--airplay-mini-digit-h) * 0.62);
+  margin-inline: calc(var(--airplay-mini-digit-h) * 0.014) calc(var(--airplay-mini-digit-h) * 0.008);
   transform: skewX(var(--segment-slant));
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small {
-  width: calc(var(--airplay-mini-digit-h) * 0.12);
-  height: calc(var(--airplay-mini-digit-h) * 0.4);
-  margin-inline: calc(var(--airplay-mini-digit-h) * 0.04) calc(var(--airplay-mini-digit-h) * 0.01);
+  width: calc(var(--airplay-mini-digit-h) * 0.105);
+  height: calc(var(--airplay-mini-digit-h) * 0.38);
+  margin-inline: calc(var(--airplay-mini-digit-h) * 0.034) calc(var(--airplay-mini-digit-h) * 0.008);
 }
 
 .airplay-mini-time.is-segmented .digital-colon span {
   display: block;
-  width: calc(var(--airplay-mini-digit-h) * 0.105);
-  height: calc(var(--airplay-mini-digit-h) * 0.105);
+  width: calc(var(--airplay-mini-digit-h) * 0.095);
+  height: calc(var(--airplay-mini-digit-h) * 0.095);
   border-radius: 50%;
   background: var(--segment-on);
   box-shadow: 0 0 calc(var(--airplay-mini-digit-h) * 0.03) rgba(255, 255, 255, 0.42);
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small span {
-  width: calc(var(--airplay-mini-digit-h) * 0.068);
-  height: calc(var(--airplay-mini-digit-h) * 0.068);
+  width: calc(var(--airplay-mini-digit-h) * 0.062);
+  height: calc(var(--airplay-mini-digit-h) * 0.062);
 }
 
 .airplay-mini-meridiem {
   align-self: flex-end;
-  margin-left: calc(var(--airplay-mini-digit-h) * 0.1);
-  margin-bottom: calc(var(--airplay-mini-digit-h) * 0.055);
+  margin-left: calc(var(--airplay-mini-digit-h) * 0.09);
+  margin-bottom: calc(var(--airplay-mini-digit-h) * 0.05);
   color: var(--muted);
   font-size: calc(var(--airplay-mini-digit-h) * 0.18);
   font-weight: 950;
@@ -187,25 +187,26 @@
 }
 
 .airplay-mini-date.is-alpha-segmented {
-  --alpha-date-h: clamp(19px, 2.35vmin, 28px);
+  --alpha-date-h: clamp(16px, 1.9vmin, 22px);
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: calc(var(--alpha-date-h) * 0.09);
+  gap: calc(var(--alpha-date-h) * 0.065);
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
   color: var(--muted);
+  font-size: 0; /* Hide fallback text while JS re-renders segmented date. */
 }
 
 .airplay-mini-date .alpha-character {
   flex: 0 0 auto;
-  width: calc(var(--alpha-date-h) * 0.58);
+  width: calc(var(--alpha-date-h) * 0.54);
   height: var(--alpha-date-h);
 }
 
 .airplay-mini-date .alpha-character.is-space {
-  width: calc(var(--alpha-date-h) * 0.32);
+  width: calc(var(--alpha-date-h) * 0.24);
 }
 
 .airplay-mini-date .alpha-character svg {
@@ -216,7 +217,7 @@
 
 .airplay-mini-date .alpha-segment {
   stroke: rgba(170, 180, 196, 0.1);
-  stroke-width: 2.4;
+  stroke-width: 2.15;
   stroke-linecap: round;
 }
 
@@ -233,29 +234,37 @@
 
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-glance-grid {
-    grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
+    grid-template-columns: minmax(0, 1.64fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
   }
 
   .airplay-mini-clock-line {
-    column-gap: clamp(7px, 1.25vw, 12px);
+    column-gap: clamp(6px, 1.05vw, 10px);
   }
 
   .airplay-mini-time.is-segmented {
-    --airplay-mini-digit-h: clamp(50px, 12vh, 64px);
-    gap: calc(var(--airplay-mini-digit-h) * 0.04);
+    --airplay-mini-digit-h: clamp(44px, 10.5vh, 56px);
+    gap: calc(var(--airplay-mini-digit-h) * 0.036);
   }
 
   .airplay-mini-time.is-segmented .digital-group {
-    gap: calc(var(--digit-h) * 0.042);
+    gap: calc(var(--digit-h) * 0.038);
   }
 
   .airplay-mini-date.is-alpha-segmented {
-    --alpha-date-h: clamp(15px, 2.05vw, 21px);
-    gap: calc(var(--alpha-date-h) * 0.07);
+    --alpha-date-h: clamp(13px, 1.72vw, 18px);
+    gap: calc(var(--alpha-date-h) * 0.052);
+  }
+
+  .airplay-mini-date .alpha-character {
+    width: calc(var(--alpha-date-h) * 0.5);
+  }
+
+  .airplay-mini-date .alpha-character.is-space {
+    width: calc(var(--alpha-date-h) * 0.18);
   }
 
   .airplay-mini-date .alpha-segment {
-    stroke-width: 2.2;
+    stroke-width: 2;
   }
 
   .airplay-info-card.is-outside strong {
