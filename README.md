@@ -8,13 +8,13 @@ This project is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https
 
 | Area | Status |
 |---|---|
-| **Clock** | Large segmented digital clock, date, and compact weather cards. |
+| **Clock** | Large segmented digital clock, date, and compact live-updating weather cards. |
 | **Weather** | Detailed Ecowitt weather dashboard with conditions, wind compass, pressure/barometer, dynamic rain gauges, station status and auto-refresh. |
 | **Plexamp** | Plexamp Headless embedded inside the dashboard using an iframe shell. |
 | **Navigation** | Hidden bottom nav drawer with a small touchscreen handle; tap or swipe up to show it. |
 | **NFC handoff** | NFC scans can switch the display to the embedded Plexamp page while playback starts. |
-| **AirPlay** | Shairport Sync helper scripts pause/stop Plexamp while AirPlay owns the DAC, then restart Plexamp afterwards. |
-| **Settings** | Touchscreen settings page for weather names, units, clock weather cards, dashboard behaviour, Plexamp/AirPlay values and alarm placeholders. |
+| **AirPlay** | Shairport Sync wrapper hooks pause/stop Plexamp while AirPlay owns the DAC, switch the dashboard to AirPlay, then restart Plexamp and return to Clock. |
+| **Settings** | Touchscreen settings page for weather names, units, ordered clock weather cards, dashboard behaviour, Plexamp/AirPlay values and alarm placeholders. |
 | **Mode watcher** | Pages poll `/api/status` and move themselves when an external mode change happens, so kiosk setups do not require `xdotool`. |
 
 ## Screen modes
@@ -24,7 +24,7 @@ This project is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https
 | **Clock** | `/clock` | Default idle screen with time, date and compact weather station data. |
 | **Weather** | `/weather` | Detailed weather station page. |
 | **Plexamp** | `/plexamp` | Dashboard-hosted Plexamp iframe with the hidden nav handle. |
-| **AirPlay** | `/airplay` | Simple AirPlay active screen. |
+| **AirPlay** | `/airplay` | AirPlay active handoff/status screen. |
 | **Settings** | `/settings` | Touchscreen configuration page. |
 
 ## Repository layout
@@ -46,6 +46,7 @@ A-Clockwork-Plex/
 │       └── js/
 ├── scripts/
 │   ├── display-mode.sh
+│   ├── install-airplay-hooks.sh
 │   ├── shairport-airplay-start.sh
 │   ├── shairport-airplay-end.sh
 │   └── nfc-plexamp-mode.sh
@@ -177,7 +178,7 @@ The detailed weather page currently includes:
 - Daily low/high tracking for those readings.
 - Shipping Forecast-inspired issued text.
 - Wind compass and speed/gust readings.
-- Pressure/barometer panel with rising/falling/steady estimate.
+- Pressure/barometer panel with relative and absolute pressure, a prominent barometer forecast and a simple forecast graphic.
 - Dynamic rain gauges that scale automatically.
 - Station status table.
 - Auto-refresh, configurable from Settings.
@@ -199,7 +200,7 @@ The Settings screen writes to `config.json`. It currently supports:
 - Reporting station name.
 - Weather auto-refresh seconds.
 - Weather units: temperature, pressure, rain and wind.
-- Clock page weather cards.
+- Ordered clock page weather cards, including optional barometer forecast card.
 - Default dashboard mode.
 - Idle timeout placeholder.
 - Day/night dimming time placeholders.
@@ -261,19 +262,107 @@ The dashboard also includes a browser-side mode watcher, so even if `xdotool` is
 
 ## Shairport Sync / AirPlay integration
 
-The helper scripts in `scripts/` are intended to be used as Shairport Sync hooks:
+The working AirPlay handoff path uses small wrapper scripts in `/usr/local/bin`, rather than pointing Shairport Sync directly at scripts inside `/home`. This avoids permission and systemd sandboxing issues where Shairport can see the hook command but cannot execute files under a user's home directory.
+
+The wrappers do this when AirPlay starts:
+
+```text
+Switch dashboard to /airplay
+Pause Plexamp
+Stop plexamp.service so Shairport can own the DAC
+```
+
+When AirPlay ends, they do this:
+
+```text
+Start plexamp.service
+Wait briefly
+Switch dashboard back to /clock
+```
+
+Install or refresh the wrapper hooks:
+
+```bash
+cd ~/A-Clockwork-Plex
+git pull
+chmod +x scripts/*.sh
+./scripts/install-airplay-hooks.sh
+```
+
+The installer creates:
+
+```text
+/usr/local/bin/a-clockwork-plex-airplay-start
+/usr/local/bin/a-clockwork-plex-airplay-end
+/etc/sudoers.d/a-clockwork-plex-airplay
+```
+
+The sudoers rule allows the `shairport-sync` service user to run only these commands without a password:
+
+```text
+/usr/bin/systemctl stop plexamp.service
+/usr/bin/systemctl start plexamp.service
+```
+
+Use this in `/etc/shairport-sync.conf`:
 
 ```conf
 sessioncontrol =
 {
-    run_this_before_entering_active_state = "/home/andy/A-Clockwork-Plex/scripts/shairport-airplay-start.sh";
-    run_this_after_exiting_active_state = "/home/andy/A-Clockwork-Plex/scripts/shairport-airplay-end.sh";
+    run_this_before_entering_active_state = "/usr/local/bin/a-clockwork-plex-airplay-start";
+    run_this_after_exiting_active_state = "/usr/local/bin/a-clockwork-plex-airplay-end";
     active_state_timeout = 10;
     wait_for_completion = "yes";
 };
 ```
 
-The start script switches the dashboard to AirPlay mode, pauses Plexamp, then stops `plexamp.service` so Shairport can use the DAC. The end script restarts Plexamp and returns the display to clock mode.
+Remove older hook entries such as:
+
+```conf
+run_this_before_play_begins = "/usr/local/bin/plexamp-airplay-start";
+run_this_after_play_ends = "/usr/local/bin/plexamp-airplay-stop";
+```
+
+Validate and restart Shairport Sync:
+
+```bash
+shairport-sync -t
+sudo systemctl restart shairport-sync
+```
+
+Watch the handoff logs:
+
+```bash
+journalctl -u shairport-sync -f
+```
+
+and in another terminal:
+
+```bash
+journalctl -t shairport-plexamp -f
+```
+
+Expected helper log sequence:
+
+```text
+AirPlay starting - switching display to AirPlay
+AirPlay starting - pausing Plexamp playback
+AirPlay starting - stopping Plexamp service
+Plexamp service stopped - DAC should be free
+AirPlay ended - starting Plexamp service
+Plexamp service start requested
+AirPlay ended - switching display to clock
+```
+
+Optional installer overrides:
+
+```bash
+DASHBOARD_BASE="http://localhost:8088" \
+PLEXAMP_URL="http://localhost:32500" \
+PLEXAMP_SERVICE="plexamp.service" \
+SHAIRPORT_USER="shairport-sync" \
+./scripts/install-airplay-hooks.sh
+```
 
 ## Useful endpoints
 
