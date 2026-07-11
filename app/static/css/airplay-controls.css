@@ -1,0 +1,83 @@
+/* Extra AirPlay controls: live progress, play/pause, and touch volume. */
+
+.airplay-control-row {
+  width: min(100%, 540px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(14px, 2.4vmin, 22px);
+  margin-top: clamp(12px, 2.2vmin, 22px);
+}
+
+.airplay-play-pause {
+  display: grid;
+  place-items: center;
+  width: clamp(48px, 7.5vmin, 66px);
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 50%;
+  color: #07111f;
+  background: var(--text);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.35),
+    0 0 26px rgba(255, 255, 255, 0.12);
+  font-size: clamp(1.2rem, 3vmin, 1.7rem);
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.airplay-play-pause:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.airplay-play-pause:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.airplay-volume-strip {
+  width: 100%;
+  margin-top: 0;
+}
+
+.airplay-volume-slider {
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: pan-x;
+}
+
+.airplay-volume-slider:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+body.airplay-remote-paused .airplay-live-dot {
+  animation: none;
+  box-shadow: 0 0 0 4px rgba(143, 211, 255, 0.16);
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-control-row {
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .airplay-play-pause {
+    width: clamp(42px, 6.8vmin, 54px);
+  }
+}
+
+@media (max-width: 680px) {
+  .airplay-control-row {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .airplay-volume-strip {
+    width: min(100%, 520px);
+  }
+}
