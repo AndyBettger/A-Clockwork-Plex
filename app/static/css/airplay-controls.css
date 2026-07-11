@@ -43,7 +43,7 @@
 }
 
 .airplay-source-line.is-overflowing span {
-  animation: airplay-source-scroll 12s ease-in-out 1s infinite alternate;
+  animation: airplay-source-scroll var(--airplay-scroll-duration, 18s) linear 1.2s infinite alternate;
 }
 
 @keyframes airplay-source-scroll {
@@ -135,73 +135,48 @@ body.airplay-remote-paused .airplay-live-dot {
 .airplay-glance-grid .airplay-info-card {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: clamp(74px, 12vmin, 104px);
+  padding-top: clamp(10px, 1.6vmin, 15px);
 }
 
 .airplay-info-card.is-clock {
-  --segment-on: #f7f9ff;
-  --segment-off: rgba(247, 249, 255, 0.045);
   justify-content: center;
 }
 
 .airplay-mini-clock-line {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: clamp(12px, 2.1vmin, 22px);
   min-width: 0;
 }
 
 .airplay-mini-time {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.065em;
+  display: inline-block;
+  min-width: max-content;
   margin: 0;
   color: var(--text);
-  font-size: clamp(1.04rem, 3.45vmin, 1.9rem);
+  font-size: clamp(1.45rem, 4.25vmin, 2.22rem);
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.055em;
   line-height: 0.95;
   white-space: nowrap;
-}
-
-.airplay-mini-time .digital-group {
-  transform: skewX(var(--segment-slant));
-}
-
-.airplay-mini-time .clock-seconds {
-  font-size: 0.52em;
-}
-
-.airplay-mini-time .digital-colon {
-  width: 0.14em;
-  height: 0.55em;
-  margin-inline: 0.025em 0;
-}
-
-.airplay-mini-time .digital-colon-small {
-  font-size: 0.52em;
-  height: 0.55em;
-  margin-inline: 0.06em 0;
-}
-
-.airplay-mini-time .digital-colon span {
-  width: 0.11em;
-  height: 0.11em;
 }
 
 .airplay-mini-date {
   min-width: max-content;
   margin: 0;
   color: var(--muted);
-  font-size: clamp(0.78rem, 1.95vmin, 0.98rem);
+  font-size: clamp(0.74rem, 1.85vmin, 0.94rem);
   font-weight: 850;
   line-height: 1;
   white-space: nowrap;
 }
 
 .airplay-glance-grid .airplay-info-card strong {
-  margin-top: 1px;
-  font-size: clamp(1.14rem, 3vmin, 1.58rem);
+  margin-top: clamp(3px, 0.8vmin, 6px);
+  color: var(--text);
 }
 
 .airplay-glance-grid .airplay-info-card p {
@@ -216,15 +191,22 @@ body.airplay-remote-paused .airplay-live-dot {
 
 .airplay-info-card.is-outside span,
 .airplay-info-card.is-barometer span {
+  min-height: 1.1em;
   font-size: clamp(0.68rem, 1.58vmin, 0.82rem);
 }
 
-.airplay-info-card.is-outside strong,
+.airplay-info-card.is-outside strong {
+  font-size: clamp(1.55rem, 4.2vmin, 2.24rem);
+  line-height: 1.02;
+}
+
 .airplay-info-card.is-barometer strong {
-  font-size: clamp(1.28rem, 3.4vmin, 1.82rem);
+  font-size: clamp(1.36rem, 3.75vmin, 2rem);
+  line-height: 1.02;
 }
 
 .airplay-info-card.is-barometer p {
+  margin-top: 3px;
   font-size: clamp(0.76rem, 1.9vmin, 0.96rem);
 }
 
@@ -248,6 +230,7 @@ body.airplay-remote-paused .airplay-live-dot {
 
   .airplay-glance-grid .airplay-info-card {
     min-height: clamp(62px, 11vmin, 82px);
+    padding-top: 8px;
   }
 
   .airplay-mini-clock-line {
@@ -255,16 +238,19 @@ body.airplay-remote-paused .airplay-live-dot {
   }
 
   .airplay-mini-time {
-    font-size: clamp(0.86rem, 3.3vw, 1.28rem);
+    font-size: clamp(1.12rem, 3.75vw, 1.62rem);
   }
 
   .airplay-mini-date {
-    font-size: clamp(0.68rem, 1.7vw, 0.84rem);
+    font-size: clamp(0.62rem, 1.62vw, 0.8rem);
   }
 
-  .airplay-info-card.is-outside strong,
+  .airplay-info-card.is-outside strong {
+    font-size: clamp(1.18rem, 3.25vw, 1.58rem);
+  }
+
   .airplay-info-card.is-barometer strong {
-    font-size: clamp(1.04rem, 2.8vw, 1.34rem);
+    font-size: clamp(1.08rem, 3vw, 1.42rem);
   }
 }
 
