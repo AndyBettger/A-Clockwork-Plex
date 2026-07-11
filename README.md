@@ -13,7 +13,7 @@ This project is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https
 | **Plexamp** | Plexamp Headless embedded inside the dashboard using an iframe shell. |
 | **Navigation** | Hidden bottom nav drawer with a small touchscreen handle; tap or swipe up to show it. |
 | **NFC handoff** | NFC scans can switch the display to the embedded Plexamp page while playback starts. |
-| **AirPlay** | Shairport Sync wrapper hooks pause/stop Plexamp while AirPlay owns the DAC, switch the dashboard to AirPlay, then restart Plexamp and return to Clock. |
+| **AirPlay** | Shairport Sync wrapper hooks mark real AirPlay sessions active/idle, pause/stop Plexamp while AirPlay owns the DAC, then restart Plexamp and return to Clock. |
 | **Settings** | Touchscreen settings page for weather names, units, ordered clock weather cards, dashboard behaviour, Plexamp/AirPlay values and alarm placeholders. |
 | **Mode watcher** | Pages poll `/api/status` and move themselves when an external mode change happens, so kiosk setups do not require `xdotool`. |
 
@@ -24,7 +24,7 @@ This project is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https
 | **Clock** | `/clock` | Default idle screen with time, date and compact weather station data. |
 | **Weather** | `/weather` | Detailed weather station page. |
 | **Plexamp** | `/plexamp` | Dashboard-hosted Plexamp iframe with the hidden nav handle. |
-| **AirPlay** | `/airplay` | AirPlay active handoff/status screen. |
+| **AirPlay** | `/airplay` | AirPlay ready/active handoff and status screen. |
 | **Settings** | `/settings` | Touchscreen configuration page. |
 
 ## Repository layout
@@ -267,6 +267,7 @@ The working AirPlay handoff path uses small wrapper scripts in `/usr/local/bin`,
 The wrappers do this when AirPlay starts:
 
 ```text
+Call /api/airplay/start to mark the real AirPlay session active
 Switch dashboard to /airplay
 Pause Plexamp
 Stop plexamp.service so Shairport can own the DAC
@@ -277,6 +278,7 @@ When AirPlay ends, they do this:
 ```text
 Start plexamp.service
 Wait briefly
+Call /api/airplay/end to mark the AirPlay session idle
 Switch dashboard back to /clock
 ```
 
@@ -372,13 +374,15 @@ SHAIRPORT_USER="shairport-sync" \
 | `/clock` | Clock/weather screen. |
 | `/weather` | Detailed weather station screen. |
 | `/plexamp` | Embedded Plexamp shell. |
-| `/airplay` | AirPlay active screen. |
+| `/airplay` | AirPlay ready/active screen. |
 | `/settings` | Touchscreen settings page. |
-| `/api/status` | Current mode, config diagnostics and redacted/latest weather data. |
-| `/api/mode/clock` | Set mode to clock. |
-| `/api/mode/weather` | Set mode to detailed weather. |
-| `/api/mode/plexamp` | Set mode to Plexamp. |
-| `/api/mode/airplay` | Set mode to AirPlay. |
+| `/api/status` | Current mode, real AirPlay session state, config diagnostics and redacted/latest weather data. |
+| `/api/mode/clock` | Set display mode to clock. |
+| `/api/mode/weather` | Set display mode to detailed weather. |
+| `/api/mode/plexamp` | Set display mode to Plexamp. |
+| `/api/mode/airplay` | Set display mode to AirPlay without marking a real AirPlay session active. |
+| `/api/airplay/start` | Mark AirPlay active and switch display mode to AirPlay. |
+| `/api/airplay/end` | Mark AirPlay idle and switch display mode to Clock. |
 | `/api/weather/ecowitt` | Receiver endpoint for Ecowitt/custom weather uploads. |
 
 ## Troubleshooting
