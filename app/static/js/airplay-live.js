@@ -19,9 +19,6 @@
     playPauseButton: document.getElementById('airplay-play-pause'),
     playPauseIcon: document.getElementById('airplay-play-pause-icon'),
     miniClock: document.getElementById('airplay-mini-clock'),
-    miniHours: document.getElementById('airplay-mini-hours'),
-    miniMinutes: document.getElementById('airplay-mini-minutes'),
-    miniSeconds: document.getElementById('airplay-mini-seconds'),
     miniDate: document.getElementById('airplay-mini-date'),
     outsideNow: document.getElementById('airplay-outside-now'),
     outsideDetail: document.getElementById('airplay-outside-detail'),
@@ -30,18 +27,7 @@
     barometerDetail: document.getElementById('airplay-barometer-detail'),
   };
 
-  const SEGMENTS = {
-    '0': ['a', 'b', 'c', 'd', 'e', 'f'],
-    '1': ['b', 'c'],
-    '2': ['a', 'b', 'g', 'e', 'd'],
-    '3': ['a', 'b', 'g', 'c', 'd'],
-    '4': ['f', 'g', 'b', 'c'],
-    '5': ['a', 'f', 'g', 'c', 'd'],
-    '6': ['a', 'f', 'g', 'e', 'c', 'd'],
-    '7': ['a', 'b', 'c'],
-    '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
-    '9': ['a', 'b', 'c', 'd', 'f', 'g'],
-  };
+  const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
 
   let activeStartedAt = null;
   let lastStatusMode = null;
@@ -53,6 +39,7 @@
   let volumeSendTimer = null;
   let latestVolumePercent = null;
   let latestRemote = null;
+  let clockFormat = normaliseClockFormat(elements.miniClock?.dataset.clockFormat || '24h');
 
   function parseDashboardTime(value) {
     if (!value) {
@@ -106,6 +93,22 @@
       return optimisticPlayback.status;
     }
     return remote?.playback_status || 'Unknown';
+  }
+
+  function normaliseClockFormat(value) {
+    return String(value || '').toLowerCase() === '12h' ? '12h' : '24h';
+  }
+
+  function configuredClockFormat(config) {
+    try {
+      const localFormat = window.localStorage.getItem(CLOCK_FORMAT_STORAGE_KEY);
+      if (localFormat === '12h' || localFormat === '24h') {
+        return localFormat;
+      }
+    } catch (error) {
+    }
+
+    return normaliseClockFormat(config?.dashboard?.clock_format || elements.miniClock?.dataset.clockFormat || '24h');
   }
 
   function sourceLabel(metadata) {
@@ -177,15 +180,23 @@
 
     const text = String(value || '').trim();
     const container = element.parentElement;
-    element.textContent = text;
 
     if (!container) {
+      element.textContent = text;
       return;
     }
 
+    if (element.dataset.scrollText === text) {
+      container.hidden = !text;
+      return;
+    }
+
+    element.dataset.scrollText = text;
+    element.textContent = text;
     container.hidden = !text;
     container.classList.remove('is-overflowing');
     container.style.removeProperty('--airplay-source-overflow');
+    container.style.removeProperty('--airplay-scroll-duration');
 
     if (!text) {
       return;
@@ -194,11 +205,12 @@
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         const measuredOverflow = Math.max(0, element.scrollWidth - container.clientWidth);
-        const estimatedOverflow = Math.max(0, Math.ceil(text.length * 11.5) - container.clientWidth);
+        const estimatedOverflow = Math.max(0, Math.ceil(text.length * 12) - container.clientWidth);
         const overflow = Math.max(measuredOverflow, estimatedOverflow);
 
         if (overflow > 8 || text.length > 34) {
-          container.style.setProperty('--airplay-source-overflow', `${Math.max(overflow, 48)}px`);
+          container.style.setProperty('--airplay-source-overflow', `${Math.max(overflow, 56)}px`);
+          container.style.setProperty('--airplay-scroll-duration', `${Math.max(16, Math.min(34, Math.ceil(text.length / 3)))}s`);
           container.classList.add('is-overflowing');
         }
       });
@@ -458,33 +470,9 @@
     }, 180);
   }
 
-  function makeDigit(value) {
-    const digit = document.createElement('span');
-    digit.className = 'digital-digit';
-    digit.setAttribute('aria-hidden', 'true');
-
-    for (const segment of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
-      const element = document.createElement('span');
-      element.className = `segment segment-${segment}`;
-      if (SEGMENTS[value].includes(segment)) {
-        element.classList.add('is-on');
-      }
-      digit.appendChild(element);
-    }
-
-    return digit;
-  }
-
-  function setDigits(element, value) {
-    if (!element) {
-      return;
-    }
-    element.replaceChildren(...value.split('').map(makeDigit));
-  }
-
   function updateMiniClock() {
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
+    const rawHours = now.getHours();
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const weekday = now.toLocaleDateString('en-GB', { weekday: 'short' });
@@ -493,11 +481,19 @@
     const year = now.getFullYear();
     const date = `${weekday} ${day}/${month}/${year}`;
 
-    setDigits(elements.miniHours, hours);
-    setDigits(elements.miniMinutes, minutes);
-    setDigits(elements.miniSeconds, seconds);
+    let display;
+    if (clockFormat === '12h') {
+      const suffix = rawHours >= 12 ? 'PM' : 'AM';
+      const hours = String(((rawHours + 11) % 12) + 1);
+      display = `${hours}:${minutes}:${seconds} ${suffix}`;
+    } else {
+      const hours = String(rawHours).padStart(2, '0');
+      display = `${hours}:${minutes}:${seconds}`;
+    }
+
     if (elements.miniClock) {
-      elements.miniClock.setAttribute('aria-label', `${hours}:${minutes}:${seconds}`);
+      elements.miniClock.textContent = display;
+      elements.miniClock.setAttribute('aria-label', display);
     }
     setText('miniDate', date);
   }
@@ -561,6 +557,7 @@
     const playbackStatus = activePlaybackStatus(remote);
     const trackKey = hasDisplayMetadata ? trackKeyForMetadata(displayMetadata) : null;
 
+    clockFormat = configuredClockFormat(config);
     latestRemote = remote;
     lastStatusMode = mode;
     activeStartedAt = isActive ? startedAt : null;
@@ -590,6 +587,7 @@
     setVolumeDisplay(displayMetadata, remote, hasDisplayMetadata);
     setPlaybackButton(remote, isActive);
     updateWeatherGlance(payload);
+    updateMiniClock();
 
     setText('title', title || airplayName);
     setText('kicker', isActive ? (hasDisplayMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
@@ -687,6 +685,13 @@
       setTimeout(refreshStatus, 1400);
     });
   }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key === CLOCK_FORMAT_STORAGE_KEY) {
+      clockFormat = normaliseClockFormat(event.newValue || '24h');
+      updateMiniClock();
+    }
+  });
 
   setInterval(refreshStatus, 2000);
   setInterval(() => {
