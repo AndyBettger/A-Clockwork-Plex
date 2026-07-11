@@ -57,7 +57,7 @@ PLEXAMP_URL="$PLEXAMP_URL"
 PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
 
 /usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay"
-/usr/bin/curl -fsS "\${DASHBOARD_BASE}/api/mode/airplay" >/dev/null || true
+/usr/bin/curl -fsS "\${DASHBOARD_BASE}/api/airplay/start" >/dev/null || true
 
 /usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp playback"
 /usr/bin/curl -s "\${PLEXAMP_URL}/player/playback/pause" >/dev/null 2>&1 || true
@@ -86,7 +86,7 @@ PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
 sleep 5
 
 /usr/bin/logger -t shairport-plexamp "AirPlay ended - switching display to clock"
-/usr/bin/curl -fsS "\${DASHBOARD_BASE}/api/mode/clock" >/dev/null || true
+/usr/bin/curl -fsS "\${DASHBOARD_BASE}/api/airplay/end" >/dev/null || true
 END_WRAPPER_EOF
 
 sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
