@@ -82,14 +82,13 @@
       return 'iPhone';
     }
 
-    return 'the sending device';
+    // Most real use here is iPhone → Pi. If Shairport later gives us a friendly
+    // source name, the candidates above will win and this fallback disappears.
+    return 'iPhone';
   }
 
   function receivingText(metadata) {
-    const label = sourceLabel(metadata);
-    return label === 'the sending device'
-      ? 'Receiving AirPlay from the sending device.'
-      : `Receiving AirPlay from ${label}.`;
+    return `Receiving AirPlay from ${sourceLabel(metadata)}.`;
   }
 
   function setArtwork(url, hasFreshMetadata) {
@@ -188,12 +187,7 @@
 
     if (isActive && hasFreshMetadata) {
       setText('status', summary || receivingText(metadata));
-      setText(
-        'detail',
-        source === 'the sending device'
-          ? 'Receiving AirPlay from the sending device. The tune tunnel is open and behaving itself.'
-          : `Receiving AirPlay from ${source}. The tune tunnel is open and behaving itself.`
-      );
+      setText('detail', `Receiving AirPlay from ${source}. The tune tunnel is open and behaving itself.`);
     } else if (isActive) {
       setText('status', receivingText(metadata));
       setText('detail', 'Waiting for track details. The metadata goblin has been politely summoned.');
