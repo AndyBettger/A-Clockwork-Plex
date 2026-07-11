@@ -33,8 +33,8 @@ STATE_PATH = Path(os.environ.get("ACP_STATE_PATH", BASE_DIR / "state.json"))
 ARTWORK_DIR = Path(os.environ.get("ACP_ARTWORK_DIR", BASE_DIR / "app" / "static" / "generated"))
 ARTWORK_URL_PREFIX = os.environ.get("ACP_ARTWORK_URL_PREFIX", "/static/generated").rstrip("/")
 MAX_PAYLOAD_BYTES = int(os.environ.get("ACP_METADATA_MAX_PAYLOAD_BYTES", str(8 * 1024 * 1024)))
-PROGRESS_SAMPLE_RATE = float(os.environ.get("ACP_METADATA_PROGRESS_SAMPLE_RATE", "44100"))
-RTP_MODULO = 2**32
+PROGRESS_SAMPLE_RATE = int(os.environ.get("ACP_METADATA_PROGRESS_SAMPLE_RATE", "44100"))
+RTP_MODULO = 2 ** 32
 
 BACKTICK_HEADER_RE = re.compile(rb"^([0-9A-Fa-f]{8})`([0-9A-Fa-f]{8})`([0-9]+)\s*$")
 XML_ITEM_RE = re.compile(
@@ -265,6 +265,7 @@ def parse_progress(payload: bytes) -> dict[str, Any] | None:
         "elapsed_seconds": round(elapsed_seconds, 1),
         "duration_seconds": round(duration_seconds, 1),
         "percent": round(percent, 2),
+        "updated_at": now_iso(),
     }
 
 
@@ -280,19 +281,10 @@ def update_metadata(namespace: str, code: str, payload: bytes) -> None:
         metadata["updated_at"] = now
         changed = True
         if code == "pbeg":
-            # Clear stale title/artist data at the beginning of a new play run.
-            artwork_url = metadata.get("artwork_url")
-            source_name = metadata.get("source_name")
-            source_model = metadata.get("source_model")
-            client_ip = metadata.get("client_ip")
-            metadata.clear()
-            metadata.update(default_metadata())
-            metadata["artwork_url"] = artwork_url
-            metadata["source_name"] = source_name
-            metadata["source_model"] = source_model
-            metadata["client_ip"] = client_ip
+            # Some clients emit ``pbeg`` after a pause/resume, before replaying the
+            # current title/artwork. Keep the visible metadata to avoid a blank
+            # now-playing screen while Shairport resends the same details.
             metadata["last_event"] = "play_start"
-            metadata["updated_at"] = now
         elif code in {"pend", "pfls", "aend"}:
             metadata["last_event"] = SESSION_CODES[code]
 
