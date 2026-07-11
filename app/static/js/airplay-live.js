@@ -28,11 +28,13 @@
 
   let activeStartedAt = null;
   let lastStatusMode = null;
-  let latestProgress = null;
-  let latestProgressUpdatedAt = null;
-  let latestPlaybackStatus = null;
-  let volumeDragActive = false;
-  let volumeCommitTimer = null;
+  let lastGoodMetadata = null;
+  let progressState = null;
+  let optimisticPlayback = null;
+  let volumeHoldUntil = 0;
+  let volumeSendTimer = null;
+  let latestVolumePercent = null;
+  let latestRemote = null;
 
   function parseDashboardTime(value) {
     if (!value) {
@@ -84,6 +86,17 @@
     return Math.min(max, Math.max(min, number));
   }
 
+  function isPlayingStatus(status) {
+    return String(status || '').toLowerCase() === 'playing';
+  }
+
+  function activePlaybackStatus(remote) {
+    if (optimisticPlayback && Date.now() < optimisticPlayback.expiresAt) {
+      return optimisticPlayback.status;
+    }
+    return remote?.playback_status || 'Unknown';
+  }
+
   function sourceLabel(metadata) {
     const candidates = [
       metadata?.source_name,
@@ -113,25 +126,25 @@
     return `Receiving AirPlay from ${sourceLabel(metadata)}.`;
   }
 
-  function setArtwork(url, hasFreshMetadata) {
-    const showArtwork = Boolean(url && hasFreshMetadata && elements.artworkImg);
-    document.body.classList.toggle('airplay-has-artwork', showArtwork);
+  function setArtwork(url, showArtwork) {
+    const shouldShow = Boolean(url && showArtwork && elements.artworkImg);
+    document.body.classList.toggle('airplay-has-artwork', shouldShow);
 
-    if (showArtwork) {
+    if (shouldShow) {
       document.body.style.setProperty('--airplay-artwork-url', `url(${JSON.stringify(url)})`);
     } else {
       document.body.style.removeProperty('--airplay-artwork-url');
     }
 
     if (elements.artworkImg) {
-      if (showArtwork && elements.artworkImg.getAttribute('src') !== url) {
+      if (shouldShow && elements.artworkImg.getAttribute('src') !== url) {
         elements.artworkImg.src = url;
       }
-      elements.artworkImg.hidden = !showArtwork;
+      elements.artworkImg.hidden = !shouldShow;
     }
 
     if (elements.glyph) {
-      elements.glyph.hidden = showArtwork;
+      elements.glyph.hidden = shouldShow;
     }
   }
 
@@ -167,6 +180,28 @@
     return parts.join(' · ');
   }
 
+  function usefulMetadata(metadata) {
+    return Boolean(metadata?.title || metadata?.artist || metadata?.album || metadata?.artwork_url);
+  }
+
+  function displayMetadataForSession(metadata, isActive, hasFreshMetadata, startedAt) {
+    if (hasFreshMetadata && usefulMetadata(metadata)) {
+      lastGoodMetadata = { ...metadata, rememberedAt: Date.now() };
+      return metadata;
+    }
+
+    if (!isActive || !lastGoodMetadata) {
+      return metadata;
+    }
+
+    const rememberedAt = parseDashboardTime(lastGoodMetadata.updated_at);
+    if (startedAt && rememberedAt && rememberedAt < startedAt) {
+      return metadata;
+    }
+
+    return lastGoodMetadata;
+  }
+
   function normaliseProgress(progress) {
     if (!progress || typeof progress !== 'object') {
       return null;
@@ -184,49 +219,76 @@
       percent: clamp(percent, 0, 100),
       elapsedSeconds: clamp(elapsedSeconds, 0, durationSeconds),
       durationSeconds,
+      updatedAt: parseDashboardTime(progress.updated_at) || null,
     };
   }
 
-  function liveProgress(progress) {
-    if (!progress) {
+  function currentProgressSnapshot() {
+    if (!progressState) {
       return null;
     }
 
-    let elapsedSeconds = progress.elapsedSeconds;
-    if (latestPlaybackStatus === 'Playing' && latestProgressUpdatedAt) {
-      elapsedSeconds += (Date.now() - latestProgressUpdatedAt.getTime()) / 1000;
-    }
+    const playbackStatus = activePlaybackStatus(latestRemote);
+    const runningSeconds = isPlayingStatus(playbackStatus)
+      ? (Date.now() - progressState.baseTimeMs) / 1000
+      : 0;
+    const elapsedSeconds = clamp(progressState.baseElapsedSeconds + runningSeconds, 0, progressState.durationSeconds);
+    const percent = progressState.durationSeconds > 0
+      ? (elapsedSeconds / progressState.durationSeconds) * 100
+      : progressState.percent;
 
-    elapsedSeconds = clamp(elapsedSeconds, 0, progress.durationSeconds);
     return {
       elapsedSeconds,
-      durationSeconds: progress.durationSeconds,
-      percent: progress.durationSeconds > 0 ? clamp((elapsedSeconds / progress.durationSeconds) * 100, 0, 100) : progress.percent,
+      durationSeconds: progressState.durationSeconds,
+      percent: clamp(percent, 0, 100),
     };
   }
 
-  function renderProgress() {
-    const progress = liveProgress(latestProgress);
-    const showProgress = Boolean(progress);
+  function setProgressDisplay(snapshot, showProgress) {
+    const shouldShow = Boolean(showProgress && snapshot);
 
     if (elements.progress) {
-      elements.progress.hidden = !showProgress;
+      elements.progress.hidden = !shouldShow;
     }
 
-    if (!showProgress) {
+    if (!shouldShow) {
       document.body.style.removeProperty('--airplay-progress-percent');
       return;
     }
 
-    document.body.style.setProperty('--airplay-progress-percent', `${progress.percent}%`);
-    setText('progressElapsed', formatDuration(progress.elapsedSeconds));
-    setText('progressDuration', formatDuration(progress.durationSeconds));
+    document.body.style.setProperty('--airplay-progress-percent', `${snapshot.percent}%`);
+    setText('progressElapsed', formatDuration(snapshot.elapsedSeconds));
+    setText('progressDuration', formatDuration(snapshot.durationSeconds));
   }
 
-  function setProgress(progress, hasFreshMetadata, metadataUpdatedAt) {
-    latestProgress = hasFreshMetadata ? progress : null;
-    latestProgressUpdatedAt = metadataUpdatedAt || null;
-    renderProgress();
+  function updateProgressFromMetadata(progress, hasFreshMetadata, playbackStatus) {
+    if (!hasFreshMetadata || !progress) {
+      setProgressDisplay(currentProgressSnapshot(), Boolean(progressState));
+      return;
+    }
+
+    const now = Date.now();
+    const incomingUpdatedAt = progress.updatedAt ? progress.updatedAt.getTime() : now;
+    const currentSnapshot = currentProgressSnapshot();
+    const shouldAcceptIncoming = !progressState
+      || incomingUpdatedAt >= progressState.sourceUpdatedAtMs
+      || Math.abs(progress.elapsedSeconds - (currentSnapshot?.elapsedSeconds ?? progress.elapsedSeconds)) > 2.5;
+
+    if (shouldAcceptIncoming) {
+      progressState = {
+        baseElapsedSeconds: progress.elapsedSeconds,
+        durationSeconds: progress.durationSeconds,
+        percent: progress.percent,
+        baseTimeMs: isPlayingStatus(playbackStatus) ? now : incomingUpdatedAt,
+        sourceUpdatedAtMs: incomingUpdatedAt,
+      };
+    }
+
+    setProgressDisplay(currentProgressSnapshot(), true);
+  }
+
+  function updateProgressTick() {
+    setProgressDisplay(currentProgressSnapshot(), Boolean(progressState));
   }
 
   function volumePercentFromDb(volumeDb) {
@@ -246,17 +308,25 @@
     return Math.round(clamp(((db + 30) / 30) * 100, 0, 100));
   }
 
-  function displayVolumePercent(metadata, remote) {
-    if (remote && Number.isFinite(Number(remote.volume_percent))) {
-      return Number(remote.volume_percent);
+  function displayVolumePercent(percent, label = null) {
+    const cleanPercent = clamp(Number(percent), 0, 100);
+    latestVolumePercent = cleanPercent;
+    document.body.style.setProperty('--airplay-volume-percent', `${cleanPercent}%`);
+
+    if (elements.volumeSlider) {
+      elements.volumeSlider.value = String(Math.round(cleanPercent));
     }
-    return volumePercentFromDb(metadata?.volume_db);
+
+    if (label !== null) {
+      setText('volumeLabel', label);
+    }
   }
 
   function setVolumeDisplay(metadata, remote, hasFreshMetadata) {
-    const volumePercent = displayVolumePercent(metadata, remote);
-    const volumeLabel = metadata?.volume || (Number.isFinite(volumePercent) ? `${Math.round(volumePercent)}%` : '');
-    const showVolume = Boolean(hasFreshMetadata && volumePercent !== null && volumeLabel);
+    const mprisPercent = Number.isFinite(Number(remote?.volume_percent)) ? Number(remote.volume_percent) : null;
+    const metadataPercent = volumePercentFromDb(metadata?.volume_db);
+    const volumePercent = mprisPercent ?? metadataPercent;
+    const showVolume = Boolean(hasFreshMetadata && volumePercent !== null);
 
     if (elements.volumeStrip) {
       elements.volumeStrip.hidden = !showVolume;
@@ -267,34 +337,50 @@
       return;
     }
 
-    const clampedPercent = clamp(Number(volumePercent), 0, 100);
-    document.body.style.setProperty('--airplay-volume-percent', `${clampedPercent}%`);
-
-    if (elements.volumeSlider && !volumeDragActive) {
-      elements.volumeSlider.disabled = false;
-      elements.volumeSlider.value = String(Math.round(clampedPercent));
+    if (elements.volumeSlider) {
+      elements.volumeSlider.disabled = remote?.can_set_volume === false;
     }
 
-    setText('volumeLabel', volumeLabel);
+    if (Date.now() < volumeHoldUntil && latestVolumePercent !== null) {
+      displayVolumePercent(latestVolumePercent, elements.volumeLabel?.textContent || null);
+      return;
+    }
+
+    displayVolumePercent(volumePercent, metadata?.volume || `${Math.round(volumePercent)}%`);
   }
 
-  function updatePlaybackControls(isActive, remote) {
-    latestPlaybackStatus = remote?.playback_status || null;
-    const isPlaying = latestPlaybackStatus === 'Playing';
-    const canControl = Boolean(isActive && remote?.available && remote?.can_control);
+  function dbFromUiPercent(percent) {
+    const cleanPercent = clamp(Number(percent), 0, 100);
+    if (cleanPercent <= 0) {
+      return 'Muted';
+    }
+    const db = (cleanPercent / 100) * 30 - 30;
+    return `${db.toFixed(1)} dB`;
+  }
 
-    document.body.classList.toggle('airplay-remote-playing', isPlaying);
-    document.body.classList.toggle('airplay-remote-paused', latestPlaybackStatus === 'Paused');
-
-    if (elements.playPauseButton) {
-      elements.playPauseButton.disabled = !canControl;
-      elements.playPauseButton.setAttribute('aria-label', isPlaying ? 'Pause AirPlay' : 'Play AirPlay');
-      elements.playPauseButton.title = isPlaying ? 'Pause AirPlay' : 'Play AirPlay';
+  function queueVolumeSend(percent) {
+    if (volumeSendTimer) {
+      clearTimeout(volumeSendTimer);
     }
 
-    if (elements.playPauseIcon) {
-      elements.playPauseIcon.textContent = isPlaying ? '⏸' : '▶';
-    }
+    volumeSendTimer = setTimeout(async () => {
+      volumeSendTimer = null;
+      try {
+        const response = await fetch('/api/airplay/volume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ volume_percent: Number(percent) }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (payload?.remote) {
+          latestRemote = payload.remote;
+        }
+      } catch (error) {
+        setText('lastUpdate', 'Volume command missed');
+      } finally {
+        volumeHoldUntil = Date.now() + 3000;
+      }
+    }, 180);
   }
 
   function updateElapsed() {
@@ -307,6 +393,23 @@
     setText('elapsed', formatDuration(elapsedSeconds));
   }
 
+  function setPlaybackButton(remote, isActive) {
+    const status = activePlaybackStatus(remote);
+    const canControl = Boolean(remote?.available && remote?.can_control && (remote?.can_play || remote?.can_pause));
+
+    document.body.classList.toggle('airplay-remote-paused', String(status).toLowerCase() === 'paused');
+    document.body.classList.toggle('airplay-remote-playing', isPlayingStatus(status));
+
+    if (elements.playPauseButton) {
+      elements.playPauseButton.disabled = !(isActive && canControl);
+      elements.playPauseButton.setAttribute('aria-label', isPlayingStatus(status) ? 'Pause AirPlay' : 'Play AirPlay');
+    }
+
+    if (elements.playPauseIcon) {
+      elements.playPauseIcon.textContent = isPlayingStatus(status) ? 'Ⅱ' : '▶';
+    }
+  }
+
   function renderStatus(payload) {
     const state = payload?.state ?? {};
     const config = payload?.config ?? {};
@@ -317,44 +420,56 @@
     const mode = state.mode || 'unknown';
     const startedAt = parseDashboardTime(airplay.started_at);
     const endedAt = parseDashboardTime(airplay.ended_at);
-    const metadataUpdatedAt = parseDashboardTime(metadata.updated_at);
     const isActive = airplay.active === true;
     const hasFreshMetadata = isActive && metadataIsFresh(metadata, startedAt);
-    const title = hasFreshMetadata && metadata.title ? metadata.title : airplayName;
-    const summary = hasFreshMetadata ? metadataSummary(metadata) : '';
-    const source = sourceLabel(metadata);
-    const progress = normaliseProgress(metadata.progress);
+    const displayMetadata = displayMetadataForSession(metadata, isActive, hasFreshMetadata, startedAt);
+    const hasDisplayMetadata = isActive && usefulMetadata(displayMetadata);
+    const title = hasDisplayMetadata && displayMetadata.title ? displayMetadata.title : airplayName;
+    const summary = hasDisplayMetadata ? metadataSummary(displayMetadata) : '';
+    const source = sourceLabel(displayMetadata);
+    const progress = normaliseProgress(displayMetadata.progress);
+    const playbackStatus = activePlaybackStatus(remote);
 
+    latestRemote = remote;
     lastStatusMode = mode;
     activeStartedAt = isActive ? startedAt : null;
 
+    if (!isActive) {
+      progressState = null;
+      optimisticPlayback = null;
+    }
+
     document.body.classList.toggle('airplay-session-active', isActive);
     document.body.classList.toggle('airplay-session-idle', !isActive);
-    document.body.classList.toggle('airplay-metadata-active', hasFreshMetadata);
+    document.body.classList.toggle('airplay-metadata-active', hasDisplayMetadata);
 
     if (elements.liveDot) {
       elements.liveDot.setAttribute('aria-label', isActive ? 'AirPlay active' : 'AirPlay ready');
     }
 
-    updatePlaybackControls(isActive, remote);
-    setArtwork(metadata.artwork_url, hasFreshMetadata);
-    setProgress(progress, hasFreshMetadata, metadataUpdatedAt);
-    setVolumeDisplay(metadata, remote, hasFreshMetadata);
+    setArtwork(displayMetadata.artwork_url, hasDisplayMetadata);
+    updateProgressFromMetadata(progress, hasDisplayMetadata, playbackStatus);
+    setVolumeDisplay(displayMetadata, remote, hasDisplayMetadata);
+    setPlaybackButton(remote, isActive);
     setText('title', title);
-    setText('kicker', isActive ? (hasFreshMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
+    setText('kicker', isActive ? (hasDisplayMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
 
-    if (isActive && hasFreshMetadata) {
-      setText('status', summary || receivingText(metadata));
+    if (isActive && hasDisplayMetadata) {
+      setText('status', summary || receivingText(displayMetadata));
       setText('detail', `Receiving AirPlay from ${source}. The tune tunnel is open and behaving itself.`);
     } else if (isActive) {
-      setText('status', receivingText(metadata));
+      setText('status', receivingText(displayMetadata));
       setText('detail', 'Waiting for track details. The metadata goblin has been politely summoned.');
     } else {
       setText('status', 'Ready for AirPlay connections.');
       setText('detail', `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`);
     }
 
-    setText('sessionState', isActive ? (remote?.playback_status || 'Active') : 'Ready');
+    const sessionLabel = isActive
+      ? (isPlayingStatus(playbackStatus) ? 'Playing' : String(playbackStatus || 'Active'))
+      : 'Ready';
+
+    setText('sessionState', sessionLabel);
     setText(
       'sessionStarted',
       isActive
@@ -363,12 +478,12 @@
           ? `Ended ${formatClockTime(endedAt)}`
           : 'Waiting for AirPlay'
     );
-    setText('thirdCardLabel', hasFreshMetadata && metadata.volume ? 'Volume' : 'Plexamp');
-    setText('plexampState', hasFreshMetadata && metadata.volume ? metadata.volume : isActive ? 'DAC released' : 'Available');
+    setText('thirdCardLabel', hasDisplayMetadata && displayMetadata.volume ? 'Volume' : 'Plexamp');
+    setText('plexampState', hasDisplayMetadata && displayMetadata.volume ? displayMetadata.volume : isActive ? 'DAC released' : 'Available');
     setText(
       'returnState',
-      hasFreshMetadata && metadata.updated_at
-        ? `Metadata ${formatClockTime(parseDashboardTime(metadata.updated_at))}`
+      hasDisplayMetadata && displayMetadata.updated_at
+        ? `Metadata ${formatClockTime(parseDashboardTime(displayMetadata.updated_at))}`
         : isActive
           ? 'Clock returns after stop'
           : `Pick ${airplayName} to begin`
@@ -391,85 +506,77 @@
     }
   }
 
-  async function postJson(url, payload) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
-    }
-
-    return response.json();
-  }
-
-  async function sendPlayPause() {
+  async function sendPlaybackToggle() {
     if (!elements.playPauseButton || elements.playPauseButton.disabled) {
       return;
     }
 
-    elements.playPauseButton.disabled = true;
+    const currentStatus = activePlaybackStatus(latestRemote);
+    const nextStatus = isPlayingStatus(currentStatus) ? 'Paused' : 'Playing';
+    const snapshot = currentProgressSnapshot();
+
+    if (snapshot && progressState) {
+      progressState.baseElapsedSeconds = snapshot.elapsedSeconds;
+      progressState.baseTimeMs = Date.now();
+    }
+
+    optimisticPlayback = {
+      status: nextStatus,
+      expiresAt: Date.now() + 6000,
+    };
+    setPlaybackButton(latestRemote, true);
+    updateProgressTick();
+
     try {
-      await postJson('/api/airplay/control', { action: 'play_pause' });
-      setTimeout(refreshStatus, 250);
-    } catch (error) {
-      setText('lastUpdate', 'Play/pause command failed');
-    } finally {
-      setTimeout(() => {
-        refreshStatus();
-      }, 900);
-    }
-  }
-
-  function commitVolume(value) {
-    const volumePercent = clamp(Number(value), 0, 100);
-    document.body.style.setProperty('--airplay-volume-percent', `${volumePercent}%`);
-    if (elements.volumeSlider) {
-      elements.volumeSlider.value = String(Math.round(volumePercent));
-    }
-    setText('volumeLabel', `${Math.round(volumePercent)}%`);
-
-    clearTimeout(volumeCommitTimer);
-    volumeCommitTimer = setTimeout(async () => {
-      try {
-        await postJson('/api/airplay/volume', { volume_percent: volumePercent });
-        setTimeout(refreshStatus, 350);
-      } catch (error) {
-        setText('volumeLabel', 'Volume failed');
+      const response = await fetch('/api/airplay/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'play_pause' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (payload?.remote) {
+        latestRemote = payload.remote;
+        optimisticPlayback = {
+          status: payload.remote.playback_status || nextStatus,
+          expiresAt: Date.now() + 2500,
+        };
+        setPlaybackButton(latestRemote, true);
       }
-    }, 180);
+    } catch (error) {
+      setText('lastUpdate', 'Playback command missed');
+    } finally {
+      setTimeout(refreshStatus, 1200);
+    }
   }
 
   if (elements.playPauseButton) {
-    elements.playPauseButton.addEventListener('click', sendPlayPause);
+    elements.playPauseButton.addEventListener('click', sendPlaybackToggle);
   }
 
   if (elements.volumeSlider) {
+    const handleVolumeInput = () => {
+      const percent = Number(elements.volumeSlider.value);
+      volumeHoldUntil = Date.now() + 3500;
+      displayVolumePercent(percent, dbFromUiPercent(percent));
+      queueVolumeSend(percent);
+    };
+
     elements.volumeSlider.addEventListener('pointerdown', () => {
-      volumeDragActive = true;
+      volumeHoldUntil = Date.now() + 4000;
     });
+    elements.volumeSlider.addEventListener('input', handleVolumeInput);
+    elements.volumeSlider.addEventListener('change', handleVolumeInput);
     elements.volumeSlider.addEventListener('pointerup', () => {
-      volumeDragActive = false;
-      commitVolume(elements.volumeSlider.value);
-    });
-    elements.volumeSlider.addEventListener('pointercancel', () => {
-      volumeDragActive = false;
-      refreshStatus();
-    });
-    elements.volumeSlider.addEventListener('input', () => {
-      commitVolume(elements.volumeSlider.value);
-    });
-    elements.volumeSlider.addEventListener('change', () => {
-      volumeDragActive = false;
-      commitVolume(elements.volumeSlider.value);
+      volumeHoldUntil = Date.now() + 3500;
+      setTimeout(refreshStatus, 1400);
     });
   }
 
   setInterval(refreshStatus, 2000);
-  setInterval(updateElapsed, 1000);
-  setInterval(renderProgress, 1000);
+  setInterval(() => {
+    updateElapsed();
+    updateProgressTick();
+  }, 1000);
   refreshStatus();
 
   // A tiny safety net: if the page is left visible while the mode changes,
