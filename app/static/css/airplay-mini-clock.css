@@ -1,9 +1,9 @@
 /* Segmented mini clock for the AirPlay glance row. */
 
 .airplay-glance-grid {
-  /* Keep the barometer useful, give the outside card enough width for temp + humidity,
-     and leave the clock enough room for a large segmented time plus the date. */
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.02fr) minmax(0, 1.1fr);
+  /* Keep the weather cards useful, but give the clock enough room for a proper
+     segmented display plus the date. */
+  grid-template-columns: minmax(0, 1.62fr) minmax(0, 1.03fr) minmax(0, 1.12fr);
 }
 
 .airplay-info-card.is-clock {
@@ -23,60 +23,156 @@
 }
 
 .airplay-mini-time.is-segmented {
+  --airplay-mini-digit-h: clamp(72px, 9.5vmin, 94px);
+  --digit-h: var(--airplay-mini-digit-h);
+  --digit-w: calc(var(--digit-h) * 0.62);
+  --seg-t: calc(var(--digit-h) * 0.095);
+  --seg-l: calc(var(--digit-h) * 0.36);
+  --seg-r: calc(var(--digit-h) * 0.08);
+
   display: inline-flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 0.07em;
+  gap: calc(var(--airplay-mini-digit-h) * 0.052);
   min-width: max-content;
+  height: var(--airplay-mini-digit-h);
   margin: 0;
   color: var(--text);
-  font-size: clamp(2.85rem, 9.4vmin, 4.05rem);
-  line-height: 0.96;
+  font-size: 1px; /* Dimensions below are driven by explicit CSS variables. */
+  line-height: 1;
   white-space: nowrap;
 }
 
 .airplay-mini-time.is-segmented .digital-group {
+  --digit-h: var(--airplay-mini-digit-h);
+  --digit-w: calc(var(--digit-h) * 0.62);
+  --seg-t: calc(var(--digit-h) * 0.095);
+  --seg-l: calc(var(--digit-h) * 0.36);
+  --seg-r: calc(var(--digit-h) * 0.08);
+
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 0.068em;
+  gap: calc(var(--digit-h) * 0.052);
+  height: var(--digit-h);
   transform: skewX(var(--segment-slant));
 }
 
-.airplay-mini-time.is-segmented .digital-digit {
-  flex: 0 0 auto;
+.airplay-mini-time.is-segmented .clock-seconds {
+  --digit-h: calc(var(--airplay-mini-digit-h) * 0.56);
+  --digit-w: calc(var(--digit-h) * 0.62);
+  --seg-t: calc(var(--digit-h) * 0.095);
+  --seg-l: calc(var(--digit-h) * 0.36);
+  --seg-r: calc(var(--digit-h) * 0.08);
+  gap: calc(var(--digit-h) * 0.058);
+  height: var(--digit-h);
 }
 
-.airplay-mini-time.is-segmented .clock-seconds {
-  font-size: 0.55em;
-  gap: 0.064em;
+.airplay-mini-time.is-segmented .digital-digit {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--digit-w);
+  height: var(--digit-h);
+}
+
+.airplay-mini-time.is-segmented .segment {
+  position: absolute;
+  display: block;
+  background: var(--segment-off);
+}
+
+.airplay-mini-time.is-segmented .segment.is-on {
+  background: var(--segment-on);
+  box-shadow: 0 0 calc(var(--digit-h) * 0.035) rgba(255, 255, 255, 0.42);
+}
+
+.airplay-mini-time.is-segmented .segment-a,
+.airplay-mini-time.is-segmented .segment-d,
+.airplay-mini-time.is-segmented .segment-g {
+  left: calc(var(--digit-h) * 0.13);
+  width: var(--seg-l);
+  height: var(--seg-t);
+  border-radius: var(--seg-r);
+}
+
+.airplay-mini-time.is-segmented .segment-a {
+  top: calc(var(--digit-h) * 0.02);
+}
+
+.airplay-mini-time.is-segmented .segment-g {
+  top: calc(var(--digit-h) * 0.457);
+}
+
+.airplay-mini-time.is-segmented .segment-d {
+  bottom: calc(var(--digit-h) * 0.02);
+}
+
+.airplay-mini-time.is-segmented .segment-b,
+.airplay-mini-time.is-segmented .segment-c,
+.airplay-mini-time.is-segmented .segment-e,
+.airplay-mini-time.is-segmented .segment-f {
+  width: var(--seg-t);
+  height: var(--seg-l);
+  border-radius: var(--seg-r);
+}
+
+.airplay-mini-time.is-segmented .segment-b,
+.airplay-mini-time.is-segmented .segment-c {
+  right: calc(var(--digit-h) * 0.02);
+}
+
+.airplay-mini-time.is-segmented .segment-f,
+.airplay-mini-time.is-segmented .segment-e {
+  left: calc(var(--digit-h) * 0.02);
+}
+
+.airplay-mini-time.is-segmented .segment-b,
+.airplay-mini-time.is-segmented .segment-f {
+  top: calc(var(--digit-h) * 0.08);
+}
+
+.airplay-mini-time.is-segmented .segment-c,
+.airplay-mini-time.is-segmented .segment-e {
+  bottom: calc(var(--digit-h) * 0.08);
 }
 
 .airplay-mini-time.is-segmented .digital-colon {
   flex: 0 0 auto;
-  width: 0.21em;
-  height: 0.78em;
-  margin-inline: 0.04em 0.025em;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: calc(var(--airplay-mini-digit-h) * 0.19);
+  height: calc(var(--airplay-mini-digit-h) * 0.66);
+  margin-inline: calc(var(--airplay-mini-digit-h) * 0.022) calc(var(--airplay-mini-digit-h) * 0.012);
   transform: skewX(var(--segment-slant));
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small {
-  font-size: 0.58em;
-  height: 0.76em;
-  margin-inline: 0.08em 0.025em;
+  width: calc(var(--airplay-mini-digit-h) * 0.13);
+  height: calc(var(--airplay-mini-digit-h) * 0.42);
+  margin-inline: calc(var(--airplay-mini-digit-h) * 0.05) calc(var(--airplay-mini-digit-h) * 0.012);
 }
 
 .airplay-mini-time.is-segmented .digital-colon span {
-  width: 0.16em;
-  height: 0.16em;
+  display: block;
+  width: calc(var(--airplay-mini-digit-h) * 0.12);
+  height: calc(var(--airplay-mini-digit-h) * 0.12);
+  border-radius: 50%;
+  background: var(--segment-on);
+  box-shadow: 0 0 calc(var(--airplay-mini-digit-h) * 0.03) rgba(255, 255, 255, 0.42);
+}
+
+.airplay-mini-time.is-segmented .digital-colon-small span {
+  width: calc(var(--airplay-mini-digit-h) * 0.074);
+  height: calc(var(--airplay-mini-digit-h) * 0.074);
 }
 
 .airplay-mini-meridiem {
   align-self: flex-end;
-  margin-left: 0.45em;
-  margin-bottom: 0.08em;
+  margin-left: calc(var(--airplay-mini-digit-h) * 0.12);
+  margin-bottom: calc(var(--airplay-mini-digit-h) * 0.06);
   color: var(--muted);
-  font-size: 0.34em;
+  font-size: calc(var(--airplay-mini-digit-h) * 0.2);
   font-weight: 950;
   letter-spacing: 0.04em;
 }
@@ -98,34 +194,24 @@
 
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-glance-grid {
-    grid-template-columns: minmax(0, 1.42fr) minmax(0, 1.04fr) minmax(0, 1.1fr);
+    grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
   }
 
   .airplay-mini-clock-line {
-    column-gap: clamp(10px, 1.9vw, 18px);
+    column-gap: clamp(8px, 1.55vw, 14px);
   }
 
   .airplay-mini-time.is-segmented {
-    font-size: clamp(2.45rem, 6.8vw, 3.25rem);
-    gap: 0.056em;
+    --airplay-mini-digit-h: clamp(66px, 15.5vh, 82px);
+    gap: calc(var(--airplay-mini-digit-h) * 0.044);
   }
 
   .airplay-mini-time.is-segmented .digital-group {
-    gap: 0.054em;
-  }
-
-  .airplay-mini-time.is-segmented .digital-colon {
-    width: 0.2em;
-    height: 0.76em;
-  }
-
-  .airplay-mini-time.is-segmented .digital-colon span {
-    width: 0.155em;
-    height: 0.155em;
+    gap: calc(var(--digit-h) * 0.046);
   }
 
   .airplay-mini-date {
-    font-size: clamp(0.62rem, 1.58vw, 0.78rem);
+    font-size: clamp(0.58rem, 1.46vw, 0.74rem);
   }
 
   .airplay-info-card.is-outside strong {
