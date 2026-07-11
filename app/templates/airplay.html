@@ -23,6 +23,22 @@
       <h1 id="airplay-title">{{ config.airplay.display_name | default('A Clockwork Plex') }}</h1>
       <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay ready"></span><span id="airplay-status">Ready for AirPlay connections.</span></p>
       <p class="muted" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
+
+      <div class="airplay-progress" id="airplay-progress" hidden>
+        <div class="airplay-progress-times">
+          <span id="airplay-progress-elapsed">0:00</span>
+          <span id="airplay-progress-duration">0:00</span>
+        </div>
+        <div class="airplay-progress-track" aria-hidden="true">
+          <span id="airplay-progress-fill"></span>
+        </div>
+      </div>
+
+      <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
+        <span class="airplay-volume-icon" aria-hidden="true">♪</span>
+        <input id="airplay-volume-slider" class="airplay-volume-slider" type="range" min="0" max="100" value="0" disabled aria-label="AirPlay source volume">
+        <span id="airplay-volume-label" class="airplay-volume-label">—</span>
+      </div>
     </div>
   </section>
 
@@ -42,13 +58,6 @@
       <strong id="airplay-plexamp-state">Available</strong>
       <p id="airplay-return-state">Pick this device to begin</p>
     </article>
-  </section>
-
-  <section class="airplay-flow" aria-label="AirPlay handoff flow">
-    <div><span>1</span><strong>Pick this Pi</strong></div>
-    <div><span>2</span><strong>Plexamp releases DAC</strong></div>
-    <div><span>3</span><strong>Metadata appears</strong></div>
-    <div><span>4</span><strong>Clock returns after stop</strong></div>
   </section>
 </section>
 
