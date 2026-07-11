@@ -8,9 +8,13 @@
     sessionStarted: document.getElementById('airplay-session-started'),
     elapsed: document.getElementById('airplay-elapsed'),
     lastUpdate: document.getElementById('airplay-last-update'),
+    thirdCardLabel: document.getElementById('airplay-third-card-label'),
     plexampState: document.getElementById('airplay-plexamp-state'),
     returnState: document.getElementById('airplay-return-state'),
     liveDot: document.getElementById('airplay-live-dot'),
+    artwork: document.getElementById('airplay-artwork'),
+    artworkImg: document.getElementById('airplay-artwork-img'),
+    glyph: document.getElementById('airplay-glyph'),
   };
 
   let activeStartedAt = null;
@@ -58,6 +62,54 @@
     }
   }
 
+  function setArtwork(url, hasFreshMetadata) {
+    const showArtwork = Boolean(url && hasFreshMetadata && elements.artworkImg);
+    document.body.classList.toggle('airplay-has-artwork', showArtwork);
+
+    if (elements.artworkImg) {
+      if (showArtwork && elements.artworkImg.getAttribute('src') !== url) {
+        elements.artworkImg.src = url;
+      }
+      elements.artworkImg.hidden = !showArtwork;
+    }
+
+    if (elements.glyph) {
+      elements.glyph.hidden = showArtwork;
+    }
+  }
+
+  function metadataIsFresh(metadata, startedAt) {
+    if (!metadata || !metadata.available) {
+      return false;
+    }
+
+    const updatedAt = parseDashboardTime(metadata.updated_at);
+    if (!updatedAt) {
+      return false;
+    }
+
+    return !startedAt || updatedAt >= startedAt;
+  }
+
+  function metadataSummary(metadata) {
+    const artist = metadata.artist || metadata.album_artist || '';
+    const album = metadata.album || '';
+    const genre = metadata.genre || '';
+    const parts = [];
+
+    if (artist) {
+      parts.push(artist);
+    }
+    if (album) {
+      parts.push(album);
+    }
+    if (!artist && !album && genre) {
+      parts.push(genre);
+    }
+
+    return parts.join(' · ');
+  }
+
   function updateElapsed() {
     if (!activeStartedAt) {
       setText('elapsed', 'Standing by');
@@ -72,34 +124,47 @@
     const state = payload?.state ?? {};
     const config = payload?.config ?? {};
     const airplay = state.airplay ?? {};
+    const metadata = airplay.metadata ?? {};
     const airplayName = config?.airplay?.display_name || 'A Clockwork Plex';
     const mode = state.mode || 'unknown';
     const startedAt = parseDashboardTime(airplay.started_at);
     const endedAt = parseDashboardTime(airplay.ended_at);
     const isActive = airplay.active === true;
+    const hasFreshMetadata = isActive && metadataIsFresh(metadata, startedAt);
+    const title = hasFreshMetadata && metadata.title ? metadata.title : airplayName;
+    const summary = hasFreshMetadata ? metadataSummary(metadata) : '';
 
     lastStatusMode = mode;
     activeStartedAt = isActive ? startedAt : null;
 
     document.body.classList.toggle('airplay-session-active', isActive);
     document.body.classList.toggle('airplay-session-idle', !isActive);
+    document.body.classList.toggle('airplay-metadata-active', hasFreshMetadata);
 
     if (elements.liveDot) {
       elements.liveDot.setAttribute('aria-label', isActive ? 'AirPlay active' : 'AirPlay ready');
     }
 
-    setText('title', airplayName);
-    setText('kicker', isActive ? 'AirPlay route active' : 'AirPlay route ready');
-    setText(
-      'status',
-      isActive ? 'Receiving AirPlay audio now.' : 'Ready for AirPlay connections.'
-    );
-    setText(
-      'detail',
-      isActive
-        ? 'Plexamp has been paused and stopped so Shairport Sync can use the DAC without a tug-of-war.'
-        : `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`
-    );
+    setArtwork(metadata.artwork_url, hasFreshMetadata);
+    setText('title', title);
+    setText('kicker', isActive ? (hasFreshMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
+
+    if (isActive && hasFreshMetadata) {
+      setText('status', summary || 'Metadata received from the sending device.');
+      setText(
+        'detail',
+        metadata.album
+          ? `Playing via ${airplayName}. The tune tunnel is open and behaving itself.`
+          : `Playing via ${airplayName}. The airwaves are carrying actual clues now.`
+      );
+    } else if (isActive) {
+      setText('status', 'Receiving AirPlay audio now.');
+      setText('detail', 'Waiting for track details from the sending device. Metadata goblin has been politely summoned.');
+    } else {
+      setText('status', 'Ready for AirPlay connections.');
+      setText('detail', `Choose ${airplayName} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.`);
+    }
+
     setText('sessionState', isActive ? 'Active' : 'Ready');
     setText(
       'sessionStarted',
@@ -109,8 +174,16 @@
           ? `Last AirPlay ended at ${formatClockTime(endedAt)}`
           : 'Waiting for the first AirPlay session'
     );
-    setText('plexampState', isActive ? 'Stopped for DAC' : 'Available');
-    setText('returnState', isActive ? 'Clock returns after stop' : `Pick ${airplayName} to begin`);
+    setText('thirdCardLabel', hasFreshMetadata && metadata.volume ? 'Volume' : 'Plexamp');
+    setText('plexampState', hasFreshMetadata && metadata.volume ? metadata.volume : isActive ? 'Stopped for DAC' : 'Available');
+    setText(
+      'returnState',
+      hasFreshMetadata && metadata.updated_at
+        ? `Metadata updated ${formatClockTime(parseDashboardTime(metadata.updated_at))}`
+        : isActive
+          ? 'Clock returns after stop'
+          : `Pick ${airplayName} to begin`
+    );
     setText('lastUpdate', `Updated ${formatClockTime(new Date())}`);
 
     updateElapsed();
