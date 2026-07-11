@@ -13,21 +13,25 @@
   <div class="date" id="clock-date">{{ now.strftime('%A %-d %B %Y') }}</div>
 </section>
 
-<section class="panel weather-panel">
-  <h1>{{ config.weather.station_name }}</h1>
-  {% if picked_weather %}
-    <div class="weather-grid">
-      {% for label, value in picked_weather.items() %}
-        <div class="weather-card">
-          <span class="weather-label">{{ label }}</span>
-          <span class="weather-value">{{ value }}</span>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p class="muted">Waiting for weather station data.</p>
-    <p class="muted small">Point Ecowitt/custom uploads at <code>/api/weather/ecowitt</code>.</p>
-  {% endif %}
+<section class="panel weather-panel" id="clock-weather-panel" data-refresh-seconds="{{ config.weather.auto_refresh_seconds | default(60) }}">
+  <h1 id="clock-weather-title">{{ config.weather.station_name }}</h1>
+  <div id="clock-weather-content">
+    {% if picked_weather %}
+      <div class="weather-grid" id="clock-weather-grid">
+        {% for label, value in picked_weather.items() %}
+          <div class="weather-card">
+            <span class="weather-label">{{ label }}</span>
+            <span class="weather-value">{{ value }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div id="clock-weather-waiting">
+        <p class="muted">Waiting for weather station data.</p>
+        <p class="muted small">Point Ecowitt/custom uploads at <code>/api/weather/ecowitt</code>.</p>
+      </div>
+    {% endif %}
+  </div>
 </section>
 
 {% include "_nav.html" %}
@@ -88,7 +92,77 @@ function updateClock() {
   document.getElementById('clock-time').setAttribute('aria-label', `${hours}:${minutes}:${seconds}`);
 }
 
+function makeWeatherCard(label, value) {
+  const card = document.createElement('div');
+  card.className = 'weather-card';
+
+  const labelElement = document.createElement('span');
+  labelElement.className = 'weather-label';
+  labelElement.textContent = label;
+
+  const valueElement = document.createElement('span');
+  valueElement.className = 'weather-value';
+  valueElement.textContent = value;
+
+  card.append(labelElement, valueElement);
+  return card;
+}
+
+function renderWeatherCards(cards) {
+  const content = document.getElementById('clock-weather-content');
+  if (!content) {
+    return;
+  }
+
+  if (!cards.length) {
+    const waiting = document.createElement('div');
+    waiting.id = 'clock-weather-waiting';
+    waiting.innerHTML = '<p class="muted">Waiting for weather station data.</p><p class="muted small">Point Ecowitt/custom uploads at <code>/api/weather/ecowitt</code>.</p>';
+    content.replaceChildren(waiting);
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'weather-grid';
+  grid.id = 'clock-weather-grid';
+  grid.replaceChildren(...cards.map((card) => makeWeatherCard(card.label, card.value)));
+  content.replaceChildren(grid);
+}
+
+async function updateClockWeather() {
+  try {
+    const response = await fetch('/api/status', { cache: 'no-store' });
+    if (!response.ok) {
+      return;
+    }
+
+    const status = await response.json();
+    const title = status?.config?.weather?.station_name;
+    if (title) {
+      document.getElementById('clock-weather-title').textContent = title;
+    }
+
+    const cards = Array.isArray(status?.weather_display_cards)
+      ? status.weather_display_cards
+      : Object.entries(status?.weather_display || {}).map(([label, value]) => ({ label, value }));
+
+    renderWeatherCards(cards.filter((card) => card.label && card.value));
+  } catch (error) {
+    // Leave the last good readings on screen if a transient update fails.
+  }
+}
+
+function startClockWeatherUpdates() {
+  const panel = document.getElementById('clock-weather-panel');
+  const refreshSeconds = Number(panel?.dataset.refreshSeconds || 60);
+  const refreshMilliseconds = Math.max(15, Number.isFinite(refreshSeconds) ? refreshSeconds : 60) * 1000;
+
+  window.setInterval(updateClockWeather, refreshMilliseconds);
+  window.setTimeout(updateClockWeather, 2000);
+}
+
 setInterval(updateClock, 1000);
 updateClock();
+startClockWeatherUpdates();
 </script>
 {% endblock %}
