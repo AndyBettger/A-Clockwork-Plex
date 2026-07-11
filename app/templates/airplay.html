@@ -16,33 +16,33 @@
       </div>
     </div>
     <div class="airplay-copy">
-      <span class="airplay-kicker" id="airplay-state-kicker">AirPlay route active</span>
+      <span class="airplay-kicker" id="airplay-state-kicker">AirPlay route ready</span>
       <h1 id="airplay-title">{{ config.airplay.display_name | default('A Clockwork Plex') }}</h1>
-      <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay active"></span><span id="airplay-status">Receiving AirPlay audio now.</span></p>
-      <p class="muted" id="airplay-detail">Plexamp has been paused and stopped so Shairport Sync can use the DAC without a tug-of-war.</p>
+      <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay ready"></span><span id="airplay-status">Ready for AirPlay connections.</span></p>
+      <p class="muted" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
     </div>
   </section>
 
   <section class="airplay-info-grid" aria-label="Live AirPlay session details">
     <article class="airplay-info-card is-live">
       <span>Session</span>
-      <strong id="airplay-session-state">Active</strong>
-      <p id="airplay-session-started">Started from Shairport Sync</p>
+      <strong id="airplay-session-state">Ready</strong>
+      <p id="airplay-session-started">Waiting for AirPlay</p>
     </article>
     <article class="airplay-info-card is-live">
       <span>Elapsed</span>
-      <strong id="airplay-elapsed">—</strong>
+      <strong id="airplay-elapsed">Standing by</strong>
       <p id="airplay-last-update">Waiting for status</p>
     </article>
     <article class="airplay-info-card is-live">
       <span>Plexamp</span>
-      <strong id="airplay-plexamp-state">Stopped for DAC</strong>
-      <p id="airplay-return-state">Clock returns after stop</p>
+      <strong id="airplay-plexamp-state">Available</strong>
+      <p id="airplay-return-state">Pick this device to begin</p>
     </article>
   </section>
 
   <section class="airplay-flow" aria-label="AirPlay handoff flow">
-    <div><span>1</span><strong>AirPlay starts</strong></div>
+    <div><span>1</span><strong>Pick this Pi</strong></div>
     <div><span>2</span><strong>Plexamp releases DAC</strong></div>
     <div><span>3</span><strong>AirPlay plays</strong></div>
     <div><span>4</span><strong>Clock returns after stop</strong></div>
