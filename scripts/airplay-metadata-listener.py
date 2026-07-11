@@ -33,6 +33,8 @@ STATE_PATH = Path(os.environ.get("ACP_STATE_PATH", BASE_DIR / "state.json"))
 ARTWORK_DIR = Path(os.environ.get("ACP_ARTWORK_DIR", BASE_DIR / "app" / "static" / "generated"))
 ARTWORK_URL_PREFIX = os.environ.get("ACP_ARTWORK_URL_PREFIX", "/static/generated").rstrip("/")
 MAX_PAYLOAD_BYTES = int(os.environ.get("ACP_METADATA_MAX_PAYLOAD_BYTES", str(8 * 1024 * 1024)))
+PROGRESS_SAMPLE_RATE = float(os.environ.get("ACP_METADATA_PROGRESS_SAMPLE_RATE", "44100"))
+RTP_MODULO = 2**32
 
 BACKTICK_HEADER_RE = re.compile(rb"^([0-9A-Fa-f]{8})`([0-9A-Fa-f]{8})`([0-9]+)\s*$")
 XML_ITEM_RE = re.compile(
@@ -222,6 +224,50 @@ def parse_volume(payload: bytes) -> tuple[str | None, float | None]:
     return f"{db_value:.1f} dB", db_value
 
 
+def rtp_delta(start: int, value: int) -> int:
+    """Return a forward RTP timestamp delta, allowing for 32-bit wraparound."""
+    return (value - start) % RTP_MODULO
+
+
+def parse_progress(payload: bytes) -> dict[str, Any] | None:
+    """Decode Shairport ``prgr`` metadata into elapsed/duration values.
+
+    The payload is normally ``start/current/end`` in AirPlay/RTP timestamp units.
+    44.1 kHz is the common AirPlay clock for this stream, and can be overridden
+    with ``ACP_METADATA_PROGRESS_SAMPLE_RATE`` if a future setup needs it.
+    """
+    text = decode_text(payload)
+    parts = text.split("/")
+    if len(parts) != 3:
+        return {"raw": text} if text else None
+
+    try:
+        start, current, end = (int(part) for part in parts)
+    except ValueError:
+        return {"raw": text} if text else None
+
+    elapsed_units = rtp_delta(start, current)
+    duration_units = rtp_delta(start, end)
+
+    if duration_units <= 0 or PROGRESS_SAMPLE_RATE <= 0:
+        return {"raw": text, "start": start, "current": current, "end": end}
+
+    elapsed_units = min(elapsed_units, duration_units)
+    elapsed_seconds = elapsed_units / PROGRESS_SAMPLE_RATE
+    duration_seconds = duration_units / PROGRESS_SAMPLE_RATE
+    percent = (elapsed_units / duration_units) * 100
+
+    return {
+        "raw": text,
+        "start": start,
+        "current": current,
+        "end": end,
+        "elapsed_seconds": round(elapsed_seconds, 1),
+        "duration_seconds": round(duration_seconds, 1),
+        "percent": round(percent, 2),
+    }
+
+
 def update_metadata(namespace: str, code: str, payload: bytes) -> None:
     state = load_state()
     airplay = airplay_state(state)
@@ -273,8 +319,8 @@ def update_metadata(namespace: str, code: str, payload: bytes) -> None:
             log(f"metadata volume: {volume_label}")
 
     elif code == "prgr":
-        progress = decode_text(payload)
-        metadata["progress"] = progress or None
+        progress = parse_progress(payload)
+        metadata["progress"] = progress
         metadata["updated_at"] = now
         changed = True
 
