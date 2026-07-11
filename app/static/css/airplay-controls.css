@@ -1,5 +1,13 @@
 /* Extra AirPlay controls: live progress, play/pause, and touch volume. */
 
+.airplay-page {
+  padding-bottom: clamp(10px, 1.4vmin, 18px);
+}
+
+.airplay-info-grid {
+  align-self: end;
+}
+
 .airplay-control-row {
   width: min(100%, 540px);
   display: grid;
@@ -26,6 +34,7 @@
   line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
 }
 
 .airplay-play-pause:disabled {
@@ -43,14 +52,27 @@
 }
 
 .airplay-volume-slider {
+  height: 34px;
   pointer-events: auto;
   cursor: pointer;
-  touch-action: pan-x;
+  touch-action: none;
+  user-select: none;
 }
 
 .airplay-volume-slider:disabled {
   opacity: 0.45;
   pointer-events: none;
+}
+
+.airplay-volume-slider::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+}
+
+.airplay-volume-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
 }
 
 body.airplay-remote-paused .airplay-live-dot {
@@ -59,6 +81,10 @@ body.airplay-remote-paused .airplay-live-dot {
 }
 
 @media (max-height: 520px), (max-width: 860px) {
+  .airplay-page {
+    padding-bottom: clamp(10px, 1.4vmin, 18px);
+  }
+
   .airplay-control-row {
     gap: 12px;
     margin-top: 10px;
