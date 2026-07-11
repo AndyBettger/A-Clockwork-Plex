@@ -120,10 +120,21 @@ def config_diagnostics() -> dict[str, Any]:
     }
 
 
+def default_airplay_state() -> dict[str, Any]:
+    return {
+        "active": False,
+        "started_at": None,
+        "ended_at": None,
+        "updated_at": None,
+        "source": None,
+    }
+
+
 def default_state(config: dict[str, Any]) -> dict[str, Any]:
     return {
         "mode": config.get("dashboard", {}).get("default_mode", "clock"),
         "last_mode_change": datetime.now().isoformat(timespec="seconds"),
+        "airplay": default_airplay_state(),
         "weather": {},
         "weather_extremes": {"date": datetime.now().date().isoformat(), "fields": {}},
         "pressure_history": [],
@@ -131,10 +142,21 @@ def default_state(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def normalise_airplay_state(state: dict[str, Any]) -> None:
+    airplay = state.get("airplay")
+    if not isinstance(airplay, dict):
+        airplay = {}
+    merged = default_airplay_state()
+    merged.update(airplay)
+    merged["active"] = bool(merged.get("active"))
+    state["airplay"] = merged
+
+
 def load_state(config: dict[str, Any]) -> dict[str, Any]:
     state = load_json(STATE_PATH, default_state(config))
     if state.get("mode") not in VALID_MODES:
         state["mode"] = "clock"
+    normalise_airplay_state(state)
     if not isinstance(state.get("weather_extremes"), dict):
         state["weather_extremes"] = {"date": datetime.now().date().isoformat(), "fields": {}}
     if not isinstance(state.get("pressure_history"), list):
@@ -149,6 +171,31 @@ def set_mode(mode: str) -> dict[str, Any]:
     state = load_state(config)
     state["mode"] = mode
     state["last_mode_change"] = datetime.now().isoformat(timespec="seconds")
+    save_json(STATE_PATH, state)
+    return state
+
+
+def set_airplay_session(active: bool) -> dict[str, Any]:
+    config = load_config()
+    state = load_state(config)
+    now = datetime.now().isoformat(timespec="seconds")
+    airplay = state.setdefault("airplay", default_airplay_state())
+
+    if active:
+        airplay["active"] = True
+        airplay["started_at"] = now
+        airplay["ended_at"] = None
+        airplay["updated_at"] = now
+        airplay["source"] = "shairport-sync"
+        state["mode"] = "airplay"
+    else:
+        airplay["active"] = False
+        airplay["ended_at"] = now
+        airplay["updated_at"] = now
+        state["mode"] = "clock"
+
+    state["last_mode_change"] = now
+    state["airplay"] = airplay
     save_json(STATE_PATH, state)
     return state
 
@@ -875,6 +922,18 @@ def api_mode(mode: str):
         state = set_mode(mode)
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({"ok": True, "state": safe_state(state)})
+
+
+@app.route("/api/airplay/start", methods=["GET", "POST"])
+def api_airplay_start():
+    state = set_airplay_session(True)
+    return jsonify({"ok": True, "state": safe_state(state)})
+
+
+@app.route("/api/airplay/end", methods=["GET", "POST"])
+def api_airplay_end():
+    state = set_airplay_session(False)
     return jsonify({"ok": True, "state": safe_state(state)})
 
 
