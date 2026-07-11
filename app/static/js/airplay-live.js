@@ -127,6 +127,23 @@
     return `Receiving AirPlay from ${sourceLabel(metadata)}.`;
   }
 
+  function cleanDisplayTitle(value) {
+    const title = String(value || '').trim();
+    if (!title) {
+      return title;
+    }
+
+    const timeChunk = String.raw`(?:\d+\s*(?:h|hr|hrs|hour|hours)\s*)?(?:\d+\s*(?:m|min|mins|minute|minutes)\s*)?(?:\d+\s*(?:s|sec|secs|second|seconds)\s*)?`;
+    const remainingSuffixes = [
+      new RegExp(String.raw`\s*[\(\[]\s*(?:about\s+)?${timeChunk}remaining\s*[\)\]]\s*$`, 'i'),
+      new RegExp(String.raw`\s*[—–-]\s*(?:about\s+)?${timeChunk}remaining\s*$`, 'i'),
+    ];
+
+    return remainingSuffixes
+      .reduce((text, pattern) => text.replace(pattern, ''), title)
+      .trim();
+  }
+
   function setArtwork(url, showArtwork) {
     const shouldShow = Boolean(url && showArtwork && elements.artworkImg);
     document.body.classList.toggle('airplay-has-artwork', shouldShow);
@@ -190,7 +207,7 @@
       return null;
     }
 
-    return [metadata?.title, metadata?.artist || metadata?.album_artist, metadata?.album]
+    return [cleanDisplayTitle(metadata?.title), metadata?.artist || metadata?.album_artist, metadata?.album]
       .map((value) => String(value || '').trim())
       .join('\u0001');
   }
@@ -445,7 +462,7 @@
     const hasFreshMetadata = isActive && metadataIsFresh(metadata, startedAt);
     const displayMetadata = displayMetadataForSession(metadata, isActive, hasFreshMetadata, startedAt);
     const hasDisplayMetadata = isActive && usefulMetadata(displayMetadata);
-    const title = hasDisplayMetadata && displayMetadata.title ? displayMetadata.title : airplayName;
+    const title = hasDisplayMetadata && displayMetadata.title ? cleanDisplayTitle(displayMetadata.title) : airplayName;
     const summary = hasDisplayMetadata ? metadataSummary(displayMetadata) : '';
     const source = sourceLabel(displayMetadata);
     const progress = normaliseProgress(displayMetadata.progress);
@@ -480,7 +497,7 @@
     updateProgressFromMetadata(progress, hasDisplayMetadata, playbackStatus);
     setVolumeDisplay(displayMetadata, remote, hasDisplayMetadata);
     setPlaybackButton(remote, isActive);
-    setText('title', title);
+    setText('title', title || airplayName);
     setText('kicker', isActive ? (hasDisplayMetadata ? 'AirPlay now playing' : 'AirPlay route active') : 'AirPlay route ready');
 
     if (isActive && hasDisplayMetadata) {
