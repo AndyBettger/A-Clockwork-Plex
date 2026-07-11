@@ -13,13 +13,12 @@ body.mode-airplay .screen {
   margin: 0 auto;
   padding-bottom: 42px;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: clamp(7px, 1.15vmin, 12px);
 }
 
 .airplay-now-card,
-.airplay-info-card,
-.airplay-flow {
+.airplay-info-card {
   border-radius: clamp(18px, 3vmin, 28px);
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -30,11 +29,11 @@ body.mode-airplay .screen {
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(300px, min(44vw, 64vh), 560px) minmax(0, 1fr);
-  gap: clamp(28px, 5vw, 70px);
+  grid-template-columns: clamp(340px, min(46vw, 74vh), 600px) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 76px);
   align-items: center;
   overflow: hidden;
-  padding: clamp(20px, 4vmin, 48px) clamp(20px, 4.6vmin, 58px);
+  padding: clamp(18px, 3.4vmin, 40px);
 }
 
 .airplay-now-card::before {
@@ -45,14 +44,14 @@ body.mode-airplay .screen {
   background-image: var(--airplay-artwork-url);
   background-size: cover;
   background-position: center;
-  filter: blur(46px);
+  filter: blur(50px);
   opacity: 0;
-  transform: scale(1.05);
+  transform: scale(1.06);
   transition: opacity 300ms ease;
 }
 
 body.airplay-has-artwork .airplay-now-card::before {
-  opacity: 0.31;
+  opacity: 0.36;
 }
 
 .airplay-now-card::after {
@@ -61,8 +60,8 @@ body.airplay-has-artwork .airplay-now-card::before {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(circle at 20% 48%, rgba(255, 255, 255, 0.1), transparent 34%),
-    linear-gradient(90deg, rgba(7, 11, 20, 0.12), rgba(7, 11, 20, 0.5) 45%, rgba(7, 11, 20, 0.8));
+    radial-gradient(circle at 24% 48%, rgba(255, 255, 255, 0.13), transparent 34%),
+    linear-gradient(90deg, rgba(7, 11, 20, 0.16), rgba(7, 11, 20, 0.58) 43%, rgba(7, 11, 20, 0.84));
   pointer-events: none;
 }
 
@@ -82,9 +81,10 @@ body.airplay-has-artwork .airplay-now-card::before {
   position: relative;
   display: grid;
   place-items: center;
-  width: clamp(300px, min(44vw, 64vh), 560px);
+  width: 100%;
+  max-width: clamp(340px, min(46vw, 74vh), 600px);
   aspect-ratio: 1;
-  border-radius: clamp(22px, 3.3vmin, 34px);
+  border-radius: clamp(20px, 3.1vmin, 34px);
   overflow: hidden;
 }
 
@@ -93,16 +93,16 @@ body.airplay-has-artwork .airplay-now-card::before {
   height: 100%;
   object-fit: cover;
   border-radius: inherit;
-  box-shadow: 0 30px 95px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 34px 105px rgba(0, 0, 0, 0.54);
 }
 
 body.airplay-has-artwork .airplay-artwork {
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow:
-    0 24px 88px rgba(0, 0, 0, 0.48),
+    0 28px 100px rgba(0, 0, 0, 0.48),
     0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 52px rgba(143, 211, 255, 0.16);
+    0 0 56px rgba(143, 211, 255, 0.16);
 }
 
 .airplay-glyph {
@@ -168,6 +168,9 @@ body.airplay-has-artwork .airplay-artwork {
 
 .airplay-copy {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .airplay-kicker,
@@ -181,26 +184,26 @@ body.airplay-has-artwork .airplay-artwork {
 }
 
 .airplay-copy h1 {
-  margin: 4px 0 10px;
+  margin: 4px 0 8px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  font-size: clamp(2.05rem, 6.6vmin, 4.1rem);
+  font-size: clamp(2.05rem, 6.8vmin, 4.15rem);
   line-height: 0.95;
 }
 
 body.airplay-metadata-active .airplay-copy h1 {
-  font-size: clamp(1.8rem, 5.45vmin, 3.55rem);
+  font-size: clamp(1.85rem, 5.9vmin, 3.8rem);
 }
 
 .airplay-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--text);
-  font-size: clamp(1.04rem, 2.85vmin, 1.42rem);
+  font-size: clamp(1.05rem, 3vmin, 1.48rem);
   font-weight: 850;
 }
 
@@ -239,40 +242,138 @@ body.airplay-session-idle .airplay-live-dot {
 }
 
 .airplay-copy .muted {
-  max-width: 40rem;
+  max-width: 42rem;
   margin-bottom: 0;
-  font-size: clamp(0.88rem, 2.02vmin, 1.02rem);
+  font-size: clamp(0.88rem, 2.05vmin, 1.02rem);
   line-height: 1.3;
+}
+
+.airplay-progress {
+  width: min(100%, 520px);
+  margin-top: clamp(14px, 2.6vmin, 28px);
+}
+
+.airplay-progress-times {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: var(--text);
+  font-size: clamp(0.76rem, 1.75vmin, 0.9rem);
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.airplay-progress-track {
+  height: clamp(7px, 1.2vmin, 10px);
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.airplay-progress-track span {
+  display: block;
+  width: var(--airplay-progress-percent, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  box-shadow: 0 0 18px rgba(143, 211, 255, 0.45);
+  transition: width 240ms ease;
+}
+
+.airplay-volume-strip {
+  width: min(100%, 520px);
+  margin-top: clamp(12px, 2.2vmin, 22px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(10px, 2vmin, 18px);
+  color: var(--text);
+}
+
+.airplay-volume-icon,
+.airplay-volume-label {
+  color: rgba(247, 249, 255, 0.82);
+  font-size: clamp(0.78rem, 1.8vmin, 0.94rem);
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.airplay-volume-slider {
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.airplay-volume-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) var(--airplay-volume-percent, 0%), rgba(255, 255, 255, 0.24) var(--airplay-volume-percent, 0%));
+}
+
+.airplay-volume-slider::-webkit-slider-thumb {
+  width: 17px;
+  height: 17px;
+  margin-top: -5.5px;
+  border: 0;
+  border-radius: 50%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--text);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+}
+
+.airplay-volume-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.airplay-volume-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.airplay-volume-slider::-moz-range-thumb {
+  width: 17px;
+  height: 17px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text);
 }
 
 .airplay-info-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(7px, 1.1vmin, 11px);
+  gap: clamp(7px, 1.2vmin, 12px);
 }
 
 .airplay-info-card {
   min-width: 0;
-  padding: clamp(7px, 1.1vmin, 11px) clamp(8px, 1.25vmin, 12px);
-  border-radius: clamp(14px, 2.2vmin, 20px);
-  background: rgba(255, 255, 255, 0.055);
+  padding: clamp(8px, 1.3vmin, 12px);
+  border-radius: clamp(15px, 2.4vmin, 22px);
 }
 
 .airplay-info-card.is-live {
-  background: linear-gradient(135deg, rgba(143, 211, 255, 0.085), rgba(255, 255, 255, 0.045));
+  background: linear-gradient(135deg, rgba(143, 211, 255, 0.095), rgba(255, 255, 255, 0.05));
 }
 
 .airplay-info-card span {
-  font-size: clamp(0.66rem, 1.45vmin, 0.78rem);
+  font-size: clamp(0.7rem, 1.65vmin, 0.84rem);
 }
 
 .airplay-info-card strong {
   display: block;
-  margin: 1px 0 3px;
+  margin: 2px 0 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text);
-  font-size: clamp(0.86rem, 2.15vmin, 1.08rem);
+  font-size: clamp(0.92rem, 2.35vmin, 1.18rem);
   line-height: 1.05;
   white-space: nowrap;
 }
@@ -284,96 +385,48 @@ body.airplay-session-idle .airplay-live-dot {
 .airplay-info-card p {
   margin-bottom: 0;
   color: var(--muted);
-  font-size: clamp(0.64rem, 1.48vmin, 0.76rem);
-  line-height: 1.14;
-}
-
-.airplay-flow {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  overflow: hidden;
-  border-radius: clamp(13px, 2vmin, 18px);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.airplay-flow div {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px;
-  align-items: center;
-  padding: clamp(5px, 0.95vmin, 8px);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.airplay-flow div:last-child {
-  border-right: 0;
-}
-
-.airplay-flow span {
-  display: grid;
-  place-items: center;
-  width: clamp(20px, 3.3vmin, 27px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: rgba(143, 211, 255, 0.16);
-  color: var(--accent);
-  font-weight: 950;
-}
-
-.airplay-flow strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: clamp(0.62rem, 1.55vmin, 0.78rem);
+  font-size: clamp(0.68rem, 1.65vmin, 0.82rem);
+  line-height: 1.18;
 }
 
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-page {
-    gap: 6px;
+    gap: 7px;
     padding-bottom: 34px;
   }
 
   .airplay-now-card {
-    grid-template-columns: clamp(220px, min(42vw, 56vh), 300px) minmax(0, 1fr);
-    padding: 10px clamp(12px, 2.4vmin, 20px);
-    gap: clamp(14px, 3vw, 28px);
+    grid-template-columns: clamp(190px, 36vw, 310px) minmax(0, 1fr);
+    padding: 12px;
+    gap: 18px;
   }
 
   .airplay-artwork {
-    width: clamp(220px, min(42vw, 56vh), 300px);
+    max-width: clamp(190px, 36vw, 310px);
     border-radius: 24px;
   }
 
   .airplay-copy h1,
   body.airplay-metadata-active .airplay-copy h1 {
-    font-size: clamp(1.38rem, 4.45vw, 2.22rem);
+    font-size: clamp(1.45rem, 4.9vw, 2.35rem);
   }
 
   .airplay-status {
-    font-size: clamp(0.88rem, 2.35vw, 1.08rem);
-    margin-bottom: 6px;
+    font-size: clamp(0.9rem, 2.5vw, 1.16rem);
   }
 
   .airplay-copy .muted {
-    font-size: clamp(0.7rem, 1.82vw, 0.84rem);
+    font-size: clamp(0.72rem, 1.9vw, 0.86rem);
   }
 
   .airplay-info-card {
-    padding: 6px 8px;
-  }
-
-  .airplay-flow div {
-    padding: 5px 6px;
-    gap: 5px;
+    padding: 7px 8px;
   }
 }
 
 @media (max-width: 680px) {
   .airplay-now-card,
-  .airplay-info-grid,
-  .airplay-flow {
+  .airplay-info-grid {
     grid-template-columns: 1fr;
   }
 
@@ -385,12 +438,9 @@ body.airplay-session-idle .airplay-live-dot {
     justify-content: center;
   }
 
-  .airplay-flow div {
-    border-right: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .airplay-flow div:last-child {
-    border-bottom: 0;
+  .airplay-progress,
+  .airplay-volume-strip {
+    margin-left: auto;
+    margin-right: auto;
   }
 }
