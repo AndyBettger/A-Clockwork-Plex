@@ -122,10 +122,40 @@ body.mode-airplay .screen {
 }
 
 .airplay-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
   color: var(--text);
   font-size: clamp(1.1rem, 3.2vmin, 1.55rem);
   font-weight: 850;
+}
+
+.airplay-live-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.7em;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 rgba(143, 211, 255, 0.5);
+  animation: airplay-live-dot 1.8s ease-out infinite;
+}
+
+body.airplay-session-idle .airplay-live-dot {
+  background: rgba(255, 255, 255, 0.35);
+  animation: none;
+  box-shadow: none;
+}
+
+@keyframes airplay-live-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(143, 211, 255, 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px rgba(143, 211, 255, 0);
+  }
 }
 
 .airplay-copy .muted {
@@ -146,6 +176,10 @@ body.mode-airplay .screen {
   padding: clamp(10px, 1.7vmin, 16px);
 }
 
+.airplay-info-card.is-live {
+  background: linear-gradient(135deg, rgba(143, 211, 255, 0.11), rgba(255, 255, 255, 0.065));
+}
+
 .airplay-info-card strong {
   display: block;
   margin: 3px 0 5px;
@@ -155,6 +189,10 @@ body.mode-airplay .screen {
   font-size: clamp(1rem, 2.7vmin, 1.34rem);
   line-height: 1.05;
   white-space: nowrap;
+}
+
+#airplay-elapsed {
+  font-variant-numeric: tabular-nums;
 }
 
 .airplay-info-card p {
