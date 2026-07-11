@@ -3,6 +3,7 @@
 {% block title %}AirPlay - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-controls.css') }}">
 {% endblock %}
 {% block content %}
 <section class="airplay-page" aria-label="AirPlay active screen">
@@ -34,10 +35,16 @@
         </div>
       </div>
 
-      <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
-        <span class="airplay-volume-icon" aria-hidden="true">♪</span>
-        <input id="airplay-volume-slider" class="airplay-volume-slider" type="range" min="0" max="100" value="0" disabled aria-label="AirPlay source volume">
-        <span id="airplay-volume-label" class="airplay-volume-label">—</span>
+      <div class="airplay-control-row">
+        <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay">
+          <span id="airplay-play-pause-icon" aria-hidden="true">⏯</span>
+        </button>
+
+        <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
+          <span class="airplay-volume-icon" aria-hidden="true">♪</span>
+          <input id="airplay-volume-slider" class="airplay-volume-slider" type="range" min="0" max="100" value="0" aria-label="AirPlay source volume">
+          <span id="airplay-volume-label" class="airplay-volume-label">—</span>
+        </div>
       </div>
     </div>
   </section>
