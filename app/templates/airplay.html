@@ -5,20 +5,48 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css') }}">
 {% endblock %}
 {% block content %}
-<section class="hero airplay-hero">
-  <div class="airplay-glyph" aria-hidden="true">
-    <span class="airplay-screen"></span>
-    <span class="airplay-triangle"></span>
-  </div>
-  <h1>AirPlay Active</h1>
-  <p>Playing from iPhone</p>
-  <p class="muted">Podcast audio is being sent to this Pi.</p>
-</section>
+<section class="airplay-page" aria-label="AirPlay active screen">
+  <section class="airplay-now-card">
+    <div class="airplay-glyph-wrap">
+      <div class="airplay-glyph" aria-hidden="true">
+        <span class="airplay-screen"></span>
+        <span class="airplay-triangle"></span>
+        <span class="airplay-pulse one"></span>
+        <span class="airplay-pulse two"></span>
+      </div>
+    </div>
+    <div class="airplay-copy">
+      <span class="airplay-kicker">AirPlay route active</span>
+      <h1>{{ config.airplay.display_name | default('A Clockwork Plex') }}</h1>
+      <p class="airplay-status">Audio is currently being sent to this Pi.</p>
+      <p class="muted">Plexamp has been paused and stopped so Shairport Sync can use the DAC without a tug-of-war.</p>
+    </div>
+  </section>
 
-<section class="panel airplay-panel">
-  <h2>{{ config.airplay.display_name | default('A Clockwork Plex') }}</h2>
-  <p>Volume is controlled from the iPhone or the stereo.</p>
-  <p class="muted small">Stop AirPlay to return to the clock/Plexamp appliance mode.</p>
+  <section class="airplay-info-grid">
+    <article class="airplay-info-card">
+      <span>Source</span>
+      <strong>iPhone / iPad / Mac</strong>
+      <p>Choose this device from the AirPlay picker.</p>
+    </article>
+    <article class="airplay-info-card">
+      <span>Volume</span>
+      <strong>Controlled remotely</strong>
+      <p>Use the sending device or the amplifier/speakers.</p>
+    </article>
+    <article class="airplay-info-card">
+      <span>Return path</span>
+      <strong>Automatic</strong>
+      <p>When AirPlay stops, Plexamp restarts and the screen returns to Clock.</p>
+    </article>
+  </section>
+
+  <section class="airplay-flow" aria-label="AirPlay handoff flow">
+    <div><span>1</span><strong>AirPlay starts</strong></div>
+    <div><span>2</span><strong>Plexamp releases DAC</strong></div>
+    <div><span>3</span><strong>AirPlay plays</strong></div>
+    <div><span>4</span><strong>Clock returns after stop</strong></div>
+  </section>
 </section>
 
 {% include "_nav.html" %}
