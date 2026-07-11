@@ -63,13 +63,28 @@ def log(message: str) -> None:
 
 
 def ensure_fifo(path: Path) -> None:
+    """Ensure the metadata path is a FIFO without crashing on ownership quirks.
+
+    Shairport Sync and this listener may run as different users. If Shairport
+    created the FIFO first, this listener may be able to read it but not chmod
+    it. That should be a warning, not a service-killing error.
+    """
     if path.exists():
         mode = path.stat().st_mode
         if not stat.S_ISFIFO(mode):
             raise RuntimeError(f"Metadata path exists but is not a FIFO: {path}")
-    else:
-        os.mkfifo(path, 0o666)
-    os.chmod(path, 0o666)
+        try:
+            os.chmod(path, 0o666)
+        except PermissionError:
+            log(f"Metadata FIFO already exists but chmod was not permitted: {path}")
+            log("Continuing; rerun scripts/install-airplay-metadata-listener.sh if opening the pipe fails.")
+        return
+
+    os.mkfifo(path, 0o666)
+    try:
+        os.chmod(path, 0o666)
+    except PermissionError:
+        log(f"Metadata FIFO created but chmod was not permitted: {path}")
 
 
 def load_state() -> dict[str, Any]:
