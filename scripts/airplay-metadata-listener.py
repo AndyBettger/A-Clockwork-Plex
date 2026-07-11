@@ -34,6 +34,7 @@ ARTWORK_DIR = Path(os.environ.get("ACP_ARTWORK_DIR", BASE_DIR / "app" / "static"
 ARTWORK_URL_PREFIX = os.environ.get("ACP_ARTWORK_URL_PREFIX", "/static/generated").rstrip("/")
 MAX_PAYLOAD_BYTES = int(os.environ.get("ACP_METADATA_MAX_PAYLOAD_BYTES", str(8 * 1024 * 1024)))
 PROGRESS_SAMPLE_RATE = int(os.environ.get("ACP_METADATA_PROGRESS_SAMPLE_RATE", "44100"))
+LOG_UNKNOWN_ARTWORK = os.environ.get("ACP_METADATA_LOG_UNKNOWN_ARTWORK", "").strip().lower() in {"1", "true", "yes", "on"}
 RTP_MODULO = 2 ** 32
 
 BACKTICK_HEADER_RE = re.compile(rb"^([0-9A-Fa-f]{8})`([0-9A-Fa-f]{8})`([0-9]+)\s*$")
@@ -195,7 +196,11 @@ def artwork_extension(payload: bytes) -> str | None:
 def store_artwork(payload: bytes) -> str | None:
     extension = artwork_extension(payload)
     if not extension:
-        log("metadata artwork received but format was not recognised")
+        # Prologue and some other clients send an extra picture-ish metadata item
+        # before a normal JPEG/PNG cover. It is harmless, so keep the service log
+        # calm unless explicit debug logging is requested.
+        if LOG_UNKNOWN_ARTWORK:
+            log("metadata artwork received but format was not recognised")
         return None
     ARTWORK_DIR.mkdir(parents=True, exist_ok=True)
     # Remove older generated artwork so the directory does not become a tiny album-art attic.
