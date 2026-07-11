@@ -1,139 +1,107 @@
 /* Segmented mini clock for the AirPlay glance row. */
 
 .airplay-glance-grid {
-  /* Keep the weather cards useful, but give the clock enough room for a proper
-     segmented display plus the date. */
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
+  /* The clock card is now a single compact alphanumeric display, so the
+     weather cards can keep useful width while the date still fits. */
+  grid-template-columns: minmax(0, 1.64fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
 }
 
 .airplay-info-card.is-clock {
   --segment-on: #f7f9ff;
-  --segment-off: rgba(247, 249, 255, 0.04);
+  --segment-off: rgba(247, 249, 255, 0.055);
   justify-content: center;
   overflow: hidden;
 }
 
 .airplay-mini-clock-line {
   width: 100%;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  column-gap: clamp(8px, 1.35vmin, 18px);
+  justify-content: space-between;
+  gap: clamp(9px, 1.45vmin, 18px);
   min-width: 0;
 }
 
-.airplay-mini-time.is-segmented {
-  --airplay-mini-digit-h: clamp(52px, 6.9vmin, 68px);
-  --digit-h: var(--airplay-mini-digit-h);
-  --digit-w: calc(var(--digit-h) * 0.62);
-  --seg-t: calc(var(--digit-h) * 0.095);
-  --seg-l: calc(var(--digit-h) * 0.36);
-  --seg-r: calc(var(--digit-h) * 0.08);
-
+.airplay-mini-time.is-segmented,
+.airplay-mini-date {
   display: inline-flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: calc(var(--airplay-mini-digit-h) * 0.044);
-  min-width: max-content;
-  height: var(--airplay-mini-digit-h);
+  min-width: 0;
   margin: 0;
-  color: var(--text);
-  font-size: 1px; /* Dimensions below are driven by explicit CSS variables. */
   line-height: 1;
   white-space: nowrap;
 }
 
-.airplay-mini-time.is-segmented .digital-group {
-  --digit-h: var(--airplay-mini-digit-h);
-  --digit-w: calc(var(--digit-h) * 0.62);
-  --seg-t: calc(var(--digit-h) * 0.095);
-  --seg-l: calc(var(--digit-h) * 0.36);
-  --seg-r: calc(var(--digit-h) * 0.08);
+.airplay-mini-time.is-segmented {
+  --alpha-display-h: clamp(34px, 6.5vmin, 48px);
+  flex: 0 0 auto;
+  gap: calc(var(--alpha-display-h) * 0.065);
+  color: var(--text);
+}
 
+.airplay-mini-date {
+  --alpha-display-h: clamp(22px, 4.15vmin, 32px);
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  gap: calc(var(--alpha-display-h) * 0.075);
+  overflow: hidden;
+  color: var(--accent);
+}
+
+.airplay-mini-time.is-segmented .digital-group {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: calc(var(--digit-h) * 0.044);
-  height: var(--digit-h);
-  transform: skewX(var(--segment-slant));
+  gap: calc(var(--alpha-display-h) * 0.055);
+  height: var(--alpha-display-h);
 }
 
 .airplay-mini-time.is-segmented .clock-seconds {
-  --digit-h: calc(var(--airplay-mini-digit-h) * 0.54);
-  --digit-w: calc(var(--digit-h) * 0.62);
-  --seg-t: calc(var(--digit-h) * 0.095);
-  --seg-l: calc(var(--digit-h) * 0.36);
-  --seg-r: calc(var(--digit-h) * 0.08);
-  gap: calc(var(--digit-h) * 0.05);
-  height: var(--digit-h);
+  --alpha-display-h: clamp(25px, 4.8vmin, 36px);
+  gap: calc(var(--alpha-display-h) * 0.055);
 }
 
-.airplay-mini-time.is-segmented .digital-digit {
-  position: relative;
+.airplay-mini-time.is-segmented .alpha-character,
+.airplay-mini-date .alpha-character {
   flex: 0 0 auto;
-  width: var(--digit-w);
-  height: var(--digit-h);
+  width: calc(var(--alpha-display-h) * 0.58);
+  height: var(--alpha-display-h);
 }
 
-.airplay-mini-time.is-segmented .segment {
-  position: absolute;
-  display: block;
-  background: var(--segment-off);
+.airplay-mini-time.is-segmented .alpha-character.is-space,
+.airplay-mini-date .alpha-character.is-space {
+  width: calc(var(--alpha-display-h) * 0.34);
 }
 
-.airplay-mini-time.is-segmented .segment.is-on {
-  background: var(--segment-on);
-  box-shadow: 0 0 calc(var(--digit-h) * 0.035) rgba(255, 255, 255, 0.42);
+.airplay-mini-time.is-segmented .alpha-character svg,
+.airplay-mini-date .alpha-character svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.airplay-mini-time.is-segmented .segment-a,
-.airplay-mini-time.is-segmented .segment-d,
-.airplay-mini-time.is-segmented .segment-g {
-  left: calc(var(--digit-h) * 0.13);
-  width: var(--seg-l);
-  height: var(--seg-t);
-  border-radius: var(--seg-r);
+.airplay-mini-time.is-segmented .alpha-segment,
+.airplay-mini-date .alpha-segment {
+  stroke: rgba(247, 249, 255, 0.08);
+  stroke-width: 2.35;
+  stroke-linecap: round;
+  transition: stroke 80ms linear, filter 80ms linear;
 }
 
-.airplay-mini-time.is-segmented .segment-a {
-  top: calc(var(--digit-h) * 0.02);
+.airplay-mini-time.is-segmented .alpha-segment.is-on {
+  stroke: currentColor;
+  filter: drop-shadow(0 0 1.8px rgba(255, 255, 255, 0.55));
 }
 
-.airplay-mini-time.is-segmented .segment-g {
-  top: calc(var(--digit-h) * 0.457);
+.airplay-mini-date .alpha-segment {
+  stroke: rgba(143, 211, 255, 0.12);
+  stroke-width: 2.15;
 }
 
-.airplay-mini-time.is-segmented .segment-d {
-  bottom: calc(var(--digit-h) * 0.02);
-}
-
-.airplay-mini-time.is-segmented .segment-b,
-.airplay-mini-time.is-segmented .segment-c,
-.airplay-mini-time.is-segmented .segment-e,
-.airplay-mini-time.is-segmented .segment-f {
-  width: var(--seg-t);
-  height: var(--seg-l);
-  border-radius: var(--seg-r);
-}
-
-.airplay-mini-time.is-segmented .segment-b,
-.airplay-mini-time.is-segmented .segment-c {
-  right: calc(var(--digit-h) * 0.02);
-}
-
-.airplay-mini-time.is-segmented .segment-f,
-.airplay-mini-time.is-segmented .segment-e {
-  left: calc(var(--digit-h) * 0.02);
-}
-
-.airplay-mini-time.is-segmented .segment-b,
-.airplay-mini-time.is-segmented .segment-f {
-  top: calc(var(--digit-h) * 0.08);
-}
-
-.airplay-mini-time.is-segmented .segment-c,
-.airplay-mini-time.is-segmented .segment-e {
-  bottom: calc(var(--digit-h) * 0.08);
+.airplay-mini-date .alpha-segment.is-on {
+  stroke: currentColor;
+  filter: drop-shadow(0 0 1.2px rgba(143, 211, 255, 0.36));
 }
 
 .airplay-mini-time.is-segmented .digital-colon {
@@ -141,89 +109,47 @@
   display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
-  width: calc(var(--airplay-mini-digit-h) * 0.15);
-  height: calc(var(--airplay-mini-digit-h) * 0.62);
-  margin-inline: calc(var(--airplay-mini-digit-h) * 0.014) calc(var(--airplay-mini-digit-h) * 0.008);
+  width: calc(var(--alpha-display-h) * 0.16);
+  height: calc(var(--alpha-display-h) * 0.54);
+  margin-inline: calc(var(--alpha-display-h) * 0.018) calc(var(--alpha-display-h) * 0.006);
   transform: skewX(var(--segment-slant));
+  animation: none;
+  opacity: 1;
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small {
-  width: calc(var(--airplay-mini-digit-h) * 0.105);
-  height: calc(var(--airplay-mini-digit-h) * 0.38);
-  margin-inline: calc(var(--airplay-mini-digit-h) * 0.034) calc(var(--airplay-mini-digit-h) * 0.008);
+  width: calc(var(--alpha-display-h) * 0.13);
+  height: calc(var(--alpha-display-h) * 0.46);
+  margin-inline: calc(var(--alpha-display-h) * 0.028) calc(var(--alpha-display-h) * 0.006);
 }
 
 .airplay-mini-time.is-segmented .digital-colon span {
   display: block;
-  width: calc(var(--airplay-mini-digit-h) * 0.095);
-  height: calc(var(--airplay-mini-digit-h) * 0.095);
+  width: calc(var(--alpha-display-h) * 0.105);
+  height: calc(var(--alpha-display-h) * 0.105);
   border-radius: 50%;
-  background: var(--segment-on);
-  box-shadow: 0 0 calc(var(--airplay-mini-digit-h) * 0.03) rgba(255, 255, 255, 0.42);
+  background: currentColor;
+  box-shadow: 0 0 calc(var(--alpha-display-h) * 0.035) rgba(255, 255, 255, 0.5);
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small span {
-  width: calc(var(--airplay-mini-digit-h) * 0.062);
-  height: calc(var(--airplay-mini-digit-h) * 0.062);
+  width: calc(var(--alpha-display-h) * 0.078);
+  height: calc(var(--alpha-display-h) * 0.078);
+}
+
+.airplay-mini-time.is-segmented.is-colon-off .digital-colon span {
+  background: rgba(247, 249, 255, 0.08);
+  box-shadow: none;
 }
 
 .airplay-mini-meridiem {
   align-self: flex-end;
-  margin-left: calc(var(--airplay-mini-digit-h) * 0.09);
-  margin-bottom: calc(var(--airplay-mini-digit-h) * 0.05);
+  margin-left: calc(var(--alpha-display-h) * 0.09);
+  margin-bottom: calc(var(--alpha-display-h) * 0.06);
   color: var(--muted);
-  font-size: calc(var(--airplay-mini-digit-h) * 0.18);
+  font-size: calc(var(--alpha-display-h) * 0.18);
   font-weight: 950;
   letter-spacing: 0.04em;
-}
-
-.airplay-mini-date {
-  justify-self: end;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(0.72rem, 1.75vmin, 0.94rem);
-}
-
-.airplay-mini-date.is-alpha-segmented {
-  --alpha-date-h: clamp(16px, 1.9vmin, 22px);
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: calc(var(--alpha-date-h) * 0.065);
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0; /* Hide fallback text while JS re-renders segmented date. */
-}
-
-.airplay-mini-date .alpha-character {
-  flex: 0 0 auto;
-  width: calc(var(--alpha-date-h) * 0.54);
-  height: var(--alpha-date-h);
-}
-
-.airplay-mini-date .alpha-character.is-space {
-  width: calc(var(--alpha-date-h) * 0.24);
-}
-
-.airplay-mini-date .alpha-character svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.airplay-mini-date .alpha-segment {
-  stroke: rgba(170, 180, 196, 0.1);
-  stroke-width: 2.15;
-  stroke-linecap: round;
-}
-
-.airplay-mini-date .alpha-segment.is-on {
-  stroke: currentColor;
-  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.28));
 }
 
 .airplay-info-card.is-outside strong {
@@ -234,37 +160,33 @@
 
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-glance-grid {
-    grid-template-columns: minmax(0, 1.64fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1.05fr) minmax(0, 1.12fr);
   }
 
   .airplay-mini-clock-line {
-    column-gap: clamp(6px, 1.05vw, 10px);
+    gap: clamp(7px, 1.1vw, 12px);
   }
 
   .airplay-mini-time.is-segmented {
-    --airplay-mini-digit-h: clamp(44px, 10.5vh, 56px);
-    gap: calc(var(--airplay-mini-digit-h) * 0.036);
+    --alpha-display-h: clamp(30px, 7.1vh, 42px);
+    gap: calc(var(--alpha-display-h) * 0.055);
   }
 
   .airplay-mini-time.is-segmented .digital-group {
-    gap: calc(var(--digit-h) * 0.038);
+    gap: calc(var(--alpha-display-h) * 0.045);
   }
 
-  .airplay-mini-date.is-alpha-segmented {
-    --alpha-date-h: clamp(13px, 1.72vw, 18px);
-    gap: calc(var(--alpha-date-h) * 0.052);
+  .airplay-mini-time.is-segmented .clock-seconds {
+    --alpha-display-h: clamp(22px, 5.1vh, 32px);
   }
 
-  .airplay-mini-date .alpha-character {
-    width: calc(var(--alpha-date-h) * 0.5);
-  }
-
-  .airplay-mini-date .alpha-character.is-space {
-    width: calc(var(--alpha-date-h) * 0.18);
+  .airplay-mini-date {
+    --alpha-display-h: clamp(18px, 4.3vh, 27px);
+    gap: calc(var(--alpha-display-h) * 0.058);
   }
 
   .airplay-mini-date .alpha-segment {
-    stroke-width: 2;
+    stroke-width: 2.0;
   }
 
   .airplay-info-card.is-outside strong {
@@ -279,10 +201,5 @@
 
   .airplay-mini-clock-line {
     justify-content: center;
-    grid-template-columns: max-content max-content;
-  }
-
-  .airplay-mini-date {
-    justify-self: start;
   }
 }
