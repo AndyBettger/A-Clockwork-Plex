@@ -3,6 +3,7 @@
     "host": "0.0.0.0",
     "port": 8088,
     "default_mode": "clock",
+    "clock_format": "24h",
     "idle_timeout_seconds": 180,
     "night_dim_start": "02:00",
     "night_dim_end": "11:00"
