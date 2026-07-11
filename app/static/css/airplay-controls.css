@@ -1,4 +1,4 @@
-/* Extra AirPlay controls: live progress, play/pause, and touch volume. */
+/* Extra AirPlay controls: live progress, play/pause, touch volume, and glance cards. */
 
 .airplay-page {
   padding-bottom: clamp(10px, 1.4vmin, 18px);
@@ -6,6 +6,54 @@
 
 .airplay-info-grid {
   align-self: end;
+}
+
+.airplay-meta-stack {
+  min-width: 0;
+  margin-bottom: clamp(4px, 0.9vmin, 8px);
+}
+
+.airplay-status {
+  margin-bottom: 3px;
+}
+
+.airplay-status span:last-child {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.airplay-source-line {
+  max-width: min(100%, 42rem);
+  margin: -2px 0 6px;
+  overflow: hidden;
+  color: rgba(247, 249, 255, 0.74);
+  font-size: clamp(0.96rem, 2.35vmin, 1.22rem);
+  font-weight: 760;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.airplay-source-line span {
+  display: inline-block;
+  min-width: 0;
+  will-change: transform;
+}
+
+.airplay-source-line.is-overflowing span {
+  animation: airplay-source-scroll 14s ease-in-out 1.4s infinite alternate;
+}
+
+@keyframes airplay-source-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-1 * var(--airplay-source-overflow, 0px)));
+  }
 }
 
 .airplay-control-row {
@@ -80,6 +128,55 @@ body.airplay-remote-paused .airplay-live-dot {
   box-shadow: 0 0 0 4px rgba(143, 211, 255, 0.16);
 }
 
+.airplay-glance-grid .airplay-info-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: clamp(74px, 12vmin, 104px);
+}
+
+.airplay-info-card.is-clock {
+  --segment-on: #f7f9ff;
+  --segment-off: rgba(247, 249, 255, 0.045);
+}
+
+.airplay-mini-time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.08em;
+  margin: 1px 0 3px;
+  color: var(--text);
+  font-size: clamp(1.35rem, 4.5vmin, 2.35rem);
+  line-height: 0.95;
+}
+
+.airplay-mini-time .digital-group {
+  transform: skewX(var(--segment-slant));
+}
+
+.airplay-mini-time .digital-colon {
+  width: 0.15em;
+  height: 0.55em;
+  margin-inline: 0.03em 0;
+}
+
+.airplay-mini-time .digital-colon span {
+  width: 0.12em;
+  height: 0.12em;
+}
+
+.airplay-glance-grid .airplay-info-card strong {
+  margin-top: 1px;
+  font-size: clamp(1rem, 2.55vmin, 1.32rem);
+}
+
+.airplay-glance-grid .airplay-info-card p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-page {
     padding-bottom: clamp(10px, 1.4vmin, 18px);
@@ -93,6 +190,18 @@ body.airplay-remote-paused .airplay-live-dot {
   .airplay-play-pause {
     width: clamp(42px, 6.8vmin, 54px);
   }
+
+  .airplay-source-line {
+    font-size: clamp(0.82rem, 2.25vw, 1rem);
+  }
+
+  .airplay-glance-grid .airplay-info-card {
+    min-height: clamp(62px, 11vmin, 82px);
+  }
+
+  .airplay-mini-time {
+    font-size: clamp(1.12rem, 4.2vw, 1.7rem);
+  }
 }
 
 @media (max-width: 680px) {
@@ -105,5 +214,10 @@ body.airplay-remote-paused .airplay-live-dot {
 
   .airplay-volume-strip {
     width: min(100%, 520px);
+  }
+
+  .airplay-source-line {
+    margin-left: auto;
+    margin-right: auto;
   }
 }
