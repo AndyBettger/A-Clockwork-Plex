@@ -8,11 +8,14 @@
 <section class="airplay-page" aria-label="AirPlay active screen">
   <section class="airplay-now-card">
     <div class="airplay-glyph-wrap">
-      <div class="airplay-glyph" aria-hidden="true">
-        <span class="airplay-screen"></span>
-        <span class="airplay-triangle"></span>
-        <span class="airplay-pulse one"></span>
-        <span class="airplay-pulse two"></span>
+      <div class="airplay-artwork" id="airplay-artwork" aria-hidden="true">
+        <img id="airplay-artwork-img" alt="" hidden>
+        <div class="airplay-glyph" id="airplay-glyph" aria-hidden="true">
+          <span class="airplay-screen"></span>
+          <span class="airplay-triangle"></span>
+          <span class="airplay-pulse one"></span>
+          <span class="airplay-pulse two"></span>
+        </div>
       </div>
     </div>
     <div class="airplay-copy">
@@ -35,7 +38,7 @@
       <p id="airplay-last-update">Waiting for status</p>
     </article>
     <article class="airplay-info-card is-live">
-      <span>Plexamp</span>
+      <span id="airplay-third-card-label">Plexamp</span>
       <strong id="airplay-plexamp-state">Available</strong>
       <p id="airplay-return-state">Pick this device to begin</p>
     </article>
@@ -44,7 +47,7 @@
   <section class="airplay-flow" aria-label="AirPlay handoff flow">
     <div><span>1</span><strong>Pick this Pi</strong></div>
     <div><span>2</span><strong>Plexamp releases DAC</strong></div>
-    <div><span>3</span><strong>AirPlay plays</strong></div>
+    <div><span>3</span><strong>Metadata appears</strong></div>
     <div><span>4</span><strong>Clock returns after stop</strong></div>
   </section>
 </section>
