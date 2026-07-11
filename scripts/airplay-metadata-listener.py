@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
 """Read Shairport Sync metadata from a FIFO and store it for the dashboard.
 
-Shairport Sync does not write raw binary frames to the metadata pipe. It writes
-an XML-style, line-oriented stream in the form:
+Shairport Sync writes an XML-style metadata stream to its metadata pipe, for
+example:
 
-    73736e63`70626567`0
+    <item><type>636f7265</type><code>6d696e6d</code><length>11</length>
+    <data encoding="base64">
+    U29tZSBUaXRsZQ==</data></item>
 
-or, for payload-bearing items:
-
-    636f7265`6d696e6d`11
-
-    U29tZSBUaXRsZQ==
-
-The first value is the 4-byte type as eight hex digits, the second is the
-4-byte code as eight hex digits, and the third is the decoded payload length.
-Payloads are base64 encoded. This listener decodes the useful bits into
-``state.json`` and stores cover art as a generated static file.
+The ``type`` and ``code`` values are 4-byte identifiers written as eight hex
+characters. Payloads are base64 encoded. This listener decodes the useful bits
+into ``state.json`` and stores cover art as a generated static file.
 """
 
 from __future__ import annotations
@@ -39,7 +34,10 @@ ARTWORK_DIR = Path(os.environ.get("ACP_ARTWORK_DIR", BASE_DIR / "app" / "static"
 ARTWORK_URL_PREFIX = os.environ.get("ACP_ARTWORK_URL_PREFIX", "/static/generated").rstrip("/")
 MAX_PAYLOAD_BYTES = int(os.environ.get("ACP_METADATA_MAX_PAYLOAD_BYTES", str(8 * 1024 * 1024)))
 
-HEADER_RE = re.compile(rb"^([0-9A-Fa-f]{8})`([0-9A-Fa-f]{8})`([0-9]+)\s*$")
+BACKTICK_HEADER_RE = re.compile(rb"^([0-9A-Fa-f]{8})`([0-9A-Fa-f]{8})`([0-9]+)\s*$")
+XML_ITEM_RE = re.compile(
+    rb"<item><type>([0-9A-Fa-f]{8})</type><code>([0-9A-Fa-f]{8})</code><length>([0-9]+)</length>"
+)
 
 TEXT_FIELDS = {
     "minm": "title",
@@ -294,8 +292,8 @@ def update_metadata(namespace: str, code: str, payload: bytes) -> None:
         save_state(state)
 
 
-def parse_header_line(line: bytes) -> tuple[str, str, int] | None:
-    match = HEADER_RE.match(line.strip())
+def parse_backtick_header(line: bytes) -> tuple[str, str, int] | None:
+    match = BACKTICK_HEADER_RE.match(line.strip())
     if not match:
         return None
     namespace = hex_code_to_text(match.group(1))
@@ -304,7 +302,28 @@ def parse_header_line(line: bytes) -> tuple[str, str, int] | None:
     return namespace, code, length
 
 
-def read_base64_payload(handle: BinaryIO, decoded_length: int, first_line: bytes | None = None) -> bytes:
+def parse_xml_item_header(line: bytes) -> tuple[str, str, int] | None:
+    match = XML_ITEM_RE.search(line.strip())
+    if not match:
+        return None
+    namespace = hex_code_to_text(match.group(1))
+    code = hex_code_to_text(match.group(2))
+    length = int(match.group(3).decode("ascii"))
+    return namespace, code, length
+
+
+def decode_base64_bytes(encoded: bytes, expected_length: int) -> bytes:
+    encoded = b"".join(encoded.split())
+    try:
+        payload = base64.b64decode(encoded, validate=False)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(f"Could not decode base64 payload: {exc}") from exc
+    if len(payload) > expected_length:
+        return payload[:expected_length]
+    return payload
+
+
+def read_backtick_payload(handle: BinaryIO, decoded_length: int, first_line: bytes | None = None) -> bytes:
     expected_base64_chars = 4 * ((decoded_length + 2) // 3)
     chunks: list[bytes] = []
     total_chars = 0
@@ -325,14 +344,38 @@ def read_base64_payload(handle: BinaryIO, decoded_length: int, first_line: bytes
         total_chars += len(chunk)
 
     encoded = b"".join(chunks)[:expected_base64_chars]
-    try:
-        payload = base64.b64decode(encoded, validate=False)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError(f"Could not decode base64 payload: {exc}") from exc
+    return decode_base64_bytes(encoded, decoded_length)
 
-    if len(payload) > decoded_length:
-        return payload[:decoded_length]
-    return payload
+
+def read_xml_payload(handle: BinaryIO, header_line: bytes, decoded_length: int) -> bytes:
+    if decoded_length == 0:
+        return b""
+
+    chunks: list[bytes] = []
+    line = header_line
+
+    while b"<data" not in line:
+        line = handle.readline()
+        if not line:
+            raise EOFError
+
+    # The data tag can be on its own line, or the payload can begin on the same
+    # line. Collect everything until </data>, without assuming artwork is a
+    # single line. Album art is large enough to make this assumption very rude.
+    after_data_tag = line.split(b">", 1)[1] if b">" in line else b""
+    line = after_data_tag
+
+    while True:
+        if b"</data>" in line:
+            chunks.append(line.split(b"</data>", 1)[0].strip())
+            break
+        if line.strip():
+            chunks.append(line.strip())
+        line = handle.readline()
+        if not line:
+            raise EOFError
+
+    return decode_base64_bytes(b"".join(chunks), decoded_length)
 
 
 def iter_metadata_items(handle: BinaryIO) -> Iterator[tuple[str, str, bytes]]:
@@ -344,27 +387,33 @@ def iter_metadata_items(handle: BinaryIO) -> Iterator[tuple[str, str, bytes]]:
         if not line.strip():
             continue
 
-        header = parse_header_line(line)
-        if not header:
-            preview = line[:80].decode("latin-1", errors="replace").strip()
-            log(f"Skipping unexpected metadata line: {preview}")
+        header = parse_xml_item_header(line)
+        if header:
+            namespace, code, length = header
+            if length < 0 or length > MAX_PAYLOAD_BYTES:
+                log(f"Skipping suspicious metadata item {namespace}/{code} length={length}")
+                continue
+            payload = read_xml_payload(handle, line, length)
+            yield namespace, code, payload
             continue
 
-        namespace, code, length = header
-        if length < 0 or length > MAX_PAYLOAD_BYTES:
-            log(f"Skipping suspicious metadata item {namespace}/{code} length={length}")
+        header = parse_backtick_header(line)
+        if header:
+            namespace, code, length = header
+            if length < 0 or length > MAX_PAYLOAD_BYTES:
+                log(f"Skipping suspicious metadata item {namespace}/{code} length={length}")
+                continue
+            payload = b""
+            if length > 0:
+                next_line = handle.readline()
+                if not next_line:
+                    raise EOFError
+                payload = read_backtick_payload(handle, length, None if not next_line.strip() else next_line)
+            yield namespace, code, payload
             continue
 
-        payload = b""
-        if length > 0:
-            # Shairport normally writes a blank separator line before the base64
-            # block. Be tolerant if that separator is missing.
-            next_line = handle.readline()
-            if not next_line:
-                raise EOFError
-            payload = read_base64_payload(handle, length, None if not next_line.strip() else next_line)
-
-        yield namespace, code, payload
+        preview = line[:80].decode("latin-1", errors="replace").strip()
+        log(f"Skipping unexpected metadata line: {preview}")
 
 
 def listen_forever() -> None:
