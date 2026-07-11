@@ -16,14 +16,14 @@
 .airplay-mini-clock-line {
   width: 100%;
   display: grid;
-  grid-template-columns: max-content minmax(max-content, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  column-gap: clamp(14px, 2.35vmin, 28px);
+  column-gap: clamp(10px, 1.65vmin, 22px);
   min-width: 0;
 }
 
 .airplay-mini-time.is-segmented {
-  --airplay-mini-digit-h: clamp(72px, 9.5vmin, 94px);
+  --airplay-mini-digit-h: clamp(58px, 7.65vmin, 76px);
   --digit-h: var(--airplay-mini-digit-h);
   --digit-w: calc(var(--digit-h) * 0.62);
   --seg-t: calc(var(--digit-h) * 0.095);
@@ -33,7 +33,7 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: calc(var(--airplay-mini-digit-h) * 0.052);
+  gap: calc(var(--airplay-mini-digit-h) * 0.048);
   min-width: max-content;
   height: var(--airplay-mini-digit-h);
   margin: 0;
@@ -53,7 +53,7 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: calc(var(--digit-h) * 0.052);
+  gap: calc(var(--digit-h) * 0.048);
   height: var(--digit-h);
   transform: skewX(var(--segment-slant));
 }
@@ -64,7 +64,7 @@
   --seg-t: calc(var(--digit-h) * 0.095);
   --seg-l: calc(var(--digit-h) * 0.36);
   --seg-r: calc(var(--digit-h) * 0.08);
-  gap: calc(var(--digit-h) * 0.058);
+  gap: calc(var(--digit-h) * 0.052);
   height: var(--digit-h);
 }
 
@@ -141,49 +141,88 @@
   display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
-  width: calc(var(--airplay-mini-digit-h) * 0.19);
-  height: calc(var(--airplay-mini-digit-h) * 0.66);
-  margin-inline: calc(var(--airplay-mini-digit-h) * 0.022) calc(var(--airplay-mini-digit-h) * 0.012);
+  width: calc(var(--airplay-mini-digit-h) * 0.17);
+  height: calc(var(--airplay-mini-digit-h) * 0.64);
+  margin-inline: calc(var(--airplay-mini-digit-h) * 0.018) calc(var(--airplay-mini-digit-h) * 0.01);
   transform: skewX(var(--segment-slant));
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small {
-  width: calc(var(--airplay-mini-digit-h) * 0.13);
-  height: calc(var(--airplay-mini-digit-h) * 0.42);
-  margin-inline: calc(var(--airplay-mini-digit-h) * 0.05) calc(var(--airplay-mini-digit-h) * 0.012);
+  width: calc(var(--airplay-mini-digit-h) * 0.12);
+  height: calc(var(--airplay-mini-digit-h) * 0.4);
+  margin-inline: calc(var(--airplay-mini-digit-h) * 0.04) calc(var(--airplay-mini-digit-h) * 0.01);
 }
 
 .airplay-mini-time.is-segmented .digital-colon span {
   display: block;
-  width: calc(var(--airplay-mini-digit-h) * 0.12);
-  height: calc(var(--airplay-mini-digit-h) * 0.12);
+  width: calc(var(--airplay-mini-digit-h) * 0.105);
+  height: calc(var(--airplay-mini-digit-h) * 0.105);
   border-radius: 50%;
   background: var(--segment-on);
   box-shadow: 0 0 calc(var(--airplay-mini-digit-h) * 0.03) rgba(255, 255, 255, 0.42);
 }
 
 .airplay-mini-time.is-segmented .digital-colon-small span {
-  width: calc(var(--airplay-mini-digit-h) * 0.074);
-  height: calc(var(--airplay-mini-digit-h) * 0.074);
+  width: calc(var(--airplay-mini-digit-h) * 0.068);
+  height: calc(var(--airplay-mini-digit-h) * 0.068);
 }
 
 .airplay-mini-meridiem {
   align-self: flex-end;
-  margin-left: calc(var(--airplay-mini-digit-h) * 0.12);
-  margin-bottom: calc(var(--airplay-mini-digit-h) * 0.06);
+  margin-left: calc(var(--airplay-mini-digit-h) * 0.1);
+  margin-bottom: calc(var(--airplay-mini-digit-h) * 0.055);
   color: var(--muted);
-  font-size: calc(var(--airplay-mini-digit-h) * 0.2);
+  font-size: calc(var(--airplay-mini-digit-h) * 0.18);
   font-weight: 950;
   letter-spacing: 0.04em;
 }
 
 .airplay-mini-date {
   justify-self: end;
-  min-width: max-content;
+  min-width: 0;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: clamp(0.72rem, 1.75vmin, 0.94rem);
+}
+
+.airplay-mini-date.is-alpha-segmented {
+  --alpha-date-h: clamp(19px, 2.35vmin, 28px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--alpha-date-h) * 0.09);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+}
+
+.airplay-mini-date .alpha-character {
+  flex: 0 0 auto;
+  width: calc(var(--alpha-date-h) * 0.58);
+  height: var(--alpha-date-h);
+}
+
+.airplay-mini-date .alpha-character.is-space {
+  width: calc(var(--alpha-date-h) * 0.32);
+}
+
+.airplay-mini-date .alpha-character svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.airplay-mini-date .alpha-segment {
+  stroke: rgba(170, 180, 196, 0.1);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.airplay-mini-date .alpha-segment.is-on {
+  stroke: currentColor;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.28));
 }
 
 .airplay-info-card.is-outside strong {
@@ -198,20 +237,25 @@
   }
 
   .airplay-mini-clock-line {
-    column-gap: clamp(8px, 1.55vw, 14px);
+    column-gap: clamp(7px, 1.25vw, 12px);
   }
 
   .airplay-mini-time.is-segmented {
-    --airplay-mini-digit-h: clamp(66px, 15.5vh, 82px);
-    gap: calc(var(--airplay-mini-digit-h) * 0.044);
+    --airplay-mini-digit-h: clamp(50px, 12vh, 64px);
+    gap: calc(var(--airplay-mini-digit-h) * 0.04);
   }
 
   .airplay-mini-time.is-segmented .digital-group {
-    gap: calc(var(--digit-h) * 0.046);
+    gap: calc(var(--digit-h) * 0.042);
   }
 
-  .airplay-mini-date {
-    font-size: clamp(0.58rem, 1.46vw, 0.74rem);
+  .airplay-mini-date.is-alpha-segmented {
+    --alpha-date-h: clamp(15px, 2.05vw, 21px);
+    gap: calc(var(--alpha-date-h) * 0.07);
+  }
+
+  .airplay-mini-date .alpha-segment {
+    stroke-width: 2.2;
   }
 
   .airplay-info-card.is-outside strong {
