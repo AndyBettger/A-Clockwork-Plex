@@ -101,17 +101,29 @@ body.airplay-metadata-active .airplay-source-line {
 }
 
 #airplay-play-pause-icon {
-  display: grid;
-  place-items: center;
+  position: relative;
+  display: block;
   width: 1em;
   height: 1em;
+  line-height: 1;
+  color: transparent;
+}
+
+#airplay-play-pause-icon::before {
+  content: "Ⅱ";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #07111f;
   line-height: 1;
   transform: translateY(-0.02em);
 }
 
-body.airplay-remote-paused #airplay-play-pause-icon,
-body.airplay-session-idle #airplay-play-pause-icon {
-  transform: translate(0.08em, -0.02em);
+body.airplay-remote-paused #airplay-play-pause-icon::before,
+body.airplay-session-idle #airplay-play-pause-icon::before {
+  content: "▶";
+  transform: translate(0.12em, -0.015em);
 }
 
 body.airplay-metadata-active .airplay-progress {
@@ -186,11 +198,13 @@ body.airplay-session-idle .airplay-artwork {
   max-height: none;
   aspect-ratio: auto;
   border-radius: clamp(14px, 2.2vmin, 24px);
+  overflow: visible;
 }
 
 body.airplay-session-idle .airplay-glyph {
-  width: 100%;
+  width: 116%;
   height: 100%;
+  margin-left: -8%;
 }
 
 body.airplay-session-idle .airplay-screen {
@@ -205,7 +219,7 @@ body.airplay-session-idle .airplay-triangle {
 
 body.airplay-session-idle .airplay-pulse {
   top: 42%;
-  width: 58%;
+  width: 72%;
 }
 
 body.airplay-session-idle .airplay-copy {
