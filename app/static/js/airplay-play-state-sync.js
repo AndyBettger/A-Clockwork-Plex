@@ -6,6 +6,24 @@
     return;
   }
 
+  const EVENT_FRESH_MS = 60 * 1000;
+
+  function parseDashboardTime(value) {
+    if (!value) {
+      return null;
+    }
+
+    const text = String(value).trim();
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text);
+    const date = new Date(hasTimezone ? text : text.replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function eventAgeMs(payload) {
+    const updatedAt = parseDashboardTime(payload?.state?.airplay?.metadata?.updated_at);
+    return updatedAt ? Date.now() - updatedAt.getTime() : Number.POSITIVE_INFINITY;
+  }
+
   function eventPlaybackStatus(payload) {
     const event = String(payload?.state?.airplay?.metadata?.last_event || '').toLowerCase();
     if (event === 'pause') {
@@ -24,12 +42,32 @@
     return String(payload?.state?.airplay?.remote?.playback_status || '').toLowerCase();
   }
 
+  function resolvedPlaybackStatus(payload) {
+    const eventStatus = eventPlaybackStatus(payload);
+    const remoteStatus = remotePlaybackStatus(payload);
+    const freshEvent = eventAgeMs(payload) <= EVENT_FRESH_MS;
+
+    // Pauses from the iPhone often arrive as metadata before MPRIS stops reporting
+    // Playing, so a fresh pause/stopped event should win briefly and avoid icon flicker.
+    if (freshEvent && ['paused', 'stopped'].includes(eventStatus)) {
+      return 'paused';
+    }
+
+    if (remoteStatus === 'playing') {
+      return 'playing';
+    }
+
+    if (freshEvent && eventStatus === 'playing') {
+      return 'playing';
+    }
+
+    return eventStatus || remoteStatus;
+  }
+
   function syncButton(payload) {
     const active = payload?.state?.airplay?.active === true;
     const remote = payload?.state?.airplay?.remote || {};
-    const eventStatus = eventPlaybackStatus(payload);
-    const remoteStatus = remotePlaybackStatus(payload);
-    const status = eventStatus || remoteStatus;
+    const status = resolvedPlaybackStatus(payload);
     const isPlaying = status === 'playing';
     const isPaused = status === 'paused' || status === 'stopped';
     const canControl = Boolean(active && (remote.can_control || remote.available));
@@ -56,6 +94,6 @@
     }
   }
 
-  window.setInterval(poll, 1000);
-  window.setTimeout(poll, 350);
+  window.setInterval(poll, 500);
+  window.setTimeout(poll, 250);
 })();
