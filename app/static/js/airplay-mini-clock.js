@@ -14,65 +14,65 @@
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  const SEGMENT_THICKNESS = 2.45;
 
-  // Alphanumeric segment geometry with small centre gaps. The gaps keep the
-  // unlit display from looking like a knot of crossed wires.
+  // Point-to-point geometry for a 14/16-segment style display. The points are
+  // deliberately separated around the centre so unlit characters look like a
+  // real segment cell rather than a pile of crossed matchsticks.
   const SEGMENT_POINTS = {
-    a1: [4, 2, 9, 2],
-    a2: [11, 2, 16, 2],
-    b: [18, 4.4, 18, 13.4],
-    c: [18, 18.6, 18, 27.6],
-    d1: [4, 30, 9, 30],
-    d2: [11, 30, 16, 30],
-    e: [2, 18.6, 2, 27.6],
-    f: [2, 4.4, 2, 13.4],
+    a: [4, 2, 16, 2],
+    b: [18, 4.4, 18, 13.3],
+    c: [18, 18.7, 18, 27.6],
+    d: [4, 30, 16, 30],
+    e: [2, 18.7, 2, 27.6],
+    f: [2, 4.4, 2, 13.3],
     g1: [4, 16, 8.7, 16],
     g2: [11.3, 16, 16, 16],
-    h: [4.4, 4.6, 8.7, 14.2],
-    i: [15.6, 4.6, 11.3, 14.2],
-    j: [4.4, 27.4, 8.7, 17.8],
-    k: [15.6, 27.4, 11.3, 17.8],
-    m: [10, 4.8, 10, 13.3],
-    n: [10, 18.7, 10, 27.2],
+    h: [4.5, 4.7, 8.6, 14.1],
+    i: [15.5, 4.7, 11.4, 14.1],
+    j: [4.5, 27.3, 8.6, 17.9],
+    k: [15.5, 27.3, 11.4, 17.9],
+    m: [10, 4.8, 10, 13.1],
+    n: [10, 18.9, 10, 27.2],
   };
 
   const SEGMENTS = {
-    '0': ['a1', 'a2', 'b', 'c', 'd1', 'd2', 'e', 'f'],
+    '0': ['a', 'b', 'c', 'd', 'e', 'f'],
     '1': ['b', 'c'],
-    '2': ['a1', 'a2', 'b', 'g1', 'g2', 'e', 'd1', 'd2'],
-    '3': ['a1', 'a2', 'b', 'g1', 'g2', 'c', 'd1', 'd2'],
+    '2': ['a', 'b', 'g1', 'g2', 'e', 'd'],
+    '3': ['a', 'b', 'g1', 'g2', 'c', 'd'],
     '4': ['f', 'g1', 'g2', 'b', 'c'],
-    '5': ['a1', 'a2', 'f', 'g1', 'g2', 'c', 'd1', 'd2'],
-    '6': ['a1', 'a2', 'f', 'e', 'd1', 'd2', 'c', 'g1', 'g2'],
-    '7': ['a1', 'a2', 'b', 'c'],
-    '8': ['a1', 'a2', 'b', 'c', 'd1', 'd2', 'e', 'f', 'g1', 'g2'],
-    '9': ['a1', 'a2', 'b', 'c', 'd1', 'd2', 'f', 'g1', 'g2'],
-    'A': ['a1', 'a2', 'b', 'c', 'e', 'f', 'g1', 'g2'],
-    'B': ['f', 'e', 'd1', 'd2', 'c', 'g1', 'g2'],
-    'C': ['a1', 'a2', 'd1', 'd2', 'e', 'f'],
-    'D': ['b', 'c', 'd1', 'd2', 'e', 'g1'],
-    'E': ['a1', 'a2', 'd1', 'd2', 'e', 'f', 'g1', 'g2'],
-    'F': ['a1', 'a2', 'e', 'f', 'g1', 'g2'],
-    'G': ['a1', 'a2', 'c', 'd1', 'd2', 'e', 'f', 'g2'],
+    '5': ['a', 'f', 'g1', 'g2', 'c', 'd'],
+    '6': ['a', 'f', 'e', 'd', 'c', 'g1', 'g2'],
+    '7': ['a', 'b', 'c'],
+    '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g1', 'g2'],
+    '9': ['a', 'b', 'c', 'd', 'f', 'g1', 'g2'],
+    'A': ['a', 'b', 'c', 'e', 'f', 'g1', 'g2'],
+    'B': ['f', 'e', 'd', 'c', 'g1', 'g2'],
+    'C': ['a', 'd', 'e', 'f'],
+    'D': ['b', 'c', 'd', 'e', 'g1'],
+    'E': ['a', 'd', 'e', 'f', 'g1', 'g2'],
+    'F': ['a', 'e', 'f', 'g1', 'g2'],
+    'G': ['a', 'c', 'd', 'e', 'f', 'g2'],
     'H': ['b', 'c', 'e', 'f', 'g1', 'g2'],
-    'I': ['a1', 'a2', 'd1', 'd2', 'm', 'n'],
-    'J': ['b', 'c', 'd1', 'd2', 'e'],
+    'I': ['a', 'd', 'm', 'n'],
+    'J': ['b', 'c', 'd', 'e'],
     'K': ['e', 'f', 'g1', 'i', 'k'],
-    'L': ['d1', 'd2', 'e', 'f'],
+    'L': ['d', 'e', 'f'],
     'M': ['b', 'c', 'e', 'f', 'h', 'i'],
     'N': ['b', 'c', 'e', 'f', 'h', 'k'],
-    'O': ['a1', 'a2', 'b', 'c', 'd1', 'd2', 'e', 'f'],
-    'P': ['a1', 'a2', 'b', 'e', 'f', 'g1', 'g2'],
-    'Q': ['a1', 'a2', 'b', 'c', 'd1', 'd2', 'e', 'f', 'k'],
-    'R': ['a1', 'a2', 'b', 'e', 'f', 'g1', 'g2', 'k'],
-    'S': ['a1', 'a2', 'f', 'g1', 'g2', 'c', 'd1', 'd2'],
-    'T': ['a1', 'a2', 'm', 'n'],
-    'U': ['b', 'c', 'd1', 'd2', 'e', 'f'],
+    'O': ['a', 'b', 'c', 'd', 'e', 'f'],
+    'P': ['a', 'b', 'e', 'f', 'g1', 'g2'],
+    'Q': ['a', 'b', 'c', 'd', 'e', 'f', 'k'],
+    'R': ['a', 'b', 'e', 'f', 'g1', 'g2', 'k'],
+    'S': ['a', 'f', 'g1', 'g2', 'c', 'd'],
+    'T': ['a', 'm', 'n'],
+    'U': ['b', 'c', 'd', 'e', 'f'],
     'V': ['e', 'f', 'j', 'i'],
-    'W': ['b', 'c', 'd1', 'd2', 'e', 'f', 'j', 'k'],
+    'W': ['b', 'c', 'd', 'e', 'f', 'j', 'k'],
     'X': ['h', 'i', 'j', 'k'],
     'Y': ['h', 'i', 'n'],
-    'Z': ['a1', 'a2', 'i', 'j', 'd1', 'd2'],
+    'Z': ['a', 'i', 'j', 'd'],
     '/': ['i', 'j'],
     '-': ['g1', 'g2'],
   };
@@ -93,6 +93,29 @@
     return normaliseClockFormat(root.dataset.clockFormat || '24h');
   }
 
+  function pointedSegment(points) {
+    const [x1, y1, x2, y2] = points;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.hypot(dx, dy) || 1;
+    const ux = dx / length;
+    const uy = dy / length;
+    const px = -uy;
+    const py = ux;
+    const half = SEGMENT_THICKNESS / 2;
+    const tip = Math.min(1.75, length * 0.33);
+    const coords = [
+      [x1, y1],
+      [x1 + ux * tip + px * half, y1 + uy * tip + py * half],
+      [x2 - ux * tip + px * half, y2 - uy * tip + py * half],
+      [x2, y2],
+      [x2 - ux * tip - px * half, y2 - uy * tip - py * half],
+      [x1 + ux * tip - px * half, y1 + uy * tip - py * half],
+    ];
+
+    return coords.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+  }
+
   function makeCharacter(character) {
     const value = String(character || ' ').toUpperCase();
     const wrapper = document.createElement('span');
@@ -109,16 +132,13 @@
     svg.setAttribute('focusable', 'false');
 
     for (const [name, points] of Object.entries(SEGMENT_POINTS)) {
-      const line = document.createElementNS(SVG_NS, 'line');
-      line.setAttribute('x1', points[0]);
-      line.setAttribute('y1', points[1]);
-      line.setAttribute('x2', points[2]);
-      line.setAttribute('y2', points[3]);
-      line.classList.add('alpha-segment');
+      const segment = document.createElementNS(SVG_NS, 'polygon');
+      segment.setAttribute('points', pointedSegment(points));
+      segment.classList.add('alpha-segment');
       if (activeSegments.has(name)) {
-        line.classList.add('is-on');
+        segment.classList.add('is-on');
       }
-      svg.appendChild(line);
+      svg.appendChild(segment);
     }
 
     wrapper.appendChild(svg);
