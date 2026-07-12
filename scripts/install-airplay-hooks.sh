@@ -101,5 +101,5 @@ echo "    wait_for_completion = \"yes\";"
 echo "};"
 echo
 echo "Then run:"
-echo "  shairport-sync -t"
-echo "  sudo systemctl restart shairport-sync"
+echo "  sudo systemctl restart shairport-sync.service"
+echo "  sudo systemctl status shairport-sync.service --no-pager"
