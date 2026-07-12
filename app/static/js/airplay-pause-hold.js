@@ -5,7 +5,7 @@
     return;
   }
 
-  const HEARTBEAT_MS = 2000;
+  const HEARTBEAT_MS = 1500;
   const MAX_HOLD_MS = 20 * 60 * 1000;
   const CLEAR_DELAY_MS = 3500;
   const RESUME_GRACE_MS = 6500;
@@ -15,9 +15,20 @@
   let stopAt = 0;
   let startedAt = 0;
 
+  function parseDashboardTime(value) {
+    if (!value) {
+      return null;
+    }
+
+    const text = String(value).trim();
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text);
+    const date = new Date(hasTimezone ? text : text.replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   function metadataPlaybackStatus(payload) {
     const event = String(payload?.state?.airplay?.metadata?.last_event || '').toLowerCase();
-    if (['pause'].includes(event)) {
+    if (event === 'pause') {
       return 'paused';
     }
     if (['resume', 'play_resume', 'play_start'].includes(event)) {
@@ -29,18 +40,17 @@
     return '';
   }
 
-  function remotePlaybackStatus(payload) {
-    return String(payload?.state?.airplay?.remote?.playback_status || '').toLowerCase();
+  function metadataUpdatedAfterHoldStarted(payload) {
+    const updatedAt = parseDashboardTime(payload?.state?.airplay?.metadata?.updated_at);
+    return Boolean(updatedAt && startedAt && updatedAt.getTime() >= startedAt - 1000);
   }
 
-  function sessionLooksPlaying(payload) {
-    return metadataPlaybackStatus(payload) === 'playing' || remotePlaybackStatus(payload) === 'playing';
-  }
+  function sessionLooksResumedAfterDashboardPause(payload) {
+    if (Date.now() - startedAt < RESUME_GRACE_MS) {
+      return false;
+    }
 
-  function sessionLooksGone(payload) {
-    const airplay = payload?.state?.airplay || {};
-    const remote = airplay.remote || {};
-    return airplay.active === false || remote.available === false || metadataPlaybackStatus(payload) === 'stopped';
+    return metadataPlaybackStatus(payload) === 'playing' && metadataUpdatedAfterHoldStarted(payload);
   }
 
   async function statusPayload() {
@@ -64,18 +74,8 @@
       });
 
       const payload = await statusPayload();
-      if (!payload || Date.now() - startedAt < RESUME_GRACE_MS) {
-        return;
-      }
-
-      if (sessionLooksPlaying(payload)) {
+      if (payload && sessionLooksResumedAfterDashboardPause(payload)) {
         stopHold();
-        return;
-      }
-
-      if (sessionLooksGone(payload)) {
-        stopHold();
-        await fetch('/api/airplay/end', { method: 'POST', cache: 'no-store' });
       }
     } catch (error) {
     }
@@ -92,6 +92,7 @@
     }
     stopAt = 0;
     startedAt = 0;
+    document.body.classList.remove('airplay-dashboard-pause-hold');
   }
 
   function stopHoldSoon() {
@@ -104,6 +105,7 @@
   function startHold() {
     startedAt = Date.now();
     stopAt = startedAt + MAX_HOLD_MS;
+    document.body.classList.add('airplay-dashboard-pause-hold');
     if (clearTimer) {
       window.clearTimeout(clearTimer);
       clearTimer = null;
