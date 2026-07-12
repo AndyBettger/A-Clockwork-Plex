@@ -5,10 +5,10 @@
     return;
   }
 
-  const HEARTBEAT_MS = 1500;
+  const HEARTBEAT_MS = 1200;
   const MAX_HOLD_MS = 20 * 60 * 1000;
-  const CLEAR_DELAY_MS = 3500;
-  const RESUME_GRACE_MS = 6500;
+  const CLEAR_DELAY_MS = 2500;
+  const RESUME_GRACE_MS = 4500;
 
   let heartbeatTimer = null;
   let clearTimer = null;
@@ -116,16 +116,30 @@
     }
   }
 
+  function isHolding() {
+    return Boolean(heartbeatTimer && stopAt && Date.now() <= stopAt);
+  }
+
   function buttonIsCurrentlyPause() {
     const label = String(button.getAttribute('aria-label') || '').toLowerCase();
     return label.includes('pause') || document.body.classList.contains('airplay-remote-playing');
   }
+
+  window.AirPlayDashboardPauseHold = {
+    start: startHold,
+    stop: stopHold,
+    stopSoon: stopHoldSoon,
+    ping: pingAirPlayMode,
+    isHolding,
+  };
 
   button.addEventListener('click', () => {
     if (button.disabled) {
       return;
     }
 
+    // Keep this capture listener as a fallback, but the main player code now calls
+    // AirPlayDashboardPauseHold.start/stop explicitly once it knows the intended action.
     if (buttonIsCurrentlyPause()) {
       startHold();
     } else {
