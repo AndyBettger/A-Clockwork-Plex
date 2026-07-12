@@ -26,7 +26,7 @@
   gap: 0;
   min-width: 0;
   overflow: hidden;
-  padding-left: calc(var(--alpha-display-h) * 0.46);
+  padding-left: calc(var(--alpha-display-h) * 0.74);
   padding-right: calc(var(--alpha-display-h) * 0.08);
 }
 
@@ -39,7 +39,7 @@
   margin: 0;
   line-height: 1;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
   transform: skewX(var(--airplay-segment-slant));
   transform-origin: left center;
 }
@@ -63,10 +63,12 @@
   flex: 0 0 auto;
   gap: calc(var(--alpha-display-h) * 0.024);
   height: var(--alpha-display-h);
+  transform: none !important;
 }
 
 .airplay-mini-time.is-segmented .clock-seconds {
   gap: calc(var(--alpha-display-h) * 0.024);
+  transform: none !important;
 }
 
 .airplay-mini-time.is-segmented .alpha-character,
@@ -74,7 +76,7 @@
   flex: 0 0 auto;
   width: calc(var(--alpha-display-h) * 0.51);
   height: var(--alpha-display-h);
-  transform: none;
+  transform: none !important;
   transform-origin: center;
 }
 
@@ -118,7 +120,7 @@
   width: calc(var(--alpha-display-h) * 0.13);
   height: calc(var(--alpha-display-h) * 0.54);
   margin-inline: calc(var(--alpha-display-h) * 0.008) calc(var(--alpha-display-h) * 0.004);
-  transform: skewX(var(--airplay-segment-slant));
+  transform: none !important;
   animation: none;
   opacity: 1;
 }
@@ -166,7 +168,7 @@
 
   .airplay-mini-clock-line {
     --alpha-display-h: clamp(22px, 5.05vh, 30px);
-    padding-left: calc(var(--alpha-display-h) * 0.5);
+    padding-left: calc(var(--alpha-display-h) * 0.78);
     padding-right: calc(var(--alpha-display-h) * 0.05);
   }
 
