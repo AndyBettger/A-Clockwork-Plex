@@ -202,24 +202,27 @@ body.airplay-session-idle .airplay-artwork {
 }
 
 body.airplay-session-idle .airplay-glyph {
-  width: 116%;
+  width: 110%;
   height: 100%;
-  margin-left: -8%;
+  margin-left: 2%;
 }
 
 body.airplay-session-idle .airplay-screen {
+  left: 44%;
   top: 16%;
-  width: 90%;
+  width: 84%;
   height: 46%;
 }
 
 body.airplay-session-idle .airplay-triangle {
+  left: 44%;
   bottom: 14%;
 }
 
 body.airplay-session-idle .airplay-pulse {
+  left: 50%;
   top: 42%;
-  width: 72%;
+  width: 76%;
 }
 
 body.airplay-session-idle .airplay-copy {
