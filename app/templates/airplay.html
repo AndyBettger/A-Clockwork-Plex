@@ -32,6 +32,12 @@
 
       <p class="muted airplay-detail" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
 
+      <div class="airplay-play-pause-wrap">
+        <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay">
+          <span id="airplay-play-pause-icon" aria-hidden="true">⏯</span>
+        </button>
+      </div>
+
       <div class="airplay-progress" id="airplay-progress" hidden>
         <div class="airplay-progress-times">
           <span id="airplay-progress-elapsed">0:00</span>
@@ -43,10 +49,6 @@
       </div>
 
       <div class="airplay-control-row">
-        <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay">
-          <span id="airplay-play-pause-icon" aria-hidden="true">⏯</span>
-        </button>
-
         <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
           <span class="airplay-volume-icon" aria-hidden="true">♪</span>
           <input id="airplay-volume-slider" class="airplay-volume-slider" type="range" min="0" max="100" value="0" aria-label="AirPlay source volume">
