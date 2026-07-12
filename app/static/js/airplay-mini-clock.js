@@ -14,26 +14,26 @@
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const SEGMENT_THICKNESS = 2.45;
+  const SEGMENT_THICKNESS = 2.28;
 
   // Point-to-point geometry for a compact 14/16-segment style display.
-  // Endpoints are intentionally close at the corners and centre, matching a
-  // physical alphanumeric LCD cell more closely than separated matchsticks.
+  // These are deliberately kept as simple co-ordinates so the cell can later be
+  // tuned in Inkscape and copied back here without changing the renderer.
   const SEGMENT_POINTS = {
-    a: [2.8, 2.2, 17.2, 2.2],
-    b: [18, 3.2, 18, 15.35],
-    c: [18, 16.65, 18, 28.8],
-    d: [2.8, 29.8, 17.2, 29.8],
-    e: [2, 16.65, 2, 28.8],
-    f: [2, 3.2, 2, 15.35],
-    g1: [3.0, 16, 9.55, 16],
-    g2: [10.45, 16, 17.0, 16],
-    h: [3.9, 3.85, 9.55, 15.25],
-    i: [16.1, 3.85, 10.45, 15.25],
-    j: [3.9, 28.15, 9.55, 16.75],
-    k: [16.1, 28.15, 10.45, 16.75],
-    m: [10, 3.75, 10, 15.0],
-    n: [10, 17.0, 10, 28.25],
+    a: [3.0, 2.1, 17.0, 2.1],
+    b: [18.0, 3.35, 18.0, 15.25],
+    c: [18.0, 16.75, 18.0, 28.65],
+    d: [3.0, 29.9, 17.0, 29.9],
+    e: [2.0, 16.75, 2.0, 28.65],
+    f: [2.0, 3.35, 2.0, 15.25],
+    g1: [3.25, 16.0, 9.55, 16.0],
+    g2: [10.45, 16.0, 16.75, 16.0],
+    h: [3.8, 3.65, 9.65, 15.45],
+    i: [16.2, 3.65, 10.35, 15.45],
+    j: [3.8, 28.35, 9.65, 16.55],
+    k: [16.2, 28.35, 10.35, 16.55],
+    m: [10.0, 3.4, 10.0, 15.35],
+    n: [10.0, 16.65, 10.0, 28.6],
   };
 
   const SEGMENTS = {
@@ -103,7 +103,7 @@
     const px = -uy;
     const py = ux;
     const half = SEGMENT_THICKNESS / 2;
-    const tip = Math.min(1.65, length * 0.3);
+    const tip = Math.min(1.72, length * 0.38);
     const coords = [
       [x1, y1],
       [x1 + ux * tip + px * half, y1 + uy * tip + py * half],
