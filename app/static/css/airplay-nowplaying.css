@@ -6,27 +6,31 @@
   padding-bottom: clamp(10px, 1.4vmin, 18px);
 }
 
-/* Keep the cover visually dominant, but cap the square so it cannot make the
-   hero row overflow or leave the text column gasping for air. */
+/* Keep the cover visually dominant, but size the square from the space available
+   in the hero rather than letting a fixed cap leave a short artwork box. */
 body.airplay-metadata-active .airplay-now-card {
-  --airplay-cover-size: clamp(330px, min(40vw, 64vh), 540px);
+  --airplay-cover-size: min(42vw, calc(100dvh - clamp(190px, 24vmin, 260px)), 560px);
   grid-template-columns: minmax(0, var(--airplay-cover-size)) minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(20px, 3.4vw, 48px);
+  gap: clamp(18px, 3vw, 44px);
 }
 
 body.airplay-metadata-active .airplay-glyph-wrap {
-  align-self: stretch;
-  justify-self: stretch;
+  align-self: center;
+  justify-self: start;
   display: grid;
   place-items: center;
+  width: var(--airplay-cover-size);
+  height: var(--airplay-cover-size);
+  max-width: 100%;
+  max-height: 100%;
   min-width: 0;
   min-height: 0;
 }
 
 body.airplay-metadata-active .airplay-artwork {
-  width: min(100%, var(--airplay-cover-size));
-  height: auto;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1;
@@ -44,11 +48,13 @@ body.airplay-metadata-active .airplay-copy {
   grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
   align-content: stretch;
   overflow: visible;
-  padding-block: clamp(0px, 0.35vmin, 4px);
+  padding-block: 0;
 }
 
 body.airplay-metadata-active .airplay-kicker {
   align-self: start;
+  line-height: 1;
+  margin-top: -1px;
 }
 
 body.airplay-metadata-active .airplay-copy h1 {
@@ -85,12 +91,12 @@ body.airplay-metadata-active .airplay-source-line {
   display: grid;
   place-items: center;
   align-self: stretch;
-  min-height: clamp(44px, 9vmin, 86px);
+  min-height: clamp(76px, 16vmin, 138px);
 }
 
 .airplay-play-pause {
-  width: clamp(54px, 8.6vmin, 78px);
-  font-size: clamp(1.35rem, 3.35vmin, 1.9rem);
+  width: clamp(78px, 12.5vmin, 112px);
+  font-size: clamp(1.85rem, 4.6vmin, 2.65rem);
 }
 
 body.airplay-metadata-active .airplay-progress {
@@ -114,16 +120,21 @@ body.airplay-metadata-active .airplay-volume-strip {
 
 @media (max-height: 520px), (max-width: 860px) {
   body.airplay-metadata-active .airplay-now-card {
-    --airplay-cover-size: clamp(215px, 38vw, 320px);
+    --airplay-cover-size: min(43vw, calc(100dvh - clamp(126px, 28vmin, 150px)), 360px);
     grid-template-columns: minmax(0, var(--airplay-cover-size)) minmax(0, 1fr);
     gap: clamp(14px, 2.4vw, 24px);
   }
 
   body.airplay-metadata-active .airplay-copy {
-    padding-block: 0 2px;
+    padding-block: 0;
+  }
+
+  body.airplay-metadata-active .airplay-kicker {
+    margin-top: -1px;
   }
 
   body.airplay-metadata-active .airplay-copy h1 {
+    margin-top: clamp(3px, 0.55vmin, 6px);
     margin-bottom: clamp(6px, 1vw, 10px);
     padding-bottom: 0.16em;
     line-height: 1.1;
@@ -143,11 +154,12 @@ body.airplay-metadata-active .airplay-volume-strip {
   }
 
   .airplay-play-pause-wrap {
-    min-height: clamp(36px, 7.6vmin, 62px);
+    min-height: clamp(58px, 13vmin, 86px);
   }
 
   .airplay-play-pause {
-    width: clamp(44px, 7.2vmin, 58px);
+    width: clamp(66px, 11vmin, 86px);
+    font-size: clamp(1.55rem, 4.2vmin, 2.2rem);
   }
 
   body.airplay-metadata-active .airplay-progress {
