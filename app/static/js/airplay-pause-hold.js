@@ -35,7 +35,7 @@
     if (event === 'pause') {
       return 'paused';
     }
-    if (['resume', 'play_resume', 'play_start'].includes(event)) {
+    if (['resume', 'play_resume', 'play_start', 'active_state_start', 'metadata_start'].includes(event)) {
       return 'playing';
     }
     if (['play_end', 'active_state_end'].includes(event)) {
@@ -49,12 +49,29 @@
     return Boolean(updatedAt && startedAt && updatedAt.getTime() >= startedAt - 1000);
   }
 
+  function airplayStartAfterHoldStarted(payload) {
+    const airplay = payload?.state?.airplay || {};
+    if (airplay.active !== true) {
+      return false;
+    }
+
+    const airplayStartedAt = parseDashboardTime(airplay.started_at);
+    return Boolean(airplayStartedAt && startedAt && airplayStartedAt.getTime() >= startedAt - 1000);
+  }
+
   function sessionLooksResumedAfterDashboardPause(payload) {
     if (Date.now() - startedAt < RESUME_GRACE_MS) {
       return false;
     }
 
-    return metadataPlaybackStatus(payload) === 'playing' && metadataUpdatedAfterHoldStarted(payload);
+    if (metadataPlaybackStatus(payload) === 'playing' && metadataUpdatedAfterHoldStarted(payload)) {
+      return true;
+    }
+
+    // Resuming from the iPhone after a dashboard pause fires the Shairport start hook,
+    // which refreshes airplay.started_at even if the last metadata event is still
+    // active_state_end. That is a reliable signal that the stream is live again.
+    return airplayStartAfterHoldStarted(payload);
   }
 
   async function statusPayload() {
