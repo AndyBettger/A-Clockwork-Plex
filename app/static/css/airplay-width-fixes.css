@@ -1,0 +1,46 @@
+/* Final AirPlay now-playing layout hardening.
+   This loads last so the controls fill the whole right-hand pane even when
+   earlier base styles cap progress and volume rows for smaller idle layouts. */
+
+.airplay-now-card .airplay-copy {
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.airplay-now-card .airplay-controls-stack {
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.airplay-now-card .airplay-controls-stack .airplay-play-pause-wrap,
+.airplay-now-card .airplay-controls-stack .airplay-progress,
+.airplay-now-card .airplay-controls-stack .airplay-control-row,
+.airplay-now-card .airplay-controls-stack .airplay-volume-strip {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.airplay-now-card .airplay-controls-stack .airplay-progress-track {
+  width: 100%;
+  min-width: 0;
+}
+
+.airplay-now-card .airplay-controls-stack .airplay-control-row {
+  display: block;
+}
+
+.airplay-now-card .airplay-controls-stack .airplay-volume-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.airplay-now-card .airplay-controls-stack .airplay-volume-slider {
+  width: 100%;
+  min-width: 0;
+}
