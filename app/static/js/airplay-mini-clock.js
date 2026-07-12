@@ -14,26 +14,26 @@
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const SEGMENT_THICKNESS = 2.28;
 
-  // Point-to-point geometry for a compact 14/16-segment style display.
-  // These are deliberately kept as simple co-ordinates so the cell can later be
-  // tuned in Inkscape and copied back here without changing the renderer.
-  const SEGMENT_POINTS = {
-    a: [3.0, 2.1, 17.0, 2.1],
-    b: [18.0, 3.35, 18.0, 15.25],
-    c: [18.0, 16.75, 18.0, 28.65],
-    d: [3.0, 29.9, 17.0, 29.9],
-    e: [2.0, 16.75, 2.0, 28.65],
-    f: [2.0, 3.35, 2.0, 15.25],
-    g1: [3.25, 16.0, 9.55, 16.0],
-    g2: [10.45, 16.0, 16.75, 16.0],
-    h: [3.8, 3.65, 9.65, 15.45],
-    i: [16.2, 3.65, 10.35, 15.45],
-    j: [3.8, 28.35, 9.65, 16.55],
-    k: [16.2, 28.35, 10.35, 16.55],
-    m: [10.0, 3.4, 10.0, 15.35],
-    n: [10.0, 16.65, 10.0, 28.6],
+  // Polygon geometry for the editable 14/16-segment display cell.
+  // Source file: docs/airplay-segment-cell.svg
+  // Edit the source SVG in Inkscape, then copy each segment polygon's points
+  // back into this map.
+  const SEGMENT_POLYGONS = {
+    a: '3.00,2.10 4.72,3.24 15.28,3.24 17.00,2.10 15.28,0.96 4.72,0.96',
+    b: '18.00,3.35 16.86,5.07 16.86,13.53 18.00,15.25 19.14,13.53 19.14,5.07',
+    c: '18.00,16.75 16.86,18.47 16.86,26.93 18.00,28.65 19.14,26.93 19.14,18.47',
+    d: '3.00,29.90 4.72,31.04 15.28,31.04 17.00,29.90 15.28,28.76 4.72,28.76',
+    e: '2.00,16.75 0.86,18.47 0.86,26.93 2.00,28.65 3.14,26.93 3.14,18.47',
+    f: '2.00,3.35 0.86,5.07 0.86,13.53 2.00,15.25 3.14,13.53 3.14,5.07',
+    g1: '3.25,16.00 4.97,17.14 7.83,17.14 9.55,16.00 7.83,14.86 4.97,14.86',
+    g2: '10.45,16.00 12.17,17.14 15.03,17.14 16.75,16.00 15.03,14.86 12.17,14.86',
+    h: '3.80,3.65 3.54,5.70 7.86,14.42 9.65,15.45 9.91,13.40 5.59,4.68',
+    i: '16.20,3.65 14.41,4.68 10.09,13.40 10.35,15.45 12.14,14.42 16.46,5.70',
+    j: '3.80,28.35 5.59,27.32 9.91,18.60 9.65,16.55 7.86,17.58 3.54,26.30',
+    k: '16.20,28.35 16.46,26.30 12.14,17.58 10.35,16.55 10.09,18.60 14.41,27.32',
+    m: '10.00,3.40 8.86,5.12 8.86,13.63 10.00,15.35 11.14,13.63 11.14,5.12',
+    n: '10.00,16.65 8.86,18.37 8.86,26.88 10.00,28.60 11.14,26.88 11.14,18.37',
   };
 
   const SEGMENTS = {
@@ -93,29 +93,6 @@
     return normaliseClockFormat(root.dataset.clockFormat || '24h');
   }
 
-  function pointedSegment(points) {
-    const [x1, y1, x2, y2] = points;
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const length = Math.hypot(dx, dy) || 1;
-    const ux = dx / length;
-    const uy = dy / length;
-    const px = -uy;
-    const py = ux;
-    const half = SEGMENT_THICKNESS / 2;
-    const tip = Math.min(1.72, length * 0.38);
-    const coords = [
-      [x1, y1],
-      [x1 + ux * tip + px * half, y1 + uy * tip + py * half],
-      [x2 - ux * tip + px * half, y2 - uy * tip + py * half],
-      [x2, y2],
-      [x2 - ux * tip - px * half, y2 - uy * tip - py * half],
-      [x1 + ux * tip - px * half, y1 + uy * tip - py * half],
-    ];
-
-    return coords.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
-  }
-
   function makeCharacter(character) {
     const value = String(character || ' ').toUpperCase();
     const wrapper = document.createElement('span');
@@ -131,9 +108,9 @@
     svg.setAttribute('viewBox', '0 0 20 32');
     svg.setAttribute('focusable', 'false');
 
-    for (const [name, points] of Object.entries(SEGMENT_POINTS)) {
+    for (const [name, points] of Object.entries(SEGMENT_POLYGONS)) {
       const segment = document.createElementNS(SVG_NS, 'polygon');
-      segment.setAttribute('points', pointedSegment(points));
+      segment.setAttribute('points', points);
       segment.classList.add('alpha-segment');
       if (activeSegments.has(name)) {
         segment.classList.add('is-on');
