@@ -626,8 +626,15 @@
     }
 
     const currentStatus = activePlaybackStatus(latestRemote);
-    const nextStatus = isPlayingStatus(currentStatus) ? 'Paused' : 'Playing';
+    const wasPlaying = isPlayingStatus(currentStatus);
+    const nextStatus = wasPlaying ? 'Paused' : 'Playing';
     const snapshot = currentProgressSnapshot();
+
+    if (wasPlaying) {
+      window.AirPlayDashboardPauseHold?.start?.();
+    } else {
+      window.AirPlayDashboardPauseHold?.stopSoon?.();
+    }
 
     if (snapshot && progressState) {
       progressState.baseElapsedSeconds = snapshot.elapsedSeconds;
@@ -654,6 +661,11 @@
           status: payload.remote.playback_status || nextStatus,
           expiresAt: Date.now() + 2500,
         };
+        if (isPlayingStatus(payload.remote.playback_status)) {
+          window.AirPlayDashboardPauseHold?.stopSoon?.();
+        } else if (wasPlaying) {
+          window.AirPlayDashboardPauseHold?.ping?.();
+        }
         setPlaybackButton(latestRemote, true);
       }
     } catch (error) {
