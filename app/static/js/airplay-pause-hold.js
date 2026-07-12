@@ -1,16 +1,20 @@
 (() => {
   const button = document.getElementById('airplay-play-pause');
+  const icon = document.getElementById('airplay-play-pause-icon');
 
   if (!button) {
     return;
   }
 
-  const HEARTBEAT_MS = 1200;
+  const HEARTBEAT_MS = 900;
+  const FAST_HEARTBEAT_MS = 250;
+  const FAST_HEARTBEAT_DURATION_MS = 18000;
   const MAX_HOLD_MS = 20 * 60 * 1000;
   const CLEAR_DELAY_MS = 2500;
   const RESUME_GRACE_MS = 4500;
 
   let heartbeatTimer = null;
+  let fastHeartbeatTimer = null;
   let clearTimer = null;
   let stopAt = 0;
   let startedAt = 0;
@@ -81,11 +85,19 @@
     }
   }
 
+  function stopFastHeartbeat() {
+    if (fastHeartbeatTimer) {
+      window.clearInterval(fastHeartbeatTimer);
+      fastHeartbeatTimer = null;
+    }
+  }
+
   function stopHold() {
     if (heartbeatTimer) {
       window.clearInterval(heartbeatTimer);
       heartbeatTimer = null;
     }
+    stopFastHeartbeat();
     if (clearTimer) {
       window.clearTimeout(clearTimer);
       clearTimer = null;
@@ -110,9 +122,21 @@
       window.clearTimeout(clearTimer);
       clearTimer = null;
     }
+
+    // Do a burst of fast heartbeats during Shairport's active-state timeout.
+    // The end hook only has one chance to notice the dashboard pause, so make
+    // the state update extremely hard to miss on a busy Pi.
     pingAirPlayMode();
+    window.setTimeout(pingAirPlayMode, 120);
+    window.setTimeout(pingAirPlayMode, 420);
+    window.setTimeout(pingAirPlayMode, 900);
+
     if (!heartbeatTimer) {
       heartbeatTimer = window.setInterval(pingAirPlayMode, HEARTBEAT_MS);
+    }
+    if (!fastHeartbeatTimer) {
+      fastHeartbeatTimer = window.setInterval(pingAirPlayMode, FAST_HEARTBEAT_MS);
+      window.setTimeout(stopFastHeartbeat, FAST_HEARTBEAT_DURATION_MS);
     }
   }
 
@@ -122,7 +146,12 @@
 
   function buttonIsCurrentlyPause() {
     const label = String(button.getAttribute('aria-label') || '').toLowerCase();
-    return label.includes('pause') || document.body.classList.contains('airplay-remote-playing');
+    const iconText = String(icon?.textContent || '').trim();
+    const looksLikePauseButton = label.includes('pause') || iconText === 'Ⅱ' || iconText === '||';
+    const pageLooksPlaying = document.body.classList.contains('airplay-remote-playing')
+      || (document.body.classList.contains('airplay-metadata-active') && !document.body.classList.contains('airplay-remote-paused'));
+
+    return looksLikePauseButton || pageLooksPlaying;
   }
 
   window.AirPlayDashboardPauseHold = {
@@ -138,8 +167,8 @@
       return;
     }
 
-    // Keep this capture listener as a fallback, but the main player code now calls
-    // AirPlayDashboardPauseHold.start/stop explicitly once it knows the intended action.
+    // Fallback safety net: if the visible player looks like it is currently
+    // playing, treat this tap as a dashboard pause even if MPRIS is momentarily stale.
     if (buttonIsCurrentlyPause()) {
       startHold();
     } else {
