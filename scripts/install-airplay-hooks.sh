@@ -10,32 +10,32 @@ END_WRAPPER="${END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-end}"
 SUDOERS_FILE="${SUDOERS_FILE:-/etc/sudoers.d/a-clockwork-plex-airplay}"
 
 validate_simple_name() {
-  local name="$1"
-  local value="$2"
+    local name="$1"
+    local value="$2"
 
-  if [[ ! "$value" =~ ^[A-Za-z0-9_.@-]+$ ]]; then
-    echo "Invalid $name: $value" >&2
-    echo "$name may only contain letters, numbers, '.', '_', '@' and '-'." >&2
-    exit 1
-  fi
+    if [[ ! "$value" =~ ^[A-Za-z0-9_.@-]+$ ]]; then
+        echo "Invalid $name: $value" >&2
+        echo "$name may only contain letters, numbers, '.', '_', '@' and '-'" >&2
+        exit 1
+    fi
 }
 
 validate_url_value() {
-  local name="$1"
-  local value="$2"
+    local name="$1"
+    local value="$2"
 
-  if [[ "$value" =~ [[:space:]\"\'\`\\] ]]; then
-    echo "Invalid $name: $value" >&2
-    echo "$name must not contain spaces, quotes, backticks or backslashes." >&2
-    exit 1
-  fi
+    if [[ "$value" =~ [[:space:]\"\'\`\\] ]]; then
+        echo "Invalid $name: $value" >&2
+        echo "$name must not contain spaces, quotes, backticks or backslashes." >&2
+        exit 1
+    fi
 }
 
 require_command() {
-  if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Required command not found: $1" >&2
-    exit 1
-  fi
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "Required command not found: $1" >&2
+        exit 1
+    fi
 }
 
 validate_simple_name "PLEXAMP_SERVICE" "$PLEXAMP_SERVICE"
@@ -139,6 +139,7 @@ arm_dashboard_pause_watchdog() {
         /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog armed for \${WATCHDOG_SECONDS}s"
 
         local elapsed=0
+        local unavailable_logged=0
         while [ "\$elapsed" -lt "\$WATCHDOG_SECONDS" ]; do
             sleep "\$WATCHDOG_INTERVAL_SECONDS"
             elapsed=\$((elapsed + WATCHDOG_INTERVAL_SECONDS))
@@ -159,10 +160,9 @@ arm_dashboard_pause_watchdog() {
 
             local available
             available="\$(remote_available_status)"
-            if [ "\$available" = "b false" ]; then
-                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog detected disconnected remote after \${elapsed}s"
-                restore_plexamp_and_clock "AirPlay dashboard pause watchdog"
-                exit 0
+            if [ "\$available" = "b false" ] && [ "\$unavailable_logged" -eq 0 ]; then
+                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog saw remote unavailable after \${elapsed}s; continuing hold until playback resumes or timeout"
+                unavailable_logged=1
             fi
         done
 
