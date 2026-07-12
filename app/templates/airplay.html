@@ -32,33 +32,35 @@
 
       <p class="muted airplay-detail" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
 
-      <div class="airplay-play-pause-wrap">
-        <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay">
-          <span id="airplay-play-pause-icon" aria-hidden="true">⏯</span>
-        </button>
-      </div>
-
-      <div class="airplay-progress" id="airplay-progress" hidden>
-        <div class="airplay-progress-times">
-          <span id="airplay-progress-elapsed">0:00</span>
-          <span id="airplay-progress-duration">-0:00</span>
+      <div class="airplay-controls-stack" aria-label="AirPlay playback controls">
+        <div class="airplay-play-pause-wrap">
+          <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay">
+            <span id="airplay-play-pause-icon" aria-hidden="true">⏯</span>
+          </button>
         </div>
-        <div class="airplay-progress-track" aria-hidden="true">
-          <span id="airplay-progress-fill"></span>
-        </div>
-      </div>
 
-      <div class="airplay-control-row">
-        <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
-          <span class="airplay-volume-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false" role="img">
-              <path class="speaker-body" d="M3.5 9.25h3.85L12.25 5v14l-4.9-4.25H3.5z"></path>
-              <path class="speaker-wave speaker-wave-inner" d="M15.25 8.4c0.95 0.95 1.5 2.25 1.5 3.6s-0.55 2.65-1.5 3.6"></path>
-              <path class="speaker-wave speaker-wave-outer" d="M17.65 5.75c1.75 1.7 2.85 3.95 2.85 6.25s-1.1 4.55-2.85 6.25"></path>
-            </svg>
-          </span>
-          <input id="airplay-volume-slider" class="airplay-volume-slider" type="range" min="0" max="100" value="0" aria-label="AirPlay source volume">
-          <span id="airplay-volume-label" class="airplay-volume-label">—</span>
+        <div class="airplay-progress" id="airplay-progress" hidden>
+          <div class="airplay-progress-times">
+            <span id="airplay-progress-elapsed">0:00</span>
+            <span id="airplay-progress-duration">-0:00</span>
+          </div>
+          <div class="airplay-progress-track" aria-hidden="true">
+            <span id="airplay-progress-fill"></span>
+          </div>
+        </div>
+
+        <div class="airplay-control-row">
+          <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
+            <span class="airplay-volume-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false" role="img">
+                <path class="speaker-body" d="M3.5 9.25h3.85L12.25 5v14l-4.9-4.25H3.5z"></path>
+                <path class="speaker-wave speaker-wave-inner" d="M15.25 8.4c0.95 0.95 1.5 2.25 1.5 3.6s-0.55 2.65-1.5 3.6"></path>
+                <path class="speaker-wave speaker-wave-outer" d="M17.65 5.75c1.75 1.7 2.85 3.95 2.85 6.25s-1.1 4.55-2.85 6.25"></path>
+              </svg>
+            </span>
+            <input id="airplay-volume-slider" class="airplay-volume-slider" type="range" min="0" max="100" value="0" aria-label="AirPlay source volume">
+            <span id="airplay-volume-label" class="airplay-volume-label">—</span>
+          </div>
         </div>
       </div>
     </div>
