@@ -275,3 +275,89 @@ body.airplay-remote-paused .airplay-live-dot {
     justify-content: center;
   }
 }
+
+/* Now-playing layout refinement: top-align text with artwork, stop descender clipping,
+   and pin playback controls toward the lower edge of the cover. */
+.airplay-now-card {
+  align-items: stretch;
+}
+
+.airplay-glyph-wrap {
+  align-self: stretch;
+  place-items: start center;
+}
+
+.airplay-copy {
+  align-self: stretch;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow: visible;
+  padding-block: clamp(2px, 0.45vmin, 6px);
+}
+
+.airplay-copy h1,
+body.airplay-metadata-active .airplay-copy h1 {
+  margin: 0 0 clamp(6px, 1vmin, 11px);
+  padding-bottom: 0.12em;
+  overflow: hidden;
+  line-height: 1.08;
+}
+
+.airplay-meta-stack {
+  overflow: visible;
+  margin-bottom: clamp(10px, 1.6vmin, 18px);
+}
+
+.airplay-status {
+  align-items: flex-start;
+  margin-bottom: clamp(6px, 1.05vmin, 12px);
+  line-height: 1.12;
+}
+
+.airplay-status span:last-child {
+  padding-bottom: 0.08em;
+  line-height: 1.14;
+}
+
+.airplay-source-line {
+  margin: 0 0 clamp(8px, 1.25vmin, 14px);
+  padding-bottom: 0.08em;
+  line-height: 1.18;
+}
+
+.airplay-progress {
+  margin-top: auto;
+}
+
+.airplay-control-row {
+  margin-top: clamp(14px, 2.3vmin, 24px);
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-copy h1,
+  body.airplay-metadata-active .airplay-copy h1 {
+    line-height: 1.08;
+    padding-bottom: 0.12em;
+  }
+
+  .airplay-meta-stack {
+    margin-bottom: clamp(7px, 1.25vmin, 12px);
+  }
+
+  .airplay-status {
+    margin-bottom: clamp(4px, 0.8vmin, 8px);
+  }
+
+  .airplay-source-line {
+    line-height: 1.18;
+    margin-bottom: clamp(6px, 1vmin, 10px);
+  }
+
+  .airplay-progress {
+    margin-top: auto;
+  }
+
+  .airplay-control-row {
+    margin-top: clamp(10px, 1.7vmin, 16px);
+  }
+}
