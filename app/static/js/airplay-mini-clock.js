@@ -15,25 +15,25 @@
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  // Sixteen-segment style map. It keeps the old digital-clock feel, but gives
-  // us readable letters for the compact AirPlay date line too.
+  // Alphanumeric segment geometry with small centre gaps. The gaps keep the
+  // unlit display from looking like a knot of crossed wires.
   const SEGMENT_POINTS = {
-    a1: [4, 2, 10, 2],
-    a2: [10, 2, 16, 2],
-    b: [18, 4, 18, 14],
-    c: [18, 18, 18, 28],
-    d1: [4, 30, 10, 30],
-    d2: [10, 30, 16, 30],
-    e: [2, 18, 2, 28],
-    f: [2, 4, 2, 14],
-    g1: [4, 16, 10, 16],
-    g2: [10, 16, 16, 16],
-    h: [4, 4, 10, 15],
-    i: [16, 4, 10, 15],
-    j: [4, 28, 10, 17],
-    k: [16, 28, 10, 17],
-    m: [10, 4, 10, 14],
-    n: [10, 18, 10, 28],
+    a1: [4, 2, 9, 2],
+    a2: [11, 2, 16, 2],
+    b: [18, 4.4, 18, 13.4],
+    c: [18, 18.6, 18, 27.6],
+    d1: [4, 30, 9, 30],
+    d2: [11, 30, 16, 30],
+    e: [2, 18.6, 2, 27.6],
+    f: [2, 4.4, 2, 13.4],
+    g1: [4, 16, 8.7, 16],
+    g2: [11.3, 16, 16, 16],
+    h: [4.4, 4.6, 8.7, 14.2],
+    i: [15.6, 4.6, 11.3, 14.2],
+    j: [4.4, 27.4, 8.7, 17.8],
+    k: [15.6, 27.4, 11.3, 17.8],
+    m: [10, 4.8, 10, 13.3],
+    n: [10, 18.7, 10, 27.2],
   };
 
   const SEGMENTS = {
@@ -101,7 +101,6 @@
 
     if (value === ' ') {
       wrapper.classList.add('is-space');
-      return wrapper;
     }
 
     const activeSegments = new Set(SEGMENTS[value] || []);
@@ -166,7 +165,7 @@
     setCharacters(elements.hours, hours);
     setCharacters(elements.minutes, minutes);
     setCharacters(elements.seconds, seconds);
-    setCharacters(elements.date, dateLabel);
+    setCharacters(elements.date, ` ${dateLabel}`);
 
     if (elements.meridiem) {
       elements.meridiem.hidden = !suffix;
