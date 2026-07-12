@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
 PLEXAMP_URL="${PLEXAMP_URL:-http://localhost:32500}"
 PLEXAMP_SERVICE="${PLEXAMP_SERVICE:-plexamp.service}"
@@ -48,45 +49,29 @@ require_command tee
 require_command install
 require_command visudo
 
+# Install tiny wrappers outside /home so Shairport can execute them reliably.
+# The wrappers delegate back into the checked-out repo scripts, so future `git pull`
+# updates change the hook behaviour without having to duplicate logic in /usr/local/bin.
 cat <<START_WRAPPER_EOF | sudo tee "$START_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
 
-DASHBOARD_BASE="$DASHBOARD_BASE"
-PLEXAMP_URL="$PLEXAMP_URL"
-PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
+export DASHBOARD_BASE="$DASHBOARD_BASE"
+export PLEXAMP_URL="$PLEXAMP_URL"
+export PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
 
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay"
-/usr/bin/curl -fsS "\${DASHBOARD_BASE}/api/airplay/start" >/dev/null || true
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp playback"
-/usr/bin/curl -s "\${PLEXAMP_URL}/player/playback/pause" >/dev/null 2>&1 || true
-
-sleep 1
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - stopping Plexamp service"
-/usr/bin/sudo /usr/bin/systemctl stop "\${PLEXAMP_SERVICE}"
-
-sleep 2
-
-/usr/bin/logger -t shairport-plexamp "Plexamp service stopped - DAC should be free"
+exec /bin/bash "$PROJECT_DIR/scripts/shairport-airplay-start.sh"
 START_WRAPPER_EOF
 
 cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
 
-DASHBOARD_BASE="$DASHBOARD_BASE"
-PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
+export DASHBOARD_BASE="$DASHBOARD_BASE"
+export PLEXAMP_URL="$PLEXAMP_URL"
+export PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
 
-/usr/bin/logger -t shairport-plexamp "AirPlay ended - starting Plexamp service"
-/usr/bin/sudo /usr/bin/systemctl start "\${PLEXAMP_SERVICE}"
-/usr/bin/logger -t shairport-plexamp "Plexamp service start requested"
-
-sleep 5
-
-/usr/bin/logger -t shairport-plexamp "AirPlay ended - switching display to clock"
-/usr/bin/curl -fsS "\${DASHBOARD_BASE}/api/airplay/end" >/dev/null || true
+exec /bin/bash "$PROJECT_DIR/scripts/shairport-airplay-end.sh"
 END_WRAPPER_EOF
 
 sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
@@ -99,9 +84,9 @@ SUDOERS_EOF
 sudo chmod 440 "$SUDOERS_FILE"
 sudo visudo -cf "$SUDOERS_FILE" >/dev/null
 
-echo "Installed AirPlay hook wrappers:"
-echo "  $START_WRAPPER"
-echo "  $END_WRAPPER"
+echo "Installed AirPlay hook wrappers that delegate to repo scripts:"
+echo "  $START_WRAPPER -> $PROJECT_DIR/scripts/shairport-airplay-start.sh"
+echo "  $END_WRAPPER -> $PROJECT_DIR/scripts/shairport-airplay-end.sh"
 echo
 echo "Installed sudoers rule:"
 echo "  $SUDOERS_FILE"
