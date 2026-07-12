@@ -10,28 +10,37 @@
   style.textContent = `
     .airplay-play-pause-wrap {
       grid-template-columns: auto auto auto;
-      gap: clamp(18px, 3.4vmin, 34px);
+      gap: clamp(22px, 4vmin, 42px);
     }
 
     .airplay-skip-button {
+      --airplay-skip-icon-size: clamp(26px, 4.9vmin, 42px);
       display: grid;
       place-items: center;
-      width: clamp(50px, 8vmin, 74px);
+      width: clamp(54px, 8.8vmin, 78px);
       aspect-ratio: 1;
-      border: 0;
+      border: 1px solid rgba(247, 249, 255, 0.18);
       border-radius: 50%;
-      color: rgba(247, 249, 255, 0.92);
-      background: rgba(247, 249, 255, 0.11);
+      color: rgba(247, 249, 255, 0.9);
+      background:
+        radial-gradient(circle at 45% 32%, rgba(247, 249, 255, 0.17), rgba(247, 249, 255, 0.055) 58%, rgba(7, 17, 31, 0.18) 100%);
       box-shadow:
-        inset 0 0 0 1px rgba(247, 249, 255, 0.16),
-        0 12px 32px rgba(0, 0, 0, 0.22),
-        0 0 24px rgba(143, 211, 255, 0.12);
-      font-size: clamp(1.25rem, 3.4vmin, 2rem);
-      font-weight: 950;
-      line-height: 1;
+        inset 0 0 0 1px rgba(247, 249, 255, 0.08),
+        inset 0 -10px 26px rgba(0, 0, 0, 0.18),
+        0 12px 34px rgba(0, 0, 0, 0.24),
+        0 0 24px rgba(143, 211, 255, 0.1);
       cursor: pointer;
       touch-action: manipulation;
       user-select: none;
+    }
+
+    .airplay-skip-button svg {
+      display: block;
+      width: var(--airplay-skip-icon-size);
+      height: var(--airplay-skip-icon-size);
+      overflow: visible;
+      fill: currentColor;
+      filter: drop-shadow(0 0 8px rgba(247, 249, 255, 0.1));
     }
 
     .airplay-skip-button:disabled {
@@ -49,31 +58,46 @@
 
     @media (max-height: 520px), (max-width: 860px) {
       .airplay-play-pause-wrap {
-        gap: clamp(12px, 2.5vmin, 22px);
+        gap: clamp(14px, 2.8vmin, 26px);
       }
 
       .airplay-skip-button {
-        width: clamp(42px, 7vmin, 58px);
-        font-size: clamp(1.05rem, 3vmin, 1.55rem);
+        --airplay-skip-icon-size: clamp(22px, 4.3vmin, 32px);
+        width: clamp(44px, 7.4vmin, 60px);
       }
     }
   `;
   document.head.appendChild(style);
 
-  function makeButton(id, label, text, action) {
+  function iconSvg(direction) {
+    const previous = direction === 'previous';
+    const barX = previous ? 6.4 : 17.6;
+    const firstPoints = previous ? '17.6 5.6 10.4 12 17.6 18.4' : '6.4 5.6 13.6 12 6.4 18.4';
+    const secondPoints = previous ? '11.9 5.6 4.7 12 11.9 18.4' : '12.1 5.6 19.3 12 12.1 18.4';
+
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="${barX - 1.25}" y="5.4" width="2.5" height="13.2" rx="1.1"></rect>
+        <polygon points="${firstPoints}"></polygon>
+        <polygon points="${secondPoints}"></polygon>
+      </svg>
+    `;
+  }
+
+  function makeButton(id, label, direction, action) {
     const button = document.createElement('button');
     button.id = id;
     button.type = 'button';
     button.className = 'airplay-skip-button';
     button.setAttribute('aria-label', label);
     button.dataset.airplayAction = action;
-    button.textContent = text;
+    button.innerHTML = iconSvg(direction);
     button.disabled = playButton.disabled;
     return button;
   }
 
-  const backButton = makeButton('airplay-skip-back', 'Previous AirPlay item', '⏮', 'previous');
-  const forwardButton = makeButton('airplay-skip-forward', 'Next AirPlay item', '⏭', 'next');
+  const backButton = makeButton('airplay-skip-back', 'Previous AirPlay item', 'previous', 'previous');
+  const forwardButton = makeButton('airplay-skip-forward', 'Next AirPlay item', 'next', 'next');
 
   wrap.insertBefore(backButton, playButton);
   wrap.appendChild(forwardButton);
