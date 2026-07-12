@@ -29,7 +29,7 @@
     if (event === 'pause') {
       return 'paused';
     }
-    if (['resume', 'play_resume', 'play_start'].includes(event)) {
+    if (['resume', 'play_resume', 'play_start', 'active_state_start', 'metadata_start'].includes(event)) {
       return 'playing';
     }
     if (['play_end', 'active_state_end'].includes(event)) {
@@ -42,10 +42,29 @@
     return String(payload?.state?.airplay?.remote?.playback_status || '').toLowerCase();
   }
 
+  function activeStartedAfterMetadataEvent(payload) {
+    const airplay = payload?.state?.airplay || {};
+    if (airplay.active !== true) {
+      return false;
+    }
+
+    const startedAt = parseDashboardTime(airplay.started_at);
+    const metadataUpdatedAt = parseDashboardTime(airplay.metadata?.updated_at);
+
+    return Boolean(startedAt && metadataUpdatedAt && startedAt.getTime() >= metadataUpdatedAt.getTime() - 500);
+  }
+
   function resolvedPlaybackStatus(payload) {
     const eventStatus = eventPlaybackStatus(payload);
     const remoteStatus = remotePlaybackStatus(payload);
     const freshEvent = eventAgeMs(payload) <= EVENT_FRESH_MS;
+
+    // When the iPhone resumes after a dashboard pause, Shairport fires the start hook
+    // and /api/airplay/start refreshes airplay.started_at, but the last metadata event
+    // can still be active_state_end. Treat a newer active start as the winning signal.
+    if (activeStartedAfterMetadataEvent(payload) && ['paused', 'stopped'].includes(eventStatus)) {
+      return 'playing';
+    }
 
     // Pauses from the iPhone often arrive as metadata before MPRIS stops reporting
     // Playing, so a fresh pause/stopped event should win briefly and avoid icon flicker.
