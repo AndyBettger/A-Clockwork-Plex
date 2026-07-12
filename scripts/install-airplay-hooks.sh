@@ -80,6 +80,97 @@ set -euo pipefail
 
 DASHBOARD_BASE="$DASHBOARD_BASE"
 PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
+WATCHDOG_SECONDS="\${AIRPLAY_DASHBOARD_PAUSE_WATCHDOG_SECONDS:-1200}"
+WATCHDOG_INTERVAL_SECONDS="\${AIRPLAY_DASHBOARD_PAUSE_WATCHDOG_INTERVAL_SECONDS:-5}"
+
+remote_available_status() {
+    if command -v /usr/bin/busctl >/dev/null 2>&1; then
+        /usr/bin/busctl --system get-property \\
+            org.gnome.ShairportSync \\
+            /org/gnome/ShairportSync \\
+            org.gnome.ShairportSync.RemoteControl \\
+            Available 2>/dev/null || printf 'unknown'
+    else
+        printf 'unknown'
+    fi
+}
+
+remote_player_state() {
+    if command -v /usr/bin/busctl >/dev/null 2>&1; then
+        /usr/bin/busctl --system get-property \\
+            org.gnome.ShairportSync \\
+            /org/gnome/ShairportSync \\
+            org.gnome.ShairportSync.RemoteControl \\
+            PlayerState 2>/dev/null || printf 'unknown'
+    else
+        printf 'unknown'
+    fi
+}
+
+dashboard_mode() {
+    /usr/bin/curl -fsS -m 4 "\$DASHBOARD_BASE/api/status" 2>/dev/null | /usr/bin/python3 -c '
+import json
+import sys
+
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    print("unknown")
+    raise SystemExit(1)
+
+print(str((payload.get("state") or {}).get("mode") or "unknown"))
+' 2>/dev/null || printf 'unknown'
+}
+
+restore_plexamp_and_clock() {
+    local reason="\$1"
+    /usr/bin/logger -t shairport-plexamp "\$reason - starting Plexamp service"
+    /usr/bin/sudo /usr/bin/systemctl start "\$PLEXAMP_SERVICE"
+    /usr/bin/logger -t shairport-plexamp "Plexamp service start requested"
+
+    sleep 5
+
+    /usr/bin/logger -t shairport-plexamp "\$reason - switching display to clock"
+    /usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
+}
+
+arm_dashboard_pause_watchdog() {
+    (
+        /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog armed for \${WATCHDOG_SECONDS}s"
+
+        local elapsed=0
+        while [ "\$elapsed" -lt "\$WATCHDOG_SECONDS" ]; do
+            sleep "\$WATCHDOG_INTERVAL_SECONDS"
+            elapsed=\$((elapsed + WATCHDOG_INTERVAL_SECONDS))
+
+            local mode
+            mode="\$(dashboard_mode)"
+            if [ "\$mode" != "airplay" ]; then
+                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog exiting because dashboard mode is \$mode"
+                exit 0
+            fi
+
+            local player_state
+            player_state="\$(remote_player_state)"
+            if [ "\$player_state" = 's "Playing"' ]; then
+                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog exiting because playback resumed"
+                exit 0
+            fi
+
+            local available
+            available="\$(remote_available_status)"
+            if [ "\$available" = "b false" ]; then
+                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog detected disconnected remote after \${elapsed}s"
+                restore_plexamp_and_clock "AirPlay dashboard pause watchdog"
+                exit 0
+            fi
+        done
+
+        /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog timed out after \${WATCHDOG_SECONDS}s"
+        restore_plexamp_and_clock "AirPlay dashboard pause watchdog timeout"
+    ) >/dev/null 2>&1 &
+}
+
 STATUS_FILE="\$(/usr/bin/mktemp /tmp/a-clockwork-airplay-status.XXXXXX)"
 trap '/usr/bin/rm -f "\$STATUS_FILE"' EXIT
 
@@ -134,33 +225,20 @@ PY
     set -e
 fi
 
-REMOTE_AVAILABLE="unknown"
-if command -v /usr/bin/busctl >/dev/null 2>&1; then
-    REMOTE_AVAILABLE="\$(/usr/bin/busctl --system get-property \
-        org.gnome.ShairportSync \
-        /org/gnome/ShairportSync \
-        org.gnome.ShairportSync.RemoteControl \
-        Available 2>/dev/null || printf 'unknown')"
-fi
+REMOTE_AVAILABLE="\$(remote_available_status)"
 
 if [ "\$HOLD_EXIT" -eq 0 ]; then
     if [ "\$REMOTE_AVAILABLE" = "b false" ]; then
         /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause hold ignored because AirPlay remote is disconnected (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
     else
         /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
+        arm_dashboard_pause_watchdog
         exit 0
     fi
 fi
 
 /usr/bin/logger -t shairport-plexamp "AirPlay end hook did not see dashboard pause hold (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
-/usr/bin/logger -t shairport-plexamp "AirPlay ended - starting Plexamp service"
-/usr/bin/sudo /usr/bin/systemctl start "\$PLEXAMP_SERVICE"
-/usr/bin/logger -t shairport-plexamp "Plexamp service start requested"
-
-sleep 5
-
-/usr/bin/logger -t shairport-plexamp "AirPlay ended - switching display to clock"
-/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
+restore_plexamp_and_clock "AirPlay ended"
 END_WRAPPER_EOF
 
 sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
