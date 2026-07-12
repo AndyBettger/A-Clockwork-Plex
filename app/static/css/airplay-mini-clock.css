@@ -3,7 +3,7 @@
 .airplay-glance-grid {
   /* Keep the weather cards useful, but give the clock enough room for a single
      continuous HH:MM:SS DDD DD/MM/YYYY segment strip. */
-  grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.02fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 1.78fr) minmax(0, 1fr) minmax(0, 1.1fr);
 }
 
 .airplay-info-card.is-clock {
@@ -17,17 +17,17 @@
 }
 
 .airplay-mini-clock-line {
-  --alpha-display-h: clamp(25px, 5.0vmin, 35px);
+  --alpha-display-h: clamp(28px, 5.55vmin, 39px);
   width: 100%;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 0;
   min-width: 0;
-  overflow: hidden;
-  padding-left: calc(var(--alpha-display-h) * 0.74);
-  padding-right: calc(var(--alpha-display-h) * 0.08);
+  overflow: visible;
+  padding-left: calc(var(--alpha-display-h) * 0.42);
+  padding-right: calc(var(--alpha-display-h) * 0.42);
 }
 
 .airplay-mini-time.is-segmented,
@@ -41,7 +41,7 @@
   white-space: nowrap;
   overflow: visible;
   transform: skewX(var(--airplay-segment-slant));
-  transform-origin: left center;
+  transform-origin: center;
 }
 
 .airplay-mini-time.is-segmented {
@@ -51,7 +51,7 @@
 }
 
 .airplay-mini-date {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   justify-content: flex-start;
   gap: calc(var(--alpha-display-h) * 0.024);
   color: var(--segment-date-on);
@@ -163,13 +163,13 @@
 
 @media (max-height: 520px), (max-width: 860px) {
   .airplay-glance-grid {
-    grid-template-columns: minmax(0, 1.78fr) minmax(0, 1.04fr) minmax(0, 1.12fr);
+    grid-template-columns: minmax(0, 1.84fr) minmax(0, 1.02fr) minmax(0, 1.12fr);
   }
 
   .airplay-mini-clock-line {
-    --alpha-display-h: clamp(22px, 5.05vh, 30px);
-    padding-left: calc(var(--alpha-display-h) * 0.78);
-    padding-right: calc(var(--alpha-display-h) * 0.05);
+    --alpha-display-h: clamp(24px, 5.45vh, 33px);
+    padding-left: calc(var(--alpha-display-h) * 0.44);
+    padding-right: calc(var(--alpha-display-h) * 0.44);
   }
 
   .airplay-mini-time.is-segmented,
