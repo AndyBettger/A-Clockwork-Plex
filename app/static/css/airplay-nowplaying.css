@@ -1,0 +1,104 @@
+/* Final AirPlay now-playing rhythm pass.
+   Loaded after the controls stylesheet so these values override the earlier
+   testing-oriented layout without disturbing the clock/weather glance cards. */
+
+body.airplay-metadata-active .airplay-now-card {
+  align-items: stretch;
+}
+
+body.airplay-metadata-active .airplay-glyph-wrap {
+  align-self: center;
+  place-items: center;
+}
+
+body.airplay-metadata-active .airplay-artwork {
+  max-width: clamp(350px, min(47vw, 76vh), 620px);
+}
+
+body.airplay-metadata-active .airplay-copy {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow: visible;
+  padding-block: clamp(2px, 0.45vmin, 8px);
+}
+
+body.airplay-metadata-active .airplay-copy h1 {
+  margin: 0 0 clamp(8px, 1.4vmin, 16px);
+  padding-bottom: 0.16em;
+  overflow: hidden;
+  line-height: 1.1;
+}
+
+body.airplay-metadata-active .airplay-meta-stack {
+  margin-bottom: clamp(14px, 2.4vmin, 26px);
+  overflow: visible;
+}
+
+body.airplay-metadata-active .airplay-status {
+  align-items: flex-start;
+  margin-bottom: clamp(6px, 1.15vmin, 12px);
+  line-height: 1.12;
+}
+
+body.airplay-metadata-active .airplay-status span:last-child {
+  padding-bottom: 0.08em;
+  line-height: 1.14;
+}
+
+body.airplay-metadata-active .airplay-source-line {
+  margin: clamp(2px, 0.45vmin, 5px) 0 0;
+  padding-bottom: 0.1em;
+  line-height: 1.2;
+}
+
+body.airplay-metadata-active .airplay-progress {
+  width: min(100%, 570px);
+  margin-top: clamp(26px, 7.2vmin, 64px);
+}
+
+body.airplay-metadata-active .airplay-control-row {
+  width: min(100%, 570px);
+  margin-top: clamp(12px, 2.4vmin, 22px);
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  body.airplay-metadata-active .airplay-artwork {
+    max-width: clamp(196px, 37.4vw, 322px);
+  }
+
+  body.airplay-metadata-active .airplay-copy {
+    padding-block: 1px 3px;
+  }
+
+  body.airplay-metadata-active .airplay-copy h1 {
+    margin-bottom: clamp(6px, 1.15vmin, 10px);
+    padding-bottom: 0.16em;
+    line-height: 1.1;
+  }
+
+  body.airplay-metadata-active .airplay-meta-stack {
+    margin-bottom: clamp(8px, 1.75vmin, 14px);
+  }
+
+  body.airplay-metadata-active .airplay-status {
+    margin-bottom: clamp(4px, 0.85vmin, 8px);
+  }
+
+  body.airplay-metadata-active .airplay-source-line {
+    margin-top: 2px;
+    line-height: 1.18;
+  }
+
+  body.airplay-metadata-active .airplay-progress {
+    width: min(100%, 570px);
+    margin-top: clamp(20px, 4.9vh, 36px);
+  }
+
+  body.airplay-metadata-active .airplay-control-row {
+    width: min(100%, 570px);
+    margin-top: clamp(10px, 2vh, 15px);
+  }
+}
