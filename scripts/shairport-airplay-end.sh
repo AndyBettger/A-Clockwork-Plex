@@ -32,7 +32,8 @@ age = (now - parsed).total_seconds()
 
 # The AirPlay page sends a short heartbeat only after the dashboard pause button is pressed.
 # A fresh heartbeat means the user probably wants a loo-break pause, not a full handoff back to Plexamp.
-sys.exit(0 if 0 <= age <= 6 else 1)
+# Keep the window wider than the browser heartbeat interval so a busy Pi does not miss it.
+sys.exit(0 if 0 <= age <= 12 else 1)
 '; then
     /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen"
     exit 0
