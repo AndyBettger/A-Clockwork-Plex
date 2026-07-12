@@ -80,15 +80,26 @@ set -euo pipefail
 
 DASHBOARD_BASE="$DASHBOARD_BASE"
 PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
+STATUS_FILE="\$(/usr/bin/mktemp /tmp/a-clockwork-airplay-status.XXXXXX)"
+trap '/usr/bin/rm -f "\$STATUS_FILE"' EXIT
 
-STATUS_JSON="\$(/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/status" 2>/dev/null || true)"
-HOLD_STATUS="\$(printf '%s' "\$STATUS_JSON" | /usr/bin/python3 -c '
+CURL_OUTPUT="\$(/usr/bin/curl -sS -m 4 -o "\$STATUS_FILE" -w '%{http_code}' "\$DASHBOARD_BASE/api/status" 2>&1 || true)"
+HTTP_CODE="\$(printf '%s' "\$CURL_OUTPUT" | /usr/bin/tail -c 3)"
+
+if [ "\$HTTP_CODE" != "200" ]; then
+    HOLD_STATUS="curl=\$CURL_OUTPUT"
+    HOLD_EXIT=1
+else
+    set +e
+    HOLD_STATUS="\$(/usr/bin/python3 - "\$STATUS_FILE" <<'PY'
 import json
 import sys
 from datetime import datetime
 
+path = sys.argv[1]
 try:
-    payload = json.load(sys.stdin)
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
 except Exception as exc:
     print(f"invalid-status-json:{exc}")
     sys.exit(1)
@@ -117,22 +128,15 @@ print(f"mode={mode} last_change={last_change} last_event={last_event or '-'} age
 # The AirPlay page sends rapid heartbeats only after the dashboard pause button is pressed.
 # A fresh heartbeat means the user probably wants a loo-break pause, not a full handoff back to Plexamp.
 sys.exit(0 if 0 <= age <= 20 else 1)
-' 2>/dev/null || true)"
-
-if printf '%s' "\$HOLD_STATUS" | /usr/bin/grep -q '^mode=airplay .* age='; then
-    AGE="\$(printf '%s' "\$HOLD_STATUS" | /usr/bin/sed -n 's/.* age=\([0-9.]*\).*/\1/p')"
-    if /usr/bin/python3 - "\$AGE" <<'PY'
-import sys
-try:
-    age = float(sys.argv[1])
-except Exception:
-    sys.exit(1)
-sys.exit(0 if 0 <= age <= 20 else 1)
 PY
-    then
-        /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS)"
-        exit 0
-    fi
+)"
+    HOLD_EXIT=\$?
+    set -e
+fi
+
+if [ "\$HOLD_EXIT" -eq 0 ]; then
+    /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS)"
+    exit 0
 fi
 
 /usr/bin/logger -t shairport-plexamp "AirPlay end hook did not see dashboard pause hold (\$HOLD_STATUS)"
