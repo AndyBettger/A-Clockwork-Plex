@@ -134,12 +134,25 @@ PY
     set -e
 fi
 
-if [ "\$HOLD_EXIT" -eq 0 ]; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS)"
-    exit 0
+REMOTE_AVAILABLE="unknown"
+if command -v /usr/bin/busctl >/dev/null 2>&1; then
+    REMOTE_AVAILABLE="\$(/usr/bin/busctl --system get-property \
+        org.gnome.ShairportSync \
+        /org/gnome/ShairportSync \
+        org.gnome.ShairportSync.RemoteControl \
+        Available 2>/dev/null || printf 'unknown')"
 fi
 
-/usr/bin/logger -t shairport-plexamp "AirPlay end hook did not see dashboard pause hold (\$HOLD_STATUS)"
+if [ "\$HOLD_EXIT" -eq 0 ]; then
+    if [ "\$REMOTE_AVAILABLE" = "b false" ]; then
+        /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause hold ignored because AirPlay remote is disconnected (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
+    else
+        /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
+        exit 0
+    fi
+fi
+
+/usr/bin/logger -t shairport-plexamp "AirPlay end hook did not see dashboard pause hold (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
 /usr/bin/logger -t shairport-plexamp "AirPlay ended - starting Plexamp service"
 /usr/bin/sudo /usr/bin/systemctl start "\$PLEXAMP_SERVICE"
 /usr/bin/logger -t shairport-plexamp "Plexamp service start requested"
