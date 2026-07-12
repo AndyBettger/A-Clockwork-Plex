@@ -34,6 +34,7 @@ body.airplay-metadata-active .airplay-artwork {
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1;
+  border-radius: clamp(14px, 2.1vmin, 24px);
 }
 
 /* Right-hand now-playing column:
@@ -48,13 +49,13 @@ body.airplay-metadata-active .airplay-copy {
   grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
   align-content: stretch;
   overflow: visible;
-  padding-block: 0;
+  padding-block: clamp(5px, 0.9vmin, 12px) 0;
 }
 
 body.airplay-metadata-active .airplay-kicker {
   align-self: start;
   line-height: 1;
-  margin-top: -1px;
+  margin-top: 0;
 }
 
 body.airplay-metadata-active .airplay-copy h1 {
@@ -125,12 +126,16 @@ body.airplay-metadata-active .airplay-volume-strip {
     gap: clamp(14px, 2.4vw, 24px);
   }
 
+  body.airplay-metadata-active .airplay-artwork {
+    border-radius: clamp(12px, 2vmin, 18px);
+  }
+
   body.airplay-metadata-active .airplay-copy {
-    padding-block: 0;
+    padding-block: clamp(5px, 1.35vmin, 9px) 1px;
   }
 
   body.airplay-metadata-active .airplay-kicker {
-    margin-top: -1px;
+    margin-top: 0;
   }
 
   body.airplay-metadata-active .airplay-copy h1 {
