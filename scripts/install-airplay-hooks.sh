@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
 PLEXAMP_URL="${PLEXAMP_URL:-http://localhost:32500}"
 PLEXAMP_SERVICE="${PLEXAMP_SERVICE:-plexamp.service}"
@@ -49,29 +48,102 @@ require_command tee
 require_command install
 require_command visudo
 
-# Install tiny wrappers outside /home so Shairport can execute them reliably.
-# The wrappers delegate back into the checked-out repo scripts, so future `git pull`
-# updates change the hook behaviour without having to duplicate logic in /usr/local/bin.
+# Install self-contained wrappers outside /home so Shairport can execute them
+# even when the shairport-sync user cannot traverse /home/andy.
 cat <<START_WRAPPER_EOF | sudo tee "$START_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
 
-export DASHBOARD_BASE="$DASHBOARD_BASE"
-export PLEXAMP_URL="$PLEXAMP_URL"
-export PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
+DASHBOARD_BASE="$DASHBOARD_BASE"
+PLEXAMP_URL="$PLEXAMP_URL"
+PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
 
-exec /bin/bash "$PROJECT_DIR/scripts/shairport-airplay-start.sh"
+/usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay"
+/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/start" >/dev/null || true
+
+/usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp playback"
+/usr/bin/curl -s "\$PLEXAMP_URL/player/playback/pause" >/dev/null 2>&1 || true
+
+sleep 1
+
+/usr/bin/logger -t shairport-plexamp "AirPlay starting - stopping Plexamp service"
+/usr/bin/sudo /usr/bin/systemctl stop "\$PLEXAMP_SERVICE"
+
+sleep 2
+
+/usr/bin/logger -t shairport-plexamp "Plexamp service stopped - DAC should be free"
 START_WRAPPER_EOF
 
 cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
 
-export DASHBOARD_BASE="$DASHBOARD_BASE"
-export PLEXAMP_URL="$PLEXAMP_URL"
-export PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
+DASHBOARD_BASE="$DASHBOARD_BASE"
+PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
 
-exec /bin/bash "$PROJECT_DIR/scripts/shairport-airplay-end.sh"
+STATUS_JSON="\$(/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/status" 2>/dev/null || true)"
+HOLD_STATUS="\$(printf '%s' "\$STATUS_JSON" | /usr/bin/python3 -c '
+import json
+import sys
+from datetime import datetime
+
+try:
+    payload = json.load(sys.stdin)
+except Exception as exc:
+    print(f"invalid-status-json:{exc}")
+    sys.exit(1)
+
+state = payload.get("state") or {}
+airplay = state.get("airplay") or {}
+metadata = airplay.get("metadata") or {}
+last_change = str(state.get("last_mode_change") or "").strip()
+mode = str(state.get("mode") or "").strip()
+last_event = str(metadata.get("last_event") or "").strip()
+
+if mode != "airplay" or not last_change:
+    print(f"mode={mode or '-'} last_change={last_change or '-'} last_event={last_event or '-'} age=-")
+    sys.exit(1)
+
+try:
+    parsed = datetime.fromisoformat(last_change.replace("Z", "+00:00"))
+except ValueError:
+    print(f"mode={mode} last_change=invalid last_event={last_event or '-'} age=-")
+    sys.exit(1)
+
+now = datetime.now(parsed.tzinfo) if parsed.tzinfo else datetime.now()
+age = (now - parsed).total_seconds()
+print(f"mode={mode} last_change={last_change} last_event={last_event or '-'} age={age:.1f}")
+
+# The AirPlay page sends rapid heartbeats only after the dashboard pause button is pressed.
+# A fresh heartbeat means the user probably wants a loo-break pause, not a full handoff back to Plexamp.
+sys.exit(0 if 0 <= age <= 20 else 1)
+' 2>/dev/null || true)"
+
+if printf '%s' "\$HOLD_STATUS" | /usr/bin/grep -q '^mode=airplay .* age='; then
+    AGE="\$(printf '%s' "\$HOLD_STATUS" | /usr/bin/sed -n 's/.* age=\([0-9.]*\).*/\1/p')"
+    if /usr/bin/python3 - "\$AGE" <<'PY'
+import sys
+try:
+    age = float(sys.argv[1])
+except Exception:
+    sys.exit(1)
+sys.exit(0 if 0 <= age <= 20 else 1)
+PY
+    then
+        /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS)"
+        exit 0
+    fi
+fi
+
+/usr/bin/logger -t shairport-plexamp "AirPlay end hook did not see dashboard pause hold (\$HOLD_STATUS)"
+/usr/bin/logger -t shairport-plexamp "AirPlay ended - starting Plexamp service"
+/usr/bin/sudo /usr/bin/systemctl start "\$PLEXAMP_SERVICE"
+/usr/bin/logger -t shairport-plexamp "Plexamp service start requested"
+
+sleep 5
+
+/usr/bin/logger -t shairport-plexamp "AirPlay ended - switching display to clock"
+/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
 END_WRAPPER_EOF
 
 sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
@@ -84,9 +156,9 @@ SUDOERS_EOF
 sudo chmod 440 "$SUDOERS_FILE"
 sudo visudo -cf "$SUDOERS_FILE" >/dev/null
 
-echo "Installed AirPlay hook wrappers that delegate to repo scripts:"
-echo "  $START_WRAPPER -> $PROJECT_DIR/scripts/shairport-airplay-start.sh"
-echo "  $END_WRAPPER -> $PROJECT_DIR/scripts/shairport-airplay-end.sh"
+echo "Installed self-contained AirPlay hook wrappers:"
+echo "  $START_WRAPPER"
+echo "  $END_WRAPPER"
 echo
 echo "Installed sudoers rule:"
 echo "  $SUDOERS_FILE"
