@@ -17,7 +17,7 @@
 }
 
 .airplay-mini-clock-line {
-  --alpha-display-h: clamp(28px, 5.55vmin, 39px);
+  --alpha-display-h: clamp(30px, 5.85vmin, 41px);
   width: 100%;
   box-sizing: border-box;
   display: flex;
@@ -26,8 +26,8 @@
   gap: 0;
   min-width: 0;
   overflow: visible;
-  padding-left: calc(var(--alpha-display-h) * 0.42);
-  padding-right: calc(var(--alpha-display-h) * 0.42);
+  padding-left: calc(var(--alpha-display-h) * 0.34);
+  padding-right: calc(var(--alpha-display-h) * 0.34);
 }
 
 .airplay-mini-time.is-segmented,
@@ -167,9 +167,9 @@
   }
 
   .airplay-mini-clock-line {
-    --alpha-display-h: clamp(24px, 5.45vh, 33px);
-    padding-left: calc(var(--alpha-display-h) * 0.44);
-    padding-right: calc(var(--alpha-display-h) * 0.44);
+    --alpha-display-h: clamp(25px, 5.75vh, 34px);
+    padding-left: calc(var(--alpha-display-h) * 0.36);
+    padding-right: calc(var(--alpha-display-h) * 0.36);
   }
 
   .airplay-mini-time.is-segmented,
