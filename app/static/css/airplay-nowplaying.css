@@ -100,6 +100,20 @@ body.airplay-metadata-active .airplay-source-line {
   font-size: clamp(1.85rem, 4.6vmin, 2.65rem);
 }
 
+#airplay-play-pause-icon {
+  display: grid;
+  place-items: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  transform: translateY(-0.02em);
+}
+
+body.airplay-remote-paused #airplay-play-pause-icon,
+body.airplay-session-idle #airplay-play-pause-icon {
+  transform: translate(0.08em, -0.02em);
+}
+
 body.airplay-metadata-active .airplay-progress {
   width: 100%;
   max-width: none;
@@ -146,6 +160,81 @@ body.airplay-metadata-active .airplay-volume-strip {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Idle route-ready state: make the AirPlay mark wider/taller, remove inactive controls,
+   and keep the copy calm rather than looking like a half-loaded player. */
+body.airplay-session-idle .airplay-now-card:not(.unused) {
+  grid-template-columns: minmax(300px, 46%) minmax(0, 1fr);
+  align-items: stretch;
+  gap: clamp(24px, 4vw, 58px);
+}
+
+body.airplay-session-idle .airplay-glyph-wrap {
+  align-self: stretch;
+  justify-self: stretch;
+  display: grid;
+  place-items: stretch;
+  min-width: 0;
+  min-height: 0;
+}
+
+body.airplay-session-idle .airplay-artwork {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: clamp(14px, 2.2vmin, 24px);
+}
+
+body.airplay-session-idle .airplay-glyph {
+  width: 100%;
+  height: 100%;
+}
+
+body.airplay-session-idle .airplay-screen {
+  top: 16%;
+  width: 90%;
+  height: 46%;
+}
+
+body.airplay-session-idle .airplay-triangle {
+  bottom: 14%;
+}
+
+body.airplay-session-idle .airplay-pulse {
+  top: 42%;
+  width: 58%;
+}
+
+body.airplay-session-idle .airplay-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding-block: clamp(12px, 2vmin, 24px);
+}
+
+body.airplay-session-idle .airplay-copy h1 {
+  margin-top: clamp(4px, 0.8vmin, 10px);
+  margin-bottom: clamp(10px, 1.6vmin, 18px);
+}
+
+body.airplay-session-idle .airplay-meta-stack {
+  margin-bottom: clamp(12px, 2vmin, 22px);
+}
+
+body.airplay-session-idle .airplay-detail {
+  max-width: 48rem;
+  font-size: clamp(1rem, 2.25vmin, 1.22rem);
+  line-height: 1.35;
+}
+
+body.airplay-session-idle .airplay-play-pause-wrap,
+body.airplay-session-idle .airplay-progress,
+body.airplay-session-idle .airplay-control-row {
+  display: none;
 }
 
 @media (max-height: 520px), (max-width: 860px) {
@@ -200,13 +289,31 @@ body.airplay-metadata-active .airplay-volume-strip {
     width: clamp(20px, 3.2vmin, 28px);
   }
 
+  body.airplay-session-idle .airplay-now-card {
+    grid-template-columns: minmax(225px, 42vw) minmax(0, 1fr);
+    gap: clamp(16px, 2.8vw, 28px);
+  }
+
+  body.airplay-session-idle .airplay-copy {
+    padding-block: clamp(8px, 1.6vmin, 14px);
+  }
+
+  body.airplay-session-idle .airplay-copy h1 {
+    font-size: clamp(1.9rem, 6.4vw, 3rem);
+  }
+
+  body.airplay-session-idle .airplay-detail {
+    font-size: clamp(0.78rem, 2.15vw, 1rem);
+  }
+
   body.airplay-metadata-active .airplay-progress {
     margin-bottom: clamp(5px, 0.9vmin, 9px);
   }
 }
 
 @media (max-width: 680px) {
-  body.airplay-metadata-active .airplay-now-card {
+  body.airplay-metadata-active .airplay-now-card,
+  body.airplay-session-idle .airplay-now-card {
     grid-template-columns: 1fr;
   }
 
@@ -214,6 +321,11 @@ body.airplay-metadata-active .airplay-volume-strip {
     justify-self: center;
     width: min(100%, 360px);
     height: auto;
+  }
+
+  body.airplay-session-idle .airplay-glyph-wrap {
+    justify-self: center;
+    height: min(46vh, 360px);
   }
 
   body.airplay-metadata-active .airplay-progress,
