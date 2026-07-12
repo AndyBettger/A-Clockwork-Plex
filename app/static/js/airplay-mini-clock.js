@@ -14,26 +14,26 @@
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const SEGMENT_THICKNESS = 2.45;
+  const SEGMENT_THICKNESS = 2.25;
 
-  // Point-to-point geometry for a 14/16-segment style display. The points are
-  // deliberately separated around the centre so unlit characters look like a
-  // real segment cell rather than a pile of crossed matchsticks.
+  // Point-to-point geometry for a compact 14/16-segment style display.
+  // The segments now sit closer at the corners and centre, while still leaving
+  // a small LCD-like gap so unlit cells remain readable.
   const SEGMENT_POINTS = {
-    a: [4, 2, 16, 2],
-    b: [18, 4.4, 18, 13.3],
-    c: [18, 18.7, 18, 27.6],
-    d: [4, 30, 16, 30],
-    e: [2, 18.7, 2, 27.6],
-    f: [2, 4.4, 2, 13.3],
-    g1: [4, 16, 8.7, 16],
-    g2: [11.3, 16, 16, 16],
-    h: [4.5, 4.7, 8.6, 14.1],
-    i: [15.5, 4.7, 11.4, 14.1],
-    j: [4.5, 27.3, 8.6, 17.9],
-    k: [15.5, 27.3, 11.4, 17.9],
-    m: [10, 4.8, 10, 13.1],
-    n: [10, 18.9, 10, 27.2],
+    a: [3.2, 2.2, 16.8, 2.2],
+    b: [18, 3.8, 18, 15.0],
+    c: [18, 17.0, 18, 28.2],
+    d: [3.2, 29.8, 16.8, 29.8],
+    e: [2, 17.0, 2, 28.2],
+    f: [2, 3.8, 2, 15.0],
+    g1: [3.6, 16, 9.2, 16],
+    g2: [10.8, 16, 16.4, 16],
+    h: [4.1, 4.2, 9.15, 14.7],
+    i: [15.9, 4.2, 10.85, 14.7],
+    j: [4.1, 27.8, 9.15, 17.3],
+    k: [15.9, 27.8, 10.85, 17.3],
+    m: [10, 4.1, 10, 14.4],
+    n: [10, 17.6, 10, 27.9],
   };
 
   const SEGMENTS = {
@@ -103,7 +103,7 @@
     const px = -uy;
     const py = ux;
     const half = SEGMENT_THICKNESS / 2;
-    const tip = Math.min(1.75, length * 0.33);
+    const tip = Math.min(1.35, length * 0.25);
     const coords = [
       [x1, y1],
       [x1 + ux * tip + px * half, y1 + uy * tip + py * half],
