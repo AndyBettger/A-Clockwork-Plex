@@ -6,29 +6,30 @@
   padding-bottom: clamp(10px, 1.4vmin, 18px);
 }
 
-/* Let the cover column be driven by the available card height. This keeps the artwork
-   square and moves the text column divider to the right instead of scaling the cover down. */
+/* Keep the cover visually dominant, but cap the square so it cannot make the
+   hero row overflow or leave the text column gasping for air. */
 body.airplay-metadata-active .airplay-now-card {
-  grid-template-columns: auto minmax(0, 1fr);
+  --airplay-cover-size: clamp(330px, min(40vw, 64vh), 540px);
+  grid-template-columns: minmax(0, var(--airplay-cover-size)) minmax(0, 1fr);
   align-items: stretch;
-  gap: clamp(18px, 3.1vw, 42px);
+  gap: clamp(20px, 3.4vw, 48px);
 }
 
 body.airplay-metadata-active .airplay-glyph-wrap {
   align-self: stretch;
-  justify-self: start;
-  place-items: stretch;
-  width: auto;
-  height: 100%;
-  aspect-ratio: 1;
+  justify-self: stretch;
+  display: grid;
+  place-items: center;
   min-width: 0;
+  min-height: 0;
 }
 
 body.airplay-metadata-active .airplay-artwork {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
+  width: min(100%, var(--airplay-cover-size));
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1;
 }
 
 /* Right-hand now-playing column:
@@ -113,7 +114,8 @@ body.airplay-metadata-active .airplay-volume-strip {
 
 @media (max-height: 520px), (max-width: 860px) {
   body.airplay-metadata-active .airplay-now-card {
-    grid-template-columns: auto minmax(0, 1fr);
+    --airplay-cover-size: clamp(215px, 38vw, 320px);
+    grid-template-columns: minmax(0, var(--airplay-cover-size)) minmax(0, 1fr);
     gap: clamp(14px, 2.4vw, 24px);
   }
 
