@@ -224,6 +224,104 @@ body.mode-airplay {
   gap: 0.07em;
 }
 
+.time.is-alpha-clock {
+  --alpha-display-h: clamp(92px, 24vmin, 178px);
+  --segment-on: #ffffff;
+  --segment-off: rgba(247, 249, 255, 0.035);
+  gap: calc(var(--alpha-display-h) * 0.03);
+  font-size: inherit;
+  color: #ffffff;
+}
+
+.time.is-alpha-clock .digital-group {
+  height: var(--alpha-display-h);
+  gap: calc(var(--alpha-display-h) * 0.026);
+  transform: skewX(-5deg);
+}
+
+.time.is-alpha-clock .clock-seconds {
+  height: calc(var(--alpha-display-h) * 0.58);
+  gap: calc(var(--alpha-display-h) * 0.024);
+}
+
+.time.is-alpha-clock .alpha-character,
+.date.is-alpha-date .alpha-character {
+  flex: 0 0 auto;
+  width: calc(var(--alpha-display-h) * 0.51);
+  height: var(--alpha-display-h);
+}
+
+.time.is-alpha-clock .clock-seconds .alpha-character {
+  width: calc(var(--alpha-display-h) * 0.3);
+  height: calc(var(--alpha-display-h) * 0.58);
+}
+
+.time.is-alpha-clock .alpha-character.is-space,
+.date.is-alpha-date .alpha-character.is-space {
+  width: calc(var(--alpha-display-h) * 0.51);
+}
+
+.time.is-alpha-clock .alpha-character svg,
+.date.is-alpha-date .alpha-character svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.time.is-alpha-clock .alpha-segment,
+.date.is-alpha-date .alpha-segment {
+  fill: var(--segment-off);
+  transition: fill 80ms linear, filter 80ms linear;
+}
+
+.time.is-alpha-clock .alpha-segment.is-on {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 2.8px rgba(255, 255, 255, 0.62));
+}
+
+.time.is-alpha-clock .digital-colon {
+  width: calc(var(--alpha-display-h) * 0.14);
+  height: calc(var(--alpha-display-h) * 0.54);
+  margin-inline: calc(var(--alpha-display-h) * 0.012) calc(var(--alpha-display-h) * 0.004);
+  transform: skewX(-5deg);
+}
+
+.time.is-alpha-clock .digital-colon-small {
+  width: calc(var(--alpha-display-h) * 0.13);
+  height: calc(var(--alpha-display-h) * 0.31);
+  margin-inline: calc(var(--alpha-display-h) * 0.018) calc(var(--alpha-display-h) * 0.002);
+}
+
+.time.is-alpha-clock .digital-colon span {
+  width: calc(var(--alpha-display-h) * 0.085);
+  height: calc(var(--alpha-display-h) * 0.085);
+  box-shadow: 0 0 calc(var(--alpha-display-h) * 0.035) rgba(255, 255, 255, 0.55);
+}
+
+.time.is-alpha-clock .digital-colon-small span {
+  width: calc(var(--alpha-display-h) * 0.052);
+  height: calc(var(--alpha-display-h) * 0.052);
+}
+
+.date.is-alpha-date {
+  --alpha-display-h: clamp(21px, 5.5vmin, 42px);
+  --segment-off: rgba(143, 211, 255, 0.08);
+  margin-top: clamp(10px, 2.1vmin, 22px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--alpha-display-h) * 0.03);
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: visible;
+  transform: skewX(-5deg);
+}
+
+.date.is-alpha-date .alpha-segment.is-on {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 1.5px rgba(143, 211, 255, 0.42));
+}
+
 @keyframes clock-colon-blink {
   0%, 49% {
     opacity: 1;
@@ -381,8 +479,17 @@ code {
     font-size: clamp(5.1rem, 26vw, 8.6rem);
   }
 
+  .time.is-alpha-clock {
+    --alpha-display-h: clamp(66px, 22vw, 112px);
+  }
+
   .date {
     font-size: clamp(1.05rem, 4.4vw, 1.42rem);
+  }
+
+  .date.is-alpha-date {
+    --alpha-display-h: clamp(16px, 4.8vw, 28px);
+    margin-top: clamp(7px, 1.4vmin, 13px);
   }
 
   .airplay-glyph {
