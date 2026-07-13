@@ -1,6 +1,27 @@
 {% extends "base.html" %}
 {% set active_page = 'clock' %}
 {% block title %}Clock - A Clockwork Plex{% endblock %}
+{% block head %}
+<style>
+  .time.is-alpha-clock {
+    --alpha-display-h: clamp(120px, 36vmin, 267px);
+  }
+
+  .date.is-alpha-date {
+    --alpha-display-h: clamp(31px, 8.25vmin, 63px);
+  }
+
+  @media (max-height: 520px), (max-width: 860px) {
+    .time.is-alpha-clock {
+      --alpha-display-h: clamp(92px, 33vw, 168px);
+    }
+
+    .date.is-alpha-date {
+      --alpha-display-h: clamp(24px, 7.2vw, 42px);
+    }
+  }
+</style>
+{% endblock %}
 {% block content %}
 <section class="hero clock-hero">
   <div class="time is-alpha-clock" id="clock-time" aria-label="Current time" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}">
@@ -10,7 +31,7 @@
     <span class="digital-colon digital-colon-small" aria-hidden="true"><span></span><span></span></span>
     <span class="digital-group clock-seconds" id="clock-seconds"></span>
   </div>
-  <div class="date is-alpha-date" id="clock-date" aria-label="Current date">{{ now.strftime('%A %-d %B %Y') }}</div>
+  <div class="date is-alpha-date" id="clock-date" aria-label="Current date">{{ now.strftime('%A %-d %B %Y') | upper }}</div>
 </section>
 
 <section class="panel weather-panel" id="clock-weather-panel" data-refresh-seconds="{{ config.weather.auto_refresh_seconds | default(60) }}">
@@ -76,7 +97,7 @@ const SEGMENTS = {
   A: ['a', 'b', 'c', 'e', 'f', 'g1', 'g2'],
   B: ['f', 'e', 'd', 'c', 'g1', 'g2'],
   C: ['a', 'd', 'e', 'f'],
-  D: ['b', 'c', 'd', 'e', 'g1'],
+  D: ['a', 'b', 'c', 'd', 'e', 'f'],
   E: ['a', 'd', 'e', 'f', 'g1', 'g2'],
   F: ['a', 'e', 'f', 'g1', 'g2'],
   G: ['a', 'c', 'd', 'e', 'f', 'g2'],
@@ -192,12 +213,11 @@ function updateClock() {
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
   const suffix = rawHours >= 12 ? 'PM' : 'AM';
-  const date = now.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  const weekday = now.toLocaleDateString('en-GB', { weekday: 'long' });
+  const day = String(now.getDate());
+  const month = now.toLocaleDateString('en-GB', { month: 'long' });
+  const year = String(now.getFullYear());
+  const date = `${weekday} ${day} ${month} ${year}`.toUpperCase();
 
   setCharacters(document.getElementById('clock-hours'), displayHours);
   setCharacters(document.getElementById('clock-minutes'), minutes);
