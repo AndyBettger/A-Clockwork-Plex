@@ -10,7 +10,7 @@
   style.textContent = `
     .airplay-play-pause-wrap {
       grid-template-columns: auto auto auto;
-      gap: clamp(22px, 4vmin, 42px);
+      gap: clamp(34px, 5.9vmin, 64px);
     }
 
     .airplay-skip-button {
@@ -44,69 +44,65 @@
 
     .airplay-skip-icon {
       --skip-bar-width: clamp(3px, 0.56vmin, 5px);
-      --skip-triangle-width: clamp(8px, 1.45vmin, 13px);
-      --skip-triangle-height: clamp(9px, 1.72vmin, 15px);
-      position: relative;
-      display: block;
-      width: clamp(25px, 4.65vmin, 40px);
-      height: clamp(19px, 3.55vmin, 31px);
+      --skip-triangle-width: clamp(9px, 1.55vmin, 14px);
+      --skip-icon-height: clamp(17px, 3.08vmin, 27px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(31px, 5.25vmin, 45px);
+      height: var(--skip-icon-height);
       filter: drop-shadow(0 0 8px rgba(247, 249, 255, 0.1));
       transform: translateY(-0.02em);
     }
 
     .airplay-skip-icon span {
-      position: absolute;
       display: block;
-      top: 50%;
-      transform: translateY(-50%);
+      flex: 0 0 auto;
+      background: currentColor;
     }
 
     .airplay-skip-bar {
-      top: 10%;
-      bottom: 10%;
       width: var(--skip-bar-width);
-      border-radius: 999px;
-      background: currentColor;
-      transform: none;
+      height: calc(var(--skip-icon-height) * 0.96);
+      border-radius: 0;
     }
 
     .airplay-skip-triangle {
-      width: 0;
-      height: 0;
-      border-top: var(--skip-triangle-height) solid transparent;
-      border-bottom: var(--skip-triangle-height) solid transparent;
+      width: var(--skip-triangle-width);
+      height: var(--skip-icon-height);
+      margin-inline: -0.4px;
     }
 
     .airplay-skip-icon.is-previous .airplay-skip-bar {
-      left: 0;
+      order: 1;
     }
 
     .airplay-skip-icon.is-previous .airplay-skip-triangle {
-      border-right: var(--skip-triangle-width) solid currentColor;
+      clip-path: polygon(100% 0, 100% 100%, 0 50%);
     }
 
     .airplay-skip-icon.is-previous .airplay-skip-triangle.one {
-      left: calc(var(--skip-bar-width) + clamp(3px, 0.58vmin, 5px));
+      order: 2;
     }
 
     .airplay-skip-icon.is-previous .airplay-skip-triangle.two {
-      left: calc(var(--skip-bar-width) + var(--skip-triangle-width) + clamp(5px, 0.92vmin, 8px));
+      order: 3;
     }
 
     .airplay-skip-icon.is-next .airplay-skip-bar {
-      right: 0;
+      order: 3;
     }
 
     .airplay-skip-icon.is-next .airplay-skip-triangle {
-      border-left: var(--skip-triangle-width) solid currentColor;
+      clip-path: polygon(0 0, 0 100%, 100% 50%);
     }
 
     .airplay-skip-icon.is-next .airplay-skip-triangle.one {
-      right: calc(var(--skip-bar-width) + clamp(3px, 0.58vmin, 5px));
+      order: 1;
     }
 
     .airplay-skip-icon.is-next .airplay-skip-triangle.two {
-      right: calc(var(--skip-bar-width) + var(--skip-triangle-width) + clamp(5px, 0.92vmin, 8px));
+      order: 2;
     }
 
     body.airplay-session-idle .airplay-skip-button {
@@ -115,7 +111,7 @@
 
     @media (max-height: 520px), (max-width: 860px) {
       .airplay-play-pause-wrap {
-        gap: clamp(14px, 2.8vmin, 26px);
+        gap: clamp(24px, 4.4vmin, 42px);
       }
 
       .airplay-skip-button {
@@ -123,8 +119,8 @@
       }
 
       .airplay-skip-icon {
-        width: clamp(21px, 4.1vmin, 31px);
-        height: clamp(16px, 3.05vmin, 24px);
+        width: clamp(25px, 4.55vmin, 35px);
+        --skip-icon-height: clamp(15px, 2.9vmin, 23px);
       }
     }
   `;
