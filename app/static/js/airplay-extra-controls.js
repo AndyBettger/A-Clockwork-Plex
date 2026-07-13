@@ -10,13 +10,13 @@
   style.textContent = `
     .airplay-play-pause-wrap {
       grid-template-columns: auto auto auto;
-      gap: clamp(34px, 5.9vmin, 64px);
+      gap: clamp(48px, 7.2vmin, 86px);
     }
 
     .airplay-skip-button {
       display: grid;
       place-items: center;
-      width: clamp(54px, 8.8vmin, 78px);
+      width: clamp(62px, 9.8vmin, 88px);
       aspect-ratio: 1;
       border: 1px solid rgba(247, 249, 255, 0.18);
       border-radius: 50%;
@@ -111,11 +111,11 @@
 
     @media (max-height: 520px), (max-width: 860px) {
       .airplay-play-pause-wrap {
-        gap: clamp(24px, 4.4vmin, 42px);
+        gap: clamp(32px, 5.4vmin, 56px);
       }
 
       .airplay-skip-button {
-        width: clamp(44px, 7.4vmin, 60px);
+        width: clamp(50px, 8.2vmin, 68px);
       }
 
       .airplay-skip-icon {
