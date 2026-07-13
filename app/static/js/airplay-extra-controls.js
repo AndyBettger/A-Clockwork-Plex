@@ -198,11 +198,11 @@
     const back = direction === 'previous';
     const className = back ? 'is-back' : 'is-forward';
     const arc = back
-      ? 'M18 18 A23 23 0 1 0 46 18'
-      : 'M46 18 A23 23 0 1 1 18 18';
+      ? 'M26 14 A21 21 0 1 0 52 27 A21 21 0 0 0 40 15'
+      : 'M38 14 A21 21 0 1 1 12 27 A21 21 0 0 1 24 15';
     const arrowhead = back
-      ? 'M18 18 L31 7 L29 26 Z'
-      : 'M46 18 L33 7 L35 26 Z';
+      ? 'M25 14 L38 7 L38 21 Z'
+      : 'M39 14 L26 7 L26 21 Z';
 
     return `
       <span class="airplay-spoken-icon ${className}" aria-hidden="true">
