@@ -2,45 +2,73 @@
    This loads last so the controls fill the whole right-hand pane even when
    earlier base styles cap progress and volume rows for smaller idle layouts. */
 
-.airplay-now-card .airplay-copy {
-  align-self: stretch;
-  justify-self: stretch;
-  width: 100%;
-  min-width: 0;
+body.airplay-metadata-active .airplay-now-card {
+  width: 100% !important;
 }
 
-.airplay-now-card .airplay-controls-stack {
-  align-self: stretch;
-  justify-self: stretch;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
+@media (min-width: 861px) and (min-height: 521px) {
+  body.airplay-metadata-active .airplay-now-card {
+    /* Give the right-hand now-playing pane enough real estate for full-width
+       transport/progress/volume rows on landscape displays. */
+    grid-template-columns: minmax(0, var(--airplay-cover-size)) minmax(min(44rem, 48vw), 1fr) !important;
+  }
 }
 
-.airplay-now-card .airplay-controls-stack .airplay-play-pause-wrap,
-.airplay-now-card .airplay-controls-stack .airplay-progress,
-.airplay-now-card .airplay-controls-stack .airplay-control-row,
-.airplay-now-card .airplay-controls-stack .airplay-volume-strip {
-  width: 100%;
-  max-width: none;
-  min-width: 0;
+body.airplay-metadata-active .airplay-now-card .airplay-copy {
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
-.airplay-now-card .airplay-controls-stack .airplay-progress-track {
-  width: 100%;
-  min-width: 0;
+body.airplay-metadata-active .airplay-now-card .airplay-controls-stack {
+  grid-column: 1 / -1 !important;
+  align-self: end !important;
+  justify-self: stretch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
-.airplay-now-card .airplay-controls-stack .airplay-control-row {
-  display: block;
+/* Support both the grouped controls markup and older direct-child markup, so a
+   partially updated browser/session still gets the full-width treatment. */
+body.airplay-metadata-active .airplay-now-card .airplay-play-pause-wrap,
+body.airplay-metadata-active .airplay-now-card .airplay-progress,
+body.airplay-metadata-active .airplay-now-card .airplay-control-row,
+body.airplay-metadata-active .airplay-now-card .airplay-volume-strip {
+  grid-column: 1 / -1 !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  inline-size: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
-.airplay-now-card .airplay-controls-stack .airplay-volume-strip {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+body.airplay-metadata-active .airplay-now-card .airplay-progress-track {
+  width: 100% !important;
+  inline-size: 100% !important;
+  min-width: 0 !important;
 }
 
-.airplay-now-card .airplay-controls-stack .airplay-volume-slider {
-  width: 100%;
-  min-width: 0;
+body.airplay-metadata-active .airplay-now-card .airplay-control-row {
+  display: block !important;
+}
+
+body.airplay-metadata-active .airplay-now-card .airplay-volume-strip {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+}
+
+body.airplay-metadata-active .airplay-now-card .airplay-volume-slider {
+  width: 100% !important;
+  inline-size: 100% !important;
+  min-width: 0 !important;
 }
