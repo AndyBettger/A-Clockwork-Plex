@@ -109,7 +109,7 @@
       position: relative;
       display: grid;
       place-items: center;
-      width: clamp(40px, 6.35vmin, 54px);
+      width: clamp(43px, 6.85vmin, 58px);
       aspect-ratio: 1;
       filter: drop-shadow(0 0 8px rgba(247, 249, 255, 0.1));
       transform: translateY(-0.02em);
@@ -128,7 +128,7 @@
     .airplay-spoken-arc {
       fill: none;
       stroke: currentColor;
-      stroke-width: 4.1;
+      stroke-width: 4.25;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
@@ -142,11 +142,11 @@
       position: relative;
       z-index: 1;
       color: currentColor;
-      font-size: clamp(0.72rem, 1.58vmin, 0.96rem);
+      font-size: clamp(0.72rem, 1.54vmin, 0.94rem);
       font-weight: 950;
       letter-spacing: -0.05em;
       line-height: 1;
-      transform: translateY(0.03em);
+      transform: translateY(0.06em);
     }
 
     body.airplay-session-idle .airplay-skip-button {
@@ -168,7 +168,7 @@
       }
 
       .airplay-spoken-icon {
-        width: clamp(34px, 5.65vmin, 44px);
+        width: clamp(36px, 5.95vmin, 47px);
       }
     }
   `;
@@ -198,11 +198,11 @@
     const back = direction === 'previous';
     const className = back ? 'is-back' : 'is-forward';
     const arc = back
-      ? 'M26 14 A21 21 0 1 0 52 27 A21 21 0 0 0 40 15'
-      : 'M38 14 A21 21 0 1 1 12 27 A21 21 0 0 1 24 15';
+      ? 'M45 16 A24 24 0 1 1 19 16'
+      : 'M19 16 A24 24 0 1 0 45 16';
     const arrowhead = back
-      ? 'M25 14 L38 7 L38 21 Z'
-      : 'M39 14 L26 7 L26 21 Z';
+      ? 'M18 16 L34 7 L34 25 Z'
+      : 'M46 16 L30 7 L30 25 Z';
 
     return `
       <span class="airplay-spoken-icon ${className}" aria-hidden="true">
