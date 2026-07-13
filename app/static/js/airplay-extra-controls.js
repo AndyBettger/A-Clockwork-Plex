@@ -109,48 +109,33 @@
       position: relative;
       display: grid;
       place-items: center;
-      width: clamp(35px, 5.6vmin, 48px);
+      width: clamp(36px, 5.9vmin, 50px);
       aspect-ratio: 1;
       filter: drop-shadow(0 0 8px rgba(247, 249, 255, 0.1));
       transform: translateY(-0.02em);
     }
 
-    .airplay-spoken-icon::before {
-      content: "";
+    .airplay-spoken-svg {
       position: absolute;
-      inset: 8%;
-      border: clamp(2px, 0.36vmin, 3px) solid currentColor;
-      border-right-color: transparent;
-      border-radius: 50%;
-      transform: rotate(-38deg);
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      fill: none;
     }
 
-    .airplay-spoken-icon.is-forward::before {
-      border-right-color: currentColor;
-      border-left-color: transparent;
-      transform: rotate(38deg);
+    .airplay-spoken-arc,
+    .airplay-spoken-arrow {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 4.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
-    .airplay-spoken-icon::after {
-      content: "";
-      position: absolute;
-      top: 9%;
-      width: 0;
-      height: 0;
-      border-top: clamp(4px, 0.7vmin, 6px) solid transparent;
-      border-bottom: clamp(4px, 0.7vmin, 6px) solid transparent;
-    }
-
-    .airplay-spoken-icon.is-back::after {
-      left: 9%;
-      border-right: clamp(7px, 1.15vmin, 10px) solid currentColor;
-      transform: rotate(-22deg);
-    }
-
-    .airplay-spoken-icon.is-forward::after {
-      right: 9%;
-      border-left: clamp(7px, 1.15vmin, 10px) solid currentColor;
-      transform: rotate(22deg);
+    .airplay-spoken-arrow {
+      stroke-width: 4.8;
     }
 
     .airplay-spoken-number {
@@ -183,7 +168,7 @@
       }
 
       .airplay-spoken-icon {
-        width: clamp(29px, 5vmin, 38px);
+        width: clamp(30px, 5.25vmin, 40px);
       }
     }
   `;
@@ -193,6 +178,8 @@
   const musicAppPattern = /\b(plexamp|apple music|music|spotify|tidal|qobuz|deezer)\b/i;
   const spokenTextPattern = /\b(podcast|audiobook|audio book|spoken word|chapter|episode|part\s+\d+|book\s+\d+|narrated by|unabridged)\b/i;
   const explicitSpokenPattern = /\b(podcast|audiobook|audio book|spoken word|prologue|audible|overcast|pocket casts?)\b/i;
+  const LONG_SPOKEN_SECONDS = 30 * 60;
+  const VERY_LONG_SPOKEN_SECONDS = 40 * 60;
 
   let skipMode = 'track';
 
@@ -208,9 +195,21 @@
   }
 
   function spokenIconMarkup(direction) {
-    const className = direction === 'previous' ? 'is-back' : 'is-forward';
+    const back = direction === 'previous';
+    const className = back ? 'is-back' : 'is-forward';
+    const arc = back
+      ? 'M23 16 A21 21 0 1 0 50 26'
+      : 'M41 16 A21 21 0 1 1 14 26';
+    const arrow = back
+      ? 'M24 8 L15 16 L26 20'
+      : 'M40 8 L49 16 L38 20';
+
     return `
       <span class="airplay-spoken-icon ${className}" aria-hidden="true">
+        <svg class="airplay-spoken-svg" viewBox="0 0 64 64" focusable="false">
+          <path class="airplay-spoken-arc" d="${arc}"></path>
+          <path class="airplay-spoken-arrow" d="${arrow}"></path>
+        </svg>
         <span class="airplay-spoken-number">15</span>
       </span>
     `;
@@ -270,12 +269,13 @@
       metadata.composer,
     ]);
     const duration = secondsFromProgress(metadata.progress);
+    const explicitMusicApp = musicAppPattern.test(appText);
 
     if (explicitSpokenPattern.test(appText)) {
       return true;
     }
 
-    if (musicAppPattern.test(appText) && !explicitSpokenPattern.test(mediaText)) {
+    if (explicitMusicApp && !explicitSpokenPattern.test(mediaText)) {
       return false;
     }
 
@@ -289,6 +289,12 @@
     }
     if (spokenTextPattern.test(mediaText)) {
       score += 2;
+    }
+    if (duration !== null && duration >= LONG_SPOKEN_SECONDS && !explicitMusicApp) {
+      score += 3;
+    }
+    if (duration !== null && duration >= VERY_LONG_SPOKEN_SECONDS && !explicitMusicApp) {
+      score += 1;
     }
     if (duration !== null && duration >= 20 * 60 && spokenTextPattern.test(mediaText)) {
       score += 2;
