@@ -125,8 +125,7 @@
       fill: none;
     }
 
-    .airplay-spoken-arc,
-    .airplay-spoken-arrow {
+    .airplay-spoken-arc {
       fill: none;
       stroke: currentColor;
       stroke-width: 4.4;
@@ -134,8 +133,9 @@
       stroke-linejoin: round;
     }
 
-    .airplay-spoken-arrow {
-      stroke-width: 4.8;
+    .airplay-spoken-arrowhead {
+      fill: currentColor;
+      stroke: none;
     }
 
     .airplay-spoken-number {
@@ -198,17 +198,17 @@
     const back = direction === 'previous';
     const className = back ? 'is-back' : 'is-forward';
     const arc = back
-      ? 'M23 16 A21 21 0 1 0 50 26'
-      : 'M41 16 A21 21 0 1 1 14 26';
-    const arrow = back
-      ? 'M24 8 L15 16 L26 20'
-      : 'M40 8 L49 16 L38 20';
+      ? 'M45 17 A21 21 0 1 1 20 17'
+      : 'M19 17 A21 21 0 1 0 44 17';
+    const arrowhead = back
+      ? 'M20 17 L30 8 L28 23 Z'
+      : 'M44 17 L34 8 L36 23 Z';
 
     return `
       <span class="airplay-spoken-icon ${className}" aria-hidden="true">
         <svg class="airplay-spoken-svg" viewBox="0 0 64 64" focusable="false">
           <path class="airplay-spoken-arc" d="${arc}"></path>
-          <path class="airplay-spoken-arrow" d="${arrow}"></path>
+          <path class="airplay-spoken-arrowhead" d="${arrowhead}"></path>
         </svg>
         <span class="airplay-spoken-number">15</span>
       </span>
