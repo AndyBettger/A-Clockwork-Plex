@@ -4,6 +4,7 @@
 
 body.airplay-metadata-active .airplay-now-card {
   width: 100% !important;
+  --airplay-control-end-inset: clamp(28px, 3vw, 44px);
 }
 
 @media (min-width: 861px) and (min-height: 521px) {
@@ -31,9 +32,11 @@ body.airplay-metadata-active .airplay-now-card .airplay-controls-stack {
   justify-self: stretch !important;
   display: flex !important;
   flex-direction: column !important;
+  box-sizing: border-box !important;
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
+  padding-inline-end: var(--airplay-control-end-inset) !important;
 }
 
 /* Support both the grouped controls markup and older direct-child markup, so a
@@ -50,6 +53,11 @@ body.airplay-metadata-active .airplay-now-card .airplay-volume-strip {
   inline-size: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
+}
+
+body.airplay-metadata-active .airplay-now-card > .airplay-copy > .airplay-progress,
+body.airplay-metadata-active .airplay-now-card > .airplay-copy > .airplay-control-row {
+  padding-inline-end: var(--airplay-control-end-inset) !important;
 }
 
 body.airplay-metadata-active .airplay-now-card .airplay-progress-track {
@@ -71,4 +79,10 @@ body.airplay-metadata-active .airplay-now-card .airplay-volume-slider {
   width: 100% !important;
   inline-size: 100% !important;
   min-width: 0 !important;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  body.airplay-metadata-active .airplay-now-card {
+    --airplay-control-end-inset: clamp(18px, 3vw, 28px);
+  }
 }
