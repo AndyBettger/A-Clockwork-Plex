@@ -105,6 +105,65 @@
       order: 2;
     }
 
+    .airplay-spoken-icon {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: clamp(35px, 5.6vmin, 48px);
+      aspect-ratio: 1;
+      filter: drop-shadow(0 0 8px rgba(247, 249, 255, 0.1));
+      transform: translateY(-0.02em);
+    }
+
+    .airplay-spoken-icon::before {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border: clamp(2px, 0.36vmin, 3px) solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      transform: rotate(-38deg);
+    }
+
+    .airplay-spoken-icon.is-forward::before {
+      border-right-color: currentColor;
+      border-left-color: transparent;
+      transform: rotate(38deg);
+    }
+
+    .airplay-spoken-icon::after {
+      content: "";
+      position: absolute;
+      top: 9%;
+      width: 0;
+      height: 0;
+      border-top: clamp(4px, 0.7vmin, 6px) solid transparent;
+      border-bottom: clamp(4px, 0.7vmin, 6px) solid transparent;
+    }
+
+    .airplay-spoken-icon.is-back::after {
+      left: 9%;
+      border-right: clamp(7px, 1.15vmin, 10px) solid currentColor;
+      transform: rotate(-22deg);
+    }
+
+    .airplay-spoken-icon.is-forward::after {
+      right: 9%;
+      border-left: clamp(7px, 1.15vmin, 10px) solid currentColor;
+      transform: rotate(22deg);
+    }
+
+    .airplay-spoken-number {
+      position: relative;
+      z-index: 1;
+      color: currentColor;
+      font-size: clamp(0.72rem, 1.65vmin, 1rem);
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      transform: translateY(0.03em);
+    }
+
     body.airplay-session-idle .airplay-skip-button {
       display: none;
     }
@@ -122,11 +181,22 @@
         width: clamp(25px, 4.55vmin, 35px);
         --skip-icon-height: clamp(15px, 2.9vmin, 23px);
       }
+
+      .airplay-spoken-icon {
+        width: clamp(29px, 5vmin, 38px);
+      }
     }
   `;
   document.head.appendChild(style);
 
-  function iconMarkup(direction) {
+  const spokenAppPattern = /\b(prologue|podcasts?|apple podcasts|overcast|pocket casts?|audible|audiobooks?|bookplayer|castro|downcast|libby|borrowbox)\b/i;
+  const musicAppPattern = /\b(plexamp|apple music|music|spotify|tidal|qobuz|deezer)\b/i;
+  const spokenTextPattern = /\b(podcast|audiobook|audio book|spoken word|chapter|episode|part\s+\d+|book\s+\d+|narrated by|unabridged)\b/i;
+  const explicitSpokenPattern = /\b(podcast|audiobook|audio book|spoken word|prologue|audible|overcast|pocket casts?)\b/i;
+
+  let skipMode = 'track';
+
+  function trackIconMarkup(direction) {
     const className = direction === 'previous' ? 'is-previous' : 'is-next';
     return `
       <span class="airplay-skip-icon ${className}" aria-hidden="true">
@@ -137,23 +207,116 @@
     `;
   }
 
-  function makeButton(id, label, direction, action) {
+  function spokenIconMarkup(direction) {
+    const className = direction === 'previous' ? 'is-back' : 'is-forward';
+    return `
+      <span class="airplay-spoken-icon ${className}" aria-hidden="true">
+        <span class="airplay-spoken-number">15</span>
+      </span>
+    `;
+  }
+
+  function buttonMarkup(direction, mode) {
+    return mode === 'spoken' ? spokenIconMarkup(direction) : trackIconMarkup(direction);
+  }
+
+  function makeButton(id, direction, action) {
     const button = document.createElement('button');
     button.id = id;
     button.type = 'button';
     button.className = 'airplay-skip-button';
-    button.setAttribute('aria-label', label);
+    button.dataset.airplayDirection = direction;
     button.dataset.airplayAction = action;
-    button.innerHTML = iconMarkup(direction);
+    button.innerHTML = buttonMarkup(direction, skipMode);
     button.disabled = playButton.disabled;
     return button;
   }
 
-  const backButton = makeButton('airplay-skip-back', 'Previous AirPlay item', 'previous', 'previous');
-  const forwardButton = makeButton('airplay-skip-forward', 'Next AirPlay item', 'next', 'next');
+  const backButton = makeButton('airplay-skip-back', 'previous', 'previous');
+  const forwardButton = makeButton('airplay-skip-forward', 'next', 'next');
 
   wrap.insertBefore(backButton, playButton);
   wrap.appendChild(forwardButton);
+
+  function textFromValues(values) {
+    return values
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function secondsFromProgress(progress) {
+    const value = Number(progress?.duration_seconds);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  function looksLikeSpokenAudio(payload) {
+    const state = payload?.state || {};
+    const airplay = state.airplay || {};
+    const metadata = airplay.metadata || {};
+    const appText = textFromValues([
+      metadata.source_name,
+      metadata.player_name,
+      metadata.source_model,
+      metadata.source_user_agent,
+    ]);
+    const mediaText = textFromValues([
+      metadata.genre,
+      metadata.format,
+      metadata.album,
+      metadata.title,
+      metadata.artist,
+      metadata.album_artist,
+      metadata.composer,
+    ]);
+    const duration = secondsFromProgress(metadata.progress);
+
+    if (explicitSpokenPattern.test(appText)) {
+      return true;
+    }
+
+    if (musicAppPattern.test(appText) && !explicitSpokenPattern.test(mediaText)) {
+      return false;
+    }
+
+    let score = 0;
+
+    if (spokenAppPattern.test(appText)) {
+      score += 5;
+    }
+    if (explicitSpokenPattern.test(mediaText)) {
+      score += 4;
+    }
+    if (spokenTextPattern.test(mediaText)) {
+      score += 2;
+    }
+    if (duration !== null && duration >= 20 * 60 && spokenTextPattern.test(mediaText)) {
+      score += 2;
+    }
+    if (duration !== null && duration >= 35 * 60 && !metadata.artist) {
+      score += 1;
+    }
+
+    return score >= 3;
+  }
+
+  function setButtonMode(mode) {
+    const nextMode = mode === 'spoken' ? 'spoken' : 'track';
+    if (skipMode === nextMode && backButton.dataset.airplaySkipMode === nextMode) {
+      return;
+    }
+
+    skipMode = nextMode;
+    for (const button of [backButton, forwardButton]) {
+      const direction = button.dataset.airplayDirection;
+      button.dataset.airplaySkipMode = nextMode;
+      button.classList.toggle('airplay-skip-spoken', nextMode === 'spoken');
+      button.innerHTML = buttonMarkup(direction, nextMode);
+    }
+
+    backButton.setAttribute('aria-label', nextMode === 'spoken' ? 'Rewind AirPlay 15 seconds' : 'Previous AirPlay item');
+    forwardButton.setAttribute('aria-label', nextMode === 'spoken' ? 'Skip AirPlay forward 15 seconds' : 'Next AirPlay item');
+  }
 
   async function sendControl(action) {
     for (const button of [backButton, forwardButton]) {
@@ -181,9 +344,27 @@
     forwardButton.disabled = disabled;
   }
 
-  backButton.addEventListener('click', () => sendControl('previous'));
-  forwardButton.addEventListener('click', () => sendControl('next'));
+  async function refreshSkipMode() {
+    try {
+      const response = await fetch('/api/status', { cache: 'no-store' });
+      if (!response.ok) {
+        return;
+      }
+      const payload = await response.json();
+      setButtonMode(looksLikeSpokenAudio(payload) ? 'spoken' : 'track');
+    } catch (error) {
+    } finally {
+      syncDisabledState();
+    }
+  }
+
+  backButton.addEventListener('click', () => sendControl(backButton.dataset.airplayAction));
+  forwardButton.addEventListener('click', () => sendControl(forwardButton.dataset.airplayAction));
+  window.addEventListener('airplay-control-sent', refreshSkipMode);
 
   window.setInterval(syncDisabledState, 1000);
+  window.setInterval(refreshSkipMode, 2500);
+  setButtonMode('track');
   syncDisabledState();
+  refreshSkipMode();
 })();
