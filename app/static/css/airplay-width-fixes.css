@@ -4,7 +4,7 @@
 
 body.airplay-metadata-active .airplay-now-card {
   width: 100% !important;
-  --airplay-control-end-inset: clamp(28px, 3vw, 44px);
+  --airplay-control-end-inset: clamp(14px, 1.5vw, 22px);
 }
 
 @media (min-width: 861px) and (min-height: 521px) {
@@ -83,6 +83,6 @@ body.airplay-metadata-active .airplay-now-card .airplay-volume-slider {
 
 @media (max-height: 520px), (max-width: 860px) {
   body.airplay-metadata-active .airplay-now-card {
-    --airplay-control-end-inset: clamp(18px, 3vw, 28px);
+    --airplay-control-end-inset: clamp(9px, 1.5vw, 14px);
   }
 }
