@@ -833,14 +833,18 @@ def parse_busctl_double(text: str) -> float | None:
 
 
 def mpris_get_property(name: str) -> tuple[Any | None, str | None]:
-    result = run_busctl([
-        "--system",
-        "get-property",
-        MPRIS_SERVICE,
-        MPRIS_OBJECT,
-        MPRIS_PLAYER_INTERFACE,
-        name,
-    ])
+    try:
+        result = run_busctl([
+            "--system",
+            "get-property",
+            MPRIS_SERVICE,
+            MPRIS_OBJECT,
+            MPRIS_PLAYER_INTERFACE,
+            name,
+        ])
+    except subprocess.TimeoutExpired:
+        return None, f"MPRIS property {name} timed out."
+
     if result.returncode != 0:
         return None, (result.stderr or result.stdout).strip() or "busctl get-property failed"
 
