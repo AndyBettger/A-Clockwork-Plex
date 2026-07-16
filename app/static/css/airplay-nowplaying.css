@@ -227,6 +227,22 @@ body.airplay-session-idle .airplay-glyph {
   overflow: visible;
 }
 
+body.airplay-session-idle .airplay-copy {
+  align-self: stretch;
+  justify-self: stretch;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding-block: 0;
+}
+
+body.airplay-session-idle .airplay-meta-stack {
+  margin-bottom: clamp(10px, 1.9vmin, 20px);
+}
+
 body.airplay-session-idle .airplay-controls-stack {
   display: none !important;
 }
