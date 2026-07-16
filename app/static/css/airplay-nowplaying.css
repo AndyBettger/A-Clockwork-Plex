@@ -204,6 +204,26 @@ body.airplay-metadata-active .airplay-volume-slider {
   stroke-linejoin: round;
 }
 
+.airplay-route-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  display: block;
+  width: min(76%, 430px);
+  height: auto;
+  max-height: 82%;
+  color: rgba(247, 249, 255, 0.96);
+  transform: translate(-50%, -50%);
+  filter:
+    drop-shadow(0 24px 55px rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 32px rgba(143, 211, 255, 0.24));
+}
+
+.airplay-route-logo path {
+  fill: currentColor;
+}
+
 /* Idle route-ready state: make the AirPlay mark wider/taller, remove inactive controls,
    and keep the copy calm rather than looking like a half-loaded player. */
 body.airplay-session-idle .airplay-now-card:not(.unused) {
@@ -227,22 +247,22 @@ body.airplay-session-idle .airplay-glyph {
   overflow: visible;
 }
 
-body.airplay-session-idle .airplay-copy {
-  align-self: stretch;
-  justify-self: stretch;
-  display: flex !important;
-  flex-direction: column;
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
-  padding-block: 0;
-}
-
-body.airplay-session-idle .airplay-meta-stack {
-  margin-bottom: clamp(10px, 1.9vmin, 20px);
+body.airplay-session-idle .airplay-pulse {
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 68%;
 }
 
 body.airplay-session-idle .airplay-controls-stack {
   display: none !important;
+}
+
+body.airplay-session-idle .airplay-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  min-height: 0;
+  padding-block: 0;
 }
