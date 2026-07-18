@@ -1,0 +1,56 @@
+/* Typography/weather bridge visual pass six.
+   Baseline units, align wind digits, stretch rain gauges and rebalance AirPlay. */
+
+/* Numeric units should sit on the foot of the illuminated digits, not halfway up
+   their height. A slightly wider gap keeps °C, %, hPa and longer units distinct. */
+#clock-weather-grid .segment-readout-inner,
+.weather-detail-page .segment-readout-inner,
+.airplay-info-card.is-outside .segment-readout-inner {
+  align-items: flex-end !important;
+}
+
+#clock-weather-grid .segment-readout-unit,
+.weather-detail-page .segment-readout-unit,
+.airplay-info-card.is-outside .segment-readout-unit {
+  margin-inline-start: 0.17em !important;
+  padding-bottom: 0;
+  line-height: 1 !important;
+  transform: none !important;
+}
+
+/* The gauge already shares its row with the label/value stack. Remove the old
+   fixed 70px height and let it use that complete row without enlarging the card. */
+.weather-detail-page .rain-gauge-card {
+  align-items: stretch;
+}
+
+.weather-detail-page .rain-gauge {
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+}
+
+/* The weather card no longer needs most of the glance row. Give that room back
+   to the long segmented time/date strip, and match weather character height to
+   the adjacent mini clock instead of making it the dominant instrument. */
+.airplay-glance-grid {
+  grid-template-columns: minmax(0, 1.84fr) minmax(0, 1.2fr) minmax(0, 0.92fr);
+}
+
+.airplay-outside-value {
+  font-size: clamp(1.8rem, 4.2vmin, 2.45rem) !important;
+}
+
+.airplay-info-card.is-outside .segment-readout-unit {
+  font-size: 0.46em !important;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-glance-grid {
+    grid-template-columns: minmax(0, 1.86fr) minmax(0, 1.18fr) minmax(0, 0.9fr);
+  }
+
+  .airplay-outside-value {
+    font-size: clamp(1.45rem, 4.15vw, 2rem) !important;
+  }
+}
