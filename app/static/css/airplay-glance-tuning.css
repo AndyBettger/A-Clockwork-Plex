@@ -1,0 +1,50 @@
+.airplay-glance-grid {
+  grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.18fr) minmax(0, 0.98fr);
+}
+
+.airplay-info-card.is-outside {
+  padding-inline: clamp(10px, 1.55vmin, 15px);
+}
+
+.airplay-info-card.is-outside strong {
+  padding-right: 0.08em;
+  font-size: clamp(1.34rem, 3.5vw, 1.82rem);
+}
+
+.airplay-info-card.is-barometer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.airplay-info-card.is-barometer strong {
+  margin-top: clamp(5px, 0.8vmin, 8px);
+  overflow: visible;
+  color: var(--text);
+  font-family: var(--display-font);
+  font-size: clamp(1.25rem, 3.1vmin, 1.62rem);
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  line-height: 1;
+  text-overflow: clip;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#airplay-barometer-detail {
+  display: none !important;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-glance-grid {
+    grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.2fr) minmax(0, 0.96fr);
+  }
+
+  .airplay-info-card.is-outside strong {
+    font-size: clamp(1.24rem, 3.2vw, 1.66rem);
+  }
+
+  .airplay-info-card.is-barometer strong {
+    font-size: clamp(1.05rem, 2.85vw, 1.38rem);
+  }
+}
