@@ -24,7 +24,7 @@
       members: ['outdoor_temp', 'indoor_temp'],
       label: 'Temperature',
       columns: [
-        { heading: 'Outdoor temperature', displayLabel: 'Outdoor temp' },
+        { heading: 'Outdoor temp', displayLabel: 'Outdoor temp' },
         { heading: 'Indoor', displayLabel: 'Indoor temp' },
       ],
     },
@@ -50,6 +50,14 @@
       columns: [
         { heading: 'Solar', displayLabel: 'Solar' },
         { heading: 'UV', displayLabel: 'UV' },
+      ],
+    },
+    rain_summary: {
+      members: ['daily_rain', 'event_rain'],
+      label: 'Rain',
+      columns: [
+        { heading: 'Rain today', displayLabel: 'Rain today' },
+        { heading: 'Event rain', displayLabel: 'Event rain' },
       ],
     },
   };
