@@ -60,69 +60,7 @@
 {% block scripts %}
 <script>
 const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
-// Same editable 14/16-segment cell used by the AirPlay mini clock.
-const SEGMENT_PATHS = {
-  a: {
-    d: 'M 16.961276,1.9065286 16.048949,0.5792982 4.0119027,0.56681617 3.1383003,1.8940466 4.6757439,3.739281 15.462556,3.7517631 Z',
-    transform: 'matrix(1.1281637,0,0,1,-1.2800763,0)',
-  },
-  b: { d: 'M 16.373201,14.053358 18.327194,15.5961 19.494667,14.511214 19.464533,3.7344232 18.193471,2.3327149 16.379442,4.1900172 Z' },
-  c: { d: 'm 16.355396,27.745659 1.884424,1.938512 1.235573,-1.580296 0.0088,-12.943672 -3.136134,3.095201 z' },
-  d: { d: 'm 16.992268,31.278305 0.960954,-1.272392 -2.020089,-2.013786 -11.919223,0.0088 -1.8170874,1.969656 1.5169991,1.316523 z' },
-  e: { d: 'M 0.63052074,28.580485 1.8940865,29.717961 3.6872198,27.733177 3.8813945,17.622692 0.59506866,14.4201 Z' },
-  f: { d: 'M 0.6228415,13.767158 2.4992811,15.549569 3.7141732,14.466152 3.6642451,4.0339918 1.9625539,2.2515817 0.63532353,3.7718693 Z' },
-  g1: { d: 'm 8.3066108,17.590132 1.508173,-1.61661 -1.9759577,-1.669568 -3.2452132,-0.03013 -1.8104028,1.670194 1.6572224,1.654945 z' },
-  g2: { d: 'm 16.362745,17.634263 1.711174,-1.68722 -1.99361,-1.607784 -4.051527,-0.02648 -1.764131,1.678394 1.702348,1.634264 z' },
-  h: { d: 'M 7.8406443,14.002515 7.8324816,9.6530167 4.1869428,4.1867271 4.1778378,8.723679 Z' },
-  i: { d: 'm 11.837572,9.9401588 0.01287,4.1153132 4.088818,-5.822374 0.0048,-4.0005737 z' },
-  j: { d: 'm 7.8270345,22.465843 -0.00253,-4.653923 -3.6313731,5.416588 -0.031265,4.424228 z' },
-  k: { d: 'm 11.815136,18.015137 0.01361,4.591924 4.168252,5.08098 0.01287,-4.521316 z' },
-  m: { d: 'M 8.2509973,14.194872 10,15.632436 11.41361,14.291959 V 5.4642189 L 9.9911739,3.9736981 8.2774757,5.4642189 Z' },
-  n: { d: 'm 8.295128,25.758019 1.740177,2.021151 1.334174,-1.459908 10e-7,-8.642989 L 10,16.341085 8.3127802,18.14843 Z' },
-};
-
-const SEGMENTS = {
-  '0': ['a', 'b', 'c', 'd', 'e', 'f'],
-  '1': ['b', 'c'],
-  '2': ['a', 'b', 'g1', 'g2', 'e', 'd'],
-  '3': ['a', 'b', 'g1', 'g2', 'c', 'd'],
-  '4': ['f', 'g1', 'g2', 'b', 'c'],
-  '5': ['a', 'f', 'g1', 'g2', 'c', 'd'],
-  '6': ['a', 'f', 'e', 'd', 'c', 'g1', 'g2'],
-  '7': ['a', 'b', 'c'],
-  '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g1', 'g2'],
-  '9': ['a', 'b', 'c', 'd', 'f', 'g1', 'g2'],
-  A: ['a', 'b', 'c', 'e', 'f', 'g1', 'g2'],
-  B: ['f', 'e', 'd', 'c', 'g1', 'g2'],
-  C: ['a', 'd', 'e', 'f'],
-  D: ['a', 'b', 'c', 'd', 'e', 'f'],
-  E: ['a', 'd', 'e', 'f', 'g1', 'g2'],
-  F: ['a', 'e', 'f', 'g1', 'g2'],
-  G: ['a', 'c', 'd', 'e', 'f', 'g2'],
-  H: ['b', 'c', 'e', 'f', 'g1', 'g2'],
-  I: ['a', 'd', 'm', 'n'],
-  J: ['b', 'c', 'd', 'e'],
-  K: ['e', 'f', 'g1', 'i', 'k'],
-  L: ['d', 'e', 'f'],
-  M: ['b', 'c', 'e', 'f', 'h', 'i'],
-  N: ['b', 'c', 'e', 'f', 'h', 'k'],
-  O: ['a', 'b', 'c', 'd', 'e', 'f'],
-  P: ['a', 'b', 'e', 'f', 'g1', 'g2'],
-  Q: ['a', 'b', 'c', 'd', 'e', 'f', 'k'],
-  R: ['a', 'b', 'e', 'f', 'g1', 'g2', 'k'],
-  S: ['a', 'f', 'g1', 'g2', 'c', 'd'],
-  T: ['a', 'm', 'n'],
-  U: ['b', 'c', 'd', 'e', 'f'],
-  V: ['e', 'f', 'j', 'i'],
-  W: ['b', 'c', 'd', 'e', 'f', 'j', 'k'],
-  X: ['h', 'i', 'j', 'k'],
-  Y: ['h', 'i', 'n'],
-  Z: ['a', 'i', 'j', 'd'],
-  '/': ['i', 'j'],
-  '-': ['g1', 'g2'],
-};
+const segmentDisplay = window.AClockworkSegments;
 
 const WEATHER_LABELS_BY_ID = {
   outdoor_temp: 'Outdoor temp',
@@ -141,6 +79,25 @@ const WEATHER_LABELS_BY_ID = {
   uv: 'UV'
 };
 
+const COMPOSITE_CARD_DEFINITIONS = {
+  temperature_summary: {
+    members: ['outdoor_temp', 'indoor_temp'],
+    label: 'Temperature',
+    columns: [
+      { label: 'Outdoor', displayLabel: 'Outdoor temp' },
+      { label: 'Indoor', displayLabel: 'Indoor temp' },
+    ],
+  },
+  humidity_summary: {
+    members: ['humidity', 'indoor_humidity'],
+    label: 'Humidity',
+    columns: [
+      { label: 'Outdoor', displayLabel: 'Humidity' },
+      { label: 'Indoor', displayLabel: 'Indoor humidity' },
+    ],
+  },
+};
+
 function normaliseClockFormat(value) {
   return String(value || '').toLowerCase() === '12h' ? '12h' : '24h';
 }
@@ -157,53 +114,11 @@ function selectedClockFormat() {
   return normaliseClockFormat(document.getElementById('clock-time')?.dataset.clockFormat || '24h');
 }
 
-function makeCharacter(character) {
-  const value = String(character || ' ').toUpperCase();
-  const wrapper = document.createElement('span');
-  wrapper.className = 'alpha-character';
-  wrapper.setAttribute('aria-hidden', 'true');
-
-  if (value === ' ') {
-    wrapper.classList.add('is-space');
-  }
-
-  const activeSegments = new Set(SEGMENTS[value] || []);
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 20 32');
-  svg.setAttribute('focusable', 'false');
-
-  for (const [name, shape] of Object.entries(SEGMENT_PATHS)) {
-    const segment = document.createElementNS(SVG_NS, 'path');
-    segment.setAttribute('d', shape.d);
-    if (shape.transform) {
-      segment.setAttribute('transform', shape.transform);
-    }
-    segment.classList.add('alpha-segment');
-    if (activeSegments.has(name)) {
-      segment.classList.add('is-on');
-    }
-    svg.appendChild(segment);
-  }
-
-  wrapper.appendChild(svg);
-  return wrapper;
-}
-
-function setCharacters(element, value) {
-  if (!element) {
-    return;
-  }
-
-  const text = String(value || '').toUpperCase();
-  if (element.dataset.segmentText === text && element.firstElementChild) {
-    return;
-  }
-
-  element.dataset.segmentText = text;
-  element.replaceChildren(...text.split('').map(makeCharacter));
-}
-
 function updateClock() {
+  if (!segmentDisplay) {
+    return;
+  }
+
   const now = new Date();
   const format = selectedClockFormat();
   const rawHours = now.getHours();
@@ -219,59 +134,133 @@ function updateClock() {
   const year = String(now.getFullYear());
   const date = `${weekday} ${day} ${month} ${year}`.toUpperCase();
 
-  setCharacters(document.getElementById('clock-hours'), displayHours);
-  setCharacters(document.getElementById('clock-minutes'), minutes);
-  setCharacters(document.getElementById('clock-seconds'), seconds);
-  setCharacters(document.getElementById('clock-date'), date);
+  segmentDisplay.setCharacters(document.getElementById('clock-hours'), displayHours);
+  segmentDisplay.setCharacters(document.getElementById('clock-minutes'), minutes);
+  segmentDisplay.setCharacters(document.getElementById('clock-seconds'), seconds);
+  segmentDisplay.setCharacters(document.getElementById('clock-date'), date);
   document.getElementById('clock-time').setAttribute('aria-label', `${displayHours}:${minutes}:${seconds}${format === '12h' ? ` ${suffix}` : ''}`);
   document.getElementById('clock-date').setAttribute('aria-label', date);
 }
 
-function makeWeatherCard(label, value) {
+function makeWeatherCard(cardData) {
   const card = document.createElement('div');
   card.className = 'weather-card';
 
   const labelElement = document.createElement('span');
   labelElement.className = 'weather-label';
-  labelElement.textContent = label;
+  labelElement.textContent = cardData.label;
+  card.appendChild(labelElement);
+
+  if (Array.isArray(cardData.columns)) {
+    card.classList.add('is-composite');
+    const columnGrid = document.createElement('div');
+    columnGrid.className = 'weather-subgrid';
+
+    cardData.columns.forEach((column) => {
+      const reading = document.createElement('div');
+      reading.className = 'weather-subreading';
+
+      const subLabel = document.createElement('span');
+      subLabel.className = 'weather-sub-label';
+      subLabel.textContent = column.label;
+
+      const subValue = document.createElement('span');
+      subValue.className = 'weather-subvalue';
+      subValue.textContent = column.value || '—';
+
+      reading.append(subLabel, subValue);
+      columnGrid.appendChild(reading);
+    });
+
+    card.appendChild(columnGrid);
+    return card;
+  }
 
   const valueElement = document.createElement('span');
   valueElement.className = 'weather-value';
-  valueElement.textContent = value;
-
-  card.append(labelElement, valueElement);
+  valueElement.textContent = cardData.value;
+  card.appendChild(valueElement);
   return card;
 }
 
-function weatherCardsFromStatus(status) {
-  if (Array.isArray(status?.weather_display_cards)) {
-    return status.weather_display_cards;
-  }
+function detailReadingLookup(status) {
+  const lookup = {};
+  const rows = Array.isArray(status?.weather_detail?.condition_rows)
+    ? status.weather_detail.condition_rows
+    : [];
 
-  const display = status?.weather_display || {};
+  rows.forEach((row) => {
+    const location = String(row?.location || '').toLowerCase();
+    if (location === 'outdoor') {
+      lookup['Outdoor temp'] = row?.temperature?.current;
+      lookup.Humidity = row?.humidity?.current;
+    } else if (location === 'indoor') {
+      lookup['Indoor temp'] = row?.temperature?.current;
+      lookup['Indoor humidity'] = row?.humidity?.current;
+    }
+  });
+
+  return lookup;
+}
+
+function virtualCardId(fieldId) {
+  if (COMPOSITE_CARD_DEFINITIONS.temperature_summary.members.includes(fieldId)) {
+    return 'temperature_summary';
+  }
+  if (COMPOSITE_CARD_DEFINITIONS.humidity_summary.members.includes(fieldId)) {
+    return 'humidity_summary';
+  }
+  return fieldId;
+}
+
+function weatherCardsFromStatus(status) {
+  const display = { ...detailReadingLookup(status), ...(status?.weather_display || {}) };
   const configuredOrder = Array.isArray(status?.config?.weather?.clock_cards)
     ? status.config.weather.clock_cards
     : [];
-
-  const ordered = [];
-  const usedLabels = new Set();
+  const virtualOrder = [];
 
   configuredOrder.forEach((fieldId) => {
+    const virtualId = virtualCardId(fieldId);
+    if (!virtualOrder.includes(virtualId)) {
+      virtualOrder.push(virtualId);
+    }
+  });
+
+  const cards = [];
+  const usedLabels = new Set();
+
+  virtualOrder.forEach((fieldId) => {
+    const composite = COMPOSITE_CARD_DEFINITIONS[fieldId];
+    if (composite) {
+      const columns = composite.columns
+        .map((column) => ({ ...column, value: display[column.displayLabel] }))
+        .filter((column) => column.value);
+      if (columns.length) {
+        cards.push({ label: composite.label, columns });
+        composite.columns.forEach((column) => usedLabels.add(column.displayLabel));
+      }
+      return;
+    }
+
     const label = WEATHER_LABELS_BY_ID[fieldId];
     if (!label || !(label in display)) {
       return;
     }
-    ordered.push({ label, value: display[label] });
+    const value = fieldId === 'barometer'
+      ? String(display[label]).split('·')[0].trim()
+      : display[label];
+    cards.push({ label, value });
     usedLabels.add(label);
   });
 
-  Object.entries(display).forEach(([label, value]) => {
+  Object.entries(status?.weather_display || {}).forEach(([label, value]) => {
     if (!usedLabels.has(label)) {
-      ordered.push({ label, value });
+      cards.push({ label, value: label === 'Barometer' ? String(value).split('·')[0].trim() : value });
     }
   });
 
-  return ordered;
+  return cards;
 }
 
 function renderWeatherCards(cards) {
@@ -291,8 +280,9 @@ function renderWeatherCards(cards) {
   const grid = document.createElement('div');
   grid.className = 'weather-grid';
   grid.id = 'clock-weather-grid';
-  grid.replaceChildren(...cards.map((card) => makeWeatherCard(card.label, card.value)));
+  grid.replaceChildren(...cards.map(makeWeatherCard));
   content.replaceChildren(grid);
+  window.AClockworkSegmentReadouts?.refresh?.();
 }
 
 async function updateClockWeather() {
@@ -308,7 +298,7 @@ async function updateClockWeather() {
       document.getElementById('clock-weather-title').textContent = title;
     }
 
-    renderWeatherCards(weatherCardsFromStatus(status).filter((card) => card.label && card.value));
+    renderWeatherCards(weatherCardsFromStatus(status).filter((card) => card.label && (card.value || card.columns?.length)));
   } catch (error) {
     // Leave the last good readings on screen if a transient update fails.
   }
@@ -319,8 +309,8 @@ function startClockWeatherUpdates() {
   const refreshSeconds = Number(panel?.dataset.refreshSeconds || 60);
   const refreshMilliseconds = Math.max(15, Number.isFinite(refreshSeconds) ? refreshSeconds : 60) * 1000;
 
+  updateClockWeather();
   window.setInterval(updateClockWeather, refreshMilliseconds);
-  window.setTimeout(updateClockWeather, 2000);
 }
 
 window.addEventListener('storage', (event) => {
