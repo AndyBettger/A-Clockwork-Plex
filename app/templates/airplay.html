@@ -85,9 +85,13 @@
         <p class="airplay-mini-date" id="airplay-mini-date-segmented" aria-label="Current date"></p>
       </div>
     </article>
-    <article class="airplay-info-card is-live is-outside">
+    <article class="airplay-info-card is-live is-outside" aria-label="Outdoor temperature and humidity">
       <span>Outdoor temp &amp; humidity</span>
-      <strong id="airplay-outside-now">Waiting</strong>
+      <strong id="airplay-outside-now" class="airplay-outside-source" hidden>Waiting</strong>
+      <div class="airplay-outside-grid">
+        <strong id="airplay-outside-temperature" class="airplay-outside-value weather-subvalue" aria-label="Outdoor temperature">Waiting</strong>
+        <strong id="airplay-outside-humidity" class="airplay-outside-value weather-subvalue" aria-label="Outdoor humidity">—</strong>
+      </div>
       <p id="airplay-outside-detail"></p>
     </article>
     <article class="airplay-info-card is-live is-barometer">
@@ -102,6 +106,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/airplay-live.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-outside-card.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-receiver-name.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-pause-hold.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-play-state-sync.js') }}"></script>
