@@ -9,7 +9,7 @@
     '.weather-subvalue',
     '.conditions-table td',
     '.mini-reading strong',
-    '.wind-direction',
+    '.wind-degrees',
     '.wind-readings strong',
     '.barometer-reading-card strong',
     '.rain-gauge-text strong',
