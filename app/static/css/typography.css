@@ -72,10 +72,6 @@ body.airplay-metadata-active .airplay-copy h1 {
 
 .segment-readout {
   --segment-readout-height: 1em;
-  display: inline-flex !important;
-  align-items: baseline;
-  flex-wrap: nowrap;
-  gap: 0.08em;
   min-width: 0;
   max-width: 100%;
   overflow: visible !important;
@@ -87,9 +83,9 @@ body.airplay-metadata-active .airplay-copy h1 {
 .segment-readout-token {
   display: inline-flex;
   align-items: flex-end;
-  flex: 0 0 auto;
   gap: 0.025em;
   height: var(--segment-readout-height);
+  vertical-align: -0.08em;
   transform: skewX(-5deg);
   transform-origin: center;
 }
@@ -124,14 +120,13 @@ body.airplay-metadata-active .airplay-copy h1 {
 
 .segment-readout-unit {
   display: inline-block;
-  flex: 0 0 auto;
   color: currentColor;
   font-family: var(--display-font);
   font-size: 0.56em;
   font-weight: 600;
   letter-spacing: 0.035em;
   line-height: 1;
-  transform: translateY(-0.08em);
+  vertical-align: 0.08em;
   white-space: pre;
 }
 
@@ -160,8 +155,8 @@ body.airplay-metadata-active .airplay-copy h1 {
 }
 
 @media (max-height: 520px), (max-width: 860px) {
-  .segment-readout {
-    gap: 0.055em;
+  .segment-readout-token {
+    gap: 0.018em;
   }
 
   .segment-readout-unit {
