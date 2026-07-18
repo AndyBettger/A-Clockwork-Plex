@@ -23,6 +23,14 @@
       label: 'Humidity',
       members: ['humidity', 'indoor_humidity'],
     },
+    wind_summary: {
+      label: 'Wind speed and gust',
+      members: ['wind_speed', 'wind_gust'],
+    },
+    solar_uv_summary: {
+      label: 'Solar and UV',
+      members: ['solar', 'uv'],
+    },
   };
 
   const rawOptions = JSON.parse(optionsElement.textContent || '[]');
