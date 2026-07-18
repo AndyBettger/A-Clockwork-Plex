@@ -31,12 +31,32 @@
     return token;
   }
 
-  function makeTextToken(value) {
+  function makeUnitToken(value) {
     const token = document.createElement('span');
-    const text = String(value || '').trim();
-    token.className = text.includes('·') ? 'segment-readout-separator' : 'segment-readout-unit';
-    token.textContent = text;
+    token.className = 'segment-readout-unit';
+    token.textContent = String(value || '').trim();
     return token;
+  }
+
+  function makeSeparatorToken() {
+    const token = document.createElement('span');
+    token.className = 'segment-readout-separator';
+    token.textContent = '·';
+    return token;
+  }
+
+  function textTokens(value) {
+    const tokens = [];
+    String(value || '').split('(never)').forEach(() => {});
+    const pieces = String(value || '').split(/(·)/g);
+    pieces.forEach((piece) => {
+      if (piece === '·') {
+        tokens.push(makeSeparatorToken());
+      } else if (piece.trim()) {
+        tokens.push(makeUnitToken(piece));
+      }
+    });
+    return tokens;
   }
 
   function renderReadout(element) {
@@ -63,8 +83,8 @@
     pieces.forEach((piece) => {
       if (/^[+-]?\d+(?:\.\d+)?$/.test(piece)) {
         inner.appendChild(makeNumberToken(piece));
-      } else if (piece.trim()) {
-        inner.appendChild(makeTextToken(piece));
+      } else {
+        inner.append(...textTokens(piece));
       }
     });
 
