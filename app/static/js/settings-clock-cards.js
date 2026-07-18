@@ -31,6 +31,10 @@
       label: 'Solar and UV',
       members: ['solar', 'uv'],
     },
+    rain_summary: {
+      label: 'Rain today and event rain',
+      members: ['daily_rain', 'event_rain'],
+    },
   };
 
   const rawOptions = JSON.parse(optionsElement.textContent || '[]');
