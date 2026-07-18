@@ -3,10 +3,14 @@
 {% block title %}Weather - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/weather-console.css') }}">
 {% endblock %}
 {% block content %}
 <section class="hero weather-detail-hero">
-  <h1>{{ config.weather.station_name }} Detailed</h1>
+  <h1>
+    <span class="weather-detail-title-main">{{ config.weather.station_name }}</span>
+    <span class="weather-detail-title-mode">Detailed</span>
+  </h1>
 </section>
 
 <section class="weather-detail-page" aria-label="Detailed weather station readings">
