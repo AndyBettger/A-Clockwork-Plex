@@ -1,0 +1,160 @@
+/* Typography/weather bridge visual pass five.
+   Fix nested span scaling, unify sensor values and make AirPlay weather glanceable. */
+
+/* Some component styles deliberately size ordinary descendant spans. The SVG
+   segment renderer also uses spans internally, so restore its own 1em scale at
+   every nesting level before applying the intended host readout size. */
+.segment-readout-inner,
+.segment-readout-number,
+.segment-readout-cell {
+  font-size: 1em !important;
+}
+
+/* Weather readouts look cleaner when their smaller unit is vertically centred
+   beside the illuminated number rather than hanging from its lower edge. */
+#clock-weather-grid .segment-readout-inner,
+.weather-detail-page .segment-readout-inner,
+.airplay-info-card.is-outside .segment-readout-inner {
+  align-items: center !important;
+}
+
+#clock-weather-grid .segment-readout-unit,
+.weather-detail-page .segment-readout-unit,
+.airplay-info-card.is-outside .segment-readout-unit {
+  margin-inline-start: 0.11em;
+  font-size: 0.47em !important;
+  transform: none !important;
+}
+
+/* Clock weather console: all numeric readings share one segment height. */
+#clock-weather-grid {
+  --clock-weather-value-size: clamp(1.38rem, 4.35vmin, 2.12rem);
+}
+
+#clock-weather-grid .weather-value.segment-readout,
+#clock-weather-grid .weather-subvalue.segment-readout {
+  overflow: visible;
+  font-size: var(--clock-weather-value-size) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+#clock-weather-grid .weather-card.is-barometer .weather-value {
+  font-size: var(--clock-weather-value-size) !important;
+  line-height: 1 !important;
+}
+
+.weather-composite-heading {
+  font-size: clamp(0.59rem, 1.38vmin, 0.72rem);
+  letter-spacing: 0.025em;
+}
+
+/* Detailed Weather: one physical segment size for every primary sensor value.
+   Station metadata and explanatory forecast prose retain their text hierarchy. */
+.weather-detail-page {
+  --weather-data-size: clamp(1.72rem, 4.05vmin, 2.16rem);
+}
+
+.weather-detail-page .conditions-table td.segment-readout,
+.weather-detail-page .mini-reading strong.segment-readout,
+.weather-detail-page .wind-degrees.segment-readout,
+.weather-detail-page .wind-readings strong.segment-readout,
+.weather-detail-page .barometer-reading-card strong.segment-readout,
+.weather-detail-page .rain-gauge-text strong.segment-readout {
+  overflow: visible;
+  font-size: var(--weather-data-size) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+.weather-detail-page .wind-direction-word {
+  --wind-direction-character-h: 1em;
+  font-size: var(--weather-data-size) !important;
+}
+
+/* Undo broad label rules which otherwise rescale the renderer's nested spans. */
+.weather-detail-page .mini-reading .segment-readout-inner,
+.weather-detail-page .mini-reading .segment-readout-number,
+.weather-detail-page .mini-reading .segment-readout-cell,
+.weather-detail-page .rain-gauge-text .segment-readout-inner,
+.weather-detail-page .rain-gauge-text .segment-readout-number,
+.weather-detail-page .rain-gauge-text .segment-readout-cell,
+.weather-detail-page .barometer-reading-card .segment-readout-inner,
+.weather-detail-page .barometer-reading-card .segment-readout-number,
+.weather-detail-page .barometer-reading-card .segment-readout-cell {
+  font-size: 1em !important;
+}
+
+/* AirPlay outdoor weather is displayed as two independent values rather than a
+   single long string, preventing automatic crowding and making it readable in bed. */
+.airplay-glance-grid {
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1.48fr) minmax(0, 0.9fr);
+}
+
+.airplay-info-card.is-outside {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.airplay-outside-source {
+  display: none !important;
+}
+
+.airplay-outside-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  margin-top: clamp(7px, 1.1vmin, 11px);
+}
+
+.airplay-outside-value {
+  min-width: 0;
+  margin: 0 !important;
+  overflow: visible !important;
+  color: var(--text);
+  font-size: clamp(2.25rem, 5.2vmin, 3.15rem) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+.airplay-outside-value + .airplay-outside-value {
+  padding-inline-start: clamp(12px, 1.6vmin, 18px);
+  border-inline-start: 1px solid rgba(143, 211, 255, 0.18);
+}
+
+.airplay-info-card.is-outside .segment-readout-inner,
+.airplay-info-card.is-outside .segment-readout-number,
+.airplay-info-card.is-outside .segment-readout-cell {
+  max-inline-size: none;
+  font-size: 1em !important;
+}
+
+.airplay-info-card.is-outside .segment-readout-unit {
+  font-size: 0.45em !important;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  #clock-weather-grid {
+    --clock-weather-value-size: clamp(1.14rem, 3.95vw, 1.58rem);
+  }
+
+  .weather-detail-page {
+    --weather-data-size: clamp(1.3rem, 3.75vw, 1.66rem);
+  }
+
+  .airplay-glance-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.52fr) minmax(0, 0.88fr);
+  }
+
+  .airplay-outside-value {
+    font-size: clamp(1.75rem, 5vw, 2.35rem) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .weather-card.is-composite {
+    grid-column: span 2;
+  }
+}
