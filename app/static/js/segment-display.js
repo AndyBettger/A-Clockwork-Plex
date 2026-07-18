@@ -35,9 +35,9 @@
     A: ['a', 'b', 'c', 'e', 'f', 'g1', 'g2'],
     B: ['f', 'e', 'd', 'c', 'g1', 'g2'],
     C: ['a', 'd', 'e', 'f'],
-    // A deliberately open, lower-left D. Unlike O it uses the centre bars and
-    // omits the upper and upper-left segments, so SATURDAY no longer reads SATUROAY.
-    D: ['b', 'c', 'd', 'e', 'g1', 'g2'],
+    // Full top/right/bottom outline with the two centre stems. This keeps D
+    // distinct from O while giving it a more conventional capital silhouette.
+    D: ['a', 'b', 'c', 'd', 'm', 'n'],
     E: ['a', 'd', 'e', 'f', 'g1', 'g2'],
     F: ['a', 'e', 'f', 'g1', 'g2'],
     G: ['a', 'c', 'd', 'e', 'f', 'g2'],
