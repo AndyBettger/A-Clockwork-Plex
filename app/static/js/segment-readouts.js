@@ -47,9 +47,7 @@
 
   function textTokens(value) {
     const tokens = [];
-    String(value || '').split('(never)').forEach(() => {});
-    const pieces = String(value || '').split(/(·)/g);
-    pieces.forEach((piece) => {
+    String(value || '').split(/(·)/g).forEach((piece) => {
       if (piece === '·') {
         tokens.push(makeSeparatorToken());
       } else if (piece.trim()) {
