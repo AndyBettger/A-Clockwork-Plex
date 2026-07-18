@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = 'airplay' %}
+{% set configured_airplay_name = config.airplay.display_name | default('A Clockwork Plex') %}
+{% set receiver_airplay_name = configured_airplay_name | replace(' Plexamp', '') %}
 {% block title %}AirPlay - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css') }}">
@@ -10,7 +12,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-glance-tuning.css') }}">
 {% endblock %}
 {% block content %}
-<section class="airplay-page" aria-label="AirPlay active screen">
+<section class="airplay-page" aria-label="AirPlay active screen" data-configured-receiver-name="{{ configured_airplay_name }}" data-receiver-name="{{ receiver_airplay_name }}">
   <section class="airplay-now-card">
     <div class="airplay-glyph-wrap">
       <div class="airplay-artwork" id="airplay-artwork" aria-hidden="true">
@@ -26,14 +28,14 @@
     </div>
     <div class="airplay-copy">
       <span class="airplay-kicker" id="airplay-state-kicker">AirPlay route ready</span>
-      <h1 id="airplay-title">{{ config.airplay.display_name | default('A Clockwork Plex') }}</h1>
+      <h1 id="airplay-title">{{ receiver_airplay_name }}</h1>
 
       <div class="airplay-meta-stack">
         <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay ready"></span><span id="airplay-primary-meta">Ready for AirPlay connections.</span></p>
         <p class="airplay-source-line" hidden><span id="airplay-source-title"></span></p>
       </div>
 
-      <p class="muted airplay-detail" id="airplay-detail">Choose {{ config.airplay.display_name | default('A Clockwork Plex') }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
+      <p class="muted airplay-detail" id="airplay-detail">Choose {{ receiver_airplay_name }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
 
       <div class="airplay-controls-stack" aria-label="AirPlay playback controls">
         <div class="airplay-play-pause-wrap">
@@ -100,6 +102,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/airplay-live.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-receiver-name.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-pause-hold.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-play-state-sync.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-extra-controls.js') }}"></script>
