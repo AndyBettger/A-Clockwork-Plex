@@ -1,14 +1,74 @@
+/* AirPlay Ready/Now Playing lower glance row and idle copy. */
+
+body.airplay-session-idle .airplay-copy .airplay-detail {
+  max-width: 46rem;
+  font-size: clamp(1rem, 2.35vmin, 1.18rem);
+  line-height: 1.36;
+}
+
 .airplay-glance-grid {
-  grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.18fr) minmax(0, 0.98fr);
+  --airplay-glance-character-height: clamp(30px, 5.85vmin, 41px);
+  grid-template-columns: minmax(0, 1.84fr) minmax(0, 1.2fr) minmax(0, 0.92fr);
 }
 
 .airplay-info-card.is-outside {
+  display: flex;
+  overflow: hidden;
   padding-inline: clamp(10px, 1.55vmin, 15px);
+  flex-direction: column;
+  justify-content: center;
 }
 
-.airplay-info-card.is-outside strong {
-  padding-right: 0.08em;
-  font-size: clamp(1.34rem, 3.5vw, 1.82rem);
+.airplay-outside-source {
+  display: none !important;
+}
+
+.airplay-outside-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  margin-top: clamp(7px, 1.1vmin, 11px);
+}
+
+.airplay-outside-value {
+  min-width: 0;
+  margin: 0 !important;
+  overflow: visible !important;
+  color: var(--text);
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+.airplay-outside-value + .airplay-outside-value {
+  padding-inline-start: clamp(12px, 1.6vmin, 18px);
+  border-inline-start: 1px solid rgba(143, 211, 255, 0.18);
+}
+
+.airplay-info-card.is-outside .segment-readout-inner,
+.airplay-info-card.is-outside .segment-readout-number,
+.airplay-info-card.is-outside .segment-readout-cell {
+  max-inline-size: none;
+  font-size: 1em !important;
+}
+
+.airplay-info-card.is-outside strong.airplay-outside-value.segment-readout {
+  font-size: var(--airplay-glance-character-height) !important;
+}
+
+.airplay-info-card.is-outside .segment-readout-unit {
+  margin-inline-start: 0.17em !important;
+  font-size: 0.46em !important;
+}
+
+/* Feed the same physical character height to the mini-clock and sensor values. */
+.airplay-mini-clock-line {
+  --alpha-display-h: var(--airplay-glance-character-height);
+}
+
+.airplay-mini-time.is-segmented .digital-colon,
+.airplay-mini-time.is-segmented .digital-colon-small {
+  align-items: center;
+  margin-inline: calc(var(--alpha-display-h) * 0.06);
 }
 
 .airplay-info-card.is-barometer {
@@ -36,12 +96,13 @@
 }
 
 @media (max-height: 520px), (max-width: 860px) {
-  .airplay-glance-grid {
-    grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.2fr) minmax(0, 0.96fr);
+  body.airplay-session-idle .airplay-copy .airplay-detail {
+    font-size: clamp(0.82rem, 2.2vw, 0.98rem);
   }
 
-  .airplay-info-card.is-outside strong {
-    font-size: clamp(1.24rem, 3.2vw, 1.66rem);
+  .airplay-glance-grid {
+    --airplay-glance-character-height: clamp(25px, 5.75vh, 34px);
+    grid-template-columns: minmax(0, 1.86fr) minmax(0, 1.18fr) minmax(0, 0.9fr);
   }
 
   .airplay-info-card.is-barometer strong {
