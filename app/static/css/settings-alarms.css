@@ -1,3 +1,15 @@
 /* Alarm settings workspace. */
 @import url("settings-alarm-tones.css");
 @import url("settings-alarm-model.css");
+
+/* When the list is empty, the first alarm is less "another" and more a conscious
+   decision to place sleep in jeopardy. Once an alarm exists, the normal button
+   wording from the editor returns automatically. */
+.alarm-list:has(.alarm-empty-state) + .alarm-add-button {
+  font-size: 0;
+}
+
+.alarm-list:has(.alarm-empty-state) + .alarm-add-button::after {
+  content: "＋ Click here to ruin your sleep";
+  font-size: clamp(0.84rem, 2vmin, 1rem);
+}
