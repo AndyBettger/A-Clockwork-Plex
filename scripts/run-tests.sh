@@ -36,12 +36,13 @@ EOF
 fi
 
 echo "Using Python: $PYTHON"
-"$PYTHON" -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py
+"$PYTHON" -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py app/alarm_audio.py
 "$PYTHON" -m unittest discover -s tests -v
 
 if command -v node >/dev/null 2>&1; then
   node --check app/static/js/settings-alarms.js
   node --check app/static/js/settings-alarm-scheduler.js
+  node --check app/static/js/settings-alarm-audio.js
   node --check app/static/js/settings-keyboard.js
   node --check app/static/js/settings-tabs.js
   node --check app/static/js/settings-about.js
@@ -50,3 +51,6 @@ if command -v node >/dev/null 2>&1; then
 else
   echo "Node.js not found; skipping JavaScript syntax checks."
 fi
+
+bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
+bash -n scripts/install-alarm-audio-helper.sh
