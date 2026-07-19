@@ -99,6 +99,7 @@
     "backend": "aplay",
     "alsa_device": "default",
     "test_duration_seconds": 12,
+    "test_volume_cap_percent": 25,
     "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio"
   }
 }
