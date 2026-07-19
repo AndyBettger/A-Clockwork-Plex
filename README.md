@@ -4,9 +4,11 @@ A Raspberry Pi touchscreen dashboard for Plexamp Headless, NFC-triggered albums,
 
 A Clockwork Plex is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener). The NFC listener reads album tags and starts Plexamp playback; this project provides the touchscreen interface around it.
 
+> Development note: the `feature/alarm-engine` branch contains the alarm runtime, shared ALSA path and live mixer described below. Scheduled alarm audio remains deliberately locked while controlled testing continues.
+
 ## Current status
 
-The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, Settings workspace, alarm runtime and controlled alarm-audio tests are working on Raspberry Pi touchscreen hardware. Scheduled alarm audio remains deliberately locked while the shared-audio path is being proven.
+The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, Settings workspace, alarm runtime and controlled alarm-audio tests are working on Raspberry Pi touchscreen hardware.
 
 | Area | Current behaviour |
 |---|---|
@@ -15,7 +17,7 @@ The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, Set
 | **Weather** | Detailed Ecowitt console with conditions, daily low/high values, 16-point wind direction, pressure/barometer forecast, rain gauges, station status and auto-refresh. |
 | **Plexamp** | Plexamp Headless embedded in a dashboard iframe so the touchscreen navigation handle remains available. |
 | **NFC handoff** | A successful NFC album scan can start Plexamp and switch the dashboard to the embedded Plexamp screen. |
-| **AirPlay handoff** | Shairport Sync pauses Plexamp and changes the dashboard mode while both services remain alive through the shared ALSA mixer. |
+| **AirPlay handoff** | Shairport Sync pauses Plexamp and changes dashboard mode while both services remain alive through the shared ALSA mixer. |
 | **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, volume, transport controls and a glance row containing time/date, outdoor temperature/humidity and barometer status. |
 | **Shared audio** | Plexamp, AirPlay and alarm sources feed source-specific trims, one master stage and a common ALSA `dmix` output. |
 | **Audio controls** | Persistent vertical trims under Settings → Audio plus a player-aware live mixer in the bottom navigation drawer. |
@@ -110,7 +112,7 @@ The project is designed for a Raspberry Pi running Raspberry Pi OS with:
 - an Ecowitt-compatible weather station when weather data is required;
 - `Plexamp-NFC-Listener` and a supported NFC reader for tag-triggered playback.
 
-The Flask service listens on port `8088` by default. It is intended as a trusted-LAN appliance; do not expose its control endpoints directly to the public internet without adding suitable authentication and a secure reverse proxy.
+The Flask service listens on port `8088` by default. It is intended as a trusted-LAN appliance; do not expose its control endpoints directly to the public internet without suitable authentication and a secure reverse proxy.
 
 ## Quick start
 
