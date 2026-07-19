@@ -1,11 +1,34 @@
 from __future__ import annotations
 
+import subprocess
 import tempfile
 import unittest
 import wave
 from pathlib import Path
 
 from app.alarm_audio import AlarmAudioManager, normalise_audio_settings, render_tone_wav
+
+
+class StubbornProcess:
+    def __init__(self) -> None:
+        self.returncode = None
+        self.terminated = False
+        self.killed = False
+
+    def poll(self):
+        return self.returncode
+
+    def terminate(self):
+        self.terminated = True
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+
+    def wait(self, timeout=None):
+        if not self.killed:
+            raise subprocess.TimeoutExpired("aplay", timeout)
+        return self.returncode
 
 
 class AlarmAudioTests(unittest.TestCase):
@@ -76,6 +99,13 @@ class AlarmAudioTests(unittest.TestCase):
             self.assertEqual(manager.status()["armed_occurrence_count"], 1)
             manager.disarm_occurrence("test|123")
             self.assertEqual(manager.status()["armed_occurrence_count"], 0)
+
+    def test_stubborn_player_is_killed_after_terminate_timeout(self):
+        process = StubbornProcess()
+        return_code = AlarmAudioManager._terminate_process(process)
+        self.assertTrue(process.terminated)
+        self.assertTrue(process.killed)
+        self.assertEqual(return_code, -9)
 
 
 if __name__ == "__main__":
