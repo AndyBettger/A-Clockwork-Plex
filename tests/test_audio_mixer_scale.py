@@ -31,6 +31,14 @@ class AudioMixerScaleTests(unittest.TestCase):
         self.assertEqual(HELPER.db_to_loudness_percent(-51.0), 0)
         self.assertEqual(HELPER.db_to_loudness_percent(-80.0), 0)
 
+    def test_decibels_convert_to_positive_raw_alsa_percentages(self):
+        self.assertEqual(HELPER.db_to_raw_percent(None), 0)
+        self.assertEqual(HELPER.db_to_raw_percent(-51.0), 0)
+        self.assertEqual(HELPER.db_to_raw_percent(0.0), 100)
+        self.assertAlmostEqual(HELPER.db_to_raw_percent(-6.02), 88, delta=1)
+        self.assertAlmostEqual(HELPER.db_to_raw_percent(-12.04), 76, delta=1)
+        self.assertAlmostEqual(HELPER.db_to_raw_percent(-20.0), 61, delta=1)
+
 
 if __name__ == "__main__":
     unittest.main()
