@@ -94,12 +94,15 @@
   "alarm_audio": {
     "master_enabled": false,
     "scheduled_enabled": false,
-    "release_services": true,
-    "restore_services": true,
+    "shared_mixer_enabled": true,
+    "hardware_device": "hw:CARD=Pro,DEV=0",
+    "release_services": false,
+    "restore_services": false,
     "backend": "aplay",
-    "alsa_device": "default",
+    "alsa_device": "acp_alarm",
     "test_duration_seconds": 12,
     "test_volume_cap_percent": 25,
-    "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio"
+    "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio",
+    "mixer_helper_path": "/usr/local/bin/a-clockwork-plex-audio-mixer"
   }
 }
