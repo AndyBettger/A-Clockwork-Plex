@@ -26,5 +26,12 @@ jobs:
       - name: Compile application modules
         run: python -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py
 
+      - name: Check settings JavaScript syntax
+        run: |
+          node --check app/static/js/settings-alarms.js
+          node --check app/static/js/settings-keyboard.js
+          node --check app/static/js/settings-tabs.js
+          node --check app/static/js/settings-about.js
+
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
