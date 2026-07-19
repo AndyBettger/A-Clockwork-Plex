@@ -1,4 +1,4 @@
-/* Silent alarm scheduler status and next-occurrence diagnostics. */
+/* Alarm scheduler and active-runtime status diagnostics. */
 
 .alarm-scheduler-status-card {
   display: grid;
@@ -29,7 +29,7 @@
 
 .alarm-scheduler-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(8px, 1.35vmin, 12px);
 }
 
@@ -39,6 +39,10 @@
   border: 1px solid rgba(143, 211, 255, 0.12);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.055);
+}
+
+.alarm-scheduler-reading.is-wide {
+  grid-column: span 2;
 }
 
 .alarm-scheduler-reading span,
@@ -81,8 +85,14 @@
 
 .alarm-scheduler-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.alarm-scheduler-actions #alarm-scheduler-message {
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
 }
 
 .alarm-scheduler-actions .is-error {
