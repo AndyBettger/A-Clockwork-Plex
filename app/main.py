@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from flask import jsonify, request
 
 try:
-    from . import main_legacy as legacy
+    from . import dashboard_core as core
     from .alarm_config import (
         DAY_OPTIONS,
         load_tone_manifest,
@@ -14,7 +13,7 @@ try:
         validate_submitted_alarm_config,
     )
 except ImportError:  # Supports direct execution with: python app/main.py
-    import main_legacy as legacy
+    import dashboard_core as core
     from alarm_config import (
         DAY_OPTIONS,
         load_tone_manifest,
@@ -24,15 +23,15 @@ except ImportError:  # Supports direct execution with: python app/main.py
 
 # Re-export the established application helpers for compatibility with existing
 # imports, then replace only the alarm-aware functions below.
-for _name in dir(legacy):
+for _name in dir(core):
     if not _name.startswith("_") and _name not in globals():
-        globals()[_name] = getattr(legacy, _name)
+        globals()[_name] = getattr(core, _name)
 
-app = legacy.app
-TONE_MANIFEST_PATH = legacy.BASE_DIR / "app" / "static" / "alarm-tones.json"
+app = core.app
+TONE_MANIFEST_PATH = core.BASE_DIR / "app" / "static" / "alarm-tones.json"
 
-_legacy_load_config = legacy.load_config
-_legacy_save_settings_from_form = legacy.save_settings_from_form
+_core_load_config = core.load_config
+_core_save_settings_from_form = core.save_settings_from_form
 
 
 def alarm_tone_manifest() -> dict[str, Any]:
@@ -40,13 +39,13 @@ def alarm_tone_manifest() -> dict[str, Any]:
 
 
 def _has_explicit_alarm_list() -> bool:
-    raw_config = legacy.load_json(legacy.CONFIG_PATH, {})
+    raw_config = core.load_json(core.CONFIG_PATH, {})
     raw_alarm = raw_config.get("alarm") if isinstance(raw_config, dict) else None
     return isinstance(raw_alarm, dict) and isinstance(raw_alarm.get("alarms"), list)
 
 
 def load_config() -> dict[str, Any]:
-    config = _legacy_load_config()
+    config = _core_load_config()
     config["alarm"] = normalise_alarm_config(
         config.get("alarm"),
         alarm_tone_manifest(),
@@ -58,16 +57,16 @@ def load_config() -> dict[str, Any]:
 def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
     # The dedicated alarm API saves the dynamic collection immediately before
     # the ordinary Settings form posts. Preserve that validated model while the
-    # legacy handler continues to save every non-alarm field unchanged.
+    # core handler continues to save every non-alarm field unchanged.
     alarm_model = normalise_alarm_config(config.get("alarm"), alarm_tone_manifest())
-    saved = _legacy_save_settings_from_form(config)
+    saved = _core_save_settings_from_form(config)
     saved["alarm"] = alarm_model
-    legacy.save_json(legacy.CONFIG_PATH, saved)
+    core.save_json(core.CONFIG_PATH, saved)
     return saved
 
 
-legacy.load_config = load_config
-legacy.save_settings_from_form = save_settings_from_form
+core.load_config = load_config
+core.save_settings_from_form = save_settings_from_form
 
 
 @app.route("/api/alarms/config", methods=["GET", "POST"])
@@ -91,10 +90,10 @@ def api_alarm_config():
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
 
-    config = _legacy_load_config()
+    config = _core_load_config()
     config["alarm"] = alarm_model
     try:
-        legacy.save_json(legacy.CONFIG_PATH, config)
+        core.save_json(core.CONFIG_PATH, config)
     except OSError as exc:
         return jsonify({"ok": False, "error": f"Could not save alarm configuration: {exc}"}), 500
 
