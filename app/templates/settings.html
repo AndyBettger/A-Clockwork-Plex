@@ -4,6 +4,7 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-tabs.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-alarms.css') }}">
 {% endblock %}
 {% block content %}
 <section class="settings-page" aria-label="A Clockwork Plex settings">
@@ -173,36 +174,99 @@
       <section class="settings-card is-intro">
         <div class="settings-card-heading">
           <h2>Alarms</h2>
-          <span class="settings-chip">Next chapter</span>
+          <span class="settings-chip">Configuration shell</span>
         </div>
-        <p class="muted small">The scheduler, tone previews and large Snooze screen will be built here.</p>
+        <p class="muted small">Local tones first, an eight-minute snooze, and no unnecessary violence toward the precious sleep until the appointed time.</p>
       </section>
 
       <section class="settings-card">
-        <h2>Current alarm defaults</h2>
-        <div class="settings-grid three-col">
-          <label class="setting-toggle">
-            <input type="checkbox" name="alarm_enabled" {% if config.alarm.enabled %}checked{% endif %}>
-            <span>Alarm enabled</span>
-          </label>
+        <h2>Alarm defaults</h2>
+        <div class="alarm-defaults-grid">
           <label class="setting-field">
-            <span>Default alarm time</span>
-            <input name="alarm_default_time" type="text" inputmode="none" value="{{ config.alarm.default_time }}" data-keyboard="time" placeholder="HH:MM">
+            <span>Default snooze</span>
+            <div class="alarm-duration-control">
+              <select id="alarm-snooze-preset" aria-label="Default snooze preset">
+                <option value="5">5 minutes</option>
+                <option value="8">8 minutes</option>
+                <option value="10">10 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="20">20 minutes</option>
+                <option value="25">25 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="custom">Custom</option>
+              </select>
+              <input class="alarm-duration-custom" id="alarm-snooze-custom" type="text" inputmode="none" data-keyboard="number" value="{{ config.alarm.snooze_minutes }}" aria-label="Custom snooze minutes" hidden>
+              <input id="alarm-snooze-minutes" name="alarm_snooze_minutes" type="hidden" value="{{ config.alarm.snooze_minutes }}">
+            </div>
+            <small>Custom values may be from 1 to 60 minutes.</small>
           </label>
-          <label class="setting-field">
-            <span>Snooze minutes</span>
-            <input name="alarm_snooze_minutes" type="text" inputmode="none" value="{{ config.alarm.snooze_minutes }}" data-keyboard="number">
-            <small>The alarm-engine default will be 8 minutes.</small>
-          </label>
+          <div class="alarm-default-reading">
+            <span>Continuous ring cycle</span>
+            <strong>3 minutes</strong>
+            <small>Then automatically quiet for one snooze interval.</small>
+          </div>
+          <div class="alarm-default-reading">
+            <span>Occurrence expiry</span>
+            <strong>2 hours</strong>
+            <small>Stops abandoned snoozes returning throughout the day.</small>
+          </div>
         </div>
       </section>
 
-      <section class="settings-card is-placeholder">
+      <section class="settings-card">
         <div class="settings-card-heading">
-          <h2>Alarm list and tones</h2>
-          <span class="settings-chip">Planned</span>
+          <h2>Configured alarms</h2>
+          <span class="settings-chip">1 alarm</span>
         </div>
-        <p class="muted">Expandable alarm cards, weekday schedules, local tone choices, previews, fallback audio, ring-cycle duration and occurrence expiry will replace this placeholder.</p>
+        <div class="alarm-list">
+          <article class="alarm-editor-card">
+            <button class="alarm-editor-summary" type="button" aria-expanded="true" data-alarm-editor-toggle>
+              <span class="alarm-editor-time" data-alarm-summary-time>{{ config.alarm.default_time }}</span>
+              <span class="alarm-editor-title">
+                <strong>Default alarm</strong>
+                <span>Every day · Classic Klaxon · Snooze {{ config.alarm.snooze_minutes }} min</span>
+              </span>
+              <span class="alarm-editor-state{% if not config.alarm.enabled %} is-off{% endif %}" data-alarm-summary-state>{% if config.alarm.enabled %}Enabled{% else %}Off{% endif %}</span>
+              <span class="alarm-editor-chevron" aria-hidden="true">⌄</span>
+            </button>
+
+            <div class="alarm-editor-body" data-alarm-editor-body>
+              <div class="settings-grid two-col">
+                <label class="setting-toggle">
+                  <input type="checkbox" name="alarm_enabled" {% if config.alarm.enabled %}checked{% endif %}>
+                  <span>Alarm enabled</span>
+                </label>
+                <label class="setting-field">
+                  <span>Alarm time</span>
+                  <input name="alarm_default_time" type="text" inputmode="none" value="{{ config.alarm.default_time }}" data-keyboard="time" placeholder="HH:MM">
+                </label>
+              </div>
+
+              <div class="alarm-design-grid" aria-label="Agreed alarm design">
+                <div class="alarm-design-chip">
+                  <span>Schedule</span>
+                  <strong>Every day</strong>
+                </div>
+                <div class="alarm-design-chip">
+                  <span>Source</span>
+                  <strong>Local tone</strong>
+                </div>
+                <div class="alarm-design-chip">
+                  <span>Tone</span>
+                  <strong>Classic Klaxon</strong>
+                </div>
+                <div class="alarm-design-chip">
+                  <span>Fallback</span>
+                  <strong>Emergency buzzer</strong>
+                </div>
+              </div>
+
+              <p class="alarm-shell-note">The enabled state, alarm time and snooze duration save now. Labels, weekdays, multiple alarms, tone choice and previews will become editable in the next data-model pass.</p>
+            </div>
+          </article>
+
+          <button class="alarm-add-button" type="button" disabled>＋ Add another alarm — coming in the data-model pass</button>
+        </div>
       </section>
     </div>
 
@@ -354,6 +418,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/settings-tabs.js') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-about.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-alarms.js') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-clock-cards.js') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-keyboard.js') }}"></script>
 <script>
