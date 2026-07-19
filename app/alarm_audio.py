@@ -272,6 +272,22 @@ class AlarmAudioManager:
         except (OSError, subprocess.TimeoutExpired) as exc:
             self.state["last_error"] = str(exc)
 
+    @staticmethod
+    def _terminate_process(process: subprocess.Popen[Any] | None) -> int | None:
+        if process is None:
+            return None
+        return_code = process.poll()
+        if return_code is not None:
+            return return_code
+        try:
+            process.terminate()
+            return process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            return process.wait(timeout=2)
+        except OSError:
+            return process.poll()
+
     def diagnostics(self) -> dict[str, Any]:
         settings = self.settings()
         player = shutil.which("aplay")
@@ -397,6 +413,7 @@ class AlarmAudioManager:
                 error = f"Unknown tone: {tone_id}"
                 continue
             wav_path = Path(tempfile.gettempdir()) / f"a-clockwork-plex-{uuid.uuid4().hex}.wav"
+            process: subprocess.Popen[Any] | None = None
             try:
                 render_tone_wav(
                     tone,
@@ -422,14 +439,18 @@ class AlarmAudioManager:
                 while process.poll() is None and not self.stop_event.wait(0.1):
                     pass
                 if self.stop_event.is_set() and process.poll() is None:
-                    process.terminate()
-                return_code = process.wait(timeout=2)
+                    return_code = self._terminate_process(process)
+                else:
+                    return_code = process.poll()
+                    if return_code is None:
+                        return_code = process.wait(timeout=2)
                 error = process.stderr.read().strip() if return_code and process.stderr else None
                 success = return_code == 0
                 if success or self.stop_event.is_set():
                     break
             except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
                 error = str(exc)
+                self._terminate_process(process)
             finally:
                 wav_path.unlink(missing_ok=True)
                 with self.lock:
@@ -455,10 +476,11 @@ class AlarmAudioManager:
             self.stop_event.set()
             process = self.process
             snapshot = deepcopy(self.owner_snapshot)
-            if process and process.poll() is None:
-                process.terminate()
+        self._terminate_process(process)
         if self.worker_thread and self.worker_thread.is_alive() and self.worker_thread is not threading.current_thread():
-            self.worker_thread.join(timeout=3)
+            self.worker_thread.join(timeout=4)
+        if self.worker_thread and self.worker_thread.is_alive():
+            self._terminate_process(process)
         if restore and snapshot and self.owner_snapshot is not None:
             self._restore(settings, snapshot)
         with self.lock:
