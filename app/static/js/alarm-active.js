@@ -13,6 +13,7 @@
   const sourceElement = byId('alarm-active-source');
   const statusElement = byId('alarm-active-status');
   const footerElement = byId('alarm-active-footer');
+  const audioLockElement = document.querySelector('.alarm-audio-lock');
   const snoozeButton = byId('alarm-snooze-button');
   const snoozeDuration = byId('alarm-snooze-duration');
   const dismissTrack = byId('alarm-dismiss-track');
@@ -82,6 +83,51 @@
     }
   }
 
+  function audioDisplay(active, payload, toneLabel) {
+    const audio = payload?.audio || {};
+    const currentMatches = String(audio.current_occurrence_key || '') === String(active.occurrence_key || '');
+    const playing = Boolean(audio.playback_active && currentMatches);
+    const armed = Boolean(active.test_mode && Number(audio.armed_occurrence_count) > 0);
+    const action = String(audio.last_action?.action || '');
+    const finished = currentMatches && ['playback-finished', 'playback-stopped', 'playback-stop-requested'].includes(action);
+    const fallback = audio.fallback_used ? ' · emergency fallback' : '';
+
+    if (playing) {
+      return {
+        chip: 'Controlled audio test · sounding',
+        source: `${audio.current_tone_label || toneLabel} · real local audio${fallback}`,
+        status: audio.fallback_used
+          ? 'The selected tone could not be used, so the Emergency Buzzer fallback is sounding.'
+          : 'The controlled local-audio test is active. Snooze or Dismiss stops it immediately.',
+        footer: 'Test-only audio is enabled; ordinary scheduled alarms remain unable to make sound.',
+      };
+    }
+    if (finished) {
+      return {
+        chip: 'Controlled audio test · complete',
+        source: `${audio.current_tone_label || toneLabel} · test cycle finished${fallback}`,
+        status: audio.last_error || 'The timed audio test has finished. The alarm screen remains available for Snooze and Dismiss testing.',
+        footer: 'The test cycle stopped automatically and previous audio services were restored where possible.',
+      };
+    }
+    if (armed) {
+      return {
+        chip: 'Controlled audio test · starting',
+        source: `${toneLabel} · local audio armed`,
+        status: audio.last_error || 'The alarm screen is active and the audio manager is acquiring the output device.',
+        footer: 'This occurrence was explicitly armed from Settings; scheduled alarms remain silent.',
+      };
+    }
+    return {
+      chip: active.test_mode ? 'Visual test · audio locked' : 'Scheduled alarm · audio locked',
+      source: `${toneLabel} · playback disabled${active.test_mode ? ' · visual test' : ''}`,
+      status: 'The alarm is active on screen. This occurrence was not explicitly armed to make sound.',
+      footer: active.test_mode
+        ? 'Visual test mode: dismissing or clearing this alarm will not alter its saved schedule.'
+        : 'Screen takeover is active; scheduled audio remains behind the safety lock.',
+    };
+  }
+
   function renderPayload(payload) {
     const active = payload?.active;
     const screenRequired = Boolean(payload?.screen_required);
@@ -94,26 +140,27 @@
     const snoozeMinutes = Number(active.snooze_minutes) || 8;
     const toneLabel = payload.tone_label || active?.source?.tone_id || 'Local tone';
     const snoozeCount = Number(active.snooze_count) || 0;
-    const testSuffix = active.test_mode ? ' · visual test' : '';
+    const audio = audioDisplay(active, payload, toneLabel);
 
     if (labelElement) {
       labelElement.textContent = active.label || 'Alarm';
     }
+    if (audioLockElement) {
+      audioLockElement.textContent = audio.chip;
+    }
     if (sourceElement) {
-      sourceElement.textContent = `${toneLabel} · playback disabled${testSuffix}`;
+      sourceElement.textContent = audio.source;
     }
     if (snoozeDuration) {
       snoozeDuration.textContent = `${snoozeMinutes} min`;
     }
     if (statusElement) {
       statusElement.textContent = snoozeCount
-        ? `This alarm has been snoozed ${snoozeCount} time${snoozeCount === 1 ? '' : 's'}. The next snooze starts from the moment you press it.`
-        : 'The alarm is active on screen. No sound has been attempted during this validation pass.';
+        ? `This alarm has been snoozed ${snoozeCount} time${snoozeCount === 1 ? '' : 's'}. ${audio.status}`
+        : audio.status;
     }
     if (footerElement) {
-      footerElement.textContent = active.test_mode
-        ? 'Visual test mode: dismissing or clearing this alarm will not alter its saved schedule.'
-        : 'The screen takeover is real; audio remains under lock and key.';
+      footerElement.textContent = audio.footer;
     }
   }
 
@@ -158,14 +205,14 @@
   }
 
   async function snoozeAlarm() {
-    const payload = await postAction(SNOOZE_ENDPOINT, 'Snoozing…');
+    const payload = await postAction(SNOOZE_ENDPOINT, 'Stopping audio and snoozing…');
     if (payload) {
       leaveAlarmScreen(false);
     }
   }
 
   async function dismissAlarm() {
-    const payload = await postAction(DISMISS_ENDPOINT, 'Dismissing alarm…');
+    const payload = await postAction(DISMISS_ENDPOINT, 'Stopping audio and dismissing alarm…');
     if (!payload) {
       resetDismissHandle();
       return;
