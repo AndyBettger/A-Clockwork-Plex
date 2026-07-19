@@ -51,7 +51,7 @@
     "enabled": false,
     "default_time": "11:00",
     "snooze_minutes": 8,
-    "schema_version": 1,
+    "schema_version": 2,
     "defaults": {
       "snooze_minutes": 8,
       "ring_minutes": 3,
