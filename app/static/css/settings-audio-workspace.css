@@ -76,8 +76,8 @@
 
 .audio-mixer-card.is-vertical-console .audio-mixer-control-row {
   --fader-end-space: 58px;
-  --fader-scale-top: calc(var(--fader-end-space) + 10px);
-  --fader-scale-bottom: calc(var(--fader-end-space) - 10px);
+  --fader-scale-top: calc(var(--fader-end-space) + 12px);
+  --fader-scale-bottom: calc(var(--fader-end-space) - 14px);
   position: relative;
   display: grid;
   grid-template-columns: 1fr;
@@ -93,28 +93,7 @@
   -webkit-touch-callout: none;
 }
 
-/* Minor 10% ticks. */
-.audio-mixer-card.is-vertical-console .audio-mixer-control-row::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  top: var(--fader-scale-top);
-  bottom: var(--fader-scale-bottom);
-  left: 50%;
-  width: 38px;
-  border-radius: 10px;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(190, 234, 255, 0.26) 0,
-    rgba(190, 234, 255, 0.26) 1px,
-    transparent 1px,
-    transparent 10%
-  );
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-/* Wider, brighter 20% ticks. */
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::before,
 .audio-mixer-card.is-vertical-console .audio-mixer-control-row::after {
   content: "";
   position: absolute;
@@ -122,17 +101,27 @@
   top: var(--fader-scale-top);
   bottom: var(--fader-scale-bottom);
   left: 50%;
-  width: 54px;
   border-radius: 10px;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(190, 234, 255, 0.42) 0,
-    rgba(190, 234, 255, 0.42) 2px,
-    transparent 2px,
-    transparent 20%
-  );
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::before {
+  width: 26px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.22) 0 1px,
+    transparent 1px 10%
+  );
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::after {
+  width: 40px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.44) 0 2px,
+    transparent 2px 20%
+  );
 }
 
 .audio-mixer-card.is-vertical-console .audio-mixer-step {
@@ -243,9 +232,9 @@
   gap: 12px;
 }
 
-/* The Pi reports an approximately 800 CSS-pixel-wide viewport through VNC.
-   Four compact faders remain usable there, so only collapse below 620px. */
-@media (max-width: 620px) {
+/* Keep all four console strips together on the Pi. Only very narrow phones
+   collapse the layout; ordinary touchscreen/VNC widths scroll rather than wrap. */
+@media (max-width: 480px) {
   .audio-mixer-card.is-vertical-console .audio-mixer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -255,7 +244,7 @@
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 360px) {
   .audio-mixer-card.is-vertical-console .audio-mixer-grid {
     grid-template-columns: 1fr;
   }
