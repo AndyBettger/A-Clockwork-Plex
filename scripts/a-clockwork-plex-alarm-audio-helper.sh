@@ -26,6 +26,30 @@ plexamp_http_ready() {
     /usr/bin/curl -fsS --max-time 1 "$PLEXAMP_HEALTH_URL" >/dev/null 2>&1
 }
 
+pcm_playback_busy() {
+    local device
+    for device in /dev/snd/pcmC*D*p; do
+        [[ -e "$device" ]] || continue
+        if /usr/bin/fuser -s "$device" 2>/dev/null; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+wait_pcm_free() {
+    local timeout_seconds="$1"
+    local deadline=$((SECONDS + timeout_seconds))
+
+    while (( SECONDS < deadline )); do
+        if ! pcm_playback_busy; then
+            return 0
+        fi
+        /usr/bin/sleep 0.1
+    done
+    ! pcm_playback_busy
+}
+
 wait_inactive() {
     local service="$1"
     local timeout_seconds="$2"
@@ -105,10 +129,11 @@ stop_service_bounded() {
 }
 
 status_json() {
-    printf '{"plexamp_active":%s,"plexamp_http_ready":%s,"shairport_active":%s,"plexamp_state":"%s","shairport_state":"%s"}\n' \
+    printf '{"plexamp_active":%s,"plexamp_http_ready":%s,"shairport_active":%s,"pcm_playback_busy":%s,"plexamp_state":"%s","shairport_state":"%s"}\n' \
         "$(json_bool is_active "$PLEXAMP_SERVICE")" \
         "$(json_bool plexamp_http_ready)" \
         "$(json_bool is_active "$SHAIRPORT_SERVICE")" \
+        "$(json_bool pcm_playback_busy)" \
         "$(service_state "$PLEXAMP_SERVICE")" \
         "$(service_state "$SHAIRPORT_SERVICE")"
 }
@@ -151,8 +176,13 @@ case "${1:-status}" in
                 ;;
         esac
 
-        /usr/bin/sleep 0.35
-        printf '{"released":true,"plexamp_forced":%s,"shairport_forced":%s,"plexamp_state":"%s","shairport_state":"%s"}\n' \
+        if ! wait_pcm_free 3; then
+            printf '{"released":false,"error":"pcm-release-timeout","pcm_playback_busy":true,"plexamp_forced":%s,"shairport_forced":%s}\n' \
+                "$plexamp_forced" "$shairport_forced"
+            exit 70
+        fi
+
+        printf '{"released":true,"pcm_playback_busy":false,"plexamp_forced":%s,"shairport_forced":%s,"plexamp_state":"%s","shairport_state":"%s"}\n' \
             "$plexamp_forced" \
             "$shairport_forced" \
             "$(service_state "$PLEXAMP_SERVICE")" \
@@ -168,6 +198,14 @@ case "${1:-status}" in
         plexamp_ready=false
         shairport_ready=false
 
+        # aplay has exited by the time restore is requested, but ALSA's plug
+        # layer can take a short moment to drop the playback PCM. Do not start a
+        # competing owner until the kernel reports every playback node free.
+        if ! wait_pcm_free 4; then
+            printf '{"restored":false,"error":"alarm-pcm-release-timeout","pcm_playback_busy":true}\n'
+            exit 71
+        fi
+
         if [[ "$plexamp" == "1" ]]; then
             # A previous timed-out stop must never be allowed to block start.
             case "$(service_state "$PLEXAMP_SERVICE")" in
@@ -182,6 +220,10 @@ case "${1:-status}" in
             /usr/bin/systemctl reset-failed "$PLEXAMP_SERVICE" >/dev/null 2>&1 || true
             /usr/bin/systemctl start --no-block "$PLEXAMP_SERVICE" >/dev/null 2>&1 || true
             if wait_active "$PLEXAMP_SERVICE" 3 && wait_plexamp_http 6; then
+                # The web endpoint can become ready just before Plexamp's audio
+                # engine finishes initialising. A short bounded settle avoids
+                # returning control while its DAC path is still coming online.
+                /usr/bin/sleep 0.75
                 plexamp_ready=true
             else
                 printf '{"restored":false,"error":"plexamp-health-timeout","plexamp_state":"%s","plexamp_http_ready":%s}\n' \
@@ -204,7 +246,7 @@ case "${1:-status}" in
             fi
         fi
 
-        printf '{"restored":true,"plexamp":%s,"plexamp_ready":%s,"shairport":%s,"shairport_ready":%s}\n' \
+        printf '{"restored":true,"pcm_playback_busy_before_restore":false,"plexamp":%s,"plexamp_ready":%s,"shairport":%s,"shairport_ready":%s}\n' \
             "$plexamp" "$plexamp_ready" "$shairport" "$shairport_ready"
         ;;
 
