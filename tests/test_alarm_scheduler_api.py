@@ -29,54 +29,52 @@ class AlarmSchedulerApiTests(unittest.TestCase):
         main.core.EXAMPLE_CONFIG_PATH = self.example_path
         main.core.STATE_PATH = self.state_path
 
-        self.example_path.write_text(
-            json.dumps(
-                {
-                    "dashboard": {
-                        "default_mode": "clock",
-                        "host": "0.0.0.0",
-                        "port": 8088,
-                    },
-                    "alarm": {
-                        "schema_version": 2,
+        saved_config = {
+            "dashboard": {
+                "default_mode": "clock",
+                "host": "0.0.0.0",
+                "port": 8088,
+            },
+            "alarm": {
+                "schema_version": 2,
+                "enabled": True,
+                "default_time": "23:00",
+                "snooze_minutes": 8,
+                "defaults": {
+                    "snooze_minutes": 8,
+                    "ring_minutes": 3,
+                    "occurrence_expiry_minutes": 120,
+                    "tone_id": "classic-klaxon",
+                    "fallback_tone_id": "emergency-buzzer",
+                    "source_type": "tone",
+                },
+                "alarms": [
+                    {
+                        "id": "daily-alarm",
                         "enabled": True,
-                        "default_time": "23:00",
+                        "label": "Daily alarm",
+                        "time": "23:00",
+                        "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
                         "snooze_minutes": 8,
-                        "defaults": {
-                            "snooze_minutes": 8,
-                            "ring_minutes": 3,
-                            "occurrence_expiry_minutes": 120,
+                        "ring_minutes": 3,
+                        "occurrence_expiry_minutes": 120,
+                        "source": {
+                            "type": "tone",
                             "tone_id": "classic-klaxon",
                             "fallback_tone_id": "emergency-buzzer",
-                            "source_type": "tone",
                         },
-                        "alarms": [
-                            {
-                                "id": "daily-alarm",
-                                "enabled": True,
-                                "label": "Daily alarm",
-                                "time": "23:00",
-                                "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-                                "snooze_minutes": 8,
-                                "ring_minutes": 3,
-                                "occurrence_expiry_minutes": 120,
-                                "source": {
-                                    "type": "tone",
-                                    "tone_id": "classic-klaxon",
-                                    "fallback_tone_id": "emergency-buzzer",
-                                },
-                                "volume": {
-                                    "start_percent": 60,
-                                    "target_percent": 85,
-                                    "fade_seconds": 10,
-                                },
-                            }
-                        ],
-                    },
-                }
-            ),
-            encoding="utf-8",
-        )
+                        "volume": {
+                            "start_percent": 60,
+                            "target_percent": 85,
+                            "fade_seconds": 10,
+                        },
+                    }
+                ],
+            },
+        }
+        serialised = json.dumps(saved_config)
+        self.example_path.write_text(serialised, encoding="utf-8")
+        self.config_path.write_text(serialised, encoding="utf-8")
 
         timezone = ZoneInfo("UTC")
         main.alarm_scheduler = SilentAlarmScheduler(
