@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import subprocess
 import sys
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_PATH = Path("/etc/default/a-clockwork-plex-audio")
+MIN_DB = -51.0
+MAX_DB = 0.0
 CHANNELS = {
     "master": {"control": "A Clockwork Master", "pcm": "acp_master"},
     "plexamp": {"control": "A Clockwork Plexamp", "pcm": "acp_plexamp"},
@@ -60,15 +63,64 @@ def pcm_names() -> set[str]:
     }
 
 
+def db_to_loudness_percent(db_value: float) -> int:
+    """Convert attenuation in dB to a human-facing amplitude percentage."""
+    if db_value <= MIN_DB:
+        return 0
+    if db_value >= MAX_DB:
+        return 100
+    amplitude = 10 ** (db_value / 20.0)
+    return max(0, min(100, round(amplitude * 100)))
+
+
+def loudness_percent_to_db(percent: int) -> float | None:
+    """Map a human-facing percentage to dB; zero is handled as hard minimum."""
+    if percent <= 0:
+        return None
+    db_value = 20.0 * math.log10(percent / 100.0)
+    return max(MIN_DB, min(MAX_DB, db_value))
+
+
 def control_status(card: str, control: str) -> dict[str, Any]:
     result = run(["/usr/bin/amixer", "-c", card, "sget", control])
     output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode:
-        return {"available": False, "percent": None, "error": output or "Mixer control unavailable."}
-    matches = re.findall(r"\[(\d{1,3})%\]", output)
-    if not matches:
-        return {"available": False, "percent": None, "error": "Mixer control returned no percentage."}
-    return {"available": True, "percent": max(0, min(100, int(matches[0]))), "error": None}
+        return {
+            "available": False,
+            "percent": None,
+            "raw_percent": None,
+            "db": None,
+            "error": output or "Mixer control unavailable.",
+        }
+
+    raw_matches = re.findall(r"\[(\d{1,3})%\]", output)
+    db_matches = re.findall(r"\[(-?\d+(?:\.\d+)?)dB\]", output)
+    if not raw_matches:
+        return {
+            "available": False,
+            "percent": None,
+            "raw_percent": None,
+            "db": None,
+            "error": "Mixer control returned no percentage.",
+        }
+
+    raw_percent = max(0, min(100, int(raw_matches[0])))
+    db_value = float(db_matches[0]) if db_matches else None
+    if raw_percent == 0:
+        loudness_percent = 0
+    elif db_value is not None:
+        loudness_percent = db_to_loudness_percent(db_value)
+    else:
+        loudness_percent = raw_percent
+
+    return {
+        "available": True,
+        "percent": loudness_percent,
+        "raw_percent": raw_percent,
+        "db": round(db_value, 2) if db_value is not None else None,
+        "scale": "perceptual-amplitude",
+        "error": None,
+    }
 
 
 def full_status() -> dict[str, Any]:
@@ -93,6 +145,12 @@ def full_status() -> dict[str, Any]:
         "hardware_pcm": f"hw:CARD={card},DEV={config['ALSA_DEVICE']}",
         "sample_rate_hz": int(config["SAMPLE_RATE"]),
         "channels_count": int(config["CHANNELS"]),
+        "scale": {
+            "name": "perceptual-amplitude",
+            "minimum_db": MIN_DB,
+            "maximum_db": MAX_DB,
+            "examples": {"50_percent_db": -6.02, "25_percent_db": -12.04, "10_percent_db": -20.0},
+        },
         "channels": channels,
         "error": None if all_ready else "One or more shared ALSA controls are unavailable.",
     }
@@ -111,14 +169,23 @@ def set_volume(channel_id: str, percent_text: str) -> dict[str, Any]:
     config = load_config()
     card = config["ALSA_CARD"]
     control = CHANNELS[channel_id]["control"]
-    result = run(["/usr/bin/amixer", "-c", card, "sset", control, f"{percent}%"])
+    db_value = loudness_percent_to_db(percent)
+    level = "0%" if db_value is None else f"{db_value:.2f}dB"
+    result = run(["/usr/bin/amixer", "-c", card, "sset", control, level])
     if result.returncode:
         error = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
         emit({"ok": False, "error": error or "amixer failed."}, 70)
 
     store = run(["/usr/sbin/alsactl", "store", card])
     payload = full_status()
-    payload.update({"ok": True, "changed_channel": channel_id, "requested_percent": percent})
+    payload.update(
+        {
+            "ok": True,
+            "changed_channel": channel_id,
+            "requested_percent": percent,
+            "requested_db": round(db_value, 2) if db_value is not None else MIN_DB,
+        }
+    )
     if store.returncode:
         payload["warning"] = (store.stderr or store.stdout or "Could not persist ALSA state.").strip()
     return payload
