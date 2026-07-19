@@ -12,7 +12,10 @@
   --alpha-display-h: var(--airplay-glance-character-height);
 }
 
-.airplay-outside-value {
+/* This deliberately matches and exceeds the specificity of the older pass-four
+   rule `.airplay-info-card.is-outside strong.segment-readout`, which otherwise
+   keeps forcing the weather digits to the larger size despite later stylesheets. */
+.airplay-info-card.is-outside strong.airplay-outside-value.segment-readout {
   font-size: var(--airplay-glance-character-height) !important;
 }
 
