@@ -24,7 +24,17 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Compile application modules
-        run: python -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py app/alarm_audio.py app/alarm_audio_core.py
+        run: |
+          python -m py_compile \
+            app/main.py \
+            app/dashboard_core.py \
+            app/alarm_config.py \
+            app/alarm_scheduler.py \
+            app/alarm_runtime.py \
+            app/alarm_audio.py \
+            app/alarm_audio_core.py \
+            app/audio_mixer.py \
+            scripts/a-clockwork-plex-audio-mixer.py
 
       - name: Check JavaScript and shell syntax
         run: |
@@ -38,6 +48,8 @@ jobs:
           node --check app/static/js/alarm-active.js
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
           bash -n scripts/install-alarm-audio-helper.sh
+          bash -n scripts/install-shared-audio.sh
+          bash -n scripts/install-airplay-hooks.sh
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
