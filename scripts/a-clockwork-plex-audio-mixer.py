@@ -81,6 +81,22 @@ def loudness_percent_to_db(percent: int) -> float | None:
     return max(MIN_DB, min(MAX_DB, db_value))
 
 
+def db_to_raw_percent(db_value: float | None) -> int:
+    """Convert dB to ALSA softvol's positive raw control percentage.
+
+    Passing a negative dB token directly to amixer is ambiguous because amixer
+    parses it as command-line switches. Softvol's raw percentage is linear
+    across its configured dB range, so a positive percentage is equivalent and
+    avoids that parser trap.
+    """
+    if db_value is None or db_value <= MIN_DB:
+        return 0
+    if db_value >= MAX_DB:
+        return 100
+    span = MAX_DB - MIN_DB
+    return max(0, min(100, round(((db_value - MIN_DB) / span) * 100)))
+
+
 def control_status(card: str, control: str) -> dict[str, Any]:
     result = run(["/usr/bin/amixer", "-c", card, "sget", control])
     output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
@@ -170,8 +186,8 @@ def set_volume(channel_id: str, percent_text: str, *, persist: bool) -> dict[str
     card = config["ALSA_CARD"]
     control = CHANNELS[channel_id]["control"]
     db_value = loudness_percent_to_db(percent)
-    level = "0%" if db_value is None else f"{db_value:.2f}dB"
-    result = run(["/usr/bin/amixer", "-c", card, "sset", control, level])
+    raw_percent = db_to_raw_percent(db_value)
+    result = run(["/usr/bin/amixer", "-c", card, "sset", control, f"{raw_percent}%"])
     if result.returncode:
         error = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
         emit({"ok": False, "error": error or "amixer failed."}, 70)
@@ -183,6 +199,7 @@ def set_volume(channel_id: str, percent_text: str, *, persist: bool) -> dict[str
             "changed_channel": channel_id,
             "requested_percent": percent,
             "requested_db": round(db_value, 2) if db_value is not None else MIN_DB,
+            "requested_raw_percent": raw_percent,
             "persisted": persist,
         }
     )
