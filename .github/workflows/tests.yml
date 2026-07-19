@@ -24,7 +24,7 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Compile application modules
-        run: python -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py app/alarm_audio.py
+        run: python -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py app/alarm_audio.py app/alarm_audio_core.py
 
       - name: Check JavaScript and shell syntax
         run: |
