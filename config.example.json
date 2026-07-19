@@ -50,6 +50,37 @@
   "alarm": {
     "enabled": false,
     "default_time": "11:00",
-    "snooze_minutes": 8
+    "snooze_minutes": 8,
+    "schema_version": 1,
+    "defaults": {
+      "snooze_minutes": 8,
+      "ring_minutes": 3,
+      "occurrence_expiry_minutes": 120,
+      "tone_id": "classic-klaxon",
+      "fallback_tone_id": "emergency-buzzer",
+      "source_type": "tone"
+    },
+    "alarms": [
+      {
+        "id": "default-alarm",
+        "enabled": false,
+        "label": "Default alarm",
+        "time": "11:00",
+        "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        "snooze_minutes": 8,
+        "ring_minutes": 3,
+        "occurrence_expiry_minutes": 120,
+        "source": {
+          "type": "tone",
+          "tone_id": "classic-klaxon",
+          "fallback_tone_id": "emergency-buzzer"
+        },
+        "volume": {
+          "start_percent": 60,
+          "target_percent": 85,
+          "fade_seconds": 10
+        }
+      }
+    ]
   }
 }
