@@ -1,4 +1,4 @@
-# Controlled alarm audio and shared-mixer testing
+# Controlled alarm audio, shared mixing and live-volume testing
 
 This development pass permits **explicit local-audio tests only**. Ordinary scheduled alarms still cannot start audio, even when the master test switch is enabled.
 
@@ -21,14 +21,57 @@ AirPlay  -> acp_airplay ---+-> acp_master -> acp_dmix -> RPi DAC Pro
 Alarm    -> acp_alarm -----/
 ```
 
-Each source PCM has its own ALSA `softvol` control. All three then pass through the shared master control and the `dmix` PCM. This removes the service-stop, DAC-release and service-restart timing problem.
+Each source PCM has its own ALSA `softvol` trim. All three then pass through the shared master control and the `dmix` PCM. This removes the service-stop, DAC-release and service-restart timing problem.
 
-The Settings mixer controls real ALSA levels:
+## Two distinct volume layers
 
-- **Master output** — final level for every source;
-- **Plexamp** — additional gain after Plexamp's own player volume;
-- **AirPlay** — the same source control used by Shairport Sync and the sender;
-- **Alarm** — an output ceiling after the alarm's own fade and target volume.
+The interface deliberately separates calibration from everyday control.
+
+### Persistent output trims — Settings → Audio
+
+These are real ALSA stages and survive restart through `alsactl`:
+
+- **Master** — final persistent level for every source;
+- **Plexamp trim** — downstream of Plexamp's own player volume;
+- **AirPlay trim** — downstream of the AirPlay sender/iPhone volume;
+- **Alarm trim** — output ceiling after the alarm's own fade and target.
+
+Changing a trim does not move Plexamp's or the iPhone's on-screen volume control, because it happens later in the audio path.
+
+### Live mixer — bottom navigation drawer → Audio
+
+These changes take effect immediately and do not wait for the Settings save button:
+
+- **Master** — immediate shared-output level;
+- **Plexamp** — calls Plexamp's own player-volume endpoint, so its Now Playing control should follow;
+- **AirPlay** — uses Shairport's remote volume, so the AirPlay dashboard follows and compatible senders may follow;
+- **Alarm** — immediate alarm output ceiling.
+
+Live Master and Alarm changes are not written with `alsactl`; persistent defaults remain under Settings → Audio.
+
+## Perceptual fader scale
+
+The dashboard no longer exposes ALSA's raw linear control position as though it were loudness.
+
+```text
+Dashboard 100% ->   0.00 dB
+Dashboard  50% ->  -6.02 dB
+Dashboard  25% -> -12.04 dB
+Dashboard  10% -> -20.00 dB
+```
+
+The mixer API also reports `raw_percent` and `db` for comparison with `alsamixer`. Therefore the percentage shown by `alsamixer` is expected to differ from the human-facing dashboard percentage.
+
+## AirPlay volume separation and starting level
+
+Shairport Sync outputs through `acp_airplay`, but it no longer uses the `A Clockwork AirPlay` ALSA trim as its sender-volume control. Sender volume stays inside Shairport, while `acp_airplay` remains a stable downstream calibration stage.
+
+Settings → Audio includes:
+
+- **Starting sender volume**;
+- **Apply at the start of each session**.
+
+When enabled, the dashboard retries the configured volume briefly while the new AirPlay remote session becomes available. The default is 60%.
 
 ## Audio format
 
@@ -41,7 +84,7 @@ Generated alarm tones and the shared mixer use:
 Dual mono for alarm tones: the same complete signal is sent left and right
 ```
 
-## One-time Raspberry Pi installation
+## Raspberry Pi installation or update
 
 Install ALSA utilities when required:
 
@@ -50,7 +93,7 @@ sudo apt-get update
 sudo apt-get install -y alsa-utils
 ```
 
-Pull the feature branch, run the tests and install the shared mixer:
+Pull the feature branch, run the tests and install or refresh the shared mixer:
 
 ```bash
 cd ~/A-Clockwork-Plex
@@ -64,12 +107,12 @@ The installer:
 
 - writes `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf`;
 - registers `acp_master`, `acp_plexamp`, `acp_airplay` and `acp_alarm`;
-- creates four persistent `softvol` controls on card `Pro`;
-- routes the project user's default ALSA output through `acp_plexamp` when no unmanaged default already exists;
-- updates Shairport Sync to use `acp_airplay` and the AirPlay soft-volume control;
+- creates four `softvol` controls on card `Pro`;
+- installs the perceptual mixer helper and restricted sudo policy;
+- routes the project user's default output through `acp_plexamp` when no unmanaged default exists;
+- updates Shairport Sync to use `acp_airplay` without binding sender volume to the output trim;
 - replaces AirPlay hooks so they pause Plexamp but never stop its service;
-- installs `/usr/local/bin/a-clockwork-plex-audio-mixer` and its restricted sudo policy;
-- migrates `config.json` to `shared_mixer_enabled: true` and `alsa_device: acp_alarm`;
+- migrates `config.json` to shared mode and adds the AirPlay starting-volume defaults;
 - keeps scheduled alarm audio disabled.
 
 The bedroom Pi defaults are:
@@ -94,7 +137,13 @@ sudo systemctl restart shairport-sync.service
 sudo systemctl restart a-clockwork-plex.service
 ```
 
-Plexamp should use its default ALSA output. When Plexamp has an explicitly selected hardware device, change it once to `acp_plexamp` or **A Clockwork Plex - Plexamp**.
+Plexamp should explicitly use:
+
+```text
+A Clockwork Plex - Plexamp
+```
+
+The project-user ALSA default also points to `acp_plexamp` when no pre-existing unmanaged default prevents the installer from doing so, but explicit selection has proved more reliable on the bedroom Pi.
 
 ## Verify the installation
 
@@ -105,17 +154,36 @@ aplay -L | grep -A1 '^acp_'
   | python3 -m json.tool
 ```
 
-The helper should report all four channels as available.
+The helper should report all four channels as available, including human `percent`, ALSA `raw_percent` and `db` values.
 
-Open **Settings → General → Shared audio mixer**. The card should report **Shared and ready** and display live values for all four controls.
+Open **Settings → Audio**. The persistent trim card should report **Shared and ready** and show four vertical faders.
 
 ## Staged tests
 
-### 1. Mixer controls
+### 1. Persistent trims
 
-Move each slider and confirm the percentage survives a page reload. The `−` and `＋` buttons change the selected source in five-percent steps.
+Move each Settings → Audio fader and reload the page. The displayed values should survive. Fifty percent should remain clearly audible rather than behaving like the old near-mute raw ALSA value.
 
-### 2. Plexamp plus alarm
+### 2. Live Plexamp volume
+
+1. Start Plexamp playback.
+2. Open the bottom drawer and press **Audio**.
+3. Move the Plexamp live fader.
+4. Confirm the Plexamp Now Playing volume changes and audio follows immediately.
+5. Confirm the persistent Plexamp trim in Settings → Audio remains unchanged.
+
+### 3. Live AirPlay volume and starting level
+
+1. Set an AirPlay starting sender volume under Settings → Audio and save it.
+2. Start a new AirPlay session.
+3. Confirm the session becomes audible near that configured level.
+4. Open the bottom Audio drawer and move the AirPlay fader.
+5. Confirm the dashboard AirPlay volume changes; check whether the sender also reflects the remote change.
+6. Confirm the persistent AirPlay trim remains unchanged.
+
+The live AirPlay fader is disabled while no remote sender is available.
+
+### 4. Plexamp plus alarm
 
 1. Start music in Plexamp.
 2. Open **Settings → Alarms → Controlled alarm audio**.
@@ -126,11 +194,11 @@ Move each slider and confirm the percentage survives a page reload. The `−` an
 
 The alarm should mix over the currently playing track. Plexamp must remain connected and its service must remain active. No stop, restart or DAC handover occurs.
 
-### 3. Full alarm controls
+### 5. Full alarm controls
 
 Use **Test full alarm in 10 sec** and validate screen takeover, Snooze, the repeated cycle and Dismiss. Plexamp remains available throughout.
 
-### 4. AirPlay handoff
+### 6. AirPlay handoff
 
 Start AirPlay while Plexamp is playing. The shared AirPlay start hook pauses Plexamp and changes the dashboard mode, but leaves `plexamp.service` running. Ending AirPlay returns the screen without restarting Plexamp.
 
@@ -140,10 +208,13 @@ Start AirPlay while Plexamp is playing. The shared AirPlay start hook pauses Ple
 curl -s http://localhost:8088/api/audio/mixer \
   | venv/bin/python -m json.tool
 
-curl -s http://localhost:8088/api/alarms/audio \
+curl -s http://localhost:8088/api/audio/live \
   | venv/bin/python -m json.tool
 
-cat alarm-audio-runtime.json \
+curl -s http://localhost:8088/api/audio/defaults \
+  | venv/bin/python -m json.tool
+
+curl -s http://localhost:8088/api/alarms/audio \
   | venv/bin/python -m json.tool
 
 journalctl \
