@@ -156,7 +156,7 @@ def full_status() -> dict[str, Any]:
     }
 
 
-def set_volume(channel_id: str, percent_text: str) -> dict[str, Any]:
+def set_volume(channel_id: str, percent_text: str, *, persist: bool) -> dict[str, Any]:
     if channel_id not in CHANNELS:
         emit({"ok": False, "error": f"Unknown mixer channel: {channel_id}"}, 64)
     try:
@@ -176,7 +176,6 @@ def set_volume(channel_id: str, percent_text: str) -> dict[str, Any]:
         error = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
         emit({"ok": False, "error": error or "amixer failed."}, 70)
 
-    store = run(["/usr/sbin/alsactl", "store", card])
     payload = full_status()
     payload.update(
         {
@@ -184,10 +183,13 @@ def set_volume(channel_id: str, percent_text: str) -> dict[str, Any]:
             "changed_channel": channel_id,
             "requested_percent": percent,
             "requested_db": round(db_value, 2) if db_value is not None else MIN_DB,
+            "persisted": persist,
         }
     )
-    if store.returncode:
-        payload["warning"] = (store.stderr or store.stdout or "Could not persist ALSA state.").strip()
+    if persist:
+        store = run(["/usr/sbin/alsactl", "store", card])
+        if store.returncode:
+            payload["warning"] = (store.stderr or store.stdout or "Could not persist ALSA state.").strip()
     return payload
 
 
@@ -195,9 +197,15 @@ def main() -> None:
     action = sys.argv[1] if len(sys.argv) > 1 else "status"
     if action == "status" and len(sys.argv) == 2:
         emit(full_status())
-    if action == "set" and len(sys.argv) == 4:
-        emit(set_volume(sys.argv[2].strip().lower(), sys.argv[3].strip()))
-    emit({"ok": False, "error": "Usage: a-clockwork-plex-audio-mixer {status|set <channel> <0-100>}"}, 64)
+    if action in {"set", "live"} and len(sys.argv) == 4:
+        emit(set_volume(sys.argv[2].strip().lower(), sys.argv[3].strip(), persist=action == "set"))
+    emit(
+        {
+            "ok": False,
+            "error": "Usage: a-clockwork-plex-audio-mixer {status|set <channel> <0-100>|live <channel> <0-100>}",
+        },
+        64,
+    )
 
 
 if __name__ == "__main__":
