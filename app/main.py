@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from flask import jsonify, request
+from flask import jsonify, redirect, render_template, request, url_for
 
 try:
     from . import dashboard_core as core
@@ -12,7 +12,7 @@ try:
         normalise_alarm_config,
         validate_submitted_alarm_config,
     )
-    from .alarm_scheduler import SilentAlarmScheduler
+    from .alarm_runtime import ActiveAlarmScheduler
 except ImportError:  # Supports direct execution with: python app/main.py
     import dashboard_core as core
     from alarm_config import (
@@ -21,7 +21,7 @@ except ImportError:  # Supports direct execution with: python app/main.py
         normalise_alarm_config,
         validate_submitted_alarm_config,
     )
-    from alarm_scheduler import SilentAlarmScheduler
+    from alarm_runtime import ActiveAlarmScheduler
 
 # Re-export the established application helpers for compatibility with existing
 # imports, then replace only the alarm-aware functions below.
@@ -76,7 +76,7 @@ def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
 core.load_config = load_config
 core.save_settings_from_form = save_settings_from_form
 
-alarm_scheduler = SilentAlarmScheduler(
+alarm_scheduler = ActiveAlarmScheduler(
     load_config,
     ALARM_RUNTIME_PATH,
 )
@@ -88,7 +88,7 @@ def scheduler_payload() -> dict[str, Any]:
         "ok": True,
         "scheduler": status,
         "scheduler_active": status["running"],
-        "playback_enabled": False,
+        "playback_enabled": status["playback_enabled"],
     }
 
 
@@ -100,8 +100,16 @@ def api_status_with_alarm_scheduler():
 
 
 # Keep the established /api/status URL and endpoint name while enriching its
-# response with scheduler diagnostics and the next alarm.
+# response with scheduler diagnostics and the active alarm runtime.
 app.view_functions["api_status"] = api_status_with_alarm_scheduler
+
+
+@app.route("/alarm")
+def alarm_page():
+    status = alarm_scheduler.status()
+    if not status.get("screen_required"):
+        return redirect(url_for("clock"))
+    return render_template("alarm.html", active_page="alarm")
 
 
 @app.route("/api/alarms/config", methods=["GET", "POST"])
@@ -118,7 +126,7 @@ def api_alarm_config():
                 "days": DAY_OPTIONS,
                 "scheduler_active": status["running"],
                 "scheduler": status,
-                "playback_enabled": False,
+                "playback_enabled": status["playback_enabled"],
             }
         )
 
@@ -147,12 +155,12 @@ def api_alarm_config():
             "ok": True,
             "alarm": alarm_model,
             "message": (
-                "Alarm configuration saved. The silent scheduler has recalculated; "
+                "Alarm configuration saved. The active runtime has recalculated; "
                 "audio playback remains locked."
             ),
             "scheduler_active": status["running"],
             "scheduler": status,
-            "playback_enabled": False,
+            "playback_enabled": status["playback_enabled"],
         }
     )
 
@@ -164,13 +172,108 @@ def api_alarm_scheduler():
         return jsonify(
             {
                 "ok": True,
-                "message": "Silent scheduler recalculated. No audio was played.",
+                "message": "Alarm runtime recalculated. No audio was played.",
                 "scheduler": status,
                 "scheduler_active": status["running"],
-                "playback_enabled": False,
+                "playback_enabled": status["playback_enabled"],
             }
         )
     return jsonify(scheduler_payload())
+
+
+@app.route("/api/alarms/active")
+def api_alarm_active():
+    status = alarm_scheduler.status()
+    active = status.get("active_occurrence")
+    manifest = alarm_tone_manifest()
+    tones = {
+        str(tone.get("id")): str(tone.get("label", tone.get("id", "Alarm tone")))
+        for tone in manifest.get("tones", [])
+        if isinstance(tone, dict) and tone.get("id")
+    }
+    tone_id = None
+    if isinstance(active, dict):
+        source = active.get("source") if isinstance(active.get("source"), dict) else {}
+        tone_id = source.get("tone_id")
+    return jsonify(
+        {
+            "ok": True,
+            "active": active,
+            "screen_required": status.get("screen_required", False),
+            "snoozed_until": status.get("snoozed_until"),
+            "seconds_until_snooze_end": status.get("seconds_until_snooze_end"),
+            "tone_label": tones.get(str(tone_id), str(tone_id or "Local tone")),
+            "playback_enabled": False,
+            "scheduler": status,
+        }
+    )
+
+
+@app.route("/api/alarms/snooze", methods=["POST"])
+def api_alarm_snooze():
+    try:
+        status = alarm_scheduler.snooze()
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 409
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Alarm snoozed. The next screen takeover remains armed.",
+            "scheduler": status,
+            "snoozed_until": status.get("snoozed_until"),
+            "playback_enabled": False,
+        }
+    )
+
+
+@app.route("/api/alarms/dismiss", methods=["POST"])
+def api_alarm_dismiss():
+    try:
+        status = alarm_scheduler.dismiss()
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 409
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Alarm dismissed. Sleep has won this round.",
+            "scheduler": status,
+            "playback_enabled": False,
+        }
+    )
+
+
+@app.route("/api/alarms/test", methods=["POST"])
+def api_alarm_test():
+    payload = request.get_json(silent=True) or {}
+    try:
+        delay_seconds = int(payload.get("delay_seconds", 10))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "delay_seconds must be an integer."}), 400
+    alarm_id = payload.get("alarm_id")
+    status = alarm_scheduler.schedule_test(delay_seconds=delay_seconds, alarm_id=alarm_id)
+    pending = status.get("pending_test_occurrence")
+    return jsonify(
+        {
+            "ok": True,
+            "message": f"Visual alarm test scheduled in {max(1, min(300, delay_seconds))} seconds.",
+            "pending_test": pending,
+            "scheduler": status,
+            "playback_enabled": False,
+        }
+    )
+
+
+@app.route("/api/alarms/test/cancel", methods=["POST"])
+def api_alarm_test_cancel():
+    status = alarm_scheduler.clear_test()
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Pending or active visual alarm test cleared.",
+            "scheduler": status,
+            "playback_enabled": False,
+        }
+    )
 
 
 if __name__ == "__main__":
