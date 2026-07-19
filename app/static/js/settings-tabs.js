@@ -132,6 +132,7 @@
     '/static/js/settings-alarm-scheduler.js',
     '/static/js/settings-alarm-audio.js',
     '/static/js/settings-audio-workspace.js',
+    '/static/js/settings-airplay-defaults.js',
   ].forEach((source) => {
     if (document.querySelector(`script[src="${source}"]`)) {
       return;
