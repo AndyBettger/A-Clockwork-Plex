@@ -1,4 +1,5 @@
 /* Alarm settings workspace: defaults, expandable alarms and future tone controls. */
+@import url("settings-alarm-tones.css");
 
 .alarm-defaults-grid {
   display: grid;
