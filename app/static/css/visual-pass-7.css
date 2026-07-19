@@ -1,0 +1,23 @@
+/* Typography/weather bridge visual pass seven.
+   Use one physical segment height for the AirPlay mini clock and outdoor weather. */
+
+.airplay-glance-grid {
+  --airplay-glance-character-height: clamp(30px, 5.85vmin, 41px);
+}
+
+/* The clock/date renderer sizes its SVG cells from --alpha-display-h, while the
+   weather renderer sizes the same shared segment geometry from font-size. Feeding
+   both from one variable makes their illuminated characters physically identical. */
+.airplay-mini-clock-line {
+  --alpha-display-h: var(--airplay-glance-character-height);
+}
+
+.airplay-outside-value {
+  font-size: var(--airplay-glance-character-height) !important;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-glance-grid {
+    --airplay-glance-character-height: clamp(25px, 5.75vh, 34px);
+  }
+}
