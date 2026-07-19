@@ -16,7 +16,6 @@ DAY_OPTIONS = [
     {"id": "sun", "label": "Sun"},
 ]
 DAY_IDS = [option["id"] for option in DAY_OPTIONS]
-DAY_SET = set(DAY_IDS)
 TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$")
 
@@ -214,12 +213,13 @@ def _normalise_alarm(
 
 def normalise_alarm_config(raw: Any, manifest: dict[str, Any], *, prefer_legacy: bool = False) -> dict[str, Any]:
     source = raw if isinstance(raw, dict) else {}
+    has_alarm_list = isinstance(source.get("alarms"), list)
     defaults_source = source.get("defaults") if isinstance(source.get("defaults"), dict) else {}
     defaults_source = {**DEFAULT_ALARM_DEFAULTS, **defaults_source}
-    defaults_source["snooze_minutes"] = source.get("snooze_minutes", defaults_source["snooze_minutes"])
+    if prefer_legacy or not has_alarm_list:
+        defaults_source["snooze_minutes"] = source.get("snooze_minutes", defaults_source["snooze_minutes"])
     defaults = _normalise_defaults(defaults_source, manifest)
 
-    has_alarm_list = isinstance(source.get("alarms"), list)
     configured = source.get("alarms") if has_alarm_list else []
     if prefer_legacy or not has_alarm_list:
         configured = [
