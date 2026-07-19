@@ -24,7 +24,7 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Compile application modules
-        run: python -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py
+        run: python -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py
 
       - name: Check settings JavaScript syntax
         run: |
@@ -33,6 +33,8 @@ jobs:
           node --check app/static/js/settings-keyboard.js
           node --check app/static/js/settings-tabs.js
           node --check app/static/js/settings-about.js
+          node --check app/static/js/mode-watch.js
+          node --check app/static/js/alarm-active.js
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
