@@ -82,4 +82,19 @@
 
   const initialTab = window.location.hash || storedTab() || 'general';
   activate(initialTab, { skipHash: !window.location.hash, instant: true });
+
+  // Alarm diagnostics are deliberately split from the large editor. Load them
+  // here so the touchscreen page remains compatible with older templates.
+  [
+    '/static/js/settings-alarm-scheduler.js',
+    '/static/js/settings-alarm-audio.js',
+  ].forEach((source) => {
+    if (document.querySelector(`script[src="${source}"]`)) {
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = source;
+    script.defer = true;
+    document.body.appendChild(script);
+  });
 })();
