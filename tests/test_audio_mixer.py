@@ -180,11 +180,14 @@ class SharedAudioMixerTests(unittest.TestCase):
 
 
 class PlexampVolumeControllerTests(unittest.TestCase):
-    def test_timeline_parser_reads_music_volume(self):
+    def test_timeline_parser_reads_music_volume_and_state(self):
         payload = b'''<MediaContainer size="2">
-            <Timeline type="video" volume="12" />
+            <Timeline type="video" volume="12" state="stopped" />
             <Timeline type="music" state="playing" volume="73.4" />
         </MediaContainer>'''
+        snapshot = PlexampVolumeController._timeline_snapshot(payload)
+        self.assertEqual(snapshot["percent"], 73)
+        self.assertEqual(snapshot["playback_state"], "playing")
         self.assertEqual(PlexampVolumeController._timeline_volume(payload), 73)
 
     def test_set_volume_uses_plexamp_player_parameter_endpoint(self):
@@ -193,6 +196,7 @@ class PlexampVolumeControllerTests(unittest.TestCase):
         status = controller.set_volume(37)
 
         self.assertEqual(status["percent"], 37)
+        self.assertEqual(status["playback_state"], "paused")
         self.assertEqual(status["source"], "plexamp-player")
         self.assertTrue(any("/player/playback/setParameters?" in url for url in opener.urls))
         set_url = next(url for url in opener.urls if "/player/playback/setParameters?" in url)
