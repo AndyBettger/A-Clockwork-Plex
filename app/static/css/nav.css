@@ -66,6 +66,9 @@ body.nav-audio-open .nav-drawer {
   background:
     linear-gradient(135deg, rgba(131, 216, 255, 0.075), transparent 46%),
     rgba(255, 255, 255, 0.035);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .nav-live-mixer-heading {
@@ -116,7 +119,7 @@ body.nav-audio-open .nav-drawer {
 .nav-live-channel {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(142px, 24vh) auto;
+  grid-template-rows: auto auto minmax(170px, 27vh) auto;
   gap: 4px;
   padding: 9px;
   border: 1px solid rgba(131, 216, 255, 0.12);
@@ -158,32 +161,52 @@ body.nav-audio-open .nav-drawer {
 }
 
 .nav-live-fader {
+  --live-fader-end-space: 42px;
   position: relative;
   display: grid;
-  grid-template-rows: 38px minmax(90px, 1fr) 38px;
+  grid-template-columns: 1fr;
+  grid-template-rows: 36px minmax(98px, 1fr) 36px;
   justify-items: center;
   align-items: center;
-  min-height: 142px;
+  min-height: 170px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .nav-live-fader::before {
   content: "";
   position: absolute;
-  top: 42px;
-  bottom: 42px;
+  z-index: 0;
+  top: var(--live-fader-end-space);
+  bottom: var(--live-fader-end-space);
   left: 50%;
-  width: 52px;
+  width: 64px;
   border-radius: 10px;
   background:
-    repeating-linear-gradient(to bottom, rgba(190, 234, 255, 0.25) 0 1px, transparent 1px 10%),
-    linear-gradient(90deg, transparent 49%, rgba(190, 234, 255, 0.14) 49% 51%, transparent 51%);
+    repeating-linear-gradient(
+      to bottom,
+      rgba(190, 234, 255, 0.3) 0,
+      rgba(190, 234, 255, 0.3) 1px,
+      transparent 1px,
+      transparent 10%
+    ),
+    linear-gradient(
+      90deg,
+      transparent 49%,
+      rgba(190, 234, 255, 0.17) 49%,
+      rgba(190, 234, 255, 0.17) 51%,
+      transparent 51%
+    );
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .nav-live-fader button {
   position: relative;
-  z-index: 2;
+  z-index: 3;
+  grid-column: 1;
   width: 44px;
   height: 34px;
   display: grid;
@@ -194,6 +217,18 @@ body.nav-audio-open .nav-drawer {
   background: rgba(131, 216, 255, 0.08);
   color: var(--text);
   font-size: 1.12rem;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.nav-live-fader button[data-nav-live-step="5"] {
+  grid-row: 1;
+}
+
+.nav-live-fader button[data-nav-live-step="-5"] {
+  grid-row: 3;
 }
 
 .nav-live-fader button:disabled,
@@ -202,18 +237,27 @@ body.nav-audio-open .nav-drawer {
 }
 
 .nav-live-fader input[type="range"] {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  width: 38px;
-  height: 100%;
-  min-height: 88px;
+  top: var(--live-fader-end-space);
+  bottom: var(--live-fader-end-space);
+  left: 50%;
+  width: 40px;
+  height: auto;
+  min-height: 0;
   margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
   writing-mode: vertical-lr;
   direction: rtl;
   appearance: slider-vertical;
   -webkit-appearance: slider-vertical;
   accent-color: #83d8ff;
   cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .nav-live-message {
@@ -266,7 +310,7 @@ body.nav-open .nav-handle {
 }
 
 body.nav-open.nav-audio-open .nav-handle {
-  transform: translate(-50%, min(-352px, -52vh));
+  transform: translate(-50%, min(-382px, -56vh));
 }
 
 body.nav-open .nav-handle span {
@@ -295,18 +339,14 @@ body.nav-open .nav-handle span {
   }
 
   .nav-live-channel {
-    grid-template-rows: auto auto minmax(112px, 20vh) auto;
+    grid-template-rows: auto auto minmax(140px, 23vh) auto;
     padding: 7px;
   }
 
   .nav-live-fader {
-    grid-template-rows: 32px minmax(70px, 1fr) 32px;
-    min-height: 112px;
-  }
-
-  .nav-live-fader::before {
-    top: 36px;
-    bottom: 36px;
+    --live-fader-end-space: 38px;
+    grid-template-rows: 32px minmax(82px, 1fr) 32px;
+    min-height: 140px;
   }
 
   .nav-live-fader button {
@@ -329,7 +369,7 @@ body.nav-open .nav-handle span {
   }
 
   body.nav-open.nav-audio-open .nav-handle {
-    transform: translate(-50%, min(-302px, -49vh));
+    transform: translate(-50%, min(-332px, -53vh));
   }
 }
 
