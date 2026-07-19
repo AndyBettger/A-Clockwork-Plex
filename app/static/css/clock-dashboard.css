@@ -1,0 +1,99 @@
+/* Clock dashboard weather-card layout and segmented sensor readouts. */
+
+.weather-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.weather-card.is-composite {
+  display: flex;
+  grid-column: span 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.weather-composite-headings,
+.weather-card.is-composite .weather-subgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+
+.weather-composite-headings {
+  align-items: end;
+}
+
+.weather-composite-heading {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: clamp(0.59rem, 1.38vmin, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.weather-composite-heading + .weather-composite-heading,
+.weather-card.is-composite .weather-subreading + .weather-subreading {
+  padding-inline-start: clamp(8px, 1.05vmin, 12px);
+  border-inline-start: 1px solid rgba(143, 211, 255, 0.17);
+}
+
+.weather-card.is-composite .weather-subgrid {
+  margin-top: clamp(5px, 0.75vmin, 7px);
+}
+
+.weather-card.is-composite .weather-subreading {
+  min-width: 0;
+  padding-inline: 0;
+}
+
+.weather-subvalue {
+  display: block;
+  min-width: 0;
+  overflow: visible;
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.weather-subvalue .segment-readout-inner {
+  max-inline-size: 100%;
+}
+
+#clock-weather-grid {
+  --clock-weather-value-size: clamp(1.38rem, 4.35vmin, 2.12rem);
+}
+
+#clock-weather-grid .weather-value.segment-readout,
+#clock-weather-grid .weather-subvalue.segment-readout,
+#clock-weather-grid .weather-card.is-barometer .weather-value {
+  overflow: visible;
+  font-size: var(--clock-weather-value-size) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .weather-composite-heading {
+    font-size: 0.54rem;
+  }
+
+  #clock-weather-grid {
+    --clock-weather-value-size: clamp(1.14rem, 3.95vw, 1.58rem);
+  }
+}
+
+@media (max-width: 720px) {
+  .weather-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .weather-card.is-composite {
+    grid-column: span 2;
+  }
+}
