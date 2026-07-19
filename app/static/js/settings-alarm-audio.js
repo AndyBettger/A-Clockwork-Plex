@@ -4,17 +4,21 @@
   }
   window.__aClockworkPlexAlarmAudioSettingsLoaded = true;
 
-  const PANEL_ID = 'settings-panel-alarms';
+  const ALARM_PANEL_ID = 'settings-panel-alarms';
+  const GENERAL_PANEL_ID = 'settings-panel-general';
   const STATUS_ENDPOINT = '/api/alarms/audio';
   const SETTINGS_ENDPOINT = '/api/alarms/audio/settings';
   const TEST_ENDPOINT = '/api/alarms/audio/test';
   const STOP_ENDPOINT = '/api/alarms/audio/stop';
+  const MIXER_ENDPOINT = '/api/audio/mixer';
   const REFRESH_MS = 3000;
+  const MIXER_ORDER = ['master', 'plexamp', 'airplay', 'alarm'];
 
   const byId = (id) => document.getElementById(id);
   const settingsForm = document.querySelector('.settings-form');
   let refreshTimer = null;
   let requestInFlight = false;
+  let mixerRequestInFlight = false;
   let lastPayload = null;
   let skipNextFormSave = false;
 
@@ -29,8 +33,96 @@
     document.head.appendChild(link);
   }
 
-  function installCard() {
-    const panel = byId(PANEL_ID);
+  function mixerChannelMarkup(channel) {
+    const id = channel.id;
+    return `
+      <article class="audio-mixer-channel" data-mixer-channel="${id}">
+        <div class="audio-mixer-channel-heading">
+          <div>
+            <strong>${channel.label}</strong>
+            <small>${channel.description}</small>
+          </div>
+          <output id="audio-mixer-${id}-value" for="audio-mixer-${id}">--%</output>
+        </div>
+        <div class="audio-mixer-control-row">
+          <button class="audio-mixer-step" type="button" data-mixer-step="-5" data-mixer-target="${id}" aria-label="Reduce ${channel.label} by five percent">−</button>
+          <input id="audio-mixer-${id}" type="range" min="0" max="100" step="1" value="0" data-mixer-slider="${id}" aria-label="${channel.label} volume">
+          <button class="audio-mixer-step" type="button" data-mixer-step="5" data-mixer-target="${id}" aria-label="Increase ${channel.label} by five percent">＋</button>
+        </div>
+        <small class="audio-mixer-pcm" id="audio-mixer-${id}-detail">PCM ${channel.pcm}</small>
+      </article>
+    `;
+  }
+
+  function installMixerCard() {
+    const panel = byId(GENERAL_PANEL_ID);
+    if (!panel) {
+      return false;
+    }
+    if (byId('audio-mixer-card')) {
+      return true;
+    }
+
+    const channels = [
+      { id: 'master', label: 'Master output', pcm: 'acp_master', description: 'Final level for every source.' },
+      { id: 'plexamp', label: 'Plexamp', pcm: 'acp_plexamp', description: 'After Plexamp’s own player volume.' },
+      { id: 'airplay', label: 'AirPlay', pcm: 'acp_airplay', description: 'Shared with the sender’s volume.' },
+      { id: 'alarm', label: 'Alarm', pcm: 'acp_alarm', description: 'After each alarm’s fade and target.' },
+    ];
+
+    const card = document.createElement('section');
+    card.id = 'audio-mixer-card';
+    card.className = 'settings-card audio-mixer-card';
+    card.innerHTML = `
+      <div class="settings-card-heading">
+        <div>
+          <h2>Shared audio mixer</h2>
+          <p class="muted small">Plexamp, AirPlay and alarms remain alive and feed the same ALSA dmix output.</p>
+        </div>
+        <span class="settings-chip is-warning" id="audio-mixer-health">Checking…</span>
+      </div>
+      <div class="audio-mixer-banner">
+        <strong>No more DAC handoff.</strong>
+        <span>Each source has its own software level, followed by one master output.</span>
+      </div>
+      <div class="audio-mixer-grid">
+        ${channels.map(mixerChannelMarkup).join('')}
+      </div>
+      <div class="audio-mixer-footer">
+        <span class="muted small" id="audio-mixer-message">Waiting for shared mixer diagnostics.</span>
+        <button class="button settings-secondary" id="audio-mixer-refresh" type="button">Refresh mixer</button>
+      </div>
+    `;
+
+    const intro = panel.querySelector('.settings-card.is-intro');
+    intro?.insertAdjacentElement('afterend', card);
+    if (!intro) {
+      panel.prepend(card);
+    }
+
+    card.querySelectorAll('[data-mixer-slider]').forEach((slider) => {
+      slider.addEventListener('input', () => updateSliderReading(slider.dataset.mixerSlider, slider.value));
+      slider.addEventListener('change', () => setMixerVolume(slider.dataset.mixerSlider, slider.value));
+    });
+    card.querySelectorAll('[data-mixer-step]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const channel = button.dataset.mixerTarget;
+        const slider = byId(`audio-mixer-${channel}`);
+        if (!slider) {
+          return;
+        }
+        const next = Math.max(0, Math.min(100, Number(slider.value) + Number(button.dataset.mixerStep || 0)));
+        slider.value = String(next);
+        updateSliderReading(channel, next);
+        setMixerVolume(channel, next);
+      });
+    });
+    byId('audio-mixer-refresh')?.addEventListener('click', refreshStatus);
+    return true;
+  }
+
+  function installAlarmCard() {
+    const panel = byId(ALARM_PANEL_ID);
     const lockout = panel?.querySelector('.alarm-scheduler-lockout');
     if (!panel || !lockout) {
       return false;
@@ -39,7 +131,6 @@
       return true;
     }
 
-    installStyles();
     const card = document.createElement('section');
     card.id = 'alarm-audio-card';
     card.className = 'settings-card alarm-audio-card';
@@ -47,7 +138,7 @@
       <div class="settings-card-heading">
         <div>
           <h2>Controlled alarm audio</h2>
-          <p class="muted small">Real DAC playback, available only through deliberate test controls in this pass.</p>
+          <p class="muted small">Real DAC playback through the shared mixer, available only through deliberate test controls in this pass.</p>
         </div>
         <span class="settings-chip is-warning" id="alarm-audio-health">Loading…</span>
       </div>
@@ -66,33 +157,24 @@
           </span>
         </label>
 
-        <label class="setting-toggle">
-          <input id="alarm-audio-release-services" name="alarm_audio_release_services" type="checkbox">
+        <label class="setting-toggle alarm-audio-shared-toggle">
+          <input id="alarm-audio-shared-mixer" name="alarm_audio_shared_mixer_enabled" type="checkbox">
           <span>
-            <strong>Release Plexamp and AirPlay</strong>
-            <small>Uses the restricted root helper before playback.</small>
-          </span>
-        </label>
-
-        <label class="setting-toggle">
-          <input id="alarm-audio-restore-services" name="alarm_audio_restore_services" type="checkbox">
-          <span>
-            <strong>Restore services afterwards</strong>
-            <small>Plexamp returns paused; Shairport Sync becomes available again.</small>
+            <strong>Use shared ALSA mixer</strong>
+            <small>Keeps Plexamp and Shairport Sync alive while the alarm plays.</small>
           </span>
         </label>
 
         <label class="setting-field">
-          <span>ALSA output device</span>
-          <input
-            id="alarm-audio-device"
-            name="alarm_audio_device"
-            value="default"
-            autocomplete="off"
-            inputmode="none"
-            data-keyboard="text"
-          >
-          <small>Bedroom DAC example: <code>plughw:CARD=Pro,DEV=0</code>. The generated alarm is 44.1 kHz stereo.</small>
+          <span>Physical DAC</span>
+          <input id="alarm-audio-hardware-device" name="alarm_audio_hardware_device" value="hw:CARD=Pro,DEV=0" autocomplete="off" inputmode="none" data-keyboard="text">
+          <small>Installer target. Rerun <code>install-shared-audio.sh</code> after changing hardware.</small>
+        </label>
+
+        <label class="setting-field">
+          <span>Alarm mixer PCM</span>
+          <input id="alarm-audio-device" name="alarm_audio_device" value="acp_alarm" readonly>
+          <small>44.1 kHz, 16-bit dual-mono stereo through the Alarm mixer channel.</small>
         </label>
 
         <label class="setting-field">
@@ -111,7 +193,7 @@
 
       <div class="alarm-audio-save-row">
         <button class="button settings-secondary" id="alarm-audio-save" type="button">Save audio safety settings</button>
-        <span class="muted small" id="alarm-audio-save-message">The main Save settings button now saves these values too.</span>
+        <span class="muted small" id="alarm-audio-save-message">The main Save settings button saves these values too.</span>
       </div>
 
       <div class="alarm-audio-test-panel">
@@ -134,9 +216,9 @@
           <small id="alarm-audio-player-detail">Looking for aplay.</small>
         </div>
         <div class="alarm-audio-reading">
-          <span>Ownership helper</span>
+          <span>Shared mixer</span>
           <strong id="alarm-audio-helper">Checking…</strong>
-          <small id="alarm-audio-helper-detail">Looking for the restricted helper.</small>
+          <small id="alarm-audio-helper-detail">Looking for dmix and soft-volume controls.</small>
         </div>
         <div class="alarm-audio-reading">
           <span>Current playback</span>
@@ -159,13 +241,22 @@
     return true;
   }
 
+  function installCards() {
+    installStyles();
+    return installMixerCard() && installAlarmCard();
+  }
+
   function formSettings() {
+    const shared = Boolean(byId('alarm-audio-shared-mixer')?.checked);
     return {
       master_enabled: Boolean(byId('alarm-audio-master-enabled')?.checked),
-      release_services: Boolean(byId('alarm-audio-release-services')?.checked),
-      restore_services: Boolean(byId('alarm-audio-restore-services')?.checked),
+      shared_mixer_enabled: shared,
+      hardware_device: byId('alarm-audio-hardware-device')?.value?.trim() || 'hw:CARD=Pro,DEV=0',
+      release_services: false,
+      restore_services: false,
       backend: 'aplay',
-      alsa_device: byId('alarm-audio-device')?.value?.trim() || 'default',
+      alsa_device: shared ? 'acp_alarm' : (byId('alarm-audio-device')?.value?.trim() || 'default'),
+      mixer_helper_path: '/usr/local/bin/a-clockwork-plex-audio-mixer',
       test_duration_seconds: Number(byId('alarm-audio-test-duration')?.value) || 12,
     };
   }
@@ -175,9 +266,9 @@
       return;
     }
     byId('alarm-audio-master-enabled').checked = Boolean(settings.master_enabled);
-    byId('alarm-audio-release-services').checked = settings.release_services !== false;
-    byId('alarm-audio-restore-services').checked = settings.restore_services !== false;
-    byId('alarm-audio-device').value = settings.alsa_device || 'default';
+    byId('alarm-audio-shared-mixer').checked = Boolean(settings.shared_mixer_enabled);
+    byId('alarm-audio-hardware-device').value = settings.hardware_device || 'hw:CARD=Pro,DEV=0';
+    byId('alarm-audio-device').value = settings.alsa_device || (settings.shared_mixer_enabled ? 'acp_alarm' : 'default');
     byId('alarm-audio-test-duration').value = String(settings.test_duration_seconds || 12);
   }
 
@@ -204,25 +295,73 @@
     }
   }
 
+  function updateSliderReading(channel, percent) {
+    const output = byId(`audio-mixer-${channel}-value`);
+    if (output) {
+      output.textContent = `${Math.round(Number(percent) || 0)}%`;
+    }
+  }
+
+  function renderMixer(mixer) {
+    const health = byId('audio-mixer-health');
+    const ready = Boolean(mixer?.available && mixer?.configured);
+    if (health) {
+      health.textContent = ready ? 'Shared and ready' : (mixer?.installed ? 'Needs attention' : 'Not installed');
+      health.classList.toggle('is-warning', !ready);
+    }
+
+    MIXER_ORDER.forEach((channelId) => {
+      const channel = mixer?.channels?.[channelId] || {};
+      const slider = byId(`audio-mixer-${channelId}`);
+      const buttons = document.querySelectorAll(`[data-mixer-target="${channelId}"]`);
+      const available = Boolean(channel.available && channel.pcm_available);
+      if (slider) {
+        if (Number.isFinite(Number(channel.percent))) {
+          slider.value = String(channel.percent);
+          updateSliderReading(channelId, channel.percent);
+        }
+        slider.disabled = !available || mixerRequestInFlight;
+      }
+      buttons.forEach((button) => {
+        button.disabled = !available || mixerRequestInFlight;
+      });
+      const detail = byId(`audio-mixer-${channelId}-detail`);
+      if (detail) {
+        detail.textContent = channel.error || `${channel.pcm || `acp_${channelId}`} · ${available ? 'ready' : 'unavailable'}`;
+      }
+    });
+
+    const message = byId('audio-mixer-message');
+    if (message && !mixerRequestInFlight) {
+      message.textContent = mixer?.error
+        || (ready
+          ? `${mixer.hardware_pcm || 'Physical DAC'} · ${mixer.sample_rate_hz || 44100} Hz · ${mixer.channels_count || 2} channels`
+          : 'Run sudo bash scripts/install-shared-audio.sh on the Pi.');
+    }
+  }
+
   function render(payload, { preserveControls = false } = {}) {
     lastPayload = payload;
     const settings = payload?.settings || {};
     const runtime = payload?.runtime || {};
     const helper = payload?.helper || {};
     const player = payload?.player || {};
+    const mixer = payload?.mixer || {};
 
     if (!preserveControls) {
       setControls(settings);
       setAlarmOptions(payload?.alarm_options || []);
     }
+    renderMixer(mixer);
 
     const health = byId('alarm-audio-health');
+    const audioPathReady = settings.shared_mixer_enabled ? mixer.available : helper.available;
     if (health) {
       if (!settings.master_enabled) {
         health.textContent = 'Audio locked';
         health.classList.add('is-warning');
-      } else if (!player.available) {
-        health.textContent = 'Player missing';
+      } else if (!player.available || !audioPathReady) {
+        health.textContent = 'Audio path unavailable';
         health.classList.add('is-warning');
       } else if (runtime.playback_active) {
         health.textContent = 'Playing test';
@@ -239,8 +378,12 @@
       ? ` · ${format.sample_rate_hz / 1000} kHz ${format.channel_layout || `${format.channels} ch`}`
       : '';
     byId('alarm-audio-player-detail').textContent = player.error || `Device: ${settings.alsa_device || 'default'}${formatText}`;
-    byId('alarm-audio-helper').textContent = helper.available ? 'Installed' : 'Not installed';
-    byId('alarm-audio-helper-detail').textContent = helper.error || `Plexamp ${helper.plexamp_active ? 'active' : 'idle'} · AirPlay ${helper.shairport_active ? 'active' : 'idle'}`;
+    byId('alarm-audio-helper').textContent = settings.shared_mixer_enabled
+      ? (mixer.available ? 'dmix ready' : 'Unavailable')
+      : (helper.available ? 'Legacy helper installed' : 'Not installed');
+    byId('alarm-audio-helper-detail').textContent = settings.shared_mixer_enabled
+      ? (mixer.error || 'Plexamp and AirPlay services remain running during alarm playback.')
+      : (helper.error || 'Legacy exclusive-DAC mode stops and restores services.');
 
     byId('alarm-audio-current').textContent = runtime.playback_active
       ? (runtime.current_tone_label || runtime.current_tone_id || 'Alarm tone')
@@ -256,7 +399,7 @@
       : 'Not yet';
     byId('alarm-audio-last-error').textContent = runtime.last_error || 'No playback errors recorded.';
 
-    const enabled = Boolean(settings.master_enabled && player.available && !requestInFlight);
+    const enabled = Boolean(settings.master_enabled && player.available && audioPathReady && !requestInFlight);
     byId('alarm-audio-test-now').disabled = !enabled;
     byId('alarm-audio-test-screen').disabled = !enabled;
     byId('alarm-audio-stop').disabled = !runtime.playback_active || requestInFlight;
@@ -279,9 +422,38 @@
     const response = await fetch(endpoint, { cache: 'no-store', ...options });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload.ok === false) {
-      throw new Error(payload.error || `Alarm audio request returned ${response.status}.`);
+      throw new Error(payload.error || `Audio request returned ${response.status}.`);
     }
     return payload;
+  }
+
+  async function setMixerVolume(channel, percent) {
+    if (mixerRequestInFlight) {
+      return;
+    }
+    mixerRequestInFlight = true;
+    const message = byId('audio-mixer-message');
+    if (message) {
+      message.textContent = `Setting ${channel} to ${percent}%…`;
+    }
+    try {
+      const payload = await fetchJson(MIXER_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, percent: Number(percent) }),
+      });
+      renderMixer(payload.mixer || {});
+      if (message) {
+        message.textContent = payload.message || 'Mixer updated.';
+      }
+    } catch (error) {
+      if (message) {
+        message.textContent = error.message || 'Could not change mixer volume.';
+      }
+    } finally {
+      mixerRequestInFlight = false;
+      window.setTimeout(refreshStatus, 250);
+    }
   }
 
   async function persistSettings() {
@@ -298,7 +470,7 @@
     if (requestInFlight) {
       return;
     }
-    setBusy(true, 'Saving the audio safety gate and DAC device…');
+    setBusy(true, 'Saving the audio safety gate and shared mixer mode…');
     try {
       const payload = await persistSettings();
       byId('alarm-audio-save-message').textContent = payload.message || 'Audio safety settings saved.';
@@ -341,7 +513,7 @@
     if (requestInFlight) {
       return;
     }
-    setBusy(true, 'Stopping alarm audio and restoring services…');
+    setBusy(true, 'Stopping alarm audio…');
     try {
       const payload = await fetchJson(STOP_ENDPOINT, {
         method: 'POST',
@@ -359,7 +531,7 @@
   }
 
   async function refreshStatus() {
-    if (requestInFlight || !installCard()) {
+    if (requestInFlight || !installCards()) {
       return;
     }
     try {
@@ -413,7 +585,7 @@
   }, true);
 
   function start() {
-    if (!installCard()) {
+    if (!installCards()) {
       window.setTimeout(start, 100);
       return;
     }
