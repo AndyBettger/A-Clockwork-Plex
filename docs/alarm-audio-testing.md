@@ -1,4 +1,4 @@
-# Controlled alarm audio testing
+# Controlled alarm audio and shared-mixer testing
 
 This development pass permits **explicit local-audio tests only**. Ordinary scheduled alarms still cannot start audio, even when the master test switch is enabled.
 
@@ -11,81 +11,146 @@ This development pass permits **explicit local-audio tests only**. Ordinary sche
 - Every test has a maximum duration of 30 seconds.
 - Every controlled test is capped at **25% output** by the backend, regardless of the alarm's saved start and target volume.
 - Snooze, Dismiss, Clear visual test and Stop alarm audio terminate playback immediately.
-- A player that ignores termination is killed before service restoration continues.
+- Shared mode never stops Plexamp or Shairport Sync to acquire the DAC.
+
+## Shared audio design
+
+```text
+Plexamp  -> acp_plexamp --\
+AirPlay  -> acp_airplay ---+-> acp_master -> acp_dmix -> RPi DAC Pro
+Alarm    -> acp_alarm -----/
+```
+
+Each source PCM has its own ALSA `softvol` control. All three then pass through the shared master control and the `dmix` PCM. This removes the service-stop, DAC-release and service-restart timing problem.
+
+The Settings mixer controls real ALSA levels:
+
+- **Master output** — final level for every source;
+- **Plexamp** — additional gain after Plexamp's own player volume;
+- **AirPlay** — the same source control used by Shairport Sync and the sender;
+- **Alarm** — an output ceiling after the alarm's own fade and target volume.
 
 ## Audio format
 
-Generated alarm tones use:
+Generated alarm tones and the shared mixer use:
 
 ```text
 16-bit PCM
 44,100 Hz
 2 channels
-Dual mono: the same complete alarm signal is sent to left and right
+Dual mono for alarm tones: the same complete signal is sent left and right
 ```
 
-This avoids a mono stream being routed to only one side of a stereo DAC and gives ALSA a conventional hi-fi format to present to the hardware.
+## One-time Raspberry Pi installation
 
-## Raspberry Pi prerequisites
-
-Install ALSA utilities when `aplay` is unavailable:
+Install ALSA utilities when required:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y alsa-utils
 ```
 
-Install the restricted audio-ownership helper:
+Pull the feature branch, run the tests and install the shared mixer:
 
 ```bash
 cd ~/A-Clockwork-Plex
-sudo bash scripts/install-alarm-audio-helper.sh
+git switch feature/alarm-engine
+git pull --ff-only
+bash scripts/run-tests.sh
+sudo bash scripts/install-shared-audio.sh
 ```
 
-The installer creates:
+The installer:
+
+- writes `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf`;
+- registers `acp_master`, `acp_plexamp`, `acp_airplay` and `acp_alarm`;
+- creates four persistent `softvol` controls on card `Pro`;
+- routes the project user's default ALSA output through `acp_plexamp` when no unmanaged default already exists;
+- updates Shairport Sync to use `acp_airplay` and the AirPlay soft-volume control;
+- replaces AirPlay hooks so they pause Plexamp but never stop its service;
+- installs `/usr/local/bin/a-clockwork-plex-audio-mixer` and its restricted sudo policy;
+- migrates `config.json` to `shared_mixer_enabled: true` and `alsa_device: acp_alarm`;
+- keeps scheduled alarm audio disabled.
+
+The bedroom Pi defaults are:
 
 ```text
-/usr/local/bin/a-clockwork-plex-alarm-audio
-/etc/sudoers.d/a-clockwork-plex-alarm-audio
+ALSA_CARD=Pro
+ALSA_DEVICE=0
 ```
 
-The helper has only three fixed operations:
+For different hardware:
 
-```text
-status
-release
-restore <plexamp-was-active 0|1> <shairport-was-active 0|1>
+```bash
+sudo ALSA_CARD=YourCard ALSA_DEVICE=0 \
+  bash scripts/install-shared-audio.sh
 ```
 
-It cannot execute arbitrary services or commands.
+Restart the audio services and dashboard:
 
-## First controlled test
+```bash
+sudo systemctl restart plexamp.service
+sudo systemctl restart shairport-sync.service
+sudo systemctl restart a-clockwork-plex.service
+```
 
-1. Open **Settings → Alarms → Controlled alarm audio**.
-2. Confirm `aplay ready` and `Installed` are shown.
-3. Set the ALSA output device. On the bedroom Pi with the RPi DAC Pro, use `plughw:CARD=Pro,DEV=0`.
-4. Save with either **Save audio safety settings** or the main sticky **Save settings** button. Both routes persist the audio card.
-5. Reload Settings and confirm the device remains selected.
-6. Choose a 5-second test duration.
-7. Enable **Enable alarm audio tests** and save.
-8. Use **Test tone now**. The backend caps both the starting and target volume at 25% for this pass.
-9. Confirm the tone stops automatically and the previous services return.
-10. Use **Stop alarm audio** during a second test and confirm it stops immediately.
-11. Use **Test full alarm in 10 sec** to validate screen takeover, Snooze and Dismiss with real test audio.
-12. Disable the master test switch and save after testing.
+Plexamp should use its default ALSA output. When Plexamp has an explicitly selected hardware device, change it once to `acp_plexamp` or **A Clockwork Plex - Plexamp**.
 
-Stopping Shairport Sync ends any live AirPlay session. The service can be restored, but the originating phone must start or reconnect its stream again.
+## Verify the installation
+
+```bash
+aplay -L | grep -A1 '^acp_'
+
+/usr/local/bin/a-clockwork-plex-audio-mixer status \
+  | python3 -m json.tool
+```
+
+The helper should report all four channels as available.
+
+Open **Settings → General → Shared audio mixer**. The card should report **Shared and ready** and display live values for all four controls.
+
+## Staged tests
+
+### 1. Mixer controls
+
+Move each slider and confirm the percentage survives a page reload. The `−` and `＋` buttons change the selected source in five-percent steps.
+
+### 2. Plexamp plus alarm
+
+1. Start music in Plexamp.
+2. Open **Settings → Alarms → Controlled alarm audio**.
+3. Confirm **Use shared ALSA mixer** is enabled and the alarm PCM is `acp_alarm`.
+4. Set a five-second test duration.
+5. Enable and save **Enable alarm audio tests**.
+6. Press **Test tone now**.
+
+The alarm should mix over the currently playing track. Plexamp must remain connected and its service must remain active. No stop, restart or DAC handover occurs.
+
+### 3. Full alarm controls
+
+Use **Test full alarm in 10 sec** and validate screen takeover, Snooze, the repeated cycle and Dismiss. Plexamp remains available throughout.
+
+### 4. AirPlay handoff
+
+Start AirPlay while Plexamp is playing. The shared AirPlay start hook pauses Plexamp and changes the dashboard mode, but leaves `plexamp.service` running. Ending AirPlay returns the screen without restarting Plexamp.
 
 ## Diagnostics
 
 ```bash
+curl -s http://localhost:8088/api/audio/mixer \
+  | venv/bin/python -m json.tool
+
 curl -s http://localhost:8088/api/alarms/audio \
   | venv/bin/python -m json.tool
 
 cat alarm-audio-runtime.json \
   | venv/bin/python -m json.tool
 
-journalctl -u a-clockwork-plex.service -n 100 --no-pager
+journalctl \
+  -u a-clockwork-plex.service \
+  -u plexamp.service \
+  -u shairport-sync.service \
+  -n 120 --no-pager
 ```
 
 Useful ALSA checks:
@@ -93,13 +158,15 @@ Useful ALSA checks:
 ```bash
 aplay -l
 aplay -L
+amixer -c Pro scontrols
+sudo fuser -v /dev/snd/*
 ```
 
-When `default` is not the correct output, use a device name reported by `aplay -L` in the audio Settings card. `plughw:` is preferred for a hardware DAC because ALSA may adapt the stream format when the device requires it.
+With `dmix`, the DAC PCM may be owned by an ALSA client while several source streams remain usable. That is expected; source sharing happens through the common dmix PCM rather than by repeatedly opening the hardware directly.
 
 ## Emergency rollback
 
-Stop any alarm test and relock audio:
+Stop and relock alarm tests:
 
 ```bash
 curl -fsS -X POST http://localhost:8088/api/alarms/audio/stop
@@ -107,11 +174,13 @@ curl -fsS -X POST http://localhost:8088/api/alarms/audio/stop
 
 Then disable **Enable alarm audio tests** in Settings.
 
-Remove the privileged helper and policy completely:
+The installer creates timestamped backups of the managed ALSA and Shairport files. To remove the shared mixer itself:
 
 ```bash
-sudo rm -f /usr/local/bin/a-clockwork-plex-alarm-audio
-sudo rm -f /etc/sudoers.d/a-clockwork-plex-alarm-audio
-sudo systemctl restart plexamp.service
-sudo systemctl restart shairport-sync.service
+sudo rm -f /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf
+sudo rm -f /usr/local/bin/a-clockwork-plex-audio-mixer
+sudo rm -f /etc/sudoers.d/a-clockwork-plex-audio-mixer
+sudo rm -f /etc/default/a-clockwork-plex-audio
 ```
+
+Restore the most recent `/etc/shairport-sync.conf.<timestamp>.bak` and `.asoundrc` backup when required, then restart Plexamp and Shairport Sync.
