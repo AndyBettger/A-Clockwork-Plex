@@ -160,6 +160,13 @@ body.airplay-metadata-active .airplay-copy h1 {
   transform: none !important;
 }
 
+/* A compass bearing's lone degree mark behaves like superscript punctuation,
+   unlike full units such as °C, hPa or km/h which belong on the baseline. */
+.weather-detail-page .wind-degrees .segment-readout-unit {
+  align-self: flex-start;
+  margin-inline-start: 0.08em !important;
+}
+
 .segment-readout-separator {
   margin-inline: 0.28em;
   color: var(--muted);
