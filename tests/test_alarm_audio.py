@@ -48,7 +48,7 @@ class AlarmAudioTests(unittest.TestCase):
         self.assertEqual(settings["test_volume_cap_percent"], 25)
         self.assertEqual(settings["alsa_device"], "hw:1,0")
 
-    def test_renderer_creates_valid_mono_wave_file(self):
+    def test_renderer_creates_valid_stereo_wave_file(self):
         tone = {
             "id": "test-tone",
             "pattern": [
@@ -73,10 +73,16 @@ class AlarmAudioTests(unittest.TestCase):
                 fade_seconds=1,
             )
             with wave.open(str(path), "rb") as audio:
-                self.assertEqual(audio.getnchannels(), 1)
+                self.assertEqual(audio.getnchannels(), 2)
                 self.assertEqual(audio.getsampwidth(), 2)
-                self.assertEqual(audio.getframerate(), 22050)
-                self.assertEqual(audio.getnframes(), 22050)
+                self.assertEqual(audio.getframerate(), 44100)
+                self.assertEqual(audio.getnframes(), 44100)
+                frames = audio.readframes(256)
+
+            samples = memoryview(frames).cast("h")
+            self.assertGreater(len(samples), 2)
+            for index in range(0, len(samples) - 1, 2):
+                self.assertEqual(samples[index], samples[index + 1])
 
     def test_master_switch_blocks_test_playback(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -101,6 +107,20 @@ class AlarmAudioTests(unittest.TestCase):
             self.assertEqual(manager.status()["armed_occurrence_count"], 1)
             manager.disarm_occurrence("test|123")
             self.assertEqual(manager.status()["armed_occurrence_count"], 0)
+
+    def test_diagnostics_report_stereo_format(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager = AlarmAudioManager(
+                lambda: {"alarm_audio": {"alsa_device": "plughw:CARD=Pro,DEV=0"}},
+                lambda: {"tones": []},
+                lambda: {},
+                Path(directory) / "runtime.json",
+            )
+            player_format = manager.diagnostics()["player"]["format"]
+            self.assertEqual(player_format["sample_rate_hz"], 44100)
+            self.assertEqual(player_format["channels"], 2)
+            self.assertEqual(player_format["sample_width_bits"], 16)
+            self.assertEqual(player_format["channel_layout"], "dual-mono stereo")
 
     def test_stubborn_player_is_killed_after_terminate_timeout(self):
         process = StubbornProcess()
