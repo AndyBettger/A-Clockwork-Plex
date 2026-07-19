@@ -1,8 +1,51 @@
 (() => {
   const tabList = document.querySelector('[data-settings-tabs]');
+  const settingsForm = document.querySelector('.settings-form');
+  if (!tabList || !settingsForm) {
+    return;
+  }
+
+  function ensureAudioWorkspace() {
+    if (!document.querySelector('[data-settings-tab="audio"]')) {
+      const tab = document.createElement('button');
+      tab.className = 'settings-tab';
+      tab.type = 'button';
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', 'false');
+      tab.setAttribute('aria-controls', 'settings-panel-audio');
+      tab.tabIndex = -1;
+      tab.dataset.settingsTab = 'audio';
+      tab.textContent = 'Audio';
+      const plexampTab = document.querySelector('[data-settings-tab="plexamp"]');
+      tabList.insertBefore(tab, plexampTab || null);
+    }
+
+    if (!document.querySelector('[data-settings-panel="audio"]')) {
+      const panel = document.createElement('div');
+      panel.className = 'settings-tab-panel';
+      panel.id = 'settings-panel-audio';
+      panel.setAttribute('role', 'tabpanel');
+      panel.dataset.settingsPanel = 'audio';
+      panel.hidden = true;
+      panel.innerHTML = `
+        <section class="settings-card is-intro">
+          <div class="settings-card-heading">
+            <h2>Audio</h2>
+            <span class="settings-chip">Shared mixer</span>
+          </div>
+          <p class="muted small">Persistent output trims and starting levels. Open Audio in the bottom drawer for immediate player-aware adjustments.</p>
+        </section>
+      `;
+      const plexampPanel = document.querySelector('[data-settings-panel="plexamp"]');
+      settingsForm.insertBefore(panel, plexampPanel || settingsForm.querySelector('.settings-actions'));
+    }
+  }
+
+  ensureAudioWorkspace();
+
   const tabs = [...document.querySelectorAll('[data-settings-tab]')];
   const panels = [...document.querySelectorAll('[data-settings-panel]')];
-  if (!tabList || !tabs.length || !panels.length) {
+  if (!tabs.length || !panels.length) {
     return;
   }
 
@@ -83,18 +126,19 @@
   const initialTab = window.location.hash || storedTab() || 'general';
   activate(initialTab, { skipHash: !window.location.hash, instant: true });
 
-  // Alarm diagnostics are deliberately split from the large editor. Load them
-  // here so the touchscreen page remains compatible with older templates.
+  // Alarm and Audio workspaces are split into smaller scripts so the large
+  // editor remains usable on older installations during development.
   [
     '/static/js/settings-alarm-scheduler.js',
     '/static/js/settings-alarm-audio.js',
+    '/static/js/settings-audio-workspace.js',
   ].forEach((source) => {
     if (document.querySelector(`script[src="${source}"]`)) {
       return;
     }
     const script = document.createElement('script');
     script.src = source;
-    script.defer = true;
+    script.async = false;
     document.body.appendChild(script);
   });
 })();
