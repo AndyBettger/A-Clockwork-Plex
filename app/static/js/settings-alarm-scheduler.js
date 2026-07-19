@@ -1,4 +1,9 @@
 (() => {
+  if (window.__aClockworkPlexAlarmSchedulerSettingsLoaded) {
+    return;
+  }
+  window.__aClockworkPlexAlarmSchedulerSettingsLoaded = true;
+
   const PANEL_ID = 'settings-panel-alarms';
   const STATUS_ENDPOINT = '/api/alarms/scheduler';
   const TEST_ENDPOINT = '/api/alarms/test';
@@ -42,7 +47,7 @@
     };
   }
 
-  function formatActiveState(scheduler) {
+  function formatActiveState(scheduler, audio = {}) {
     const active = scheduler.active_occurrence;
     const pending = scheduler.pending_test_occurrence;
     if (active) {
@@ -52,9 +57,22 @@
           detail: `Returns ${formatTimestamp(scheduler.snoozed_until)} · snooze ${active.snooze_count || 0}`,
         };
       }
+      const audioMatches = String(audio.current_occurrence_key || '') === String(active.occurrence_key || '');
+      if (audio.playback_active && audioMatches) {
+        return {
+          title: `${active.label || 'Alarm'} · screen and audio active`,
+          detail: `${audio.current_tone_label || active?.source?.tone_id || 'Local tone'}${audio.fallback_used ? ' · emergency fallback' : ''}`,
+        };
+      }
+      if (active.test_mode && Number(audio.armed_occurrence_count) > 0) {
+        return {
+          title: `${active.label || 'Alarm'} · controlled audio test`,
+          detail: 'Screen active · test audio armed or completed',
+        };
+      }
       return {
         title: `${active.label || 'Alarm'} · screen active`,
-        detail: `${active.test_mode ? 'Visual test · ' : ''}audio remains locked`,
+        detail: `${active.test_mode ? 'Visual test' : 'Scheduled occurrence'} · audio locked`,
       };
     }
     if (pending) {
@@ -83,16 +101,16 @@
       introChip.textContent = 'Active runtime';
     }
     if (introCopy) {
-      introCopy.textContent = 'Create and organise alarms while the persistent runtime handles screen takeover, snooze and dismiss. Audio remains deliberately locked.';
+      introCopy.textContent = 'Create and organise alarms while the persistent runtime handles screen takeover, snooze and dismiss. Scheduled audio remains locked; controlled tests are available below.';
     }
 
     const lockoutTitle = lockout.querySelector('strong');
     const lockoutCopy = lockout.querySelector('span');
     if (lockoutTitle) {
-      lockoutTitle.textContent = 'Audio playback lockout active';
+      lockoutTitle.textContent = 'Scheduled audio lockout active';
     }
     if (lockoutCopy) {
-      lockoutCopy.textContent = 'Scheduled or test alarms may take over the touchscreen, but this pass cannot play any sound.';
+      lockoutCopy.textContent = 'Ordinary alarm occurrences may take over the touchscreen but cannot make sound. Only explicitly armed tests can use the audio manager.';
     }
 
     if (byId('alarm-scheduler-status-card')) {
@@ -152,7 +170,7 @@
         <button class="button settings-secondary" id="alarm-scheduler-refresh" type="button">Recalculate now</button>
         <button class="button" id="alarm-runtime-test" type="button">Test screen in 10 seconds</button>
         <button class="button settings-secondary" id="alarm-runtime-clear-test" type="button">Clear visual test</button>
-        <span class="muted small" id="alarm-scheduler-message">The screen can activate; audio cannot.</span>
+        <span class="muted small" id="alarm-scheduler-message">Scheduled audio is locked; controlled tests are configured separately.</span>
       </div>
     `;
     panel.insertBefore(card, lockout);
@@ -165,6 +183,7 @@
 
   function renderStatus(payload) {
     const scheduler = payload?.scheduler;
+    const audio = payload?.audio || {};
     if (!scheduler) {
       throw new Error('Scheduler status response was incomplete.');
     }
@@ -180,7 +199,7 @@
     byId('alarm-scheduler-next').textContent = next.title;
     byId('alarm-scheduler-next-detail').textContent = next.detail;
 
-    const active = formatActiveState(scheduler);
+    const active = formatActiveState(scheduler, audio);
     byId('alarm-runtime-active').textContent = active.title;
     byId('alarm-runtime-active-detail').textContent = active.detail;
 
@@ -202,7 +221,7 @@
     if (observedElement) {
       if (observed) {
         const recovery = observed.recovered_after_restart ? ' · recovered after restart' : '';
-        observedElement.textContent = `Last observed: ${observed.label || 'Alarm'} at ${formatTimestamp(observed.scheduled_for)}${recovery}. Current status: ${observed.status || 'recorded'}; playback was not attempted.`;
+        observedElement.textContent = `Last scheduler occurrence: ${observed.label || 'Alarm'} at ${formatTimestamp(observed.scheduled_for)}${recovery}. Runtime status: ${observed.status || 'recorded'}.`;
       } else {
         observedElement.textContent = 'No alarm occurrences have been observed yet. Long may this continue.';
       }
@@ -210,7 +229,7 @@
 
     const message = byId('alarm-scheduler-message');
     if (message) {
-      message.textContent = scheduler.last_error || 'Screen takeover, snooze and dismiss are active; audio playback remains locked.';
+      message.textContent = scheduler.last_error || 'Screen takeover, snooze and dismiss are active. Scheduled audio remains locked; controlled tests use the audio panel below.';
       message.classList.toggle('is-error', Boolean(scheduler.last_error));
     }
   }
@@ -275,7 +294,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ delay_seconds: 10 }),
       });
-      renderStatus({ scheduler: payload.scheduler });
+      renderStatus({ scheduler: payload.scheduler, audio: payload.audio });
       const message = byId('alarm-scheduler-message');
       if (message) {
         message.textContent = payload.message || 'Visual alarm test armed.';
@@ -303,7 +322,7 @@
     }
     try {
       const payload = await requestJson(CLEAR_TEST_ENDPOINT, { method: 'POST' });
-      renderStatus({ scheduler: payload.scheduler });
+      renderStatus({ scheduler: payload.scheduler, audio: payload.audio });
       const message = byId('alarm-scheduler-message');
       if (message) {
         message.textContent = payload.message || 'Visual alarm test cleared.';
