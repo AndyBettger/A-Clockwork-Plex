@@ -9,6 +9,7 @@ This development pass permits **explicit local-audio tests only**. Ordinary sche
 - Full-screen audio works only for a unique visual-test occurrence explicitly armed by the audio endpoint.
 - Restarting the dashboard clears in-memory audio arming, so a pending test cannot unexpectedly resume sound after a service restart.
 - Every test has a maximum duration of 30 seconds.
+- Every controlled test is capped at **25% output** by the backend, regardless of the alarm's saved start and target volume.
 - Snooze, Dismiss, Clear visual test and Stop alarm audio terminate playback immediately.
 - A player that ignores termination is killed before service restoration continues.
 
@@ -47,16 +48,15 @@ It cannot execute arbitrary services or commands.
 
 ## First controlled test
 
-1. Set the chosen alarm's start and target volumes to a deliberately low level, such as 15% and 25%, and save the alarm.
-2. Open **Settings → Alarms → Controlled alarm audio**.
-3. Confirm `aplay ready` and `Installed` are shown.
-4. Choose a 5-second test duration.
-5. Enable **Enable alarm audio tests** and save the audio safety settings.
-6. Use **Test tone now**.
-7. Confirm the tone stops automatically and the previous services return.
-8. Use **Stop alarm audio** during a second test and confirm it stops immediately.
-9. Use **Test full alarm in 10 sec** to validate screen takeover, Snooze and Dismiss with real test audio.
-10. Disable the master test switch and save after testing.
+1. Open **Settings → Alarms → Controlled alarm audio**.
+2. Confirm `aplay ready` and `Installed` are shown.
+3. Choose a 5-second test duration.
+4. Enable **Enable alarm audio tests** and save the audio safety settings.
+5. Use **Test tone now**. The backend caps both the starting and target volume at 25% for this pass.
+6. Confirm the tone stops automatically and the previous services return.
+7. Use **Stop alarm audio** during a second test and confirm it stops immediately.
+8. Use **Test full alarm in 10 sec** to validate screen takeover, Snooze and Dismiss with real test audio.
+9. Disable the master test switch and save after testing.
 
 Stopping Shairport Sync ends any live AirPlay session. The service can be restored, but the originating phone must start or reconnect its stream again.
 
