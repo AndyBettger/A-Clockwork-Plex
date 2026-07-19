@@ -75,6 +75,7 @@ wait_plexamp_http() {
 stop_service_bounded() {
     local service="$1"
     local grace_seconds="${2:-3}"
+    local force_wait_seconds="${3:-2}"
 
     case "$(service_state "$service")" in
         inactive|failed|unknown)
@@ -94,7 +95,7 @@ stop_service_bounded() {
     # stop job before allowing aplay or a subsequent start.
     /usr/bin/systemctl kill --kill-who=all --signal=SIGKILL "$service" >/dev/null 2>&1 || true
     /usr/bin/systemctl stop --no-block "$service" >/dev/null 2>&1 || true
-    if wait_inactive "$service" 3; then
+    if wait_inactive "$service" "$force_wait_seconds"; then
         printf 'true'
         return 0
     fi
@@ -123,13 +124,13 @@ case "${1:-status}" in
 
         # Stop Shairport first. Its normal end hook may restart Plexamp, so
         # Plexamp is paused and stopped afterwards.
-        if ! shairport_forced="$(stop_service_bounded "$SHAIRPORT_SERVICE" 2)"; then
+        if ! shairport_forced="$(stop_service_bounded "$SHAIRPORT_SERVICE" 1 1)"; then
             printf '{"released":false,"error":"shairport-stop-timeout","shairport_forced":%s}\n' "$shairport_forced"
             exit 70
         fi
 
         /usr/bin/curl -fsS --max-time 2 "$PLEXAMP_PAUSE_URL" >/dev/null 2>&1 || true
-        if ! plexamp_forced="$(stop_service_bounded "$PLEXAMP_SERVICE" 3)"; then
+        if ! plexamp_forced="$(stop_service_bounded "$PLEXAMP_SERVICE" 3 2)"; then
             printf '{"released":false,"error":"plexamp-stop-timeout","plexamp_forced":%s}\n' "$plexamp_forced"
             exit 70
         fi
@@ -140,7 +141,7 @@ case "${1:-status}" in
             inactive|failed|unknown)
                 ;;
             *)
-                if ! second_forced="$(stop_service_bounded "$PLEXAMP_SERVICE" 1)"; then
+                if ! second_forced="$(stop_service_bounded "$PLEXAMP_SERVICE" 1 2)"; then
                     printf '{"released":false,"error":"plexamp-restarted-during-release","plexamp_forced":true}\n'
                     exit 70
                 fi
@@ -175,12 +176,12 @@ case "${1:-status}" in
                 active)
                     ;;
                 *)
-                    stop_service_bounded "$PLEXAMP_SERVICE" 1 >/dev/null || true
+                    stop_service_bounded "$PLEXAMP_SERVICE" 1 2 >/dev/null || true
                     ;;
             esac
             /usr/bin/systemctl reset-failed "$PLEXAMP_SERVICE" >/dev/null 2>&1 || true
             /usr/bin/systemctl start --no-block "$PLEXAMP_SERVICE" >/dev/null 2>&1 || true
-            if wait_active "$PLEXAMP_SERVICE" 4 && wait_plexamp_http 7; then
+            if wait_active "$PLEXAMP_SERVICE" 3 && wait_plexamp_http 6; then
                 plexamp_ready=true
             else
                 printf '{"restored":false,"error":"plexamp-health-timeout","plexamp_state":"%s","plexamp_http_ready":%s}\n' \
@@ -193,7 +194,7 @@ case "${1:-status}" in
         if [[ "$shairport" == "1" ]]; then
             /usr/bin/systemctl reset-failed "$SHAIRPORT_SERVICE" >/dev/null 2>&1 || true
             /usr/bin/systemctl start --no-block "$SHAIRPORT_SERVICE" >/dev/null 2>&1 || true
-            if wait_active "$SHAIRPORT_SERVICE" 3; then
+            if wait_active "$SHAIRPORT_SERVICE" 2; then
                 shairport_ready=true
             else
                 printf '{"restored":false,"error":"shairport-health-timeout","shairport_state":"%s","plexamp_ready":%s}\n' \
