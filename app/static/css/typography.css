@@ -62,7 +62,6 @@ body.airplay-metadata-active .airplay-copy h1 {
 }
 
 .weather-label,
-.weather-sub-label,
 .setting-field > span,
 .conditions-table thead th,
 .station-table th,
@@ -71,11 +70,16 @@ body.airplay-metadata-active .airplay-copy h1 {
   font-weight: 700;
 }
 
-/* The element carrying .segment-readout keeps its native layout. This is
-   important for table cells, block-level readings and AirPlay cards. Only the
-   inner wrapper becomes a flex row. */
+/* Shared fourteen-segment sensor readout renderer. The host element keeps its
+   native table/block layout; only the generated inner wrapper becomes a row. */
 .segment-readout {
   font-variant-numeric: tabular-nums;
+}
+
+.segment-readout-inner,
+.segment-readout-number,
+.segment-readout-cell {
+  font-size: 1em !important;
 }
 
 .segment-readout-inner {
@@ -83,7 +87,7 @@ body.airplay-metadata-active .airplay-copy h1 {
   display: inline-flex !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: flex-start;
   gap: 0;
   inline-size: max-content;
@@ -149,10 +153,11 @@ body.airplay-metadata-active .airplay-copy h1 {
 }
 
 .segment-readout-unit {
-  margin-inline-start: 0.16em;
-  font-size: 0.56em;
+  margin-inline-start: 0.17em;
+  padding-bottom: 0;
+  font-size: 0.47em !important;
   letter-spacing: 0.035em;
-  transform: translateY(-0.08em);
+  transform: none !important;
 }
 
 .segment-readout-separator {
@@ -167,7 +172,7 @@ body.airplay-metadata-active .airplay-copy h1 {
 .airplay-info-card strong.segment-readout,
 .conditions-table td.segment-readout,
 .mini-reading strong.segment-readout,
-.wind-direction.segment-readout,
+.wind-degrees.segment-readout,
 .wind-readings strong.segment-readout,
 .barometer-reading-card strong.segment-readout,
 .rain-gauge-text strong.segment-readout {
@@ -188,14 +193,19 @@ body.airplay-metadata-active .airplay-copy h1 {
   letter-spacing: 0.025em;
 }
 
+/* Optically balanced separators for the large bedside clock. */
+.time .digital-colon {
+  align-items: center;
+  margin-inline: 0.02em;
+}
+
+.time .digital-colon-small {
+  margin-inline: 0.04em;
+}
+
 @media (max-height: 520px), (max-width: 860px) {
   .segment-readout-number {
     gap: 0.018em;
-  }
-
-  .segment-readout-unit {
-    margin-inline-start: 0.14em;
-    font-size: 0.54em;
   }
 
   .segment-readout-separator {
