@@ -30,6 +30,11 @@
   color: var(--muted);
 }
 
+.alarm-audio-safety-banner span::after {
+  content: " Every controlled test is capped at 25% output.";
+  color: #ffe0a8;
+}
+
 .alarm-audio-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
