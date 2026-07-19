@@ -8,16 +8,107 @@
   const selectedElement = document.getElementById('clock-card-selected-data');
   const orderElement = document.getElementById('clock-card-order');
   const hiddenInputsElement = document.getElementById('clock-card-hidden-inputs');
-  const toggleButtons = [...root.querySelectorAll('.clock-card-toggle')];
+  const palette = root.querySelector('.clock-card-palette');
 
-  if (!optionsElement || !selectedElement || !orderElement || !hiddenInputsElement) {
+  if (!optionsElement || !selectedElement || !orderElement || !hiddenInputsElement || !palette) {
     return;
   }
 
-  const options = JSON.parse(optionsElement.textContent || '[]');
+  const VIRTUAL_CARDS = {
+    temperature_summary: {
+      label: 'Temperature',
+      members: ['outdoor_temp', 'indoor_temp'],
+    },
+    humidity_summary: {
+      label: 'Humidity',
+      members: ['humidity', 'indoor_humidity'],
+    },
+    wind_summary: {
+      label: 'Wind speed and gust',
+      members: ['wind_speed', 'wind_gust'],
+    },
+    solar_uv_summary: {
+      label: 'Solar and UV',
+      members: ['solar', 'uv'],
+    },
+    rain_summary: {
+      label: 'Rain today and event rain',
+      members: ['daily_rain', 'event_rain'],
+    },
+  };
+
+  const rawOptions = JSON.parse(optionsElement.textContent || '[]');
+  const rawSelected = [...new Set(JSON.parse(selectedElement.textContent || '[]'))];
+  const memberToVirtual = {};
+
+  Object.entries(VIRTUAL_CARDS).forEach(([virtualId, definition]) => {
+    definition.members.forEach((member) => {
+      memberToVirtual[member] = virtualId;
+    });
+  });
+
+  function collapseIds(ids) {
+    const collapsed = [];
+    ids.forEach((id) => {
+      const displayId = memberToVirtual[id] || id;
+      if (!collapsed.includes(displayId)) {
+        collapsed.push(displayId);
+      }
+    });
+    return collapsed;
+  }
+
+  const options = [];
+  rawOptions.forEach((option) => {
+    const virtualId = memberToVirtual[option.id];
+    if (virtualId) {
+      if (!options.some((item) => item.id === virtualId)) {
+        options.push({ id: virtualId, label: VIRTUAL_CARDS[virtualId].label });
+      }
+      return;
+    }
+    options.push(option);
+  });
+
   const allowedIds = new Set(options.map((option) => option.id));
   const labels = Object.fromEntries(options.map((option) => [option.id, option.label]));
-  let selected = [...new Set(JSON.parse(selectedElement.textContent || '[]'))].filter((id) => allowedIds.has(id));
+  let selected = collapseIds(rawSelected).filter((id) => allowedIds.has(id));
+
+  function createPaletteButton(option) {
+    const button = document.createElement('button');
+    button.className = 'settings-pill clock-card-toggle';
+    button.type = 'button';
+    button.dataset.cardId = option.id;
+    button.dataset.cardLabel = option.label;
+
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+
+    button.addEventListener('click', () => {
+      if (selected.includes(option.id)) {
+        selected = selected.filter((cardId) => cardId !== option.id);
+      } else {
+        selected = [...selected, option.id];
+      }
+      render();
+    });
+
+    return button;
+  }
+
+  palette.replaceChildren(...options.map(createPaletteButton));
+
+  function appendHiddenInputs(id) {
+    const ids = VIRTUAL_CARDS[id]?.members || [id];
+    ids.forEach((storedId) => {
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'clock_cards';
+      hidden.value = storedId;
+      hiddenInputsElement.appendChild(hidden);
+    });
+  }
 
   function render() {
     orderElement.replaceChildren();
@@ -31,11 +122,7 @@
     }
 
     selected.forEach((id, index) => {
-      const hidden = document.createElement('input');
-      hidden.type = 'hidden';
-      hidden.name = 'clock_cards';
-      hidden.value = id;
-      hiddenInputsElement.appendChild(hidden);
+      appendHiddenInputs(id);
 
       const row = document.createElement('div');
       row.className = 'clock-card-row';
@@ -79,9 +166,8 @@
       orderElement.appendChild(row);
     });
 
-    toggleButtons.forEach((button) => {
-      const id = button.dataset.cardId;
-      const isActive = selected.includes(id);
+    [...palette.querySelectorAll('.clock-card-toggle')].forEach((button) => {
+      const isActive = selected.includes(button.dataset.cardId);
       button.classList.toggle('is-selected', isActive);
       button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
@@ -97,22 +183,6 @@
     selected = next;
     render();
   }
-
-  toggleButtons.forEach((button) => {
-    button.setAttribute('aria-pressed', 'false');
-    button.addEventListener('click', () => {
-      const id = button.dataset.cardId;
-      if (!allowedIds.has(id)) {
-        return;
-      }
-      if (selected.includes(id)) {
-        selected = selected.filter((cardId) => cardId !== id);
-      } else {
-        selected = [...selected, id];
-      }
-      render();
-    });
-  });
 
   render();
 })();

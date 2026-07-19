@@ -1,0 +1,221 @@
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Oxanium:wght@500;600;700&display=swap");
+
+:root {
+  --ui-font: "Atkinson Hyperlegible", "DejaVu Sans", "Arial", sans-serif;
+  --display-font: "Oxanium", "DejaVu Sans", "Arial", sans-serif;
+  --app-font: var(--ui-font);
+  --readout-on: #f7f9ff;
+  --readout-off: rgba(247, 249, 255, 0.045);
+  --readout-glow: rgba(143, 211, 255, 0.42);
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--ui-font);
+}
+
+h1,
+h2,
+h3,
+.settings-subheading,
+.airplay-kicker,
+.airplay-info-card > span,
+.forecast-kicker {
+  font-family: var(--display-font);
+}
+
+h1 {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+h2,
+h3,
+.settings-subheading {
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+
+.weather-panel h1,
+.settings-hero h1,
+.weather-detail-hero h1,
+body.airplay-session-idle .airplay-copy h1 {
+  font-family: var(--display-font);
+  font-weight: 600;
+}
+
+body.airplay-metadata-active .airplay-copy h1 {
+  font-family: var(--ui-font);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.airplay-kicker,
+.airplay-info-card > span,
+.forecast-kicker {
+  font-weight: 600;
+  letter-spacing: 0.085em;
+}
+
+.weather-label,
+.setting-field > span,
+.conditions-table thead th,
+.station-table th,
+.rain-gauge-text span,
+.rain-gauge-text small {
+  font-weight: 700;
+}
+
+/* Shared fourteen-segment sensor readout renderer. The host element keeps its
+   native table/block layout; only the generated inner wrapper becomes a row. */
+.segment-readout {
+  font-variant-numeric: tabular-nums;
+}
+
+.segment-readout-inner,
+.segment-readout-number,
+.segment-readout-cell {
+  font-size: 1em !important;
+}
+
+.segment-readout-inner {
+  --segment-readout-height: 1em;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  white-space: nowrap !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
+
+.segment-readout-number {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-end;
+  gap: 0.025em;
+  inline-size: max-content;
+  block-size: var(--segment-readout-height);
+  transform: skewX(-5deg);
+  transform-origin: center;
+  writing-mode: horizontal-tb !important;
+}
+
+.segment-readout-cell {
+  display: block;
+  flex: 0 0 auto;
+  inline-size: 0.54em;
+  block-size: 1em;
+}
+
+.segment-readout-cell.is-decimal {
+  inline-size: 0.27em;
+}
+
+.segment-readout-cell svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+.segment-readout-segment {
+  fill: var(--readout-off);
+}
+
+.segment-readout-segment.is-on,
+.segment-readout-punctuation {
+  fill: var(--readout-on);
+  filter: drop-shadow(0 0 1.8px var(--readout-glow));
+}
+
+.segment-readout-unit,
+.segment-readout-separator {
+  display: inline-block;
+  flex: 0 0 auto;
+  color: currentColor;
+  font-family: var(--display-font);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  writing-mode: horizontal-tb !important;
+}
+
+.segment-readout-unit {
+  margin-inline-start: 0.17em;
+  padding-bottom: 0;
+  font-size: 0.47em !important;
+  letter-spacing: 0.035em;
+  transform: none !important;
+}
+
+/* A compass bearing's lone degree mark behaves like superscript punctuation,
+   unlike full units such as °C, hPa or km/h which belong on the baseline. */
+.weather-detail-page .wind-degrees .segment-readout-unit {
+  align-self: flex-start;
+  margin-inline-start: 0.08em !important;
+}
+
+.segment-readout-separator {
+  margin-inline: 0.28em;
+  color: var(--muted);
+  font-size: 0.62em;
+  transform: translateY(-0.06em);
+}
+
+.weather-value.segment-readout,
+.weather-subvalue.segment-readout,
+.airplay-info-card strong.segment-readout,
+.conditions-table td.segment-readout,
+.mini-reading strong.segment-readout,
+.wind-degrees.segment-readout,
+.wind-readings strong.segment-readout,
+.barometer-reading-card strong.segment-readout,
+.rain-gauge-text strong.segment-readout {
+  color: var(--text);
+}
+
+.weather-value.segment-readout,
+.weather-subvalue.segment-readout,
+.airplay-info-card strong.segment-readout,
+.barometer-reading-card strong.segment-readout {
+  --readout-glow: rgba(143, 211, 255, 0.52);
+}
+
+.weather-card.is-barometer .weather-value,
+#airplay-barometer-now {
+  font-family: var(--display-font);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* Optically balanced separators for the large bedside clock. */
+.time .digital-colon {
+  align-items: center;
+  margin-inline: 0.02em;
+}
+
+.time .digital-colon-small {
+  margin-inline: 0.04em;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .segment-readout-number {
+    gap: 0.018em;
+  }
+
+  .segment-readout-separator {
+    margin-inline: 0.22em;
+  }
+}

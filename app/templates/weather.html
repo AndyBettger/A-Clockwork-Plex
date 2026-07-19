@@ -3,10 +3,14 @@
 {% block title %}Weather - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/weather-console.css') }}">
 {% endblock %}
 {% block content %}
 <section class="hero weather-detail-hero">
-  <h1>{{ config.weather.station_name }} Detailed</h1>
+  <h1>
+    <span class="weather-detail-title-main">{{ config.weather.station_name }}</span>
+    <span class="weather-detail-title-mode">Detailed</span>
+  </h1>
 </section>
 
 <section class="weather-detail-page" aria-label="Detailed weather station readings">
@@ -62,16 +66,30 @@
       <article class="detail-panel wind-panel">
         <h2>Wind</h2>
         <div class="wind-layout">
-          <div class="compass" aria-label="Wind direction {{ weather_detail.compass.label }}">
-            <span class="compass-letter compass-n">N</span>
-            <span class="compass-letter compass-e">E</span>
-            <span class="compass-letter compass-s">S</span>
-            <span class="compass-letter compass-w">W</span>
-            <span class="compass-ring"></span>
-            <span class="compass-arrow" style="--wind-deg: {{ weather_detail.compass.degrees }}deg;"></span>
+          <div class="wind-compass-column">
+            <div class="compass" aria-label="Wind direction {{ weather_detail.compass.label }}">
+              <span class="compass-letter compass-n">N</span>
+              <span class="compass-letter compass-e">E</span>
+              <span class="compass-letter compass-s">S</span>
+              <span class="compass-letter compass-w">W</span>
+              <span class="compass-ring"></span>
+              <span class="compass-arrow" style="--wind-deg: {{ weather_detail.compass.degrees }}deg;"></span>
+            </div>
+            {% if weather_detail.compass.available %}
+              <div class="wind-compass-caption">
+                <div class="wind-degrees">{{ weather_detail.compass.degrees | round | int }}°</div>
+                <div
+                  class="wind-direction-word"
+                  id="wind-direction-word"
+                  data-wind-degrees="{{ weather_detail.compass.degrees }}"
+                  aria-label="{{ weather_detail.compass.label }}"
+                ></div>
+              </div>
+            {% else %}
+              <div class="wind-direction-fallback">Waiting for wind direction</div>
+            {% endif %}
           </div>
           <div class="wind-readings">
-            <div class="wind-direction">{{ weather_detail.compass.label }}</div>
             {% if weather_detail.compass.speed %}
               <div><span>Speed</span><strong>{{ weather_detail.compass.speed.value }}</strong></div>
             {% endif %}
@@ -187,6 +205,40 @@
 {% endblock %}
 {% block scripts %}
 <script>
+(() => {
+  const directionElement = document.getElementById('wind-direction-word');
+  const segments = window.AClockworkSegments;
+  if (!directionElement || !segments) {
+    return;
+  }
+
+  const directionNames = [
+    'North',
+    'North-northeast',
+    'Northeast',
+    'East-northeast',
+    'East',
+    'East-southeast',
+    'Southeast',
+    'South-southeast',
+    'South',
+    'South-southwest',
+    'Southwest',
+    'West-southwest',
+    'West',
+    'West-northwest',
+    'Northwest',
+    'North-northwest',
+  ];
+
+  const rawDegrees = Number(directionElement.dataset.windDegrees);
+  const degrees = Number.isFinite(rawDegrees) ? ((rawDegrees % 360) + 360) % 360 : 0;
+  const directionName = directionNames[Math.round(degrees / 22.5) % directionNames.length];
+  directionElement.classList.toggle('is-long', directionName.length > 10);
+  directionElement.setAttribute('aria-label', `${Math.round(degrees)} degrees, ${directionName}`);
+  segments.setCharacters(directionElement, directionName);
+})();
+
 (() => {
   const refreshSeconds = Number({{ config.weather.auto_refresh_seconds | default(60) | tojson }});
   if (!Number.isFinite(refreshSeconds) || refreshSeconds <= 0) {
