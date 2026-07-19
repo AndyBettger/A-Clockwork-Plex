@@ -57,6 +57,24 @@
     return tokens;
   }
 
+  function displayValueForElement(element, sourceValue) {
+    if (!element.matches('.weather-detail-page .wind-readings strong')) {
+      return sourceValue;
+    }
+
+    const match = sourceValue.match(/^([+-]?\d+(?:\.\d+)?)(.*)$/);
+    if (!match) {
+      return sourceValue;
+    }
+
+    const numeric = Number(match[1]);
+    if (!Number.isFinite(numeric)) {
+      return sourceValue;
+    }
+
+    return `${numeric.toFixed(1).padStart(4, '0')}${match[2]}`;
+  }
+
   function renderReadout(element) {
     if (!(element instanceof HTMLElement)) {
       return;
@@ -67,14 +85,15 @@
       return;
     }
 
-    const rawValue = String(element.textContent || '').trim();
-    if (!/\d/.test(rawValue)) {
+    const sourceValue = String(element.textContent || '').trim();
+    if (!/\d/.test(sourceValue)) {
       element.classList.remove('segment-readout');
       element.removeAttribute('data-segment-source');
       return;
     }
 
-    const pieces = rawValue.split(/([+-]?\d+(?:\.\d+)?)/g).filter((piece) => piece !== '');
+    const displayValue = displayValueForElement(element, sourceValue);
+    const pieces = displayValue.split(/([+-]?\d+(?:\.\d+)?)/g).filter((piece) => piece !== '');
     const inner = document.createElement('span');
     inner.className = 'segment-readout-inner';
 
@@ -86,8 +105,8 @@
       }
     });
 
-    element.dataset.segmentSource = rawValue;
-    element.setAttribute('aria-label', rawValue);
+    element.dataset.segmentSource = sourceValue;
+    element.setAttribute('aria-label', sourceValue);
     element.classList.add('segment-readout');
     element.replaceChildren(inner);
   }
