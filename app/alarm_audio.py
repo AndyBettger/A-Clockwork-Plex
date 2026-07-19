@@ -27,6 +27,7 @@ DEFAULT_AUDIO_SETTINGS = {
 }
 SAMPLE_RATE = 22050
 MAX_TEST_SECONDS = 30
+MAX_TEST_VOLUME_PERCENT = 25
 
 
 def _integer(value: Any, fallback: int) -> int:
@@ -47,6 +48,8 @@ def normalise_audio_settings(raw: Any) -> dict[str, Any]:
         "backend": "aplay",
         "alsa_device": str(source.get("alsa_device", "default")).strip()[:120] or "default",
         "test_duration_seconds": max(3, min(MAX_TEST_SECONDS, _integer(source.get("test_duration_seconds"), 12))),
+        # Read-only safety limit. Submitted values are deliberately ignored.
+        "test_volume_cap_percent": MAX_TEST_VOLUME_PERCENT,
         "helper_path": str(source.get("helper_path", DEFAULT_AUDIO_SETTINGS["helper_path"])).strip()[:240]
         or DEFAULT_AUDIO_SETTINGS["helper_path"],
     }
@@ -302,7 +305,10 @@ class AlarmAudioManager:
                 "error": None if player else "aplay was not found. Install alsa-utils.",
             },
             "scheduled_playback_enabled": False,
-            "safety_message": "Only explicit tests may make sound. Scheduled alarms remain locked.",
+            "safety_message": (
+                f"Only explicit tests may make sound. Scheduled alarms remain locked, "
+                f"and tests are capped at {MAX_TEST_VOLUME_PERCENT}%."
+            ),
         }
 
     def start(self) -> None:
@@ -381,6 +387,9 @@ class AlarmAudioManager:
             if value and str(value) not in tone_ids:
                 tone_ids.append(str(value))
         duration = max(3, min(MAX_TEST_SECONDS, _integer(occurrence.get("audio_duration_seconds"), settings["test_duration_seconds"])))
+        volume_cap = max(1, min(MAX_TEST_VOLUME_PERCENT, _integer(settings.get("test_volume_cap_percent"), MAX_TEST_VOLUME_PERCENT)))
+        start_percent = min(volume_cap, max(0, _integer(volume.get("start_percent"), 60)))
+        target_percent = min(volume_cap, max(0, _integer(volume.get("target_percent"), 85)))
         player = shutil.which("aplay")
         with self.lock:
             self.state.update(
@@ -390,7 +399,14 @@ class AlarmAudioManager:
                     "last_error": None,
                 }
             )
-            self._record("playback-requested", occurrence_key=occurrence.get("occurrence_key"), duration_seconds=duration)
+            self._record(
+                "playback-requested",
+                occurrence_key=occurrence.get("occurrence_key"),
+                duration_seconds=duration,
+                start_percent=start_percent,
+                target_percent=target_percent,
+                volume_cap_percent=volume_cap,
+            )
         if not player:
             with self.lock:
                 self.state["last_error"] = "aplay was not found. Install alsa-utils."
@@ -419,8 +435,8 @@ class AlarmAudioManager:
                     tone,
                     wav_path,
                     duration_seconds=duration,
-                    start_percent=_integer(volume.get("start_percent"), 60),
-                    target_percent=_integer(volume.get("target_percent"), 85),
+                    start_percent=start_percent,
+                    target_percent=target_percent,
                     fade_seconds=_integer(volume.get("fade_seconds"), 10),
                 )
                 command = [player, "-q", "-D", settings["alsa_device"], str(wav_path)]
