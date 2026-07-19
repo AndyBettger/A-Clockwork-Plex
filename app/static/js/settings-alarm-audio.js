@@ -12,9 +12,11 @@
   const REFRESH_MS = 3000;
 
   const byId = (id) => document.getElementById(id);
+  const settingsForm = document.querySelector('.settings-form');
   let refreshTimer = null;
   let requestInFlight = false;
   let lastPayload = null;
+  let skipNextFormSave = false;
 
   function installStyles() {
     if (document.querySelector('link[data-alarm-audio-styles]')) {
@@ -57,7 +59,7 @@
 
       <div class="alarm-audio-grid">
         <label class="setting-toggle alarm-audio-master">
-          <input id="alarm-audio-master-enabled" type="checkbox">
+          <input id="alarm-audio-master-enabled" name="alarm_audio_master_enabled" type="checkbox">
           <span>
             <strong>Enable alarm audio tests</strong>
             <small>Explicit safety gate. Save before any test can make sound.</small>
@@ -65,7 +67,7 @@
         </label>
 
         <label class="setting-toggle">
-          <input id="alarm-audio-release-services" type="checkbox">
+          <input id="alarm-audio-release-services" name="alarm_audio_release_services" type="checkbox">
           <span>
             <strong>Release Plexamp and AirPlay</strong>
             <small>Uses the restricted root helper before playback.</small>
@@ -73,7 +75,7 @@
         </label>
 
         <label class="setting-toggle">
-          <input id="alarm-audio-restore-services" type="checkbox">
+          <input id="alarm-audio-restore-services" name="alarm_audio_restore_services" type="checkbox">
           <span>
             <strong>Restore services afterwards</strong>
             <small>Plexamp returns paused; Shairport Sync becomes available again.</small>
@@ -82,13 +84,20 @@
 
         <label class="setting-field">
           <span>ALSA output device</span>
-          <input id="alarm-audio-device" value="default" autocomplete="off" inputmode="none" data-keyboard="text">
-          <small>Usually <code>default</code>. Advanced users may use an ALSA device name.</small>
+          <input
+            id="alarm-audio-device"
+            name="alarm_audio_device"
+            value="default"
+            autocomplete="off"
+            inputmode="none"
+            data-keyboard="text"
+          >
+          <small>Bedroom DAC example: <code>plughw:CARD=Pro,DEV=0</code>. The generated alarm is 44.1 kHz stereo.</small>
         </label>
 
         <label class="setting-field">
           <span>Test duration</span>
-          <select id="alarm-audio-test-duration">
+          <select id="alarm-audio-test-duration" name="alarm_audio_test_duration_seconds">
             <option value="5">5 seconds</option>
             <option value="10">10 seconds</option>
             <option value="12">12 seconds</option>
@@ -102,7 +111,7 @@
 
       <div class="alarm-audio-save-row">
         <button class="button settings-secondary" id="alarm-audio-save" type="button">Save audio safety settings</button>
-        <span class="muted small" id="alarm-audio-save-message">Audio remains locked until enabled and saved.</span>
+        <span class="muted small" id="alarm-audio-save-message">The main Save settings button now saves these values too.</span>
       </div>
 
       <div class="alarm-audio-test-panel">
@@ -156,7 +165,7 @@
       release_services: Boolean(byId('alarm-audio-release-services')?.checked),
       restore_services: Boolean(byId('alarm-audio-restore-services')?.checked),
       backend: 'aplay',
-      alsa_device: byId('alarm-audio-device')?.value || 'default',
+      alsa_device: byId('alarm-audio-device')?.value?.trim() || 'default',
       test_duration_seconds: Number(byId('alarm-audio-test-duration')?.value) || 12,
     };
   }
@@ -225,7 +234,11 @@
     }
 
     byId('alarm-audio-player').textContent = player.available ? 'aplay ready' : 'Unavailable';
-    byId('alarm-audio-player-detail').textContent = player.error || `Device: ${settings.alsa_device || 'default'}`;
+    const format = player.format;
+    const formatText = format
+      ? ` · ${format.sample_rate_hz / 1000} kHz ${format.channel_layout || `${format.channels} ch`}`
+      : '';
+    byId('alarm-audio-player-detail').textContent = player.error || `Device: ${settings.alsa_device || 'default'}${formatText}`;
     byId('alarm-audio-helper').textContent = helper.available ? 'Installed' : 'Not installed';
     byId('alarm-audio-helper-detail').textContent = helper.error || `Plexamp ${helper.plexamp_active ? 'active' : 'idle'} · AirPlay ${helper.shairport_active ? 'active' : 'idle'}`;
 
@@ -271,18 +284,23 @@
     return payload;
   }
 
+  async function persistSettings() {
+    const payload = await fetchJson(SETTINGS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formSettings()),
+    });
+    render(payload);
+    return payload;
+  }
+
   async function saveSettings() {
     if (requestInFlight) {
       return;
     }
-    setBusy(true, 'Saving the audio safety gate…');
+    setBusy(true, 'Saving the audio safety gate and DAC device…');
     try {
-      const payload = await fetchJson(SETTINGS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formSettings()),
-      });
-      render(payload);
+      const payload = await persistSettings();
       byId('alarm-audio-save-message').textContent = payload.message || 'Audio safety settings saved.';
     } catch (error) {
       byId('alarm-audio-save-message').textContent = error.message || 'Could not save audio settings.';
@@ -357,6 +375,43 @@
     }
   }
 
+  settingsForm?.addEventListener('submit', async (event) => {
+    if (skipNextFormSave) {
+      skipNextFormSave = false;
+      return;
+    }
+    if (!byId('alarm-audio-card')) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (requestInFlight) {
+      byId('alarm-audio-save-message').textContent = 'Please wait for the current audio action to finish.';
+      return;
+    }
+
+    const submitter = event.submitter;
+    setBusy(true, 'Saving audio settings before the rest of Settings…');
+    try {
+      await persistSettings();
+      byId('alarm-audio-save-message').textContent = 'Audio settings saved; continuing with the main Settings save…';
+      skipNextFormSave = true;
+      if (submitter instanceof HTMLElement && settingsForm.contains(submitter)) {
+        settingsForm.requestSubmit(submitter);
+      } else {
+        settingsForm.requestSubmit();
+      }
+    } catch (error) {
+      byId('alarm-audio-save-message').textContent = error.message || 'Could not save audio settings.';
+    } finally {
+      requestInFlight = false;
+      if (lastPayload) {
+        render(lastPayload, { preserveControls: true });
+      }
+    }
+  }, true);
+
   function start() {
     if (!installCard()) {
       window.setTimeout(start, 100);
@@ -371,5 +426,6 @@
       window.clearInterval(refreshTimer);
     }
   });
+
   start();
 })();
