@@ -36,7 +36,7 @@ EOF
 fi
 
 echo "Using Python: $PYTHON"
-"$PYTHON" -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py app/alarm_audio.py
+"$PYTHON" -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py app/alarm_audio.py app/alarm_audio_core.py
 "$PYTHON" -m unittest discover -s tests -v
 
 if command -v node >/dev/null 2>&1; then
