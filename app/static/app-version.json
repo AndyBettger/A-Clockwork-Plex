@@ -1,8 +1,8 @@
 {
   "name": "A Clockwork Plex",
-  "version": "0.2.0",
-  "tag": "v0.2.0",
-  "release_name": "Dashboard, Weather Console and AirPlay UI",
+  "version": "0.3.0-dev",
+  "tag": "feature/alarm-engine",
+  "release_name": "Alarm Engine, Shared Audio and Live Mixer",
   "repository": "https://github.com/AndyBettger/A-Clockwork-Plex",
   "companion_repository": "https://github.com/AndyBettger/Plexamp-NFC-Listener"
 }
