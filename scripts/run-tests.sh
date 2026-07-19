@@ -36,7 +36,7 @@ EOF
 fi
 
 echo "Using Python: $PYTHON"
-"$PYTHON" -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py
+"$PYTHON" -m py_compile app/main.py app/dashboard_core.py app/alarm_config.py app/alarm_scheduler.py app/alarm_runtime.py
 "$PYTHON" -m unittest discover -s tests -v
 
 if command -v node >/dev/null 2>&1; then
@@ -45,6 +45,8 @@ if command -v node >/dev/null 2>&1; then
   node --check app/static/js/settings-keyboard.js
   node --check app/static/js/settings-tabs.js
   node --check app/static/js/settings-about.js
+  node --check app/static/js/mode-watch.js
+  node --check app/static/js/alarm-active.js
 else
   echo "Node.js not found; skipping JavaScript syntax checks."
 fi
