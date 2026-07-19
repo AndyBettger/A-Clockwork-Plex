@@ -5,6 +5,7 @@
   const timeInput = document.querySelector('input[name="alarm_default_time"]');
   const summaryTime = document.querySelector('[data-alarm-summary-time]');
   const summaryState = document.querySelector('[data-alarm-summary-state]');
+  const summaryDetail = document.querySelector('.alarm-editor-title span');
 
   const hiddenSnooze = document.getElementById('alarm-snooze-minutes');
   const presetSnooze = document.getElementById('alarm-snooze-preset');
@@ -29,6 +30,10 @@
       summaryState.textContent = active ? 'Enabled' : 'Off';
       summaryState.classList.toggle('is-off', !active);
     }
+
+    if (summaryDetail && hiddenSnooze) {
+      summaryDetail.textContent = `Every day · Classic Klaxon · Snooze ${clampSnooze(hiddenSnooze.value)} min`;
+    }
   };
 
   if (summary && body) {
@@ -41,9 +46,9 @@
 
   enabled?.addEventListener('change', updateSummary);
   timeInput?.addEventListener('input', updateSummary);
-  updateSummary();
 
   if (!hiddenSnooze || !presetSnooze || !customSnooze) {
+    updateSummary();
     return;
   }
 
@@ -64,15 +69,18 @@
       const value = clampSnooze(customSnooze.value || hiddenSnooze.value || 8);
       customSnooze.value = String(value);
       hiddenSnooze.value = String(value);
+      updateSummary();
       return;
     }
 
     customSnooze.hidden = true;
     hiddenSnooze.value = String(clampSnooze(presetSnooze.value));
+    updateSummary();
   };
 
   presetSnooze.addEventListener('change', syncSnooze);
   customSnooze.addEventListener('change', syncSnooze);
   customSnooze.addEventListener('blur', syncSnooze);
   hiddenSnooze.form?.addEventListener('submit', syncSnooze);
+  updateSummary();
 })();
