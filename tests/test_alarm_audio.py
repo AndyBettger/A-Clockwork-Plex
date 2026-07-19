@@ -38,12 +38,14 @@ class AlarmAudioTests(unittest.TestCase):
                 "master_enabled": True,
                 "scheduled_enabled": True,
                 "test_duration_seconds": 999,
+                "test_volume_cap_percent": 100,
                 "alsa_device": "  hw:1,0  ",
             }
         )
         self.assertTrue(settings["master_enabled"])
         self.assertFalse(settings["scheduled_enabled"])
         self.assertEqual(settings["test_duration_seconds"], 30)
+        self.assertEqual(settings["test_volume_cap_percent"], 25)
         self.assertEqual(settings["alsa_device"], "hw:1,0")
 
     def test_renderer_creates_valid_mono_wave_file(self):
