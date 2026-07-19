@@ -1,5 +1,6 @@
 /* Typography/weather bridge visual pass seven.
-   Use one physical segment height for the AirPlay mini clock and outdoor weather. */
+   Use one physical segment height for the AirPlay mini clock and outdoor weather,
+   and optically balance the clock separators. */
 
 .airplay-glance-grid {
   --airplay-glance-character-height: clamp(30px, 5.85vmin, 41px);
@@ -17,6 +18,28 @@
    keeps forcing the weather digits to the larger size despite later stylesheets. */
 .airplay-info-card.is-outside strong.airplay-outside-value.segment-readout {
   font-size: var(--airplay-glance-character-height) !important;
+}
+
+/* The colon container is slightly wider than each dot. Centre the dots within it
+   and use equal margins so the illuminated separator has the same visual breathing
+   room on both sides. The seconds separator uses a smaller inherited font size on
+   the main clock, so its em margin is doubled to retain the same physical gap. */
+.time .digital-colon {
+  align-items: center;
+  margin-inline: 0.02em;
+}
+
+.time .digital-colon-small {
+  margin-inline: 0.04em;
+}
+
+/* The AirPlay mini clock uses explicit pixel-derived dimensions rather than ems.
+   Its previous margins were both tiny and asymmetric; this brings each side close
+   to the optical gap used before a segmented decimal point. */
+.airplay-mini-time.is-segmented .digital-colon,
+.airplay-mini-time.is-segmented .digital-colon-small {
+  align-items: center;
+  margin-inline: calc(var(--alpha-display-h) * 0.06);
 }
 
 @media (max-height: 520px), (max-width: 860px) {
