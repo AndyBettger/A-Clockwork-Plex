@@ -122,6 +122,39 @@ class AlarmAudioTests(unittest.TestCase):
             self.assertEqual(player_format["sample_width_bits"], 16)
             self.assertEqual(player_format["channel_layout"], "dual-mono stereo")
 
+    def test_restore_runs_once_for_each_handover(self):
+        calls = []
+
+        def runner(args, **kwargs):
+            calls.append(args)
+            return subprocess.CompletedProcess(args, 0, stdout='{"restored":true}', stderr="")
+
+        with tempfile.TemporaryDirectory() as directory:
+            manager = AlarmAudioManager(
+                lambda: {"alarm_audio": {}},
+                lambda: {"tones": []},
+                lambda: {},
+                Path(directory) / "runtime.json",
+                runner=runner,
+            )
+            settings = {
+                "restore_services": True,
+                "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio",
+            }
+            snapshot = {
+                "available": True,
+                "plexamp_active": True,
+                "shairport_active": False,
+                "handover_id": "handover-123",
+            }
+
+            manager._restore(settings, snapshot)
+            manager._restore(settings, dict(snapshot))
+
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(manager.status()["last_restore_helper"], {"restored": True})
+            self.assertEqual(manager.status()["last_action"]["action"], "audio-owners-restored")
+
     def test_stubborn_player_is_killed_after_terminate_timeout(self):
         process = StubbornProcess()
         return_code = AlarmAudioManager._terminate_process(process)
