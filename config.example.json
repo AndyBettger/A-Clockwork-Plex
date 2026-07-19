@@ -66,7 +66,15 @@
         "enabled": false,
         "label": "Default alarm",
         "time": "11:00",
-        "days": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+        "days": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
         "snooze_minutes": 8,
         "ring_minutes": 3,
         "occurrence_expiry_minutes": 120,
@@ -82,5 +90,15 @@
         }
       }
     ]
+  },
+  "alarm_audio": {
+    "master_enabled": false,
+    "scheduled_enabled": false,
+    "release_services": true,
+    "restore_services": true,
+    "backend": "aplay",
+    "alsa_device": "default",
+    "test_duration_seconds": 12,
+    "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio"
   }
 }
