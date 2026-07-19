@@ -1,3 +1,5 @@
+/* Detailed Weather page: retro instrument-console visual layer. */
+
 body.mode-weather {
   background:
     linear-gradient(rgba(143, 211, 255, 0.025) 1px, transparent 1px),
@@ -51,11 +53,12 @@ body.mode-weather {
   position: absolute;
   left: clamp(9px, 1.45vmin, 15px);
   top: 0;
-  width: clamp(34px, 6vmin, 58px);
+  width: clamp(30px, 4.8vmin, 46px);
   height: 2px;
+  border-radius: 999px;
   background: var(--accent);
-  box-shadow: 0 0 12px rgba(143, 211, 255, 0.5);
-  opacity: 0.72;
+  box-shadow: 0 0 9px rgba(143, 211, 255, 0.38);
+  opacity: 0.52;
 }
 
 .detail-panel h2,
@@ -65,7 +68,11 @@ body.mode-weather {
 }
 
 .conditions-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(0.96rem, 2.35vmin, 1.2rem);
   letter-spacing: 0.01em;
+  line-height: 1.3;
 }
 
 .conditions-table-wrap,
@@ -80,34 +87,98 @@ body.mode-weather {
 
 .conditions-table thead th,
 .station-table th,
-.mini-reading span,
-.rain-gauge-text span,
-.rain-gauge-text small,
-.barometer-reading-card span {
+.mini-reading > span,
+.rain-gauge-text > span,
+.rain-gauge-text > small,
+.barometer-reading-card > span {
   color: rgba(184, 215, 237, 0.78);
   font-family: var(--display-font);
+  font-weight: 700;
   letter-spacing: 0.045em;
   text-transform: uppercase;
 }
 
-.conditions-table td.segment-readout {
-  font-size: clamp(1.02rem, 2.85vmin, 1.45rem);
+.conditions-table thead th,
+.station-table th {
+  font-size: clamp(0.76rem, 1.95vmin, 0.94rem);
+}
+
+.conditions-table tbody th {
+  font-size: clamp(0.92rem, 2.3vmin, 1.12rem);
+}
+
+.station-table td {
+  font-size: clamp(0.98rem, 2.55vmin, 1.2rem);
+}
+
+/* All primary sensor values share one physical segment height. */
+.weather-detail-page {
+  --weather-data-size: clamp(1.72rem, 4.05vmin, 2.16rem);
+}
+
+.weather-detail-page .conditions-table td.segment-readout,
+.weather-detail-page .mini-reading strong.segment-readout,
+.weather-detail-page .wind-degrees.segment-readout,
+.weather-detail-page .wind-readings strong.segment-readout,
+.weather-detail-page .barometer-reading-card strong.segment-readout,
+.weather-detail-page .rain-gauge-text strong.segment-readout {
+  overflow: visible;
+  font-size: var(--weather-data-size) !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+}
+
+.weather-detail-page .mini-reading .segment-readout-inner,
+.weather-detail-page .barometer-reading-card .segment-readout-inner,
+.weather-detail-page .rain-gauge-text .segment-readout-inner,
+.weather-detail-page .wind-readings .segment-readout-inner {
+  flex-wrap: nowrap !important;
+  max-inline-size: none;
+}
+
+.mini-reading {
+  display: flex;
+  min-height: clamp(70px, 10vmin, 92px);
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mini-reading > span,
+.barometer-reading-card > span {
+  font-size: clamp(0.78rem, 1.95vmin, 0.96rem);
 }
 
 .mini-reading strong.segment-readout,
+.barometer-reading-card strong.segment-readout,
 .rain-gauge-text strong.segment-readout {
-  font-size: clamp(1.05rem, 3.1vmin, 1.45rem);
+  margin-block: clamp(5px, 0.8vmin, 8px);
 }
 
-.wind-direction.segment-readout {
-  font-size: clamp(1.38rem, 4.35vmin, 2.08rem);
+/* Wind console. */
+.wind-panel {
+  min-height: clamp(350px, 49vmin, 455px);
 }
 
-.wind-readings strong.segment-readout {
-  font-size: 1.08em;
+.wind-layout {
+  grid-template-columns: minmax(240px, 48%) minmax(0, 1fr);
+  align-items: center;
+  min-height: calc(100% - 48px);
+}
+
+.wind-compass-column {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .compass {
+  width: clamp(215px, 32vmin, 325px);
+  max-width: 100%;
+  justify-self: center;
   background:
     repeating-radial-gradient(circle, transparent 0 19%, rgba(143, 211, 255, 0.04) 20% 20.7%, transparent 21% 39%),
     radial-gradient(circle, rgba(143, 211, 255, 0.12), rgba(255, 255, 255, 0.025));
@@ -121,11 +192,100 @@ body.mode-weather {
   border-color: rgba(143, 211, 255, 0.32);
 }
 
+.compass-letter {
+  font-size: clamp(0.82rem, 2.05vmin, 1rem);
+}
+
 .compass-arrow {
   background: var(--accent-strong);
   box-shadow: 0 0 18px rgba(143, 211, 255, 0.4);
 }
 
+.wind-compass-caption {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 325px);
+  margin-top: clamp(9px, 1.5vmin, 15px);
+  overflow: visible;
+}
+
+.wind-degrees {
+  color: var(--text);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.wind-direction-word {
+  --wind-direction-character-h: 1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--wind-direction-character-h) * 0.035);
+  width: max-content;
+  max-width: none;
+  margin-top: clamp(7px, 1vmin, 10px);
+  overflow: visible;
+  color: var(--accent);
+  font-size: var(--weather-data-size) !important;
+  white-space: nowrap;
+  transform: skewX(-5deg);
+  transform-origin: center;
+}
+
+.wind-direction-word.is-long {
+  justify-self: start;
+  justify-content: flex-start;
+}
+
+.wind-direction-word .alpha-character {
+  flex: 0 0 auto;
+  width: calc(var(--wind-direction-character-h) * 0.51);
+  height: var(--wind-direction-character-h);
+}
+
+.wind-direction-word .alpha-character.is-space {
+  width: calc(var(--wind-direction-character-h) * 0.38);
+}
+
+.wind-direction-word .alpha-character svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.wind-direction-word .alpha-segment {
+  fill: rgba(143, 211, 255, 0.075);
+}
+
+.wind-direction-word .alpha-segment.is-on {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 1.35px rgba(143, 211, 255, 0.4));
+}
+
+.wind-direction-fallback {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.wind-readings {
+  justify-self: start;
+  width: min(100%, 320px);
+}
+
+.wind-readings div {
+  display: grid !important;
+  grid-template-columns: 6.9rem max-content !important;
+  justify-content: start !important;
+  align-items: baseline;
+  column-gap: clamp(10px, 1.45vmin, 17px) !important;
+  margin: 9px 0;
+  color: var(--muted);
+  font-size: clamp(0.98rem, 2.4vmin, 1.18rem);
+}
+
+/* Pressure and barometer console. */
 .barometer-panel {
   grid-template-rows: auto auto minmax(0, 1fr);
 }
@@ -154,11 +314,6 @@ body.mode-weather {
 
 .barometer-reading-card.is-relative {
   background: linear-gradient(135deg, rgba(143, 211, 255, 0.16), rgba(143, 211, 255, 0.055));
-}
-
-.barometer-reading-card strong.segment-readout {
-  margin-top: 7px;
-  font-size: clamp(1.18rem, 3.8vmin, 1.88rem);
 }
 
 .barometer-forecast-card {
@@ -238,7 +393,7 @@ body.mode-weather {
   background: rgba(5, 13, 24, 0.56);
   border-color: rgba(143, 211, 255, 0.22);
   font-family: var(--display-font);
-  font-size: clamp(0.66rem, 1.55vmin, 0.78rem);
+  font-size: clamp(0.72rem, 1.7vmin, 0.86rem);
   font-weight: 600;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -248,20 +403,38 @@ body.mode-weather {
 .barometer-forecast-copy p {
   grid-area: prediction;
   margin-top: 4px;
-  font-size: clamp(0.76rem, 1.9vmin, 0.9rem);
-  line-height: 1.22;
+  font-size: clamp(0.88rem, 2.15vmin, 1.04rem);
+  line-height: 1.28;
 }
 
-.tone-falling .barometer-forecast-card,
-.tone-low .barometer-forecast-card {
+.tone-falling.barometer-forecast-card,
+.tone-low.barometer-forecast-card {
   --console-tone: #8fd3ff;
 }
 
-.tone-settled .barometer-forecast-card,
-.tone-rising .barometer-forecast-card {
+.tone-settled.barometer-forecast-card,
+.tone-rising.barometer-forecast-card {
   --console-tone: #ffe99c;
 }
 
+/* Rain gauges. */
+.rain-gauge-text > span,
+.rain-gauge-text > small {
+  font-size: clamp(0.76rem, 1.8vmin, 0.88rem);
+  line-height: 1.15;
+}
+
+.weather-detail-page .rain-gauge-card {
+  align-items: stretch;
+}
+
+.weather-detail-page .rain-gauge {
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+}
+
+/* Responsive touchscreen layout. */
 @media (max-height: 520px), (max-width: 860px) {
   .weather-detail-hero h1 {
     gap: 8px;
@@ -269,6 +442,41 @@ body.mode-weather {
 
   .weather-detail-title-mode {
     font-size: 0.3em;
+  }
+
+  .conditions-heading p {
+    font-size: clamp(0.84rem, 2.55vw, 1rem);
+  }
+
+  .weather-detail-page {
+    --weather-data-size: clamp(1.3rem, 3.75vw, 1.66rem);
+  }
+
+  .wind-panel {
+    min-height: 300px;
+  }
+
+  .wind-layout {
+    grid-template-columns: minmax(175px, 46%) minmax(0, 1fr);
+  }
+
+  .compass {
+    width: clamp(150px, 31vmin, 215px);
+  }
+
+  .wind-compass-caption {
+    width: min(100%, 215px);
+  }
+
+  .wind-readings {
+    width: min(100%, 260px);
+  }
+
+  .wind-readings div {
+    grid-template-columns: 6rem max-content !important;
+    column-gap: 9px !important;
+    margin: 6px 0;
+    font-size: clamp(0.84rem, 2.4vw, 1rem);
   }
 
   .barometer-forecast-copy {
