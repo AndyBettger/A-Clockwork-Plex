@@ -1,6 +1,7 @@
 /* Alarm settings workspace. */
 @import url("settings-alarm-tones.css");
 @import url("settings-alarm-model.css");
+@import url("settings-alarm-scheduler.css");
 
 /* When the list is empty, the first alarm is less "another" and more a conscious
    decision to place sleep in jeopardy. Once an alarm exists, the normal button
