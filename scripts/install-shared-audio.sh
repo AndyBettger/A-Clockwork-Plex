@@ -57,7 +57,7 @@ fi
 
 cat > "$ALSA_CONFIG" <<EOF
 # Managed by A Clockwork Plex.
-# Three source-specific softvol controls feed one master softvol and dmix PCM.
+# Three source-specific softvol trims feed one master softvol and dmix PCM.
 
 pcm.acp_dmix {
     type dmix
@@ -179,6 +179,7 @@ cat > "$MIXER_SUDOERS" <<EOF
 # Managed by A Clockwork Plex. The helper validates channel names and 0-100 levels.
 $PROJECT_USER ALL=(root) NOPASSWD: $MIXER_HELPER status
 $PROJECT_USER ALL=(root) NOPASSWD: $MIXER_HELPER set *
+$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_HELPER live *
 EOF
 chmod 0440 "$MIXER_SUDOERS"
 visudo -cf "$MIXER_SUDOERS" >/dev/null
@@ -201,7 +202,7 @@ text = path.read_text(encoding="utf-8") if path.exists() else ""
 managed = re.compile(re.escape(begin) + r".*?" + re.escape(end) + r"\n?", re.S)
 text_without_managed = managed.sub("", text).rstrip()
 if re.search(r"(?m)^\s*pcm\.!default\b", text_without_managed):
-    print(f"WARNING: {path} already has an unmanaged pcm.!default; Plexamp may need acp_plexamp selected manually.")
+    print(f"WARNING: {path} already has an unmanaged pcm.!default; Plexamp should use A Clockwork Plex - Plexamp explicitly.")
 else:
     block = f'''{begin}
 pcm.!default {{
@@ -221,11 +222,12 @@ PY
 chown "$PROJECT_USER:$PROJECT_USER" "$ASOUNDRC" 2>/dev/null || true
 chmod 0644 "$ASOUNDRC" 2>/dev/null || true
 
-# Point Shairport Sync at its own source PCM and bind sender volume to the same
-# softvol control shown by the dashboard mixer.
+# Point Shairport Sync at its source PCM, but leave sender volume inside
+# Shairport. The acp_airplay softvol is now an independent persistent output
+# trim; iPhone/MPRIS changes no longer overwrite that calibration control.
 if [[ -f "$SHAIRPORT_CONFIG" ]]; then
     cp -a "$SHAIRPORT_CONFIG" "$SHAIRPORT_CONFIG.$TIMESTAMP.bak"
-    python3 - "$SHAIRPORT_CONFIG" "$ALSA_CARD" <<'PY'
+    python3 - "$SHAIRPORT_CONFIG" <<'PY'
 from __future__ import annotations
 
 import re
@@ -233,31 +235,27 @@ import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
-card = sys.argv[2]
 text = path.read_text(encoding="utf-8")
-
 block_match = re.search(r"(?ms)^\s*alsa\s*=\s*\{.*?^\s*\};", text)
-values = {
-    "output_device": "acp_airplay",
-    "mixer_control_name": "A Clockwork AirPlay",
-    "mixer_device": f"hw:CARD={card}",
-}
 
 if block_match:
     block = block_match.group(0)
-    for key, value in values.items():
-        pattern = re.compile(rf'(?m)^(\s*)#?\s*{re.escape(key)}\s*=\s*"[^"]*"\s*;')
-        if pattern.search(block):
-            block = pattern.sub(lambda match: f'{match.group(1)}{key} = "{value}";', block, count=1)
-        else:
-            opening = re.search(r"\{\s*\n", block)
-            insertion = f'    {key} = "{value}";\n'
-            block = block[:opening.end()] + insertion + block[opening.end():] if opening else block
+    for key in ("mixer_control_name", "mixer_device"):
+        block = re.sub(
+            rf'(?m)^\s*#?\s*{re.escape(key)}\s*=\s*"[^"]*"\s*;\s*\n?',
+            "",
+            block,
+        )
+    pattern = re.compile(r'(?m)^(\s*)#?\s*output_device\s*=\s*"[^"]*"\s*;')
+    if pattern.search(block):
+        block = pattern.sub(lambda match: f'{match.group(1)}output_device = "acp_airplay";', block, count=1)
+    else:
+        opening = re.search(r"\{\s*\n", block)
+        insertion = '    output_device = "acp_airplay";\n'
+        block = block[:opening.end()] + insertion + block[opening.end():] if opening else block
     text = text[:block_match.start()] + block + text[block_match.end():]
 else:
-    text = text.rstrip() + "\n\nalsa =\n{\n" + "".join(
-        f'    {key} = "{value}";\n' for key, value in values.items()
-    ) + "};\n"
+    text = text.rstrip() + '\n\nalsa =\n{\n    output_device = "acp_airplay";\n};\n'
 
 path.write_text(text, encoding="utf-8")
 PY
@@ -265,8 +263,8 @@ else
     echo "WARNING: $SHAIRPORT_CONFIG was not found; configure Shairport output_device = \"acp_airplay\" manually." >&2
 fi
 
-# Activate the new lightweight AirPlay hooks, which pause Plexamp but never stop
-# its service now that both programs can share the DAC.
+# Activate the lightweight AirPlay hooks, which pause Plexamp but never stop its
+# service now that both programs can share the DAC.
 bash "$SCRIPT_DIR/install-airplay-hooks.sh"
 
 # Open each PCM with silence so ALSA creates its softvol control before the web
@@ -275,6 +273,8 @@ for pcm in acp_master acp_plexamp acp_airplay acp_alarm; do
     timeout 0.35 /usr/bin/aplay -q -D "$pcm" -f S16_LE -r 44100 -c 2 /dev/zero >/dev/null 2>&1 || true
 done
 
+# These values now use perceptual amplitude scaling: 50% is about -6 dB rather
+# than the old raw ALSA mapping of roughly -25 dB.
 "$MIXER_HELPER" set master 80 >/dev/null
 "$MIXER_HELPER" set plexamp 100 >/dev/null
 "$MIXER_HELPER" set airplay 100 >/dev/null
@@ -311,6 +311,12 @@ audio.update(
     }
 )
 config["alarm_audio"] = audio
+
+airplay = config.get("airplay") if isinstance(config.get("airplay"), dict) else {}
+airplay.setdefault("default_volume_percent", 60)
+airplay.setdefault("apply_default_volume_on_start", True)
+config["airplay"] = airplay
+
 temporary = path.with_suffix(path.suffix + ".tmp")
 temporary.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 temporary.replace(path)
@@ -333,4 +339,5 @@ echo "  sudo systemctl restart plexamp.service"
 echo "  sudo systemctl restart shairport-sync.service"
 echo "  sudo systemctl restart a-clockwork-plex.service"
 echo
-echo "Plexamp should use its default output or the ALSA PCM named acp_plexamp."
+echo "Plexamp should explicitly use the ALSA output named A Clockwork Plex - Plexamp."
+echo "Shairport sender volume is now independent from the persistent AirPlay trim."
