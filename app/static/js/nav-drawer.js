@@ -8,35 +8,59 @@
   }
 
   const NORMAL_AUTO_HIDE_MS = 6000;
-  const MIXER_AUTO_HIDE_MS = 30000;
+  const MIXER_AUTO_HIDE_MS = 60000;
   const SWIPE_THRESHOLD_PX = 24;
   const LIVE_ENDPOINT = '/api/audio/live';
-  const LIVE_ORDER = ['master', 'plexamp', 'airplay', 'alarm'];
+  const MIXER_ENDPOINT = '/api/audio/mixer';
+  const CHANNELS = ['master', 'plexamp', 'airplay', 'alarm'];
 
   let hideTimer = null;
   let touchStartY = null;
   let liveRefreshTimer = null;
   let liveGetInFlight = false;
   let liveSetInFlight = false;
+  let trimSetInFlight = false;
+  let reassertTimer = null;
+
   const liveDebounceTimers = new Map();
   const livePendingValues = new Map();
   const liveDesiredValues = new Map();
-  const draggingChannels = new Set();
+  const liveDraggingChannels = new Set();
 
-  function liveChannelMarkup(id, label, detail) {
+  const trimDebounceTimers = new Map();
+  const trimPendingValues = new Map();
+  const trimDesiredValues = new Map();
+  const trimDraggingChannels = new Set();
+  const trimDragState = new Map();
+
+  const clampPercent = (value) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+
+  function channelMarkup(id, label) {
     return `
       <article class="nav-live-channel" data-nav-live-channel="${id}">
         <div class="nav-live-channel-heading">
           <strong>${label}</strong>
           <output id="nav-live-${id}-value" for="nav-live-${id}">--%</output>
         </div>
-        <small class="nav-live-channel-source" id="nav-live-${id}-source">${detail}</small>
+        <div class="nav-trim-control">
+          <div
+            class="nav-trim-knob"
+            id="nav-trim-${id}"
+            role="slider"
+            tabindex="0"
+            aria-label="${label} output trim"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="100"
+            data-nav-trim-knob="${id}"
+          ><span aria-hidden="true"></span></div>
+          <output id="nav-trim-${id}-value">TRIM --%</output>
+        </div>
         <div class="nav-live-fader">
           <button type="button" data-nav-live-step="5" data-nav-live-target="${id}" aria-label="Increase ${label}">＋</button>
           <input id="nav-live-${id}" type="range" min="0" max="100" step="1" value="0" data-nav-live-slider="${id}" aria-label="${label} live volume">
           <button type="button" data-nav-live-step="-5" data-nav-live-target="${id}" aria-label="Reduce ${label}">−</button>
         </div>
-        <small class="nav-live-channel-detail" id="nav-live-${id}-detail">Checking…</small>
       </article>
     `;
   }
@@ -61,22 +85,19 @@
       panel.id = 'nav-live-mixer';
       panel.className = 'nav-live-mixer';
       panel.hidden = true;
-      panel.setAttribute('aria-label', 'Live audio mixer');
+      panel.setAttribute('aria-label', 'Audio mixer');
       panel.innerHTML = `
         <header class="nav-live-mixer-heading">
-          <div>
-            <strong>Live audio mixer</strong>
-            <small>Immediate controls. Persistent trims live under Settings → Audio.</small>
-          </div>
-          <span id="nav-live-health">Opening…</span>
+          <strong>Audio mixer</strong>
+          <span id="nav-live-health" class="nav-live-health-dot" aria-label="Checking shared output"></span>
         </header>
         <div class="nav-live-grid">
-          ${liveChannelMarkup('master', 'Master', 'Shared output')}
-          ${liveChannelMarkup('plexamp', 'Plexamp', 'Player volume')}
-          ${liveChannelMarkup('airplay', 'AirPlay', 'Connected sender')}
-          ${liveChannelMarkup('alarm', 'Alarm', 'Output ceiling')}
+          ${channelMarkup('master', 'Master')}
+          ${channelMarkup('plexamp', 'Plexamp')}
+          ${channelMarkup('airplay', 'AirPlay')}
+          ${channelMarkup('alarm', 'Alarm')}
         </div>
-        <div class="nav-live-message" id="nav-live-message">Open the panel to read live player levels.</div>
+        <div class="nav-live-message" id="nav-live-message" role="status" hidden></div>
       `;
       drawer.appendChild(panel);
     }
@@ -90,43 +111,41 @@
     });
 
     panel.addEventListener('contextmenu', (event) => {
-      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step]')) {
+      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
         event.preventDefault();
       }
     }, true);
 
     panel.addEventListener('dragstart', (event) => {
-      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step]')) {
+      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
         event.preventDefault();
       }
     }, true);
 
+    installFaderInteractions(panel);
+    installKnobInteractions(panel);
+  }
+
+  function installFaderInteractions(panel) {
     panel.querySelectorAll('[data-nav-live-slider]').forEach((slider) => {
       const channel = slider.dataset.navLiveSlider;
-
       slider.addEventListener('pointerdown', () => {
-        draggingChannels.add(channel);
+        liveDraggingChannels.add(channel);
         setDesiredLiveValue(channel, slider.value);
         scheduleHide();
       });
-
       slider.addEventListener('pointerup', () => {
-        draggingChannels.delete(channel);
+        liveDraggingChannels.delete(channel);
         queueLiveChange(channel, slider.value, 0);
         scheduleHide();
       });
-
-      slider.addEventListener('pointercancel', () => {
-        draggingChannels.delete(channel);
-      });
-
+      slider.addEventListener('pointercancel', () => liveDraggingChannels.delete(channel));
       slider.addEventListener('input', () => {
         queueLiveChange(channel, slider.value, 120);
         scheduleHide();
       });
-
       slider.addEventListener('change', () => {
-        draggingChannels.delete(channel);
+        liveDraggingChannels.delete(channel);
         queueLiveChange(channel, slider.value, 0);
       });
     });
@@ -138,9 +157,82 @@
         if (!slider || slider.disabled) {
           return;
         }
-        const next = Math.max(0, Math.min(100, Number(slider.value) + Number(button.dataset.navLiveStep || 0)));
+        const next = clampPercent(Number(slider.value) + Number(button.dataset.navLiveStep || 0));
         queueLiveChange(channel, next, 0);
         scheduleHide();
+      });
+    });
+  }
+
+  function installKnobInteractions(panel) {
+    panel.querySelectorAll('[data-nav-trim-knob]').forEach((knob) => {
+      const channel = knob.dataset.navTrimKnob;
+
+      knob.addEventListener('pointerdown', (event) => {
+        if (knob.getAttribute('aria-disabled') === 'true') {
+          return;
+        }
+        event.preventDefault();
+        trimDraggingChannels.add(channel);
+        trimDragState.set(channel, {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          startValue: Number(trimDesiredValues.get(channel) ?? knob.getAttribute('aria-valuenow') ?? 100),
+        });
+        knob.classList.add('is-dragging');
+        knob.setPointerCapture?.(event.pointerId);
+        scheduleHide();
+      });
+
+      knob.addEventListener('pointermove', (event) => {
+        const drag = trimDragState.get(channel);
+        if (!drag || drag.pointerId !== event.pointerId) {
+          return;
+        }
+        event.preventDefault();
+        const directionalPixels = (event.clientX - drag.startX) + (drag.startY - event.clientY);
+        const next = clampPercent(drag.startValue + directionalPixels / 2);
+        queueTrimChange(channel, next, false, 90);
+        scheduleHide();
+      });
+
+      const finishDrag = (event) => {
+        const drag = trimDragState.get(channel);
+        if (!drag || drag.pointerId !== event.pointerId) {
+          return;
+        }
+        event.preventDefault();
+        const value = Number(trimDesiredValues.get(channel) ?? knob.getAttribute('aria-valuenow') ?? 100);
+        trimDraggingChannels.delete(channel);
+        trimDragState.delete(channel);
+        knob.classList.remove('is-dragging');
+        try {
+          knob.releasePointerCapture?.(event.pointerId);
+        } catch (error) {
+        }
+        queueTrimChange(channel, value, true, 0);
+        scheduleHide();
+      };
+
+      knob.addEventListener('pointerup', finishDrag);
+      knob.addEventListener('pointercancel', finishDrag);
+
+      knob.addEventListener('keydown', (event) => {
+        const keys = ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End'];
+        if (!keys.includes(event.key) || knob.getAttribute('aria-disabled') === 'true') {
+          return;
+        }
+        event.preventDefault();
+        const current = Number(trimDesiredValues.get(channel) ?? knob.getAttribute('aria-valuenow') ?? 100);
+        let next = current;
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') next += 1;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') next -= 1;
+        if (event.key === 'PageUp') next += 5;
+        if (event.key === 'PageDown') next -= 5;
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = 100;
+        queueTrimChange(channel, clampPercent(next), true, 0);
       });
     });
   }
@@ -153,9 +245,7 @@
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.remove('nav-audio-open');
-    if (panel) {
-      panel.hidden = true;
-    }
+    if (panel) panel.hidden = true;
     if (button) {
       button.setAttribute('aria-expanded', 'false');
       button.classList.remove('is-active');
@@ -168,9 +258,7 @@
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.toggle('nav-audio-open', open);
-    if (panel) {
-      panel.hidden = !open;
-    }
+    if (panel) panel.hidden = !open;
     if (button) {
       button.setAttribute('aria-expanded', open ? 'true' : 'false');
       button.classList.toggle('is-active', open);
@@ -185,9 +273,7 @@
     drawer.setAttribute('aria-hidden', expanded ? 'false' : 'true');
     handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     handle.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
-    if (!expanded) {
-      closeMixerWithoutScheduling();
-    }
+    if (!expanded) closeMixerWithoutScheduling();
   }
 
   function scheduleHide() {
@@ -212,57 +298,93 @@
     const response = await fetch(endpoint, { cache: 'no-store', ...options });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload.ok === false) {
-      throw new Error(payload.error || `Live audio returned ${response.status}.`);
+      throw new Error(payload.error || `Audio request returned ${response.status}.`);
     }
     return payload;
   }
 
+  function showMessage(text = '', isError = false) {
+    const message = document.getElementById('nav-live-message');
+    if (!message) return;
+    message.textContent = text;
+    message.hidden = !text;
+    message.classList.toggle('is-error', isError);
+  }
+
   function updateLiveReading(channel, percent) {
-    const value = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    const value = clampPercent(percent);
     const slider = document.getElementById(`nav-live-${channel}`);
     const output = document.getElementById(`nav-live-${channel}-value`);
-    if (slider && slider.value !== String(value)) {
-      slider.value = String(value);
+    if (slider && slider.value !== String(value)) slider.value = String(value);
+    if (output) output.textContent = `${value}%`;
+  }
+
+  function setTrimVisual(channel, percent) {
+    const value = clampPercent(percent);
+    const knob = document.getElementById(`nav-trim-${channel}`);
+    const output = document.getElementById(`nav-trim-${channel}-value`);
+    const angle = -135 + (value / 100) * 270;
+    if (knob) {
+      knob.style.setProperty('--knob-angle', `${angle}deg`);
+      knob.setAttribute('aria-valuenow', String(value));
     }
-    if (output) {
-      output.textContent = `${value}%`;
-    }
+    if (output) output.textContent = `TRIM ${value}%`;
   }
 
   function setDesiredLiveValue(channel, percent) {
-    const value = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+    const value = clampPercent(percent);
     liveDesiredValues.set(channel, value);
     updateLiveReading(channel, value);
     return value;
   }
 
-  function releaseDesiredLiveValue(channel, confirmedValue) {
+  function setDesiredTrimValue(channel, percent) {
+    const value = clampPercent(percent);
+    trimDesiredValues.set(channel, value);
+    setTrimVisual(channel, value);
+    if (channel === 'master' || channel === 'alarm') {
+      updateLiveReading(channel, value);
+    }
+    return value;
+  }
+
+  function releaseDesiredValue(map, dragging, pending, channel, confirmedValue, delay = 650) {
     window.setTimeout(() => {
-      if (draggingChannels.has(channel) || livePendingValues.has(channel)) {
-        return;
+      if (dragging.has(channel) || pending.has(channel)) return;
+      if (Number(map.get(channel)) === Number(confirmedValue)) map.delete(channel);
+    }, delay);
+  }
+
+  function renderMixerTrims(mixer) {
+    CHANNELS.forEach((id) => {
+      const trim = mixer?.channels?.[id] || {};
+      const knob = document.getElementById(`nav-trim-${id}`);
+      const available = Boolean(trim.available && trim.pcm_available);
+      if (!trimDraggingChannels.has(id) && !trimDesiredValues.has(id) && Number.isFinite(Number(trim.percent))) {
+        setTrimVisual(id, trim.percent);
+      } else if (trimDesiredValues.has(id)) {
+        setTrimVisual(id, trimDesiredValues.get(id));
       }
-      if (Number(liveDesiredValues.get(channel)) === Number(confirmedValue)) {
-        liveDesiredValues.delete(channel);
+      if (knob) {
+        knob.setAttribute('aria-disabled', available ? 'false' : 'true');
+        knob.tabIndex = available ? 0 : -1;
       }
-    }, 600);
+    });
   }
 
   function renderLiveMixer(live) {
     const health = document.getElementById('nav-live-health');
     if (health) {
-      health.textContent = live?.available ? 'Shared output ready' : 'Needs attention';
-      health.classList.toggle('is-warning', !live?.available);
+      health.classList.toggle('is-ready', Boolean(live?.available));
+      health.setAttribute('aria-label', live?.available ? 'Shared output ready' : 'Shared output needs attention');
     }
 
-    LIVE_ORDER.forEach((id) => {
+    CHANNELS.forEach((id) => {
       const channel = live?.channels?.[id] || {};
       const slider = document.getElementById(`nav-live-${id}`);
-      const source = document.getElementById(`nav-live-${id}-source`);
-      const detail = document.getElementById(`nav-live-${id}-detail`);
       const buttons = document.querySelectorAll(`[data-nav-live-target="${id}"]`);
       const available = Boolean(channel.available);
-      const locallyHeld = draggingChannels.has(id) || liveDesiredValues.has(id) || livePendingValues.has(id);
-
+      const locallyHeld = liveDraggingChannels.has(id) || liveDesiredValues.has(id) || livePendingValues.has(id);
       if (slider) {
         if (!locallyHeld && Number.isFinite(Number(channel.percent))) {
           updateLiveReading(id, channel.percent);
@@ -271,53 +393,22 @@
         }
         slider.disabled = !available;
       }
-
-      buttons.forEach((button) => {
-        button.disabled = !available;
-      });
-
-      if (source) {
-        source.textContent = channel.detail || channel.source || 'Live audio';
-      }
-
-      if (detail) {
-        if (channel.error) {
-          detail.textContent = channel.error;
-        } else if (id === 'airplay' && !available) {
-          detail.textContent = `Idle · next session starts at ${live?.defaults?.default_volume_percent ?? 60}%`;
-        } else {
-          const trimPercent = channel.trim?.percent;
-          detail.textContent = Number.isFinite(Number(trimPercent))
-            ? `Output trim ${trimPercent}%`
-            : 'Live control ready';
-        }
-      }
+      buttons.forEach((button) => { button.disabled = !available; });
     });
 
-    const message = document.getElementById('nav-live-message');
-    if (message && !liveSetInFlight) {
-      message.textContent = live?.error || 'Plexamp and AirPlay use their real player volumes; Master and Alarm are immediate shared-output controls.';
-    }
+    renderMixerTrims(live?.mixer || {});
+    if (live?.error) showMessage(live.error, true);
   }
 
   async function refreshLiveMixer() {
-    if (!mixerOpen() || liveGetInFlight || liveSetInFlight) {
-      return;
-    }
+    if (!mixerOpen() || liveGetInFlight || liveSetInFlight || trimSetInFlight) return;
     liveGetInFlight = true;
     try {
       const payload = await requestJson(LIVE_ENDPOINT);
       renderLiveMixer(payload.live || {});
+      showMessage('');
     } catch (error) {
-      const health = document.getElementById('nav-live-health');
-      if (health) {
-        health.textContent = 'Unavailable';
-        health.classList.add('is-warning');
-      }
-      const message = document.getElementById('nav-live-message');
-      if (message) {
-        message.textContent = error.message || 'Could not read the live mixer.';
-      }
+      showMessage(error.message || 'Could not read the audio mixer.', true);
     } finally {
       liveGetInFlight = false;
     }
@@ -333,19 +424,10 @@
   }
 
   async function drainLiveQueue() {
-    if (liveSetInFlight || !livePendingValues.size) {
-      return;
-    }
-
+    if (liveSetInFlight || !livePendingValues.size) return;
     const [channel, percent] = livePendingValues.entries().next().value;
     livePendingValues.delete(channel);
     liveSetInFlight = true;
-
-    const message = document.getElementById('nav-live-message');
-    if (message) {
-      message.textContent = `Setting ${channel} to ${percent}%…`;
-    }
-
     try {
       const payload = await requestJson(LIVE_ENDPOINT, {
         method: 'POST',
@@ -356,45 +438,74 @@
       renderLiveMixer(live);
       const confirmed = Number(live?.channels?.[channel]?.percent);
       if (Number.isFinite(confirmed) && !livePendingValues.has(channel)) {
-        releaseDesiredLiveValue(channel, confirmed);
+        releaseDesiredValue(liveDesiredValues, liveDraggingChannels, livePendingValues, channel, confirmed);
       }
-      if (message) {
-        message.textContent = Number.isFinite(confirmed)
-          ? `${channel} is now ${Math.round(confirmed)}%.`
-          : (payload.message || 'Live audio level changed.');
-      }
+      showMessage('');
     } catch (error) {
-      if (message) {
-        message.textContent = error.message || `Could not change ${channel}.`;
-      }
+      showMessage(error.message || `Could not change ${channel}.`, true);
       window.setTimeout(() => {
-        if (!draggingChannels.has(channel) && !livePendingValues.has(channel)) {
-          liveDesiredValues.delete(channel);
-        }
+        if (!liveDraggingChannels.has(channel) && !livePendingValues.has(channel)) liveDesiredValues.delete(channel);
       }, 1800);
     } finally {
       liveSetInFlight = false;
-      if (livePendingValues.size) {
-        drainLiveQueue();
-      } else {
-        window.setTimeout(refreshLiveMixer, 250);
-      }
+      if (livePendingValues.size) drainLiveQueue();
+      else window.setTimeout(refreshLiveMixer, 250);
     }
   }
 
-  function reassertDesiredLiveValues() {
+  function queueTrimChange(channel, percent, persist, delay = 90) {
+    const value = setDesiredTrimValue(channel, percent);
+    window.clearTimeout(trimDebounceTimers.get(channel));
+    trimDebounceTimers.set(channel, window.setTimeout(() => {
+      const previous = trimPendingValues.get(channel);
+      trimPendingValues.set(channel, { percent: value, persist: Boolean(persist || previous?.persist) });
+      drainTrimQueue();
+    }, delay));
+  }
+
+  async function drainTrimQueue() {
+    if (trimSetInFlight || !trimPendingValues.size) return;
+    const [channel, requestValue] = trimPendingValues.entries().next().value;
+    trimPendingValues.delete(channel);
+    trimSetInFlight = true;
+    try {
+      const payload = await requestJson(MIXER_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel,
+          percent: requestValue.percent,
+          persist: requestValue.persist,
+        }),
+      });
+      const mixer = payload.mixer || {};
+      renderMixerTrims(mixer);
+      const confirmed = Number(mixer?.channels?.[channel]?.percent);
+      if (requestValue.persist && Number.isFinite(confirmed) && !trimPendingValues.has(channel)) {
+        releaseDesiredValue(trimDesiredValues, trimDraggingChannels, trimPendingValues, channel, confirmed);
+      }
+      showMessage('');
+    } catch (error) {
+      showMessage(error.message || `Could not change ${channel} trim.`, true);
+      if (!trimDraggingChannels.has(channel)) trimDesiredValues.delete(channel);
+    } finally {
+      trimSetInFlight = false;
+      if (trimPendingValues.size) drainTrimQueue();
+      else window.setTimeout(refreshLiveMixer, 180);
+    }
+  }
+
+  function reassertDesiredValues() {
     liveDesiredValues.forEach((value, channel) => updateLiveReading(channel, value));
+    trimDesiredValues.forEach((value, channel) => setTrimVisual(channel, value));
   }
 
   installAudioPanel();
-  window.setInterval(reassertDesiredLiveValues, 80);
+  reassertTimer = window.setInterval(reassertDesiredValues, 90);
 
   handle.addEventListener('click', () => {
-    if (document.body.classList.contains('nav-open')) {
-      hideDrawer();
-    } else {
-      showDrawer();
-    }
+    if (document.body.classList.contains('nav-open')) hideDrawer();
+    else showDrawer();
   });
 
   handle.addEventListener('touchstart', (event) => {
@@ -403,11 +514,7 @@
 
   handle.addEventListener('touchend', (event) => {
     const touchEndY = event.changedTouches[0]?.clientY ?? null;
-    if (touchStartY === null || touchEndY === null) {
-      return;
-    }
-
-    if (touchStartY - touchEndY > SWIPE_THRESHOLD_PX) {
+    if (touchStartY !== null && touchEndY !== null && touchStartY - touchEndY > SWIPE_THRESHOLD_PX) {
       showDrawer();
     }
     touchStartY = null;
@@ -417,14 +524,14 @@
   drawer.addEventListener('focusin', scheduleHide);
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      hideDrawer();
-    }
+    if (event.key === 'Escape') hideDrawer();
   });
 
   window.addEventListener('pagehide', () => {
     window.clearInterval(liveRefreshTimer);
+    window.clearInterval(reassertTimer);
     liveDebounceTimers.forEach((timer) => window.clearTimeout(timer));
+    trimDebounceTimers.forEach((timer) => window.clearTimeout(timer));
   });
 
   setExpanded(false);
