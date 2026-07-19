@@ -12,10 +12,16 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from flask import jsonify, request
+
 try:
     from . import alarm_audio_core as _core
+    from . import dashboard_core as _dashboard_core
+    from .audio_mixer import DEFAULT_MIXER_HELPER, SharedAudioMixer
 except ImportError:  # Supports direct execution imports.
     import alarm_audio_core as _core
+    import dashboard_core as _dashboard_core
+    from audio_mixer import DEFAULT_MIXER_HELPER, SharedAudioMixer
 
 DEFAULT_AUDIO_SETTINGS = _core.DEFAULT_AUDIO_SETTINGS
 MAX_TEST_SECONDS = _core.MAX_TEST_SECONDS
@@ -23,8 +29,42 @@ MAX_TEST_VOLUME_PERCENT = _core.MAX_TEST_VOLUME_PERCENT
 SAMPLE_RATE = 44100
 CHANNELS = 2
 SAMPLE_WIDTH_BYTES = 2
+SHARED_ALARM_PCM = "acp_alarm"
 
-normalise_audio_settings = _core.normalise_audio_settings
+shared_audio_mixer = SharedAudioMixer()
+
+
+def normalise_audio_settings(raw: Any) -> dict[str, Any]:
+    source = raw if isinstance(raw, dict) else {}
+    settings = _core.normalise_audio_settings(source)
+    shared = bool(source.get("shared_mixer_enabled", False))
+
+    configured_device = str(source.get("alsa_device", "")).strip()
+    hardware_device = str(source.get("hardware_device", "")).strip()
+    if not hardware_device and configured_device not in {"", "default", SHARED_ALARM_PCM}:
+        hardware_device = configured_device
+    if not hardware_device:
+        hardware_device = "hw:CARD=Pro,DEV=0"
+
+    settings.update(
+        {
+            "shared_mixer_enabled": shared,
+            "hardware_device": hardware_device[:120],
+            "mixer_helper_path": (
+                str(source.get("mixer_helper_path", DEFAULT_MIXER_HELPER)).strip()[:240]
+                or DEFAULT_MIXER_HELPER
+            ),
+        }
+    )
+    if shared:
+        settings.update(
+            {
+                "alsa_device": SHARED_ALARM_PCM,
+                "release_services": False,
+                "restore_services": False,
+            }
+        )
+    return settings
 
 
 def render_tone_wav(
@@ -121,13 +161,13 @@ def render_tone_wav(
 
 # The established manager lives in the preserved core module. Its playback
 # method resolves render_tone_wav from that module at runtime, so installing the
-# upgraded renderer here keeps all proven ownership and safety behaviour intact.
+# upgraded renderer here keeps all proven safety behaviour intact.
 _core.render_tone_wav = render_tone_wav
 _core.SAMPLE_RATE = SAMPLE_RATE
 
 
 class AlarmAudioManager(_core.AlarmAudioManager):
-    """Stereo renderer plus deterministic, single-owner DAC handover."""
+    """Stereo renderer plus shared-dmix and legacy exclusive audio support."""
 
     RESTORE_TIMEOUT_SECONDS = 24
 
@@ -137,18 +177,41 @@ class AlarmAudioManager(_core.AlarmAudioManager):
         self._restoring_handover_ids: set[str] = set()
         self._restored_handover_ids: list[str] = []
 
+    def settings(self) -> dict[str, Any]:
+        config = self.config_loader()
+        return normalise_audio_settings(config.get("alarm_audio") if isinstance(config, dict) else None)
+
+    def _helper_status(self, settings: dict[str, Any]) -> dict[str, Any]:
+        if settings.get("shared_mixer_enabled"):
+            mixer = SharedAudioMixer(settings.get("mixer_helper_path", DEFAULT_MIXER_HELPER)).status()
+            return {
+                "available": mixer.get("available") is True,
+                "error": mixer.get("error"),
+                "mode": "shared-dmix",
+                "services_untouched": True,
+                "plexamp_active": None,
+                "shairport_active": None,
+            }
+        return super()._helper_status(settings)
+
     def _release(self, settings: dict[str, Any]) -> dict[str, Any]:
+        if settings.get("shared_mixer_enabled"):
+            snapshot = self._helper_status(settings)
+            snapshot.update(
+                {
+                    "released": True,
+                    "services_untouched": True,
+                    "handover_id": uuid.uuid4().hex,
+                }
+            )
+            return snapshot
         snapshot = super()._release(settings)
         snapshot["handover_id"] = uuid.uuid4().hex
         return snapshot
 
     def _restore(self, settings: dict[str, Any], snapshot: dict[str, Any] | None) -> None:
-        """Restore services once per DAC handover.
-
-        The core playback worker and Snooze/Dismiss path can both reach restore.
-        Serialising on a handover ID prevents overlapping service starts and
-        ensures the helper's PCM-free check is the single authority.
-        """
+        if settings.get("shared_mixer_enabled"):
+            return
         if not settings.get("restore_services") or not snapshot or not snapshot.get("available"):
             return
 
@@ -212,6 +275,7 @@ class AlarmAudioManager(_core.AlarmAudioManager):
 
     def diagnostics(self) -> dict[str, Any]:
         payload = deepcopy(super().diagnostics())
+        settings = self.settings()
         player = payload.setdefault("player", {})
         player["format"] = {
             "sample_rate_hz": SAMPLE_RATE,
@@ -219,6 +283,40 @@ class AlarmAudioManager(_core.AlarmAudioManager):
             "sample_width_bits": SAMPLE_WIDTH_BYTES * 8,
             "channel_layout": "dual-mono stereo",
         }
+        mixer = SharedAudioMixer(settings.get("mixer_helper_path", DEFAULT_MIXER_HELPER)).status()
+        payload["mixer"] = mixer
+        payload["shared_mixer_enabled"] = bool(settings.get("shared_mixer_enabled"))
         with self._handover_lock:
             payload.setdefault("runtime", {})["restore_in_progress"] = bool(self._restoring_handover_ids)
+        if settings.get("shared_mixer_enabled"):
+            payload["safety_message"] = (
+                "Only explicit tests may make sound. Plexamp, AirPlay and alarms share dmix; "
+                f"tests remain capped at {MAX_TEST_VOLUME_PERCENT}%."
+            )
         return payload
+
+
+def _register_mixer_api() -> None:
+    app = _dashboard_core.app
+    if "api_shared_audio_mixer" in app.view_functions:
+        return
+
+    @app.route("/api/audio/mixer", methods=["GET", "POST"])
+    def api_shared_audio_mixer():
+        if request.method == "GET":
+            return jsonify({"ok": True, "mixer": shared_audio_mixer.status()})
+
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"ok": False, "error": "Mixer settings must be a JSON object."}), 400
+        try:
+            if isinstance(payload.get("volumes"), dict):
+                status = shared_audio_mixer.set_volumes(payload["volumes"])
+            else:
+                status = shared_audio_mixer.set_volume(payload.get("channel"), payload.get("percent"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True, "mixer": status, "message": "Shared audio mixer updated."})
+
+
+_register_mixer_api()
