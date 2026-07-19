@@ -14,7 +14,9 @@
     "service_name": "plexamp.service"
   },
   "airplay": {
-    "display_name": "Bedroom Plexamp"
+    "display_name": "Bedroom Plexamp",
+    "default_volume_percent": 60,
+    "apply_default_volume_on_start": true
   },
   "display": {
     "x_display": ":0",
