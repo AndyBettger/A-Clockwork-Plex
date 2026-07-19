@@ -50,6 +50,6 @@
   "alarm": {
     "enabled": false,
     "default_time": "11:00",
-    "snooze_minutes": 10
+    "snooze_minutes": 8
   }
 }
