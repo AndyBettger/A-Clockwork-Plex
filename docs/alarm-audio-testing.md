@@ -13,6 +13,19 @@ This development pass permits **explicit local-audio tests only**. Ordinary sche
 - Snooze, Dismiss, Clear visual test and Stop alarm audio terminate playback immediately.
 - A player that ignores termination is killed before service restoration continues.
 
+## Audio format
+
+Generated alarm tones use:
+
+```text
+16-bit PCM
+44,100 Hz
+2 channels
+Dual mono: the same complete alarm signal is sent to left and right
+```
+
+This avoids a mono stream being routed to only one side of a stereo DAC and gives ALSA a conventional hi-fi format to present to the hardware.
+
 ## Raspberry Pi prerequisites
 
 Install ALSA utilities when `aplay` is unavailable:
@@ -50,13 +63,16 @@ It cannot execute arbitrary services or commands.
 
 1. Open **Settings → Alarms → Controlled alarm audio**.
 2. Confirm `aplay ready` and `Installed` are shown.
-3. Choose a 5-second test duration.
-4. Enable **Enable alarm audio tests** and save the audio safety settings.
-5. Use **Test tone now**. The backend caps both the starting and target volume at 25% for this pass.
-6. Confirm the tone stops automatically and the previous services return.
-7. Use **Stop alarm audio** during a second test and confirm it stops immediately.
-8. Use **Test full alarm in 10 sec** to validate screen takeover, Snooze and Dismiss with real test audio.
-9. Disable the master test switch and save after testing.
+3. Set the ALSA output device. On the bedroom Pi with the RPi DAC Pro, use `plughw:CARD=Pro,DEV=0`.
+4. Save with either **Save audio safety settings** or the main sticky **Save settings** button. Both routes persist the audio card.
+5. Reload Settings and confirm the device remains selected.
+6. Choose a 5-second test duration.
+7. Enable **Enable alarm audio tests** and save.
+8. Use **Test tone now**. The backend caps both the starting and target volume at 25% for this pass.
+9. Confirm the tone stops automatically and the previous services return.
+10. Use **Stop alarm audio** during a second test and confirm it stops immediately.
+11. Use **Test full alarm in 10 sec** to validate screen takeover, Snooze and Dismiss with real test audio.
+12. Disable the master test switch and save after testing.
 
 Stopping Shairport Sync ends any live AirPlay session. The service can be restored, but the originating phone must start or reconnect its stream again.
 
@@ -79,7 +95,7 @@ aplay -l
 aplay -L
 ```
 
-When `default` is not the correct output, use a device name reported by `aplay -L` in the audio Settings card.
+When `default` is not the correct output, use a device name reported by `aplay -L` in the audio Settings card. `plughw:` is preferred for a hardware DAC because ALSA may adapt the stream format when the device requires it.
 
 ## Emergency rollback
 
