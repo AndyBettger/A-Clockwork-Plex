@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import json
 import math
+import subprocess
+import threading
+import time
+import uuid
 import wave
 from array import array
 from copy import deepcopy
@@ -122,6 +127,89 @@ _core.SAMPLE_RATE = SAMPLE_RATE
 
 
 class AlarmAudioManager(_core.AlarmAudioManager):
+    """Stereo renderer plus deterministic, single-owner DAC handover."""
+
+    RESTORE_TIMEOUT_SECONDS = 24
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._handover_lock = threading.Lock()
+        self._restoring_handover_ids: set[str] = set()
+        self._restored_handover_ids: list[str] = []
+
+    def _release(self, settings: dict[str, Any]) -> dict[str, Any]:
+        snapshot = super()._release(settings)
+        snapshot["handover_id"] = uuid.uuid4().hex
+        return snapshot
+
+    def _restore(self, settings: dict[str, Any], snapshot: dict[str, Any] | None) -> None:
+        """Restore services once per DAC handover.
+
+        The core playback worker and Snooze/Dismiss path can both reach restore.
+        Serialising on a handover ID prevents overlapping service starts and
+        ensures the helper's PCM-free check is the single authority.
+        """
+        if not settings.get("restore_services") or not snapshot or not snapshot.get("available"):
+            return
+
+        handover_id = str(snapshot.get("handover_id") or f"legacy-{id(snapshot)}")
+        with self._handover_lock:
+            if handover_id in self._restoring_handover_ids or handover_id in self._restored_handover_ids:
+                return
+            self._restoring_handover_ids.add(handover_id)
+
+        started = time.monotonic()
+        error: str | None = None
+        helper_payload: dict[str, Any] = {}
+        args = [
+            "sudo",
+            "-n",
+            settings["helper_path"],
+            "restore",
+            "1" if snapshot.get("plexamp_active") else "0",
+            "1" if snapshot.get("shairport_active") else "0",
+        ]
+
+        try:
+            result = self.runner(
+                args,
+                capture_output=True,
+                text=True,
+                timeout=self.RESTORE_TIMEOUT_SECONDS,
+                check=False,
+            )
+            raw_output = (result.stdout or "").strip()
+            if raw_output:
+                try:
+                    parsed = json.loads(raw_output)
+                    if isinstance(parsed, dict):
+                        helper_payload = parsed
+                except json.JSONDecodeError:
+                    helper_payload = {"raw_output": raw_output}
+            if result.returncode:
+                error = (result.stderr or raw_output or "Audio restore failed.").strip()
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            error = str(exc)
+        finally:
+            elapsed = round(time.monotonic() - started, 3)
+            with self.lock:
+                self.state["last_restore_seconds"] = elapsed
+                self.state["last_restore_handover_id"] = handover_id
+                self.state["last_restore_helper"] = deepcopy(helper_payload)
+                if error:
+                    self.state["last_error"] = error
+                self._record(
+                    "audio-restore-failed" if error else "audio-owners-restored",
+                    handover_id=handover_id,
+                    elapsed_seconds=elapsed,
+                    helper=helper_payload,
+                    error=error,
+                )
+            with self._handover_lock:
+                self._restoring_handover_ids.discard(handover_id)
+                self._restored_handover_ids.append(handover_id)
+                self._restored_handover_ids = self._restored_handover_ids[-64:]
+
     def diagnostics(self) -> dict[str, Any]:
         payload = deepcopy(super().diagnostics())
         player = payload.setdefault("player", {})
@@ -131,4 +219,6 @@ class AlarmAudioManager(_core.AlarmAudioManager):
             "sample_width_bits": SAMPLE_WIDTH_BYTES * 8,
             "channel_layout": "dual-mono stereo",
         }
+        with self._handover_lock:
+            payload.setdefault("runtime", {})["restore_in_progress"] = bool(self._restoring_handover_ids)
         return payload
