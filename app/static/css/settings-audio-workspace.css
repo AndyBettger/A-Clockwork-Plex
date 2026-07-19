@@ -14,7 +14,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-flow: row;
-  gap: clamp(10px, 1.5vmin, 16px);
+  gap: clamp(8px, 1.2vmin, 12px);
   align-items: stretch;
 }
 
@@ -24,7 +24,7 @@
   display: grid;
   grid-template-rows: auto minmax(250px, 38vh) auto;
   min-width: 0;
-  padding: clamp(10px, 1.6vmin, 16px);
+  padding: clamp(9px, 1.3vmin, 13px);
   border: 1px solid rgba(143, 211, 255, 0.14);
   border-radius: 16px;
   background:
@@ -54,27 +54,30 @@
 
 .audio-mixer-card.is-vertical-console .audio-mixer-channel-heading strong {
   font-family: var(--display-font);
-  font-size: clamp(0.92rem, 1.9vmin, 1.08rem);
+  font-size: clamp(0.86rem, 1.7vmin, 1.04rem);
   letter-spacing: 0.02em;
 }
 
 .audio-mixer-card.is-vertical-console .audio-mixer-channel-heading small {
   margin-top: 5px;
   color: var(--muted);
-  line-height: 1.28;
+  font-size: clamp(0.72rem, 1.35vmin, 0.86rem);
+  line-height: 1.25;
 }
 
 .audio-mixer-card.is-vertical-console .audio-mixer-channel-heading output {
-  min-width: 58px;
+  min-width: 54px;
   color: #bdeaff;
   font-family: var(--display-font);
-  font-size: clamp(1.05rem, 2.4vmin, 1.34rem);
+  font-size: clamp(1rem, 2.2vmin, 1.28rem);
   font-weight: 700;
   text-align: right;
 }
 
 .audio-mixer-card.is-vertical-console .audio-mixer-control-row {
   --fader-end-space: 58px;
+  --fader-scale-top: calc(var(--fader-end-space) + 10px);
+  --fader-scale-bottom: calc(var(--fader-end-space) - 10px);
   position: relative;
   display: grid;
   grid-template-columns: 1fr;
@@ -90,30 +93,44 @@
   -webkit-touch-callout: none;
 }
 
+/* Minor 10% ticks. */
 .audio-mixer-card.is-vertical-console .audio-mixer-control-row::before {
   content: "";
   position: absolute;
   z-index: 0;
-  top: var(--fader-end-space);
-  bottom: var(--fader-end-space);
+  top: var(--fader-scale-top);
+  bottom: var(--fader-scale-bottom);
   left: 50%;
-  width: 84px;
-  border-radius: 12px;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(190, 234, 255, 0.31) 0,
-      rgba(190, 234, 255, 0.31) 1px,
-      transparent 1px,
-      transparent 10%
-    ),
-    linear-gradient(
-      90deg,
-      transparent 49%,
-      rgba(190, 234, 255, 0.18) 49%,
-      rgba(190, 234, 255, 0.18) 51%,
-      transparent 51%
-    );
+  width: 38px;
+  border-radius: 10px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.26) 0,
+    rgba(190, 234, 255, 0.26) 1px,
+    transparent 1px,
+    transparent 10%
+  );
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Wider, brighter 20% ticks. */
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: var(--fader-scale-top);
+  bottom: var(--fader-scale-bottom);
+  left: 50%;
+  width: 54px;
+  border-radius: 10px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.42) 0,
+    rgba(190, 234, 255, 0.42) 2px,
+    transparent 2px,
+    transparent 20%
+  );
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -226,7 +243,9 @@
   gap: 12px;
 }
 
-@media (max-width: 980px) {
+/* The Pi reports an approximately 800 CSS-pixel-wide viewport through VNC.
+   Four compact faders remain usable there, so only collapse below 620px. */
+@media (max-width: 620px) {
   .audio-mixer-card.is-vertical-console .audio-mixer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -236,7 +255,7 @@
   }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 420px) {
   .audio-mixer-card.is-vertical-console .audio-mixer-grid {
     grid-template-columns: 1fr;
   }
