@@ -117,7 +117,8 @@ def _unique_id(candidate: str, used_ids: set[str]) -> str:
 
 def _normalise_days(value: Any, *, strict: bool = False) -> list[str]:
     values = value if isinstance(value, list) else []
-    days = [day for day in DAY_IDS if day in {str(item).strip().lower() for item in values}]
+    requested = {str(item).strip().lower() for item in values}
+    days = [day for day in DAY_IDS if day in requested]
     if days:
         return days
     if strict:
@@ -218,8 +219,9 @@ def normalise_alarm_config(raw: Any, manifest: dict[str, Any], *, prefer_legacy:
     defaults_source["snooze_minutes"] = source.get("snooze_minutes", defaults_source["snooze_minutes"])
     defaults = _normalise_defaults(defaults_source, manifest)
 
-    configured = source.get("alarms") if isinstance(source.get("alarms"), list) else []
-    if prefer_legacy or not configured:
+    has_alarm_list = isinstance(source.get("alarms"), list)
+    configured = source.get("alarms") if has_alarm_list else []
+    if prefer_legacy or not has_alarm_list:
         configured = [
             {
                 "id": "default-alarm",
