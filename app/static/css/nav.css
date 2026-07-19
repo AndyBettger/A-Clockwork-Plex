@@ -162,6 +162,8 @@ body.nav-audio-open .nav-drawer {
 
 .nav-live-fader {
   --live-fader-end-space: 42px;
+  --live-fader-scale-top: calc(var(--live-fader-end-space) + 8px);
+  --live-fader-scale-bottom: calc(var(--live-fader-end-space) - 8px);
   position: relative;
   display: grid;
   grid-template-columns: 1fr;
@@ -175,30 +177,44 @@ body.nav-audio-open .nav-drawer {
   -webkit-touch-callout: none;
 }
 
+/* Minor 10% ticks. */
 .nav-live-fader::before {
   content: "";
   position: absolute;
   z-index: 0;
-  top: var(--live-fader-end-space);
-  bottom: var(--live-fader-end-space);
+  top: var(--live-fader-scale-top);
+  bottom: var(--live-fader-scale-bottom);
   left: 50%;
-  width: 64px;
-  border-radius: 10px;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(190, 234, 255, 0.3) 0,
-      rgba(190, 234, 255, 0.3) 1px,
-      transparent 1px,
-      transparent 10%
-    ),
-    linear-gradient(
-      90deg,
-      transparent 49%,
-      rgba(190, 234, 255, 0.17) 49%,
-      rgba(190, 234, 255, 0.17) 51%,
-      transparent 51%
-    );
+  width: 30px;
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.25) 0,
+    rgba(190, 234, 255, 0.25) 1px,
+    transparent 1px,
+    transparent 10%
+  );
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Wider, brighter 20% ticks. */
+.nav-live-fader::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: var(--live-fader-scale-top);
+  bottom: var(--live-fader-scale-bottom);
+  left: 50%;
+  width: 44px;
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.42) 0,
+    rgba(190, 234, 255, 0.42) 2px,
+    transparent 2px,
+    transparent 20%
+  );
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -345,6 +361,8 @@ body.nav-open .nav-handle span {
 
   .nav-live-fader {
     --live-fader-end-space: 38px;
+    --live-fader-scale-top: calc(var(--live-fader-end-space) + 7px);
+    --live-fader-scale-bottom: calc(var(--live-fader-end-space) - 7px);
     grid-template-rows: 32px minmax(82px, 1fr) 32px;
     min-height: 140px;
   }
