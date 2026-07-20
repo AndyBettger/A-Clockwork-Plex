@@ -12,11 +12,33 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/fader-calibration.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-autosave.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css') }}">
 </head>
-<body class="mode-{{ state.mode }}" data-active-page="{{ active_page | default(state.mode) }}">
+<body
+  class="mode-{{ state.mode }}"
+  data-active-page="{{ active_page | default(state.mode) }}"
+  data-idle-timeout-seconds="{{ config.dashboard.idle_timeout_seconds | default(180) }}"
+>
   <main class="screen">
     {% block content %}{% endblock %}
   </main>
+
+  <section
+    class="persistent-plexamp"
+    id="persistent-plexamp"
+    aria-label="Plexamp embedded player"
+    aria-hidden="true"
+  >
+    <div class="persistent-plexamp-loading" aria-hidden="true">Preparing Plexamp</div>
+    <iframe
+      class="persistent-plexamp-frame"
+      id="persistent-plexamp-frame"
+      src="{{ config.plexamp.url | default('http://localhost:32500') }}"
+      title="Plexamp"
+      allow="autoplay"
+    ></iframe>
+  </section>
+
   <footer class="status-bar">
     <span>A Clockwork Plex</span>
     <span>Mode: {{ state.mode }}</span>
@@ -29,8 +51,10 @@
   <script src="{{ url_for('static', filename='js/audio-state-isolation.js') }}"></script>
   <script src="{{ url_for('static', filename='js/airplay-start-commit.js') }}"></script>
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/plexamp-persistent.js') }}"></script>
   <script src="{{ url_for('static', filename='js/page-transitions.js') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-autosave.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/idle-return.js') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
