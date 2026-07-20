@@ -1,9 +1,9 @@
-#settings-panel-audio{padding-bottom:clamp(110px,16vh,150px)}
-.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel,.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel:first-child{grid-template-rows:auto minmax(390px,58vh)}
+#settings-panel-audio{padding-bottom:clamp(72px,10vh,100px)}
+.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel,.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel:first-child{grid-template-rows:auto minmax(410px,62vh)}
 .audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel-heading{min-height:66px}
 .audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel-heading small{margin-top:4px;font-size:clamp(.7rem,1.3vmin,.82rem);line-height:1.18}
-.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row{--settings-step-row-height:50px;--settings-track-top:8px;--settings-track-bottom:calc(var(--settings-step-row-height) + 12px);min-height:390px;display:block;padding:0 0 var(--settings-step-row-height)}
-.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row::before,.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row::after{top:calc(var(--settings-track-top) + 14px);bottom:calc(var(--settings-track-bottom) - 14px)}
+.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row{--settings-step-row-height:50px;--settings-track-top:4px;--settings-track-bottom:calc(var(--settings-step-row-height) + 8px);min-height:410px;display:block;padding:0 0 var(--settings-step-row-height)}
+.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row::before,.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row::after{top:calc(var(--settings-track-top) + 3px);bottom:calc(var(--settings-track-bottom) + 4px)}
 .audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row::before{width:26px}
 .audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row::after{width:42px}
 .audio-mixer-card.is-vertical-console.is-console-mk2 input[type=range][data-mixer-slider]{top:var(--settings-track-top);bottom:var(--settings-track-bottom)}
@@ -12,6 +12,6 @@
 .audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-step[data-mixer-step="5"]{right:auto;left:calc(50% + 5px)}
 .audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-pcm{display:none!important}
 .audio-fader-scale-label{position:absolute;z-index:1;left:calc(50% + 32px);color:rgba(190,234,255,.7);font-family:var(--display-font);font-size:.68rem;font-weight:700;line-height:1;pointer-events:none}
-.audio-fader-scale-label.is-top{top:calc(var(--settings-track-top) + 8px)}
-.audio-fader-scale-label.is-bottom{bottom:calc(var(--settings-track-bottom) + 4px)}
-@media(max-height:700px){.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel,.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel:first-child{grid-template-rows:auto minmax(310px,52vh)}.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row{min-height:310px}}
+.audio-fader-scale-label.is-top{top:calc(var(--settings-track-top) - 3px)}
+.audio-fader-scale-label.is-bottom{bottom:calc(var(--settings-track-bottom) - 2px)}
+@media(max-height:700px){.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel,.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-channel:first-child{grid-template-rows:auto minmax(330px,54vh)}.audio-mixer-card.is-vertical-console.is-console-mk2 .audio-mixer-control-row{min-height:330px}}
