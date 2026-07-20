@@ -1,16 +1,53 @@
-/* Brief appliance-style transitions between dashboard modes. */
+/* Appliance-style transitions between dashboard modes. Chromium's
+   cross-document View Transition API gives Weather, Settings, Clock and AirPlay
+   the same soft grow/fade language as the in-page Audio and Plexamp layers. */
 
-.screen {
-  animation: acp-page-enter 280ms cubic-bezier(.16, .84, .24, 1) both;
-  transform-origin: 50% 50%;
+@view-transition {
+  navigation: auto;
 }
 
-body.acp-page-leaving .screen {
-  opacity: 0;
-  transform: translateY(-7px) scale(.988);
-  transition:
-    opacity 170ms ease,
-    transform 190ms cubic-bezier(.4, 0, 1, 1);
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-fill-mode: both;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  animation: acp-view-old 190ms cubic-bezier(.4, 0, 1, 1) both;
+}
+
+::view-transition-new(root) {
+  animation: acp-view-new 300ms cubic-bezier(.16, .84, .24, 1) both;
+}
+
+@keyframes acp-view-old {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-7px) scale(.985);
+  }
+}
+
+@keyframes acp-view-new {
+  from {
+    opacity: 0;
+    transform: translateY(11px) scale(.975);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Entry fallback for browsers without cross-document transitions. `backwards`
+   applies the hidden first frame only before/during animation and does not leave
+   a permanent transform stacking context around the navigation controls. */
+.screen {
+  animation: acp-page-enter 280ms cubic-bezier(.16, .84, .24, 1) backwards;
+  transform-origin: 50% 50%;
 }
 
 @keyframes acp-page-enter {
@@ -24,12 +61,16 @@ body.acp-page-leaving .screen {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@supports (view-transition-name: root) {
   .screen {
-    animation-duration: 1ms;
+    animation: none;
   }
+}
 
-  body.acp-page-leaving .screen {
-    transition-duration: 1ms;
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  .screen {
+    animation-duration: 1ms !important;
   }
 }
