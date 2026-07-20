@@ -1,0 +1,116 @@
+/* Unified AirPlay hero geometry.
+   Ready and Now Playing deliberately share one measured media square, one
+   right-column start position and one right edge. */
+
+.airplay-now-card {
+  --airplay-hero-block-pad: clamp(16px, 2.15vmin, 22px);
+  --airplay-hero-left-pad: clamp(18px, 2.25vmin, 24px);
+  --airplay-hero-right-pad: clamp(34px, 3vw, 48px);
+  --airplay-hero-gap: clamp(30px, 3vw, 48px);
+  --airplay-media-size: min(39vw, 620px);
+  box-sizing: border-box;
+  grid-template-columns: minmax(0, var(--airplay-media-size)) minmax(0, 1fr) !important;
+  column-gap: var(--airplay-hero-gap) !important;
+  align-items: center !important;
+  padding:
+    var(--airplay-hero-block-pad)
+    var(--airplay-hero-right-pad)
+    var(--airplay-hero-block-pad)
+    var(--airplay-hero-left-pad) !important;
+}
+
+.airplay-glyph-wrap,
+body.airplay-metadata-active .airplay-glyph-wrap,
+body.airplay-session-idle .airplay-glyph-wrap {
+  align-self: center !important;
+  justify-self: start !important;
+  display: grid !important;
+  place-items: center !important;
+  width: var(--airplay-media-size) !important;
+  height: var(--airplay-media-size) !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+.airplay-artwork,
+body.airplay-metadata-active .airplay-artwork,
+body.airplay-session-idle .airplay-artwork {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  aspect-ratio: 1 !important;
+}
+
+.airplay-copy,
+body.airplay-metadata-active .airplay-copy,
+body.airplay-session-idle .airplay-copy {
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* The card's right padding now owns the right margin. Earlier hardening added a
+   second control inset, which made the two states finish on different lines. */
+body.airplay-metadata-active .airplay-now-card {
+  --airplay-control-end-inset: 0px !important;
+}
+
+body.airplay-metadata-active .airplay-now-card .airplay-controls-stack,
+body.airplay-metadata-active .airplay-now-card > .airplay-copy > .airplay-progress,
+body.airplay-metadata-active .airplay-now-card > .airplay-copy > .airplay-control-row {
+  padding-inline-end: 0 !important;
+}
+
+/* Fit the Ready mark inside exactly the same square used by real artwork. */
+body.airplay-session-idle .airplay-route-logo {
+  width: 78% !important;
+  max-width: none !important;
+  max-height: 84% !important;
+}
+
+/* The visible AirPlay arcs are centred above the geometric centre of the SVG
+   because of the receiving triangle beneath them. The pulse origin follows the
+   arcs, starts close to the source and is allowed to travel beneath the copy. */
+body.airplay-session-idle .airplay-pulse {
+  left: 50% !important;
+  top: 42.5% !important;
+  z-index: 1 !important;
+  width: 27% !important;
+  border-width: 3px !important;
+  border-color: rgba(143, 211, 255, 0.42) !important;
+  box-shadow: 0 0 24px rgba(143, 211, 255, 0.13);
+  animation: airplay-route-wave 3.4s cubic-bezier(.12, .58, .22, 1) infinite !important;
+}
+
+body.airplay-session-idle .airplay-pulse.two {
+  animation-delay: 1.7s !important;
+}
+
+@keyframes airplay-route-wave {
+  0% {
+    opacity: 0.68;
+    transform: translate(-50%, -50%) scale(.42);
+  }
+  18% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(4.8);
+  }
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .airplay-now-card {
+    --airplay-hero-block-pad: 12px;
+    --airplay-hero-left-pad: 12px;
+    --airplay-hero-right-pad: 18px;
+    --airplay-hero-gap: 18px;
+  }
+}
