@@ -1,0 +1,80 @@
+/* Final calibration and motion pass for the live Audio drawer. */
+
+.nav-drawer {
+  transition:
+    transform 260ms cubic-bezier(.2, .78, .2, 1),
+    opacity 240ms ease,
+    border-radius 260ms ease,
+    width 260ms ease;
+}
+
+.nav-live-mixer {
+  transform-origin: 50% 100%;
+  opacity: 0;
+  transform: translateY(18px) scale(.965);
+  transition:
+    opacity 300ms ease,
+    transform 320ms cubic-bezier(.16, .84, .24, 1);
+  will-change: opacity, transform;
+}
+
+.nav-live-mixer.is-audio-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.nav-live-mixer.is-audio-closing {
+  opacity: 0;
+  transform: translateY(16px) scale(.97);
+  transition-duration: 220ms;
+}
+
+/* The drawer faders no longer need nudge buttons. Their reclaimed height goes
+   directly into useful slider travel. */
+.nav-live-step-row {
+  display: none !important;
+}
+
+.nav-source-channel {
+  grid-template-rows: auto 102px minmax(350px, 1fr) !important;
+}
+
+.nav-live-fader {
+  --live-track-top: 0px !important;
+  --live-track-bottom: 0px !important;
+  min-height: 350px !important;
+  padding-bottom: 0 !important;
+}
+
+/* Chromium's native vertical range has asymmetric visual end caps. These
+   offsets are calibrated against the actual thumb centres seen on the Pi. */
+.nav-live-fader::before,
+.nav-live-fader::after {
+  top: calc(var(--live-track-top) + 3px) !important;
+  bottom: calc(var(--live-track-bottom) + 4px) !important;
+}
+
+.nav-fader-scale-label.is-top {
+  top: calc(var(--live-track-top) - 3px) !important;
+}
+
+.nav-fader-scale-label.is-bottom {
+  bottom: calc(var(--live-track-bottom) - 2px) !important;
+}
+
+@media (max-height: 700px), (max-width: 860px) {
+  .nav-source-channel {
+    grid-template-rows: auto 88px minmax(265px, 1fr) !important;
+  }
+
+  .nav-live-fader {
+    min-height: 265px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-drawer,
+  .nav-live-mixer {
+    transition-duration: 1ms !important;
+  }
+}
