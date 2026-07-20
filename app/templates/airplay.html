@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-mini-clock.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-width-fixes.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-glance-tuning.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-layout-v3.css') }}">
 {% endblock %}
 {% block content %}
 <section class="airplay-page" aria-label="AirPlay active screen" data-configured-receiver-name="{{ configured_airplay_name }}" data-receiver-name="{{ receiver_airplay_name }}">
@@ -76,4 +77,5 @@
 <script src="{{ url_for('static', filename='js/airplay-volume-hold.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-volume-v2.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-mini-clock.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-layout-v3.js') }}"></script>
 {% endblock %}
