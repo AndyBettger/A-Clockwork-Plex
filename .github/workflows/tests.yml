@@ -42,6 +42,7 @@ jobs:
           node --check app/static/js/settings-alarm-scheduler.js
           node --check app/static/js/settings-alarm-audio.js
           node --check app/static/js/settings-audio-workspace.js
+          node --check app/static/js/settings-audio-fader-layout.js
           node --check app/static/js/settings-airplay-defaults.js
           node --check app/static/js/settings-keyboard.js
           node --check app/static/js/settings-tabs.js
