@@ -47,6 +47,11 @@ jobs:
           node --check app/static/js/settings-keyboard.js
           node --check app/static/js/settings-tabs.js
           node --check app/static/js/settings-about.js
+          node --check app/static/js/settings-autosave.js
+          node --check app/static/js/audio-polish.js
+          node --check app/static/js/page-transitions.js
+          node --check app/static/js/airplay-volume-hold.js
+          node --check app/static/js/airplay-volume-v2.js
           node --check app/static/js/mode-watch.js
           node --check app/static/js/alarm-active.js
           node --check app/static/js/nav-drawer.js
