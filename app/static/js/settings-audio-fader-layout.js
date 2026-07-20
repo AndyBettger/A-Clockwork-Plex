@@ -4,7 +4,19 @@
   }
   window.__aClockworkPlexAudioFaderLayoutLoaded = true;
 
+  function installStyles() {
+    if (document.querySelector('link[data-audio-console-mk2-styles]')) {
+      return;
+    }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/static/css/settings-audio-console-mk2.css';
+    link.dataset.audioConsoleMk2Styles = 'true';
+    document.head.appendChild(link);
+  }
+
   function install() {
+    installStyles();
     const card = document.getElementById('audio-mixer-card');
     if (!card) {
       window.setTimeout(install, 100);
