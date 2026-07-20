@@ -39,7 +39,7 @@
       if (!route) return;
 
       if (requestedMode === 'plexamp' && window.ACPPlexamp) {
-        if (!window.ACPPlexamp.isOpen()) window.ACPPlexamp.show({ updateMode: false });
+        if (!window.ACPPlexamp.isOpen()) window.ACPPlexamp.show();
         return;
       }
 
