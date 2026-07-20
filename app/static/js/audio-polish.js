@@ -6,12 +6,38 @@
   const pendingKey = 'a-clockwork-plex.pending-airplay-defaults';
   const defaultsEndpoint = '/api/audio/defaults';
   const liveEndpoint = '/api/audio/live';
-  let lastAirplayCheckAt = 0;
-  let lastAirplayActive = false;
-  let airplayCheckPromise = null;
+  const statusEndpoint = '/api/status';
+  const legacyVolumeEndpoint = '/api/airplay/volume';
+  const AIRPLAY_DB_FLOOR = -30;
+
+  let sessionCheckPromise = null;
+  let lastSessionCheckAt = 0;
+  let lastSessionActive = false;
+  let inactiveSince = null;
   let flushInFlight = false;
 
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const requestUrl = (input) => new URL(typeof input === 'string' ? input : (input?.url || ''), window.location.href);
+
+  function uiToSenderPercent(percent) {
+    const ui = clamp(Number(percent) || 0, 0, 100);
+    if (ui <= 0) return 0;
+    const db = 20 * Math.log10(ui / 100);
+    return Math.round(clamp(100 * (1 + db / Math.abs(AIRPLAY_DB_FLOOR)), 1, 100));
+  }
+
+  function senderToUiPercent(percent) {
+    const sender = clamp(Number(percent) || 0, 0, 100);
+    if (sender <= 0) return 0;
+    const db = AIRPLAY_DB_FLOOR * (1 - sender / 100);
+    return Math.round(clamp(100 * Math.pow(10, db / 20), 0, 100));
+  }
+
+  window.ACPAirPlayVolumeScale = {
+    uiToSenderPercent,
+    senderToUiPercent,
+    dbFloor: AIRPLAY_DB_FLOOR,
+  };
 
   function pendingDefaults() {
     try {
@@ -23,7 +49,13 @@
   }
 
   function storePendingDefaults(payload) {
-    try { window.localStorage.setItem(pendingKey, JSON.stringify(payload)); } catch (error) {}
+    const value = {
+      default_volume_percent: clamp(Math.round(Number(payload.default_volume_percent) || 0), 0, 100),
+      apply_default_volume_on_start: payload.apply_default_volume_on_start !== false,
+      saved_at: Date.now(),
+    };
+    try { window.localStorage.setItem(pendingKey, JSON.stringify(value)); } catch (error) {}
+    return value;
   }
 
   function clearPendingDefaults() {
@@ -38,85 +70,213 @@
     });
   }
 
-  async function airplayIsActive(force = false) {
-    if (!force && Date.now() - lastAirplayCheckAt < 700) return lastAirplayActive;
-    if (airplayCheckPromise) return airplayCheckPromise;
-    airplayCheckPromise = rawFetch(liveEndpoint, { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((payload) => {
-        const remote = payload?.live?.channels?.airplay?.remote || {};
-        const status = String(remote.playback_status || '').toLowerCase();
-        lastAirplayActive = Boolean(remote.available && ['playing', 'paused'].includes(status));
-        lastAirplayCheckAt = Date.now();
-        return lastAirplayActive;
-      })
-      .catch(() => lastAirplayActive)
-      .finally(() => { airplayCheckPromise = null; });
-    return airplayCheckPromise;
+  function transformRemote(remote) {
+    if (!remote || typeof remote !== 'object') return remote;
+    const raw = Number(remote.volume_percent);
+    if (Number.isFinite(raw)) {
+      remote.sender_volume_percent = raw;
+      remote.volume_percent = senderToUiPercent(raw);
+      if (Number.isFinite(Number(remote.volume))) remote.sender_volume = Number(remote.volume);
+      remote.volume = remote.volume_percent / 100;
+      remote.volume_scale = 'perceptual-amplitude';
+    }
+    return remote;
   }
 
-  async function mergePending(response, kind) {
+  function transformDefaults(defaults) {
+    if (!defaults || typeof defaults !== 'object') return defaults;
+    const raw = Number(defaults.default_volume_percent);
+    if (Number.isFinite(raw)) {
+      defaults.sender_default_volume_percent = raw;
+      defaults.default_volume_percent = senderToUiPercent(raw);
+      defaults.volume_scale = 'perceptual-amplitude';
+    }
+    return defaults;
+  }
+
+  function transformApplication(application) {
+    if (!application || typeof application !== 'object') return application;
+    ['target_percent', 'last_confirmed_percent'].forEach((key) => {
+      const raw = Number(application[key]);
+      if (!Number.isFinite(raw)) return;
+      application[`sender_${key}`] = raw;
+      application[key] = senderToUiPercent(raw);
+    });
+    return application;
+  }
+
+  function transformPayload(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+
+    if (payload.defaults) transformDefaults(payload.defaults);
+    if (payload.application) transformApplication(payload.application);
+    if (payload.remote) transformRemote(payload.remote);
+
+    const live = payload.live;
+    if (live && typeof live === 'object') {
+      if (live.defaults) transformDefaults(live.defaults);
+      if (live.airplay_default_application) transformApplication(live.airplay_default_application);
+      const airplay = live.channels?.airplay;
+      if (airplay && typeof airplay === 'object') {
+        const raw = Number(airplay.percent);
+        if (Number.isFinite(raw)) {
+          airplay.sender_percent = raw;
+          airplay.percent = senderToUiPercent(raw);
+          airplay.scale = 'perceptual-amplitude';
+        }
+        if (airplay.remote) transformRemote(airplay.remote);
+      }
+    }
+
+    const stateRemote = payload.state?.airplay?.remote;
+    if (stateRemote) transformRemote(stateRemote);
+    return payload;
+  }
+
+  function overlayPending(payload) {
     const pending = pendingDefaults();
-    if (!pending) return response;
-    const payload = await response.clone().json().catch(() => null);
-    if (!payload || typeof payload !== 'object') return response;
+    if (!pending || !payload || typeof payload !== 'object') return payload;
+
     const application = {
       status: 'saved-for-next-session',
       in_progress: false,
       target_percent: pending.default_volume_percent,
       reason: 'deferred-during-active-session',
+      last_error: null,
     };
-    if (kind === 'defaults') {
-      payload.defaults = { ...(payload.defaults || {}), ...pending };
-      payload.application = { ...(payload.application || {}), ...application };
-    } else if (payload.live) {
-      payload.live.defaults = { ...(payload.live.defaults || {}), ...pending };
-      payload.live.airplay_default_application = { ...(payload.live.airplay_default_application || {}), ...application };
+
+    if (payload.defaults) payload.defaults = { ...payload.defaults, ...pending, volume_scale: 'perceptual-amplitude' };
+    if (payload.application) payload.application = { ...payload.application, ...application };
+    if (payload.live) {
+      payload.live.defaults = { ...(payload.live.defaults || {}), ...pending, volume_scale: 'perceptual-amplitude' };
+      payload.live.airplay_default_application = {
+        ...(payload.live.airplay_default_application || {}),
+        ...application,
+      };
     }
+    return payload;
+  }
+
+  async function transformedResponse(response) {
+    const payload = await response.clone().json().catch(() => null);
+    if (!payload || typeof payload !== 'object') return response;
+    transformPayload(payload);
+    overlayPending(payload);
     return jsonResponse(payload, response);
+  }
+
+  async function sessionIsActive(force = false) {
+    if (!force && Date.now() - lastSessionCheckAt < 700) return lastSessionActive;
+    if (sessionCheckPromise) return sessionCheckPromise;
+
+    sessionCheckPromise = rawFetch(statusEndpoint, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Status returned ${response.status}.`);
+        const payload = await response.json();
+        lastSessionActive = payload?.state?.airplay?.active === true;
+        lastSessionCheckAt = Date.now();
+        if (lastSessionActive) {
+          inactiveSince = null;
+        } else if (inactiveSince === null) {
+          inactiveSince = Date.now();
+        }
+        return lastSessionActive;
+      })
+      .catch(() => pendingDefaults() ? true : lastSessionActive)
+      .finally(() => { sessionCheckPromise = null; });
+
+    return sessionCheckPromise;
+  }
+
+  function parseJsonBody(init) {
+    try { return JSON.parse(String(init?.body || '{}')); } catch (error) { return null; }
+  }
+
+  function withJsonBody(init, payload) {
+    return {
+      ...init,
+      headers: { ...(init?.headers || {}), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    };
   }
 
   window.fetch = async (input, init = {}) => {
     const url = requestUrl(input);
     const method = String(init.method || (typeof input !== 'string' ? input?.method : '') || 'GET').toUpperCase();
+    const local = url.origin === window.location.origin;
 
-    if (url.origin === window.location.origin && url.pathname === defaultsEndpoint && method === 'POST') {
-      let payload = null;
-      try { payload = JSON.parse(String(init.body || '{}')); } catch (error) {}
-      if (payload && await airplayIsActive(true)) {
-        storePendingDefaults(payload);
+    if (local && method === 'POST' && url.pathname === defaultsEndpoint) {
+      const submitted = parseJsonBody(init);
+      if (submitted && await sessionIsActive(true)) {
+        const pending = storePendingDefaults(submitted);
         return jsonResponse({
           ok: true,
-          defaults: payload,
+          defaults: pending,
           application: {
             status: 'saved-for-next-session',
             in_progress: false,
-            target_percent: payload.default_volume_percent,
+            target_percent: pending.default_volume_percent,
             reason: 'deferred-during-active-session',
           },
           message: 'AirPlay starting volume saved for the next session.',
         });
       }
-      clearPendingDefaults();
+
+      if (submitted) {
+        const senderPayload = {
+          ...submitted,
+          default_volume_percent: uiToSenderPercent(submitted.default_volume_percent),
+        };
+        const response = await rawFetch(input, withJsonBody(init, senderPayload));
+        if (response.ok) clearPendingDefaults();
+        return transformedResponse(response);
+      }
+    }
+
+    if (local && method === 'POST' && url.pathname === liveEndpoint) {
+      const submitted = parseJsonBody(init);
+      if (submitted?.channel === 'airplay') {
+        const response = await rawFetch(input, withJsonBody(init, {
+          ...submitted,
+          percent: uiToSenderPercent(submitted.percent),
+        }));
+        return transformedResponse(response);
+      }
+    }
+
+    if (local && method === 'POST' && url.pathname === legacyVolumeEndpoint) {
+      const submitted = parseJsonBody(init);
+      if (submitted) {
+        const key = Object.prototype.hasOwnProperty.call(submitted, 'volume_percent') ? 'volume_percent' : 'volume';
+        const response = await rawFetch(input, withJsonBody(init, {
+          ...submitted,
+          [key]: uiToSenderPercent(submitted[key]),
+        }));
+        return transformedResponse(response);
+      }
     }
 
     const response = await rawFetch(input, init);
-    if (url.origin === window.location.origin && method === 'GET') {
-      if (url.pathname === defaultsEndpoint) return mergePending(response, 'defaults');
-      if (url.pathname === liveEndpoint) return mergePending(response, 'live');
+    if (local && method === 'GET' && [defaultsEndpoint, liveEndpoint, statusEndpoint].includes(url.pathname)) {
+      return transformedResponse(response);
     }
     return response;
   };
 
   async function flushDeferredDefaults() {
     const pending = pendingDefaults();
-    if (!pending || flushInFlight || await airplayIsActive(true)) return;
+    if (!pending || flushInFlight || await sessionIsActive(true)) return;
+    if (inactiveSince === null || Date.now() - inactiveSince < 3000) return;
+
     flushInFlight = true;
     try {
       const response = await rawFetch(defaultsEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pending),
+        body: JSON.stringify({
+          ...pending,
+          default_volume_percent: uiToSenderPercent(pending.default_volume_percent),
+        }),
       });
       if (response.ok) clearPendingDefaults();
     } catch (error) {
@@ -126,7 +286,7 @@
   }
 
   window.setInterval(flushDeferredDefaults, 1500);
-  window.setTimeout(flushDeferredDefaults, 500);
+  window.setTimeout(flushDeferredDefaults, 700);
 
   function installDrawerMotion() {
     const panel = document.getElementById('nav-live-mixer');
