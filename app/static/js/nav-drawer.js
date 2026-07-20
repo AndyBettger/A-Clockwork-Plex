@@ -12,6 +12,7 @@
   const SWIPE_THRESHOLD_PX = 24;
   const LIVE_ENDPOINT = '/api/audio/live';
   const MIXER_ENDPOINT = '/api/audio/mixer';
+  const DEFAULTS_ENDPOINT = '/api/audio/defaults';
   const CHANNELS = ['master', 'plexamp', 'airplay', 'alarm'];
 
   let hideTimer = null;
@@ -20,7 +21,12 @@
   let liveGetInFlight = false;
   let liveSetInFlight = false;
   let trimSetInFlight = false;
+  let startSaveInFlight = false;
   let reassertTimer = null;
+  let airplayApplyDefault = true;
+  let airplayStartDesired = null;
+  let airplayStartPending = null;
+  let airplayStartDrag = null;
 
   const liveDebounceTimers = new Map();
   const livePendingValues = new Map();
@@ -34,32 +40,91 @@
   const trimDragState = new Map();
 
   const clampPercent = (value) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  const elevenValue = (percent) => {
+    const value = Math.round((clampPercent(percent) / 100) * 110) / 10;
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  };
 
-  function channelMarkup(id, label) {
+  function trimKnobMarkup(channel, label, extraClass = '') {
     return `
-      <article class="nav-live-channel" data-nav-live-channel="${id}">
+      <div class="nav-trim-control ${extraClass}">
+        <div
+          class="nav-trim-knob"
+          id="nav-trim-${channel}"
+          role="slider"
+          tabindex="0"
+          aria-label="${label} output trim"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="100"
+          aria-valuetext="11"
+          data-nav-trim-knob="${channel}"
+        ><span aria-hidden="true"></span></div>
+        <output id="nav-trim-${channel}-value">${label.toUpperCase()} 11</output>
+      </div>
+    `;
+  }
+
+  function airplayStartKnobMarkup() {
+    return `
+      <div class="nav-trim-control nav-start-control">
+        <div
+          class="nav-trim-knob nav-start-knob"
+          id="nav-start-airplay"
+          role="slider"
+          tabindex="0"
+          aria-label="AirPlay starting sender volume"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="60"
+          aria-valuetext="6.6"
+          data-nav-start-knob
+        ><span aria-hidden="true"></span></div>
+        <output id="nav-start-airplay-value">START 6.6</output>
+      </div>
+    `;
+  }
+
+  function faderMarkup(channel, label) {
+    return `
+      <div class="nav-live-fader">
+        <span class="nav-fader-scale-label is-top" aria-hidden="true">11</span>
+        <span class="nav-fader-scale-label is-bottom" aria-hidden="true">0</span>
+        <input id="nav-live-${channel}" type="range" min="0" max="100" step="1" value="0" data-nav-live-slider="${channel}" aria-label="${label} live volume">
+        <div class="nav-live-step-row">
+          <button type="button" data-nav-live-step="-5" data-nav-live-target="${channel}" aria-label="Reduce ${label}">−</button>
+          <button type="button" data-nav-live-step="5" data-nav-live-target="${channel}" aria-label="Increase ${label}">＋</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function sourceChannelMarkup(channel, label, includeStartKnob = false) {
+    return `
+      <article class="nav-live-channel nav-source-channel" data-nav-live-channel="${channel}">
         <div class="nav-live-channel-heading">
           <strong>${label}</strong>
-          <output id="nav-live-${id}-value" for="nav-live-${id}">--%</output>
+          <output id="nav-live-${channel}-value" for="nav-live-${channel}">--%</output>
         </div>
-        <div class="nav-trim-control">
-          <div
-            class="nav-trim-knob"
-            id="nav-trim-${id}"
-            role="slider"
-            tabindex="0"
-            aria-label="${label} output trim"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="100"
-            data-nav-trim-knob="${id}"
-          ><span aria-hidden="true"></span></div>
-          <output id="nav-trim-${id}-value">TRIM --%</output>
+        <div class="nav-source-knobs ${includeStartKnob ? 'has-two-knobs' : ''}">
+          ${trimKnobMarkup(channel, 'Trim')}
+          ${includeStartKnob ? airplayStartKnobMarkup() : ''}
         </div>
-        <div class="nav-live-fader">
-          <button type="button" data-nav-live-step="5" data-nav-live-target="${id}" aria-label="Increase ${label}">＋</button>
-          <input id="nav-live-${id}" type="range" min="0" max="100" step="1" value="0" data-nav-live-slider="${id}" aria-label="${label} live volume">
-          <button type="button" data-nav-live-step="-5" data-nav-live-target="${id}" aria-label="Reduce ${label}">−</button>
+        ${faderMarkup(channel, label)}
+      </article>
+    `;
+  }
+
+  function masterChannelMarkup() {
+    return `
+      <article class="nav-live-channel nav-master-channel" data-nav-live-channel="master">
+        <div class="nav-live-channel-heading">
+          <strong>Master bus</strong>
+          <output id="nav-live-master-value">100%</output>
+        </div>
+        <div class="nav-master-console">
+          ${trimKnobMarkup('alarm', 'Alarm', 'is-alarm-knob')}
+          ${trimKnobMarkup('master', 'Master', 'is-master-knob')}
         </div>
       </article>
     `;
@@ -92,10 +157,9 @@
           <span id="nav-live-health" class="nav-live-health-dot" aria-label="Checking shared output"></span>
         </header>
         <div class="nav-live-grid">
-          ${channelMarkup('master', 'Master')}
-          ${channelMarkup('plexamp', 'Plexamp')}
-          ${channelMarkup('airplay', 'AirPlay')}
-          ${channelMarkup('alarm', 'Alarm')}
+          ${masterChannelMarkup()}
+          ${sourceChannelMarkup('plexamp', 'Plexamp')}
+          ${sourceChannelMarkup('airplay', 'AirPlay', true)}
         </div>
         <div class="nav-live-message" id="nav-live-message" role="status" hidden></div>
       `;
@@ -111,19 +175,20 @@
     });
 
     panel.addEventListener('contextmenu', (event) => {
-      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
+      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob], [data-nav-start-knob]')) {
         event.preventDefault();
       }
     }, true);
 
     panel.addEventListener('dragstart', (event) => {
-      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
+      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob], [data-nav-start-knob]')) {
         event.preventDefault();
       }
     }, true);
 
     installFaderInteractions(panel);
-    installKnobInteractions(panel);
+    installTrimKnobInteractions(panel);
+    installStartKnobInteraction(panel);
   }
 
   function installFaderInteractions(panel) {
@@ -164,7 +229,7 @@
     });
   }
 
-  function installKnobInteractions(panel) {
+  function installTrimKnobInteractions(panel) {
     panel.querySelectorAll('[data-nav-trim-knob]').forEach((knob) => {
       const channel = knob.dataset.navTrimKnob;
 
@@ -217,24 +282,90 @@
 
       knob.addEventListener('pointerup', finishDrag);
       knob.addEventListener('pointercancel', finishDrag);
-
       knob.addEventListener('keydown', (event) => {
-        const keys = ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End'];
-        if (!keys.includes(event.key) || knob.getAttribute('aria-disabled') === 'true') {
+        const next = keyboardKnobValue(event, Number(trimDesiredValues.get(channel) ?? knob.getAttribute('aria-valuenow') ?? 100));
+        if (next === null || knob.getAttribute('aria-disabled') === 'true') {
           return;
         }
         event.preventDefault();
-        const current = Number(trimDesiredValues.get(channel) ?? knob.getAttribute('aria-valuenow') ?? 100);
-        let next = current;
-        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') next += 1;
-        if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') next -= 1;
-        if (event.key === 'PageUp') next += 5;
-        if (event.key === 'PageDown') next -= 5;
-        if (event.key === 'Home') next = 0;
-        if (event.key === 'End') next = 100;
-        queueTrimChange(channel, clampPercent(next), true, 0);
+        queueTrimChange(channel, next, true, 0);
       });
     });
+  }
+
+  function installStartKnobInteraction(panel) {
+    const knob = panel.querySelector('[data-nav-start-knob]');
+    if (!knob) {
+      return;
+    }
+
+    knob.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      airplayStartDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startValue: Number(airplayStartDesired ?? knob.getAttribute('aria-valuenow') ?? 60),
+      };
+      knob.classList.add('is-dragging');
+      knob.setPointerCapture?.(event.pointerId);
+      scheduleHide();
+    });
+
+    knob.addEventListener('pointermove', (event) => {
+      if (!airplayStartDrag || airplayStartDrag.pointerId !== event.pointerId) {
+        return;
+      }
+      event.preventDefault();
+      const directionalPixels = (event.clientX - airplayStartDrag.startX) + (airplayStartDrag.startY - event.clientY);
+      airplayStartDesired = clampPercent(airplayStartDrag.startValue + directionalPixels / 2);
+      setAirplayStartVisual(airplayStartDesired);
+      scheduleHide();
+    });
+
+    const finish = (event) => {
+      if (!airplayStartDrag || airplayStartDrag.pointerId !== event.pointerId) {
+        return;
+      }
+      event.preventDefault();
+      const value = clampPercent(airplayStartDesired ?? knob.getAttribute('aria-valuenow') ?? 60);
+      airplayStartDrag = null;
+      knob.classList.remove('is-dragging');
+      try {
+        knob.releasePointerCapture?.(event.pointerId);
+      } catch (error) {
+      }
+      queueAirplayStartSave(value);
+      scheduleHide();
+    };
+
+    knob.addEventListener('pointerup', finish);
+    knob.addEventListener('pointercancel', finish);
+    knob.addEventListener('keydown', (event) => {
+      const next = keyboardKnobValue(event, Number(airplayStartDesired ?? knob.getAttribute('aria-valuenow') ?? 60));
+      if (next === null) {
+        return;
+      }
+      event.preventDefault();
+      airplayStartDesired = next;
+      setAirplayStartVisual(next);
+      queueAirplayStartSave(next);
+    });
+  }
+
+  function keyboardKnobValue(event, currentValue) {
+    const keys = ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'PageUp', 'PageDown', 'Home', 'End'];
+    if (!keys.includes(event.key)) {
+      return null;
+    }
+    let next = Number(currentValue);
+    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') next += 1;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') next -= 1;
+    if (event.key === 'PageUp') next += 5;
+    if (event.key === 'PageDown') next -= 5;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = 100;
+    return clampPercent(next);
   }
 
   function mixerOpen() {
@@ -327,8 +458,31 @@
     if (knob) {
       knob.style.setProperty('--knob-angle', `${angle}deg`);
       knob.setAttribute('aria-valuenow', String(value));
+      knob.setAttribute('aria-valuetext', elevenValue(value));
+      knob.title = `${value}% · ${elevenValue(value)} out of 11`;
     }
-    if (output) output.textContent = `TRIM ${value}%`;
+    if (output) {
+      const label = channel === 'master' ? 'MASTER' : channel === 'alarm' ? 'ALARM' : 'TRIM';
+      output.textContent = `${label} ${elevenValue(value)}`;
+      output.title = `${value}%`;
+    }
+  }
+
+  function setAirplayStartVisual(percent) {
+    const value = clampPercent(percent);
+    const knob = document.getElementById('nav-start-airplay');
+    const output = document.getElementById('nav-start-airplay-value');
+    const angle = -135 + (value / 100) * 270;
+    if (knob) {
+      knob.style.setProperty('--knob-angle', `${angle}deg`);
+      knob.setAttribute('aria-valuenow', String(value));
+      knob.setAttribute('aria-valuetext', elevenValue(value));
+      knob.title = `${value}% starting sender volume`;
+    }
+    if (output) {
+      output.textContent = `START ${elevenValue(value)}`;
+      output.title = `${value}%`;
+    }
   }
 
   function setDesiredLiveValue(channel, percent) {
@@ -372,6 +526,22 @@
     });
   }
 
+  function renderAirplayDefaults(live) {
+    const defaults = live?.defaults || {};
+    airplayApplyDefault = defaults.apply_default_volume_on_start !== false;
+    const value = Number(defaults.default_volume_percent);
+    if (!airplayStartDrag && airplayStartDesired === null && Number.isFinite(value)) {
+      setAirplayStartVisual(value);
+    } else if (airplayStartDesired !== null) {
+      setAirplayStartVisual(airplayStartDesired);
+    }
+    const knob = document.getElementById('nav-start-airplay');
+    if (knob) {
+      knob.classList.toggle('is-bypassed', !airplayApplyDefault);
+      knob.setAttribute('aria-description', airplayApplyDefault ? 'Applied when AirPlay connects' : 'Saved but apply-on-connect is disabled');
+    }
+  }
+
   function renderLiveMixer(live) {
     const health = document.getElementById('nav-live-health');
     if (health) {
@@ -385,23 +555,22 @@
       const buttons = document.querySelectorAll(`[data-nav-live-target="${id}"]`);
       const available = Boolean(channel.available);
       const locallyHeld = liveDraggingChannels.has(id) || liveDesiredValues.has(id) || livePendingValues.has(id);
-      if (slider) {
-        if (!locallyHeld && Number.isFinite(Number(channel.percent))) {
-          updateLiveReading(id, channel.percent);
-        } else if (liveDesiredValues.has(id)) {
-          updateLiveReading(id, liveDesiredValues.get(id));
-        }
-        slider.disabled = !available;
+      if (!locallyHeld && Number.isFinite(Number(channel.percent))) {
+        updateLiveReading(id, channel.percent);
+      } else if (liveDesiredValues.has(id)) {
+        updateLiveReading(id, liveDesiredValues.get(id));
       }
+      if (slider) slider.disabled = !available;
       buttons.forEach((button) => { button.disabled = !available; });
     });
 
     renderMixerTrims(live?.mixer || {});
+    renderAirplayDefaults(live);
     if (live?.error) showMessage(live.error, true);
   }
 
   async function refreshLiveMixer() {
-    if (!mixerOpen() || liveGetInFlight || liveSetInFlight || trimSetInFlight) return;
+    if (!mixerOpen() || liveGetInFlight || liveSetInFlight || trimSetInFlight || startSaveInFlight) return;
     liveGetInFlight = true;
     try {
       const payload = await requestJson(LIVE_ENDPOINT);
@@ -495,9 +664,55 @@
     }
   }
 
+  function queueAirplayStartSave(percent) {
+    airplayStartDesired = clampPercent(percent);
+    airplayStartPending = airplayStartDesired;
+    setAirplayStartVisual(airplayStartDesired);
+    drainAirplayStartSave();
+  }
+
+  async function drainAirplayStartSave() {
+    if (startSaveInFlight || airplayStartPending === null) {
+      return;
+    }
+    const value = airplayStartPending;
+    airplayStartPending = null;
+    startSaveInFlight = true;
+    try {
+      const payload = await requestJson(DEFAULTS_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          default_volume_percent: value,
+          apply_default_volume_on_start: airplayApplyDefault,
+        }),
+      });
+      const confirmed = Number(payload?.defaults?.default_volume_percent);
+      if (Number.isFinite(confirmed) && airplayStartPending === null) {
+        setAirplayStartVisual(confirmed);
+        window.setTimeout(() => {
+          if (airplayStartPending === null && !airplayStartDrag) {
+            airplayStartDesired = null;
+          }
+        }, 650);
+      }
+      showMessage('');
+    } catch (error) {
+      showMessage(error.message || 'Could not save AirPlay starting volume.', true);
+    } finally {
+      startSaveInFlight = false;
+      if (airplayStartPending !== null) {
+        drainAirplayStartSave();
+      } else {
+        window.setTimeout(refreshLiveMixer, 180);
+      }
+    }
+  }
+
   function reassertDesiredValues() {
     liveDesiredValues.forEach((value, channel) => updateLiveReading(channel, value));
     trimDesiredValues.forEach((value, channel) => setTrimVisual(channel, value));
+    if (airplayStartDesired !== null) setAirplayStartVisual(airplayStartDesired);
   }
 
   installAudioPanel();
