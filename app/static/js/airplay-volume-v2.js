@@ -26,17 +26,22 @@
 
   const clamp = (value) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
 
-  function dbLabel(percent) {
-    const value = clamp(percent);
-    if (value <= 0) return 'Muted';
-    return `${(20 * Math.log10(value / 100)).toFixed(1)} dB`;
+  function elevenLabel(percent) {
+    const value = Math.round((clamp(percent) / 100) * 110) / 10;
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
   }
 
   function paint(percent) {
     const value = clamp(percent);
+    const nigel = elevenLabel(value);
     slider.value = String(value);
+    slider.setAttribute('aria-valuetext', `${nigel} out of 11`);
+    slider.title = `${nigel} out of 11 · ${value}%`;
     document.body.style.setProperty('--airplay-volume-percent', `${value}%`);
-    if (label) label.textContent = dbLabel(value);
+    if (label) {
+      label.textContent = nigel;
+      label.title = `${value}%`;
+    }
   }
 
   async function requestJson(options = {}) {
