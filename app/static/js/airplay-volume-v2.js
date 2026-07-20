@@ -2,9 +2,17 @@
   if (window.__aClockworkPlexAirPlayVolumeV2Loaded) return;
   window.__aClockworkPlexAirPlayVolumeV2Loaded = true;
 
-  const slider = document.getElementById('airplay-volume-slider');
-  const label = document.getElementById('airplay-volume-label');
-  if (!slider) return;
+  const previousSlider = document.getElementById('airplay-volume-slider');
+  const previousLabel = document.getElementById('airplay-volume-label');
+  if (!previousSlider) return;
+
+  /* airplay-live.js loaded first and still owns references to the original
+     elements. Replace them so its status painting can continue harmlessly on
+     detached nodes while this controller is the only writer to the visible UI. */
+  const slider = previousSlider.cloneNode(true);
+  previousSlider.replaceWith(slider);
+  const label = previousLabel ? previousLabel.cloneNode(true) : null;
+  if (previousLabel && label) previousLabel.replaceWith(label);
 
   const endpoint = '/api/audio/live';
   let dragging = false;
@@ -14,13 +22,14 @@
   let getInFlight = false;
   let debounceTimer = null;
   let reassertTimer = null;
+  let refreshTimer = null;
 
   const clamp = (value) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
 
   function dbLabel(percent) {
     const value = clamp(percent);
     if (value <= 0) return 'Muted';
-    return `${((value / 100) * 30 - 30).toFixed(1)} dB`;
+    return `${(20 * Math.log10(value / 100)).toFixed(1)} dB`;
   }
 
   function paint(percent) {
@@ -65,7 +74,7 @@
         paint(confirmed);
         window.setTimeout(() => {
           if (!dragging && pending === null && Number(desired) === Number(confirmed)) desired = null;
-        }, 650);
+        }, 750);
       }
     } catch (error) {
       window.setTimeout(() => {
@@ -74,7 +83,7 @@
     } finally {
       sendInFlight = false;
       if (pending !== null) drain();
-      else window.setTimeout(refresh, 220);
+      else window.setTimeout(refresh, 260);
     }
   }
 
@@ -92,48 +101,35 @@
     }
   }
 
-  function stopOldHandlers(event) {
-    event.stopImmediatePropagation();
-  }
-
-  slider.addEventListener('pointerdown', (event) => {
-    stopOldHandlers(event);
+  slider.addEventListener('pointerdown', () => {
     dragging = true;
     desired = clamp(slider.value);
     paint(desired);
-  }, true);
+  });
 
-  slider.addEventListener('input', (event) => {
-    stopOldHandlers(event);
-    queue(slider.value, 120);
-  }, true);
-
-  slider.addEventListener('change', (event) => {
-    stopOldHandlers(event);
+  slider.addEventListener('input', () => queue(slider.value, 120));
+  slider.addEventListener('change', () => {
     dragging = false;
     queue(slider.value, 0);
-  }, true);
-
-  slider.addEventListener('pointerup', (event) => {
-    stopOldHandlers(event);
+  });
+  slider.addEventListener('pointerup', () => {
     dragging = false;
     queue(slider.value, 0);
-  }, true);
-
-  slider.addEventListener('pointercancel', (event) => {
-    stopOldHandlers(event);
+  });
+  slider.addEventListener('pointercancel', () => {
     dragging = false;
     queue(slider.value, 0);
-  }, true);
+  });
 
   reassertTimer = window.setInterval(() => {
     if (desired !== null) paint(desired);
   }, 90);
-
-  window.setInterval(refresh, 2000);
+  refreshTimer = window.setInterval(refresh, 2000);
   window.setTimeout(refresh, 150);
+
   window.addEventListener('pagehide', () => {
     window.clearInterval(reassertTimer);
+    window.clearInterval(refreshTimer);
     window.clearTimeout(debounceTimer);
   });
 })();
