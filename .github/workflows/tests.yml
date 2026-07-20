@@ -55,6 +55,7 @@ jobs:
           node --check app/static/js/airplay-layout-v3.js
           node --check app/static/js/nav-layer.js
           node --check app/static/js/plexamp-persistent.js
+          node --check app/static/js/default-mode-start.js
           node --check app/static/js/idle-return.js
           node --check app/static/js/page-transitions.js
           node --check app/static/js/airplay-volume-hold.js
@@ -65,6 +66,7 @@ jobs:
           grep -q "airplay-layout-v3.css" app/templates/airplay.html
           grep -q "airplay-layout-v3.js" app/templates/airplay.html
           grep -q "nav-layer.js" app/templates/base.html
+          grep -q "default-mode-start.js" app/templates/base.html
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
           bash -n scripts/install-alarm-audio-helper.sh
