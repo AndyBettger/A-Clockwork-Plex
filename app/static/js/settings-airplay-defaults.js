@@ -5,6 +5,7 @@
   const ENDPOINT = '/api/audio/defaults';
   let pollTimer = null;
   let saveDebounce = null;
+  let editingUntil = 0;
   const byId = (id) => document.getElementById(id);
 
   async function requestStatus() {
@@ -12,6 +13,17 @@
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload.ok === false) throw new Error(payload.error || `AirPlay defaults returned ${response.status}.`);
     return payload;
+  }
+
+  function renderControl(defaults = {}) {
+    if (Date.now() < editingUntil) return;
+    const slider = byId('audio-airplay-default-volume');
+    const output = byId('audio-airplay-default-volume-value');
+    const toggle = byId('audio-airplay-apply-default');
+    const value = Math.max(0, Math.min(100, Math.round(Number(defaults.default_volume_percent) || 0)));
+    if (slider && slider.value !== String(value)) slider.value = String(value);
+    if (output) output.textContent = `${value}%`;
+    if (toggle) toggle.checked = defaults.apply_default_volume_on_start !== false;
   }
 
   function renderApplication(application = {}, defaults = {}) {
@@ -58,6 +70,7 @@
     if (!byId('audio-airplay-default-card')) return;
     try {
       const payload = await requestStatus();
+      renderControl(payload.defaults || {});
       renderApplication(payload.application || {}, payload.defaults || {});
     } catch (error) {
       const health = byId('audio-airplay-default-health');
@@ -71,12 +84,16 @@
   }
 
   function queueSave() {
+    editingUntil = Date.now() + 1200;
     window.clearTimeout(saveDebounce);
     saveDebounce = window.setTimeout(() => {
       const button = byId('audio-airplay-default-save');
       if (button && !button.disabled) {
         button.click();
-        window.setTimeout(refreshApplication, 350);
+        window.setTimeout(() => {
+          editingUntil = 0;
+          refreshApplication();
+        }, 450);
       }
     }, 180);
   }
@@ -91,9 +108,13 @@
     }
     if (card.dataset.airplayAutoSaveInstalled === 'true') return;
     card.dataset.airplayAutoSaveInstalled = 'true';
+
+    slider.addEventListener('pointerdown', () => { editingUntil = Date.now() + 3000; });
+    slider.addEventListener('input', () => { editingUntil = Date.now() + 1200; });
     slider.addEventListener('change', queueSave);
     slider.addEventListener('pointerup', queueSave);
     toggle.addEventListener('change', queueSave);
+
     refreshApplication();
     pollTimer = window.setInterval(refreshApplication, 2000);
   }
