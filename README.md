@@ -4,11 +4,11 @@ A Raspberry Pi touchscreen dashboard for Plexamp Headless, NFC-triggered albums,
 
 A Clockwork Plex is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener). The NFC listener reads album tags and starts Plexamp playback; this project provides the touchscreen interface around it.
 
-> Development note: the `feature/alarm-engine` branch contains the alarm runtime, shared ALSA path and live mixer described below. Scheduled alarm audio remains deliberately locked while controlled testing continues.
+> Development note: the `feature/alarm-engine` branch contains the current alarm runtime, shared ALSA audio path, Mk II live mixer and controlled alarm-audio work. Draft PR #2 remains deliberately unmerged while Raspberry Pi testing continues. Ordinary scheduled alarm audio is still locked.
 
 ## Current status
 
-The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, Settings workspace, alarm runtime and controlled alarm-audio tests are working on Raspberry Pi touchscreen hardware.
+The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, autosaving Settings workspace, alarm runtime, shared audio path and controlled alarm-audio tests are working on Raspberry Pi touchscreen hardware.
 
 | Area | Current behaviour |
 |---|---|
@@ -17,23 +17,26 @@ The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, Set
 | **Weather** | Detailed Ecowitt console with conditions, daily low/high values, 16-point wind direction, pressure/barometer forecast, rain gauges, station status and auto-refresh. |
 | **Plexamp** | Plexamp Headless embedded in a dashboard iframe so the touchscreen navigation handle remains available. |
 | **NFC handoff** | A successful NFC album scan can start Plexamp and switch the dashboard to the embedded Plexamp screen. |
-| **AirPlay handoff** | Shairport Sync pauses Plexamp and changes dashboard mode while both services remain alive through the shared ALSA mixer. |
-| **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, volume, transport controls and a glance row containing time/date, outdoor temperature/humidity and barometer status. |
+| **AirPlay handoff** | Shairport Sync pauses Plexamp and changes dashboard mode while both services remain alive through the shared ALSA mixer. Returning to Plexamp arms a watcher; AirPlay is paused or stopped only when Plexamp actually begins playing. |
+| **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, transport controls, shared live-volume control and a glance row containing time/date, outdoor temperature/humidity and barometer status. |
 | **Shared audio** | Plexamp, AirPlay and alarm sources feed source-specific trims, one master stage and a common ALSA `dmix` output. |
-| **Audio controls** | Persistent vertical trims under Settings → Audio plus a player-aware live mixer in the bottom navigation drawer. |
-| **Alarms** | Multiple-alarm configuration, local tones, DST-aware scheduling, screen takeover, Snooze, slide-to-dismiss and controlled audio tests. |
-| **Navigation and mode watcher** | Hidden bottom drawer plus browser-side mode polling, so kiosk mode does not depend on `xdotool`. |
+| **Mk II audio console** | A full-height live mixer with a wide Master bus, Alarm ceiling, player-aware Plexamp/AirPlay faders, persistent trims, AirPlay START preset and fascia controls that correctly go to 11. |
+| **Settings** | General, Weather, AirPlay, Plexamp and Advanced controls autosave. Audio and Alarms retain dedicated validated APIs. |
+| **Alarms** | Multiple-alarm configuration, local tones, DST-aware scheduling, reboot recovery, full-screen takeover, Snooze, slide-to-dismiss and controlled audio tests. |
+| **Navigation and motion** | Hidden bottom drawer, player-aware Audio console, browser-side mode polling, animated drawer open/close and subtle page transitions. |
 
 ## Visual system
 
-The current interface uses a shared instrument-console design across Clock, Weather, AirPlay and Audio:
+The interface uses a shared instrument-console design across Clock, Weather, AirPlay and Audio:
 
 - reusable SVG fourteen-segment digits and letters;
 - Oxanium for display headings and Atkinson Hyperlegible for general UI text;
 - DejaVu/Arial fallbacks when the web fonts are unavailable;
 - common segment sizing, unit alignment, decimal and colon spacing;
 - illuminated Weather panels, compass, pressure console and dynamic rain gauges;
-- vertical mixer faders with human-facing perceptual volume scaling.
+- tactile rotary controls with navy faces and cyan datum marks;
+- calibrated vertical mixer faders with proper caps, alternating graduations and 0–11 fascia markings;
+- brief appliance-style page transitions, with immediate alarm takeover and reduced-motion support.
 
 The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shared renderer is in `app/static/js/segment-display.js`.
 
@@ -45,8 +48,8 @@ The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shar
 | **Weather** | `/weather` | Detailed weather-station console. |
 | **Plexamp** | `/plexamp` | Dashboard-hosted Plexamp iframe with the navigation handle. |
 | **AirPlay** | `/airplay` | AirPlay Ready, paused and Now Playing states. |
-| **Settings** | `/settings` | Touchscreen configuration page, including Audio and Alarms workspaces. |
-| **Alarm** | `/alarm` | Full-screen ringing, snoozed and dismiss controls. |
+| **Settings** | `/settings` | Touchscreen configuration page with General, Weather, Alarms, AirPlay, Audio, Plexamp, Advanced and About workspaces. |
+| **Alarm** | `/alarm` | Full-screen ringing, snoozed and deliberate dismiss controls. |
 
 ## How the pieces fit together
 
@@ -68,8 +71,14 @@ AirPlay session
   └─> Shairport Sync hooks
         ├─> pause Plexamp without stopping its service
         ├─> switch dashboard to /airplay
-        ├─> publish artwork/metadata/progress
+        ├─> publish artwork, metadata, progress and sender state
+        ├─> apply the saved START level to the live AirPlay fader
         └─> return to Clock when finished
+
+Open Plexamp while AirPlay is playing
+  └─> arm handoff watcher
+        ├─> browsing Plexamp leaves AirPlay alone
+        └─> Plexamp begins playing → Pause AirPlay → Stop fallback if required
 ```
 
 ## Repository layout
@@ -79,17 +88,23 @@ A-Clockwork-Plex/
 ├── app/
 │   ├── main.py
 │   ├── dashboard_core.py
-│   ├── alarm_*.py
+│   ├── alarm_config.py
+│   ├── alarm_scheduler.py
+│   ├── alarm_runtime.py
+│   ├── alarm_audio.py
+│   ├── alarm_audio_core.py
 │   ├── audio_mixer.py
 │   ├── templates/
 │   └── static/
 ├── docs/
 │   ├── alarm-audio-testing.md
-│   └── testing.md
+│   ├── testing.md
+│   └── airplay-segment-cell.svg
 ├── scripts/
 │   ├── install-shared-audio.sh
 │   ├── a-clockwork-plex-audio-mixer.py
 │   ├── install-airplay-hooks.sh
+│   ├── run-tests.sh
 │   └── ...
 ├── systemd/
 │   └── a-clockwork-plex.service
@@ -145,6 +160,8 @@ systemctl status a-clockwork-plex.service --no-pager
 
 ### Updating an existing installation
 
+For ordinary application, CSS or JavaScript changes:
+
 ```bash
 cd ~/A-Clockwork-Plex
 git pull --ff-only
@@ -152,7 +169,13 @@ bash scripts/run-tests.sh
 sudo systemctl restart a-clockwork-plex.service
 ```
 
-When shared-audio or Shairport files change, also run:
+Hard-refresh Chromium after browser assets change:
+
+```text
+Ctrl+Shift+R
+```
+
+When shared-audio, ALSA-helper or Shairport files change, also run the staged installer and restart the audio services:
 
 ```bash
 sudo bash scripts/install-shared-audio.sh
@@ -161,9 +184,7 @@ sudo systemctl restart shairport-sync.service
 sudo systemctl restart a-clockwork-plex.service
 ```
 
-After CSS or JavaScript changes, hard-refresh Chromium once with `Ctrl+Shift+R`.
-
-## Shared audio and mixer
+## Shared audio path
 
 Install or refresh the shared audio path:
 
@@ -178,9 +199,44 @@ Plexamp should explicitly use:
 A Clockwork Plex - Plexamp
 ```
 
-Persistent calibration lives under **Settings → Audio**. The bottom navigation drawer has a separate **Audio** control that changes live Master, Plexamp, AirPlay and Alarm levels immediately.
+The shared path is:
 
-The dashboard faders use a perceptual amplitude scale:
+```text
+Plexamp player volume → acp_plexamp trim ┐
+AirPlay sender volume → acp_airplay trim ├→ acp_master → acp_dmix → DAC
+Alarm fade/target     → acp_alarm trim   ┘
+```
+
+This lets alarm tones mix over Plexamp or AirPlay without stopping either service and avoids repeated exclusive-DAC handoffs.
+
+Detailed installation, staged testing and rollback instructions are in [`docs/alarm-audio-testing.md`](docs/alarm-audio-testing.md).
+
+## Mk II live audio console
+
+Open the bottom drawer and select **Audio**. The console contains three main strips.
+
+### Master bus
+
+- a large **MASTER** knob controlling the final shared output;
+- a separate **ALARM** ceiling knob;
+- no duplicate Master or Alarm faders, because each knob already owns its underlying ALSA stage.
+
+### Plexamp strip
+
+- **TRIM** knob: persistent downstream calibration after Plexamp's own player volume;
+- live fader: Plexamp's real player volume, reflected by Plexamp's Now Playing interface.
+
+### AirPlay strip
+
+- **TRIM** knob: persistent downstream calibration after the sender volume;
+- live fader: current AirPlay sender gain using the dashboard's perceptual scale;
+- **START** knob: the live-fader position requested for the next AirPlay connection.
+
+The controls use a 0–11 fascia while APIs continue using 0–100 internally. Fader requests use latest-value-wins queues, local pointer ownership and readback protection so polling cannot pull a control away while it is being touched.
+
+## Volume scales
+
+The dashboard's player and trim controls use an amplitude-style scale:
 
 ```text
 50% ≈ -6 dB
@@ -188,23 +244,81 @@ The dashboard faders use a perceptual amplitude scale:
 10% ≈ -20 dB
 ```
 
-The raw ALSA percentage shown by `alsamixer` is therefore expected to differ.
+The raw ALSA percentage shown by `alsamixer` is expected to differ. For example, dashboard 50% appears near the top of an ALSA soft-volume control because both represent approximately -6 dB.
 
-Detailed installation, staged testing and rollback instructions are in [`docs/alarm-audio-testing.md`](docs/alarm-audio-testing.md).
+Shairport exposes the iPhone sender through a much steeper native taper. A Clockwork Plex translates between that native scale and the dashboard scale so equivalent gain combinations behave predictably:
+
+```text
+AirPlay fader 50% + trim 100% ≈ AirPlay fader 100% + trim 50%
+```
+
+The iPhone's visible percentage may therefore differ from the dashboard's 0–11 position. The dashboard represents resulting gain; the phone represents Shairport's native sender position.
+
+## AirPlay START behaviour
+
+START is independent from both live volume and AirPlay trim:
+
+```text
+START = where the live AirPlay fader should land on the next connection
+TRIM  = separate downstream calibration
+```
+
+Changing START during an active session does not alter that current session. The new target is saved for the next connection and committed at the AirPlay session boundary, including rapid disconnect/reconnect cases.
+
+Example:
+
+```text
+START 7.3
+TRIM  5.4
+```
+
+The next live AirPlay fader should land near 7.3. The trim remains at 5.4 and makes the audible result quieter, but it does not change the displayed fader position.
+
+## AirPlay Now Playing
+
+The AirPlay page provides:
+
+- artwork, title, artist and album;
+- previous, play/pause and next controls;
+- elapsed and remaining time;
+- a live volume slider using the same `/api/audio/live` queue and scale as the Audio drawer;
+- a 0–11 visible readout;
+- segmented time/date, outdoor temperature/humidity and barometer status.
+
+The drawer and Now Playing page have one live-volume owner, preventing stale two-value flicker while keeping audio and display state together.
+
+## Settings and autosave
+
+Settings uses top-level workspaces:
+
+```text
+GENERAL | WEATHER | ALARMS | AIRPLAY | AUDIO | PLEXAMP | ADVANCED | ABOUT
+```
+
+General, Weather, AirPlay, Plexamp and Advanced controls autosave and briefly show **Saving…**, **Saved** or **Save failed**. The previous floating Save/Reload bar remains only as a no-JavaScript fallback and is hidden after autosave loads.
+
+Audio trims and alarm configuration use their own APIs so live mixer state, validation and safety rules are preserved.
 
 ## Alarm status
 
 The current alarm branch includes:
 
 - multiple persistent alarms;
+- labels, times, weekdays, local tones, fades and target volumes;
+- default snooze of eight minutes with configurable alternatives;
 - local timezone and DST handling;
+- spring-forward and fall-back behaviour;
 - reboot recovery and duplicate-occurrence protection;
+- persistent ringing, snoozed, dismissed and expired states;
 - full-screen takeover;
-- Snooze and slide-to-dismiss;
-- synthesised local tones;
-- controlled shared-mixer audio tests.
+- giant Snooze control and deliberate slide-to-dismiss;
+- simultaneous occurrence queueing;
+- 16-bit, 44.1 kHz dual-mono stereo local tones;
+- selected-tone playback with Emergency Buzzer fallback;
+- controlled direct-tone and full-screen tests;
+- backend-enforced test-volume safety cap.
 
-Ordinary scheduled alarm playback remains locked until the controlled test path is fully proven.
+Ordinary scheduled alarm playback remains locked until the controlled test and shared-audio paths are fully proven.
 
 ## Kiosk browser
 
@@ -227,8 +341,9 @@ A small handle remains at the bottom of each dashboard page:
 
 - tap or swipe up to reveal navigation;
 - choose Clock, Weather, Plexamp, AirPlay or Settings;
-- press **Audio** for the live player-aware mixer;
-- the ordinary drawer auto-hides quickly, while the live mixer remains open longer for adjustment.
+- select **Audio** for the full-height player-aware mixer;
+- the ordinary drawer auto-hides quickly;
+- the Audio console remains open longer for adjustment and has matching open/close animation.
 
 ## Weather station setup
 
@@ -262,6 +377,30 @@ Run the complete test suite:
 bash scripts/run-tests.sh
 ```
 
-GitHub Actions checks Python compilation, JavaScript and shell syntax, alarm scheduling/runtime behaviour, 44.1 kHz stereo tone rendering, shared-mixer safety, perceptual volume conversion and Plexamp player-volume control.
+GitHub Actions currently checks:
+
+- Python compilation;
+- JavaScript and shell syntax;
+- alarm configuration, scheduling and runtime behaviour;
+- DST and restart-recovery cases;
+- 44.1 kHz stereo tone rendering;
+- controlled-audio safety;
+- shared-mixer operation;
+- persistent versus live helper actions;
+- perceptual volume conversion;
+- AirPlay scale round-trip behaviour;
+- Plexamp player-volume parsing and control;
+- fader, autosave, state-isolation, START-boundary and transition scripts.
 
 Further details are in [`docs/testing.md`](docs/testing.md).
+
+## Development roadmap
+
+Immediate next work on `feature/alarm-engine`:
+
+1. carefully enlarge AirPlay Now Playing artwork while preserving the right-hand metadata/control layout at the Pi's touchscreen dimensions;
+2. add a guarded master-output **Bass / Mid / Treble** EQ stage with centre detents, neutral reset, bypass, installer backup and rollback;
+3. repeat complete Plexamp, AirPlay, alarm-overlay, Snooze and Dismiss regression testing;
+4. opt in scheduled local-tone alarm playback only after the controlled path is proven;
+5. add Plexamp and stream alarm sources with local-tone fallback;
+6. final hardening, documentation, merge and release.
