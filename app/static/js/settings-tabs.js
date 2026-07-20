@@ -126,13 +126,12 @@
   const initialTab = window.location.hash || storedTab() || 'general';
   activate(initialTab, { skipHash: !window.location.hash, instant: true });
 
-  // Alarm and Audio workspaces are split into smaller scripts so the large
-  // editor remains usable on older installations during development.
   [
     '/static/js/settings-alarm-scheduler.js',
     '/static/js/settings-alarm-audio.js',
     '/static/js/settings-audio-workspace.js',
     '/static/js/settings-airplay-defaults.js',
+    '/static/js/settings-audio-fader-layout.js',
   ].forEach((source) => {
     if (document.querySelector(`script[src="${source}"]`)) {
       return;
