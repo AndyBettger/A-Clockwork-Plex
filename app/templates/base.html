@@ -10,6 +10,7 @@
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-polish.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-autosave.css') }}">
 </head>
 <body class="mode-{{ state.mode }}" data-active-page="{{ active_page | default(state.mode) }}">
   <main class="screen">
@@ -25,6 +26,7 @@
   <script src="{{ url_for('static', filename='js/nav-drawer.js') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-polish.js') }}"></script>
   <script src="{{ url_for('static', filename='js/page-transitions.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-autosave.js') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
