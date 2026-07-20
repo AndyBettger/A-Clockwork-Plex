@@ -16,13 +16,24 @@
   function navigate(url, options = {}) {
     const target = sameOriginTarget(url);
     if (!target || leaving) return;
-    if (target.pathname === '/alarm' || options.immediate) {
-      window.location.assign(target.href);
+
+    if (target.pathname === '/plexamp' && window.ACPPlexamp) {
+      window.ACPPlexamp.show({ updateMode: options.updateMode !== false });
       return;
     }
+
+    const plexampDelay = window.ACPPlexamp?.isOpen?.()
+      ? window.ACPPlexamp.hide({ immediate: options.immediate === true })
+      : 0;
+
+    if (target.pathname === '/alarm' || options.immediate) {
+      window.setTimeout(() => window.location.assign(target.href), plexampDelay);
+      return;
+    }
+
     leaving = true;
     document.body.classList.add('acp-page-leaving');
-    window.setTimeout(() => window.location.assign(target.href), 175);
+    window.setTimeout(() => window.location.assign(target.href), Math.max(175, plexampDelay));
   }
 
   window.ACPNavigate = navigate;
