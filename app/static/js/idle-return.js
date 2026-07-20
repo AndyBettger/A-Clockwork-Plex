@@ -6,6 +6,13 @@
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) return;
 
   const timeoutMs = timeoutSeconds * 1000;
+  const modeRoutes = {
+    clock: '/clock',
+    weather: '/weather',
+    airplay: '/airplay',
+    plexamp: '/plexamp',
+  };
+
   let lastActivityAt = Date.now();
   let checking = false;
   let returning = false;
@@ -18,6 +25,11 @@
   ['pointerdown', 'touchstart', 'keydown', 'wheel', 'input'].forEach((eventName) => {
     window.addEventListener(eventName, markActive, { passive: true, capture: true });
   });
+
+  function normaliseMode(value) {
+    const mode = String(value || '').trim().toLowerCase();
+    return mode in modeRoutes ? mode : 'clock';
+  }
 
   function currentSurface() {
     if (window.ACPPlexamp?.isOpen?.()) return 'plexamp';
@@ -34,22 +46,32 @@
     return plexampState === 'playing' || airplayState === 'playing';
   }
 
-  async function returnToClock() {
-    if (returning) return;
+  async function returnToMode(mode) {
+    const targetMode = normaliseMode(mode);
+    const route = modeRoutes[targetMode];
+    if (returning || !route) return;
+
+    const surface = currentSurface();
+    if (surface === targetMode) {
+      markActive();
+      return;
+    }
+
     returning = true;
     try {
-      await fetch('/api/mode/clock', { method: 'POST', cache: 'no-store' });
+      await fetch(`/api/mode/${targetMode}`, { method: 'POST', cache: 'no-store' });
     } catch (error) {
     }
+
     if (typeof window.ACPNavigate === 'function') {
-      window.ACPNavigate('/clock');
+      window.ACPNavigate(route, { updateMode: false });
     } else {
-      window.location.assign('/clock');
+      window.location.assign(route);
     }
   }
 
   async function check() {
-    if (checking || returning || Date.now() - lastActivityAt < timeoutMs) return;
+    if (checking || returning) return;
     const surface = currentSurface();
     if (!surface || surface === 'clock' || surface === 'alarm') return;
 
@@ -60,11 +82,28 @@
         fetch('/api/audio/live', { cache: 'no-store' }),
       ]);
       if (!statusResponse.ok || !liveResponse.ok) return;
+
       const [statusPayload, livePayload] = await Promise.all([
         statusResponse.json(),
         liveResponse.json(),
       ]);
-      if (!playing(statusPayload, livePayload)) await returnToClock();
+
+      /* Playback counts as activity continuously. When playback pauses, the
+         complete configured timeout starts from that pause rather than from the
+         last touch that may have happened hours earlier. */
+      if (playing(statusPayload, livePayload)) {
+        markActive();
+        return;
+      }
+
+      if (Date.now() - lastActivityAt < timeoutMs) return;
+
+      const configuredDefault = normaliseMode(
+        statusPayload?.config?.dashboard?.default_mode
+          || document.body.dataset.defaultMode
+          || 'clock',
+      );
+      await returnToMode(configuredDefault);
     } catch (error) {
     } finally {
       checking = false;
@@ -72,4 +111,5 @@
   }
 
   window.setInterval(check, 2000);
+  window.setTimeout(check, 800);
 })();
