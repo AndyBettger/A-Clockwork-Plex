@@ -5,9 +5,10 @@
 .airplay-now-card {
   --airplay-hero-block-pad: clamp(16px, 2.15vmin, 22px);
   --airplay-hero-left-pad: clamp(18px, 2.25vmin, 24px);
-  --airplay-hero-right-pad: clamp(34px, 3vw, 48px);
-  --airplay-hero-gap: clamp(30px, 3vw, 48px);
-  --airplay-media-size: min(39vw, 620px);
+  --airplay-hero-right-pad: clamp(30px, 2.7vw, 44px);
+  --airplay-hero-gap: clamp(28px, 2.7vw, 42px);
+  --airplay-media-size: min(44vw, 700px);
+  --airplay-wave-scale: 18;
   box-sizing: border-box;
   grid-template-columns: minmax(0, var(--airplay-media-size)) minmax(0, 1fr) !important;
   column-gap: var(--airplay-hero-gap) !important;
@@ -45,6 +46,14 @@ body.airplay-session-idle .airplay-artwork {
   aspect-ratio: 1 !important;
 }
 
+.airplay-glyph,
+body.airplay-session-idle .airplay-glyph {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
 .airplay-copy,
 body.airplay-metadata-active .airplay-copy,
 body.airplay-session-idle .airplay-copy {
@@ -53,9 +62,24 @@ body.airplay-session-idle .airplay-copy {
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
+  font-family: var(--ui-font) !important;
 }
 
-/* The card's right padding now owns the right margin. Earlier hardening added a
+.airplay-copy h1,
+.airplay-copy .airplay-status,
+.airplay-copy .airplay-source-line,
+.airplay-copy .airplay-detail,
+.airplay-copy .airplay-progress-times,
+.airplay-copy .airplay-volume-label {
+  font-family: var(--ui-font) !important;
+}
+
+body.airplay-session-idle .airplay-copy h1,
+.airplay-copy .airplay-kicker {
+  font-family: var(--display-font) !important;
+}
+
+/* The card's right padding owns the right margin. Earlier hardening added a
    second control inset, which made the two states finish on different lines. */
 body.airplay-metadata-active .airplay-now-card {
   --airplay-control-end-inset: 0px !important;
@@ -69,40 +93,47 @@ body.airplay-metadata-active .airplay-now-card > .airplay-copy > .airplay-contro
 
 /* Fit the Ready mark inside exactly the same square used by real artwork. */
 body.airplay-session-idle .airplay-route-logo {
+  left: 50% !important;
+  top: 50% !important;
   width: 78% !important;
   max-width: none !important;
   max-height: 84% !important;
+  transform: translate(-50%, -50%) !important;
 }
 
-/* The visible AirPlay arcs are centred above the geometric centre of the SVG
-   because of the receiving triangle beneath them. The pulse origin follows the
-   arcs, starts close to the source and is allowed to travel beneath the copy. */
+/* The pulse source follows the centre of the three receiving arcs—the point
+   marked in the Pi screenshot—not the optical centre above the triangle.
+   JavaScript calculates the final scale from the whole hero card so every wave
+   reaches the far edge and remains visible beneath the copy. */
 body.airplay-session-idle .airplay-pulse {
   left: 50% !important;
-  top: 42.5% !important;
+  top: 50.5% !important;
   z-index: 1 !important;
-  width: 27% !important;
+  width: 17% !important;
   border-width: 3px !important;
-  border-color: rgba(143, 211, 255, 0.42) !important;
-  box-shadow: 0 0 24px rgba(143, 211, 255, 0.13);
-  animation: airplay-route-wave 3.4s cubic-bezier(.12, .58, .22, 1) infinite !important;
+  border-color: rgba(143, 211, 255, 0.46) !important;
+  box-shadow: 0 0 28px rgba(143, 211, 255, 0.16);
+  animation: airplay-route-wave 4.2s linear infinite !important;
 }
 
 body.airplay-session-idle .airplay-pulse.two {
-  animation-delay: 1.7s !important;
+  animation-delay: 2.1s !important;
 }
 
 @keyframes airplay-route-wave {
   0% {
-    opacity: 0.68;
-    transform: translate(-50%, -50%) scale(.42);
+    opacity: 0.74;
+    transform: translate(-50%, -50%) scale(.32);
   }
   18% {
-    opacity: 0.5;
+    opacity: 0.62;
+  }
+  72% {
+    opacity: 0.26;
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(4.8);
+    transform: translate(-50%, -50%) scale(var(--airplay-wave-scale));
   }
 }
 
