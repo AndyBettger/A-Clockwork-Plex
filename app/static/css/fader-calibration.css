@@ -11,7 +11,7 @@ input.acp-calibrated-fader {
   bottom: auto !important;
   left: 50% !important;
   width: var(--acp-fader-length, 300px) !important;
-  height: 32px !important;
+  height: 34px !important;
   min-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -48,18 +48,36 @@ input.acp-calibrated-fader::-webkit-slider-runnable-track {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
+/* The input is rotated, so 24 × 56 becomes a broad 56 × 24 mixer cap on
+   screen. The cyan datum line therefore remains horizontal across the fader. */
 input.acp-calibrated-fader::-webkit-slider-thumb {
-  width: 28px;
-  height: 28px;
-  margin-top: -11px;
-  border: 1px solid rgba(230, 248, 255, 0.9);
-  border-radius: 50%;
+  width: 24px;
+  height: 56px;
+  margin-top: -24px;
+  border: 1px solid rgba(177, 222, 246, 0.72);
+  border-radius: 6px;
   appearance: none;
   -webkit-appearance: none;
-  background: #83d8ff;
+  background:
+    linear-gradient(
+      to right,
+      transparent 0 41%,
+      rgba(16, 31, 46, 0.92) 41% 45%,
+      #83d8ff 45% 55%,
+      rgba(16, 31, 46, 0.92) 55% 59%,
+      transparent 59% 100%
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(218, 241, 255, 0.12) 0 2px,
+      transparent 2px 8px
+    ),
+    linear-gradient(to bottom, #3c5369 0%, #24384d 43%, #142335 58%, #0b1522 100%);
   box-shadow:
-    0 3px 9px rgba(0, 0, 0, 0.42),
-    0 0 12px rgba(131, 216, 255, 0.22);
+    inset 2px 0 2px rgba(255, 255, 255, 0.12),
+    inset -2px 0 3px rgba(0, 0, 0, 0.42),
+    0 4px 12px rgba(0, 0, 0, 0.48),
+    0 0 13px rgba(131, 216, 255, 0.18);
 }
 
 input.acp-calibrated-fader::-moz-range-track {
@@ -76,12 +94,25 @@ input.acp-calibrated-fader::-moz-range-progress {
 }
 
 input.acp-calibrated-fader::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(230, 248, 255, 0.9);
-  border-radius: 50%;
-  background: #83d8ff;
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.42);
+  width: 24px;
+  height: 56px;
+  border: 1px solid rgba(177, 222, 246, 0.72);
+  border-radius: 6px;
+  background:
+    linear-gradient(
+      to right,
+      transparent 0 41%,
+      rgba(16, 31, 46, 0.92) 41% 45%,
+      #83d8ff 45% 55%,
+      rgba(16, 31, 46, 0.92) 55% 59%,
+      transparent 59% 100%
+    ),
+    repeating-linear-gradient(to bottom, rgba(218, 241, 255, 0.12) 0 2px, transparent 2px 8px),
+    linear-gradient(to bottom, #3c5369 0%, #24384d 43%, #142335 58%, #0b1522 100%);
+  box-shadow:
+    inset 2px 0 2px rgba(255, 255, 255, 0.12),
+    inset -2px 0 3px rgba(0, 0, 0, 0.42),
+    0 4px 12px rgba(0, 0, 0, 0.48);
 }
 
 input.acp-calibrated-fader:focus-visible::-webkit-slider-thumb {
@@ -96,7 +127,7 @@ input.acp-calibrated-fader:disabled {
 
 .nav-live-fader,
 .audio-mixer-control-row {
-  --acp-fader-thumb-radius: 14px;
+  --acp-fader-thumb-radius: 12px;
   overflow: hidden;
 }
 
