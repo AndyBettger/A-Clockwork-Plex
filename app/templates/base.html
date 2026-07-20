@@ -13,11 +13,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-autosave.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-layout-v3.css') }}">
 </head>
 <body
   class="mode-{{ state.mode }}"
   data-active-page="{{ active_page | default(state.mode) }}"
+  data-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
   data-idle-timeout-seconds="{{ config.dashboard.idle_timeout_seconds | default(180) }}"
 >
   <main class="screen">
@@ -47,12 +47,12 @@
   </footer>
   <script src="{{ url_for('static', filename='js/segment-display.js') }}"></script>
   <script src="{{ url_for('static', filename='js/segment-readouts.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/nav-layer.js') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer.js') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-polish.js') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-state-isolation.js') }}"></script>
   <script src="{{ url_for('static', filename='js/airplay-start-commit.js') }}"></script>
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/airplay-layout-v3.js') }}"></script>
   <script src="{{ url_for('static', filename='js/plexamp-persistent.js') }}"></script>
   <script src="{{ url_for('static', filename='js/page-transitions.js') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-autosave.js') }}"></script>
