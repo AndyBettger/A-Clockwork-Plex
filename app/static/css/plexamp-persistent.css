@@ -86,10 +86,6 @@
   visibility: hidden;
 }
 
-body.plexamp-overlay-open .screen {
-  pointer-events: none;
-}
-
 @keyframes persistent-plexamp-spin {
   to { transform: rotate(360deg); }
 }
