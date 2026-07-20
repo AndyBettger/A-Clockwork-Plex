@@ -2,7 +2,7 @@
   "name": "A Clockwork Plex",
   "version": "0.3.0-dev",
   "tag": "feature/alarm-engine",
-  "release_name": "Alarm Engine, Shared Audio and Live Mixer",
+  "release_name": "Alarm Engine, Shared Audio and Mk II Live Mixer",
   "repository": "https://github.com/AndyBettger/A-Clockwork-Plex",
   "companion_repository": "https://github.com/AndyBettger/Plexamp-NFC-Listener"
 }
