@@ -9,6 +9,7 @@
   let frameLoaded = false;
   let revealTimer = null;
   let closingTimer = null;
+  let notifyInFlight = false;
 
   function setNavState(open) {
     document.querySelectorAll('.main-nav a[href="/plexamp"]').forEach((link) => {
@@ -16,10 +17,20 @@
     });
   }
 
-  async function setMode() {
+  async function notifyPlexampRoute() {
+    if (notifyInFlight) return;
+    notifyInFlight = true;
     try {
-      await fetch('/api/mode/plexamp', { method: 'POST', cache: 'no-store' });
+      /* The route sets dashboard mode and arms the existing AirPlay handoff.
+         Its returned HTML is intentionally ignored because the preloaded iframe
+         is already the visible Plexamp surface. */
+      await fetch('/plexamp', {
+        cache: 'no-store',
+        headers: { 'X-A-Clockwork-Plex-Background': '1' },
+      });
     } catch (error) {
+    } finally {
+      notifyInFlight = false;
     }
   }
 
@@ -38,7 +49,7 @@
     document.body.classList.add('plexamp-overlay-open');
     setNavState(true);
     if (frameLoaded) revealFrameSoon();
-    if (options.updateMode !== false) setMode();
+    if (options.updateMode !== false) notifyPlexampRoute();
   }
 
   function hide(options = {}) {
