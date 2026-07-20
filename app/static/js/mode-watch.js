@@ -8,12 +8,18 @@
     settings: '/settings',
   };
 
+  const navigate = (route, immediate = false) => {
+    if (typeof window.ACPNavigate === 'function') {
+      window.ACPNavigate(route, { immediate });
+    } else {
+      window.location.assign(route);
+    }
+  };
+
   async function checkMode() {
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
-      if (!response.ok) {
-        return;
-      }
+      if (!response.ok) return;
 
       const status = await response.json();
       const alarmScreenRequired = Boolean(status?.alarm_scheduler?.screen_required);
@@ -22,23 +28,18 @@
           const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
           window.sessionStorage.setItem('alarmReturnPath', currentPath || '/clock');
         } catch (error) {
-          // Session storage is a convenience; /clock remains the safe fallback.
         }
-        window.location.assign('/alarm');
+        navigate('/alarm', true);
         return;
       }
 
-      if (!activePage || !(activePage in modeRoutes)) {
-        return;
-      }
-
+      if (!activePage || !(activePage in modeRoutes)) return;
       const requestedMode = status?.state?.mode;
       const route = modeRoutes[requestedMode];
       if (route && requestedMode !== activePage && window.location.pathname !== route) {
-        window.location.assign(route);
+        navigate(route);
       }
     } catch (error) {
-      // The dashboard should remain usable even if a transient status check fails.
     }
   }
 
