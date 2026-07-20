@@ -3,6 +3,7 @@
   window.__aClockworkPlexPageTransitionsLoaded = true;
 
   let leaving = false;
+  const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
 
   function sameOriginTarget(url) {
     try {
@@ -18,6 +19,16 @@
     return page ? `/${page}` : window.location.pathname;
   }
 
+  function rememberNavigation(target) {
+    try {
+      window.sessionStorage.setItem(explicitNavigationKey, JSON.stringify({
+        path: target.pathname,
+        at: Date.now(),
+      }));
+    } catch (error) {
+    }
+  }
+
   async function setMode(mode) {
     try {
       await fetch(`/api/mode/${mode}`, { method: 'POST', cache: 'no-store' });
@@ -30,6 +41,7 @@
     if (!target || leaving) return;
 
     if (target.pathname === '/alarm' || options.immediate) {
+      rememberNavigation(target);
       window.location.assign(target.href);
       return;
     }
@@ -50,11 +62,13 @@
         return;
       }
       leaving = true;
+      rememberNavigation(target);
       window.setTimeout(() => window.location.assign(target.href), delay);
       return;
     }
 
     leaving = true;
+    rememberNavigation(target);
     /* Chromium performs the outgoing/incoming animation through
        @view-transition. Other browsers simply navigate and receive the entry
        fallback on the next document. */
