@@ -13,27 +13,52 @@
     }
   }
 
+  function activeRoute() {
+    const page = String(document.body.dataset.activePage || '').trim().toLowerCase();
+    return page ? `/${page}` : window.location.pathname;
+  }
+
+  async function setMode(mode) {
+    try {
+      await fetch(`/api/mode/${mode}`, { method: 'POST', cache: 'no-store' });
+    } catch (error) {
+    }
+  }
+
   function navigate(url, options = {}) {
     const target = sameOriginTarget(url);
     if (!target || leaving) return;
+
+    if (target.pathname === '/alarm' || options.immediate) {
+      window.location.assign(target.href);
+      return;
+    }
 
     if (target.pathname === '/plexamp' && window.ACPPlexamp) {
       window.ACPPlexamp.show({ updateMode: options.updateMode !== false });
       return;
     }
 
-    const plexampDelay = window.ACPPlexamp?.isOpen?.()
-      ? window.ACPPlexamp.hide({ immediate: options.immediate === true })
-      : 0;
-
-    if (target.pathname === '/alarm' || options.immediate) {
-      window.setTimeout(() => window.location.assign(target.href), plexampDelay);
+    const overlayOpen = Boolean(window.ACPPlexamp?.isOpen?.());
+    if (overlayOpen) {
+      const delay = Number(window.ACPPlexamp.hide?.() || 0);
+      if (target.pathname === activeRoute()) {
+        if (options.updateMode !== false) {
+          const mode = target.pathname.slice(1) || 'clock';
+          setMode(mode);
+        }
+        return;
+      }
+      leaving = true;
+      window.setTimeout(() => window.location.assign(target.href), delay);
       return;
     }
 
     leaving = true;
-    document.body.classList.add('acp-page-leaving');
-    window.setTimeout(() => window.location.assign(target.href), Math.max(175, plexampDelay));
+    /* Chromium performs the outgoing/incoming animation through
+       @view-transition. Other browsers simply navigate and receive the entry
+       fallback on the next document. */
+    window.location.assign(target.href);
   }
 
   window.ACPNavigate = navigate;
