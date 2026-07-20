@@ -8,9 +8,9 @@
     settings: '/settings',
   };
 
-  const navigate = (route, immediate = false) => {
+  const navigate = (route, immediate = false, updateMode = true) => {
     if (typeof window.ACPNavigate === 'function') {
-      window.ACPNavigate(route, { immediate });
+      window.ACPNavigate(route, { immediate, updateMode });
     } else {
       window.location.assign(route);
     }
@@ -29,15 +29,31 @@
           window.sessionStorage.setItem('alarmReturnPath', currentPath || '/clock');
         } catch (error) {
         }
-        navigate('/alarm', true);
+        navigate('/alarm', true, false);
         return;
       }
 
       if (!activePage || !(activePage in modeRoutes)) return;
       const requestedMode = status?.state?.mode;
       const route = modeRoutes[requestedMode];
-      if (route && requestedMode !== activePage && window.location.pathname !== route) {
-        navigate(route);
+      if (!route) return;
+
+      if (requestedMode === 'plexamp' && window.ACPPlexamp) {
+        if (!window.ACPPlexamp.isOpen()) window.ACPPlexamp.show({ updateMode: false });
+        return;
+      }
+
+      if (window.ACPPlexamp?.isOpen?.()) {
+        if (requestedMode === activePage) {
+          window.ACPPlexamp.hide();
+          return;
+        }
+        navigate(route, false, false);
+        return;
+      }
+
+      if (requestedMode !== activePage && window.location.pathname !== route) {
+        navigate(route, false, false);
       }
     } catch (error) {
     }
