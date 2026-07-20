@@ -4,7 +4,7 @@ A Raspberry Pi touchscreen dashboard for Plexamp Headless, NFC-triggered albums,
 
 A Clockwork Plex is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener). The NFC listener reads album tags and starts Plexamp playback; this project provides the touchscreen interface around it.
 
-> Development note: the `feature/alarm-engine` branch contains the current alarm runtime, shared ALSA audio path, Mk II live mixer and controlled alarm-audio work. Draft PR #2 remains deliberately unmerged while Raspberry Pi testing continues. Ordinary scheduled alarm audio is still locked.
+> Development note: the `feature/alarm-engine` branch contains the current alarm runtime, shared ALSA audio path, Mk II live mixer, unified AirPlay layout and persistent preloaded Plexamp layer. Draft PR #2 remains deliberately unmerged while Raspberry Pi testing continues. Ordinary scheduled alarm audio is still locked.
 
 ## Current status
 
@@ -15,15 +15,16 @@ The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, aut
 | **Clock** | Large custom fourteen-segment SVG clock and date, 12/24-hour format, balanced punctuation and live weather cards. |
 | **Clock weather cards** | Touch-configurable ordering with compact combined cards for indoor/outdoor temperature, indoor/outdoor humidity, wind speed/gust, rain today/event rain and solar/UV. |
 | **Weather** | Detailed Ecowitt console with conditions, daily low/high values, 16-point wind direction, pressure/barometer forecast, rain gauges, station status and auto-refresh. |
-| **Plexamp** | Plexamp Headless embedded in a dashboard iframe so the touchscreen navigation handle remains available. |
-| **NFC handoff** | A successful NFC album scan can start Plexamp and switch the dashboard to the embedded Plexamp screen. |
+| **Plexamp** | Plexamp Headless is preloaded in a hidden persistent iframe and promoted into a full-screen layer when selected or requested by NFC, avoiding routine grey reload and home-to-Now-Playing flashes. |
+| **NFC handoff** | A successful NFC album scan can start Plexamp and promote the preloaded Plexamp layer. |
 | **AirPlay handoff** | Shairport Sync pauses Plexamp and changes dashboard mode while both services remain alive through the shared ALSA mixer. Returning to Plexamp arms a watcher; AirPlay is paused or stopped only when Plexamp actually begins playing. |
-| **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, transport controls, shared live-volume control and a glance row containing time/date, outdoor temperature/humidity and barometer status. |
+| **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, transport controls, shared live-volume control and a glance row. Ready and Now Playing share one measured artwork/logo square and one right-column grid. |
 | **Shared audio** | Plexamp, AirPlay and alarm sources feed source-specific trims, one master stage and a common ALSA `dmix` output. |
 | **Mk II audio console** | A full-height live mixer with a wide Master bus, Alarm ceiling, player-aware Plexamp/AirPlay faders, persistent trims, AirPlay START preset and fascia controls that correctly go to 11. |
 | **Settings** | General, Weather, AirPlay, Plexamp and Advanced controls autosave. Audio and Alarms retain dedicated validated APIs. |
+| **Idle return** | The configured dashboard idle timeout is playback-aware: quiet non-Clock screens return to Clock, while active Plexamp, AirPlay or alarm playback prevents the return. |
 | **Alarms** | Multiple-alarm configuration, local tones, DST-aware scheduling, reboot recovery, full-screen takeover, Snooze, slide-to-dismiss and controlled audio tests. |
-| **Navigation and motion** | Hidden bottom drawer, player-aware Audio console, browser-side mode polling, animated drawer open/close and subtle page transitions. |
+| **Navigation and motion** | Hidden bottom drawer, player-aware Audio console, browser-side mode polling, animated drawer open/close, persistent Plexamp promotion and subtle page transitions. |
 
 ## Visual system
 
@@ -36,6 +37,7 @@ The interface uses a shared instrument-console design across Clock, Weather, Air
 - illuminated Weather panels, compass, pressure console and dynamic rain gauges;
 - tactile rotary controls with navy faces and cyan datum marks;
 - calibrated vertical mixer faders with proper caps, alternating graduations and 0–11 fascia markings;
+- measured AirPlay hero geometry that keeps artwork/logo, copy and controls aligned across Ready and Now Playing;
 - brief appliance-style page transitions, with immediate alarm takeover and reduced-motion support.
 
 The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shared renderer is in `app/static/js/segment-display.js`.
@@ -46,7 +48,7 @@ The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shar
 |---|---|---|
 | **Clock** | `/clock` | Default idle screen with the segmented clock/date and compact weather cards. |
 | **Weather** | `/weather` | Detailed weather-station console. |
-| **Plexamp** | `/plexamp` | Dashboard-hosted Plexamp iframe with the navigation handle. |
+| **Plexamp** | `/plexamp` | Route fallback for the preloaded full-screen Plexamp layer. |
 | **AirPlay** | `/airplay` | AirPlay Ready, paused and Now Playing states. |
 | **Settings** | `/settings` | Touchscreen configuration page with General, Weather, Alarms, AirPlay, Audio, Plexamp, Advanced and About workspaces. |
 | **Alarm** | `/alarm` | Full-screen ringing, snoozed and deliberate dismiss controls. |
@@ -57,7 +59,8 @@ The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shar
 NFC tag
   └─> Plexamp-NFC-Listener
         ├─> Plexamp Headless playback on localhost:32500
-        └─> A Clockwork Plex mode switch to /plexamp
+        └─> A Clockwork Plex mode switch to plexamp
+              └─> promote the already preloaded Plexamp iframe
 
 Ecowitt custom upload
   └─> /api/weather/ecowitt
@@ -265,14 +268,17 @@ TRIM  = separate downstream calibration
 
 Changing START during an active session does not alter that current session. The new target is saved for the next connection and committed at the AirPlay session boundary, including rapid disconnect/reconnect cases.
 
-Example:
+## AirPlay layout
 
-```text
-START 7.3
-TRIM  5.4
-```
+Ready and Now Playing use one measured hero grid:
 
-The next live AirPlay fader should land near 7.3. The trim remains at 5.4 and makes the audible result quieter, but it does not change the displayed fader position.
+- the left media square is calculated from the hero's available height;
+- artwork fills that square with equal top, bottom and left breathing room;
+- the Ready logo occupies the same square;
+- both right-hand columns begin at the same horizontal position;
+- both use the same right margin;
+- progress and volume controls finish on that same right edge;
+- Ready pulses originate at the visual centre of the AirPlay arcs, begin at a smaller radius and expand beneath the copy.
 
 ## AirPlay Now Playing
 
@@ -285,7 +291,32 @@ The AirPlay page provides:
 - a 0–11 visible readout;
 - segmented time/date, outdoor temperature/humidity and barometer status.
 
-The drawer and Now Playing page have one live-volume owner, preventing stale two-value flicker while keeping audio and display state together.
+## Persistent Plexamp layer
+
+Every normal dashboard document preloads one Plexamp iframe invisibly. Selecting Plexamp or receiving an NFC-driven `plexamp` mode request promotes that iframe with a short fade/scale transition.
+
+Benefits:
+
+- Plexamp normally finishes its initial home/Now-Playing rendering before it is visible;
+- opening and closing Plexamp within the current dashboard document does not rebuild the iframe;
+- audio/player state remains connected while the layer is hidden;
+- the navigation drawer remains above the layer;
+- direct `/plexamp` navigation remains available as a fallback.
+
+Moving between separate dashboard routes still creates a new document and warms a new hidden iframe. This is deliberately smaller and safer than converting the entire dashboard into a single-page application.
+
+## Idle return
+
+`dashboard.idle_timeout_seconds` defaults to 180 seconds. The browser now uses it on every non-Clock screen.
+
+After the timeout, the dashboard checks real playback state:
+
+- Plexamp playing → remain on the current screen;
+- AirPlay playing → remain on the current screen;
+- alarm takeover or alarm audio active → remain on the current screen;
+- no playback → set mode to Clock and return with the normal page transition.
+
+Pointer, touch, keyboard, wheel and form input activity reset the timer. A value of `0` disables idle return.
 
 ## Settings and autosave
 
@@ -295,9 +326,7 @@ Settings uses top-level workspaces:
 GENERAL | WEATHER | ALARMS | AIRPLAY | AUDIO | PLEXAMP | ADVANCED | ABOUT
 ```
 
-General, Weather, AirPlay, Plexamp and Advanced controls autosave and briefly show **Saving…**, **Saved** or **Save failed**. The previous floating Save/Reload bar remains only as a no-JavaScript fallback and is hidden after autosave loads.
-
-Audio trims and alarm configuration use their own APIs so live mixer state, validation and safety rules are preserved.
+General, Weather, AirPlay, Plexamp and Advanced controls autosave and briefly show **Saving…**, **Saved** or **Save failed**. Audio trims and alarm configuration use their own APIs so live mixer state, validation and safety rules are preserved.
 
 ## Alarm status
 
@@ -335,16 +364,6 @@ sleep 10
 chromium --kiosk --start-maximized --noerrdialogs --disable-infobars --no-first-run "http://localhost:8088/clock" &
 ```
 
-## Navigation drawer
-
-A small handle remains at the bottom of each dashboard page:
-
-- tap or swipe up to reveal navigation;
-- choose Clock, Weather, Plexamp, AirPlay or Settings;
-- select **Audio** for the full-height player-aware mixer;
-- the ordinary drawer auto-hides quickly;
-- the Audio console remains open longer for adjustment and has matching open/close animation.
-
 ## Weather station setup
 
 A Clockwork Plex accepts Ecowitt/custom uploads at:
@@ -365,10 +384,6 @@ Typical station settings:
 
 Sensitive keys including `passkey`, `password`, `secret`, `token`, `api_key` and `apikey` are omitted from new stored uploads and redacted from status output when found in older state.
 
-## NFC integration
-
-Install and run [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener) alongside this project. A successful scan triggers Plexamp playback and calls `scripts/display-mode.sh plexamp` so the dashboard follows the new music.
-
 ## Testing
 
 Run the complete test suite:
@@ -377,28 +392,13 @@ Run the complete test suite:
 bash scripts/run-tests.sh
 ```
 
-GitHub Actions currently checks:
-
-- Python compilation;
-- JavaScript and shell syntax;
-- alarm configuration, scheduling and runtime behaviour;
-- DST and restart-recovery cases;
-- 44.1 kHz stereo tone rendering;
-- controlled-audio safety;
-- shared-mixer operation;
-- persistent versus live helper actions;
-- perceptual volume conversion;
-- AirPlay scale round-trip behaviour;
-- Plexamp player-volume parsing and control;
-- fader, autosave, state-isolation, START-boundary and transition scripts.
-
-Further details are in [`docs/testing.md`](docs/testing.md).
+GitHub Actions checks Python compilation, JavaScript and shell syntax, alarm/runtime behaviour, stereo tone rendering, mixer safety, perceptual volume conversion, AirPlay scale round trips, fader/state isolation, START-boundary handling, unified AirPlay layout, idle return and persistent Plexamp scripts.
 
 ## Development roadmap
 
 Immediate next work on `feature/alarm-engine`:
 
-1. carefully enlarge AirPlay Now Playing artwork while preserving the right-hand metadata/control layout at the Pi's touchscreen dimensions;
+1. Pi-test the unified AirPlay layout, Ready pulse origin, idle return and persistent Plexamp promotion;
 2. add a guarded master-output **Bass / Mid / Treble** EQ stage with centre detents, neutral reset, bypass, installer backup and rollback;
 3. repeat complete Plexamp, AirPlay, alarm-overlay, Snooze and Dismiss regression testing;
 4. opt in scheduled local-tone alarm playback only after the controlled path is proven;
