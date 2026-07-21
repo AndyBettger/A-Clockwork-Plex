@@ -18,6 +18,8 @@
 
   async function checkMode() {
     try {
+      if (window.ACPNavigationState?.isLeaving?.()) return;
+
       const response = await fetch('/api/status', { cache: 'no-store' });
       if (!response.ok) return;
 
@@ -38,14 +40,23 @@
       const route = modeRoutes[requestedMode];
       if (!route) return;
 
+      /* Local Plexamp show/hide operations update mode asynchronously. Ignore the
+         stale status response while that transaction or its animation is active,
+         otherwise the watcher can close and reopen the overlay mid-transition. */
+      if (window.ACPPlexamp?.shouldDeferModeSync?.(requestedMode, activePage)) {
+        return;
+      }
+
       if (requestedMode === 'plexamp' && window.ACPPlexamp) {
-        if (!window.ACPPlexamp.isOpen()) window.ACPPlexamp.show();
+        if (!window.ACPPlexamp.isOpen()) {
+          window.ACPPlexamp.show({ updateMode: false });
+        }
         return;
       }
 
       if (window.ACPPlexamp?.isOpen?.()) {
         if (requestedMode === activePage) {
-          window.ACPPlexamp.hide();
+          window.ACPPlexamp.hide({ updateMode: false, targetMode: activePage });
           return;
         }
         navigate(route, false, false);
