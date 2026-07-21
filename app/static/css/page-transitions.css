@@ -8,6 +8,16 @@
   --acp-transition-in-duration: 192ms;
 }
 
+html.acp-document-booting {
+  background: #02040a;
+}
+
+/* The root marker is installed synchronously in <head>, before body content can
+   paint. This closes the tiny first-paint gap that a body-only class can leave. */
+html.acp-document-booting body {
+  visibility: hidden;
+}
+
 body.acp-page-booting .screen {
   opacity: 0;
 }
