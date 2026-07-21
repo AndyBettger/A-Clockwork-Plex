@@ -70,7 +70,8 @@
 
   function show(options = {}) {
     window.clearTimeout(closingTimer);
-    shell.classList.remove('is-closing');
+    window.ACPNavDrawer?.hide?.();
+    shell.classList.remove('is-closing', 'is-route-leaving');
     shell.classList.add('is-open');
     shell.setAttribute('aria-hidden', 'false');
     document.body.classList.add('plexamp-overlay-open');
@@ -80,7 +81,7 @@
   }
 
   function finishHide() {
-    shell.classList.remove('is-open', 'is-closing');
+    shell.classList.remove('is-open', 'is-closing', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('plexamp-overlay-open');
     setNavState(false);
@@ -90,6 +91,7 @@
     const immediate = options.immediate === true;
     const delay = immediate ? 0 : transitionOutDuration();
     window.clearTimeout(closingTimer);
+    shell.classList.remove('is-route-leaving');
     if (delay <= 0) {
       finishHide();
       return 0;
@@ -101,8 +103,26 @@
     return delay;
   }
 
+  function prepareNavigation() {
+    const delay = transitionOutDuration();
+    window.clearTimeout(closingTimer);
+    window.clearTimeout(revealTimer);
+    window.ACPNavDrawer?.hide?.();
+
+    /* Keep the opaque shell covering the old dashboard. Only the Plexamp visual
+       contents animate away; the next document replaces the shell directly. */
+    shell.classList.remove('is-closing');
+    shell.classList.add('is-open', 'is-route-leaving');
+    shell.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('plexamp-overlay-open');
+    setNavState(true);
+    return delay;
+  }
+
   function isOpen() {
-    return shell.classList.contains('is-open') || shell.classList.contains('is-closing');
+    return shell.classList.contains('is-open')
+      || shell.classList.contains('is-closing')
+      || shell.classList.contains('is-route-leaving');
   }
 
   frame.addEventListener('load', () => {
@@ -126,7 +146,7 @@
     show();
   }, true);
 
-  window.ACPPlexamp = { show, hide, isOpen, frame };
+  window.ACPPlexamp = { show, hide, prepareNavigation, isOpen, frame };
 
   if (document.body.dataset.activePage === 'plexamp') {
     show({ updateMode: false });
