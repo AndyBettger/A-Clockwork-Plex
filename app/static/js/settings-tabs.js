@@ -141,4 +141,9 @@
     script.async = false;
     document.body.appendChild(script);
   });
+
+  /* The global EQ controller loads before this dynamically-created Audio panel.
+     Reusing the harmless hashchange notification gives it a first-load hook while
+     also refreshing the currently selected Settings tab after its helper scripts. */
+  window.setTimeout(() => window.dispatchEvent(new Event('hashchange')), 0);
 })();
