@@ -60,6 +60,7 @@
     row.className = 'acp-transition-duration-row';
 
     const slider = document.createElement('input');
+    slider.id = 'dashboard-transition-duration';
     slider.name = 'transition_duration_ms';
     slider.type = 'range';
     slider.min = '0';
@@ -87,6 +88,12 @@
   startupDescription.textContent = 'Shown when the kiosk opens the dashboard root URL.';
   startupField.appendChild(startupDescription);
   startupSelect.value = current.startupMode;
+
+  const idleTimeout = form.querySelector('input[name="idle_timeout_seconds"]');
+  const idleTimeoutDescription = idleTimeout?.closest('.setting-field')?.querySelector('small');
+  if (idleTimeoutDescription) {
+    idleTimeoutDescription.textContent = 'Seconds before switching to the Idle return page while playback and alarms are quiet.';
+  }
 
   const idleControl = createSelect(
     modeOptions,
