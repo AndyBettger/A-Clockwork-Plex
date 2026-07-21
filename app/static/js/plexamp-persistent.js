@@ -23,6 +23,13 @@
     }
   }
 
+  function transitionOutDuration() {
+    const current = window.ACPDashboardPreferences?.read?.();
+    const style = current?.transitionStyle || document.documentElement.dataset.transitionStyle || 'grow-fade';
+    const duration = Math.max(0, Math.min(1500, Number(current?.transitionDurationMs ?? document.documentElement.dataset.transitionDurationMs ?? 300)));
+    return style === 'none' ? 0 : Math.round(duration * 0.36);
+  }
+
   function setNavState(open) {
     const underlying = `/${String(document.body.dataset.activePage || 'clock').toLowerCase()}`;
     navLinks().forEach((link) => {
@@ -72,25 +79,26 @@
     if (options.updateMode !== false) notifyPlexampRoute();
   }
 
+  function finishHide() {
+    shell.classList.remove('is-open', 'is-closing');
+    shell.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('plexamp-overlay-open');
+    setNavState(false);
+  }
+
   function hide(options = {}) {
     const immediate = options.immediate === true;
+    const delay = immediate ? 0 : transitionOutDuration();
     window.clearTimeout(closingTimer);
-    if (immediate) {
-      shell.classList.remove('is-open', 'is-closing');
-      shell.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('plexamp-overlay-open');
-      setNavState(false);
+    if (delay <= 0) {
+      finishHide();
       return 0;
     }
+
     shell.classList.add('is-closing');
     shell.classList.remove('is-open');
-    closingTimer = window.setTimeout(() => {
-      shell.classList.remove('is-closing');
-      shell.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('plexamp-overlay-open');
-      setNavState(false);
-    }, 220);
-    return 220;
+    closingTimer = window.setTimeout(finishHide, delay);
+    return delay;
   }
 
   function isOpen() {
