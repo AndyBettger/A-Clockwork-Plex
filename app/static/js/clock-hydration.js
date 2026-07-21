@@ -2,48 +2,53 @@
   if (window.__aClockworkPlexClockHydrationLoaded) return;
   window.__aClockworkPlexClockHydrationLoaded = true;
 
-  const weatherContent = document.getElementById('clock-weather-content');
+  let started = false;
   let signalled = false;
-  let fallbackTimer = null;
-  let observer = null;
 
   function nextFrame() {
     return new Promise((resolve) => window.requestAnimationFrame(resolve));
   }
 
-  async function signalReady() {
-    if (signalled) return;
-    signalled = true;
-    window.clearTimeout(fallbackTimer);
-    observer?.disconnect();
-
-    try {
-      await document.fonts?.ready;
-    } catch (error) {
+  function fontSettleWindow() {
+    const fontReady = document.fonts?.ready;
+    if (!fontReady || typeof fontReady.then !== 'function') {
+      return Promise.resolve();
     }
 
-    /* The first frame commits the rebuilt composite cards. The second lets the
-       browser resolve their final grid, segment sizes and font metrics. */
-    await nextFrame();
-    await nextFrame();
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('acp:page-hydrated', {
-        detail: { page: 'clock' },
-      }));
-    }, 24);
+    return Promise.race([
+      fontReady.catch(() => undefined),
+      new Promise((resolve) => window.setTimeout(resolve, 350)),
+    ]);
   }
 
-  if (weatherContent && typeof MutationObserver === 'function') {
-    observer = new MutationObserver((mutations) => {
-      const rebuilt = mutations.some((mutation) => mutation.type === 'childList');
-      if (rebuilt) signalReady();
-    });
-    observer.observe(weatherContent, { childList: true, subtree: true });
-  } else {
-    signalReady();
+  function segmentsReady() {
+    return ['clock-hours', 'clock-minutes', 'clock-seconds', 'clock-date']
+      .every((id) => Boolean(document.getElementById(id)?.childElementCount));
   }
 
-  /* A failed or unusually slow status request must never leave Clock hidden.
-     The fallback is deliberately longer than a normal local API round trip. */
-  fallbackTimer = window.setTimeout(signalReady, 1800);
+  async function signalReady() {
+    if (started || signalled) return;
+    started = true;
+
+    await fontSettleWindow();
+
+    for (let attempt = 0; attempt < 4 && !segmentsReady(); attempt += 1) {
+      await nextFrame();
+    }
+
+    /* Clock now arrives from Flask in its final compact/composite card layout.
+       These final frames are only for segment geometry and font metrics; there is
+       no longer a first-load ordinary-card to composite-card DOM replacement. */
+    await nextFrame();
+    await nextFrame();
+
+    if (signalled) return;
+    signalled = true;
+    window.dispatchEvent(new CustomEvent('acp:page-hydrated', {
+      detail: { page: 'clock', source: 'server-final-layout' },
+    }));
+  }
+
+  window.requestAnimationFrame(signalReady);
+  window.setTimeout(signalReady, 700);
 })();
