@@ -4,6 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}A Clockwork Plex{% endblock %}</title>
+  <style id="acp-critical-first-paint">
+    html {
+      background: #02040a;
+      color-scheme: dark;
+    }
+
+    html.acp-document-booting,
+    html.acp-document-booting body {
+      background: #02040a;
+    }
+
+    html.acp-document-booting body {
+      visibility: hidden !important;
+    }
+  </style>
   <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
