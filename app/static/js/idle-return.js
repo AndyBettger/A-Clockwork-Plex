@@ -31,9 +31,19 @@
     return mode in modeRoutes ? mode : 'clock';
   }
 
+  function idleReturnMode() {
+    const preferences = window.ACPDashboardPreferences?.read?.();
+    return normaliseMode(
+      preferences?.idleReturnMode
+      || document.documentElement.dataset.idleReturnMode
+      || document.body.dataset.defaultMode
+      || 'clock',
+    );
+  }
+
   function currentSurface() {
     if (window.ACPPlexamp?.isOpen?.()) return 'plexamp';
-    return document.body.dataset.activePage || '';
+    return String(document.body.dataset.activePage || '').trim().toLowerCase();
   }
 
   function playing(statusPayload, livePayload) {
@@ -73,7 +83,7 @@
   async function check() {
     if (checking || returning) return;
     const surface = currentSurface();
-    if (!surface || surface === 'clock' || surface === 'alarm') return;
+    if (!surface || surface === 'alarm') return;
 
     checking = true;
     try {
@@ -88,27 +98,24 @@
         liveResponse.json(),
       ]);
 
-      /* Playback counts as activity continuously. When playback pauses, the
-         complete configured timeout starts from that pause rather than from the
-         last touch that may have happened hours earlier. */
+      /* Playback counts as activity continuously. Pausing starts a complete fresh
+         timeout, regardless of how long the player had already been open. */
       if (playing(statusPayload, livePayload)) {
         markActive();
         return;
       }
 
       if (Date.now() - lastActivityAt < timeoutMs) return;
-
-      const configuredDefault = normaliseMode(
-        statusPayload?.config?.dashboard?.default_mode
-          || document.body.dataset.defaultMode
-          || 'clock',
-      );
-      await returnToMode(configuredDefault);
+      await returnToMode(idleReturnMode());
     } catch (error) {
     } finally {
       checking = false;
     }
   }
+
+  window.addEventListener('acp:dashboard-preferences-changed', () => {
+    returning = false;
+  });
 
   window.setInterval(check, 2000);
   window.setTimeout(check, 800);
