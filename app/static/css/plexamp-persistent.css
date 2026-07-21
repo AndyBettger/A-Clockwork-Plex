@@ -10,6 +10,7 @@
   z-index: 30;
   inset: 0;
   overflow: hidden;
+  contain: paint;
   background: #05070d;
   opacity: 0;
   visibility: hidden;
@@ -18,6 +19,7 @@
   filter: var(--plexamp-hidden-filter);
   clip-path: var(--plexamp-hidden-clip);
   transform-origin: 50% 50%;
+  backface-visibility: hidden;
   transition:
     opacity var(--acp-transition-in-duration) ease,
     transform var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
@@ -87,8 +89,10 @@ html[data-transition-style="none"] .persistent-plexamp {
   width: 100%;
   height: 100%;
   border: 0;
+  contain: paint;
   background: #05070d;
   opacity: 0;
+  backface-visibility: hidden;
   transition: opacity 240ms ease;
 }
 
@@ -131,9 +135,9 @@ html[data-transition-style="none"] .persistent-plexamp {
   visibility: hidden;
 }
 
-/* Route changes use the shell as a neutral handover curtain. The visual content
-   performs the selected outgoing motion, but the dashboard beneath it is never
-   uncovered before the destination document is ready. */
+/* Route changes and returns to the underlying page use the shell as a neutral
+   handover curtain. The visual content performs the selected outgoing motion,
+   but the dashboard beneath it is never uncovered before that half completes. */
 .persistent-plexamp.is-route-leaving {
   opacity: 1 !important;
   visibility: visible !important;
@@ -150,6 +154,7 @@ html[data-transition-style="none"] .persistent-plexamp {
   animation-timing-function: cubic-bezier(.4, 0, 1, 1);
   animation-fill-mode: both;
   transform-origin: 50% 50%;
+  will-change: opacity, transform, filter, clip-path;
 }
 
 html[data-transition-style="none"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
