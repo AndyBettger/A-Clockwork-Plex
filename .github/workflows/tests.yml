@@ -27,6 +27,7 @@ jobs:
         run: |
           python -m py_compile \
             app/main.py \
+            app/runner.py \
             app/dashboard_core.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
@@ -34,7 +35,9 @@ jobs:
             app/alarm_audio.py \
             app/alarm_audio_core.py \
             app/audio_mixer.py \
-            scripts/a-clockwork-plex-audio-mixer.py
+            app/audio_eq.py \
+            scripts/a-clockwork-plex-audio-mixer.py \
+            scripts/a-clockwork-plex-audio-eq.py
 
       - name: Check JavaScript, page wiring and shell syntax
         run: |
@@ -51,6 +54,7 @@ jobs:
           node --check app/static/js/settings-dashboard-preferences.js
           node --check app/static/js/dashboard-preferences-bootstrap.js
           node --check app/static/js/audio-polish.js
+          node --check app/static/js/audio-eq.js
           node --check app/static/js/audio-state-isolation.js
           node --check app/static/js/airplay-start-commit.js
           node --check app/static/js/fader-calibration.js
@@ -73,15 +77,19 @@ jobs:
           grep -q "clock-hydration.js" app/templates/clock.html
           grep -q "nav-layer.js" app/templates/base.html
           grep -q "nav-drawer-lifecycle.js" app/templates/base.html
+          grep -q "audio-eq.css" app/templates/base.html
+          grep -q "audio-eq.js" app/templates/base.html
           grep -q "dashboard-preferences-bootstrap.js" app/templates/base.html
           grep -q "settings-dashboard-preferences.js" app/templates/base.html
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
           grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
+          grep -q "app/runner.py" systemd/a-clockwork-plex.service
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
           bash -n scripts/install-alarm-audio-helper.sh
           bash -n scripts/install-shared-audio.sh
+          bash -n scripts/install-master-eq.sh
           bash -n scripts/install-airplay-hooks.sh
 
       - name: Run unit tests
