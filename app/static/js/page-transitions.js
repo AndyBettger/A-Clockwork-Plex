@@ -48,6 +48,7 @@
   function revealPage() {
     if (revealed) return;
     revealed = true;
+    document.documentElement.classList.remove('acp-document-booting');
     document.body.classList.remove('acp-page-booting');
     document.body.classList.add('acp-page-ready');
 
@@ -63,9 +64,14 @@
 
   function scheduleReveal() {
     const activePage = String(document.body.dataset.activePage || '').toLowerCase();
-    if (activePage === 'airplay') {
+    const hydratedFallbacks = {
+      airplay: 1500,
+      clock: 2200,
+    };
+
+    if (activePage in hydratedFallbacks) {
       window.addEventListener('acp:page-hydrated', revealPage, { once: true });
-      window.setTimeout(revealPage, 1300);
+      window.setTimeout(revealPage, hydratedFallbacks[activePage]);
       return;
     }
 
@@ -98,17 +104,22 @@
 
     const overlayOpen = Boolean(window.ACPPlexamp?.isOpen?.());
     if (overlayOpen) {
-      const delay = Number(window.ACPPlexamp.hide?.() || 0);
       if (target.pathname === activeRoute()) {
+        window.ACPPlexamp.hide?.();
         if (options.updateMode !== false) {
           const mode = target.pathname.slice(1) || 'clock';
           setMode(mode);
         }
         return;
       }
+
       leaving = true;
       rememberNavigation(target);
-      window.setTimeout(() => window.location.assign(target.href), delay);
+      const delay = Number(
+        window.ACPPlexamp.prepareNavigation?.()
+        ?? outgoingDelay()
+      );
+      window.setTimeout(() => window.location.assign(target.href), Math.max(0, delay));
       return;
     }
 
