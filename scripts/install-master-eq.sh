@@ -130,8 +130,12 @@ backup_item "$EQ_DEFAULTS" eq-defaults
 backup_item "$EQ_HELPER" eq-helper
 backup_item "$EQ_SUDOERS" eq-sudoers
 backup_item "$SERVICE_FILE" dashboard.service
-printf '%s\n' "$BACKUP_DIR" > "$BACKUP_POINTER"
-chmod 0644 "$BACKUP_POINTER"
+if [[ ! -s "$BACKUP_POINTER" ]]; then
+    printf '%s\n' "$BACKUP_DIR" > "$BACKUP_POINTER"
+    chmod 0644 "$BACKUP_POINTER"
+else
+    echo "Preserving original EQ rollback snapshot: $(cat "$BACKUP_POINTER")"
+fi
 
 cat > "$EQ_CONFIG" <<EOF
 # Managed by A Clockwork Plex.
