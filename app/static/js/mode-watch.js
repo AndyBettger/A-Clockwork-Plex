@@ -16,6 +16,22 @@
     }
   };
 
+  function plexampIsPlaying() {
+    const live = window.ACPLiveAudioSnapshot?.live || {};
+    const state = String(live?.channels?.plexamp?.playback_state || '').toLowerCase();
+    return state === 'playing';
+  }
+
+  async function reassertPlexampMode() {
+    try {
+      await fetch('/api/mode/plexamp', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+    } catch (error) {
+    }
+  }
+
   async function checkMode() {
     try {
       if (window.ACPNavigationState?.isLeaving?.()) return;
@@ -39,6 +55,18 @@
       const requestedMode = status?.state?.mode;
       const route = modeRoutes[requestedMode];
       if (!route) return;
+
+      /* Shairport's session-end hook returns AirPlay to Clock. If Plexamp has
+         already won the handoff and is visibly playing, preserve the newer user
+         choice and repair the server mode instead of closing the Plexamp layer. */
+      if (
+        window.ACPPlexamp?.isOpen?.()
+        && plexampIsPlaying()
+        && requestedMode !== 'plexamp'
+      ) {
+        await reassertPlexampMode();
+        return;
+      }
 
       /* Local Plexamp show/hide operations update mode asynchronously. Ignore the
          stale status response while that transaction or its animation is active,
