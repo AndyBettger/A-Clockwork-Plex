@@ -9,6 +9,8 @@
   --airplay-hero-gap: clamp(28px, 2.7vw, 42px);
   --airplay-media-size: min(44vw, 700px);
   --airplay-wave-scale: 18;
+  --airplay-pulse-origin-x: 49.83%;
+  --airplay-pulse-origin-y: 50.77%;
   box-sizing: border-box;
   grid-template-columns: minmax(0, var(--airplay-media-size)) minmax(0, 1fr) !important;
   column-gap: var(--airplay-hero-gap) !important;
@@ -65,7 +67,6 @@ body.airplay-session-idle .airplay-copy {
   font-family: var(--ui-font) !important;
 }
 
-.airplay-copy h1,
 .airplay-copy .airplay-status,
 .airplay-copy .airplay-source-line,
 .airplay-copy .airplay-detail,
@@ -74,9 +75,18 @@ body.airplay-session-idle .airplay-copy {
   font-family: var(--ui-font) !important;
 }
 
-body.airplay-session-idle .airplay-copy h1,
+.airplay-copy h1,
 .airplay-copy .airplay-kicker {
   font-family: var(--display-font) !important;
+}
+
+body.airplay-metadata-active .airplay-copy h1 {
+  font-weight: 700 !important;
+  letter-spacing: 0.005em !important;
+}
+
+.airplay-live-dot {
+  transform: translateY(0.09em);
 }
 
 /* The card's right padding owns the right margin. Earlier hardening added a
@@ -101,13 +111,11 @@ body.airplay-session-idle .airplay-route-logo {
   transform: translate(-50%, -50%) !important;
 }
 
-/* The pulse source follows the centre of the three receiving arcs—the point
-   marked in the Pi screenshot—not the optical centre above the triangle.
-   JavaScript calculates the final scale from the whole hero card so every wave
-   reaches the far edge and remains visible beneath the copy. */
+/* The source is calculated from the actual centre of the concentric arcs in
+   the 24×24 AirPlay SVG rather than an eyeballed screenshot coordinate. */
 body.airplay-session-idle .airplay-pulse {
-  left: 50% !important;
-  top: 50.5% !important;
+  left: var(--airplay-pulse-origin-x) !important;
+  top: var(--airplay-pulse-origin-y) !important;
   z-index: 1 !important;
   width: 17% !important;
   border-width: 3px !important;
