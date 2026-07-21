@@ -38,13 +38,6 @@
     }
   }
 
-  async function setMode(mode) {
-    try {
-      await fetch(`/api/mode/${mode}`, { method: 'POST', cache: 'no-store' });
-    } catch (error) {
-    }
-  }
-
   function revealPage() {
     if (revealed) return;
     revealed = true;
@@ -66,7 +59,7 @@
     const activePage = String(document.body.dataset.activePage || '').toLowerCase();
     const hydratedFallbacks = {
       airplay: 1500,
-      clock: 2200,
+      clock: 900,
     };
 
     if (activePage in hydratedFallbacks) {
@@ -92,6 +85,7 @@
     if (!target || leaving) return;
 
     if (target.pathname === '/alarm' || options.immediate) {
+      leaving = true;
       rememberNavigation(target);
       window.location.assign(target.href);
       return;
@@ -105,11 +99,11 @@
     const overlayOpen = Boolean(window.ACPPlexamp?.isOpen?.());
     if (overlayOpen) {
       if (target.pathname === activeRoute()) {
-        window.ACPPlexamp.hide?.();
-        if (options.updateMode !== false) {
-          const mode = target.pathname.slice(1) || 'clock';
-          setMode(mode);
-        }
+        const mode = target.pathname.slice(1) || 'clock';
+        window.ACPPlexamp.hide?.({
+          updateMode: options.updateMode !== false,
+          targetMode: mode,
+        });
         return;
       }
 
@@ -137,6 +131,10 @@
 
   window.ACPNavigate = navigate;
   window.ACPPageReady = revealPage;
+  window.ACPNavigationState = {
+    isLeaving: () => leaving,
+    activeRoute,
+  };
 
   document.addEventListener('click', (event) => {
     const link = event.target.closest('a[href]');
@@ -147,6 +145,10 @@
     if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
     event.preventDefault();
     navigate(target.href);
+  });
+
+  window.addEventListener('pagehide', () => {
+    leaving = true;
   });
 
   scheduleReveal();
