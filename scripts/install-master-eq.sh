@@ -88,7 +88,7 @@ if [[ $# -gt 0 ]]; then
     exit 64
 fi
 
-for command in apt-get dpkg-query aplay amixer python3 install visudo timeout systemctl stat; do
+for command in apt-get dpkg-query aplay amixer python3 install visudo timeout systemctl stat awk; do
     require_command "$command"
 done
 
@@ -108,6 +108,18 @@ if ! dpkg-query -W -f='${Status}' libasound2-plugin-equal 2>/dev/null | grep -q 
 elif ! dpkg-query -W -f='${Status}' caps 2>/dev/null | grep -q 'install ok installed'; then
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y caps
+fi
+
+# A bare "caps.so" relies on LD_LIBRARY_PATH. Debian installs the LADSPA
+# module in /usr/lib/ladspa, which is not guaranteed to be in a systemd
+# service's loader path. Resolve the package-owned file and use it explicitly.
+if [[ -z "${CAPS_LIBRARY:-}" ]]; then
+    CAPS_LIBRARY="$(dpkg-query -L caps 2>/dev/null | awk '/\/caps\.so$/ { print; exit }')"
+fi
+if [[ -z "$CAPS_LIBRARY" || ! -f "$CAPS_LIBRARY" ]]; then
+    echo "The CAPS LADSPA library could not be found." >&2
+    echo "Expected dpkg-query -L caps to report a caps.so file." >&2
+    exit 1
 fi
 
 BACKUP_DIR="$BACKUP_ROOT/$TIMESTAMP"
@@ -130,7 +142,7 @@ cat > "$EQ_CONFIG" <<EOF
 ctl.acp_equal {
     type equal
     controls "$EQ_CONTROL_FILE"
-    library "caps.so"
+    library "$CAPS_LIBRARY"
     module "Eq10"
     channels 2
 }
@@ -139,7 +151,7 @@ pcm.acp_equal_engine {
     type equal
     slave.pcm "acp_master"
     controls "$EQ_CONTROL_FILE"
-    library "caps.so"
+    library "$CAPS_LIBRARY"
     module "Eq10"
     channels 2
 }
@@ -208,6 +220,7 @@ chmod 0644 "$SHARED_CONFIG"
 cat > "$EQ_DEFAULTS" <<EOF
 # Managed by A Clockwork Plex.
 ALSA_EQ_DEVICE=acp_equal
+CAPS_LIBRARY=$CAPS_LIBRARY
 EQ_STATE_PATH=$EQ_STATE_FILE
 EOF
 chmod 0644 "$EQ_DEFAULTS"
@@ -229,7 +242,12 @@ chown root:audio "$EQ_CONTROL_FILE" 2>/dev/null || chown root:root "$EQ_CONTROL_
 chmod 0664 "$EQ_CONTROL_FILE"
 
 timeout 0.8 /usr/bin/aplay -q -D acp_equal -f S16_LE -r 44100 -c 2 /dev/zero >/dev/null 2>&1 || true
-"$EQ_HELPER" neutral >/dev/null
+if ! "$EQ_HELPER" neutral >/dev/null; then
+    echo "The EQ controls did not initialise successfully." >&2
+    echo "Resolved CAPS library: $CAPS_LIBRARY" >&2
+    "$EQ_HELPER" status | python3 -m json.tool >&2 || true
+    exit 1
+fi
 chown root:audio "$EQ_CONTROL_FILE" 2>/dev/null || true
 chmod 0664 "$EQ_CONTROL_FILE" 2>/dev/null || true
 
@@ -240,6 +258,7 @@ echo
 echo "A Clockwork Plex master EQ installed."
 echo "  Equalizer PCM: acp_equal"
 echo "  Control device: acp_equal"
+echo "  CAPS library: $CAPS_LIBRARY"
 echo "  Range: Bass/Mid/Treble -6 dB to +6 dB"
 echo "  Backup: $BACKUP_DIR"
 echo
