@@ -4,6 +4,7 @@
 
   let leaving = false;
   let revealed = false;
+  let readyTimer = null;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
 
   function sameOriginTarget(url) {
@@ -49,6 +50,15 @@
     revealed = true;
     document.body.classList.remove('acp-page-booting');
     document.body.classList.add('acp-page-ready');
+
+    const current = preferences();
+    const duration = current.transitionStyle === 'none'
+      ? 0
+      : Math.max(0, Math.min(1500, Number(current.transitionDurationMs) || 0));
+    window.clearTimeout(readyTimer);
+    readyTimer = window.setTimeout(() => {
+      document.body.classList.remove('acp-page-ready');
+    }, Math.max(30, Math.round(duration * 0.64) + 50));
   }
 
   function scheduleReveal() {
