@@ -8,7 +8,7 @@ Type=simple
 User=andy
 Group=andy
 WorkingDirectory=/home/andy/A-Clockwork-Plex
-ExecStart=/home/andy/A-Clockwork-Plex/venv/bin/python /home/andy/A-Clockwork-Plex/app/main.py
+ExecStart=/home/andy/A-Clockwork-Plex/venv/bin/python /home/andy/A-Clockwork-Plex/app/runner.py
 Restart=on-failure
 RestartSec=5
 
