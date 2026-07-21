@@ -9,12 +9,15 @@
   const FRAME_SETTLE_MS = 1400;
   const MODE_GUARD_MS = 5000;
   const LONG_MODE_GUARD_MS = 10000;
+  const HANDOFF_REARM_MS = 30000;
 
   let frameLoaded = false;
   let frameLoadedAt = 0;
   let frameReadyTimer = null;
   let phaseTimer = null;
   let cleanupTimer = null;
+  let handoffTimer = null;
+  let handoffArmInFlight = false;
   let notifyInFlight = false;
   let lifecycle = 'hidden';
   let generation = 0;
@@ -87,6 +90,39 @@
     }
   }
 
+  async function armAirplayHandoff() {
+    if (handoffArmInFlight || lifecycle === 'hidden' || lifecycle === 'route-leaving') return;
+    handoffArmInFlight = true;
+    try {
+      /* The /plexamp route owns the server-side watcher that waits for Plexamp
+         to enter Playing and then pauses (or stops) an active AirPlay sender.
+         HEAD runs that route without replacing or reloading the persistent iframe. */
+      await fetch('/plexamp', {
+        method: 'HEAD',
+        cache: 'no-store',
+      });
+    } catch (error) {
+    } finally {
+      handoffArmInFlight = false;
+    }
+  }
+
+  function startAirplayHandoffWatch() {
+    window.clearInterval(handoffTimer);
+    handoffTimer = null;
+    armAirplayHandoff();
+    handoffTimer = window.setInterval(() => {
+      if (lifecycle !== 'hidden' && lifecycle !== 'route-leaving') {
+        armAirplayHandoff();
+      }
+    }, HANDOFF_REARM_MS);
+  }
+
+  function stopAirplayHandoffWatch() {
+    window.clearInterval(handoffTimer);
+    handoffTimer = null;
+  }
+
   function clearLifecycleTimers() {
     window.clearTimeout(phaseTimer);
     window.clearTimeout(cleanupTimer);
@@ -106,6 +142,7 @@
   }
 
   function finishHideVisual() {
+    stopAirplayHandoffWatch();
     shell.classList.remove('is-open', 'is-closing', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('plexamp-overlay-open');
@@ -143,6 +180,7 @@
 
     if (['opening-page', 'opening-overlay', 'open', 'route-leaving'].includes(lifecycle)) {
       if (updateMode && !notifyInFlight) updateServerMode('plexamp');
+      if (lifecycle !== 'route-leaving') startAirplayHandoffWatch();
       return 0;
     }
 
@@ -166,6 +204,7 @@
       body.classList.remove('acp-page-leaving');
       setLifecycle('opening-overlay');
     }
+    startAirplayHandoffWatch();
 
     const beginOverlay = () => {
       if (token !== generation) return;
@@ -205,6 +244,7 @@
     const token = ++generation;
     clearLifecycleTimers();
     window.ACPNavDrawer?.hide?.();
+    stopAirplayHandoffWatch();
 
     /* A tap back to the underlying page during the first outgoing half can be
        cancelled without exposing or reloading Plexamp. */
@@ -237,6 +277,7 @@
     clearLifecycleTimers();
     window.clearTimeout(frameReadyTimer);
     window.ACPNavDrawer?.hide?.();
+    stopAirplayHandoffWatch();
     guardMode(LONG_MODE_GUARD_MS);
 
     /* A different dashboard document is about to replace this one. Keep the shell
@@ -295,6 +336,8 @@
     event.stopImmediatePropagation();
     show();
   }, true);
+
+  window.addEventListener('pagehide', stopAirplayHandoffWatch);
 
   window.ACPPlexamp = {
     show,
