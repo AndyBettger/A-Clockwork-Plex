@@ -3,6 +3,7 @@
   window.__aClockworkPlexPageTransitionsLoaded = true;
 
   let leaving = false;
+  let revealed = false;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
 
   function sameOriginTarget(url) {
@@ -12,6 +13,13 @@
     } catch (error) {
       return null;
     }
+  }
+
+  function preferences() {
+    return window.ACPDashboardPreferences?.read?.() || {
+      transitionStyle: document.documentElement.dataset.transitionStyle || 'grow-fade',
+      transitionDurationMs: Number(document.documentElement.dataset.transitionDurationMs || 300),
+    };
   }
 
   function activeRoute() {
@@ -34,6 +42,33 @@
       await fetch(`/api/mode/${mode}`, { method: 'POST', cache: 'no-store' });
     } catch (error) {
     }
+  }
+
+  function revealPage() {
+    if (revealed) return;
+    revealed = true;
+    document.body.classList.remove('acp-page-booting');
+    document.body.classList.add('acp-page-ready');
+  }
+
+  function scheduleReveal() {
+    const activePage = String(document.body.dataset.activePage || '').toLowerCase();
+    if (activePage === 'airplay') {
+      window.addEventListener('acp:page-hydrated', revealPage, { once: true });
+      window.setTimeout(revealPage, 1300);
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.setTimeout(revealPage, 35));
+    });
+  }
+
+  function outgoingDelay() {
+    const current = preferences();
+    const duration = Math.max(0, Math.min(1500, Number(current.transitionDurationMs) || 0));
+    if (current.transitionStyle === 'none' || duration <= 0) return 0;
+    return Math.round(duration * 0.36);
   }
 
   function navigate(url, options = {}) {
@@ -69,13 +104,18 @@
 
     leaving = true;
     rememberNavigation(target);
-    /* Chromium performs the outgoing/incoming animation through
-       @view-transition. Other browsers simply navigate and receive the entry
-       fallback on the next document. */
-    window.location.assign(target.href);
+    const delay = outgoingDelay();
+    if (delay <= 0) {
+      window.location.assign(target.href);
+      return;
+    }
+
+    document.body.classList.add('acp-page-leaving');
+    window.setTimeout(() => window.location.assign(target.href), delay);
   }
 
   window.ACPNavigate = navigate;
+  window.ACPPageReady = revealPage;
 
   document.addEventListener('click', (event) => {
     const link = event.target.closest('a[href]');
@@ -87,4 +127,6 @@
     event.preventDefault();
     navigate(target.href);
   });
+
+  scheduleReveal();
 })();
