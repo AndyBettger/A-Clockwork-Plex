@@ -3,9 +3,8 @@
   window.__aClockworkPlexIdleReturnLoaded = true;
 
   const timeoutSeconds = Number(document.body.dataset.idleTimeoutSeconds || 0);
-  if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) return;
-
-  const timeoutMs = timeoutSeconds * 1000;
+  const timeoutEnabled = Number.isFinite(timeoutSeconds) && timeoutSeconds > 0;
+  const timeoutMs = timeoutEnabled ? timeoutSeconds * 1000 : 0;
   const modeRoutes = {
     clock: '/clock',
     weather: '/weather',
@@ -56,6 +55,13 @@
     return plexampState === 'playing' || airplayState === 'playing';
   }
 
+  function publishLiveAudio(livePayload) {
+    window.ACPLiveAudioSnapshot = livePayload;
+    window.dispatchEvent(new CustomEvent('acp:live-audio-status', {
+      detail: livePayload,
+    }));
+  }
+
   async function returnToMode(mode) {
     const targetMode = normaliseMode(mode);
     const route = modeRoutes[targetMode];
@@ -91,12 +97,11 @@
         fetch('/api/status', { cache: 'no-store' }),
         fetch('/api/audio/live', { cache: 'no-store' }),
       ]);
-      if (!statusResponse.ok || !liveResponse.ok) return;
 
-      const [statusPayload, livePayload] = await Promise.all([
-        statusResponse.json(),
-        liveResponse.json(),
-      ]);
+      const statusPayload = statusResponse.ok ? await statusResponse.json() : {};
+      const livePayload = liveResponse.ok ? await liveResponse.json() : {};
+      if (liveResponse.ok) publishLiveAudio(livePayload);
+      if (!statusResponse.ok || !liveResponse.ok) return;
 
       /* Playback counts as activity continuously. Pausing starts a complete fresh
          timeout, regardless of how long the player had already been open. */
@@ -105,7 +110,7 @@
         return;
       }
 
-      if (Date.now() - lastActivityAt < timeoutMs) return;
+      if (!timeoutEnabled || Date.now() - lastActivityAt < timeoutMs) return;
       await returnToMode(idleReturnMode());
     } catch (error) {
     } finally {
