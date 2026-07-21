@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en-GB">
+<html lang="en-GB" data-legacy-default-mode="{{ config.dashboard.default_mode | default('clock') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}A Clockwork Plex{% endblock %}</title>
+  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
@@ -15,7 +16,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css') }}">
 </head>
 <body
-  class="mode-{{ state.mode }}"
+  class="mode-{{ state.mode }} acp-page-booting"
   data-active-page="{{ active_page | default(state.mode) }}"
   data-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
   data-idle-timeout-seconds="{{ config.dashboard.idle_timeout_seconds | default(180) }}"
@@ -55,8 +56,8 @@
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
   <script src="{{ url_for('static', filename='js/plexamp-persistent.js') }}"></script>
   <script src="{{ url_for('static', filename='js/page-transitions.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/default-mode-start.js') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-autosave.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-dashboard-preferences.js') }}"></script>
   <script src="{{ url_for('static', filename='js/idle-return.js') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js') }}"></script>
   {% block scripts %}{% endblock %}
