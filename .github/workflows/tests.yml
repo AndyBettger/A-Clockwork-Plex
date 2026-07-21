@@ -84,6 +84,9 @@ jobs:
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
           grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
           grep -q "app/runner.py" systemd/a-clockwork-plex.service
+          grep -q "dpkg-query -L caps" scripts/install-master-eq.sh
+          grep -q 'library "$CAPS_LIBRARY"' scripts/install-master-eq.sh
+          grep -q "Preserving original EQ rollback snapshot" scripts/install-master-eq.sh
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
