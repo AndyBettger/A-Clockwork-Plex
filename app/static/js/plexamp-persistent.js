@@ -11,9 +11,29 @@
   let closingTimer = null;
   let notifyInFlight = false;
 
+  function navLinks() {
+    return Array.from(document.querySelectorAll('.main-nav a[href]'));
+  }
+
+  function routeForLink(link) {
+    try {
+      return new URL(link.href, window.location.href).pathname;
+    } catch (error) {
+      return '';
+    }
+  }
+
   function setNavState(open) {
-    document.querySelectorAll('.main-nav a[href="/plexamp"]').forEach((link) => {
-      link.classList.toggle('is-active', open);
+    const underlying = `/${String(document.body.dataset.activePage || 'clock').toLowerCase()}`;
+    navLinks().forEach((link) => {
+      const route = routeForLink(link);
+      const active = open ? route === '/plexamp' : route === underlying;
+      link.classList.toggle('is-active', active);
+      if (active) {
+        link.setAttribute('aria-current', 'page');
+      } else {
+        link.removeAttribute('aria-current');
+      }
     });
   }
 
