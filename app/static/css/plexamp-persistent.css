@@ -131,6 +131,67 @@ html[data-transition-style="none"] .persistent-plexamp {
   visibility: hidden;
 }
 
+/* Route changes use the shell as a neutral handover curtain. The visual content
+   performs the selected outgoing motion, but the dashboard beneath it is never
+   uncovered before the destination document is ready. */
+.persistent-plexamp.is-route-leaving {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: inset(0 0 0 0) !important;
+  transition: none !important;
+}
+
+.persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+.persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-duration: var(--acp-transition-out-duration);
+  animation-timing-function: cubic-bezier(.4, 0, 1, 1);
+  animation-fill-mode: both;
+  transform-origin: 50% 50%;
+}
+
+html[data-transition-style="none"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="none"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation: none !important;
+}
+
+html[data-transition-style="grow-fade"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="grow-fade"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-grow-fade;
+}
+
+html[data-transition-style="crossfade"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="crossfade"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-crossfade;
+}
+
+html[data-transition-style="horizontal-slide"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="horizontal-slide"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-horizontal-slide;
+}
+
+html[data-transition-style="vertical-lift"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="vertical-lift"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-vertical-lift;
+}
+
+html[data-transition-style="cover-reveal"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="cover-reveal"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-cover-reveal;
+}
+
+html[data-transition-style="zoom"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="zoom"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-zoom;
+}
+
+html[data-transition-style="blur-dissolve"] .persistent-plexamp.is-route-leaving .persistent-plexamp-frame,
+html[data-transition-style="blur-dissolve"] .persistent-plexamp.is-route-leaving .persistent-plexamp-loading {
+  animation-name: acp-out-blur-dissolve;
+}
+
 @keyframes persistent-plexamp-spin {
   to { transform: rotate(360deg); }
 }
@@ -140,5 +201,6 @@ html[data-transition-style="none"] .persistent-plexamp {
   .persistent-plexamp-frame,
   .persistent-plexamp-loading {
     transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
   }
 }
