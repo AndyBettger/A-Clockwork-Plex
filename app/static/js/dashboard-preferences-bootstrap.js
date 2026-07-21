@@ -2,6 +2,11 @@
   if (window.__aClockworkPlexDashboardPreferencesBootstrapLoaded) return;
   window.__aClockworkPlexDashboardPreferencesBootstrapLoaded = true;
 
+  /* This script is deliberately first in <head>. Mark the document before CSS or
+     body content can paint, then let page-transitions.js reveal it only after the
+     active surface reports that its real layout is ready. */
+  document.documentElement.classList.add('acp-document-booting');
+
   const MODE_KEY = 'a-clockwork-plex.startup-mode';
   const IDLE_MODE_KEY = 'a-clockwork-plex.idle-return-mode';
   const TRANSITION_STYLE_KEY = 'a-clockwork-plex.transition-style';
