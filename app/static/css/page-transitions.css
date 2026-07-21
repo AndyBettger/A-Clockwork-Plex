@@ -1,76 +1,150 @@
-/* Appliance-style transitions between dashboard modes. Chromium's
-   cross-document View Transition API gives Weather, Settings, Clock and AirPlay
-   the same soft grow/fade language as the in-page Audio and Plexamp layers. */
+/* Configurable appliance-style page motion.
+   Incoming pages remain hidden until their first proper render, preventing raw
+   AirPlay controls and unconverted segmented readouts from appearing mid-change. */
 
-@view-transition {
-  navigation: auto;
+:root {
+  --acp-transition-duration: 300ms;
+  --acp-transition-out-duration: 108ms;
+  --acp-transition-in-duration: 192ms;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
+body.acp-page-booting .screen {
+  opacity: 0;
+}
+
+body.acp-page-ready .screen,
+body.acp-page-leaving .screen {
+  animation-duration: var(--acp-transition-in-duration);
+  animation-timing-function: cubic-bezier(.16, .84, .24, 1);
   animation-fill-mode: both;
-  mix-blend-mode: normal;
-}
-
-::view-transition-old(root) {
-  animation: acp-view-old 190ms cubic-bezier(.4, 0, 1, 1) both;
-}
-
-::view-transition-new(root) {
-  animation: acp-view-new 300ms cubic-bezier(.16, .84, .24, 1) both;
-}
-
-@keyframes acp-view-old {
-  from {
-    opacity: 1;
-    transform: none;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-7px) scale(.985);
-  }
-}
-
-@keyframes acp-view-new {
-  from {
-    opacity: 0;
-    transform: translateY(11px) scale(.975);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Entry fallback for browsers without cross-document transitions. `backwards`
-   applies the hidden first frame only before/during animation and does not leave
-   a permanent transform stacking context around the navigation controls. */
-.screen {
-  animation: acp-page-enter 280ms cubic-bezier(.16, .84, .24, 1) backwards;
   transform-origin: 50% 50%;
 }
 
-@keyframes acp-page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(9px) scale(.982);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+body.acp-page-leaving .screen {
+  animation-duration: var(--acp-transition-out-duration);
+  animation-timing-function: cubic-bezier(.4, 0, 1, 1);
 }
 
-@supports (view-transition-name: root) {
-  .screen {
-    animation: none;
-  }
+html[data-transition-style="none"] body.acp-page-ready .screen,
+html[data-transition-style="none"] body.acp-page-leaving .screen {
+  animation: none !important;
+}
+
+html[data-transition-style="grow-fade"] body.acp-page-ready .screen {
+  animation-name: acp-in-grow-fade;
+}
+html[data-transition-style="grow-fade"] body.acp-page-leaving .screen {
+  animation-name: acp-out-grow-fade;
+}
+
+html[data-transition-style="crossfade"] body.acp-page-ready .screen {
+  animation-name: acp-in-crossfade;
+}
+html[data-transition-style="crossfade"] body.acp-page-leaving .screen {
+  animation-name: acp-out-crossfade;
+}
+
+html[data-transition-style="horizontal-slide"] body.acp-page-ready .screen {
+  animation-name: acp-in-horizontal-slide;
+}
+html[data-transition-style="horizontal-slide"] body.acp-page-leaving .screen {
+  animation-name: acp-out-horizontal-slide;
+}
+
+html[data-transition-style="vertical-lift"] body.acp-page-ready .screen {
+  animation-name: acp-in-vertical-lift;
+}
+html[data-transition-style="vertical-lift"] body.acp-page-leaving .screen {
+  animation-name: acp-out-vertical-lift;
+}
+
+html[data-transition-style="cover-reveal"] body.acp-page-ready .screen {
+  animation-name: acp-in-cover-reveal;
+}
+html[data-transition-style="cover-reveal"] body.acp-page-leaving .screen {
+  animation-name: acp-out-cover-reveal;
+}
+
+html[data-transition-style="zoom"] body.acp-page-ready .screen {
+  animation-name: acp-in-zoom;
+}
+html[data-transition-style="zoom"] body.acp-page-leaving .screen {
+  animation-name: acp-out-zoom;
+}
+
+html[data-transition-style="blur-dissolve"] body.acp-page-ready .screen {
+  animation-name: acp-in-blur-dissolve;
+}
+html[data-transition-style="blur-dissolve"] body.acp-page-leaving .screen {
+  animation-name: acp-out-blur-dissolve;
+}
+
+@keyframes acp-in-grow-fade {
+  from { opacity: 0; transform: translateY(10px) scale(.976); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes acp-out-grow-fade {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-7px) scale(.985); }
+}
+
+@keyframes acp-in-crossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes acp-out-crossfade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes acp-in-horizontal-slide {
+  from { opacity: 0; transform: translateX(5vw); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes acp-out-horizontal-slide {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(-4vw); }
+}
+
+@keyframes acp-in-vertical-lift {
+  from { opacity: 0; transform: translateY(5vh); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes acp-out-vertical-lift {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-4vh); }
+}
+
+@keyframes acp-in-cover-reveal {
+  from { opacity: .65; clip-path: inset(0 100% 0 0 round 22px); }
+  to { opacity: 1; clip-path: inset(0 0 0 0 round 0); }
+}
+@keyframes acp-out-cover-reveal {
+  from { opacity: 1; clip-path: inset(0 0 0 0 round 0); }
+  to { opacity: .15; clip-path: inset(0 0 0 100% round 22px); }
+}
+
+@keyframes acp-in-zoom {
+  from { opacity: 0; transform: scale(.91); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes acp-out-zoom {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(1.045); }
+}
+
+@keyframes acp-in-blur-dissolve {
+  from { opacity: 0; filter: blur(14px); transform: scale(.992); }
+  to { opacity: 1; filter: blur(0); transform: none; }
+}
+@keyframes acp-out-blur-dissolve {
+  from { opacity: 1; filter: blur(0); transform: none; }
+  to { opacity: 0; filter: blur(12px); transform: scale(1.008); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root),
-  ::view-transition-new(root),
-  .screen {
+  body.acp-page-ready .screen,
+  body.acp-page-leaving .screen {
     animation-duration: 1ms !important;
   }
 }
