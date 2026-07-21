@@ -5,6 +5,10 @@
   const card = document.querySelector('.airplay-now-card');
   if (!card) return;
 
+  /* Centre of the concentric receiving arcs in the 24×24 AirPlay path. */
+  const ARC_CENTRE_X = 11.959 / 24;
+  const ARC_CENTRE_Y = 12.1836 / 24;
+
   function number(value) {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -28,12 +32,9 @@
     const size = Math.floor(Math.max(260, Math.min(innerHeight, widthLimit, 720)));
     card.style.setProperty('--airplay-media-size', `${size}px`);
 
-    /* The media square is vertically centred only when width is the limiting
-       constraint. Work from the resulting real centre and grow each route wave
-       until it passes the farthest card corner. */
     const mediaTop = paddingTop + Math.max(0, (innerHeight - size) / 2);
-    const pulseX = paddingLeft + (size * 0.5);
-    const pulseY = mediaTop + (size * 0.505);
+    const pulseX = paddingLeft + (size * ARC_CENTRE_X);
+    const pulseY = mediaTop + (size * ARC_CENTRE_Y);
     const distances = [
       Math.hypot(pulseX, pulseY),
       Math.hypot(card.clientWidth - pulseX, pulseY),
@@ -44,6 +45,8 @@
     const baseDiameter = Math.max(1, size * 0.17);
     const finalScale = Math.max(8, (targetRadius * 2) / baseDiameter);
     card.style.setProperty('--airplay-wave-scale', finalScale.toFixed(2));
+    card.style.setProperty('--airplay-pulse-origin-x', `${(ARC_CENTRE_X * 100).toFixed(2)}%`);
+    card.style.setProperty('--airplay-pulse-origin-y', `${(ARC_CENTRE_Y * 100).toFixed(2)}%`);
   }
 
   const observer = typeof ResizeObserver === 'function'
