@@ -17,8 +17,14 @@
       masterConsole.insertAdjacentElement('beforebegin', strip);
     }
 
+    // Alarm trim is deliberately a persistent Settings control rather than a
+    // quick-access control. Removing it here leaves the Master knob comfortably
+    // visible on the 1280x800 bedside display.
+    masterConsole.querySelector('.nav-trim-control.is-alarm-knob')?.remove();
+
     strip.classList.add('acp-eq-strip--drawer');
     master.classList.add('has-master-eq');
+    masterConsole.classList.add('is-master-only');
 
     const heading = strip.querySelector('.acp-eq-heading strong');
     if (heading) heading.textContent = 'EQ';
