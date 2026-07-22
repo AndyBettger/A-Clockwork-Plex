@@ -94,6 +94,9 @@ jobs:
           grep -q 'library "$CAPS_LIBRARY"' scripts/install-master-eq.sh
           grep -q "Preserving original EQ rollback snapshot" scripts/install-master-eq.sh
           grep -q "amixer -D acp_equal scontrols" scripts/install-master-eq.sh
+          grep -A2 -F 'pcm.acp_equal {' scripts/install-master-eq.sh | grep -q 'type equal'
+          ! grep -q 'pcm.acp_equal_engine' scripts/install-master-eq.sh
+          grep -q 'for pcm in acp_plexamp acp_airplay acp_alarm' scripts/install-master-eq.sh
           ! grep -q 'touch "$EQ_CONTROL_FILE"' scripts/install-master-eq.sh
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
