@@ -69,14 +69,28 @@ def clamp_db(value: Any) -> float:
     return round(number * 2) / 2
 
 
-def db_to_raw_percent(db_value: float) -> int:
+def db_to_control_value(db_value: float) -> int:
+    """Return the closest integer control value exposed by alsaequal.
+
+    Alsaequal presents Eq10's -48 dB to +24 dB range as integers 0..100.
+    Exact 0 dB would be 66.666..., so 67 is the closest representable value.
+    """
     span = PLUGIN_MAX_DB - PLUGIN_MIN_DB
     return max(0, min(100, round(((db_value - PLUGIN_MIN_DB) / span) * 100)))
 
 
-def raw_percent_to_db(raw_percent: int) -> float:
-    value = max(0, min(100, int(raw_percent)))
+def control_value_to_db(control_value: int) -> float:
+    value = max(0, min(100, int(control_value)))
     return PLUGIN_MIN_DB + (value / 100) * (PLUGIN_MAX_DB - PLUGIN_MIN_DB)
+
+
+# Compatibility names used by older tests/status consumers.
+def db_to_raw_percent(db_value: float) -> int:
+    return db_to_control_value(db_value)
+
+
+def raw_percent_to_db(raw_percent: int) -> float:
+    return control_value_to_db(raw_percent)
 
 
 def default_state() -> dict[str, Any]:
@@ -130,6 +144,13 @@ def discover_controls(device: str) -> tuple[list[str], str | None]:
 
 
 def parse_control_contents(output: str) -> dict[str, dict[str, float | int | None]]:
+    """Parse diagnostic mixer output without inventing dB from percentages.
+
+    Alsaequal writes a float, then its read callback converts that float back to
+    a long by truncation. A control written as 67 can therefore be reported by
+    amixer as 66%. That reported percentage is useful for diagnostics but is not
+    a reliable inverse mapping to the dB value that was written.
+    """
     controls: dict[str, dict[str, float | int | None]] = {}
     matches = list(re.finditer(r"(?m)^Simple mixer control '([^']+)'", output))
     for index, match in enumerate(matches):
@@ -139,46 +160,74 @@ def parse_control_contents(output: str) -> dict[str, dict[str, float | int | Non
         block = output[start:end]
         raw_matches = re.findall(r'\[(\d{1,3})%\]', block)
         db_matches = re.findall(r'\[(-?\d+(?:\.\d+)?)dB\]', block)
-        raw = int(raw_matches[0]) if raw_matches else None
-        db_value = float(db_matches[0]) if db_matches else (raw_percent_to_db(raw) if raw is not None else None)
+        reported_percent = int(raw_matches[0]) if raw_matches else None
+        reported_db = float(db_matches[0]) if db_matches else None
         controls[name] = {
-            'raw_percent': raw,
-            'db': round(db_value, 2) if db_value is not None else None,
+            'reported_percent': reported_percent,
+            'reported_db': round(reported_db, 2) if reported_db is not None else None,
         }
     return controls
 
 
-def read_actual(device: str, names: list[str]) -> tuple[dict[str, float], list[dict[str, Any]], str | None]:
+def read_controls(
+    device: str,
+    names: list[str],
+    applied_bands: dict[str, float],
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], str | None]:
     result = run(['/usr/bin/amixer', '-D', device, 'scontents'])
     output = '\n'.join(part for part in (result.stdout, result.stderr) if part).strip()
     if result.returncode:
         return {}, [], output or 'Could not read equalizer controls.'
+
     parsed = parse_control_contents(output)
-    actual: dict[str, float] = {}
+    band_diagnostics: dict[str, dict[str, Any]] = {}
     control_payload: list[dict[str, Any]] = []
+
     for band, indexes in BAND_INDEXES.items():
-        band_values: list[float] = []
+        requested_db = clamp_db(applied_bands.get(band, 0.0))
+        control_value = db_to_control_value(requested_db)
+        quantised_db = round(control_value_to_db(control_value), 2)
+        reported_values: list[int] = []
+        in_sync = True
+
         for index in indexes:
             name = names[index]
-            control = parsed.get(name, {})
-            value = control.get('db')
-            if isinstance(value, (int, float)):
-                band_values.append(float(value))
-            control_payload.append({'band': band, 'name': name, **control})
-        actual[band] = round((sum(band_values) / len(band_values)) * 2) / 2 if band_values else 0.0
-        actual[band] = max(USER_MIN_DB, min(USER_MAX_DB, actual[band]))
-    return actual, control_payload, None
+            diagnostic = parsed.get(name, {})
+            reported = diagnostic.get('reported_percent')
+            if isinstance(reported, int):
+                reported_values.append(reported)
+                # The plugin read callback can truncate by one because it stores
+                # the control as float and returns it through a long integer API.
+                in_sync = in_sync and abs(reported - control_value) <= 1
+            control_payload.append({
+                'band': band,
+                'name': name,
+                'requested_db': requested_db,
+                'control_value': control_value,
+                'quantised_db': quantised_db,
+                'in_sync': abs(reported - control_value) <= 1 if isinstance(reported, int) else None,
+                **diagnostic,
+            })
+
+        band_diagnostics[band] = {
+            'requested_db': requested_db,
+            'control_value': control_value,
+            'quantised_db': quantised_db,
+            'reported_percent': (
+                round(sum(reported_values) / len(reported_values), 2)
+                if reported_values else None
+            ),
+            'in_sync': in_sync if reported_values else None,
+        }
+
+    return band_diagnostics, control_payload, None
 
 
 def set_controls(device: str, names: list[str], band: str, db_value: float) -> str | None:
-    raw_value = db_to_raw_percent(db_value)
+    control_value = db_to_control_value(db_value)
     for index in BAND_INDEXES[band]:
-        # Eq10 exposes integer controls from 0 to 100. Passing "67%" makes
-        # amixer perform a second percentage conversion and can land on 66,
-        # which reads as roughly -0.5 dB. Pass the integer control value so
-        # neutral is the exact centre value 67.
         result = run([
-            '/usr/bin/amixer', '-D', device, '-q', 'sset', names[index], str(raw_value)
+            '/usr/bin/amixer', '-D', device, '-q', 'sset', names[index], str(control_value)
         ])
         if result.returncode:
             output = '\n'.join(part for part in (result.stdout, result.stderr) if part).strip()
@@ -194,6 +243,32 @@ def apply_bands(device: str, names: list[str], bands: dict[str, Any]) -> str | N
     return None
 
 
+def unavailable_status(state: dict[str, Any], device: str, error: str) -> dict[str, Any]:
+    applied_bands = {band: 0.0 for band in BAND_INDEXES} if state['bypassed'] else state['bands']
+    return {
+        'ok': False,
+        'available': False,
+        'installed': Path('/usr/lib').exists(),
+        'configured': False,
+        'device': device,
+        'bypassed': state['bypassed'],
+        'bands': {
+            band: {
+                'db': state['bands'][band],
+                'stored_db': state['bands'][band],
+                'applied_db': applied_bands[band],
+                'effective_db': round(control_value_to_db(db_to_control_value(applied_bands[band])), 2),
+                'minimum_db': USER_MIN_DB,
+                'maximum_db': USER_MAX_DB,
+                'available': False,
+            }
+            for band in BAND_INDEXES
+        },
+        'controls': [],
+        'error': error,
+    }
+
+
 def full_status() -> dict[str, Any]:
     config = load_config()
     device = config['ALSA_EQ_DEVICE']
@@ -201,41 +276,33 @@ def full_status() -> dict[str, Any]:
     state = load_state(state_path)
     names, discovery_error = discover_controls(device)
     if discovery_error:
-        return {
-            'ok': False,
-            'available': False,
-            'installed': Path('/usr/lib').exists(),
-            'configured': False,
-            'device': device,
-            'bypassed': state['bypassed'],
-            'bands': {
-                band: {
-                    'db': state['bands'][band],
-                    'stored_db': state['bands'][band],
-                    'effective_db': 0.0 if state['bypassed'] else state['bands'][band],
-                    'minimum_db': USER_MIN_DB,
-                    'maximum_db': USER_MAX_DB,
-                    'available': False,
-                }
-                for band in BAND_INDEXES
-            },
-            'controls': [],
-            'error': discovery_error,
-        }
+        return unavailable_status(state, device, discovery_error)
 
-    actual, controls, read_error = read_actual(device, names)
-    bands = {}
+    applied_bands = {band: 0.0 for band in BAND_INDEXES} if state['bypassed'] else state['bands']
+    diagnostics, controls, read_error = read_controls(device, names, applied_bands)
+    bands: dict[str, dict[str, Any]] = {}
+
     for band in BAND_INDEXES:
-        effective = actual.get(band, 0.0)
-        display = state['bands'][band] if state['bypassed'] else effective
+        diagnostic = diagnostics.get(band, {})
         bands[band] = {
-            'db': display,
+            # The managed half-dB request is the public/UI value. The plugin's
+            # truncated percentage readback is diagnostic only.
+            'db': state['bands'][band],
             'stored_db': state['bands'][band],
-            'effective_db': effective,
+            'applied_db': applied_bands[band],
+            'effective_db': diagnostic.get(
+                'quantised_db',
+                round(control_value_to_db(db_to_control_value(applied_bands[band])), 2),
+            ),
+            'control_value': diagnostic.get('control_value'),
+            'reported_percent': diagnostic.get('reported_percent'),
+            'in_sync': diagnostic.get('in_sync'),
             'minimum_db': USER_MIN_DB,
             'maximum_db': USER_MAX_DB,
             'available': read_error is None,
         }
+
+    neutral_control = db_to_control_value(0.0)
     return {
         'ok': read_error is None,
         'available': read_error is None,
@@ -245,7 +312,12 @@ def full_status() -> dict[str, Any]:
         'bypassed': state['bypassed'],
         'bands': bands,
         'controls': controls,
-        'neutral_raw_percent': db_to_raw_percent(0),
+        'neutral_control_value': neutral_control,
+        'neutral_effective_db': round(control_value_to_db(neutral_control), 2),
+        'quantisation_note': (
+            'Alsaequal exposes Eq10 through integer controls 0..100; '
+            '0 dB maps to 66.666, so control 67 (+0.24 dB) is the closest available neutral.'
+        ),
         'error': read_error,
     }
 
@@ -284,10 +356,8 @@ def set_bypass(enabled: bool) -> dict[str, Any]:
         raise RuntimeError(error)
 
     if enabled and not state['bypassed']:
-        actual, _, read_error = read_actual(device, names)
-        if not read_error:
-            for band in BAND_INDEXES:
-                state['bands'][band] = clamp_db(actual.get(band, state['bands'][band]))
+        # The managed state already contains the authoritative curve. Do not
+        # overwrite it with alsaequal's lossy/truncated percentage readback.
         error = apply_bands(device, names, {band: 0.0 for band in BAND_INDEXES})
         if error:
             raise RuntimeError(error)
