@@ -83,12 +83,13 @@ class EqHelperMappingTests(unittest.TestCase):
         spec.loader.exec_module(module)
         cls.helper_module: ModuleType = module
 
-    def test_neutral_maps_to_eq10_centre(self):
-        self.assertEqual(self.helper_module.db_to_raw_percent(0), 67)
+    def test_neutral_uses_closest_available_control_value(self):
+        self.assertEqual(self.helper_module.db_to_control_value(0), 67)
+        self.assertAlmostEqual(self.helper_module.control_value_to_db(67), 0.24, places=2)
 
     def test_restrained_range_maps_inside_plugin_range(self):
-        self.assertEqual(self.helper_module.db_to_raw_percent(-6), 58)
-        self.assertEqual(self.helper_module.db_to_raw_percent(6), 75)
+        self.assertEqual(self.helper_module.db_to_control_value(-6), 58)
+        self.assertEqual(self.helper_module.db_to_control_value(6), 75)
 
     def test_band_groups_cover_all_ten_controls(self):
         indexes = [index for group in self.helper_module.BAND_INDEXES.values() for index in group]
@@ -113,6 +114,41 @@ class EqHelperMappingTests(unittest.TestCase):
         self.assertEqual(len(commands), 3)
         self.assertTrue(all(command[-1] == '67' for command in commands))
         self.assertTrue(all(not command[-1].endswith('%') for command in commands))
+
+    def test_truncated_percent_readback_is_diagnostic_not_db(self):
+        output = """
+Simple mixer control '00. 31 Hz',0
+  Front Left: 66 [66%]
+  Front Right: 66 [66%]
+"""
+        parsed = self.helper_module.parse_control_contents(output)
+        control = parsed['00. 31 Hz']
+        self.assertEqual(control['reported_percent'], 66)
+        self.assertIsNone(control['reported_db'])
+
+    def test_read_controls_accepts_one_step_truncated_neutral(self):
+        names = [f'{index:02d}. Band' for index in range(10)]
+        blocks = []
+        for name in names:
+            blocks.append(
+                f"Simple mixer control '{name}',0\n"
+                "  Front Left: 66 [66%]\n"
+                "  Front Right: 66 [66%]\n"
+            )
+        original_run = self.helper_module.run
+        self.helper_module.run = lambda *args, **kwargs: FakeResult(stdout=''.join(blocks))
+        try:
+            diagnostics, controls, error = self.helper_module.read_controls(
+                'acp_equal', names, {'bass': 0.0, 'mid': 0.0, 'treble': 0.0}
+            )
+        finally:
+            self.helper_module.run = original_run
+
+        self.assertIsNone(error)
+        self.assertTrue(diagnostics['bass']['in_sync'])
+        self.assertEqual(diagnostics['bass']['control_value'], 67)
+        self.assertAlmostEqual(diagnostics['bass']['quantised_db'], 0.24, places=2)
+        self.assertTrue(all(control['requested_db'] == 0.0 for control in controls))
 
 
 if __name__ == '__main__':
