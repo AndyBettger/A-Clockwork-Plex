@@ -8,7 +8,7 @@
   z-index: 0;
   min-width: 0;
   margin: 0.42rem 0 0.2rem;
-  padding: 0.42rem 0.5rem 0.34rem;
+  padding: 0.42rem 0.58rem 0.46rem;
   border-radius: 0.78rem;
   background:
     linear-gradient(180deg, rgba(24, 61, 91, 0.24), rgba(4, 9, 19, 0.34)),
@@ -18,7 +18,7 @@
 
 .acp-eq-strip--drawer .acp-eq-heading {
   gap: 0.42rem;
-  margin-bottom: 0.28rem;
+  margin-bottom: 0.3rem;
 }
 
 .acp-eq-strip--drawer .acp-eq-heading > div {
@@ -46,8 +46,7 @@
 .acp-eq-strip--drawer .acp-eq-console {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.42rem;
 }
 
@@ -55,35 +54,45 @@
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.22rem;
+  gap: clamp(0.6rem, 1.4vmin, 1rem);
+  padding-inline: 0.22rem;
 }
 
 .acp-eq-strip--drawer .acp-eq-control {
   min-width: 0;
-  gap: 0.08rem;
+  gap: 0.09rem;
 }
 
 .acp-eq-strip--drawer .acp-eq-knob {
-  width: clamp(2.15rem, 4.3vmin, 2.55rem);
-  height: clamp(2.15rem, 4.3vmin, 2.55rem);
+  width: clamp(2.8rem, 5.6vmin, 3.25rem);
+  height: clamp(2.8rem, 5.6vmin, 3.25rem);
 }
 
 .acp-eq-strip--drawer .acp-eq-control > strong {
-  font-size: clamp(0.54rem, 1vmin, 0.64rem);
+  font-size: clamp(0.56rem, 1.05vmin, 0.66rem);
 }
 
 .acp-eq-strip--drawer .acp-eq-control output {
-  font-size: clamp(0.58rem, 1.05vmin, 0.68rem);
+  font-size: clamp(0.6rem, 1.08vmin, 0.7rem);
 }
 
 .acp-eq-strip--drawer .acp-eq-actions {
-  gap: 0.24rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
 }
 
 .acp-eq-strip--drawer .acp-eq-button {
-  min-width: 4.45rem;
-  padding: 0.34rem 0.4rem;
-  font-size: clamp(0.52rem, 0.92vmin, 0.6rem);
+  min-width: 0;
+  width: 100%;
+  padding: 0.36rem 0.45rem;
+  font-size: clamp(0.53rem, 0.95vmin, 0.61rem);
+}
+
+/* Drawer changes save silently like the existing knobs and faders. Genuine
+   errors remain visible; routine success acknowledgements do not consume room. */
+.acp-eq-strip--drawer .acp-eq-message:not(.is-error) {
+  display: none;
 }
 
 .acp-eq-strip--drawer .acp-eq-message {
@@ -96,19 +105,25 @@
   display: none;
 }
 
-.nav-master-channel.has-master-eq .nav-master-console {
-  grid-template-rows: minmax(92px, 0.55fr) minmax(205px, 1.45fr);
-  gap: 8px;
-  padding-top: 3px;
+.nav-master-channel.has-master-eq .nav-master-console.is-master-only {
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
+  padding: 4px 0 2px;
+}
+
+.nav-master-channel.has-master-eq .nav-master-console.is-master-only .is-master-knob {
+  align-self: center;
 }
 
 @media (max-height: 720px) {
   .acp-eq-strip.acp-eq-strip--drawer {
     margin-top: 0.28rem;
-    padding-block: 0.32rem 0.26rem;
+    padding-block: 0.32rem 0.34rem;
   }
 
-  .nav-master-channel.has-master-eq .nav-master-console {
-    grid-template-rows: minmax(80px, 0.52fr) minmax(180px, 1.48fr);
+  .acp-eq-strip--drawer .acp-eq-knob {
+    width: clamp(2.5rem, 5vmin, 2.9rem);
+    height: clamp(2.5rem, 5vmin, 2.9rem);
   }
 }
