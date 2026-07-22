@@ -55,6 +55,7 @@ jobs:
           node --check app/static/js/dashboard-preferences-bootstrap.js
           node --check app/static/js/audio-polish.js
           node --check app/static/js/audio-eq.js
+          node --check app/static/js/audio-eq-drawer-layout.js
           node --check app/static/js/audio-state-isolation.js
           node --check app/static/js/airplay-start-commit.js
           node --check app/static/js/fader-calibration.js
@@ -79,6 +80,9 @@ jobs:
           grep -q "nav-drawer-lifecycle.js" app/templates/base.html
           grep -q "audio-eq.css" app/templates/base.html
           grep -q "audio-eq.js" app/templates/base.html
+          grep -q "audio-eq-drawer-layout.css" app/templates/base.html
+          grep -q "audio-eq-drawer-layout.js" app/templates/base.html
+          grep -q "masterConsole.insertAdjacentElement" app/static/js/audio-eq-drawer-layout.js
           grep -q "dashboard-preferences-bootstrap.js" app/templates/base.html
           grep -q "settings-dashboard-preferences.js" app/templates/base.html
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
