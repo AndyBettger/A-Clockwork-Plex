@@ -171,10 +171,14 @@ def read_actual(device: str, names: list[str]) -> tuple[dict[str, float], list[d
 
 
 def set_controls(device: str, names: list[str], band: str, db_value: float) -> str | None:
-    raw_percent = db_to_raw_percent(db_value)
+    raw_value = db_to_raw_percent(db_value)
     for index in BAND_INDEXES[band]:
+        # Eq10 exposes integer controls from 0 to 100. Passing "67%" makes
+        # amixer perform a second percentage conversion and can land on 66,
+        # which reads as roughly -0.5 dB. Pass the integer control value so
+        # neutral is the exact centre value 67.
         result = run([
-            '/usr/bin/amixer', '-D', device, '-q', 'sset', names[index], f'{raw_percent}%'
+            '/usr/bin/amixer', '-D', device, '-q', 'sset', names[index], str(raw_value)
         ])
         if result.returncode:
             output = '\n'.join(part for part in (result.stdout, result.stderr) if part).strip()
