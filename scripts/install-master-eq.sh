@@ -88,7 +88,7 @@ if [[ $# -gt 0 ]]; then
     exit 64
 fi
 
-for command in apt-get dpkg-query aplay amixer python3 install visudo timeout systemctl stat awk; do
+for command in apt-get dpkg-query aplay amixer python3 install visudo systemctl stat awk; do
     require_command "$command"
 done
 
@@ -110,9 +110,9 @@ elif ! dpkg-query -W -f='${Status}' caps 2>/dev/null | grep -q 'install ok insta
     DEBIAN_FRONTEND=noninteractive apt-get install -y caps
 fi
 
-# A bare "caps.so" relies on LD_LIBRARY_PATH. Debian installs the LADSPA
-# module in /usr/lib/ladspa, which is not guaranteed to be in a systemd
-# service's loader path. Resolve the package-owned file and use it explicitly.
+# A bare "caps.so" relies on LADSPA_PATH. Debian installs the LADSPA module
+# in /usr/lib/ladspa, which is not guaranteed to be in a systemd service's
+# environment. Resolve the package-owned file and use it explicitly.
 if [[ -z "${CAPS_LIBRARY:-}" ]]; then
     CAPS_LIBRARY="$(dpkg-query -L caps 2>/dev/null | awk '/\/caps\.so$/ { print; exit }')"
 fi
@@ -214,6 +214,7 @@ def replace_pcm_slave(source: str, pcm_name: str, slave_name: str) -> str:
         raise SystemExit(f'Missing slave.pcm in {marker}.')
     return source[:start] + updated + source[end:]
 
+
 for pcm in ('acp_plexamp_volume', 'acp_airplay_volume', 'acp_alarm_volume'):
     text = replace_pcm_slave(text, pcm, 'acp_equal')
 
@@ -241,17 +242,37 @@ EOF
 chmod 0440 "$EQ_SUDOERS"
 visudo -cf "$EQ_SUDOERS" >/dev/null
 
-touch "$EQ_CONTROL_FILE"
+# alsaequal creates and populates its binary control structure only when the
+# file does not exist. A zero-byte placeholder is unsafe: mmap access can
+# raise SIGBUS. Preserve a valid existing file, but clean up a failed empty one.
+if [[ -e "$EQ_CONTROL_FILE" && ! -s "$EQ_CONTROL_FILE" ]]; then
+    rm -f "$EQ_CONTROL_FILE"
+fi
+
+if ! /usr/bin/amixer -D acp_equal scontrols >/dev/null; then
+    echo "The EQ control structure could not be initialised." >&2
+    echo "Resolved CAPS library: $CAPS_LIBRARY" >&2
+    exit 1
+fi
+
 chown root:audio "$EQ_CONTROL_FILE" 2>/dev/null || chown root:root "$EQ_CONTROL_FILE"
 chmod 0664 "$EQ_CONTROL_FILE"
 
-timeout 0.8 /usr/bin/aplay -q -D acp_equal -f S16_LE -r 44100 -c 2 /dev/zero >/dev/null 2>&1 || true
 if ! "$EQ_HELPER" neutral >/dev/null; then
     echo "The EQ controls did not initialise successfully." >&2
     echo "Resolved CAPS library: $CAPS_LIBRARY" >&2
     "$EQ_HELPER" status | python3 -m json.tool >&2 || true
     exit 1
 fi
+
+# Run a finite second of silence through the real PCM. Unlike an open-ended
+# /dev/zero stream hidden behind timeout, this returns the actual aplay status.
+if ! /usr/bin/aplay -q -D acp_equal -f S16_LE -r 44100 -c 2 -d 1 /dev/zero >/dev/null 2>&1; then
+    echo "The EQ PCM did not pass its finite silent playback test." >&2
+    "$EQ_HELPER" status | python3 -m json.tool >&2 || true
+    exit 1
+fi
+
 chown root:audio "$EQ_CONTROL_FILE" 2>/dev/null || true
 chmod 0664 "$EQ_CONTROL_FILE" 2>/dev/null || true
 
