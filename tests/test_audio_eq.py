@@ -94,6 +94,26 @@ class EqHelperMappingTests(unittest.TestCase):
         indexes = [index for group in self.helper_module.BAND_INDEXES.values() for index in group]
         self.assertEqual(sorted(indexes), list(range(10)))
 
+    def test_set_controls_uses_exact_integer_not_percent_syntax(self):
+        commands = []
+        original_run = self.helper_module.run
+
+        def fake_run(command, **kwargs):
+            commands.append(command)
+            return FakeResult()
+
+        self.helper_module.run = fake_run
+        try:
+            names = [f'{index:02d}. Band' for index in range(10)]
+            error = self.helper_module.set_controls('acp_equal', names, 'bass', 0.0)
+        finally:
+            self.helper_module.run = original_run
+
+        self.assertIsNone(error)
+        self.assertEqual(len(commands), 3)
+        self.assertTrue(all(command[-1] == '67' for command in commands))
+        self.assertTrue(all(not command[-1].endswith('%') for command in commands))
+
 
 if __name__ == '__main__':
     unittest.main()
