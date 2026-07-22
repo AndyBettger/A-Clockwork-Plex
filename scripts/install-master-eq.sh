@@ -151,22 +151,18 @@ ctl.acp_equal {
     channels 2
 }
 
-pcm.acp_equal_engine {
+# Each source-facing PCM (acp_plexamp/acp_airplay/acp_alarm) already owns the
+# single input-side plug needed to convert application audio to the floating-
+# point format accepted by alsaequal. Keep this PCM as the equal engine itself.
+# Wrapping it in another plug created a nested conversion graph that could leave
+# ALSA with an empty hardware-parameter interval and abort Shairport/aplay.
+pcm.acp_equal {
     type equal
     slave.pcm "acp_master"
     controls "$EQ_CONTROL_FILE"
     library "$CAPS_LIBRARY"
     module "Eq10"
     channels 2
-}
-
-pcm.acp_equal {
-    type plug
-    slave.pcm "acp_equal_engine"
-    hint {
-        show on
-        description "A Clockwork Plex - Master EQ"
-    }
 }
 EOF
 chmod 0644 "$EQ_CONFIG"
@@ -265,13 +261,15 @@ if ! "$EQ_HELPER" neutral >/dev/null; then
     exit 1
 fi
 
-# Run a finite second of silence through the real PCM. Unlike an open-ended
-# /dev/zero stream hidden behind timeout, this returns the actual aplay status.
-if ! /usr/bin/aplay -q -D acp_equal -f S16_LE -r 44100 -c 2 -d 1 /dev/zero >/dev/null 2>&1; then
-    echo "The EQ PCM did not pass its finite silent playback test." >&2
-    "$EQ_HELPER" status | python3 -m json.tool >&2 || true
-    exit 1
-fi
+# Test the complete application paths, not the raw floating-point equal engine.
+# This catches the exact source/softvol/EQ/master negotiation used by Shairport.
+for pcm in acp_plexamp acp_airplay acp_alarm; do
+    if ! /usr/bin/aplay -q -D "$pcm" -f S16_LE -r 44100 -c 2 -d 1 /dev/zero >/dev/null 2>&1; then
+        echo "The $pcm PCM did not pass its finite silent playback test." >&2
+        "$EQ_HELPER" status | python3 -m json.tool >&2 || true
+        exit 1
+    fi
+done
 
 chown root:audio "$EQ_CONTROL_FILE" 2>/dev/null || true
 chmod 0664 "$EQ_CONTROL_FILE" 2>/dev/null || true
@@ -281,7 +279,7 @@ systemctl daemon-reload
 
 echo
 echo "A Clockwork Plex master EQ installed."
-echo "  Equalizer PCM: acp_equal"
+echo "  Equalizer engine: acp_equal"
 echo "  Control device: acp_equal"
 echo "  CAPS library: $CAPS_LIBRARY"
 echo "  Range: Bass/Mid/Treble -6 dB to +6 dB"
