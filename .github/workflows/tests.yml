@@ -83,6 +83,8 @@ jobs:
           grep -q "audio-eq-drawer-layout.css" app/templates/base.html
           grep -q "audio-eq-drawer-layout.js" app/templates/base.html
           grep -q "masterConsole.insertAdjacentElement" app/static/js/audio-eq-drawer-layout.js
+          grep -q "is-alarm-knob')?.remove" app/static/js/audio-eq-drawer-layout.js
+          grep -q "is-master-only" app/static/css/audio-eq-drawer-layout.css
           grep -q "dashboard-preferences-bootstrap.js" app/templates/base.html
           grep -q "settings-dashboard-preferences.js" app/templates/base.html
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
@@ -91,6 +93,8 @@ jobs:
           grep -q "dpkg-query -L caps" scripts/install-master-eq.sh
           grep -q 'library "$CAPS_LIBRARY"' scripts/install-master-eq.sh
           grep -q "Preserving original EQ rollback snapshot" scripts/install-master-eq.sh
+          grep -q "amixer -D acp_equal scontrols" scripts/install-master-eq.sh
+          ! grep -q 'touch "$EQ_CONTROL_FILE"' scripts/install-master-eq.sh
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
