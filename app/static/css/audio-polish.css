@@ -1,0 +1,61 @@
+/* Motion and viewport constraints for the live Audio drawer. */
+
+.nav-drawer {
+  transition:
+    transform 260ms cubic-bezier(.2, .78, .2, 1),
+    opacity 240ms ease,
+    border-radius 260ms ease,
+    width 260ms ease;
+}
+
+.nav-live-mixer {
+  transform-origin: 50% 100%;
+  opacity: 0;
+  transform: translateY(18px) scale(.965);
+  transition:
+    opacity 300ms ease,
+    transform 320ms cubic-bezier(.16, .84, .24, 1);
+  will-change: opacity, transform;
+}
+
+.nav-live-mixer.is-audio-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.nav-live-mixer.is-audio-closing {
+  opacity: 0;
+  transform: translateY(16px) scale(.97);
+  transition-duration: 220ms;
+}
+
+.nav-live-step-row {
+  display: none !important;
+}
+
+/* The third row consumes only the space actually left inside the fixed-height
+   mixer. No minimum track height is allowed to push the range through the
+   bottom of the channel card. */
+.nav-source-channel {
+  grid-template-rows: auto 102px minmax(0, 1fr) !important;
+  overflow: hidden;
+}
+
+.nav-live-fader {
+  min-height: 0 !important;
+  height: 100% !important;
+  padding-bottom: 0 !important;
+}
+
+@media (max-height: 700px), (max-width: 860px) {
+  .nav-source-channel {
+    grid-template-rows: auto 88px minmax(0, 1fr) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-drawer,
+  .nav-live-mixer {
+    transition-duration: 1ms !important;
+  }
+}

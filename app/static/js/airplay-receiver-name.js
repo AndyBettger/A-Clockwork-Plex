@@ -13,19 +13,29 @@
 
   let normalising = false;
 
+  function replaceOnlyWhenChanged(element, nextText) {
+    if (!element || element.textContent === nextText) {
+      return false;
+    }
+    element.textContent = nextText;
+    return true;
+  }
+
   function normaliseReadyCopy() {
     if (normalising) {
       return;
     }
     normalising = true;
 
-    if (configuredName && title.textContent.trim() === configuredName) {
-      title.textContent = receiverName;
+    const currentTitle = title.textContent.trim();
+    if (configuredName && currentTitle === configuredName && receiverName !== currentTitle) {
+      replaceOnlyWhenChanged(title, receiverName);
     }
 
     const detailText = detail.textContent;
     if (configuredName && detailText.includes(configuredName)) {
-      detail.textContent = detailText.split(configuredName).join(receiverName);
+      const nextDetail = detailText.split(configuredName).join(receiverName);
+      replaceOnlyWhenChanged(detail, nextDetail);
     }
 
     normalising = false;

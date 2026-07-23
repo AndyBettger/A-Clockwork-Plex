@@ -1,40 +1,44 @@
 # A Clockwork Plex
 
-A Raspberry Pi touchscreen dashboard for Plexamp Headless, NFC-triggered albums, AirPlay handoff, local Ecowitt weather, a bedside clock and future alarm features — hopefully with no toast-related incidents.
+A Raspberry Pi touchscreen dashboard for Plexamp Headless, NFC-triggered albums, AirPlay handoff, local Ecowitt weather, a bedside clock and alarm features — hopefully with no toast-related incidents.
 
 A Clockwork Plex is the dashboard/appliance layer for [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener). The NFC listener reads album tags and starts Plexamp playback; this project provides the touchscreen interface around it.
 
+> Development note: the `feature/alarm-engine` branch contains the current alarm runtime, shared ALSA audio path, Mk II live mixer, unified AirPlay layout, persistent preloaded Plexamp layer and configurable hydrated page transitions. Draft PR #2 remains deliberately unmerged while Raspberry Pi testing continues. Ordinary scheduled alarm audio is still locked.
+
 ## Current status
 
-The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation and Settings screens are working on Raspberry Pi touchscreen hardware. Alarm playback, idle return and automatic day/night dimming are represented in Settings but remain future work.
+The Clock, Weather, embedded Plexamp, AirPlay Ready/Now Playing, navigation, autosaving Settings workspace, alarm runtime, shared audio path and controlled alarm-audio tests are working on Raspberry Pi touchscreen hardware.
 
 | Area | Current behaviour |
 |---|---|
-| **Clock** | Large custom fourteen-segment SVG clock and date, 12/24-hour format, balanced punctuation and live weather cards. |
+| **Clock** | Large custom fourteen-segment SVG clock and date, 12/24-hour format, balanced punctuation and live weather cards. Its first visible frame waits for the live compact-card rebuild and settled fonts. |
 | **Clock weather cards** | Touch-configurable ordering with compact combined cards for indoor/outdoor temperature, indoor/outdoor humidity, wind speed/gust, rain today/event rain and solar/UV. |
 | **Weather** | Detailed Ecowitt console with conditions, daily low/high values, 16-point wind direction, pressure/barometer forecast, rain gauges, station status and auto-refresh. |
-| **Plexamp** | Plexamp Headless embedded in a dashboard iframe so the touchscreen navigation handle remains available. |
-| **NFC handoff** | A successful NFC album scan can start Plexamp and switch the dashboard to the embedded Plexamp screen. |
-| **AirPlay handoff** | Shairport Sync hooks pause/stop Plexamp while AirPlay owns the DAC, then restart Plexamp and return to Clock when the session ends. |
-| **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, volume, transport controls and a glance row containing time/date, outdoor temperature/humidity and barometer status. |
-| **AirPlay pause hold** | Pausing from the Pi screen keeps Now Playing available for resume, with a watchdog to prevent stale sessions. |
-| **Settings** | Touchscreen controls for weather names/units/cards, dashboard behaviour, Plexamp/AirPlay values and alarm placeholders. |
-| **Navigation and mode watcher** | Hidden bottom drawer plus browser-side mode polling, so kiosk mode does not depend on `xdotool`. |
+| **Plexamp** | Plexamp Headless is preloaded in a hidden persistent iframe and promoted into a full-screen layer when selected or requested by NFC, avoiding routine grey reload and home-to-Now-Playing flashes. |
+| **NFC handoff** | A successful NFC album scan can start Plexamp and promote the preloaded Plexamp layer. |
+| **AirPlay handoff** | Shairport Sync pauses Plexamp and changes dashboard mode while both services remain alive through the shared ALSA mixer. Returning to Plexamp arms a watcher; AirPlay is paused or stopped only when Plexamp actually begins playing. |
+| **AirPlay Ready/Now Playing** | Receiver-ready page plus artwork, metadata, progress, transport controls, shared live-volume control and a glance row. Ready and Now Playing share one measured artwork/logo square and one right-column grid. |
+| **Shared audio** | Plexamp, AirPlay and alarm sources feed source-specific trims, one master stage and a common ALSA `dmix` output. |
+| **Mk II audio console** | A full-height live mixer with a wide Master bus, Alarm ceiling, player-aware Plexamp/AirPlay faders, persistent trims, AirPlay START preset and fascia controls that correctly go to 11. |
+| **Settings** | General, Weather, AirPlay, Plexamp and Advanced controls autosave. Audio and Alarms retain dedicated validated APIs. |
+| **Startup and idle return** | Startup page and Idle return page are independently configurable. Active Plexamp, AirPlay or alarm playback prevents idle return; pausing starts a complete fresh timeout. |
+| **Alarms** | Multiple-alarm configuration, local tones, DST-aware scheduling, reboot recovery, full-screen takeover, Snooze, slide-to-dismiss and controlled audio tests. |
+| **Navigation and motion** | Hidden bottom drawer, player-aware Audio console, browser-side mode polling, animated drawer open/close, persistent Plexamp promotion and selectable hydrated page transitions. |
 
 ## Visual system
 
-The current interface uses a shared instrument-console design across Clock, Weather and AirPlay:
+The interface uses a shared instrument-console design across Clock, Weather, AirPlay and Audio:
 
 - reusable SVG fourteen-segment digits and letters;
 - Oxanium for display headings and Atkinson Hyperlegible for general UI text;
 - DejaVu/Arial fallbacks when the web fonts are unavailable;
 - common segment sizing, unit alignment, decimal and colon spacing;
 - illuminated Weather panels, compass, pressure console and dynamic rain gauges;
-- production styles split by purpose:
-  - `app/static/css/typography.css`
-  - `app/static/css/clock-dashboard.css`
-  - `app/static/css/weather-console.css`
-  - `app/static/css/airplay-glance-tuning.css`
+- tactile rotary controls with navy faces and cyan datum marks;
+- calibrated vertical mixer faders with proper caps, alternating graduations and 0–11 fascia markings;
+- measured AirPlay hero geometry that keeps artwork/logo, copy and controls aligned across Ready and Now Playing;
+- configurable appliance-style page transitions, with immediate alarm takeover and reduced-motion support.
 
 The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shared renderer is in `app/static/js/segment-display.js`.
 
@@ -42,11 +46,12 @@ The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shar
 
 | Mode | URL | Purpose |
 |---|---|---|
-| **Clock** | `/clock` | Default idle screen with the segmented clock/date and compact weather cards. |
+| **Clock** | `/clock` | Segmented clock/date and compact weather cards. |
 | **Weather** | `/weather` | Detailed weather-station console. |
-| **Plexamp** | `/plexamp` | Dashboard-hosted Plexamp iframe with the navigation handle. |
+| **Plexamp** | `/plexamp` | Route fallback for the preloaded full-screen Plexamp layer. |
 | **AirPlay** | `/airplay` | AirPlay Ready, paused and Now Playing states. |
-| **Settings** | `/settings` | Touchscreen configuration page. |
+| **Settings** | `/settings` | Touchscreen configuration page with General, Weather, Alarms, AirPlay, Audio, Plexamp, Advanced and About workspaces. |
+| **Alarm** | `/alarm` | Full-screen ringing, snoozed and deliberate dismiss controls. |
 
 ## How the pieces fit together
 
@@ -54,18 +59,29 @@ The editable segment geometry lives in `docs/airplay-segment-cell.svg`; the shar
 NFC tag
   └─> Plexamp-NFC-Listener
         ├─> Plexamp Headless playback on localhost:32500
-        └─> A Clockwork Plex mode switch to /plexamp
+        └─> A Clockwork Plex mode switch to plexamp
+              └─> promote the already preloaded Plexamp iframe
 
 Ecowitt custom upload
   └─> /api/weather/ecowitt
         └─> Clock and detailed Weather screens
 
+Plexamp  ──> acp_plexamp ┐
+AirPlay  ──> acp_airplay ├──> acp_master ──> acp_dmix ──> DAC
+Alarm    ──> acp_alarm   ┘
+
 AirPlay session
   └─> Shairport Sync hooks
-        ├─> pause/stop Plexamp and release the DAC
+        ├─> pause Plexamp without stopping its service
         ├─> switch dashboard to /airplay
-        ├─> publish artwork/metadata/progress
-        └─> restart Plexamp and return to /clock when finished
+        ├─> publish artwork, metadata, progress and sender state
+        ├─> apply the saved START level to the live AirPlay fader
+        └─> return to the configured idle destination when appropriate
+
+Open Plexamp while AirPlay is playing
+  └─> arm handoff watcher
+        ├─> browsing Plexamp leaves AirPlay alone
+        └─> Plexamp begins playing → Pause AirPlay → Stop fallback if required
 ```
 
 ## Repository layout
@@ -74,27 +90,25 @@ AirPlay session
 A-Clockwork-Plex/
 ├── app/
 │   ├── main.py
+│   ├── dashboard_core.py
+│   ├── alarm_config.py
+│   ├── alarm_scheduler.py
+│   ├── alarm_runtime.py
+│   ├── alarm_audio.py
+│   ├── alarm_audio_core.py
+│   ├── audio_mixer.py
 │   ├── templates/
-│   │   ├── clock.html
-│   │   ├── weather.html
-│   │   ├── plexamp.html
-│   │   ├── airplay.html
-│   │   ├── settings.html
-│   │   ├── base.html
-│   │   └── _nav.html
 │   └── static/
-│       ├── css/
-│       ├── generated/
-│       └── js/
 ├── docs/
+│   ├── alarm-audio-testing.md
+│   ├── testing.md
 │   └── airplay-segment-cell.svg
 ├── scripts/
-│   ├── airplay-metadata-listener.py
-│   ├── display-mode.sh
+│   ├── install-shared-audio.sh
+│   ├── a-clockwork-plex-audio-mixer.py
 │   ├── install-airplay-hooks.sh
-│   ├── shairport-airplay-start.sh
-│   ├── shairport-airplay-end.sh
-│   └── nfc-plexamp-mode.sh
+│   ├── run-tests.sh
+│   └── ...
 ├── systemd/
 │   └── a-clockwork-plex.service
 ├── config.example.json
@@ -112,41 +126,22 @@ The project is designed for a Raspberry Pi running Raspberry Pi OS with:
 - Chromium in kiosk mode;
 - Plexamp Headless listening on `http://localhost:32500`;
 - Shairport Sync for AirPlay integration;
+- ALSA utilities for shared audio and alarm playback;
 - an Ecowitt-compatible weather station when weather data is required;
 - `Plexamp-NFC-Listener` and a supported NFC reader for tag-triggered playback.
 
-The Flask service listens on port `8088` by default. It is intended as a trusted-LAN appliance; do not expose its control endpoints directly to the public internet without adding suitable authentication and a secure reverse proxy.
+The Flask service listens on port `8088` by default. It is intended as a trusted-LAN appliance; do not expose its control endpoints directly to the public internet without suitable authentication and a secure reverse proxy.
 
 ## Quick start
-
-Clone the repository:
 
 ```bash
 git clone https://github.com/AndyBettger/A-Clockwork-Plex.git
 cd A-Clockwork-Plex
-```
-
-Create a virtual environment and install dependencies:
-
-```bash
 python3 -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-```
-
-Copy the example configuration:
-
-```bash
 cp config.example.json config.json
-```
-
-Review `config.json`, especially the dashboard port, Plexamp service/URLs, AirPlay display name, weather station names and unit choices.
-
-Run manually:
-
-```bash
-source venv/bin/activate
 python app/main.py
 ```
 
@@ -158,8 +153,6 @@ http://localhost:8088
 
 ## Running as a service
 
-Install the supplied systemd unit:
-
 ```bash
 cd ~/A-Clockwork-Plex
 sudo cp systemd/a-clockwork-plex.service /etc/systemd/system/
@@ -170,86 +163,233 @@ systemctl status a-clockwork-plex.service --no-pager
 
 ### Updating an existing installation
 
-For a clean checkout tracking `main`:
+For ordinary application, CSS or JavaScript changes:
 
 ```bash
 cd ~/A-Clockwork-Plex
-git switch main
 git pull --ff-only
-python3 -m py_compile app/main.py
-chmod +x scripts/*.sh
+bash scripts/run-tests.sh
 sudo systemctl restart a-clockwork-plex.service
 ```
 
-After CSS or JavaScript changes, hard-refresh Chromium once with `Ctrl+Shift+R`.
+Hard-refresh Chromium after browser assets change:
 
-When an update changes the installed Shairport wrapper scripts, also run:
+```text
+Ctrl+Shift+R
+```
+
+When shared-audio, ALSA-helper or Shairport files change, also run the staged installer and restart the audio services:
+
+```bash
+sudo bash scripts/install-shared-audio.sh
+sudo systemctl restart plexamp.service
+sudo systemctl restart shairport-sync.service
+sudo systemctl restart a-clockwork-plex.service
+```
+
+## Shared audio path
+
+Install or refresh the shared audio path:
 
 ```bash
 cd ~/A-Clockwork-Plex
-sudo scripts/install-airplay-hooks.sh
-sudo systemctl restart shairport-sync.service
+sudo bash scripts/install-shared-audio.sh
 ```
+
+Plexamp should explicitly use:
+
+```text
+A Clockwork Plex - Plexamp
+```
+
+The shared path is:
+
+```text
+Plexamp player volume → acp_plexamp trim ┐
+AirPlay sender volume → acp_airplay trim ├→ acp_master → acp_dmix → DAC
+Alarm fade/target     → acp_alarm trim   ┘
+```
+
+This lets alarm tones mix over Plexamp or AirPlay without stopping either service and avoids repeated exclusive-DAC handoffs.
+
+Detailed installation, staged testing and rollback instructions are in [`docs/alarm-audio-testing.md`](docs/alarm-audio-testing.md).
+
+## Mk II live audio console
+
+Open the bottom drawer and select **Audio**. The console contains three main strips.
+
+### Master bus
+
+- a large **MASTER** knob controlling the final shared output;
+- a separate **ALARM** ceiling knob;
+- no duplicate Master or Alarm faders, because each knob already owns its underlying ALSA stage.
+
+### Plexamp strip
+
+- **TRIM** knob: persistent downstream calibration after Plexamp's own player volume;
+- live fader: Plexamp's real player volume, reflected by Plexamp's Now Playing interface.
+
+### AirPlay strip
+
+- **TRIM** knob: persistent downstream calibration after the sender volume;
+- live fader: current AirPlay sender gain using the dashboard's perceptual scale;
+- **START** knob: the live-fader position requested for the next AirPlay connection.
+
+The controls use a 0–11 fascia while APIs continue using 0–100 internally. Fader requests use latest-value-wins queues, local pointer ownership and readback protection so polling cannot pull a control away while it is being touched.
+
+## Volume scales
+
+The dashboard's player and trim controls use an amplitude-style scale:
+
+```text
+50% ≈ -6 dB
+25% ≈ -12 dB
+10% ≈ -20 dB
+```
+
+The raw ALSA percentage shown by `alsamixer` is expected to differ. For example, dashboard 50% appears near the top of an ALSA soft-volume control because both represent approximately -6 dB.
+
+Shairport exposes the iPhone sender through a much steeper native taper. A Clockwork Plex translates between that native scale and the dashboard scale so equivalent gain combinations behave predictably:
+
+```text
+AirPlay fader 50% + trim 100% ≈ AirPlay fader 100% + trim 50%
+```
+
+The iPhone's visible percentage may therefore differ from the dashboard's 0–11 position. The dashboard represents resulting gain; the phone represents Shairport's native sender position.
+
+## AirPlay START behaviour
+
+START is independent from both live volume and AirPlay trim:
+
+```text
+START = where the live AirPlay fader should land on the next connection
+TRIM  = separate downstream calibration
+```
+
+Changing START during an active session does not alter that current session. The new target is saved for the next connection and committed at the AirPlay session boundary, including rapid disconnect/reconnect cases.
+
+## AirPlay layout
+
+Ready and Now Playing use one measured hero grid:
+
+- the left media square is calculated from the hero's available height;
+- artwork fills that square with equal top, bottom and left breathing room;
+- the Ready logo occupies the same square;
+- both right-hand columns begin at the same horizontal position;
+- both use the same right margin;
+- progress and volume controls finish on that same right edge;
+- Ready pulses originate at the calculated centre of the three receiving arcs, begin at a smaller radius and expand beneath the copy.
+
+## AirPlay Now Playing
+
+The AirPlay page provides:
+
+- artwork, title, artist and album;
+- previous, play/pause and next controls;
+- elapsed and remaining time;
+- a live volume slider using the same `/api/audio/live` queue and scale as the Audio drawer;
+- a 0–11 visible readout;
+- segmented time/date, outdoor temperature/humidity and barometer status.
+
+## Persistent Plexamp layer
+
+Every normal dashboard document preloads one Plexamp iframe invisibly. Selecting Plexamp or receiving an NFC-driven `plexamp` mode request promotes that iframe with the selected page-transition family.
+
+Benefits:
+
+- Plexamp normally finishes its initial home/Now-Playing rendering before it is visible;
+- opening and closing Plexamp within the current dashboard document does not rebuild the iframe;
+- audio/player state remains connected while the layer is hidden;
+- the navigation drawer remains above the layer and closes immediately when Plexamp opens;
+- leaving Plexamp for a different route keeps an opaque shell over the old page until the destination document takes over;
+- direct `/plexamp` navigation remains available as a fallback.
+
+Moving between separate dashboard routes still creates a new document and warms a new hidden iframe. This is deliberately smaller and safer than converting the entire dashboard into a single-page application.
+
+## Startup, idle return and transitions
+
+The root kiosk URL is:
+
+```text
+http://localhost:8088
+```
+
+Settings → General separates two behaviours:
+
+- **Startup page**: the first surface shown when the root URL opens;
+- **Idle return page**: the destination after the configured inactivity timeout when all playback is quiet.
+
+Both default to Clock on new installations and migrate from the previous Default mode value. Clock itself may be returned away from when another idle destination is selected.
+
+Before returning, the dashboard checks real playback state:
+
+- Plexamp playing → remain on the current screen;
+- AirPlay playing → remain on the current screen;
+- alarm takeover or alarm audio active → remain on the current screen;
+- no playback → return to the selected Idle return page.
+
+Pointer, touch, keyboard, wheel and form input activity reset the timer. A timeout value of `0` disables idle return.
+
+Page-transition choices are:
+
+```text
+None / instant
+Grow and fade
+Crossfade
+Horizontal slide
+Vertical lift
+Cover and reveal
+Zoom
+Blur and dissolve
+```
+
+Duration is adjustable from 0–1500 ms. AirPlay and Clock use explicit hydration gates so their first visible frame contains final data, fonts and layout rather than temporary loading geometry. Alarm takeover remains immediate. Audio keeps its dedicated mixer-console motion.
+
+## Settings and autosave
+
+Settings uses top-level workspaces:
+
+```text
+GENERAL | WEATHER | ALARMS | AIRPLAY | AUDIO | PLEXAMP | ADVANCED | ABOUT
+```
+
+General, Weather, AirPlay, Plexamp and Advanced controls autosave and briefly show **Saving…**, **Saved** or **Save failed**. Audio trims and alarm configuration use their own APIs so live mixer state, validation and safety rules are preserved.
+
+## Alarm status
+
+The current alarm branch includes:
+
+- multiple persistent alarms;
+- labels, times, weekdays, local tones, fades and target volumes;
+- default snooze of eight minutes with configurable alternatives;
+- local timezone and DST handling;
+- spring-forward and fall-back behaviour;
+- reboot recovery and duplicate-occurrence protection;
+- persistent ringing, snoozed, dismissed and expired states;
+- full-screen takeover;
+- giant Snooze control and deliberate slide-to-dismiss;
+- simultaneous occurrence queueing;
+- 16-bit, 44.1 kHz dual-mono stereo local tones;
+- selected-tone playback with Emergency Buzzer fallback;
+- controlled direct-tone and full-screen tests;
+- backend-enforced test-volume safety cap.
+
+Ordinary scheduled alarm playback remains locked until the controlled test and shared-audio paths are fully proven.
 
 ## Kiosk browser
 
-Point Chromium at the dashboard rather than directly at Plexamp:
+Point Chromium at the dashboard root so Startup page selection is honoured:
 
 ```text
-http://localhost:8088/clock
+http://localhost:8088
 ```
 
-On current Raspberry Pi OS/labwc installations the kiosk command is commonly placed in:
-
-```text
-~/.config/labwc/autostart
-```
-
-Example:
+A typical labwc autostart command is:
 
 ```bash
 sleep 10
-chromium --kiosk --start-maximized --noerrdialogs --disable-infobars --no-first-run "http://localhost:8088/clock" &
+chromium --kiosk --start-maximized --noerrdialogs --disable-infobars --no-first-run "http://localhost:8088" &
 ```
-
-## Navigation drawer
-
-The navigation is hidden by default to maximise display space. A small handle remains at the bottom:
-
-- tap the handle to show or hide navigation;
-- swipe up from the handle to reveal it;
-- the drawer auto-hides after a short delay;
-- it remains available over the embedded Plexamp screen.
-
-## Clock page
-
-The Clock page is the default bedside display.
-
-Current behaviour:
-
-- large segmented hours, minutes and seconds;
-- uppercase segmented weekday/date;
-- 12-hour or 24-hour mode from Settings/local storage;
-- live weather updates without reloading the page;
-- four cards per row at the primary touchscreen layout;
-- shared segment sizing and baseline-aligned units;
-- configurable card selection and ordering.
-
-Related readings are represented as combined Settings choices while still being stored as the underlying weather IDs in `config.json`:
-
-- indoor and outdoor temperature;
-- indoor and outdoor humidity;
-- wind speed and gust;
-- rain today and event rain;
-- solar and UV.
-
-The date is rendered manually, for example:
-
-```text
-MONDAY 13 JULY 2026
-```
-
-This avoids browser locale punctuation introducing characters unsupported by the segmented display.
 
 ## Weather station setup
 
@@ -269,309 +409,25 @@ Typical station settings:
 | Path | `/api/weather/ecowitt` |
 | Upload interval | `60` seconds |
 
-The app stores the latest payload, daily indoor/outdoor temperature and humidity minima/maxima, and a rolling 24-hour pressure history.
-
 Sensitive keys including `passkey`, `password`, `secret`, `token`, `api_key` and `apikey` are omitted from new stored uploads and redacted from status output when found in older state.
 
-## Detailed Weather page
+## Testing
 
-The Weather screen currently includes:
-
-- indoor/outdoor temperature and humidity with daily lows and highs;
-- solar radiation, UV and VPD readings;
-- Shipping Forecast-inspired issued text;
-- large compass rose with numeric bearing and a full 16-point direction name;
-- aligned, zero-padded wind speed/gust readings and maximum gust;
-- relative and absolute pressure cards;
-- a compact barometer forecast with trend and explanatory text;
-- automatically scaling rain gauges for current, hourly, event, weekly, monthly, yearly and total rain;
-- station model, frequency, upload interval, timestamp and battery status;
-- configurable automatic page refresh.
-
-Pressure trend behaviour:
-
-```text
-0-30 minutes  -> gathering history
-30+ minutes   -> early trend estimate
-3+ hours      -> stronger barometer-style estimate
-24 hours      -> retained pressure-history window
-```
-
-The forecast wording is dynamic, so Clock and AirPlay show the compact status while the detailed Weather page shows the status, trend and explanation.
-
-## Settings page
-
-Settings are written to `config.json`. Current controls include:
-
-- Weather page title and reporting station name;
-- automatic Weather-page refresh interval;
-- metric/imperial-style temperature, pressure, rain and wind units;
-- Clock weather-card selection and order;
-- Clock format;
-- default dashboard mode;
-- idle timeout placeholder;
-- day/night dimming time placeholders;
-- Plexamp URL, pause URL and service name;
-- AirPlay display name;
-- alarm enabled/time/snooze placeholders.
-
-Alarm playback, automatic idle return and scheduled display dimming are not yet implemented.
-
-## Plexamp iframe mode
-
-`/plexamp` embeds Plexamp Headless rather than sending Chromium directly to port `32500`.
-
-This allows:
-
-- the dashboard navigation handle to remain available;
-- kiosk mode to stay locked to A Clockwork Plex;
-- NFC scans to move the display to Plexamp without a keyboard or mouse.
-
-Example configuration:
-
-```json
-"plexamp": {
-  "url": "http://localhost:32500",
-  "pause_url": "http://localhost:32500/player/playback/pause",
-  "service_name": "plexamp.service"
-}
-```
-
-## NFC integration
-
-Install and run [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener) alongside this project.
-
-After a successful scan:
-
-```text
-Read NFC tag
-  -> trigger Plexamp Headless playback
-  -> call A Clockwork Plex display helper
-  -> dashboard moves to /plexamp
-```
-
-The helper is:
-
-```text
-scripts/nfc-plexamp-mode.sh
-```
-
-It calls:
-
-```text
-scripts/display-mode.sh plexamp
-```
-
-The browser-side mode watcher follows the API mode change even when `xdotool` is unavailable.
-
-## Shairport Sync / AirPlay integration
-
-The working handoff uses wrapper commands installed under `/usr/local/bin`. This avoids Shairport Sync/systemd permission and sandboxing problems that can occur when service hooks point directly into a user's home directory.
-
-Install or refresh the wrappers:
+Run the complete test suite:
 
 ```bash
-cd ~/A-Clockwork-Plex
-chmod +x scripts/*.sh
-sudo scripts/install-airplay-hooks.sh
+bash scripts/run-tests.sh
 ```
 
-The installer creates:
+GitHub Actions checks Python compilation, JavaScript and shell syntax, alarm/runtime behaviour, stereo tone rendering, mixer safety, perceptual volume conversion, AirPlay scale round trips, fader/state isolation, START-boundary handling, hydrated Clock/AirPlay layout, idle return, persistent Plexamp handover and navigation scripts.
 
-```text
-/usr/local/bin/a-clockwork-plex-airplay-start
-/usr/local/bin/a-clockwork-plex-airplay-end
-/etc/sudoers.d/a-clockwork-plex-airplay
-```
+## Development roadmap
 
-The restricted sudoers entry permits the `shairport-sync` service user to run only the required Plexamp service start/stop commands.
+Immediate next work on `feature/alarm-engine`:
 
-Use the wrappers in `/etc/shairport-sync.conf`:
-
-```conf
-sessioncontrol =
-{
-    run_this_before_entering_active_state = "/usr/local/bin/a-clockwork-plex-airplay-start";
-    run_this_after_exiting_active_state = "/usr/local/bin/a-clockwork-plex-airplay-end";
-    active_state_timeout = 10;
-    wait_for_completion = "yes";
-};
-```
-
-Remove obsolete hook entries such as:
-
-```conf
-run_this_before_play_begins = "/usr/local/bin/plexamp-airplay-start";
-run_this_after_play_ends = "/usr/local/bin/plexamp-airplay-stop";
-```
-
-Restart and inspect the service:
-
-```bash
-sudo systemctl restart shairport-sync.service
-sudo systemctl status shairport-sync.service --no-pager
-```
-
-Some Shairport Sync builds use `-t` as a runtime timeout rather than a config-test option. Running `shairport-sync -t 0` while the service is active can therefore fail with a port `5000` conflict; restarting the service and checking its status is the safer test.
-
-Useful logs:
-
-```bash
-journalctl -u shairport-sync -f
-journalctl -t shairport-plexamp -f
-```
-
-Optional installer overrides:
-
-```bash
-DASHBOARD_BASE="http://localhost:8088" \
-PLEXAMP_URL="http://localhost:32500" \
-PLEXAMP_SERVICE="plexamp.service" \
-SHAIRPORT_USER="shairport-sync" \
-sudo ./scripts/install-airplay-hooks.sh
-```
-
-## AirPlay Ready and Now Playing
-
-The `/airplay` screen has two principal live layouts:
-
-- **Ready:** large AirPlay route graphic, the configured receiver name and connection instructions.
-- **Now Playing:** artwork, title, artist/source, album/episode details, progress, volume and transport controls.
-
-The receiver title shown on the Ready page removes a trailing `Plexamp` from the configured Shairport display name. For example, `Bedroom Plexamp` is presented as `Bedroom`, while the connection instructions remain tied to that receiver.
-
-The lower glance row is shared by both states:
-
-- segmented current time and date;
-- segmented outdoor temperature and humidity;
-- compact barometer forecast word.
-
-Current controls:
-
-| Control | Behaviour |
-|---|---|
-| Play/pause | Calls Shairport/MPRIS `PlayPause`. |
-| Previous/next | Calls Shairport/MPRIS `Previous` and `Next`. |
-| Volume | Calls Shairport/MPRIS volume control and shows dB-style labels. |
-| Spoken-audio display | Changes the side-button artwork to 15-second rewind/forward when metadata resembles a podcast or audiobook. |
-
-The commands behind the side buttons remain previous/next. Apps such as Prologue and Apple Podcasts commonly interpret them as short seek controls, while music apps interpret them as track changes.
-
-## AirPlay metadata listener
-
-`scripts/airplay-metadata-listener.py` reads Shairport Sync metadata from:
-
-```text
-/tmp/shairport-sync-metadata
-```
-
-It writes useful session data to `state.json`, including:
-
-- title, artist, album and genre;
-- source/player information when available;
-- playback/session events;
-- progress samples;
-- artwork saved under `app/static/generated/`.
-
-## AirPlay pause-hold behaviour
-
-Pausing from the Pi screen does not immediately return the dashboard to Clock.
-
-| Action | Expected result |
-|---|---|
-| Pause from Pi screen | Remain on the paused AirPlay screen. |
-| Resume from Pi screen | Resume AirPlay playback. |
-| Resume from iPhone | Return/update to live Now Playing. |
-| Pause from iPhone | Treat as normal AirPlay idle/end and return to Clock. |
-| Disconnect before hold is accepted | Return to Clock. |
-| Leave the held session idle too long | Watchdog returns to Clock. |
-
-Default watchdog timeout:
-
-```text
-600 seconds / 10 minutes
-```
-
-## Useful endpoints
-
-| Endpoint | Purpose |
-|---|---|
-| `/` | Redirect to Clock. |
-| `/clock` | Clock and compact weather screen. |
-| `/weather` | Detailed weather console. |
-| `/plexamp` | Embedded Plexamp shell. |
-| `/airplay` | AirPlay Ready/Now Playing screen. |
-| `/settings` | Touchscreen Settings. |
-| `/api/status` | Mode, AirPlay state, config diagnostics and redacted/latest weather data. |
-| `/api/mode/clock` | Set Clock mode. |
-| `/api/mode/weather` | Set Weather mode. |
-| `/api/mode/plexamp` | Set Plexamp mode. |
-| `/api/mode/airplay` | Display AirPlay without marking a real session active. |
-| `/api/airplay/start` | Mark AirPlay active and switch to AirPlay. |
-| `/api/airplay/end` | Mark AirPlay idle and switch to Clock. |
-| `/api/airplay/control` | Send transport/volume actions. |
-| `/api/weather/ecowitt` | Receive Ecowitt/custom weather uploads. |
-
-## Roadmap
-
-Likely future chapters include:
-
-- real alarm scheduling and playback;
-- snooze/dismiss controls;
-- automatic return-to-Clock after inactivity;
-- scheduled day/night brightness or dimming behaviour;
-- optional local font packaging for fully offline typography;
-- broader setup/installation automation.
-
-## Troubleshooting
-
-Dashboard logs:
-
-```bash
-journalctl -u a-clockwork-plex.service -f
-```
-
-Shairport handoff logs:
-
-```bash
-journalctl -t shairport-plexamp -f
-```
-
-Current dashboard status:
-
-```bash
-curl -s http://localhost:8088/api/status | python -m json.tool
-```
-
-Validate `config.json`:
-
-```bash
-python -m json.tool config.json >/dev/null && echo "config.json is valid"
-```
-
-Check the service:
-
-```bash
-systemctl status a-clockwork-plex.service --no-pager
-```
-
-Refresh helper permissions and AirPlay wrappers:
-
-```bash
-cd ~/A-Clockwork-Plex
-chmod +x scripts/*.sh
-sudo scripts/install-airplay-hooks.sh
-sudo systemctl restart shairport-sync.service
-```
-
-## Design credits
-
-- Custom clock/date/weather characters use the SVG segment geometry in `docs/airplay-segment-cell.svg`.
-- AirPlay spoken-audio `15` icons use SVG paths derived from Wikimedia Commons:
-  - `VK_icons_replay_15_36.svg`
-  - `VK_icons_forward_15_28.svg`
-- The UI is primarily tuned for Raspberry Pi landscape touchscreen/kiosk layouts, including the official 7-inch display and similar panels.
-
-## Licence
-
-This project is licensed under the [MIT License](LICENSE).
+1. Pi-test hydrated Clock reveal, transition families and persistent Plexamp route handover;
+2. add a guarded master-output **Bass / Mid / Treble** EQ stage with centre detents, neutral reset, bypass, installer backup and rollback;
+3. repeat complete Plexamp, AirPlay, alarm-overlay, Snooze and Dismiss regression testing;
+4. opt in scheduled local-tone alarm playback only after the controlled path is proven;
+5. add Plexamp and stream alarm sources with local-tone fallback;
+6. final hardening, documentation, merge and release.

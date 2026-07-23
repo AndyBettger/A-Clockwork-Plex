@@ -18,6 +18,18 @@
   gap: 0;
 }
 
+/* Solar can reach four significant figures plus W/m², while UV is normally one
+   or two digits. Give the pair a deliberate 70/30 split so the Solar unit never
+   crosses the divider into UV. */
+.weather-card[data-card-id="solar_uv_summary"] .weather-composite-headings,
+.weather-card[data-card-id="solar_uv_summary"] .weather-subgrid {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+}
+
+.weather-card[data-card-id="solar_uv_summary"] .weather-subreading:first-child {
+  padding-inline-end: clamp(5px, 0.75vmin, 9px);
+}
+
 .weather-composite-headings {
   align-items: end;
 }

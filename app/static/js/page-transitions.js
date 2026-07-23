@@ -1,0 +1,155 @@
+(() => {
+  if (window.__aClockworkPlexPageTransitionsLoaded) return;
+  window.__aClockworkPlexPageTransitionsLoaded = true;
+
+  let leaving = false;
+  let revealed = false;
+  let readyTimer = null;
+  const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
+
+  function sameOriginTarget(url) {
+    try {
+      const target = new URL(url, window.location.href);
+      return target.origin === window.location.origin ? target : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function preferences() {
+    return window.ACPDashboardPreferences?.read?.() || {
+      transitionStyle: document.documentElement.dataset.transitionStyle || 'grow-fade',
+      transitionDurationMs: Number(document.documentElement.dataset.transitionDurationMs || 300),
+    };
+  }
+
+  function activeRoute() {
+    const page = String(document.body.dataset.activePage || '').trim().toLowerCase();
+    return page ? `/${page}` : window.location.pathname;
+  }
+
+  function rememberNavigation(target) {
+    try {
+      window.sessionStorage.setItem(explicitNavigationKey, JSON.stringify({
+        path: target.pathname,
+        at: Date.now(),
+      }));
+    } catch (error) {
+    }
+  }
+
+  function revealPage() {
+    if (revealed) return;
+    revealed = true;
+    document.documentElement.classList.remove('acp-document-booting');
+    document.body.classList.remove('acp-page-booting');
+    document.body.classList.add('acp-page-ready');
+
+    const current = preferences();
+    const duration = current.transitionStyle === 'none'
+      ? 0
+      : Math.max(0, Math.min(1500, Number(current.transitionDurationMs) || 0));
+    window.clearTimeout(readyTimer);
+    readyTimer = window.setTimeout(() => {
+      document.body.classList.remove('acp-page-ready');
+    }, Math.max(30, Math.round(duration * 0.64) + 50));
+  }
+
+  function scheduleReveal() {
+    const activePage = String(document.body.dataset.activePage || '').toLowerCase();
+    const hydratedFallbacks = {
+      airplay: 1500,
+      clock: 900,
+    };
+
+    if (activePage in hydratedFallbacks) {
+      window.addEventListener('acp:page-hydrated', revealPage, { once: true });
+      window.setTimeout(revealPage, hydratedFallbacks[activePage]);
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.setTimeout(revealPage, 35));
+    });
+  }
+
+  function outgoingDelay() {
+    const current = preferences();
+    const duration = Math.max(0, Math.min(1500, Number(current.transitionDurationMs) || 0));
+    if (current.transitionStyle === 'none' || duration <= 0) return 0;
+    return Math.round(duration * 0.36);
+  }
+
+  function navigate(url, options = {}) {
+    const target = sameOriginTarget(url);
+    if (!target || leaving) return;
+
+    if (target.pathname === '/alarm' || options.immediate) {
+      leaving = true;
+      rememberNavigation(target);
+      window.location.assign(target.href);
+      return;
+    }
+
+    if (target.pathname === '/plexamp' && window.ACPPlexamp) {
+      window.ACPPlexamp.show({ updateMode: options.updateMode !== false });
+      return;
+    }
+
+    const overlayOpen = Boolean(window.ACPPlexamp?.isOpen?.());
+    if (overlayOpen) {
+      if (target.pathname === activeRoute()) {
+        const mode = target.pathname.slice(1) || 'clock';
+        window.ACPPlexamp.hide?.({
+          updateMode: options.updateMode !== false,
+          targetMode: mode,
+        });
+        return;
+      }
+
+      leaving = true;
+      rememberNavigation(target);
+      const delay = Number(
+        window.ACPPlexamp.prepareNavigation?.()
+        ?? outgoingDelay()
+      );
+      window.setTimeout(() => window.location.assign(target.href), Math.max(0, delay));
+      return;
+    }
+
+    leaving = true;
+    rememberNavigation(target);
+    const delay = outgoingDelay();
+    if (delay <= 0) {
+      window.location.assign(target.href);
+      return;
+    }
+
+    document.body.classList.add('acp-page-leaving');
+    window.setTimeout(() => window.location.assign(target.href), delay);
+  }
+
+  window.ACPNavigate = navigate;
+  window.ACPPageReady = revealPage;
+  window.ACPNavigationState = {
+    isLeaving: () => leaving,
+    activeRoute,
+  };
+
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest('a[href]');
+    if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (link.target && link.target !== '_self') return;
+    const target = sameOriginTarget(link.href);
+    if (!target || target.href === window.location.href) return;
+    if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
+    event.preventDefault();
+    navigate(target.href);
+  });
+
+  window.addEventListener('pagehide', () => {
+    leaving = true;
+  });
+
+  scheduleReveal();
+})();

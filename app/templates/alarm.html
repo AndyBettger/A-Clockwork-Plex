@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Alarm · A Clockwork Plex</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/alarm-active.css') }}">
+</head>
+<body class="alarm-active-page">
+  <main class="alarm-active-shell" aria-live="polite">
+    <header class="alarm-active-header">
+      <span class="alarm-active-chip">Alarm active</span>
+      <span class="alarm-audio-lock">Checking audio safety state…</span>
+    </header>
+
+    <section class="alarm-active-identity">
+      <time id="alarm-current-time" class="alarm-current-time" datetime="">--:--</time>
+      <p id="alarm-current-date" class="alarm-current-date">Waiting for local time…</p>
+      <h1 id="alarm-active-label">Alarm</h1>
+      <p id="alarm-active-source" class="alarm-active-source">Local tone · checking playback state</p>
+    </section>
+
+    <section class="alarm-active-status" id="alarm-active-status">
+      The alarm runtime is loading its state.
+    </section>
+
+    <button id="alarm-snooze-button" class="alarm-snooze-button" type="button">
+      <span>Snooze</span>
+      <strong id="alarm-snooze-duration">8 min</strong>
+    </button>
+
+    <section class="alarm-dismiss-section" aria-labelledby="alarm-dismiss-label">
+      <p id="alarm-dismiss-label">A deliberate action, because sleepy fingers are not a reliable authority.</p>
+      <div class="alarm-dismiss-track" id="alarm-dismiss-track">
+        <span class="alarm-dismiss-copy">Slide to dismiss</span>
+        <button
+          id="alarm-dismiss-handle"
+          class="alarm-dismiss-handle"
+          type="button"
+          aria-label="Slide to dismiss alarm. Keyboard users can press and hold Enter or Space."
+        >
+          <span aria-hidden="true">➜</span>
+        </button>
+      </div>
+      <small>Drag at least 80% across, or press and hold Enter/Space.</small>
+    </section>
+
+    <p class="alarm-active-footer" id="alarm-active-footer">
+      Screen and audio safety state are being checked.
+    </p>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/alarm-active.js') }}"></script>
+</body>
+</html>

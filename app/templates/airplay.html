@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-mini-clock.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-width-fixes.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-glance-tuning.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-layout-v3.css') }}">
 {% endblock %}
 {% block content %}
 <section class="airplay-page" aria-label="AirPlay active screen" data-configured-receiver-name="{{ configured_airplay_name }}" data-receiver-name="{{ receiver_airplay_name }}">
@@ -29,31 +30,19 @@
     <div class="airplay-copy">
       <span class="airplay-kicker" id="airplay-state-kicker">AirPlay route ready</span>
       <h1 id="airplay-title">{{ receiver_airplay_name }}</h1>
-
       <div class="airplay-meta-stack">
         <p class="airplay-status"><span class="airplay-live-dot" id="airplay-live-dot" aria-label="AirPlay ready"></span><span id="airplay-primary-meta">Ready for AirPlay connections.</span></p>
         <p class="airplay-source-line" hidden><span id="airplay-source-title"></span></p>
       </div>
-
       <p class="muted airplay-detail" id="airplay-detail">Choose {{ receiver_airplay_name }} from the AirPlay menu. The airwaves are clear, the apples are polished, and the DAC is waiting.</p>
-
       <div class="airplay-controls-stack" aria-label="AirPlay playback controls">
         <div class="airplay-play-pause-wrap">
-          <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay">
-            <span id="airplay-play-pause-icon" aria-hidden="true">⏯</span>
-          </button>
+          <button class="airplay-play-pause" id="airplay-play-pause" type="button" disabled aria-label="Play or pause AirPlay"><span id="airplay-play-pause-icon" aria-hidden="true">⏯</span></button>
         </div>
-
         <div class="airplay-progress" id="airplay-progress" hidden>
-          <div class="airplay-progress-times">
-            <span id="airplay-progress-elapsed">0:00</span>
-            <span id="airplay-progress-duration">-0:00</span>
-          </div>
-          <div class="airplay-progress-track" aria-hidden="true">
-            <span id="airplay-progress-fill"></span>
-          </div>
+          <div class="airplay-progress-times"><span id="airplay-progress-elapsed">0:00</span><span id="airplay-progress-duration">-0:00</span></div>
+          <div class="airplay-progress-track" aria-hidden="true"><span id="airplay-progress-fill"></span></div>
         </div>
-
         <div class="airplay-control-row">
           <div class="airplay-volume-strip" id="airplay-volume-strip" hidden>
             <span class="airplay-volume-icon" aria-hidden="true">
@@ -70,38 +59,12 @@
       </div>
     </div>
   </section>
-
   <section class="airplay-info-grid airplay-glance-grid" aria-label="Clock and weather glance">
-    <article class="airplay-info-card is-live is-clock" aria-label="Current time">
-      <div class="airplay-mini-clock-line">
-        <div class="airplay-mini-time is-segmented" id="airplay-mini-clock-segmented" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}" aria-label="Current time">
-          <span class="digital-group" id="airplay-mini-hours"></span>
-          <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
-          <span class="digital-group" id="airplay-mini-minutes"></span>
-          <span class="digital-colon digital-colon-small" aria-hidden="true"><span></span><span></span></span>
-          <span class="digital-group clock-seconds" id="airplay-mini-seconds"></span>
-          <span class="airplay-mini-meridiem" id="airplay-mini-meridiem" hidden></span>
-        </div>
-        <p class="airplay-mini-date" id="airplay-mini-date-segmented" aria-label="Current date"></p>
-      </div>
-    </article>
-    <article class="airplay-info-card is-live is-outside" aria-label="Outdoor temperature and humidity">
-      <span>Outdoor temp &amp; humidity</span>
-      <strong id="airplay-outside-now" class="airplay-outside-source" hidden>Waiting</strong>
-      <div class="airplay-outside-grid">
-        <strong id="airplay-outside-temperature" class="airplay-outside-value weather-subvalue" aria-label="Outdoor temperature">Waiting</strong>
-        <strong id="airplay-outside-humidity" class="airplay-outside-value weather-subvalue" aria-label="Outdoor humidity">—</strong>
-      </div>
-      <p id="airplay-outside-detail"></p>
-    </article>
-    <article class="airplay-info-card is-live is-barometer">
-      <span id="airplay-barometer-label">Barometer</span>
-      <strong id="airplay-barometer-now">Waiting</strong>
-      <p id="airplay-barometer-detail">Pressure data pending</p>
-    </article>
+    <article class="airplay-info-card is-live is-clock" aria-label="Current time"><div class="airplay-mini-clock-line"><div class="airplay-mini-time is-segmented" id="airplay-mini-clock-segmented" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}" aria-label="Current time"><span class="digital-group" id="airplay-mini-hours"></span><span class="digital-colon" aria-hidden="true"><span></span><span></span></span><span class="digital-group" id="airplay-mini-minutes"></span><span class="digital-colon digital-colon-small" aria-hidden="true"><span></span><span></span></span><span class="digital-group clock-seconds" id="airplay-mini-seconds"></span><span class="airplay-mini-meridiem" id="airplay-mini-meridiem" hidden></span></div><p class="airplay-mini-date" id="airplay-mini-date-segmented" aria-label="Current date"></p></div></article>
+    <article class="airplay-info-card is-live is-outside" aria-label="Outdoor temperature and humidity"><span>Outdoor temp &amp; humidity</span><strong id="airplay-outside-now" class="airplay-outside-source" hidden>Waiting</strong><div class="airplay-outside-grid"><strong id="airplay-outside-temperature" class="airplay-outside-value weather-subvalue" aria-label="Outdoor temperature">Waiting</strong><strong id="airplay-outside-humidity" class="airplay-outside-value weather-subvalue" aria-label="Outdoor humidity">—</strong></div><p id="airplay-outside-detail"></p></article>
+    <article class="airplay-info-card is-live is-barometer"><span id="airplay-barometer-label">Barometer</span><strong id="airplay-barometer-now">Waiting</strong><p id="airplay-barometer-detail">Pressure data pending</p></article>
   </section>
 </section>
-
 {% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
@@ -112,5 +75,8 @@
 <script src="{{ url_for('static', filename='js/airplay-play-state-sync.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-extra-controls.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-volume-hold.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-volume-v2.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-mini-clock.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-layout-v3.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-hydration.js') }}"></script>
 {% endblock %}

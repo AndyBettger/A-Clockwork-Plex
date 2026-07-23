@@ -1,0 +1,142 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - feature/alarm-engine
+  pull_request:
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Compile application modules
+        run: |
+          python -m py_compile \
+            app/main.py \
+            app/runner.py \
+            app/dashboard_core.py \
+            app/alarm_config.py \
+            app/alarm_scheduler.py \
+            app/alarm_runtime.py \
+            app/alarm_audio.py \
+            app/alarm_audio_core.py \
+            app/audio_mixer.py \
+            app/audio_eq.py \
+            scripts/a-clockwork-plex-audio-mixer.py \
+            scripts/a-clockwork-plex-audio-eq.py
+
+      - name: Check JavaScript, page wiring and shell syntax
+        run: |
+          node --check app/static/js/settings-alarms.js
+          node --check app/static/js/settings-alarm-scheduler.js
+          node --check app/static/js/settings-alarm-audio.js
+          node --check app/static/js/settings-audio-workspace.js
+          node --check app/static/js/settings-audio-fader-layout.js
+          node --check app/static/js/settings-airplay-defaults.js
+          node --check app/static/js/settings-keyboard.js
+          node --check app/static/js/settings-tabs.js
+          node --check app/static/js/settings-about.js
+          node --check app/static/js/settings-autosave.js
+          node --check app/static/js/settings-dashboard-preferences.js
+          node --check app/static/js/dashboard-preferences-bootstrap.js
+          node --check app/static/js/audio-polish.js
+          node --check app/static/js/audio-eq.js
+          node --check app/static/js/audio-eq-backend-status.js
+          node --check app/static/js/audio-eq-drawer-layout.js
+          node --check app/static/js/audio-state-isolation.js
+          node --check app/static/js/airplay-start-commit.js
+          node --check app/static/js/fader-calibration.js
+          node --check app/static/js/airplay-layout-v3.js
+          node --check app/static/js/airplay-hydration.js
+          node --check app/static/js/clock-hydration.js
+          node --check app/static/js/nav-layer.js
+          node --check app/static/js/nav-drawer-lifecycle.js
+          node --check app/static/js/plexamp-persistent.js
+          node --check app/static/js/idle-return.js
+          node --check app/static/js/page-transitions.js
+          node --check app/static/js/airplay-volume-hold.js
+          node --check app/static/js/airplay-volume-v2.js
+          node --check app/static/js/mode-watch.js
+          node --check app/static/js/alarm-active.js
+          node --check app/static/js/nav-drawer.js
+          grep -q "airplay-layout-v3.css" app/templates/airplay.html
+          grep -q "airplay-layout-v3.js" app/templates/airplay.html
+          grep -q "airplay-hydration.js" app/templates/airplay.html
+          grep -q "clock-hydration.js" app/templates/clock.html
+          grep -q "nav-layer.js" app/templates/base.html
+          grep -q "nav-drawer-lifecycle.js" app/templates/base.html
+          grep -q "audio-eq.css" app/templates/base.html
+          grep -q "audio-eq.js" app/templates/base.html
+          grep -q "audio-eq-backend-status.js" app/templates/base.html
+          grep -q "audio-eq-drawer-layout.css" app/templates/base.html
+          grep -q "audio-eq-drawer-layout.js" app/templates/base.html
+          grep -q "masterConsole.insertAdjacentElement" app/static/js/audio-eq-drawer-layout.js
+          grep -q "is-alarm-knob')?.remove" app/static/js/audio-eq-drawer-layout.js
+          grep -q "is-master-only" app/static/css/audio-eq-drawer-layout.css
+          grep -q "dashboard-preferences-bootstrap.js" app/templates/base.html
+          grep -q "settings-dashboard-preferences.js" app/templates/base.html
+          grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
+          grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
+          grep -q "app/runner.py" systemd/a-clockwork-plex.service
+          grep -q "Production EQ installation is disabled" scripts/install-master-eq.sh
+          grep -q -- "--experimental-lab" scripts/install-master-eq.sh
+          grep -q -- "--rollback" scripts/install-master-eq.sh
+          grep -q "test-master-eq-lab.sh" scripts/install-master-eq.sh
+          ! grep -q "apt-get install" scripts/install-master-eq.sh
+          ! grep -q 'cat > "$EQ_CONFIG"' scripts/install-master-eq.sh
+          grep -q "RUN_TESTS=false" scripts/test-master-eq-lab.sh
+          grep -q "ALSA_CONFIG_PATH" scripts/test-master-eq-lab.sh
+          grep -q "acp_lab_a" scripts/test-master-eq-lab.sh
+          grep -q "acp_lab_d" scripts/test-master-eq-lab.sh
+          grep -q "concurrency" scripts/test-master-eq-lab.sh
+          ! grep -q "systemctl restart" scripts/test-master-eq-lab.sh
+          ! grep -q "shairport-sync.conf" scripts/test-master-eq-lab.sh
+          grep -q "ACP_Loopback" scripts/test-dsp-loopback-lab.sh
+          grep -q "physical-dac-unchanged" scripts/test-dsp-loopback-lab.sh
+          ! grep -q "systemctl restart" scripts/test-dsp-loopback-lab.sh
+          ! grep -q "/etc/alsa/conf.d" scripts/test-dsp-loopback-lab.sh
+          grep -q 'CAMILLADSP_VERSION="4.1.3"' scripts/test-camilladsp-loopback-lab.sh
+          grep -q "asset_digest#sha256:" scripts/test-camilladsp-loopback-lab.sh
+          grep -q "dsp-gain" scripts/test-camilladsp-loopback-lab.sh
+          grep -q "physical-dac-unchanged" scripts/test-camilladsp-loopback-lab.sh
+          ! grep -q "sudo " scripts/test-camilladsp-loopback-lab.sh
+          ! grep -q "modprobe " scripts/test-camilladsp-loopback-lab.sh
+          ! grep -q "systemctl " scripts/test-camilladsp-loopback-lab.sh
+          grep -q 'CAMILLADSP_VERSION="4.1.3"' scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q 'kill -HUP "$DSP_PID"' scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q 'clip_limit: $LIMIT_DB' scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q "single-process-survival" scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q "physical-dac-unchanged" scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "sudo " scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "modprobe " scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "systemctl " scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "@view-transition" app/static/css/page-transitions.css
+          node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
+          bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
+          bash -n scripts/install-alarm-audio-helper.sh
+          bash -n scripts/install-shared-audio.sh
+          bash -n scripts/install-master-eq.sh
+          bash -n scripts/test-master-eq-lab.sh
+          bash -n scripts/test-master-eq-lab-stage2.sh
+          bash -n scripts/test-dsp-loopback-lab.sh
+          bash -n scripts/test-camilladsp-loopback-lab.sh
+          bash -n scripts/test-camilladsp-eq-curves-lab.sh
+          bash -n scripts/test-camilladsp-live-headroom-lab.sh
+          bash -n scripts/install-airplay-hooks.sh
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v

@@ -208,9 +208,18 @@
     insertText(shifted && key.length === 1 ? key.toUpperCase() : key);
   }
 
-  document.querySelectorAll('input[data-keyboard]').forEach((input) => {
-    input.addEventListener('focus', () => openKeyboard(input));
-    input.addEventListener('pointerdown', () => openKeyboard(input));
+  document.addEventListener('focusin', (event) => {
+    const input = event.target.closest?.('input[data-keyboard]');
+    if (input && input !== target) {
+      openKeyboard(input);
+    }
+  });
+
+  document.addEventListener('pointerdown', (event) => {
+    const input = event.target.closest?.('input[data-keyboard]');
+    if (input) {
+      openKeyboard(input);
+    }
   });
 
   keyboard.addEventListener('pointerdown', (event) => event.preventDefault());
