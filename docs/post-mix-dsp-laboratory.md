@@ -90,15 +90,79 @@ bash scripts/test-dsp-loopback-lab.sh --run
 The run:
 
 1. records the physical DAC's live `hw_params`;
-2. loads `snd_aloop` at the fixed card index `7` with ID `ACP_Loopback`;
+2. loads or reuses `snd_aloop` at fixed card index `7`;
 3. performs finite 44.1/16, 48/32 and 96/32 loopback round trips;
 4. performs concurrent 44.1/16 and 48/32 round trips on separate substreams;
 5. confirms the physical DAC `hw_params` stayed unchanged;
-6. attempts to unload a loopback module that it loaded.
+6. attempts to unload only a loopback module that it loaded itself.
 
 Loading `snd_aloop` changes the running kernel for the current boot only. WirePlumber or another desktop-audio process may open the new control device and prevent immediate unloading; the script reports that explicitly. A reboot clears a non-persistent module load.
 
-No CamillaDSP binary is downloaded or executed in this stage.
+### Confirmed stage-three result
+
+The bedroom appliance exposed the requested module ID `ACP_Loopback` as ALSA card ID `ACPLoopback` at index `7`. The corrected probe discovered and used the actual card by numeric index.
+
+All transport checks passed:
+
+| Test | Result |
+|---|---|
+| 44.1 kHz / `S16_LE` round trip | PASS |
+| 48 kHz / `S32_LE` round trip | PASS |
+| 96 kHz / `S32_LE` round trip | PASS |
+| Concurrent 44.1/16 and 48/32 substreams | PASS |
+| Physical DAC unchanged | PASS |
+
+The physical DAC remained at 44.1 kHz / `S16_LE` with period size 1024 and buffer size 8192 throughout. This proves the loopback transport needed for an isolated post-mix DSP path is available without disturbing production playback.
+
+## Stage four: CamillaDSP loopback-only processing
+
+`scripts/test-camilladsp-loopback-lab.sh` introduces an actual DSP engine while keeping both its input and output on separate `snd_aloop` substreams.
+
+The laboratory is pinned to the official CamillaDSP `v4.1.3` Linux aarch64 ALSA build. It never installs the binary system-wide. The archive, executable, generated YAML, test signal and results remain under a temporary `/tmp/a-clockwork-plex-camilladsp.*` directory.
+
+### Prepare only
+
+```bash
+bash scripts/test-camilladsp-loopback-lab.sh
+```
+
+This creates a 48 kHz / `S32_LE` stereo configuration and finite 997 Hz test signal. It performs no download and opens no audio device.
+
+### Fetch and validate
+
+```bash
+bash scripts/test-camilladsp-loopback-lab.sh --fetch --lab-root /tmp/a-clockwork-plex-camilladsp.EXAMPLE
+```
+
+This stage:
+
+1. fetches release metadata from the official `HEnquist/camilladsp` GitHub API;
+2. selects `camilladsp-linux-aarch64.tar.gz` from release `v4.1.3`;
+3. verifies the downloaded SHA-256 against GitHub's release-asset digest;
+4. checks the reported binary version;
+5. runs CamillaDSP's configuration checker;
+6. opens no audio device.
+
+### Finite DSP run
+
+```bash
+bash scripts/test-camilladsp-loopback-lab.sh --run --lab-root /tmp/a-clockwork-plex-camilladsp.EXAMPLE
+```
+
+The loopback route is:
+
+```text
+aplay test signal
+  → hw:7,0,0
+  → CamillaDSP capture hw:7,1,0
+  → fixed −6 dB Gain filter
+  → CamillaDSP playback hw:7,0,1
+  → arecord capture hw:7,1,1
+```
+
+The output peak is measured against the generated input peak. The test passes only when the observed change is close to `−6 dB`, enough non-silent samples are captured, and the physical DAC's live `hw_params` are byte-for-byte unchanged.
+
+This stage deliberately does not test the DAC, production source PCMs, Shairport or Plexamp. Its purpose is to prove that the selected CamillaDSP binary can parse the intended configuration, open the loopback endpoints and perform measurable processing.
 
 ## Promotion gates for a DSP backend
 
