@@ -13,7 +13,12 @@ EQ_BANDS = {'bass', 'mid', 'treble'}
 
 
 class MasterEqualizer:
-    """Restricted client for the root-owned ALSA equalizer helper."""
+    """Restricted client for the root-owned equalizer helper.
+
+    The dashboard keeps the EQ controls and API available even while no audio
+    backend is active. This lets the feature survive a backend rollback without
+    inviting somebody to reinstall an unproven ALSA graph on a working Pi.
+    """
 
     def __init__(
         self,
@@ -31,6 +36,8 @@ class MasterEqualizer:
             'installed': installed,
             'configured': False,
             'mode': 'master-three-band',
+            'backend_state': 'installed' if installed else 'offline',
+            'activation': 'production' if installed else 'laboratory-only',
             'helper_path': str(self.helper_path),
             'bypassed': False,
             'bands': {
@@ -45,14 +52,15 @@ class MasterEqualizer:
                 for band in ('bass', 'mid', 'treble')
             },
             'error': None if installed else (
-                'The master EQ helper is not installed. '
-                'Run sudo bash scripts/install-master-eq.sh.'
+                'The Master EQ controls are preserved, but no production EQ backend is active. '
+                'The ALSA backend is being diagnosed with the isolated laboratory procedure in '
+                'docs/master-eq-testing.md.'
             ),
         }
 
     def _invoke(self, *arguments: str, timeout: int = 12) -> tuple[int, dict[str, Any], str]:
         if not self.helper_path.exists():
-            return 1, {}, 'The master EQ helper is not installed.'
+            return 1, {}, 'The master EQ backend is not active.'
         command = ['sudo', '-n', str(self.helper_path), *arguments]
         try:
             result = self.runner(
@@ -86,10 +94,15 @@ class MasterEqualizer:
         if helper:
             payload.update(helper)
         payload.setdefault('mode', 'master-three-band')
+        payload.setdefault('backend_state', 'active' if payload.get('available') else 'unavailable')
+        payload.setdefault('activation', 'production')
         payload['helper_path'] = str(self.helper_path)
         if return_code or error:
             payload['available'] = False
+            payload['backend_state'] = 'unavailable'
             payload['error'] = error or payload.get('error') or 'The EQ helper is unavailable.'
+        elif payload.get('available'):
+            payload['backend_state'] = 'active'
         return payload
 
     def set_band(self, band: Any, db_value: Any, *, persist: bool = True) -> dict[str, Any]:
