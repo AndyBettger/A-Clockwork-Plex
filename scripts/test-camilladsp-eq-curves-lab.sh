@@ -414,7 +414,6 @@ PY_ANALYZE
         failures=$((failures + 1))
     fi
     sleep 0.25
-done
 }
 
 run_profile neutral-start 0.0 0.0 0.0 neutral
