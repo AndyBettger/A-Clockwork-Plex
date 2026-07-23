@@ -1,184 +1,197 @@
-# Master EQ installation and controlled testing
+# Master EQ laboratory and controlled testing
 
-The master EQ pass adds a restrained three-band curve to the shared audio path:
+The **Master EQ feature remains part of A Clockwork Plex**. Its Bass, Mid and Treble controls, restricted API, neutral response, bypass behaviour and saved-curve design are being preserved.
+
+The first ALSA `alsaequal` backend was rolled back after its modified source PCMs could fail hardware-parameter negotiation. Plexamp could sometimes open the path, while Shairport Sync could fail to open `acp_airplay`, causing the iPhone to report that it could not connect.
+
+Production installation is therefore deliberately blocked while the plugin order and sample-format boundaries are diagnosed.
+
+## Current production audio path
+
+The known-good shared path is:
 
 ```text
-Plexamp player → Plexamp trim ┐
-AirPlay sender → AirPlay trim ├→ identical Eq10 curve → Master → dmix → DAC
-Alarm fade     → Alarm trim   ┘
+Plexamp player → acp_plexamp trim ┐
+AirPlay sender → acp_airplay trim ├→ acp_master → acp_dmix → DAC
+Alarm fade     → acp_alarm trim   ┘
 ```
 
-The same linear curve is applied to every source immediately before the existing Master stage. This preserves the proven shared `dmix` design while producing the same frequency response for the summed output.
+The current `acp_dmix` base format is fixed at:
 
-## Safety limits
-
-- Bass, Mid and Treble are limited to `−6 dB` through `+6 dB`.
-- Controls move in `0.5 dB` steps.
-- A double-click on a drawer knob returns that band to `0 dB`.
-- **Neutral** resets all bands to `0 dB` and leaves EQ active.
-- **Bypass** temporarily applies a neutral response while remembering the previous curve.
-- Bypass is a neutral-response bypass; the ALSA equalizer plugin remains in the signal path.
-- Scheduled alarm playback remains disabled.
-
-A positive EQ setting consumes headroom. Begin testing with Master below its normal maximum and avoid starting with several boosted bands.
-
-## Install
-
-Run the shared-audio installer first when the shared path has not already been configured:
-
-```bash
-cd ~/A-Clockwork-Plex
-sudo bash scripts/install-shared-audio.sh
+```text
+44,100 Hz · S16_LE · stereo
 ```
 
-Then install the EQ stage:
+Each source-facing `plug` PCM converts incoming material to that shared format. This means higher-rate or higher-bit-depth Plexamp material is currently converted before reaching the DAC; that is a separate design decision to revisit after the EQ backend is stable.
+
+## What is blocked
+
+This command no longer installs anything:
 
 ```bash
 sudo bash scripts/install-master-eq.sh
 ```
 
-The installer:
+A bare invocation exits with an explanation. It does not install packages, rewrite `/etc/alsa`, modify Shairport Sync or restart services.
 
-1. installs `libasound2-plugin-equal` and the CAPS plugins when required;
-2. backs up the existing shared ALSA, helper, sudoers and dashboard-service files;
-3. creates the `acp_equal` control and PCM;
-4. routes Plexamp, AirPlay and alarm source trims through that curve before Master;
-5. installs the restricted EQ helper and sudoers rules;
-6. starts with a neutral `0 / 0 / 0 dB` curve;
-7. updates the dashboard service to use the EQ-aware runner.
-
-Restart the audio services and dashboard:
+Rollback remains available:
 
 ```bash
-sudo systemctl restart plexamp.service
-sudo systemctl restart shairport-sync.service
-sudo systemctl restart a-clockwork-plex.service
+sudo bash scripts/install-master-eq.sh --rollback
 ```
 
-Fully close and reopen Chromium after installation so the new Audio controls are loaded cleanly.
+Do not run rollback on an already healthy rolled-back installation unless a later experiment has actually changed the production files.
 
-## Command-line diagnostics
+## Isolated laboratory harness
 
-Check the restricted helper directly:
+The laboratory harness creates a temporary ALSA configuration beneath `/tmp`. It does **not** edit:
 
-```bash
-sudo /usr/local/bin/a-clockwork-plex-audio-eq status | python3 -m json.tool
-```
+- `/etc/alsa`;
+- `/etc/shairport-sync.conf`;
+- systemd services;
+- `config.json`;
+- dashboard runtime state;
+- Plexamp or AirPlay settings.
 
-Check through the dashboard API:
-
-```bash
-curl -s http://localhost:8088/api/audio/eq | venv/bin/python -m json.tool
-```
-
-The healthy neutral state reports:
-
-```text
-available: true
-bypassed: false
-bass:     0 dB
-mid:      0 dB
-treble:   0 dB
-```
-
-## Controlled listening test
-
-### 1. Neutral baseline
-
-1. Open the bottom drawer and select **Audio**.
-2. Confirm Master EQ says **Active**.
-3. Confirm Bass, Mid and Treble all show `0 dB`.
-4. Keep Master below its normal ceiling for the first test.
-5. Play a familiar, well-recorded Plexamp track.
-6. Press **Neutral** once and confirm the sound does not jump unexpectedly.
-
-### 2. Individual bands
-
-Change only one control at a time:
-
-```text
-Bass:    +2 dB → 0 dB → −2 dB → 0 dB
-Mid:     +2 dB → 0 dB → −2 dB → 0 dB
-Treble:  +2 dB → 0 dB → −2 dB → 0 dB
-```
-
-Confirm:
-
-- changes are audible without clicks, stalls or service restarts;
-- the untouched bands remain at their previous values;
-- a drawer knob remains where it was left after the next status refresh;
-- Settings → Audio shows the same values.
-
-### 3. Neutral and bypass
-
-Try a modest curve such as:
-
-```text
-Bass:    +2 dB
-Mid:      0 dB
-Treble:  +1 dB
-```
-
-Then:
-
-1. select **Bypass** and confirm the response becomes neutral;
-2. select **Restore EQ** and confirm the saved curve returns;
-3. select **Neutral** and confirm all controls return to `0 dB`;
-4. restart the dashboard and confirm the neutral state persists;
-5. save the modest curve again, restart the Pi later, and confirm it persists.
-
-### 4. Source regression
-
-Repeat a small `+2 dB Bass` change with:
-
-- Plexamp playing;
-- AirPlay playing;
-- a controlled alarm-tone test at its existing safety-capped volume.
-
-All three should follow the same curve. Plexamp/AirPlay pause handoff and the alarm overlay must continue to work normally.
-
-Do not enable scheduled alarm playback during this EQ pass.
-
-### 5. Headroom check
-
-With a familiar loud track:
-
-1. keep all bands neutral and note the clean baseline;
-2. apply the most boosted curve you realistically expect to use;
-3. listen for harshness, crackling or obvious clipping;
-4. reduce Master when necessary rather than compensating with negative source trims.
-
-The dashboard deliberately limits each band to `+6 dB`, but three simultaneous boosts can still increase peak level.
-
-## Rollback
-
-The installer records its most recent backup at:
-
-```text
-/var/lib/a-clockwork-plex/eq-last-backup
-```
-
-Restore that snapshot with:
+Prepare the laboratory without opening the DAC:
 
 ```bash
 cd ~/A-Clockwork-Plex
-sudo bash scripts/install-master-eq.sh --rollback
-
-sudo systemctl restart plexamp.service
-sudo systemctl restart shairport-sync.service
-sudo systemctl restart a-clockwork-plex.service
+bash scripts/install-master-eq.sh --experimental-lab
 ```
 
-Rollback restores the ALSA shared path, prior EQ configuration, helper, sudoers and dashboard service file from the last installation snapshot.
-
-## Useful troubleshooting
+This is equivalent to:
 
 ```bash
-aplay -L | grep -A2 -E 'acp_(equal|master|plexamp|airplay|alarm)'
-amixer -D acp_equal scontrols
-amixer -D acp_equal scontents
-systemctl status a-clockwork-plex.service plexamp.service shairport-sync.service --no-pager
-journalctl -u a-clockwork-plex.service -n 100 --no-pager
+bash scripts/test-master-eq-lab.sh --prepare-only
 ```
 
-When `amixer -D acp_equal scontrols` does not list ten controls, leave the curve neutral or use rollback rather than modifying the generated ALSA files by hand.
+The command prints the temporary directory and generated `asound.conf`. Nothing is played and no service is restarted.
+
+## Finite silent tests
+
+Only run this stage while ordinary Plexamp and AirPlay playback are paused:
+
+```bash
+cd ~/A-Clockwork-Plex
+bash scripts/install-master-eq.sh --experimental-lab --run
+```
+
+The test uses digital silence and finite one-second `aplay` opens. It still opens the existing shared Master PCM and physical DAC, so it is deliberately opt-in.
+
+The harness tests four plugin orders:
+
+```text
+A. input plug → equal → existing Master
+B. input plug → equal → output plug → existing Master
+C. input plug → softvol → equal → output plug → existing Master
+D. input plug → equal → softvol → existing Master
+```
+
+Each path is tested with:
+
+| Rate | ALSA format |
+|---:|---|
+| 44.1 kHz | `S16_LE` |
+| 48 kHz | `S16_LE` |
+| 48 kHz | `S24_LE` |
+| 48 kHz | `S32_LE` |
+| 96 kHz | `S24_LE` |
+| 96 kHz | `S32_LE` |
+
+A final concurrency test opens one temporary path at 44.1 kHz and another at 48 kHz through the existing shared mixer at the same time.
+
+## Results
+
+The harness prints and preserves a directory such as:
+
+```text
+/tmp/a-clockwork-plex-eq-lab.A1b2C3
+```
+
+Important files are:
+
+```text
+asound.conf    generated temporary ALSA graph
+results.tsv    pass/fail matrix
+report.txt     environment, controls and full summary
+*.log          stderr/stdout for each PCM-format test
+```
+
+A clean result is not yet permission to install the backend. It only proves that a particular temporary PCM arrangement can negotiate finite silent streams on that Pi.
+
+## How to interpret failures
+
+### Every variant fails
+
+Likely areas include:
+
+- `alsaequal` or CAPS plugin availability;
+- the floating-point format expected by `alsaequal`;
+- incompatibility between the equalizer and the downstream Master/dmix path;
+- the temporary control file failing to initialise.
+
+Check `report.txt` and the first failing log before changing the graph.
+
+### A passes but B, C or D fails
+
+The additional conversion or `softvol` stage is introducing an incompatible hardware-parameter interval. Keep the successful path as the next candidate and reduce the graph rather than adding more `plug` layers blindly.
+
+### 44.1 kHz passes but 48/96 kHz fails
+
+The source-side `plug` is not successfully converting that format before the equalizer, or the equalizer is exposing constraints that prevent conversion.
+
+### Single streams pass but concurrency fails
+
+The EQ graph can open the shared output alone but is not safe for simultaneous Plexamp, AirPlay and alarm sources. It must not be promoted to production.
+
+## Useful manual diagnostics
+
+Use the generated config path printed by the harness:
+
+```bash
+export ALSA_CONFIG_PATH=/tmp/a-clockwork-plex-eq-lab.EXAMPLE/asound.conf
+
+aplay -L | grep -A2 acp_lab
+amixer -D acp_lab_equal scontrols
+amixer -D acp_lab_equal scontents
+```
+
+A single finite test can then be repeated with its errors visible:
+
+```bash
+timeout 4 aplay -D acp_lab_b -f S16_LE -r 48000 -c 2 -d 1 /dev/zero
+```
+
+Unset the temporary configuration afterwards:
+
+```bash
+unset ALSA_CONFIG_PATH
+```
+
+## Safety limits retained for the eventual backend
+
+The user-facing feature still targets:
+
+- Bass, Mid and Treble limited to `−6 dB` through `+6 dB`;
+- `0.5 dB` steps;
+- per-band centre reset;
+- full **Neutral** action;
+- **Bypass** that remembers the previous curve;
+- reduced Master level during positive-gain testing;
+- scheduled alarm playback remaining locked.
+
+## Promotion criteria
+
+An EQ backend should not return to the production graph until all of the following are true:
+
+1. every required source format passes finite negotiation;
+2. at least two temporary source paths pass concurrently;
+3. Shairport Sync connects repeatedly without sender rejection or immediate pause;
+4. Plexamp plays 44.1, 48 and higher-rate library material without stalls;
+5. neutral, boosted, cut and bypass responses work without clicks or service restarts;
+6. the working graph survives service and Pi restarts;
+7. rollback is retested from a fresh backup;
+8. complete Plexamp/AirPlay/alarm handoff regression tests pass.
+
+Until then, the dashboard should report **Backend offline** and retain disabled EQ controls rather than suggesting production installation.
