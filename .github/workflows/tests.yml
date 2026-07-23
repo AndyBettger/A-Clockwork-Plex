@@ -55,6 +55,7 @@ jobs:
           node --check app/static/js/dashboard-preferences-bootstrap.js
           node --check app/static/js/audio-polish.js
           node --check app/static/js/audio-eq.js
+          node --check app/static/js/audio-eq-backend-status.js
           node --check app/static/js/audio-eq-drawer-layout.js
           node --check app/static/js/audio-state-isolation.js
           node --check app/static/js/airplay-start-commit.js
@@ -80,6 +81,7 @@ jobs:
           grep -q "nav-drawer-lifecycle.js" app/templates/base.html
           grep -q "audio-eq.css" app/templates/base.html
           grep -q "audio-eq.js" app/templates/base.html
+          grep -q "audio-eq-backend-status.js" app/templates/base.html
           grep -q "audio-eq-drawer-layout.css" app/templates/base.html
           grep -q "audio-eq-drawer-layout.js" app/templates/base.html
           grep -q "masterConsole.insertAdjacentElement" app/static/js/audio-eq-drawer-layout.js
@@ -90,20 +92,26 @@ jobs:
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
           grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
           grep -q "app/runner.py" systemd/a-clockwork-plex.service
-          grep -q "dpkg-query -L caps" scripts/install-master-eq.sh
-          grep -q 'library "$CAPS_LIBRARY"' scripts/install-master-eq.sh
-          grep -q "Preserving original EQ rollback snapshot" scripts/install-master-eq.sh
-          grep -q "amixer -D acp_equal scontrols" scripts/install-master-eq.sh
-          grep -A2 -F 'pcm.acp_equal {' scripts/install-master-eq.sh | grep -q 'type equal'
-          ! grep -q 'pcm.acp_equal_engine' scripts/install-master-eq.sh
-          grep -q 'for pcm in acp_plexamp acp_airplay acp_alarm' scripts/install-master-eq.sh
-          ! grep -q 'touch "$EQ_CONTROL_FILE"' scripts/install-master-eq.sh
+          grep -q "Production EQ installation is disabled" scripts/install-master-eq.sh
+          grep -q -- "--experimental-lab" scripts/install-master-eq.sh
+          grep -q -- "--rollback" scripts/install-master-eq.sh
+          grep -q "test-master-eq-lab.sh" scripts/install-master-eq.sh
+          ! grep -q "apt-get install" scripts/install-master-eq.sh
+          ! grep -q 'cat > "$EQ_CONFIG"' scripts/install-master-eq.sh
+          grep -q "RUN_TESTS=false" scripts/test-master-eq-lab.sh
+          grep -q "ALSA_CONFIG_PATH" scripts/test-master-eq-lab.sh
+          grep -q "acp_lab_a" scripts/test-master-eq-lab.sh
+          grep -q "acp_lab_d" scripts/test-master-eq-lab.sh
+          grep -q "concurrency" scripts/test-master-eq-lab.sh
+          ! grep -q "systemctl restart" scripts/test-master-eq-lab.sh
+          ! grep -q "shairport-sync.conf" scripts/test-master-eq-lab.sh
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
           bash -n scripts/install-alarm-audio-helper.sh
           bash -n scripts/install-shared-audio.sh
           bash -n scripts/install-master-eq.sh
+          bash -n scripts/test-master-eq-lab.sh
           bash -n scripts/install-airplay-hooks.sh
 
       - name: Run unit tests
