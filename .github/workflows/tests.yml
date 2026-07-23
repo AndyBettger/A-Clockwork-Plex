@@ -116,6 +116,14 @@ jobs:
           ! grep -q "sudo " scripts/test-camilladsp-loopback-lab.sh
           ! grep -q "modprobe " scripts/test-camilladsp-loopback-lab.sh
           ! grep -q "systemctl " scripts/test-camilladsp-loopback-lab.sh
+          grep -q 'CAMILLADSP_VERSION="4.1.3"' scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q 'kill -HUP "$DSP_PID"' scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q 'clip_limit: $LIMIT_DB' scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q "single-process-survival" scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q "physical-dac-unchanged" scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "sudo " scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "modprobe " scripts/test-camilladsp-live-headroom-lab.sh
+          ! grep -q "systemctl " scripts/test-camilladsp-live-headroom-lab.sh
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
@@ -126,6 +134,8 @@ jobs:
           bash -n scripts/test-master-eq-lab-stage2.sh
           bash -n scripts/test-dsp-loopback-lab.sh
           bash -n scripts/test-camilladsp-loopback-lab.sh
+          bash -n scripts/test-camilladsp-eq-curves-lab.sh
+          bash -n scripts/test-camilladsp-live-headroom-lab.sh
           bash -n scripts/install-airplay-hooks.sh
 
       - name: Run unit tests
