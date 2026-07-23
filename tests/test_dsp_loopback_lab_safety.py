@@ -49,6 +49,15 @@ class DspLoopbackLaboratorySafetyTests(unittest.TestCase):
         self.assertNotIn('systemctl restart', text)
         self.assertNotIn('/etc/alsa/conf.d', text)
 
+    def test_loaded_card_is_discovered_and_used_by_numeric_index(self):
+        text = LAB.read_text(encoding='utf-8')
+        self.assertIn('discover_loopback_card()', text)
+        self.assertIn(': Loopback - Loopback', text)
+        self.assertIn('snd_aloop was already loaded; discovering and reusing its ALSA card.', text)
+        self.assertIn("printf 'hw:%s,0,%s'", text)
+        self.assertIn("printf 'hw:%s,1,%s'", text)
+        self.assertNotIn('refusing to replace it', text)
+
 
 if __name__ == '__main__':
     unittest.main()
