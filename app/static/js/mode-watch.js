@@ -8,6 +8,9 @@
     settings: '/settings',
   };
 
+  let statusUnavailable = false;
+  let plexampRecoveryTimer = null;
+
   const navigate = (route, immediate = false, updateMode = true) => {
     if (typeof window.ACPNavigate === 'function') {
       window.ACPNavigate(route, { immediate, updateMode });
@@ -20,6 +23,19 @@
     const live = window.ACPLiveAudioSnapshot?.live || {};
     const state = String(live?.channels?.plexamp?.playback_state || '').toLowerCase();
     return state === 'playing';
+  }
+
+  function schedulePlexampFrameRecovery() {
+    const frame = document.getElementById('persistent-plexamp-frame');
+    if (!frame) return;
+
+    window.clearTimeout(plexampRecoveryTimer);
+    plexampRecoveryTimer = window.setTimeout(() => {
+      const source = frame.getAttribute('src');
+      if (!source) return;
+      document.getElementById('persistent-plexamp')?.classList.remove('is-ready');
+      frame.setAttribute('src', source);
+    }, 2500);
   }
 
   async function reassertPlexampMode() {
@@ -37,7 +53,14 @@
       if (window.ACPNavigationState?.isLeaving?.()) return;
 
       const response = await fetch('/api/status', { cache: 'no-store' });
-      if (!response.ok) return;
+      if (!response.ok) {
+        statusUnavailable = true;
+        return;
+      }
+
+      const recoveredFromOutage = statusUnavailable;
+      statusUnavailable = false;
+      if (recoveredFromOutage) schedulePlexampFrameRecovery();
 
       const status = await response.json();
       const alarmScreenRequired = Boolean(status?.alarm_scheduler?.screen_required);
@@ -55,14 +78,17 @@
       const requestedMode = status?.state?.mode;
       const route = modeRoutes[requestedMode];
       if (!route) return;
+      const airplayActive = status?.state?.airplay?.active === true;
 
       /* Shairport's session-end hook returns AirPlay to Clock. If Plexamp has
-         already won the handoff and is visibly playing, preserve the newer user
-         choice and repair the server mode instead of closing the Plexamp layer. */
+         already won that completed handoff and is visibly playing, preserve the
+         newer user choice and repair the stale Clock mode. Never do this while an
+         AirPlay session is active: playback state can lag briefly during START. */
       if (
         window.ACPPlexamp?.isOpen?.()
         && plexampIsPlaying()
-        && requestedMode !== 'plexamp'
+        && requestedMode === 'clock'
+        && !airplayActive
       ) {
         await reassertPlexampMode();
         return;
@@ -95,9 +121,11 @@
         navigate(route, false, false);
       }
     } catch (error) {
+      statusUnavailable = true;
     }
   }
 
+  window.addEventListener('pagehide', () => window.clearTimeout(plexampRecoveryTimer));
   window.setInterval(checkMode, 2000);
   window.setTimeout(checkMode, 500);
 })();
