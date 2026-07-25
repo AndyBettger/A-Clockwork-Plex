@@ -107,18 +107,35 @@ The isolated evidence now proves that this Pi can support:
 
 This is enough to retire the failed `alsaequal` design and continue with CamillaDSP as the preferred post-mix backend candidate. It is not yet permission to install or activate that route in production.
 
+## Stage seven prepare-only result
+
+The guarded physical-rehearsal generator was run on the bedroom appliance on 26 July 2026 without activating audio.
+
+| Check | Result |
+|---|---|
+| Full project test suite | PASS — 100 tests |
+| Temporary ALSA fragment parse | PASS |
+| CamillaDSP physical configuration check | PASS — `CamillaDSP 4.1.3 (05e9cfc)` |
+| Rehearsal format | 44.1 kHz / `S16_LE` / stereo |
+| Production services or files changed | No |
+| Physical DAC opened | No |
+
+The temporary graph preserves `acp_plexamp`, `acp_airplay`, `acp_alarm`, `acp_master` and their existing softvol controls. Only `acp_dmix` is redirected to `hw:7,0,0` using the separate rehearsal IPC key `1094932536`. CamillaDSP captures from `hw:7,1,0`, plays to `hw:CARD=Pro,DEV=0`, enables ALSA Loopback rate adjustment, and applies neutral EQ plus the final `-1 dBFS` limiter.
+
+The empty ALSA validation log confirms that the generated fragment produced no parser diagnostics. Physical activation remains time-limited and mandatory-rollback; no persistent service, boot, module or package changes are included.
+
 ## Next gate: controlled physical-audio rehearsal
 
-The next meaningful test is the first one that will deliberately touch the physical audio path. It must therefore be separately approved and built as a reversible rehearsal with:
+The prepare-only gate has passed. The approved activation must now verify:
 
-- an exact snapshot of the current ALSA files, mixer state and service state;
-- no permanent module, package or startup changes during the first run;
-- an automatically generated rollback command before any cutover;
-- a very low-level finite test signal before ordinary music;
-- verification that Plexamp and Shairport return to the known-good direct shared mixer;
-- the dashboard EQ backend remaining offline until the rehearsal and rollback both pass.
+- the exact live ALSA fragment and service/mixer snapshots are captured before cutover;
+- the physical DAC becomes owner-free after the three expected services stop;
+- CamillaDSP owns the DAC at 44.1 kHz / `S16_LE`;
+- the finite `-36 dBFS` route probe reaches the DAC through `acp_plexamp`;
+- Plexamp, AirPlay and the dashboard run through the temporary post-mix route;
+- the original ALSA checksum, mixer state and prior service states are restored automatically.
 
-Until that explicit approval, the production graph remains unchanged:
+Until activation begins, the production graph remains unchanged:
 
 ```text
 Plexamp / AirPlay / Alarm → source trims → Master → dmix → hw:Pro,0
