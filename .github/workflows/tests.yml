@@ -124,6 +124,14 @@ jobs:
           ! grep -q "sudo " scripts/test-camilladsp-live-headroom-lab.sh
           ! grep -q "modprobe " scripts/test-camilladsp-live-headroom-lab.sh
           ! grep -q "systemctl " scripts/test-camilladsp-live-headroom-lab.sh
+          grep -q 'REQUIRED_CONFIRMATION="STAGE-SEVEN-REAL-DAC"' scripts/test-camilladsp-physical-rehearsal.sh
+          grep -q 'enable_rate_adjust: true' scripts/test-camilladsp-physical-rehearsal.sh
+          grep -q 'REHEARSAL_IPC_KEY=1094932536' scripts/test-camilladsp-physical-rehearsal.sh
+          grep -q 'rollback-alsa-config' scripts/test-camilladsp-physical-rehearsal.sh
+          grep -q 'There is no keep-active mode' scripts/test-camilladsp-physical-rehearsal.sh
+          ! grep -q 'systemctl enable' scripts/test-camilladsp-physical-rehearsal.sh
+          ! grep -q 'modprobe snd_aloop' scripts/test-camilladsp-physical-rehearsal.sh
+          ! grep -q '/etc/shairport-sync.conf' scripts/test-camilladsp-physical-rehearsal.sh
           ! grep -q "@view-transition" app/static/css/page-transitions.css
           node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
@@ -136,6 +144,7 @@ jobs:
           bash -n scripts/test-camilladsp-loopback-lab.sh
           bash -n scripts/test-camilladsp-eq-curves-lab.sh
           bash -n scripts/test-camilladsp-live-headroom-lab.sh
+          bash -n scripts/test-camilladsp-physical-rehearsal.sh
           bash -n scripts/install-airplay-hooks.sh
 
       - name: Run unit tests
