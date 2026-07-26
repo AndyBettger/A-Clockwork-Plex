@@ -4,6 +4,7 @@ import json
 import threading
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable
 
 from flask import jsonify, request
@@ -94,11 +95,23 @@ class ApplicationStateHub:
 
 
 def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
-    """Build the event-assisted hub from the application's established observers."""
+    """Build the playback hub with persisted AirPlay pause-hold ownership."""
     try:
         from . import audio_mixer
     except ImportError:  # Supports direct execution imports.
         import audio_mixer
+
+    runtime_path = Path(dashboard.BASE_DIR) / "playback-runtime.json"
+
+    def complete_airplay_hold(_reason: str) -> None:
+        config = dashboard.load_config()
+        dashboard_config = config.get("dashboard", {}) if isinstance(config.get("dashboard"), dict) else {}
+        idle_screen = str(dashboard_config.get("default_mode", "clock")).strip().lower()
+        if idle_screen not in dashboard.VALID_MODES:
+            idle_screen = "clock"
+        dashboard.set_airplay_session(False)
+        if idle_screen != "clock":
+            dashboard.set_mode(idle_screen)
 
     coordinator = PlaybackCoordinator(
         load_config=dashboard.load_config,
@@ -107,6 +120,8 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         airplay_status=dashboard.mpris_remote_status,
         alarm_status=dashboard.alarm_scheduler.status,
         alarm_audio_status=dashboard.alarm_audio.status,
+        runtime_path=runtime_path,
+        hold_completion=complete_airplay_hold,
     )
 
     hub = ApplicationStateHub()
@@ -136,7 +151,7 @@ def _register_legacy_playback_event_wrappers(app: Any, coordinator: PlaybackCoor
 
 
 def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
-    """Expose shared state plus command-disabled playback event ingestion."""
+    """Expose shared state plus validated playback event ingestion."""
     coordinator = hub.service("playback")
 
     if "api_application_state" not in app.view_functions:
