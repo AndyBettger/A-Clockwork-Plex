@@ -37,26 +37,40 @@ During the rehearsal CamillaDSP negotiated the DAC as 44.1 kHz, `S16_LE`, stereo
 
 These observations prove the physical post-mix route itself works for both primary sources and that the audio handoff action still reaches Plexamp.
 
-## Control-plane issues exposed
+## Control-plane issues exposed and resolved
 
-The rehearsal is not yet promoted because it exposed two dashboard recovery defects:
+The first rehearsal exposed two dashboard/restart issues:
 
-1. On the first run, Plexamp audio recovered before its embedded web interface. The persistent iframe remained disconnected long enough that the Now Playing screen was not usable during most of the 180-second window.
-2. On the second run, AirPlay audio played and Plexamp paused, but the dashboard did not switch to the AirPlay screen.
+1. Plexamp's embedded interface did not recover promptly after the service restart.
+2. AirPlay audio played and Plexamp paused, but the dashboard did not initially switch to the AirPlay screen.
 
-The AirPlay-screen failure was traced to `mode-watch.js`. Its protection against a stale AirPlay-end event reasserted Plexamp mode whenever the Plexamp overlay was open and the live snapshot still briefly said `playing`. During AirPlay START that stale playback state could overwrite the new `airplay` mode before the pause became visible.
+The AirPlay-screen race was fixed by preventing stale Plexamp playback state from overwriting an active AirPlay mode. Direct-mixer regression now confirms:
 
-The fix restricts that repair to `requestedMode === "clock"` while no AirPlay session is active. It therefore still protects the completed AirPlay-to-Plexamp handoff but cannot override AirPlay START.
+- AirPlay starts, pauses Plexamp and selects the AirPlay page;
+- AirPlay disconnect returns to Clock;
+- starting Plexamp playback while AirPlay is active pauses AirPlay.
 
-The first-run iframe problem is addressed by remembering dashboard API outages and reloading the persistent Plexamp iframe shortly after `/api/status` becomes available again. This gives the restarted Plexamp service a fresh embedded client instead of relying on a disconnected iframe to recover itself.
+The remaining silent-after-restart behaviour was traced to Plexamp Headless 4.12.4 rather than the dashboard, shared mixer or CamillaDSP. A temporary ALSA control-alias experiment was rejected and completely rolled back. After upgrading Plexamp through its bundled upgrade script, repeated `plexamp.service` restarts produced normal audio immediately without toggling the output device.
 
 ## Current decision
 
 - Physical CamillaDSP audio route: **PASS**
 - Automatic rollback: **PASS**
-- Plexamp/AirPlay audio and pause handoff: **PASS**
-- Dashboard control-plane recovery: **fix committed; regression test still required on the appliance**
-- Production DSP activation: **still blocked**
+- Plexamp/AirPlay audio and bidirectional pause handoff on direct mixer: **PASS**
+- Plexamp restart recovery after upgrade: **PASS**
+- Temporary ALSA control aliases: **rejected and removed**
+- Production DSP activation: **still blocked pending extended rehearsal**
 - Draft PR #2: **remain draft and unmerged**
 
-The next step is a normal direct-mixer dashboard regression after pulling the JavaScript fix. A further physical rehearsal should happen only after AirPlay reliably selects the AirPlay screen and the Plexamp iframe recovers after a controlled service restart.
+## Final stage-seven gate
+
+Run one extended, mandatory-rollback physical rehearsal long enough to verify:
+
+1. Plexamp starts and plays through CamillaDSP immediately after the controlled restart.
+2. AirPlay starts, pauses Plexamp, selects the AirPlay page and plays through CamillaDSP.
+3. Paused AirPlay retains the AirPlay page for the full ten-minute hold.
+4. Starting Plexamp during an active AirPlay session pauses AirPlay and returns to Plexamp.
+5. CamillaDSP remains alive with rate adjustment throughout the complete window.
+6. The exact original ALSA checksum, mixer values and service states are restored with zero rollback failures.
+
+A successful extended rehearsal is the promotion gate for designing the persistent restart-free CamillaDSP service and installer.
