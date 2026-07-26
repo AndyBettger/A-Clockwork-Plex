@@ -11,8 +11,10 @@ from flask import jsonify, request
 
 try:
     from .playback_coordinator import PlaybackCoordinator
+    from .shairport_session import shairport_remote_status
 except ImportError:  # Supports direct execution imports.
     from playback_coordinator import PlaybackCoordinator
+    from shairport_session import shairport_remote_status
 
 
 StateProvider = Callable[[], dict[str, Any]]
@@ -132,7 +134,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         load_config=dashboard.load_config,
         load_state=dashboard.load_state,
         plexamp_status=lambda: audio_mixer._plexamp_controller().status(),
-        airplay_status=dashboard.mpris_remote_status,
+        airplay_status=lambda: shairport_remote_status(dashboard.mpris_remote_status),
         alarm_status=dashboard.alarm_scheduler.status,
         alarm_audio_status=dashboard.alarm_audio.status,
         runtime_path=runtime_path,
