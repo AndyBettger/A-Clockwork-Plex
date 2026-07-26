@@ -73,3 +73,4 @@ bash -n scripts/install-dashboard-service.sh
 bash -n scripts/install-airplay-hooks.sh
 bash -n scripts/inspect-application-state.sh
 bash -n scripts/inspect-playback-coordinator.sh
+bash -n scripts/inspect-mixer-controller.sh
