@@ -3,7 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Flask, jsonify
 
@@ -109,7 +109,9 @@ class PlaybackCoordinatorTests(unittest.TestCase):
         )
 
         first = coordinator.snapshot()["sources"]["airplay"]
-        state["airplay"]["metadata"]["updated_at"] = "2020-01-01T00:00:00+00:00"
+        state["airplay"]["metadata"]["updated_at"] = (
+            datetime.now().astimezone() - timedelta(minutes=2)
+        ).isoformat()
         second = coordinator.snapshot()["sources"]["airplay"]
 
         self.assertEqual(first["state"], "paused")
