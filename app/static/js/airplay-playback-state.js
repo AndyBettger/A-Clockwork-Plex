@@ -11,7 +11,21 @@
   originalButton.replaceWith(button);
 
   const icon = button.querySelector('#airplay-play-pause-icon');
+  if (icon) {
+    // The legacy stylesheet paints this ID with a body-class-driven pseudo-icon.
+    // Remove the ID from the visible clone so only coordinator state can paint it.
+    icon.removeAttribute('id');
+    icon.classList.add('airplay-coordinator-play-pause-icon');
+    icon.style.position = 'static';
+    icon.style.display = 'inline-block';
+    icon.style.width = 'auto';
+    icon.style.height = 'auto';
+    icon.style.lineHeight = '1';
+    icon.style.color = '#07111f';
+  }
+
   const detail = document.getElementById('airplay-detail');
+  const page = document.querySelector('.airplay-page');
   const STATE_URL = '/api/playback/state';
   const COMMAND_URL = '/api/playback/command';
   const POLL_MS = 750;
@@ -49,6 +63,9 @@
     button.dataset.playbackAction = action;
     button.dataset.coordinatorState = state;
     button.dataset.commandStatus = String(command.status || 'idle');
+    if (page) {
+      page.dataset.playbackState = state;
+    }
     button.disabled = commandPending || !canControl;
     button.setAttribute('aria-label', action === 'pause' ? 'Pause AirPlay' : 'Play AirPlay');
     button.setAttribute('aria-busy', commandPending ? 'true' : 'false');
@@ -58,10 +75,10 @@
 
     if (icon) {
       icon.textContent = action === 'pause' ? 'Ⅱ' : '▶';
+      icon.style.transform = action === 'pause'
+        ? 'translateY(-0.02em)'
+        : 'translate(0.12em, -0.015em)';
     }
-
-    document.body.classList.toggle('airplay-remote-playing', state === 'playing');
-    document.body.classList.toggle('airplay-remote-paused', state === 'paused');
   }
 
   async function refresh() {
