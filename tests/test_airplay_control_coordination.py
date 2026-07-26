@@ -36,6 +36,19 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         self.assertIn("refreshAuthoritativeStatus", text)
         self.assertIn("MutationObserver", text)
 
+    def test_observer_repairs_are_idempotent_and_not_microtask_recursive(self):
+        text = COORDINATOR.read_text(encoding="utf-8")
+        self.assertIn("button.disabled !== targetDisabled", text)
+        self.assertIn("button.getAttribute('aria-label') !== targetLabel", text)
+        self.assertIn("icon.textContent !== targetIcon", text)
+        self.assertIn("function scheduleRepair()", text)
+        self.assertNotIn("queueMicrotask", text)
+
+    def test_coordinator_uses_dedicated_effective_state_endpoint(self):
+        text = COORDINATOR.read_text(encoding="utf-8")
+        self.assertIn("const stateEndpoint = '/api/airplay/state'", text)
+        self.assertIn("payload?.airplay", text)
+
     def test_generic_idle_return_respects_held_airplay_session(self):
         text = IDLE_RETURN.read_text(encoding="utf-8")
         self.assertIn("statusPayload?.state?.airplay?.active === true", text)
