@@ -175,6 +175,7 @@ class TransportPlaybackCoordinator(PlaybackCoordinator):
             "playing",
             {"state": "playing", "state_source": "transport-confirmed-mpris"},
         )
+        payload["events"] = self._events.snapshot()
 
     def _reconcile_transport_command(self) -> str:
         command = self.command_snapshot()
