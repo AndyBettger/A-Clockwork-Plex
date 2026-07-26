@@ -116,6 +116,17 @@ def _cancel_legacy_plexamp_handoff(audio_mixer: Any, reason: str) -> None:
         )
 
 
+def _resolved_airplay_snapshot(audio_mixer: Any) -> dict[str, Any]:
+    """Read one effective AirPlay snapshot without depending on /api/status wrappers."""
+    config = audio_mixer._dashboard_core.load_config()
+    state = audio_mixer._dashboard_core.load_state(config)
+    source = state.get("airplay") if isinstance(state.get("airplay"), dict) else {}
+    airplay = deepcopy(source)
+    remote = audio_mixer._dashboard_core.mpris_remote_status()
+    airplay["remote"] = resolve_airplay_remote(airplay, remote)
+    return airplay
+
+
 def register_airplay_coordination(app: Any) -> None:
     """Install one authoritative AirPlay state resolver and generation boundary."""
     try:
@@ -134,6 +145,11 @@ def register_airplay_coordination(app: Any) -> None:
 
         guarded_arm._acp_generation_guarded = True  # type: ignore[attr-defined]
         audio_mixer._arm_plexamp_handoff = guarded_arm
+
+    if "api_airplay_effective_state" not in app.view_functions:
+        @app.route("/api/airplay/state")
+        def api_airplay_effective_state():
+            return jsonify({"ok": True, "airplay": _resolved_airplay_snapshot(audio_mixer)})
 
     status_view = app.view_functions.get("api_status")
     if status_view and not getattr(status_view, "_acp_airplay_state_resolved", False):
