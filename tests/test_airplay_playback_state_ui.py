@@ -36,17 +36,26 @@ class AirPlayPlaybackStateUiTests(unittest.TestCase):
         client = CLIENT.read_text(encoding="utf-8")
         self.assertIn("/api/playback/state", client)
         self.assertIn("playback?.sources?.airplay", client)
+        self.assertIn("playback?.commands?.airplay", client)
         self.assertIn("source.connected === true", client)
         self.assertNotIn("/api/status", client)
         self.assertNotIn("MutationObserver", client)
 
-    def test_button_sends_explicit_idempotent_commands(self):
+    def test_button_sends_explicit_idempotent_commands_to_coordinator(self):
         client = CLIENT.read_text(encoding="utf-8")
+        self.assertIn("/api/playback/command", client)
         self.assertIn("state === 'playing' ? 'pause' : 'play'", client)
-        self.assertIn("JSON.stringify({ action })", client)
+        self.assertIn("JSON.stringify({ source: 'airplay', action })", client)
+        self.assertNotIn("/api/airplay/control", client)
         self.assertNotIn("play_pause", client)
         self.assertNotIn("playpause", client)
         self.assertNotIn("'toggle'", client)
+
+    def test_client_has_no_optimistic_transport_state(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        self.assertNotIn("optimisticState", client)
+        self.assertNotIn("OPTIMISTIC_MS", client)
+        self.assertIn("render(payload?.playback || {})", client)
 
     def test_client_never_manages_audio_services(self):
         client = CLIENT.read_text(encoding="utf-8")
