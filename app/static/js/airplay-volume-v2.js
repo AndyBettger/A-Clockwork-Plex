@@ -34,7 +34,11 @@
     slider.value = String(value);
     slider.setAttribute('aria-valuetext', `${nigel} out of 11`);
     slider.title = `${nigel} out of 11 · ${value}% · ${channel.state_source || 'mixer-controller'}`;
-    document.body.style.setProperty('--airplay-volume-percent', `${value}%`);
+    // Keep the authoritative percentage on the visible strip. The legacy
+    // metadata renderer still writes a body-level variable, but inheritance
+    // cannot override this nearer MixerController-owned value.
+    strip.style.setProperty('--airplay-volume-percent', `${value}%`);
+    strip.dataset.volumeStateSource = channel.state_source || 'mixer-controller';
     if (label) {
       label.textContent = nigel;
       label.title = `${value}%`;
