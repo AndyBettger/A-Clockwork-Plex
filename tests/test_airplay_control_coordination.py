@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -11,6 +12,9 @@ RUNNER = ROOT / "app" / "runner.py"
 IDLE_RETURN = ROOT / "app" / "static" / "js" / "idle-return.js"
 HOOK_INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
 COORDINATOR = ROOT / "app" / "playback_coordinator.py"
+APPLICATION_STATE = ROOT / "app" / "application_state.py"
+CONFIG_EXAMPLE = ROOT / "config.example.json"
+HOLD_HELPER = ROOT / "scripts" / "set-airplay-hold-seconds.py"
 
 
 class AirPlayControlCoordinationTests(unittest.TestCase):
@@ -46,14 +50,37 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
     def test_pause_hold_is_owned_by_playback_coordinator(self):
         hook_text = HOOK_INSTALLER.read_text(encoding="utf-8")
         coordinator_text = COORDINATOR.read_text(encoding="utf-8")
+        application_text = APPLICATION_STATE.read_text(encoding="utf-8")
         self.assertIn('/api/playback/events', hook_text)
         self.assertIn('"event":"paused"', hook_text)
-        self.assertIn("PlaybackCoordinator owns the 600s hold", hook_text)
+        self.assertIn("PlaybackCoordinator owns the configured hold", hook_text)
         self.assertNotIn("WATCHDOG_SECONDS", hook_text)
         self.assertNotIn("HOLD_TOKEN_FILE", hook_text)
         self.assertNotIn("hold_token_is_current", hook_text)
         self.assertIn("DEFAULT_AIRPLAY_HOLD_SECONDS = 600", coordinator_text)
-        self.assertIn("playback-runtime.json", (ROOT / "app" / "application_state.py").read_text(encoding="utf-8"))
+        self.assertIn("configured_airplay_hold_seconds", application_text)
+        self.assertIn("airplay_hold_seconds=hold_seconds", application_text)
+        self.assertIn("playback-runtime.json", application_text)
+
+    def test_pause_hold_duration_is_configurable_and_bounded(self):
+        config = json.loads(CONFIG_EXAMPLE.read_text(encoding="utf-8"))
+        self.assertEqual(config["airplay"]["pause_hold_seconds"], 600)
+        application_text = APPLICATION_STATE.read_text(encoding="utf-8")
+        helper_text = HOLD_HELPER.read_text(encoding="utf-8")
+        self.assertIn("MIN_AIRPLAY_HOLD_SECONDS = 15", application_text)
+        self.assertIn("MAX_AIRPLAY_HOLD_SECONDS = 86400", application_text)
+        self.assertIn("MIN_SECONDS = 15", helper_text)
+        self.assertIn("MAX_SECONDS = 86400", helper_text)
+        self.assertIn("pause_hold_seconds", helper_text)
+
+    def test_session_end_adapter_handles_disconnect_after_pause(self):
+        text = HOOK_INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("SESSION_END_WRAPPER", text)
+        self.assertIn("run_this_after_play_ends", text)
+        self.assertIn("session_timeout = 15", text)
+        self.assertIn("AirPlay sender session ended - publishing disconnect", text)
+        self.assertIn("a newer session is playing - ignored", text)
+        self.assertIn("/api/airplay/end", text)
 
     def test_hooks_never_restart_audio_services(self):
         text = HOOK_INSTALLER.read_text(encoding="utf-8")
