@@ -32,6 +32,14 @@ class AirPlayPlaybackStateUiTests(unittest.TestCase):
         self.assertIn("cloneNode(true)", client)
         self.assertIn("originalButton.replaceWith(button)", client)
 
+    def test_visible_icon_is_isolated_from_legacy_body_class_css(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        self.assertIn("icon.removeAttribute('id')", client)
+        self.assertIn("airplay-coordinator-play-pause-icon", client)
+        self.assertIn("icon.textContent = action === 'pause' ? 'Ⅱ' : '▶'", client)
+        self.assertNotIn("document.body.classList.toggle('airplay-remote-playing'", client)
+        self.assertNotIn("document.body.classList.toggle('airplay-remote-paused'", client)
+
     def test_transport_renders_only_from_playback_coordinator(self):
         client = CLIENT.read_text(encoding="utf-8")
         self.assertIn("/api/playback/state", client)
