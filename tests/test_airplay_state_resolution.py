@@ -81,12 +81,12 @@ class AirPlayStateResolutionTests(unittest.TestCase):
         text = TEMPLATE.read_text(encoding="utf-8")
         self.assertNotIn("airplay-control-coordinator.js", text)
 
-    def test_start_hook_pauses_plexamp_before_publishing_airplay(self):
+    def test_start_hook_publishes_lifecycle_without_direct_plexamp_control(self):
         text = HOOK_INSTALLER.read_text(encoding="utf-8")
-        pause = text.index("$PLEXAMP_URL/player/playback/pause")
-        start = text.index("$DASHBOARD_BASE/api/airplay/start")
-        self.assertLess(pause, start)
-        self.assertIn("cancelling any coordinator hold", text)
+        self.assertIn("$DASHBOARD_BASE/api/airplay/start", text)
+        self.assertNotIn("PLEXAMP_URL", text)
+        self.assertNotIn("/player/playback/pause", text)
+        self.assertIn("PlaybackCoordinator owns any required Plexamp pause", text)
 
 
 if __name__ == "__main__":
