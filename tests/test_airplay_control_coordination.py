@@ -32,7 +32,9 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         text = COORDINATOR.read_text(encoding="utf-8")
         self.assertIn("event.stopImmediatePropagation()", text)
         self.assertIn("{ capture: true }", text)
-        self.assertIn("applyAuthoritativeRemote(payload.remote)", text)
+        self.assertIn("effective_playback_status", text)
+        self.assertIn("refreshAuthoritativeStatus", text)
+        self.assertIn("MutationObserver", text)
 
     def test_generic_idle_return_respects_held_airplay_session(self):
         text = IDLE_RETURN.read_text(encoding="utf-8")
