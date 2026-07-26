@@ -2,12 +2,15 @@ from __future__ import annotations
 
 try:
     from . import main as dashboard
+    from .airplay_coordination import register_airplay_coordination
     from .audio_eq import register_audio_eq
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
+    from airplay_coordination import register_airplay_coordination
     from audio_eq import register_audio_eq
 
 app = dashboard.app
+register_airplay_coordination(app)
 master_equalizer = register_audio_eq(app)
 
 
