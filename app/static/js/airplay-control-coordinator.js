@@ -75,7 +75,7 @@
   }
 
   /* airplay-live.js still renders the authoritative MPRIS state. This capture
-     listener owns the command so its older bubbling PlayPause handler cannot
-     also fire and invert a stale button state. */
+     listener owns the command so its older bubbling toggle handler cannot also
+     fire and invert a stale button state. */
   button.addEventListener('click', sendExplicitCommand, { capture: true });
 })();
