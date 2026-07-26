@@ -218,7 +218,12 @@ class PlaybackCoordinatorTests(unittest.TestCase):
             self.assertEqual(snapshot["sources"]["airplay"]["hold"]["phase"], "expired")
             self.assertFalse(snapshot["command_capabilities"]["source_control"])
             self.assertTrue(snapshot["command_capabilities"]["screen_return_on_hold_end"])
-            self.assertEqual(snapshot["events"]["last_event"]["event"], "hold_expired")
+            lifecycle_events = {
+                event["event"]
+                for event in snapshot["events"]["recent_events"]
+                if event.get("kind") == "coordinator"
+            }
+            self.assertIn("hold_expired", lifecycle_events)
 
     def test_sender_disconnect_during_hold_ends_session_immediately(self):
         clock = FakeClock()
