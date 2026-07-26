@@ -16,6 +16,7 @@ config.json
 state.json
 alarm-runtime.json
 alarm-audio-runtime.json
+playback-runtime.json
 *.log
 
 # Generated runtime assets
