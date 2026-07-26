@@ -49,12 +49,18 @@ airplay = sources.get("airplay") or {}
 plexamp = sources.get("plexamp") or {}
 alarm = sources.get("alarm") or {}
 observed = airplay.get("observed") or {}
+hold = airplay.get("hold") or {}
+worker = playback.get("worker") or {}
+capabilities = playback.get("command_capabilities") or {}
 events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
 
 print("===== PLAYBACK COORDINATOR =====")
 print(f"authority:          {playback.get('authority')}")
 print(f"commands enabled:   {playback.get('commands_enabled')}")
+print(f"source control:     {capabilities.get('source_control')}")
+print(f"screen return:      {capabilities.get('screen_return_on_hold_end')}")
+print(f"worker running:     {worker.get('running')}")
 print(f"active source:      {playback.get('active_source')}")
 print(f"decision reason:    {playback.get('decision_reason')}")
 print(f"current screen:     {playback.get('current_screen')}")
@@ -69,6 +75,16 @@ print(f"AirPlay source:     {airplay.get('state_source')}")
 print(f"AirPlay raw MPRIS:  {observed.get('raw_playback_status')}")
 print(f"AirPlay effective:  {observed.get('effective_playback_status')}")
 print(f"Alarm active:       {alarm.get('active')}")
+print()
+print("===== AIRPLAY HOLD =====")
+print(f"owner:              {hold.get('owner')}")
+print(f"phase:              {hold.get('phase')}")
+print(f"active:             {hold.get('active')}")
+print(f"started at:         {hold.get('started_at')}")
+print(f"until:              {hold.get('until')}")
+print(f"remaining seconds:  {hold.get('remaining_seconds')}")
+print(f"last reason:        {hold.get('last_reason')}")
+print(f"last error:         {hold.get('last_error')}")
 print()
 print("===== EVENT JOURNAL =====")
 print(f"sequence:           {events.get('sequence')}")
