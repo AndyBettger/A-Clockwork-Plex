@@ -2,7 +2,6 @@
 set -euo pipefail
 
 DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
-PLEXAMP_URL="${PLEXAMP_URL:-http://localhost:32500}"
 START_WRAPPER="${START_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-start}"
 END_WRAPPER="${END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-end}"
 LEGACY_SESSION_END_WRAPPER="${LEGACY_SESSION_END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-session-end}"
@@ -26,26 +25,23 @@ require_command() {
 }
 
 validate_url_value "DASHBOARD_BASE" "$DASHBOARD_BASE"
-validate_url_value "PLEXAMP_URL" "$PLEXAMP_URL"
 require_command sudo
 require_command tee
 
-# START remains a thin adapter: pause Plexamp first, publish the established
-# AirPlay session, and let the route wrapper journal airplay.playing.
+# START is now a pure lifecycle adapter. The dashboard route journals the real
+# AirPlay playing transition; PlaybackCoordinator owns any required Plexamp pause.
+# The route also preserves an explicitly open Plexamp surface instead of stealing
+# the screen at connection time.
 cat <<START_WRAPPER_EOF | sudo tee "$START_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
 
 DASHBOARD_BASE="$DASHBOARD_BASE"
-PLEXAMP_URL="$PLEXAMP_URL"
 
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp before publishing the new session"
-/usr/bin/curl -sS --max-time 2 "\$PLEXAMP_URL/player/playback/pause" >/dev/null 2>&1 || true
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay and cancelling any coordinator hold"
+/usr/bin/logger -t shairport-plexamp "AirPlay starting - publishing playing intent to PlaybackCoordinator"
 /usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/start" >/dev/null || true
 
-/usr/bin/logger -t shairport-plexamp "Shared ALSA mixer active - Plexamp remains available"
+/usr/bin/logger -t shairport-plexamp "PlaybackCoordinator owns Plexamp pause; shared ALSA services remain running"
 START_WRAPPER_EOF
 
 # END classifies the active-to-inactive transition. A connected sender means
@@ -130,8 +126,9 @@ echo "Installed coordinator-event AirPlay hook wrappers:"
 echo "  $START_WRAPPER"
 echo "  $END_WRAPPER"
 echo
-echo "Plexamp is paused for AirPlay but its service remains running."
-echo "PlaybackCoordinator owns paused-session timing, sender polling and idle return."
+echo "The START wrapper publishes lifecycle intent only; it does not call Plexamp."
+echo "PlaybackCoordinator owns AirPlay-to-Plexamp pause, paused-session timing, sender polling and idle return."
+echo "An explicitly open Plexamp surface is preserved when AirPlay starts."
 echo "The retired play-end wrapper was removed because Shairport fires it for ordinary pauses."
 echo "The wrappers contain no detached watchdog, token file or browser heartbeat."
 echo
