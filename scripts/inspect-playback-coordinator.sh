@@ -52,7 +52,9 @@ observed = airplay.get("observed") or {}
 hold = airplay.get("hold") or {}
 worker = playback.get("worker") or {}
 capabilities = playback.get("command_capabilities") or {}
-command = (playback.get("commands") or {}).get("airplay") or {}
+commands = playback.get("commands") or {}
+command = commands.get("airplay") or {}
+navigation = commands.get("airplay_navigation") or {}
 events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
 
@@ -61,6 +63,8 @@ print(f"authority:          {playback.get('authority')}")
 print(f"commands enabled:   {playback.get('commands_enabled')}")
 print(f"source control:     {capabilities.get('source_control')}")
 print(f"AirPlay transport:  {capabilities.get('airplay_transport')}")
+print(f"AirPlay navigation: {capabilities.get('airplay_navigation')}")
+print(f"AirPlay actions:    {capabilities.get('airplay_actions')}")
 print(f"Plexamp transport:  {capabilities.get('plexamp_transport')}")
 print(f"auto arbitration:   {capabilities.get('automatic_arbitration')}")
 print(f"screen return:      {capabilities.get('screen_return_on_hold_end')}")
@@ -96,6 +100,17 @@ print(f"completed at:       {command.get('completed_at')}")
 print(f"observed state:     {command.get('observed_state')}")
 print(f"observed via:       {command.get('observed_source')}")
 print(f"last error:         {command.get('last_error')}")
+print()
+print("===== AIRPLAY NAVIGATION =====")
+print(f"sequence:           {navigation.get('sequence')}")
+print(f"action:             {navigation.get('action')}")
+print(f"status:             {navigation.get('status')}")
+print(f"completion policy:  {navigation.get('completion_policy')}")
+print(f"requested at:       {navigation.get('requested_at')}")
+print(f"accepted at:        {navigation.get('accepted_at')}")
+print(f"completed at:       {navigation.get('completed_at')}")
+print(f"accepted via:       {navigation.get('observed_source')}")
+print(f"last error:         {navigation.get('last_error')}")
 print()
 print("===== AIRPLAY HOLD =====")
 print(f"owner:              {hold.get('owner')}")
