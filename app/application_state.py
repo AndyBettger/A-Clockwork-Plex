@@ -10,9 +10,11 @@ from typing import Any, Callable
 from flask import jsonify, request
 
 try:
+    from .mixer_controller import MixerController
     from .playback_coordinator import PlaybackCoordinator
     from .shairport_session import shairport_remote_status
 except ImportError:  # Supports direct execution imports.
+    from mixer_controller import MixerController
     from playback_coordinator import PlaybackCoordinator
     from shairport_session import shairport_remote_status
 
@@ -109,12 +111,81 @@ def configured_airplay_hold_seconds(config: dict[str, Any]) -> int:
     return max(MIN_AIRPLAY_HOLD_SECONDS, min(MAX_AIRPLAY_HOLD_SECONDS, seconds))
 
 
+def _install_mixer_controller_bridge(audio_mixer: Any, controller: MixerController) -> None:
+    """Route existing audio APIs through MixerController without breaking callers."""
+    if not hasattr(audio_mixer, "_acp_legacy_live_audio_status"):
+        audio_mixer._acp_legacy_live_audio_status = audio_mixer.live_audio_status
+    if not hasattr(audio_mixer, "_acp_legacy_set_live_audio_volume"):
+        audio_mixer._acp_legacy_set_live_audio_volume = audio_mixer.set_live_audio_volume
+
+    legacy_status = audio_mixer._acp_legacy_live_audio_status
+    legacy_set = audio_mixer._acp_legacy_set_live_audio_volume
+
+    def controlled_live_audio_status() -> dict[str, Any]:
+        status = legacy_status()
+        if not isinstance(status, dict):
+            status = {}
+        channels = status.setdefault("channels", {})
+        if not isinstance(channels, dict):
+            channels = {}
+            status["channels"] = channels
+        authoritative = controller.airplay_snapshot()
+        current = channels.get("airplay") if isinstance(channels.get("airplay"), dict) else {}
+        current.update(
+            {
+                "id": "airplay",
+                "label": "AirPlay",
+                "available": authoritative.get("available") is True,
+                "percent": authoritative.get("effective_percent"),
+                "effective_percent": authoritative.get("effective_percent"),
+                "observed_percent": authoritative.get("observed_percent"),
+                "requested_percent": authoritative.get("requested_percent"),
+                "state_source": authoritative.get("state_source"),
+                "command_status": authoritative.get("command_status"),
+                "command_count": authoritative.get("command_count"),
+                "request_active": authoritative.get("request_active"),
+                "source": "mixer-controller-airplay-sender",
+                "remote": authoritative.get("remote"),
+                "error": authoritative.get("last_error"),
+            }
+        )
+        channels["airplay"] = current
+        status["airplay_default_application"] = controller.application_status()
+        status["authority"] = controller.authority
+        return status
+
+    def controlled_set_live_audio_volume(channel: Any, percent: Any) -> dict[str, Any]:
+        if str(channel or "").strip().lower() == "airplay":
+            controller.set_airplay_percent(percent, reason="live-audio-api")
+            return controlled_live_audio_status()
+        return legacy_set(channel, percent)
+
+    audio_mixer.live_audio_status = controlled_live_audio_status
+    audio_mixer.set_live_audio_volume = controlled_set_live_audio_volume
+    audio_mixer._schedule_airplay_default = controller.start_airplay_session
+    audio_mixer._airplay_default_status = controller.application_status
+    audio_mixer.mixer_controller = controller
+
+
 def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
-    """Build the playback hub with persisted AirPlay pause-hold ownership."""
+    """Build the playback and mixer authorities behind one shared state hub."""
     try:
         from . import audio_mixer
     except ImportError:  # Supports direct execution imports.
         import audio_mixer
+
+    def authoritative_airplay_status() -> dict[str, Any]:
+        return shairport_remote_status(dashboard.mpris_remote_status)
+
+    def set_airplay_sender_volume(percent: int) -> tuple[bool, str | None]:
+        return dashboard.mpris_call("SetVolume", "d", f"{percent / 100:.4f}")
+
+    mixer_controller = MixerController(
+        load_config=dashboard.load_config,
+        airplay_status=authoritative_airplay_status,
+        set_airplay_volume=set_airplay_sender_volume,
+    )
+    _install_mixer_controller_bridge(audio_mixer, mixer_controller)
 
     runtime_path = Path(dashboard.BASE_DIR) / "playback-runtime.json"
     startup_config = dashboard.load_config()
@@ -126,6 +197,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         idle_screen = str(dashboard_config.get("default_mode", "clock")).strip().lower()
         if idle_screen not in dashboard.VALID_MODES:
             idle_screen = "clock"
+        mixer_controller.end_airplay_session("playback-hold-completed")
         dashboard.set_airplay_session(False)
         if idle_screen != "clock":
             dashboard.set_mode(idle_screen)
@@ -134,7 +206,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         load_config=dashboard.load_config,
         load_state=dashboard.load_state,
         plexamp_status=lambda: audio_mixer._plexamp_controller().status(),
-        airplay_status=lambda: shairport_remote_status(dashboard.mpris_remote_status),
+        airplay_status=authoritative_airplay_status,
         alarm_status=dashboard.alarm_scheduler.status,
         alarm_audio_status=dashboard.alarm_audio.status,
         runtime_path=runtime_path,
@@ -145,11 +217,17 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     hub = ApplicationStateHub()
     hub.register_service("playback", coordinator)
     hub.register_provider("playback", coordinator.snapshot)
+    hub.register_service("mixer", mixer_controller)
+    hub.register_provider("audio", mixer_controller.snapshot)
     return hub
 
 
-def _register_legacy_playback_event_wrappers(app: Any, coordinator: PlaybackCoordinator) -> None:
-    """Translate existing AirPlay routes into coordinator events without changing their behaviour."""
+def _register_legacy_playback_event_wrappers(
+    app: Any,
+    coordinator: PlaybackCoordinator,
+    mixer_controller: MixerController | None,
+) -> None:
+    """Translate existing AirPlay routes into coordinator lifecycle events."""
     mappings = {
         "api_airplay_start": ("airplay", "playing", "legacy-airplay-start-route"),
         "api_airplay_end": ("airplay", "disconnected", "legacy-airplay-end-route"),
@@ -162,6 +240,8 @@ def _register_legacy_playback_event_wrappers(app: Any, coordinator: PlaybackCoor
         def wrapped_view(*args: Any, _view=view, _source=source, _event=event, _origin=origin, **kwargs: Any):
             response = _view(*args, **kwargs)
             coordinator.record_event(_source, _event, {"origin": _origin})
+            if _event == "disconnected" and isinstance(mixer_controller, MixerController):
+                mixer_controller.end_airplay_session(_origin)
             return response
 
         wrapped_view._acp_playback_event_wrapped = True  # type: ignore[attr-defined]
@@ -169,8 +249,9 @@ def _register_legacy_playback_event_wrappers(app: Any, coordinator: PlaybackCoor
 
 
 def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
-    """Expose shared state plus validated playback event ingestion."""
+    """Expose shared state plus validated playback and audio commands."""
     coordinator = hub.service("playback")
+    mixer_controller = hub.service("mixer")
 
     if "api_application_state" not in app.view_functions:
         @app.route("/api/state", methods=["GET"])
@@ -183,6 +264,26 @@ def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
             if not isinstance(coordinator, PlaybackCoordinator):
                 return jsonify({"ok": False, "error": "Playback coordinator is unavailable."}), 503
             return jsonify({"ok": True, "playback": coordinator.snapshot()})
+
+    if "api_audio_state" not in app.view_functions:
+        @app.route("/api/audio/state", methods=["GET", "POST"])
+        def api_audio_state():
+            if not isinstance(mixer_controller, MixerController):
+                return jsonify({"ok": False, "error": "Mixer controller is unavailable."}), 503
+            if request.method == "GET":
+                return jsonify({"ok": True, "audio": mixer_controller.snapshot()})
+
+            payload = request.get_json(silent=True)
+            if not isinstance(payload, dict):
+                return jsonify({"ok": False, "error": "Audio command must be a JSON object."}), 400
+            channel = str(payload.get("channel", "airplay")).strip().lower()
+            if channel != "airplay":
+                return jsonify({"ok": False, "error": "Only AirPlay sender volume is promoted to MixerController."}), 400
+            try:
+                mixer_controller.set_airplay_percent(payload.get("percent"), reason="application-state-api")
+            except ValueError as exc:
+                return jsonify({"ok": False, "error": str(exc)}), 409
+            return jsonify({"ok": True, "audio": mixer_controller.snapshot()})
 
     if "api_playback_events" not in app.view_functions:
         @app.route("/api/playback/events", methods=["GET", "POST"])
@@ -207,4 +308,8 @@ def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
             return jsonify({"ok": True, "event": event, "playback": coordinator.snapshot()})
 
     if isinstance(coordinator, PlaybackCoordinator):
-        _register_legacy_playback_event_wrappers(app, coordinator)
+        _register_legacy_playback_event_wrappers(
+            app,
+            coordinator,
+            mixer_controller if isinstance(mixer_controller, MixerController) else None,
+        )
