@@ -175,7 +175,8 @@ class TransportPlaybackCoordinator(PlaybackCoordinator):
 
         target_state = "playing" if action_key == "play" else "paused"
         current = super().snapshot().get("sources", {}).get("airplay", {})
-        if current.get("connected") is not True:
+        live_remote = _safe_status(self._airplay_status, "AirPlay")
+        if current.get("connected") is not True or live_remote.get("available") is not True:
             raise ValueError("AirPlay transport is available only while a sender is connected.")
 
         current_state = _text(current.get("state"), "unknown")
