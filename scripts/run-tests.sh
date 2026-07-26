@@ -46,7 +46,8 @@ echo "Using Python: $PYTHON"
   app/alarm_scheduler.py \
   app/alarm_runtime.py \
   app/alarm_audio.py \
-  app/alarm_audio_core.py
+  app/alarm_audio_core.py \
+  scripts/set-airplay-hold-seconds.py
 "$PYTHON" -m unittest discover -s tests -v
 
 if command -v node >/dev/null 2>&1; then
@@ -65,5 +66,6 @@ fi
 bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
 bash -n scripts/install-alarm-audio-helper.sh
 bash -n scripts/install-dashboard-service.sh
+bash -n scripts/install-airplay-hooks.sh
 bash -n scripts/inspect-application-state.sh
 bash -n scripts/inspect-playback-coordinator.sh
