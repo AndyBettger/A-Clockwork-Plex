@@ -10,6 +10,7 @@ TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 RUNNER = ROOT / "app" / "runner.py"
 IDLE_RETURN = ROOT / "app" / "static" / "js" / "idle-return.js"
 HOOK_INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
+COORDINATOR = ROOT / "app" / "playback_coordinator.py"
 
 
 class AirPlayControlCoordinationTests(unittest.TestCase):
@@ -21,10 +22,11 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         self.assertNotIn("airplay-play-state-sync.js", text)
         self.assertNotIn("airplay-volume-hold.js", text)
 
-    def test_runner_uses_application_state_hub_not_airplay_patch_layer(self):
+    def test_runner_starts_and_stops_playback_coordinator(self):
         text = RUNNER.read_text(encoding="utf-8")
         self.assertIn("build_default_application_state_hub", text)
-        self.assertIn("register_application_state_api", text)
+        self.assertIn("playback_coordinator.start()", text)
+        self.assertIn("playback_coordinator.shutdown()", text)
         self.assertNotIn("register_airplay_coordination", text)
 
     def test_generic_idle_return_respects_held_airplay_session(self):
@@ -41,14 +43,17 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_pause_hold_is_temporarily_owned_by_session_hook(self):
-        text = HOOK_INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('WATCHDOG_SECONDS="\\${AIRPLAY_DASHBOARD_PAUSE_WATCHDOG_SECONDS:-600}"', text)
-        self.assertIn("AirPlay paused/stopped with sender available", text)
-        self.assertIn("HOLD_TOKEN_FILE", text)
-        self.assertIn("hold_token_is_current", text)
-        self.assertIn("AirPlay sender disconnected during pause hold", text)
-        self.assertNotIn("dashboard pause heartbeat", text.lower())
+    def test_pause_hold_is_owned_by_playback_coordinator(self):
+        hook_text = HOOK_INSTALLER.read_text(encoding="utf-8")
+        coordinator_text = COORDINATOR.read_text(encoding="utf-8")
+        self.assertIn('/api/playback/events', hook_text)
+        self.assertIn('"event":"paused"', hook_text)
+        self.assertIn("PlaybackCoordinator owns the 600s hold", hook_text)
+        self.assertNotIn("WATCHDOG_SECONDS", hook_text)
+        self.assertNotIn("HOLD_TOKEN_FILE", hook_text)
+        self.assertNotIn("hold_token_is_current", hook_text)
+        self.assertIn("DEFAULT_AIRPLAY_HOLD_SECONDS = 600", coordinator_text)
+        self.assertIn("playback-runtime.json", (ROOT / "app" / "application_state.py").read_text(encoding="utf-8"))
 
     def test_hooks_never_restart_audio_services(self):
         text = HOOK_INSTALLER.read_text(encoding="utf-8")
