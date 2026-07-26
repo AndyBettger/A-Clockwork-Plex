@@ -53,7 +53,12 @@ echo "Using Python: $PYTHON"
   app/alarm_audio.py \
   app/alarm_audio_core.py \
   scripts/set-airplay-hold-seconds.py
-"$PYTHON" -m unittest discover -s tests -v
+
+if [[ -n "${CI:-}" ]]; then
+  "$PYTHON" -m unittest discover -s tests
+else
+  "$PYTHON" -m unittest discover -s tests -v
+fi
 
 if command -v node >/dev/null 2>&1; then
   node --check app/static/js/settings-alarms.js
