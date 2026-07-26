@@ -42,6 +42,7 @@ echo "Using Python: $PYTHON"
   app/dashboard_core.py \
   app/application_state.py \
   app/playback_coordinator.py \
+  app/playback_transport.py \
   app/mixer_controller.py \
   app/shairport_session.py \
   app/alarm_config.py \
