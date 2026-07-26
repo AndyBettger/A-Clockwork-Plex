@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -40,6 +42,24 @@ class AirPlayVolumeAuthorityTests(unittest.TestCase):
         self.assertIn('return "already-active"', text)
         self.assertNotIn("for _ in range(80)", text)
         self.assertNotIn("stable_reads", text)
+
+    def test_real_runner_exposes_audio_state_and_binds_legacy_symbol_to_controller(self):
+        code = (
+            "from app.runner import app, application_state_hub; "
+            "from app import audio_mixer; "
+            "routes={rule.rule for rule in app.url_map.iter_rules()}; "
+            "mixer=application_state_hub.service('mixer'); "
+            "assert '/api/audio/state' in routes, sorted(routes); "
+            "assert audio_mixer._schedule_airplay_default.__self__ is mixer; "
+            "assert audio_mixer._airplay_default_status.__self__ is mixer"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
 
 if __name__ == "__main__":
