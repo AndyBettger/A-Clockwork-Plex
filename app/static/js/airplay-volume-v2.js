@@ -2,16 +2,16 @@
   if (window.__aClockworkPlexAirPlayVolumeV2Loaded) return;
   window.__aClockworkPlexAirPlayVolumeV2Loaded = true;
 
-  const previousSlider = document.getElementById('airplay-volume-slider');
-  const previousLabel = document.getElementById('airplay-volume-label');
-  if (!previousSlider) return;
+  const previousStrip = document.getElementById('airplay-volume-strip');
+  if (!previousStrip || !previousStrip.parentNode) return;
 
   /* airplay-live.js still owns metadata, artwork and progress. Replace the
-     visible volume elements so only MixerController state can paint them. */
-  const slider = previousSlider.cloneNode(true);
-  previousSlider.replaceWith(slider);
-  const label = previousLabel ? previousLabel.cloneNode(true) : null;
-  if (previousLabel && label) previousLabel.replaceWith(label);
+     complete visible strip so only MixerController can paint or hide volume. */
+  const strip = previousStrip.cloneNode(true);
+  previousStrip.replaceWith(strip);
+  const slider = strip.querySelector('#airplay-volume-slider');
+  const label = strip.querySelector('#airplay-volume-label');
+  if (!slider) return;
 
   const endpoint = '/api/audio/state';
   const detail = document.getElementById('airplay-detail');
@@ -47,7 +47,9 @@
 
   function render(payload) {
     const channel = airplayChannel(payload);
-    slider.disabled = channel.available !== true || sendInFlight;
+    const available = channel.available === true;
+    strip.hidden = !available;
+    slider.disabled = !available || sendInFlight;
     if (!dragging && Number.isFinite(Number(channel.effective_percent))) {
       paint(channel.effective_percent, channel);
     }
@@ -68,6 +70,7 @@
     try {
       render(await requestJson());
     } catch (error) {
+      strip.hidden = true;
       slider.disabled = true;
     } finally {
       getInFlight = false;
