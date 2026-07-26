@@ -68,9 +68,8 @@
     } finally {
       commandInFlight = false;
       delete button.dataset.airplayCommandPending;
-      window.setTimeout(() => {
-        if (button.disabled) button.disabled = false;
-      }, 1200);
+      /* Do not guess that controls are available after a failed command. The
+         next authoritative MPRIS response or normal status poll owns enablement. */
     }
   }
 
