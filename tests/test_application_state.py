@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
 
 from flask import Flask
@@ -120,10 +122,18 @@ class ApplicationStateHubTests(unittest.TestCase):
         self.assertEqual(payload["state"]["playback"]["active_source"], "none")
 
     def test_real_runner_registers_application_state_route(self):
-        from app.runner import app
-
-        routes = {rule.rule for rule in app.url_map.iter_rules()}
-        self.assertIn("/api/state", routes)
+        code = (
+            "from app.runner import app; "
+            "routes = {rule.rule for rule in app.url_map.iter_rules()}; "
+            "assert '/api/state' in routes, sorted(routes)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
 
 if __name__ == "__main__":
