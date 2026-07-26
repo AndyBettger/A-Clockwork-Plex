@@ -55,6 +55,8 @@ capabilities = playback.get("command_capabilities") or {}
 commands = playback.get("commands") or {}
 command = commands.get("airplay") or {}
 navigation = commands.get("airplay_navigation") or {}
+handoffs = playback.get("handoffs") or {}
+takeover = handoffs.get("airplay_to_plexamp") or {}
 events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
 
@@ -65,6 +67,10 @@ print(f"source control:     {capabilities.get('source_control')}")
 print(f"AirPlay transport:  {capabilities.get('airplay_transport')}")
 print(f"AirPlay navigation: {capabilities.get('airplay_navigation')}")
 print(f"AirPlay actions:    {capabilities.get('airplay_actions')}")
+print(f"AirPlay→Plexamp:    {capabilities.get('airplay_to_plexamp_handoff')}")
+print(f"Plexamp→AirPlay:    {capabilities.get('plexamp_to_airplay_handoff')}")
+print(f"screen projection:  {capabilities.get('screen_projection')}")
+print(f"preserve Plexamp:   {capabilities.get('preserve_open_plexamp_surface')}")
 print(f"Plexamp transport:  {capabilities.get('plexamp_transport')}")
 print(f"auto arbitration:   {capabilities.get('automatic_arbitration')}")
 print(f"screen return:      {capabilities.get('screen_return_on_hold_end')}")
@@ -111,6 +117,21 @@ print(f"accepted at:        {navigation.get('accepted_at')}")
 print(f"completed at:       {navigation.get('completed_at')}")
 print(f"accepted via:       {navigation.get('observed_source')}")
 print(f"last error:         {navigation.get('last_error')}")
+print()
+print("===== AIRPLAY → PLEXAMP HANDOFF =====")
+print(f"sequence:           {takeover.get('sequence')}")
+print(f"direction:          {takeover.get('direction')}")
+print(f"status:             {takeover.get('status')}")
+print(f"trigger:            {takeover.get('trigger')}")
+print(f"Plexamp before:     {takeover.get('plexamp_before')}")
+print(f"Plexamp after:      {takeover.get('plexamp_after')}")
+print(f"pause command count:{takeover.get('command_count')}")
+print(f"completion policy:  {takeover.get('completion_policy')}")
+print(f"screen policy:      {takeover.get('screen_policy')}")
+print(f"requested at:       {takeover.get('requested_at')}")
+print(f"accepted at:        {takeover.get('accepted_at')}")
+print(f"completed at:       {takeover.get('completed_at')}")
+print(f"last error:         {takeover.get('last_error')}")
 print()
 print("===== AIRPLAY HOLD =====")
 print(f"owner:              {hold.get('owner')}")
