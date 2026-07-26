@@ -111,6 +111,71 @@ class TransportPlaybackCoordinator(PlaybackCoordinator):
             return event
         return None
 
+    def _later_authoritative_pause(self, requested_at: datetime) -> bool:
+        """Return whether a real pause arrived after the current Play request."""
+        events = self._events.snapshot().get("recent_events") or []
+        for event in reversed(events):
+            if event.get("source") != "airplay" or event.get("event") != "paused":
+                continue
+            if event.get("kind") not in {"explicit", "coordinator"}:
+                continue
+            occurred_at = _parse_time(event.get("at"))
+            if occurred_at is None or occurred_at < requested_at:
+                continue
+            details = event.get("details") if isinstance(event.get("details"), dict) else {}
+            if details.get("origin") == "playback-coordinator-command":
+                continue
+            return True
+        return False
+
+    def _heal_stale_observed_pause(self, payload: dict[str, Any]) -> None:
+        """Prevent a late observed snapshot from undoing a confirmed Play command.
+
+        A snapshot can begin while paused, then finish after the Play command and append
+        an observed pause later in the journal. That entry is not new user intent. When
+        live MPRIS and the confirmed command both say Playing, replace that stale
+        projection and journal the healed state. Fresh metadata pauses and later explicit
+        adapter pauses remain authoritative and are deliberately not changed here.
+        """
+        command = self.command_snapshot()
+        if (
+            command.get("status") != "confirmed"
+            or command.get("action") != "play"
+            or command.get("target_state") != "playing"
+        ):
+            return
+
+        requested_at = _parse_time(command.get("requested_at"))
+        if requested_at is None or self._later_authoritative_pause(requested_at):
+            return
+
+        sources = payload.get("sources") if isinstance(payload.get("sources"), dict) else {}
+        airplay = sources.get("airplay") if isinstance(sources.get("airplay"), dict) else {}
+        hold = airplay.get("hold") if isinstance(airplay.get("hold"), dict) else {}
+        observed = airplay.get("observed") if isinstance(airplay.get("observed"), dict) else {}
+        raw_state = _text(observed.get("raw_playback_status"), "unknown")
+        effective_state = _text(observed.get("effective_playback_status"), "unknown")
+
+        if (
+            airplay.get("connected") is not True
+            or hold.get("active") is True
+            or airplay.get("state") != "paused"
+            or airplay.get("state_source") != "coordinator-event-journal"
+            or raw_state != "playing"
+            or effective_state != "playing"
+        ):
+            return
+
+        airplay["state"] = "playing"
+        airplay["state_source"] = "transport-confirmed-mpris"
+        payload["active_source"] = "airplay"
+        payload["decision_reason"] = "airplay-session-connected"
+        self._events.observe(
+            "airplay",
+            "playing",
+            {"state": "playing", "state_source": "transport-confirmed-mpris"},
+        )
+
     def _reconcile_transport_command(self) -> str:
         command = self.command_snapshot()
         if command.get("status") != "accepted-awaiting-observation":
@@ -232,6 +297,7 @@ class TransportPlaybackCoordinator(PlaybackCoordinator):
     def snapshot(self) -> dict[str, Any]:
         self._reconcile_transport_command()
         payload = super().snapshot()
+        self._heal_stale_observed_pause(payload)
         payload["authority"] = self.authority
         payload["commands_enabled"] = True
         capabilities = payload.setdefault("command_capabilities", {})
