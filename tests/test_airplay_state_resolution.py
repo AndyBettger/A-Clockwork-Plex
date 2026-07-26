@@ -86,7 +86,7 @@ class AirPlayStateResolutionTests(unittest.TestCase):
         pause = text.index("$PLEXAMP_URL/player/playback/pause")
         start = text.index("$DASHBOARD_BASE/api/airplay/start")
         self.assertLess(pause, start)
-        self.assertIn("cancelling stale handoffs", text)
+        self.assertIn("cancelling any coordinator hold", text)
 
 
 if __name__ == "__main__":
