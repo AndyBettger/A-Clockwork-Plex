@@ -97,6 +97,11 @@ class TransportPlaybackCoordinator(PlaybackCoordinator):
         for event in reversed(events):
             if event.get("source") != "airplay" or event.get("event") != target_state:
                 continue
+            # Observed journal entries may be projections of the coordinator's own
+            # hold state. They are useful diagnostics but are not independent command
+            # confirmation. Only an explicit adapter event can confirm here.
+            if event.get("kind") != "explicit":
+                continue
             occurred_at = _parse_time(event.get("at"))
             if occurred_at is None or occurred_at < requested_at:
                 continue
