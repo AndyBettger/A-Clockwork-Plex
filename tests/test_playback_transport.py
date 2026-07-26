@@ -122,6 +122,19 @@ class TransportPlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(snapshot["commands"]["airplay"]["status"], "confirmed")
         self.assertEqual(snapshot["commands"]["airplay"]["observed_source"], "mpris")
 
+    def test_projected_observation_does_not_self_confirm_command(self):
+        coordinator = self.coordinator()
+        result = coordinator.command("airplay", "pause")
+
+        self.assertEqual(result["command"]["status"], "accepted-awaiting-observation")
+        self.assertEqual(coordinator.snapshot()["commands"]["airplay"]["status"], "accepted-awaiting-observation")
+
+        coordinator.record_event("airplay", "paused", {"origin": "shairport-end-wrapper"})
+        confirmed = coordinator.snapshot()["commands"]["airplay"]
+
+        self.assertEqual(confirmed["status"], "confirmed")
+        self.assertEqual(confirmed["observed_source"], "shairport-end-wrapper")
+
     def test_idempotent_command_is_noop_without_adapter_call(self):
         commands: list[str] = []
         coordinator = self.coordinator(commands=commands)
