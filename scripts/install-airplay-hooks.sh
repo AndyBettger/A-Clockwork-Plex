@@ -41,7 +41,7 @@ require_command sudo
 require_command tee
 
 # Shared ALSA mixing means AirPlay never stops or starts Plexamp. START cancels
-# any older pause-hold generation, selects the AirPlay surface and pauses Plexamp.
+# any older pause-hold generation and makes AirPlay the newest user intent.
 cat <<START_WRAPPER_EOF | sudo tee "$START_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
@@ -51,11 +51,15 @@ PLEXAMP_URL="$PLEXAMP_URL"
 HOLD_TOKEN_FILE="$HOLD_TOKEN_FILE"
 
 /usr/bin/rm -f "\$HOLD_TOKEN_FILE" 2>/dev/null || true
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay"
-/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/start" >/dev/null || true
 
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp without stopping its service"
+# Pause Plexamp before publishing the new AirPlay session. This removes the
+# transient both-sources-playing window in which an older Plexamp handoff worker
+# could immediately pause the newly resumed AirPlay stream.
+/usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp before publishing the new session"
 /usr/bin/curl -sS --max-time 2 "\$PLEXAMP_URL/player/playback/pause" >/dev/null 2>&1 || true
+
+/usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay and cancelling stale handoffs"
+/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/start" >/dev/null || true
 
 /usr/bin/logger -t shairport-plexamp "Shared ALSA mixer active - Plexamp remains available"
 START_WRAPPER_EOF
