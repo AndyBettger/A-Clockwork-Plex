@@ -7,33 +7,70 @@
   if (!button) return;
 
   let commandInFlight = false;
+  let latestRemote = null;
+  let latestSessionActive = false;
+  let effectiveStatus = 'unknown';
+  let pollTimer = null;
+  let applying = false;
+
+  function playbackStatus(remote) {
+    return String(
+      remote?.effective_playback_status
+      || remote?.playback_status
+      || 'unknown',
+    ).trim().toLowerCase();
+  }
 
   function desiredAction() {
+    if (effectiveStatus === 'playing') return 'pause';
+    if (effectiveStatus === 'paused' || effectiveStatus === 'stopped') return 'play';
+
     const label = String(button.getAttribute('aria-label') || '').toLowerCase();
     if (label.includes('pause')) return 'pause';
-    if (label.includes('play')) return 'play';
-
-    const iconText = String(icon?.textContent || '').trim();
-    if (iconText === 'Ⅱ' || iconText === '||') return 'pause';
     return 'play';
   }
 
-  function applyAuthoritativeRemote(remote) {
+  function applyAuthoritativeRemote(remote, sessionActive = latestSessionActive) {
     if (!remote || typeof remote !== 'object') return;
 
-    const status = String(remote.playback_status || '').toLowerCase();
-    const isPlaying = status === 'playing';
-    const isPaused = status === 'paused' || status === 'stopped';
+    latestRemote = remote;
+    latestSessionActive = sessionActive === true;
+    effectiveStatus = playbackStatus(remote);
+
+    const isPlaying = effectiveStatus === 'playing';
+    const isPaused = effectiveStatus === 'paused' || effectiveStatus === 'stopped';
     const canControl = Boolean(
-      remote.available
+      latestSessionActive
+      && remote.available
       && (remote.can_control || remote.can_play || remote.can_pause),
     );
 
+    applying = true;
     document.body.classList.toggle('airplay-remote-playing', isPlaying);
     document.body.classList.toggle('airplay-remote-paused', isPaused);
-    button.disabled = !canControl;
+    button.disabled = commandInFlight || !canControl;
     button.setAttribute('aria-label', isPlaying ? 'Pause AirPlay' : 'Play AirPlay');
     if (icon) icon.textContent = isPlaying ? 'Ⅱ' : '▶';
+    applying = false;
+  }
+
+  async function refreshAuthoritativeStatus() {
+    try {
+      const response = await fetch('/api/status', { cache: 'no-store' });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const airplay = payload?.state?.airplay || {};
+      applyAuthoritativeRemote(airplay.remote || {}, airplay.active === true);
+    } catch (error) {
+    }
+  }
+
+  function optimisticRemote(action) {
+    return {
+      ...(latestRemote || {}),
+      effective_playback_status: action === 'play' ? 'playing' : 'paused',
+      playback_status_source: 'explicit-dashboard-command',
+    };
   }
 
   async function sendExplicitCommand(event) {
@@ -45,7 +82,7 @@
     const action = desiredAction();
     commandInFlight = true;
     button.dataset.airplayCommandPending = action;
-    button.disabled = true;
+    applyAuthoritativeRemote(optimisticRemote(action), true);
 
     try {
       const response = await fetch('/api/airplay/control', {
@@ -57,7 +94,6 @@
       if (!response.ok || payload.ok === false) {
         throw new Error(payload.error || `AirPlay command returned ${response.status}.`);
       }
-      applyAuthoritativeRemote(payload.remote);
       window.dispatchEvent(new CustomEvent('acp:airplay-control-result', {
         detail: { action, remote: payload.remote || null },
       }));
@@ -68,13 +104,27 @@
     } finally {
       commandInFlight = false;
       delete button.dataset.airplayCommandPending;
-      /* Do not guess that controls are available after a failed command. The
-         next authoritative MPRIS response or normal status poll owns enablement. */
+      window.setTimeout(refreshAuthoritativeStatus, 120);
+      window.setTimeout(refreshAuthoritativeStatus, 500);
+      window.setTimeout(refreshAuthoritativeStatus, 1200);
     }
   }
 
-  /* airplay-live.js still renders the authoritative MPRIS state. This capture
-     listener owns the command so its older bubbling toggle handler cannot also
-     fire and invert a stale button state. */
+  /* airplay-live.js still renders metadata, artwork, progress and volume. This
+     coordinator is the sole playback-button owner. Repair any stale raw-MPRIS
+     redraw immediately from the latest effective server state. */
+  if (typeof MutationObserver === 'function') {
+    const observer = new MutationObserver(() => {
+      if (applying || !latestRemote) return;
+      window.queueMicrotask(() => applyAuthoritativeRemote(latestRemote, latestSessionActive));
+    });
+    observer.observe(button, { attributes: true, attributeFilter: ['aria-label', 'disabled'] });
+    if (icon) observer.observe(icon, { childList: true, characterData: true, subtree: true });
+    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+  }
+
   button.addEventListener('click', sendExplicitCommand, { capture: true });
+  pollTimer = window.setInterval(refreshAuthoritativeStatus, 500);
+  window.setTimeout(refreshAuthoritativeStatus, 100);
+  window.addEventListener('pagehide', () => window.clearInterval(pollTimer), { once: true });
 })();
