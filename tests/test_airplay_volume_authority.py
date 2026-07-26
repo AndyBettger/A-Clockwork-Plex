@@ -22,6 +22,12 @@ class AirPlayVolumeAuthorityTests(unittest.TestCase):
         self.assertNotIn("reassertTimer", text)
         self.assertNotIn("SetVolume", text)
 
+    def test_visible_strip_owns_its_css_percentage_locally(self):
+        text = VOLUME_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("strip.style.setProperty('--airplay-volume-percent'", text)
+        self.assertIn("strip.dataset.volumeStateSource", text)
+        self.assertNotIn("document.body.style.setProperty('--airplay-volume-percent'", text)
+
     def test_slider_sends_only_final_explicit_value(self):
         text = VOLUME_CLIENT.read_text(encoding="utf-8")
         self.assertIn("queueFinalSend", text)
