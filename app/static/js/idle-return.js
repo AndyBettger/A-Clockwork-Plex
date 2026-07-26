@@ -49,6 +49,11 @@
     if (statusPayload?.alarm_scheduler?.screen_required) return true;
     if (statusPayload?.alarm_audio?.playback_active) return true;
 
+    /* Shairport keeps state.airplay.active true during the deliberate paused
+       AirPlay hold. The generic dashboard timeout must not race that longer
+       session policy back to Clock after 30 seconds. */
+    if (statusPayload?.state?.airplay?.active === true) return true;
+
     const live = livePayload?.live || {};
     const plexampState = String(live?.channels?.plexamp?.playback_state || '').toLowerCase();
     const airplayState = String(live?.channels?.airplay?.remote?.playback_status || '').toLowerCase();
@@ -103,8 +108,8 @@
       if (liveResponse.ok) publishLiveAudio(livePayload);
       if (!statusResponse.ok || !liveResponse.ok) return;
 
-      /* Playback counts as activity continuously. Pausing starts a complete fresh
-         timeout, regardless of how long the player had already been open. */
+      /* Playback and held media sessions count as activity continuously. Once
+         the source coordinator ends the session, a complete idle timeout starts. */
       if (playing(statusPayload, livePayload)) {
         markActive();
         return;
