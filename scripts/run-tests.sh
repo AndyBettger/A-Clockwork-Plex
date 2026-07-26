@@ -66,3 +66,4 @@ bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
 bash -n scripts/install-alarm-audio-helper.sh
 bash -n scripts/install-dashboard-service.sh
 bash -n scripts/inspect-application-state.sh
+bash -n scripts/inspect-playback-coordinator.sh
