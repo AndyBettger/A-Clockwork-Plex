@@ -85,6 +85,17 @@ def _summary(source: dict[str, Any], keys: tuple[str, ...]) -> dict[str, Any]:
     return {key: deepcopy(source.get(key)) for key in keys if key in source}
 
 
+def _apply_airplay_event(event: dict[str, Any]) -> tuple[bool, str] | None:
+    name = str(event.get("event") or "")
+    if name in {"connected", "playing"}:
+        return True, "playing" if name == "playing" else "connected"
+    if name == "paused":
+        return True, "paused"
+    if name in {"disconnected", "hold_expired"}:
+        return False, "disconnected"
+    return None
+
+
 class PlaybackEventJournal:
     """Bounded, thread-safe playback event history for adapters and observations."""
 
@@ -136,6 +147,14 @@ class PlaybackEventJournal:
                 return None
             self._observed_signatures[source_key] = signature
         return self.record(source_key, event, details, kind="observed")
+
+    def latest(self, source: str) -> dict[str, Any] | None:
+        source_key = _text(source, "")
+        with self._lock:
+            for item in reversed(self._events):
+                if item["source"] == source_key:
+                    return deepcopy(item)
+        return None
 
     def latest_explicit(self, source: str) -> dict[str, Any] | None:
         source_key = _text(source, "")
@@ -199,28 +218,33 @@ class PlaybackCoordinator:
 
         stored_airplay = _dict(stored.get("airplay"))
         resolved_airplay = resolve_airplay_remote(stored_airplay, airplay_remote)
-        airplay_connected = stored_airplay.get("active") is True
-        airplay_state = _text(resolved_airplay.get("effective_playback_status"), "connected")
-        airplay_state_source = str(resolved_airplay.get("playback_status_source") or "observer")
-        if not airplay_connected:
+        observer_connected = stored_airplay.get("active") is True
+        observer_state = _text(resolved_airplay.get("effective_playback_status"), "connected")
+        observer_source = str(resolved_airplay.get("playback_status_source") or "observer")
+        latest_airplay = self._events.latest("airplay")
+
+        airplay_connected = observer_connected
+        airplay_state = observer_state if observer_connected else "disconnected"
+        airplay_state_source = observer_source if observer_connected else "stored-session"
+
+        # A fresh metadata transition may introduce a pause or a newer START. Once
+        # journalled, that lifecycle state remains authoritative until superseded;
+        # stale MPRIS must not turn a ten-minute paused hold back into Playing.
+        if observer_source in {"fresh-metadata-event", "newer-session-start"}:
+            pass
+        elif latest_airplay and latest_airplay.get("kind") == "explicit":
+            applied = _apply_airplay_event(latest_airplay)
+            if applied is not None:
+                airplay_connected, airplay_state = applied
+                airplay_state_source = "coordinator-explicit-event"
+        elif not observer_connected:
+            airplay_connected = False
             airplay_state = "disconnected"
             airplay_state_source = "stored-session"
-
-        explicit_airplay = self._events.latest_explicit("airplay")
-        if _event_is_fresh(explicit_airplay):
-            event = str(explicit_airplay.get("event"))
-            if event in {"connected", "playing"}:
-                airplay_connected = True
-                airplay_state = "playing" if event == "playing" else "connected"
-                airplay_state_source = "coordinator-event"
-            elif event == "paused":
-                airplay_connected = True
-                airplay_state = "paused"
-                airplay_state_source = "coordinator-event"
-            elif event in {"disconnected", "hold_expired"}:
-                airplay_connected = False
-                airplay_state = "disconnected"
-                airplay_state_source = "coordinator-event"
+        elif latest_airplay and latest_airplay.get("event") == "paused":
+            airplay_connected = True
+            airplay_state = "paused"
+            airplay_state_source = "coordinator-event-journal"
 
         plexamp_state = _text(plexamp_raw.get("playback_state"))
         if plexamp_raw.get("available") is False and plexamp_state == "unknown":
