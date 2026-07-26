@@ -43,6 +43,8 @@ echo "Using Python: $PYTHON"
   app/application_state.py \
   app/playback_coordinator.py \
   app/playback_transport.py \
+  app/playback_navigation.py \
+  app/playback_handoff.py \
   app/mixer_controller.py \
   app/shairport_session.py \
   app/alarm_config.py \
@@ -63,6 +65,7 @@ if command -v node >/dev/null 2>&1; then
   node --check app/static/js/mode-watch.js
   node --check app/static/js/alarm-active.js
   node --check app/static/js/airplay-playback-state.js
+  node --check app/static/js/airplay-navigation-state.js
   node --check app/static/js/airplay-volume-v2.js
 else
   echo "Node.js not found; skipping JavaScript syntax checks."
