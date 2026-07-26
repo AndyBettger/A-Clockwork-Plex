@@ -16,6 +16,9 @@ except ImportError:  # Supports direct execution imports.
 
 
 StateProvider = Callable[[], dict[str, Any]]
+MIN_AIRPLAY_HOLD_SECONDS = 15
+MAX_AIRPLAY_HOLD_SECONDS = 86400
+DEFAULT_AIRPLAY_HOLD_SECONDS = 600
 
 
 class ApplicationStateHub:
@@ -94,6 +97,16 @@ class ApplicationStateHub:
         }
 
 
+def configured_airplay_hold_seconds(config: dict[str, Any]) -> int:
+    """Return a bounded pause-hold duration from the AirPlay configuration."""
+    airplay = config.get("airplay") if isinstance(config.get("airplay"), dict) else {}
+    try:
+        seconds = int(airplay.get("pause_hold_seconds", DEFAULT_AIRPLAY_HOLD_SECONDS))
+    except (TypeError, ValueError):
+        seconds = DEFAULT_AIRPLAY_HOLD_SECONDS
+    return max(MIN_AIRPLAY_HOLD_SECONDS, min(MAX_AIRPLAY_HOLD_SECONDS, seconds))
+
+
 def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     """Build the playback hub with persisted AirPlay pause-hold ownership."""
     try:
@@ -102,6 +115,8 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         import audio_mixer
 
     runtime_path = Path(dashboard.BASE_DIR) / "playback-runtime.json"
+    startup_config = dashboard.load_config()
+    hold_seconds = configured_airplay_hold_seconds(startup_config)
 
     def complete_airplay_hold(_reason: str) -> None:
         config = dashboard.load_config()
@@ -121,6 +136,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         alarm_status=dashboard.alarm_scheduler.status,
         alarm_audio_status=dashboard.alarm_audio.status,
         runtime_path=runtime_path,
+        airplay_hold_seconds=hold_seconds,
         hold_completion=complete_airplay_hold,
     )
 
