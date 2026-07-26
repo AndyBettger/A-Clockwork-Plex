@@ -86,6 +86,36 @@ class PlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(airplay["state_source"], "fresh-metadata-event")
         self.assertEqual(airplay["observed"]["raw_playback_status"], "Playing")
 
+    def test_journalled_pause_survives_metadata_freshness_window(self):
+        state = {
+            "mode": "airplay",
+            "airplay": {
+                "active": True,
+                "started_at": "2026-07-26T04:00:00+01:00",
+                "ended_at": None,
+                "metadata": {
+                    "last_event": "pause",
+                    "updated_at": datetime.now().astimezone().isoformat(),
+                },
+            },
+        }
+        coordinator = PlaybackCoordinator(
+            load_config=lambda: {"dashboard": {"default_mode": "clock"}},
+            load_state=lambda _config: state,
+            plexamp_status=lambda: {"available": True, "playback_state": "paused"},
+            airplay_status=lambda: {"available": True, "playback_status": "Playing"},
+            alarm_status=lambda: {"screen_required": False},
+            alarm_audio_status=lambda: {"playback_active": False},
+        )
+
+        first = coordinator.snapshot()["sources"]["airplay"]
+        state["airplay"]["metadata"]["updated_at"] = "2020-01-01T00:00:00+00:00"
+        second = coordinator.snapshot()["sources"]["airplay"]
+
+        self.assertEqual(first["state"], "paused")
+        self.assertEqual(second["state"], "paused")
+        self.assertEqual(second["state_source"], "coordinator-event-journal")
+
     def test_explicit_event_can_override_a_lagging_observer(self):
         coordinator = self.coordinator(airplay_active=False, airplay_state="Stopped")
         coordinator.record_event("airplay", "playing", {"origin": "test-adapter"})
@@ -93,7 +123,7 @@ class PlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(state["active_source"], "airplay")
         self.assertTrue(state["sources"]["airplay"]["connected"])
         self.assertEqual(state["sources"]["airplay"]["state"], "playing")
-        self.assertEqual(state["sources"]["airplay"]["state_source"], "coordinator-event")
+        self.assertEqual(state["sources"]["airplay"]["state_source"], "coordinator-explicit-event")
 
     def test_observed_event_journal_records_transitions_not_polls(self):
         coordinator = self.coordinator()
