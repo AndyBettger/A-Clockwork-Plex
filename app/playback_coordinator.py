@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import math
 import threading
 from collections import deque
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Callable
 
 try:
@@ -16,6 +18,8 @@ except ImportError:  # Supports direct execution imports.
 StatusProvider = Callable[[], dict[str, Any]]
 ConfigProvider = Callable[[], dict[str, Any]]
 StateProvider = Callable[[dict[str, Any]], dict[str, Any]]
+NowProvider = Callable[[], datetime]
+HoldCompletion = Callable[[str], None]
 
 EVENTS_BY_SOURCE = {
     "airplay": {"connected", "playing", "paused", "disconnected", "hold_expired"},
@@ -24,6 +28,9 @@ EVENTS_BY_SOURCE = {
     "dashboard": {"screen_changed"},
 }
 EXPLICIT_EVENT_FRESH_SECONDS = 90
+DEFAULT_AIRPLAY_HOLD_SECONDS = 600
+DEFAULT_RECONCILE_SECONDS = 2.0
+RUNTIME_SCHEMA_VERSION = 1
 
 
 def _dict(value: Any) -> dict[str, Any]:
@@ -53,7 +60,7 @@ def _safe_status(provider: StatusProvider, component: str) -> dict[str, Any]:
     return deepcopy(value)
 
 
-def _now() -> datetime:
+def _default_now() -> datetime:
     return datetime.now().astimezone()
 
 
@@ -68,13 +75,18 @@ def _parse_time(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.astimezone()
 
 
-def _event_is_fresh(event: dict[str, Any] | None, *, seconds: int = EXPLICIT_EVENT_FRESH_SECONDS) -> bool:
+def _event_is_fresh(
+    event: dict[str, Any] | None,
+    *,
+    seconds: int = EXPLICIT_EVENT_FRESH_SECONDS,
+    now: datetime | None = None,
+) -> bool:
     if not isinstance(event, dict):
         return False
     occurred_at = _parse_time(event.get("at"))
     if occurred_at is None:
         return False
-    current = _now()
+    current = now or _default_now()
     if occurred_at.tzinfo is None:
         occurred_at = occurred_at.replace(tzinfo=current.tzinfo)
     age = (current - occurred_at).total_seconds()
@@ -96,14 +108,67 @@ def _apply_airplay_event(event: dict[str, Any]) -> tuple[bool, str] | None:
     return None
 
 
+def _default_runtime() -> dict[str, Any]:
+    return {
+        "schema_version": RUNTIME_SCHEMA_VERSION,
+        "airplay": {
+            "phase": "idle",
+            "updated_at": None,
+            "hold_started_at": None,
+            "hold_until": None,
+            "last_reason": None,
+            "last_error": None,
+        },
+    }
+
+
+class PlaybackRuntimeStore:
+    """Small atomic store for deadlines that must survive dashboard restarts."""
+
+    def __init__(self, path: Path | None) -> None:
+        self.path = path
+        self._lock = threading.RLock()
+
+    def load(self) -> dict[str, Any]:
+        with self._lock:
+            fallback = _default_runtime()
+            if self.path is None or not self.path.exists():
+                return fallback
+            try:
+                with self.path.open("r", encoding="utf-8") as handle:
+                    payload = json.load(handle)
+            except (OSError, json.JSONDecodeError):
+                return fallback
+            if not isinstance(payload, dict):
+                return fallback
+            airplay = payload.get("airplay")
+            if not isinstance(airplay, dict):
+                airplay = {}
+            normalised = _default_runtime()
+            normalised["airplay"].update(airplay)
+            return normalised
+
+    def save(self, payload: dict[str, Any]) -> None:
+        if self.path is None:
+            return
+        with self._lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self.path.with_suffix(self.path.suffix + ".tmp")
+            with temporary.open("w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+            temporary.replace(self.path)
+
+
 class PlaybackEventJournal:
     """Bounded, thread-safe playback event history for adapters and observations."""
 
-    def __init__(self, *, maximum_events: int = 48) -> None:
+    def __init__(self, *, maximum_events: int = 48, now_provider: NowProvider | None = None) -> None:
         self._events: deque[dict[str, Any]] = deque(maxlen=max(8, int(maximum_events)))
         self._observed_signatures: dict[str, str] = {}
         self._sequence = 0
         self._lock = threading.RLock()
+        self._now = now_provider or _default_now
 
     def record(
         self,
@@ -128,7 +193,7 @@ class PlaybackEventJournal:
                 "source": source_key,
                 "event": event_key,
                 "kind": _text(kind, "explicit"),
-                "at": _now().isoformat(timespec="milliseconds"),
+                "at": self._now().isoformat(timespec="milliseconds"),
                 "details": deepcopy(details or {}),
             }
             self._events.append(item)
@@ -176,11 +241,7 @@ class PlaybackEventJournal:
 
 
 class PlaybackCoordinator:
-    """Describe playback from observations plus explicit source events.
-
-    Stage two remains command-disabled. It accepts source events and resolves them
-    against existing observers, but the established hooks still execute handoffs.
-    """
+    """Own AirPlay lifecycle timing while source-control commands remain disabled."""
 
     def __init__(
         self,
@@ -192,6 +253,11 @@ class PlaybackCoordinator:
         alarm_status: StatusProvider,
         alarm_audio_status: StatusProvider,
         event_journal: PlaybackEventJournal | None = None,
+        runtime_path: Path | None = None,
+        airplay_hold_seconds: int = DEFAULT_AIRPLAY_HOLD_SECONDS,
+        reconcile_seconds: float = DEFAULT_RECONCILE_SECONDS,
+        hold_completion: HoldCompletion | None = None,
+        now_provider: NowProvider | None = None,
     ) -> None:
         self._load_config = load_config
         self._load_state = load_state
@@ -199,13 +265,241 @@ class PlaybackCoordinator:
         self._airplay_status = airplay_status
         self._alarm_status = alarm_status
         self._alarm_audio_status = alarm_audio_status
-        self._events = event_journal or PlaybackEventJournal()
+        self._now = now_provider or _default_now
+        self._events = event_journal or PlaybackEventJournal(now_provider=self._now)
+        self._runtime_store = PlaybackRuntimeStore(runtime_path)
+        self._runtime = self._runtime_store.load()
+        self._runtime_lock = threading.RLock()
+        self._airplay_hold_seconds = max(1, int(airplay_hold_seconds))
+        self._reconcile_seconds = max(0.25, float(reconcile_seconds))
+        self._hold_completion = hold_completion
+        self._stop_event = threading.Event()
+        self._wake_event = threading.Event()
+        self._worker: threading.Thread | None = None
+
+    def _runtime_airplay(self) -> dict[str, Any]:
+        with self._runtime_lock:
+            airplay = self._runtime.get("airplay")
+            return deepcopy(airplay) if isinstance(airplay, dict) else _default_runtime()["airplay"]
+
+    def _save_airplay_runtime(
+        self,
+        *,
+        phase: str,
+        hold_started_at: str | None,
+        hold_until: str | None,
+        reason: str,
+        error: str | None = None,
+    ) -> None:
+        with self._runtime_lock:
+            self._runtime["schema_version"] = RUNTIME_SCHEMA_VERSION
+            self._runtime["airplay"] = {
+                "phase": phase,
+                "updated_at": self._now().isoformat(timespec="milliseconds"),
+                "hold_started_at": hold_started_at,
+                "hold_until": hold_until,
+                "last_reason": reason,
+                "last_error": error,
+            }
+            payload = deepcopy(self._runtime)
+        self._runtime_store.save(payload)
+        self._wake_event.set()
+
+    def _apply_airplay_runtime_event(self, event: str, *, reason: str) -> None:
+        now = self._now()
+        if event == "paused":
+            hold_until = now + timedelta(seconds=self._airplay_hold_seconds)
+            self._save_airplay_runtime(
+                phase="holding",
+                hold_started_at=now.isoformat(timespec="milliseconds"),
+                hold_until=hold_until.isoformat(timespec="milliseconds"),
+                reason=reason,
+            )
+        elif event in {"playing", "connected"}:
+            self._save_airplay_runtime(
+                phase="playing" if event == "playing" else "connected",
+                hold_started_at=None,
+                hold_until=None,
+                reason=reason,
+            )
+        elif event in {"disconnected", "hold_expired"}:
+            self._save_airplay_runtime(
+                phase="disconnected" if event == "disconnected" else "expired",
+                hold_started_at=None,
+                hold_until=None,
+                reason=reason,
+            )
+
+    def _record_event(
+        self,
+        source: str,
+        event: str,
+        details: dict[str, Any] | None,
+        *,
+        kind: str,
+    ) -> dict[str, Any]:
+        item = self._events.record(source, event, details, kind=kind)
+        if item["source"] == "airplay":
+            reason = str((details or {}).get("origin") or f"{kind}-{event}")
+            self._apply_airplay_runtime_event(item["event"], reason=reason)
+        return item
 
     def record_event(self, source: str, event: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._events.record(source, event, details, kind="explicit")
+        return self._record_event(source, event, details, kind="explicit")
 
     def event_snapshot(self) -> dict[str, Any]:
         return self._events.snapshot()
+
+    def start(self) -> None:
+        if self._worker and self._worker.is_alive():
+            return
+        self._stop_event.clear()
+        self._worker = threading.Thread(
+            target=self._worker_loop,
+            name="playback-coordinator",
+            daemon=True,
+        )
+        self._worker.start()
+
+    def shutdown(self, timeout: float = 3.0) -> None:
+        self._stop_event.set()
+        self._wake_event.set()
+        worker = self._worker
+        if worker and worker.is_alive():
+            worker.join(timeout=max(0.1, timeout))
+
+    def worker_status(self) -> dict[str, Any]:
+        worker = self._worker
+        return {
+            "running": bool(worker and worker.is_alive()),
+            "reconcile_seconds": self._reconcile_seconds,
+        }
+
+    def _finish_airplay_session(self, reason: str, *, success_phase: str) -> bool:
+        if self._hold_completion is None:
+            return True
+        before = self._runtime_airplay()
+        try:
+            self._hold_completion(reason)
+        except Exception as exc:
+            self._save_airplay_runtime(
+                phase="action_failed",
+                hold_started_at=before.get("hold_started_at"),
+                hold_until=before.get("hold_until"),
+                reason=reason,
+                error=str(exc),
+            )
+            return False
+        self._save_airplay_runtime(
+            phase=success_phase,
+            hold_started_at=None,
+            hold_until=None,
+            reason=reason,
+        )
+        return True
+
+    def _fresh_playing_transition_after_hold(self, stored_airplay: dict[str, Any], remote: dict[str, Any]) -> bool:
+        runtime = self._runtime_airplay()
+        hold_started = _parse_time(runtime.get("hold_started_at"))
+        metadata = _dict(stored_airplay.get("metadata"))
+        metadata_updated = _parse_time(metadata.get("updated_at"))
+        if hold_started is None or metadata_updated is None or metadata_updated <= hold_started:
+            return False
+        resolved = resolve_airplay_remote(stored_airplay, remote, now=self._now())
+        return (
+            _text(resolved.get("effective_playback_status")) == "playing"
+            and str(resolved.get("playback_status_source") or "") in {
+                "fresh-metadata-event",
+                "newer-session-start",
+            }
+        )
+
+    def reconcile_once(self) -> str:
+        runtime = self._runtime_airplay()
+        if runtime.get("phase") == "action_failed":
+            completed = self._finish_airplay_session(
+                str(runtime.get("last_reason") or "retry-hold-completion"),
+                success_phase="disconnected",
+            )
+            return "retry-completed" if completed else "retry-failed"
+        if runtime.get("phase") != "holding":
+            return "idle"
+
+        config = self._load_config()
+        stored = self._load_state(config)
+        stored_airplay = _dict(stored.get("airplay"))
+        remote = _safe_status(self._airplay_status, "AirPlay")
+
+        if remote.get("available") is False:
+            self._record_event(
+                "airplay",
+                "disconnected",
+                {"origin": "coordinator-hold-monitor"},
+                kind="coordinator",
+            )
+            self._finish_airplay_session(
+                "sender-disconnected-during-hold",
+                success_phase="disconnected",
+            )
+            return "disconnected"
+
+        if self._fresh_playing_transition_after_hold(stored_airplay, remote):
+            self._record_event(
+                "airplay",
+                "playing",
+                {"origin": "coordinator-fresh-resume"},
+                kind="coordinator",
+            )
+            return "resumed"
+
+        hold_until = _parse_time(runtime.get("hold_until"))
+        if hold_until is not None and self._now() >= hold_until:
+            self._record_event(
+                "airplay",
+                "hold_expired",
+                {"origin": "playback-coordinator", "hold_seconds": self._airplay_hold_seconds},
+                kind="coordinator",
+            )
+            self._finish_airplay_session(
+                "pause-hold-expired",
+                success_phase="expired",
+            )
+            return "expired"
+
+        return "holding"
+
+    def _worker_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                self.reconcile_once()
+            except Exception as exc:
+                runtime = self._runtime_airplay()
+                self._save_airplay_runtime(
+                    phase=str(runtime.get("phase") or "unknown"),
+                    hold_started_at=runtime.get("hold_started_at"),
+                    hold_until=runtime.get("hold_until"),
+                    reason="reconcile-error",
+                    error=str(exc),
+                )
+            self._wake_event.wait(self._reconcile_seconds)
+            self._wake_event.clear()
+
+    def _hold_snapshot(self) -> dict[str, Any]:
+        runtime = self._runtime_airplay()
+        hold_until = _parse_time(runtime.get("hold_until"))
+        remaining: int | None = None
+        if hold_until is not None:
+            remaining = max(0, math.ceil((hold_until - self._now()).total_seconds()))
+        return {
+            "owner": "playback-coordinator",
+            "phase": runtime.get("phase"),
+            "active": runtime.get("phase") in {"holding", "action_failed"},
+            "started_at": runtime.get("hold_started_at"),
+            "until": runtime.get("hold_until"),
+            "remaining_seconds": remaining,
+            "last_reason": runtime.get("last_reason"),
+            "last_error": runtime.get("last_error"),
+        }
 
     def snapshot(self) -> dict[str, Any]:
         config = self._load_config()
@@ -217,26 +511,28 @@ class PlaybackCoordinator:
         alarm_audio = _safe_status(self._alarm_audio_status, "Alarm audio")
 
         stored_airplay = _dict(stored.get("airplay"))
-        resolved_airplay = resolve_airplay_remote(stored_airplay, airplay_remote)
+        resolved_airplay = resolve_airplay_remote(stored_airplay, airplay_remote, now=self._now())
         observer_connected = stored_airplay.get("active") is True
         observer_state = _text(resolved_airplay.get("effective_playback_status"), "connected")
         observer_source = str(resolved_airplay.get("playback_status_source") or "observer")
         latest_airplay = self._events.latest("airplay")
+        runtime_airplay = self._runtime_airplay()
 
         airplay_connected = observer_connected
         airplay_state = observer_state if observer_connected else "disconnected"
         airplay_state_source = observer_source if observer_connected else "stored-session"
 
-        # A fresh metadata transition may introduce a pause or a newer START. Once
-        # journalled, that lifecycle state remains authoritative until superseded;
-        # stale MPRIS must not turn a ten-minute paused hold back into Playing.
-        if observer_source in {"fresh-metadata-event", "newer-session-start"}:
+        if runtime_airplay.get("phase") in {"holding", "action_failed"}:
+            airplay_connected = True
+            airplay_state = "paused"
+            airplay_state_source = "playback-coordinator-hold"
+        elif observer_source in {"fresh-metadata-event", "newer-session-start"}:
             pass
-        elif latest_airplay and latest_airplay.get("kind") == "explicit":
+        elif latest_airplay and latest_airplay.get("kind") in {"explicit", "coordinator"}:
             applied = _apply_airplay_event(latest_airplay)
             if applied is not None:
                 airplay_connected, airplay_state = applied
-                airplay_state_source = "coordinator-explicit-event"
+                airplay_state_source = f"coordinator-{latest_airplay.get('kind')}-event"
         elif not observer_connected:
             airplay_connected = False
             airplay_state = "disconnected"
@@ -250,14 +546,14 @@ class PlaybackCoordinator:
         if plexamp_raw.get("available") is False and plexamp_state == "unknown":
             plexamp_state = "unavailable"
         explicit_plexamp = self._events.latest_explicit("plexamp")
-        if _event_is_fresh(explicit_plexamp):
+        if _event_is_fresh(explicit_plexamp, now=self._now()):
             plexamp_state = str(explicit_plexamp.get("event"))
 
         alarm_screen_required = alarm.get("screen_required") is True
         alarm_playing = alarm_audio.get("playback_active") is True
         alarm_active = alarm_screen_required or alarm_playing
         explicit_alarm = self._events.latest_explicit("alarm")
-        if _event_is_fresh(explicit_alarm):
+        if _event_is_fresh(explicit_alarm, now=self._now()):
             alarm_active = explicit_alarm.get("event") == "active"
 
         if alarm_active:
@@ -265,7 +561,11 @@ class PlaybackCoordinator:
             decision_reason = "alarm-active"
         elif airplay_connected:
             active_source = "airplay"
-            decision_reason = "airplay-session-connected"
+            decision_reason = (
+                "airplay-pause-hold"
+                if runtime_airplay.get("phase") in {"holding", "action_failed"}
+                else "airplay-session-connected"
+            )
         elif plexamp_state == "playing":
             active_source = "plexamp"
             decision_reason = "plexamp-playing"
@@ -317,16 +617,21 @@ class PlaybackCoordinator:
         )
 
         return {
-            "authority": "event-assisted-observer",
+            "authority": "airplay-hold-owner",
             "commands_enabled": False,
+            "command_capabilities": {
+                "source_control": False,
+                "screen_return_on_hold_end": True,
+            },
             "active_source": active_source,
             "decision_reason": decision_reason,
             "current_screen": current_screen,
             "recommended_screen": recommended_screen,
             "screen_in_sync": current_screen == recommended_screen,
+            "worker": self.worker_status(),
             "policy": {
                 "priority": ["alarm", "newest-explicit-source", "held-airplay", "idle"],
-                "airplay_pause_hold_seconds": 600,
+                "airplay_pause_hold_seconds": self._airplay_hold_seconds,
                 "service_restarts_for_handoffs": False,
             },
             "events": self._events.snapshot(),
@@ -342,6 +647,7 @@ class PlaybackCoordinator:
                     "connected": airplay_connected,
                     "state": airplay_state,
                     "state_source": airplay_state_source,
+                    "hold": self._hold_snapshot(),
                     "started_at": stored_airplay.get("started_at"),
                     "ended_at": stored_airplay.get("ended_at"),
                     "metadata": _dict(stored_airplay.get("metadata")),
