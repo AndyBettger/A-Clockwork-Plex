@@ -86,6 +86,7 @@ class AirPlayStateResolutionTests(unittest.TestCase):
         self.assertIn("$DASHBOARD_BASE/api/airplay/start", text)
         self.assertNotIn("PLEXAMP_URL", text)
         self.assertNotIn("/player/playback/pause", text)
+        self.assertNotIn("/api/mode/airplay", text)
         self.assertIn("PlaybackCoordinator owns any required Plexamp pause", text)
 
 
