@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -171,6 +173,22 @@ class TransportPlaybackCoordinatorTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["playback"]["authority"], "airplay-transport-owner")
         self.assertEqual(payload["playback"]["sources"]["airplay"]["state"], "paused")
+
+    def test_real_runner_promotes_transport_and_registers_command_route(self):
+        code = (
+            "from app.runner import app, application_state_hub; "
+            "from app.playback_transport import TransportPlaybackCoordinator; "
+            "routes = {rule.rule for rule in app.url_map.iter_rules()}; "
+            "assert '/api/playback/command' in routes, sorted(routes); "
+            "assert isinstance(application_state_hub.service('playback'), TransportPlaybackCoordinator)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
 
 if __name__ == "__main__":
