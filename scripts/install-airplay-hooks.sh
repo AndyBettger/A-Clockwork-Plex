@@ -5,7 +5,7 @@ DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
 PLEXAMP_URL="${PLEXAMP_URL:-http://localhost:32500}"
 START_WRAPPER="${START_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-start}"
 END_WRAPPER="${END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-end}"
-SESSION_END_WRAPPER="${SESSION_END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-session-end}"
+LEGACY_SESSION_END_WRAPPER="${LEGACY_SESSION_END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-session-end}"
 LEGACY_SUDOERS_FILE="${LEGACY_SUDOERS_FILE:-/etc/sudoers.d/a-clockwork-plex-airplay}"
 
 validate_url_value() {
@@ -48,8 +48,10 @@ PLEXAMP_URL="$PLEXAMP_URL"
 /usr/bin/logger -t shairport-plexamp "Shared ALSA mixer active - Plexamp remains available"
 START_WRAPPER_EOF
 
-# END classifies the active-to-inactive transition and publishes a pause event.
-# A separate session-end adapter below handles disconnects that happen later.
+# END classifies the active-to-inactive transition. A connected sender means
+# pause; an already unavailable sender means the session ended at the same time.
+# Disconnects that happen later are detected by PlaybackCoordinator polling
+# org.gnome.ShairportSync.RemoteControl.Available.
 cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
@@ -111,47 +113,13 @@ else
 fi
 END_WRAPPER_EOF
 
-# Shairport calls run_this_after_play_ends when the sender session itself ends.
-# This is distinct from leaving the active state, so it catches a sender that is
-# disconnected after it has already been paused. A currently playing coordinator
-# state is treated as a stale callback from an older session and ignored.
-cat <<SESSION_END_WRAPPER_EOF | sudo tee "$SESSION_END_WRAPPER" >/dev/null
-#!/bin/bash
-set -euo pipefail
+sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
 
-DASHBOARD_BASE="$DASHBOARD_BASE"
-
-coordinator_airplay_state() {
-    /usr/bin/curl -fsS --max-time 3 "\$DASHBOARD_BASE/api/playback/state" 2>/dev/null | \
-        /usr/bin/python3 -c '
-import json
-import sys
-try:
-    payload = json.load(sys.stdin)
-except Exception:
-    print("unknown")
-    raise SystemExit(1)
-source = (((payload.get("playback") or {}).get("sources") or {}).get("airplay") or {})
-print(str(source.get("state") or "unknown").lower())
-' 2>/dev/null || printf 'unknown'
-}
-
-AIRPLAY_STATE="\$(coordinator_airplay_state)"
-if [ "\$AIRPLAY_STATE" = "playing" ]; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay session-end callback is stale because a newer session is playing - ignored"
-    exit 0
+# Remove the experimental play-end callback. On the bedroom Shairport build it
+# fires for an ordinary pause and therefore must never publish a disconnect.
+if [[ -e "$LEGACY_SESSION_END_WRAPPER" ]]; then
+    sudo rm -f "$LEGACY_SESSION_END_WRAPPER"
 fi
-
-if [ "\$AIRPLAY_STATE" = "unknown" ]; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay session ended but coordinator state was unavailable - leaving state unchanged for inspection"
-    exit 0
-fi
-
-/usr/bin/logger -t shairport-plexamp "AirPlay sender session ended - publishing disconnect to PlaybackCoordinator"
-/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
-SESSION_END_WRAPPER_EOF
-
-sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER" "$SESSION_END_WRAPPER"
 
 # Shared mixing means the hooks never need permission to stop/start Plexamp.
 if [[ -e "$LEGACY_SUDOERS_FILE" ]]; then
@@ -161,11 +129,10 @@ fi
 echo "Installed coordinator-event AirPlay hook wrappers:"
 echo "  $START_WRAPPER"
 echo "  $END_WRAPPER"
-echo "  $SESSION_END_WRAPPER"
 echo
 echo "Plexamp is paused for AirPlay but its service remains running."
-echo "PlaybackCoordinator owns paused-session timing and idle return."
-echo "The session-end adapter detects disconnects that occur after AirPlay is already paused."
+echo "PlaybackCoordinator owns paused-session timing, sender polling and idle return."
+echo "The retired play-end wrapper was removed because Shairport fires it for ordinary pauses."
 echo "The wrappers contain no detached watchdog, token file or browser heartbeat."
 echo
 echo "Use this in /etc/shairport-sync.conf:"
@@ -173,11 +140,11 @@ echo "sessioncontrol ="
 echo "{"
 echo "    run_this_before_entering_active_state = \"$START_WRAPPER\";"
 echo "    run_this_after_exiting_active_state = \"$END_WRAPPER\";"
-echo "    run_this_after_play_ends = \"$SESSION_END_WRAPPER\";"
 echo "    active_state_timeout = 10;"
-echo "    session_timeout = 15;"
 echo "    wait_for_completion = \"yes\";"
 echo "};"
+echo
+echo "Remove any run_this_after_play_ends or session_timeout lines added during the previous rehearsal."
 echo
 echo "Then run:"
 echo "  sudo systemctl restart shairport-sync.service"
