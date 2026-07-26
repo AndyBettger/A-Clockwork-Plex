@@ -8,6 +8,7 @@ try:
     )
     from .audio_eq import register_audio_eq
     from .playback_coordinator import PlaybackCoordinator
+    from .playback_handoff import promote_airplay_takeover
     from .playback_navigation import promote_airplay_navigation
     from .playback_transport import (
         promote_playback_transport,
@@ -21,6 +22,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     )
     from audio_eq import register_audio_eq
     from playback_coordinator import PlaybackCoordinator
+    from playback_handoff import promote_airplay_takeover
     from playback_navigation import promote_airplay_navigation
     from playback_transport import (
         promote_playback_transport,
@@ -31,6 +33,7 @@ app = dashboard.app
 application_state_hub = build_default_application_state_hub(dashboard)
 playback_coordinator = promote_playback_transport(application_state_hub, dashboard)
 playback_coordinator = promote_airplay_navigation(application_state_hub, dashboard)
+playback_coordinator = promote_airplay_takeover(application_state_hub, dashboard)
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 master_equalizer = register_audio_eq(app)
