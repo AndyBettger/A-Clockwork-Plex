@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Any, Callable
 
-from flask import jsonify
+from flask import jsonify, request
 
 try:
     from .playback_coordinator import PlaybackCoordinator
@@ -24,6 +24,7 @@ class ApplicationStateHub:
 
     def __init__(self) -> None:
         self._providers: dict[str, StateProvider] = {}
+        self._services: dict[str, Any] = {}
         self._lock = threading.RLock()
         self._revision = 0
         self._last_signature: str | None = None
@@ -36,6 +37,18 @@ class ApplicationStateHub:
             raise ValueError(f"Application-state provider {key} is not callable.")
         with self._lock:
             self._providers[key] = provider
+
+    def register_service(self, name: str, service: Any) -> None:
+        key = str(name or "").strip().lower()
+        if not key:
+            raise ValueError("Application services require a name.")
+        with self._lock:
+            self._services[key] = service
+
+    def service(self, name: str) -> Any | None:
+        key = str(name or "").strip().lower()
+        with self._lock:
+            return self._services.get(key)
 
     def _read_provider(self, name: str, provider: StateProvider) -> tuple[dict[str, Any], dict[str, Any]]:
         try:
@@ -81,7 +94,7 @@ class ApplicationStateHub:
 
 
 def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
-    """Build the first read-only hub from the application's established observers."""
+    """Build the event-assisted hub from the application's established observers."""
     try:
         from . import audio_mixer
     except ImportError:  # Supports direct execution imports.
@@ -97,15 +110,68 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     )
 
     hub = ApplicationStateHub()
+    hub.register_service("playback", coordinator)
     hub.register_provider("playback", coordinator.snapshot)
     return hub
 
 
-def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
-    """Expose the hub without transferring command ownership yet."""
-    if "api_application_state" in app.view_functions:
-        return
+def _register_legacy_playback_event_wrappers(app: Any, coordinator: PlaybackCoordinator) -> None:
+    """Translate existing AirPlay routes into coordinator events without changing their behaviour."""
+    mappings = {
+        "api_airplay_start": ("airplay", "playing", "legacy-airplay-start-route"),
+        "api_airplay_end": ("airplay", "disconnected", "legacy-airplay-end-route"),
+    }
+    for endpoint, (source, event, origin) in mappings.items():
+        view = app.view_functions.get(endpoint)
+        if view is None or getattr(view, "_acp_playback_event_wrapped", False):
+            continue
 
-    @app.route("/api/state", methods=["GET"])
-    def api_application_state():
-        return jsonify(hub.snapshot())
+        def wrapped_view(*args: Any, _view=view, _source=source, _event=event, _origin=origin, **kwargs: Any):
+            response = _view(*args, **kwargs)
+            coordinator.record_event(_source, _event, {"origin": _origin})
+            return response
+
+        wrapped_view._acp_playback_event_wrapped = True  # type: ignore[attr-defined]
+        app.view_functions[endpoint] = wrapped_view
+
+
+def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
+    """Expose shared state plus command-disabled playback event ingestion."""
+    coordinator = hub.service("playback")
+
+    if "api_application_state" not in app.view_functions:
+        @app.route("/api/state", methods=["GET"])
+        def api_application_state():
+            return jsonify(hub.snapshot())
+
+    if "api_playback_state" not in app.view_functions:
+        @app.route("/api/playback/state", methods=["GET"])
+        def api_playback_state():
+            if not isinstance(coordinator, PlaybackCoordinator):
+                return jsonify({"ok": False, "error": "Playback coordinator is unavailable."}), 503
+            return jsonify({"ok": True, "playback": coordinator.snapshot()})
+
+    if "api_playback_events" not in app.view_functions:
+        @app.route("/api/playback/events", methods=["GET", "POST"])
+        def api_playback_events():
+            if not isinstance(coordinator, PlaybackCoordinator):
+                return jsonify({"ok": False, "error": "Playback coordinator is unavailable."}), 503
+            if request.method == "GET":
+                return jsonify({"ok": True, "events": coordinator.event_snapshot()})
+
+            payload = request.get_json(silent=True)
+            if not isinstance(payload, dict):
+                return jsonify({"ok": False, "error": "Playback event must be a JSON object."}), 400
+            details = payload.get("details", {})
+            try:
+                event = coordinator.record_event(
+                    str(payload.get("source", "")),
+                    str(payload.get("event", "")),
+                    details,
+                )
+            except ValueError as exc:
+                return jsonify({"ok": False, "error": str(exc)}), 400
+            return jsonify({"ok": True, "event": event, "playback": coordinator.snapshot()})
+
+    if isinstance(coordinator, PlaybackCoordinator):
+        _register_legacy_playback_event_wrappers(app, coordinator)
