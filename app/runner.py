@@ -7,6 +7,7 @@ try:
         register_application_state_api,
     )
     from .audio_eq import register_audio_eq
+    from .playback_coordinator import PlaybackCoordinator
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from application_state import (
@@ -14,6 +15,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         register_application_state_api,
     )
     from audio_eq import register_audio_eq
+    from playback_coordinator import PlaybackCoordinator
 
 app = dashboard.app
 application_state_hub = build_default_application_state_hub(dashboard)
@@ -24,8 +26,11 @@ master_equalizer = register_audio_eq(app)
 if __name__ == '__main__':
     config = dashboard.load_config()
     dashboard_config = config.get('dashboard', {})
+    playback_coordinator = application_state_hub.service('playback')
     dashboard.alarm_scheduler.start()
     dashboard.alarm_audio.start()
+    if isinstance(playback_coordinator, PlaybackCoordinator):
+        playback_coordinator.start()
     try:
         app.run(
             host=dashboard_config.get('host', '0.0.0.0'),
@@ -34,5 +39,7 @@ if __name__ == '__main__':
             use_reloader=False,
         )
     finally:
+        if isinstance(playback_coordinator, PlaybackCoordinator):
+            playback_coordinator.shutdown()
         dashboard.alarm_audio.shutdown()
         dashboard.alarm_scheduler.stop()
