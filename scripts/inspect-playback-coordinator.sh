@@ -52,6 +52,7 @@ observed = airplay.get("observed") or {}
 hold = airplay.get("hold") or {}
 worker = playback.get("worker") or {}
 capabilities = playback.get("command_capabilities") or {}
+command = (playback.get("commands") or {}).get("airplay") or {}
 events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
 
@@ -59,6 +60,9 @@ print("===== PLAYBACK COORDINATOR =====")
 print(f"authority:          {playback.get('authority')}")
 print(f"commands enabled:   {playback.get('commands_enabled')}")
 print(f"source control:     {capabilities.get('source_control')}")
+print(f"AirPlay transport:  {capabilities.get('airplay_transport')}")
+print(f"Plexamp transport:  {capabilities.get('plexamp_transport')}")
+print(f"auto arbitration:   {capabilities.get('automatic_arbitration')}")
 print(f"screen return:      {capabilities.get('screen_return_on_hold_end')}")
 print(f"worker running:     {worker.get('running')}")
 print(f"active source:      {playback.get('active_source')}")
@@ -79,6 +83,19 @@ print(f"Sender query error: {observed.get('sender_error')}")
 print(f"AirPlay raw MPRIS:  {observed.get('raw_playback_status')}")
 print(f"AirPlay effective:  {observed.get('effective_playback_status')}")
 print(f"Alarm active:       {alarm.get('active')}")
+print()
+print("===== AIRPLAY COMMAND =====")
+print(f"sequence:           {command.get('sequence')}")
+print(f"action:             {command.get('action')}")
+print(f"target state:       {command.get('target_state')}")
+print(f"status:             {command.get('status')}")
+print(f"noop:               {command.get('noop')}")
+print(f"requested at:       {command.get('requested_at')}")
+print(f"accepted at:        {command.get('accepted_at')}")
+print(f"completed at:       {command.get('completed_at')}")
+print(f"observed state:     {command.get('observed_state')}")
+print(f"observed via:       {command.get('observed_source')}")
+print(f"last error:         {command.get('last_error')}")
 print()
 print("===== AIRPLAY HOLD =====")
 print(f"owner:              {hold.get('owner')}")
