@@ -13,6 +13,7 @@ IDLE_RETURN = ROOT / "app" / "static" / "js" / "idle-return.js"
 HOOK_INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
 COORDINATOR = ROOT / "app" / "playback_coordinator.py"
 APPLICATION_STATE = ROOT / "app" / "application_state.py"
+SHAIRPORT_SESSION = ROOT / "app" / "shairport_session.py"
 CONFIG_EXAMPLE = ROOT / "config.example.json"
 HOLD_HELPER = ROOT / "scripts" / "set-airplay-hold-seconds.py"
 
@@ -73,14 +74,18 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         self.assertIn("MAX_SECONDS = 86400", helper_text)
         self.assertIn("pause_hold_seconds", helper_text)
 
-    def test_session_end_adapter_handles_disconnect_after_pause(self):
-        text = HOOK_INSTALLER.read_text(encoding="utf-8")
-        self.assertIn("SESSION_END_WRAPPER", text)
-        self.assertIn("run_this_after_play_ends", text)
-        self.assertIn("session_timeout = 15", text)
-        self.assertIn("AirPlay sender session ended - publishing disconnect", text)
-        self.assertIn("a newer session is playing - ignored", text)
-        self.assertIn("/api/airplay/end", text)
+    def test_disconnect_is_polled_from_sender_not_play_end_hook(self):
+        hook_text = HOOK_INSTALLER.read_text(encoding="utf-8")
+        application_text = APPLICATION_STATE.read_text(encoding="utf-8")
+        session_text = SHAIRPORT_SESSION.read_text(encoding="utf-8")
+        self.assertNotIn("run_this_after_play_ends", hook_text)
+        self.assertNotIn("session_timeout =", hook_text)
+        self.assertIn("LEGACY_SESSION_END_WRAPPER", hook_text)
+        self.assertIn('sudo rm -f "$LEGACY_SESSION_END_WRAPPER"', hook_text)
+        self.assertIn("shairport_remote_status", application_text)
+        self.assertIn("RemoteControl.Available", session_text)
+        self.assertIn("mpris_service_available", session_text)
+        self.assertIn("sender_available", session_text)
 
     def test_hooks_never_restart_audio_services(self):
         text = HOOK_INSTALLER.read_text(encoding="utf-8")
