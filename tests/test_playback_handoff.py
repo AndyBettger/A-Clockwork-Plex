@@ -220,9 +220,11 @@ class ScreenAndLegacyBoundaryTests(unittest.TestCase):
 
     def test_runner_promotes_handoff_before_registering_apis(self):
         text = RUNNER.read_text(encoding="utf-8")
-        self.assertIn("promote_airplay_takeover", text)
-        self.assertLess(text.index("promote_airplay_takeover(application_state_hub"), text.index("register_application_state_api"))
-        self.assertLess(text.index("promote_airplay_takeover(application_state_hub"), text.index("register_playback_command_api"))
+        handoff_call = text.index("playback_coordinator = promote_airplay_takeover(application_state_hub")
+        state_api_call = text.index("register_application_state_api(app, application_state_hub)")
+        command_api_call = text.index("register_playback_command_api(app, application_state_hub)")
+        self.assertLess(handoff_call, state_api_call)
+        self.assertLess(handoff_call, command_api_call)
 
     def test_real_runner_uses_handoff_owner_and_plain_plexamp_route(self):
         code = (
