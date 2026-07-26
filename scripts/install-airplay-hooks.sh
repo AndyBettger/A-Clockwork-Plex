@@ -5,6 +5,7 @@ DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
 PLEXAMP_URL="${PLEXAMP_URL:-http://localhost:32500}"
 START_WRAPPER="${START_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-start}"
 END_WRAPPER="${END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-end}"
+SESSION_END_WRAPPER="${SESSION_END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-session-end}"
 LEGACY_SUDOERS_FILE="${LEGACY_SUDOERS_FILE:-/etc/sudoers.d/a-clockwork-plex-airplay}"
 
 validate_url_value() {
@@ -47,8 +48,8 @@ PLEXAMP_URL="$PLEXAMP_URL"
 /usr/bin/logger -t shairport-plexamp "Shared ALSA mixer active - Plexamp remains available"
 START_WRAPPER_EOF
 
-# END classifies the Shairport transition and publishes one lifecycle event.
-# PlaybackCoordinator owns the deadline, disconnect monitoring and idle return.
+# END classifies the active-to-inactive transition and publishes a pause event.
+# A separate session-end adapter below handles disconnects that happen later.
 cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
@@ -97,20 +98,60 @@ if [ "\$PLAYER_STATE" = 's "Playing"' ]; then
 fi
 
 if [ "\$REMOTE_AVAILABLE" = "b false" ]; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay sender disconnected - ending the dashboard session"
+    /usr/bin/logger -t shairport-plexamp "AirPlay sender disconnected during active-state exit - ending the dashboard session"
     /usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
     exit 0
 fi
 
 /usr/bin/curl -fsS -X POST "\$DASHBOARD_BASE/api/mode/airplay" >/dev/null || true
 if post_pause_event; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay paused with sender available - PlaybackCoordinator owns the 600s hold"
+    /usr/bin/logger -t shairport-plexamp "AirPlay paused with sender available - PlaybackCoordinator owns the configured hold"
 else
     /usr/bin/logger -t shairport-plexamp "AirPlay pause event could not reach PlaybackCoordinator; AirPlay screen retained for inspection"
 fi
 END_WRAPPER_EOF
 
-sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
+# Shairport calls run_this_after_play_ends when the sender session itself ends.
+# This is distinct from leaving the active state, so it catches a sender that is
+# disconnected after it has already been paused. A currently playing coordinator
+# state is treated as a stale callback from an older session and ignored.
+cat <<SESSION_END_WRAPPER_EOF | sudo tee "$SESSION_END_WRAPPER" >/dev/null
+#!/bin/bash
+set -euo pipefail
+
+DASHBOARD_BASE="$DASHBOARD_BASE"
+
+coordinator_airplay_state() {
+    /usr/bin/curl -fsS --max-time 3 "\$DASHBOARD_BASE/api/playback/state" 2>/dev/null | \
+        /usr/bin/python3 -c '
+import json
+import sys
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    print("unknown")
+    raise SystemExit(1)
+source = (((payload.get("playback") or {}).get("sources") or {}).get("airplay") or {})
+print(str(source.get("state") or "unknown").lower())
+' 2>/dev/null || printf 'unknown'
+}
+
+AIRPLAY_STATE="\$(coordinator_airplay_state)"
+if [ "\$AIRPLAY_STATE" = "playing" ]; then
+    /usr/bin/logger -t shairport-plexamp "AirPlay session-end callback is stale because a newer session is playing - ignored"
+    exit 0
+fi
+
+if [ "\$AIRPLAY_STATE" = "unknown" ]; then
+    /usr/bin/logger -t shairport-plexamp "AirPlay session ended but coordinator state was unavailable - leaving state unchanged for inspection"
+    exit 0
+fi
+
+/usr/bin/logger -t shairport-plexamp "AirPlay sender session ended - publishing disconnect to PlaybackCoordinator"
+/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
+SESSION_END_WRAPPER_EOF
+
+sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER" "$SESSION_END_WRAPPER"
 
 # Shared mixing means the hooks never need permission to stop/start Plexamp.
 if [[ -e "$LEGACY_SUDOERS_FILE" ]]; then
@@ -120,9 +161,11 @@ fi
 echo "Installed coordinator-event AirPlay hook wrappers:"
 echo "  $START_WRAPPER"
 echo "  $END_WRAPPER"
+echo "  $SESSION_END_WRAPPER"
 echo
 echo "Plexamp is paused for AirPlay but its service remains running."
-echo "PlaybackCoordinator now owns paused-session timing, disconnect monitoring and idle return."
+echo "PlaybackCoordinator owns paused-session timing and idle return."
+echo "The session-end adapter detects disconnects that occur after AirPlay is already paused."
 echo "The wrappers contain no detached watchdog, token file or browser heartbeat."
 echo
 echo "Use this in /etc/shairport-sync.conf:"
@@ -130,7 +173,9 @@ echo "sessioncontrol ="
 echo "{"
 echo "    run_this_before_entering_active_state = \"$START_WRAPPER\";"
 echo "    run_this_after_exiting_active_state = \"$END_WRAPPER\";"
+echo "    run_this_after_play_ends = \"$SESSION_END_WRAPPER\";"
 echo "    active_state_timeout = 10;"
+echo "    session_timeout = 15;"
 echo "    wait_for_completion = \"yes\";"
 echo "};"
 echo
