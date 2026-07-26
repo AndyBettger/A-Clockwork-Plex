@@ -9,7 +9,7 @@ from app.airplay_coordination import resolve_airplay_remote
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "app" / "runner.py"
-COORDINATOR = ROOT / "app" / "static" / "js" / "airplay-control-coordinator.js"
+TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 HOOK_INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
 
 
@@ -69,22 +69,17 @@ class AirPlayStateResolutionTests(unittest.TestCase):
         self.assertEqual(resolved["effective_playback_status"], "playing")
         self.assertEqual(resolved["playback_status_source"], "mpris")
 
-    def test_runner_registers_coordination_before_eq(self):
+    def test_runner_registers_state_hub_before_eq(self):
         text = RUNNER.read_text(encoding="utf-8")
-        self.assertIn("register_airplay_coordination", text)
+        self.assertIn("register_application_state_api", text)
         self.assertLess(
-            text.index("register_airplay_coordination(app)"),
+            text.index("register_application_state_api(app, application_state_hub)"),
             text.index("register_audio_eq(app)"),
         )
 
-    def test_button_uses_effective_state_and_explicit_commands(self):
-        text = COORDINATOR.read_text(encoding="utf-8")
-        self.assertIn("effective_playback_status", text)
-        self.assertIn("return 'pause'", text)
-        self.assertIn("return 'play'", text)
-        self.assertIn("JSON.stringify({ action })", text)
-        self.assertNotIn("play_pause", text)
-        self.assertNotIn("PlayPause", text)
+    def test_temporary_button_resolver_is_not_loaded(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        self.assertNotIn("airplay-control-coordinator.js", text)
 
     def test_start_hook_pauses_plexamp_before_publishing_airplay(self):
         text = HOOK_INSTALLER.read_text(encoding="utf-8")
