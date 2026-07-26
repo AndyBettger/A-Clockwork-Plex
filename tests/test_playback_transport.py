@@ -135,6 +135,31 @@ class TransportPlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(confirmed["status"], "confirmed")
         self.assertEqual(confirmed["observed_source"], "shairport-end-wrapper")
 
+    def test_late_observed_pause_cannot_undo_confirmed_play(self):
+        clock = FakeClock()
+        coordinator = self.coordinator(clock=clock)
+        coordinator.record_event("airplay", "paused", {"origin": "shairport-end-wrapper"})
+        clock.advance(1)
+
+        result = coordinator.command("airplay", "play")
+        self.assertEqual(result["command"]["status"], "confirmed")
+        self.assertEqual(result["command"]["observed_source"], "mpris")
+
+        # Reproduce the physical race: a snapshot that began before Play finishes late
+        # and appends a paused observation after the confirmed command.
+        coordinator._events.observe(
+            "airplay",
+            "paused",
+            {"state": "paused", "state_source": "playback-coordinator-hold"},
+        )
+        snapshot = coordinator.snapshot()
+        airplay = snapshot["sources"]["airplay"]
+
+        self.assertEqual(airplay["state"], "playing")
+        self.assertEqual(airplay["state_source"], "transport-confirmed-mpris")
+        self.assertFalse(airplay["hold"]["active"])
+        self.assertEqual(snapshot["events"]["last_event"]["event"], "playing")
+
     def test_idempotent_command_is_noop_without_adapter_call(self):
         commands: list[str] = []
         coordinator = self.coordinator(commands=commands)
