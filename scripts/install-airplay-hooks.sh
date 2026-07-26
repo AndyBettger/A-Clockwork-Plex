@@ -46,8 +46,7 @@ START_WRAPPER_EOF
 
 # END classifies the active-to-inactive transition. A connected sender means
 # pause; an already unavailable sender means the session ended at the same time.
-# Disconnects that happen later are detected by PlaybackCoordinator polling
-# org.gnome.ShairportSync.RemoteControl.Available.
+# It publishes lifecycle only and never chooses a dashboard screen.
 cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
 #!/bin/bash
 set -euo pipefail
@@ -101,11 +100,10 @@ if [ "\$REMOTE_AVAILABLE" = "b false" ]; then
     exit 0
 fi
 
-/usr/bin/curl -fsS -X POST "\$DASHBOARD_BASE/api/mode/airplay" >/dev/null || true
 if post_pause_event; then
     /usr/bin/logger -t shairport-plexamp "AirPlay paused with sender available - PlaybackCoordinator owns the configured hold"
 else
-    /usr/bin/logger -t shairport-plexamp "AirPlay pause event could not reach PlaybackCoordinator; AirPlay screen retained for inspection"
+    /usr/bin/logger -t shairport-plexamp "AirPlay pause event could not reach PlaybackCoordinator; the current screen was left untouched"
 fi
 END_WRAPPER_EOF
 
@@ -126,9 +124,9 @@ echo "Installed coordinator-event AirPlay hook wrappers:"
 echo "  $START_WRAPPER"
 echo "  $END_WRAPPER"
 echo
-echo "The START wrapper publishes lifecycle intent only; it does not call Plexamp."
+echo "The wrappers publish lifecycle intent only; they do not call Plexamp or choose a screen."
 echo "PlaybackCoordinator owns AirPlay-to-Plexamp pause, paused-session timing, sender polling and idle return."
-echo "An explicitly open Plexamp surface is preserved when AirPlay starts."
+echo "An explicitly open Plexamp surface is preserved when AirPlay starts or pauses."
 echo "The retired play-end wrapper was removed because Shairport fires it for ordinary pauses."
 echo "The wrappers contain no detached watchdog, token file or browser heartbeat."
 echo
