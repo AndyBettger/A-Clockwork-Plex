@@ -16,17 +16,23 @@ class ModeWatchHandoffSafetyTests(unittest.TestCase):
         self.assertIn("&& !airplayActive", text)
         self.assertNotIn("requestedMode !== 'plexamp'", text)
 
-    def test_dashboard_recovery_reloads_the_persistent_plexamp_frame(self):
+    def test_dashboard_recovery_waits_for_the_real_plexamp_timeline(self):
         text = MODE_WATCH.read_text(encoding="utf-8")
-        self.assertIn("statusUnavailable = true", text)
-        self.assertIn("const recoveredFromOutage = statusUnavailable;", text)
-        self.assertIn("schedulePlexampFrameRecovery()", text)
-        self.assertIn("persistent-plexamp-frame", text)
-        self.assertIn("frame.setAttribute('src', source)", text)
+        self.assertIn("fetch('/api/audio/live'", text)
+        self.assertIn("payload?.live?.channels?.plexamp?.available === true", text)
+        self.assertIn("if (await plexampPlayerReady())", text)
+        self.assertIn("Date.now() - startedAt >= 60000", text)
 
-    def test_recovery_reload_is_delayed_and_cancelled_on_page_exit(self):
+    def test_ready_player_gets_a_hard_iframe_reconnect(self):
         text = MODE_WATCH.read_text(encoding="utf-8")
-        self.assertIn("}, 2500);", text)
+        self.assertIn("persistent-plexamp-frame", text)
+        self.assertIn("frame.setAttribute('src', 'about:blank')", text)
+        self.assertIn("target.searchParams.set('acp_reconnect'", text)
+        self.assertIn("frame.setAttribute('src', target.toString())", text)
+
+    def test_recovery_poll_is_cancelled_on_page_exit(self):
+        text = MODE_WATCH.read_text(encoding="utf-8")
+        self.assertIn("plexampRecoveryGeneration", text)
         self.assertIn("window.clearTimeout(plexampRecoveryTimer)", text)
         self.assertIn("window.addEventListener('pagehide'", text)
 
