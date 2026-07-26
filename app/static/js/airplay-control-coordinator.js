@@ -6,11 +6,13 @@
   const icon = document.getElementById('airplay-play-pause-icon');
   if (!button) return;
 
+  const stateEndpoint = '/api/airplay/state';
   let commandInFlight = false;
   let latestRemote = null;
   let latestSessionActive = false;
   let effectiveStatus = 'unknown';
   let pollTimer = null;
+  let repairTimer = null;
   let applying = false;
 
   function playbackStatus(remote) {
@@ -44,22 +46,30 @@
       && remote.available
       && (remote.can_control || remote.can_play || remote.can_pause),
     );
+    const targetDisabled = commandInFlight || !canControl;
+    const targetLabel = isPlaying ? 'Pause AirPlay' : 'Play AirPlay';
+    const targetIcon = isPlaying ? 'Ⅱ' : '▶';
 
     applying = true;
-    document.body.classList.toggle('airplay-remote-playing', isPlaying);
-    document.body.classList.toggle('airplay-remote-paused', isPaused);
-    button.disabled = commandInFlight || !canControl;
-    button.setAttribute('aria-label', isPlaying ? 'Pause AirPlay' : 'Play AirPlay');
-    if (icon) icon.textContent = isPlaying ? 'Ⅱ' : '▶';
-    applying = false;
+    try {
+      document.body.classList.toggle('airplay-remote-playing', isPlaying);
+      document.body.classList.toggle('airplay-remote-paused', isPaused);
+      if (button.disabled !== targetDisabled) button.disabled = targetDisabled;
+      if (button.getAttribute('aria-label') !== targetLabel) {
+        button.setAttribute('aria-label', targetLabel);
+      }
+      if (icon && icon.textContent !== targetIcon) icon.textContent = targetIcon;
+    } finally {
+      applying = false;
+    }
   }
 
   async function refreshAuthoritativeStatus() {
     try {
-      const response = await fetch('/api/status', { cache: 'no-store' });
+      const response = await fetch(stateEndpoint, { cache: 'no-store' });
       if (!response.ok) return;
       const payload = await response.json();
-      const airplay = payload?.state?.airplay || {};
+      const airplay = payload?.airplay || {};
       applyAuthoritativeRemote(airplay.remote || {}, airplay.active === true);
     } catch (error) {
     }
@@ -110,21 +120,29 @@
     }
   }
 
+  function scheduleRepair() {
+    if (applying || !latestRemote || repairTimer) return;
+    repairTimer = window.setTimeout(() => {
+      repairTimer = null;
+      applyAuthoritativeRemote(latestRemote, latestSessionActive);
+    }, 0);
+  }
+
   /* airplay-live.js still renders metadata, artwork, progress and volume. This
-     coordinator is the sole playback-button owner. Repair any stale raw-MPRIS
-     redraw immediately from the latest effective server state. */
+     coordinator owns the playback button. Idempotent writes plus one deferred
+     repair prevent the observer from feeding back into itself. */
   if (typeof MutationObserver === 'function') {
-    const observer = new MutationObserver(() => {
-      if (applying || !latestRemote) return;
-      window.queueMicrotask(() => applyAuthoritativeRemote(latestRemote, latestSessionActive));
-    });
+    const observer = new MutationObserver(scheduleRepair);
     observer.observe(button, { attributes: true, attributeFilter: ['aria-label', 'disabled'] });
     if (icon) observer.observe(icon, { childList: true, characterData: true, subtree: true });
     window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
   }
 
   button.addEventListener('click', sendExplicitCommand, { capture: true });
-  pollTimer = window.setInterval(refreshAuthoritativeStatus, 500);
+  pollTimer = window.setInterval(refreshAuthoritativeStatus, 750);
   window.setTimeout(refreshAuthoritativeStatus, 100);
-  window.addEventListener('pagehide', () => window.clearInterval(pollTimer), { once: true });
+  window.addEventListener('pagehide', () => {
+    window.clearInterval(pollTimer);
+    window.clearTimeout(repairTimer);
+  }, { once: true });
 })();
