@@ -46,6 +46,7 @@ echo "Using Python: $PYTHON"
   app/playback_navigation.py \
   app/playback_handoff.py \
   app/playback_handoff_retention.py \
+  app/screen_projection.py \
   app/mixer_controller.py \
   app/shairport_session.py \
   app/alarm_config.py \
@@ -69,6 +70,7 @@ if command -v node >/dev/null 2>&1; then
   node --check app/static/js/settings-tabs.js
   node --check app/static/js/settings-about.js
   node --check app/static/js/mode-watch.js
+  node --check app/static/js/screen-projection.js
   node --check app/static/js/alarm-active.js
   node --check app/static/js/airplay-playback-state.js
   node --check app/static/js/airplay-navigation-state.js
