@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import threading
-from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
 from flask import jsonify, request
 
 try:
+    from .input_activity import LinuxInputActivityMonitor
     from .playback_coordinator import PlaybackCoordinator, _text
 except ImportError:  # Supports direct execution imports.
+    from input_activity import LinuxInputActivityMonitor
     from playback_coordinator import PlaybackCoordinator, _text
 
 
@@ -17,6 +18,7 @@ NowProvider = Callable[[], datetime]
 StateProvider = Callable[[dict[str, Any]], dict[str, Any]]
 ConfigProvider = Callable[[], dict[str, Any]]
 ModeSetter = Callable[[str], Any]
+InputActivityProvider = Callable[[], dict[str, Any]]
 
 VALID_SCREENS = {"clock", "weather", "airplay", "plexamp", "settings", "alarm"}
 IDLE_RETURN_SCREENS = {"clock", "weather", "airplay", "plexamp"}
@@ -29,8 +31,22 @@ def _default_now() -> datetime:
     return datetime.now().astimezone()
 
 
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.astimezone()
+    return parsed
+
+
 class ScreenProjectionController:
-    """Own screen recommendation while the browser reports interaction only."""
+    """Own screen recommendation while browser and local input report interaction."""
 
     authority = "screen-projection-owner"
 
@@ -41,12 +57,14 @@ class ScreenProjectionController:
         load_state: StateProvider,
         playback: PlaybackCoordinator,
         set_mode: ModeSetter,
+        input_activity: InputActivityProvider | None = None,
         now_provider: NowProvider | None = None,
     ) -> None:
         self._load_config = load_config
         self._load_state = load_state
         self._playback = playback
         self._set_mode = set_mode
+        self._input_activity = input_activity
         self._now = now_provider or _default_now
         self._lock = threading.RLock()
         now = self._now()
@@ -60,6 +78,11 @@ class ScreenProjectionController:
         self._last_applied_at: datetime | None = None
         self._last_applied_screen: str | None = None
         self._last_error: str | None = None
+        initial_input = self._read_input_activity()
+        try:
+            self._last_input_sequence = int(initial_input.get("sequence") or 0)
+        except (TypeError, ValueError):
+            self._last_input_sequence = 0
 
     def _timeout_seconds(self) -> int:
         config = self._load_config()
@@ -84,6 +107,55 @@ class ScreenProjectionController:
         config = self._load_config()
         dashboard = config.get("dashboard") if isinstance(config.get("dashboard"), dict) else {}
         return self._normalise_idle_mode(dashboard.get("default_mode"), "clock")
+
+    def _read_input_activity(self) -> dict[str, Any]:
+        if not callable(self._input_activity):
+            return {
+                "authority": "linux-input-activity-monitor",
+                "running": False,
+                "available": False,
+                "sequence": 0,
+                "last_activity_at": None,
+                "last_event": None,
+                "last_error": "Local input monitor is not registered.",
+            }
+        try:
+            payload = self._input_activity()
+        except Exception as exc:
+            return {
+                "authority": "linux-input-activity-monitor",
+                "running": False,
+                "available": False,
+                "sequence": self._last_input_sequence,
+                "last_activity_at": None,
+                "last_event": None,
+                "last_error": str(exc),
+            }
+        return payload if isinstance(payload, dict) else {}
+
+    def _adopt_input_activity(self, current_screen: str) -> dict[str, Any]:
+        activity = self._read_input_activity()
+        try:
+            sequence = int(activity.get("sequence") or 0)
+        except (TypeError, ValueError):
+            sequence = 0
+        occurred_at = _parse_datetime(activity.get("last_activity_at"))
+        with self._lock:
+            if sequence <= self._last_input_sequence:
+                return activity
+            self._last_input_sequence = sequence
+            if occurred_at is None or occurred_at < self._last_activity_at:
+                return activity
+
+            event = activity.get("last_event") if isinstance(activity.get("last_event"), dict) else {}
+            device = str(event.get("device") or "local-input")
+            kind = str(event.get("kind") or "event")
+            self._sequence += 1
+            self._last_activity_at = occurred_at
+            self._last_interaction_source = f"linux-input:{kind}:{device}"
+            if self._manual_surface == "plexamp" and current_screen == "plexamp":
+                self._lease_until = occurred_at + timedelta(seconds=self._timeout_seconds())
+        return activity
 
     def set_idle_return_mode(self, mode: Any) -> dict[str, Any]:
         with self._lock:
@@ -156,6 +228,7 @@ class ScreenProjectionController:
         stored = self._load_state(config)
         playback = self._playback.snapshot()
         current_screen = self._normalise_screen(playback.get("current_screen") or stored.get("mode"), "clock")
+        input_activity = self._adopt_input_activity(current_screen)
         active_source = _text(playback.get("active_source"), "none")
         sources = playback.get("sources") if isinstance(playback.get("sources"), dict) else {}
         alarm = sources.get("alarm") if isinstance(sources.get("alarm"), dict) else {}
@@ -204,6 +277,7 @@ class ScreenProjectionController:
             "idle_timeout_seconds": self._timeout_seconds(),
             "idle_return_mode": self._normalise_idle_mode(idle_mode, self._configured_idle_mode()),
             "lease": lease,
+            "input_activity": input_activity,
             "last_applied_at": last_applied_at.isoformat(timespec="milliseconds") if last_applied_at else None,
             "last_applied_screen": last_applied_screen,
             "last_error": last_error,
@@ -247,13 +321,17 @@ def register_screen_projection(app: Any, hub: Any, dashboard: Any) -> ScreenProj
     if not isinstance(playback, PlaybackCoordinator):
         raise RuntimeError("PlaybackCoordinator is unavailable for screen projection.")
 
+    input_monitor = LinuxInputActivityMonitor()
     controller = ScreenProjectionController(
         load_config=dashboard.load_config,
         load_state=dashboard.load_state,
         playback=playback,
         set_mode=dashboard.set_mode,
+        input_activity=input_monitor.snapshot,
     )
     setattr(playback, "_screen_projection_enabled", True)
+    hub.register_service("input_activity", input_monitor)
+    hub.register_provider("input_activity", input_monitor.snapshot)
     hub.register_service("screen", controller)
     hub.register_provider("screen", controller.snapshot)
 
