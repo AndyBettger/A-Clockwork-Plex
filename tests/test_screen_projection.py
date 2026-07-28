@@ -28,6 +28,15 @@ class ScreenProjectionControllerTests(unittest.TestCase):
             "active_source": "none",
             "alarm_active": False,
         }
+        input_state = {
+            "authority": "linux-input-activity-monitor",
+            "running": True,
+            "available": True,
+            "sequence": 0,
+            "last_activity_at": None,
+            "last_event": None,
+            "last_error": None,
+        }
         playback = FakePlayback(state)
         applied: list[str] = []
 
@@ -45,12 +54,13 @@ class ScreenProjectionControllerTests(unittest.TestCase):
             load_state=lambda _config: {"mode": state["mode"]},
             playback=playback,
             set_mode=set_mode,
+            input_activity=lambda: dict(input_state),
             now_provider=lambda: now[0],
         )
-        return controller, now, state, applied
+        return controller, now, state, applied, input_state
 
     def test_quiet_manual_plexamp_returns_to_configured_idle_page_after_lease(self):
-        controller, now, state, applied = self.controller()
+        controller, now, state, applied, _input = self.controller()
         controller.set_idle_return_mode("weather")
         opened = controller.interaction("plexamp", source="manual-open", manual=True)
 
@@ -70,7 +80,7 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertEqual(applied_state["applied_screen"], "weather")
 
     def test_airplay_under_manual_plexamp_waits_for_lease_expiry(self):
-        controller, now, state, _applied = self.controller()
+        controller, now, state, _applied, _input = self.controller()
         state["active_source"] = "airplay"
         controller.interaction("plexamp", source="manual-open", manual=True)
 
@@ -84,7 +94,7 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertEqual(expired["decision_reason"], "airplay-owns-audio")
 
     def test_plexamp_playback_keeps_plexamp_after_manual_lease_expires(self):
-        controller, now, state, _applied = self.controller()
+        controller, now, state, _applied, _input = self.controller()
         controller.interaction("plexamp", source="manual-open", manual=True)
         state["active_source"] = "plexamp"
         now[0] += timedelta(seconds=90)
@@ -96,7 +106,7 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertFalse(snapshot["should_apply"])
 
     def test_alarm_immediately_overrides_manual_plexamp_lease(self):
-        controller, _now, state, _applied = self.controller()
+        controller, _now, state, _applied, _input = self.controller()
         controller.interaction("plexamp", source="manual-open", manual=True)
         state["alarm_active"] = True
 
@@ -107,7 +117,7 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertTrue(snapshot["should_apply"])
 
     def test_iframe_interaction_renews_manual_lease(self):
-        controller, now, _state, _applied = self.controller()
+        controller, now, _state, _applied, _input = self.controller()
         controller.interaction("plexamp", source="manual-open", manual=True)
         now[0] += timedelta(seconds=25)
         renewed = controller.interaction("plexamp", source="plexamp-frame-focus")
@@ -116,8 +126,58 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertGreaterEqual(renewed["lease"]["remaining_seconds"], 29)
         self.assertEqual(renewed["lease"]["last_interaction_source"], "plexamp-frame-focus")
 
+    def test_linux_touch_event_renews_manual_plexamp_lease(self):
+        controller, now, _state, _applied, input_state = self.controller()
+        controller.interaction("plexamp", source="manual-open", manual=True)
+        now[0] += timedelta(seconds=25)
+        input_state.update(
+            {
+                "sequence": 1,
+                "last_activity_at": now[0].isoformat(timespec="milliseconds"),
+                "last_event": {
+                    "sequence": 1,
+                    "kind": "absolute",
+                    "device": "Touchscreen",
+                },
+            }
+        )
+
+        renewed = controller.snapshot()
+
+        self.assertTrue(renewed["lease"]["active"])
+        self.assertGreaterEqual(renewed["lease"]["remaining_seconds"], 29)
+        self.assertEqual(
+            renewed["lease"]["last_interaction_source"],
+            "linux-input:absolute:Touchscreen",
+        )
+
+    def test_same_input_sequence_cannot_keep_resetting_lease(self):
+        controller, now, _state, _applied, input_state = self.controller()
+        controller.interaction("plexamp", source="manual-open", manual=True)
+        now[0] += timedelta(seconds=25)
+        input_state.update(
+            {
+                "sequence": 1,
+                "last_activity_at": now[0].isoformat(timespec="milliseconds"),
+                "last_event": {
+                    "sequence": 1,
+                    "kind": "relative",
+                    "device": "Test mouse",
+                },
+            }
+        )
+        renewed = controller.snapshot()
+        self.assertGreaterEqual(renewed["lease"]["remaining_seconds"], 29)
+
+        now[0] += timedelta(seconds=10)
+        stationary = controller.snapshot()
+
+        self.assertGreaterEqual(stationary["lease"]["remaining_seconds"], 19)
+        self.assertLessEqual(stationary["lease"]["remaining_seconds"], 20)
+        self.assertEqual(stationary["input_activity"]["sequence"], 1)
+
     def test_recent_activity_delays_idle_return_on_non_media_surface(self):
-        controller, now, state, _applied = self.controller()
+        controller, now, state, _applied, _input = self.controller()
         state["mode"] = "settings"
         controller.interaction("settings", source="outer-pointerdown")
         now[0] += timedelta(seconds=20)
