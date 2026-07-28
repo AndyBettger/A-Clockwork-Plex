@@ -12,6 +12,7 @@ from app.playback_handoff import (
     _install_screen_preserving_airplay_start,
     _remove_page_open_handoff,
 )
+from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -218,20 +219,22 @@ class ScreenAndLegacyBoundaryTests(unittest.TestCase):
         self.assertIn("PlaybackCoordinator owns any required Plexamp pause", text)
         self.assertNotIn("systemctl restart plexamp", text.lower())
 
-    def test_runner_promotes_handoff_before_registering_apis(self):
+    def test_runner_builds_final_authority_before_registering_apis(self):
         text = RUNNER.read_text(encoding="utf-8")
-        handoff_call = text.index("playback_coordinator = promote_airplay_takeover(application_state_hub")
+        authority_call = text.index("playback_coordinator = promote_playback_authority(application_state_hub")
         state_api_call = text.index("register_application_state_api(app, application_state_hub)")
         command_api_call = text.index("register_playback_command_api(app, application_state_hub)")
-        self.assertLess(handoff_call, state_api_call)
-        self.assertLess(handoff_call, command_api_call)
+        self.assertLess(authority_call, state_api_call)
+        self.assertLess(authority_call, command_api_call)
+        self.assertNotIn("promote_airplay_takeover(application_state_hub", text)
+        self.assertNotIn("promote_bidirectional_handoff(application_state_hub", text)
 
-    def test_real_runner_uses_handoff_owner_and_plain_plexamp_route(self):
+    def test_real_runner_uses_final_handoff_owner_and_plain_plexamp_route(self):
         code = (
             "from app.runner import app, application_state_hub, dashboard; "
-            "from app.playback_handoff import AirPlayTakeoverPlaybackCoordinator; "
+            "from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinator; "
             "coordinator=application_state_hub.service('playback'); "
-            "assert isinstance(coordinator, AirPlayTakeoverPlaybackCoordinator); "
+            "assert isinstance(coordinator, RetainedBidirectionalHandoffCoordinator); "
             "assert app.view_functions['plexamp'] is dashboard.plexamp; "
             "assert getattr(app.view_functions['api_airplay_start'], '_acp_playback_event_wrapped', False)"
         )
