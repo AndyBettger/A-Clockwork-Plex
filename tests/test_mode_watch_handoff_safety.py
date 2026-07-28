@@ -9,12 +9,13 @@ MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
 
 
 class ModeWatchHandoffSafetyTests(unittest.TestCase):
-    def test_airplay_start_cannot_be_overwritten_by_stale_plexamp_playing_state(self):
+    def test_mode_watcher_follows_screen_authority_without_playback_inference(self):
         text = MODE_WATCH.read_text(encoding="utf-8")
-        self.assertIn("const airplayActive = status?.state?.airplay?.active === true;", text)
-        self.assertIn("requestedMode === 'clock'", text)
-        self.assertIn("&& !airplayActive", text)
-        self.assertNotIn("requestedMode !== 'plexamp'", text)
+        self.assertIn("window.ACPScreenProjection?.shouldDeferModeSync?.()", text)
+        self.assertNotIn("plexampIsPlaying", text)
+        self.assertNotIn("reassertPlexampMode", text)
+        self.assertNotIn("airplayActive", text)
+        self.assertNotIn("requestedMode === 'clock'", text)
 
     def test_dashboard_recovery_waits_for_the_real_plexamp_timeline(self):
         text = MODE_WATCH.read_text(encoding="utf-8")
