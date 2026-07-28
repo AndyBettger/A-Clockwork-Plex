@@ -47,6 +47,7 @@ echo "Using Python: $PYTHON"
   app/playback_navigation.py \
   app/playback_handoff.py \
   app/playback_handoff_retention.py \
+  app/playback_authority.py \
   app/screen_projection.py \
   app/mixer_controller.py \
   app/shairport_session.py \
