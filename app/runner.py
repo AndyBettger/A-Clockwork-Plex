@@ -12,6 +12,7 @@ try:
         promote_airplay_takeover,
         promote_bidirectional_handoff,
     )
+    from .playback_handoff_retention import promote_retained_bidirectional_handoff
     from .playback_navigation import promote_airplay_navigation
     from .playback_transport import (
         promote_playback_transport,
@@ -29,6 +30,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         promote_airplay_takeover,
         promote_bidirectional_handoff,
     )
+    from playback_handoff_retention import promote_retained_bidirectional_handoff
     from playback_navigation import promote_airplay_navigation
     from playback_transport import (
         promote_playback_transport,
@@ -41,6 +43,7 @@ playback_coordinator = promote_playback_transport(application_state_hub, dashboa
 playback_coordinator = promote_airplay_navigation(application_state_hub, dashboard)
 playback_coordinator = promote_airplay_takeover(application_state_hub, dashboard)
 playback_coordinator = promote_bidirectional_handoff(application_state_hub)
+playback_coordinator = promote_retained_bidirectional_handoff(application_state_hub)
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 master_equalizer = register_audio_eq(app)
