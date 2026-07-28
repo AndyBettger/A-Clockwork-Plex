@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import unittest
@@ -8,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VOLUME_CLIENT = ROOT / "app" / "static" / "js" / "airplay-volume-v2.js"
+AUDIO_POLISH = ROOT / "app" / "static" / "js" / "audio-polish.js"
 APPLICATION_STATE = ROOT / "app" / "application_state.py"
 MIXER_CONTROLLER = ROOT / "app" / "mixer_controller.py"
 
@@ -21,6 +23,46 @@ class AirPlayVolumeAuthorityTests(unittest.TestCase):
         self.assertNotIn("/api/audio/live", text)
         self.assertNotIn("reassertTimer", text)
         self.assertNotIn("SetVolume", text)
+
+    def test_audio_state_endpoint_uses_same_perceptual_scale_as_audio_drawer(self):
+        text = AUDIO_POLISH.read_text(encoding="utf-8")
+
+        self.assertIn("const audioStateEndpoint = '/api/audio/state';", text)
+        self.assertIn("[liveEndpoint, audioStateEndpoint].includes(url.pathname)", text)
+        self.assertIn("transformAirplayChannel(payload.audio?.channels?.airplay)", text)
+        self.assertIn("percent: uiToSenderPercent(submitted.percent)", text)
+        self.assertIn("'effective_percent'", text)
+        self.assertIn("'observed_percent'", text)
+
+    def test_perceptual_scale_matches_physical_regression_values(self):
+        harness = f"""
+const fs = require('fs');
+global.window = {{
+  fetch: async () => new Response('{{}}', {{ headers: {{ 'Content-Type': 'application/json' }} }}),
+  location: {{ href: 'http://localhost:8088/clock', origin: 'http://localhost:8088' }},
+  localStorage: {{ getItem: () => null, setItem: () => {{}}, removeItem: () => {{}} }},
+  setInterval: () => 0,
+  setTimeout: () => 0,
+  requestAnimationFrame: (callback) => callback(),
+}};
+global.document = {{ getElementById: () => null, addEventListener: () => {{}} }};
+global.MutationObserver = class {{ observe() {{}} }};
+eval(fs.readFileSync({json.dumps(str(AUDIO_POLISH))}, 'utf8'));
+console.log(JSON.stringify({{
+  sender68: window.ACPAirPlayVolumeScale.senderToUiPercent(68),
+  ui75: window.ACPAirPlayVolumeScale.uiToSenderPercent(75),
+}}));
+"""
+        result = subprocess.run(
+            ["node", "-e", harness],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        values = json.loads(result.stdout.strip())
+        self.assertEqual(values["sender68"], 33)
+        self.assertEqual(values["ui75"], 92)
 
     def test_visible_strip_owns_its_css_percentage_locally(self):
         text = VOLUME_CLIENT.read_text(encoding="utf-8")
