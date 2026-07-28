@@ -2,8 +2,6 @@
   if (window.__aClockworkPlexScreenProjectionLoaded) return;
   window.__aClockworkPlexScreenProjectionLoaded = true;
 
-  const timeoutSeconds = Math.max(5, Number(document.body.dataset.idleTimeoutSeconds || 180));
-  const timeoutMs = timeoutSeconds * 1000;
   const routes = {
     alarm: '/alarm',
     airplay: '/airplay',
@@ -21,11 +19,6 @@
   let lastPostAt = 0;
   let modeGuardUntil = 0;
   let state = null;
-  let frameEngaged = false;
-  let framePointerType = 'unknown';
-  let idleDetector = null;
-  let idlePermissionAttempted = false;
-  let idleUserState = 'unknown';
   let observedPlexampOpen = false;
 
   function currentSurface() {
@@ -66,34 +59,6 @@
     }
   }
 
-  async function ensureIdleDetector() {
-    if (idlePermissionAttempted || idleDetector || !('IdleDetector' in window)) return;
-    if (navigator.userActivation?.isActive !== true) {
-      idleUserState = 'awaiting-user-gesture';
-      return;
-    }
-    idlePermissionAttempted = true;
-    try {
-      const permission = await window.IdleDetector.requestPermission();
-      if (permission !== 'granted') {
-        idleUserState = 'permission-denied';
-        return;
-      }
-      idleDetector = new window.IdleDetector();
-      idleDetector.addEventListener('change', () => {
-        idleUserState = String(idleDetector.userState || 'unknown');
-        if (idleUserState === 'active' && currentSurface() === 'plexamp' && frameEngaged) {
-          markActivity('idle-detector-active', { force: true, surface: 'plexamp' });
-        }
-      });
-      await idleDetector.start({ threshold: Math.max(60000, timeoutMs) });
-      idleUserState = String(idleDetector.userState || 'active');
-    } catch (error) {
-      idlePermissionAttempted = false;
-      idleUserState = 'unavailable';
-    }
-  }
-
   function markActivity(source, options = {}) {
     const now = Date.now();
     const force = options.force === true;
@@ -104,7 +69,6 @@
       surface,
       source,
     });
-    if (surface === 'plexamp') ensureIdleDetector();
   }
 
   function navigate(target) {
@@ -157,7 +121,9 @@
       if (!state) return;
       document.documentElement.dataset.screenProjectionReason = String(state.decision_reason || 'unknown');
       document.documentElement.dataset.screenLeaseActive = state?.lease?.active === true ? 'true' : 'false';
-      document.documentElement.dataset.plexampIdleDetection = idleUserState;
+      document.documentElement.dataset.screenInputAuthority = String(
+        state?.input_activity?.authority || 'browser-fallback',
+      );
       await applyProjection(state);
     } catch (error) {
     } finally {
@@ -166,13 +132,7 @@
   }
 
   ['pointerdown', 'touchstart', 'keydown', 'wheel', 'input'].forEach((eventName) => {
-    window.addEventListener(eventName, () => {
-      if (document.activeElement !== frame) {
-        frameEngaged = false;
-        framePointerType = 'unknown';
-      }
-      markActivity(`outer-${eventName}`);
-    }, {
+    window.addEventListener(eventName, () => markActivity(`outer-${eventName}`), {
       passive: true,
       capture: true,
     });
@@ -192,28 +152,15 @@
   });
 
   if (frame) {
-    frame.addEventListener('pointerenter', (event) => {
-      framePointerType = String(event.pointerType || 'unknown').toLowerCase();
+    frame.addEventListener('pointerenter', () => {
       markActivity('plexamp-frame-pointerenter', { force: true, surface: 'plexamp' });
     });
-    frame.addEventListener('pointerleave', () => {
-      if (document.activeElement !== frame) {
-        frameEngaged = false;
-        framePointerType = 'unknown';
-      }
-    });
     frame.addEventListener('focus', () => {
-      frameEngaged = framePointerType !== 'mouse';
       markActivity('plexamp-frame-focus', { force: true, surface: 'plexamp' });
-    });
-    frame.addEventListener('blur', () => {
-      frameEngaged = false;
-      framePointerType = 'unknown';
     });
     window.addEventListener('blur', () => {
       window.setTimeout(() => {
         if (document.activeElement === frame) {
-          frameEngaged = framePointerType !== 'mouse';
           markActivity('plexamp-frame-window-focus', { force: true, surface: 'plexamp' });
         }
       }, 0);
@@ -228,8 +175,6 @@
         markActivity('plexamp-surface-opened', { force: true, manual: true, surface: 'plexamp' });
       } else if (!open) {
         observedPlexampOpen = false;
-        frameEngaged = false;
-        framePointerType = 'unknown';
       }
     };
     new MutationObserver(observeOpenState).observe(shell, {
@@ -239,23 +184,11 @@
     observeOpenState();
   }
 
-  const heartbeatMs = Math.min(30000, Math.max(5000, Math.round(timeoutMs / 4)));
-  window.setInterval(() => {
-    if (
-      currentSurface() === 'plexamp'
-      && frameEngaged
-      && idleDetector
-      && idleUserState === 'active'
-    ) {
-      markActivity('plexamp-frame-active-heartbeat', { force: true, surface: 'plexamp' });
-    }
-  }, heartbeatMs);
-
   window.ACPScreenProjection = {
     markActivity,
     state: () => state,
     shouldDeferModeSync: () => applying || Date.now() < modeGuardUntil,
-    idleDetectorState: () => idleUserState,
+    inputAuthority: () => state?.input_activity?.authority || 'browser-fallback',
   };
 
   post('preferences', { source: 'screen-projection-start' });
