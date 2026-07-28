@@ -10,7 +10,6 @@ from flask import Flask, jsonify
 from app.playback_handoff import (
     AirPlayTakeoverPlaybackCoordinator,
     _install_screen_preserving_airplay_start,
-    _remove_page_open_handoff,
 )
 from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
 
@@ -18,6 +17,10 @@ from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinat
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
 RUNNER = ROOT / "app" / "runner.py"
+TRANSPORT = ROOT / "app" / "playback_transport.py"
+NAVIGATION = ROOT / "app" / "playback_navigation.py"
+HANDOFF = ROOT / "app" / "playback_handoff.py"
+RETENTION = ROOT / "app" / "playback_handoff_retention.py"
 
 
 class AirPlayTakeoverPlaybackCoordinatorTests(unittest.TestCase):
@@ -194,23 +197,27 @@ class ScreenAndLegacyBoundaryTests(unittest.TestCase):
         app.test_client().get("/api/airplay/start")
         self.assertEqual(Dashboard.mode, "airplay")
 
-    def test_opening_plexamp_no_longer_arms_server_handoff_worker(self):
-        app = Flask("page-intent-test")
-
-        def original():
-            return "original"
-
-        def wrapped():
-            return "wrapped"
-
-        wrapped._acp_airplay_handoff_wrapped = True
-        app.add_url_rule("/plexamp", endpoint="plexamp", view_func=wrapped)
-
-        class Dashboard:
-            plexamp = staticmethod(original)
-
-        _remove_page_open_handoff(app, Dashboard)
-        self.assertIs(app.view_functions["plexamp"], original)
+    def test_staged_promotion_factories_and_route_unwrapper_are_retired(self):
+        sources = {
+            "transport": TRANSPORT.read_text(encoding="utf-8"),
+            "navigation": NAVIGATION.read_text(encoding="utf-8"),
+            "handoff": HANDOFF.read_text(encoding="utf-8"),
+            "retention": RETENTION.read_text(encoding="utf-8"),
+        }
+        retired_symbols = {
+            "transport": ["def promote_playback_transport("],
+            "navigation": ["def promote_airplay_navigation("],
+            "handoff": [
+                "def promote_airplay_takeover(",
+                "def promote_bidirectional_handoff(",
+                "def _remove_page_open_handoff(",
+                "_acp_airplay_handoff_wrapped",
+            ],
+            "retention": ["def promote_retained_bidirectional_handoff("],
+        }
+        for module, symbols in retired_symbols.items():
+            for symbol in symbols:
+                self.assertNotIn(symbol, sources[module], f"{symbol} returned in {module}")
 
     def test_start_hook_contains_no_direct_plexamp_pause(self):
         text = INSTALLER.read_text(encoding="utf-8")
