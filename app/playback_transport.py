@@ -316,42 +316,6 @@ class TransportPlaybackCoordinator(PlaybackCoordinator):
         return payload
 
 
-def promote_playback_transport(hub: Any, dashboard: Any) -> TransportPlaybackCoordinator:
-    """Replace the observational coordinator with an explicit AirPlay transport owner."""
-    existing = hub.service("playback")
-    if isinstance(existing, TransportPlaybackCoordinator):
-        return existing
-    if not isinstance(existing, PlaybackCoordinator):
-        raise RuntimeError("PlaybackCoordinator is unavailable for transport promotion.")
-
-    methods = {"play": "Play", "pause": "Pause"}
-
-    def airplay_command(action: str) -> tuple[bool, str | None]:
-        method = methods.get(action)
-        if method is None:
-            return False, f"Unsupported AirPlay transport action: {action}"
-        return dashboard.mpris_call(method)
-
-    promoted = TransportPlaybackCoordinator(
-        load_config=existing._load_config,
-        load_state=existing._load_state,
-        plexamp_status=existing._plexamp_status,
-        airplay_status=existing._airplay_status,
-        alarm_status=existing._alarm_status,
-        alarm_audio_status=existing._alarm_audio_status,
-        event_journal=existing._events,
-        runtime_path=existing._runtime_store.path,
-        airplay_hold_seconds=existing._airplay_hold_seconds,
-        reconcile_seconds=existing._reconcile_seconds,
-        hold_completion=existing._hold_completion,
-        now_provider=existing._now,
-        airplay_command=airplay_command,
-    )
-    hub.register_service("playback", promoted)
-    hub.register_provider("playback", promoted.snapshot)
-    return promoted
-
-
 def register_playback_command_api(app: Any, hub: Any) -> None:
     coordinator = hub.service("playback")
     if "api_playback_command" in app.view_functions:
