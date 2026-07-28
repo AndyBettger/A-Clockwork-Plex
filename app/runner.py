@@ -18,6 +18,7 @@ try:
         promote_playback_transport,
         register_playback_command_api,
     )
+    from .screen_projection import register_screen_projection
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from application_state import (
@@ -36,6 +37,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         promote_playback_transport,
         register_playback_command_api,
     )
+    from screen_projection import register_screen_projection
 
 app = dashboard.app
 application_state_hub = build_default_application_state_hub(dashboard)
@@ -44,6 +46,7 @@ playback_coordinator = promote_airplay_navigation(application_state_hub, dashboa
 playback_coordinator = promote_airplay_takeover(application_state_hub, dashboard)
 playback_coordinator = promote_bidirectional_handoff(application_state_hub)
 playback_coordinator = promote_retained_bidirectional_handoff(application_state_hub)
+screen_projection = register_screen_projection(app, application_state_hub, dashboard)
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 master_equalizer = register_audio_eq(app)
