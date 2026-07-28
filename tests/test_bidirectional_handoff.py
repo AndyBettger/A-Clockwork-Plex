@@ -3,8 +3,20 @@ from __future__ import annotations
 import subprocess
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 
-from app.playback_handoff import BidirectionalHandoffPlaybackCoordinator
+from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.value = datetime(2026, 7, 28, 20, 0, tzinfo=timezone.utc)
+
+    def now(self) -> datetime:
+        return self.value
+
+    def advance(self, seconds: int) -> None:
+        self.value += timedelta(seconds=seconds)
 
 
 class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
@@ -16,7 +28,9 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
         airplay_commands: list[str] | None = None,
         mutate_remote_on_pause: bool = True,
         command_ok: bool = True,
-    ) -> BidirectionalHandoffPlaybackCoordinator:
+        now_provider=None,
+        hold_completion=None,
+    ) -> RetainedBidirectionalHandoffCoordinator:
         remote_state = remote if remote is not None else {
             "available": True,
             "playback_status": "Playing",
@@ -43,7 +57,7 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
             plexamp_state["playback_state"] = "paused"
             return True, None
 
-        return BidirectionalHandoffPlaybackCoordinator(
+        return RetainedBidirectionalHandoffCoordinator(
             load_config=lambda: {"dashboard": {"default_mode": "clock"}},
             load_state=lambda _config: {
                 "mode": "plexamp",
@@ -63,6 +77,8 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
             airplay_hold_seconds=600,
             reconcile_seconds=0.05,
             command_verify_seconds=20,
+            now_provider=now_provider,
+            hold_completion=hold_completion,
         )
 
     def test_plexamp_transition_pauses_airplay_once_and_cedes_ownership(self):
@@ -83,6 +99,7 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(first["sources"]["airplay"]["ownership"], "ceded-to-plexamp")
         self.assertEqual(first["sources"]["airplay"]["hold"]["phase"], "ceded-to-plexamp")
         self.assertFalse(first["sources"]["airplay"]["hold"]["active"])
+        self.assertEqual(first["sources"]["airplay"]["hold"]["remaining_seconds"], 600)
         handoff = first["handoffs"]["plexamp_to_airplay"]
         self.assertEqual(handoff["status"], "confirmed")
         self.assertEqual(handoff["command_count"], 1)
@@ -98,7 +115,8 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(commands, [])
         self.assertEqual(coordinator.reverse_handoff_snapshot()["status"], "idle")
 
-    def test_starting_plexamp_during_airplay_hold_cedes_without_redundant_pause(self):
+    def test_starting_plexamp_during_airplay_hold_preserves_original_deadline(self):
+        clock = FakeClock()
         commands: list[str] = []
         remote = {
             "available": True,
@@ -108,11 +126,18 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
             "can_pause": True,
         }
         plexamp = {"available": True, "playback_state": "paused", "percent": 75}
-        coordinator = self.coordinator(remote=remote, plexamp=plexamp, airplay_commands=commands)
+        coordinator = self.coordinator(
+            remote=remote,
+            plexamp=plexamp,
+            airplay_commands=commands,
+            now_provider=clock.now,
+        )
 
         coordinator.snapshot()
         coordinator.record_event("airplay", "paused", {"origin": "iphone-pause"})
-        self.assertTrue(coordinator.snapshot()["sources"]["airplay"]["hold"]["active"])
+        clock.advance(30)
+        before = coordinator.snapshot()["sources"]["airplay"]["hold"]
+        self.assertEqual(before["remaining_seconds"], 570)
 
         plexamp["playback_state"] = "playing"
         snapshot = coordinator.snapshot()
@@ -121,29 +146,81 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(snapshot["active_source"], "plexamp")
         self.assertFalse(snapshot["sources"]["airplay"]["hold"]["active"])
         self.assertEqual(snapshot["sources"]["airplay"]["hold"]["phase"], "ceded-to-plexamp")
+        self.assertEqual(snapshot["sources"]["airplay"]["hold"]["remaining_seconds"], 570)
         self.assertEqual(snapshot["handoffs"]["plexamp_to_airplay"]["status"], "not-needed")
 
-    def test_late_shairport_pause_confirms_without_rearming_hold(self):
+    def test_late_shairport_pause_confirms_without_resetting_ceded_deadline(self):
+        clock = FakeClock()
         commands: list[str] = []
         plexamp = {"available": True, "playback_state": "paused", "percent": 75}
         coordinator = self.coordinator(
             plexamp=plexamp,
             airplay_commands=commands,
             mutate_remote_on_pause=False,
+            now_provider=clock.now,
         )
 
         coordinator.snapshot()
         plexamp["playback_state"] = "playing"
         awaiting = coordinator.snapshot()
         self.assertEqual(awaiting["handoffs"]["plexamp_to_airplay"]["status"], "accepted-awaiting-observation")
-        self.assertEqual(awaiting["sources"]["airplay"]["hold"]["phase"], "ceded-to-plexamp")
+        self.assertEqual(awaiting["sources"]["airplay"]["hold"]["remaining_seconds"], 600)
 
+        clock.advance(10)
         coordinator.record_event("airplay", "paused", {"origin": "shairport-end-wrapper"})
         confirmed = coordinator.snapshot()
 
         self.assertEqual(confirmed["handoffs"]["plexamp_to_airplay"]["status"], "confirmed")
         self.assertEqual(confirmed["sources"]["airplay"]["hold"]["phase"], "ceded-to-plexamp")
+        self.assertEqual(confirmed["sources"]["airplay"]["hold"]["remaining_seconds"], 590)
         self.assertFalse(confirmed["sources"]["airplay"]["hold"]["active"])
+
+    def test_ceded_sender_disconnect_is_detected_and_session_released(self):
+        completed: list[str] = []
+        remote = {
+            "available": True,
+            "playback_status": "Playing",
+            "can_control": True,
+            "can_play": True,
+            "can_pause": True,
+        }
+        plexamp = {"available": True, "playback_state": "paused", "percent": 75}
+        coordinator = self.coordinator(
+            remote=remote,
+            plexamp=plexamp,
+            hold_completion=completed.append,
+        )
+
+        coordinator.snapshot()
+        plexamp["playback_state"] = "playing"
+        coordinator.snapshot()
+        remote["available"] = False
+
+        self.assertEqual(coordinator.reconcile_once(), "disconnected")
+        snapshot = coordinator.snapshot()
+        self.assertEqual(completed, ["sender-disconnected-after-plexamp-takeover"])
+        self.assertFalse(snapshot["sources"]["airplay"]["connected"])
+        self.assertEqual(snapshot["sources"]["airplay"]["hold"]["phase"], "disconnected")
+
+    def test_ceded_retention_expiry_releases_session_without_reclaiming_audio(self):
+        clock = FakeClock()
+        completed: list[str] = []
+        plexamp = {"available": True, "playback_state": "paused", "percent": 75}
+        coordinator = self.coordinator(
+            plexamp=plexamp,
+            now_provider=clock.now,
+            hold_completion=completed.append,
+        )
+
+        coordinator.snapshot()
+        plexamp["playback_state"] = "playing"
+        coordinator.snapshot()
+        clock.advance(601)
+
+        self.assertEqual(coordinator.reconcile_once(), "expired")
+        snapshot = coordinator.snapshot()
+        self.assertEqual(completed, ["ceded-session-expired"])
+        self.assertEqual(snapshot["sources"]["airplay"]["hold"]["phase"], "expired")
 
     def test_failed_pause_is_reported_and_not_retried_in_same_plexamp_episode(self):
         commands: list[str] = []
@@ -164,12 +241,12 @@ class BidirectionalHandoffPlaybackCoordinatorTests(unittest.TestCase):
         self.assertEqual(second["handoffs"]["plexamp_to_airplay"]["command_count"], 0)
         self.assertEqual(first["active_source"], "airplay")
 
-    def test_real_runner_promotes_bidirectional_handoff_before_apis(self):
+    def test_real_runner_promotes_retained_bidirectional_handoff_before_apis(self):
         code = (
             "from app.runner import app, application_state_hub; "
-            "from app.playback_handoff import BidirectionalHandoffPlaybackCoordinator; "
+            "from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinator; "
             "coordinator=application_state_hub.service('playback'); "
-            "assert isinstance(coordinator, BidirectionalHandoffPlaybackCoordinator); "
+            "assert isinstance(coordinator, RetainedBidirectionalHandoffCoordinator); "
             "state=coordinator.snapshot(); "
             "assert state['command_capabilities']['plexamp_to_airplay_handoff'] is True; "
             "assert state['command_capabilities']['automatic_arbitration'] is True"
