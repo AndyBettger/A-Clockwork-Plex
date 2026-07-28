@@ -5,6 +5,7 @@ DASHBOARD_URL="${DASHBOARD_URL:-http://localhost:8088}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 STATE_URL="$DASHBOARD_URL/api/playback/state"
 EVENTS_URL="$DASHBOARD_URL/api/playback/events"
+SCREEN_URL="$DASHBOARD_URL/api/screen/state"
 
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -18,10 +19,12 @@ require_command "$PYTHON_BIN"
 
 state_file="$(mktemp)"
 events_file="$(mktemp)"
-trap 'rm -f "$state_file" "$events_file"' EXIT
+screen_file="$(mktemp)"
+trap 'rm -f "$state_file" "$events_file" "$screen_file"' EXIT
 
 state_status="$(curl -sS -o "$state_file" -w '%{http_code}' "$STATE_URL" || true)"
 events_status="$(curl -sS -o "$events_file" -w '%{http_code}' "$EVENTS_URL" || true)"
+screen_status="$(curl -sS -o "$screen_file" -w '%{http_code}' "$SCREEN_URL" || true)"
 
 if [[ "$state_status" != "200" ]]; then
     echo "Playback state endpoint returned HTTP $state_status: $STATE_URL" >&2
@@ -33,8 +36,13 @@ if [[ "$events_status" != "200" ]]; then
     cat "$events_file" >&2
     exit 1
 fi
+if [[ "$screen_status" != "200" ]]; then
+    echo "Screen projection endpoint returned HTTP $screen_status: $SCREEN_URL" >&2
+    cat "$screen_file" >&2
+    exit 1
+fi
 
-"$PYTHON_BIN" - "$state_file" "$events_file" <<'PY'
+"$PYTHON_BIN" - "$state_file" "$events_file" "$screen_file" <<'PY'
 import json
 import sys
 
@@ -42,6 +50,8 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     state_payload = json.load(handle)
 with open(sys.argv[2], encoding="utf-8") as handle:
     event_payload = json.load(handle)
+with open(sys.argv[3], encoding="utf-8") as handle:
+    screen_payload = json.load(handle)
 
 playback = state_payload.get("playback") or {}
 sources = playback.get("sources") or {}
@@ -60,6 +70,8 @@ takeover = handoffs.get("airplay_to_plexamp") or {}
 reverse = handoffs.get("plexamp_to_airplay") or {}
 events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
+screen = screen_payload.get("screen") or {}
+lease = screen.get("lease") or {}
 
 print("===== PLAYBACK COORDINATOR =====")
 print(f"authority:          {playback.get('authority')}")
@@ -71,7 +83,7 @@ print(f"AirPlay actions:    {capabilities.get('airplay_actions')}")
 print(f"AirPlay→Plexamp:    {capabilities.get('airplay_to_plexamp_handoff')}")
 print(f"Plexamp→AirPlay:    {capabilities.get('plexamp_to_airplay_handoff')}")
 print(f"AirPlay ceded:      {capabilities.get('airplay_ceded_to_plexamp')}")
-print(f"screen projection:  {capabilities.get('screen_projection')}")
+print(f"screen projection:  {screen.get('screen_projection')}")
 print(f"preserve Plexamp:   {capabilities.get('preserve_open_plexamp_surface')}")
 print(f"Plexamp transport:  {capabilities.get('plexamp_transport')}")
 print(f"auto arbitration:   {capabilities.get('automatic_arbitration')}")
@@ -82,6 +94,23 @@ print(f"decision reason:    {playback.get('decision_reason')}")
 print(f"current screen:     {playback.get('current_screen')}")
 print(f"recommended screen: {playback.get('recommended_screen')}")
 print(f"screen in sync:     {playback.get('screen_in_sync')}")
+print()
+print("===== SCREEN PROJECTION =====")
+print(f"authority:          {screen.get('authority')}")
+print(f"current screen:     {screen.get('current_screen')}")
+print(f"recommended screen: {screen.get('recommended_screen')}")
+print(f"decision reason:    {screen.get('decision_reason')}")
+print(f"screen in sync:     {screen.get('screen_in_sync')}")
+print(f"apply required:     {screen.get('should_apply')}")
+print(f"idle timeout:       {screen.get('idle_timeout_seconds')}")
+print(f"idle return:        {screen.get('idle_return_mode')}")
+print(f"manual surface:     {lease.get('manual_surface')}")
+print(f"lease active:       {lease.get('active')}")
+print(f"lease remaining:    {lease.get('remaining_seconds')}")
+print(f"idle remaining:     {lease.get('idle_remaining_seconds')}")
+print(f"interaction via:    {lease.get('last_interaction_source')}")
+print(f"last applied screen:{screen.get('last_applied_screen')}")
+print(f"last error:         {screen.get('last_error')}")
 print()
 print("===== SOURCES =====")
 print(f"Plexamp:            {plexamp.get('state')} (available={plexamp.get('available')})")
