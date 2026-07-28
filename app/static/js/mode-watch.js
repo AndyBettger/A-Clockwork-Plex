@@ -20,12 +20,6 @@
     }
   };
 
-  function plexampIsPlaying() {
-    const live = window.ACPLiveAudioSnapshot?.live || {};
-    const state = String(live?.channels?.plexamp?.playback_state || '').toLowerCase();
-    return state === 'playing';
-  }
-
   async function plexampPlayerReady() {
     try {
       const response = await fetch('/api/audio/live', { cache: 'no-store' });
@@ -76,16 +70,6 @@
     plexampRecoveryTimer = window.setTimeout(poll, 500);
   }
 
-  async function reassertPlexampMode() {
-    try {
-      await fetch('/api/mode/plexamp', {
-        method: 'POST',
-        cache: 'no-store',
-      });
-    } catch (error) {
-    }
-  }
-
   async function checkMode() {
     try {
       if (window.ACPNavigationState?.isLeaving?.()) return;
@@ -112,25 +96,14 @@
         return;
       }
 
+      /* ScreenProjectionController owns media and idle recommendations. During an
+         apply transaction, do not replay an older server mode over its decision. */
+      if (window.ACPScreenProjection?.shouldDeferModeSync?.()) return;
+
       if (!activePage || !(activePage in modeRoutes)) return;
       const requestedMode = status?.state?.mode;
       const route = modeRoutes[requestedMode];
       if (!route) return;
-      const airplayActive = status?.state?.airplay?.active === true;
-
-      /* Shairport's session-end hook returns AirPlay to Clock. If Plexamp has
-         already won that completed handoff and is visibly playing, preserve the
-         newer user choice and repair the stale Clock mode. Never do this while an
-         AirPlay session is active: playback state can lag briefly during START. */
-      if (
-        window.ACPPlexamp?.isOpen?.()
-        && plexampIsPlaying()
-        && requestedMode === 'clock'
-        && !airplayActive
-      ) {
-        await reassertPlexampMode();
-        return;
-      }
 
       /* Local Plexamp show/hide operations update mode asynchronously. Ignore the
          stale status response while that transaction or its animation is active,
