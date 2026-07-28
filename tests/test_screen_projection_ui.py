@@ -25,7 +25,7 @@ class ScreenProjectionUiTests(unittest.TestCase):
     def test_client_uses_screen_authority_and_never_controls_audio(self):
         text = CLIENT.read_text(encoding="utf-8")
         self.assertIn("fetch('/api/screen/state'", text)
-        self.assertIn("action === 'apply'", text)
+        self.assertIn("post('apply'", text)
         self.assertIn("recommended_screen", text)
         self.assertNotIn("/api/airplay/control", text)
         self.assertNotIn("/player/playback/", text)
