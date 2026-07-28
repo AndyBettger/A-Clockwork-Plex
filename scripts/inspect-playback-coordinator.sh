@@ -57,6 +57,7 @@ command = commands.get("airplay") or {}
 navigation = commands.get("airplay_navigation") or {}
 handoffs = playback.get("handoffs") or {}
 takeover = handoffs.get("airplay_to_plexamp") or {}
+reverse = handoffs.get("plexamp_to_airplay") or {}
 events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
 
@@ -69,6 +70,7 @@ print(f"AirPlay navigation: {capabilities.get('airplay_navigation')}")
 print(f"AirPlay actions:    {capabilities.get('airplay_actions')}")
 print(f"AirPlay→Plexamp:    {capabilities.get('airplay_to_plexamp_handoff')}")
 print(f"Plexamp→AirPlay:    {capabilities.get('plexamp_to_airplay_handoff')}")
+print(f"AirPlay ceded:      {capabilities.get('airplay_ceded_to_plexamp')}")
 print(f"screen projection:  {capabilities.get('screen_projection')}")
 print(f"preserve Plexamp:   {capabilities.get('preserve_open_plexamp_surface')}")
 print(f"Plexamp transport:  {capabilities.get('plexamp_transport')}")
@@ -86,6 +88,7 @@ print(f"Plexamp:            {plexamp.get('state')} (available={plexamp.get('avai
 print(f"AirPlay connected:  {airplay.get('connected')}")
 print(f"AirPlay state:      {airplay.get('state')}")
 print(f"AirPlay source:     {airplay.get('state_source')}")
+print(f"AirPlay ownership:  {airplay.get('ownership')}")
 print(f"Sender available:   {observed.get('sender_available')}")
 print(f"Availability via:   {observed.get('availability_source')}")
 print(f"MPRIS service live: {observed.get('mpris_service_available')}")
@@ -132,6 +135,22 @@ print(f"requested at:       {takeover.get('requested_at')}")
 print(f"accepted at:        {takeover.get('accepted_at')}")
 print(f"completed at:       {takeover.get('completed_at')}")
 print(f"last error:         {takeover.get('last_error')}")
+print()
+print("===== PLEXAMP → AIRPLAY HANDOFF =====")
+print(f"sequence:           {reverse.get('sequence')}")
+print(f"direction:          {reverse.get('direction')}")
+print(f"status:             {reverse.get('status')}")
+print(f"trigger:            {reverse.get('trigger')}")
+print(f"AirPlay before:     {reverse.get('airplay_before')}")
+print(f"AirPlay after:      {reverse.get('airplay_after')}")
+print(f"pause command count:{reverse.get('command_count')}")
+print(f"completion policy:  {reverse.get('completion_policy')}")
+print(f"ownership policy:   {reverse.get('ownership_policy')}")
+print(f"screen policy:      {reverse.get('screen_policy')}")
+print(f"requested at:       {reverse.get('requested_at')}")
+print(f"accepted at:        {reverse.get('accepted_at')}")
+print(f"completed at:       {reverse.get('completed_at')}")
+print(f"last error:         {reverse.get('last_error')}")
 print()
 print("===== AIRPLAY HOLD =====")
 print(f"owner:              {hold.get('owner')}")
