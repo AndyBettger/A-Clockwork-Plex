@@ -12,6 +12,7 @@
     settings: '/settings',
     weather: '/weather',
   };
+  const shell = document.getElementById('persistent-plexamp');
   const frame = document.getElementById('persistent-plexamp-frame');
 
   let checking = false;
@@ -24,6 +25,7 @@
   let idleDetector = null;
   let idlePermissionAttempted = false;
   let idleUserState = 'unknown';
+  let observedPlexampOpen = false;
 
   function currentSurface() {
     if (window.ACPPlexamp?.isOpen?.()) return 'plexamp';
@@ -64,7 +66,11 @@
   }
 
   async function ensureIdleDetector() {
-    if (idlePermissionAttempted || !('IdleDetector' in window)) return;
+    if (idlePermissionAttempted || idleDetector || !('IdleDetector' in window)) return;
+    if (navigator.userActivation?.isActive !== true) {
+      idleUserState = 'awaiting-user-gesture';
+      return;
+    }
     idlePermissionAttempted = true;
     try {
       const permission = await window.IdleDetector.requestPermission();
@@ -76,12 +82,13 @@
       idleDetector.addEventListener('change', () => {
         idleUserState = String(idleDetector.userState || 'unknown');
         if (idleUserState === 'active' && currentSurface() === 'plexamp' && frameEngaged) {
-          markActivity('idle-detector-active', { force: true });
+          markActivity('idle-detector-active', { force: true, surface: 'plexamp' });
         }
       });
       await idleDetector.start({ threshold: Math.max(60000, timeoutMs) });
       idleUserState = String(idleDetector.userState || 'active');
     } catch (error) {
+      idlePermissionAttempted = false;
       idleUserState = 'unavailable';
     }
   }
@@ -142,6 +149,7 @@
       if (!state) return;
       document.documentElement.dataset.screenProjectionReason = String(state.decision_reason || 'unknown');
       document.documentElement.dataset.screenLeaseActive = state?.lease?.active === true ? 'true' : 'false';
+      document.documentElement.dataset.plexampIdleDetection = idleUserState;
       await applyProjection(state);
     } catch (error) {
     } finally {
@@ -189,6 +197,24 @@
         }
       }, 0);
     });
+  }
+
+  if (shell) {
+    const observeOpenState = () => {
+      const open = shell.classList.contains('is-open') && shell.getAttribute('aria-hidden') !== 'true';
+      if (open && !observedPlexampOpen) {
+        observedPlexampOpen = true;
+        markActivity('plexamp-surface-opened', { force: true, manual: true, surface: 'plexamp' });
+      } else if (!open) {
+        observedPlexampOpen = false;
+        frameEngaged = false;
+      }
+    };
+    new MutationObserver(observeOpenState).observe(shell, {
+      attributes: true,
+      attributeFilter: ['class', 'aria-hidden'],
+    });
+    observeOpenState();
   }
 
   const heartbeatMs = Math.min(30000, Math.max(5000, Math.round(timeoutMs / 4)));
