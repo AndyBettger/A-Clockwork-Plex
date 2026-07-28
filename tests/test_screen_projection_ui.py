@@ -40,10 +40,19 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertNotIn("frame.contentDocument", text)
         self.assertNotIn("frame.contentWindow.document", text)
 
+    def test_stationary_mouse_hover_cannot_drive_repeating_heartbeat(self):
+        text = CLIENT.read_text(encoding="utf-8")
+        pointer_enter = text.split("frame.addEventListener('pointerenter'", 1)[1].split("frame.addEventListener('pointerleave'", 1)[0]
+
+        self.assertIn("framePointerType = String(event.pointerType || 'unknown').toLowerCase()", pointer_enter)
+        self.assertNotIn("frameEngaged = true", pointer_enter)
+        self.assertIn("frameEngaged = framePointerType !== 'mouse';", text)
+        self.assertIn("frame.addEventListener('blur'", text)
+
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260728-screen-lease", text)
+        self.assertIn("20260728-screen-lease-pointer-fix", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_mode_watch_defers_to_screen_projection_and_does_not_infer_playback(self):
