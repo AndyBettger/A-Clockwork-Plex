@@ -72,6 +72,9 @@ events = event_payload.get("events") or {}
 last_event = events.get("last_event") or {}
 screen = screen_payload.get("screen") or {}
 lease = screen.get("lease") or {}
+input_activity = screen.get("input_activity") or {}
+input_event = input_activity.get("last_event") or {}
+input_devices = input_activity.get("devices") or []
 
 print("===== PLAYBACK COORDINATOR =====")
 print(f"authority:          {playback.get('authority')}")
@@ -111,6 +114,18 @@ print(f"idle remaining:     {lease.get('idle_remaining_seconds')}")
 print(f"interaction via:    {lease.get('last_interaction_source')}")
 print(f"last applied screen:{screen.get('last_applied_screen')}")
 print(f"last error:         {screen.get('last_error')}")
+print()
+print("===== LOCAL INPUT ACTIVITY =====")
+print(f"authority:          {input_activity.get('authority')}")
+print(f"monitor running:    {input_activity.get('running')}")
+print(f"input available:    {input_activity.get('available')}")
+print(f"device count:       {input_activity.get('device_count')}")
+print(f"devices:            {[item.get('name') for item in input_devices]}")
+print(f"input sequence:     {input_activity.get('sequence')}")
+print(f"last input at:      {input_activity.get('last_activity_at')}")
+print(f"last input kind:    {input_event.get('kind')}")
+print(f"last input device:  {input_event.get('device')}")
+print(f"last input error:   {input_activity.get('last_error')}")
 print()
 print("===== SOURCES =====")
 print(f"Plexamp:            {plexamp.get('state')} (available={plexamp.get('available')})")
