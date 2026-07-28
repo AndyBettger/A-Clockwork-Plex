@@ -22,6 +22,7 @@
   let modeGuardUntil = 0;
   let state = null;
   let frameEngaged = false;
+  let framePointerType = 'unknown';
   let idleDetector = null;
   let idlePermissionAttempted = false;
   let idleUserState = 'unknown';
@@ -165,7 +166,13 @@
   }
 
   ['pointerdown', 'touchstart', 'keydown', 'wheel', 'input'].forEach((eventName) => {
-    window.addEventListener(eventName, () => markActivity(`outer-${eventName}`), {
+    window.addEventListener(eventName, () => {
+      if (document.activeElement !== frame) {
+        frameEngaged = false;
+        framePointerType = 'unknown';
+      }
+      markActivity(`outer-${eventName}`);
+    }, {
       passive: true,
       capture: true,
     });
@@ -185,21 +192,28 @@
   });
 
   if (frame) {
-    frame.addEventListener('pointerenter', () => {
-      frameEngaged = true;
+    frame.addEventListener('pointerenter', (event) => {
+      framePointerType = String(event.pointerType || 'unknown').toLowerCase();
       markActivity('plexamp-frame-pointerenter', { force: true, surface: 'plexamp' });
     });
     frame.addEventListener('pointerleave', () => {
-      frameEngaged = false;
+      if (document.activeElement !== frame) {
+        frameEngaged = false;
+        framePointerType = 'unknown';
+      }
     });
     frame.addEventListener('focus', () => {
-      frameEngaged = true;
+      frameEngaged = framePointerType !== 'mouse';
       markActivity('plexamp-frame-focus', { force: true, surface: 'plexamp' });
+    });
+    frame.addEventListener('blur', () => {
+      frameEngaged = false;
+      framePointerType = 'unknown';
     });
     window.addEventListener('blur', () => {
       window.setTimeout(() => {
         if (document.activeElement === frame) {
-          frameEngaged = true;
+          frameEngaged = framePointerType !== 'mouse';
           markActivity('plexamp-frame-window-focus', { force: true, surface: 'plexamp' });
         }
       }, 0);
@@ -215,6 +229,7 @@
       } else if (!open) {
         observedPlexampOpen = false;
         frameEngaged = false;
+        framePointerType = 'unknown';
       }
     };
     new MutationObserver(observeOpenState).observe(shell, {
