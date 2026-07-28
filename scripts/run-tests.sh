@@ -41,6 +41,7 @@ echo "Using Python: $PYTHON"
   app/runner.py \
   app/dashboard_core.py \
   app/application_state.py \
+  app/input_activity.py \
   app/playback_coordinator.py \
   app/playback_transport.py \
   app/playback_navigation.py \
