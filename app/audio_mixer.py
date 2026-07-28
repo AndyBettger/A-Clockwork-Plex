@@ -20,6 +20,7 @@ try:
 except ImportError:  # Supports direct execution imports.
     import dashboard_core as _dashboard_core
 
+
 MIXER_CHANNELS: dict[str, dict[str, Any]] = {
     "master": {
         "label": "Master output",
@@ -105,7 +106,11 @@ class SharedAudioMixer:
             },
             "scale": {
                 "name": "perceptual-amplitude",
-                "examples": {"50_percent_db": -6.02, "25_percent_db": -12.04, "10_percent_db": -20.0},
+                "examples": {
+                    "50_percent_db": -6.02,
+                    "25_percent_db": -12.04,
+                    "10_percent_db": -20.0,
+                },
             },
             "error": None,
         }
@@ -218,7 +223,10 @@ class PlexampVolumeController:
 
     def _read(self, path: str, *, timeout: float = 2.0) -> bytes:
         url = f"{self.base_url}{path}"
-        request_object = urllib.request.Request(url, headers={"Accept": "application/xml, application/json, */*"})
+        request_object = urllib.request.Request(
+            url,
+            headers={"Accept": "application/xml, application/json, */*"},
+        )
         with self.opener(request_object, timeout=timeout) as response:
             return response.read()
 
@@ -306,7 +314,10 @@ def save_airplay_defaults(payload: dict[str, Any]) -> dict[str, Any]:
         payload.get("default_volume_percent", current["default_volume_percent"]),
         current["default_volume_percent"],
     )
-    apply_on_start = payload.get("apply_default_volume_on_start", current["apply_default_volume_on_start"])
+    apply_on_start = payload.get(
+        "apply_default_volume_on_start",
+        current["apply_default_volume_on_start"],
+    )
 
     raw_config = _dashboard_core.load_json(_dashboard_core.CONFIG_PATH, {})
     airplay = raw_config.get("airplay") if isinstance(raw_config.get("airplay"), dict) else {}
@@ -347,15 +358,6 @@ _airplay_default_runtime: dict[str, Any] = {
     "last_error": None,
     "reason": None,
 }
-_plexamp_handoff_lock = threading.Lock()
-_plexamp_handoff_generation = 0
-_plexamp_handoff_runtime: dict[str, Any] = {
-    "status": "idle",
-    "armed_at": None,
-    "completed_at": None,
-    "method": None,
-    "last_error": None,
-}
 
 
 def _iso_now() -> str:
@@ -370,16 +372,6 @@ def _airplay_default_status() -> dict[str, Any]:
 def _update_airplay_default_runtime(**updates: Any) -> None:
     with _airplay_default_lock:
         _airplay_default_runtime.update(updates)
-
-
-def _plexamp_handoff_status() -> dict[str, Any]:
-    with _plexamp_handoff_lock:
-        return deepcopy(_plexamp_handoff_runtime)
-
-
-def _update_plexamp_handoff_runtime(**updates: Any) -> None:
-    with _plexamp_handoff_lock:
-        _plexamp_handoff_runtime.update(updates)
 
 
 def _schedule_airplay_default(reason: str = "session-start") -> None:
@@ -440,7 +432,11 @@ def _schedule_airplay_default(reason: str = "session-start") -> None:
                         return
                 else:
                     stable_reads = 0
-                    ok, error = _dashboard_core.mpris_call("SetVolume", "d", f"{target / 100:.4f}")
+                    ok, error = _dashboard_core.mpris_call(
+                        "SetVolume",
+                        "d",
+                        f"{target / 100:.4f}",
+                    )
                     last_error = error
                     _update_airplay_default_runtime(
                         status="applying" if ok else "retrying",
@@ -458,71 +454,11 @@ def _schedule_airplay_default(reason: str = "session-start") -> None:
             last_error=last_error or "The AirPlay sender did not retain the requested starting volume.",
         )
 
-    threading.Thread(target=worker, name="airplay-default-volume", daemon=True).start()
-
-
-def _arm_plexamp_handoff() -> None:
-    """Wait for Plexamp to start playing, then pause/stop an active AirPlay sender."""
-    global _plexamp_handoff_generation
-    remote = _dashboard_core.mpris_remote_status()
-    if not remote.get("available") or str(remote.get("playback_status") or "").lower() != "playing":
-        _update_plexamp_handoff_runtime(status="not-needed", last_error=None)
-        return
-
-    with _plexamp_handoff_lock:
-        _plexamp_handoff_generation += 1
-        generation = _plexamp_handoff_generation
-        _plexamp_handoff_runtime.update(
-            {
-                "status": "armed",
-                "armed_at": _iso_now(),
-                "completed_at": None,
-                "method": None,
-                "last_error": None,
-            }
-        )
-
-    def worker() -> None:
-        for _ in range(160):
-            with _plexamp_handoff_lock:
-                if generation != _plexamp_handoff_generation:
-                    return
-
-            remote_now = _dashboard_core.mpris_remote_status()
-            remote_playback = str(remote_now.get("playback_status") or "").lower()
-            if not remote_now.get("available") or remote_playback != "playing":
-                _update_plexamp_handoff_runtime(
-                    status="airplay-already-quiet",
-                    completed_at=_iso_now(),
-                    last_error=None,
-                )
-                return
-
-            plexamp = _plexamp_controller().status()
-            if str(plexamp.get("playback_state") or "").lower() == "playing":
-                ok, error = _dashboard_core.mpris_call("Pause")
-                method = "Pause"
-                time.sleep(0.2)
-                after = _dashboard_core.mpris_remote_status()
-                if not ok or str(after.get("playback_status") or "").lower() == "playing":
-                    ok, error = _dashboard_core.mpris_call("Stop")
-                    method = "Stop"
-                _update_plexamp_handoff_runtime(
-                    status="completed" if ok else "failed",
-                    completed_at=_iso_now(),
-                    method=method,
-                    last_error=error,
-                )
-                return
-            time.sleep(0.25)
-
-        _update_plexamp_handoff_runtime(
-            status="timed-out",
-            completed_at=_iso_now(),
-            last_error="Plexamp did not begin playing before the AirPlay handoff window expired.",
-        )
-
-    threading.Thread(target=worker, name="plexamp-airplay-handoff", daemon=True).start()
+    threading.Thread(
+        target=worker,
+        name="airplay-default-volume",
+        daemon=True,
+    ).start()
 
 
 def live_audio_status() -> dict[str, Any]:
@@ -541,7 +477,6 @@ def live_audio_status() -> dict[str, Any]:
         "mode": "live-player-aware",
         "defaults": defaults,
         "airplay_default_application": _airplay_default_status(),
-        "plexamp_handoff": _plexamp_handoff_status(),
         "channels": {
             "master": {
                 "id": "master",
@@ -697,15 +632,6 @@ def _register_audio_api() -> None:
 
         api_airplay_start_with_audio_default._acp_audio_defaults_wrapped = True  # type: ignore[attr-defined]
         app.view_functions["api_airplay_start"] = api_airplay_start_with_audio_default
-
-    original_plexamp_page = app.view_functions.get("plexamp")
-    if original_plexamp_page and not getattr(original_plexamp_page, "_acp_airplay_handoff_wrapped", False):
-        def plexamp_page_with_airplay_handoff():
-            _arm_plexamp_handoff()
-            return original_plexamp_page()
-
-        plexamp_page_with_airplay_handoff._acp_airplay_handoff_wrapped = True  # type: ignore[attr-defined]
-        app.view_functions["plexamp"] = plexamp_page_with_airplay_handoff
 
 
 _register_audio_api()
