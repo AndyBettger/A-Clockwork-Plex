@@ -124,6 +124,13 @@
     if (applying || !snapshot?.should_apply) return;
     const target = String(snapshot.recommended_screen || '').toLowerCase();
     if (!(target in routes)) return;
+    if (target === 'alarm') {
+      if (window.location.pathname !== routes.alarm) {
+        modeGuardUntil = Date.now() + 6000;
+        navigate('alarm');
+      }
+      return;
+    }
     applying = true;
     modeGuardUntil = Date.now() + 6000;
     try {
