@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from datetime import timedelta
-from typing import Any
 
 try:
     from .playback_coordinator import _parse_time, _safe_status
@@ -88,46 +86,3 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
         if parent_result not in {"idle", "primed"}:
             return parent_result
         return ceded_result
-
-
-def promote_retained_bidirectional_handoff(hub: Any) -> RetainedBidirectionalHandoffCoordinator:
-    """Add deadline and disconnect ownership to the bidirectional handoff coordinator."""
-
-    existing = hub.service("playback")
-    if isinstance(existing, RetainedBidirectionalHandoffCoordinator):
-        return existing
-    if not isinstance(existing, BidirectionalHandoffPlaybackCoordinator):
-        raise RuntimeError("Bidirectional handoff coordinator is unavailable for retention promotion.")
-
-    promoted = RetainedBidirectionalHandoffCoordinator(
-        load_config=existing._load_config,
-        load_state=existing._load_state,
-        plexamp_status=existing._plexamp_status,
-        airplay_status=existing._airplay_status,
-        alarm_status=existing._alarm_status,
-        alarm_audio_status=existing._alarm_audio_status,
-        event_journal=existing._events,
-        runtime_path=existing._runtime_store.path,
-        airplay_hold_seconds=existing._airplay_hold_seconds,
-        reconcile_seconds=existing._reconcile_seconds,
-        hold_completion=existing._hold_completion,
-        now_provider=existing._now,
-        airplay_command=existing._airplay_command,
-        command_verify_seconds=existing._command_verify_seconds,
-        plexamp_pause=existing._plexamp_pause,
-    )
-
-    promoted._command_sequence = existing._command_sequence
-    promoted._command_runtime = existing.command_snapshot()
-    promoted._navigation_sequence = existing._navigation_sequence
-    promoted._navigation_runtime = existing.navigation_snapshot()
-    promoted._handoff_sequence = existing._handoff_sequence
-    promoted._handoff_runtime = existing.handoff_snapshot()
-    promoted._airplay_playing_latched = existing._airplay_playing_latched
-    promoted._reverse_handoff_sequence = existing._reverse_handoff_sequence
-    promoted._reverse_handoff_runtime = deepcopy(existing.reverse_handoff_snapshot())
-    promoted._last_plexamp_state = existing._last_plexamp_state
-
-    hub.register_service("playback", promoted)
-    hub.register_provider("playback", promoted.snapshot)
-    return promoted
