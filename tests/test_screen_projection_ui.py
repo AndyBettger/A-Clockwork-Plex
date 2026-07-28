@@ -31,28 +31,38 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertNotIn("/player/playback/", text)
         self.assertNotIn("systemctl", text)
 
-    def test_cross_origin_plexamp_activity_has_safe_detection_paths(self):
+    def test_cross_origin_plexamp_uses_one_shot_browser_fallbacks_only(self):
         text = CLIENT.read_text(encoding="utf-8")
-        self.assertIn("IdleDetector.requestPermission()", text)
         self.assertIn("document.activeElement === frame", text)
-        self.assertIn("plexamp-frame-active-heartbeat", text)
+        self.assertIn("plexamp-frame-pointerenter", text)
+        self.assertIn("plexamp-frame-focus", text)
         self.assertIn("new MutationObserver(observeOpenState)", text)
         self.assertNotIn("frame.contentDocument", text)
         self.assertNotIn("frame.contentWindow.document", text)
 
-    def test_stationary_mouse_hover_cannot_drive_repeating_heartbeat(self):
+    def test_client_cannot_manufacture_repeating_activity(self):
         text = CLIENT.read_text(encoding="utf-8")
-        pointer_enter = text.split("frame.addEventListener('pointerenter'", 1)[1].split("frame.addEventListener('pointerleave'", 1)[0]
+        self.assertNotIn("IdleDetector", text)
+        self.assertNotIn("idleDetector", text)
+        self.assertNotIn("frameEngaged", text)
+        self.assertNotIn("heartbeatMs", text)
+        self.assertNotIn("plexamp-frame-active-heartbeat", text)
+        self.assertNotIn("setInterval(() => {\n    if (\n      currentSurface() === 'plexamp'", text)
 
-        self.assertIn("framePointerType = String(event.pointerType || 'unknown').toLowerCase()", pointer_enter)
-        self.assertNotIn("frameEngaged = true", pointer_enter)
-        self.assertIn("frameEngaged = framePointerType !== 'mouse';", text)
-        self.assertIn("frame.addEventListener('blur'", text)
+    def test_stationary_mouse_hover_is_one_interaction_only(self):
+        text = CLIENT.read_text(encoding="utf-8")
+        pointer_enter = text.split("frame.addEventListener('pointerenter'", 1)[1].split(
+            "frame.addEventListener('focus'", 1
+        )[0]
+
+        self.assertIn("markActivity('plexamp-frame-pointerenter'", pointer_enter)
+        self.assertNotIn("setInterval", pointer_enter)
+        self.assertNotIn("frameEngaged", pointer_enter)
 
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260728-screen-lease-pointer-fix", text)
+        self.assertIn("20260728-linux-input-only", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_mode_watch_defers_to_screen_projection_and_does_not_infer_playback(self):
