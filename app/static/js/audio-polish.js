@@ -6,6 +6,7 @@
   const pendingKey = 'a-clockwork-plex.pending-airplay-defaults';
   const defaultsEndpoint = '/api/audio/defaults';
   const liveEndpoint = '/api/audio/live';
+  const audioStateEndpoint = '/api/audio/state';
   const statusEndpoint = '/api/status';
   const legacyVolumeEndpoint = '/api/airplay/volume';
   const AIRPLAY_DB_FLOOR = -30;
@@ -97,12 +98,34 @@
   function transformApplication(application) {
     if (!application || typeof application !== 'object') return application;
     ['target_percent', 'last_confirmed_percent'].forEach((key) => {
+      if (application[key] === null || application[key] === undefined || application[key] === '') return;
       const raw = Number(application[key]);
       if (!Number.isFinite(raw)) return;
       application[`sender_${key}`] = raw;
       application[key] = senderToUiPercent(raw);
     });
     return application;
+  }
+
+  function transformAirplayChannel(airplay) {
+    if (!airplay || typeof airplay !== 'object') return airplay;
+    [
+      'percent',
+      'effective_percent',
+      'observed_percent',
+      'requested_percent',
+      'target_percent',
+      'baseline_percent',
+    ].forEach((key) => {
+      if (airplay[key] === null || airplay[key] === undefined || airplay[key] === '') return;
+      const raw = Number(airplay[key]);
+      if (!Number.isFinite(raw)) return;
+      airplay[`sender_${key}`] = raw;
+      airplay[key] = senderToUiPercent(raw);
+    });
+    airplay.scale = 'perceptual-amplitude';
+    if (airplay.remote) transformRemote(airplay.remote);
+    return airplay;
   }
 
   function transformPayload(payload) {
@@ -116,17 +139,10 @@
     if (live && typeof live === 'object') {
       if (live.defaults) transformDefaults(live.defaults);
       if (live.airplay_default_application) transformApplication(live.airplay_default_application);
-      const airplay = live.channels?.airplay;
-      if (airplay && typeof airplay === 'object') {
-        const raw = Number(airplay.percent);
-        if (Number.isFinite(raw)) {
-          airplay.sender_percent = raw;
-          airplay.percent = senderToUiPercent(raw);
-          airplay.scale = 'perceptual-amplitude';
-        }
-        if (airplay.remote) transformRemote(airplay.remote);
-      }
+      transformAirplayChannel(live.channels?.airplay);
     }
+
+    transformAirplayChannel(payload.audio?.channels?.airplay);
 
     const stateRemote = payload.state?.airplay?.remote;
     if (stateRemote) transformRemote(stateRemote);
@@ -233,7 +249,11 @@
       }
     }
 
-    if (local && method === 'POST' && url.pathname === liveEndpoint) {
+    if (
+      local
+      && method === 'POST'
+      && [liveEndpoint, audioStateEndpoint].includes(url.pathname)
+    ) {
       const submitted = parseJsonBody(init);
       if (submitted?.channel === 'airplay') {
         const response = await rawFetch(input, withJsonBody(init, {
@@ -257,7 +277,11 @@
     }
 
     const response = await rawFetch(input, init);
-    if (local && method === 'GET' && [defaultsEndpoint, liveEndpoint, statusEndpoint].includes(url.pathname)) {
+    if (
+      local
+      && method === 'GET'
+      && [defaultsEndpoint, liveEndpoint, audioStateEndpoint, statusEndpoint].includes(url.pathname)
+    ) {
       return transformedResponse(response);
     }
     return response;
