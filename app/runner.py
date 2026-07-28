@@ -7,6 +7,7 @@ try:
         register_application_state_api,
     )
     from .audio_eq import register_audio_eq
+    from .input_activity import LinuxInputActivityMonitor
     from .playback_coordinator import PlaybackCoordinator
     from .playback_handoff import (
         promote_airplay_takeover,
@@ -26,6 +27,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         register_application_state_api,
     )
     from audio_eq import register_audio_eq
+    from input_activity import LinuxInputActivityMonitor
     from playback_coordinator import PlaybackCoordinator
     from playback_handoff import (
         promote_airplay_takeover,
@@ -47,6 +49,7 @@ playback_coordinator = promote_airplay_takeover(application_state_hub, dashboard
 playback_coordinator = promote_bidirectional_handoff(application_state_hub)
 playback_coordinator = promote_retained_bidirectional_handoff(application_state_hub)
 screen_projection = register_screen_projection(app, application_state_hub, dashboard)
+input_activity_monitor = application_state_hub.service("input_activity")
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 master_equalizer = register_audio_eq(app)
@@ -57,6 +60,8 @@ if __name__ == '__main__':
     dashboard_config = config.get('dashboard', {})
     dashboard.alarm_scheduler.start()
     dashboard.alarm_audio.start()
+    if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
+        input_activity_monitor.start()
     if isinstance(playback_coordinator, PlaybackCoordinator):
         playback_coordinator.start()
     try:
@@ -69,5 +74,7 @@ if __name__ == '__main__':
     finally:
         if isinstance(playback_coordinator, PlaybackCoordinator):
             playback_coordinator.shutdown()
+        if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
+            input_activity_monitor.shutdown()
         dashboard.alarm_audio.shutdown()
         dashboard.alarm_scheduler.stop()
