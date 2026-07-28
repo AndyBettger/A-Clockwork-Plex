@@ -15,8 +15,6 @@
   let frameReadyTimer = null;
   let phaseTimer = null;
   let cleanupTimer = null;
-  let handoffPauseInFlight = false;
-  let handoffCooldownUntil = 0;
   let notifyInFlight = false;
   let lifecycle = 'hidden';
   let generation = 0;
@@ -89,56 +87,6 @@
     }
   }
 
-  function livePlaybackStates(payload) {
-    const live = payload?.live || {};
-    return {
-      plexamp: String(live?.channels?.plexamp?.playback_state || '').toLowerCase(),
-      airplay: String(live?.channels?.airplay?.remote?.playback_status || '').toLowerCase(),
-    };
-  }
-
-  async function pauseAirplayWhenPlexampWins(event) {
-    if (
-      handoffPauseInFlight
-      || lifecycle === 'hidden'
-      || lifecycle === 'route-leaving'
-      || Date.now() < handoffCooldownUntil
-    ) return;
-
-    const states = livePlaybackStates(event?.detail);
-    if (states.plexamp !== 'playing' || states.airplay !== 'playing') return;
-
-    handoffPauseInFlight = true;
-    handoffCooldownUntil = Date.now() + 2500;
-    try {
-      const pauseResponse = await fetch('/api/airplay/control', {
-        method: 'POST',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pause' }),
-      });
-      const pausePayload = await pauseResponse.json().catch(() => ({}));
-      const stillPlaying = String(pausePayload?.remote?.playback_status || '').toLowerCase() === 'playing';
-      if (!pauseResponse.ok || stillPlaying) {
-        await fetch('/api/airplay/control', {
-          method: 'POST',
-          cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'stop' }),
-        });
-      }
-    } catch (error) {
-    } finally {
-      handoffPauseInFlight = false;
-    }
-  }
-
-  function checkCurrentLiveAudio() {
-    if (window.ACPLiveAudioSnapshot) {
-      pauseAirplayWhenPlexampWins({ detail: window.ACPLiveAudioSnapshot });
-    }
-  }
-
   function clearLifecycleTimers() {
     window.clearTimeout(phaseTimer);
     window.clearTimeout(cleanupTimer);
@@ -195,7 +143,6 @@
 
     if (['opening-page', 'opening-overlay', 'open', 'route-leaving'].includes(lifecycle)) {
       if (updateMode && !notifyInFlight) updateServerMode('plexamp');
-      checkCurrentLiveAudio();
       return 0;
     }
 
@@ -219,7 +166,6 @@
       body.classList.remove('acp-page-leaving');
       setLifecycle('opening-overlay');
     }
-    checkCurrentLiveAudio();
 
     const beginOverlay = () => {
       if (token !== generation) return;
@@ -349,11 +295,6 @@
     event.stopImmediatePropagation();
     show();
   }, true);
-
-  window.addEventListener('acp:live-audio-status', pauseAirplayWhenPlexampWins);
-  window.addEventListener('pagehide', () => {
-    window.removeEventListener('acp:live-audio-status', pauseAirplayWhenPlexampWins);
-  });
 
   window.ACPPlexamp = {
     show,
