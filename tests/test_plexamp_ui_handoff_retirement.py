@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PERSISTENT_PLEXAMP = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
 PLAYBACK_HANDOFF = ROOT / "app" / "playback_handoff.py"
+RUNNER = ROOT / "app" / "runner.py"
 
 
 class PlexampUiHandoffRetirementTests(unittest.TestCase):
@@ -28,11 +29,15 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertIn("window.ACPPlexamp =", text)
         self.assertNotIn("ACPLiveAudioSnapshot", text)
 
-    def test_reverse_handoff_remains_disabled_until_coordinator_promotion(self):
-        text = PLAYBACK_HANDOFF.read_text(encoding="utf-8")
+    def test_reverse_handoff_is_coordinator_owned_after_promotion(self):
+        handoff = PLAYBACK_HANDOFF.read_text(encoding="utf-8")
+        runner = RUNNER.read_text(encoding="utf-8")
 
-        self.assertIn('"plexamp_to_airplay_handoff": False', text)
-        self.assertIn('"screen_projection": False', text)
+        self.assertIn('class BidirectionalHandoffPlaybackCoordinator', handoff)
+        self.assertIn('"plexamp_to_airplay_handoff": True', handoff)
+        self.assertIn('promote_bidirectional_handoff(application_state_hub)', runner)
+        self.assertNotIn("/api/airplay/control", PERSISTENT_PLEXAMP.read_text(encoding="utf-8"))
+        self.assertIn('"screen_projection": False', handoff)
 
 
 if __name__ == "__main__":
