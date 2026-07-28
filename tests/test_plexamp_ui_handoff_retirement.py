@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PERSISTENT_PLEXAMP = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
 PLAYBACK_HANDOFF = ROOT / "app" / "playback_handoff.py"
 RUNNER = ROOT / "app" / "runner.py"
+SCREEN_PROJECTION = ROOT / "app" / "screen_projection.py"
 
 
 class PlexampUiHandoffRetirementTests(unittest.TestCase):
@@ -37,7 +38,15 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertIn('"plexamp_to_airplay_handoff": True', handoff)
         self.assertIn('promote_bidirectional_handoff(application_state_hub)', runner)
         self.assertNotIn("/api/airplay/control", PERSISTENT_PLEXAMP.read_text(encoding="utf-8"))
-        self.assertIn('"screen_projection": False', handoff)
+
+    def test_screen_projection_is_separate_from_playback_handoff(self):
+        projection = SCREEN_PROJECTION.read_text(encoding="utf-8")
+        runner = RUNNER.read_text(encoding="utf-8")
+
+        self.assertIn("class ScreenProjectionController", projection)
+        self.assertIn('authority = "screen-projection-owner"', projection)
+        self.assertIn("register_screen_projection(app, application_state_hub, dashboard)", runner)
+        self.assertNotIn("/api/airplay/control", projection)
 
 
 if __name__ == "__main__":
