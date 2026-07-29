@@ -31,6 +31,13 @@
     return page ? `/${page}` : window.location.pathname;
   }
 
+  function plexampVisiblyOpen() {
+    return Boolean(
+      window.ACPPlexamp?.isVisiblyOpen?.()
+      ?? window.ACPPlexamp?.isOpen?.(),
+    );
+  }
+
   function isAutomaticNavigation(options = {}) {
     return options.automatic === true || options.source === 'screen-projection';
   }
@@ -161,10 +168,7 @@
       return;
     }
 
-    const overlayOpen = Boolean(
-      window.ACPPlexamp?.isVisiblyOpen?.()
-      ?? window.ACPPlexamp?.isOpen?.(),
-    );
+    const overlayOpen = plexampVisiblyOpen();
     if (overlayOpen) {
       if (target.pathname === activeRoute()) {
         const mode = target.pathname.slice(1) || 'clock';
@@ -209,7 +213,8 @@
     if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (link.target && link.target !== '_self') return;
     const target = sameOriginTarget(link.href);
-    if (!target || target.href === window.location.href) return;
+    if (!target) return;
+    if (target.href === window.location.href && !plexampVisiblyOpen()) return;
     if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
     event.preventDefault();
     void navigate(target.href, { source: 'navigation-link' });
