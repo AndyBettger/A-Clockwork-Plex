@@ -15,7 +15,6 @@
   let frameReadyTimer = null;
   let phaseTimer = null;
   let cleanupTimer = null;
-  let notifyInFlight = false;
   let lifecycle = 'hidden';
   let generation = 0;
   let modeGuardUntil = 0;
@@ -69,24 +68,6 @@
     modeGuardUntil = Math.max(modeGuardUntil, Date.now() + milliseconds);
   }
 
-  async function updateServerMode(mode) {
-    const target = String(mode || '').trim().toLowerCase();
-    if (!['clock', 'weather', 'airplay', 'plexamp', 'settings'].includes(target)) return;
-
-    guardMode();
-    notifyInFlight = true;
-    try {
-      await fetch(`/api/mode/${target}`, {
-        method: 'POST',
-        cache: 'no-store',
-      });
-    } catch (error) {
-    } finally {
-      notifyInFlight = false;
-      guardMode(1400);
-    }
-  }
-
   function clearLifecycleTimers() {
     window.clearTimeout(phaseTimer);
     window.clearTimeout(cleanupTimer);
@@ -109,16 +90,6 @@
     return shell.classList.contains('is-open')
       && shell.getAttribute('aria-hidden') !== 'true'
       && document.body.classList.contains('plexamp-overlay-open');
-  }
-
-  function announceManualOpen(options = {}) {
-    if (options.manual === false || options.updateMode === false) return;
-    window.dispatchEvent(new CustomEvent('acp:manual-screen-open', {
-      detail: {
-        surface: 'plexamp',
-        source: String(options.source || 'plexamp-navigation'),
-      },
-    }));
   }
 
   function ensureVisible(options = {}) {
@@ -159,8 +130,6 @@
       return;
     }
 
-    /* Restart the existing incoming keyframes after the opaque Plexamp curtain has
-       completed its outgoing half. The forced layout read is deliberate and tiny. */
     void screen?.offsetWidth;
     body.classList.add('acp-page-ready');
     setLifecycle('closing-underlay');
@@ -172,17 +141,13 @@
   }
 
   function show(options = {}) {
-    const updateMode = options.updateMode !== false;
     const skipOutgoing = options.skipOutgoing === true
       || String(document.body.dataset.activePage || '').toLowerCase() === 'plexamp';
-
-    announceManualOpen({ ...options, updateMode });
 
     if (['opening-page', 'opening-overlay', 'open', 'route-leaving'].includes(lifecycle)) {
       if (!isVisiblyOpen() && lifecycle === 'open') {
         ensureVisible({ source: options.source || 'show-state-repair' });
       }
-      if (updateMode && !notifyInFlight) updateServerMode('plexamp');
       return 0;
     }
 
@@ -191,7 +156,6 @@
     window.ACPNavDrawer?.hide?.();
     setNavState(true);
     guardMode();
-    if (updateMode) updateServerMode('plexamp');
 
     const profile = transitionProfile();
     const outgoing = skipOutgoing ? 0 : profile.outgoing;
@@ -229,12 +193,9 @@
   }
 
   function hide(options = {}) {
-    const updateMode = options.updateMode === true;
-    const targetMode = String(options.targetMode || document.body.dataset.activePage || 'clock').toLowerCase();
     const profile = transitionProfile();
 
     guardMode();
-    if (updateMode) updateServerMode(targetMode);
 
     if (lifecycle === 'hidden' && !shell.classList.contains('is-open')) {
       finishHideVisual();
@@ -246,16 +207,12 @@
     clearLifecycleTimers();
     window.ACPNavDrawer?.hide?.();
 
-    /* A tap back to the underlying page during the first outgoing half can be
-       cancelled without exposing or reloading Plexamp. */
     if (!shell.classList.contains('is-open')) {
       finishHideVisual();
       playUnderlyingIncoming(token, profile.incoming);
       return profile.incoming;
     }
 
-    /* Keep the shell opaque while only its visible contents perform the outgoing
-       half. Once complete, remove the shell and play the underlying incoming half. */
     shell.classList.remove('is-closing');
     shell.classList.add('is-open', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'false');
@@ -279,8 +236,6 @@
     window.ACPNavDrawer?.hide?.();
     guardMode(LONG_MODE_GUARD_MS);
 
-    /* A different dashboard document is about to replace this one. Keep the shell
-       itself as an opaque handover curtain and animate only the Plexamp contents. */
     shell.classList.remove('is-closing');
     shell.classList.add('is-open', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'false');
@@ -301,7 +256,7 @@
   }
 
   function shouldDeferModeSync() {
-    return notifyInFlight || Date.now() < modeGuardUntil || isTransitioning();
+    return Date.now() < modeGuardUntil || isTransitioning();
   }
 
   frame.addEventListener('load', () => {
@@ -311,30 +266,12 @@
     scheduleFrameReady();
   });
 
-  /* A cached iframe can occasionally complete before this listener is attached.
-     The fallback avoids leaving the preparation curtain up forever in that case. */
   window.setTimeout(() => {
     if (frameLoaded) return;
     frameLoaded = true;
     frameLoadedAt = Date.now() - FRAME_SETTLE_MS;
     scheduleFrameReady();
   }, 2500);
-
-  document.addEventListener('click', (event) => {
-    const link = event.target.closest('a[href]');
-    if (!link) return;
-    let target;
-    try {
-      target = new URL(link.href, window.location.href);
-    } catch (error) {
-      return;
-    }
-    if (target.origin !== window.location.origin || target.pathname !== '/plexamp') return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    show({ source: 'plexamp-navigation-link' });
-  }, true);
 
   window.ACPPlexamp = {
     show,
