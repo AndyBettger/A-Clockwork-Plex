@@ -48,6 +48,7 @@
         body: JSON.stringify({
           action,
           surface: options.surface || currentSurface(),
+          visible_surface: options.visibleSurface || currentSurface(),
           source: options.source || 'screen-projection-client',
           idle_return_mode: idleReturnMode(),
         }),
@@ -84,6 +85,7 @@
     lastPostAt = Date.now();
     return post('open', {
       surface: target,
+      visibleSurface: currentSurface(),
       source,
       guaranteed: true,
     });
@@ -100,6 +102,7 @@
     }
     return post('interaction', {
       surface,
+      visibleSurface: currentSurface(),
       source,
     });
   }
@@ -127,30 +130,46 @@
   }
 
   function reconcilePlexampVisual(snapshot) {
-    const current = String(snapshot?.current_screen || '').toLowerCase();
     const recommended = String(snapshot?.recommended_screen || '').toLowerCase();
-    if (current !== 'plexamp' || recommended !== 'plexamp') return;
+    if (recommended !== 'plexamp') return;
     if (plexampVisiblyOpen()) return;
     window.ACPPlexamp?.ensureVisible?.({ source: 'screen-projection-state-repair' });
   }
 
   async function applyProjection(snapshot) {
-    if (applying || !snapshot?.should_apply) return;
-    const target = String(snapshot.recommended_screen || '').toLowerCase();
+    if (applying) return;
+    const target = String(snapshot?.recommended_screen || '').toLowerCase();
     if (!(target in routes)) return;
+
+    const visible = currentSurface();
+    const presentationMismatch = snapshot?.should_present === true || visible !== target;
+    const logicalMismatch = snapshot?.should_apply === true;
+    if (!presentationMismatch && !logicalMismatch) return;
+
     if (target === 'alarm') {
-      if (window.location.pathname !== routes.alarm) {
+      if (visible !== 'alarm') {
         modeGuardUntil = Date.now() + 6000;
         navigate('alarm');
       }
       return;
     }
+
     applying = true;
     modeGuardUntil = Date.now() + 6000;
     try {
-      const applied = await post('apply', { source: 'screen-projection-apply' });
-      const appliedTarget = String(applied?.applied_screen || applied?.recommended_screen || target).toLowerCase();
-      navigate(appliedTarget);
+      let resolved = snapshot;
+      if (logicalMismatch) {
+        resolved = await post('apply', {
+          visibleSurface: visible,
+          source: 'screen-projection-apply',
+        }) || snapshot;
+      }
+      const resolvedTarget = String(
+        resolved?.applied_screen || resolved?.recommended_screen || target,
+      ).toLowerCase();
+      if (currentSurface() !== resolvedTarget) {
+        navigate(resolvedTarget);
+      }
     } finally {
       window.setTimeout(() => {
         applying = false;
@@ -163,13 +182,15 @@
     if (checking || applying || window.ACPNavigationState?.isLeaving?.()) return;
     checking = true;
     try {
-      const response = await fetch('/api/screen/state', { cache: 'no-store' });
-      if (!response.ok) return;
-      const payload = await response.json();
-      state = payload?.screen || null;
-      if (!state) return;
+      const snapshot = await post('state', {
+        visibleSurface: currentSurface(),
+        source: 'screen-projection-poll',
+      });
+      if (!snapshot) return;
+      state = snapshot;
       document.documentElement.dataset.screenProjectionReason = String(state.decision_reason || 'unknown');
       document.documentElement.dataset.screenLeaseActive = state?.lease?.active === true ? 'true' : 'false';
+      document.documentElement.dataset.screenVisibleSurface = String(state.visible_surface || currentSurface());
       document.documentElement.dataset.screenInputAuthority = String(
         state?.input_activity?.authority || 'browser-fallback',
       );
@@ -215,7 +236,10 @@
   });
 
   window.addEventListener('acp:dashboard-preferences-changed', () => {
-    post('preferences', { source: 'dashboard-preferences-changed' });
+    post('preferences', {
+      visibleSurface: currentSurface(),
+      source: 'dashboard-preferences-changed',
+    });
   });
 
   if (frame) {
@@ -239,6 +263,7 @@
   window.ACPScreenProjection = {
     markActivity,
     openSurface,
+    currentSurface,
     state: () => state,
     shouldDeferModeSync: () => applying || Date.now() < modeGuardUntil,
     inputAuthority: () => state?.input_activity?.authority || 'browser-fallback',
@@ -251,7 +276,10 @@
     );
     const shouldOpenLease = Boolean(explicitNavigation) || surface === 'settings';
 
-    await post('preferences', { source: 'screen-projection-start' });
+    await post('preferences', {
+      visibleSurface: surface,
+      source: 'screen-projection-start',
+    });
     if (shouldOpenLease && surface !== 'alarm') {
       await openSurface(
         surface,
@@ -263,7 +291,7 @@
   }
 
   initialise().finally(() => {
-    window.setInterval(check, 2000);
-    window.setTimeout(check, 700);
+    window.setInterval(check, 1000);
+    window.setTimeout(check, 350);
   });
 })();
