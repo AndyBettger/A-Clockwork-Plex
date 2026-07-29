@@ -142,7 +142,7 @@
     const surface = String(event?.detail?.surface || 'plexamp').toLowerCase();
     markActivity(String(event?.detail?.source || 'manual-screen-open'), {
       force: true,
-      manual: surface === 'plexamp',
+      manual: true,
       surface,
     });
   });
@@ -191,12 +191,26 @@
     inputAuthority: () => state?.input_activity?.authority || 'browser-fallback',
   };
 
-  post('preferences', { source: 'screen-projection-start' });
-  window.setTimeout(() => {
-    if (currentSurface() === 'plexamp') {
+  async function initialise() {
+    const surface = currentSurface();
+    if (surface === 'settings') {
+      modeGuardUntil = Date.now() + 4000;
+      await post('preferences', { source: 'screen-projection-start' });
+      lastPostAt = Date.now();
+      await post('open', {
+        surface: 'settings',
+        source: 'initial-settings-surface',
+      });
+      return;
+    }
+
+    await post('preferences', { source: 'screen-projection-start' });
+    if (surface === 'plexamp') {
       markActivity('initial-plexamp-surface', { force: true, manual: true, surface: 'plexamp' });
     }
-  }, 100);
+  }
+
+  initialise();
   window.setInterval(check, 2000);
   window.setTimeout(check, 700);
 })();
