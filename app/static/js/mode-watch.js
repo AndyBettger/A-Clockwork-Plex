@@ -1,31 +1,17 @@
 (() => {
-  const activePage = document.body.dataset.activePage;
-  const modeRoutes = {
-    clock: '/clock',
-    weather: '/weather',
-    plexamp: '/plexamp',
-    airplay: '/airplay',
-    settings: '/settings',
-  };
+  if (window.__aClockworkPlexServiceRecoveryWatchLoaded) return;
+  window.__aClockworkPlexServiceRecoveryWatchLoaded = true;
 
   let statusUnavailable = false;
   let plexampRecoveryTimer = null;
   let plexampRecoveryGeneration = 0;
 
-  const navigate = (route, immediate = false, updateMode = true) => {
-    if (typeof window.ACPNavigate === 'function') {
-      window.ACPNavigate(route, { immediate, updateMode });
-    } else {
-      window.location.assign(route);
-    }
-  };
-
   async function plexampPlayerReady() {
     try {
-      const response = await fetch('/api/audio/live', { cache: 'no-store' });
+      const response = await fetch('/api/audio/state', { cache: 'no-store' });
       if (!response.ok) return false;
       const payload = await response.json();
-      return payload?.live?.channels?.plexamp?.available === true;
+      return payload?.audio?.channels?.plexamp?.available === true;
     } catch (error) {
       return false;
     }
@@ -70,10 +56,8 @@
     plexampRecoveryTimer = window.setTimeout(poll, 500);
   }
 
-  async function checkMode() {
+  async function checkServiceRecovery() {
     try {
-      if (window.ACPNavigationState?.isLeaving?.()) return;
-
       const response = await fetch('/api/status', { cache: 'no-store' });
       if (!response.ok) {
         statusUnavailable = true;
@@ -83,63 +67,20 @@
       const recoveredFromOutage = statusUnavailable;
       statusUnavailable = false;
       if (recoveredFromOutage) schedulePlexampFrameRecovery();
-
-      const status = await response.json();
-      const alarmScreenRequired = Boolean(status?.alarm_scheduler?.screen_required);
-      if (alarmScreenRequired && window.location.pathname !== '/alarm') {
-        try {
-          const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-          window.sessionStorage.setItem('alarmReturnPath', currentPath || '/clock');
-        } catch (error) {
-        }
-        navigate('/alarm', true, false);
-        return;
-      }
-
-      /* ScreenProjectionController owns media and idle recommendations. During an
-         apply transaction, do not replay an older server mode over its decision. */
-      if (window.ACPScreenProjection?.shouldDeferModeSync?.()) return;
-
-      if (!activePage || !(activePage in modeRoutes)) return;
-      const requestedMode = status?.state?.mode;
-      const route = modeRoutes[requestedMode];
-      if (!route) return;
-
-      /* Local Plexamp show/hide operations update mode asynchronously. Ignore the
-         stale status response while that transaction or its animation is active,
-         otherwise the watcher can close and reopen the overlay mid-transition. */
-      if (window.ACPPlexamp?.shouldDeferModeSync?.(requestedMode, activePage)) {
-        return;
-      }
-
-      if (requestedMode === 'plexamp' && window.ACPPlexamp) {
-        if (!window.ACPPlexamp.isOpen()) {
-          window.ACPPlexamp.show({ updateMode: false });
-        }
-        return;
-      }
-
-      if (window.ACPPlexamp?.isOpen?.()) {
-        if (requestedMode === activePage) {
-          window.ACPPlexamp.hide({ updateMode: false, targetMode: activePage });
-          return;
-        }
-        navigate(route, false, false);
-        return;
-      }
-
-      if (requestedMode !== activePage && window.location.pathname !== route) {
-        navigate(route, false, false);
-      }
     } catch (error) {
       statusUnavailable = true;
     }
   }
 
+  window.ACPServiceRecovery = Object.freeze({
+    recoverPlexampFrame: schedulePlexampFrameRecovery,
+    statusUnavailable: () => statusUnavailable,
+  });
+
   window.addEventListener('pagehide', () => {
     ++plexampRecoveryGeneration;
     window.clearTimeout(plexampRecoveryTimer);
   });
-  window.setInterval(checkMode, 2000);
-  window.setTimeout(checkMode, 500);
+  window.setInterval(checkServiceRecovery, 2000);
+  window.setTimeout(checkServiceRecovery, 500);
 })();
