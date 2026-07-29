@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VOLUME_CLIENT = ROOT / "app" / "static" / "js" / "airplay-volume-v2.js"
 AUDIO_POLISH = ROOT / "app" / "static" / "js" / "audio-polish.js"
 APPLICATION_STATE = ROOT / "app" / "application_state.py"
+AUDIO_MIXER = ROOT / "app" / "audio_mixer.py"
 MIXER_CONTROLLER = ROOT / "app" / "mixer_controller.py"
 
 
@@ -77,29 +78,38 @@ console.log(JSON.stringify({{
         self.assertIn("body: JSON.stringify({ channel: 'airplay', percent: clamp(percent) })", text)
         self.assertNotIn("slider.addEventListener('input', () => queue", text)
 
-    def test_state_hub_registers_mixer_service_and_audio_provider(self):
+    def test_state_hub_registers_one_complete_mixer_service(self):
         text = APPLICATION_STATE.read_text(encoding="utf-8")
         self.assertIn('hub.register_service("mixer", mixer_controller)', text)
         self.assertIn('hub.register_provider("audio", mixer_controller.snapshot)', text)
         self.assertIn('@app.route("/api/audio/state", methods=["GET", "POST"])', text)
-        self.assertIn("_install_mixer_controller_bridge", text)
+        self.assertIn("audio_mixer.bind_mixer_controller(mixer_controller)", text)
+        self.assertIn("set_mixer_volume=set_mixer_volume", text)
+        self.assertIn("set_plexamp_volume=set_plexamp_volume", text)
+        self.assertNotIn("_install_mixer_controller_bridge", text)
 
     def test_starting_volume_policy_is_one_write_per_session(self):
         text = MIXER_CONTROLLER.read_text(encoding="utf-8")
+        legacy = AUDIO_MIXER.read_text(encoding="utf-8")
         self.assertIn('"airplay_starting_volume_write_limit": 1', text)
         self.assertIn('return "already-active"', text)
-        self.assertNotIn("for _ in range(80)", text)
-        self.assertNotIn("stable_reads", text)
+        self.assertNotIn("for _ in range(80)", legacy)
+        self.assertNotIn("stable_reads", legacy)
+        self.assertNotIn("airplay-default-volume", legacy)
+        self.assertNotIn("_schedule_airplay_default", legacy)
+        self.assertNotIn("_airplay_default_status", legacy)
 
-    def test_real_runner_exposes_audio_state_and_binds_legacy_symbol_to_controller(self):
+    def test_real_runner_binds_compatibility_routes_to_same_controller(self):
         code = (
             "from app.runner import app, application_state_hub; "
             "from app import audio_mixer; "
             "routes={rule.rule for rule in app.url_map.iter_rules()}; "
             "mixer=application_state_hub.service('mixer'); "
             "assert '/api/audio/state' in routes, sorted(routes); "
-            "assert audio_mixer._schedule_airplay_default.__self__ is mixer; "
-            "assert audio_mixer._airplay_default_status.__self__ is mixer"
+            "assert '/api/audio/live' in routes, sorted(routes); "
+            "assert '/api/audio/mixer' in routes, sorted(routes); "
+            "assert audio_mixer.mixer_controller is mixer; "
+            "assert audio_mixer.live_audio_status()['authority'] == 'mixer-controller'"
         )
         result = subprocess.run(
             [sys.executable, "-c", code],
