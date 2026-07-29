@@ -105,6 +105,41 @@
     }, delay);
   }
 
+  function isVisiblyOpen() {
+    return shell.classList.contains('is-open')
+      && shell.getAttribute('aria-hidden') !== 'true'
+      && document.body.classList.contains('plexamp-overlay-open');
+  }
+
+  function announceManualOpen(options = {}) {
+    if (options.manual === false || options.updateMode === false) return;
+    window.dispatchEvent(new CustomEvent('acp:manual-screen-open', {
+      detail: {
+        surface: 'plexamp',
+        source: String(options.source || 'plexamp-navigation'),
+      },
+    }));
+  }
+
+  function ensureVisible(options = {}) {
+    if (isVisiblyOpen() && lifecycle === 'open') return 0;
+
+    ++generation;
+    clearLifecycleTimers();
+    window.ACPNavDrawer?.hide?.();
+    guardMode();
+    shell.classList.remove('is-closing', 'is-route-leaving');
+    shell.classList.add('is-open');
+    shell.setAttribute('aria-hidden', 'false');
+    document.body.classList.remove('acp-page-leaving', 'acp-plexamp-opening');
+    document.body.classList.add('plexamp-overlay-open');
+    setNavState(true);
+    setLifecycle('open');
+    scheduleFrameReady();
+    shell.dataset.lastVisibilityRepair = String(options.source || 'projection-reconcile');
+    return 0;
+  }
+
   function finishHideVisual() {
     shell.classList.remove('is-open', 'is-closing', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'true');
@@ -141,7 +176,12 @@
     const skipOutgoing = options.skipOutgoing === true
       || String(document.body.dataset.activePage || '').toLowerCase() === 'plexamp';
 
+    announceManualOpen({ ...options, updateMode });
+
     if (['opening-page', 'opening-overlay', 'open', 'route-leaving'].includes(lifecycle)) {
+      if (!isVisiblyOpen() && lifecycle === 'open') {
+        ensureVisible({ source: options.source || 'show-state-repair' });
+      }
       if (updateMode && !notifyInFlight) updateServerMode('plexamp');
       return 0;
     }
@@ -293,14 +333,16 @@
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    show();
+    show({ source: 'plexamp-navigation-link' });
   }, true);
 
   window.ACPPlexamp = {
     show,
     hide,
+    ensureVisible,
     prepareNavigation,
     isOpen,
+    isVisiblyOpen,
     isTransitioning,
     shouldDeferModeSync,
     lifecycle: () => lifecycle,
@@ -308,6 +350,6 @@
   };
 
   if (String(document.body.dataset.activePage || '').toLowerCase() === 'plexamp') {
-    show({ updateMode: false, skipOutgoing: true });
+    show({ updateMode: false, manual: false, skipOutgoing: true, source: 'initial-plexamp-document' });
   }
 })();
