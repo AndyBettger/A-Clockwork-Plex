@@ -113,6 +113,36 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertEqual(expired["decision_reason"], "plexamp-playing")
         self.assertTrue(expired["should_apply"])
 
+    def test_clock_and_weather_leases_override_background_audio_until_timeout(self):
+        scenarios = (
+            ("clock", "plexamp", "plexamp", "plexamp-playing"),
+            ("weather", "airplay", "airplay", "airplay-owns-audio"),
+        )
+        for surface, active_source, expected_after, expected_reason in scenarios:
+            with self.subTest(surface=surface, active_source=active_source):
+                controller, now, state, _applied, _input = self.controller()
+                state["mode"] = surface
+                state["active_source"] = active_source
+
+                opened = controller.interaction(
+                    surface,
+                    source=f"explicit-navigation-arrival:{surface}",
+                    manual=True,
+                )
+
+                self.assertTrue(opened["lease"]["active"])
+                self.assertEqual(opened["lease"]["manual_surface"], surface)
+                self.assertEqual(opened["recommended_screen"], surface)
+                self.assertEqual(opened["decision_reason"], f"manual-{surface}-lease")
+                self.assertFalse(opened["should_apply"])
+
+                now[0] += timedelta(seconds=31)
+                expired = controller.snapshot()
+                self.assertFalse(expired["lease"]["active"])
+                self.assertEqual(expired["recommended_screen"], expected_after)
+                self.assertEqual(expired["decision_reason"], expected_reason)
+                self.assertTrue(expired["should_apply"])
+
     def test_settings_touch_renews_lease_while_airplay_continues(self):
         controller, now, state, _applied, input_state = self.controller()
         state["mode"] = "settings"
