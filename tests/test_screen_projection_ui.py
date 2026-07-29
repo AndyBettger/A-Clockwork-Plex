@@ -14,14 +14,16 @@ RUNNER = ROOT / "app" / "runner.py"
 
 
 class ScreenProjectionUiTests(unittest.TestCase):
-    def test_screen_projection_client_has_valid_javascript_syntax(self):
-        result = subprocess.run(
-            ["node", "--check", str(CLIENT)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+    def test_navigation_clients_have_valid_javascript_syntax(self):
+        for path in (CLIENT, PAGE_TRANSITIONS, MODE_WATCH):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    ["node", "--check", str(path)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_client_uses_screen_authority_and_never_controls_audio(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -32,13 +34,26 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertNotIn("/player/playback/", text)
         self.assertNotIn("systemctl", text)
 
-    def test_settings_page_opens_one_explicit_screen_lease(self):
-        text = CLIENT.read_text(encoding="utf-8")
+    def test_deliberate_page_arrival_opens_one_explicit_screen_lease(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
 
-        self.assertIn("if (surface === 'settings')", text)
-        self.assertIn("await post('open'", text)
-        self.assertIn("source: 'initial-settings-surface'", text)
-        self.assertIn("manual: true", text)
+        self.assertIn("consumeExplicitNavigation", transitions)
+        self.assertIn("leasableRoutes", transitions)
+        self.assertIn("window.ACPNavigationState?.consumeExplicitNavigation", client)
+        self.assertIn("Boolean(explicitNavigation) || surface === 'settings'", client)
+        self.assertIn("explicit-navigation-arrival", client)
+        self.assertIn("await post('open'", client)
+
+    def test_projected_navigation_cannot_create_an_explicit_lease(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+
+        self.assertIn("automatic: true", client)
+        self.assertIn("source: 'screen-projection'", client)
+        self.assertIn("isAutomaticNavigation", transitions)
+        self.assertIn("if (isAutomaticNavigation(options)", transitions)
+        self.assertIn("rememberNavigation(target, options)", transitions)
 
     def test_cross_origin_plexamp_uses_one_shot_browser_fallbacks_only(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -71,7 +86,7 @@ class ScreenProjectionUiTests(unittest.TestCase):
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260729-settings-screen-lease", text)
+        self.assertIn("20260729-explicit-navigation-leases", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
