@@ -173,18 +173,22 @@ class ScreenProjectionController:
         screen = self._normalise_screen(surface, "clock")
         now = self._now()
         timeout = self._timeout_seconds()
+        ignored = False
         with self._lock:
-            self._sequence += 1
-            self._last_activity_at = now
-            self._last_interaction_source = str(source or "browser-interaction")
-            if manual and screen in MANUAL_LEASE_SCREENS:
-                self._manual_surface = screen
-                self._lease_started_at = now
-                self._lease_until = now + timedelta(seconds=timeout)
-            elif self._manual_surface == screen:
-                self._lease_until = now + timedelta(seconds=timeout)
-            elif self._manual_surface is not None and screen != self._manual_surface:
-                self._clear_manual_lease()
+            if not manual and self._manual_surface is not None and screen != self._manual_surface:
+                ignored = True
+            else:
+                self._sequence += 1
+                self._last_activity_at = now
+                self._last_interaction_source = str(source or "browser-interaction")
+                if manual and screen in MANUAL_LEASE_SCREENS:
+                    self._manual_surface = screen
+                    self._lease_started_at = now
+                    self._lease_until = now + timedelta(seconds=timeout)
+                elif self._manual_surface == screen:
+                    self._lease_until = now + timedelta(seconds=timeout)
+        if ignored:
+            return self.snapshot()
         return self.snapshot()
 
     def release(self, *, reason: Any = "browser-release") -> dict[str, Any]:
@@ -203,8 +207,13 @@ class ScreenProjectionController:
             last_activity = self._last_activity_at
             source = self._last_interaction_source
             sequence = self._sequence
+            if until is not None and now >= until:
+                self._clear_manual_lease()
+                manual_surface = None
+                started_at = None
+                until = None
         active = bool(
-            manual_surface == current_screen
+            manual_surface in MANUAL_LEASE_SCREENS
             and until is not None
             and now < until
         )
@@ -217,6 +226,7 @@ class ScreenProjectionController:
             "sequence": sequence,
             "manual_surface": manual_surface,
             "active": active,
+            "surface_in_sync": manual_surface is None or manual_surface == current_screen,
             "started_at": started_at.isoformat(timespec="milliseconds") if started_at else None,
             "until": until.isoformat(timespec="milliseconds") if until else None,
             "remaining_seconds": remaining,
@@ -254,7 +264,7 @@ class ScreenProjectionController:
             reason = f"manual-{recommended_screen}-lease"
         elif active_source == "plexamp":
             recommended_screen = "plexamp"
-            reason = "plexamp-playing"
+            reason = "plexamp-owns-audio"
         elif active_source == "airplay":
             recommended_screen = "airplay"
             reason = "airplay-owns-audio"
