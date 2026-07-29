@@ -71,6 +71,8 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         now[0] += timedelta(seconds=31)
         expired = controller.snapshot()
         self.assertFalse(expired["lease"]["active"])
+        self.assertIsNone(expired["lease"]["manual_surface"])
+        self.assertIsNone(expired["lease"]["remaining_seconds"])
         self.assertEqual(expired["recommended_screen"], "weather")
         self.assertTrue(expired["should_apply"])
 
@@ -78,6 +80,33 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertEqual(applied, ["weather"])
         self.assertEqual(state["mode"], "weather")
         self.assertEqual(applied_state["applied_screen"], "weather")
+
+    def test_manual_destination_lease_is_active_before_mode_write_finishes(self):
+        controller, _now, state, _applied, _input = self.controller()
+        state["mode"] = "plexamp"
+        state["active_source"] = "plexamp"
+
+        opened = controller.interaction("clock", source="navigation-link", manual=True)
+
+        self.assertTrue(opened["lease"]["active"])
+        self.assertFalse(opened["lease"]["surface_in_sync"])
+        self.assertEqual(opened["lease"]["manual_surface"], "clock")
+        self.assertEqual(opened["recommended_screen"], "clock")
+        self.assertEqual(opened["decision_reason"], "manual-clock-lease")
+        self.assertTrue(opened["should_apply"])
+
+    def test_stale_plexamp_interaction_cannot_cancel_another_surface_lease(self):
+        controller, _now, state, _applied, _input = self.controller()
+        state["mode"] = "clock"
+        state["active_source"] = "plexamp"
+        controller.interaction("clock", source="navigation-link", manual=True)
+
+        stale = controller.interaction("plexamp", source="plexamp-frame-focus")
+
+        self.assertTrue(stale["lease"]["active"])
+        self.assertEqual(stale["lease"]["manual_surface"], "clock")
+        self.assertEqual(stale["recommended_screen"], "clock")
+        self.assertEqual(stale["decision_reason"], "manual-clock-lease")
 
     def test_airplay_under_manual_plexamp_waits_for_lease_expiry(self):
         controller, now, state, _applied, _input = self.controller()
@@ -110,12 +139,12 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         expired = controller.snapshot()
         self.assertFalse(expired["lease"]["active"])
         self.assertEqual(expired["recommended_screen"], "plexamp")
-        self.assertEqual(expired["decision_reason"], "plexamp-playing")
+        self.assertEqual(expired["decision_reason"], "plexamp-owns-audio")
         self.assertTrue(expired["should_apply"])
 
     def test_clock_and_weather_leases_override_background_audio_until_timeout(self):
         scenarios = (
-            ("clock", "plexamp", "plexamp", "plexamp-playing"),
+            ("clock", "plexamp", "plexamp", "plexamp-owns-audio"),
             ("weather", "airplay", "airplay", "airplay-owns-audio"),
         )
         for surface, active_source, expected_after, expected_reason in scenarios:
@@ -180,7 +209,7 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         snapshot = controller.snapshot()
         self.assertFalse(snapshot["lease"]["active"])
         self.assertEqual(snapshot["recommended_screen"], "plexamp")
-        self.assertEqual(snapshot["decision_reason"], "plexamp-playing")
+        self.assertEqual(snapshot["decision_reason"], "plexamp-owns-audio")
         self.assertFalse(snapshot["should_apply"])
 
     def test_alarm_immediately_overrides_manual_plexamp_lease(self):
