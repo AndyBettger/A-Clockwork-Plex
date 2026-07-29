@@ -32,7 +32,7 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertIn("window.ACPPlexamp =", text)
         self.assertNotIn("ACPLiveAudioSnapshot", text)
 
-    def test_legacy_server_handoff_worker_and_route_wrapper_are_removed(self):
+    def test_legacy_server_workers_and_route_wrapper_are_removed(self):
         mixer = AUDIO_MIXER.read_text(encoding="utf-8")
 
         self.assertNotIn("_arm_plexamp_handoff", mixer)
@@ -41,7 +41,10 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertNotIn("plexamp-airplay-handoff", mixer)
         self.assertNotIn("_acp_airplay_handoff_wrapped", mixer)
         self.assertNotIn('"plexamp_handoff"', mixer)
-        self.assertIn("_schedule_airplay_default", mixer)
+        self.assertNotIn("_schedule_airplay_default", mixer)
+        self.assertNotIn("airplay-default-volume", mixer)
+        self.assertIn("bind_mixer_controller", mixer)
+        self.assertIn("mixer_controller.start_airplay_session", mixer)
         self.assertIn("_acp_audio_defaults_wrapped", mixer)
 
     def test_reverse_handoff_is_owned_by_final_production_authority(self):
