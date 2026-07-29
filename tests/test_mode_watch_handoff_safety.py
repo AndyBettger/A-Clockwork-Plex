@@ -9,18 +9,24 @@ MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
 
 
 class ModeWatchHandoffSafetyTests(unittest.TestCase):
-    def test_mode_watcher_follows_screen_authority_without_playback_inference(self):
+    def test_service_recovery_watcher_has_no_navigation_authority(self):
         text = MODE_WATCH.read_text(encoding="utf-8")
-        self.assertIn("window.ACPScreenProjection?.shouldDeferModeSync?.()", text)
-        self.assertNotIn("plexampIsPlaying", text)
-        self.assertNotIn("reassertPlexampMode", text)
-        self.assertNotIn("airplayActive", text)
-        self.assertNotIn("requestedMode === 'clock'", text)
+
+        self.assertIn("checkServiceRecovery", text)
+        self.assertIn("ACPServiceRecovery", text)
+        self.assertNotIn("ACPNavigate", text)
+        self.assertNotIn("window.location.assign", text)
+        self.assertNotIn("modeRoutes", text)
+        self.assertNotIn("requestedMode", text)
+        self.assertNotIn("ACPScreenProjection", text)
+        self.assertNotIn("navigate('/alarm'", text)
+        self.assertNotIn("ACPPlexamp.show", text)
+        self.assertNotIn("ACPPlexamp.hide", text)
 
     def test_dashboard_recovery_waits_for_the_real_plexamp_timeline(self):
         text = MODE_WATCH.read_text(encoding="utf-8")
-        self.assertIn("fetch('/api/audio/live'", text)
-        self.assertIn("payload?.live?.channels?.plexamp?.available === true", text)
+        self.assertIn("fetch('/api/audio/state'", text)
+        self.assertIn("payload?.audio?.channels?.plexamp?.available === true", text)
         self.assertIn("if (await plexampPlayerReady())", text)
         self.assertIn("Date.now() - startedAt >= 60000", text)
 
