@@ -15,11 +15,12 @@
 
   let checking = false;
   let applying = false;
-  let posting = false;
   let lastPostAt = 0;
   let modeGuardUntil = 0;
   let state = null;
   let observedPlexampOpen = false;
+  let queuedNonApplyPosts = 0;
+  let postTail = Promise.resolve();
 
   function currentSurface() {
     if (window.ACPPlexamp?.isOpen?.()) return 'plexamp';
@@ -33,9 +34,7 @@
       || 'clock';
   }
 
-  async function post(action, options = {}) {
-    if (posting && action !== 'apply') return null;
-    if (action !== 'apply') posting = true;
+  async function performPost(action, options = {}) {
     try {
       const response = await fetch('/api/screen/state', {
         method: 'POST',
@@ -54,9 +53,23 @@
       return payload?.screen || null;
     } catch (error) {
       return null;
-    } finally {
-      if (action !== 'apply') posting = false;
     }
+  }
+
+  function post(action, options = {}) {
+    if (action === 'apply') return performPost(action, options);
+
+    const guaranteed = action === 'open' || options.guaranteed === true;
+    if (!guaranteed && queuedNonApplyPosts > 0) return Promise.resolve(null);
+
+    queuedNonApplyPosts += 1;
+    const task = postTail
+      .catch(() => null)
+      .then(() => performPost(action, options));
+    postTail = task.catch(() => null);
+    return task.finally(() => {
+      queuedNonApplyPosts = Math.max(0, queuedNonApplyPosts - 1);
+    });
   }
 
   function markActivity(source, options = {}) {
@@ -135,8 +148,15 @@
     }
   }
 
+  function isNavigationGesture(event) {
+    return Boolean(event?.target?.closest?.('.main-nav a[href], a[data-page-transition]'));
+  }
+
   ['pointerdown', 'touchstart', 'keydown', 'wheel', 'input'].forEach((eventName) => {
-    window.addEventListener(eventName, () => markActivity(`outer-${eventName}`), {
+    window.addEventListener(eventName, (event) => {
+      if (isNavigationGesture(event)) return;
+      markActivity(`outer-${eventName}`);
+    }, {
       passive: true,
       capture: true,
     });
@@ -221,7 +241,8 @@
     }
   }
 
-  initialise();
-  window.setInterval(check, 2000);
-  window.setTimeout(check, 700);
+  initialise().finally(() => {
+    window.setInterval(check, 2000);
+    window.setTimeout(check, 700);
+  });
 })();
