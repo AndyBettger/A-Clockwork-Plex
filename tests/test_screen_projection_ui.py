@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -45,6 +46,114 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertIn("explicit-navigation-arrival", client)
         self.assertIn("await post('open'", client)
 
+    def test_explicit_open_is_never_dropped_behind_pointer_activity(self):
+        text = CLIENT.read_text(encoding="utf-8")
+
+        self.assertIn("let postTail = Promise.resolve();", text)
+        self.assertIn("const guaranteed = action === 'open'", text)
+        self.assertIn("queuedNonApplyPosts", text)
+        self.assertIn("isNavigationGesture", text)
+        self.assertIn("initialise().finally", text)
+        self.assertNotIn("if (posting && action !== 'apply') return null", text)
+
+    def test_manual_open_is_queued_after_in_flight_activity(self):
+        harness = f"""
+const fs = require('fs');
+
+(async () => {{
+  const listeners = {{}};
+  const calls = [];
+  let holdInteraction = false;
+  let releaseInteraction = null;
+
+  const response = (screen = {{}}) => ({{
+    ok: true,
+    json: async () => ({{ screen }}),
+  }});
+
+  global.fetch = (url, options = {{}}) => {{
+    if (options.method === 'POST') {{
+      const body = JSON.parse(options.body || '{{}}');
+      calls.push(body);
+      if (holdInteraction && body.action === 'interaction') {{
+        return new Promise((resolve) => {{
+          releaseInteraction = () => resolve(response({{}}));
+        }});
+      }}
+      return Promise.resolve(response({{}}));
+    }}
+    return Promise.resolve(response({{}}));
+  }};
+
+  global.window = {{
+    location: {{ pathname: '/clock', assign: () => {{}} }},
+    addEventListener: (name, callback) => {{
+      (listeners[name] ||= []).push(callback);
+    }},
+    setInterval: () => 0,
+    setTimeout: () => 0,
+    ACPPlexamp: {{ isOpen: () => false }},
+    ACPDashboardPreferences: {{ read: () => ({{ idleReturnMode: 'clock' }}) }},
+    ACPNavigationState: {{
+      consumeExplicitNavigation: () => null,
+      isLeaving: () => false,
+    }},
+  }};
+
+  global.document = {{
+    getElementById: () => null,
+    body: {{ dataset: {{ activePage: 'clock', defaultMode: 'clock' }} }},
+    documentElement: {{ dataset: {{}} }},
+    activeElement: null,
+  }};
+  global.MutationObserver = class {{ observe() {{}} }};
+
+  eval(fs.readFileSync({json.dumps(str(CLIENT))}, 'utf8'));
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  calls.length = 0;
+
+  holdInteraction = true;
+  window.ACPScreenProjection.markActivity('outer-pointerdown', {{
+    force: true,
+    surface: 'plexamp',
+  }});
+  await new Promise((resolve) => setImmediate(resolve));
+
+  for (const callback of listeners['acp:manual-screen-open'] || []) {{
+    callback({{ detail: {{ surface: 'clock', source: 'navigation-link' }} }});
+  }}
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const beforeRelease = calls.map((call) => [call.action, call.surface]);
+  if (!releaseInteraction) throw new Error('The interaction request was not held.');
+  releaseInteraction();
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  console.log(JSON.stringify({{
+    beforeRelease,
+    afterRelease: calls.map((call) => [call.action, call.surface]),
+  }}));
+}})().catch((error) => {{
+  console.error(error.stack || String(error));
+  process.exit(1);
+}});
+"""
+        result = subprocess.run(
+            ["node", "-e", harness],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        values = json.loads(result.stdout.strip())
+        self.assertEqual(values["beforeRelease"], [["interaction", "plexamp"]])
+        self.assertEqual(
+            values["afterRelease"],
+            [["interaction", "plexamp"], ["open", "clock"]],
+        )
+
     def test_projected_navigation_cannot_create_an_explicit_lease(self):
         client = CLIENT.read_text(encoding="utf-8")
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
@@ -86,7 +195,7 @@ class ScreenProjectionUiTests(unittest.TestCase):
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260729-explicit-navigation-leases", text)
+        self.assertIn("20260729-explicit-lease-queue", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
