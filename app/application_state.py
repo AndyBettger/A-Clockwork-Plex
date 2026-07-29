@@ -111,62 +111,6 @@ def configured_airplay_hold_seconds(config: dict[str, Any]) -> int:
     return max(MIN_AIRPLAY_HOLD_SECONDS, min(MAX_AIRPLAY_HOLD_SECONDS, seconds))
 
 
-def _install_mixer_controller_bridge(audio_mixer: Any, controller: MixerController) -> None:
-    """Route existing audio APIs through MixerController without breaking callers."""
-    if not hasattr(audio_mixer, "_acp_legacy_live_audio_status"):
-        audio_mixer._acp_legacy_live_audio_status = audio_mixer.live_audio_status
-    if not hasattr(audio_mixer, "_acp_legacy_set_live_audio_volume"):
-        audio_mixer._acp_legacy_set_live_audio_volume = audio_mixer.set_live_audio_volume
-
-    legacy_status = audio_mixer._acp_legacy_live_audio_status
-    legacy_set = audio_mixer._acp_legacy_set_live_audio_volume
-
-    def controlled_live_audio_status() -> dict[str, Any]:
-        status = legacy_status()
-        if not isinstance(status, dict):
-            status = {}
-        channels = status.setdefault("channels", {})
-        if not isinstance(channels, dict):
-            channels = {}
-            status["channels"] = channels
-        authoritative = controller.airplay_snapshot()
-        current = channels.get("airplay") if isinstance(channels.get("airplay"), dict) else {}
-        current.update(
-            {
-                "id": "airplay",
-                "label": "AirPlay",
-                "available": authoritative.get("available") is True,
-                "percent": authoritative.get("effective_percent"),
-                "effective_percent": authoritative.get("effective_percent"),
-                "observed_percent": authoritative.get("observed_percent"),
-                "requested_percent": authoritative.get("requested_percent"),
-                "state_source": authoritative.get("state_source"),
-                "command_status": authoritative.get("command_status"),
-                "command_count": authoritative.get("command_count"),
-                "request_active": authoritative.get("request_active"),
-                "source": "mixer-controller-airplay-sender",
-                "remote": authoritative.get("remote"),
-                "error": authoritative.get("last_error"),
-            }
-        )
-        channels["airplay"] = current
-        status["airplay_default_application"] = controller.application_status()
-        status["authority"] = controller.authority
-        return status
-
-    def controlled_set_live_audio_volume(channel: Any, percent: Any) -> dict[str, Any]:
-        if str(channel or "").strip().lower() == "airplay":
-            controller.set_airplay_percent(percent, reason="live-audio-api")
-            return controlled_live_audio_status()
-        return legacy_set(channel, percent)
-
-    audio_mixer.live_audio_status = controlled_live_audio_status
-    audio_mixer.set_live_audio_volume = controlled_set_live_audio_volume
-    audio_mixer._schedule_airplay_default = controller.start_airplay_session
-    audio_mixer._airplay_default_status = controller.application_status
-    audio_mixer.mixer_controller = controller
-
-
 def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     """Build the playback and mixer authorities behind one shared state hub."""
     try:
@@ -180,12 +124,25 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     def set_airplay_sender_volume(percent: int) -> tuple[bool, str | None]:
         return dashboard.mpris_call("SetVolume", "d", f"{percent / 100:.4f}")
 
+    def plexamp_status() -> dict[str, Any]:
+        return audio_mixer._plexamp_controller().status()
+
+    def set_plexamp_volume(percent: int) -> dict[str, Any]:
+        return audio_mixer._plexamp_controller().set_volume(percent)
+
+    def set_mixer_volume(channel: str, percent: int, persist: bool) -> dict[str, Any]:
+        return audio_mixer.shared_audio_mixer.set_volume(channel, percent, persist=persist)
+
     mixer_controller = MixerController(
         load_config=dashboard.load_config,
         airplay_status=authoritative_airplay_status,
         set_airplay_volume=set_airplay_sender_volume,
+        plexamp_status=plexamp_status,
+        set_plexamp_volume=set_plexamp_volume,
+        mixer_status=audio_mixer.shared_audio_mixer.status,
+        set_mixer_volume=set_mixer_volume,
     )
-    _install_mixer_controller_bridge(audio_mixer, mixer_controller)
+    audio_mixer.bind_mixer_controller(mixer_controller)
 
     runtime_path = Path(dashboard.BASE_DIR) / "playback-runtime.json"
     startup_config = dashboard.load_config()
@@ -205,7 +162,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     coordinator = PlaybackCoordinator(
         load_config=dashboard.load_config,
         load_state=dashboard.load_state,
-        plexamp_status=lambda: audio_mixer._plexamp_controller().status(),
+        plexamp_status=plexamp_status,
         airplay_status=authoritative_airplay_status,
         alarm_status=dashboard.alarm_scheduler.status,
         alarm_audio_status=dashboard.alarm_audio.status,
@@ -276,11 +233,27 @@ def register_application_state_api(app: Any, hub: ApplicationStateHub) -> None:
             payload = request.get_json(silent=True)
             if not isinstance(payload, dict):
                 return jsonify({"ok": False, "error": "Audio command must be a JSON object."}), 400
-            channel = str(payload.get("channel", "airplay")).strip().lower()
-            if channel != "airplay":
-                return jsonify({"ok": False, "error": "Only AirPlay sender volume is promoted to MixerController."}), 400
+
+            scope = str(payload.get("scope", "live")).strip().lower()
+            persist = payload.get("persist", True) is not False
             try:
-                mixer_controller.set_airplay_percent(payload.get("percent"), reason="application-state-api")
+                if scope == "live":
+                    mixer_controller.set_live_percent(
+                        payload.get("channel", "airplay"),
+                        payload.get("percent"),
+                        reason="application-state-api",
+                    )
+                elif scope == "trim":
+                    if isinstance(payload.get("volumes"), dict):
+                        mixer_controller.set_trim_volumes(payload["volumes"], persist=persist)
+                    else:
+                        mixer_controller.set_trim_percent(
+                            payload.get("channel"),
+                            payload.get("percent"),
+                            persist=persist,
+                        )
+                else:
+                    raise ValueError("Audio command scope must be live or trim.")
             except ValueError as exc:
                 return jsonify({"ok": False, "error": str(exc)}), 409
             return jsonify({"ok": True, "audio": mixer_controller.snapshot()})
