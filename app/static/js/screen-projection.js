@@ -10,7 +10,6 @@
     settings: '/settings',
     weather: '/weather',
   };
-  const shell = document.getElementById('persistent-plexamp');
   const frame = document.getElementById('persistent-plexamp-frame');
 
   let checking = false;
@@ -18,12 +17,18 @@
   let lastPostAt = 0;
   let modeGuardUntil = 0;
   let state = null;
-  let observedPlexampOpen = false;
   let queuedNonApplyPosts = 0;
   let postTail = Promise.resolve();
 
+  function plexampVisiblyOpen() {
+    if (typeof window.ACPPlexamp?.isVisiblyOpen === 'function') {
+      return window.ACPPlexamp.isVisiblyOpen();
+    }
+    return Boolean(window.ACPPlexamp?.isOpen?.());
+  }
+
   function currentSurface() {
-    if (window.ACPPlexamp?.isOpen?.()) return 'plexamp';
+    if (plexampVisiblyOpen()) return 'plexamp';
     return String(document.body.dataset.activePage || 'clock').trim().toLowerCase();
   }
 
@@ -88,7 +93,11 @@
     const route = routes[target];
     if (!route) return;
     if (target === 'plexamp' && window.ACPPlexamp) {
-      window.ACPPlexamp.show({ updateMode: false });
+      window.ACPPlexamp.show({
+        updateMode: false,
+        manual: false,
+        source: 'screen-projection',
+      });
       return;
     }
     if (typeof window.ACPNavigate === 'function') {
@@ -100,6 +109,14 @@
     } else {
       window.location.assign(route);
     }
+  }
+
+  function reconcilePlexampVisual(snapshot) {
+    const current = String(snapshot?.current_screen || '').toLowerCase();
+    const recommended = String(snapshot?.recommended_screen || '').toLowerCase();
+    if (current !== 'plexamp' || recommended !== 'plexamp') return;
+    if (plexampVisiblyOpen()) return;
+    window.ACPPlexamp?.ensureVisible?.({ source: 'screen-projection-state-repair' });
   }
 
   async function applyProjection(snapshot) {
@@ -141,6 +158,7 @@
       document.documentElement.dataset.screenInputAuthority = String(
         state?.input_activity?.authority || 'browser-fallback',
       );
+      reconcilePlexampVisual(state);
       await applyProjection(state);
     } catch (error) {
     } finally {
@@ -150,6 +168,17 @@
 
   function isNavigationGesture(event) {
     return Boolean(event?.target?.closest?.('.main-nav a[href], a[data-page-transition]'));
+  }
+
+  function anotherSurfaceOwnsLease() {
+    const lease = state?.lease || {};
+    return lease.active === true
+      && Boolean(lease.manual_surface)
+      && String(lease.manual_surface).toLowerCase() !== 'plexamp';
+  }
+
+  function plexampActivityAllowed() {
+    return !anotherSurfaceOwnsLease() && plexampVisiblyOpen();
   }
 
   ['pointerdown', 'touchstart', 'keydown', 'wheel', 'input'].forEach((eventName) => {
@@ -177,35 +206,20 @@
 
   if (frame) {
     frame.addEventListener('pointerenter', () => {
+      if (!plexampActivityAllowed()) return;
       markActivity('plexamp-frame-pointerenter', { force: true, surface: 'plexamp' });
     });
     frame.addEventListener('focus', () => {
+      if (!plexampActivityAllowed()) return;
       markActivity('plexamp-frame-focus', { force: true, surface: 'plexamp' });
     });
     window.addEventListener('blur', () => {
       window.setTimeout(() => {
-        if (document.activeElement === frame) {
+        if (document.activeElement === frame && plexampActivityAllowed()) {
           markActivity('plexamp-frame-window-focus', { force: true, surface: 'plexamp' });
         }
       }, 0);
     });
-  }
-
-  if (shell) {
-    const observeOpenState = () => {
-      const open = shell.classList.contains('is-open') && shell.getAttribute('aria-hidden') !== 'true';
-      if (open && !observedPlexampOpen) {
-        observedPlexampOpen = true;
-        markActivity('plexamp-surface-opened', { force: true, manual: true, surface: 'plexamp' });
-      } else if (!open) {
-        observedPlexampOpen = false;
-      }
-    };
-    new MutationObserver(observeOpenState).observe(shell, {
-      attributes: true,
-      attributeFilter: ['class', 'aria-hidden'],
-    });
-    observeOpenState();
   }
 
   window.ACPScreenProjection = {
@@ -236,9 +250,6 @@
     }
 
     await post('preferences', { source: 'screen-projection-start' });
-    if (surface === 'plexamp') {
-      markActivity('initial-plexamp-surface', { force: true, manual: true, surface: 'plexamp' });
-    }
   }
 
   initialise().finally(() => {
