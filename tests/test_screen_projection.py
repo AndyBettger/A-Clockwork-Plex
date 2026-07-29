@@ -93,6 +93,54 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         self.assertEqual(expired["recommended_screen"], "airplay")
         self.assertEqual(expired["decision_reason"], "airplay-owns-audio")
 
+    def test_settings_lease_overrides_active_audio_until_inactivity_timeout(self):
+        controller, now, state, _applied, _input = self.controller()
+        state["mode"] = "settings"
+        state["active_source"] = "plexamp"
+
+        opened = controller.interaction("settings", source="initial-settings-surface", manual=True)
+
+        self.assertTrue(opened["lease"]["active"])
+        self.assertEqual(opened["lease"]["manual_surface"], "settings")
+        self.assertEqual(opened["recommended_screen"], "settings")
+        self.assertEqual(opened["decision_reason"], "manual-settings-lease")
+        self.assertFalse(opened["should_apply"])
+
+        now[0] += timedelta(seconds=31)
+        expired = controller.snapshot()
+        self.assertFalse(expired["lease"]["active"])
+        self.assertEqual(expired["recommended_screen"], "plexamp")
+        self.assertEqual(expired["decision_reason"], "plexamp-playing")
+        self.assertTrue(expired["should_apply"])
+
+    def test_settings_touch_renews_lease_while_airplay_continues(self):
+        controller, now, state, _applied, input_state = self.controller()
+        state["mode"] = "settings"
+        state["active_source"] = "airplay"
+        controller.interaction("settings", source="initial-settings-surface", manual=True)
+        now[0] += timedelta(seconds=25)
+        input_state.update(
+            {
+                "sequence": 1,
+                "last_activity_at": now[0].isoformat(timespec="milliseconds"),
+                "last_event": {
+                    "sequence": 1,
+                    "kind": "absolute",
+                    "device": "Touchscreen",
+                },
+            }
+        )
+
+        renewed = controller.snapshot()
+
+        self.assertTrue(renewed["lease"]["active"])
+        self.assertGreaterEqual(renewed["lease"]["remaining_seconds"], 29)
+        self.assertEqual(renewed["recommended_screen"], "settings")
+        self.assertEqual(
+            renewed["lease"]["last_interaction_source"],
+            "linux-input:absolute:Touchscreen",
+        )
+
     def test_plexamp_playback_keeps_plexamp_after_manual_lease_expires(self):
         controller, now, state, _applied, _input = self.controller()
         controller.interaction("plexamp", source="manual-open", manual=True)
@@ -111,6 +159,20 @@ class ScreenProjectionControllerTests(unittest.TestCase):
         state["alarm_active"] = True
 
         snapshot = controller.snapshot()
+        self.assertTrue(snapshot["lease"]["active"])
+        self.assertEqual(snapshot["recommended_screen"], "alarm")
+        self.assertEqual(snapshot["decision_reason"], "alarm-active")
+        self.assertTrue(snapshot["should_apply"])
+
+    def test_alarm_immediately_overrides_settings_lease(self):
+        controller, _now, state, _applied, _input = self.controller()
+        state["mode"] = "settings"
+        state["active_source"] = "airplay"
+        controller.interaction("settings", source="initial-settings-surface", manual=True)
+        state["alarm_active"] = True
+
+        snapshot = controller.snapshot()
+
         self.assertTrue(snapshot["lease"]["active"])
         self.assertEqual(snapshot["recommended_screen"], "alarm")
         self.assertEqual(snapshot["decision_reason"], "alarm-active")
