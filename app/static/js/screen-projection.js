@@ -79,7 +79,11 @@
       return;
     }
     if (typeof window.ACPNavigate === 'function') {
-      window.ACPNavigate(route, { updateMode: false });
+      window.ACPNavigate(route, {
+        updateMode: false,
+        automatic: true,
+        source: 'screen-projection',
+      });
     } else {
       window.location.assign(route);
     }
@@ -193,13 +197,20 @@
 
   async function initialise() {
     const surface = currentSurface();
-    if (surface === 'settings') {
+    const explicitNavigation = window.ACPNavigationState?.consumeExplicitNavigation?.(
+      window.location.pathname,
+    );
+    const shouldOpenLease = Boolean(explicitNavigation) || surface === 'settings';
+
+    if (shouldOpenLease && surface !== 'alarm') {
       modeGuardUntil = Date.now() + 4000;
       await post('preferences', { source: 'screen-projection-start' });
       lastPostAt = Date.now();
       await post('open', {
-        surface: 'settings',
-        source: 'initial-settings-surface',
+        surface,
+        source: explicitNavigation
+          ? `explicit-navigation-arrival:${explicitNavigation.source || 'navigation'}`
+          : 'initial-settings-surface',
       });
       return;
     }
