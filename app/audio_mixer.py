@@ -54,7 +54,6 @@ MIXER_CHANNELS: dict[str, dict[str, Any]] = {
 
 DEFAULT_MIXER_HELPER = "/usr/local/bin/a-clockwork-plex-audio-mixer"
 DEFAULT_AIRPLAY_START_PERCENT = 60
-LIVE_CHANNELS = {"master", "plexamp", "airplay", "alarm"}
 
 
 def _integer(value: Any, fallback: int) -> int:
@@ -346,203 +345,48 @@ def _airplay_session_active() -> bool:
 
 
 shared_audio_mixer = SharedAudioMixer()
-_airplay_default_lock = threading.Lock()
-_airplay_default_generation = 0
-_airplay_default_runtime: dict[str, Any] = {
-    "status": "waiting-for-session",
-    "in_progress": False,
-    "target_percent": None,
-    "last_attempt_at": None,
-    "last_applied_at": None,
-    "last_confirmed_percent": None,
-    "last_error": None,
-    "reason": None,
-}
+mixer_controller: Any | None = None
 
 
-def _iso_now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+def bind_mixer_controller(controller: Any) -> None:
+    """Bind compatibility routes to the one application audio authority."""
+    global mixer_controller
+    mixer_controller = controller
 
 
-def _airplay_default_status() -> dict[str, Any]:
-    with _airplay_default_lock:
-        return deepcopy(_airplay_default_runtime)
-
-
-def _update_airplay_default_runtime(**updates: Any) -> None:
-    with _airplay_default_lock:
-        _airplay_default_runtime.update(updates)
-
-
-def _schedule_airplay_default(reason: str = "session-start") -> None:
-    global _airplay_default_generation
-    defaults = airplay_defaults()
-    target = defaults["default_volume_percent"]
-    if not defaults["apply_default_volume_on_start"]:
-        _update_airplay_default_runtime(
-            status="disabled",
-            in_progress=False,
-            target_percent=target,
-            last_error=None,
-            reason=reason,
-        )
-        return
-
-    with _airplay_default_lock:
-        _airplay_default_generation += 1
-        generation = _airplay_default_generation
-        _airplay_default_runtime.update(
-            {
-                "status": "waiting-for-remote",
-                "in_progress": True,
-                "target_percent": target,
-                "last_attempt_at": _iso_now(),
-                "last_error": None,
-                "reason": reason,
-            }
-        )
-
-    def worker() -> None:
-        stable_reads = 0
-        last_error: str | None = None
-        for _ in range(80):
-            with _airplay_default_lock:
-                if generation != _airplay_default_generation:
-                    return
-
-            remote = _dashboard_core.mpris_remote_status()
-            playback = str(remote.get("playback_status") or "").strip().lower()
-            current = remote.get("volume_percent")
-            if remote.get("available") and playback in {"playing", "paused"}:
-                if isinstance(current, (int, float)) and abs(float(current) - target) <= 1:
-                    stable_reads += 1
-                    _update_airplay_default_runtime(
-                        status="verifying",
-                        last_confirmed_percent=round(float(current)),
-                        last_error=None,
-                    )
-                    if stable_reads >= 3:
-                        _update_airplay_default_runtime(
-                            status="applied",
-                            in_progress=False,
-                            last_applied_at=_iso_now(),
-                            last_confirmed_percent=round(float(current)),
-                            last_error=None,
-                        )
-                        return
-                else:
-                    stable_reads = 0
-                    ok, error = _dashboard_core.mpris_call(
-                        "SetVolume",
-                        "d",
-                        f"{target / 100:.4f}",
-                    )
-                    last_error = error
-                    _update_airplay_default_runtime(
-                        status="applying" if ok else "retrying",
-                        last_attempt_at=_iso_now(),
-                        last_error=error,
-                    )
-            else:
-                stable_reads = 0
-                _update_airplay_default_runtime(status="waiting-for-remote")
-            time.sleep(0.25)
-
-        _update_airplay_default_runtime(
-            status="timed-out",
-            in_progress=False,
-            last_error=last_error or "The AirPlay sender did not retain the requested starting volume.",
-        )
-
-    threading.Thread(
-        target=worker,
-        name="airplay-default-volume",
-        daemon=True,
-    ).start()
-
-
-def live_audio_status() -> dict[str, Any]:
-    mixer = shared_audio_mixer.status()
-    mixer_channels = mixer.get("channels") if isinstance(mixer.get("channels"), dict) else {}
-    plexamp = _plexamp_controller().status()
-    airplay = _dashboard_core.mpris_remote_status()
-    defaults = airplay_defaults()
-
-    def trim(channel_id: str) -> dict[str, Any]:
-        value = mixer_channels.get(channel_id)
-        return deepcopy(value) if isinstance(value, dict) else {}
-
+def _controller_unavailable() -> dict[str, Any]:
     return {
-        "available": mixer.get("available") is True,
+        "authority": "mixer-controller-unbound",
+        "available": False,
         "mode": "live-player-aware",
-        "defaults": defaults,
-        "airplay_default_application": _airplay_default_status(),
-        "channels": {
-            "master": {
-                "id": "master",
-                "label": "Master",
-                "available": trim("master").get("available") is True,
-                "percent": trim("master").get("percent"),
-                "source": "alsa-live-master",
-                "detail": "Immediate output level; Settings stores the persistent default.",
-                "trim": trim("master"),
-                "error": trim("master").get("error"),
-            },
-            "plexamp": {
-                "id": "plexamp",
-                "label": "Plexamp",
-                **plexamp,
-                "detail": "Plexamp player volume; its Now Playing control should follow.",
-                "trim": trim("plexamp"),
-            },
-            "airplay": {
-                "id": "airplay",
-                "label": "AirPlay",
-                "available": airplay.get("available") is True,
-                "percent": airplay.get("volume_percent"),
-                "source": "airplay-sender",
-                "detail": "AirPlay sender volume; available while a remote session is connected.",
-                "remote": airplay,
-                "trim": trim("airplay"),
-                "error": airplay.get("error"),
-            },
-            "alarm": {
-                "id": "alarm",
-                "label": "Alarm",
-                "available": trim("alarm").get("available") is True,
-                "percent": trim("alarm").get("percent"),
-                "source": "alsa-live-alarm",
-                "detail": "Immediate alarm ceiling; Settings stores the persistent default.",
-                "trim": trim("alarm"),
-                "error": trim("alarm").get("error"),
-            },
+        "defaults": airplay_defaults(),
+        "airplay_default_application": {
+            "status": "controller-unavailable",
+            "in_progress": False,
+            "last_error": "MixerController has not been bound by app.runner.",
         },
-        "mixer": mixer,
-        "error": mixer.get("error"),
+        "channels": {},
+        "mixer": shared_audio_mixer.status(),
+        "error": "MixerController has not been bound by app.runner.",
     }
 
 
+def live_audio_status() -> dict[str, Any]:
+    if mixer_controller is None:
+        return _controller_unavailable()
+    return mixer_controller.live_snapshot()
+
+
 def set_live_audio_volume(channel: Any, percent: Any) -> dict[str, Any]:
-    channel_id = str(channel or "").strip().lower()
-    if channel_id not in LIVE_CHANNELS:
-        raise ValueError(f"Unknown live audio channel: {channel_id or '-'}")
-    level = _integer(percent, -1)
-    if not 0 <= level <= 100:
-        raise ValueError("Live audio volume must be from 0 to 100 percent.")
+    if mixer_controller is None:
+        raise ValueError("MixerController has not been bound by app.runner.")
+    return mixer_controller.set_live_percent(channel, percent, reason="legacy-live-audio-api")
 
-    if channel_id in {"master", "alarm"}:
-        shared_audio_mixer.set_volume(channel_id, level, persist=False)
-    elif channel_id == "plexamp":
-        _plexamp_controller().set_volume(level)
-    else:
-        remote = _dashboard_core.mpris_remote_status()
-        if not remote.get("available"):
-            raise ValueError("AirPlay volume is available only while a sender is connected.")
-        ok, error = _dashboard_core.mpris_call("SetVolume", "d", f"{level / 100:.4f}")
-        if not ok:
-            raise ValueError(error or "Could not change AirPlay volume.")
 
-    return live_audio_status()
+def _application_status() -> dict[str, Any]:
+    if mixer_controller is None:
+        return _controller_unavailable()["airplay_default_application"]
+    return mixer_controller.application_status()
 
 
 def _register_audio_api() -> None:
@@ -552,14 +396,24 @@ def _register_audio_api() -> None:
         @app.route("/api/audio/mixer", methods=["GET", "POST"])
         def api_shared_audio_mixer():
             if request.method == "GET":
-                return jsonify({"ok": True, "mixer": shared_audio_mixer.status()})
+                status = mixer_controller.mixer_snapshot() if mixer_controller is not None else shared_audio_mixer.status()
+                return jsonify({"ok": True, "mixer": status, "authority": "mixer-controller"})
 
             payload = request.get_json(silent=True)
             if not isinstance(payload, dict):
                 return jsonify({"ok": False, "error": "Mixer settings must be a JSON object."}), 400
             persist = payload.get("persist", True) is not False
             try:
-                if isinstance(payload.get("volumes"), dict):
+                if mixer_controller is not None:
+                    if isinstance(payload.get("volumes"), dict):
+                        status = mixer_controller.set_trim_volumes(payload["volumes"], persist=persist)
+                    else:
+                        status = mixer_controller.set_trim_percent(
+                            payload.get("channel"),
+                            payload.get("percent"),
+                            persist=persist,
+                        )
+                elif isinstance(payload.get("volumes"), dict):
                     status = shared_audio_mixer.set_volumes(payload["volumes"], persist=persist)
                 else:
                     status = shared_audio_mixer.set_volume(
@@ -575,13 +429,19 @@ def _register_audio_api() -> None:
     if "api_live_audio" not in app.view_functions:
         @app.route("/api/audio/live", methods=["GET", "POST"])
         def api_live_audio():
+            if mixer_controller is None:
+                return jsonify({"ok": False, "error": "MixerController is unavailable."}), 503
             if request.method == "GET":
-                return jsonify({"ok": True, "live": live_audio_status()})
+                return jsonify({"ok": True, "live": mixer_controller.live_snapshot()})
             payload = request.get_json(silent=True)
             if not isinstance(payload, dict):
                 return jsonify({"ok": False, "error": "Live mixer request must be a JSON object."}), 400
             try:
-                status = set_live_audio_volume(payload.get("channel"), payload.get("percent"))
+                status = mixer_controller.set_live_percent(
+                    payload.get("channel"),
+                    payload.get("percent"),
+                    reason="legacy-live-audio-api",
+                )
             except ValueError as exc:
                 return jsonify({"ok": False, "error": str(exc)}), 409
             return jsonify({"ok": True, "live": status, "message": "Live audio level changed."})
@@ -594,7 +454,7 @@ def _register_audio_api() -> None:
                     {
                         "ok": True,
                         "defaults": airplay_defaults(),
-                        "application": _airplay_default_status(),
+                        "application": _application_status(),
                     }
                 )
             payload = request.get_json(silent=True)
@@ -604,21 +464,13 @@ def _register_audio_api() -> None:
                 defaults = save_airplay_defaults(payload)
             except OSError as exc:
                 return jsonify({"ok": False, "error": f"Could not save audio defaults: {exc}"}), 500
-            if defaults["apply_default_volume_on_start"] and _airplay_session_active():
-                _schedule_airplay_default("settings-save")
-            else:
-                _update_airplay_default_runtime(
-                    status="waiting-for-session" if defaults["apply_default_volume_on_start"] else "disabled",
-                    in_progress=False,
-                    target_percent=defaults["default_volume_percent"],
-                    last_error=None,
-                    reason="settings-save",
-                )
+            if mixer_controller is not None:
+                mixer_controller.refresh_defaults("settings-save")
             return jsonify(
                 {
                     "ok": True,
                     "defaults": defaults,
-                    "application": _airplay_default_status(),
+                    "application": _application_status(),
                     "message": "AirPlay starting volume saved.",
                 }
             )
@@ -627,7 +479,8 @@ def _register_audio_api() -> None:
     if original_airplay_start and not getattr(original_airplay_start, "_acp_audio_defaults_wrapped", False):
         def api_airplay_start_with_audio_default():
             response = original_airplay_start()
-            _schedule_airplay_default("session-start")
+            if mixer_controller is not None:
+                mixer_controller.start_airplay_session("session-start")
             return response
 
         api_airplay_start_with_audio_default._acp_audio_defaults_wrapped = True  # type: ignore[attr-defined]
