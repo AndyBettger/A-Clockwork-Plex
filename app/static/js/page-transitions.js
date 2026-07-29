@@ -6,6 +6,8 @@
   let revealed = false;
   let readyTimer = null;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
+  const explicitNavigationMaxAgeMs = 15000;
+  const leasableRoutes = new Set(['/airplay', '/clock', '/plexamp', '/settings', '/weather']);
 
   function sameOriginTarget(url) {
     try {
@@ -28,14 +30,50 @@
     return page ? `/${page}` : window.location.pathname;
   }
 
-  function rememberNavigation(target) {
+  function isAutomaticNavigation(options = {}) {
+    return options.automatic === true || options.source === 'screen-projection';
+  }
+
+  function rememberNavigation(target, options = {}) {
+    if (isAutomaticNavigation(options) || !leasableRoutes.has(target.pathname)) return;
     try {
       window.sessionStorage.setItem(explicitNavigationKey, JSON.stringify({
         path: target.pathname,
         at: Date.now(),
+        source: String(options.source || 'explicit-navigation'),
       }));
     } catch (error) {
     }
+  }
+
+  function consumeExplicitNavigation(path = window.location.pathname) {
+    try {
+      const raw = window.sessionStorage.getItem(explicitNavigationKey);
+      if (!raw) return null;
+      const value = JSON.parse(raw);
+      const age = Date.now() - Number(value?.at || 0);
+      if (age < 0 || age > explicitNavigationMaxAgeMs) {
+        window.sessionStorage.removeItem(explicitNavigationKey);
+        return null;
+      }
+      if (String(value?.path || '') !== String(path || '')) return null;
+      window.sessionStorage.removeItem(explicitNavigationKey);
+      return value;
+    } catch (error) {
+      try { window.sessionStorage.removeItem(explicitNavigationKey); } catch (ignored) {}
+      return null;
+    }
+  }
+
+  function announceManualSurface(target, options = {}) {
+    if (isAutomaticNavigation(options) || !leasableRoutes.has(target.pathname)) return;
+    const surface = target.pathname.slice(1) || 'clock';
+    window.dispatchEvent(new CustomEvent('acp:manual-screen-open', {
+      detail: {
+        surface,
+        source: String(options.source || 'explicit-navigation-without-reload'),
+      },
+    }));
   }
 
   function revealPage() {
@@ -84,9 +122,10 @@
     const target = sameOriginTarget(url);
     if (!target || leaving) return;
 
+    rememberNavigation(target, options);
+
     if (target.pathname === '/alarm' || options.immediate) {
       leaving = true;
-      rememberNavigation(target);
       window.location.assign(target.href);
       return;
     }
@@ -99,6 +138,7 @@
     const overlayOpen = Boolean(window.ACPPlexamp?.isOpen?.());
     if (overlayOpen) {
       if (target.pathname === activeRoute()) {
+        announceManualSurface(target, options);
         const mode = target.pathname.slice(1) || 'clock';
         window.ACPPlexamp.hide?.({
           updateMode: options.updateMode !== false,
@@ -108,7 +148,6 @@
       }
 
       leaving = true;
-      rememberNavigation(target);
       const delay = Number(
         window.ACPPlexamp.prepareNavigation?.()
         ?? outgoingDelay()
@@ -118,7 +157,6 @@
     }
 
     leaving = true;
-    rememberNavigation(target);
     const delay = outgoingDelay();
     if (delay <= 0) {
       window.location.assign(target.href);
@@ -134,6 +172,7 @@
   window.ACPNavigationState = {
     isLeaving: () => leaving,
     activeRoute,
+    consumeExplicitNavigation,
   };
 
   document.addEventListener('click', (event) => {
@@ -144,7 +183,7 @@
     if (!target || target.href === window.location.href) return;
     if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
     event.preventDefault();
-    navigate(target.href);
+    navigate(target.href, { source: 'navigation-link' });
   });
 
   window.addEventListener('pagehide', () => {
