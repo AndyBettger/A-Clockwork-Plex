@@ -31,6 +31,14 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertNotIn("/player/playback/", text)
         self.assertNotIn("systemctl", text)
 
+    def test_settings_page_opens_one_explicit_screen_lease(self):
+        text = CLIENT.read_text(encoding="utf-8")
+
+        self.assertIn("if (surface === 'settings')", text)
+        self.assertIn("await post('open'", text)
+        self.assertIn("source: 'initial-settings-surface'", text)
+        self.assertIn("manual: true", text)
+
     def test_cross_origin_plexamp_uses_one_shot_browser_fallbacks_only(self):
         text = CLIENT.read_text(encoding="utf-8")
         self.assertIn("document.activeElement === frame", text)
@@ -62,7 +70,7 @@ class ScreenProjectionUiTests(unittest.TestCase):
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260728-linux-input-only", text)
+        self.assertIn("20260729-settings-screen-lease", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_mode_watch_defers_to_screen_projection_and_does_not_infer_playback(self):
