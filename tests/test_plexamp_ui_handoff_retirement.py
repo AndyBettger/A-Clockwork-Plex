@@ -23,13 +23,17 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertNotIn("handoffCooldownUntil", text)
         self.assertNotIn("acp:live-audio-status", text)
 
-    def test_opening_plexamp_is_screen_intent_only(self):
+    def test_persistent_plexamp_is_presentation_only(self):
         text = PERSISTENT_PLEXAMP.read_text(encoding="utf-8")
 
         self.assertIn("function show(options = {})", text)
-        self.assertIn("updateServerMode('plexamp')", text)
+        self.assertIn("function hide(options = {})", text)
         self.assertIn("function prepareNavigation()", text)
         self.assertIn("window.ACPPlexamp =", text)
+        self.assertNotIn("updateServerMode", text)
+        self.assertNotIn("/api/mode/", text)
+        self.assertNotIn("acp:manual-screen-open", text)
+        self.assertNotIn("document.addEventListener('click'", text)
         self.assertNotIn("ACPLiveAudioSnapshot", text)
 
     def test_legacy_server_workers_and_route_wrapper_are_removed(self):
