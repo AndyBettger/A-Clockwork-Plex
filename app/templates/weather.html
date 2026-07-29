@@ -225,9 +225,8 @@
     'South-southwest',
     'Southwest',
     'West-southwest',
-    'West',
-    'West-northwest',
     'Northwest',
+    'West-northwest',
     'North-northwest',
   ];
 
@@ -246,9 +245,34 @@
   }
 
   const refreshMilliseconds = Math.max(15, refreshSeconds) * 1000;
-  setTimeout(() => {
-    window.location.reload();
-  }, refreshMilliseconds);
+  let refreshTimer = null;
+
+  async function refreshOnlyWhenWeatherOwnsTheVisibleSurface() {
+    try {
+      const response = await fetch('/api/screen/state', { cache: 'no-store' });
+      const payload = response.ok ? await response.json() : null;
+      const screen = payload?.screen || {};
+      const overlayOpen = window.ACPPlexamp?.isVisiblyOpen?.() === true;
+      const weatherOwnsSurface = screen.current_screen === 'weather'
+        && screen.recommended_screen === 'weather';
+
+      if (!document.hidden && !overlayOpen && weatherOwnsSurface) {
+        window.location.reload();
+        return;
+      }
+    } catch (error) {
+    }
+    refreshTimer = window.setTimeout(
+      refreshOnlyWhenWeatherOwnsTheVisibleSurface,
+      refreshMilliseconds,
+    );
+  }
+
+  refreshTimer = window.setTimeout(
+    refreshOnlyWhenWeatherOwnsTheVisibleSurface,
+    refreshMilliseconds,
+  );
+  window.addEventListener('pagehide', () => window.clearTimeout(refreshTimer));
 })();
 </script>
 {% endblock %}
