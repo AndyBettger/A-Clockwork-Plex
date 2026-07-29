@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "screen-projection.js"
 MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
+PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 BASE = ROOT / "app" / "templates" / "base.html"
 RUNNER = ROOT / "app" / "runner.py"
 
@@ -73,12 +74,20 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertIn("20260729-settings-screen-lease", text)
         self.assertNotIn("js/idle-return.js", text)
 
-    def test_mode_watch_defers_to_screen_projection_and_does_not_infer_playback(self):
-        text = MODE_WATCH.read_text(encoding="utf-8")
-        self.assertIn("ACPScreenProjection?.shouldDeferModeSync", text)
-        self.assertNotIn("plexampIsPlaying", text)
-        self.assertNotIn("reassertPlexampMode", text)
-        self.assertNotIn("airplayActive", text)
+    def test_navigation_ownership_is_split_once_by_intent(self):
+        projection = CLIENT.read_text(encoding="utf-8")
+        recovery = MODE_WATCH.read_text(encoding="utf-8")
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+
+        self.assertIn("recommended_screen", projection)
+        self.assertIn("window.ACPNavigate", projection)
+        self.assertIn("window.ACPNavigate = navigate", transitions)
+        self.assertIn("document.addEventListener('click'", transitions)
+        self.assertNotIn("ACPNavigate", recovery)
+        self.assertNotIn("window.location.assign", recovery)
+        self.assertNotIn("requestedMode", recovery)
+        self.assertNotIn("ACPPlexamp.show", recovery)
+        self.assertNotIn("ACPPlexamp.hide", recovery)
 
     def test_real_runner_registers_screen_projection_before_state_apis(self):
         text = RUNNER.read_text(encoding="utf-8")
