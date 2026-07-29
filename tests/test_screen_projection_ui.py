@@ -10,13 +10,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "screen-projection.js"
 MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
 PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
+PLEXAMP_PERSISTENT = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
 BASE = ROOT / "app" / "templates" / "base.html"
 RUNNER = ROOT / "app" / "runner.py"
 
 
 class ScreenProjectionUiTests(unittest.TestCase):
     def test_navigation_clients_have_valid_javascript_syntax(self):
-        for path in (CLIENT, PAGE_TRANSITIONS, MODE_WATCH):
+        for path in (CLIENT, PAGE_TRANSITIONS, MODE_WATCH, PLEXAMP_PERSISTENT):
             with self.subTest(path=path.name):
                 result = subprocess.run(
                     ["node", "--check", str(path)],
@@ -92,7 +93,7 @@ const fs = require('fs');
     }},
     setInterval: () => 0,
     setTimeout: () => 0,
-    ACPPlexamp: {{ isOpen: () => false }},
+    ACPPlexamp: {{ isOpen: () => false, isVisiblyOpen: () => false }},
     ACPDashboardPreferences: {{ read: () => ({{ idleReturnMode: 'clock' }}) }},
     ACPNavigationState: {{
       consumeExplicitNavigation: () => null,
@@ -106,7 +107,6 @@ const fs = require('fs');
     documentElement: {{ dataset: {{}} }},
     activeElement: null,
   }};
-  global.MutationObserver = class {{ observe() {{}} }};
 
   eval(fs.readFileSync({json.dumps(str(CLIENT))}, 'utf8'));
   await new Promise((resolve) => setImmediate(resolve));
@@ -154,6 +154,17 @@ const fs = require('fs');
             [["interaction", "plexamp"], ["open", "clock"]],
         )
 
+    def test_projected_plexamp_open_cannot_create_a_manual_lease(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        persistent = PLEXAMP_PERSISTENT.read_text(encoding="utf-8")
+
+        self.assertIn("manual: false", client)
+        self.assertIn("source: 'screen-projection'", client)
+        self.assertIn("function announceManualOpen", persistent)
+        self.assertIn("options.manual === false || options.updateMode === false", persistent)
+        self.assertNotIn("plexamp-surface-opened", client)
+        self.assertNotIn("new MutationObserver(observeOpenState)", client)
+
     def test_projected_navigation_cannot_create_an_explicit_lease(self):
         client = CLIENT.read_text(encoding="utf-8")
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
@@ -164,14 +175,26 @@ const fs = require('fs');
         self.assertIn("if (isAutomaticNavigation(options)", transitions)
         self.assertIn("rememberNavigation(target, options)", transitions)
 
-    def test_cross_origin_plexamp_uses_one_shot_browser_fallbacks_only(self):
+    def test_plexamp_iframe_activity_cannot_cancel_another_surface_lease(self):
         text = CLIENT.read_text(encoding="utf-8")
-        self.assertIn("document.activeElement === frame", text)
-        self.assertIn("plexamp-frame-pointerenter", text)
-        self.assertIn("plexamp-frame-focus", text)
-        self.assertIn("new MutationObserver(observeOpenState)", text)
+
+        self.assertIn("function anotherSurfaceOwnsLease", text)
+        self.assertIn("function plexampActivityAllowed", text)
+        self.assertIn("if (!plexampActivityAllowed()) return", text)
+        self.assertIn("document.activeElement === frame && plexampActivityAllowed()", text)
         self.assertNotIn("frame.contentDocument", text)
         self.assertNotIn("frame.contentWindow.document", text)
+
+    def test_logical_plexamp_projection_repairs_an_invisible_overlay(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        persistent = PLEXAMP_PERSISTENT.read_text(encoding="utf-8")
+
+        self.assertIn("function reconcilePlexampVisual", client)
+        self.assertIn("window.ACPPlexamp?.ensureVisible", client)
+        self.assertIn("current !== 'plexamp' || recommended !== 'plexamp'", client)
+        self.assertIn("function ensureVisible", persistent)
+        self.assertIn("function isVisiblyOpen", persistent)
+        self.assertIn("lastVisibilityRepair", persistent)
 
     def test_client_cannot_manufacture_repeating_activity(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -195,7 +218,7 @@ const fs = require('fs');
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260729-explicit-lease-queue", text)
+        self.assertIn("20260729-plexamp-visual-lease-authority", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
