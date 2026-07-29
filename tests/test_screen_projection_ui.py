@@ -37,6 +37,15 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertNotIn("/player/playback/", text)
         self.assertNotIn("systemctl", text)
 
+    def test_poll_reports_and_repairs_the_actual_visible_surface(self):
+        text = CLIENT.read_text(encoding="utf-8")
+
+        self.assertIn("visible_surface: options.visibleSurface || currentSurface()", text)
+        self.assertIn("post('state'", text)
+        self.assertIn("snapshot?.should_present === true || visible !== target", text)
+        self.assertIn("if (currentSurface() !== resolvedTarget)", text)
+        self.assertIn("window.setInterval(check, 1000)", text)
+
     def test_manual_navigation_is_acknowledged_before_transition(self):
         client = CLIENT.read_text(encoding="utf-8")
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
@@ -209,7 +218,7 @@ const fs = require('fs');
 
         self.assertIn("function reconcilePlexampVisual", client)
         self.assertIn("window.ACPPlexamp?.ensureVisible", client)
-        self.assertIn("current !== 'plexamp' || recommended !== 'plexamp'", client)
+        self.assertIn("recommended !== 'plexamp'", client)
         self.assertIn("function ensureVisible", persistent)
         self.assertIn("function isVisiblyOpen", persistent)
         self.assertIn("lastVisibilityRepair", persistent)
@@ -234,7 +243,7 @@ const fs = require('fs');
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260729-single-screen-intent", text)
+        self.assertIn("20260729-screen-visible-source-takeover", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
