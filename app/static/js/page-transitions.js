@@ -5,6 +5,7 @@
   let leaving = false;
   let revealed = false;
   let readyTimer = null;
+  let manualClaimInFlight = false;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
   const explicitNavigationMaxAgeMs = 15000;
   const leasableRoutes = new Set(['/airplay', '/clock', '/plexamp', '/settings', '/weather']);
@@ -65,15 +66,27 @@
     }
   }
 
-  function announceManualSurface(target, options = {}) {
-    if (isAutomaticNavigation(options) || !leasableRoutes.has(target.pathname)) return;
+  async function claimManualSurface(target, options = {}) {
+    if (isAutomaticNavigation(options) || !leasableRoutes.has(target.pathname)) return true;
     const surface = target.pathname.slice(1) || 'clock';
-    window.dispatchEvent(new CustomEvent('acp:manual-screen-open', {
-      detail: {
-        surface,
-        source: String(options.source || 'explicit-navigation-without-reload'),
-      },
-    }));
+    if (typeof window.ACPScreenProjection?.openSurface !== 'function') {
+      rememberNavigation(target, options);
+      return true;
+    }
+
+    const accepted = await window.ACPScreenProjection.openSurface(
+      surface,
+      String(options.source || 'navigation-link'),
+    );
+    if (!accepted) {
+      rememberNavigation(target, options);
+      return true;
+    }
+    if (accepted.recommended_screen === 'alarm' && surface !== 'alarm') {
+      return false;
+    }
+    return accepted?.lease?.active === true
+      && String(accepted?.lease?.manual_surface || '').toLowerCase() === surface;
   }
 
   function revealPage() {
@@ -118,11 +131,20 @@
     return Math.round(duration * 0.36);
   }
 
-  function navigate(url, options = {}) {
+  async function navigate(url, options = {}) {
     const target = sameOriginTarget(url);
-    if (!target || leaving) return;
+    if (!target || leaving || manualClaimInFlight) return;
 
-    rememberNavigation(target, options);
+    if (!isAutomaticNavigation(options) && leasableRoutes.has(target.pathname)) {
+      manualClaimInFlight = true;
+      let accepted = false;
+      try {
+        accepted = await claimManualSurface(target, options);
+      } finally {
+        manualClaimInFlight = false;
+      }
+      if (!accepted || leaving) return;
+    }
 
     if (target.pathname === '/alarm' || options.immediate) {
       leaving = true;
@@ -131,18 +153,25 @@
     }
 
     if (target.pathname === '/plexamp' && window.ACPPlexamp) {
-      window.ACPPlexamp.show({ updateMode: options.updateMode !== false });
+      window.ACPPlexamp.show({
+        updateMode: false,
+        manual: false,
+        source: String(options.source || 'navigation-link'),
+      });
       return;
     }
 
-    const overlayOpen = Boolean(window.ACPPlexamp?.isOpen?.());
+    const overlayOpen = Boolean(
+      window.ACPPlexamp?.isVisiblyOpen?.()
+      ?? window.ACPPlexamp?.isOpen?.(),
+    );
     if (overlayOpen) {
       if (target.pathname === activeRoute()) {
-        announceManualSurface(target, options);
         const mode = target.pathname.slice(1) || 'clock';
         window.ACPPlexamp.hide?.({
-          updateMode: options.updateMode !== false,
+          updateMode: false,
           targetMode: mode,
+          source: String(options.source || 'navigation-link'),
         });
         return;
       }
@@ -183,7 +212,7 @@
     if (!target || target.href === window.location.href) return;
     if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
     event.preventDefault();
-    navigate(target.href, { source: 'navigation-link' });
+    void navigate(target.href, { source: 'navigation-link' });
   });
 
   window.addEventListener('pagehide', () => {
