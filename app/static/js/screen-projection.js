@@ -77,13 +77,28 @@
     });
   }
 
+  async function openSurface(surface, source = 'manual-screen-open') {
+    const target = String(surface || '').trim().toLowerCase();
+    if (!(target in routes) || target === 'alarm') return null;
+    modeGuardUntil = Date.now() + 5000;
+    lastPostAt = Date.now();
+    return post('open', {
+      surface: target,
+      source,
+      guaranteed: true,
+    });
+  }
+
   function markActivity(source, options = {}) {
     const now = Date.now();
     const force = options.force === true;
     const surface = options.surface || currentSurface();
-    if (!force && now - lastPostAt < 1000) return;
+    if (!force && now - lastPostAt < 1000) return Promise.resolve(null);
     lastPostAt = now;
-    post(options.manual === true ? 'open' : 'interaction', {
+    if (options.manual === true) {
+      return openSurface(surface, source);
+    }
+    return post('interaction', {
       surface,
       source,
     });
@@ -193,11 +208,10 @@
 
   window.addEventListener('acp:manual-screen-open', (event) => {
     const surface = String(event?.detail?.surface || 'plexamp').toLowerCase();
-    markActivity(String(event?.detail?.source || 'manual-screen-open'), {
-      force: true,
-      manual: true,
+    openSurface(
       surface,
-    });
+      String(event?.detail?.source || 'manual-screen-open'),
+    );
   });
 
   window.addEventListener('acp:dashboard-preferences-changed', () => {
@@ -224,6 +238,7 @@
 
   window.ACPScreenProjection = {
     markActivity,
+    openSurface,
     state: () => state,
     shouldDeferModeSync: () => applying || Date.now() < modeGuardUntil,
     inputAuthority: () => state?.input_activity?.authority || 'browser-fallback',
@@ -236,20 +251,15 @@
     );
     const shouldOpenLease = Boolean(explicitNavigation) || surface === 'settings';
 
+    await post('preferences', { source: 'screen-projection-start' });
     if (shouldOpenLease && surface !== 'alarm') {
-      modeGuardUntil = Date.now() + 4000;
-      await post('preferences', { source: 'screen-projection-start' });
-      lastPostAt = Date.now();
-      await post('open', {
+      await openSurface(
         surface,
-        source: explicitNavigation
+        explicitNavigation
           ? `explicit-navigation-arrival:${explicitNavigation.source || 'navigation'}`
           : 'initial-settings-surface',
-      });
-      return;
+      );
     }
-
-    await post('preferences', { source: 'screen-projection-start' });
   }
 
   initialise().finally(() => {
