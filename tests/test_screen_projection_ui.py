@@ -11,6 +11,7 @@ CLIENT = ROOT / "app" / "static" / "js" / "screen-projection.js"
 MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
 PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 PLEXAMP_PERSISTENT = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
+WEATHER_TEMPLATE = ROOT / "app" / "templates" / "weather.html"
 BASE = ROOT / "app" / "templates" / "base.html"
 RUNNER = ROOT / "app" / "runner.py"
 
@@ -36,16 +37,26 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertNotIn("/player/playback/", text)
         self.assertNotIn("systemctl", text)
 
-    def test_deliberate_page_arrival_opens_one_explicit_screen_lease(self):
+    def test_manual_navigation_is_acknowledged_before_transition(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+
+        self.assertIn("async function openSurface", client)
+        self.assertIn("openSurface,", client)
+        self.assertIn("async function claimManualSurface", transitions)
+        self.assertIn("await window.ACPScreenProjection.openSurface", transitions)
+        self.assertIn("accepted?.lease?.active === true", transitions)
+        self.assertIn("manualClaimInFlight", transitions)
+
+    def test_arrival_marker_remains_only_as_network_fallback(self):
         client = CLIENT.read_text(encoding="utf-8")
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
 
         self.assertIn("consumeExplicitNavigation", transitions)
-        self.assertIn("leasableRoutes", transitions)
+        self.assertIn("rememberNavigation(target, options)", transitions)
+        self.assertIn("if (!accepted)", transitions)
         self.assertIn("window.ACPNavigationState?.consumeExplicitNavigation", client)
-        self.assertIn("Boolean(explicitNavigation) || surface === 'settings'", client)
         self.assertIn("explicit-navigation-arrival", client)
-        self.assertIn("await post('open'", client)
 
     def test_explicit_open_is_never_dropped_behind_pointer_activity(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -154,16 +165,24 @@ const fs = require('fs');
             [["interaction", "plexamp"], ["open", "clock"]],
         )
 
+    def test_clock_link_is_not_discarded_when_plexamp_covers_clock_document(self):
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+
+        self.assertIn("function plexampVisiblyOpen", transitions)
+        self.assertIn("target.href === window.location.href && !plexampVisiblyOpen()", transitions)
+        self.assertIn("target.pathname === activeRoute()", transitions)
+        self.assertIn("window.ACPPlexamp.hide", transitions)
+        self.assertIn("updateMode: false", transitions)
+
     def test_projected_plexamp_open_cannot_create_a_manual_lease(self):
         client = CLIENT.read_text(encoding="utf-8")
         persistent = PLEXAMP_PERSISTENT.read_text(encoding="utf-8")
 
         self.assertIn("manual: false", client)
         self.assertIn("source: 'screen-projection'", client)
-        self.assertIn("function announceManualOpen", persistent)
-        self.assertIn("options.manual === false || options.updateMode === false", persistent)
-        self.assertNotIn("plexamp-surface-opened", client)
-        self.assertNotIn("new MutationObserver(observeOpenState)", client)
+        self.assertNotIn("acp:manual-screen-open", persistent)
+        self.assertNotIn("document.addEventListener('click'", persistent)
+        self.assertNotIn("/api/mode/", persistent)
 
     def test_projected_navigation_cannot_create_an_explicit_lease(self):
         client = CLIENT.read_text(encoding="utf-8")
@@ -173,7 +192,6 @@ const fs = require('fs');
         self.assertIn("source: 'screen-projection'", client)
         self.assertIn("isAutomaticNavigation", transitions)
         self.assertIn("if (isAutomaticNavigation(options)", transitions)
-        self.assertIn("rememberNavigation(target, options)", transitions)
 
     def test_plexamp_iframe_activity_cannot_cancel_another_surface_lease(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -196,6 +214,15 @@ const fs = require('fs');
         self.assertIn("function isVisiblyOpen", persistent)
         self.assertIn("lastVisibilityRepair", persistent)
 
+    def test_hidden_weather_refresh_cannot_reload_plexamp_underlay(self):
+        weather = WEATHER_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("refreshOnlyWhenWeatherOwnsTheVisibleSurface", weather)
+        self.assertIn("screen.current_screen === 'weather'", weather)
+        self.assertIn("screen.recommended_screen === 'weather'", weather)
+        self.assertIn("!overlayOpen && weatherOwnsSurface", weather)
+        self.assertNotIn("setTimeout(() => {\n    window.location.reload();", weather)
+
     def test_client_cannot_manufacture_repeating_activity(self):
         text = CLIENT.read_text(encoding="utf-8")
         self.assertNotIn("IdleDetector", text)
@@ -203,33 +230,24 @@ const fs = require('fs');
         self.assertNotIn("frameEngaged", text)
         self.assertNotIn("heartbeatMs", text)
         self.assertNotIn("plexamp-frame-active-heartbeat", text)
-        self.assertNotIn("setInterval(() => {\n    if (\n      currentSurface() === 'plexamp'", text)
-
-    def test_stationary_mouse_hover_is_one_interaction_only(self):
-        text = CLIENT.read_text(encoding="utf-8")
-        pointer_enter = text.split("frame.addEventListener('pointerenter'", 1)[1].split(
-            "frame.addEventListener('focus'", 1
-        )[0]
-
-        self.assertIn("markActivity('plexamp-frame-pointerenter'", pointer_enter)
-        self.assertNotIn("setInterval", pointer_enter)
-        self.assertNotIn("frameEngaged", pointer_enter)
 
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260729-plexamp-visual-lease-authority", text)
+        self.assertIn("20260729-single-screen-intent", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
         projection = CLIENT.read_text(encoding="utf-8")
         recovery = MODE_WATCH.read_text(encoding="utf-8")
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+        persistent = PLEXAMP_PERSISTENT.read_text(encoding="utf-8")
 
-        self.assertIn("recommended_screen", projection)
-        self.assertIn("window.ACPNavigate", projection)
+        self.assertIn("window.ACPScreenProjection", projection)
         self.assertIn("window.ACPNavigate = navigate", transitions)
         self.assertIn("document.addEventListener('click'", transitions)
+        self.assertNotIn("document.addEventListener('click'", persistent)
+        self.assertNotIn("/api/mode/", persistent)
         self.assertNotIn("ACPNavigate", recovery)
         self.assertNotIn("window.location.assign", recovery)
         self.assertNotIn("requestedMode", recovery)
