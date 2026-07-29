@@ -21,6 +21,7 @@ ModeSetter = Callable[[str], Any]
 InputActivityProvider = Callable[[], dict[str, Any]]
 
 VALID_SCREENS = {"clock", "weather", "airplay", "plexamp", "settings", "alarm"}
+MANUAL_LEASE_SCREENS = VALID_SCREENS - {"alarm"}
 IDLE_RETURN_SCREENS = {"clock", "weather", "airplay", "plexamp"}
 DEFAULT_IDLE_TIMEOUT_SECONDS = 180
 MIN_IDLE_TIMEOUT_SECONDS = 5
@@ -78,6 +79,7 @@ class ScreenProjectionController:
         self._last_applied_at: datetime | None = None
         self._last_applied_screen: str | None = None
         self._last_error: str | None = None
+        self._last_input_sequence = 0
         initial_input = self._read_input_activity()
         try:
             self._last_input_sequence = int(initial_input.get("sequence") or 0)
@@ -107,6 +109,11 @@ class ScreenProjectionController:
         config = self._load_config()
         dashboard = config.get("dashboard") if isinstance(config.get("dashboard"), dict) else {}
         return self._normalise_idle_mode(dashboard.get("default_mode"), "clock")
+
+    def _clear_manual_lease(self) -> None:
+        self._manual_surface = None
+        self._lease_started_at = None
+        self._lease_until = None
 
     def _read_input_activity(self) -> dict[str, Any]:
         if not callable(self._input_activity):
@@ -153,7 +160,7 @@ class ScreenProjectionController:
             self._sequence += 1
             self._last_activity_at = occurred_at
             self._last_interaction_source = f"linux-input:{kind}:{device}"
-            if self._manual_surface == "plexamp" and current_screen == "plexamp":
+            if self._manual_surface == current_screen:
                 self._lease_until = occurred_at + timedelta(seconds=self._timeout_seconds())
         return activity
 
@@ -170,24 +177,20 @@ class ScreenProjectionController:
             self._sequence += 1
             self._last_activity_at = now
             self._last_interaction_source = str(source or "browser-interaction")
-            if manual and screen == "plexamp":
-                self._manual_surface = "plexamp"
+            if manual and screen in MANUAL_LEASE_SCREENS:
+                self._manual_surface = screen
                 self._lease_started_at = now
                 self._lease_until = now + timedelta(seconds=timeout)
-            elif self._manual_surface == "plexamp" and screen == "plexamp":
+            elif self._manual_surface == screen:
                 self._lease_until = now + timedelta(seconds=timeout)
-            elif screen != "plexamp":
-                self._manual_surface = None
-                self._lease_started_at = None
-                self._lease_until = None
+            elif self._manual_surface is not None and screen != self._manual_surface:
+                self._clear_manual_lease()
         return self.snapshot()
 
     def release(self, *, reason: Any = "browser-release") -> dict[str, Any]:
         with self._lock:
             self._sequence += 1
-            self._manual_surface = None
-            self._lease_started_at = None
-            self._lease_until = None
+            self._clear_manual_lease()
             self._last_interaction_source = str(reason or "browser-release")
         return self.snapshot()
 
@@ -201,8 +204,7 @@ class ScreenProjectionController:
             source = self._last_interaction_source
             sequence = self._sequence
         active = bool(
-            manual_surface == "plexamp"
-            and current_screen == "plexamp"
+            manual_surface == current_screen
             and until is not None
             and now < until
         )
@@ -247,12 +249,12 @@ class ScreenProjectionController:
         if alarm_active:
             recommended_screen = "alarm"
             reason = "alarm-active"
+        elif lease.get("active"):
+            recommended_screen = str(lease.get("manual_surface") or current_screen)
+            reason = f"manual-{recommended_screen}-lease"
         elif active_source == "plexamp":
             recommended_screen = "plexamp"
             reason = "plexamp-playing"
-        elif lease.get("active"):
-            recommended_screen = "plexamp"
-            reason = "manual-plexamp-lease"
         elif active_source == "airplay":
             recommended_screen = "airplay"
             reason = "airplay-owns-audio"
@@ -301,10 +303,8 @@ class ScreenProjectionController:
             self._last_applied_at = self._now()
             self._last_applied_screen = target
             self._last_error = None
-            if target != "plexamp":
-                self._manual_surface = None
-                self._lease_started_at = None
-                self._lease_until = None
+            if self._manual_surface is not None and target != self._manual_surface:
+                self._clear_manual_lease()
         applied = self.snapshot()
         applied["applied_screen"] = target
         return applied
