@@ -9,13 +9,17 @@ from typing import Any, Callable
 
 ConfigProvider = Callable[[], dict[str, Any]]
 StatusProvider = Callable[[], dict[str, Any]]
-VolumeCommand = Callable[[int], tuple[bool, str | None]]
+AirPlayVolumeCommand = Callable[[int], tuple[bool, str | None]]
+PlexampVolumeCommand = Callable[[int], dict[str, Any]]
+MixerVolumeCommand = Callable[[str, int, bool], dict[str, Any]]
 NowProvider = Callable[[], datetime]
 SleepProvider = Callable[[float], None]
 
 DEFAULT_AIRPLAY_START_PERCENT = 60
 DEFAULT_SENDER_WAIT_ATTEMPTS = 40
 DEFAULT_SENDER_WAIT_SECONDS = 0.25
+MIXER_CHANNELS = {"master", "plexamp", "airplay", "alarm"}
+LIVE_CHANNELS = {"master", "plexamp", "airplay", "alarm"}
 
 
 def _bounded_percent(value: Any, fallback: int = 50) -> int:
@@ -24,6 +28,16 @@ def _bounded_percent(value: Any, fallback: int = 50) -> int:
     except (TypeError, ValueError):
         parsed = fallback
     return max(0, min(100, parsed))
+
+
+def _validated_percent(value: Any, *, label: str) -> int:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{label} must be from 0 to 100 percent.") from None
+    if not 0 <= numeric <= 100:
+        raise ValueError(f"{label} must be from 0 to 100 percent.")
+    return max(0, min(100, int(round(numeric))))
 
 
 def _reported_percent(remote: dict[str, Any]) -> int | None:
@@ -39,24 +53,32 @@ def _default_now() -> datetime:
     return datetime.now().astimezone()
 
 
-def _safe_status(provider: StatusProvider) -> dict[str, Any]:
+def _safe_status(provider: StatusProvider | None, label: str) -> dict[str, Any]:
+    if provider is None:
+        return {"available": False, "error": f"{label} provider is unavailable."}
     try:
         value = provider()
     except Exception as exc:
         return {"available": False, "error": str(exc)}
     return deepcopy(value) if isinstance(value, dict) else {
         "available": False,
-        "error": "AirPlay status provider returned a non-object value.",
+        "error": f"{label} provider returned a non-object value.",
     }
 
 
-class MixerController:
-    """Own player-aware volume intent without changing the production audio graph.
+def _trim(mixer: dict[str, Any], channel: str) -> dict[str, Any]:
+    channels = mixer.get("channels") if isinstance(mixer.get("channels"), dict) else {}
+    value = channels.get(channel)
+    return deepcopy(value) if isinstance(value, dict) else {}
 
-    The first promoted responsibility is AirPlay sender volume. Starting volume is
-    written at most once per sender session. The requested value remains effective
-    while MPRIS is still reporting the pre-command baseline; a genuinely newer
-    sender value supersedes it.
+
+class MixerController:
+    """Own the complete interface-facing audio control model.
+
+    Live Plexamp and AirPlay faders remain player/sender controls. Master, Alarm
+    and every trim control write the restricted ALSA helper directly. The
+    controller exposes one state/command contract without changing the known-good
+    production audio graph or restarting any audio service.
     """
 
     authority = "mixer-controller"
@@ -66,7 +88,11 @@ class MixerController:
         *,
         load_config: ConfigProvider,
         airplay_status: StatusProvider,
-        set_airplay_volume: VolumeCommand,
+        set_airplay_volume: AirPlayVolumeCommand,
+        plexamp_status: StatusProvider | None = None,
+        set_plexamp_volume: PlexampVolumeCommand | None = None,
+        mixer_status: StatusProvider | None = None,
+        set_mixer_volume: MixerVolumeCommand | None = None,
         now_provider: NowProvider | None = None,
         sleep_provider: SleepProvider | None = None,
         sender_wait_attempts: int = DEFAULT_SENDER_WAIT_ATTEMPTS,
@@ -75,6 +101,10 @@ class MixerController:
         self._load_config = load_config
         self._airplay_status = airplay_status
         self._set_airplay_volume = set_airplay_volume
+        self._plexamp_status = plexamp_status
+        self._set_plexamp_volume = set_plexamp_volume
+        self._mixer_status = mixer_status
+        self._set_mixer_volume = set_mixer_volume
         self._now = now_provider or _default_now
         self._sleep = sleep_provider or time.sleep
         self._sender_wait_attempts = max(1, int(sender_wait_attempts))
@@ -128,7 +158,22 @@ class MixerController:
             self._generation += 1
             return self._generation
 
-    def _resolve_remote(self, remote: dict[str, Any]) -> dict[str, Any]:
+    def mixer_snapshot(self) -> dict[str, Any]:
+        return _safe_status(self._mixer_status, "Shared ALSA mixer")
+
+    def plexamp_snapshot(self, mixer: dict[str, Any] | None = None) -> dict[str, Any]:
+        player = _safe_status(self._plexamp_status, "Plexamp volume")
+        trim = _trim(mixer if isinstance(mixer, dict) else self.mixer_snapshot(), "plexamp")
+        return {
+            "id": "plexamp",
+            "label": "Plexamp",
+            **player,
+            "source": player.get("source") or "plexamp-player",
+            "detail": "Plexamp player volume; its Now Playing control should follow.",
+            "trim": trim,
+        }
+
+    def _resolve_remote(self, remote: dict[str, Any], mixer: dict[str, Any] | None = None) -> dict[str, Any]:
         observed = _reported_percent(remote)
         available = remote.get("available") is True
         now = self._timestamp()
@@ -174,6 +219,7 @@ class MixerController:
             runtime["state_source"] = source
             snapshot = deepcopy(runtime)
 
+        trim = _trim(mixer if isinstance(mixer, dict) else self.mixer_snapshot(), "airplay")
         return {
             "id": "airplay",
             "label": "AirPlay",
@@ -193,40 +239,124 @@ class MixerController:
             "last_confirmed_at": snapshot.get("last_confirmed_at"),
             "last_error": snapshot.get("last_error"),
             "reason": snapshot.get("reason"),
+            "source": "mixer-controller-airplay-sender",
+            "detail": "AirPlay sender volume; available while a remote session is connected.",
             "remote": remote,
+            "trim": trim,
+            "error": snapshot.get("last_error") or remote.get("error"),
         }
 
-    def airplay_snapshot(self) -> dict[str, Any]:
-        return self._resolve_remote(_safe_status(self._airplay_status))
+    def airplay_snapshot(self, mixer: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._resolve_remote(_safe_status(self._airplay_status, "AirPlay"), mixer)
 
-    def snapshot(self) -> dict[str, Any]:
+    @staticmethod
+    def _alsa_live_channel(channel: str, label: str, trim: dict[str, Any], detail: str) -> dict[str, Any]:
         return {
-            "authority": self.authority,
-            "commands_enabled": True,
-            "command_capabilities": {
-                "airplay_sender_volume": True,
-                "airplay_starting_volume_write_limit": 1,
-                "service_restarts": False,
-            },
-            "defaults": self.defaults(),
-            "channels": {
-                "airplay": self.airplay_snapshot(),
-            },
+            "id": channel,
+            "label": label,
+            "available": trim.get("available") is True,
+            "percent": trim.get("percent"),
+            "source": f"alsa-live-{channel}",
+            "detail": detail,
+            "trim": trim,
+            "error": trim.get("error"),
         }
 
-    def application_status(self) -> dict[str, Any]:
-        channel = self.airplay_snapshot()
+    def application_status(self, channel: dict[str, Any] | None = None) -> dict[str, Any]:
+        airplay = channel if isinstance(channel, dict) else self.airplay_snapshot()
         with self._lock:
             runtime = deepcopy(self._runtime)
         runtime.update(
             {
-                "observed_percent": channel.get("observed_percent"),
-                "effective_percent": channel.get("effective_percent"),
-                "state_source": channel.get("state_source"),
+                "observed_percent": airplay.get("observed_percent"),
+                "effective_percent": airplay.get("effective_percent"),
+                "state_source": airplay.get("state_source"),
                 "session_active": self._session_active,
             }
         )
         return runtime
+
+    def live_snapshot(self) -> dict[str, Any]:
+        mixer = self.mixer_snapshot()
+        master_trim = _trim(mixer, "master")
+        alarm_trim = _trim(mixer, "alarm")
+        plexamp = self.plexamp_snapshot(mixer)
+        airplay = self.airplay_snapshot(mixer)
+        return {
+            "authority": self.authority,
+            "available": mixer.get("available") is True,
+            "mode": "live-player-aware",
+            "defaults": self.defaults(),
+            "airplay_default_application": self.application_status(airplay),
+            "channels": {
+                "master": self._alsa_live_channel(
+                    "master",
+                    "Master",
+                    master_trim,
+                    "Immediate output level; Settings stores the persistent default.",
+                ),
+                "plexamp": plexamp,
+                "airplay": airplay,
+                "alarm": self._alsa_live_channel(
+                    "alarm",
+                    "Alarm",
+                    alarm_trim,
+                    "Immediate alarm ceiling; Settings stores the persistent default.",
+                ),
+            },
+            "mixer": mixer,
+            "error": mixer.get("error"),
+        }
+
+    def snapshot(self) -> dict[str, Any]:
+        live = self.live_snapshot()
+        return {
+            **live,
+            "commands_enabled": True,
+            "command_capabilities": {
+                "live_player_volume": ["plexamp", "airplay"],
+                "live_alsa_volume": ["master", "alarm"],
+                "alsa_trims": sorted(MIXER_CHANNELS),
+                "airplay_sender_volume": True,
+                "airplay_starting_volume_write_limit": 1,
+                "service_restarts": False,
+            },
+        }
+
+    def set_trim_percent(self, channel: Any, percent: Any, *, persist: bool = True) -> dict[str, Any]:
+        channel_id = str(channel or "").strip().lower()
+        if channel_id not in MIXER_CHANNELS:
+            raise ValueError(f"Unknown mixer channel: {channel_id or '-'}")
+        level = _validated_percent(percent, label="Mixer volume")
+        if self._set_mixer_volume is None:
+            raise ValueError("The shared ALSA mixer command is unavailable.")
+        self._set_mixer_volume(channel_id, level, bool(persist))
+        return self.mixer_snapshot()
+
+    def set_trim_volumes(self, values: dict[str, Any], *, persist: bool = True) -> dict[str, Any]:
+        if not isinstance(values, dict) or not values:
+            raise ValueError("At least one mixer channel is required.")
+        for channel, percent in values.items():
+            self.set_trim_percent(channel, percent, persist=persist)
+        return self.mixer_snapshot()
+
+    def set_live_percent(self, channel: Any, percent: Any, *, reason: str = "pi-slider") -> dict[str, Any]:
+        channel_id = str(channel or "").strip().lower()
+        if channel_id not in LIVE_CHANNELS:
+            raise ValueError(f"Unknown live audio channel: {channel_id or '-'}")
+        level = _validated_percent(percent, label="Live audio volume")
+
+        if channel_id in {"master", "alarm"}:
+            if self._set_mixer_volume is None:
+                raise ValueError("The shared ALSA mixer command is unavailable.")
+            self._set_mixer_volume(channel_id, level, False)
+        elif channel_id == "plexamp":
+            if self._set_plexamp_volume is None:
+                raise ValueError("Plexamp volume control is unavailable.")
+            self._set_plexamp_volume(level)
+        else:
+            self.set_airplay_percent(level, reason=reason)
+        return self.live_snapshot()
 
     def _apply_starting_volume(self, generation: int, reason: str) -> str:
         defaults = self.defaults()
@@ -236,7 +366,7 @@ class MixerController:
             if generation != self._current_generation():
                 return "cancelled"
 
-            remote = _safe_status(self._airplay_status)
+            remote = _safe_status(self._airplay_status, "AirPlay")
             if remote.get("available") is True:
                 baseline = _reported_percent(remote)
                 self._update(
@@ -321,6 +451,30 @@ class MixerController:
         ).start()
         return "scheduled"
 
+    def refresh_defaults(self, reason: str = "settings-save", *, background: bool = True) -> str:
+        defaults = self.defaults()
+        with self._lock:
+            active = self._session_active
+        if active and defaults["apply_default_volume_on_start"]:
+            return self.start_airplay_session(reason, background=background)
+        self._new_generation()
+        self._update(
+            status=(
+                "disabled"
+                if defaults["apply_default_volume_on_start"] is False
+                else "waiting-for-session"
+            ),
+            in_progress=False,
+            session_active=active,
+            target_percent=defaults["default_volume_percent"],
+            requested_percent=None,
+            request_active=False,
+            baseline_percent=None,
+            last_error=None,
+            reason=reason,
+        )
+        return "disabled" if defaults["apply_default_volume_on_start"] is False else "waiting-for-session"
+
     def end_airplay_session(self, reason: str = "session-ended") -> None:
         self._new_generation()
         defaults = self.defaults()
@@ -341,15 +495,9 @@ class MixerController:
             )
 
     def set_airplay_percent(self, percent: Any, *, reason: str = "pi-slider") -> dict[str, Any]:
-        level = _bounded_percent(percent, -1)
-        try:
-            numeric = float(percent)
-        except (TypeError, ValueError):
-            raise ValueError("AirPlay volume must be from 0 to 100 percent.") from None
-        if not 0 <= numeric <= 100:
-            raise ValueError("AirPlay volume must be from 0 to 100 percent.")
+        level = _validated_percent(percent, label="AirPlay volume")
 
-        remote = _safe_status(self._airplay_status)
+        remote = _safe_status(self._airplay_status, "AirPlay")
         if remote.get("available") is not True:
             raise ValueError("AirPlay volume is available only while a sender is connected.")
 
