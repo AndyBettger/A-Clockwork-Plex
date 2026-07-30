@@ -11,6 +11,7 @@ PLAYBACK_AUTHORITY = ROOT / "app" / "playback_authority.py"
 PLAYBACK_HANDOFF = ROOT / "app" / "playback_handoff.py"
 RUNNER = ROOT / "app" / "runner.py"
 SCREEN_PROJECTION = ROOT / "app" / "screen_projection.py"
+SCREEN_PROJECTION_ACTIVITY = ROOT / "app" / "screen_projection_activity.py"
 
 
 class PlexampUiHandoffRetirementTests(unittest.TestCase):
@@ -57,6 +58,7 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         runner = RUNNER.read_text(encoding="utf-8")
 
         self.assertIn("RetainedBidirectionalHandoffCoordinator", authority)
+        self.assertIn("PlexampTimelineObserver", authority)
         self.assertIn("class BidirectionalHandoffPlaybackCoordinator", handoff)
         self.assertIn('"plexamp_to_airplay_handoff": True', handoff)
         self.assertIn("promote_playback_authority(application_state_hub, dashboard)", runner)
@@ -65,12 +67,15 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
 
     def test_screen_projection_is_separate_from_playback_handoff(self):
         projection = SCREEN_PROJECTION.read_text(encoding="utf-8")
+        promoted = SCREEN_PROJECTION_ACTIVITY.read_text(encoding="utf-8")
         runner = RUNNER.read_text(encoding="utf-8")
 
         self.assertIn("class ScreenProjectionController", projection)
-        self.assertIn('authority = "screen-projection-owner"', projection)
-        self.assertIn("register_screen_projection(app, application_state_hub, dashboard)", runner)
+        self.assertIn("class ActivityAwareScreenProjectionController", promoted)
+        self.assertIn('authority = "screen-projection-owner"', promoted)
+        self.assertIn("register_activity_screen_projection(app, application_state_hub, dashboard)", runner)
         self.assertNotIn("/api/airplay/control", projection)
+        self.assertNotIn("/api/airplay/control", promoted)
 
 
 if __name__ == "__main__":
