@@ -11,7 +11,7 @@ try:
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
-    from .screen_projection import register_screen_projection
+    from .screen_projection_activity import register_activity_screen_projection
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from application_state import (
@@ -23,13 +23,13 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
-    from screen_projection import register_screen_projection
+    from screen_projection_activity import register_activity_screen_projection
 
 
 app = dashboard.app
 application_state_hub = build_default_application_state_hub(dashboard)
 playback_coordinator = promote_playback_authority(application_state_hub, dashboard)
-screen_projection = register_screen_projection(app, application_state_hub, dashboard)
+screen_projection = register_activity_screen_projection(app, application_state_hub, dashboard)
 input_activity_monitor = application_state_hub.service("input_activity")
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
