@@ -6,6 +6,8 @@
   let revealed = false;
   let readyTimer = null;
   let manualClaimInFlight = false;
+  let presentationInFlight = false;
+  let presentationTimer = null;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
   const explicitNavigationMaxAgeMs = 15000;
   const leasableRoutes = new Set(['/airplay', '/clock', '/plexamp', '/settings', '/weather']);
@@ -138,9 +140,17 @@
     return Math.round(duration * 0.36);
   }
 
+  function holdPresentation(duration = 0) {
+    presentationInFlight = true;
+    window.clearTimeout(presentationTimer);
+    presentationTimer = window.setTimeout(() => {
+      presentationInFlight = false;
+    }, Math.max(0, Number(duration) || 0) + 80);
+  }
+
   async function navigate(url, options = {}) {
     const target = sameOriginTarget(url);
-    if (!target || leaving || manualClaimInFlight) return;
+    if (!target || leaving || manualClaimInFlight || presentationInFlight) return;
 
     if (!isAutomaticNavigation(options) && leasableRoutes.has(target.pathname)) {
       manualClaimInFlight = true;
@@ -160,11 +170,12 @@
     }
 
     if (target.pathname === '/plexamp' && window.ACPPlexamp) {
-      window.ACPPlexamp.show({
+      const duration = Number(window.ACPPlexamp.show({
         updateMode: false,
         manual: false,
         source: String(options.source || 'navigation-link'),
-      });
+      })) || 0;
+      holdPresentation(duration);
       return;
     }
 
@@ -172,11 +183,12 @@
     if (overlayOpen) {
       if (target.pathname === activeRoute()) {
         const mode = target.pathname.slice(1) || 'clock';
-        window.ACPPlexamp.hide?.({
+        const duration = Number(window.ACPPlexamp.hide?.({
           updateMode: false,
           targetMode: mode,
           source: String(options.source || 'navigation-link'),
-        });
+        })) || 0;
+        holdPresentation(duration);
         return;
       }
 
@@ -204,6 +216,7 @@
   window.ACPPageReady = revealPage;
   window.ACPNavigationState = {
     isLeaving: () => leaving,
+    isPresenting: () => manualClaimInFlight || presentationInFlight || leaving,
     activeRoute,
     consumeExplicitNavigation,
   };
@@ -222,6 +235,8 @@
 
   window.addEventListener('pagehide', () => {
     leaving = true;
+    presentationInFlight = true;
+    window.clearTimeout(presentationTimer);
   });
 
   scheduleReveal();
