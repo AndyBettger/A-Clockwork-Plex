@@ -8,10 +8,12 @@ try:
     from .playback_coordinator import PlaybackCoordinator
     from .playback_handoff import _install_screen_preserving_airplay_start
     from .playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
+    from .plexamp_observer import PlexampTimelineObserver
 except ImportError:  # Supports direct execution imports.
     from playback_coordinator import PlaybackCoordinator
     from playback_handoff import _install_screen_preserving_airplay_start
     from playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
+    from plexamp_observer import PlexampTimelineObserver
 
 
 AIRPLAY_METHODS = {
@@ -30,6 +32,8 @@ def promote_playback_authority(hub: Any, dashboard: Any) -> RetainedBidirectiona
         return existing
     if not isinstance(existing, PlaybackCoordinator):
         raise RuntimeError("PlaybackCoordinator is unavailable for authority promotion.")
+
+    plexamp_observer = PlexampTimelineObserver(existing._load_config)
 
     def airplay_command(action: str) -> tuple[bool, str | None]:
         method = AIRPLAY_METHODS.get(str(action or "").strip().lower())
@@ -53,7 +57,7 @@ def promote_playback_authority(hub: Any, dashboard: Any) -> RetainedBidirectiona
     authority = RetainedBidirectionalHandoffCoordinator(
         load_config=existing._load_config,
         load_state=existing._load_state,
-        plexamp_status=existing._plexamp_status,
+        plexamp_status=plexamp_observer.status,
         airplay_status=existing._airplay_status,
         alarm_status=existing._alarm_status,
         alarm_audio_status=existing._alarm_audio_status,
