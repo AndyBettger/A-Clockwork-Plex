@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 
 try:
     from .playback_coordinator import _parse_time, _safe_status
@@ -86,3 +87,39 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
         if parent_result not in {"idle", "primed"}:
             return parent_result
         return ceded_result
+
+    @staticmethod
+    def _latest_playing_token(snapshot: dict[str, Any], source: str) -> str | None:
+        events = snapshot.get("events") if isinstance(snapshot.get("events"), dict) else {}
+        recent = events.get("recent_events") if isinstance(events.get("recent_events"), list) else []
+        for item in reversed(recent):
+            if not isinstance(item, dict):
+                continue
+            if item.get("source") == source and item.get("event") == "playing":
+                return f"{source}-playing:{item.get('sequence')}"
+        return None
+
+    def snapshot(self) -> dict[str, Any]:
+        snapshot = super().snapshot()
+        sources = snapshot.get("sources") if isinstance(snapshot.get("sources"), dict) else {}
+        plexamp = sources.get("plexamp") if isinstance(sources.get("plexamp"), dict) else {}
+        airplay = sources.get("airplay") if isinstance(sources.get("airplay"), dict) else {}
+        plexamp_observed = plexamp.get("observed") if isinstance(plexamp.get("observed"), dict) else {}
+
+        plexamp_token = plexamp_observed.get("activity_token") or self._latest_playing_token(snapshot, "plexamp")
+        airplay_token = self._latest_playing_token(snapshot, "airplay")
+        if airplay_token is None and airplay.get("started_at"):
+            airplay_token = f"airplay-session:{airplay.get('started_at')}"
+
+        plexamp["activity_token"] = plexamp_token
+        plexamp["media_token"] = plexamp_observed.get("media_token")
+        airplay["activity_token"] = airplay_token
+        snapshot["sources"] = sources
+
+        active_source = str(snapshot.get("active_source") or "none")
+        active = sources.get(active_source) if isinstance(sources.get(active_source), dict) else {}
+        snapshot["playback_activity"] = {
+            "source": active_source,
+            "token": active.get("activity_token") if isinstance(active, dict) else None,
+        }
+        return snapshot
