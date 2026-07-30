@@ -99,7 +99,7 @@
     clearLifecycleTimers();
     window.ACPNavDrawer?.hide?.();
     guardMode();
-    shell.classList.remove('is-closing', 'is-route-leaving');
+    shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
     shell.classList.add('is-open');
     shell.setAttribute('aria-hidden', 'false');
     document.body.classList.remove('acp-page-leaving', 'acp-plexamp-opening');
@@ -112,6 +112,7 @@
   }
 
   function finishHideVisual() {
+    shell.classList.add('is-handoff-hidden');
     shell.classList.remove('is-open', 'is-closing', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('plexamp-overlay-open');
@@ -156,6 +157,7 @@
     window.ACPNavDrawer?.hide?.();
     setNavState(true);
     guardMode();
+    shell.classList.remove('is-handoff-hidden');
 
     const profile = transitionProfile();
     const outgoing = skipOutgoing ? 0 : profile.outgoing;
@@ -174,7 +176,7 @@
     const beginOverlay = () => {
       if (token !== generation) return;
 
-      shell.classList.remove('is-closing', 'is-route-leaving');
+      shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
       shell.classList.add('is-open');
       shell.setAttribute('aria-hidden', 'false');
       body.classList.add('plexamp-overlay-open');
@@ -213,7 +215,7 @@
       return profile.incoming;
     }
 
-    shell.classList.remove('is-closing');
+    shell.classList.remove('is-handoff-hidden', 'is-closing');
     shell.classList.add('is-open', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'false');
     document.body.classList.add('plexamp-overlay-open');
@@ -236,7 +238,7 @@
     window.ACPNavDrawer?.hide?.();
     guardMode(LONG_MODE_GUARD_MS);
 
-    shell.classList.remove('is-closing');
+    shell.classList.remove('is-handoff-hidden', 'is-closing');
     shell.classList.add('is-open', 'is-route-leaving');
     shell.setAttribute('aria-hidden', 'false');
     document.body.classList.add('plexamp-overlay-open');
