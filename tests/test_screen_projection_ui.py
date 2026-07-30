@@ -57,6 +57,15 @@ class ScreenProjectionUiTests(unittest.TestCase):
         self.assertIn("accepted?.lease?.active === true", transitions)
         self.assertIn("manualClaimInFlight", transitions)
 
+    def test_manual_presentation_suspends_automatic_projection(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+
+        self.assertIn("let presentationInFlight = false", transitions)
+        self.assertIn("function holdPresentation", transitions)
+        self.assertIn("isPresenting: () => manualClaimInFlight || presentationInFlight || leaving", transitions)
+        self.assertIn("window.ACPNavigationState?.isPresenting?.()", client)
+
     def test_arrival_marker_remains_only_as_network_fallback(self):
         client = CLIENT.read_text(encoding="utf-8")
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
@@ -118,6 +127,7 @@ const fs = require('fs');
     ACPNavigationState: {{
       consumeExplicitNavigation: () => null,
       isLeaving: () => false,
+      isPresenting: () => false,
     }},
   }};
 
@@ -243,7 +253,7 @@ const fs = require('fs');
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260729-screen-visible-source-takeover", text)
+        self.assertIn("20260730-playback-generation-transition-serialization", text)
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
@@ -265,7 +275,7 @@ const fs = require('fs');
 
     def test_real_runner_registers_screen_projection_before_state_apis(self):
         text = RUNNER.read_text(encoding="utf-8")
-        projection = text.index("register_screen_projection(app, application_state_hub, dashboard)")
+        projection = text.index("register_activity_screen_projection(app, application_state_hub, dashboard)")
         state_api = text.index("register_application_state_api(app, application_state_hub)")
         self.assertLess(projection, state_api)
 
