@@ -19,6 +19,7 @@
   let state = null;
   let queuedNonApplyPosts = 0;
   let postTail = Promise.resolve();
+  let navigationEpoch = 0;
 
   function plexampVisiblyOpen() {
     if (typeof window.ACPPlexamp?.isVisiblyOpen === 'function') {
@@ -37,6 +38,17 @@
       || document.documentElement.dataset.idleReturnMode
       || document.body.dataset.defaultMode
       || 'clock';
+  }
+
+  function navigationBusy() {
+    return Boolean(
+      window.ACPNavigationState?.isLeaving?.()
+      || window.ACPNavigationState?.isPresenting?.(),
+    );
+  }
+
+  function invalidateProjectionResponses() {
+    navigationEpoch += 1;
   }
 
   async function performPost(action, options = {}) {
@@ -137,7 +149,8 @@
   }
 
   async function applyProjection(snapshot) {
-    if (applying) return;
+    if (applying || navigationBusy()) return;
+    const epoch = navigationEpoch;
     const target = String(snapshot?.recommended_screen || '').toLowerCase();
     if (!(target in routes)) return;
 
@@ -164,6 +177,7 @@
           source: 'screen-projection-apply',
         }) || snapshot;
       }
+      if (epoch !== navigationEpoch || navigationBusy()) return;
       const resolvedTarget = String(
         resolved?.applied_screen || resolved?.recommended_screen || target,
       ).toLowerCase();
@@ -179,19 +193,16 @@
   }
 
   async function check() {
-    if (
-      checking
-      || applying
-      || window.ACPNavigationState?.isLeaving?.()
-      || window.ACPNavigationState?.isPresenting?.()
-    ) return;
+    if (checking || applying || navigationBusy()) return;
     checking = true;
+    const epoch = navigationEpoch;
     try {
       const snapshot = await post('state', {
         visibleSurface: currentSurface(),
         source: 'screen-projection-poll',
       });
       if (!snapshot) return;
+      if (epoch !== navigationEpoch || navigationBusy()) return;
       state = snapshot;
       document.documentElement.dataset.screenProjectionReason = String(state.decision_reason || 'unknown');
       document.documentElement.dataset.screenLeaseActive = state?.lease?.active === true ? 'true' : 'false';
@@ -222,6 +233,16 @@
     return !anotherSurfaceOwnsLease() && plexampVisiblyOpen();
   }
 
+  ['pointerdown', 'touchstart', 'keydown'].forEach((eventName) => {
+    window.addEventListener(eventName, (event) => {
+      if (!isNavigationGesture(event)) return;
+      invalidateProjectionResponses();
+    }, {
+      passive: true,
+      capture: true,
+    });
+  });
+
   ['pointerdown', 'touchstart', 'keydown', 'wheel', 'input'].forEach((eventName) => {
     window.addEventListener(eventName, (event) => {
       if (isNavigationGesture(event)) return;
@@ -233,6 +254,7 @@
   });
 
   window.addEventListener('acp:manual-screen-open', (event) => {
+    invalidateProjectionResponses();
     const surface = String(event?.detail?.surface || 'plexamp').toLowerCase();
     openSurface(
       surface,
@@ -269,6 +291,7 @@
     markActivity,
     openSurface,
     currentSurface,
+    navigationEpoch: () => navigationEpoch,
     state: () => state,
     shouldDeferModeSync: () => applying || Date.now() < modeGuardUntil,
     inputAuthority: () => state?.input_activity?.authority || 'browser-fallback',
