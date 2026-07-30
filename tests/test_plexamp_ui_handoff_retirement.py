@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AUDIO_MIXER = ROOT / "app" / "audio_mixer.py"
 PERSISTENT_PLEXAMP = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
+PERSISTENT_PLEXAMP_CSS = ROOT / "app" / "static" / "css" / "plexamp-persistent.css"
 PLAYBACK_AUTHORITY = ROOT / "app" / "playback_authority.py"
 PLAYBACK_HANDOFF = ROOT / "app" / "playback_handoff.py"
 RUNNER = ROOT / "app" / "runner.py"
@@ -36,6 +37,18 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertNotIn("acp:manual-screen-open", text)
         self.assertNotIn("document.addEventListener('click'", text)
         self.assertNotIn("ACPLiveAudioSnapshot", text)
+
+    def test_underlay_reveal_cannot_start_a_second_shell_fade(self):
+        script = PERSISTENT_PLEXAMP.read_text(encoding="utf-8")
+        css = PERSISTENT_PLEXAMP_CSS.read_text(encoding="utf-8")
+
+        self.assertIn("shell.classList.add('is-handoff-hidden')", script)
+        self.assertIn("shell.classList.remove('is-handoff-hidden'", script)
+        self.assertIn(".persistent-plexamp.is-handoff-hidden", css)
+        handoff_rule = css.split(".persistent-plexamp.is-handoff-hidden", 1)[1].split("}", 1)[0]
+        self.assertIn("transition: none !important", handoff_rule)
+        self.assertIn("visibility: hidden !important", handoff_rule)
+        self.assertIn("opacity: 0 !important", handoff_rule)
 
     def test_legacy_server_workers_and_route_wrapper_are_removed(self):
         mixer = AUDIO_MIXER.read_text(encoding="utf-8")
