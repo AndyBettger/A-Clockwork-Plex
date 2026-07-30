@@ -179,7 +179,12 @@
   }
 
   async function check() {
-    if (checking || applying || window.ACPNavigationState?.isLeaving?.()) return;
+    if (
+      checking
+      || applying
+      || window.ACPNavigationState?.isLeaving?.()
+      || window.ACPNavigationState?.isPresenting?.()
+    ) return;
     checking = true;
     try {
       const snapshot = await post('state', {
