@@ -83,6 +83,20 @@ html[data-transition-style="none"] .persistent-plexamp {
   transition-duration: var(--acp-transition-out-duration);
 }
 
+/* The selected outgoing animation already removed the Plexamp content. When the
+   underlying document is revealed, hide the shell atomically. Without this
+   terminal state, removing is-route-leaving re-enables the shell's ordinary
+   opacity transition and produces a second crossfade over the incoming page. */
+.persistent-plexamp.is-handoff-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: var(--plexamp-hidden-transform) !important;
+  filter: var(--plexamp-hidden-filter) !important;
+  clip-path: var(--plexamp-hidden-clip) !important;
+  transition: none !important;
+}
+
 .persistent-plexamp-frame {
   position: absolute;
   inset: 0;
