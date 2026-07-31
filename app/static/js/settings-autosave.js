@@ -32,6 +32,10 @@
     return Boolean(element?.closest('#settings-panel-alarms, #settings-panel-audio'));
   }
 
+  function dedicatedSubmit(event) {
+    return Boolean(event.submitter?.closest?.('[data-dedicated-settings-save]'));
+  }
+
   function queueSave(delay = 550) {
     saveQueued = true;
     window.clearTimeout(debounceTimer);
@@ -64,6 +68,7 @@
   }
 
   form.addEventListener('submit', (event) => {
+    if (dedicatedSubmit(event)) return;
     event.preventDefault();
     queueSave(0);
   });
