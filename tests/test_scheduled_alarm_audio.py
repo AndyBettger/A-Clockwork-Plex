@@ -15,8 +15,12 @@ from app.alarm_audio_scheduled import (
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "app" / "runner.py"
+STATUS_API = ROOT / "app" / "alarm_audio_status_scheduled.py"
 SETTINGS_CLIENT = ROOT / "app" / "static" / "js" / "settings-alarm-scheduled.js"
+SCHEDULER_CLIENT = ROOT / "app" / "static" / "js" / "settings-alarm-scheduler.js"
+ALARM_CLIENT = ROOT / "app" / "static" / "js" / "alarm-active.js"
 BASE = ROOT / "app" / "templates" / "base.html"
+ALARM_TEMPLATE = ROOT / "app" / "templates" / "alarm.html"
 
 
 class ProbeManager(ScheduledAlarmAudioManager):
@@ -173,29 +177,56 @@ class ScheduledAlarmAudioTests(unittest.TestCase):
 
         self.assertIn("scheduled-audio-disabled", manager.stops)
 
-    def test_runner_promotes_scheduled_audio_before_state_providers(self):
+    def test_runner_promotes_audio_and_status_before_state_providers(self):
         text = RUNNER.read_text(encoding="utf-8")
-        promotion = text.index("promote_scheduled_alarm_audio(dashboard)")
+        audio_promotion = text.index("promote_scheduled_alarm_audio(dashboard)")
+        status_promotion = text.index("register_scheduled_alarm_status_api(dashboard)")
         state_hub = text.index("build_default_application_state_hub(dashboard)")
-        self.assertLess(promotion, state_hub)
+        self.assertLess(audio_promotion, status_promotion)
+        self.assertLess(status_promotion, state_hub)
 
-    def test_settings_client_is_valid_and_exposes_second_switch(self):
-        result = subprocess.run(
-            ["node", "--check", str(SETTINGS_CLIENT)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+    def test_status_api_uses_promoted_audio_enablement(self):
+        text = STATUS_API.read_text(encoding="utf-8")
+        self.assertIn('audio.get("scheduled_playback_enabled")', text)
+        self.assertIn('dashboard.app.view_functions["api_alarm_active"]', text)
+        self.assertIn('dashboard.app.view_functions["api_alarm_scheduler"]', text)
+        self.assertNotIn('"playback_enabled": False', text)
+
+    def test_alarm_clients_have_valid_javascript_syntax(self):
+        for path in (SETTINGS_CLIENT, SCHEDULER_CLIENT, ALARM_CLIENT):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    ["node", "--check", str(path)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_settings_client_exposes_second_switch_and_exits_off_settings(self):
         text = SETTINGS_CLIENT.read_text(encoding="utf-8")
+        guard = text.index("dataset?.activePage")
+        installer = text.index("function install()")
+        self.assertLess(guard, installer)
         self.assertIn("alarm-audio-scheduled-enabled", text)
         self.assertIn("scheduled_enabled", text)
         self.assertIn("Second safety key", text)
 
-    def test_base_loads_scheduled_settings_client_with_cache_token(self):
-        text = BASE.read_text(encoding="utf-8")
-        self.assertIn("js/settings-alarm-scheduled.js", text)
-        self.assertIn("20260731-guarded-scheduled-alarm-audio", text)
+    def test_scheduler_and_alarm_screen_render_promoted_audio_truth(self):
+        scheduler = SCHEDULER_CLIENT.read_text(encoding="utf-8")
+        active = ALARM_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("audio.scheduled_playback_enabled", scheduler)
+        self.assertIn("Scheduled alarm audio enabled", scheduler)
+        self.assertIn("Scheduled alarm · sounding", active)
+        self.assertIn("playbackKind === 'scheduled'", active)
+        self.assertIn("Scheduled alarm · audio locked", active)
+
+    def test_templates_cache_bust_promoted_alarm_clients(self):
+        base = BASE.read_text(encoding="utf-8")
+        alarm = ALARM_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("js/settings-alarm-scheduled.js", base)
+        self.assertIn("20260731-guarded-scheduled-alarm-audio", base)
+        self.assertIn("20260731-scheduled-alarm-audio-truth", alarm)
 
 
 if __name__ == "__main__":
