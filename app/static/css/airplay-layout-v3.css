@@ -101,8 +101,11 @@ body.airplay-metadata-active .airplay-now-card > .airplay-copy > .airplay-contro
   padding-inline-end: 0 !important;
 }
 
-/* Fit the Ready mark inside exactly the same square used by real artwork. */
-body.airplay-session-idle .airplay-route-logo {
+/* Fit every visible fallback mark inside exactly the same square used by real
+   artwork. Do not gate this on airplay-session-idle: an active receiver can be
+   visible for a short metadata-pending interval, especially when the persistent
+   Plexamp overlay is removed from an already revealed AirPlay document. */
+.airplay-glyph .airplay-route-logo {
   left: 50% !important;
   top: 50% !important;
   width: 78% !important;
@@ -112,8 +115,10 @@ body.airplay-session-idle .airplay-route-logo {
 }
 
 /* The source is calculated from the actual centre of the concentric arcs in
-   the 24×24 AirPlay SVG rather than an eyeballed screenshot coordinate. */
-body.airplay-session-idle .airplay-pulse {
+   the 24×24 AirPlay SVG rather than an eyeballed screenshot coordinate. These
+   rules apply whenever the glyph is visible, including metadata-pending active
+   sessions, so the original thin off-centre pulse can never flash through. */
+.airplay-glyph .airplay-pulse {
   left: var(--airplay-pulse-origin-x) !important;
   top: var(--airplay-pulse-origin-y) !important;
   z-index: 1 !important;
@@ -124,7 +129,7 @@ body.airplay-session-idle .airplay-pulse {
   animation: airplay-route-wave 4.2s linear infinite !important;
 }
 
-body.airplay-session-idle .airplay-pulse.two {
+.airplay-glyph .airplay-pulse.two {
   animation-delay: 2.1s !important;
 }
 
