@@ -1,77 +1,101 @@
-# Controlled alarm audio, shared mixing and live-volume testing
+# Scheduled alarm audio, shared mixing and regression testing
 
-This development pass permits **explicit local-audio tests only**. Ordinary scheduled alarms still cannot start audio, even when the master test switch is enabled.
+This document describes the completed Stage 9 alarm path on the
+`feature/alarm-engine` branch. Real scheduled alarms can now play local tones,
+provided both deliberate safety switches are enabled.
+
+The bedroom Raspberry Pi has physically validated:
+
+- clock-triggered scheduled playback;
+- full-screen alarm takeover;
+- Snooze, repeated ringing and Dismiss;
+- Plexamp pause during alarm priority;
+- AirPlay pause during alarm priority;
+- no automatic music resume after Snooze or Dismiss;
+- shared `acp_alarm` output without stopping audio services;
+- alarm configuration persistence through the dedicated validated API.
+
+## Ownership model
+
+Alarm behaviour is split deliberately so there is only one owner for each job:
+
+```text
+ActiveAlarmScheduler
+  owns time, recurrence, DST, occurrence keys, recovery, Snooze and Dismiss
+
+ScheduledAlarmAudioManager
+  mirrors a real ringing occurrence into acp_alarm when both safety keys allow it
+
+PlaybackCoordinator
+  gives the alarm audible priority by pausing Plexamp and AirPlay
+
+ScreenProjectionController
+  gives the alarm immediate visual priority
+```
+
+The scheduler does not open an audio device. Its internal playback flag therefore
+remains false. User-facing alarm endpoints project the promoted audio manager's
+truth onto the nested scheduler status so API consumers see one consistent
+`playback_enabled` value.
 
 ## Safety model
 
-- `alarm_audio.master_enabled` unlocks deliberate tests from Settings.
-- `alarm_audio.scheduled_enabled` is forced to `false` by the backend.
-- Full-screen audio works only for a unique visual-test occurrence explicitly armed by the audio endpoint.
-- Restarting the dashboard clears in-memory audio arming, so a pending test cannot unexpectedly resume sound after a service restart.
-- Every test has a maximum duration of 30 seconds.
-- Every controlled test is capped at **25% output** by the backend, regardless of the alarm's saved start and target volume.
-- Snooze, Dismiss, Clear visual test and Stop alarm audio terminate playback immediately.
-- Shared mode never stops Plexamp or Shairport Sync to acquire the DAC.
+Two independently saved controls are required for normal scheduled sound:
 
-## Shared audio design
+1. **Enable alarm sound** — the master safety key.
+2. **Enable scheduled alarm sound** — the second safety key.
+
+Turning off the master key also clears scheduled enablement, preventing a latent
+scheduled alarm from becoming audible later.
+
+Additional safeguards:
+
+- explicit audio tests remain capped at 30 seconds;
+- controlled tests remain capped at 25% output by the backend;
+- scheduled playback is limited to the configured ring cycle, with a hard upper
+  bound of 630 seconds;
+- Snooze, Dismiss, Clear visual test, Stop alarm audio, leaving the ringing phase,
+  or disabling either safety key stops alarm playback immediately;
+- visual-only tests do not pause Plexamp or AirPlay;
+- alarm audio takeover applies only to a real, non-test scheduled occurrence while
+  scheduled sound is enabled;
+- music sources remain paused after the alarm. Resuming them is a deliberate user
+  action rather than an automatic guess.
+
+## Shared audio path
 
 ```text
 Plexamp  -> acp_plexamp --\
-AirPlay  -> acp_airplay ---+-> acp_master -> acp_dmix -> RPi DAC Pro
+AirPlay  -> acp_airplay ---+-> acp_master -> acp_dmix -> physical DAC
 Alarm    -> acp_alarm -----/
 ```
 
-Each source PCM has its own ALSA `softvol` trim. All three then pass through the shared master control and the `dmix` PCM. This removes the service-stop, DAC-release and service-restart timing problem.
+Each source PCM has its own ALSA `softvol` trim. All sources then pass through the
+shared master control and common `dmix` output. Plexamp and Shairport Sync services
+remain running; alarm priority is achieved with transport commands rather than
+service stops or exclusive-DAC handovers.
 
-## Two distinct volume layers
+## Alarm priority behaviour
 
-The interface deliberately separates calibration from everyday control.
+When a real scheduled alarm enters its ringing phase:
 
-### Persistent output trims — Settings → Audio
+1. the screen projection immediately selects the Alarm surface;
+2. the scheduled audio manager starts the selected local tone through `acp_alarm`;
+3. the final playback coordinator checks Plexamp and AirPlay;
+4. any playing source is paused once;
+5. if a source is deliberately restarted while the same alarm is still ringing,
+   it is paused again;
+6. Snooze or Dismiss releases alarm priority but does not automatically resume
+   either music source.
 
-These are real ALSA stages and survive restart through `alsactl`:
-
-- **Master** — final persistent level for every source;
-- **Plexamp trim** — downstream of Plexamp's own player volume;
-- **AirPlay trim** — downstream of the AirPlay sender/iPhone volume;
-- **Alarm trim** — output ceiling after the alarm's own fade and target.
-
-Changing a trim does not move Plexamp's or the iPhone's on-screen volume control, because it happens later in the audio path.
-
-### Live mixer — bottom navigation drawer → Audio
-
-These changes take effect immediately and do not wait for the Settings save button:
-
-- **Master** — immediate shared-output level;
-- **Plexamp** — calls Plexamp's own player-volume endpoint, so its Now Playing control should follow;
-- **AirPlay** — uses Shairport's remote volume, so the AirPlay dashboard follows and compatible senders may follow;
-- **Alarm** — immediate alarm output ceiling.
-
-Live Master and Alarm changes are not written with `alsactl`; persistent defaults remain under Settings → Audio.
-
-## Perceptual fader scale
-
-The dashboard no longer exposes ALSA's raw linear control position as though it were loudness.
+Takeover diagnostics are exposed in the playback snapshot under:
 
 ```text
-Dashboard 100% ->   0.00 dB
-Dashboard  50% ->  -6.02 dB
-Dashboard  25% -> -12.04 dB
-Dashboard  10% -> -20.00 dB
+handoffs.alarm_takeover
 ```
 
-The mixer API also reports `raw_percent` and `db` for comparison with `alsamixer`. Therefore the percentage shown by `alsamixer` is expected to differ from the human-facing dashboard percentage.
-
-## AirPlay volume separation and starting level
-
-Shairport Sync outputs through `acp_airplay`, but it no longer uses the `A Clockwork AirPlay` ALSA trim as its sender-volume control. Sender volume stays inside Shairport, while `acp_airplay` remains a stable downstream calibration stage.
-
-Settings → Audio includes:
-
-- **Starting sender volume**;
-- **Apply at the start of each session**.
-
-When enabled, the dashboard retries the configured volume briefly while the new AirPlay remote session becomes available. The default is 60%.
+The diagnostic includes the occurrence key, status, pause counts, last action,
+last error and the explicit `manual` resume policy.
 
 ## Audio format
 
@@ -81,61 +105,73 @@ Generated alarm tones and the shared mixer use:
 16-bit PCM
 44,100 Hz
 2 channels
-Dual mono for alarm tones: the same complete signal is sent left and right
+Dual mono: the complete tone is sent to left and right
 ```
 
-## Raspberry Pi installation or update
+## Persistent and live volume layers
 
-Install ALSA utilities when required:
+### Persistent trims
 
-```bash
-sudo apt-get update
-sudo apt-get install -y alsa-utils
+The physical mixer stages are:
+
+- **Master** — final output for every source;
+- **Plexamp trim** — downstream of Plexamp's own player volume;
+- **AirPlay trim** — downstream of the sender volume;
+- **Alarm trim** — ceiling after the alarm fade and target volume.
+
+They are managed through the shared mixer helper and survive restart.
+
+### Live controls
+
+The Audio drawer controls:
+
+- current Master level;
+- Plexamp's real player volume;
+- AirPlay sender gain;
+- current Alarm ceiling.
+
+The dashboard uses an amplitude-style human scale:
+
+```text
+100% =   0.00 dB
+ 50% ≈  -6.02 dB
+ 25% ≈ -12.04 dB
+ 10% = -20.00 dB
 ```
 
-Pull the feature branch, run the tests and install or refresh the shared mixer:
+Raw ALSA percentages are expected to differ and are exposed separately for
+diagnostics.
+
+## Installation and update
+
+For ordinary application updates:
 
 ```bash
 cd ~/A-Clockwork-Plex
 git switch feature/alarm-engine
 git pull --ff-only
 bash scripts/run-tests.sh
-sudo bash scripts/install-shared-audio.sh
+sudo systemctl restart a-clockwork-plex.service
 ```
 
-The installer:
-
-- writes `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf`;
-- registers `acp_master`, `acp_plexamp`, `acp_airplay` and `acp_alarm`;
-- creates four `softvol` controls on card `Pro`;
-- installs the perceptual mixer helper and restricted sudo policy;
-- routes the project user's default output through `acp_plexamp` when no unmanaged default exists;
-- updates Shairport Sync to use `acp_airplay` without binding sender volume to the output trim;
-- replaces AirPlay hooks so they pause Plexamp but never stop its service;
-- migrates `config.json` to shared mode and adds the AirPlay starting-volume defaults;
-- keeps scheduled alarm audio disabled.
-
-The bedroom Pi defaults are:
+Hard-refresh Chromium after browser asset changes:
 
 ```text
-ALSA_CARD=Pro
-ALSA_DEVICE=0
+Ctrl+Shift+R
 ```
 
-For different hardware:
+Only install or refresh the shared ALSA path when its managed configuration or
+helper has actually changed:
 
 ```bash
-sudo ALSA_CARD=YourCard ALSA_DEVICE=0 \
-  bash scripts/install-shared-audio.sh
-```
-
-Restart the audio services and dashboard:
-
-```bash
+sudo bash scripts/install-shared-audio.sh
 sudo systemctl restart plexamp.service
 sudo systemctl restart shairport-sync.service
 sudo systemctl restart a-clockwork-plex.service
 ```
+
+Do not run the production master-EQ installer. Production EQ integration remains
+blocked and is outside this alarm procedure.
 
 Plexamp should explicitly use:
 
@@ -143,85 +179,100 @@ Plexamp should explicitly use:
 A Clockwork Plex - Plexamp
 ```
 
-The project-user ALSA default also points to `acp_plexamp` when no pre-existing unmanaged default prevents the installer from doing so, but explicit selection has proved more reliable on the bedroom Pi.
+## Configuration workflow
 
-## Verify the installation
+Everyday alarm editing lives under **Settings → Alarms**.
 
-```bash
-aplay -L | grep -A1 '^acp_'
+- Alarm cards use a dedicated JavaScript model and validated JSON API.
+- **Save alarms** persists the complete alarm model.
+- The save card remains sticky during normal editing but returns to document flow
+  while the on-screen keyboard is open.
+- The two scheduled-sound safety keys remain in the Alarms workspace.
 
-/usr/local/bin/a-clockwork-plex-audio-mixer status \
-  | python3 -m json.tool
-```
+Testing, hardware details and runtime diagnostics live under
+**Settings → Advanced**.
 
-The helper should report all four channels as available, including human `percent`, ALSA `raw_percent` and `db` values.
+## Physical regression procedure
 
-Open **Settings → Audio**. The persistent trim card should report **Shared and ready** and show four vertical faders.
+### 1. Configuration persistence
 
-## Staged tests
+1. Create or edit a temporary alarm several minutes ahead.
+2. Select the current weekday and enable it.
+3. Press **Save alarms**.
+4. Reload Settings and confirm the enabled state, time and day remain.
+5. Confirm `/api/alarms/config` reports the same values.
 
-### 1. Persistent trims
+### 2. Scheduled alarm while idle
 
-Move each Settings → Audio fader and reload the page. The displayed values should survive. Fifty percent should remain clearly audible rather than behaving like the old near-mute raw ALSA value.
+1. Enable both alarm-sound safety keys.
+2. Wait for the real scheduled time; do not use a test button.
+3. Confirm the Alarm screen appears and the local tone fades in.
+4. Press Snooze and confirm sound stops immediately.
+5. Confirm the alarm returns after the configured snooze period.
+6. Dismiss and confirm it does not return for that occurrence.
 
-### 2. Live Plexamp volume
+### 3. Plexamp takeover
 
 1. Start Plexamp playback.
-2. Open the bottom drawer and press **Audio**.
-3. Move the Plexamp live fader.
-4. Confirm the Plexamp Now Playing volume changes and audio follows immediately.
-5. Confirm the persistent Plexamp trim in Settings → Audio remains unchanged.
+2. Let a real scheduled alarm trigger.
+3. Confirm Plexamp pauses and only the alarm remains audible.
+4. Confirm Plexamp remains paused after Snooze and Dismiss.
 
-### 3. Live AirPlay volume and starting level
+### 4. AirPlay takeover
 
-1. Set an AirPlay starting sender volume under Settings → Audio and save it.
-2. Start a new AirPlay session.
-3. Confirm the session becomes audible near that configured level.
-4. Open the bottom Audio drawer and move the AirPlay fader.
-5. Confirm the dashboard AirPlay volume changes; check whether the sender also reflects the remote change.
-6. Confirm the persistent AirPlay trim remains unchanged.
+1. Start an AirPlay sender.
+2. Let a real scheduled alarm trigger.
+3. Confirm the sender is paused and only the alarm remains audible.
+4. Confirm AirPlay remains paused after Snooze and Dismiss.
 
-The live AirPlay fader is disabled while no remote sender is available.
+### 5. Visual and controlled tests
 
-### 4. Plexamp plus alarm
+- A visual-only alarm test must not pause music.
+- A controlled tone test remains finite and capped.
+- **Stop alarm audio** must always terminate the controlled player.
 
-1. Start music in Plexamp.
-2. Open **Settings → Alarms → Controlled alarm audio**.
-3. Confirm **Use shared ALSA mixer** is enabled and the alarm PCM is `acp_alarm`.
-4. Set a five-second test duration.
-5. Enable and save **Enable alarm audio tests**.
-6. Press **Test tone now**.
-
-The alarm should mix over the currently playing track. Plexamp must remain connected and its service must remain active. No stop, restart or DAC handover occurs.
-
-### 5. Full alarm controls
-
-Use **Test full alarm in 10 sec** and validate screen takeover, Snooze, the repeated cycle and Dismiss. Plexamp remains available throughout.
-
-### 6. AirPlay handoff
-
-Start AirPlay while Plexamp is playing. The shared AirPlay start hook pauses Plexamp and changes the dashboard mode, but leaves `plexamp.service` running. Ending AirPlay returns the screen without restarting Plexamp.
-
-## Diagnostics
+## API diagnostics
 
 ```bash
-curl -s http://localhost:8088/api/audio/mixer \
-  | venv/bin/python -m json.tool
-
-curl -s http://localhost:8088/api/audio/live \
-  | venv/bin/python -m json.tool
-
-curl -s http://localhost:8088/api/audio/defaults \
+curl -s http://localhost:8088/api/alarms/config \
   | venv/bin/python -m json.tool
 
 curl -s http://localhost:8088/api/alarms/audio \
   | venv/bin/python -m json.tool
 
+curl -s http://localhost:8088/api/alarms/scheduler \
+  | venv/bin/python -m json.tool
+
+curl -s http://localhost:8088/api/alarms/active \
+  | venv/bin/python -m json.tool
+
+curl -s http://localhost:8088/api/playback/state \
+  | venv/bin/python -m json.tool
+
+curl -s http://localhost:8088/api/audio/mixer \
+  | venv/bin/python -m json.tool
+```
+
+Authoritative scheduled-sound fields are:
+
+```text
+/api/alarms/audio.scheduled_playback_enabled
+/api/alarms/scheduler.playback_enabled
+/api/alarms/scheduler.scheduler.playback_enabled
+/api/alarms/active.playback_enabled
+/api/alarms/active.scheduler.playback_enabled
+```
+
+All five should agree after the promoted status projection.
+
+Service logs:
+
+```bash
 journalctl \
   -u a-clockwork-plex.service \
   -u plexamp.service \
   -u shairport-sync.service \
-  -n 120 --no-pager
+  -n 160 --no-pager
 ```
 
 Useful ALSA checks:
@@ -233,25 +284,17 @@ amixer -c Pro scontrols
 sudo fuser -v /dev/snd/*
 ```
 
-With `dmix`, the DAC PCM may be owned by an ALSA client while several source streams remain usable. That is expected; source sharing happens through the common dmix PCM rather than by repeatedly opening the hardware directly.
+## Emergency stop and relock
 
-## Emergency rollback
-
-Stop and relock alarm tests:
+Stop alarm audio immediately:
 
 ```bash
 curl -fsS -X POST http://localhost:8088/api/alarms/audio/stop
 ```
 
-Then disable **Enable alarm audio tests** in Settings.
+Then disable **Enable scheduled alarm sound**. Disable the master key as well when
+all alarm sound should be locked.
 
-The installer creates timestamped backups of the managed ALSA and Shairport files. To remove the shared mixer itself:
-
-```bash
-sudo rm -f /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf
-sudo rm -f /usr/local/bin/a-clockwork-plex-audio-mixer
-sudo rm -f /etc/sudoers.d/a-clockwork-plex-audio-mixer
-sudo rm -f /etc/default/a-clockwork-plex-audio
-```
-
-Restore the most recent `/etc/shairport-sync.conf.<timestamp>.bak` and `.asoundrc` backup when required, then restart Plexamp and Shairport Sync.
+The shared-mixer installer creates timestamped backups of managed ALSA and
+Shairport files. Rollback of those files is only needed for an actual shared-path
+failure; ordinary alarm configuration and application changes do not require it.
