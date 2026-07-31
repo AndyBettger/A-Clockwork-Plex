@@ -16,12 +16,14 @@ except ImportError:  # Supports direct execution imports.
     from alarm_audio import normalise_audio_settings as _normalise_test_audio_settings
 
 
+MAX_CONTROLLED_TEST_SECONDS = 30
 MAX_SCHEDULED_RING_SECONDS = 630
 DEFAULT_SCHEDULED_VOLUME_CAP_PERCENT = 100
 
-# The preserved player clamps rendered files through this module constant. Tests
-# remain capped by their normalised 30-second duration; scheduled occurrences may
-# render a complete ten-minute ring cycle plus a small scheduler handover margin.
+# The preserved player clamps rendered files through this module constant.
+# Scheduled occurrences may render a complete ten-minute ring cycle plus a small
+# scheduler handover margin. The promoted normaliser below separately pins all
+# deliberate tests back to their original 30-second safety limit.
 _core.MAX_TEST_SECONDS = max(_core.MAX_TEST_SECONDS, MAX_SCHEDULED_RING_SECONDS)
 
 
@@ -38,6 +40,15 @@ def normalise_audio_settings(raw: Any) -> dict[str, Any]:
     master_enabled = bool(settings.get("master_enabled"))
     settings.update(
         {
+            # Extending the shared renderer for scheduled rings must never widen
+            # the explicit test window.
+            "test_duration_seconds": max(
+                3,
+                min(
+                    MAX_CONTROLLED_TEST_SECONDS,
+                    _integer(source.get("test_duration_seconds"), 12),
+                ),
+            ),
             # This is deliberately a second key. Turning off the master switch
             # also clears scheduled playback instead of leaving a latent alarm.
             "scheduled_enabled": master_enabled and bool(source.get("scheduled_enabled", False)),
