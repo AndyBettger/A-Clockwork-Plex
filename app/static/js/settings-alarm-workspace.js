@@ -23,6 +23,17 @@
     document.head.appendChild(link);
   }
 
+  function updateAlarmIntro() {
+    const intro = alarmPanel.querySelector('.settings-card.is-intro');
+    const chip = intro?.querySelector('.settings-chip');
+    const copy = intro?.querySelector('p');
+    if (chip) chip.textContent = 'Scheduled alarms';
+    if (copy) {
+      copy.textContent = 'Create and organise alarms while the persistent runtime handles timing, screen takeover, sound, Snooze and Dismiss.';
+    }
+    return Boolean(intro);
+  }
+
   function saveMessage(text, tone = 'info') {
     const message = byId('alarm-workspace-save-message');
     if (!message) return;
@@ -72,7 +83,7 @@
     card.innerHTML = `
       <div>
         <h2>Save alarm schedule</h2>
-        <p class="muted small">Alarm edits use their own validated API and are not part of general Settings autosave.</p>
+        <p class="muted small">Alarm cards are validated and saved together as one schedule.</p>
       </div>
       <div class="alarm-workspace-save-actions">
         <span class="muted small" id="alarm-workspace-save-message">No unsaved alarm changes.</span>
@@ -182,12 +193,13 @@
 
   function reconcile() {
     installStyles();
+    const introReady = updateAlarmIntro();
     const saveReady = ensureAlarmSaveCard();
     const workspace = ensureAdvancedWorkspace();
     const schedulerReady = moveSchedulerDiagnostics(workspace);
     const audioReady = reshapeAlarmAudio(workspace);
 
-    if (saveReady && schedulerReady && audioReady && reconcileTimer) {
+    if (introReady && saveReady && schedulerReady && audioReady && reconcileTimer) {
       window.clearInterval(reconcileTimer);
       reconcileTimer = null;
     }
