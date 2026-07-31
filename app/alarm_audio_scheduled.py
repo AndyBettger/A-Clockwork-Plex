@@ -19,12 +19,7 @@ except ImportError:  # Supports direct execution imports.
 MAX_CONTROLLED_TEST_SECONDS = 30
 MAX_SCHEDULED_RING_SECONDS = 630
 DEFAULT_SCHEDULED_VOLUME_CAP_PERCENT = 100
-
-# The preserved player clamps rendered files through this module constant.
-# Scheduled occurrences may render a complete ten-minute ring cycle plus a small
-# scheduler handover margin. The promoted normaliser below separately pins all
-# deliberate tests back to their original 30-second safety limit.
-_core.MAX_TEST_SECONDS = max(_core.MAX_TEST_SECONDS, MAX_SCHEDULED_RING_SECONDS)
+_DURATION_LIMIT_LOCK = threading.Lock()
 
 
 def _integer(value: Any, fallback: int) -> int:
@@ -40,8 +35,6 @@ def normalise_audio_settings(raw: Any) -> dict[str, Any]:
     master_enabled = bool(settings.get("master_enabled"))
     settings.update(
         {
-            # Extending the shared renderer for scheduled rings must never widen
-            # the explicit test window.
             "test_duration_seconds": max(
                 3,
                 min(
@@ -83,6 +76,18 @@ class ScheduledAlarmAudioManager(ControlledAlarmAudioManager):
     def _is_real_scheduled_occurrence(occurrence: dict[str, Any]) -> bool:
         return bool(occurrence.get("scheduled_alarm")) and not bool(occurrence.get("test_mode"))
 
+    def _play_scheduled(self, occurrence: dict[str, Any], settings: dict[str, Any]) -> None:
+        # The preserved player uses this module constant as its final renderer
+        # clamp. Widen it only while the one scheduled worker owns playback, then
+        # restore it so explicit tests and unrelated callers remain capped at 30s.
+        with _DURATION_LIMIT_LOCK:
+            original_limit = _core.MAX_TEST_SECONDS
+            _core.MAX_TEST_SECONDS = MAX_SCHEDULED_RING_SECONDS
+            try:
+                super()._play(occurrence, settings)
+            finally:
+                _core.MAX_TEST_SECONDS = original_limit
+
     def _start(self, occurrence: dict[str, Any], cycle: str) -> None:
         settings = self.settings()
         if not settings.get("master_enabled"):
@@ -98,6 +103,7 @@ class ScheduledAlarmAudioManager(ControlledAlarmAudioManager):
 
         playback_settings = deepcopy(settings)
         playback_kind = "scheduled" if is_scheduled else "test"
+        worker_target = self._play
         if is_scheduled:
             ring_minutes = max(1, min(10, _integer(payload.get("ring_minutes"), 3)))
             payload["audio_duration_seconds"] = min(
@@ -108,6 +114,7 @@ class ScheduledAlarmAudioManager(ControlledAlarmAudioManager):
                 "scheduled_volume_cap_percent",
                 DEFAULT_SCHEDULED_VOLUME_CAP_PERCENT,
             )
+            worker_target = self._play_scheduled
 
         with self.lock:
             if cycle in self.played_cycles:
@@ -118,7 +125,7 @@ class ScheduledAlarmAudioManager(ControlledAlarmAudioManager):
             self.stop_event.clear()
             self.state["playback_kind"] = playback_kind
             self.worker_thread = threading.Thread(
-                target=self._play,
+                target=worker_target,
                 args=(payload, playback_settings),
                 name=f"alarm-audio-{playback_kind}-player",
                 daemon=True,
