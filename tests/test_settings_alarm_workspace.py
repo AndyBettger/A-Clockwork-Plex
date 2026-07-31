@@ -27,12 +27,20 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertIn('type="submit"', text)
         self.assertIn('data-dedicated-settings-save="alarms"', text)
         self.assertIn("Unsaved alarm changes.", text)
+        self.assertIn("validated and saved together as one schedule", text)
 
     def test_general_autosave_does_not_swallow_dedicated_alarm_save(self):
         text = AUTOSAVE.read_text(encoding="utf-8")
         self.assertIn("function dedicatedSubmit(event)", text)
         self.assertIn("[data-dedicated-settings-save]", text)
         self.assertIn("if (dedicatedSubmit(event)) return;", text)
+
+    def test_workspace_owns_final_alarm_intro_truth(self):
+        text = WORKSPACE.read_text(encoding="utf-8")
+        self.assertIn("function updateAlarmIntro()", text)
+        self.assertIn("Scheduled alarms", text)
+        self.assertIn("timing, screen takeover, sound, Snooze and Dismiss", text)
+        self.assertNotIn("The scheduler remains disabled during this pass", text)
 
     def test_testing_and_runtime_controls_move_to_advanced(self):
         text = WORKSPACE.read_text(encoding="utf-8")
@@ -53,7 +61,7 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
     def test_template_loads_cache_busted_workspace_client(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/settings-alarm-workspace.js", text)
-        self.assertIn("20260731-alarm-settings-workspace", text)
+        self.assertIn("20260731-alarm-workspace-truth", text)
 
 
 if __name__ == "__main__":
