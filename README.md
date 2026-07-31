@@ -200,9 +200,10 @@ curl -s http://localhost:8088/api/audio/mixer | venv/bin/python -m json.tool
 1. Finish the remaining Stage 11 compatibility and visual-artifact cleanup.
 2. Keep production EQ integration blocked unless a separately approved design
    passes laboratory, rollback and physical regression criteria.
-3. Complete the weather-provider work as the **final major subsystem**.
-4. After weather, revisit Settings as an iPhone-style drill-down interface rather
-   than horizontal tabs; see
+3. Complete the weather-provider work as the **final development stage** for
+   major subsystem implementation.
+4. After weather, run the separately recorded Settings interface polish pass:
+   replace horizontal tabs with an iPhone-style drill-down interface; see
    [`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
 5. Update release notes and obtain explicit approval before making PR #2 ready or
    merging it.
