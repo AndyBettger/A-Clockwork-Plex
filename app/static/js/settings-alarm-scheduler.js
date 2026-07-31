@@ -1,8 +1,8 @@
 (() => {
-  if (window.__aClockworkPlexAlarmSchedulerSettingsLoaded) {
-    return;
-  }
+  if (window.__aClockworkPlexAlarmSchedulerSettingsLoaded) return;
   window.__aClockworkPlexAlarmSchedulerSettingsLoaded = true;
+
+  if (String(document.body?.dataset?.activePage || '').toLowerCase() !== 'settings') return;
 
   const PANEL_ID = 'settings-panel-alarms';
   const STATUS_ENDPOINT = '/api/alarms/scheduler';
@@ -16,13 +16,9 @@
   const byId = (id) => document.getElementById(id);
 
   function formatTimestamp(value, fallback = 'Not yet') {
-    if (!value) {
-      return fallback;
-    }
+    if (!value) return fallback;
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return fallback;
-    }
+    if (Number.isNaN(parsed.getTime())) return fallback;
     return new Intl.DateTimeFormat('en-GB', {
       weekday: 'short',
       day: '2-digit',
@@ -50,6 +46,7 @@
   function formatActiveState(scheduler, audio = {}) {
     const active = scheduler.active_occurrence;
     const pending = scheduler.pending_test_occurrence;
+    const scheduledEnabled = Boolean(audio.scheduled_playback_enabled);
     if (active) {
       if (scheduler.snoozed_until) {
         return {
@@ -59,8 +56,9 @@
       }
       const audioMatches = String(audio.current_occurrence_key || '') === String(active.occurrence_key || '');
       if (audio.playback_active && audioMatches) {
+        const kind = audio.playback_kind === 'scheduled' ? 'scheduled audio' : 'controlled test';
         return {
-          title: `${active.label || 'Alarm'} · screen and audio active`,
+          title: `${active.label || 'Alarm'} · screen and ${kind} active`,
           detail: `${audio.current_tone_label || active?.source?.tone_id || 'Local tone'}${audio.fallback_used ? ' · emergency fallback' : ''}`,
         };
       }
@@ -68,6 +66,12 @@
         return {
           title: `${active.label || 'Alarm'} · controlled audio test`,
           detail: 'Screen active · test audio armed or completed',
+        };
+      }
+      if (!active.test_mode && scheduledEnabled) {
+        return {
+          title: `${active.label || 'Alarm'} · scheduled audio starting`,
+          detail: 'Screen active · shared alarm mixer enabled',
         };
       }
       return {
@@ -90,32 +94,17 @@
   function installCard() {
     const panel = byId(PANEL_ID);
     const lockout = panel?.querySelector('.alarm-scheduler-lockout');
-    if (!panel || !lockout) {
-      return false;
-    }
+    if (!panel || !lockout) return false;
 
     const intro = panel.querySelector('.settings-card.is-intro');
     const introChip = intro?.querySelector('.settings-chip');
     const introCopy = intro?.querySelector('p');
-    if (introChip) {
-      introChip.textContent = 'Active runtime';
-    }
+    if (introChip) introChip.textContent = 'Active runtime';
     if (introCopy) {
-      introCopy.textContent = 'Create and organise alarms while the persistent runtime handles screen takeover, snooze and dismiss. Scheduled audio remains locked; controlled tests are available below.';
+      introCopy.textContent = 'Create and organise alarms while the persistent runtime handles screen takeover, sound, snooze and dismiss.';
     }
 
-    const lockoutTitle = lockout.querySelector('strong');
-    const lockoutCopy = lockout.querySelector('span');
-    if (lockoutTitle) {
-      lockoutTitle.textContent = 'Scheduled audio lockout active';
-    }
-    if (lockoutCopy) {
-      lockoutCopy.textContent = 'Ordinary alarm occurrences may take over the touchscreen but cannot make sound. Only explicitly armed tests can use the audio manager.';
-    }
-
-    if (byId('alarm-scheduler-status-card')) {
-      return true;
-    }
+    if (byId('alarm-scheduler-status-card')) return true;
 
     const card = document.createElement('section');
     card.id = 'alarm-scheduler-status-card';
@@ -170,7 +159,7 @@
         <button class="button settings-secondary" id="alarm-scheduler-refresh" type="button">Recalculate now</button>
         <button class="button" id="alarm-runtime-test" type="button">Test screen in 10 seconds</button>
         <button class="button settings-secondary" id="alarm-runtime-clear-test" type="button">Clear visual test</button>
-        <span class="muted small" id="alarm-scheduler-message">Scheduled audio is locked; controlled tests are configured separately.</span>
+        <span class="muted small" id="alarm-scheduler-message">Waiting for alarm runtime status.</span>
       </div>
     `;
     panel.insertBefore(card, lockout);
@@ -184,16 +173,32 @@
   function renderStatus(payload) {
     const scheduler = payload?.scheduler;
     const audio = payload?.audio || {};
-    if (!scheduler) {
-      throw new Error('Scheduler status response was incomplete.');
-    }
+    if (!scheduler) throw new Error('Scheduler status response was incomplete.');
 
+    const scheduledEnabled = Boolean(audio.scheduled_playback_enabled || payload?.playback_enabled);
     const health = byId('alarm-scheduler-health');
     const isRunning = scheduler.running && scheduler.health === 'running-ui-ready';
     if (health) {
-      health.textContent = isRunning ? 'Screen runtime ready' : scheduler.last_error ? 'Needs attention' : 'Stopped';
+      health.textContent = isRunning
+        ? (scheduledEnabled ? 'Runtime + sound ready' : 'Screen runtime ready')
+        : scheduler.last_error ? 'Needs attention' : 'Stopped';
       health.classList.toggle('is-warning', !isRunning);
     }
+
+    const lockout = document.querySelector(`#${PANEL_ID} .alarm-scheduler-lockout`);
+    const lockoutTitle = lockout?.querySelector('strong');
+    const lockoutCopy = lockout?.querySelector('span');
+    if (lockoutTitle) {
+      lockoutTitle.textContent = scheduledEnabled
+        ? 'Scheduled alarm audio enabled'
+        : 'Scheduled audio safety lock active';
+    }
+    if (lockoutCopy) {
+      lockoutCopy.textContent = scheduledEnabled
+        ? 'Normal enabled alarms may sound through acp_alarm. Snooze, Dismiss or either audio safety switch stops playback.'
+        : 'Alarm occurrences may take over the touchscreen but stay silent until both audio safety switches are enabled.';
+    }
+    lockout?.classList.toggle('is-enabled', scheduledEnabled);
 
     const next = formatNextOccurrence(scheduler.next_occurrence);
     byId('alarm-scheduler-next').textContent = next.title;
@@ -229,16 +234,15 @@
 
     const message = byId('alarm-scheduler-message');
     if (message) {
-      message.textContent = scheduler.last_error || 'Screen takeover, snooze and dismiss are active. Scheduled audio remains locked; controlled tests use the audio panel below.';
+      message.textContent = scheduler.last_error || (scheduledEnabled
+        ? 'Screen takeover and scheduled sound are enabled. Snooze and Dismiss stop the active ring immediately.'
+        : 'Screen takeover, snooze and dismiss are active. Scheduled sound remains behind the two-key safety gate.');
       message.classList.toggle('is-error', Boolean(scheduler.last_error));
     }
   }
 
   async function requestJson(endpoint, options = {}) {
-    const response = await fetch(endpoint, {
-      cache: 'no-store',
-      ...options,
-    });
+    const response = await fetch(endpoint, { cache: 'no-store', ...options });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload.ok === false) {
       throw new Error(payload.error || `Alarm runtime returned ${response.status}.`);
@@ -247,9 +251,7 @@
   }
 
   async function refreshStatus(recalculate = false) {
-    if (refreshInFlight || !installCard()) {
-      return;
-    }
+    if (refreshInFlight || !installCard()) return;
     refreshInFlight = true;
     const button = byId('alarm-scheduler-refresh');
     if (button) {
@@ -352,9 +354,7 @@
   }
 
   window.addEventListener('pagehide', () => {
-    if (refreshTimer) {
-      window.clearInterval(refreshTimer);
-    }
+    if (refreshTimer) window.clearInterval(refreshTimer);
   });
 
   start();
