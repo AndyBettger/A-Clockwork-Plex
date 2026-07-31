@@ -2,6 +2,8 @@
   if (window.__aClockworkPlexScheduledAlarmSettingsLoaded) return;
   window.__aClockworkPlexScheduledAlarmSettingsLoaded = true;
 
+  if (String(document.body?.dataset?.activePage || '').toLowerCase() !== 'settings') return;
+
   const STATUS_ENDPOINT = '/api/alarms/audio';
   const SETTINGS_ENDPOINT = '/api/alarms/audio/settings';
   const POLL_MS = 3000;
