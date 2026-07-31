@@ -1,122 +1,307 @@
-# Application state architecture
+# Application state and authority architecture
 
 ## Purpose
 
-A Clockwork Plex is moving from several browser scripts, shell hooks and source-specific workers toward one interface-facing application state model.
+A Clockwork Plex now uses server-side application authorities instead of asking
+browser scripts, shell hooks and individual pages to negotiate ownership among
+themselves.
 
-The design separates overall application authority from specialist controllers:
+The central rule is:
+
+> Observe broadly, but assign each state transition and command to one owner.
+
+The current composition is built in `app/runner.py`:
 
 ```text
+Dashboard core and specialist runtimes
+  ├── ActiveAlarmScheduler
+  ├── ScheduledAlarmAudioManager
+  ├── shared audio mixer
+  └── source observers
+
 ApplicationStateHub
-├── PlaybackCoordinator
-├── DspController          (later provider)
-├── MixerController        (later provider)
-├── WeatherService         (provider stage)
-└── SettingsRepository     (provider stage)
+  ├── final PlaybackCoordinator authority
+  ├── MixerController
+  ├── ScreenProjectionController
+  ├── LinuxInputActivityMonitor
+  └── compact specialist providers
+
+Browser clients
+  ├── request explicit actions
+  └── render server state
 ```
 
-The browser will eventually request actions and render the resulting state. It will not infer whether a source is playing by inspecting an icon that it drew itself.
+The known-good direct shared ALSA mixer remains the production audio graph.
+Production master-EQ integration is still blocked and is not part of this
+architecture promotion.
 
-## Stage one: observation foundation
+## Composition order
 
-The first implementation established the read-only hub.
+Order matters because later authorities consume promoted specialist truth:
 
-- `GET /api/state` returns a versioned snapshot.
-- `PlaybackCoordinator` observes Plexamp, AirPlay, alarms and the persisted dashboard mode.
-- It reports `current_screen` and `recommended_screen` separately.
-- Existing Shairport and Plexamp handoff mechanisms remain in control.
-- No service, mixer, DSP route or dashboard mode is changed by the hub.
+```python
+scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
+register_scheduled_alarm_status_api(dashboard)
+application_state_hub = build_default_application_state_hub(dashboard)
+playback_coordinator = promote_playback_authority(application_state_hub, dashboard)
+screen_projection = register_activity_screen_projection(...)
+register_application_state_api(...)
+register_playback_command_api(...)
+master_equalizer = register_audio_eq(app)
+```
 
-Physical Raspberry Pi validation confirmed that idle, Plexamp, AirPlay, paused-AirPlay and disconnect observations matched the appliance. The systemd service was migrated from `app/main.py` to the real composition entrypoint, `app/runner.py`.
+Scheduled alarm audio and its public status projection are registered before the
+state hub. The final playback authority therefore observes the real promoted alarm
+policy rather than the scheduler foundation's internal no-player flag.
 
-## Stage two: event-assisted observation
+## ApplicationStateHub
 
-Stage two added a bounded playback event journal while keeping command ownership disabled.
+`ApplicationStateHub` provides a versioned, failure-isolated snapshot.
 
-- `GET /api/playback/state` returns a compact playback-only snapshot.
-- `GET /api/playback/events` returns recent source transitions.
-- `POST /api/playback/events` accepts validated internal adapter events.
-- Existing `/api/airplay/start` and `/api/airplay/end` routes are translated into coordinator lifecycle events without changing their established behaviour.
-- Fresh Shairport metadata can introduce an AirPlay pause even when MPRIS is stale.
-- Once journalled, the pause remains authoritative until a newer resume or disconnect event supersedes it.
-
-Physical validation confirmed the expected idle, Plexamp, AirPlay, pause, long-pause, resume and disconnect states. The shared snapshot carries compact alarm operational status; full alarm histories remain on specialist endpoints.
-
-## Stage three: coordinator-owned AirPlay hold
-
-Stage three transfers the ten-minute pause hold from a detached shell watchdog into `PlaybackCoordinator`.
-
-- Shairport START remains a thin adapter that pauses Plexamp and publishes the established AirPlay start route.
-- Shairport END classifies the transition as paused, disconnected or a stale END after resume.
-- A paused sender posts `airplay.paused` to `/api/playback/events`.
-- The coordinator persists the hold deadline in `playback-runtime.json`.
-- A dashboard restart reloads the existing deadline instead of restarting the ten-minute period.
-- A background coordinator worker monitors disconnect and deadline expiry without depending on the browser.
-- Resume/start events cancel the hold immediately.
-- Disconnect ends the held session immediately.
-- Expiry marks the AirPlay session ended and returns the dashboard to its configured idle destination.
-- The shell wrappers contain no generation token, detached watchdog, repeated sleep loop or browser heartbeat.
-
-The authority boundary remains deliberately narrow:
+Main endpoints:
 
 ```text
-source transport control        disabled
-screen/session return on expiry enabled
-Plexamp/Shairport restarts      never used
-mixer or DSP changes            none
+GET  /api/state
+GET  /api/playback/state
+GET  /api/playback/events
+POST /api/playback/events
+POST /api/playback/command
 ```
 
-The playback snapshot reports:
+Important properties:
 
-- `authority: airplay-hold-owner`;
-- `commands_enabled: false`;
-- `command_capabilities.source_control: false`;
-- `command_capabilities.screen_return_on_hold_end: true`;
-- coordinator worker health;
-- hold owner, phase, deadline, remaining seconds and any completion error.
+- repeated reads of unchanged domain state retain the same revision;
+- `generated_at` changes on each response without incrementing the revision;
+- one failing provider is reported under `components` and cannot suppress other
+  domains;
+- full specialist histories remain on specialist endpoints;
+- the playback snapshot contains compact evidence, policy and command history.
 
-## Playback state model
+## Final playback authority
 
-The playback snapshot includes:
+The production playback service is a
+`RetainedBidirectionalHandoffCoordinator`, promoted exactly once by
+`playback_authority.py`.
 
-- active source and decision reason;
-- current and recommended screens;
-- whether the screen agrees with policy;
-- Plexamp observed state;
-- AirPlay connection, effective playback state, raw MPRIS evidence and state source;
-- persisted AirPlay hold state;
-- compact alarm scheduler and alarm-audio state;
-- recent source events;
-- handoff policy and the no-restart guarantee.
+It owns:
 
-A paused but connected AirPlay sender remains the active source until resume, disconnect or hold expiry.
+- explicit AirPlay transport commands;
+- previous/next navigation when the sender supports them;
+- the persisted ten-minute AirPlay pause hold;
+- AirPlay-to-Plexamp takeover;
+- Plexamp-to-AirPlay takeover;
+- retained ceded AirPlay sessions;
+- alarm audio priority over both music sources;
+- command diagnostics and independent-observation confirmation.
 
-## Application-state revisions
+It never restarts Plexamp or Shairport Sync and does not edit the ALSA graph.
 
-`ApplicationStateHub` calculates a stable signature from domain state.
+### Source priority
 
-- Repeated reads of unchanged state retain the same revision.
-- A meaningful domain change increments the revision.
-- `generated_at` changes on each response but does not itself increment the revision.
-- A failing provider is isolated and reported through `components`; it cannot prevent other domains from being returned.
+The effective priority is:
 
-This failure isolation is important when weather and DSP providers are added. A weather timeout must not break playback state, and a DSP health error must not hide an alarm.
+```text
+real sounding alarm
+  > newest deliberate music playback transition
+  > retained/held AirPlay session
+  > idle policy
+```
 
-## Temporary AirPlay code
+Screen ownership is separate from audio ownership. A manual Settings or Clock
+lease can remain visible while background music continues, but a ringing alarm
+always interrupts the lease.
 
-The experimental browser-side AirPlay control coordinator is no longer loaded. Its polling and button-repair logic is not part of the new authority model.
+## AirPlay lifecycle and pause hold
 
-The existing `airplay-live.js` renderer remains temporarily, so the visible Play/Pause icon may still disagree with the coordinator. The next interface stage will render playback controls directly from `/api/playback/state`.
+A paused but connected AirPlay sender remains retained for the configured hold
+period, normally 600 seconds.
 
-## Planned migration
+The coordinator persists:
 
-1. Physically validate coordinator hold ownership, restart recovery, resume cancellation, disconnect handling and full expiry.
-2. Add guarded source arbitration commands while retaining rollback to the established handoff paths.
-3. Make AirPlay and Plexamp pages render only hub state.
-4. Remove obsolete mode watchers, browser inference and legacy source handoff workers after regression tests pass.
-5. Add `DspController` and `MixerController` providers.
-6. Add provider-based `WeatherService` normalisation.
+- hold start;
+- hold deadline;
+- phase;
+- reason;
+- last error.
 
-## Safety boundary
+A dashboard restart reloads the original deadline instead of restarting it.
+Fresh resume cancels the hold. Sender disconnect ends it immediately. Expiry
+releases the session without manufacturing a source transport command.
 
-Stage three does not promote CamillaDSP or change the physical audio path. The known-good direct shared mixer remains production. The coordinator owns only AirPlay lifecycle timing and the resulting screen/session return; source transport arbitration still uses the established production mechanisms.
+## Bidirectional music handoff
+
+### AirPlay starts while Plexamp is playing
+
+1. Shairport publishes the AirPlay lifecycle event.
+2. The final coordinator observes a fresh playing episode.
+3. Plexamp receives one Pause command.
+4. Repeated observations do not issue repeated commands.
+5. The Plexamp service remains running.
+
+### Plexamp starts while AirPlay is playing
+
+1. The coordinator detects a genuine paused/stopped-to-playing Plexamp transition.
+2. AirPlay receives one Pause command.
+3. The sender session is retained in a ceded state for the existing or newly
+   created hold deadline.
+4. A later independent AirPlay paused observation confirms the command.
+5. Browsing the Plexamp surface without starting playback does not pause AirPlay.
+
+## Alarm authority
+
+Alarm responsibility is deliberately divided:
+
+```text
+ActiveAlarmScheduler
+  clock, recurrence, DST, recovery, occurrence queue, Snooze, Dismiss
+
+ScheduledAlarmAudioManager
+  local tone rendering through acp_alarm
+
+PlaybackCoordinator
+  pause Plexamp/AirPlay and hold alarm audio priority
+
+ScreenProjectionController
+  immediate Alarm surface
+```
+
+A real sounding scheduled alarm is recognised only when:
+
+- an active non-test occurrence is in the `ringing` phase; and
+- `scheduled_playback_enabled` is true.
+
+The coordinator pauses each playing source once. If a source is restarted during
+the same alarm, it is paused again. Releasing alarm priority never automatically
+resumes music; the resume policy is explicitly `manual`.
+
+Alarm takeover diagnostics live at:
+
+```text
+/api/playback/state → handoffs.alarm_takeover
+```
+
+## Public alarm status projection
+
+The scheduler runtime intentionally contains no audio player. Its internal
+`playback_enabled` field remains false as an implementation boundary.
+
+`alarm_audio_status_scheduled.py` projects the promoted audio manager's policy
+onto public scheduler payloads. Therefore these fields must agree:
+
+```text
+/api/alarms/audio.scheduled_playback_enabled
+/api/alarms/scheduler.playback_enabled
+/api/alarms/scheduler.scheduler.playback_enabled
+/api/alarms/active.playback_enabled
+/api/alarms/active.scheduler.playback_enabled
+```
+
+The nested public scheduler object also identifies:
+
+```text
+playback_owner:  scheduled-alarm-audio-manager
+playback_policy: two-key-safety-gate
+```
+
+When sound is locked, `playback_lockout_reason` identifies the actual disabled
+safety key rather than exposing an obsolete development-stage message.
+
+## Mixer authority
+
+`MixerController` owns the compact live and trim APIs.
+
+- Plexamp live volume uses Plexamp's player endpoint.
+- AirPlay live volume uses the sender adapter and confirmation model.
+- Master and Alarm live controls write their ALSA stages without persisting.
+- Persistent trims use the restricted mixer helper and explicit persistence.
+- Latest-value-wins queues prevent stale sender responses from overwriting newer
+  requests.
+
+Browser faders display controller state; they do not invent confirmed volume.
+
+## Screen projection authority
+
+`ScreenProjectionController` owns the recommended visible surface.
+
+It considers:
+
+- current playback source and generation;
+- manual navigation leases;
+- configured startup and idle destinations;
+- Linux touchscreen/input activity;
+- alarm priority;
+- current visible browser surface.
+
+Important rules:
+
+- Alarm interrupts every manual lease immediately.
+- A new playback generation may interrupt a background/manual page.
+- Ordinary track progression within the same Plexamp queue does not.
+- Settings and other manual pages remain visible until their inactivity lease
+  expires unless a higher-priority event occurs.
+- The browser acknowledges manual navigation before performing the transition,
+  preventing an in-flight projection response from undoing the user's action.
+
+## Browser boundary
+
+Browser clients are presentation and explicit-input adapters.
+
+They may:
+
+- request a transport or navigation action;
+- report genuine local input activity;
+- acknowledge the surface that was actually shown;
+- render coordinator and specialist state.
+
+They must not:
+
+- restart audio services;
+- infer transport truth from an icon they drew;
+- independently arbitrate Plexamp versus AirPlay;
+- create or extend an AirPlay hold timer;
+- manufacture repeated activity;
+- decide that alarm audio may play.
+
+The old browser-side AirPlay control coordinator, legacy idle-return client and
+staged server promotion wrappers are no longer loaded.
+
+## Runtime persistence
+
+Small atomic JSON stores preserve deadlines and recovery state:
+
+- alarm scheduler/runtime state;
+- alarm audio runtime diagnostics;
+- playback hold/ceded state;
+- dashboard/application state where appropriate.
+
+Writes use a temporary file followed by replacement so an interrupted write does
+not leave a partially written runtime document.
+
+## Current physical validation
+
+The bedroom Raspberry Pi has validated:
+
+- AirPlay pause hold and restart retention;
+- bidirectional Plexamp/AirPlay takeover;
+- navigation and transport state rendering;
+- manual screen leases and playback interruption rules;
+- real scheduled alarm audio;
+- Snooze and Dismiss;
+- Plexamp and AirPlay pause during alarm priority;
+- no automatic music resume after alarm release;
+- dedicated alarm configuration persistence;
+- keyboard-safe alarm save UI.
+
+## Remaining work
+
+The current cleanup/release stage includes:
+
+1. remove stale diagnostics and documentation from earlier promotion stages;
+2. continue regression checks across alarm, Plexamp, AirPlay, navigation and
+   service restart boundaries;
+3. keep production EQ integration blocked until a separately approved path meets
+   its laboratory and rollback criteria;
+4. complete final weather-provider work last;
+5. update release documentation and obtain explicit approval before merging PR #2.
+
+PR #2 remains draft and must not be merged without explicit approval.
