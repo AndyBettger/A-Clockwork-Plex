@@ -2,6 +2,7 @@ from __future__ import annotations
 
 try:
     from . import main as dashboard
+    from .alarm_audio_scheduled import promote_scheduled_alarm_audio
     from .application_state import (
         build_default_application_state_hub,
         register_application_state_api,
@@ -14,6 +15,7 @@ try:
     from .screen_projection_activity import register_activity_screen_projection
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
+    from alarm_audio_scheduled import promote_scheduled_alarm_audio
     from application_state import (
         build_default_application_state_hub,
         register_application_state_api,
@@ -27,6 +29,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
 
 
 app = dashboard.app
+scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
 application_state_hub = build_default_application_state_hub(dashboard)
 playback_coordinator = promote_playback_authority(application_state_hub, dashboard)
 screen_projection = register_activity_screen_projection(app, application_state_hub, dashboard)
