@@ -87,44 +87,70 @@
     const audio = payload?.audio || {};
     const currentMatches = String(audio.current_occurrence_key || '') === String(active.occurrence_key || '');
     const playing = Boolean(audio.playback_active && currentMatches);
+    const playbackKind = String(audio.playback_kind || '');
+    const scheduledEnabled = Boolean(audio.scheduled_playback_enabled || payload?.playback_enabled);
+    const isTest = Boolean(active.test_mode || playbackKind === 'test');
+    const isScheduled = !active.test_mode;
     const armed = Boolean(active.test_mode && Number(audio.armed_occurrence_count) > 0);
     const action = String(audio.last_action?.action || '');
     const finished = currentMatches && ['playback-finished', 'playback-stopped', 'playback-stop-requested'].includes(action);
     const fallback = audio.fallback_used ? ' · emergency fallback' : '';
 
-    if (playing) {
+    if (playing && isScheduled && playbackKind === 'scheduled') {
+      return {
+        chip: 'Scheduled alarm · sounding',
+        source: `${audio.current_tone_label || toneLabel} · local alarm audio${fallback}`,
+        status: audio.fallback_used
+          ? 'The selected tone could not be used, so the Emergency Buzzer fallback is sounding.'
+          : 'Scheduled alarm audio is active. Snooze or Dismiss stops it immediately.',
+        footer: 'Sound follows the saved ring cycle through the shared alarm mixer.',
+      };
+    }
+    if (playing && isTest) {
       return {
         chip: 'Controlled audio test · sounding',
         source: `${audio.current_tone_label || toneLabel} · real local audio${fallback}`,
         status: audio.fallback_used
           ? 'The selected tone could not be used, so the Emergency Buzzer fallback is sounding.'
           : 'The controlled local-audio test is active. Snooze or Dismiss stops it immediately.',
-        footer: 'Test-only audio is enabled; ordinary scheduled alarms remain unable to make sound.',
+        footer: 'This explicitly armed test remains separate from normal scheduled playback.',
       };
     }
     if (finished) {
       return {
-        chip: 'Controlled audio test · complete',
-        source: `${audio.current_tone_label || toneLabel} · test cycle finished${fallback}`,
-        status: audio.last_error || 'The timed audio test has finished. The alarm screen remains available for Snooze and Dismiss testing.',
-        footer: 'The test cycle stopped automatically and previous audio services were restored where possible.',
+        chip: isScheduled ? 'Scheduled alarm · sound cycle complete' : 'Controlled audio test · complete',
+        source: `${audio.current_tone_label || toneLabel} · audio cycle finished${fallback}`,
+        status: audio.last_error || 'The timed audio cycle has finished. Snooze or Dismiss remains available.',
+        footer: isScheduled
+          ? 'The alarm screen remains active until the scheduler changes phase.'
+          : 'The controlled test stopped automatically.',
+      };
+    }
+    if (isScheduled && scheduledEnabled) {
+      return {
+        chip: 'Scheduled alarm · starting audio',
+        source: `${toneLabel} · shared alarm mixer`,
+        status: audio.last_error || 'The scheduled occurrence is ringing and the audio manager is starting the saved tone.',
+        footer: 'Snooze, Dismiss, or disabling either audio safety switch stops playback.',
       };
     }
     if (armed) {
       return {
         chip: 'Controlled audio test · starting',
         source: `${toneLabel} · local audio armed`,
-        status: audio.last_error || 'The alarm screen is active and the audio manager is acquiring the output device.',
-        footer: 'This occurrence was explicitly armed from Settings; scheduled alarms remain silent.',
+        status: audio.last_error || 'The alarm screen is active and the audio manager is starting the test tone.',
+        footer: 'This visual test was explicitly armed from Settings.',
       };
     }
     return {
       chip: active.test_mode ? 'Visual test · audio locked' : 'Scheduled alarm · audio locked',
       source: `${toneLabel} · playback disabled${active.test_mode ? ' · visual test' : ''}`,
-      status: 'The alarm is active on screen. This occurrence was not explicitly armed to make sound.',
+      status: active.test_mode
+        ? 'The alarm is active on screen. This test occurrence was not explicitly armed to make sound.'
+        : 'The alarm is active on screen, but both scheduled-audio safety switches are not enabled.',
       footer: active.test_mode
         ? 'Visual test mode: dismissing or clearing this alarm will not alter its saved schedule.'
-        : 'Screen takeover is active; scheduled audio remains behind the safety lock.',
+        : 'Screen takeover remains active while scheduled sound stays safely locked.',
     };
   }
 
