@@ -35,6 +35,16 @@
   color: #ffc0c0;
 }
 
+/* The touch keyboard already reserves its own lower viewport. Keeping the alarm
+   save card sticky at the same time creates a second floating shelf over the
+   field being edited, so let it return to normal document flow while typing. */
+body.keyboard-open .alarm-workspace-save-card {
+  position: static;
+  bottom: auto;
+  z-index: auto;
+  backdrop-filter: none;
+}
+
 .alarm-advanced-workspace {
   display: grid;
   gap: 18px;
