@@ -28,12 +28,12 @@
       </div>
       <label class="setting-field">
         <span>Latitude</span>
-        <input type="text" inputmode="none" autocomplete="off" data-keyboard="text" data-forecast-field="latitude" placeholder="51.5000">
+        <input type="text" inputmode="none" autocomplete="off" data-keyboard="decimal" data-forecast-field="latitude" placeholder="51.5000">
         <small>Decimal degrees; north is positive.</small>
       </label>
       <label class="setting-field">
         <span>Longitude</span>
-        <input type="text" inputmode="none" autocomplete="off" data-keyboard="text" data-forecast-field="longitude" placeholder="-0.1200">
+        <input type="text" inputmode="none" autocomplete="off" data-keyboard="decimal" data-forecast-field="longitude" placeholder="-0.1200">
         <small>Decimal degrees; west is negative.</small>
       </label>
       <label class="setting-field">
