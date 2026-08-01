@@ -67,9 +67,11 @@ def submitted_forecast_config(
 
     for key in ("latitude", "longitude"):
         raw_value = payload.get(key, forecast.get(key))
-        if raw_value in {None, ""}:
+        if raw_value is None or raw_value == "":
             forecast[key] = None
             continue
+        if isinstance(raw_value, (dict, list, tuple, set)):
+            raise ValueError(f"Forecast {key} must be a number.")
         try:
             forecast[key] = float(raw_value)
         except (TypeError, ValueError) as exc:
@@ -83,8 +85,11 @@ def submitted_forecast_config(
     ):
         if key not in payload:
             continue
+        raw_value = payload[key]
+        if isinstance(raw_value, (dict, list, tuple, set, bool)):
+            raise ValueError(f"Forecast {key.replace('_', ' ')} must be a whole number.")
         try:
-            forecast[key] = int(payload[key])
+            forecast[key] = int(raw_value)
         except (TypeError, ValueError) as exc:
             raise ValueError(f"Forecast {key.replace('_', ' ')} must be a whole number.") from exc
 
@@ -94,9 +99,10 @@ def submitted_forecast_config(
     if settings["enabled"] and error:
         raise ValueError(error)
 
-    # Persist the normalised bounded values so the file reflects runtime truth.
-    weather["forecast"] = public_forecast_config(config)
-    return config, public_forecast_config(config)
+    # Persist bounded normalised values so config.json mirrors runtime truth.
+    normalised = public_forecast_config(config)
+    weather["forecast"] = normalised
+    return config, normalised
 
 
 def register_weather_forecast_settings_api(
