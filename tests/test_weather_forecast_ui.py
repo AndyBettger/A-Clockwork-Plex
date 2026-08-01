@@ -14,7 +14,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("active_page | default(state.mode) == 'weather'", base)
         self.assertIn("css/weather-forecast.css", base)
         self.assertIn("js/weather-forecast.js", base)
-        self.assertIn("20260801-provider-console", base)
+        self.assertIn("20260802-unified-weather-scroll", base)
         Environment().parse(base)
 
     def test_forecast_client_is_cache_only_and_never_controls_the_appliance(self):
