@@ -24,6 +24,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
   {% block head %}{% endblock %}
+  {% if active_page | default(state.mode) == 'weather' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260801-provider-console') }}">
+  {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-polish.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq-drawer-layout.css') }}">
@@ -85,6 +88,9 @@
   <script src="{{ url_for('static', filename='js/settings-alarm-workspace.js', v='20260731-alarm-workspace-truth') }}"></script>
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260730-stale-projection-navigation-epoch') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
+  {% if active_page | default(state.mode) == 'weather' %}
+  <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20260801-provider-console') }}"></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>
