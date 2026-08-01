@@ -34,9 +34,20 @@ class WeatherForecastUiTests(unittest.TestCase):
         guard = "payload?.enabled !== true || !payload.forecast"
         self.assertIn(guard, client)
         self.assertIn("if (!hourly.length && !daily.length)", client)
-        self.assertIn("anchor.parentNode.insertBefore(outer, anchor)", client)
         self.assertNotIn("anchor.replaceWith", client)
         self.assertNotIn("anchor.remove", client)
+
+    def test_forecast_joins_existing_vertical_weather_scroll_surface(self):
+        client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
+        styles = Path("app/static/css/weather-forecast.css").read_text(encoding="utf-8")
+        weather_styles = Path("app/static/css/weather.css").read_text(encoding="utf-8")
+
+        self.assertIn("anchor.insertBefore(outer, anchor.firstChild)", client)
+        self.assertNotIn("anchor.parentNode.insertBefore(outer, anchor)", client)
+        self.assertIn(".weather-detail-page", weather_styles)
+        self.assertIn("overflow-y: auto", weather_styles)
+        self.assertIn("width: min(100%, 1120px)", styles)
+        self.assertNotIn("width: min(100%, 1500px)", styles)
 
     def test_source_ownership_and_attribution_are_visible(self):
         client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
@@ -58,6 +69,9 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("futureHourly", client)
         self.assertIn("slice(0, 7)", client)
         self.assertIn("overflow-x: auto", styles)
+        self.assertIn("overflow-y: hidden", styles)
+        self.assertIn("overscroll-behavior-block: auto", styles)
+        self.assertIn("touch-action: pan-x pan-y", styles)
         self.assertIn("scroll-snap-type", styles)
         self.assertIn("body[data-active-page=\"weather\"]", styles)
 
