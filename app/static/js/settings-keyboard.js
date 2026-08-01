@@ -40,6 +40,17 @@
         ['0', 'backspace', 'clear'],
       ],
     },
+    decimal: {
+      label: 'Decimal keyboard',
+      quick: [],
+      rows: [
+        ['1', '2', '3'],
+        ['4', '5', '6'],
+        ['7', '8', '9'],
+        ['-', '0', '.'],
+        ['backspace', 'clear'],
+      ],
+    },
     time: {
       label: 'Time keyboard',
       quick: ['07:00', '11:00', '20:00', '02:00'],
