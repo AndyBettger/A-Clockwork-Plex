@@ -132,6 +132,7 @@
     '/static/js/settings-audio-workspace.js',
     '/static/js/settings-airplay-defaults.js',
     '/static/js/settings-audio-fader-layout.js',
+    '/static/js/settings-weather-forecast.js',
   ].forEach((source) => {
     if (document.querySelector(`script[src="${source}"]`)) {
       return;
