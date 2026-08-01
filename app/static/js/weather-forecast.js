@@ -225,7 +225,7 @@
 
     panel.appendChild(foot);
     outer.appendChild(panel);
-    anchor.parentNode.insertBefore(outer, anchor);
+    anchor.insertBefore(outer, anchor.firstChild);
   }
 
   fetch('/api/weather/forecast', { cache: 'no-store' })
