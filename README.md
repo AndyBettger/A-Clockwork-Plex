@@ -22,6 +22,7 @@ The bedroom Raspberry Pi has validated:
 - persistent preloaded Plexamp presentation;
 - AirPlay Ready/Now Playing, metadata, transport and volume;
 - bidirectional Plexamp/AirPlay handoff;
+- rapid iPhone AirPlay resume after Plexamp takeover;
 - persisted ten-minute AirPlay pause hold;
 - shared ALSA audio and Mk II mixer controls;
 - multiple scheduled alarms with local tones;
@@ -29,14 +30,17 @@ The bedroom Raspberry Pi has validated:
 - Snooze, repeated ringing and Dismiss;
 - Plexamp and AirPlay pause during alarm priority;
 - manual music resume after the alarm;
-- alarm configuration persistence and keyboard-safe editing.
+- alarm configuration persistence and keyboard-safe editing;
+- Ecowitt live observations plus cached Open-Meteo forecasts;
+- forecast Settings, provider access, stale-cache fallback and the unified
+  1024×600 Weather scroll layout.
 
 ## Screen modes
 
 | Mode | URL | Purpose |
 |---|---|---|
 | Clock | `/clock` | Segmented clock/date and compact local-weather cards. |
-| Weather | `/weather` | Detailed Ecowitt local-station console. |
+| Weather | `/weather` | Detailed Ecowitt station console plus cached Open-Meteo outlook. |
 | Plexamp | `/plexamp` | Fallback route for the persistent Plexamp layer. |
 | AirPlay | `/airplay` | Receiver-ready, paused and Now Playing states. |
 | Settings | `/settings` | General, Weather, Alarms, AirPlay, Plexamp, Advanced and About. |
@@ -115,6 +119,16 @@ runtime diagnostics live under Advanced.
 
 See [`docs/alarm-audio-testing.md`](docs/alarm-audio-testing.md).
 
+## Weather observations and forecast
+
+Ecowitt custom upload remains authoritative for live observations. Open-Meteo is
+used only for online forecast guidance and is isolated behind a local cache.
+The last good forecast survives dashboard restarts and remains available during
+provider or internet failure with a visible stale-data warning.
+
+Forecast configuration uses its own validated API and does not require an API
+key. Disabled or incomplete configuration makes no external request.
+
 ## Main APIs
 
 ```text
@@ -134,6 +148,9 @@ GET/POST /api/alarms/scheduler
 GET      /api/alarms/active
 POST     /api/alarms/snooze
 POST     /api/alarms/dismiss
+
+GET/POST /api/weather/forecast
+GET/POST /api/weather/forecast/config
 ```
 
 Public alarm status projects the promoted audio manager's truth onto the nested
@@ -193,19 +210,31 @@ curl -s http://localhost:8088/api/playback/state | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/alarms/scheduler | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/alarms/audio | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/audio/mixer | venv/bin/python -m json.tool
+curl -s http://localhost:8088/api/weather/forecast | venv/bin/python -m json.tool
 ```
 
-## Remaining roadmap
+## Revised remaining roadmap
 
-1. Finish the remaining Stage 11 compatibility and visual-artifact cleanup.
-2. Keep production EQ integration blocked unless a separately approved design
-   passes laboratory, rollback and physical regression criteria.
-3. Complete the weather-provider work as the **final development stage** for
-   major subsystem implementation.
-4. After weather, run the separately recorded Settings interface polish pass:
-   replace horizontal tabs with an iPhone-style drill-down interface; see
+Weather-provider work was the **final development stage** for major subsystem
+implementation and has now been built and physically validated. The remaining
+work is consolidation, interface polish and release preparation:
+
+1. Confirm the final compact forecast-scrollbar polish and close the Weather
+   documentation pass.
+2. Replace the horizontal Settings tabs with the recorded iPhone-style
+   top-level list and drill-down screens; see
    [`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
-5. Update release notes and obtain explicit approval before making PR #2 ready or
-   merging it.
+3. During that Settings pass, retire the obsolete static alarm shell and reduce
+   the remaining multi-script DOM handovers without changing the validated APIs,
+   save flows, touch keyboard or screen leases.
+4. Finish small non-behavioural compatibility cleanup, including delegated alarm
+   scheduler wording and any dead presentation scaffolding found during the
+   Settings migration.
+5. Refresh final release notes and run one focused appliance smoke test.
+6. Obtain explicit approval before making PR #2 ready or merging it.
+
+Production EQ integration is not on this release path. It remains blocked unless
+a separately approved design passes laboratory, rollback and physical regression
+criteria.
 
 PR #2 remains draft and unmerged until that explicit approval is given.
