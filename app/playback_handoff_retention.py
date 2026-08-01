@@ -17,6 +17,9 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
     """Keep a ceded AirPlay sender resumable without letting it own Plexamp audio."""
 
     authority = "playback-handoff-owner"
+    CEDED_RESUME_SAMPLE_SECONDS = 0.75
+    CEDED_RESUME_MIN_ADVANCE_US = 200_000
+    CEDED_RESUME_PROGRESS_SAMPLES = 2
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -37,6 +40,19 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
             "last_action": None,
             "last_error": None,
         }
+        self._ceded_resume_lock = threading.RLock()
+        self._ceded_resume_runtime: dict[str, Any] = {
+            "status": "idle",
+            "takeover_requested_at": None,
+            "quiet_observed": False,
+            "last_raw_state": None,
+            "last_position_us": None,
+            "last_sample_at": None,
+            "progress_samples": 0,
+            "resume_count": 0,
+            "last_resume_at": None,
+            "last_evidence": None,
+        }
 
     def alarm_takeover_snapshot(self) -> dict[str, Any]:
         with self._alarm_takeover_lock:
@@ -46,6 +62,10 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
         with self._alarm_takeover_lock:
             self._alarm_takeover_runtime.update(updates)
             return deepcopy(self._alarm_takeover_runtime)
+
+    def ceded_resume_snapshot(self) -> dict[str, Any]:
+        with self._ceded_resume_lock:
+            return deepcopy(self._ceded_resume_runtime)
 
     def _scheduled_alarm_priority(self) -> tuple[bool, str | None]:
         scheduler = _safe_status(self._alarm_status, "Alarm scheduler")
@@ -232,6 +252,153 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
             return
         super()._apply_airplay_runtime_event(event, reason=reason)
 
+    def _latest_external_airplay_resume(self, requested_at: Any) -> str | None:
+        parsed_request = _parse_time(requested_at)
+        if parsed_request is None:
+            return None
+        events = self._events.snapshot().get("recent_events") or []
+        for event in reversed(events):
+            if event.get("source") != "airplay" or event.get("event") != "playing":
+                continue
+            if event.get("kind") != "explicit":
+                continue
+            occurred_at = _parse_time(event.get("at"))
+            if occurred_at is None or occurred_at < parsed_request:
+                continue
+            details = event.get("details") if isinstance(event.get("details"), dict) else {}
+            return str(details.get("origin") or "explicit-airplay-playing")
+        return None
+
+    def _reset_ceded_resume_probe(self) -> None:
+        with self._ceded_resume_lock:
+            self._ceded_resume_runtime.update(
+                {
+                    "status": "idle",
+                    "takeover_requested_at": None,
+                    "quiet_observed": False,
+                    "last_raw_state": None,
+                    "last_position_us": None,
+                    "last_sample_at": None,
+                    "progress_samples": 0,
+                }
+            )
+
+    def _reconcile_ceded_resume(self) -> str:
+        runtime = self._runtime_airplay()
+        if runtime.get("phase") != self.CEDED_PHASE:
+            self._reset_ceded_resume_probe()
+            return "idle"
+
+        handoff = self.reverse_handoff_snapshot()
+        requested_at = handoff.get("requested_at") or runtime.get("updated_at")
+        remote = _safe_status(self._airplay_status, "AirPlay")
+        if remote.get("available") is False:
+            return "idle"
+
+        raw_state = _text(
+            remote.get("playback_status") or remote.get("raw_playback_status"),
+            "unknown",
+        )
+        raw_position = remote.get("position_us")
+        position_us = int(raw_position) if isinstance(raw_position, (int, float)) else None
+        now = self._now()
+        external_origin = self._latest_external_airplay_resume(requested_at)
+        evidence: str | None = None
+
+        with self._ceded_resume_lock:
+            probe = self._ceded_resume_runtime
+            if probe.get("takeover_requested_at") != requested_at:
+                probe.update(
+                    {
+                        "status": "monitoring",
+                        "takeover_requested_at": requested_at,
+                        "quiet_observed": raw_state in {"paused", "stopped"},
+                        "last_raw_state": raw_state,
+                        "last_position_us": position_us,
+                        "last_sample_at": now.isoformat(timespec="milliseconds"),
+                        "progress_samples": 0,
+                    }
+                )
+            else:
+                previous_state = _text(probe.get("last_raw_state"), "unknown")
+                quiet_observed = bool(probe.get("quiet_observed"))
+                progress_samples = int(probe.get("progress_samples") or 0)
+                last_position = probe.get("last_position_us")
+                last_sample_at = _parse_time(probe.get("last_sample_at"))
+
+                if raw_state in {"paused", "stopped"}:
+                    quiet_observed = True
+                    progress_samples = 0
+                    probe["last_position_us"] = position_us
+                    probe["last_sample_at"] = now.isoformat(timespec="milliseconds")
+                elif raw_state == "playing":
+                    if quiet_observed and previous_state in {"paused", "stopped"}:
+                        evidence = "paused-to-playing"
+                    elif (
+                        position_us is not None
+                        and isinstance(last_position, int)
+                        and last_sample_at is not None
+                        and (now - last_sample_at).total_seconds() >= self.CEDED_RESUME_SAMPLE_SECONDS
+                    ):
+                        if position_us - last_position >= self.CEDED_RESUME_MIN_ADVANCE_US:
+                            progress_samples += 1
+                        else:
+                            progress_samples = 0
+                        probe["last_position_us"] = position_us
+                        probe["last_sample_at"] = now.isoformat(timespec="milliseconds")
+                        if progress_samples >= self.CEDED_RESUME_PROGRESS_SAMPLES:
+                            evidence = "advancing-position"
+                else:
+                    progress_samples = 0
+
+                probe.update(
+                    {
+                        "status": "monitoring",
+                        "quiet_observed": quiet_observed,
+                        "last_raw_state": raw_state,
+                        "progress_samples": progress_samples,
+                    }
+                )
+
+            if external_origin is not None:
+                evidence = f"explicit-event:{external_origin}"
+
+        if evidence is None:
+            return "monitoring"
+
+        # The previous AirPlay playing episode was deliberately latched to avoid
+        # duplicate pauses. A verified post-takeover resume is a new episode.
+        with self._handoff_lock:
+            self._airplay_playing_latched = False
+
+        self._record_event(
+            "airplay",
+            "playing",
+            {
+                "origin": "ceded-resume-detector",
+                "evidence": evidence,
+                "takeover_requested_at": requested_at,
+            },
+            kind="coordinator",
+        )
+        self._update_reverse_handoff(
+            status="superseded-by-airplay-resume",
+            completed_at=self._timestamp(),
+            airplay_after="playing",
+            last_error=None,
+        )
+        with self._ceded_resume_lock:
+            self._ceded_resume_runtime.update(
+                {
+                    "status": "resumed",
+                    "resume_count": int(self._ceded_resume_runtime.get("resume_count") or 0) + 1,
+                    "last_resume_at": self._timestamp(),
+                    "last_evidence": evidence,
+                    "progress_samples": 0,
+                }
+            )
+        return "airplay-resumed"
+
     def _reconcile_ceded_session(self) -> str:
         runtime = self._runtime_airplay()
         if runtime.get("phase") != self.CEDED_PHASE:
@@ -278,10 +445,16 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
         if self.alarm_takeover_snapshot().get("active") is True:
             return alarm_result
 
+        resume_result = self._reconcile_ceded_resume()
         parent_result = super().reconcile_once()
+        if resume_result != "airplay-resumed":
+            post_resume_result = self._reconcile_ceded_resume()
+            if post_resume_result == "airplay-resumed":
+                resume_result = post_resume_result
+                parent_result = super().reconcile_once()
         ceded_result = self._reconcile_ceded_session()
-        for result in (alarm_result, parent_result, ceded_result):
-            if result not in {"idle", "primed"}:
+        for result in (alarm_result, resume_result, parent_result, ceded_result):
+            if result not in {"idle", "primed", "monitoring"}:
                 return result
         return "idle"
 
@@ -297,7 +470,13 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
         return None
 
     def snapshot(self) -> dict[str, Any]:
+        resume_result = self._reconcile_ceded_resume()
         snapshot = super().snapshot()
+        if resume_result != "airplay-resumed":
+            post_resume_result = self._reconcile_ceded_resume()
+            if post_resume_result == "airplay-resumed":
+                snapshot = super().snapshot()
+
         sources = snapshot.get("sources") if isinstance(snapshot.get("sources"), dict) else {}
         plexamp = sources.get("plexamp") if isinstance(sources.get("plexamp"), dict) else {}
         airplay = sources.get("airplay") if isinstance(sources.get("airplay"), dict) else {}
@@ -321,6 +500,8 @@ class RetainedBidirectionalHandoffCoordinator(BidirectionalHandoffPlaybackCoordi
         }
         capabilities = snapshot.setdefault("command_capabilities", {})
         capabilities["alarm_audio_takeover"] = True
+        capabilities["rapid_airplay_resume"] = True
         handoffs = snapshot.setdefault("handoffs", {})
         handoffs["alarm_takeover"] = self.alarm_takeover_snapshot()
+        handoffs["ceded_airplay_resume"] = self.ceded_resume_snapshot()
         return snapshot
