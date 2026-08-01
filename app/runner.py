@@ -15,6 +15,7 @@ try:
     from .playback_transport import register_playback_command_api
     from .screen_projection_activity import register_activity_screen_projection
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
+    from .weather_forecast_settings import register_weather_forecast_settings_api
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from alarm_audio_scheduled import promote_scheduled_alarm_audio
@@ -30,6 +31,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from playback_transport import register_playback_command_api
     from screen_projection_activity import register_activity_screen_projection
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
+    from weather_forecast_settings import register_weather_forecast_settings_api
 
 
 app = dashboard.app
@@ -47,6 +49,12 @@ weather_forecast = WeatherForecastService(
     dashboard.BASE_DIR / "weather-forecast-cache.json",
 )
 register_weather_forecast_api(app, weather_forecast)
+register_weather_forecast_settings_api(
+    app,
+    weather_forecast,
+    dashboard.load_config,
+    lambda config: dashboard.save_json(dashboard.CONFIG_PATH, config),
+)
 
 
 if __name__ == "__main__":
