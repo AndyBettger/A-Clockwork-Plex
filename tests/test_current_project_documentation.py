@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 ALARM_GUIDE = ROOT / "docs" / "alarm-audio-testing.md"
 ARCHITECTURE = ROOT / "docs" / "application-state-architecture.md"
+SETTINGS_REDESIGN = ROOT / "docs" / "post-weather-settings-redesign.md"
 
 
 class CurrentProjectDocumentationTests(unittest.TestCase):
@@ -18,9 +19,18 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertNotIn("Ordinary scheduled alarm audio is still locked", text)
         self.assertNotIn("Ordinary scheduled alarm playback remains locked", text)
 
-    def test_weather_is_explicitly_the_final_development_stage(self):
+    def test_weather_is_completed_as_final_development_stage(self):
         text = README.read_text(encoding="utf-8")
-        self.assertIn("weather-provider work as the **final development stage**", text)
+        self.assertIn("Weather-provider work was the **final development stage**", text)
+        self.assertIn("built and physically validated", text)
+        self.assertIn("cached Open-Meteo forecasts", text)
+
+    def test_post_weather_settings_redesign_is_now_active(self):
+        text = SETTINGS_REDESIGN.read_text(encoding="utf-8")
+        self.assertIn("next active", text)
+        self.assertIn("iPhone-style Settings", text)
+        self.assertIn("Replace the obsolete static alarm configuration shell", text)
+        self.assertIn("forecast provider's dedicated validated save-and-refresh flow", text)
 
     def test_alarm_guide_documents_real_scheduled_takeover(self):
         text = ALARM_GUIDE.read_text(encoding="utf-8")
