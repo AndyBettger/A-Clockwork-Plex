@@ -41,6 +41,17 @@
       "rain": "mm",
       "wind": "mph"
     },
+    "forecast": {
+      "enabled": false,
+      "provider": "open_meteo",
+      "latitude": null,
+      "longitude": null,
+      "timezone": "Europe/London",
+      "forecast_days": 7,
+      "refresh_minutes": 30,
+      "request_timeout_seconds": 8,
+      "stale_after_hours": 6
+    },
     "clock_cards": [
       "outdoor_temp",
       "humidity",
