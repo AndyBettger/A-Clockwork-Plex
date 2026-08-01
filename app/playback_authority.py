@@ -8,11 +8,13 @@ try:
     from .playback_coordinator import PlaybackCoordinator
     from .playback_handoff import _install_screen_preserving_airplay_start
     from .playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
+    from .playback_resume_metadata import MetadataResumeRetainedCoordinator
     from .plexamp_observer import PlexampTimelineObserver
 except ImportError:  # Supports direct execution imports.
     from playback_coordinator import PlaybackCoordinator
     from playback_handoff import _install_screen_preserving_airplay_start
     from playback_handoff_retention import RetainedBidirectionalHandoffCoordinator
+    from playback_resume_metadata import MetadataResumeRetainedCoordinator
     from plexamp_observer import PlexampTimelineObserver
 
 
@@ -54,7 +56,7 @@ def promote_playback_authority(hub: Any, dashboard: Any) -> RetainedBidirectiona
             return False, str(exc)
         return True, None
 
-    authority = RetainedBidirectionalHandoffCoordinator(
+    authority = MetadataResumeRetainedCoordinator(
         load_config=existing._load_config,
         load_state=existing._load_state,
         plexamp_status=plexamp_observer.status,
