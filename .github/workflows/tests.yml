@@ -53,6 +53,7 @@ jobs:
 
       - name: Check JavaScript, page wiring and shell syntax
         run: |
+          set -euxo pipefail
           node --check app/static/js/settings-ipad.js
           node --check app/static/js/settings-advanced.js
           node --check app/static/js/settings-alarms.js
