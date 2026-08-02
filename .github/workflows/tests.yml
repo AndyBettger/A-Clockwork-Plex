@@ -102,9 +102,9 @@ jobs:
           grep -q "settings-ipad.js" app/templates/settings.html
           grep -q "settings-advanced.js" app/templates/settings.html
           grep -q "settings-ipad.css" app/templates/settings.html
-          grep -q "data-settings-section-target=\"audio\"" app/templates/settings.html
+          grep -q "('audio', 'Audio'" app/templates/settings.html
           grep -q "data-setting-path=\"airplay.receiver_name\"" app/templates/settings.html
-          grep -q "data-setting-path=\"audio.eq.bands.bass\"" app/templates/settings.html
+          grep -q 'audio.eq.bands.{{ band }}' app/templates/settings.html
           grep -q "Save Changes" app/templates/settings.html
           ! grep -q "settings-tabs.js" app/templates/settings.html
           ! grep -q "settings-autosave.js" app/templates/base.html
