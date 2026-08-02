@@ -13,6 +13,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.base = Path("app/templates/base.html").read_text(encoding="utf-8")
         self.client = Path("app/static/js/settings-ipad.js").read_text(encoding="utf-8")
         self.alarms = Path("app/static/js/settings-alarms.js").read_text(encoding="utf-8")
+        self.transaction_guard = Path("app/static/js/settings-transaction-guard.js").read_text(encoding="utf-8")
 
     def test_template_uses_persistent_sidebar_and_right_detail_pane(self):
         self.assertIn("settings-ipad-shell", self.template)
@@ -74,6 +75,14 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertNotIn("settings-alarm-scheduled.js", self.base)
         self.assertNotIn("settings-alarm-scheduler.js", self.base)
 
+    def test_confirmed_airplay_retry_cannot_accept_a_duplicate_submit(self):
+        self.assertIn("settings-transaction-guard.js", self.base)
+        self.assertIn("20260802-single-transaction", self.base)
+        self.assertIn("activeTransactions", self.transaction_guard)
+        self.assertIn("/api/settings", self.transaction_guard)
+        self.assertIn("event.stopImmediatePropagation()", self.transaction_guard)
+        self.assertIn("aria-busy", self.transaction_guard)
+
     def test_weather_presets_keep_individual_unit_controls(self):
         self.assertIn('data-unit-preset="uk"', self.template)
         self.assertIn('data-unit-preset="metric"', self.template)
@@ -130,6 +139,7 @@ class SettingsIpadTests(unittest.TestCase):
 
     def test_new_clients_have_valid_javascript_syntax(self):
         for path in (
+            "app/static/js/settings-transaction-guard.js",
             "app/static/js/settings-ipad.js",
             "app/static/js/settings-advanced.js",
             "app/static/js/settings-alarms.js",
