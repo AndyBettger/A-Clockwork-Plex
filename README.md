@@ -10,15 +10,16 @@ which reads NFC album tags and starts Plexamp playback.
 > **Development branch:** `feature/alarm-engine` is the current production
 > candidate. PR #2 remains draft and unmerged until explicit approval is given.
 
-> **EQ safety:** the known-good direct shared mixer remains the live production
-> graph. Do not run `sudo bash scripts/install-master-eq.sh`. Production EQ
-> integration remains blocked.
+> **EQ safety:** the old bare `scripts/install-master-eq.sh` production path
+> remains blocked. The unified Settings integration uses the existing master-EQ
+> authority and is awaiting focused physical validation with the new Settings
+> screen.
 
 ## Physically validated
 
 The bedroom Raspberry Pi has validated:
 
-- Clock, navigation and touchscreen Settings;
+- Clock, navigation and the previous touchscreen Settings surface;
 - persistent preloaded Plexamp presentation;
 - AirPlay Ready/Now Playing, metadata, transport and volume;
 - bidirectional Plexamp/AirPlay handoff;
@@ -32,8 +33,13 @@ The bedroom Raspberry Pi has validated:
 - manual music resume after the alarm;
 - alarm configuration persistence and keyboard-safe editing;
 - Ecowitt live observations plus cached Open-Meteo forecasts;
-- forecast Settings, provider access, stale-cache fallback and the unified
-  1024×600 Weather scroll layout.
+- forecast provider access, stale-cache fallback and the unified 1024×600
+  Weather scroll layout.
+
+The new unified iPad-style Settings screen, managed Shairport receiver-name path
+and Settings-hosted EQ controls are code-complete and covered by CI, but require
+the focused physical validation described in
+[`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
 
 ## Screen modes
 
@@ -43,7 +49,7 @@ The bedroom Raspberry Pi has validated:
 | Weather | `/weather` | Detailed Ecowitt station console plus cached Open-Meteo outlook. |
 | Plexamp | `/plexamp` | Fallback route for the persistent Plexamp layer. |
 | AirPlay | `/airplay` | Receiver-ready, paused and Now Playing states. |
-| Settings | `/settings` | General, Weather, Alarms, AirPlay, Plexamp, Advanced and About. |
+| Settings | `/settings` | iPad-style split view with one staged configuration transaction. |
 | Alarm | `/alarm` | Ringing, Snoozed and deliberate Dismiss controls. |
 
 ## Audio path
@@ -85,6 +91,9 @@ MixerController
 
 ScreenProjectionController
   visible surface, manual leases, activity and immediate alarm takeover
+
+UnifiedSettingsService
+  revisioned validation, one config write and domain-specific post-save hooks
 ```
 
 The browser requests explicit actions and renders server state. It does not
@@ -92,9 +101,53 @@ restart services, own hold timers or independently arbitrate audio sources.
 
 See [`docs/application-state-architecture.md`](docs/application-state-architecture.md).
 
+## Unified Settings
+
+Settings now uses a persistent left category column and a right detail pane.
+Large categories use short subpages rather than one very long form.
+
+```text
+Settings
+├── General
+├── Display
+├── Weather
+├── Alarms
+├── AirPlay
+├── Audio
+├── Plexamp
+├── Advanced
+└── About
+```
+
+Configuration is staged and saved through one revisioned API transaction:
+
+```text
+GET  /api/settings
+POST /api/settings
+```
+
+The backend validates each domain through its established specialist validator,
+rejects stale-page writes, writes `config.json` once and then wakes or refreshes
+the affected runtime owners.
+
+Immediate controls remain separate:
+
+- persistent ALSA output trims;
+- forecast refresh-now;
+- alarm tests and emergency stop;
+- scheduler recalculation;
+- authority and service diagnostic refreshes.
+
+Weather presets are shortcuts only. Temperature, pressure, rain and wind units
+remain independently selectable and display **Custom** when they no longer match
+a preset.
+
+See [`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
+
 ## Scheduled alarms
 
-A real sounding alarm requires both safety keys under **Settings → Alarms**:
+A real sounding alarm requires both safety keys under **Settings → Alarms →
+Sound**:
 
 1. **Enable alarm sound**
 2. **Enable scheduled alarm sound**
@@ -112,12 +165,29 @@ When a scheduled occurrence rings:
 Visual-only tests do not pause music. Controlled tests remain finite and
 backend-capped.
 
-Alarm cards are saved as one validated JSON model through `/api/alarms/config`,
-so they use **Save alarms** rather than general form autosave. The save card
-returns to document flow while the on-screen keyboard is open. Testing and
-runtime diagnostics live under Advanced.
+The full alarm model, alarm defaults and both audio safety keys are now staged
+inside the unified Settings transaction. Testing and runtime diagnostics remain
+under Advanced and act immediately rather than dirtying Settings.
 
 See [`docs/alarm-audio-testing.md`](docs/alarm-audio-testing.md).
+
+## AirPlay receiver name
+
+The AirPlay receiver name is one setting used by the dashboard and the advertised
+Shairport Sync receiver.
+
+A narrowly restricted helper edits only `general.name` in the fixed Shairport
+configuration, validates the candidate, restarts only Shairport Sync, verifies
+that it returned active and rolls back on failure.
+
+Install that helper deliberately on the Pi:
+
+```bash
+sudo bash scripts/install-shairport-name-helper.sh
+```
+
+Changing the receiver name from Settings requires confirmation because it will
+briefly interrupt an active AirPlay session.
 
 ## Weather observations and forecast
 
@@ -126,12 +196,31 @@ used only for online forecast guidance and is isolated behind a local cache.
 The last good forecast survives dashboard restarts and remains available during
 provider or internet failure with a visible stale-data warning.
 
-Forecast configuration uses its own validated API and does not require an API
-key. Disabled or incomplete configuration makes no external request.
+Forecast configuration participates in the unified Settings transaction and does
+not require an API key. **Refresh forecast now** remains an immediate action.
+Disabled or incomplete configuration makes no external request.
+
+## Equaliser
+
+The Audio Settings category retains:
+
+- enabled/bypassed;
+- Bass;
+- Mid;
+- Treble;
+- staged reset to flat;
+- backend health.
+
+EQ configuration is committed through the unified transaction and uses the
+existing master-EQ authority with rollback if the overall save fails. The old
+bare master-EQ installer remains blocked and is not part of the normal Settings
+rollout.
 
 ## Main APIs
 
 ```text
+GET/POST /api/settings
+
 GET  /api/state
 GET  /api/playback/state
 GET  /api/playback/events
@@ -152,6 +241,9 @@ POST     /api/alarms/dismiss
 GET/POST /api/weather/forecast
 GET/POST /api/weather/forecast/config
 ```
+
+The dedicated alarm and forecast configuration endpoints remain compatibility
+contracts while the active Settings page uses `/api/settings`.
 
 Public alarm status projects the promoted audio manager's truth onto the nested
 scheduler object, so top-level and nested `playback_enabled` values should agree.
@@ -191,21 +283,23 @@ sudo systemctl restart a-clockwork-plex.service
 
 Hard-refresh Chromium after browser assets change with `Ctrl+Shift+R`.
 
-Only refresh the shared audio installation when its managed files actually
-change:
+Do not rerun the shared-audio installation for the Settings rollout. Install only
+the new receiver-name helper when deliberately testing that feature:
 
 ```bash
-sudo bash scripts/install-shared-audio.sh
-sudo systemctl restart plexamp.service
-sudo systemctl restart shairport-sync.service
-sudo systemctl restart a-clockwork-plex.service
+sudo bash scripts/install-shairport-name-helper.sh
 ```
 
-Plexamp should explicitly select `A Clockwork Plex - Plexamp`.
+The old bare master-EQ installer remains blocked:
+
+```text
+Do not run: sudo bash scripts/install-master-eq.sh
+```
 
 Useful live diagnostics:
 
 ```bash
+curl -s http://localhost:8088/api/settings | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/playback/state | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/alarms/scheduler | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/alarms/audio | venv/bin/python -m json.tool
@@ -216,25 +310,22 @@ curl -s http://localhost:8088/api/weather/forecast | venv/bin/python -m json.too
 ## Revised remaining roadmap
 
 Weather-provider work was the **final development stage** for major subsystem
-implementation and has now been built and physically validated. The remaining
-work is consolidation, interface polish and release preparation:
+implementation and has been built and physically validated. The unified iPad
+Settings consolidation is now code-complete.
 
-1. Confirm the final compact forecast-scrollbar polish and close the Weather
-   documentation pass.
-2. Replace the horizontal Settings tabs with the recorded iPhone-style
-   top-level list and drill-down screens; see
-   [`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
-3. During that Settings pass, retire the obsolete static alarm shell and reduce
-   the remaining multi-script DOM handovers without changing the validated APIs,
-   save flows, touch keyboard or screen leases.
-4. Finish small non-behavioural compatibility cleanup, including delegated alarm
-   scheduler wording and any dead presentation scaffolding found during the
-   Settings migration.
-5. Refresh final release notes and run one focused appliance smoke test.
-6. Obtain explicit approval before making PR #2 ready or merging it.
+Remaining work:
 
-Production EQ integration is not on this release path. It remains blocked unless
-a separately approved design passes laboratory, rollback and physical regression
-criteria.
+1. Physically validate the new split-view Settings page at 1024×600, including
+   Save/Discard, subpages, touch keyboard and dirty indicators.
+2. Install and validate the restricted Shairport receiver-name helper, including
+   the warning, actual iOS receiver name, dashboard consistency and rollback-safe
+   service restart.
+3. Validate the Settings-hosted EQ controls against the proven production EQ
+   authority; do not use the old bare installer.
+4. Make any small layout or wording corrections found during that focused pass.
+5. Finish delegated scheduler wording and remove dead compatibility files once
+   no active path or test depends on them.
+6. Refresh final release notes and run one focused appliance smoke test.
+7. Obtain explicit approval before making PR #2 ready or merging it.
 
 PR #2 remains draft and unmerged until that explicit approval is given.
