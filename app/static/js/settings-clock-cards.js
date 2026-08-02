@@ -49,13 +49,24 @@
 
   function collapseIds(ids) {
     const collapsed = [];
-    ids.forEach((id) => {
+    (Array.isArray(ids) ? ids : []).forEach((id) => {
       const displayId = memberToVirtual[id] || id;
       if (!collapsed.includes(displayId)) {
         collapsed.push(displayId);
       }
     });
     return collapsed;
+  }
+
+  function expandIds(ids) {
+    const expanded = [];
+    (Array.isArray(ids) ? ids : []).forEach((id) => {
+      const storedIds = VIRTUAL_CARDS[id]?.members || [id];
+      storedIds.forEach((storedId) => {
+        if (!expanded.includes(storedId)) expanded.push(storedId);
+      });
+    });
+    return expanded;
   }
 
   const options = [];
@@ -73,6 +84,13 @@
   const allowedIds = new Set(options.map((option) => option.id));
   const labels = Object.fromEntries(options.map((option) => [option.id, option.label]));
   let selected = collapseIds(rawSelected).filter((id) => allowedIds.has(id));
+
+  function notifyChanged() {
+    root.dispatchEvent(new CustomEvent('acp:clock-cards-changed', {
+      bubbles: true,
+      detail: { clockCards: expandIds(selected) },
+    }));
+  }
 
   function createPaletteButton(option) {
     const button = document.createElement('button');
@@ -92,6 +110,7 @@
         selected = [...selected, option.id];
       }
       render();
+      notifyChanged();
     });
 
     return button;
@@ -160,6 +179,7 @@
       remove.addEventListener('click', () => {
         selected = selected.filter((cardId) => cardId !== id);
         render();
+        notifyChanged();
       });
 
       row.append(position, label, up, down, remove);
@@ -182,7 +202,22 @@
     [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
     selected = next;
     render();
+    notifyChanged();
   }
+
+  function applyStoredIds(ids) {
+    selected = collapseIds(ids).filter((id) => allowedIds.has(id));
+    render();
+  }
+
+  function storedIds() {
+    return expandIds(selected);
+  }
+
+  window.ACPClockCards = {
+    applyStoredIds,
+    storedIds,
+  };
 
   render();
 })();
