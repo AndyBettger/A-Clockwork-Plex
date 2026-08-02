@@ -29,11 +29,11 @@
 
   function updateClock() {
     const now = new Date();
-    const timeText = new Intl.DateTimeFormat('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(now);
+    const timeText = window.ACPTime?.formatTime?.(now)
+      || new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(now);
     const dateText = new Intl.DateTimeFormat('en-GB', {
       weekday: 'long',
       day: 'numeric',
@@ -366,6 +366,7 @@
   });
 
   window.addEventListener('resize', () => setDismissProgress(dragProgress, true));
+  window.addEventListener('acp:clock-format-changed', updateClock);
   window.addEventListener('pagehide', () => {
     clearKeyboardHold();
     if (refreshTimer) {
