@@ -63,25 +63,36 @@
 
 .alarm-list {
   display: grid;
-  gap: clamp(8px, 1.35vmin, 12px);
+  gap: clamp(9px, 1.45vmin, 14px);
 }
 
 .alarm-editor-card {
   overflow: hidden;
-  border: 1px solid rgba(143, 211, 255, 0.16);
-  border-radius: 17px;
+  border: 1px solid rgba(143, 211, 255, 0.17);
+  border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(143, 211, 255, 0.075), rgba(255, 255, 255, 0.035)),
-    rgba(255, 255, 255, 0.035);
+    linear-gradient(135deg, rgba(143, 211, 255, 0.075), rgba(255, 255, 255, 0.032)),
+    rgba(255, 255, 255, 0.032);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.14);
+}
+
+.alarm-editor-card.is-disabled {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.alarm-editor-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-height: 74px;
 }
 
 .alarm-editor-summary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: clamp(9px, 1.5vmin, 15px);
   align-items: center;
-  width: 100%;
-  min-height: 74px;
+  min-width: 0;
   padding: clamp(10px, 1.6vmin, 15px);
   border: 0;
   color: var(--text);
@@ -90,18 +101,21 @@
   text-align: left;
 }
 
-.alarm-editor-summary:active {
-  background: rgba(143, 211, 255, 0.07);
+.alarm-editor-summary:active,
+.alarm-editor-summary:focus-visible {
+  background: rgba(143, 211, 255, 0.075);
+  outline: none;
 }
 
 .alarm-editor-time {
-  min-width: 4.8rem;
+  min-width: 5.35rem;
   color: var(--text);
   font-family: var(--display-font);
-  font-size: clamp(1.45rem, 4vmin, 2rem);
+  font-size: clamp(1.35rem, 3.8vmin, 1.95rem);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.035em;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
 }
 
 .alarm-editor-title {
@@ -124,29 +138,43 @@
   margin-top: 3px;
   overflow: hidden;
   color: var(--muted);
-  font-size: clamp(0.75rem, 1.8vmin, 0.9rem);
+  font-size: clamp(0.72rem, 1.75vmin, 0.87rem);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.alarm-editor-state {
-  padding: 6px 10px;
-  border: 1px solid rgba(133, 255, 184, 0.22);
+.alarm-enabled-toggle {
+  align-self: center;
+  min-width: 82px;
+  min-height: 40px;
+  margin: 0 12px 0 4px;
+  padding: 7px 13px;
+  border: 1px solid rgba(133, 255, 184, 0.28);
   border-radius: 999px;
-  color: #b9ffd4;
-  background: rgba(133, 255, 184, 0.1);
+  color: #07101d;
+  background: #b9ffd4;
+  box-shadow: 0 0 18px rgba(133, 255, 184, 0.12);
   font-family: var(--display-font);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
-.alarm-editor-state.is-off {
+.alarm-enabled-toggle.is-off {
   color: var(--muted);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.13);
   background: rgba(255, 255, 255, 0.055);
+  box-shadow: none;
+}
+
+.alarm-enabled-toggle:active {
+  transform: scale(0.97);
+}
+
+.alarm-enabled-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .alarm-editor-chevron {
@@ -168,20 +196,139 @@
 .alarm-editor-body {
   display: grid;
   gap: clamp(9px, 1.45vmin, 13px);
-  padding: 0 clamp(10px, 1.6vmin, 15px) clamp(10px, 1.6vmin, 15px);
+  padding: clamp(10px, 1.6vmin, 15px);
   border-top: 1px solid rgba(143, 211, 255, 0.1);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .alarm-editor-body[hidden] {
   display: none;
 }
 
-.alarm-editor-body > .settings-grid:first-child {
-  padding-top: clamp(10px, 1.6vmin, 15px);
+.alarm-editor-panel {
+  display: grid;
+  gap: clamp(8px, 1.35vmin, 12px);
+  min-width: 0;
+  padding: clamp(10px, 1.55vmin, 14px);
+  border: 1px solid rgba(143, 211, 255, 0.1);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
-.alarm-editor-section {
+.alarm-editor-panel-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.alarm-editor-panel-heading h3,
+.alarm-editor-panel-heading p {
+  margin: 0;
+}
+
+.alarm-editor-panel-heading h3 {
+  font-family: var(--display-font);
+  font-size: clamp(0.98rem, 2.25vmin, 1.15rem);
+  letter-spacing: 0.025em;
+}
+
+.alarm-basics-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(290px, 1.2fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.alarm-time-field {
+  display: grid;
+  gap: 6px;
   min-width: 0;
+}
+
+.alarm-field-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.alarm-time-field > small,
+.alarm-tone-volume > small {
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1.3;
+}
+
+.alarm-time-picker {
+  display: grid;
+  grid-template-columns: minmax(78px, 1fr) auto minmax(78px, 1fr) auto;
+  gap: 7px;
+  align-items: stretch;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(143, 211, 255, 0.15);
+  border-radius: 16px;
+  background: rgba(2, 7, 15, 0.56);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.alarm-time-picker[data-clock-format="24h"] {
+  grid-template-columns: minmax(82px, 1fr) auto minmax(82px, 1fr);
+}
+
+.alarm-time-select {
+  width: 100%;
+  min-height: 54px;
+  padding: 4px 24px 4px 10px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text);
+  background: rgba(143, 211, 255, 0.075);
+  font-family: var(--display-font);
+  font-size: clamp(1.28rem, 3.5vmin, 1.8rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.alarm-time-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.alarm-time-colon {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-family: var(--display-font);
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+
+.alarm-period-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(45px, 1fr));
+  gap: 4px;
+  min-width: 104px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.alarm-period-button {
+  min-height: 48px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  background: transparent;
+  font-family: var(--display-font);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.alarm-period-button.is-selected {
+  color: #07101d;
+  background: var(--text);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 
 .alarm-day-grid {
@@ -191,7 +338,7 @@
 }
 
 .alarm-day-button {
-  min-height: 42px;
+  min-height: 44px;
   padding: 7px 4px;
   border: 1px solid rgba(143, 211, 255, 0.15);
   border-radius: 12px;
@@ -213,26 +360,19 @@
   transform: scale(0.97);
 }
 
-.alarm-tone-panel {
+.alarm-sound-grid {
   display: grid;
-  gap: 8px;
-  padding: clamp(9px, 1.4vmin, 13px);
-  border: 1px solid rgba(143, 211, 255, 0.1);
-  border-radius: 14px;
-  background: rgba(143, 211, 255, 0.045);
+  gap: 9px;
 }
 
 .alarm-tone-description {
-  margin: 0;
+  margin: -2px 0 2px;
+  padding: 8px 10px;
+  border-left: 3px solid rgba(143, 211, 255, 0.38);
+  border-radius: 0 10px 10px 0;
   color: var(--muted);
-  line-height: 1.3;
-}
-
-.alarm-tone-preview-controls {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto;
-  gap: 8px;
-  align-items: end;
+  background: rgba(143, 211, 255, 0.04);
+  line-height: 1.35;
 }
 
 .alarm-tone-volume {
@@ -241,13 +381,20 @@
   gap: 7px 10px;
   align-items: center;
   min-width: 0;
+  padding: 9px 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.alarm-tone-volume > span,
+.alarm-tone-volume > small {
+  grid-column: 1 / -1;
 }
 
 .alarm-tone-volume > span {
-  grid-column: 1 / -1;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .alarm-tone-volume input[type="range"] {
@@ -258,6 +405,38 @@
 .alarm-tone-volume strong {
   min-width: 3rem;
   text-align: right;
+}
+
+.alarm-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(133, 255, 184, 0.13);
+  border-radius: 13px;
+  background: rgba(133, 255, 184, 0.045);
+}
+
+.alarm-preview-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.alarm-preview-row strong {
+  font-size: 0.82rem;
+}
+
+.alarm-preview-row small {
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1.3;
+}
+
+.alarm-tone-preview-button {
+  min-width: 128px;
+  white-space: nowrap;
 }
 
 .alarm-tone-preview-button.is-playing {
@@ -355,19 +534,35 @@
   color: var(--muted);
 }
 
-.setting-field input.is-invalid {
-  border-color: rgba(255, 120, 120, 0.7);
-  box-shadow: 0 0 0 2px rgba(255, 120, 120, 0.12);
-}
-
 @media (max-height: 520px), (max-width: 860px) {
   .alarm-model-defaults {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .alarm-editor-summary {
+  .alarm-editor-header {
     min-height: 62px;
+  }
+
+  .alarm-editor-summary {
     padding: 8px;
+  }
+
+  .alarm-enabled-toggle {
+    min-height: 36px;
+    margin-right: 8px;
+  }
+
+  .alarm-editor-body,
+  .alarm-editor-panel {
+    padding: 8px;
+  }
+
+  .alarm-time-select {
+    min-height: 48px;
+  }
+
+  .alarm-period-button {
+    min-height: 42px;
   }
 
   .alarm-day-grid {
@@ -375,7 +570,7 @@
   }
 
   .alarm-day-button {
-    min-height: 36px;
+    min-height: 38px;
     border-radius: 10px;
     font-size: 0.72rem;
   }
@@ -383,26 +578,40 @@
   .alarm-design-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  .alarm-tone-preview-controls {
-    grid-template-columns: minmax(180px, 1fr) auto auto;
+@media (max-width: 760px) {
+  .alarm-basics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .alarm-preview-row {
+    grid-template-columns: 1fr;
+  }
+
+  .alarm-tone-preview-button {
+    width: 100%;
   }
 }
 
 @media (max-width: 680px) {
   .alarm-model-defaults,
   .alarm-design-grid,
-  .alarm-tone-preview-controls,
   .alarm-scheduler-lockout {
     grid-template-columns: 1fr;
   }
 
-  .alarm-editor-summary {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+  .alarm-editor-header {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .alarm-editor-state {
-    display: none;
+  .alarm-editor-time {
+    min-width: 4.4rem;
+  }
+
+  .alarm-enabled-toggle {
+    min-width: 68px;
+    padding-inline: 9px;
   }
 
   .alarm-day-grid {
@@ -416,5 +625,13 @@
   .alarm-card-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .alarm-time-picker {
+    grid-template-columns: minmax(62px, 1fr) auto minmax(62px, 1fr) auto;
+  }
+
+  .alarm-period-control {
+    min-width: 88px;
   }
 }
