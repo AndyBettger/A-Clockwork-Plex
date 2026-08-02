@@ -32,6 +32,7 @@
   {% block head %}{% endblock %}
   {% if active_page | default(state.mode) == 'settings' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-followup.css', v='20260802-physical-followup-v2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-completion.css', v='20260802-settings-completion') }}">
   {% endif %}
   {% if active_page | default(state.mode) == 'weather' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260802-custom-forecast-scrollbar') }}">
@@ -84,6 +85,7 @@
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
   {% if active_page | default(state.mode) == 'weather' %}
   <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20260802-custom-forecast-scrollbar') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather-forecast-completion.js', v='20260802-full-forecast-range') }}"></script>
   {% endif %}
   {% if active_page | default(state.mode) == 'settings' %}
   <script src="{{ url_for('static', filename='js/settings-transaction-guard.js', v='20260802-single-transaction') }}"></script>
