@@ -31,7 +31,9 @@
 .settings-page .settings-subpage-row small,
 .settings-page .settings-about-reading > span,
 .settings-page .settings-about-reading > strong,
-.settings-page .settings-about-reading > small {
+.settings-page .settings-about-reading > small,
+.settings-page .settings-link-card > strong,
+.settings-page .settings-link-card > span {
   display: block;
 }
 
@@ -39,7 +41,8 @@
 .settings-page .setting-toggle > span > strong,
 .settings-page .settings-sidebar-row strong,
 .settings-page .settings-subpage-row strong,
-.settings-page .settings-about-reading > span {
+.settings-page .settings-about-reading > span,
+.settings-page .settings-link-card > strong {
   margin-bottom: 0.28rem;
 }
 
@@ -49,19 +52,22 @@
 .settings-page .setting-toggle > span > strong + small,
 .settings-page .settings-sidebar-row strong + small,
 .settings-page .settings-subpage-row strong + small,
-.settings-page .settings-about-reading > strong + small {
+.settings-page .settings-about-reading > strong + small,
+.settings-page .settings-link-card > strong + span {
   margin-top: 0.34rem;
 }
 
 .settings-page .setting-toggle > span,
 .settings-page .settings-sidebar-row > span:first-child,
 .settings-page .settings-subpage-row > span:first-child,
-.settings-page .settings-about-reading {
+.settings-page .settings-about-reading,
+.settings-page .settings-link-card {
   min-width: 0;
 }
 
 .settings-page .setting-toggle > span,
-.settings-page .settings-about-reading {
+.settings-page .settings-about-reading,
+.settings-page .settings-link-card {
   line-height: 1.25;
 }
 
@@ -89,17 +95,18 @@
   line-height: 1.35;
 }
 
-[data-settings-section="about"] .settings-about-message-row {
+/* Use the original About hero mark as the one 42 badge on the far left. */
+[data-settings-section="about"] .settings-about-hero {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
   align-items: center;
   gap: 1rem;
 }
 
-[data-settings-section="about"] .settings-about-42-badge {
+[data-settings-section="about"] .settings-about-mark {
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   place-items: center;
   border: 1px solid rgba(143, 211, 255, 0.34);
   border-radius: 50%;
@@ -108,13 +115,38 @@
     rgba(21, 51, 75, 0.86);
   color: #e9f8ff;
   box-shadow: 0 0 20px rgba(143, 211, 255, 0.16);
-  font-size: 1.42rem;
+  font-size: 1.52rem;
   font-weight: 800;
   line-height: 1;
+}
+
+[data-settings-section="about"] .settings-about-copy {
+  min-width: 0;
+}
+
+[data-settings-section="about"] .settings-about-message-row {
+  display: block;
+}
+
+[data-settings-section="about"] .settings-about-42-badge {
+  display: none;
 }
 
 [data-settings-section="about"] #about-message {
   display: block;
   margin: 0;
   line-height: 1.42;
+}
+
+@media (max-height: 620px) {
+  [data-settings-section="about"] .settings-about-hero {
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  [data-settings-section="about"] .settings-about-mark {
+    width: 56px;
+    height: 56px;
+    font-size: 1.3rem;
+  }
 }
