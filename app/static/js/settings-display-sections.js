@@ -63,14 +63,23 @@
       <h3>Theme</h3>
       <div class="settings-grid two-col">
         <label class="setting-field">
-          <span>Night appearance</span>
+          <span>Night idle appearance</span>
           <select data-setting-path="display.night_dim_style" data-night-dim-style-setting>
             <option value="classic">Classic dim</option>
             <option value="astronomy">Astronomy red</option>
           </select>
-          <small>Classic preserves the normal colours under a dark overlay. Astronomy converts the dashboard to grayscale and applies a pure-red multiply layer.</small>
+          <small>The appearance used while the scheduled night display is resting.</small>
         </label>
-        <div class="setting-field">
+        <label class="setting-field">
+          <span>Night interaction appearance</span>
+          <select data-setting-path="display.night_dim_active_style" data-night-dim-active-style-setting>
+            <option value="same">Same as idle</option>
+            <option value="classic">Classic dim</option>
+            <option value="astronomy">Astronomy red</option>
+          </select>
+          <small>The night-safe appearance retained while touching Settings, Weather or Plexamp.</small>
+        </label>
+        <div class="setting-field wide">
           <span>Daytime theme</span>
           <strong>Classic dark</strong>
           <small>Additional daytime and accent themes are deliberately deferred until after the guarded production-EQ phase.</small>
@@ -79,52 +88,27 @@
     return card;
   }
 
-  function selectedStyle(panel) {
-    return panel.querySelector('[data-night-dim-style-setting]')?.value === 'astronomy'
-      ? 'astronomy'
-      : 'classic';
-  }
-
-  function updateNightStatus(panel) {
+  function applyNightStyles(idleSelect, activeSelect) {
     const status = window.ACPDisplayDimming?.status?.() || {};
-    const chip = panel.querySelector('[data-night-dim-status]');
-    if (!chip) return;
-    if (!status.enabled) chip.textContent = 'Off';
-    else if (status.active) chip.textContent = selectedStyle(panel) === 'astronomy' ? 'Astronomy red' : 'Classic dim';
-    else chip.textContent = `${status.start || '22:00'}–${status.end || '07:00'}`;
-  }
-
-  function updateNightCopy(nightCard, panel) {
-    const heading = nightCard.querySelector('.settings-card-heading p');
-    if (heading) heading.textContent = 'Scheduled night presentation with touch-to-wake. The Alarm screen always remains fully visible.';
-    const level = nightCard.querySelector('[data-setting-path="display.night_dim_level_percent"]');
-    const help = level?.closest('.setting-field')?.querySelector('small');
-    if (help) help.textContent = 'Controls the selected night appearance without altering the Pi display driver or audio graph.';
-    const message = nightCard.querySelector('[data-night-dim-message]');
-    if (message) message.textContent = 'First touch wakes the screen without activating the control beneath it.';
-    nightCard.querySelector('[data-action="preview-night-dimming"]')?.addEventListener('click', () => {
-      if (message) message.textContent = 'Previewing the selected night appearance for eight seconds. Touch the screen to wake it.';
+    window.ACPDisplayDimming?.configure?.({
+      ...status,
+      style: idleSelect.value,
+      activeStyle: activeSelect.value,
     });
-    const refresh = () => window.queueMicrotask(() => updateNightStatus(panel));
-    nightCard.addEventListener('input', refresh);
-    nightCard.addEventListener('change', refresh);
   }
 
-  function applyNightStyle(select) {
-    const status = window.ACPDisplayDimming?.status?.() || {};
-    window.ACPDisplayDimming?.configure?.({ ...status, style: select.value });
-    updateNightStatus(select.closest('[data-settings-section="display"]'));
-  }
-
-  function populateNightStyle(select, attempts = 80) {
+  function populateNightStyles(idleSelect, activeSelect, attempts = 80) {
     const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
-    const value = snapshot?.settings?.display?.night_dim_style;
-    if (value) {
-      select.value = value === 'astronomy' ? 'astronomy' : 'classic';
-      applyNightStyle(select);
+    const display = snapshot?.settings?.display;
+    if (display) {
+      idleSelect.value = display.night_dim_style === 'astronomy' ? 'astronomy' : 'classic';
+      activeSelect.value = ['classic', 'astronomy'].includes(display.night_dim_active_style)
+        ? display.night_dim_active_style
+        : 'same';
+      applyNightStyles(idleSelect, activeSelect);
       return;
     }
-    if (attempts > 0) window.setTimeout(() => populateNightStyle(select, attempts - 1), 100);
+    if (attempts > 0) window.setTimeout(() => populateNightStyles(idleSelect, activeSelect, attempts - 1), 100);
   }
 
   function install(attempt = 0) {
@@ -149,8 +133,8 @@
     overview.dataset.settingsOverview = 'display';
     const rows = [
       row('display:clock', 'Clock', '12/24-hour presentation'),
-      row('display:night', 'Night dimming', 'Schedule, brightness and wake behaviour'),
-      row('display:theme', 'Theme', 'Classic or astronomy night appearance'),
+      row('display:night', 'Night dimming', 'Idle and interaction brightness'),
+      row('display:theme', 'Theme', 'Idle and interaction night appearance'),
       row('display:motion', 'Motion', 'Transition style and duration'),
     ];
     overview.append(...rows);
@@ -164,7 +148,6 @@
 
     header?.insertAdjacentElement('afterend', overview);
     pages.forEach((page) => panel.appendChild(page));
-    updateNightCopy(nightCard, panel);
 
     rows.forEach((button) => {
       button.addEventListener('click', () => openSubpage(panel, overview, button.dataset.settingsSubpageTarget));
@@ -173,10 +156,14 @@
       page.querySelector('[data-settings-back="display"]')?.addEventListener('click', () => closeSubpage(panel, overview));
     });
 
-    const styleSelect = panel.querySelector('[data-night-dim-style-setting]');
-    styleSelect?.addEventListener('input', () => applyNightStyle(styleSelect));
-    styleSelect?.addEventListener('change', () => applyNightStyle(styleSelect));
-    if (styleSelect) populateNightStyle(styleSelect);
+    const idleSelect = panel.querySelector('[data-night-dim-style-setting]');
+    const activeSelect = panel.querySelector('[data-night-dim-active-style-setting]');
+    const apply = () => applyNightStyles(idleSelect, activeSelect);
+    idleSelect?.addEventListener('input', apply);
+    idleSelect?.addEventListener('change', apply);
+    activeSelect?.addEventListener('input', apply);
+    activeSelect?.addEventListener('change', apply);
+    if (idleSelect && activeSelect) populateNightStyles(idleSelect, activeSelect);
 
     const route = location.hash.replace(/^#/, '');
     if (route.startsWith('display/')) {
