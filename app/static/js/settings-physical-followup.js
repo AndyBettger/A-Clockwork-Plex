@@ -6,6 +6,7 @@
   const SETTINGS_API = '/api/settings';
   const AUTOSAVE_DELAY_MS = 650;
   const TEXT_AUTOSAVE_DELAY_MS = 1100;
+  const lastInteractionBySection = new Map();
   let retryTimer = null;
 
   function initialise() {
@@ -71,13 +72,15 @@
 
   function markDetailedDirty(element, explicitSection = '') {
     const section = explicitSection || sectionFor(element);
-    const subpage = subpageFor(element, section);
+    const target = element || lastInteractionBySection.get(section) || null;
+    const subpage = subpageFor(target, section);
     if (subpage) setSubpageDirty(subpage, true);
-    const option = element?.closest?.('.setting-field, .setting-toggle, .alarm-editor-card, .settings-card');
+    const option = target?.closest?.('.setting-field, .setting-toggle, .alarm-editor-card, .settings-card');
     option?.classList.add('settings-option-dirty');
   }
 
   function clearSectionDetails(section) {
+    lastInteractionBySection.delete(section);
     document.querySelectorAll(`[data-settings-subpage-target^="${section}:"]`).forEach((row) => {
       setSubpageDirty(row.dataset.settingsSubpageTarget, false);
     });
@@ -90,9 +93,20 @@
     if (form.dataset.detailedDirtyInstalled === 'true') return;
     form.dataset.detailedDirtyInstalled = 'true';
 
+    form.addEventListener('pointerdown', (event) => {
+      const control = event.target.closest?.('input, select, textarea, button');
+      if (!control || control.closest('#settings-audio-trims')) return;
+      if (control.matches('[data-settings-section-target], [data-settings-subpage-target], [data-settings-back]')) return;
+      const section = sectionFor(control);
+      lastInteractionBySection.set(section, control);
+    }, true);
+
     const markControl = (event) => {
-      const control = event.target.closest?.('[data-setting-path]');
-      if (control) markDetailedDirty(control);
+      const control = event.target.closest?.('[data-setting-path], input, select, textarea');
+      if (!control || control.closest('#settings-audio-trims')) return;
+      const section = sectionFor(control);
+      lastInteractionBySection.set(section, control);
+      markDetailedDirty(control, section);
     };
     form.addEventListener('input', markControl, true);
     form.addEventListener('change', markControl, true);
@@ -363,6 +377,7 @@
     }
 
     input.addEventListener('input', () => {
+      lastInteractionBySection.set('airplay', input);
       setReceiverDirty(String(input.value || '').trim() !== currentName);
     });
     input.addEventListener('change', () => {
