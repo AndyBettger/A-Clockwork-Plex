@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
   {% block head %}{% endblock %}
   {% if active_page | default(state.mode) == 'weather' %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260802-scrollbar-end-button-removal') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260802-custom-forecast-scrollbar') }}">
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-polish.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq.css') }}">
@@ -89,7 +89,7 @@
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260730-stale-projection-navigation-epoch') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
   {% if active_page | default(state.mode) == 'weather' %}
-  <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20260802-unified-weather-scroll') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20260802-custom-forecast-scrollbar') }}"></script>
   {% endif %}
   {% block scripts %}{% endblock %}
 </body>
