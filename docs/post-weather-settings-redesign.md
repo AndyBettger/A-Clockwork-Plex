@@ -3,15 +3,22 @@
 ## Status
 
 Weather was the final major subsystem and has been physically validated on the
-bedroom Raspberry Pi. The post-weather Settings consolidation is now implemented
-on `feature/alarm-engine` and is awaiting focused 1024×600 physical validation.
+bedroom Raspberry Pi. The post-weather Settings consolidation is implemented on
+`feature/alarm-engine` and the core split-view, autosave, Alarm, AirPlay, Audio
+and kiosk behaviours have been physically validated at 1024×600.
 
-This pass is a substantial interface and ownership cleanup rather than another
-appliance subsystem.
+The current completion pass adds the remaining display and presentation
+contracts before the separate guarded production-EQ rollout:
+
+- scheduled visual display dimming;
+- one dashboard-wide 12/24-hour formatting authority;
+- truthful presentation of all 1–16 Open-Meteo forecast days;
+- read-only Advanced audio diagnostics;
+- refreshed About/build information.
 
 ## Layout
 
-Settings now uses an **iPad-style split view**:
+Settings uses an **iPad-style split view**:
 
 ```text
 ┌──────────────────┬─────────────────────────────────┐
@@ -40,7 +47,8 @@ General
 └── Startup and idle
 
 Display
-├── Clock
+├── Clock format
+├── Night dimming
 └── Motion
 
 Weather
@@ -70,21 +78,27 @@ Plexamp
 
 Advanced
 ├── Alarm diagnostics
-├── Audio hardware
+├── Audio diagnostics and alarm tests
 ├── Playback and screen authority
 └── Service status
+
+About
+├── Build information
+├── Current appliance status
+└── Project links
 ```
 
-## One configuration transaction
+## One configuration transaction and autosave owner
 
-Configuration now uses one revisioned contract:
+Configuration uses one revisioned contract:
 
 ```text
 GET  /api/settings
 POST /api/settings
 ```
 
-The right-pane Save bar stages and commits configuration as one validated transaction. The backend:
+The active page autosaves through **one validated transaction** owner. The
+backend:
 
 1. reads the current configuration and revision;
 2. validates every submitted domain through its specialist normaliser;
@@ -94,29 +108,29 @@ The right-pane Save bar stages and commits configuration as one validated transa
 6. wakes or refreshes the affected runtime owners;
 7. returns the fully normalised saved snapshot.
 
-Alarm schedules continue to use the established strict alarm validator. Forecast
-configuration uses the established forecast validator. Alarm-audio safety uses
-the existing audio normaliser. The unified service orchestrates those owners
-rather than duplicating their rules.
+Alarm schedules continue to use the strict alarm validator. Forecast
+configuration uses the forecast validator. Alarm-audio safety uses the promoted
+two-key production normaliser. Display dimming is validated through the promoted
+Settings service and persists with the rest of the Display model.
 
-The old form autosave, separate Save alarms card, separate forecast save,
-separate AirPlay-default save and multi-script form-submit handover have been
-retired from the active page.
+The old manual Save bar was retired after physical testing showed it obscured
+controls, especially with the touch keyboard open. Dirty indicators remain at
+category, subpage and individual-option level until the autosave succeeds.
 
 ## Configuration versus actions
 
 The interface follows one rule:
 
-> Configuration is staged and saved together. Live controls, tests and refreshes
-> act immediately.
+> Configuration autosaves through one transaction. Live controls, tests and
+> refreshes act immediately.
 
-**Save Changes** owns:
+Autosaved configuration includes:
 
 - startup screen, idle destination and timeout;
-- Clock format and transition preferences;
+- Clock format, night dimming and transition preferences;
 - Weather names, individual units, forecast configuration and Clock cards;
 - the complete alarm model and both scheduled-audio safety keys;
-- the AirPlay receiver name, starting volume and pause-hold duration;
+- the managed AirPlay receiver name, starting volume and pause-hold duration;
 - EQ enabled/bypass plus Bass, Mid and Treble values;
 - Plexamp connection and service details.
 
@@ -128,9 +142,46 @@ Immediate actions remain separate:
 - scheduler recalculation;
 - playback, screen and service diagnostic refreshes.
 
-## Weather units
+## Display dimming
 
-The unit page provides optional shortcut presets:
+Night dimming is a browser-safe visual feature rather than a privileged display
+or backlight command. It supports:
+
+- enabled/disabled state;
+- start and end times, including schedules that cross midnight;
+- adjustable night brightness;
+- configurable touch-to-wake duration;
+- optional very-dark Clock presentation;
+- subtle burn-in shifting;
+- an eight-second preview.
+
+The first interaction while dimmed wakes the display and is consumed, preventing
+an accidental button press beneath it. The Alarm screen is always rendered at
+full brightness. Outside the schedule the overlay is removed automatically.
+
+No dimming path invokes `xrandr`, changes a Pi display driver, requests root or
+touches the audio graph.
+
+## Dashboard-wide clock format
+
+`ACPTime` is the one client formatting authority. The configured 12/24-hour mode
+is used by:
+
+- the primary Clock;
+- the AirPlay mini clock;
+- the Alarm current-time display;
+- Weather and forecast timestamps;
+- Advanced alarm diagnostics;
+- marked status timestamps.
+
+The existing server-side timestamp hook is promoted to the same setting so
+server-rendered Weather values agree with client-rendered values. Alarm
+configuration fields remain stored and edited as unambiguous 24-hour `HH:MM`
+values.
+
+## Weather units and forecast length
+
+Unit presets are optional shortcuts:
 
 - UK mixed: °C, hPa, mm, mph;
 - Metric: °C, hPa, mm, km/h;
@@ -139,31 +190,53 @@ The unit page provides optional shortcut presets:
 Each selector remains independently editable. Any combination that no longer
 matches a preset is shown as **Custom**.
 
+Open-Meteo supports up to 16 forecast days. Settings exposes 1, 3, 5, 7, 10, 14
+and 16 days. The original Weather renderer creates the established first seven
+cards; the completion renderer appends every additional daily object returned by
+the cached API, so a 16-day response produces 16 horizontally scrollable daily
+cards rather than silently discarding days 8–16.
+
 ## Managed AirPlay receiver name
 
-The AirPlay receiver name is one authoritative setting used by Shairport Sync and
-the dashboard Ready/Now Playing surfaces.
+The **Managed AirPlay receiver name** is one authoritative setting used by
+Shairport Sync, the dashboard Ready/Now Playing surface and the iPhone
+destination list.
 
 A restricted root-owned helper:
 
 - edits only `general.name` in `/etc/shairport-sync.conf`;
-- validates the candidate with Shairport Sync before replacing the file;
+- validates the candidate on an isolated temporary identity and port;
 - writes atomically;
 - restarts only `shairport-sync.service`;
 - verifies that the service returned active;
 - restores the original configuration and restarts again if applying fails.
 
-Changing the name requires an explicit confirmation because an active AirPlay
-session will be interrupted briefly. Duplicate form submissions are blocked
-throughout the confirmed retry.
+Changing the name requires explicit confirmation because an active AirPlay
+session is briefly interrupted. The path has been physically validated through
+rename, iPhone discovery, connection, screen takeover and audio playback.
 
-The helper is installed deliberately with:
+## Audio configuration and diagnostics
 
-```bash
-sudo bash scripts/install-shairport-name-helper.sh
-```
+Everyday Audio contains real configuration or direct controls:
 
-It is not installed or invoked by a normal `git pull`.
+- calibrated source/master/alarm output trims;
+- Bass, Mid and Treble EQ staging;
+- a read-only summary of the configured route.
+
+Advanced Audio is diagnostic. The stale editable controls for shared-mixer
+selection, Physical DAC and Alarm PCM are removed. The page reports current
+mixer/DAC state and retains only deliberate test-duration and alarm-audio action
+controls. Switching the live physical route remains a guarded maintenance
+operation with validation and rollback, not an autosaved text field.
+
+The Advanced alarm-status client refreshes only while its subpage is visible and
+uses a slower passive interval, reducing unnecessary journal traffic.
+
+## About
+
+About now identifies the current unified appliance, build/release metadata,
+validated dashboard/audio/Settings state and the guarded production-EQ phase as
+next. The repository and NFC companion links remain available.
 
 ## Equaliser
 
@@ -173,12 +246,12 @@ The Audio category retains first-class EQ controls:
 - Bass;
 - Mid;
 - Treble;
-- staged reset to flat;
+- reset to flat;
 - backend health.
 
-The Settings transaction uses the existing master-EQ authority and rolls back
-applied band values if the configuration transaction fails. The old bare master
-EQ installer remains blocked; it is not part of the Settings rollout.
+The guarded CamillaDSP laboratory and physical-rehearsal assets remain in the
+branch. The old bare master-EQ installer remains blocked and is not part of the
+normal Settings rollout.
 
 ## Removed active scaffolding
 
@@ -191,24 +264,21 @@ The redesigned page no longer loads:
 - `settings-alarm-scheduled.js`;
 - `settings-alarm-scheduler.js`.
 
-Alarm diagnostics now have an isolated Advanced client, while the alarm editor
-registers its staged model with the unified Settings owner instead of submitting
+Alarm diagnostics have an isolated Advanced client, while the alarm editor
+registers its model with the unified autosave owner instead of submitting
 independently.
 
-## Physical validation checklist
+## Remaining physical validation checklist
 
-- left sidebar remains visible and usable at 1024×600;
-- right-pane category and subpage scrolling;
-- touch keyboard and sticky Save bar coexist correctly;
-- dirty dots, Discard and one transactional Save;
-- UK/Metric/Imperial presets and Custom unit combinations;
-- alarm schedule/default/safety changes save together;
-- Clock weather-card order saves and Discard restores it;
-- AirPlay rename confirmation, iOS receiver name and dashboard name consistency;
-- EQ health and staged controls;
-- live output trims remain immediate;
-- Advanced diagnostics and deliberate actions remain separate from Save.
+- Night dimming schedule, preview and touch-to-wake at 1024×600;
+- Alarm screen remains fully bright during a dim period;
+- optional dark Clock hides Weather/footer and restores them on wake/daytime;
+- 12/24-hour format agrees across Clock, AirPlay, Alarm, Weather and Advanced;
+- 16-day forecast shows all returned daily cards with a usable custom scrollbar;
+- Advanced Audio contains no editable DAC/PCM/shared-mixer controls or false dirty
+  indicators;
+- About accurately reflects the current appliance and EQ-next phase.
 
-After this focused validation, remaining work is small compatibility cleanup,
-release documentation and explicit approval before PR #2 is made ready or
-merged.
+After this focused pass, the next substantive work is the guarded production-EQ
+rollout, followed by final release smoke testing and explicit approval before PR
+#2 is made ready or merged.
