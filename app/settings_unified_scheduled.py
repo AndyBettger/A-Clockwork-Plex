@@ -31,7 +31,8 @@ except ImportError:  # Supports direct execution imports.
 _base.normalise_audio_settings = normalise_audio_settings
 
 _TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
-_NIGHT_DIM_STYLES = {"classic", "astronomy"}
+_NIGHT_STYLES = {"classic", "astronomy"}
+_NIGHT_ACTIVE_STYLES = {"same", *_NIGHT_STYLES}
 
 
 def _clock_time(value: Any, fallback: str, label: str) -> str:
@@ -41,9 +42,10 @@ def _clock_time(value: Any, fallback: str, label: str) -> str:
     return candidate
 
 
-def _night_dim_style(value: Any, fallback: str = "classic") -> str:
+def _night_style(value: Any, fallback: str, *, active: bool = False) -> str:
+    allowed = _NIGHT_ACTIVE_STYLES if active else _NIGHT_STYLES
     candidate = str(value if value is not None else fallback).strip().lower()
-    return candidate if candidate in _NIGHT_DIM_STYLES else fallback
+    return candidate if candidate in allowed else fallback
 
 
 class UnifiedSettingsService(_base.UnifiedSettingsService):
@@ -77,6 +79,9 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 "night_dim_level_percent": _base._integer(
                     dashboard.get("night_dim_level_percent"), 18, 5, 80
                 ),
+                "night_dim_active_level_percent": _base._integer(
+                    dashboard.get("night_dim_active_level_percent"), 35, 5, 80
+                ),
                 "night_dim_wake_seconds": _base._integer(
                     dashboard.get("night_dim_wake_seconds"), 30, 5, 300
                 ),
@@ -86,8 +91,11 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 "night_burn_in_shift": _base._boolean(
                     dashboard.get("night_burn_in_shift"), True
                 ),
-                "night_dim_style": _night_dim_style(
+                "night_dim_style": _night_style(
                     dashboard.get("night_dim_style"), "classic"
+                ),
+                "night_dim_active_style": _night_style(
+                    dashboard.get("night_dim_active_style"), "same", active=True
                 ),
             }
         )
@@ -119,6 +127,12 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                     5,
                     80,
                 ),
+                "night_dim_active_level_percent": _base._integer(
+                    source.get("night_dim_active_level_percent"),
+                    dashboard.get("night_dim_active_level_percent", 35),
+                    5,
+                    80,
+                ),
                 "night_dim_wake_seconds": _base._integer(
                     source.get("night_dim_wake_seconds"),
                     dashboard.get("night_dim_wake_seconds", 30),
@@ -133,9 +147,16 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                     source.get("night_burn_in_shift"),
                     _base._boolean(dashboard.get("night_burn_in_shift"), True),
                 ),
-                "night_dim_style": _night_dim_style(
+                "night_dim_style": _night_style(
                     source.get("night_dim_style"),
-                    _night_dim_style(dashboard.get("night_dim_style"), "classic"),
+                    _night_style(dashboard.get("night_dim_style"), "classic"),
+                ),
+                "night_dim_active_style": _night_style(
+                    source.get("night_dim_active_style"),
+                    _night_style(
+                        dashboard.get("night_dim_active_style"), "same", active=True
+                    ),
+                    active=True,
                 ),
             }
         )
