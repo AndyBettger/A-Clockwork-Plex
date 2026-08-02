@@ -8,6 +8,7 @@
   document.documentElement.classList.add('acp-document-booting');
 
   const EXPLICIT_NAVIGATION_KEY = 'a-clockwork-plex.explicit-navigation';
+  const LEGACY_CLOCK_FORMAT_KEY = 'a-clockwork-plex.clock-format';
   const modes = new Set(['clock', 'weather', 'airplay', 'plexamp']);
   const transitionStyles = new Set([
     'none',
@@ -49,6 +50,13 @@
     };
   }
 
+  function mirrorClockFormat(value) {
+    try {
+      window.localStorage.setItem(LEGACY_CLOCK_FORMAT_KEY, value === '12h' ? '12h' : '24h');
+    } catch (error) {
+    }
+  }
+
   function apply(preferences = read()) {
     const root = document.documentElement;
     const duration = normaliseDuration(preferences.transitionDurationMs);
@@ -63,6 +71,7 @@
     root.style.setProperty('--acp-transition-duration', `${duration}ms`);
     root.style.setProperty('--acp-transition-out-duration', `${outgoing}ms`);
     root.style.setProperty('--acp-transition-in-duration', `${incoming}ms`);
+    mirrorClockFormat(root.dataset.clockFormat);
     return {
       startupMode: root.dataset.startupMode,
       idleReturnMode: root.dataset.idleReturnMode,
