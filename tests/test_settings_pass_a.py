@@ -57,7 +57,7 @@ class SettingsPassATests(unittest.TestCase):
         backend = SCHEDULED_SETTINGS.read_text(encoding="utf-8")
         self.assertIn("MAX_CLOCK_CARD_SLOTS = 8", client)
         self.assertIn("button.disabled = blocked", client)
-        self.assertIn("8 of ${MAX_CLOCK_CARD_SLOTS}", client)
+        self.assertIn("of ${MAX_CLOCK_CARD_SLOTS} Clock slots selected", client)
         self.assertIn("_MAX_CLOCK_CARD_SLOTS = 8", backend)
         self.assertIn("Clock weather cards support at most", backend)
 
