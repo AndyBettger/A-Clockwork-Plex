@@ -13,9 +13,12 @@
     "night_dim_start": "22:00",
     "night_dim_end": "07:00",
     "night_dim_level_percent": 18,
+    "night_dim_active_level_percent": 35,
     "night_dim_wake_seconds": 30,
     "night_clock_mode": true,
-    "night_burn_in_shift": true
+    "night_burn_in_shift": true,
+    "night_dim_style": "classic",
+    "night_dim_active_style": "same"
   },
   "plexamp": {
     "url": "http://localhost:32500",
@@ -98,44 +101,30 @@
           "sat",
           "sun"
         ],
-        "snooze_minutes": 8,
-        "ring_minutes": 3,
-        "occurrence_expiry_minutes": 120,
         "source": {
           "type": "tone",
           "tone_id": "classic-klaxon",
           "fallback_tone_id": "emergency-buzzer"
         },
         "volume": {
-          "start_percent": 60,
-          "target_percent": 85,
-          "fade_seconds": 10
-        }
+          "start_percent": 30,
+          "target_percent": 70,
+          "fade_seconds": 20
+        },
+        "snooze_minutes": 8,
+        "ring_minutes": 3,
+        "occurrence_expiry_minutes": 120
       }
     ]
   },
   "alarm_audio": {
     "master_enabled": false,
     "scheduled_enabled": false,
-    "shared_mixer_enabled": true,
-    "hardware_device": "hw:CARD=Pro,DEV=0",
-    "release_services": false,
-    "restore_services": false,
-    "backend": "aplay",
-    "alsa_device": "acp_alarm",
-    "test_duration_seconds": 12,
-    "test_volume_cap_percent": 25,
-    "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio",
-    "mixer_helper_path": "/usr/local/bin/a-clockwork-plex-audio-mixer"
-  },
-  "audio": {
-    "eq": {
-      "enabled": false,
-      "bands": {
-        "bass": 0.0,
-        "mid": 0.0,
-        "treble": 0.0
-      }
-    }
+    "shared_mixer_enabled": false,
+    "alsa_device": "default",
+    "hardware_device": "hw:0,0",
+    "test_duration_seconds": 5,
+    "tone_frequency_hz": 880,
+    "tone_volume_percent": 35
   }
 }
