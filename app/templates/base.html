@@ -1,5 +1,13 @@
 <!doctype html>
-<html lang="en-GB" data-legacy-default-mode="{{ config.dashboard.default_mode | default('clock') }}">
+<html
+  lang="en-GB"
+  data-legacy-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
+  data-server-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-server-idle-return-mode="{{ config.dashboard.idle_return_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-server-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
+  data-server-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
+  data-server-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
+>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,7 +27,7 @@
       visibility: hidden !important;
     }
   </style>
-  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20260802-server-authority') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
