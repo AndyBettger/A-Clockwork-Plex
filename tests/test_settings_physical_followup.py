@@ -18,7 +18,8 @@ class SettingsPhysicalFollowupTests(unittest.TestCase):
 
     def test_promoted_unified_settings_preserves_scheduled_alarm_switch(self):
         fixture = unified_fixtures.UnifiedSettingsTests()
-        service, stored, saves, *_rest = fixture.build()
+        with patch.object(unified_fixtures, "UnifiedSettingsService", UnifiedSettingsService):
+            service, stored, saves, *_rest = fixture.build()
         self.assertIsInstance(service, UnifiedSettingsService)
 
         snapshot = service.snapshot()
