@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "display-dimming.js"
 STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 BASE = ROOT / "app" / "templates" / "base.html"
+PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 SETTINGS = ROOT / "app" / "static" / "js" / "settings-completion.js"
 DISPLAY_SECTIONS = ROOT / "app" / "static" / "js" / "settings-display-sections.js"
 INTERACTION_SETTINGS = ROOT / "app" / "static" / "js" / "settings-night-interaction.js"
@@ -22,7 +23,13 @@ class DisplayDimmingTests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for path in (CLIENT, SETTINGS, DISPLAY_SECTIONS, INTERACTION_SETTINGS):
+        for path in (
+            CLIENT,
+            PAGE_TRANSITIONS,
+            SETTINGS,
+            DISPLAY_SECTIONS,
+            INTERACTION_SETTINGS,
+        ):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 capture_output=True,
@@ -41,6 +48,7 @@ class DisplayDimmingTests(unittest.TestCase):
         client = CLIENT.read_text(encoding="utf-8")
         style = STYLE.read_text(encoding="utf-8")
         self.assertIn("!alarmVisible()", client)
+        self.assertIn("window.location.pathname === '/alarm'", client)
         self.assertIn('data-active-page="alarm"', style)
         self.assertIn("mode-alarm", style)
         self.assertIn("filter: none !important", style)
@@ -54,6 +62,43 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertNotIn("clickBlockUntil", text)
         self.assertIn("dimRequired()", text)
         self.assertNotIn("!temporarilyAwake()", text)
+
+    def test_interaction_deadline_survives_dashboard_page_navigation(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
+        self.assertIn("INTERACTION_STORAGE_KEY", client)
+        self.assertIn("window.sessionStorage.setItem(INTERACTION_STORAGE_KEY", client)
+        self.assertIn("readStoredInteractionUntil", client)
+        self.assertIn("restoreStoredInteraction", client)
+        self.assertNotIn("clearStoredInteraction();\n    if (refreshInterval)", client)
+        self.assertIn("preserveNightInteraction(options)", transitions)
+        self.assertIn(
+            "window.ACPDisplayDimming?.interact?.(undefined, 'dashboard-navigation')",
+            transitions,
+        )
+        self.assertIn("if (isAutomaticNavigation(options)) return", transitions)
+
+    def test_short_interaction_durations_use_an_exact_expiry_timer(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        settings = INTERACTION_SETTINGS.read_text(encoding="utf-8")
+        self.assertIn("scheduleInteractionExpiry", client)
+        self.assertIn("remaining + 20", client)
+        self.assertIn("interactionRemainingSeconds", client)
+        self.assertIn("ensureDurationOptions", settings)
+        self.assertIn("['5', '5 seconds']", settings)
+        self.assertIn("['10', '10 seconds']", settings)
+
+    def test_night_state_is_applied_before_page_reveal_without_a_filter_ramp(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        style = STYLE.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        self.assertIn("primeDocumentNightState", client)
+        self.assertIn("acp-night-no-transition", client)
+        self.assertIn("acp-night-document-active", client)
+        self.assertIn("root.style.backgroundColor = '#000'", client)
+        self.assertIn("html.acp-night-no-transition", style)
+        self.assertIn("transition: none !important", style)
+        self.assertIn("night-navigation-state", base)
 
     def test_plexamp_iframe_activity_uses_linux_input_monitor(self):
         text = CLIENT.read_text(encoding="utf-8")
