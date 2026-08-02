@@ -1,36 +1,34 @@
 <!doctype html>
-<html
-  lang="en-GB"
+<html lang="en-GB"
   data-legacy-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
   data-server-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
   data-server-idle-return-mode="{{ config.dashboard.idle_return_mode | default(config.dashboard.default_mode) | default('clock') }}"
   data-server-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
   data-server-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
   data-server-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
->
+  data-night-dim-enabled="{{ 'true' if config.dashboard.night_dim_enabled | default(false) else 'false' }}"
+  data-night-dim-start="{{ config.dashboard.night_dim_start | default('22:00') }}"
+  data-night-dim-end="{{ config.dashboard.night_dim_end | default('07:00') }}"
+  data-night-dim-level-percent="{{ config.dashboard.night_dim_level_percent | default(18) }}"
+  data-night-dim-wake-seconds="{{ config.dashboard.night_dim_wake_seconds | default(30) }}"
+  data-night-clock-mode="{{ 'true' if config.dashboard.night_clock_mode | default(true) else 'false' }}"
+  data-night-burn-in-shift="{{ 'true' if config.dashboard.night_burn_in_shift | default(true) else 'false' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}A Clockwork Plex{% endblock %}</title>
   <style id="acp-critical-first-paint">
-    html {
-      background: #02040a;
-      color-scheme: dark;
-    }
-
-    html.acp-document-booting,
-    html.acp-document-booting body {
-      background: #02040a;
-    }
-
-    html.acp-document-booting body {
-      visibility: hidden !important;
-    }
+    html { background: #02040a; color-scheme: dark; }
+    html.acp-document-booting, html.acp-document-booting body { background: #02040a; }
+    html.acp-document-booting body { visibility: hidden !important; }
   </style>
   <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20260802-server-authority') }}"></script>
+  <script src="{{ url_for('static', filename='js/acp-time.js', v='20260802-global-clock-format') }}"></script>
+  <script src="{{ url_for('static', filename='js/display-dimming.js', v='20260802-night-dimming') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/display-dimming.css', v='20260802-night-dimming') }}">
   {% block head %}{% endblock %}
   {% if active_page | default(state.mode) == 'settings' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-followup.css', v='20260802-physical-followup-v2') }}">
@@ -45,8 +43,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css', v='20260730-atomic-plexamp-underlay-handoff') }}">
 </head>
-<body
-  class="mode-{{ state.mode }} acp-page-booting"
+<body class="mode-{{ state.mode }} acp-page-booting"
   data-active-page="{{ active_page | default(state.mode) }}"
   data-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
   data-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
@@ -54,32 +51,20 @@
   data-idle-timeout-seconds="{{ config.dashboard.idle_timeout_seconds | default(180) }}"
   data-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
   data-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
-  data-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
->
-  <main class="screen">
-    {% block content %}{% endblock %}
-  </main>
+  data-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}">
+  <div id="acp-night-dim-overlay" aria-hidden="true"></div>
+  <main class="screen">{% block content %}{% endblock %}</main>
 
-  <section
-    class="persistent-plexamp"
-    id="persistent-plexamp"
-    aria-label="Plexamp embedded player"
-    aria-hidden="true"
-  >
+  <section class="persistent-plexamp" id="persistent-plexamp" aria-label="Plexamp embedded player" aria-hidden="true">
     <div class="persistent-plexamp-loading" aria-hidden="true">Preparing Plexamp</div>
-    <iframe
-      class="persistent-plexamp-frame"
-      id="persistent-plexamp-frame"
-      src="{{ config.plexamp.url | default('http://localhost:32500') }}"
-      title="Plexamp"
-      allow="autoplay"
-    ></iframe>
+    <iframe class="persistent-plexamp-frame" id="persistent-plexamp-frame"
+      src="{{ config.plexamp.url | default('http://localhost:32500') }}" title="Plexamp" allow="autoplay"></iframe>
   </section>
 
   <footer class="status-bar">
     <span>A Clockwork Plex</span>
     <span>Mode: {{ state.mode }}</span>
-    <span>{% if state.last_weather_update %}Weather: {{ state.last_weather_update }}{% else %}Weather: waiting{% endif %}</span>
+    <span>{% if state.last_weather_update %}Weather: <span data-acp-datetime="{{ state.last_weather_update }}">{{ state.last_weather_update }}</span>{% else %}Weather: waiting{% endif %}</span>
   </footer>
   <script src="{{ url_for('static', filename='js/segment-display.js') }}"></script>
   <script src="{{ url_for('static', filename='js/segment-readouts.js') }}"></script>
@@ -106,6 +91,7 @@
   {% block scripts %}{% endblock %}
   {% if active_page | default(state.mode) == 'settings' %}
   <script src="{{ url_for('static', filename='js/settings-physical-followup.js', v='20260802-physical-followup-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-completion.js', v='20260802-settings-completion') }}"></script>
   {% endif %}
 </body>
 </html>
