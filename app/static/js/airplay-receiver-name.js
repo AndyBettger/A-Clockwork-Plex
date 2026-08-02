@@ -8,46 +8,18 @@
 
   const configuredName = String(page.dataset.configuredReceiverName || '').trim();
   const renderedName = String(page.dataset.receiverName || '').trim();
-  const receiverName = configuredName || renderedName || 'A Clockwork Plex';
-
-  let normalising = false;
-
-  function replaceOnlyWhenChanged(element, nextText) {
-    if (!element || element.textContent === nextText) {
-      return false;
-    }
-    element.textContent = nextText;
-    return true;
+  if (!configuredName) {
+    return;
   }
 
-  function normaliseReadyCopy() {
-    if (normalising) {
-      return;
-    }
-    normalising = true;
-
-    replaceOnlyWhenChanged(title, receiverName);
-
-    const detailText = detail.textContent;
-    if (renderedName && renderedName !== receiverName && detailText.includes(renderedName)) {
-      replaceOnlyWhenChanged(detail, detailText.split(renderedName).join(receiverName));
-    } else if (configuredName && detailText.includes(configuredName) === false) {
-      const fallbackNames = [renderedName, 'A Clockwork Plex'].filter(Boolean);
-      let nextDetail = detailText;
-      for (const fallbackName of fallbackNames) {
-        if (nextDetail.includes(fallbackName)) {
-          nextDetail = nextDetail.split(fallbackName).join(configuredName);
-          break;
-        }
-      }
-      replaceOnlyWhenChanged(detail, nextDetail);
-    }
-
-    normalising = false;
+  // This is a one-time compatibility repair for the server-rendered ready copy.
+  // airplay-live.js remains the sole ongoing owner of title and detail text.
+  const currentTitle = title.textContent.trim();
+  if (!renderedName || currentTitle === renderedName || currentTitle === configuredName) {
+    title.textContent = configuredName;
   }
 
-  const observer = new MutationObserver(normaliseReadyCopy);
-  observer.observe(title, { childList: true, characterData: true, subtree: true });
-  observer.observe(detail, { childList: true, characterData: true, subtree: true });
-  normaliseReadyCopy();
+  if (renderedName && renderedName !== configuredName && detail.textContent.includes(renderedName)) {
+    detail.textContent = detail.textContent.split(renderedName).join(configuredName);
+  }
 })();
