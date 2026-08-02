@@ -108,75 +108,75 @@ body[data-active-page="weather"] .weather-forecast-console {
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
   overscroll-behavior-block: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(143, 211, 255, 0.48) rgba(5, 13, 24, 0.34);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   scroll-snap-type: inline proximity;
   scroll-padding-inline: 6px;
   touch-action: pan-x pan-y;
-  padding: 1px 1px 6px;
+  padding: 1px;
 }
 
 .weather-forecast-strip::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-  background: transparent;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
-.weather-forecast-strip::-webkit-scrollbar-track {
-  margin: 0 4px;
+.weather-forecast-scrollbar {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(143, 211, 255, 0.07);
   border-radius: 999px;
-  background: transparent;
+  outline: none;
+  background: rgba(5, 13, 24, 0.46);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 0 8px rgba(143, 211, 255, 0.04);
+  cursor: pointer;
+  touch-action: none;
 }
 
-.weather-forecast-strip::-webkit-scrollbar-track-piece {
-  border-radius: 999px;
-  background: rgba(5, 13, 24, 0.34);
-  background-clip: padding-box;
-  box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.07);
+.weather-forecast-scrollbar[hidden] {
+  display: none;
 }
 
-.weather-forecast-strip::-webkit-scrollbar-thumb {
+.weather-forecast-scrollbar:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(143, 211, 255, 0.28),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.weather-forecast-scrollbar-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
   min-width: 42px;
+  height: 4px;
   border: 1px solid rgba(143, 211, 255, 0.16);
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgba(143, 211, 255, 0.34),
-    rgba(184, 215, 237, 0.58)
+    rgba(143, 211, 255, 0.42),
+    rgba(184, 215, 237, 0.66)
   );
   box-shadow: 0 0 8px rgba(143, 211, 255, 0.12);
+  cursor: grab;
+  will-change: width, transform;
 }
 
-.weather-forecast-strip::-webkit-scrollbar-thumb:hover {
+.weather-forecast-scrollbar-thumb:hover,
+.weather-forecast-scrollbar.is-dragging .weather-forecast-scrollbar-thumb {
   background: linear-gradient(
     90deg,
-    rgba(143, 211, 255, 0.52),
-    rgba(217, 237, 250, 0.72)
+    rgba(143, 211, 255, 0.58),
+    rgba(217, 237, 250, 0.78)
   );
 }
 
-.weather-forecast-strip::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-.weather-forecast-strip::-webkit-scrollbar-button,
-.weather-forecast-strip::-webkit-scrollbar-button:single-button,
-.weather-forecast-strip::-webkit-scrollbar-button:horizontal,
-.weather-forecast-strip::-webkit-scrollbar-button:horizontal:decrement,
-.weather-forecast-strip::-webkit-scrollbar-button:horizontal:increment,
-.weather-forecast-strip::-webkit-scrollbar-button:horizontal:start:decrement,
-.weather-forecast-strip::-webkit-scrollbar-button:horizontal:end:increment {
-  -webkit-appearance: none;
-  appearance: none;
-  display: none;
-  width: 0;
-  min-width: 0;
-  height: 0;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
+.weather-forecast-scrollbar.is-dragging .weather-forecast-scrollbar-thumb {
+  cursor: grabbing;
 }
 
 .weather-forecast-strip.is-daily {
