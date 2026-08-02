@@ -14,7 +14,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("active_page | default(state.mode) == 'weather'", base)
         self.assertIn("css/weather-forecast.css", base)
         self.assertIn("js/weather-forecast.js", base)
-        self.assertIn("20260802-scrollbar-end-button-removal", base)
+        self.assertIn("20260802-custom-forecast-scrollbar", base)
         Environment().parse(base)
 
     def test_forecast_client_is_cache_only_and_never_controls_the_appliance(self):
@@ -75,30 +75,45 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("scroll-snap-type", styles)
         self.assertIn("body[data-active-page=\"weather\"]", styles)
 
-    def test_forecast_scrollbars_are_compact_and_hide_native_arrow_buttons(self):
+    def test_native_scrollbar_is_hidden_in_favour_of_custom_control(self):
         styles = Path("app/static/css/weather-forecast.css").read_text(encoding="utf-8")
 
-        self.assertIn("scrollbar-color:", styles)
+        self.assertIn("scrollbar-width: none", styles)
+        self.assertIn("-ms-overflow-style: none", styles)
         self.assertIn(".weather-forecast-strip::-webkit-scrollbar", styles)
-        self.assertIn("height: 6px", styles)
-        self.assertIn("::-webkit-scrollbar-thumb", styles)
-        self.assertIn("::-webkit-scrollbar-button:horizontal:decrement", styles)
-        self.assertIn("::-webkit-scrollbar-button:horizontal:increment", styles)
-        self.assertIn("::-webkit-scrollbar-button:horizontal:start:decrement", styles)
-        self.assertIn("::-webkit-scrollbar-button:horizontal:end:increment", styles)
-        self.assertIn("-webkit-appearance: none", styles)
-        self.assertIn("min-width: 0", styles)
         self.assertIn("display: none", styles)
-        self.assertIn("border-radius: 999px", styles)
+        self.assertIn("width: 0", styles)
+        self.assertIn("height: 0", styles)
+        self.assertNotIn("::-webkit-scrollbar-button", styles)
 
-    def test_forecast_scrollbar_track_is_a_rounded_capsule(self):
+    def test_custom_scrollbar_is_a_real_rounded_capsule(self):
+        client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
         styles = Path("app/static/css/weather-forecast.css").read_text(encoding="utf-8")
 
-        self.assertIn("::-webkit-scrollbar-track-piece", styles)
-        self.assertIn("background: transparent", styles)
-        self.assertIn("margin: 0 4px", styles)
-        self.assertIn("background-clip: padding-box", styles)
+        self.assertIn("weather-forecast-scrollbar", client)
+        self.assertIn("weather-forecast-scrollbar-thumb", client)
+        self.assertIn("role', 'scrollbar", client)
+        self.assertIn("bindCustomScrollbar", client)
+        self.assertIn("setPointerCapture", client)
+        self.assertIn("aria-valuenow", client)
+        self.assertIn(".weather-forecast-scrollbar {", styles)
+        self.assertIn(".weather-forecast-scrollbar-thumb {", styles)
         self.assertIn("border-radius: 999px", styles)
+        self.assertIn("background: rgba(5, 13, 24, 0.46)", styles)
+        self.assertIn("cursor: grab", styles)
+
+    def test_custom_scrollbar_preserves_mouse_keyboard_and_touch_paths(self):
+        client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
+        styles = Path("app/static/css/weather-forecast.css").read_text(encoding="utf-8")
+
+        self.assertIn("pointerdown", client)
+        self.assertIn("pointermove", client)
+        self.assertIn("ArrowLeft", client)
+        self.assertIn("ArrowRight", client)
+        self.assertIn("Home", client)
+        self.assertIn("End", client)
+        self.assertIn("touch-action: none", styles)
+        self.assertIn("touch-action: pan-x pan-y", styles)
 
     def test_forecast_client_has_valid_javascript_syntax(self):
         result = subprocess.run(
