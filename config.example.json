@@ -8,7 +8,14 @@
     "clock_format": "24h",
     "idle_timeout_seconds": 180,
     "transition_style": "grow-fade",
-    "transition_duration_ms": 300
+    "transition_duration_ms": 300,
+    "night_dim_enabled": false,
+    "night_dim_start": "22:00",
+    "night_dim_end": "07:00",
+    "night_dim_level_percent": 18,
+    "night_dim_wake_seconds": 30,
+    "night_clock_mode": true,
+    "night_burn_in_shift": true
   },
   "plexamp": {
     "url": "http://localhost:32500",
