@@ -27,8 +27,9 @@ except ImportError:  # Supports direct execution imports.
 class ActiveAlarmScheduler(SilentAlarmScheduler):
     """Interactive alarm runtime with persistent snooze/dismiss state.
 
-    The scheduler may take over the touchscreen, but audio playback deliberately
-    remains disabled until the following playback-ownership phase.
+    This scheduler owns timing and touchscreen state. Its internal playback flag
+    remains false because scheduled sound is delegated to the promoted
+    alarm-audio authority rather than being played by the scheduler itself.
     """
 
     def __init__(
@@ -142,7 +143,7 @@ class ActiveAlarmScheduler(SilentAlarmScheduler):
             )
         print(
             "A Clockwork Plex scheduler: activating alarm screen for "
-            f"{active.get('label', 'Alarm')} (audio remains disabled).",
+            f"{active.get('label', 'Alarm')} (audio delegated to the alarm-audio authority).",
             flush=True,
         )
 
@@ -367,7 +368,7 @@ class ActiveAlarmScheduler(SilentAlarmScheduler):
         self._thread.start()
         print(
             "A Clockwork Plex scheduler: interactive alarm runtime ready in "
-            f"{timezone_name(self._timezone)}; audio playback is still disabled.",
+            f"{timezone_name(self._timezone)}; scheduled audio is delegated to the promoted authority.",
             flush=True,
         )
 
@@ -502,7 +503,7 @@ class ActiveAlarmScheduler(SilentAlarmScheduler):
         )
         status["queued_occurrence_count"] = len(status.get("queued_occurrences", []))
         status["playback_lockout_reason"] = (
-            "The alarm runtime and full-screen controls are active, but sound playback "
-            "remains deliberately disabled during this UI-validation pass."
+            "The scheduler does not play sound directly; scheduled audio is delegated "
+            "to the promoted alarm-audio authority."
         )
         return status
