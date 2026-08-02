@@ -20,6 +20,8 @@
   let previewTimer = null;
   let previewButton = null;
   let hasRenderedSchedule = false;
+  let openTimeMenu = null;
+  let timeMenuSequence = 0;
 
   const timePickerRefreshers = new Set();
   const expandedAlarmIds = new Set();
@@ -84,6 +86,16 @@
       if (period === 'PM') hour24 += 12;
     }
     return `${String(hour24).padStart(2, '0')}:${String(boundedMinute).padStart(2, '0')}`;
+  }
+
+  function closeTimeMenu() {
+    if (!openTimeMenu) return;
+    openTimeMenu.menu.hidden = true;
+    openTimeMenu.menu.classList.remove('opens-up');
+    openTimeMenu.menu.style.removeProperty('max-height');
+    openTimeMenu.shell.classList.remove('is-open');
+    openTimeMenu.trigger.setAttribute('aria-expanded', 'false');
+    openTimeMenu = null;
   }
 
   function stopPreview() {
@@ -161,6 +173,89 @@
     return control;
   }
 
+  function timeChoice(values, selected, label, ariaLabel, onChange) {
+    const shell = node('div', 'alarm-time-choice');
+    const trigger = node('button', 'alarm-time-select');
+    const valueText = node('span', 'alarm-time-select-value');
+    const arrow = node('span', 'alarm-time-select-arrow', '⌄');
+    const menu = node('div', 'alarm-time-menu');
+    const options = new Map();
+    const menuId = `alarm-time-menu-${++timeMenuSequence}`;
+
+    trigger.type = 'button';
+    trigger.value = String(selected);
+    trigger.setAttribute('aria-label', ariaLabel);
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', menuId);
+    arrow.setAttribute('aria-hidden', 'true');
+    trigger.append(valueText, arrow);
+
+    menu.id = menuId;
+    menu.hidden = true;
+    menu.setAttribute('role', 'listbox');
+    menu.setAttribute('aria-label', ariaLabel);
+
+    const paint = () => {
+      valueText.textContent = label(trigger.value);
+      options.forEach((button, value) => {
+        const isSelected = value === trigger.value;
+        button.classList.toggle('is-selected', isSelected);
+        button.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+      });
+    };
+
+    values.forEach((value) => {
+      const storedValue = String(value);
+      const option = node('button', 'alarm-time-option', label(value));
+      option.type = 'button';
+      option.dataset.value = storedValue;
+      option.setAttribute('role', 'option');
+      option.addEventListener('click', (event) => {
+        event.stopPropagation();
+        trigger.value = storedValue;
+        paint();
+        closeTimeMenu();
+        onChange();
+      });
+      options.set(storedValue, option);
+      menu.appendChild(option);
+    });
+
+    const open = () => {
+      if (openTimeMenu?.shell !== shell) closeTimeMenu();
+      const bounds = shell.getBoundingClientRect();
+      const roomBelow = Math.max(0, window.innerHeight - bounds.bottom - 12);
+      const roomAbove = Math.max(0, bounds.top - 12);
+      const opensUp = roomBelow < 220 && roomAbove > roomBelow;
+      const available = opensUp ? roomAbove : roomBelow;
+
+      menu.hidden = false;
+      menu.classList.toggle('opens-up', opensUp);
+      menu.style.maxHeight = `${Math.max(132, Math.min(300, available))}px`;
+      shell.classList.add('is-open');
+      trigger.setAttribute('aria-expanded', 'true');
+      openTimeMenu = { shell, trigger, menu };
+
+      window.requestAnimationFrame(() => {
+        options.get(trigger.value)?.scrollIntoView({ block: 'center' });
+      });
+    };
+
+    trigger.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (openTimeMenu?.shell === shell) closeTimeMenu();
+      else open();
+    });
+
+    shell.append(trigger, menu);
+    paint();
+    return {
+      element: shell,
+      get value() { return trigger.value; },
+    };
+  }
+
   function field(label, control, help = '') {
     const wrapper = node('label', 'setting-field');
     wrapper.append(node('span', '', label), control);
@@ -212,6 +307,7 @@
     wrapper.appendChild(node('small', '', 'Shown in the selected Clock format; stored safely as 24-hour HH:MM.'));
 
     const render = () => {
+      closeTimeMenu();
       const format = currentClockFormat();
       const parts = displayTimeParts(alarm.time, format);
       picker.replaceChildren();
@@ -221,22 +317,31 @@
         ? Array.from({ length: 12 }, (_item, index) => index + 1)
         : Array.from({ length: 24 }, (_item, index) => index);
       const minutes = Array.from({ length: 60 }, (_item, index) => index);
-      const hour = select(hours, parts.hour, (value) => String(value).padStart(2, '0'));
-      const minute = select(minutes, parts.minute, (value) => String(value).padStart(2, '0'));
-      hour.className = 'alarm-time-select';
-      minute.className = 'alarm-time-select';
-      hour.setAttribute('aria-label', 'Alarm hour');
-      minute.setAttribute('aria-label', 'Alarm minute');
-
       let period = parts.period;
+      let hour;
+      let minute;
+
       const commit = () => {
         alarm.time = storedTimeFromParts(hour.value, minute.value, period, format);
         updateSummary(card, alarm);
         markDirty();
       };
-      hour.addEventListener('change', commit);
-      minute.addEventListener('change', commit);
-      picker.append(hour, node('span', 'alarm-time-colon', ':'), minute);
+
+      hour = timeChoice(
+        hours,
+        parts.hour,
+        (value) => String(value).padStart(2, '0'),
+        'Alarm hour',
+        commit,
+      );
+      minute = timeChoice(
+        minutes,
+        parts.minute,
+        (value) => String(value).padStart(2, '0'),
+        'Alarm minute',
+        commit,
+      );
+      picker.append(hour.element, node('span', 'alarm-time-colon', ':'), minute.element);
 
       if (format === '12h') {
         const periods = node('div', 'alarm-period-control');
@@ -250,6 +355,7 @@
           };
           paint();
           button.addEventListener('click', () => {
+            closeTimeMenu();
             period = value;
             periods.querySelectorAll('.alarm-period-button').forEach((item) => {
               const selected = item.textContent === period;
@@ -360,6 +466,7 @@
       if (nextExpanded) expandedAlarmIds.add(alarm.id);
       else {
         expandedAlarmIds.delete(alarm.id);
+        closeTimeMenu();
         stopPreview();
       }
     });
@@ -508,6 +615,7 @@
   }
 
   function renderSchedule() {
+    closeTimeMenu();
     stopPreview();
     timePickerRefreshers.clear();
     scheduleMount.replaceChildren();
@@ -615,6 +723,12 @@
     }
   }
 
+  document.addEventListener('pointerdown', (event) => {
+    if (openTimeMenu && !openTimeMenu.shell.contains(event.target)) closeTimeMenu();
+  }, true);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeTimeMenu();
+  });
   window.addEventListener('acp:clock-format-changed', () => {
     timePickerRefreshers.forEach((refresh) => refresh());
     model?.alarms?.forEach((alarm) => {
@@ -622,6 +736,9 @@
       if (card) updateSummary(card, alarm);
     });
   });
-  window.addEventListener('pagehide', stopPreview);
+  window.addEventListener('pagehide', () => {
+    closeTimeMenu();
+    stopPreview();
+  });
   initialise();
 })();
