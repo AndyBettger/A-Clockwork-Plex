@@ -18,6 +18,8 @@ RUNNER = ROOT / "app" / "runner.py"
 STATUS_API = ROOT / "app" / "alarm_audio_status_scheduled.py"
 SETTINGS_CLIENT = ROOT / "app" / "static" / "js" / "settings-alarm-scheduled.js"
 SCHEDULER_CLIENT = ROOT / "app" / "static" / "js" / "settings-alarm-scheduler.js"
+UNIFIED_CLIENT = ROOT / "app" / "static" / "js" / "settings-ipad.js"
+SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
 ALARM_CLIENT = ROOT / "app" / "static" / "js" / "alarm-active.js"
 BASE = ROOT / "app" / "templates" / "base.html"
 ALARM_TEMPLATE = ROOT / "app" / "templates" / "alarm.html"
@@ -193,7 +195,7 @@ class ScheduledAlarmAudioTests(unittest.TestCase):
         self.assertNotIn('"playback_enabled": False', text)
 
     def test_alarm_clients_have_valid_javascript_syntax(self):
-        for path in (SETTINGS_CLIENT, SCHEDULER_CLIENT, ALARM_CLIENT):
+        for path in (SETTINGS_CLIENT, SCHEDULER_CLIENT, UNIFIED_CLIENT, ALARM_CLIENT):
             with self.subTest(path=path.name):
                 result = subprocess.run(
                     ["node", "--check", str(path)],
@@ -203,7 +205,7 @@ class ScheduledAlarmAudioTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
-    def test_settings_client_exposes_second_switch_and_exits_off_settings(self):
+    def test_retired_settings_client_still_documents_second_switch_contract(self):
         text = SETTINGS_CLIENT.read_text(encoding="utf-8")
         guard = text.index("dataset?.activePage")
         installer = text.index("function install()")
@@ -211,6 +213,16 @@ class ScheduledAlarmAudioTests(unittest.TestCase):
         self.assertIn("alarm-audio-scheduled-enabled", text)
         self.assertIn("scheduled_enabled", text)
         self.assertIn("Second safety key", text)
+
+    def test_unified_settings_exposes_both_scheduled_audio_keys(self):
+        template = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
+        client = UNIFIED_CLIENT.read_text(encoding="utf-8")
+        self.assertIn('data-setting-path="alarm_audio.master_enabled"', template)
+        self.assertIn('data-setting-path="alarm_audio.scheduled_enabled"', template)
+        self.assertIn("Two-key scheduled-audio safety", template)
+        self.assertIn("/api/settings", client)
+        self.assertIn("alarm_audio", client)
+        self.assertNotIn("js/settings-alarm-scheduled.js", BASE.read_text(encoding="utf-8"))
 
     def test_scheduler_and_alarm_screen_render_promoted_audio_truth(self):
         scheduler = SCHEDULER_CLIENT.read_text(encoding="utf-8")
@@ -221,11 +233,14 @@ class ScheduledAlarmAudioTests(unittest.TestCase):
         self.assertIn("playbackKind === 'scheduled'", active)
         self.assertIn("Scheduled alarm · audio locked", active)
 
-    def test_templates_cache_bust_promoted_alarm_clients(self):
+    def test_alarm_screen_remains_cache_busted_and_settings_uses_unified_client(self):
         base = BASE.read_text(encoding="utf-8")
+        settings = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
         alarm = ALARM_TEMPLATE.read_text(encoding="utf-8")
-        self.assertIn("js/settings-alarm-scheduled.js", base)
-        self.assertIn("20260731-guarded-scheduled-alarm-audio", base)
+        self.assertNotIn("js/settings-alarm-scheduled.js", base)
+        self.assertNotIn("js/settings-alarm-scheduler.js", base)
+        self.assertIn("js/settings-ipad.js", settings)
+        self.assertIn("20260802-unified-settings", settings)
         self.assertIn("20260731-scheduled-alarm-audio-truth", alarm)
 
 
