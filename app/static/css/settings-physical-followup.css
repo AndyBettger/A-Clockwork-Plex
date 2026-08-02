@@ -1,0 +1,225 @@
+body.mode-settings.settings-autosave-enabled .settings-ipad-page {
+  padding-bottom: 0;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-save-actions {
+  display: none !important;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-save-bar {
+  position: fixed;
+  z-index: 210;
+  top: 10px;
+  right: 12px;
+  bottom: auto;
+  left: auto;
+  width: min(430px, calc(100vw - 300px));
+  min-width: 250px;
+  padding: 8px 11px;
+  transform: none;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  border-radius: 14px;
+  transition: opacity 140ms ease, visibility 140ms ease;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-save-bar.is-dirty,
+body.mode-settings.settings-autosave-enabled .settings-save-bar.is-error,
+body.mode-settings.settings-autosave-enabled.settings-transaction-active .settings-save-bar {
+  opacity: 1;
+  visibility: visible;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-save-bar > div:first-child {
+  display: grid;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-save-bar strong,
+body.mode-settings.settings-autosave-enabled .settings-save-bar span {
+  white-space: normal;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-save-bar.is-error {
+  background: rgba(43, 9, 15, .97);
+  border-color: rgba(255, 120, 120, .62);
+}
+
+body.mode-settings.settings-autosave-enabled.keyboard-open .settings-save-bar {
+  top: 10px;
+  bottom: auto;
+}
+
+body.mode-settings.settings-autosave-enabled .settings-sidebar-title span {
+  color: #b8d8ed;
+}
+
+/* The historic globally injected Settings EQ card is hidden here. The unified
+   Equaliser subpage remains the one configuration owner and is styled to match
+   the better established Master Equaliser console. */
+body.mode-settings #acp-eq-settings-card {
+  display: none !important;
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] > .settings-card {
+  padding: clamp(13px, 2vmin, 18px);
+  border-color: rgba(143, 211, 255, .2);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(143, 211, 255, .12), transparent 42%),
+    rgba(8, 17, 30, .9);
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-card-heading,
+body.mode-settings [data-settings-subpage="audio:eq"] > .settings-card > h3 {
+  margin-bottom: 12px;
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field {
+  align-content: start;
+  text-align: center;
+  padding: 12px 10px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .055);
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid output {
+  color: #d8f2ff;
+  font-family: var(--display-font);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .setting-toggle {
+  max-width: 260px;
+  margin-bottom: 10px;
+}
+
+/* Return persistent output trims to a physical mixer-fader presentation. */
+body.mode-settings .settings-live-trims {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+}
+
+body.mode-settings .settings-live-trim {
+  grid-template-rows: auto minmax(150px, 1fr) auto;
+  place-items: center;
+  min-height: 238px;
+  padding: 11px 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background:
+    linear-gradient(180deg, rgba(143, 211, 255, .06), transparent 40%),
+    rgba(255, 255, 255, .05);
+}
+
+body.mode-settings .settings-live-trim header {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 100%;
+  text-align: center;
+}
+
+body.mode-settings .settings-live-trim header output {
+  color: #d8f2ff;
+  font-family: var(--display-font);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+body.mode-settings .settings-live-trim input[type="range"] {
+  width: 30px;
+  height: 148px;
+  margin: 4px auto;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  accent-color: var(--accent);
+}
+
+body.mode-settings .settings-live-trim small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: .63rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+body.mode-settings .settings-audio-hardware-configuration {
+  margin-top: 10px;
+}
+
+body.mode-settings .settings-audio-hardware-configuration .setting-field,
+body.mode-settings .settings-audio-hardware-configuration .setting-toggle {
+  min-height: 88px;
+}
+
+body.mode-settings #settings-audio-hardware-status {
+  margin: 8px 0 12px;
+}
+
+body.mode-settings .settings-action-row {
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+body.mode-settings .settings-action-row .button {
+  min-height: 39px;
+  margin: 0;
+}
+
+body.mode-settings .settings-confirmation-card > div {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body.mode-settings .settings-confirmation-card .button {
+  min-height: 40px;
+}
+
+body.mode-settings .setting-toggle {
+  column-gap: 9px;
+}
+
+@media (max-height: 620px) {
+  body.mode-settings.settings-autosave-enabled .settings-save-bar {
+    top: 6px;
+    right: 8px;
+    width: min(390px, calc(100vw - 260px));
+    padding: 6px 9px;
+  }
+
+  body.mode-settings.settings-autosave-enabled .settings-save-bar span {
+    font-size: .66rem;
+  }
+
+  body.mode-settings .settings-live-trim {
+    min-height: 205px;
+  }
+
+  body.mode-settings .settings-live-trim input[type="range"] {
+    height: 120px;
+  }
+}
+
+@media (max-width: 760px) {
+  body.mode-settings.settings-autosave-enabled .settings-save-bar {
+    right: 7px;
+    width: min(360px, calc(100vw - 205px));
+    min-width: 210px;
+  }
+
+  body.mode-settings .settings-live-trims {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid {
+    grid-template-columns: 1fr;
+  }
+}
