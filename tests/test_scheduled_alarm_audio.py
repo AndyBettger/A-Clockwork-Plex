@@ -241,7 +241,10 @@ class ScheduledAlarmAudioTests(unittest.TestCase):
         self.assertNotIn("js/settings-alarm-scheduler.js", base)
         self.assertIn("js/settings-ipad.js", settings)
         self.assertIn("20260802-unified-settings", settings)
-        self.assertIn("20260731-scheduled-alarm-audio-truth", alarm)
+        self.assertIn("js/acp-time.js", alarm)
+        self.assertIn("js/alarm-active.js", alarm)
+        self.assertGreaterEqual(alarm.count("20260802-alarm-clock-format"), 2)
+        self.assertIn("data-server-clock-format", alarm)
 
 
 if __name__ == "__main__":
