@@ -11,6 +11,7 @@ ALARM = ROOT / "app" / "static" / "js" / "alarm-active.js"
 ALARM_TEMPLATE = ROOT / "app" / "templates" / "alarm.html"
 DIM_STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 SETTINGS = ROOT / "app" / "static" / "js" / "settings-completion.js"
+DISPLAY_SECTIONS = ROOT / "app" / "static" / "js" / "settings-display-sections.js"
 SETTINGS_STYLE = ROOT / "app" / "static" / "css" / "settings-completion.css"
 SAFE_LINKS = ROOT / "app" / "static" / "js" / "kiosk-safe-links.js"
 SAFE_LINK_STYLE = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
@@ -22,7 +23,7 @@ class SettingsPolishFollowupTests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for path in (ALARM, SETTINGS, SAFE_LINKS):
+        for path in (ALARM, SETTINGS, DISPLAY_SECTIONS, SAFE_LINKS):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 capture_output=True,
@@ -31,17 +32,29 @@ class SettingsPolishFollowupTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
 
-    def test_night_overlay_filters_to_monochrome_red_with_multiply_dimming(self):
+    def test_night_overlay_offers_classic_and_pure_red_astronomy_modes(self):
         text = DIM_STYLE.read_text(encoding="utf-8")
         self.assertIn("--acp-night-red-filter", text)
-        self.assertIn("grayscale(1)", text)
-        self.assertIn("sepia(1)", text)
-        self.assertIn("saturate(18)", text)
-        self.assertIn("hue-rotate(315deg)", text)
+        self.assertIn("grayscale(1) contrast(1.08)", text)
+        self.assertNotIn("sepia(1)", text)
+        self.assertNotIn("hue-rotate", text)
+        self.assertIn("body.acp-night-style-classic", text)
+        self.assertIn("body.acp-night-style-astronomy", text)
         self.assertIn("filter: var(--acp-night-red-filter)", text)
-        self.assertIn("background: rgb(68, 0, 0)", text)
+        self.assertIn("background: rgb(86, 0, 0)", text)
         self.assertIn("mix-blend-mode: multiply", text)
         self.assertIn('body[data-active-page="alarm"]', text)
+
+    def test_display_is_split_into_four_main_subpages(self):
+        client = DISPLAY_SECTIONS.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        for key in ("display:clock", "display:night", "display:theme", "display:motion"):
+            self.assertIn(key, client)
+        self.assertIn("Classic dim", client)
+        self.assertIn("Astronomy red", client)
+        self.assertIn('data-setting-path="display.night_dim_style"', client)
+        self.assertIn("Additional daytime and accent themes are deliberately deferred", client)
+        self.assertIn("settings-display-sections.js", base)
 
     def test_alarm_page_uses_global_clock_format_without_24_hour_override(self):
         client = ALARM.read_text(encoding="utf-8")
