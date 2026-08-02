@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ALARM_EDITOR = ROOT / "app" / "static" / "js" / "settings-alarms.js"
 ALARM_STYLE = ROOT / "app" / "static" / "css" / "settings-alarm-model.css"
+ALARM_WORKSPACE_STYLE = ROOT / "app" / "static" / "css" / "settings-alarms.css"
 ADVANCED = ROOT / "app" / "static" / "js" / "settings-advanced.js"
 SETTINGS_CLIENT = ROOT / "app" / "static" / "js" / "settings-ipad.js"
 SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
@@ -74,6 +75,15 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertNotIn("enabled.type = 'checkbox'", text)
         self.assertIn(".alarm-enabled-toggle.is-off", style)
 
+    def test_autosave_preserves_expanded_and_collapsed_cards(self):
+        text = ALARM_EDITOR.read_text(encoding="utf-8")
+        self.assertIn("const expandedAlarmIds = new Set()", text)
+        self.assertIn("expandedAlarmIds.add(alarm.id)", text)
+        self.assertIn("expandedAlarmIds.delete(alarm.id)", text)
+        self.assertIn("hasRenderedSchedule", text)
+        self.assertIn("model = clone(saved)", text)
+        self.assertNotIn("body.hidden = index !== 0", text)
+
     def test_time_picker_tracks_clock_format_without_keyboard_entry(self):
         text = ALARM_EDITOR.read_text(encoding="utf-8")
         style = ALARM_STYLE.read_text(encoding="utf-8")
@@ -86,9 +96,20 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertIn(".alarm-time-picker", style)
         self.assertIn(".alarm-period-button.is-selected", style)
 
-    def test_behaviour_and_sound_are_explicit_panels(self):
+    def test_time_dropdown_and_alarm_basics_have_touchscreen_followup_styles(self):
+        style = ALARM_WORKSPACE_STYLE.read_text(encoding="utf-8")
+        self.assertIn(".alarm-time-select option", style)
+        self.assertIn("background: #172333", style)
+        self.assertIn("color-scheme: dark", style)
+        self.assertIn(".alarm-schedule-heading", style)
+        self.assertIn("margin-bottom", style)
+        self.assertIn(".alarm-basics-grid", style)
+        self.assertIn("align-items: start", style)
+
+    def test_snooze_behaviour_and_sound_are_explicit_panels(self):
         text = ALARM_EDITOR.read_text(encoding="utf-8")
-        self.assertIn("panel('Behaviour'", text)
+        self.assertIn("field('Alarm name'", text)
+        self.assertIn("panel('Snooze behaviour'", text)
         self.assertIn("panel('Sound'", text)
         self.assertIn("Snooze duration", text)
         self.assertIn("Scheduled alarm target volume", text)
