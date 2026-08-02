@@ -2,7 +2,7 @@
   --acp-night-dim-opacity: 0;
   --acp-night-shift-x: 0px;
   --acp-night-shift-y: 0px;
-  --acp-night-red-filter: grayscale(1) sepia(1) saturate(18) hue-rotate(315deg) contrast(1.08);
+  --acp-night-red-filter: grayscale(1) contrast(1.08);
 }
 
 #acp-night-dim-overlay {
@@ -11,14 +11,24 @@
   z-index: 2147483000;
   pointer-events: none;
   opacity: 0;
-  background: rgb(68, 0, 0);
-  mix-blend-mode: multiply;
+  background: #000;
+  mix-blend-mode: normal;
   transition: opacity 320ms ease;
 }
 
-body.acp-night-dim-active:not(.acp-night-temporarily-awake):not(.mode-alarm):not([data-active-page="alarm"]) > .screen,
-body.acp-night-dim-active:not(.acp-night-temporarily-awake):not(.mode-alarm):not([data-active-page="alarm"]) > .persistent-plexamp,
-body.acp-night-dim-active:not(.acp-night-temporarily-awake):not(.mode-alarm):not([data-active-page="alarm"]) > .status-bar {
+body.acp-night-style-classic #acp-night-dim-overlay {
+  background: #000;
+  mix-blend-mode: normal;
+}
+
+body.acp-night-style-astronomy #acp-night-dim-overlay {
+  background: rgb(86, 0, 0);
+  mix-blend-mode: multiply;
+}
+
+body.acp-night-style-astronomy.acp-night-dim-active:not(.acp-night-temporarily-awake):not(.mode-alarm):not([data-active-page="alarm"]) > .screen,
+body.acp-night-style-astronomy.acp-night-dim-active:not(.acp-night-temporarily-awake):not(.mode-alarm):not([data-active-page="alarm"]) > .persistent-plexamp,
+body.acp-night-style-astronomy.acp-night-dim-active:not(.acp-night-temporarily-awake):not(.mode-alarm):not([data-active-page="alarm"]) > .status-bar {
   filter: var(--acp-night-red-filter);
 }
 
@@ -30,6 +40,18 @@ body.acp-night-temporarily-awake #acp-night-dim-overlay,
 body.mode-alarm #acp-night-dim-overlay,
 body[data-active-page="alarm"] #acp-night-dim-overlay {
   opacity: 0 !important;
+}
+
+body.acp-night-temporarily-awake > .screen,
+body.acp-night-temporarily-awake > .persistent-plexamp,
+body.acp-night-temporarily-awake > .status-bar,
+body.mode-alarm > .screen,
+body.mode-alarm > .persistent-plexamp,
+body.mode-alarm > .status-bar,
+body[data-active-page="alarm"] > .screen,
+body[data-active-page="alarm"] > .persistent-plexamp,
+body[data-active-page="alarm"] > .status-bar {
+  filter: none !important;
 }
 
 body.acp-night-clock-mode .clock-hero {
