@@ -69,7 +69,7 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         style = ALARM_STYLE.read_text(encoding="utf-8")
         self.assertIn("alarm-enabled-toggle", text)
         self.assertIn("alarm.enabled = !alarm.enabled", text)
-        self.assertIn("data.alarmEnabledToggle", text)
+        self.assertIn("dataset.alarmEnabledToggle", text)
         self.assertIn("aria-pressed", text)
         self.assertNotIn("enabled.type = 'checkbox'", text)
         self.assertIn(".alarm-enabled-toggle.is-off", style)
