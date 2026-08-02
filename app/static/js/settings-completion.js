@@ -7,22 +7,11 @@
   if (!form) return;
 
   const path = (name) => document.querySelector(`[data-setting-path="${name}"]`);
-
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#039;');
-  }
+  let lastForecastStatus = null;
+  let formattingForecastMessage = false;
 
   function getPath(object, dotted) {
     return String(dotted).split('.').filter(Boolean).reduce((value, key) => value?.[key], object);
-  }
-
-  function controlValue(control) {
-    return control.type === 'checkbox' ? control.checked : control.value;
   }
 
   function populateControls(settings) {
@@ -57,7 +46,7 @@
       <div class="settings-card-heading">
         <div>
           <h3>Night dimming</h3>
-          <p class="muted small">A browser-safe visual dimmer with touch-to-wake. The Alarm screen always remains fully visible.</p>
+          <p class="muted small">A red astronomy-style night overlay with touch-to-wake. The Alarm screen always remains fully visible.</p>
         </div>
         <span class="settings-chip" data-night-dim-status>Off</span>
       </div>
@@ -78,7 +67,7 @@
           <span>Night brightness</span>
           <input type="range" min="5" max="80" step="1" data-settings-completion-control data-setting-path="display.night_dim_level_percent">
           <output data-night-dim-level>18%</output>
-          <small>This is a visual overlay; it does not alter the Pi display driver or audio graph.</small>
+          <small>The red multiply overlay suppresses green and blue light without altering the Pi display driver or audio graph.</small>
         </label>
         <label class="setting-field">
           <span>Stay awake after touch</span>
@@ -121,7 +110,7 @@
       applyDimmingPreviewConfiguration();
       window.ACPDisplayDimming?.preview?.(8);
       const message = card.querySelector('[data-night-dim-message]');
-      if (message) message.textContent = 'Previewing the selected level for eight seconds. Touch the screen to wake it.';
+      if (message) message.textContent = 'Previewing the selected red night level for eight seconds. Touch the screen to wake it.';
       window.setTimeout(() => {
         if (message) message.textContent = 'First touch wakes the screen without activating the control beneath it.';
       }, 8300);
@@ -153,7 +142,7 @@
     if (chip) {
       chip.textContent = !model.night_dim_enabled
         ? 'Off'
-        : status?.active ? 'Dimmed now' : `${model.night_dim_start}–${model.night_dim_end}`;
+        : status?.active ? 'Red night mode' : `${model.night_dim_start}–${model.night_dim_end}`;
       chip.classList.toggle('is-warning', model.night_dim_enabled && status?.active !== true);
     }
   }
@@ -166,9 +155,53 @@
       const format = control.value === '12h' ? '12h' : '24h';
       window.ACPDashboardPreferences?.write?.({ clockFormat: format });
       window.ACPTime?.setFormat?.(format);
+      renderForecastFetchedTime(lastForecastStatus);
     };
     control.addEventListener('input', apply);
     control.addEventListener('change', apply);
+  }
+
+  function renderForecastFetchedTime(status) {
+    if (!status || !status.fetched_at) return;
+    lastForecastStatus = status;
+    const message = document.querySelector('[data-forecast-message]');
+    if (!message || message.dataset.actionMessage === 'true') return;
+    const formatted = window.ACPTime?.formatDateTime?.(status.fetched_at, {
+      seconds: false,
+      weekday: '',
+    });
+    if (!formatted) return;
+    formattingForecastMessage = true;
+    message.textContent = `Last fetched ${formatted}`;
+    message.dataset.acpForecastFetchedAt = status.fetched_at;
+    formattingForecastMessage = false;
+  }
+
+  function installForecastTimeAuthority() {
+    const message = document.querySelector('[data-forecast-message]');
+    if (!message || message.dataset.acpTimeAuthority === 'true') return;
+    message.dataset.acpTimeAuthority = 'true';
+
+    const observer = new MutationObserver(() => {
+      if (formattingForecastMessage) return;
+      if (message.dataset.actionMessage === 'true') return;
+      if (/^Last fetched\b/.test(message.textContent.trim()) && lastForecastStatus?.fetched_at) {
+        renderForecastFetchedTime(lastForecastStatus);
+      }
+    });
+    observer.observe(message, { childList: true, characterData: true, subtree: true });
+
+    document.querySelector('[data-action="refresh-forecast"]')?.addEventListener('click', () => {
+      window.setTimeout(() => {
+        fetch('/api/settings', { cache: 'no-store' })
+          .then((response) => response.ok ? response.json() : null)
+          .then((payload) => renderForecastFetchedTime(payload?.status?.forecast))
+          .catch(() => {});
+      }, 1200);
+    });
+
+    window.addEventListener('acp:clock-format-changed', () => renderForecastFetchedTime(lastForecastStatus));
+    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
   }
 
   function removeRetiredAdvancedAudioControls() {
@@ -226,6 +259,19 @@
     if (help) help.textContent = 'Open-Meteo supports up to 16 days; the Weather page renders every returned daily card.';
   }
 
+  function installAboutBadge(panel) {
+    const message = panel.querySelector('#about-message');
+    if (!message || message.closest('.settings-about-message-row')) return;
+    const row = document.createElement('div');
+    row.className = 'settings-about-message-row';
+    const badge = document.createElement('span');
+    badge.className = 'settings-about-42-badge';
+    badge.textContent = '42';
+    badge.setAttribute('aria-label', 'The answer is 42');
+    message.parentNode.insertBefore(row, message);
+    row.append(badge, message);
+  }
+
   function updateAbout() {
     const panel = document.querySelector('[data-settings-section="about"]');
     if (!panel || panel.dataset.currentAboutReady === 'true') return;
@@ -234,6 +280,7 @@
     if (headerCopy) headerCopy.textContent = 'Current appliance build, validated capabilities and project links.';
     const description = panel.querySelector('.settings-about-copy .muted');
     if (description) description.textContent = 'A Raspberry Pi touchscreen appliance for Plexamp, NFC albums, AirPlay, alarms, Clock, local Weather and guarded audio control.';
+    installAboutBadge(panel);
 
     const current = document.createElement('section');
     current.className = 'settings-card';
@@ -267,10 +314,14 @@
   function initialise() {
     installDimmingSettings();
     installGlobalClockFormat();
+    installForecastTimeAuthority();
     removeRetiredAdvancedAudioControls();
     clarifyForecastLength();
     updateAbout();
-    snapshotWhenReady((snapshot) => populateControls(snapshot.settings));
+    snapshotWhenReady((snapshot) => {
+      populateControls(snapshot.settings);
+      renderForecastFetchedTime(snapshot.status?.forecast);
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialise, { once: true });
