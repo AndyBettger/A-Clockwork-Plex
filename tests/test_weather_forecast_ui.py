@@ -14,7 +14,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("active_page | default(state.mode) == 'weather'", base)
         self.assertIn("css/weather-forecast.css", base)
         self.assertIn("js/weather-forecast.js", base)
-        self.assertIn("20260802-forecast-scrollbar-polish", base)
+        self.assertIn("20260802-rounded-forecast-scrollbar-track", base)
         Environment().parse(base)
 
     def test_forecast_client_is_cache_only_and_never_controls_the_appliance(self):
@@ -84,6 +84,15 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("::-webkit-scrollbar-thumb", styles)
         self.assertIn("::-webkit-scrollbar-button", styles)
         self.assertIn("display: none", styles)
+        self.assertIn("border-radius: 999px", styles)
+
+    def test_forecast_scrollbar_track_is_a_rounded_capsule(self):
+        styles = Path("app/static/css/weather-forecast.css").read_text(encoding="utf-8")
+
+        self.assertIn("::-webkit-scrollbar-track-piece", styles)
+        self.assertIn("background: transparent", styles)
+        self.assertIn("margin: 0 4px", styles)
+        self.assertIn("background-clip: padding-box", styles)
         self.assertIn("border-radius: 999px", styles)
 
     def test_forecast_client_has_valid_javascript_syntax(self):
