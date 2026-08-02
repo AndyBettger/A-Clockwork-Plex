@@ -26,6 +26,7 @@ body.mode-settings.settings-autosave-enabled .settings-save-bar {
 
 body.mode-settings.settings-autosave-enabled .settings-save-bar.is-dirty,
 body.mode-settings.settings-autosave-enabled .settings-save-bar.is-error,
+body.mode-settings.settings-autosave-enabled .settings-save-bar.is-success,
 body.mode-settings.settings-autosave-enabled.settings-transaction-active .settings-save-bar {
   opacity: 1;
   visibility: visible;
@@ -45,6 +46,11 @@ body.mode-settings.settings-autosave-enabled .settings-save-bar.is-error {
   border-color: rgba(255, 120, 120, .62);
 }
 
+body.mode-settings.settings-autosave-enabled .settings-save-bar.is-success {
+  background: rgba(7, 40, 28, .96);
+  border-color: rgba(133, 255, 184, .5);
+}
+
 body.mode-settings.settings-autosave-enabled.keyboard-open .settings-save-bar {
   top: 10px;
   bottom: auto;
@@ -54,9 +60,54 @@ body.mode-settings.settings-autosave-enabled .settings-sidebar-title span {
   color: #b8d8ed;
 }
 
-/* The historic globally injected Settings EQ card is hidden here. The unified
-   Equaliser subpage remains the one configuration owner and is styled to match
-   the better established Master Equaliser console. */
+/* Carry the existing category dirty marker into the exact subpage and option. */
+body.mode-settings .settings-subpage-row:has(.settings-subpage-dirty-dot) {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+body.mode-settings .settings-subpage-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffe99c;
+  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+}
+
+body.mode-settings .settings-subpage-dirty-dot[hidden] {
+  display: none;
+}
+
+body.mode-settings .settings-subpage-row.is-dirty {
+  border-color: rgba(255, 233, 156, .28);
+}
+
+body.mode-settings .setting-field,
+body.mode-settings .setting-toggle,
+body.mode-settings .alarm-editor-card,
+body.mode-settings .settings-card {
+  position: relative;
+}
+
+body.mode-settings .settings-option-dirty {
+  box-shadow: inset 0 0 0 1px rgba(255, 233, 156, .27);
+}
+
+body.mode-settings .settings-option-dirty::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffe99c;
+  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+  pointer-events: none;
+}
+
+/* The historic globally injected Settings EQ card is hidden. The unified
+   Equaliser subpage remains the one configuration owner. */
 body.mode-settings #acp-eq-settings-card {
   display: none !important;
 }
@@ -74,24 +125,43 @@ body.mode-settings [data-settings-subpage="audio:eq"] > .settings-card > h3 {
   margin-bottom: 12px;
 }
 
+/* Return to the older screen-wide bars: Bass, Mid and Treble are stacked. */
 body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr !important;
+  gap: 11px;
 }
 
 body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field {
-  align-content: start;
-  text-align: center;
-  padding: 12px 10px;
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) 74px;
+  align-items: center;
+  gap: 13px;
+  min-height: 62px;
+  padding: 10px 13px;
   border: 1px solid rgba(255, 255, 255, .1);
   background: rgba(255, 255, 255, .055);
+  text-align: left;
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field > span {
+  color: #d8f2ff;
+  font-family: var(--display-font);
+  font-size: .92rem;
+  letter-spacing: .04em;
+}
+
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid input[type="range"] {
+  width: 100%;
+  min-width: 0;
 }
 
 body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid output {
   color: #d8f2ff;
   font-family: var(--display-font);
-  font-size: 1.05rem;
+  font-size: .95rem;
   font-weight: 900;
+  text-align: right;
+  white-space: nowrap;
 }
 
 body.mode-settings [data-settings-subpage="audio:eq"] .setting-toggle {
@@ -99,7 +169,11 @@ body.mode-settings [data-settings-subpage="audio:eq"] .setting-toggle {
   margin-bottom: 10px;
 }
 
-/* Return persistent output trims to a physical mixer-fader presentation. */
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid + .button {
+  margin-top: 19px;
+}
+
+/* Reuse the calibrated Audio-drawer fader, including its cap, scale and steps. */
 body.mode-settings .settings-live-trims {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
@@ -107,9 +181,10 @@ body.mode-settings .settings-live-trims {
 }
 
 body.mode-settings .settings-live-trim {
-  grid-template-rows: auto minmax(150px, 1fr) auto;
-  place-items: center;
-  min-height: 238px;
+  display: grid;
+  grid-template-rows: auto minmax(225px, 1fr) auto;
+  place-items: stretch center;
+  min-height: 300px;
   padding: 11px 8px;
   border: 1px solid rgba(255, 255, 255, .1);
   background:
@@ -132,14 +207,20 @@ body.mode-settings .settings-live-trim header output {
   font-weight: 900;
 }
 
-body.mode-settings .settings-live-trim input[type="range"] {
-  width: 30px;
-  height: 148px;
-  margin: 4px auto;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  appearance: slider-vertical;
-  accent-color: var(--accent);
+body.mode-settings .settings-live-trim > input[type="range"] {
+  display: none;
+}
+
+body.mode-settings .settings-output-fader {
+  --live-step-row-height: 42px;
+  width: 100%;
+  min-height: 225px;
+  height: 100%;
+}
+
+body.mode-settings .settings-output-fader .nav-live-step-row button {
+  width: 42px;
+  height: 34px;
 }
 
 body.mode-settings .settings-live-trim small {
@@ -150,13 +231,17 @@ body.mode-settings .settings-live-trim small {
   overflow-wrap: anywhere;
 }
 
-body.mode-settings .settings-audio-hardware-configuration {
+body.mode-settings .settings-hardware-summary {
   margin-top: 10px;
 }
 
-body.mode-settings .settings-audio-hardware-configuration .setting-field,
-body.mode-settings .settings-audio-hardware-configuration .setting-toggle {
-  min-height: 88px;
+body.mode-settings .settings-hardware-maintenance-note {
+  margin: 12px 2px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(143, 211, 255, .12);
+  border-radius: 13px;
+  background: rgba(143, 211, 255, .055);
+  line-height: 1.35;
 }
 
 body.mode-settings #settings-audio-hardware-status {
@@ -200,11 +285,12 @@ body.mode-settings .setting-toggle {
   }
 
   body.mode-settings .settings-live-trim {
-    min-height: 205px;
+    grid-template-rows: auto minmax(190px, 1fr) auto;
+    min-height: 258px;
   }
 
-  body.mode-settings .settings-live-trim input[type="range"] {
-    height: 120px;
+  body.mode-settings .settings-output-fader {
+    min-height: 190px;
   }
 }
 
@@ -219,7 +305,8 @@ body.mode-settings .setting-toggle {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid {
-    grid-template-columns: 1fr;
+  body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field {
+    grid-template-columns: 72px minmax(0, 1fr) 68px;
+    gap: 8px;
   }
 }
