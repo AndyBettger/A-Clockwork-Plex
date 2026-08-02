@@ -1,7 +1,7 @@
 # A Clockwork Plex
 
 A Raspberry Pi touchscreen appliance for Plexamp Headless, NFC-triggered albums,
-AirPlay, a bedside clock, local weather and scheduled alarms.
+AirPlay, a bedside Clock, local Weather and scheduled alarms.
 
 It is the dashboard companion to
 [`Plexamp-NFC-Listener`](https://github.com/AndyBettger/Plexamp-NFC-Listener),
@@ -11,45 +11,45 @@ which reads NFC album tags and starts Plexamp playback.
 > candidate. PR #2 remains draft and unmerged until explicit approval is given.
 
 > **EQ safety:** the old bare `scripts/install-master-eq.sh` production path
-> remains blocked. The unified Settings integration uses the existing master-EQ
-> authority and is awaiting focused physical validation with the new Settings
-> screen.
+> remains blocked. The guarded CamillaDSP production rollout is the next
+> substantive engineering phase; EQ itself has not been abandoned.
 
-## Physically validated
+## Physically validated appliance
 
 The bedroom Raspberry Pi has validated:
 
-- Clock, navigation and the previous touchscreen Settings surface;
-- persistent preloaded Plexamp presentation;
+- dashboard kiosk startup into the Clock after a real reboot;
+- persistent preloaded Plexamp presentation and NFC album playback;
 - AirPlay Ready/Now Playing, metadata, transport and volume;
-- bidirectional Plexamp/AirPlay handoff;
-- rapid iPhone AirPlay resume after Plexamp takeover;
-- persisted ten-minute AirPlay pause hold;
-- shared ALSA audio and Mk II mixer controls;
-- multiple scheduled alarms with local tones;
-- real clock-triggered alarm playback;
+- one configurable AirPlay receiver name used by Settings, Shairport Sync, the
+  dashboard and the iPhone destination list;
+- bidirectional Plexamp/AirPlay handoff and rapid iPhone resume handling;
+- shared ALSA audio and calibrated master/source/alarm trims;
+- multiple scheduled alarms with real clock-triggered alarm playback;
 - Snooze, repeated ringing and Dismiss;
 - Plexamp and AirPlay pause during alarm priority;
 - manual music resume after the alarm;
-- alarm configuration persistence and keyboard-safe editing;
 - Ecowitt live observations plus cached Open-Meteo forecasts;
-- forecast provider access, stale-cache fallback and the unified 1024×600
-  Weather scroll layout.
+- unified Weather scrolling and rounded horizontal forecast controls;
+- unified iPad-style Settings with one revisioned autosave authority;
+- touch-keyboard editing, detailed dirty indicators and managed AirPlay restart;
+- read-only audio route diagnostics and deliberate alarm-audio tests.
 
-The new unified iPad-style Settings screen, managed Shairport receiver-name path
-and Settings-hosted EQ controls are code-complete and covered by CI, but require
-the focused physical validation described in
-[`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
+Weather-provider work was the **final development stage** for major subsystem
+implementation and has been built and physically validated. The current
+completion pass adds scheduled display dimming, one dashboard-wide clock-format
+authority, truthful 1–16 day forecast presentation and refreshed About/status
+information before the separate guarded production-EQ phase.
 
 ## Screen modes
 
 | Mode | URL | Purpose |
 |---|---|---|
 | Clock | `/clock` | Segmented clock/date and compact local-weather cards. |
-| Weather | `/weather` | Detailed Ecowitt station console plus cached Open-Meteo outlook. |
+| Weather | `/weather` | Ecowitt station console plus cached Open-Meteo outlook. |
 | Plexamp | `/plexamp` | Fallback route for the persistent Plexamp layer. |
 | AirPlay | `/airplay` | Receiver-ready, paused and Now Playing states. |
-| Settings | `/settings` | iPad-style split view with one staged configuration transaction. |
+| Settings | `/settings` | iPad-style split view with revisioned autosave. |
 | Alarm | `/alarm` | Ringing, Snoozed and deliberate Dismiss controls. |
 
 ## Audio path
@@ -94,17 +94,23 @@ ScreenProjectionController
 
 UnifiedSettingsService
   revisioned validation, one config write and domain-specific post-save hooks
+
+ACPTime
+  one 12/24-hour presentation policy for dashboard time displays
+
+ACPDisplayDimming
+  overnight visual dim schedule, touch-to-wake and Clock night presentation
 ```
 
 The browser requests explicit actions and renders server state. It does not
-restart services, own hold timers or independently arbitrate audio sources.
+restart services, own playback hold timers or independently arbitrate audio
+sources.
 
 See [`docs/application-state-architecture.md`](docs/application-state-architecture.md).
 
 ## Unified Settings
 
-Settings now uses a persistent left category column and a right detail pane.
-Large categories use short subpages rather than one very long form.
+Settings uses a persistent left category column and right detail pane:
 
 ```text
 Settings
@@ -119,30 +125,55 @@ Settings
 └── About
 ```
 
-Configuration is staged and saved through one revisioned API transaction:
+Configuration autosaves through one revisioned API transaction:
 
 ```text
 GET  /api/settings
 POST /api/settings
 ```
 
-The backend validates each domain through its established specialist validator,
-rejects stale-page writes, writes `config.json` once and then wakes or refreshes
-the affected runtime owners.
+The backend validates each domain through its specialist validator, rejects
+stale writes, writes `config.json` once and wakes or refreshes affected runtime
+owners. Immediate actions remain separate, including live mixer moves, forecast
+refresh-now, alarm tests, emergency stop and runtime diagnostics.
 
-Immediate controls remain separate:
+Weather unit presets are shortcuts only. Temperature, pressure, rain and wind
+remain independently selectable and become **Custom** when appropriate.
 
-- persistent ALSA output trims;
-- forecast refresh-now;
-- alarm tests and emergency stop;
-- scheduler recalculation;
-- authority and service diagnostic refreshes.
+The Advanced Audio page is diagnostic, not a route editor. Physical DAC, shared
+PCM and mixer readiness are read-only. Changing the live audio route remains a
+guarded maintenance operation with rollback.
 
-Weather presets are shortcuts only. Temperature, pressure, rain and wind units
-remain independently selectable and display **Custom** when they no longer match
-a preset.
+## Display and clock format
 
-See [`docs/post-weather-settings-redesign.md`](docs/post-weather-settings-redesign.md).
+The 12/24-hour setting is the dashboard presentation authority for the main
+Clock, AirPlay mini clock, alarm display, Weather timestamps, forecast hours,
+Advanced diagnostics and status timestamps. Alarm configuration values remain
+stored as unambiguous 24-hour `HH:MM` values.
+
+Scheduled night dimming provides:
+
+- enable/disable;
+- start and end time, including schedules crossing midnight;
+- adjustable visual brightness level;
+- touch-to-wake duration;
+- optional very-dark Clock mode;
+- subtle burn-in shifting;
+- guaranteed full brightness on the Alarm screen and outside the schedule.
+
+Dimming uses a browser overlay. It does not invoke `xrandr`, alter a Pi display
+driver, require root, or touch the audio graph.
+
+## Weather observations and forecast
+
+Ecowitt custom upload remains authoritative for live observations. Open-Meteo is
+used only for online forecast guidance and is isolated behind a local cache. The
+last good forecast survives dashboard restarts and remains available during
+provider or internet failure with a visible stale-data warning.
+
+Open-Meteo supports up to 16 forecast days. Settings exposes 1, 3, 5, 7, 10, 14
+and 16 days, and the Weather page renders every daily item actually returned.
+Hourly and forecast-update times follow the global 12/24-hour setting.
 
 ## Scheduled alarms
 
@@ -162,71 +193,73 @@ When a scheduled occurrence rings:
 6. Dismiss completes the occurrence;
 7. music remains paused until deliberately resumed.
 
-Visual-only tests do not pause music. Controlled tests remain finite and
-backend-capped.
-
-The full alarm model, alarm defaults and both audio safety keys are now staged
-inside the unified Settings transaction. Testing and runtime diagnostics remain
-under Advanced and act immediately rather than dirtying Settings.
+The timing scheduler does not play audio directly. It delegates sound to the
+promoted scheduled-alarm-audio manager, which is why the scheduler's internal
+playback flag remains false while the public status can correctly report sound
+enabled.
 
 See [`docs/alarm-audio-testing.md`](docs/alarm-audio-testing.md).
 
-## AirPlay receiver name
+## Managed AirPlay receiver name
 
-The AirPlay receiver name is one setting used by the dashboard and the advertised
-Shairport Sync receiver.
+The AirPlay receiver name is one setting used by the dashboard and advertised
+Shairport Sync receiver. A narrowly restricted helper edits only `general.name`
+in the fixed Shairport configuration, validates the candidate on an isolated
+port and identity, restarts only Shairport Sync, verifies active state and rolls
+back on failure.
 
-A narrowly restricted helper edits only `general.name` in the fixed Shairport
-configuration, validates the candidate, restarts only Shairport Sync, verifies
-that it returned active and rolls back on failure.
-
-Install that helper deliberately on the Pi:
+Install the helper deliberately:
 
 ```bash
 sudo bash scripts/install-shairport-name-helper.sh
 ```
 
-Changing the receiver name from Settings requires confirmation because it will
-briefly interrupt an active AirPlay session.
+Changing the name from Settings requires confirmation because it briefly
+interrupts an active AirPlay session.
 
-## Weather observations and forecast
+## Dashboard kiosk
 
-Ecowitt custom upload remains authoritative for live observations. Open-Meteo is
-used only for online forecast guidance and is isolated behind a local cache.
-The last good forecast survives dashboard restarts and remains available during
-provider or internet failure with a visible stale-data warning.
+The guarded kiosk installer defaults to inspection mode. Apply mode backs up
+touched desktop-session files, disables only Chromium launches aimed directly
+at Plexamp port `32500`, waits for the dashboard API and uses a dedicated
+Chromium profile:
 
-Forecast configuration participates in the unified Settings transaction and does
-not require an API key. **Refresh forecast now** remains an immediate action.
-Disabled or incomplete configuration makes no external request.
+```bash
+bash scripts/install-dashboard-kiosk.sh
+bash scripts/install-dashboard-kiosk.sh --apply --confirm INSTALL-DASHBOARD-KIOSK
+```
+
+It does not restart or reconfigure Plexamp Headless, Shairport Sync or ALSA.
 
 ## Equaliser
 
-The Audio Settings category retains:
+Settings-hosted EQ controls retain:
 
 - enabled/bypassed;
 - Bass;
 - Mid;
 - Treble;
-- staged reset to flat;
+- reset to flat;
 - backend health.
 
-EQ configuration is committed through the unified transaction and uses the
-existing master-EQ authority with rollback if the overall save fails. The old
-bare master-EQ installer remains blocked and is not part of the normal Settings
-rollout.
+The guarded CamillaDSP laboratory and physical-rehearsal assets remain in the
+branch. Production activation must capture exact state, preserve the known-good
+shared mixer and provide automatic rollback.
+
+```text
+Do not run: sudo bash scripts/install-master-eq.sh
+```
 
 ## Main APIs
 
 ```text
 GET/POST /api/settings
-
-GET  /api/state
-GET  /api/playback/state
-GET  /api/playback/events
-POST /api/playback/events
-POST /api/playback/command
-POST /api/screen/state
+GET      /api/state
+GET      /api/playback/state
+GET      /api/playback/events
+POST     /api/playback/events
+POST     /api/playback/command
+POST     /api/screen/state
 
 GET/POST /api/alarms/config
 GET      /api/alarms/audio
@@ -242,21 +275,12 @@ GET/POST /api/weather/forecast
 GET/POST /api/weather/forecast/config
 ```
 
-The dedicated alarm and forecast configuration endpoints remain compatibility
-contracts while the active Settings page uses `/api/settings`.
-
-Public alarm status projects the promoted audio manager's truth onto the nested
-scheduler object, so top-level and nested `playback_enabled` values should agree.
-
-## Requirements
+## Requirements and development install
 
 Designed for Raspberry Pi OS with Python 3, Chromium kiosk mode, Plexamp
-Headless, Shairport Sync, ALSA utilities, and optionally the Ecowitt station and
-NFC companion project.
-
-The Flask service listens on port `8088` and is intended for a trusted LAN.
-
-## Install
+Headless, Shairport Sync, ALSA utilities and optionally an Ecowitt station plus
+the NFC companion project. The Flask service listens on port `8088` and is
+intended for a trusted LAN.
 
 ```bash
 git clone https://github.com/AndyBettger/A-Clockwork-Plex.git
@@ -270,8 +294,6 @@ cp config.example.json config.json
 python app/runner.py
 ```
 
-Open `http://localhost:8088`.
-
 ## Update and test
 
 ```bash
@@ -283,20 +305,7 @@ sudo systemctl restart a-clockwork-plex.service
 
 Hard-refresh Chromium after browser assets change with `Ctrl+Shift+R`.
 
-Do not rerun the shared-audio installation for the Settings rollout. Install only
-the new receiver-name helper when deliberately testing that feature:
-
-```bash
-sudo bash scripts/install-shairport-name-helper.sh
-```
-
-The old bare master-EQ installer remains blocked:
-
-```text
-Do not run: sudo bash scripts/install-master-eq.sh
-```
-
-Useful live diagnostics:
+Useful diagnostics:
 
 ```bash
 curl -s http://localhost:8088/api/settings | venv/bin/python -m json.tool
@@ -307,25 +316,14 @@ curl -s http://localhost:8088/api/audio/mixer | venv/bin/python -m json.tool
 curl -s http://localhost:8088/api/weather/forecast | venv/bin/python -m json.tool
 ```
 
-## Revised remaining roadmap
+## Remaining roadmap
 
-Weather-provider work was the **final development stage** for major subsystem
-implementation and has been built and physically validated. The unified iPad
-Settings consolidation is now code-complete.
-
-Remaining work:
-
-1. Physically validate the new split-view Settings page at 1024×600, including
-   Save/Discard, subpages, touch keyboard and dirty indicators.
-2. Install and validate the restricted Shairport receiver-name helper, including
-   the warning, actual iOS receiver name, dashboard consistency and rollback-safe
-   service restart.
-3. Validate the Settings-hosted EQ controls against the proven production EQ
-   authority; do not use the old bare installer.
-4. Make any small layout or wording corrections found during that focused pass.
-5. Finish delegated scheduler wording and remove dead compatibility files once
-   no active path or test depends on them.
-6. Refresh final release notes and run one focused appliance smoke test.
-7. Obtain explicit approval before making PR #2 ready or merging it.
+1. Physically validate scheduled dimming, touch-to-wake, global 12/24-hour
+   presentation, 16-day Weather rendering and cleaned Advanced/About pages.
+2. Make only small layout corrections discovered on the 1024×600 screen.
+3. Begin the separate guarded production-EQ rollout without using the blocked
+   bare installer.
+4. Run the final release smoke test.
+5. Obtain explicit approval before making PR #2 ready or merging it.
 
 PR #2 remains draft and unmerged until that explicit approval is given.
