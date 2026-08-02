@@ -5,6 +5,10 @@
   --acp-night-shift-y: 0px;
 }
 
+html.acp-night-document-active {
+  background: #000 !important;
+}
+
 #acp-night-dim-overlay {
   position: fixed;
   inset: 0;
@@ -33,6 +37,15 @@ body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-a
 
 body.acp-night-dim-active #acp-night-dim-overlay {
   opacity: var(--acp-night-dim-opacity);
+}
+
+/* A new dashboard document starts hidden. Apply its final night treatment without
+   animating from opacity zero, then release normal transitions after first paint. */
+html.acp-night-no-transition #acp-night-dim-overlay,
+html.acp-night-no-transition body.acp-night-style-astronomy.acp-night-dim-active > :not(#acp-night-dim-overlay),
+body.acp-night-no-transition #acp-night-dim-overlay,
+body.acp-night-no-transition.acp-night-style-astronomy.acp-night-dim-active > :not(#acp-night-dim-overlay) {
+  transition: none !important;
 }
 
 body.mode-alarm #acp-night-dim-overlay,
