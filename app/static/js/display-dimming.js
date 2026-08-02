@@ -9,6 +9,7 @@
     wakeSeconds: 30,
     nightClockMode: true,
     burnInShift: true,
+    style: 'classic',
   };
 
   let settings = { ...defaults };
@@ -27,6 +28,11 @@
   function time(value, fallback) {
     const candidate = String(value || '').trim();
     return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(candidate) ? candidate : fallback;
+  }
+
+  function style(value, fallback = 'classic') {
+    const candidate = String(value || '').trim().toLowerCase();
+    return ['classic', 'astronomy'].includes(candidate) ? candidate : fallback;
   }
 
   function booleanValue(source, modernKey, legacyKey, fallback) {
@@ -64,6 +70,7 @@
         'night_burn_in_shift',
         fallback.burnInShift,
       ),
+      style: style(source.style ?? source.night_dim_style, fallback.style),
     };
   }
 
@@ -77,6 +84,7 @@
       night_dim_wake_seconds: root.dataset.nightDimWakeSeconds,
       night_clock_mode: root.dataset.nightClockMode === 'true',
       night_burn_in_shift: root.dataset.nightBurnInShift === 'true',
+      night_dim_style: root.dataset.nightDimStyle,
     });
   }
 
@@ -135,6 +143,8 @@
     const darkness = Math.max(0, Math.min(0.95, 1 - (settings.levelPercent / 100)));
     document.documentElement.style.setProperty('--acp-night-dim-opacity', String(darkness));
     document.body.classList.toggle('acp-night-dim-active', active);
+    document.body.classList.toggle('acp-night-style-classic', settings.style === 'classic');
+    document.body.classList.toggle('acp-night-style-astronomy', settings.style === 'astronomy');
     document.body.classList.toggle(
       'acp-night-clock-mode',
       active && settings.nightClockMode && document.body.dataset.activePage === 'clock',
@@ -168,6 +178,7 @@
     root.dataset.nightDimWakeSeconds = String(settings.wakeSeconds);
     root.dataset.nightClockMode = String(settings.nightClockMode);
     root.dataset.nightBurnInShift = String(settings.burnInShift);
+    root.dataset.nightDimStyle = settings.style;
     return refresh();
   }
 
