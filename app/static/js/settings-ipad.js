@@ -36,7 +36,7 @@
   let saveInFlight = false;
   let activeSection = 'general';
 
-  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   const pathParts = (path) => String(path || '').split('.').filter(Boolean);
 
   function getPath(object, path) {
@@ -95,7 +95,7 @@
       else button.removeAttribute('aria-current');
     });
     sectionPanels.forEach((panel) => { panel.hidden = panel.dataset.settingsSection !== valid; });
-    document.querySelector('.settings-detail')?.scrollTo({ top: 0, behavior: 'instant' });
+    document.querySelector('.settings-detail')?.scrollTo({ top: 0, behavior: 'auto' });
     if (updateHash) history.replaceState(null, '', `#${valid}`);
   }
 
@@ -105,7 +105,7 @@
     const panel = document.querySelector(`[data-settings-section="${section}"]`);
     panel?.querySelector(`[data-settings-overview="${section}"]`)?.setAttribute('hidden', '');
     panel?.querySelectorAll('[data-settings-subpage]').forEach((page) => { page.hidden = page.dataset.settingsSubpage !== key; });
-    document.querySelector('.settings-detail')?.scrollTo({ top: 0, behavior: 'instant' });
+    document.querySelector('.settings-detail')?.scrollTo({ top: 0, behavior: 'auto' });
     history.replaceState(null, '', `#${section}/${key.split(':')[1]}`);
   }
 
@@ -114,7 +114,7 @@
     panel?.querySelector(`[data-settings-overview="${section}"]`)?.removeAttribute('hidden');
     panel?.querySelectorAll('[data-settings-subpage]').forEach((page) => { page.hidden = true; });
     history.replaceState(null, '', `#${section}`);
-    document.querySelector('.settings-detail')?.scrollTo({ top: 0, behavior: 'instant' });
+    document.querySelector('.settings-detail')?.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   function initialRoute() {
@@ -158,13 +158,19 @@
     updateUnitPreset();
   }
 
+  function applyClockCards(settings) {
+    const cards = settings?.weather?.clock_cards;
+    if (Array.isArray(cards)) window.ACPClockCards?.applyStoredIds?.(cards);
+  }
+
   function collectSettings() {
     const settings = clone(loadedSettings || {});
     document.querySelectorAll('[data-setting-path]').forEach((control) => {
       if (control.dataset.settingImmediate === 'true') return;
       setPath(settings, control.dataset.settingPath, controlValue(control));
     });
-    const clockCards = [...document.querySelectorAll('#clock-card-hidden-inputs input[name="clock_cards"]')].map((input) => input.value);
+    const clockCards = window.ACPClockCards?.storedIds?.()
+      || [...document.querySelectorAll('#clock-card-hidden-inputs input[name="clock_cards"]')].map((input) => input.value);
     if (settings.weather) settings.weather.clock_cards = clockCards;
     providers.forEach((provider, domain) => {
       if (typeof provider.get === 'function') settings[domain] = provider.get();
@@ -176,9 +182,19 @@
     snapshot = next;
     loadedSettings = clone(next.settings);
     populateControls(loadedSettings);
+    applyClockCards(loadedSettings);
     providers.forEach((provider, domain) => provider.apply?.(clone(next.settings[domain])));
     dirtySections.clear();
     renderHealth(next);
+    updateDirtyUi();
+  }
+
+  function discardSettings() {
+    if (!loadedSettings) return;
+    populateControls(loadedSettings);
+    applyClockCards(loadedSettings);
+    providers.forEach((provider, domain) => provider.apply?.(clone(loadedSettings[domain])));
+    dirtySections.clear();
     updateDirtyUi();
   }
 
@@ -426,8 +442,8 @@
     const control = event.target.closest('[data-setting-path]');
     if (control) markDirty(sectionFor(control));
   });
+  form.addEventListener('acp:clock-cards-changed', () => markDirty('weather'));
   form.addEventListener('click', (event) => {
-    if (event.target.closest('.clock-card-toggle, .clock-card-order-button, .clock-card-remove-button')) markDirty('weather');
     const action = event.target.closest('[data-action]')?.dataset.action;
     if (action === 'refresh-forecast') refreshForecast();
     if (action === 'refresh-mixer') refreshMixer();
@@ -442,12 +458,11 @@
     if (action === 'refresh-services') refreshServices();
     if (action === 'alarm-audio-test') alarmAudioAction('test');
     if (action === 'alarm-audio-stop') alarmAudioAction('stop');
-    if (action === 'discard-settings') { populateControls(loadedSettings); providers.forEach((provider, domain) => provider.apply?.(clone(loadedSettings[domain]))); dirtySections.clear(); updateDirtyUi(); }
+    if (action === 'discard-settings') discardSettings();
   });
   form.addEventListener('submit', (event) => { event.preventDefault(); save(false); });
 
-  const hiddenCards = document.getElementById('clock-card-hidden-inputs');
-  if (hiddenCards) new MutationObserver(() => snapshot && markDirty('weather')).observe(hiddenCards, { childList: true, subtree: true });
+  window.addEventListener('acp:clock-cards-ready', () => applyClockCards(loadedSettings));
 
   initialRoute();
   refreshMixer();
