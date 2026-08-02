@@ -1,0 +1,45 @@
+.settings-night-dimming-card .setting-field.wide,
+.settings-night-dimming-card .setting-toggle.wide {
+  grid-column: 1 / -1;
+}
+
+.settings-night-dimming-card input[type="range"] {
+  width: min(100%, 720px);
+}
+
+.settings-night-dimming-card output {
+  display: inline-flex;
+  min-width: 4.2rem;
+  justify-content: center;
+  margin-top: 0.45rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(143, 211, 255, 0.11);
+  color: #dff4ff;
+  font-weight: 700;
+}
+
+.settings-diagnostics-explainer {
+  min-height: 100%;
+  justify-content: center;
+}
+
+.settings-diagnostics-explainer strong {
+  font-size: 1.08rem;
+}
+
+[data-settings-subpage="advanced:audio"] .settings-status-grid {
+  margin-top: 1rem;
+}
+
+[data-settings-subpage="advanced:audio"] .settings-action-row {
+  margin-top: 1.25rem;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+[data-settings-section="about"] .settings-about-reading small {
+  display: block;
+  margin-top: 0.35rem;
+  line-height: 1.35;
+}
