@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en-GB">
+<html
+  lang="en-GB"
+  data-server-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
+  data-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
+>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -8,7 +12,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/alarm-active.css') }}">
 </head>
-<body class="alarm-active-page">
+<body class="alarm-active-page" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}">
   <main class="alarm-active-shell" aria-live="polite">
     <header class="alarm-active-header">
       <span class="alarm-active-chip">Alarm active</span>
@@ -52,6 +56,7 @@
     </p>
   </main>
 
-  <script src="{{ url_for('static', filename='js/alarm-active.js', v='20260731-scheduled-alarm-audio-truth') }}"></script>
+  <script src="{{ url_for('static', filename='js/acp-time.js', v='20260802-alarm-clock-format') }}"></script>
+  <script src="{{ url_for('static', filename='js/alarm-active.js', v='20260802-alarm-clock-format') }}"></script>
 </body>
 </html>
