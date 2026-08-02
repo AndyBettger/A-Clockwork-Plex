@@ -8,13 +8,14 @@ try:
         build_default_application_state_hub,
         register_application_state_api,
     )
+    from .audio_devices import register_audio_devices_api
     from .audio_eq import register_audio_eq
     from .input_activity import LinuxInputActivityMonitor
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
     from .screen_projection_activity import register_activity_screen_projection
-    from .settings_unified import UnifiedSettingsService, register_unified_settings_api
+    from .settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
@@ -26,13 +27,14 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         build_default_application_state_hub,
         register_application_state_api,
     )
+    from audio_devices import register_audio_devices_api
     from audio_eq import register_audio_eq
     from input_activity import LinuxInputActivityMonitor
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
     from screen_projection_activity import register_activity_screen_projection
-    from settings_unified import UnifiedSettingsService, register_unified_settings_api
+    from settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
@@ -59,6 +61,7 @@ screen_projection.set_idle_return_mode(
 input_activity_monitor = application_state_hub.service("input_activity")
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
+register_audio_devices_api(app, config_loader=dashboard.load_config)
 master_equalizer = register_audio_eq(app)
 weather_forecast = WeatherForecastService(
     dashboard.load_config,
