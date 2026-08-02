@@ -4,8 +4,10 @@ import importlib.util
 import json
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.shairport_name import ShairportNameManager, validate_receiver_name
 
@@ -44,6 +46,63 @@ class ShairportNameTests(unittest.TestCase):
         self.assertTrue(updated.startswith("general ="))
         self.assertIn('name = "Bedroom \\"Plexamp\\"";', updated)
         self.assertIn("sessioncontrol", updated)
+
+    def test_candidate_validation_uses_an_isolated_temporary_identity_and_port(self):
+        candidate = Path("/tmp/shairport-sync-candidate.conf")
+        command = HELPER.validation_command(candidate)
+
+        self.assertEqual(command[0], str(HELPER.SHAIRPORT_BINARY))
+        self.assertIn("--displayConfig", command)
+        self.assertEqual(command[command.index("--configfile") + 1], str(candidate))
+        self.assertEqual(command[command.index("--port") + 1], "0")
+        self.assertTrue(command[command.index("--name") + 1].startswith("ACP-config-check-"))
+        self.assertNotIn("systemctl", " ".join(command))
+
+    def test_candidate_validation_stops_after_parser_completion_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / "fake-shairport-sync"
+            binary.write_text(
+                "#!/usr/bin/env python3\n"
+                "import time\n"
+                "print('>> Display Config Start.', flush=True)\n"
+                "print('>> Display Config End.', flush=True)\n"
+                "time.sleep(10)\n",
+                encoding="utf-8",
+            )
+            binary.chmod(0o755)
+            candidate = root / "candidate.conf"
+            candidate.write_text('general = { name = "Bedroom"; };\n', encoding="utf-8")
+
+            started = time.monotonic()
+            with patch.object(HELPER, "SHAIRPORT_BINARY", binary):
+                valid, error = HELPER.validate_config(candidate)
+            elapsed = time.monotonic() - started
+
+        self.assertTrue(valid)
+        self.assertIsNone(error)
+        self.assertLess(elapsed, 2.0, "validator should stop as soon as parsing completes")
+
+    def test_candidate_validation_rejects_output_without_completion_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / "fake-shairport-sync"
+            binary.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "print('line 7: syntax error near receiver name', flush=True)\n"
+                "raise SystemExit(1)\n",
+                encoding="utf-8",
+            )
+            binary.chmod(0o755)
+            candidate = root / "candidate.conf"
+            candidate.write_text("invalid", encoding="utf-8")
+
+            with patch.object(HELPER, "SHAIRPORT_BINARY", binary):
+                valid, error = HELPER.validate_config(candidate)
+
+        self.assertFalse(valid)
+        self.assertIn("syntax error", error or "")
 
     def test_manager_uses_restricted_status_and_set_commands(self):
         commands = []
