@@ -14,3 +14,30 @@
   content: "＋ Click here to ruin your sleep";
   font-size: clamp(0.84rem, 2vmin, 1rem);
 }
+
+/* Pass B touchscreen follow-up. */
+.alarm-schedule-heading {
+  margin-bottom: clamp(13px, 2vmin, 18px);
+}
+
+.alarm-basics-grid {
+  align-items: start;
+}
+
+.alarm-basics-grid > .setting-field {
+  align-content: start;
+}
+
+.alarm-time-select {
+  color-scheme: dark;
+}
+
+.alarm-time-select option {
+  color: #f4f8ff;
+  background: #172333;
+}
+
+.alarm-time-select option:checked {
+  color: #ffffff;
+  background: #2d79b8;
+}
