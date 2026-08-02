@@ -97,6 +97,9 @@
   {% if active_page | default(state.mode) == 'weather' %}
   <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20260802-custom-forecast-scrollbar') }}"></script>
   {% endif %}
+  {% if active_page | default(state.mode) == 'settings' %}
+  <script src="{{ url_for('static', filename='js/settings-transaction-guard.js', v='20260802-single-transaction') }}"></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>
