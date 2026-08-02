@@ -183,7 +183,7 @@
   }
 
   function consumeWakeInteraction(event) {
-    if (!dimRequired() || previewing() || alarmVisible()) return;
+    if (!dimRequired() || alarmVisible()) return;
     clickBlockUntil = Date.now() + 500;
     event.preventDefault();
     event.stopImmediatePropagation();
