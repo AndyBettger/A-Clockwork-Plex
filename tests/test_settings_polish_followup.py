@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ALARM = ROOT / "app" / "static" / "js" / "alarm-active.js"
+ALARM_TEMPLATE = ROOT / "app" / "templates" / "alarm.html"
 DIM_STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 SETTINGS = ROOT / "app" / "static" / "js" / "settings-completion.js"
 SETTINGS_STYLE = ROOT / "app" / "static" / "css" / "settings-completion.css"
@@ -30,17 +31,26 @@ class SettingsPolishFollowupTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
 
-    def test_night_overlay_filters_to_red_with_multiply_blending(self):
+    def test_night_overlay_filters_to_monochrome_red_with_multiply_dimming(self):
         text = DIM_STYLE.read_text(encoding="utf-8")
-        self.assertIn("background: rgb(122, 0, 0)", text)
+        self.assertIn("--acp-night-red-filter", text)
+        self.assertIn("grayscale(1)", text)
+        self.assertIn("sepia(1)", text)
+        self.assertIn("saturate(18)", text)
+        self.assertIn("hue-rotate(315deg)", text)
+        self.assertIn("filter: var(--acp-night-red-filter)", text)
+        self.assertIn("background: rgb(68, 0, 0)", text)
         self.assertIn("mix-blend-mode: multiply", text)
         self.assertIn('body[data-active-page="alarm"]', text)
 
     def test_alarm_page_uses_global_clock_format_without_24_hour_override(self):
-        text = ALARM.read_text(encoding="utf-8")
-        self.assertIn("window.ACPTime?.formatTime", text)
-        self.assertIn("acp:clock-format-changed", text)
-        self.assertNotIn("hour12: false", text)
+        client = ALARM.read_text(encoding="utf-8")
+        template = ALARM_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("window.ACPTime?.formatTime", client)
+        self.assertIn("acp:clock-format-changed", client)
+        self.assertNotIn("hour12: false", client)
+        self.assertIn("js/acp-time.js", template)
+        self.assertIn("data-server-clock-format", template)
 
     def test_forecast_last_fetched_uses_global_time_authority(self):
         text = SETTINGS.read_text(encoding="utf-8")
@@ -54,9 +64,11 @@ class SettingsPolishFollowupTests(unittest.TestCase):
         style = SETTINGS_STYLE.read_text(encoding="utf-8")
         self.assertIn("settings-about-42-badge", client)
         self.assertIn("badge.textContent = '42'", client)
-        self.assertIn("settings-about-message-row", style)
+        self.assertIn("settings-about-mark", style)
+        self.assertIn("settings-about-hero", style)
         self.assertIn("border-radius: 50%", style)
         self.assertIn(".setting-toggle > span > strong", style)
+        self.assertIn(".settings-link-card > strong", style)
         self.assertIn("display: block", style)
 
     def test_external_links_require_a_deliberate_hold(self):
