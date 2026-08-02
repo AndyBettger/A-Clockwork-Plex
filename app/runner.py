@@ -17,6 +17,7 @@ try:
     from .screen_projection_activity import register_activity_screen_projection
     from .settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
+    from .time_formatting import promote_server_time_formatting
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
 except ImportError:  # Supports direct execution with: python app/runner.py
@@ -36,11 +37,13 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from screen_projection_activity import register_activity_screen_projection
     from settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
+    from time_formatting import promote_server_time_formatting
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
 
 
 app = dashboard.app
+promote_server_time_formatting(dashboard)
 scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
 register_scheduled_alarm_status_api(dashboard)
 application_state_hub = build_default_application_state_hub(dashboard)
