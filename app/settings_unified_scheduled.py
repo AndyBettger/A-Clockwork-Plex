@@ -31,6 +31,7 @@ except ImportError:  # Supports direct execution imports.
 _base.normalise_audio_settings = normalise_audio_settings
 
 _TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+_NIGHT_DIM_STYLES = {"classic", "astronomy"}
 
 
 def _clock_time(value: Any, fallback: str, label: str) -> str:
@@ -38,6 +39,11 @@ def _clock_time(value: Any, fallback: str, label: str) -> str:
     if not _TIME_RE.fullmatch(candidate):
         raise ValueError(f"{label} must use 24-hour HH:MM format.")
     return candidate
+
+
+def _night_dim_style(value: Any, fallback: str = "classic") -> str:
+    candidate = str(value if value is not None else fallback).strip().lower()
+    return candidate if candidate in _NIGHT_DIM_STYLES else fallback
 
 
 class UnifiedSettingsService(_base.UnifiedSettingsService):
@@ -79,6 +85,9 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 ),
                 "night_burn_in_shift": _base._boolean(
                     dashboard.get("night_burn_in_shift"), True
+                ),
+                "night_dim_style": _night_dim_style(
+                    dashboard.get("night_dim_style"), "classic"
                 ),
             }
         )
@@ -123,6 +132,10 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 "night_burn_in_shift": _base._boolean(
                     source.get("night_burn_in_shift"),
                     _base._boolean(dashboard.get("night_burn_in_shift"), True),
+                ),
+                "night_dim_style": _night_dim_style(
+                    source.get("night_dim_style"),
+                    _night_dim_style(dashboard.get("night_dim_style"), "classic"),
                 ),
             }
         )
