@@ -10,7 +10,8 @@
   z-index: 2147483000;
   pointer-events: none;
   opacity: 0;
-  background: #000;
+  background: rgb(122, 0, 0);
+  mix-blend-mode: multiply;
   transition: opacity 320ms ease;
 }
 
