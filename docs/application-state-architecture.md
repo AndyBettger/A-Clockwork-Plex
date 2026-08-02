@@ -2,9 +2,8 @@
 
 ## Purpose
 
-A Clockwork Plex now uses server-side application authorities instead of asking
-browser scripts, shell hooks and individual pages to negotiate ownership among
-themselves.
+A Clockwork Plex uses server-side authorities instead of asking browser scripts,
+shell hooks and individual pages to negotiate ownership among themselves.
 
 The central rule is:
 
@@ -17,6 +16,7 @@ Dashboard core and specialist runtimes
   ├── ActiveAlarmScheduler
   ├── ScheduledAlarmAudioManager
   ├── shared audio mixer
+  ├── Open-Meteo forecast cache
   └── source observers
 
 ApplicationStateHub
@@ -26,14 +26,21 @@ ApplicationStateHub
   ├── LinuxInputActivityMonitor
   └── compact specialist providers
 
+Configuration authorities
+  ├── UnifiedSettingsService
+  ├── MasterEqualizer
+  └── ShairportNameManager
+
 Browser clients
-  ├── request explicit actions
+  ├── stage configuration through one revisioned transaction
+  ├── request explicit runtime actions
   └── render server state
 ```
 
-The known-good direct shared ALSA mixer remains the production audio graph.
-Production master-EQ integration is still blocked and is not part of this
-architecture promotion.
+The known-good direct shared ALSA mixer remains the production audio graph. The
+old bare master-EQ installer remains blocked. EQ configuration in the new
+Settings screen uses the existing master-EQ authority and is awaiting focused
+physical validation.
 
 ## Composition order
 
@@ -48,11 +55,18 @@ screen_projection = register_activity_screen_projection(...)
 register_application_state_api(...)
 register_playback_command_api(...)
 master_equalizer = register_audio_eq(app)
+weather_forecast = WeatherForecastService(...)
+shairport_name = ShairportNameManager()
+unified_settings = UnifiedSettingsService(...)
+register_unified_settings_api(app, unified_settings)
 ```
 
 Scheduled alarm audio and its public status projection are registered before the
-state hub. The final playback authority therefore observes the real promoted alarm
-policy rather than the scheduler foundation's internal no-player flag.
+state hub. The final playback authority therefore observes the real promoted
+alarm policy rather than the scheduler foundation's internal no-player flag.
+
+The unified Settings service is registered after its specialist owners so it can
+validate and commit configuration without duplicating their runtime logic.
 
 ## ApplicationStateHub
 
@@ -91,6 +105,7 @@ It owns:
 - AirPlay-to-Plexamp takeover;
 - Plexamp-to-AirPlay takeover;
 - retained ceded AirPlay sessions;
+- rapid iPhone resume detection from Shairport metadata;
 - alarm audio priority over both music sources;
 - command diagnostics and independent-observation confirmation.
 
@@ -146,6 +161,14 @@ releases the session without manufacturing a source transport command.
    created hold deadline.
 4. A later independent AirPlay paused observation confirms the command.
 5. Browsing the Plexamp surface without starting playback does not pause AirPlay.
+
+### AirPlay is resumed quickly from the iPhone
+
+1. Shairport's metadata FIFO emits its play-resume evidence.
+2. The final coordinator recognises that event as newer user intent.
+3. Plexamp is paused.
+4. AirPlay becomes the active source and recommended screen.
+5. A stale MPRIS `Playing` label alone cannot trigger the reverse handoff.
 
 ## Alarm authority
 
@@ -242,12 +265,101 @@ Important rules:
 - The browser acknowledges manual navigation before performing the transition,
   preventing an in-flight projection response from undoing the user's action.
 
+The saved idle destination is restored into the screen authority when the
+service starts. Startup, idle, Clock format and transition preferences are
+server-authoritative before first paint; browser storage is only a temporary
+compatibility mirror for older Clock renderers.
+
+## Unified Settings authority
+
+`UnifiedSettingsService` owns staged appliance configuration through:
+
+```text
+GET  /api/settings
+POST /api/settings
+```
+
+A snapshot includes:
+
+- one revision derived from the normalised public configuration;
+- all editable configuration domains;
+- capability flags;
+- compact Shairport, EQ and forecast health.
+
+A save:
+
+1. rejects a stale revision;
+2. validates every submitted domain;
+3. asks specialist normalisers to validate alarms, alarm audio and forecasts;
+4. requires explicit confirmation before restarting Shairport Sync;
+5. applies the receiver name and EQ through their owners;
+6. writes `config.json` once;
+7. rolls back applied system values if the write fails;
+8. wakes or refreshes the scheduler, forecast and screen owners;
+9. returns a fully normalised new snapshot.
+
+The browser keeps one sticky Save/Discard bar and dirty indicators per category.
+A separate transaction guard blocks pointer, keyboard and form resubmission while
+a confirmed save is active.
+
+### Configuration versus actions
+
+Configuration uses the transaction. Runtime actions remain explicit specialist
+commands:
+
+- live or persistent mixer movement;
+- alarm tests and stop;
+- forecast refresh-now;
+- scheduler recalculation;
+- diagnostic refreshes.
+
+Those actions do not make the Settings transaction dirty.
+
+## Managed Shairport receiver name
+
+`ShairportNameManager` is an unprivileged client for the fixed root-owned helper:
+
+```text
+/usr/local/bin/a-clockwork-plex-shairport-name
+```
+
+The helper may only:
+
+- read the fixed `/etc/shairport-sync.conf`;
+- change `general.name`;
+- validate a candidate configuration;
+- replace the file atomically;
+- restart and verify `shairport-sync.service`;
+- restore the original configuration on failure.
+
+It exposes only `status` and `set <validated name>` through a restricted sudoers
+policy. The Flask process receives no general root privileges.
+
+## Equaliser authority
+
+The unified Settings transaction uses `MasterEqualizer` for:
+
+- enabled/bypass state;
+- Bass;
+- Mid;
+- Treble;
+- persistent band values;
+- backend health.
+
+EQ settings remain visible even when the backend is unavailable, but a changed EQ
+model cannot be committed until that authority reports ready. Applied EQ values
+are rolled back if the overall Settings transaction fails.
+
+The old bare production installer remains blocked and is not called by Settings.
+
 ## Browser boundary
 
 Browser clients are presentation and explicit-input adapters.
 
 They may:
 
+- stage a normalised configuration model;
+- request one revisioned Settings transaction;
 - request a transport or navigation action;
 - report genuine local input activity;
 - acknowledge the surface that was actually shown;
@@ -255,15 +367,16 @@ They may:
 
 They must not:
 
-- restart audio services;
+- restart services directly;
+- edit system configuration directly;
 - infer transport truth from an icon they drew;
 - independently arbitrate Plexamp versus AirPlay;
 - create or extend an AirPlay hold timer;
 - manufacture repeated activity;
 - decide that alarm audio may play.
 
-The old browser-side AirPlay control coordinator, legacy idle-return client and
-staged server promotion wrappers are no longer loaded.
+The active Settings page no longer loads the old horizontal-tab, autosave,
+alarm-workspace or scheduled-audio injector clients.
 
 ## Runtime persistence
 
@@ -272,6 +385,7 @@ Small atomic JSON stores preserve deadlines and recovery state:
 - alarm scheduler/runtime state;
 - alarm audio runtime diagnostics;
 - playback hold/ceded state;
+- cached online forecast;
 - dashboard/application state where appropriate.
 
 Writes use a temporary file followed by replacement so an interrupted write does
@@ -283,25 +397,29 @@ The bedroom Raspberry Pi has validated:
 
 - AirPlay pause hold and restart retention;
 - bidirectional Plexamp/AirPlay takeover;
+- rapid iPhone AirPlay resume;
 - navigation and transport state rendering;
 - manual screen leases and playback interruption rules;
 - real scheduled alarm audio;
 - Snooze and Dismiss;
 - Plexamp and AirPlay pause during alarm priority;
 - no automatic music resume after alarm release;
-- dedicated alarm configuration persistence;
-- keyboard-safe alarm save UI.
+- alarm configuration persistence and keyboard-safe editing;
+- Ecowitt observations and cached Open-Meteo forecast presentation.
+
+The unified iPad Settings screen, managed Shairport name helper and Settings EQ
+controls are covered by CI and await focused physical validation.
 
 ## Remaining work
 
-The current cleanup/release stage includes:
-
-1. remove stale diagnostics and documentation from earlier promotion stages;
-2. continue regression checks across alarm, Plexamp, AirPlay, navigation and
-   service restart boundaries;
-3. keep production EQ integration blocked until a separately approved path meets
-   its laboratory and rollback criteria;
-4. complete final weather-provider work last;
-5. update release documentation and obtain explicit approval before merging PR #2.
+1. validate the iPad split-view Settings layout, staging, Discard and touch
+   keyboard at 1024×600;
+2. install and validate the restricted Shairport receiver-name helper;
+3. validate Settings-hosted EQ controls against the proven backend without using
+   the old bare installer;
+4. make small layout, wording or compatibility corrections found during that
+   pass;
+5. refresh release documentation and run one focused appliance smoke test;
+6. obtain explicit approval before making PR #2 ready or merging it.
 
 PR #2 remains draft and must not be merged without explicit approval.
