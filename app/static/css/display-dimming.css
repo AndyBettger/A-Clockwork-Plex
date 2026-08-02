@@ -1,0 +1,50 @@
+:root {
+  --acp-night-dim-opacity: 0;
+  --acp-night-shift-x: 0px;
+  --acp-night-shift-y: 0px;
+}
+
+#acp-night-dim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: 0;
+  background: #000;
+  transition: opacity 320ms ease;
+}
+
+body.acp-night-dim-active #acp-night-dim-overlay {
+  opacity: var(--acp-night-dim-opacity);
+}
+
+body.acp-night-temporarily-awake #acp-night-dim-overlay,
+body.mode-alarm #acp-night-dim-overlay,
+body[data-active-page="alarm"] #acp-night-dim-overlay {
+  opacity: 0 !important;
+}
+
+body.acp-night-clock-mode .clock-hero {
+  transform: translate(var(--acp-night-shift-x), var(--acp-night-shift-y));
+  transition: transform 1200ms ease;
+}
+
+body.acp-night-clock-mode #clock-weather-panel,
+body.acp-night-clock-mode .status-bar {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.acp-night-clock-mode .clock-hero {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #acp-night-dim-overlay,
+  body.acp-night-clock-mode .clock-hero {
+    transition: none;
+  }
+}
