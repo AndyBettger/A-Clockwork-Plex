@@ -25,12 +25,24 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("built and physically validated", text)
         self.assertIn("cached Open-Meteo forecasts", text)
 
-    def test_post_weather_settings_redesign_is_now_active(self):
+    def test_post_weather_settings_redesign_is_implemented(self):
         text = SETTINGS_REDESIGN.read_text(encoding="utf-8")
-        self.assertIn("next active", text)
-        self.assertIn("iPhone-style Settings", text)
-        self.assertIn("Replace the obsolete static alarm configuration shell", text)
-        self.assertIn("forecast provider's dedicated validated save-and-refresh flow", text)
+        self.assertIn("iPad-style split view", text)
+        self.assertIn("GET  /api/settings", text)
+        self.assertIn("one validated transaction", text)
+        self.assertIn("Managed AirPlay receiver name", text)
+        self.assertIn("Bass", text)
+        self.assertIn("Mid", text)
+        self.assertIn("Treble", text)
+        self.assertIn("settings-tabs.js", text)
+        self.assertIn("no longer loads", text)
+
+    def test_readme_records_focused_settings_validation_as_next(self):
+        text = README.read_text(encoding="utf-8")
+        self.assertIn("unified iPad-style Settings", text)
+        self.assertIn("restricted Shairport receiver-name helper", text)
+        self.assertIn("Settings-hosted EQ controls", text)
+        self.assertIn("Do not run: sudo bash scripts/install-master-eq.sh", text)
 
     def test_alarm_guide_documents_real_scheduled_takeover(self):
         text = ALARM_GUIDE.read_text(encoding="utf-8")
