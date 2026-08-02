@@ -11,6 +11,7 @@ CLIENT = ROOT / "app" / "static" / "js" / "display-dimming.js"
 STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 BASE = ROOT / "app" / "templates" / "base.html"
 SETTINGS = ROOT / "app" / "static" / "js" / "settings-completion.js"
+DISPLAY_SECTIONS = ROOT / "app" / "static" / "js" / "settings-display-sections.js"
 INTERACTION_SETTINGS = ROOT / "app" / "static" / "js" / "settings-night-interaction.js"
 BACKEND = ROOT / "app" / "settings_unified_scheduled.py"
 EXAMPLE = ROOT / "config.example.json"
@@ -21,7 +22,7 @@ class DisplayDimmingTests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for path in (CLIENT, SETTINGS, INTERACTION_SETTINGS):
+        for path in (CLIENT, SETTINGS, DISPLAY_SECTIONS, INTERACTION_SETTINGS):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 capture_output=True,
@@ -67,19 +68,25 @@ class DisplayDimmingTests(unittest.TestCase):
         backend = BACKEND.read_text(encoding="utf-8")
         example = EXAMPLE.read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
-        settings = INTERACTION_SETTINGS.read_text(encoding="utf-8")
-        for key in (
-            "night_dim_active_level_percent",
-            "night_dim_active_style",
-        ):
-            self.assertIn(key, client)
-            self.assertIn(key, backend)
-            self.assertIn(key, example)
-            self.assertIn(key.replace("_", "-"), base)
-            self.assertIn(key, settings)
+        interaction = INTERACTION_SETTINGS.read_text(encoding="utf-8")
+        theme = DISPLAY_SECTIONS.read_text(encoding="utf-8")
+
+        self.assertIn("night_dim_active_level_percent", client)
+        self.assertIn("night_dim_active_level_percent", backend)
+        self.assertIn("night_dim_active_level_percent", example)
+        self.assertIn("data-night-dim-active-level-percent", base)
+        self.assertIn("night_dim_active_level_percent", interaction)
+
+        self.assertIn("night_dim_active_style", client)
+        self.assertIn("night_dim_active_style", backend)
+        self.assertIn("night_dim_active_style", example)
+        self.assertIn("data-night-dim-active-style", base)
+        self.assertIn("night_dim_active_style", theme)
+
         self.assertIn("activeLevelPercent: 35", client)
         self.assertIn("activeStyle: 'same'", client)
-        self.assertIn("Night interaction brightness", settings)
+        self.assertIn("Night interaction brightness", interaction)
+        self.assertIn("Night interaction appearance", theme)
 
     def test_classic_and_astronomy_styles_are_explicit_and_pure_red(self):
         client = CLIENT.read_text(encoding="utf-8")
