@@ -117,10 +117,11 @@
       window.dispatchEvent(new Event('resize'));
     }
 
-    if (forecast.fetched_at) {
+    const fetchedAt = payload?.fetched_at || forecast.fetched_at;
+    if (fetchedAt) {
       const footnotes = [...document.querySelectorAll('.weather-forecast-footnote')];
       const updated = footnotes.find((node) => node.textContent.trim().startsWith('Updated '));
-      if (updated) updated.textContent = `Updated ${window.ACPTime?.formatDateTime?.(forecast.fetched_at, { seconds: false, weekday: '' }) || forecast.fetched_at}`;
+      if (updated) updated.textContent = `Updated ${window.ACPTime?.formatDateTime?.(fetchedAt, { seconds: false, weekday: '' }) || fetchedAt}`;
     }
   }
 
