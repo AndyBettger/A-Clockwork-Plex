@@ -8,7 +8,6 @@
 
   const path = (name) => document.querySelector(`[data-setting-path="${name}"]`);
   let lastForecastStatus = null;
-  let formattingForecastMessage = false;
 
   function getPath(object, dotted) {
     return String(dotted).split('.').filter(Boolean).reduce((value, key) => value?.[key], object);
@@ -171,25 +170,18 @@
       weekday: '',
     });
     if (!formatted) return;
-    formattingForecastMessage = true;
-    message.textContent = `Last fetched ${formatted}`;
-    message.dataset.acpForecastFetchedAt = status.fetched_at;
-    formattingForecastMessage = false;
+
+    const nextText = `Last fetched ${formatted}`;
+    if (message.textContent !== nextText) message.textContent = nextText;
+    if (message.dataset.acpForecastFetchedAt !== status.fetched_at) {
+      message.dataset.acpForecastFetchedAt = status.fetched_at;
+    }
   }
 
   function installForecastTimeAuthority() {
     const message = document.querySelector('[data-forecast-message]');
     if (!message || message.dataset.acpTimeAuthority === 'true') return;
     message.dataset.acpTimeAuthority = 'true';
-
-    const observer = new MutationObserver(() => {
-      if (formattingForecastMessage) return;
-      if (message.dataset.actionMessage === 'true') return;
-      if (/^Last fetched\b/.test(message.textContent.trim()) && lastForecastStatus?.fetched_at) {
-        renderForecastFetchedTime(lastForecastStatus);
-      }
-    });
-    observer.observe(message, { childList: true, characterData: true, subtree: true });
 
     document.querySelector('[data-action="refresh-forecast"]')?.addEventListener('click', () => {
       window.setTimeout(() => {
@@ -201,7 +193,6 @@
     });
 
     window.addEventListener('acp:clock-format-changed', () => renderForecastFetchedTime(lastForecastStatus));
-    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
   }
 
   function removeRetiredAdvancedAudioControls() {
