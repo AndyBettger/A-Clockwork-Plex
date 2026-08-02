@@ -11,6 +11,7 @@
   const EXPIRY_PRESETS = [30, 60, 120, 180, 240, 360];
   const SAFE_PREVIEW_VOLUME_PERCENT = 15;
   const SAFE_PREVIEW_GAIN = SAFE_PREVIEW_VOLUME_PERCENT / 100;
+
   let model = null;
   let tones = [];
   let days = [];
@@ -18,7 +19,10 @@
   let previewNodes = [];
   let previewTimer = null;
   let previewButton = null;
+  let hasRenderedSchedule = false;
+
   const timePickerRefreshers = new Set();
+  const expandedAlarmIds = new Set();
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const clamp = (value, fallback, minimum, maximum) => {
@@ -64,9 +68,7 @@
 
   function displayTimeParts(value, format = currentClockFormat()) {
     const { hour24, minute } = splitStoredTime(value);
-    if (format === '24h') {
-      return { hour: hour24, minute, period: null };
-    }
+    if (format === '24h') return { hour: hour24, minute, period: null };
     return {
       hour: hour24 % 12 || 12,
       minute,
@@ -131,16 +133,10 @@
         oscillator.type = ['sine', 'square', 'sawtooth', 'triangle'].includes(step.wave) ? step.wave : 'sine';
         oscillator.frequency.setValueAtTime(Number(step.frequency) || 440, cursor);
         if (step.end_frequency) {
-          oscillator.frequency.linearRampToValueAtTime(
-            Number(step.end_frequency),
-            Math.min(cursor + duration, end),
-          );
+          oscillator.frequency.linearRampToValueAtTime(Number(step.end_frequency), Math.min(cursor + duration, end));
         }
         gain.gain.setValueAtTime(.0001, cursor);
-        gain.gain.linearRampToValueAtTime(
-          Math.min(.22, Number(step.gain) || .12),
-          cursor + .015,
-        );
+        gain.gain.linearRampToValueAtTime(Math.min(.22, Number(step.gain) || .12), cursor + .015);
         gain.gain.linearRampToValueAtTime(.0001, Math.min(cursor + duration, end));
         oscillator.connect(gain);
         gain.connect(master);
@@ -150,10 +146,7 @@
         cursor += duration + gap;
       }
     }
-    previewTimer = window.setTimeout(
-      stopPreview,
-      Math.max(0, end - previewContext.currentTime) * 1000 + 100,
-    );
+    previewTimer = window.setTimeout(stopPreview, Math.max(0, end - previewContext.currentTime) * 1000 + 100);
   }
 
   function select(values, selected, label = (value) => String(value)) {
@@ -187,11 +180,9 @@
   function durationControl(value, presets, minimum, maximum, onChange) {
     const wrapper = node('div', 'alarm-duration-control');
     const preset = presets.includes(Number(value));
-    const menu = select(
-      [...presets, 'custom'],
-      preset ? value : 'custom',
-      (item) => item === 'custom' ? 'Custom' : `${item} minutes`,
-    );
+    const menu = select([...presets, 'custom'], preset ? value : 'custom', (item) => (
+      item === 'custom' ? 'Custom' : `${item} minutes`
+    ));
     const custom = document.createElement('input');
     custom.type = 'text';
     custom.inputMode = 'none';
@@ -245,8 +236,8 @@
       };
       hour.addEventListener('change', commit);
       minute.addEventListener('change', commit);
-
       picker.append(hour, node('span', 'alarm-time-colon', ':'), minute);
+
       if (format === '12h') {
         const periods = node('div', 'alarm-period-control');
         ['AM', 'PM'].forEach((value) => {
@@ -283,29 +274,17 @@
     const card = node('section', 'settings-card');
     card.innerHTML = '<div class="settings-card-heading"><div><h3>Alarm defaults</h3><p class="muted small">Starting values used for newly-created alarms.</p></div><span class="settings-chip">Saved together</span></div>';
     const grid = node('div', 'alarm-model-defaults');
-    const snooze = durationControl(
-      model.defaults.snooze_minutes,
-      SNOOZE_PRESETS,
-      1,
-      60,
-      (value) => { model.defaults.snooze_minutes = value; },
-    );
-    const ring = select(
-      RING_PRESETS,
-      model.defaults.ring_minutes,
-      (value) => `${value} minute${value === 1 ? '' : 's'}`,
-    );
+    const snooze = durationControl(model.defaults.snooze_minutes, SNOOZE_PRESETS, 1, 60, (value) => {
+      model.defaults.snooze_minutes = value;
+    });
+    const ring = select(RING_PRESETS, model.defaults.ring_minutes, (value) => `${value} minute${value === 1 ? '' : 's'}`);
     ring.addEventListener('change', () => {
       model.defaults.ring_minutes = Number(ring.value);
       markDirty();
     });
-    const expiry = durationControl(
-      model.defaults.occurrence_expiry_minutes,
-      EXPIRY_PRESETS,
-      15,
-      1440,
-      (value) => { model.defaults.occurrence_expiry_minutes = value; },
-    );
+    const expiry = durationControl(model.defaults.occurrence_expiry_minutes, EXPIRY_PRESETS, 15, 1440, (value) => {
+      model.defaults.occurrence_expiry_minutes = value;
+    });
     const tone = select(tones.map((item) => item.id), model.defaults.tone_id, toneLabel);
     tone.addEventListener('change', () => {
       model.defaults.tone_id = tone.value;
@@ -352,11 +331,15 @@
     const card = node('article', 'alarm-editor-card');
     card.dataset.alarmId = alarm.id;
 
+    const initiallyExpanded = expandedAlarmIds.has(alarm.id) || (!hasRenderedSchedule && index === 0);
+    if (initiallyExpanded) expandedAlarmIds.add(alarm.id);
+
     const header = node('div', 'alarm-editor-header');
     const summary = node('button', 'alarm-editor-summary');
     summary.type = 'button';
-    summary.setAttribute('aria-expanded', index === 0 ? 'true' : 'false');
+    summary.setAttribute('aria-expanded', initiallyExpanded ? 'true' : 'false');
     summary.innerHTML = '<span class="alarm-editor-time" data-summary-time></span><span class="alarm-editor-title"><strong data-summary-label></strong><span data-summary-detail></span></span><span class="alarm-editor-chevron" aria-hidden="true">⌄</span>';
+
     const enabled = node('button', 'alarm-enabled-toggle');
     enabled.type = 'button';
     enabled.dataset.alarmEnabledToggle = 'true';
@@ -368,12 +351,17 @@
     header.append(summary, enabled);
 
     const body = node('div', 'alarm-editor-body');
-    body.hidden = index !== 0;
+    body.hidden = !initiallyExpanded;
     summary.addEventListener('click', () => {
       const expanded = summary.getAttribute('aria-expanded') === 'true';
-      summary.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-      body.hidden = expanded;
-      if (expanded) stopPreview();
+      const nextExpanded = !expanded;
+      summary.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+      body.hidden = !nextExpanded;
+      if (nextExpanded) expandedAlarmIds.add(alarm.id);
+      else {
+        expandedAlarmIds.delete(alarm.id);
+        stopPreview();
+      }
     });
 
     const basics = panel('Alarm', 'Name it and choose the exact time without opening the keyboard.');
@@ -388,7 +376,7 @@
       updateSummary(card, alarm);
       markDirty();
     });
-    basicsGrid.append(field('Label', labelInput), timePicker(alarm, card));
+    basicsGrid.append(field('Alarm name', labelInput), timePicker(alarm, card));
     basics.appendChild(basicsGrid);
     body.appendChild(basics);
 
@@ -416,17 +404,11 @@
     repeat.appendChild(dayGrid);
     body.appendChild(repeat);
 
-    const behaviour = panel('Behaviour', 'Control what happens after the alarm begins ringing.');
-    const snooze = durationControl(
-      alarm.snooze_minutes,
-      SNOOZE_PRESETS,
-      1,
-      60,
-      (value) => {
-        alarm.snooze_minutes = value;
-        updateSummary(card, alarm);
-      },
-    );
+    const behaviour = panel('Snooze behaviour', 'Control what happens after the alarm begins ringing.');
+    const snooze = durationControl(alarm.snooze_minutes, SNOOZE_PRESETS, 1, 60, (value) => {
+      alarm.snooze_minutes = value;
+      updateSummary(card, alarm);
+    });
     behaviour.appendChild(field('Snooze duration', snooze, 'Used by the Snooze button and automatic quiet interval.'));
     body.appendChild(behaviour);
 
@@ -458,7 +440,11 @@
       volumeOutput.textContent = `${volume.value}%`;
       markDirty();
     });
-    volumeLabel.append(volume, volumeOutput, node('small', '', 'Used by the real scheduled alarm after audio takeover. It never changes preview loudness.'));
+    volumeLabel.append(
+      volume,
+      volumeOutput,
+      node('small', '', 'Used by the real scheduled alarm after audio takeover. It never changes preview loudness.'),
+    );
     soundGrid.appendChild(volumeLabel);
 
     const preview = node('div', 'alarm-preview-row');
@@ -485,9 +471,11 @@
       copy.label = `${alarm.label || 'Alarm'} copy`.slice(0, 80);
       copy.enabled = false;
       model.alarms.splice(index + 1, 0, copy);
+      expandedAlarmIds.add(copy.id);
       renderSchedule();
       markDirty();
     });
+
     const remove = node('button', 'button alarm-remove-button', 'Remove');
     remove.type = 'button';
     let armed = false;
@@ -506,6 +494,7 @@
         return;
       }
       window.clearTimeout(disarmTimer);
+      expandedAlarmIds.delete(alarm.id);
       model.alarms = model.alarms.filter((item) => item.id !== alarm.id);
       renderSchedule();
       markDirty();
@@ -522,20 +511,25 @@
     stopPreview();
     timePickerRefreshers.clear();
     scheduleMount.replaceChildren();
-    const card = node('section', 'settings-card');
-    const heading = node('div', 'settings-card-heading');
+
+    const validIds = new Set(model.alarms.map((alarm) => alarm.id));
+    expandedAlarmIds.forEach((id) => {
+      if (!validIds.has(id)) expandedAlarmIds.delete(id);
+    });
+
+    const card = node('section', 'settings-card alarm-schedule-card');
+    const heading = node('div', 'settings-card-heading alarm-schedule-heading');
     const copy = node('div');
     copy.append(
       node('h3', '', 'Alarm schedule'),
       node('p', 'muted small', 'All alarm cards are validated and saved in the same Settings transaction.'),
     );
-    heading.append(
-      copy,
-      node('span', 'settings-chip', `${model.alarms.length} alarm${model.alarms.length === 1 ? '' : 's'}`),
-    );
+    heading.append(copy, node('span', 'settings-chip', `${model.alarms.length} alarm${model.alarms.length === 1 ? '' : 's'}`));
+
     const status = node('div', 'alarm-model-status');
     status.id = 'alarm-model-status';
     status.hidden = true;
+
     const list = node('div', 'alarm-list');
     if (model.alarms.length) {
       model.alarms.forEach((alarm, index) => list.appendChild(alarmCard(alarm, index)));
@@ -547,11 +541,12 @@
       );
       list.appendChild(empty);
     }
+
     const add = node('button', 'alarm-add-button', '＋ Add another alarm');
     add.type = 'button';
     add.addEventListener('click', () => {
       const number = model.alarms.length + 1;
-      model.alarms.push({
+      const alarm = {
         id: uniqueId(`alarm-${number}`),
         enabled: false,
         label: `Alarm ${number}`,
@@ -566,12 +561,16 @@
           fallback_tone_id: model.defaults.fallback_tone_id,
         },
         volume: { start_percent: 60, target_percent: 85, fade_seconds: 10 },
-      });
+      };
+      model.alarms.push(alarm);
+      expandedAlarmIds.add(alarm.id);
       renderSchedule();
       markDirty();
     });
+
     card.append(heading, status, list, add);
     scheduleMount.appendChild(card);
+    hasRenderedSchedule = true;
   }
 
   function validatedModel() {
@@ -579,9 +578,7 @@
     model.alarms.forEach((alarm) => {
       alarm.label = String(alarm.label || '').trim();
       if (!alarm.label) throw new Error('Every alarm needs a label.');
-      if (!TIME_RE.test(String(alarm.time || ''))) {
-        throw new Error(`${alarm.label} has an invalid time. Use HH:MM.`);
-      }
+      if (!TIME_RE.test(String(alarm.time || ''))) throw new Error(`${alarm.label} has an invalid time. Use HH:MM.`);
       if (!alarm.days?.length) throw new Error(`${alarm.label} must have at least one selected day.`);
       if (ids.has(alarm.id)) throw new Error(`Duplicate alarm ID: ${alarm.id}.`);
       ids.add(alarm.id);
