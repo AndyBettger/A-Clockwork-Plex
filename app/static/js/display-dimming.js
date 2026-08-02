@@ -1,6 +1,10 @@
 (() => {
   if (window.ACPDisplayDimming) return;
 
+  const INTERACTION_STORAGE_KEY = 'a-clockwork-plex.night-interaction-until';
+  const MAX_INTERACTION_SECONDS = 300;
+  const BOOT_TRANSITION_GUARD_MS = 400;
+
   const defaults = {
     enabled: false,
     start: '22:00',
@@ -19,6 +23,8 @@
   let previewUntil = 0;
   let refreshInterval = null;
   let activityInterval = null;
+  let interactionTimer = null;
+  let bootTransitionTimer = null;
   let activityRequestInFlight = false;
   let lastInputSequence = null;
 
@@ -67,7 +73,7 @@
         source.wakeSeconds ?? source.night_dim_wake_seconds,
         fallback.wakeSeconds,
         5,
-        300,
+        MAX_INTERACTION_SECONDS,
       ),
       nightClockMode: booleanValue(
         source,
@@ -122,11 +128,60 @@
   }
 
   function alarmVisible() {
-    return String(document.body?.dataset?.activePage || '').toLowerCase() === 'alarm'
+    return window.location.pathname === '/alarm'
+      || String(document.body?.dataset?.activePage || '').toLowerCase() === 'alarm'
       || document.body?.classList.contains('mode-alarm');
   }
 
+  function clearStoredInteraction() {
+    try {
+      window.sessionStorage.removeItem(INTERACTION_STORAGE_KEY);
+    } catch (_error) {
+    }
+  }
+
+  function storeInteractionUntil(deadline) {
+    if (!Number.isFinite(deadline) || deadline <= Date.now()) {
+      clearStoredInteraction();
+      return;
+    }
+    try {
+      window.sessionStorage.setItem(INTERACTION_STORAGE_KEY, String(Math.round(deadline)));
+    } catch (_error) {
+    }
+  }
+
+  function readStoredInteractionUntil() {
+    try {
+      const deadline = Number(window.sessionStorage.getItem(INTERACTION_STORAGE_KEY));
+      const remaining = deadline - Date.now();
+      if (
+        !Number.isFinite(deadline)
+        || remaining <= 0
+        || remaining > (MAX_INTERACTION_SECONDS * 1000) + 2000
+      ) {
+        clearStoredInteraction();
+        return 0;
+      }
+      return deadline;
+    } catch (_error) {
+      return 0;
+    }
+  }
+
+  function expireInteractionIfNeeded() {
+    if (!interactionUntil || Date.now() < interactionUntil) return false;
+    interactionUntil = 0;
+    clearStoredInteraction();
+    if (interactionTimer) {
+      window.clearTimeout(interactionTimer);
+      interactionTimer = null;
+    }
+    return true;
+  }
+
   function interacting() {
+    expireInteractionIfNeeded();
     return Date.now() < interactionUntil;
   }
 
@@ -147,6 +202,35 @@
     return interacting() ? settings.activeLevelPercent : settings.levelPercent;
   }
 
+  function scheduleInteractionExpiry() {
+    if (interactionTimer) window.clearTimeout(interactionTimer);
+    interactionTimer = null;
+    const remaining = interactionUntil - Date.now();
+    if (remaining <= 0) {
+      if (interactionUntil) {
+        interactionUntil = 0;
+        clearStoredInteraction();
+      }
+      return;
+    }
+    interactionTimer = window.setTimeout(() => {
+      interactionTimer = null;
+      interactionUntil = 0;
+      clearStoredInteraction();
+      refresh();
+      window.dispatchEvent(new CustomEvent('acp:display-night-interaction-ended', {
+        detail: status(),
+      }));
+    }, remaining + 20);
+  }
+
+  function restoreStoredInteraction() {
+    const stored = readStoredInteractionUntil();
+    interactionUntil = stored > Date.now() ? stored : 0;
+    scheduleInteractionExpiry();
+    return interactionUntil;
+  }
+
   function updateBurnInShift(active) {
     const root = document.documentElement;
     if (!active || interacting() || !settings.burnInShift) {
@@ -164,20 +248,51 @@
     root.style.setProperty('--acp-night-shift-y', `${y}px`);
   }
 
-  function refresh() {
-    if (!document.body) return status();
-    const active = dimRequired();
-    const interactionActive = interacting();
+  function applyDocumentNightBackground(active) {
+    const root = document.documentElement;
+    root.classList.toggle('acp-night-document-active', active);
+    if (active) root.style.backgroundColor = '#000';
+    else root.style.removeProperty('background-color');
+  }
+
+  function applyEffectiveVariables() {
     const selectedStyle = effectiveStyle();
     const level = number(effectiveLevelPercent(), settings.levelPercent, 5, 80);
     const brightness = Math.max(0.05, Math.min(0.8, level / 100));
     const classicDarkness = Math.max(0.2, Math.min(0.95, 1 - brightness));
-
-    document.documentElement.style.setProperty('--acp-night-brightness', String(brightness));
-    document.documentElement.style.setProperty(
+    const root = document.documentElement;
+    root.style.setProperty('--acp-night-brightness', String(brightness));
+    root.style.setProperty(
       '--acp-night-dim-opacity',
       String(selectedStyle === 'astronomy' ? 1 : classicDarkness),
     );
+    return { selectedStyle, level };
+  }
+
+  function primeDocumentNightState() {
+    if (alarmVisible() || !scheduledNow()) return;
+    const root = document.documentElement;
+    root.classList.add('acp-night-no-transition');
+    applyDocumentNightBackground(true);
+    applyEffectiveVariables();
+  }
+
+  function releaseBootTransitionGuard() {
+    if (bootTransitionTimer) window.clearTimeout(bootTransitionTimer);
+    bootTransitionTimer = window.setTimeout(() => {
+      document.documentElement.classList.remove('acp-night-no-transition');
+      document.body?.classList.remove('acp-night-no-transition');
+      bootTransitionTimer = null;
+    }, BOOT_TRANSITION_GUARD_MS);
+  }
+
+  function refresh() {
+    if (!document.body) return status();
+    const active = dimRequired();
+    const interactionActive = interacting();
+    const { selectedStyle } = applyEffectiveVariables();
+
+    applyDocumentNightBackground(active);
     document.body.classList.toggle('acp-night-dim-active', active);
     document.body.classList.toggle('acp-night-style-classic', selectedStyle === 'classic');
     document.body.classList.toggle('acp-night-style-astronomy', selectedStyle === 'astronomy');
@@ -195,7 +310,10 @@
 
   function interact(seconds = settings.wakeSeconds, source = 'browser-interaction') {
     if (!dimRequired() || alarmVisible()) return status();
-    interactionUntil = Date.now() + (number(seconds, settings.wakeSeconds, 5, 300) * 1000);
+    const duration = number(seconds, settings.wakeSeconds, 5, MAX_INTERACTION_SECONDS);
+    interactionUntil = Date.now() + (duration * 1000);
+    storeInteractionUntil(interactionUntil);
+    scheduleInteractionExpiry();
     refresh();
     window.dispatchEvent(new CustomEvent('acp:display-night-interaction', {
       detail: { ...status(), source },
@@ -212,6 +330,8 @@
   function preview(seconds = 8) {
     previewUntil = Date.now() + (number(seconds, 8, 3, 30) * 1000);
     interactionUntil = 0;
+    clearStoredInteraction();
+    scheduleInteractionExpiry();
     refresh();
     return status();
   }
@@ -233,15 +353,19 @@
   }
 
   function status() {
+    const interactionActive = interacting();
     return {
       ...settings,
       scheduled: scheduledNow(),
       active: dimRequired(),
-      interacting: interacting(),
+      interacting: interactionActive,
       previewing: previewing(),
       effectiveStyle: effectiveStyle(),
       effectiveLevelPercent: effectiveLevelPercent(),
       interactionUntil: interactionUntil || null,
+      interactionRemainingSeconds: interactionActive
+        ? Math.max(0, Math.ceil((interactionUntil - Date.now()) / 1000))
+        : 0,
       wakeUntil: interactionUntil || null,
       temporarilyAwake: false,
     };
@@ -289,19 +413,34 @@
     }
   }
 
+  function restoreAndRefresh() {
+    restoreStoredInteraction();
+    refresh();
+  }
+
   function install() {
     settings = fromDocument();
+    restoreStoredInteraction();
+    if (dimRequired()) {
+      document.documentElement.classList.add('acp-night-no-transition');
+      document.body.classList.add('acp-night-no-transition');
+    }
     document.addEventListener('pointerdown', observeLocalInteraction, true);
     document.addEventListener('keydown', observeLocalInteraction, true);
     document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('focus', refresh);
-    window.addEventListener('pageshow', refresh);
+    window.addEventListener('focus', restoreAndRefresh);
+    window.addEventListener('pageshow', restoreAndRefresh);
     window.addEventListener('acp:dashboard-preferences-changed', refresh);
     refreshInterval = window.setInterval(refresh, 15000);
     activityInterval = window.setInterval(pollLinuxInputActivity, 1000);
     pollLinuxInputActivity();
     refresh();
+    releaseBootTransitionGuard();
   }
+
+  settings = fromDocument();
+  restoreStoredInteraction();
+  primeDocumentNightState();
 
   window.ACPDisplayDimming = {
     configure,
@@ -319,5 +458,7 @@
   window.addEventListener('pagehide', () => {
     if (refreshInterval) window.clearInterval(refreshInterval);
     if (activityInterval) window.clearInterval(activityInterval);
+    if (interactionTimer) window.clearTimeout(interactionTimer);
+    if (bootTransitionTimer) window.clearTimeout(bootTransitionTimer);
   }, { once: true });
 })();
