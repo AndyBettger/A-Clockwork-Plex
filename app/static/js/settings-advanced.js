@@ -9,22 +9,20 @@
     test: '/api/alarms/test',
     cancel: '/api/alarms/test/cancel',
   };
+  const PASSIVE_REFRESH_MS = 30000;
   let requestInFlight = false;
   let timer = null;
+  let hasRendered = false;
+
+  function pageVisible() {
+    const page = mount.closest('[data-settings-subpage]');
+    return Boolean(page && !page.hidden && !document.hidden);
+  }
 
   function formatTime(value, fallback = 'Not yet') {
     if (!value) return fallback;
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return fallback;
-    return parsed.toLocaleString('en-GB', {
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
+    return window.ACPTime?.formatDateTime?.(value, { seconds: true, weekday: 'short' })
+      || fallback;
   }
 
   async function requestJson(url, options = {}) {
@@ -101,12 +99,13 @@
         next ? `${next.wall_time || ''} · ${next.timezone || scheduler.timezone || 'Local time'}` : 'The scheduler is enjoying the silence.',
       ),
       reading('Runtime state', activeTitle, activeDetail),
-      reading('Last checked', formatTime(scheduler.last_check_at), `Poll ${scheduler.poll_seconds || 15}s`),
+      reading('Last checked', formatTime(scheduler.last_check_at), `Scheduler interval ${scheduler.poll_seconds || 15}s`),
       reading('Queued', `${scheduler.queued_occurrence_count || 0} alarm${Number(scheduler.queued_occurrence_count || 0) === 1 ? '' : 's'}`, `${scheduler.duplicate_protection_count || 0} protected occurrence keys`),
       reading('Scheduled sound', audio.scheduled_playback_enabled ? 'Enabled' : 'Safety locked', audio.playback_lockout_reason || 'Two-key sound safety'),
       reading('Last occurrence', scheduler.last_observed_occurrence?.label || 'None recorded', scheduler.last_observed_occurrence ? formatTime(scheduler.last_observed_occurrence.scheduled_for) : 'No scheduler occurrence observed yet'),
     );
     mount.replaceChildren(card);
+    hasRendered = true;
     card.querySelectorAll('[data-alarm-runtime-action]').forEach((button) => {
       button.addEventListener('click', () => runAction(button.dataset.alarmRuntimeAction));
     });
@@ -119,9 +118,9 @@
     if (output && message) output.textContent = message;
   }
 
-  async function refresh(recalculate = false) {
-    if (requestInFlight) return;
-    setBusy(true, recalculate ? 'Recalculating…' : 'Refreshing…');
+  async function refresh(recalculate = false, force = false) {
+    if (requestInFlight || (!force && !pageVisible())) return;
+    setBusy(true, recalculate ? 'Recalculating…' : hasRendered ? 'Refreshing…' : 'Loading…');
     try {
       const payload = await requestJson(endpoints.status, { method: recalculate ? 'POST' : 'GET' });
       render(payload);
@@ -136,7 +135,7 @@
   }
 
   async function runAction(action) {
-    if (action === 'recalculate') return refresh(true);
+    if (action === 'recalculate') return refresh(true, true);
     if (requestInFlight) return;
     const endpoint = action === 'cancel' ? endpoints.cancel : endpoints.test;
     const label = action === 'cancel' ? 'Clearing visual test…' : 'Arming visual test…';
@@ -158,7 +157,16 @@
     }
   }
 
-  refresh(false);
-  timer = window.setInterval(() => refresh(false), 5000);
-  window.addEventListener('pagehide', () => window.clearInterval(timer));
+  document.querySelector('[data-settings-subpage-target="advanced:alarm"]')?.addEventListener('click', () => {
+    window.setTimeout(() => refresh(false, true), 0);
+  });
+  window.addEventListener('acp:clock-format-changed', () => {
+    if (pageVisible()) refresh(false, true);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (pageVisible()) refresh(false, true);
+  });
+
+  timer = window.setInterval(() => refresh(false, false), PASSIVE_REFRESH_MS);
+  window.addEventListener('pagehide', () => window.clearInterval(timer), { once: true });
 })();
