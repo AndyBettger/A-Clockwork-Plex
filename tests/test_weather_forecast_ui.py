@@ -14,7 +14,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("active_page | default(state.mode) == 'weather'", base)
         self.assertIn("css/weather-forecast.css", base)
         self.assertIn("js/weather-forecast.js", base)
-        self.assertIn("20260802-rounded-forecast-scrollbar-track", base)
+        self.assertIn("20260802-scrollbar-end-button-removal", base)
         Environment().parse(base)
 
     def test_forecast_client_is_cache_only_and_never_controls_the_appliance(self):
@@ -82,7 +82,12 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn(".weather-forecast-strip::-webkit-scrollbar", styles)
         self.assertIn("height: 6px", styles)
         self.assertIn("::-webkit-scrollbar-thumb", styles)
-        self.assertIn("::-webkit-scrollbar-button", styles)
+        self.assertIn("::-webkit-scrollbar-button:horizontal:decrement", styles)
+        self.assertIn("::-webkit-scrollbar-button:horizontal:increment", styles)
+        self.assertIn("::-webkit-scrollbar-button:horizontal:start:decrement", styles)
+        self.assertIn("::-webkit-scrollbar-button:horizontal:end:increment", styles)
+        self.assertIn("-webkit-appearance: none", styles)
+        self.assertIn("min-width: 0", styles)
         self.assertIn("display: none", styles)
         self.assertIn("border-radius: 999px", styles)
 
