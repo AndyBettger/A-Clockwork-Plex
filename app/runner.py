@@ -44,6 +44,18 @@ register_scheduled_alarm_status_api(dashboard)
 application_state_hub = build_default_application_state_hub(dashboard)
 playback_coordinator = promote_playback_authority(application_state_hub, dashboard)
 screen_projection = register_activity_screen_projection(app, application_state_hub, dashboard)
+_initial_settings_config = dashboard.load_config()
+_initial_dashboard_config = (
+    _initial_settings_config.get("dashboard")
+    if isinstance(_initial_settings_config.get("dashboard"), dict)
+    else {}
+)
+screen_projection.set_idle_return_mode(
+    _initial_dashboard_config.get(
+        "idle_return_mode",
+        _initial_dashboard_config.get("default_mode", "clock"),
+    )
+)
 input_activity_monitor = application_state_hub.service("input_activity")
 register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
