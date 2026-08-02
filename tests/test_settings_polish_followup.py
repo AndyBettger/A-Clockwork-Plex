@@ -94,16 +94,20 @@ class SettingsPolishFollowupTests(unittest.TestCase):
         self.assertIn(".settings-link-card > strong", style)
         self.assertIn("display: block", style)
 
-    def test_external_links_require_a_deliberate_hold(self):
+    def test_external_links_never_leave_the_kiosk(self):
         client = SAFE_LINKS.read_text(encoding="utf-8")
         style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("HOLD_MS = 1400", client)
         self.assertIn("event.preventDefault()", client)
-        self.assertIn("Press and hold to open externally", client)
-        self.assertIn("window.open(url, '_blank'", client)
+        self.assertIn("Press and hold to view the address", client)
+        self.assertIn("kiosk-link-modal", client)
+        self.assertIn("navigator.clipboard.writeText", client)
+        self.assertNotIn("window.open", client)
+        self.assertIn("The kiosk never leaves the dashboard", client)
         self.assertIn("kiosk-safe-links.js", base)
         self.assertIn("kiosk-safe-links.css", base)
+        self.assertIn(".kiosk-link-modal", style)
         self.assertIn("data-kiosk-link-hint", style)
 
 
