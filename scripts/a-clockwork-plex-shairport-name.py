@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+
+CONFIG_PATH = Path("/etc/shairport-sync.conf")
+SERVICE_NAME = "shairport-sync.service"
+SHAIRPORT_BINARY = Path("/usr/bin/shairport-sync")
+SYSTEMCTL_BINARY = Path("/usr/bin/systemctl")
+MAX_RECEIVER_NAME_LENGTH = 50
+GENERAL_BLOCK_RE = re.compile(r"(?P<prefix>\bgeneral\s*=\s*\{)(?P<body>.*?)(?P<suffix>\}\s*;)", re.DOTALL)
+NAME_RE = re.compile(r'(?m)^(?P<indent>\s*)name\s*=\s*"(?:\\.|[^"\\])*"\s*;')
+
+
+def emit(payload: dict[str, Any], return_code: int = 0) -> None:
+    print(json.dumps(payload, sort_keys=True))
+    raise SystemExit(return_code)
+
+
+def run(command: list[str], timeout: int = 20) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+def validate_name(value: Any) -> str:
+    name = str(value or "").strip()
+    if not name:
+        raise ValueError("AirPlay receiver name cannot be blank.")
+    if len(name) > MAX_RECEIVER_NAME_LENGTH:
+        raise ValueError(
+            f"AirPlay receiver name must be {MAX_RECEIVER_NAME_LENGTH} characters or fewer."
+        )
+    if any(ord(character) < 32 or ord(character) == 127 for character in name):
+        raise ValueError("AirPlay receiver name cannot contain control characters.")
+    return name
+
+
+def quote_libconfig(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def receiver_name_from_config(text: str) -> str | None:
+    block = GENERAL_BLOCK_RE.search(text)
+    if not block:
+        return None
+    match = NAME_RE.search(block.group("body"))
+    if not match:
+        return None
+    statement = match.group(0)
+    literal_match = re.search(r'"((?:\\.|[^"\\])*)"', statement)
+    if not literal_match:
+        return None
+    try:
+        return json.loads(f'"{literal_match.group(1)}"')
+    except json.JSONDecodeError:
+        return literal_match.group(1)
+
+
+def update_receiver_name(text: str, receiver_name: str) -> str:
+    quoted = quote_libconfig(receiver_name)
+    block = GENERAL_BLOCK_RE.search(text)
+    if not block:
+        prefix = f"general =\n{{\n    name = {quoted};\n}};\n\n"
+        return prefix + text.lstrip("\n")
+
+    body = block.group("body")
+    replacement = f"    name = {quoted};"
+    if NAME_RE.search(body):
+        body = NAME_RE.sub(replacement, body, count=1)
+    else:
+        if body and not body.startswith("\n"):
+            body = "\n" + body
+        body = f"\n{replacement}{body}"
+        if not body.endswith("\n"):
+            body += "\n"
+    return text[: block.start("body")] + body + text[block.end("body") :]
+
+
+def service_active() -> bool:
+    result = run([str(SYSTEMCTL_BINARY), "is-active", "--quiet", SERVICE_NAME], timeout=8)
+    return result.returncode == 0
+
+
+def validate_config(path: Path) -> tuple[bool, str | None]:
+    if not SHAIRPORT_BINARY.exists():
+        return False, f"Shairport Sync binary not found at {SHAIRPORT_BINARY}."
+    result = run(
+        [str(SHAIRPORT_BINARY), "--displayConfig", "--configfile", str(path)],
+        timeout=15,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return False, detail or "Shairport Sync rejected the generated configuration."
+    return True, None
+
+
+def restart_service() -> tuple[bool, str | None]:
+    result = run([str(SYSTEMCTL_BINARY), "restart", SERVICE_NAME], timeout=20)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        return False, detail or "Could not restart Shairport Sync."
+    if not service_active():
+        return False, "Shairport Sync did not return to the active state."
+    return True, None
+
+
+def read_config() -> str:
+    try:
+        return CONFIG_PATH.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"Could not read {CONFIG_PATH}: {exc}") from exc
+
+
+def write_atomic(text: str, original_stat: os.stat_result) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".shairport-sync.conf.",
+        dir=str(CONFIG_PATH.parent),
+        text=True,
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary_path, original_stat.st_mode & 0o7777)
+        try:
+            os.chown(temporary_path, original_stat.st_uid, original_stat.st_gid)
+        except PermissionError:
+            pass
+        os.replace(temporary_path, CONFIG_PATH)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def status_payload() -> dict[str, Any]:
+    text = read_config()
+    return {
+        "ok": True,
+        "available": True,
+        "config_path": str(CONFIG_PATH),
+        "receiver_name": receiver_name_from_config(text),
+        "service": SERVICE_NAME,
+        "service_active": service_active(),
+    }
+
+
+def set_receiver_name(receiver_name: str) -> dict[str, Any]:
+    name = validate_name(receiver_name)
+    original = read_config()
+    current_name = receiver_name_from_config(original)
+    if current_name == name:
+        payload = status_payload()
+        payload.update({"changed": False, "restarted": False, "message": "Receiver name is already current."})
+        return payload
+
+    try:
+        original_stat = CONFIG_PATH.stat()
+    except OSError as exc:
+        raise RuntimeError(f"Could not inspect {CONFIG_PATH}: {exc}") from exc
+
+    updated = update_receiver_name(original, name)
+    descriptor, candidate_name = tempfile.mkstemp(prefix="shairport-sync-candidate-", suffix=".conf")
+    candidate = Path(candidate_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(updated)
+        valid, validation_error = validate_config(candidate)
+    finally:
+        candidate.unlink(missing_ok=True)
+    if not valid:
+        raise RuntimeError(validation_error or "The generated Shairport configuration was invalid.")
+
+    write_atomic(updated, original_stat)
+    restarted, restart_error = restart_service()
+    if not restarted:
+        write_atomic(original, original_stat)
+        rollback_ok, rollback_error = restart_service()
+        detail = restart_error or "Shairport Sync restart failed."
+        if not rollback_ok:
+            detail += f" Rollback restart also failed: {rollback_error or 'unknown error'}"
+        raise RuntimeError(detail)
+
+    payload = status_payload()
+    payload.update(
+        {
+            "changed": True,
+            "restarted": True,
+            "previous_receiver_name": current_name,
+            "message": "AirPlay receiver name updated and Shairport Sync restarted.",
+        }
+    )
+    return payload
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Manage the Shairport Sync advertised receiver name.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("status")
+    set_parser = subparsers.add_parser("set")
+    set_parser.add_argument("receiver_name")
+    arguments = parser.parse_args()
+
+    try:
+        payload = status_payload() if arguments.command == "status" else set_receiver_name(arguments.receiver_name)
+    except (RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
+        emit({"ok": False, "error": str(exc)}, 1)
+    emit(payload)
+
+
+if __name__ == "__main__":
+    main()
