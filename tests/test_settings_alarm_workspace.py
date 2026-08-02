@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ALARM_EDITOR = ROOT / "app" / "static" / "js" / "settings-alarms.js"
 ALARM_STYLE = ROOT / "app" / "static" / "css" / "settings-alarm-model.css"
 ALARM_WORKSPACE_STYLE = ROOT / "app" / "static" / "css" / "settings-alarms.css"
+DISPLAY_STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 ADVANCED = ROOT / "app" / "static" / "js" / "settings-advanced.js"
 SETTINGS_CLIENT = ROOT / "app" / "static" / "js" / "settings-ipad.js"
 SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
@@ -96,15 +97,33 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertIn(".alarm-time-picker", style)
         self.assertIn(".alarm-period-button.is-selected", style)
 
+    def test_time_menu_stays_inside_dashboard_night_treatment(self):
+        text = ALARM_EDITOR.read_text(encoding="utf-8")
+        style = ALARM_WORKSPACE_STYLE.read_text(encoding="utf-8")
+        display = DISPLAY_STYLE.read_text(encoding="utf-8")
+        self.assertIn("function timeChoice", text)
+        self.assertIn("alarm-time-menu", text)
+        self.assertIn("setAttribute('role', 'listbox')", text)
+        self.assertIn("closeTimeMenu", text)
+        self.assertNotIn("const hour = select(hours", text)
+        self.assertNotIn("const minute = select(minutes", text)
+        self.assertNotIn("showPicker", text)
+        self.assertNotIn("popover", text.lower())
+        self.assertIn(".alarm-time-menu", style)
+        self.assertIn(".alarm-time-option.is-selected", style)
+        self.assertIn("Native popups live outside the page compositor", style)
+        self.assertIn("#acp-night-dim-overlay", display)
+        self.assertIn("z-index: 2147483000", display)
+
     def test_time_dropdown_and_alarm_basics_have_touchscreen_followup_styles(self):
         style = ALARM_WORKSPACE_STYLE.read_text(encoding="utf-8")
-        self.assertIn(".alarm-time-select option", style)
         self.assertIn("background: #172333", style)
-        self.assertIn("color-scheme: dark", style)
         self.assertIn(".alarm-schedule-heading", style)
         self.assertIn("margin-bottom", style)
-        self.assertIn(".alarm-basics-grid", style)
-        self.assertIn("align-items: start", style)
+        self.assertIn(".alarm-basics-grid > .setting-field", style)
+        self.assertIn(".alarm-time-field", style)
+        self.assertIn("align-items: stretch", style)
+        self.assertIn("min-height: 100%", style)
 
     def test_snooze_behaviour_and_sound_are_explicit_panels(self):
         text = ALARM_EDITOR.read_text(encoding="utf-8")
