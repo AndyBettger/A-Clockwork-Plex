@@ -79,9 +79,41 @@
     return card;
   }
 
+  function selectedStyle(panel) {
+    return panel.querySelector('[data-night-dim-style-setting]')?.value === 'astronomy'
+      ? 'astronomy'
+      : 'classic';
+  }
+
+  function updateNightStatus(panel) {
+    const status = window.ACPDisplayDimming?.status?.() || {};
+    const chip = panel.querySelector('[data-night-dim-status]');
+    if (!chip) return;
+    if (!status.enabled) chip.textContent = 'Off';
+    else if (status.active) chip.textContent = selectedStyle(panel) === 'astronomy' ? 'Astronomy red' : 'Classic dim';
+    else chip.textContent = `${status.start || '22:00'}–${status.end || '07:00'}`;
+  }
+
+  function updateNightCopy(nightCard, panel) {
+    const heading = nightCard.querySelector('.settings-card-heading p');
+    if (heading) heading.textContent = 'Scheduled night presentation with touch-to-wake. The Alarm screen always remains fully visible.';
+    const level = nightCard.querySelector('[data-setting-path="display.night_dim_level_percent"]');
+    const help = level?.closest('.setting-field')?.querySelector('small');
+    if (help) help.textContent = 'Controls the selected night appearance without altering the Pi display driver or audio graph.';
+    const message = nightCard.querySelector('[data-night-dim-message]');
+    if (message) message.textContent = 'First touch wakes the screen without activating the control beneath it.';
+    nightCard.querySelector('[data-action="preview-night-dimming"]')?.addEventListener('click', () => {
+      if (message) message.textContent = 'Previewing the selected night appearance for eight seconds. Touch the screen to wake it.';
+    });
+    const refresh = () => window.queueMicrotask(() => updateNightStatus(panel));
+    nightCard.addEventListener('input', refresh);
+    nightCard.addEventListener('change', refresh);
+  }
+
   function applyNightStyle(select) {
     const status = window.ACPDisplayDimming?.status?.() || {};
     window.ACPDisplayDimming?.configure?.({ ...status, style: select.value });
+    updateNightStatus(select.closest('[data-settings-section="display"]'));
   }
 
   function populateNightStyle(select, attempts = 80) {
@@ -132,6 +164,7 @@
 
     header?.insertAdjacentElement('afterend', overview);
     pages.forEach((page) => panel.appendChild(page));
+    updateNightCopy(nightCard, panel);
 
     rows.forEach((button) => {
       button.addEventListener('click', () => openSubpage(panel, overview, button.dataset.settingsSubpageTarget));
