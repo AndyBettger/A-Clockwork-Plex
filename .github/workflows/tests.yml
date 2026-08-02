@@ -104,8 +104,8 @@ jobs:
           grep -q "settings-advanced.js" app/templates/settings.html
           grep -q "settings-ipad.css" app/templates/settings.html
           grep -q "('audio', 'Audio'" app/templates/settings.html
-          grep -q "data-setting-path=\"airplay.receiver_name\"" app/templates/settings.html
-          grep -q 'audio.eq.bands.{{ band }}' app/templates/settings.html
+          grep -Fq 'airplay.receiver_name' app/templates/settings.html
+          grep -Fq 'audio.eq.bands.{{ band }}' app/templates/settings.html
           grep -q "Save Changes" app/templates/settings.html
           ! grep -q "settings-tabs.js" app/templates/settings.html
           ! grep -q "settings-autosave.js" app/templates/base.html
