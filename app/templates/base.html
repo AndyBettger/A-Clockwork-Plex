@@ -32,15 +32,18 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq-drawer-layout.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/fader-calibration.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-autosave.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-dashboard-preferences.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css', v='20260730-atomic-plexamp-underlay-handoff') }}">
 </head>
 <body
   class="mode-{{ state.mode }} acp-page-booting"
   data-active-page="{{ active_page | default(state.mode) }}"
   data-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
+  data-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-idle-return-mode="{{ config.dashboard.idle_return_mode | default(config.dashboard.default_mode) | default('clock') }}"
   data-idle-timeout-seconds="{{ config.dashboard.idle_timeout_seconds | default(180) }}"
+  data-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
+  data-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
+  data-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
 >
   <main class="screen">
     {% block content %}{% endblock %}
@@ -80,12 +83,7 @@
   <script src="{{ url_for('static', filename='js/airplay-start-commit.js') }}"></script>
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
   <script src="{{ url_for('static', filename='js/plexamp-persistent.js', v='20260730-atomic-plexamp-underlay-handoff') }}"></script>
-  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20260730-playback-generation-transition-serialization') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-autosave.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-dashboard-preferences.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-alarm-scheduler.js', v='20260731-scheduled-alarm-audio-truth') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-alarm-scheduled.js', v='20260731-guarded-scheduled-alarm-audio') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-alarm-workspace.js', v='20260731-alarm-workspace-truth') }}"></script>
+  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20260802-server-preferences') }}"></script>
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260730-stale-projection-navigation-epoch') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
   {% if active_page | default(state.mode) == 'weather' %}
