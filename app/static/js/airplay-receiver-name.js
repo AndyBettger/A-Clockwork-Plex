@@ -7,9 +7,8 @@
   }
 
   const configuredName = String(page.dataset.configuredReceiverName || '').trim();
-  const receiverName = String(page.dataset.receiverName || configuredName)
-    .replace(/\s+Plexamp$/i, '')
-    .trim() || configuredName || 'A Clockwork Plex';
+  const renderedName = String(page.dataset.receiverName || '').trim();
+  const receiverName = configuredName || renderedName || 'A Clockwork Plex';
 
   let normalising = false;
 
@@ -27,14 +26,20 @@
     }
     normalising = true;
 
-    const currentTitle = title.textContent.trim();
-    if (configuredName && currentTitle === configuredName && receiverName !== currentTitle) {
-      replaceOnlyWhenChanged(title, receiverName);
-    }
+    replaceOnlyWhenChanged(title, receiverName);
 
     const detailText = detail.textContent;
-    if (configuredName && detailText.includes(configuredName)) {
-      const nextDetail = detailText.split(configuredName).join(receiverName);
+    if (renderedName && renderedName !== receiverName && detailText.includes(renderedName)) {
+      replaceOnlyWhenChanged(detail, detailText.split(renderedName).join(receiverName));
+    } else if (configuredName && detailText.includes(configuredName) === false) {
+      const fallbackNames = [renderedName, 'A Clockwork Plex'].filter(Boolean);
+      let nextDetail = detailText;
+      for (const fallbackName of fallbackNames) {
+        if (nextDetail.includes(fallbackName)) {
+          nextDetail = nextDetail.split(fallbackName).join(configuredName);
+          break;
+        }
+      }
       replaceOnlyWhenChanged(detail, nextDetail);
     }
 
