@@ -48,6 +48,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("event.stopImmediatePropagation()", text)
         self.assertIn("clickBlockUntil", text)
         self.assertIn("wake()", text)
+        self.assertNotIn("|| previewing() || alarmVisible()", text)
 
     def test_settings_and_backend_share_the_full_dimming_model(self):
         settings = SETTINGS.read_text(encoding="utf-8")
