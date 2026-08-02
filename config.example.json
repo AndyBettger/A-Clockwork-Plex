@@ -3,10 +3,12 @@
     "host": "0.0.0.0",
     "port": 8088,
     "default_mode": "clock",
+    "startup_mode": "clock",
+    "idle_return_mode": "clock",
     "clock_format": "24h",
     "idle_timeout_seconds": 180,
-    "night_dim_start": "02:00",
-    "night_dim_end": "11:00"
+    "transition_style": "grow-fade",
+    "transition_duration_ms": 300
   },
   "plexamp": {
     "url": "http://localhost:32500",
@@ -118,5 +120,15 @@
     "test_volume_cap_percent": 25,
     "helper_path": "/usr/local/bin/a-clockwork-plex-alarm-audio",
     "mixer_helper_path": "/usr/local/bin/a-clockwork-plex-audio-mixer"
+  },
+  "audio": {
+    "eq": {
+      "enabled": false,
+      "bands": {
+        "bass": 0.0,
+        "mid": 0.0,
+        "treble": 0.0
+      }
+    }
   }
 }
