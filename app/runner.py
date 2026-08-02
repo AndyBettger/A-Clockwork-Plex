@@ -14,6 +14,8 @@ try:
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
     from .screen_projection_activity import register_activity_screen_projection
+    from .settings_unified import UnifiedSettingsService, register_unified_settings_api
+    from .shairport_name import ShairportNameManager
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
 except ImportError:  # Supports direct execution with: python app/runner.py
@@ -30,6 +32,8 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
     from screen_projection_activity import register_activity_screen_projection
+    from settings_unified import UnifiedSettingsService, register_unified_settings_api
+    from shairport_name import ShairportNameManager
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
 
@@ -55,6 +59,20 @@ register_weather_forecast_settings_api(
     dashboard.load_config,
     lambda config: dashboard.save_json(dashboard.CONFIG_PATH, config),
 )
+shairport_name = ShairportNameManager()
+unified_settings = UnifiedSettingsService(
+    load_config=dashboard.load_config,
+    save_config=lambda config: dashboard.save_json(dashboard.CONFIG_PATH, config),
+    tone_manifest=dashboard.alarm_tone_manifest,
+    clock_card_ids=set(dashboard.CLOCK_CARD_FIELD_IDS),
+    forecast=weather_forecast,
+    equalizer=master_equalizer,
+    shairport_name=shairport_name,
+    alarm_scheduler=dashboard.alarm_scheduler,
+    alarm_audio=dashboard.alarm_audio,
+    screen_idle_mode=screen_projection.set_idle_return_mode,
+)
+register_unified_settings_api(app, unified_settings)
 
 
 if __name__ == "__main__":
