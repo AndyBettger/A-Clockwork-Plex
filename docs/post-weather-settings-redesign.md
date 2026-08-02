@@ -84,8 +84,7 @@ GET  /api/settings
 POST /api/settings
 ```
 
-The right-pane Save bar stages and commits configuration as one validated
-transaction. The backend:
+The right-pane Save bar stages and commits configuration as one validated transaction. The backend:
 
 1. reads the current configuration and revision;
 2. validates every submitted domain through its specialist normaliser;
