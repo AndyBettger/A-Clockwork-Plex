@@ -33,6 +33,19 @@ _base.normalise_audio_settings = normalise_audio_settings
 _TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 _NIGHT_STYLES = {"classic", "astronomy"}
 _NIGHT_ACTIVE_STYLES = {"same", *_NIGHT_STYLES}
+_MAX_CLOCK_CARD_SLOTS = 8
+_CLOCK_CARD_SLOT_GROUPS = {
+    "outdoor_temp": "temperature_summary",
+    "indoor_temp": "temperature_summary",
+    "humidity": "humidity_summary",
+    "indoor_humidity": "humidity_summary",
+    "wind_speed": "wind_summary",
+    "wind_gust": "wind_summary",
+    "solar": "solar_uv_summary",
+    "uv": "solar_uv_summary",
+    "daily_rain": "rain_summary",
+    "event_rain": "rain_summary",
+}
 
 
 def _clock_time(value: Any, fallback: str, label: str) -> str:
@@ -46,6 +59,18 @@ def _night_style(value: Any, fallback: str, *, active: bool = False) -> str:
     allowed = _NIGHT_ACTIVE_STYLES if active else _NIGHT_STYLES
     candidate = str(value if value is not None else fallback).strip().lower()
     return candidate if candidate in allowed else fallback
+
+
+def _clock_card_slot_count(values: Any) -> int:
+    if not isinstance(values, list):
+        return 0
+    slots: list[str] = []
+    for value in values:
+        card_id = str(value)
+        slot_id = _CLOCK_CARD_SLOT_GROUPS.get(card_id, card_id)
+        if slot_id not in slots:
+            slots.append(slot_id)
+    return len(slots)
 
 
 class UnifiedSettingsService(_base.UnifiedSettingsService):
@@ -160,6 +185,15 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 ),
             }
         )
+
+    def _normalise_weather(self, config: dict[str, Any], payload: Any) -> None:
+        super()._normalise_weather(config, payload)
+        weather = _base._object(config.get("weather"))
+        slot_count = _clock_card_slot_count(weather.get("clock_cards"))
+        if slot_count > _MAX_CLOCK_CARD_SLOTS:
+            raise ValueError(
+                f"Clock weather cards support at most {_MAX_CLOCK_CARD_SLOTS} displayed slots."
+            )
 
 
 register_unified_settings_api = _base.register_unified_settings_api
