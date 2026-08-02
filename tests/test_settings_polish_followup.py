@@ -59,6 +59,13 @@ class SettingsPolishFollowupTests(unittest.TestCase):
         self.assertIn("Last fetched ${formatted}", text)
         self.assertIn("acp:clock-format-changed", text)
 
+    def test_forecast_time_authority_cannot_observe_its_own_output(self):
+        text = SETTINGS.read_text(encoding="utf-8")
+        self.assertNotIn("formattingForecastMessage", text)
+        self.assertNotIn("new MutationObserver", text)
+        self.assertIn("if (message.textContent !== nextText)", text)
+        self.assertIn("message.dataset.acpForecastFetchedAt !== status.fetched_at", text)
+
     def test_settings_text_stacks_and_about_42_badge_are_explicit(self):
         client = SETTINGS.read_text(encoding="utf-8")
         style = SETTINGS_STYLE.read_text(encoding="utf-8")
