@@ -5,10 +5,12 @@ import argparse
 import json
 import os
 import re
+import selectors
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,8 @@ SERVICE_NAME = "shairport-sync.service"
 SHAIRPORT_BINARY = Path("/usr/bin/shairport-sync")
 SYSTEMCTL_BINARY = Path("/usr/bin/systemctl")
 MAX_RECEIVER_NAME_LENGTH = 50
+DISPLAY_CONFIG_END_MARKER = ">> Display Config End."
+VALIDATION_TIMEOUT_SECONDS = 5.0
 GENERAL_BLOCK_RE = re.compile(r"(?P<prefix>\bgeneral\s*=\s*\{)(?P<body>.*?)(?P<suffix>\}\s*;)", re.DOTALL)
 NAME_RE = re.compile(r'(?m)^(?P<indent>\s*)name\s*=\s*"(?:\\.|[^"\\])*"\s*;')
 
@@ -96,17 +100,98 @@ def service_active() -> bool:
     return result.returncode == 0
 
 
+def validation_command(path: Path) -> list[str]:
+    # Shairport Sync exits after --displayConfig only when that is the sole option.
+    # A custom candidate path therefore needs a supervised process. Port zero and
+    # a temporary identity keep the short-lived validator separate from the live
+    # receiver while the configuration parser runs.
+    return [
+        str(SHAIRPORT_BINARY),
+        "--displayConfig",
+        "--configfile",
+        str(path),
+        "--port",
+        "0",
+        "--name",
+        f"ACP-config-check-{os.getpid()}",
+    ]
+
+
+def _stop_validation_process(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+        process.wait(timeout=1)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        try:
+            process.kill()
+            process.wait(timeout=1)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            pass
+
+
+def _concise_validation_detail(output: str) -> str:
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    return "\n".join(lines[-8:])
+
+
 def validate_config(path: Path) -> tuple[bool, str | None]:
     if not SHAIRPORT_BINARY.exists():
         return False, f"Shairport Sync binary not found at {SHAIRPORT_BINARY}."
-    result = run(
-        [str(SHAIRPORT_BINARY), "--displayConfig", "--configfile", str(path)],
-        timeout=15,
-    )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "").strip()
-        return False, detail or "Shairport Sync rejected the generated configuration."
-    return True, None
+
+    command = validation_command(path)
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+        )
+    except OSError as exc:
+        return False, f"Could not start Shairport Sync configuration validation: {exc}"
+
+    output: list[str] = []
+    selector = selectors.DefaultSelector()
+    marker_seen = False
+    deadline = time.monotonic() + VALIDATION_TIMEOUT_SECONDS
+    try:
+        if process.stdout is None:
+            return False, "Shairport Sync configuration validation produced no output stream."
+        selector.register(process.stdout, selectors.EVENT_READ)
+        while time.monotonic() < deadline:
+            remaining = max(0.0, deadline - time.monotonic())
+            events = selector.select(timeout=min(0.1, remaining))
+            if events:
+                for key, _mask in events:
+                    line = key.fileobj.readline()
+                    if line:
+                        output.append(line)
+                        if DISPLAY_CONFIG_END_MARKER in line:
+                            marker_seen = True
+                            break
+                if marker_seen:
+                    break
+            elif process.poll() is not None:
+                remainder = process.stdout.read()
+                if remainder:
+                    output.append(remainder)
+                break
+    finally:
+        selector.close()
+        _stop_validation_process(process)
+
+    combined = "".join(output)
+    if marker_seen or DISPLAY_CONFIG_END_MARKER in combined:
+        return True, None
+
+    detail = _concise_validation_detail(combined)
+    if detail:
+        return False, detail
+    return False, "Shairport Sync did not finish reading the generated configuration."
 
 
 def restart_service() -> tuple[bool, str | None]:
