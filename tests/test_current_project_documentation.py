@@ -47,7 +47,7 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
     def test_readme_records_validated_appliance_and_eq_next(self):
         text = README.read_text(encoding="utf-8")
         self.assertIn("unified iPad-style Settings", text)
-        self.assertIn("Managed AirPlay receiver name", text)
+        self.assertIn("configurable AirPlay receiver name", text)
         self.assertIn("Settings-hosted EQ controls", text)
         self.assertIn("scheduled display dimming", text)
         self.assertIn("one dashboard-wide clock-format", text)
