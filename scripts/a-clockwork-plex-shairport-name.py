@@ -6,9 +6,7 @@ import json
 import os
 import re
 import selectors
-import shutil
 import subprocess
-import sys
 import tempfile
 import time
 from pathlib import Path
@@ -117,7 +115,7 @@ def validation_command(path: Path) -> list[str]:
     ]
 
 
-def _stop_validation_process(process: subprocess.Popen[str]) -> None:
+def _stop_validation_process(process: subprocess.Popen[Any]) -> None:
     if process.poll() is not None:
         return
     try:
@@ -146,45 +144,55 @@ def validate_config(path: Path) -> tuple[bool, str | None]:
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            bufsize=1,
+            bufsize=0,
         )
     except OSError as exc:
         return False, f"Could not start Shairport Sync configuration validation: {exc}"
 
-    output: list[str] = []
+    stream = process.stdout
+    if stream is None:
+        _stop_validation_process(process)
+        return False, "Shairport Sync configuration validation produced no output stream."
+
+    output = bytearray()
+    marker = DISPLAY_CONFIG_END_MARKER.encode("utf-8")
     selector = selectors.DefaultSelector()
     marker_seen = False
     deadline = time.monotonic() + VALIDATION_TIMEOUT_SECONDS
     try:
-        if process.stdout is None:
-            return False, "Shairport Sync configuration validation produced no output stream."
-        selector.register(process.stdout, selectors.EVENT_READ)
+        os.set_blocking(stream.fileno(), False)
+        selector.register(stream, selectors.EVENT_READ)
         while time.monotonic() < deadline:
             remaining = max(0.0, deadline - time.monotonic())
             events = selector.select(timeout=min(0.1, remaining))
-            if events:
-                for key, _mask in events:
-                    line = key.fileobj.readline()
-                    if line:
-                        output.append(line)
-                        if DISPLAY_CONFIG_END_MARKER in line:
-                            marker_seen = True
-                            break
-                if marker_seen:
-                    break
-            elif process.poll() is not None:
-                remainder = process.stdout.read()
-                if remainder:
-                    output.append(remainder)
+            for key, _mask in events:
+                try:
+                    chunk = os.read(key.fileobj.fileno(), 4096)
+                except BlockingIOError:
+                    continue
+                if chunk:
+                    output.extend(chunk)
+                    if marker in output:
+                        marker_seen = True
+                        break
+            if marker_seen:
+                break
+            if process.poll() is not None:
+                while True:
+                    try:
+                        chunk = os.read(stream.fileno(), 4096)
+                    except BlockingIOError:
+                        break
+                    if not chunk:
+                        break
+                    output.extend(chunk)
                 break
     finally:
         selector.close()
         _stop_validation_process(process)
+        stream.close()
 
-    combined = "".join(output)
+    combined = output.decode("utf-8", errors="replace")
     if marker_seen or DISPLAY_CONFIG_END_MARKER in combined:
         return True, None
 
