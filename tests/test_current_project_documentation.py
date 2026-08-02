@@ -9,6 +9,7 @@ README = ROOT / "README.md"
 ALARM_GUIDE = ROOT / "docs" / "alarm-audio-testing.md"
 ARCHITECTURE = ROOT / "docs" / "application-state-architecture.md"
 SETTINGS_REDESIGN = ROOT / "docs" / "post-weather-settings-redesign.md"
+ALARM_RUNTIME = ROOT / "app" / "alarm_runtime.py"
 
 
 class CurrentProjectDocumentationTests(unittest.TestCase):
@@ -24,6 +25,8 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("Weather-provider work was the **final development stage**", text)
         self.assertIn("built and physically validated", text)
         self.assertIn("cached Open-Meteo forecasts", text)
+        self.assertIn("up to 16 forecast days", text)
+        self.assertIn("renders every daily item", text)
 
     def test_post_weather_settings_redesign_is_implemented(self):
         text = SETTINGS_REDESIGN.read_text(encoding="utf-8")
@@ -36,13 +39,20 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("Treble", text)
         self.assertIn("settings-tabs.js", text)
         self.assertIn("no longer loads", text)
+        self.assertIn("Display dimming", text)
+        self.assertIn("ACPTime", text)
+        self.assertIn("16-day response produces 16", text)
+        self.assertIn("Advanced Audio is diagnostic", text)
 
-    def test_readme_records_focused_settings_validation_as_next(self):
+    def test_readme_records_validated_appliance_and_eq_next(self):
         text = README.read_text(encoding="utf-8")
         self.assertIn("unified iPad-style Settings", text)
-        self.assertIn("restricted Shairport receiver-name helper", text)
+        self.assertIn("Managed AirPlay receiver name", text)
         self.assertIn("Settings-hosted EQ controls", text)
+        self.assertIn("scheduled display dimming", text)
+        self.assertIn("one dashboard-wide clock-format authority", text)
         self.assertIn("Do not run: sudo bash scripts/install-master-eq.sh", text)
+        self.assertIn("guarded production-EQ", text)
 
     def test_alarm_guide_documents_real_scheduled_takeover(self):
         text = ALARM_GUIDE.read_text(encoding="utf-8")
@@ -55,8 +65,17 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         text = ARCHITECTURE.read_text(encoding="utf-8")
         self.assertIn("RetainedBidirectionalHandoffCoordinator", text)
         self.assertIn("scheduled-alarm-audio-manager", text)
+        self.assertIn("ACPTime", text)
+        self.assertIn("ACPDisplayDimming", text)
         self.assertIn("manual", text)
         self.assertIn("PR #2 remains draft", text)
+
+    def test_scheduler_wording_describes_delegation_not_disabled_audio(self):
+        text = ALARM_RUNTIME.read_text(encoding="utf-8")
+        self.assertIn("audio delegated to the alarm-audio authority", text)
+        self.assertIn("scheduled audio is delegated to the promoted authority", text)
+        self.assertNotIn("audio remains disabled", text)
+        self.assertNotIn("audio playback is still disabled", text)
 
 
 if __name__ == "__main__":
