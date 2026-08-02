@@ -54,6 +54,21 @@
     if (attempts > 0) window.setTimeout(() => populate(control, attempts - 1), 100);
   }
 
+  function ensureDurationOptions(control) {
+    const choices = [
+      ['5', '5 seconds'],
+      ['10', '10 seconds'],
+    ];
+    const firstExisting = control.querySelector('option');
+    choices.forEach(([value, label]) => {
+      if (control.querySelector(`option[value="${value}"]`)) return;
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      control.insertBefore(option, firstExisting);
+    });
+  }
+
   function install(attempt = 0) {
     const card = document.querySelector('[data-night-dimming-settings]');
     const idleControl = setting('display.night_dim_level_percent');
@@ -64,6 +79,8 @@
     }
     if (card.dataset.nightInteractionReady === 'true') return;
     card.dataset.nightInteractionReady = 'true';
+
+    ensureDurationOptions(durationControl);
 
     const headingCopy = card.querySelector('.settings-card-heading p');
     if (headingCopy) {
@@ -112,6 +129,7 @@
     });
 
     window.addEventListener('acp:display-night-interaction', renderStatus);
+    window.addEventListener('acp:display-night-interaction-ended', renderStatus);
     populate(activeControl);
     renderStatus();
   }
