@@ -18,18 +18,20 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("settings-ipad-shell", self.template)
         self.assertIn("settings-sidebar", self.template)
         self.assertIn("settings-detail", self.template)
-        for section in (
-            "general",
-            "display",
-            "weather",
-            "alarms",
-            "airplay",
-            "audio",
-            "plexamp",
-            "advanced",
-            "about",
-        ):
-            self.assertIn(f'data-settings-section-target="{section}"', self.template)
+        categories = {
+            "general": "General",
+            "display": "Display",
+            "weather": "Weather",
+            "alarms": "Alarms",
+            "airplay": "AirPlay",
+            "audio": "Audio",
+            "plexamp": "Plexamp",
+            "advanced": "Advanced",
+            "about": "About",
+        }
+        self.assertIn('data-settings-section-target="{{ item[0] }}"', self.template)
+        for section, label in categories.items():
+            self.assertIn(f"('{section}', '{label}'", self.template)
             self.assertIn(f'data-settings-section="{section}"', self.template)
         self.assertNotIn("data-settings-tabs", self.template)
         self.assertNotIn("settings-tabs.js", self.template)
@@ -92,8 +94,8 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("Save and restart AirPlay", self.template)
         self.assertIn("automatic rollback", self.template)
         self.assertIn('data-setting-path="audio.eq.enabled"', self.template)
-        for band in ("bass", "mid", "treble"):
-            self.assertIn(f'data-setting-path="audio.eq.bands.{band}"', self.template)
+        self.assertIn("{% for band in ['bass','mid','treble'] %}", self.template)
+        self.assertIn('data-setting-path="audio.eq.bands.{{ band }}"', self.template)
         self.assertIn('data-action="eq-flat"', self.template)
         self.assertIn("Production ready", self.client)
 
@@ -103,6 +105,15 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertNotIn("method: 'POST'", self.alarms)
         self.assertNotIn("saveAlarmModel", self.alarms)
         self.assertNotIn("HTMLFormElement.prototype.submit", self.alarms)
+
+    def test_clock_card_editor_participates_in_save_and_discard(self):
+        clock_cards = Path("app/static/js/settings-clock-cards.js").read_text(encoding="utf-8")
+        self.assertIn("window.ACPClockCards", clock_cards)
+        self.assertIn("applyStoredIds", clock_cards)
+        self.assertIn("storedIds", clock_cards)
+        self.assertIn("window.ACPClockCards?.storedIds?.()", self.client)
+        self.assertIn("applyClockCards(loadedSettings)", self.client)
+        self.assertNotIn("new MutationObserver", self.client)
 
     def test_actions_are_explicitly_separate_from_configuration(self):
         for action in (
