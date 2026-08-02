@@ -29,25 +29,41 @@
     return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(candidate) ? candidate : fallback;
   }
 
-  function normalise(source = {}) {
+  function booleanValue(source, modernKey, legacyKey, fallback) {
+    if (Object.prototype.hasOwnProperty.call(source, modernKey)) return source[modernKey] === true;
+    if (Object.prototype.hasOwnProperty.call(source, legacyKey)) return source[legacyKey] === true;
+    return fallback;
+  }
+
+  function normalise(source = {}, fallback = defaults) {
     return {
-      enabled: source.enabled === true || source.night_dim_enabled === true,
-      start: time(source.start ?? source.night_dim_start, defaults.start),
-      end: time(source.end ?? source.night_dim_end, defaults.end),
+      enabled: booleanValue(source, 'enabled', 'night_dim_enabled', fallback.enabled),
+      start: time(source.start ?? source.night_dim_start, fallback.start),
+      end: time(source.end ?? source.night_dim_end, fallback.end),
       levelPercent: number(
         source.levelPercent ?? source.night_dim_level_percent,
-        defaults.levelPercent,
+        fallback.levelPercent,
         5,
         80,
       ),
       wakeSeconds: number(
         source.wakeSeconds ?? source.night_dim_wake_seconds,
-        defaults.wakeSeconds,
+        fallback.wakeSeconds,
         5,
         300,
       ),
-      nightClockMode: source.nightClockMode === true || source.night_clock_mode === true,
-      burnInShift: source.burnInShift === true || source.night_burn_in_shift === true,
+      nightClockMode: booleanValue(
+        source,
+        'nightClockMode',
+        'night_clock_mode',
+        fallback.nightClockMode,
+      ),
+      burnInShift: booleanValue(
+        source,
+        'burnInShift',
+        'night_burn_in_shift',
+        fallback.burnInShift,
+      ),
     };
   }
 
@@ -143,7 +159,7 @@
   }
 
   function configure(source = {}) {
-    settings = normalise({ ...settings, ...source });
+    settings = normalise(source, settings);
     const root = document.documentElement;
     root.dataset.nightDimEnabled = String(settings.enabled);
     root.dataset.nightDimStart = settings.start;
