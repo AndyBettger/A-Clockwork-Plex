@@ -19,6 +19,52 @@
   font-weight: 700;
 }
 
+/* Explicit text stacks prevent labels and descriptions running together. */
+.settings-page .setting-field > span:first-child,
+.settings-page .setting-field > strong,
+.settings-page .setting-field > small,
+.settings-page .setting-toggle > span > strong,
+.settings-page .setting-toggle > span > small,
+.settings-page .settings-sidebar-row strong,
+.settings-page .settings-sidebar-row small,
+.settings-page .settings-subpage-row strong,
+.settings-page .settings-subpage-row small,
+.settings-page .settings-about-reading > span,
+.settings-page .settings-about-reading > strong,
+.settings-page .settings-about-reading > small {
+  display: block;
+}
+
+.settings-page .setting-field > span:first-child,
+.settings-page .setting-toggle > span > strong,
+.settings-page .settings-sidebar-row strong,
+.settings-page .settings-subpage-row strong,
+.settings-page .settings-about-reading > span {
+  margin-bottom: 0.28rem;
+}
+
+.settings-page .setting-field > strong + small,
+.settings-page .setting-field > input + small,
+.settings-page .setting-field > select + small,
+.settings-page .setting-toggle > span > strong + small,
+.settings-page .settings-sidebar-row strong + small,
+.settings-page .settings-subpage-row strong + small,
+.settings-page .settings-about-reading > strong + small {
+  margin-top: 0.34rem;
+}
+
+.settings-page .setting-toggle > span,
+.settings-page .settings-sidebar-row > span:first-child,
+.settings-page .settings-subpage-row > span:first-child,
+.settings-page .settings-about-reading {
+  min-width: 0;
+}
+
+.settings-page .setting-toggle > span,
+.settings-page .settings-about-reading {
+  line-height: 1.25;
+}
+
 .settings-diagnostics-explainer {
   min-height: 100%;
   justify-content: center;
@@ -39,7 +85,36 @@
 }
 
 [data-settings-section="about"] .settings-about-reading small {
-  display: block;
   margin-top: 0.35rem;
   line-height: 1.35;
+}
+
+[data-settings-section="about"] .settings-about-message-row {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+}
+
+[data-settings-section="about"] .settings-about-42-badge {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid rgba(143, 211, 255, 0.34);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(224, 246, 255, 0.24), transparent 36%),
+    rgba(21, 51, 75, 0.86);
+  color: #e9f8ff;
+  box-shadow: 0 0 20px rgba(143, 211, 255, 0.16);
+  font-size: 1.42rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+[data-settings-section="about"] #about-message {
+  display: block;
+  margin: 0;
+  line-height: 1.42;
 }
