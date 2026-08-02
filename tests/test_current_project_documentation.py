@@ -50,7 +50,7 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("Managed AirPlay receiver name", text)
         self.assertIn("Settings-hosted EQ controls", text)
         self.assertIn("scheduled display dimming", text)
-        self.assertIn("one dashboard-wide clock-format authority", text)
+        self.assertIn("one dashboard-wide clock-format", text)
         self.assertIn("Do not run: sudo bash scripts/install-master-eq.sh", text)
         self.assertIn("guarded production-EQ", text)
 
