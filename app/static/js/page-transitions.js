@@ -44,6 +44,11 @@
     return options.automatic === true || options.source === 'screen-projection';
   }
 
+  function preserveNightInteraction(options = {}) {
+    if (isAutomaticNavigation(options)) return;
+    window.ACPDisplayDimming?.interact?.(undefined, 'dashboard-navigation');
+  }
+
   function rememberNavigation(target, options = {}) {
     if (isAutomaticNavigation(options) || !leasableRoutes.has(target.pathname)) return;
     try {
@@ -151,6 +156,8 @@
   async function navigate(url, options = {}) {
     const target = sameOriginTarget(url);
     if (!target || leaving || manualClaimInFlight || presentationInFlight) return;
+
+    preserveNightInteraction(options);
 
     if (!isAutomaticNavigation(options) && leasableRoutes.has(target.pathname)) {
       manualClaimInFlight = true;
