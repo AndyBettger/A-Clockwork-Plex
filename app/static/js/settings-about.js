@@ -48,9 +48,4 @@
       release.textContent = 'Metadata temporarily hiding behind the sofa';
       tag.textContent = 'Unknown';
     });
-
-  const schedulerStatusScript = document.createElement('script');
-  schedulerStatusScript.src = '/static/js/settings-alarm-scheduler.js';
-  schedulerStatusScript.async = false;
-  document.head.appendChild(schedulerStatusScript);
 })();
