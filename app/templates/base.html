@@ -33,8 +33,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
   {% block head %}{% endblock %}
   {% if active_page | default(state.mode) == 'settings' %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-followup.css', v='20260802-physical-autosave-audio') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-polish.css', v='20260802-physical-polish-v2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-followup.css', v='20260802-physical-followup-v2') }}">
   {% endif %}
   {% if active_page | default(state.mode) == 'weather' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260802-custom-forecast-scrollbar') }}">
@@ -106,8 +105,7 @@
   {% endif %}
   {% block scripts %}{% endblock %}
   {% if active_page | default(state.mode) == 'settings' %}
-  <script src="{{ url_for('static', filename='js/settings-physical-followup.js', v='20260802-physical-autosave-audio') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-physical-polish.js', v='20260802-physical-polish-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-physical-followup.js', v='20260802-physical-followup-v2') }}"></script>
   {% endif %}
 </body>
 </html>
