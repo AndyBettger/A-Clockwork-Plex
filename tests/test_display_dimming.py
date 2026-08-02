@@ -41,6 +41,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("!alarmVisible()", client)
         self.assertIn('data-active-page="alarm"', style)
         self.assertIn("mode-alarm", style)
+        self.assertIn("filter: none !important", style)
 
     def test_touch_to_wake_consumes_the_first_interaction(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -49,6 +50,23 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("clickBlockUntil", text)
         self.assertIn("wake()", text)
         self.assertNotIn("|| previewing() || alarmVisible()", text)
+
+    def test_classic_and_astronomy_styles_are_explicit(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        style = STYLE.read_text(encoding="utf-8")
+        backend = BACKEND.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        self.assertIn("style: 'classic'", client)
+        self.assertIn("night_dim_style", client)
+        self.assertIn("acp-night-style-classic", client)
+        self.assertIn("acp-night-style-astronomy", client)
+        self.assertIn("body.acp-night-style-classic", style)
+        self.assertIn("body.acp-night-style-astronomy", style)
+        self.assertIn("grayscale(1) contrast(1.08)", style)
+        self.assertNotIn("sepia(1)", style)
+        self.assertNotIn("hue-rotate", style)
+        self.assertIn('_NIGHT_DIM_STYLES = {"classic", "astronomy"}', backend)
+        self.assertIn("data-night-dim-style", base)
 
     def test_settings_and_backend_share_the_full_dimming_model(self):
         settings = SETTINGS.read_text(encoding="utf-8")
@@ -66,6 +84,7 @@ class DisplayDimmingTests(unittest.TestCase):
             self.assertIn(key, settings)
             self.assertIn(key, backend)
             self.assertIn(key, example)
+        self.assertIn("night_dim_style", backend)
 
     def test_base_loads_global_dimming_before_page_content(self):
         text = BASE.read_text(encoding="utf-8")
