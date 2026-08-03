@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-followup.css', v='20260802-physical-followup-v2') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-completion.css', v='20260802-settings-completion-v3') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-pass-a.css', v='20260802-pass-a') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-selects.css', v='20260803-night-safe-selects') }}">
   {% endif %}
   {% if active_page | default(state.mode) == 'weather' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260802-custom-forecast-scrollbar') }}">
@@ -103,6 +104,7 @@
   <script src="{{ url_for('static', filename='js/settings-display-sections.js', v='20260802-night-interaction') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-night-interaction.js', v='20260802-short-night-duration') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-pass-a.js', v='20260802-pass-a') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-selects.js', v='20260803-night-safe-selects') }}"></script>
   {% endif %}
 </body>
 </html>
