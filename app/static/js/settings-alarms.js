@@ -378,7 +378,7 @@
   function renderDefaults() {
     defaultsMount.replaceChildren();
     const card = node('section', 'settings-card');
-    card.innerHTML = '<div class="settings-card-heading"><div><h3>Alarm defaults</h3><p class="muted small">Starting values used for newly-created alarms.</p></div><span class="settings-chip">Saved together</span></div>';
+    card.innerHTML = '<div class="settings-card-heading"><div><h3>Alarm defaults</h3><p class="muted small">Starting values used for newly-created alarms.</p></div></div>';
     const grid = node('div', 'alarm-model-defaults');
     const snooze = durationControl(model.defaults.snooze_minutes, SNOOZE_PRESETS, 1, 60, (value) => {
       model.defaults.snooze_minutes = value;
