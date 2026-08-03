@@ -70,6 +70,19 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("body.keyboard-open .settings-detail", style)
         self.assertIn("scroll-padding-bottom", style)
 
+    def test_redundant_status_badges_are_removed_and_alarm_count_is_a_heading_pill(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        style = STYLE.read_text(encoding="utf-8")
+        self.assertIn("document.querySelector('[data-night-dim-status]')?.remove()", client)
+        self.assertIn("document.querySelector('[data-shairport-health]')?.remove()", client)
+        self.assertIn('[data-settings-subpage="audio:trims"] .settings-card-heading > .settings-chip', client)
+        self.assertIn("No alarms set", client)
+        self.assertIn("Alarm${count === 1 ? '' : 's'} Set", client)
+        self.assertIn("alarm-count-summary", client)
+        self.assertIn("#settings-alarm-schedule .alarm-schedule-heading", style)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) auto", style)
+        self.assertIn("#settings-alarm-schedule .alarm-count-summary", style)
+
     def test_first_paint_and_new_assets_are_wired(self):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn('<html lang="en-GB" class="acp-document-booting"', base)
