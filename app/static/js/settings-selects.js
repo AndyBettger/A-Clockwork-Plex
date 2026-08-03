@@ -264,6 +264,7 @@
     });
     ownerLabel?.addEventListener('click', (event) => {
       if (shell.contains(event.target)) return;
+      if (event.target.closest('button, input, textarea, a, [role="button"]')) return;
       event.preventDefault();
       event.stopPropagation();
       open(state);
