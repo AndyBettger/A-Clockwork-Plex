@@ -37,6 +37,21 @@
     updateAlarmCount();
   }
 
+  function installServiceStatusRefresh() {
+    const refreshButton = document.querySelector('[data-action="refresh-services"]');
+    const openButton = document.querySelector('[data-settings-subpage-target="advanced:services"]');
+    if (!refreshButton || !openButton || refreshButton.dataset.automaticServiceRefresh === 'true') return;
+
+    refreshButton.dataset.automaticServiceRefresh = 'true';
+    refreshButton.hidden = true;
+    refreshButton.tabIndex = -1;
+    refreshButton.setAttribute('aria-hidden', 'true');
+
+    openButton.addEventListener('click', () => {
+      window.setTimeout(() => refreshButton.click(), 0);
+    });
+  }
+
   function installClockCardLimit() {
     const root = document.querySelector('[data-clock-card-settings]');
     const order = document.getElementById('clock-card-order');
@@ -161,6 +176,7 @@
 
   function initialise() {
     installStatusBadgeCleanup();
+    installServiceStatusRefresh();
     installClockCardLimit();
     installKeyboardVisibility();
   }
