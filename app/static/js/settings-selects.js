@@ -7,6 +7,7 @@
   if (!form) return;
 
   const enhanced = new Set();
+  const deferredCustomDurations = new Set();
   let sequence = 0;
   let openState = null;
   let refreshQueued = false;
@@ -29,6 +30,29 @@
     return select.selectedOptions?.[0]?.textContent?.trim()
       || select.options?.[select.selectedIndex]?.textContent?.trim()
       || 'Choose';
+  }
+
+  function durationCustomState(select) {
+    const control = select.closest('.alarm-duration-control');
+    const input = control?.querySelector('.alarm-duration-custom');
+    if (!control || !(input instanceof HTMLInputElement)) return null;
+    if (![...select.options].some((option) => option.value === 'custom')) return null;
+
+    const alarmId = select.closest('[data-alarm-id]')?.dataset.alarmId;
+    const label = String(select.closest('.setting-field')?.querySelector(':scope > span')?.textContent || 'duration')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+    const scope = alarmId ? `alarm:${alarmId}` : 'defaults';
+    return { input, key: `${scope}:${label}` };
+  }
+
+  function applyDeferredCustomDuration(select) {
+    const customState = durationCustomState(select);
+    if (!customState || !deferredCustomDurations.has(customState.key)) return customState;
+    select.value = 'custom';
+    customState.input.hidden = false;
+    return customState;
   }
 
   function close({ restoreFocus = false } = {}) {
@@ -65,6 +89,16 @@
     const changed = select.value !== value;
     select.value = value;
     if (!changed) return;
+
+    const customState = durationCustomState(select);
+    if (customState && value === 'custom') {
+      deferredCustomDurations.add(customState.key);
+      customState.input.hidden = false;
+      select.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+    if (customState) deferredCustomDurations.delete(customState.key);
+
     select.dispatchEvent(new Event('input', { bubbles: true }));
     select.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -247,6 +281,7 @@
     select.tabIndex = -1;
     select.insertAdjacentElement('afterend', shell);
 
+    const customDuration = applyDeferredCustomDuration(select);
     const state = { select, shell, trigger, valueText, menuId, observer: null };
     const ownerLabel = select.closest('label');
     enhanced.add(state);
@@ -276,8 +311,12 @@
     });
     select.addEventListener('input', () => sync(state));
     select.addEventListener('change', () => sync(state));
+    customDuration?.input.addEventListener('input', () => {
+      if (select.value === 'custom') deferredCustomDurations.add(customDuration.key);
+    });
 
     state.observer = new MutationObserver(() => {
+      applyDeferredCustomDuration(select);
       sync(state);
       if (openState?.state === state) buildMenu(state);
     });
@@ -299,6 +338,7 @@
         if (openState?.state === state) close();
         return;
       }
+      applyDeferredCustomDuration(state.select);
       sync(state);
     });
   }
