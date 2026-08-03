@@ -70,7 +70,7 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("body.keyboard-open .settings-detail", style)
         self.assertIn("scroll-padding-bottom", style)
 
-    def test_redundant_status_badges_are_removed_and_alarm_count_is_a_heading_pill(self):
+    def test_redundant_status_badges_are_removed_and_alarm_count_is_a_heading_box(self):
         client = CLIENT.read_text(encoding="utf-8")
         style = STYLE.read_text(encoding="utf-8")
         self.assertIn("document.querySelector('[data-night-dim-status]')?.remove()", client)
@@ -82,6 +82,9 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("#settings-alarm-schedule .alarm-schedule-heading", style)
         self.assertIn("grid-template-columns: minmax(0, 1fr) auto", style)
         self.assertIn("#settings-alarm-schedule .alarm-count-summary", style)
+        self.assertIn("min-height: 38px", style)
+        self.assertIn("border-radius: 11px", style)
+        self.assertIn("background: rgba(143, 211, 255, 0.075)", style)
 
     def test_first_paint_and_new_assets_are_wired(self):
         base = BASE.read_text(encoding="utf-8")
