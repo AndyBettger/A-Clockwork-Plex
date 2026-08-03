@@ -88,6 +88,22 @@
   line-height: 1.4;
 }
 
+/* Keep the useful alarm total in the schedule heading rather than as a loose line. */
+#settings-alarm-schedule .alarm-schedule-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px 14px;
+  margin-bottom: clamp(10px, 1.5vmin, 15px);
+}
+
+#settings-alarm-schedule .alarm-count-summary {
+  align-self: start;
+  justify-self: end;
+  margin: 0;
+  white-space: nowrap;
+}
+
 /* The right pane is the real scroll owner while the keyboard is open. */
 body.keyboard-open .settings-detail {
   padding-bottom: calc(var(--settings-keyboard-height, 300px) + 28px);
@@ -102,5 +118,9 @@ body.keyboard-open .settings-subpage {
 @media (max-width: 720px) {
   [data-settings-subpage="weather:forecast"] .settings-action-row {
     grid-template-columns: 1fr;
+  }
+
+  #settings-alarm-schedule .alarm-schedule-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 }
