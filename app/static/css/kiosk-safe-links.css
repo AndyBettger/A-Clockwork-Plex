@@ -43,7 +43,9 @@ body.kiosk-link-modal-open {
 
 .kiosk-link-modal {
   position: fixed;
-  z-index: 2147483000;
+  /* Stay beneath the pointer-transparent global night overlay so Classic and
+     Astronomy dimming treat the dialog exactly like every dashboard surface. */
+  z-index: 2147482990;
   inset: 0;
   display: grid;
   place-items: center;
