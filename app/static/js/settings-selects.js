@@ -248,6 +248,7 @@
     select.insertAdjacentElement('afterend', shell);
 
     const state = { select, shell, trigger, valueText, menuId, observer: null };
+    const ownerLabel = select.closest('label');
     enhanced.add(state);
 
     trigger.addEventListener('click', (event) => {
@@ -260,6 +261,17 @@
         event.preventDefault();
         open(state);
       }
+    });
+    ownerLabel?.addEventListener('click', (event) => {
+      if (shell.contains(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      open(state);
+    });
+    select.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      open(state);
     });
     select.addEventListener('input', () => sync(state));
     select.addEventListener('change', () => sync(state));
