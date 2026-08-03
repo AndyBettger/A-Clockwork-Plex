@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import unittest
@@ -13,6 +14,8 @@ BASE = ROOT / "app" / "templates" / "base.html"
 CLIENT = ROOT / "app" / "static" / "js" / "settings-pass-a.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-pass-a.css"
 SAFE_LINKS = ROOT / "app" / "static" / "js" / "kiosk-safe-links.js"
+SAFE_LINK_STYLE = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
+DIMMING_STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 SCHEDULED_SETTINGS = ROOT / "app" / "settings_unified_scheduled.py"
 
 
@@ -85,6 +88,41 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("min-height: 38px", style)
         self.assertIn("border-radius: 11px", style)
         self.assertIn("background: rgba(143, 211, 255, 0.075)", style)
+
+    def test_service_status_refresh_is_automatic_and_has_no_visible_button(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        style = STYLE.read_text(encoding="utf-8")
+        self.assertIn("installServiceStatusRefresh", client)
+        self.assertIn("refreshButton.hidden = true", client)
+        self.assertIn("window.setTimeout(() => refreshButton.click(), 0)", client)
+        self.assertIn('[data-settings-subpage="advanced:services"] [data-action="refresh-services"]', style)
+        self.assertIn("display: none !important", style)
+
+    def test_about_project_links_are_full_width_grid_cards(self):
+        style = STYLE.read_text(encoding="utf-8")
+        self.assertIn('[data-settings-section="about"] .settings-link-grid', style)
+        self.assertIn('[data-settings-section="about"] .settings-link-card', style)
+        self.assertIn("grid-template-columns: minmax(0, 1fr)", style)
+        self.assertIn("width: 100%", style)
+        self.assertIn("box-sizing: border-box", style)
+        self.assertIn("align-content: start", style)
+
+    def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
+        modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
+        dimming_style = DIMMING_STYLE.read_text(encoding="utf-8")
+        modal_match = re.search(
+            r"\.kiosk-link-modal\s*\{.*?z-index:\s*(\d+)",
+            modal_style,
+            re.DOTALL,
+        )
+        overlay_match = re.search(
+            r"#acp-night-dim-overlay\s*\{.*?z-index:\s*(\d+).*?pointer-events:\s*none",
+            dimming_style,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(modal_match)
+        self.assertIsNotNone(overlay_match)
+        self.assertLess(int(modal_match.group(1)), int(overlay_match.group(1)))
 
     def test_first_paint_and_new_assets_are_wired(self):
         base = BASE.read_text(encoding="utf-8")
