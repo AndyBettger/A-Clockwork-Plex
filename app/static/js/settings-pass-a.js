@@ -6,6 +6,36 @@
   const MAX_CLOCK_CARD_SLOTS = 8;
   let activeKeyboardTarget = null;
   let revealTimer = null;
+  let alarmCountObserver = null;
+
+  function installStatusBadgeCleanup() {
+    document.querySelector('[data-night-dim-status]')?.remove();
+    document.querySelector('[data-shairport-health]')?.remove();
+    document.querySelector(
+      '[data-settings-subpage="audio:trims"] .settings-card-heading > .settings-chip',
+    )?.remove();
+
+    const mount = document.getElementById('settings-alarm-schedule');
+    if (!mount || mount.dataset.alarmCountSummaryReady === 'true') return;
+    mount.dataset.alarmCountSummaryReady = 'true';
+
+    const updateAlarmCount = () => {
+      const heading = mount.querySelector('.alarm-schedule-heading');
+      const chip = heading?.querySelector('.settings-chip');
+      if (!heading || !chip) return;
+
+      const count = mount.querySelectorAll('.alarm-editor-card').length;
+      const label = count === 0
+        ? 'No alarms set'
+        : `${count} Alarm${count === 1 ? '' : 's'} Set`;
+      if (chip.textContent !== label) chip.textContent = label;
+      chip.classList.add('alarm-count-summary');
+    };
+
+    alarmCountObserver = new MutationObserver(updateAlarmCount);
+    alarmCountObserver.observe(mount, { childList: true, subtree: true });
+    updateAlarmCount();
+  }
 
   function installClockCardLimit() {
     const root = document.querySelector('[data-clock-card-settings]');
@@ -124,11 +154,13 @@
     window.addEventListener('resize', () => revealKeyboardTarget());
     window.addEventListener('pagehide', () => {
       observer.disconnect();
+      alarmCountObserver?.disconnect();
       window.clearTimeout(revealTimer);
     }, { once: true });
   }
 
   function initialise() {
+    installStatusBadgeCleanup();
     installClockCardLimit();
     installKeyboardVisibility();
   }
