@@ -56,6 +56,19 @@ class SettingsSelectTests(unittest.TestCase):
         self.assertIn("attributeFilter: ['disabled', 'label', 'selected', 'value']", client)
         self.assertIn("window.clearInterval(syncTimer)", client)
 
+    def test_custom_alarm_duration_waits_for_number_entry(self):
+        client = SELECT_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("const deferredCustomDurations = new Set()", client)
+        self.assertIn("function durationCustomState", client)
+        self.assertIn("if (customState && value === 'custom')", client)
+        self.assertIn("deferredCustomDurations.add(customState.key)", client)
+        self.assertIn("customState.input.hidden = false", client)
+        self.assertIn("applyDeferredCustomDuration(state.select)", client)
+        self.assertIn("customDuration?.input.addEventListener('input'", client)
+
+        custom_branch = client.split("if (customState && value === 'custom') {", 1)[1].split("    }", 1)[0]
+        self.assertNotIn("new Event('change'", custom_branch)
+
 
 if __name__ == "__main__":
     unittest.main()
