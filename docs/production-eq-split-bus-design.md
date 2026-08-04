@@ -1,6 +1,6 @@
 # Production EQ split-bus design
 
-Status: design accepted for the guarded production-EQ phase; production activation remains blocked.
+Status: Stage A isolated split-bus proof passed on the bedroom Pi; guarded Stage B real-service rehearsal remains pending and production activation remains blocked.
 
 ## User requirement
 
@@ -105,6 +105,8 @@ No persistent DSP activation may rely on that installer or the rejected `alsaequ
 - one CamillaDSP process survives all live reloads;
 - physical DAC state remains unchanged.
 
+Stage A passed on `plexamp-bedroom` on 5 August 2026 with CamillaDSP 4.1.3. Music Master measured −19.984 dB on music and 0.000 dB on alarm; music EQ measured +6.002 dB on music and +0.008 dB on alarm; the final limiter held the combined stress signal at −1.000 dBFS. See `docs/split-bus-dsp-laboratory-result-2026-08-05.md`.
+
 ### Stage B — temporary real-service route
 
 After Stage A passes on the Pi, a mandatory-rollback rehearsal may temporarily route Plexamp, AirPlay and alarm into their separate loopback lanes. It must prove:
@@ -144,4 +146,4 @@ The production route is not approved until all of the following are true:
 
 ## Production activation status
 
-Blocked pending the isolated split-bus laboratory and the later mandatory-rollback physical rehearsal. PR #2 remains Draft and must not be merged without explicit approval.
+Stage A passed. Production activation remains blocked pending the mandatory-rollback Stage B real-service rehearsal and the later guarded persistent installation design. PR #2 remains Draft and must not be merged without explicit approval.
