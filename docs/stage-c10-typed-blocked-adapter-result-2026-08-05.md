@@ -215,18 +215,16 @@ The 11 focused Stage C10 tests prove that:
 
 The tests additionally require `TransactionAction.EXPLICIT_UNINSTALL` to remain available while proving that no adapter-level `explicit_uninstall()` method exists.
 
-## CI state
+## Final CI result
 
-The first complete Stage C10 version passed:
+The final corrected 33-operation contract passed the complete branch suite:
 
 ```text
-Ran 601 tests in 3.236s
+Ran 601 tests in 3.912s
 OK
 ```
 
-Final acceptance requires the same complete branch suite to pass after the service-stop addition and removal of adapter-owned uninstall orchestration.
-
-The existing Stage C7 disposable-root transaction and consolidated Stage C4 sandbox transaction also execute during CI, preserving their exact rollback and production-boundary contracts.
+All 11 focused Stage C10 tests passed. The existing Stage C7 disposable-root transaction and consolidated Stage C4 sandbox transaction also executed successfully during the same run, preserving their exact rollback and production-boundary contracts.
 
 ## What Stage C10 proves
 
@@ -262,6 +260,6 @@ Those methods are names and types only. Every attempted host operation remains b
 
 ## Acceptance
 
-Stage C10 is accepted as **PASS** at the automated contract boundary once the final 33-operation branch run is green.
+Stage C10 is accepted as **PASS** at the automated contract boundary.
 
 No Pi command is generated for this stage. No persistent installer exists, the blocked `scripts/install-master-eq.sh` path was not run, and production EQ activation remains prohibited pending further reviewed stages and explicit approval.
