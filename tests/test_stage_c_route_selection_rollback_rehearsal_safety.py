@@ -361,14 +361,14 @@ class StageCRouteSelectionRollbackRehearsalSafetyTests(unittest.TestCase):
             "permitted  29",
             "blocked     9",
             "close-route-selection-rollback-rehearsal-transaction",
-            "PR #2 must remain Draft, open and unmerged",
         ):
             self.assertIn(marker, self.design)
         normalized = " ".join(self.design.split())
-        self.assertIn(
+        for marker in (
             "same bytes, SHA-256, mode, ownership, device and inode",
-            normalized,
-        )
+            "PR #2 must remain Draft, open and unmerged",
+        ):
+            self.assertIn(marker, normalized)
 
     def test_python_and_shell_syntax(self) -> None:
         subprocess.run(
