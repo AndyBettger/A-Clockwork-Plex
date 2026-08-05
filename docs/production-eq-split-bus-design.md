@@ -1,6 +1,6 @@
 # Production EQ split-bus design
 
-Status: Stage A isolated CamillaDSP processing and Stage A2 isolated ALSA source-lane routing both passed on the bedroom Pi. The guarded Stage B real-service/DAC rehearsal is prepared but has not been activated. Production activation remains blocked.
+Status: Stage A isolated CamillaDSP processing, Stage A2 isolated ALSA source-lane routing and the guarded Stage B real-service/DAC rehearsal all passed on the bedroom Pi. Persistent production activation remains blocked pending the guarded Stage C installation, forced-failure and reboot checks.
 
 ## User requirement
 
@@ -132,18 +132,22 @@ The rehearsal retains the public `acp_plexamp`, `acp_airplay` and `acp_alarm` PC
 
 The generated laboratory-local control helper changes Music Master through the non-persistent `live` mixer action. The Settings volume faders must not be used during the rehearsal because their normal autosave behaviour could persist a temporary test level.
 
-The physical Stage B run must prove:
+Stage B passed on `plexamp-bedroom` on 5 August 2026. The physical run proved:
 
-- Plexamp and AirPlay use the music lane;
-- a real scheduled alarm uses the independent alarm lane;
-- Music Master at 0% silences music but not the alarm;
-- the ten-minute paused-AirPlay hold still works;
-- alarm takeover, Snooze and Dismiss still work;
-- optional Plexamp reclaim still pauses active AirPlay;
-- rollback restores exact files, controls, services and direct-mixer audio;
-- no CamillaDSP process remains after rollback.
+- Plexamp and AirPlay used the music lane and sounded normal;
+- AirPlay still paused Plexamp;
+- Music Master at 0% silenced music;
+- a real scheduled alarm remained audible while Music Master was 0%;
+- alarm takeover, Snooze, repeated ringing and Dismiss worked;
+- restoring Music Master restored audible music;
+- paused AirPlay was retained while the sender remained connected;
+- a genuine sender disconnect ended the hold immediately;
+- Ctrl-C rollback restored the exact ALSA checksum, mixer controls and prior service states;
+- no CamillaDSP process remained after rollback.
 
-The Stage B script and safety tests are committed, but prepare-only validation on the Pi and physical activation remain pending.
+The sender remained available for approximately 7 minutes 53 seconds before disconnecting. The deliberate product ceiling is now 420 seconds: paused AirPlay is retained for up to seven minutes while connected and is released earlier after a genuine disconnect. No synthetic Play, Pause or volume commands are used as keepalives.
+
+See `docs/split-bus-physical-rehearsal-result-2026-08-05.md`.
 
 ### Stage C — guarded persistent install
 
@@ -168,9 +172,9 @@ The production route is not approved until all of the following are true:
 6. Per-alarm target values above the maximum are audibly and measurably capped.
 7. Preview volume remains separately limited and cannot be mistaken for scheduled alarm loudness.
 8. The final limiter protects a combined music-plus-alarm signal.
-9. NFC playback, AirPlay handoff, rapid iPhone resume, ten-minute hold and alarm takeover still pass.
+9. NFC playback, AirPlay handoff, rapid iPhone resume, the seven-minute sender-aware hold and alarm takeover still pass.
 10. Forced CamillaDSP failure returns the appliance to the direct shared mixer without manual ALSA repair.
 
 ## Production activation status
 
-Stages A and A2 passed. Stage B is prepared but has not been activated. Production activation remains blocked pending the mandatory-rollback Stage B real-service/DAC rehearsal and the later guarded persistent installation design. PR #2 remains Draft and must not be merged without explicit approval.
+Stages A, A2 and B passed. Persistent production activation remains blocked pending the guarded Stage C installation, deliberate forced-failure validation and reboot regression checks. PR #2 remains Draft and must not be merged without explicit approval.
