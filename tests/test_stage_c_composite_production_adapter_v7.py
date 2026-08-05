@@ -4,6 +4,7 @@ import ast
 import fcntl
 import os
 import stat
+import sys
 import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
@@ -11,10 +12,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 MODULE = ROOT / "scripts/stage_c_transaction/composite_production_adapter_v7.py"
 
-from scripts.stage_c_runtime_authority.approval_store import ApprovalStore
-from scripts.stage_c_runtime_authority.model import (
+from stage_c_runtime_authority.approval_store import ApprovalStore
+from stage_c_runtime_authority.model import (
     ActivationApprovalRecord,
     ApprovalPhase,
     RuntimeAuthorityError,
