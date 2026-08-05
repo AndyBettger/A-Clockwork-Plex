@@ -10,7 +10,7 @@ C2 independently replays that package against the current Pi and prepares the
 evidence an activated transaction would need:
 
 - destination conflict checks;
-- filesystem content and absence markers;
+- filesystem content, absence and protected-path markers;
 - service active/enabled/load states;
 - live mixer readback;
 - `snd_aloop` parameters;
@@ -51,18 +51,41 @@ Before producing a transaction review, Stage C2 must verify:
 10. no CamillaDSP process or activation marker exists;
 11. the generated helper still rejects mutations with exit 78;
 12. every generated unit still requires the absent approval marker;
-13. all 12 managed file destinations are absent;
-14. the three application services remain loaded, active and enabled;
-15. the three proposed Stage C services remain not found.
+13. every unprivilegedly inspectable managed file destination is absent and no
+    visible managed destination conflicts with the package;
+14. any destination hidden by a protected parent directory is recorded as
+    `privileged-check-required`, never inferred to be absent;
+15. the three application services remain loaded, active and enabled;
+16. the three proposed Stage C services remain not found.
 
-Any mismatch stops the review. Stage C2 never treats an unexpected existing
-destination as an upgrade candidate.
+Any visible mismatch stops the review. Stage C2 never treats an unexpected
+existing destination as an upgrade candidate.
+
+## Protected destination boundary
+
+The normal `andy` account cannot traverse `/etc/sudoers.d`, so an unprivileged
+`lstat()` of `/etc/sudoers.d/a-clockwork-plex-audio-route` returns
+`PermissionError` even when the named file is absent.
+
+Stage C2 deliberately does not use `sudo` to resolve that ambiguity. Instead it:
+
+- records the destination as `unverified` in `destination-state.tsv`;
+- creates a `.privileged-check-required` marker containing `UNVERIFIED`;
+- does not create an `.absent` marker;
+- carries the exact path into `activation-blockers.txt` and the future install
+  ordering;
+- requires a new root-owned activation-time snapshot to resolve the file or
+  exact-absence state before any privileged write.
+
+A protected destination is therefore an explicit activation blocker, not a
+Stage C2 crash and not evidence of absence.
 
 ## Review snapshot
 
 Stage C2 writes only inside its private review directory. It copies the current
-active ALSA file, creates explicit absence markers for all absent managed files,
-and records directory existence, modes and owners.
+active ALSA file, creates explicit absence markers for genuinely observed absent
+managed files, creates protected-path markers where the normal account cannot
+inspect a destination, and records directory existence, modes and owners.
 
 This is evidence for reviewing the transaction design. It is deliberately not an
 activation-authoritative backup: any future approved installer must repeat the
@@ -101,13 +124,15 @@ Stage C2:
 - does not load or unload a module;
 - does not change a mixer;
 - does not start, stop, restart, enable or disable a service;
-- creates no activation marker.
+- creates no activation marker;
+- never converts a permission failure into a claimed absence.
 
 ## Promotion boundary
 
 A successful Stage C2 review closes transaction planning, not installation.
-Persistent activation remains blocked until the inert route helper is replaced
-by reviewed transactional logic, exact activation-time rollback is implemented,
+Persistent activation remains blocked until every protected path is resolved by
+a fresh root-owned activation snapshot, the inert route helper is replaced by
+reviewed transactional logic, exact activation-time rollback is implemented,
 automatic direct failback is proven, the EQ helper migrates to CamillaDSP,
 dashboard health/degraded reporting is connected, failure injection and exact
 uninstall pass, and the user explicitly approves the physical install.
