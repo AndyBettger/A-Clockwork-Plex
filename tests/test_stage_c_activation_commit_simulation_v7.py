@@ -10,16 +10,18 @@ ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "scripts/stage_c_transaction/activation_commit_simulation_v7.py"
 
 from scripts.stage_c_transaction.activation_commit_program_v7 import (
+    ACTIVATION_EXACT_ROLLBACK_V7,
     ACTIVATION_INSTALL_SUFFIX_V7,
     PROMOTE_COMMITTED_APPROVAL,
     PUBLISH_TEMPORARY_APPROVAL,
     RELEASE_PRODUCTION_LOCK,
     REMOVE_TEMPORARY_APPROVAL,
-    RESTORE_PREVIOUS_INSTALLATION,
+    RESTORE_EXACT_SNAPSHOT,
     STOP_MANAGED_SERVICES,
+    VERIFY_DAC_RELEASED,
+    VERIFY_EXACT_ROLLBACK,
 )
 from scripts.stage_c_transaction.activation_commit_simulation_v7 import (
-    VERIFY_EXACT_RESTORATION,
     ActivationSimulationResultV7,
     ActivationSimulationStatus,
     simulate_activation_commit_v7,
@@ -52,6 +54,9 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
         self.assertTrue(state.split_health_verified)
         self.assertTrue(state.dashboard_health_verified)
         self.assertTrue(state.committed_approval_present)
+        self.assertFalse(state.exact_snapshot_restored)
+        self.assertFalse(state.mixer_state_restored)
+        self.assertFalse(state.service_state_restored)
         self.assertFalse(state.exact_previous_installation_restored)
 
     def test_every_failure_through_terminal_operation_rolls_back_exactly(self) -> None:
@@ -59,6 +64,9 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
             step.operation for step in ACTIVATION_INSTALL_SUFFIX_V7[:-1]
         )
         self.assertIs(preterminal[-1], PROMOTE_COMMITTED_APPROVAL)
+        expected_tail = tuple(
+            step.operation.value for step in ACTIVATION_EXACT_ROLLBACK_V7[-3:]
+        )
         for operation in preterminal:
             with self.subTest(operation=operation.value):
                 result = simulate_activation_commit_v7(fail_at=operation)
@@ -72,17 +80,13 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
                 self.assertFalse(result.final_state.temporary_approval_present)
                 self.assertFalse(result.final_state.managed_runtime_running)
                 self.assertFalse(result.final_state.committed_approval_present)
+                self.assertTrue(result.final_state.exact_snapshot_restored)
+                self.assertTrue(result.final_state.mixer_state_restored)
+                self.assertTrue(result.final_state.service_state_restored)
                 self.assertTrue(
                     result.final_state.exact_previous_installation_restored
                 )
-                self.assertEqual(
-                    result.rollback_operations[-3:],
-                    (
-                        RESTORE_PREVIOUS_INSTALLATION.value,
-                        VERIFY_EXACT_RESTORATION.value,
-                        RELEASE_PRODUCTION_LOCK.value,
-                    ),
-                )
+                self.assertEqual(result.rollback_operations[-3:], expected_tail)
 
     def test_temporary_removal_runs_only_after_publication_completed(self) -> None:
         before_publish = (
@@ -96,7 +100,7 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
                     REMOVE_TEMPORARY_APPROVAL.value,
                     result.rollback_operations,
                 )
-        for step in ACTIVATION_INSTALL_SUFFIX_V7[2:9]:
+        for step in ACTIVATION_INSTALL_SUFFIX_V7[2:10]:
             with self.subTest(operation=step.operation.value):
                 result = simulate_activation_commit_v7(fail_at=step.operation)
                 self.assertIn(
@@ -113,9 +117,7 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
                     result.rollback_operations.index(
                         REMOVE_TEMPORARY_APPROVAL.value
                     ),
-                    result.rollback_operations.index(
-                        RESTORE_PREVIOUS_INSTALLATION.value
-                    ),
+                    result.rollback_operations.index(VERIFY_DAC_RELEASED.value),
                 )
 
     def test_postcommit_lock_release_failure_requires_forward_recovery_only(self) -> None:
@@ -138,12 +140,8 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
         self.assertFalse(state.exact_previous_installation_restored)
 
     def test_each_exact_rollback_failure_retains_lock_and_never_commits(self) -> None:
-        rollback_operations = (
-            STOP_MANAGED_SERVICES,
-            REMOVE_TEMPORARY_APPROVAL,
-            RESTORE_PREVIOUS_INSTALLATION,
-            VERIFY_EXACT_RESTORATION,
-            RELEASE_PRODUCTION_LOCK,
+        rollback_operations = tuple(
+            step.operation for step in ACTIVATION_EXACT_ROLLBACK_V7
         )
         for rollback_operation in rollback_operations:
             with self.subTest(operation=rollback_operation.value):
@@ -170,7 +168,7 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
                     rollback_operation.value,
                 )
 
-    def test_remove_failure_preserves_temp_and_restore_failure_has_removed_it(self) -> None:
+    def test_removal_restore_verify_and_release_failures_preserve_exact_phase(self) -> None:
         removal_failure = simulate_activation_commit_v7(
             fail_at=PROMOTE_COMMITTED_APPROVAL,
             rollback_fail_at=REMOVE_TEMPORARY_APPROVAL,
@@ -178,29 +176,43 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
         self.assertTrue(
             removal_failure.final_state.temporary_approval_present
         )
+        self.assertFalse(removal_failure.final_state.exact_snapshot_restored)
         self.assertFalse(
             removal_failure.final_state.exact_previous_installation_restored
         )
 
         restore_failure = simulate_activation_commit_v7(
             fail_at=PROMOTE_COMMITTED_APPROVAL,
-            rollback_fail_at=RESTORE_PREVIOUS_INSTALLATION,
+            rollback_fail_at=RESTORE_EXACT_SNAPSHOT,
         )
         self.assertFalse(
             restore_failure.final_state.temporary_approval_present
         )
+        self.assertFalse(restore_failure.final_state.exact_snapshot_restored)
         self.assertFalse(
             restore_failure.final_state.exact_previous_installation_restored
         )
 
         verify_failure = simulate_activation_commit_v7(
             fail_at=PROMOTE_COMMITTED_APPROVAL,
-            rollback_fail_at=VERIFY_EXACT_RESTORATION,
+            rollback_fail_at=VERIFY_EXACT_ROLLBACK,
         )
-        self.assertTrue(
+        self.assertTrue(verify_failure.final_state.exact_snapshot_restored)
+        self.assertTrue(verify_failure.final_state.mixer_state_restored)
+        self.assertTrue(verify_failure.final_state.service_state_restored)
+        self.assertFalse(
             verify_failure.final_state.exact_previous_installation_restored
         )
         self.assertTrue(verify_failure.final_state.lock_held)
+
+        release_failure = simulate_activation_commit_v7(
+            fail_at=PROMOTE_COMMITTED_APPROVAL,
+            rollback_fail_at=RELEASE_PRODUCTION_LOCK,
+        )
+        self.assertTrue(
+            release_failure.final_state.exact_previous_installation_restored
+        )
+        self.assertTrue(release_failure.final_state.lock_held)
 
     def test_failure_injection_is_typed_and_confined_to_fixed_programs(self) -> None:
         with self.assertRaisesRegex(ValueError, "outside the fixed activation suffix"):
@@ -228,7 +240,7 @@ class StageCActivationCommitSimulationV7Tests(unittest.TestCase):
             ActivationSimulationResultV7(
                 status=ActivationSimulationStatus.FORWARD_RECOVERY_REQUIRED,
                 attempted_operations=("release-production-lock",),
-                rollback_operations=("restore-previous-installation",),
+                rollback_operations=("restore-exact-snapshot",),
                 failed_operation="release-production-lock",
                 rollback_failed_operation=None,
                 final_state=result.final_state,
