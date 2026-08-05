@@ -1,6 +1,13 @@
 #!/usr/bin/python3
 from __future__ import annotations
 
+"""Stage C4 sandbox-only transaction orchestration.
+
+The public confirmation interface is STAGE-C4-SANDBOX-TRANSACTION. Execution
+imports that value from the Stage C4 validation foundation rather than defining
+a second independent token authority here.
+"""
+
 import argparse
 import shutil
 from pathlib import Path, PurePosixPath
