@@ -19,11 +19,12 @@ It then deliberately stops before:
 reload-systemd
 ```
 
-The twelve reviewed package files are installed atomically while the application
-services and DAC remain quiesced, verified against the transaction-bound Stage C1
-manifest, and then removed through the authoritative filesystem snapshot before
-any daemon reload, active-route selection, managed Stage C service startup,
-audio probe or install commit can occur.
+The twelve reviewed package files are published atomically without overwriting
+any conflicting destination while the application services and DAC remain
+quiesced. They are verified against the transaction-bound Stage C1 manifest and
+then removed through the authoritative filesystem snapshot before any daemon
+reload, active-route selection, managed Stage C service startup, audio probe or
+install commit can occur.
 
 The exact direct appliance state is restored and proved before the transaction
 is closed and the production lock is released.
@@ -59,8 +60,8 @@ The guarded rehearsal may:
 8. prove the physical DAC and fixed loopback endpoints have no owners;
 9. create only manifest directories captured absent, preserving existing
    directory mode and ownership;
-10. atomically install exactly twelve files from the transaction-private
-    candidate;
+10. atomically publish exactly twelve files from transaction-private temporary
+    inodes without replacing any destination that appears concurrently;
 11. verify every installed file's path, type, single-link state, device, inode,
     mode, root ownership and SHA-256 digest;
 12. prove the active ALSA route remains the accepted direct route;
@@ -107,7 +108,7 @@ ownership drift or mode drift fails before installation.
 The active direct ALSA file is not a managed package destination and must remain
 bit-for-bit identical throughout Stage C18.
 
-### Atomic file installation
+### Atomic no-overwrite file publication
 
 Each file install uses:
 
@@ -117,15 +118,26 @@ Each file install uses:
    observation;
 4. a fresh unpredictable temporary name created with `O_EXCL`, `O_CLOEXEC` and
    `O_NOFOLLOW` where available;
-5. transaction-private source digest verification before and after copy;
-6. `fchmod`, `fchown` and file `fsync` before rename;
-7. atomic rename within the opened parent directory;
-8. immediate rollback-ledger adoption of the renamed device/inode;
-9. parent-directory `fsync`;
-10. final type, link-count, device, inode, mode, owner and digest verification.
+5. immediate rollback-ledger adoption of the temporary device/inode;
+6. transaction-private source digest verification before and after copy;
+7. `fchmod`, `fchown` and file `fsync` before publication;
+8. pre-binding of the intended destination to that exact temporary device/inode;
+9. one same-directory hard-link publication with destination replacement
+   forbidden by the filesystem;
+10. immediate adoption of the published destination and exact removal of the
+    private temporary name;
+11. parent-directory `fsync`;
+12. final type, single-link, device, inode, mode, owner and digest verification.
 
-A failure before rename removes the private temporary file. A failure at or after
-rename enters mandatory exact rollback.
+The no-overwrite link operation is atomic: if another object appears at the
+managed destination after the initial absence check, publication fails with
+`EEXIST`. The adapter never replaces or removes that conflicting object. Exact
+rollback then fails closed if the authoritative captured-absent state cannot be
+proved, retaining the lock and transaction for review.
+
+A failure before publication removes only the exact private temporary inode. A
+failure at or after successful publication enters mandatory exact rollback for
+the destination and any surviving private temporary name.
 
 ### Directory creation
 
@@ -144,21 +156,24 @@ For removal, the adapter distinguishes:
 
 - **installation acceptance**, which requires exact type, mode, owner and digest;
 - **rollback identity**, which requires the exact device/inode and object type
-  recorded immediately at `mkdir` or atomic rename.
+  recorded at `mkdir`, private temporary creation or no-overwrite publication.
 
 This distinction permits safe removal of the adapter's own partial object when a
 later metadata or verification operation fails, while still refusing to unlink a
 substituted pathname.
 
-Rollback proceeds in fixed reverse order:
+Rollback proceeds in fixed reverse ownership order:
 
-1. remove installed file inodes;
-2. remove only directories created by the transaction, deepest first;
-3. prove every managed file destination is absent;
-4. prove every captured-present directory retains exact mode and ownership;
-5. prove every captured-absent directory is absent;
-6. prove the active direct ALSA route remains unchanged;
-7. write the transaction rollback state.
+1. remove an exact pending publication if publication may have crossed the
+   filesystem boundary;
+2. remove installed destination inodes;
+3. remove exact surviving private temporary inodes;
+4. remove only directories created by the transaction, deepest first;
+5. prove every managed file destination is absent;
+6. prove every captured-present directory retains exact mode and ownership;
+7. prove every captured-absent directory is absent;
+8. prove the active direct ALSA route remains unchanged;
+9. write the transaction rollback state.
 
 If exact filesystem rollback cannot be proved, the adapter fails closed and
 intentionally retains the production lock and authoritative transaction for
@@ -363,8 +378,9 @@ Before any Pi command is accepted, focused tests must prove:
 - no caller-supplied destination, unit, command, endpoint or evidence path;
 - installation requires candidate validation, service quiescence and DAC release;
 - every production write is covered by rollback before it occurs;
-- a renamed file and created directory enter the rollback ledger before any
-  later operation may fail;
+- temporary creation, no-overwrite publication and directory creation enter the
+  rollback ledger before any later operation may fail;
+- a conflicting destination is never overwritten;
 - rollback deletes only exact adapter-recorded device/inode objects;
 - successful installation still requires exact metadata and digest;
 - captured-present directories are not modified;
