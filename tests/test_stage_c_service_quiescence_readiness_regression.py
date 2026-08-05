@@ -184,7 +184,11 @@ class StageCServiceQuiescenceReadinessRegressionTests(unittest.TestCase):
             self.wrapper_source,
         )
         self.assertIn(
-            "polls the strict DAC runtime contract for up to 30 seconds",
+            "This corrected retry waits for the dashboard HTTP response",
+            self.wrapper_source,
+        )
+        self.assertIn(
+            "strict DAC runtime contract for up to 30 seconds",
             self.wrapper_source,
         )
 
