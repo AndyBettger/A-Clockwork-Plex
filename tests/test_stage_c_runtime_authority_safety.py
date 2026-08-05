@@ -10,10 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "scripts" / "stage_c_runtime_authority"
 WRAPPER = ROOT / "scripts" / "test-stage-c-runtime-authority-core.sh"
 FILES = tuple(sorted(PACKAGE.glob("*.py")))
-HOST_BOUNDARY_FILES = {
+FILESYSTEM_BOUNDARY_FILES = {
     PACKAGE / "linux_runtime_filesystem.py",
-    PACKAGE / "linux_runtime_process.py",
+    PACKAGE / "install_runtime_filesystem.py",
 }
+PROCESS_BOUNDARY_FILES = {
+    PACKAGE / "linux_runtime_process.py",
+    PACKAGE / "install_runtime_process.py",
+}
+HOST_BOUNDARY_FILES = FILESYSTEM_BOUNDARY_FILES | PROCESS_BOUNDARY_FILES
 PURE_FILES = tuple(path for path in FILES if path not in HOST_BOUNDARY_FILES)
 
 
@@ -55,62 +60,95 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
         for forbidden_command in ("systemctl", "amixer", "alsactl", "aplay"):
             self.assertNotIn(forbidden_command, text)
 
-    def test_linux_filesystem_is_one_explicit_fixed_host_boundary(self):
-        text = (PACKAGE / "linux_runtime_filesystem.py").read_text(encoding="utf-8")
+    def test_filesystem_family_is_explicit_and_has_no_process_boundary(self):
+        self.assertEqual(
+            FILESYSTEM_BOUNDARY_FILES,
+            {
+                PACKAGE / "linux_runtime_filesystem.py",
+                PACKAGE / "install_runtime_filesystem.py",
+            },
+        )
+        production = (PACKAGE / "linux_runtime_filesystem.py").read_text(encoding="utf-8")
+        install = (PACKAGE / "install_runtime_filesystem.py").read_text(encoding="utf-8")
         for required_path in (
             "/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf",
             "/run/lock/a-clockwork-plex-audio-route.lock",
             "/var/lib/a-clockwork-plex/split-bus",
         ):
-            self.assertIn(required_path, text)
-        for forbidden_boundary in (
-            "subprocess",
-            "systemctl",
-            "amixer",
-            "alsactl",
-            "aplay",
-            "shell=True",
-            "os.system",
-            "os.exec",
-        ):
-            self.assertNotIn(forbidden_boundary, text)
-        self.assertIn("class LinuxRuntimeFilesystem", text)
-        self.assertIn("def __init__(self) -> None", text)
-        self.assertIn("def _for_test(cls, root: Path)", text)
+            self.assertIn(required_path, production)
+        self.assertIn("assert_borrowed_transaction_lock", install)
+        self.assertIn("pre-commit failure belongs to exact transaction rollback", install)
+        for text in (production, install):
+            for forbidden_boundary in (
+                "subprocess",
+                "systemctl",
+                "amixer",
+                "alsactl",
+                "aplay",
+                "shell=True",
+                "os.system",
+                "os.exec",
+            ):
+                self.assertNotIn(forbidden_boundary, text)
+        self.assertIn("class LinuxRuntimeFilesystem", production)
+        self.assertIn("class InstallRuntimeFilesystem", install)
+        self.assertIn("def __init__(self) -> None", production)
+        self.assertIn("def _for_test(cls, root: Path)", production)
 
-    def test_linux_process_is_one_explicit_fixed_process_boundary(self):
+    def test_process_family_is_explicit_and_has_one_popen_boundary(self):
         self.assertEqual(
-            HOST_BOUNDARY_FILES,
+            PROCESS_BOUNDARY_FILES,
             {
-                PACKAGE / "linux_runtime_filesystem.py",
                 PACKAGE / "linux_runtime_process.py",
+                PACKAGE / "install_runtime_process.py",
             },
         )
-        text = (PACKAGE / "linux_runtime_process.py").read_text(encoding="utf-8")
-        self.assertEqual(text.count("subprocess.Popen"), 1)
-        self.assertIn("shell=False", text)
+        production = (PACKAGE / "linux_runtime_process.py").read_text(encoding="utf-8")
+        install = (PACKAGE / "install_runtime_process.py").read_text(encoding="utf-8")
+        self.assertEqual(production.count("subprocess.Popen"), 1)
+        self.assertNotIn("subprocess.Popen", install)
+        self.assertIn("shell=False", production)
         for required_path in (
             "/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp",
             "/etc/a-clockwork-plex/camilladsp-split-bus.yml",
             "/dev/snd/pcmC7D1c",
         ):
-            self.assertIn(required_path, text)
-        for forbidden_boundary in (
-            "systemctl",
-            "amixer",
-            "alsactl",
-            "aplay",
-            "shell=True",
-            "os.system",
-            "os.exec",
-            "def dispatch",
-            "command:",
-            "path_override",
-        ):
-            self.assertNotIn(forbidden_boundary, text)
-        self.assertIn("class LinuxRuntimeProcess", text)
-        self.assertIn("def __init__(self) -> None", text)
-        self.assertIn("def _for_test(", text)
+            self.assertIn(required_path, production)
+        for text in (production, install):
+            for forbidden_boundary in (
+                "systemctl",
+                "amixer",
+                "alsactl",
+                "aplay",
+                "shell=True",
+                "os.system",
+                "os.exec",
+                "def dispatch",
+                "command:",
+                "path_override",
+            ):
+                self.assertNotIn(forbidden_boundary, text)
+        self.assertIn("class LinuxRuntimeProcess", production)
+        self.assertIn("class InstallRuntimeProcess", install)
+        self.assertIn("def __init__(self) -> None", production)
+        self.assertIn("def _for_test(", production)
+
+    def test_all_host_capability_is_confined_to_two_boundary_families(self):
+        self.assertEqual(
+            HOST_BOUNDARY_FILES,
+            {
+                PACKAGE / "linux_runtime_filesystem.py",
+                PACKAGE / "install_runtime_filesystem.py",
+                PACKAGE / "linux_runtime_process.py",
+                PACKAGE / "install_runtime_process.py",
+            },
+        )
+        for path in PURE_FILES:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("subprocess.Popen", text, path)
+            self.assertNotIn("socket.socket", text, path)
+            self.assertNotIn("os.replace", text, path)
+            self.assertNotIn("fcntl.flock", text, path)
 
     def test_no_arbitrary_command_path_unit_or_transaction_arguments(self):
         tree = ast.parse(self.pure_source())
