@@ -11,6 +11,7 @@ MODULE = ROOT / "scripts/stage_c_transaction/activation_commit_program_v7.py"
 
 from scripts.stage_c_transaction.activation_commit_program_v7 import (
     ACTIVATION_COMMIT_POLICY_V7,
+    ACTIVATION_EXACT_ROLLBACK_V7,
     ACTIVATION_INSTALL_SUFFIX_V7,
     APPROVAL_ROLLBACK_INSERTION_V7,
     BIND_LOCK_LEASE,
@@ -18,8 +19,9 @@ from scripts.stage_c_transaction.activation_commit_program_v7 import (
     PUBLISH_TEMPORARY_APPROVAL,
     RELEASE_PRODUCTION_LOCK,
     REMOVE_TEMPORARY_APPROVAL,
-    RESTORE_PREVIOUS_INSTALLATION,
     STOP_MANAGED_SERVICES,
+    VERIFY_EXACT_ROLLBACK,
+    VERIFY_SPLIT_BUS_HEALTH,
     WRITE_COMMIT_MANIFEST,
     ActivationCommitPolicySnapshotV7,
     ActivationCommitStepV7,
@@ -28,6 +30,9 @@ from scripts.stage_c_transaction.activation_commit_program_v7 import (
 from scripts.stage_c_transaction.production_adapter_lifecycle_v7 import (
     ALL_OPERATIONS_V7,
 )
+from scripts.stage_c_transaction.production_operation_programs import (
+    AUTOMATIC_EXACT_ROLLBACK_PROGRAM,
+)
 
 
 class StageCActivationCommitProgramV7SafetyTests(unittest.TestCase):
@@ -35,14 +40,13 @@ class StageCActivationCommitProgramV7SafetyTests(unittest.TestCase):
         self.source = MODULE.read_text(encoding="utf-8")
         self.tree = ast.parse(self.source)
 
-    def test_install_suffix_is_exactly_ten_fixed_unique_operations(self) -> None:
-        self.assertEqual(len(ACTIVATION_INSTALL_SUFFIX_V7), 10)
+    def test_install_suffix_preserves_exact_proved_tail_with_v7_approval_steps(self) -> None:
+        self.assertEqual(len(ACTIVATION_INSTALL_SUFFIX_V7), 11)
         self.assertEqual(
             tuple(step.position for step in ACTIVATION_INSTALL_SUFFIX_V7),
-            tuple(range(1, 11)),
+            tuple(range(1, 12)),
         )
         operations = tuple(step.operation for step in ACTIVATION_INSTALL_SUFFIX_V7)
-        self.assertEqual(len(operations), len(set(operations)))
         self.assertTrue(set(operations).issubset(set(ALL_OPERATIONS_V7)))
         self.assertEqual(
             tuple(operation.value for operation in operations),
@@ -50,33 +54,53 @@ class StageCActivationCommitProgramV7SafetyTests(unittest.TestCase):
                 "bind-production-lock-lease",
                 "publish-temporary-activation-approval",
                 "start-managed-stage-c-services",
-                "open-music-probe",
-                "open-alarm-probe",
-                "verify-post-start-health",
-                "restore-application-services",
+                "verify-split-bus-health",
+                "run-finite-music-probe",
+                "run-finite-alarm-probe",
+                "restore-captured-application-services",
+                "verify-split-bus-health",
                 "verify-dashboard-health",
                 "promote-committed-activation-approval",
                 "release-production-lock",
             ),
         )
+        duplicated = {
+            operation for operation in operations if operations.count(operation) > 1
+        }
+        self.assertEqual(duplicated, {VERIFY_SPLIT_BUS_HEALTH})
+        self.assertEqual(operations.count(VERIFY_SPLIT_BUS_HEALTH), 2)
 
-    def test_temporary_approval_precedes_every_service_or_probe_step(self) -> None:
+    def test_temporary_approval_precedes_every_service_probe_or_health_step(self) -> None:
         values = tuple(step.operation.value for step in ACTIVATION_INSTALL_SUFFIX_V7)
         publish_index = values.index(PUBLISH_TEMPORARY_APPROVAL.value)
         for operation in (
             "start-managed-stage-c-services",
-            "open-music-probe",
-            "open-alarm-probe",
-            "verify-post-start-health",
-            "restore-application-services",
+            "verify-split-bus-health",
+            "run-finite-music-probe",
+            "run-finite-alarm-probe",
+            "restore-captured-application-services",
             "verify-dashboard-health",
         ):
             self.assertLess(publish_index, values.index(operation))
         self.assertIs(ACTIVATION_INSTALL_SUFFIX_V7[0].operation, BIND_LOCK_LEASE)
         self.assertFalse(ACTIVATION_INSTALL_SUFFIX_V7[0].requires_temporary_approval)
-        for step in ACTIVATION_INSTALL_SUFFIX_V7[2:8]:
+        for step in ACTIVATION_INSTALL_SUFFIX_V7[2:9]:
             self.assertTrue(step.requires_temporary_approval)
             self.assertFalse(step.requires_committed_approval)
+
+    def test_first_health_gate_precedes_probes_and_second_follows_app_restore(self) -> None:
+        values = tuple(step.operation.value for step in ACTIVATION_INSTALL_SUFFIX_V7)
+        health_positions = tuple(
+            index for index, value in enumerate(values) if value == "verify-split-bus-health"
+        )
+        self.assertEqual(health_positions, (3, 7))
+        self.assertLess(health_positions[0], values.index("run-finite-music-probe"))
+        self.assertLess(health_positions[0], values.index("run-finite-alarm-probe"))
+        self.assertLess(
+            values.index("restore-captured-application-services"),
+            health_positions[1],
+        )
+        self.assertLess(health_positions[1], values.index("verify-dashboard-health"))
 
     def test_committed_promotion_is_the_only_terminal_publication(self) -> None:
         terminal = tuple(
@@ -86,19 +110,19 @@ class StageCActivationCommitProgramV7SafetyTests(unittest.TestCase):
         )
         self.assertEqual(len(terminal), 1)
         self.assertIs(terminal[0].operation, PROMOTE_COMMITTED_APPROVAL)
-        self.assertEqual(terminal[0].position, 9)
+        self.assertEqual(terminal[0].position, 10)
         self.assertTrue(terminal[0].requires_temporary_approval)
         self.assertFalse(terminal[0].requires_committed_approval)
 
     def test_all_preterminal_failures_use_exact_rollback(self) -> None:
-        for step in ACTIVATION_INSTALL_SUFFIX_V7[:8]:
+        for step in ACTIVATION_INSTALL_SUFFIX_V7[:9]:
             with self.subTest(operation=step.operation.value):
                 self.assertIs(
                     step.failure_disposition,
                     FailureDisposition.EXACT_ROLLBACK,
                 )
         self.assertIs(
-            ACTIVATION_INSTALL_SUFFIX_V7[8].failure_disposition,
+            ACTIVATION_INSTALL_SUFFIX_V7[9].failure_disposition,
             FailureDisposition.TERMINAL_PUBLICATION,
         )
 
@@ -125,30 +149,46 @@ class StageCActivationCommitProgramV7SafetyTests(unittest.TestCase):
         self.assertIn("sole commit marker", self.source)
         self.assertIn("durably prepare the commit manifest", self.source)
 
-    def test_rollback_insertion_stops_runtime_then_removes_temp_before_restore(self) -> None:
-        self.assertEqual(len(APPROVAL_ROLLBACK_INSERTION_V7), 3)
-        self.assertEqual(
-            tuple(step.operation for step in APPROVAL_ROLLBACK_INSERTION_V7),
-            (
-                STOP_MANAGED_SERVICES,
-                REMOVE_TEMPORARY_APPROVAL,
-                RESTORE_PREVIOUS_INSTALLATION,
-            ),
+    def test_approval_removal_is_one_exact_insertion_after_managed_stop(self) -> None:
+        self.assertEqual(len(APPROVAL_ROLLBACK_INSERTION_V7), 1)
+        insertion = APPROVAL_ROLLBACK_INSERTION_V7[0]
+        self.assertIs(insertion.operation, REMOVE_TEMPORARY_APPROVAL)
+        self.assertIs(
+            insertion.failure_disposition,
+            FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
         )
-        for step in APPROVAL_ROLLBACK_INSERTION_V7:
+        self.assertTrue(insertion.requires_temporary_approval)
+
+        base = tuple(
+            step.operation for step in AUTOMATIC_EXACT_ROLLBACK_PROGRAM.steps
+        )
+        stop_index = base.index(STOP_MANAGED_SERVICES)
+        expected = (
+            *base[: stop_index + 1],
+            REMOVE_TEMPORARY_APPROVAL,
+            *base[stop_index + 1 :],
+        )
+        actual = tuple(step.operation for step in ACTIVATION_EXACT_ROLLBACK_V7)
+        self.assertEqual(actual, expected)
+        self.assertIs(actual[-2], VERIFY_EXACT_ROLLBACK)
+        self.assertIs(actual[-1], RELEASE_PRODUCTION_LOCK)
+
+    def test_every_rollback_step_fails_closed_and_retains_lock(self) -> None:
+        self.assertEqual(
+            tuple(step.position for step in ACTIVATION_EXACT_ROLLBACK_V7),
+            tuple(range(1, len(ACTIVATION_EXACT_ROLLBACK_V7) + 1)),
+        )
+        for step in ACTIVATION_EXACT_ROLLBACK_V7:
             self.assertIs(
                 step.failure_disposition,
-                FailureDisposition.EXACT_ROLLBACK,
+                FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
             )
-        self.assertTrue(
-            APPROVAL_ROLLBACK_INSERTION_V7[1].requires_temporary_approval
-        )
         self.assertNotIn(
             PROMOTE_COMMITTED_APPROVAL,
-            tuple(step.operation for step in APPROVAL_ROLLBACK_INSERTION_V7),
+            tuple(step.operation for step in ACTIVATION_EXACT_ROLLBACK_V7),
         )
 
-    def test_policy_snapshot_is_frozen_and_records_one_terminal_rule(self) -> None:
+    def test_policy_snapshot_is_frozen_and_records_terminal_and_rollback_rules(self) -> None:
         self.assertIsInstance(
             ACTIVATION_COMMIT_POLICY_V7,
             ActivationCommitPolicySnapshotV7,
@@ -165,6 +205,18 @@ class StageCActivationCommitProgramV7SafetyTests(unittest.TestCase):
         self.assertEqual(
             ACTIVATION_COMMIT_POLICY_V7.failure_after_terminal,
             "forward-recovery",
+        )
+        self.assertEqual(
+            ACTIVATION_COMMIT_POLICY_V7.rollback_step_failure,
+            "fail-closed-retain-lock",
+        )
+        self.assertEqual(
+            ACTIVATION_COMMIT_POLICY_V7.rollback_insertion_operations,
+            ("remove-temporary-activation-approval",),
+        )
+        self.assertEqual(
+            ACTIVATION_COMMIT_POLICY_V7.exact_rollback_operations,
+            tuple(step.operation.value for step in ACTIVATION_EXACT_ROLLBACK_V7),
         )
         with self.assertRaises(FrozenInstanceError):
             ACTIVATION_COMMIT_POLICY_V7.version = 8  # type: ignore[misc]
