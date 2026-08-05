@@ -52,14 +52,15 @@ class ChildProcess(Protocol):
 @dataclass(frozen=True)
 class _ProcessPaths:
     system_root: Path
+    expected_uid: int
 
     @classmethod
     def production(cls) -> "_ProcessPaths":
-        return cls(Path("/"))
+        return cls(Path("/"), 0)
 
     @classmethod
     def test_root(cls, root: Path) -> "_ProcessPaths":
-        return cls(root)
+        return cls(root, os.geteuid())
 
     def map(self, absolute: str) -> Path:
         pure = PurePosixPath(absolute)
@@ -164,13 +165,11 @@ class LinuxRuntimeProcess:
             raise RuntimeAuthorityError("CamillaDSP process authority requires a committed approval")
         return record
 
-    @staticmethod
-    def _require_regular(path: Path, *, mode: int) -> os.stat_result:
+    def _require_regular(self, path: Path, *, mode: int) -> os.stat_result:
         info = path.lstat()
         if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
             raise RuntimeAuthorityError(f"process asset is not a real regular file: {path}")
-        expected_uid = 0 if path.anchor == "/" and str(path).startswith("/") else os.geteuid()
-        if info.st_uid != expected_uid:
+        if info.st_uid != self._paths.expected_uid:
             raise RuntimeAuthorityError(f"process asset owner mismatch: {path}")
         if stat.S_IMODE(info.st_mode) != mode:
             raise RuntimeAuthorityError(f"process asset mode mismatch: {path}")
@@ -198,8 +197,7 @@ class LinuxRuntimeProcess:
             raise RuntimeAuthorityError("runtime PROJECT_USER is invalid")
         return user
 
-    def _child_identity(self) -> tuple[int, int, tuple[int, ...], str]:
-        user = self._read_project_user()
+    def _child_identity(self, user: str) -> tuple[int, int, tuple[int, ...], str]:
         try:
             account = pwd.getpwnam(user)
             audio = grp.getgrnam("audio")
@@ -221,11 +219,12 @@ class LinuxRuntimeProcess:
             raise RuntimeAuthorityError("CamillaDSP binary differs from committed approval")
         if _sha256(self._paths.config) != approval.camilladsp_config_sha256:
             raise RuntimeAuthorityError("CamillaDSP configuration differs from committed approval")
-        uid, audio_gid, groups, home = self._child_identity()
+        user = self._read_project_user()
+        uid, audio_gid, groups, home = self._child_identity(user)
         environment = {
             "HOME": home,
-            "USER": self._read_project_user(),
-            "LOGNAME": self._read_project_user(),
+            "USER": user,
+            "LOGNAME": user,
             "PATH": "/usr/bin:/bin",
             "LANG": "C.UTF-8",
         }
