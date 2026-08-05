@@ -18,6 +18,9 @@ from scripts.stage_c_transaction.managed_file_rollback_rehearsal_adapter import 
     ManagedFileRollbackFailure,
     ManagedFileRollbackRehearsalAdapter,
 )
+from scripts.stage_c_transaction.managed_file_rollback_rehearsal_adapter_v3 import (
+    _publish_noreplace,
+)
 from scripts.stage_c_transaction.managed_file_rollback_rehearsal_adapter_v4 import (
     ManagedFileRollbackRehearsalAdapterV4,
 )
@@ -175,7 +178,7 @@ class StageCManagedFileRollbackRehearsalSafetyTests(unittest.TestCase):
             install.index("os.open(temporary"),
         )
 
-    def test_rollback_ledger_adopts_created_path_before_later_failure(self) -> None:
+    def test_rollback_ledgers_adopt_temporary_and_publication_before_failure(self) -> None:
         create = self.method_source(
             self.v3_tree,
             self.v3,
@@ -193,13 +196,38 @@ class StageCManagedFileRollbackRehearsalSafetyTests(unittest.TestCase):
             create.index("os.fchmod(child_fd"),
         )
         self.assertLess(
-            install.index("os.replace("),
+            install.index("self._temporary_files.append(temporary_record)"),
+            install.index("_write_all(fd, chunk)"),
+        )
+        self.assertLess(
+            install.index("self._pending_publication = record"),
+            install.index("_publish_noreplace("),
+        )
+        self.assertLess(
+            install.index("_publish_noreplace("),
             install.index("self._installed_files.append(record)"),
         )
         self.assertLess(
             install.index("self._installed_files.append(record)"),
-            install.index("os.fsync(parent_fd)"),
+            install.index("self._cleanup_temporary("),
         )
+
+    def test_no_overwrite_publication_refuses_existing_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            temporary = root / "temporary"
+            destination = root / "destination"
+            temporary.write_text("candidate", encoding="utf-8")
+            destination.write_text("existing", encoding="utf-8")
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            fd = os.open(root, flags)
+            try:
+                with self.assertRaises(FileExistsError):
+                    _publish_noreplace(fd, temporary.name, destination.name)
+            finally:
+                os.close(fd)
+            self.assertEqual(destination.read_text(encoding="utf-8"), "existing")
+            self.assertEqual(temporary.read_text(encoding="utf-8"), "candidate")
 
     def test_install_acceptance_is_stricter_than_rollback_identity(self) -> None:
         strict = self.method_source(
@@ -254,7 +282,7 @@ class StageCManagedFileRollbackRehearsalSafetyTests(unittest.TestCase):
                     record
                 )
 
-    def test_rollback_removes_only_exact_recorded_inodes(self) -> None:
+    def test_rollback_covers_pending_publication_temporary_and_installed_inodes(self) -> None:
         source = self.method_source(
             self.v4_tree,
             self.v4,
@@ -262,10 +290,15 @@ class StageCManagedFileRollbackRehearsalSafetyTests(unittest.TestCase):
             "_restore_managed_files_exact",
         )
         for marker in (
-            "self._verify_rollback_identity(record)",
+            "self._pending_publication",
+            "self._publication_failed_cleanly",
+            "self._installed_files",
+            "self._temporary_files",
+            'action="remove-pending-publication"',
+            'action="remove-file"',
+            'action="remove-temporary"',
             "current.st_dev != record.device",
             "current.st_ino != record.inode",
-            "os.unlink(path.name, dir_fd=parent_fd)",
             "os.rmdir(path.name, dir_fd=parent_fd)",
             "self._verify_directory_snapshot(path, row)",
             "self._verify_current_alsa()",
@@ -454,11 +487,12 @@ class StageCManagedFileRollbackRehearsalSafetyTests(unittest.TestCase):
             combined,
         )
 
-    def test_design_records_mandatory_first_write_rollback(self) -> None:
+    def test_design_records_no_overwrite_and_mandatory_rollback(self) -> None:
         for marker in (
             "first production-filesystem mutation boundary",
             "Rollback is armed before the first production filesystem write",
-            "immediate rollback-ledger adoption",
+            "Atomic no-overwrite file publication",
+            "a conflicting destination is never overwritten",
             "close-exact-rollback-rehearsal-transaction",
             "twenty-two v1 operations",
             "remaining eleven v1 operations stay blocked",
