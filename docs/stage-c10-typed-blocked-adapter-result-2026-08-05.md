@@ -33,6 +33,12 @@ fd0d0376abd900ffb1e7268240a8b6a5284be9ae
 
 bedcac51d4c5eeaa490a5f3ef49d81d234ddd9ac
   Test Stage C10 blocked adapter contract
+
+f9be4a88a27698aaef94e388548fa281f78ede62
+  Add blocked Stage C service stop operation
+
+fa0d5d3e02777b3c1553e6394664ed0a56f917b5
+  Cover blocked Stage C service stop operation
 ```
 
 ## Fixed production boundaries
@@ -95,10 +101,10 @@ None of these names, paths or values may be supplied by a caller through the Sta
 
 ## Typed operation vocabulary
 
-The `ProductionAdapter` protocol exposes exactly 33 named operations:
+The `ProductionAdapter` protocol exposes exactly 34 named operations:
 
 - 17 observation or validation operations;
-- 16 potentially state-changing operations.
+- 17 potentially state-changing operations.
 
 Each operation has its own named method. There is no generic `execute`, `run`, `command`, `argv`, `shell` or arbitrary dispatch interface.
 
@@ -110,11 +116,11 @@ The operation vocabulary covers:
 - filesystem, service, mixer, loopback and DAC capture;
 - candidate staging and validation;
 - captured application-service stop and restoration;
+- managed Stage C service start and stop;
 - DAC release verification;
 - managed-file installation;
 - systemd reload;
 - split-bus and direct-failback route selection;
-- managed Stage C service startup;
 - split-bus health and finite lane probes;
 - dashboard health;
 - commit-manifest writing;
@@ -125,6 +131,22 @@ The operation vocabulary covers:
 The interface uses frozen records and enums for package fingerprints, transaction and snapshot identities, service units and states, mixer state, routes and transaction actions.
 
 Mixer snapshot values are bounded to integer percentages from 0 through 100.
+
+## Contract asymmetry discovered and corrected
+
+The first Stage C10 vocabulary contained `start_managed_stage_c_services()` but lacked the matching typed stop operation required by rollback and runtime failback preparation.
+
+The omission was found while mapping the blocked contract against the reviewed failure sequence, before any working adapter existed.
+
+The correction added:
+
+```text
+stop_managed_stage_c_services()
+```
+
+as a distinct potentially mutating operation. It remains fully blocked and has no service-manager implementation.
+
+This is the intended value of a blocked contract stage: operation-level gaps are found while they are still names and tests rather than privileged behaviour.
 
 ## Deliberately blocked implementation
 
@@ -157,22 +179,24 @@ The 11 focused Stage C10 tests prove that:
 4. production paths are fixed constants with no caller override fields;
 5. service and mixer boundaries are exact enums;
 6. loopback and DAC contracts match physical discovery;
-7. all 33 operations are partitioned exactly once;
-8. the protocol and blocked implementation expose the same 33 public methods;
+7. all 34 operations are partitioned exactly once;
+8. the protocol and blocked implementation expose the same 34 public methods;
 9. every typed method fails closed with its exact operation identity;
 10. contract records are frozen and mixer values are bounded;
 11. public adapter methods accept no raw command, argument-vector, path, root, unit-name or control-name parameter.
 
-## Full CI result
+## Initial full CI result
 
-The complete branch suite passed:
+Before the service-stop correction, the complete branch suite passed:
 
 ```text
 Ran 601 tests in 3.236s
 OK
 ```
 
-The existing Stage C7 disposable-root transaction and consolidated Stage C4 sandbox transaction also completed successfully during CI, preserving their exact rollback and production-boundary contracts.
+The same 11 focused tests now cover the corrected 34-operation vocabulary. The final acceptance requires the subsequent branch run to pass unchanged.
+
+The existing Stage C7 disposable-root transaction and consolidated Stage C4 sandbox transaction also complete during CI, preserving their exact rollback and production-boundary contracts.
 
 ## What Stage C10 proves
 
@@ -182,6 +206,7 @@ Stage C10 proves that:
 - caller-supplied commands and production destinations are absent;
 - service, mixer, loopback and DAC scope is fixed;
 - transaction actions are enumerated;
+- both managed-service startup and shutdown are represented explicitly;
 - the placeholder implementation cannot inspect or mutate the host;
 - no production activation or installation entrypoint exists;
 - later adapter work can be tested against one stable protocol rather than scattering host calls through transaction policy.
@@ -206,6 +231,6 @@ Those methods are names and types only. Every attempted call remains blocked.
 
 ## Acceptance
 
-Stage C10 is accepted as **PASS** at the automated contract boundary.
+Stage C10 is accepted as **PASS** at the automated contract boundary once the corrected 34-operation branch run is green.
 
 No Pi command is generated for this stage. No persistent installer exists, the blocked `scripts/install-master-eq.sh` path was not run, and production EQ activation remains prohibited pending further reviewed stages and explicit approval.
