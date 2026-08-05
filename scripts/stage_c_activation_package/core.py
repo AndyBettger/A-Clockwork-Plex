@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import stat
-import subprocess
 import tempfile
 from pathlib import Path
 
@@ -13,13 +12,15 @@ from stage_c_package.core import PUBLIC_PCMS, build_validation_root, result, run
 from stage_c_package.templates import HostContract
 
 
-EXPECTED_FILES = 19
+EXPECTED_FILES = 21
 RUNTIME_MODULES = (
     "__init__.py",
     "model.py",
     "approval_store.py",
     "state_machine.py",
     "supervisor_model.py",
+    "runtime_executor.py",
+    "recording_runtime_adapter.py",
 )
 
 
