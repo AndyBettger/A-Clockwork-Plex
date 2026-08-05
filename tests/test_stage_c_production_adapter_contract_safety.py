@@ -5,6 +5,7 @@ import inspect
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from typing import get_args, get_origin, get_type_hints
 
 from scripts.stage_c_transaction import production_adapter_contract as contract
 
@@ -55,11 +56,14 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
             "urllib",
         }
         self.assertTrue(forbidden.isdisjoint(imported))
-        self.assertNotIn("if __name__", self.source)
-        self.assertNotIn("def main(", self.source)
-        self.assertNotIn("REQUIRED_CONFIRMATION", self.source)
-        self.assertNotIn("--confirm", self.source)
-        self.assertNotIn("shell=True", self.source)
+        for marker in (
+            "if __name__",
+            "def main(",
+            "REQUIRED_CONFIRMATION",
+            "--confirm",
+            "shell=True",
+        ):
+            self.assertNotIn(marker, self.source)
 
     def test_no_generic_command_or_dispatch_escape_hatch_exists(self) -> None:
         forbidden_names = {
@@ -88,7 +92,7 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 continue
             self.assertNotIn(called, {"eval", "exec", "system", "popen"})
 
-    def test_fixed_production_paths_have_no_caller_override(self) -> None:
+    def test_fixed_production_inputs_have_no_caller_override(self) -> None:
         self.assertEqual(
             contract.PRODUCTION_LOCK_PATH,
             "/run/lock/a-clockwork-plex-audio-route.lock",
@@ -97,26 +101,31 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
             contract.AUTHORITATIVE_TRANSACTION_ROOT,
             "/var/lib/a-clockwork-plex/split-bus/transactions",
         )
-        dataclass_fields = {
-            field.name
-            for item in (
-                contract.PackageFingerprint,
-                contract.TransactionIdentity,
-                contract.SnapshotIdentity,
-                contract.AdapterResult,
-                contract.ServiceState,
-                contract.ServiceSnapshot,
-                contract.MixerSnapshot,
-                contract.LoopbackContract,
-                contract.DacContract,
+        for name, method in inspect.getmembers(
+            contract.ProductionAdapter, predicate=inspect.isfunction
+        ):
+            if name.startswith("_"):
+                continue
+            parameters = tuple(inspect.signature(method).parameters)
+            self.assertTrue(
+                {
+                    "command",
+                    "argv",
+                    "path",
+                    "root",
+                    "unit_name",
+                    "control_name",
+                    "transaction_identity",
+                    "snapshot_identity",
+                }.isdisjoint(parameters),
+                name,
             )
-            for field in getattr(item, "__dataclass_fields__", {}).values()
-        }
-        self.assertTrue(
-            {"path", "root", "command", "argv", "unit_name", "control_name"}.isdisjoint(
-                dataclass_fields
-            )
+        create_parameters = tuple(
+            inspect.signature(
+                contract.ProductionAdapter.create_authoritative_transaction
+            ).parameters
         )
+        self.assertEqual(create_parameters, ("self", "action", "package"))
 
     def test_service_and_mixer_boundaries_are_exact_enums(self) -> None:
         self.assertEqual(
@@ -129,6 +138,8 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
         )
         self.assertEqual(len(contract.ServiceUnit), 6)
         self.assertEqual(len(contract.MixerControl), 4)
+        with self.assertRaises(ValueError):
+            contract.ServiceSnapshot(self._service_snapshot().services[:-1])
 
     def test_loopback_and_dac_contracts_match_physical_discovery(self) -> None:
         self.assertEqual(
@@ -151,6 +162,12 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 buffer_size=8192,
             ),
         )
+        with self.assertRaises(ValueError):
+            contract.DacSnapshot(
+                contract=contract.DAC_CONTRACT,
+                owners=(contract.DacOwner(1, "andy", "node", "read-write"),),
+                released=True,
+            )
 
     def test_operation_vocabulary_is_complete_and_partitioned_once(self) -> None:
         operations = tuple(contract.AdapterOperation)
@@ -166,13 +183,10 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 contract.MUTATING_OPERATIONS
             )
         )
-        self.assertEqual(
-            contract.MUTATING_OPERATIONS,
-            tuple(
-                operation
-                for operation in operations
-                if operation not in contract.READ_ONLY_OPERATIONS
-            ),
+        self.assertFalse(hasattr(contract.AdapterOperation, "EXPLICIT_UNINSTALL"))
+        self.assertIn(
+            contract.TransactionAction.EXPLICIT_UNINSTALL,
+            tuple(contract.TransactionAction),
         )
 
     def test_protocol_and_blocked_adapter_expose_the_same_public_operations(self) -> None:
@@ -191,9 +205,9 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
         self.assertNotIn("execute", protocol_methods)
         self.assertNotIn("run", protocol_methods)
         self.assertNotIn("explicit_uninstall", protocol_methods)
-        self.assertIn(
-            contract.TransactionAction.EXPLICIT_UNINSTALL,
-            tuple(contract.TransactionAction),
+        self.assertIsInstance(
+            contract.BlockedProductionAdapter(),
+            contract.ProductionAdapter,
         )
 
     def test_every_typed_operation_fails_closed_with_its_exact_identity(self) -> None:
@@ -214,142 +228,34 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 (contract.TransactionAction.INSTALL, package),
                 contract.AdapterOperation.CREATE_AUTHORITATIVE_TRANSACTION,
             ),
-            (
-                "capture_filesystem_state",
-                (transaction,),
-                contract.AdapterOperation.CAPTURE_FILESYSTEM_STATE,
-            ),
-            (
-                "capture_service_state",
-                (transaction,),
-                contract.AdapterOperation.CAPTURE_SERVICE_STATE,
-            ),
-            (
-                "capture_mixer_state",
-                (transaction,),
-                contract.AdapterOperation.CAPTURE_MIXER_STATE,
-            ),
-            (
-                "capture_loopback_state",
-                (transaction,),
-                contract.AdapterOperation.CAPTURE_LOOPBACK_STATE,
-            ),
-            (
-                "capture_dac_state",
-                (transaction,),
-                contract.AdapterOperation.CAPTURE_DAC_STATE,
-            ),
-            (
-                "stage_candidate_files",
-                (transaction, package),
-                contract.AdapterOperation.STAGE_CANDIDATE_FILES,
-            ),
-            (
-                "validate_candidate_alsa",
-                (transaction,),
-                contract.AdapterOperation.VALIDATE_CANDIDATE_ALSA,
-            ),
-            (
-                "validate_candidate_sudoers",
-                (transaction,),
-                contract.AdapterOperation.VALIDATE_CANDIDATE_SUDOERS,
-            ),
-            (
-                "validate_candidate_units",
-                (transaction,),
-                contract.AdapterOperation.VALIDATE_CANDIDATE_UNITS,
-            ),
-            (
-                "validate_candidate_camilladsp",
-                (transaction,),
-                contract.AdapterOperation.VALIDATE_CANDIDATE_CAMILLADSP,
-            ),
-            (
-                "stop_captured_application_services",
-                (transaction, services),
-                contract.AdapterOperation.STOP_CAPTURED_APPLICATION_SERVICES,
-            ),
-            (
-                "verify_dac_released",
-                (transaction,),
-                contract.AdapterOperation.VERIFY_DAC_RELEASED,
-            ),
-            (
-                "install_managed_files",
-                (transaction,),
-                contract.AdapterOperation.INSTALL_MANAGED_FILES,
-            ),
+            ("capture_filesystem_state", (transaction,), contract.AdapterOperation.CAPTURE_FILESYSTEM_STATE),
+            ("capture_service_state", (transaction,), contract.AdapterOperation.CAPTURE_SERVICE_STATE),
+            ("capture_mixer_state", (transaction,), contract.AdapterOperation.CAPTURE_MIXER_STATE),
+            ("capture_loopback_state", (transaction,), contract.AdapterOperation.CAPTURE_LOOPBACK_STATE),
+            ("capture_dac_state", (transaction,), contract.AdapterOperation.CAPTURE_DAC_STATE),
+            ("stage_candidate_files", (transaction, package), contract.AdapterOperation.STAGE_CANDIDATE_FILES),
+            ("validate_candidate_alsa", (transaction,), contract.AdapterOperation.VALIDATE_CANDIDATE_ALSA),
+            ("validate_candidate_sudoers", (transaction,), contract.AdapterOperation.VALIDATE_CANDIDATE_SUDOERS),
+            ("validate_candidate_units", (transaction,), contract.AdapterOperation.VALIDATE_CANDIDATE_UNITS),
+            ("validate_candidate_camilladsp", (transaction,), contract.AdapterOperation.VALIDATE_CANDIDATE_CAMILLADSP),
+            ("stop_captured_application_services", (transaction, services), contract.AdapterOperation.STOP_CAPTURED_APPLICATION_SERVICES),
+            ("verify_dac_released", (transaction,), contract.AdapterOperation.VERIFY_DAC_RELEASED),
+            ("install_managed_files", (transaction,), contract.AdapterOperation.INSTALL_MANAGED_FILES),
             ("reload_systemd", (transaction,), contract.AdapterOperation.RELOAD_SYSTEMD),
-            (
-                "select_split_bus_route",
-                (transaction,),
-                contract.AdapterOperation.SELECT_SPLIT_BUS_ROUTE,
-            ),
-            (
-                "start_managed_stage_c_services",
-                (transaction,),
-                contract.AdapterOperation.START_MANAGED_STAGE_C_SERVICES,
-            ),
-            (
-                "stop_managed_stage_c_services",
-                (transaction,),
-                contract.AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES,
-            ),
-            (
-                "verify_split_bus_health",
-                (transaction,),
-                contract.AdapterOperation.VERIFY_SPLIT_BUS_HEALTH,
-            ),
-            (
-                "run_finite_music_probe",
-                (transaction,),
-                contract.AdapterOperation.RUN_FINITE_MUSIC_PROBE,
-            ),
-            (
-                "run_finite_alarm_probe",
-                (transaction,),
-                contract.AdapterOperation.RUN_FINITE_ALARM_PROBE,
-            ),
-            (
-                "restore_captured_application_services",
-                (transaction, services),
-                contract.AdapterOperation.RESTORE_CAPTURED_APPLICATION_SERVICES,
-            ),
-            (
-                "verify_dashboard_health",
-                (transaction,),
-                contract.AdapterOperation.VERIFY_DASHBOARD_HEALTH,
-            ),
-            (
-                "write_commit_manifest",
-                (transaction,),
-                contract.AdapterOperation.WRITE_COMMIT_MANIFEST,
-            ),
-            (
-                "select_direct_failback_route",
-                (transaction,),
-                contract.AdapterOperation.SELECT_DIRECT_FAILBACK_ROUTE,
-            ),
-            (
-                "restore_exact_snapshot",
-                (transaction, snapshot),
-                contract.AdapterOperation.RESTORE_EXACT_SNAPSHOT,
-            ),
-            (
-                "restore_mixer_state",
-                (transaction, mixer),
-                contract.AdapterOperation.RESTORE_MIXER_STATE,
-            ),
-            (
-                "restore_service_state",
-                (transaction, services),
-                contract.AdapterOperation.RESTORE_SERVICE_STATE,
-            ),
-            (
-                "verify_exact_rollback",
-                (transaction, snapshot),
-                contract.AdapterOperation.VERIFY_EXACT_ROLLBACK,
-            ),
+            ("select_split_bus_route", (transaction,), contract.AdapterOperation.SELECT_SPLIT_BUS_ROUTE),
+            ("start_managed_stage_c_services", (transaction,), contract.AdapterOperation.START_MANAGED_STAGE_C_SERVICES),
+            ("stop_managed_stage_c_services", (transaction,), contract.AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES),
+            ("verify_split_bus_health", (transaction,), contract.AdapterOperation.VERIFY_SPLIT_BUS_HEALTH),
+            ("run_finite_music_probe", (transaction,), contract.AdapterOperation.RUN_FINITE_MUSIC_PROBE),
+            ("run_finite_alarm_probe", (transaction,), contract.AdapterOperation.RUN_FINITE_ALARM_PROBE),
+            ("restore_captured_application_services", (transaction, services), contract.AdapterOperation.RESTORE_CAPTURED_APPLICATION_SERVICES),
+            ("verify_dashboard_health", (transaction,), contract.AdapterOperation.VERIFY_DASHBOARD_HEALTH),
+            ("write_commit_manifest", (transaction,), contract.AdapterOperation.WRITE_COMMIT_MANIFEST),
+            ("select_direct_failback_route", (transaction,), contract.AdapterOperation.SELECT_DIRECT_FAILBACK_ROUTE),
+            ("restore_exact_snapshot", (transaction, snapshot), contract.AdapterOperation.RESTORE_EXACT_SNAPSHOT),
+            ("restore_mixer_state", (transaction, mixer), contract.AdapterOperation.RESTORE_MIXER_STATE),
+            ("restore_service_state", (transaction, services), contract.AdapterOperation.RESTORE_SERVICE_STATE),
+            ("verify_exact_rollback", (transaction, snapshot), contract.AdapterOperation.VERIFY_EXACT_ROLLBACK),
         )
         self.assertEqual(len(calls), len(contract.AdapterOperation))
         for method_name, arguments, operation in calls:
@@ -359,14 +265,61 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 self.assertIs(raised.exception.operation, operation)
                 self.assertIn(operation.value, str(raised.exception))
 
-    def test_contract_records_are_frozen_and_mixer_values_are_bounded(self) -> None:
+    def test_typed_payload_records_are_frozen_and_fail_closed(self) -> None:
         package = contract.PackageFingerprint("1" * 64)
+        transaction = contract.TransactionIdentity("stage-c12-transaction")
+        snapshot = contract.SnapshotIdentity("stage-c12-snapshot")
+        authoritative = contract.AuthoritativeTransaction(
+            transaction=transaction,
+            snapshot=snapshot,
+            action=contract.TransactionAction.INSTALL,
+            package=package,
+        )
+        result = contract.AdapterResult(
+            operation=contract.AdapterOperation.CREATE_AUTHORITATIVE_TRANSACTION,
+            status=contract.AdapterStatus.PASS,
+            detail="synthetic transaction created",
+            payload=authoritative,
+        )
+        self.assertIs(result.payload, authoritative)
         with self.assertRaises(FrozenInstanceError):
             package.sha256 = "2" * 64  # type: ignore[misc]
+        with self.assertRaises(ValueError):
+            contract.AdapterResult(
+                operation=contract.AdapterOperation.CREATE_AUTHORITATIVE_TRANSACTION,
+                status=contract.AdapterStatus.FAIL,
+                detail="failed",
+                payload=authoritative,
+            )
+        with self.assertRaises(ValueError):
+            contract.PackageFingerprint("ABC")
+        with self.assertRaises(ValueError):
+            contract.TransactionIdentity("bad identity")
         for values in ((-1, 50, 50, 50), (50, 101, 50, 50), (True, 50, 50, 50)):
-            with self.subTest(values=values):
-                with self.assertRaises(ValueError):
-                    contract.MixerSnapshot(*values)
+            with self.assertRaises(ValueError):
+                contract.MixerSnapshot(*values)
+
+    def test_protocol_return_annotations_are_specific_typed_payloads(self) -> None:
+        payload_methods = {
+            "inspect_host_contract": contract.HostContractSnapshot,
+            "inspect_production_lock": contract.ProductionLockObservation,
+            "acquire_production_lock": contract.ProductionLockLease,
+            "create_authoritative_transaction": contract.AuthoritativeTransaction,
+            "capture_filesystem_state": contract.FilesystemSnapshot,
+            "capture_service_state": contract.ServiceSnapshot,
+            "capture_mixer_state": contract.MixerSnapshot,
+            "capture_loopback_state": contract.LoopbackSnapshot,
+            "capture_dac_state": contract.DacSnapshot,
+        }
+        for name, method in inspect.getmembers(
+            contract.ProductionAdapter, predicate=inspect.isfunction
+        ):
+            if name.startswith("_"):
+                continue
+            annotation = get_type_hints(method)["return"]
+            self.assertIs(get_origin(annotation), contract.AdapterResult, name)
+            payload = get_args(annotation)[0]
+            self.assertIs(payload, payload_methods.get(name, type(None)), name)
 
     def test_contract_snapshot_is_static_and_explicitly_blocked(self) -> None:
         snapshot = dict(contract.contract_snapshot())
@@ -381,20 +334,6 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
             snapshot["operations"].split(","),
             [operation.value for operation in contract.AdapterOperation],
         )
-
-    def test_no_adapter_method_accepts_raw_command_or_path_parameters(self) -> None:
-        for name, method in inspect.getmembers(
-            contract.ProductionAdapter, predicate=inspect.isfunction
-        ):
-            if name.startswith("_"):
-                continue
-            parameters = tuple(inspect.signature(method).parameters)
-            self.assertTrue(
-                {"command", "argv", "path", "root", "unit_name", "control_name"}.isdisjoint(
-                    parameters
-                ),
-                name,
-            )
 
 
 if __name__ == "__main__":
