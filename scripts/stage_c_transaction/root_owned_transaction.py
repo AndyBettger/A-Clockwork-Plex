@@ -82,6 +82,7 @@ TOP_LEVEL_CHECKS = (
 class C6Evidence:
     filesystem_rows: tuple[dict[str, str], ...]
     current_alsa_snapshot: Path
+    snapshot_rootfs: Path
 
 
 @dataclass(frozen=True)
@@ -268,11 +269,18 @@ def validate_c6(stage_c6_root: Path) -> C6Evidence:
     if len(current) != 1 or current[0].get("sha256") != EXPECTED_PRE_STAGE_C_ALSA_SHA256:
         raise SystemExit("Stage C6 current ALSA snapshot contract is not exact.")
     current_snapshot = Path(current[0].get("snapshot", ""))
-    expected_inside = stage_c6_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")
+    snapshot_rootfs = stage_c6_root / "rootfs"
+    if snapshot_rootfs.is_symlink() or not snapshot_rootfs.is_dir():
+        raise SystemExit("Stage C6 snapshot rootfs is missing or unsafe.")
+    expected_inside = snapshot_rootfs / CURRENT_ALSA_DESTINATION.lstrip("/")
     if current_snapshot.resolve() != expected_inside.resolve() or sha256(current_snapshot) != EXPECTED_PRE_STAGE_C_ALSA_SHA256:
         raise SystemExit("Stage C6 current ALSA snapshot is missing or changed.")
 
-    return C6Evidence(filesystem_rows=filesystem_rows, current_alsa_snapshot=current_snapshot)
+    return C6Evidence(
+        filesystem_rows=filesystem_rows,
+        current_alsa_snapshot=current_snapshot,
+        snapshot_rootfs=snapshot_rootfs,
+    )
 
 
 def validate_root_scope(
@@ -370,6 +378,43 @@ def _captured_directories(evidence: C6Evidence) -> dict[str, tuple[int, str]]:
     return captured
 
 
+def _seed_current_alsa_parent_directories(
+    system_root: Path,
+    evidence: C6Evidence,
+    present: dict[str, tuple[int, int, int]],
+    ownership_uid: int,
+    ownership_gid: int,
+) -> None:
+    parent = PurePosixPath(CURRENT_ALSA_DESTINATION).parent
+    for length in range(2, len(parent.parts) + 1):
+        pure = PurePosixPath(*parent.parts[:length])
+        destination = pure.as_posix()
+        path = mapped_path(system_root, destination)
+        if path.exists() or path.is_symlink():
+            info = path.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                raise SystemExit(
+                    f"Current ALSA parent has conflicting type: {destination}"
+                )
+            continue
+
+        snapshot_path = evidence.snapshot_rootfs.joinpath(*pure.parts[1:])
+        if snapshot_path.is_symlink() or not snapshot_path.is_dir():
+            raise SystemExit(
+                f"Stage C6 current ALSA parent snapshot is missing or unsafe: {destination}"
+            )
+        if path.parent.is_symlink() or not path.parent.is_dir():
+            raise SystemExit(
+                f"Synthetic current ALSA parent chain is missing or unsafe: {destination}"
+            )
+        snapshot_info = snapshot_path.lstat()
+        mode = stat.S_IMODE(snapshot_info.st_mode)
+        path.mkdir()
+        os.chmod(path, mode)
+        os.chown(path, ownership_uid, ownership_gid)
+        present[destination] = (mode, ownership_uid, ownership_gid)
+
+
 def seed_scenario(
     scenario_root: Path,
     evidence: C6Evidence,
@@ -402,6 +447,13 @@ def seed_scenario(
         os.chown(path, ownership_uid, ownership_gid)
         present[destination] = (mode, ownership_uid, ownership_gid)
 
+    _seed_current_alsa_parent_directories(
+        system_root,
+        evidence,
+        present,
+        ownership_uid,
+        ownership_gid,
+    )
     current_destination = mapped_path(system_root, CURRENT_ALSA_DESTINATION)
     atomic_copy(
         evidence.current_alsa_snapshot,
