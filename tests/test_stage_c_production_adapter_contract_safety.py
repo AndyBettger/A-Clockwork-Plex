@@ -154,9 +154,9 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
 
     def test_operation_vocabulary_is_complete_and_partitioned_once(self) -> None:
         operations = tuple(contract.AdapterOperation)
-        self.assertEqual(len(operations), 33)
+        self.assertEqual(len(operations), 34)
         self.assertEqual(len(contract.READ_ONLY_OPERATIONS), 17)
-        self.assertEqual(len(contract.MUTATING_OPERATIONS), 16)
+        self.assertEqual(len(contract.MUTATING_OPERATIONS), 17)
         self.assertEqual(
             set(contract.READ_ONLY_OPERATIONS).union(contract.MUTATING_OPERATIONS),
             set(operations),
@@ -284,6 +284,11 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 "start_managed_stage_c_services",
                 (transaction,),
                 contract.AdapterOperation.START_MANAGED_STAGE_C_SERVICES,
+            ),
+            (
+                "stop_managed_stage_c_services",
+                (transaction,),
+                contract.AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES,
             ),
             (
                 "verify_split_bus_health",
