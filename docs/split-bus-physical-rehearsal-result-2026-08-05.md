@@ -84,7 +84,7 @@ Ctrl-C invoked the normal rollback path. Every recorded rollback check passed:
 
 No CamillaDSP process remained and the known-good direct shared mixer was active again.
 
-The rehearsal prompted for the sudo password again during Ctrl-C rollback because the background credential refresher received the same interrupt as the foreground script. The follow-up script change makes that refresher ignore SIGINT until rollback explicitly terminates it. The prepare-only activation example is also changed to print the selected duration instead of a hard-coded 1200 seconds.
+The rehearsal prompted for the sudo password again during Ctrl-C rollback because the background credential refresher received the same interrupt as the foreground script. Two non-safety-critical script polish items remain pending: keep that refresher alive until rollback terminates it, and print the selected duration in the prepare-only activation example instead of the hard-coded 1200 seconds. Neither affected the rehearsal result or rollback correctness.
 
 ## Promotion decision
 
