@@ -4,13 +4,13 @@ Status: design and static binding only. No adapter execution, production lock ac
 
 ## Purpose
 
-Stage C10 fixed a typed vocabulary of 33 host operations while deliberately blocking every operation. It also established an important authority boundary:
+Stage C10 fixed a typed vocabulary of 33 host operations while deliberately blocking every operation. It also established the authority boundary:
 
 - the adapter supplies small fixed host operations;
 - transaction policy owns ordering, failure response, rollback, runtime failback and explicit uninstall;
 - explicit uninstall remains a `TransactionAction` and is not an adapter method.
 
-Stage C11 binds the reviewed Stage C5 transaction state machine and Stage C9/C10 adapter boundary into four immutable operation programs:
+Stage C11 binds the reviewed Stage C5 state machine and Stage C9/C10 adapter boundary into four immutable operation programs:
 
 1. install;
 2. automatic exact rollback;
@@ -51,7 +51,9 @@ Each immutable program records:
 - whether the production route lock is unheld or already held on entry;
 - the required snapshot source;
 - the failure disposition before the first production mutation;
-- the failure disposition after the first production mutation;
+- the failure disposition after mutation but before terminal success;
+- the operation that establishes terminal success;
+- the failure disposition after terminal success;
 - an ordered tuple of typed operation steps.
 
 Each step records:
@@ -59,15 +61,44 @@ Each step records:
 - a fixed sequence number;
 - a policy phase;
 - one `AdapterOperation` enum value;
-- whether the step changes production state;
+- whether the step changes managed audio state;
 - whether the production lock must already be held;
-- a fixed explanatory detail.
+- fixed explanatory text.
 
 There is no generic operation name, command string, argument vector, executable path, unit name, mixer control name or filesystem destination in a program.
 
+## Three failure zones
+
+The policy must distinguish three zones rather than treating every post-mutation failure alike.
+
+### Before managed-audio mutation
+
+A failure before the first managed-audio mutation is a pre-mutation abort. When the route lock has been acquired, policy records the abort and releases the lock; it does not claim production rollback.
+
+### After mutation but before terminal success
+
+For install, a failure after the first managed-audio mutation and before the commit manifest invokes automatic exact rollback while retaining the same lock.
+
+Rollback, runtime failback and explicit uninstall are already recovery/removal actions. A failure in their corresponding middle zone fails closed and retains the lock rather than switching to another orchestration path.
+
+### After terminal success
+
+Terminal success occurs exactly once, immediately before lock release:
+
+```text
+install                 write-commit-manifest
+automatic rollback      verify-exact-rollback
+runtime failback        write-commit-manifest
+explicit uninstall      write-commit-manifest
+```
+
+A failure after terminal success—principally lock-release failure—must never undo the committed or exactly verified result. It is classified `fail-closed-retain-lock`.
+
+This prevents a future runner from interpreting a release problem after a successful install commit as permission to roll the installation back.
+
 ## Install program
 
-The install program must preserve the reviewed Stage C5 ordering:
+The install program preserves the reviewed Stage C5 ordering:
 
 1. inspect the exact host contract;
 2. inspect the production lock boundary;
@@ -90,7 +121,7 @@ The install program must preserve the reviewed Stage C5 ordering:
 19. write the committed transaction manifest;
 20. release the production route lock.
 
-The first production mutation is stopping captured application services. Any earlier failure is a pre-mutation abort. Any failure from that point until commit invokes the automatic exact rollback program while retaining the same lock.
+The first managed-audio mutation is stopping captured application services. A failure from that point until the commit manifest succeeds invokes automatic exact rollback. A failure after the commit manifest succeeds does not.
 
 ## Automatic exact rollback program
 
@@ -108,7 +139,7 @@ The ordered program is:
 8. verify exact rollback with zero mismatches;
 9. release the route lock.
 
-A rollback failure does not switch to another rollback implementation. It fails closed and must not claim success or release the lock before exact verification.
+Exact rollback verification is its terminal-success operation. A subsequent lock-release failure must not start rollback again.
 
 ## Runtime failback program
 
@@ -121,10 +152,10 @@ The ordered program is:
 3. create a fresh runtime-failback transaction record;
 4. capture current service, mixer and DAC state;
 5. stop captured application services;
-6. stop managed Stage C services, including any surviving CamillaDSP service/process through the future fixed adapter;
+6. stop managed Stage C services;
 7. verify the DAC is released;
 8. select the direct alarm-bypass route;
-9. restore the captured live mixer state;
+9. restore captured live mixer state;
 10. restore only application services captured active;
 11. run finite music and alarm probes against the direct route;
 12. verify dashboard degraded-route health agreement;
@@ -154,7 +185,7 @@ The ordered program is:
 13. write the completed uninstall transaction record;
 14. release the route lock.
 
-The uninstall program is therefore composed from small typed operations and cannot be delegated to a second orchestration authority.
+The uninstall program is composed from small typed operations and cannot be delegated to a second orchestration authority.
 
 ## Static safety boundary
 
@@ -182,11 +213,13 @@ Stage C11 passes when automated tests prove that:
 - each maps to one distinct `TransactionAction`;
 - every step uses a valid Stage C10 `AdapterOperation`;
 - all unheld-entry programs acquire the fixed lock before transaction identity, snapshot or mutation;
-- install snapshots and validates before its first production mutation;
+- install snapshots and validates before its first managed-audio mutation;
 - install commits before releasing the lock;
 - rollback starts with the lock held, does not reacquire it and releases only after exact verification;
 - runtime failback selects the direct alarm-bypass route and never restores the uninstall snapshot;
 - explicit uninstall has no adapter shortcut and composes exact restoration operations;
+- terminal success occurs exactly once immediately before lock release;
+- a failure after terminal success is fail-closed and never re-enters rollback;
 - no program can execute an adapter or host command;
 - no Pi command is generated;
 - persistent activation remains blocked.
