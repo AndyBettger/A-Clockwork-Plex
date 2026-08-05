@@ -1,6 +1,6 @@
 # Production EQ split-bus design
 
-Status: Stage A isolated CamillaDSP split-bus proof passed on the bedroom Pi; the isolated ALSA source-lane routing gate and guarded Stage B real-service rehearsal remain pending. Production activation remains blocked.
+Status: Stage A isolated CamillaDSP processing and Stage A2 isolated ALSA source-lane routing both passed on the bedroom Pi. The guarded Stage B real-service/DAC rehearsal is prepared but has not been activated. Production activation remains blocked.
 
 ## User requirement
 
@@ -117,18 +117,33 @@ Stage A passed on `plexamp-bedroom` on 5 August 2026 with CamillaDSP 4.1.3. Musi
 - music and alarm PCMs can remain open concurrently through one four-channel `dmix` bus;
 - the physical DAC remains unchanged.
 
-Stage A2 must pass on the bedroom Pi before any split-bus physical-DAC rehearsal is activated.
+Stage A2 passed on `plexamp-bedroom` on 5 August 2026. The music-only capture measured RMS 1337.159 on channels 0/1 and 0.000 on channels 2/3; the alarm-only capture measured the inverse; the concurrent capture measured 1337.159 on all four channels. There were zero failures and the physical DAC remained unchanged. See `docs/split-bus-alsa-routing-result-2026-08-05.md`.
 
 ### Stage B — temporary real-service route
 
-After Stage A and Stage A2 pass on the Pi, a mandatory-rollback rehearsal may temporarily route Plexamp, AirPlay and alarm into their separate loopback lanes. It must prove:
+`scripts/test-camilladsp-split-bus-physical-rehearsal.sh` is the guarded Stage B rehearsal. Prepare-only is the default. Physical activation requires the explicit `STAGE-B-SPLIT-BUS-REAL-DAC` token, a verified CamillaDSP 4.1.3 binary and a bounded 120–1500 second window. It has no keep-active mode.
+
+The rehearsal retains the public `acp_plexamp`, `acp_airplay` and `acp_alarm` PCM names used by the real services while temporarily changing their internal routing:
+
+- Plexamp and AirPlay keep their source trims and enter channels 0/1 through Music Master;
+- alarm keeps its independent ceiling and enters channels 2/3 without passing through Music Master or music EQ/headroom;
+- CamillaDSP applies music-only processing, combines the two lanes and then applies the final limiter;
+- exact ALSA configuration, mixer levels and prior service states are snapshotted and restored on Enter, timeout, Ctrl-C, ordinary failure or shell exit.
+
+The generated laboratory-local control helper changes Music Master through the non-persistent `live` mixer action. The Settings volume faders must not be used during the rehearsal because their normal autosave behaviour could persist a temporary test level.
+
+The physical Stage B run must prove:
 
 - Plexamp and AirPlay use the music lane;
-- scheduled alarm uses the alarm lane;
-- Music Master at 0% silences music but not alarm;
+- a real scheduled alarm uses the independent alarm lane;
+- Music Master at 0% silences music but not the alarm;
 - the ten-minute paused-AirPlay hold still works;
 - alarm takeover, Snooze and Dismiss still work;
-- rollback restores exact files, controls, services and direct-mixer audio.
+- optional Plexamp reclaim still pauses active AirPlay;
+- rollback restores exact files, controls, services and direct-mixer audio;
+- no CamillaDSP process remains after rollback.
+
+The Stage B script and safety tests are committed, but prepare-only validation on the Pi and physical activation remain pending.
 
 ### Stage C — guarded persistent install
 
@@ -158,4 +173,4 @@ The production route is not approved until all of the following are true:
 
 ## Production activation status
 
-Stage A passed. Production activation remains blocked pending Stage A2, the mandatory-rollback Stage B real-service rehearsal and the later guarded persistent installation design. PR #2 remains Draft and must not be merged without explicit approval.
+Stages A and A2 passed. Stage B is prepared but has not been activated. Production activation remains blocked pending the mandatory-rollback Stage B real-service/DAC rehearsal and the later guarded persistent installation design. PR #2 remains Draft and must not be merged without explicit approval.
