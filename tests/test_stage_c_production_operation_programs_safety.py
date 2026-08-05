@@ -48,27 +48,44 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             "urllib",
         }
         self.assertTrue(forbidden.isdisjoint(imported))
-        self.assertNotIn("ProductionAdapter", self.source)
-        self.assertNotIn("BlockedProductionAdapter", self.source)
-        self.assertNotIn("ProductionAdapterBlocked", self.source)
-        self.assertNotIn("getattr(", self.source)
-        self.assertNotIn("callable(", self.source)
-        self.assertNotIn("def main(", self.source)
-        self.assertNotIn("if __name__", self.source)
-        self.assertNotIn("REQUIRED_CONFIRMATION", self.source)
-        self.assertNotIn("--confirm", self.source)
+        for marker in (
+            "ProductionAdapter",
+            "BlockedProductionAdapter",
+            "ProductionAdapterBlocked",
+            "getattr(",
+            "callable(",
+            "def main(",
+            "if __name__",
+            "REQUIRED_CONFIRMATION",
+            "--confirm",
+        ):
+            self.assertNotIn(marker, self.source)
 
     def test_exactly_four_immutable_programs_map_each_action_once(self) -> None:
+        expected_mapping = (
+            (programs.ProgramName.INSTALL, TransactionAction.INSTALL),
+            (
+                programs.ProgramName.AUTOMATIC_EXACT_ROLLBACK,
+                TransactionAction.EXACT_ROLLBACK,
+            ),
+            (
+                programs.ProgramName.RUNTIME_DIRECT_FAILBACK,
+                TransactionAction.RUNTIME_FAILBACK,
+            ),
+            (
+                programs.ProgramName.EXPLICIT_UNINSTALL,
+                TransactionAction.EXPLICIT_UNINSTALL,
+            ),
+        )
         self.assertEqual(len(programs.PROGRAMS), 4)
         self.assertEqual(
-            tuple(program.name for program in programs.PROGRAMS),
-            tuple(programs.ProgramName),
+            tuple((program.name, program.action) for program in programs.PROGRAMS),
+            expected_mapping,
         )
         self.assertEqual(
-            tuple(program.action for program in programs.PROGRAMS),
-            tuple(TransactionAction),
+            {program.action for program in programs.PROGRAMS},
+            set(TransactionAction),
         )
-        self.assertEqual(len({program.action for program in programs.PROGRAMS}), 4)
         for program in programs.PROGRAMS:
             self.assertIs(programs.program_for_action(program.action), program)
             with self.assertRaises(FrozenInstanceError):
@@ -100,15 +117,16 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             programs.EXPLICIT_UNINSTALL_PROGRAM,
         ):
             with self.subTest(program=program.name.value):
-                self.assertIs(
-                    program.entry_lock_state,
-                    programs.EntryLockState.UNHELD,
-                )
+                self.assertIs(program.entry_lock_state, programs.EntryLockState.UNHELD)
                 operations = self._operations(program)
                 acquire = operations.index(AdapterOperation.ACQUIRE_PRODUCTION_LOCK)
                 self.assertEqual(operations.count(AdapterOperation.ACQUIRE_PRODUCTION_LOCK), 1)
-                self.assertTrue(all(not step.lock_required for step in program.steps[: acquire + 1]))
-                self.assertTrue(all(step.lock_required for step in program.steps[acquire + 1 :]))
+                self.assertTrue(
+                    all(not step.lock_required for step in program.steps[: acquire + 1])
+                )
+                self.assertTrue(
+                    all(step.lock_required for step in program.steps[acquire + 1 :])
+                )
                 self.assertLess(
                     acquire,
                     operations.index(AdapterOperation.CREATE_AUTHORITATIVE_TRANSACTION),
