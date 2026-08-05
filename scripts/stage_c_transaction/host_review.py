@@ -5,11 +5,19 @@ import os
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
 
-from .package_review import ManifestEntry, mode_string, owner_string, sha256
+from .package_review import (
+    ManifestEntry,
+    mode_from_stat,
+    mode_string,
+    owner_from_stat,
+    owner_string,
+    sha256,
+)
 
 EXPECTED_PRE_STAGE_C_ALSA_SHA256 = "08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9"
 CURRENT_ALSA = Path("/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf")
@@ -96,31 +104,54 @@ def validate_current_host() -> None:
         raise SystemExit(f"Unexpected running CamillaDSP process: {pids}")
 
 
-def snapshot_paths(entries: list[ManifestEntry], review_root: Path) -> Path:
+def snapshot_paths(
+    entries: list[ManifestEntry], review_root: Path, privileged_paths: set[str]
+) -> Path:
     snapshot_root = review_root / "review-snapshot"
     files_root = snapshot_root / "rootfs"
-    absence_root = snapshot_root / "absence-markers"
+    marker_root = snapshot_root / "absence-markers"
     files_root.mkdir(parents=True)
-    absence_root.mkdir(parents=True)
+    marker_root.mkdir(parents=True)
     metadata = ["kind\tdestination\tpreinstall_state\tmode\towner\tsha256\tsnapshot"]
 
     managed_files = [Path(entry.destination) for entry in entries if entry.kind == "file"]
     for destination in [CURRENT_ALSA, *managed_files]:
         relative = destination.relative_to("/")
-        if destination.is_symlink():
+        if str(destination) in privileged_paths:
+            marker = marker_root / (str(relative).replace("/", "__") + ".privileged-check-required")
+            marker.write_text(
+                "UNVERIFIED\t"
+                f"{destination}\tprivileged activation-time snapshot required before any write\n",
+                encoding="utf-8",
+            )
+            metadata.append(
+                f"file\t{destination}\tprivileged-check-required\t-\t-\t-\t{marker}"
+            )
+            continue
+
+        try:
+            info = destination.lstat()
+        except FileNotFoundError:
+            info = None
+        except PermissionError as exc:
+            raise SystemExit(
+                f"New protected destination appeared after conflict review: {destination} ({exc})."
+            ) from exc
+
+        if info is not None and stat.S_ISLNK(info.st_mode):
             raise SystemExit(f"Refusing to snapshot symlinked managed path: {destination}")
-        if destination.is_file():
+        if info is not None and stat.S_ISREG(info.st_mode):
             snapshot = files_root / relative
             snapshot.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(destination, snapshot)
             metadata.append(
-                f"file\t{destination}\tpresent\t{mode_string(destination)}\t"
-                f"{owner_string(destination)}\t{sha256(destination)}\t{snapshot}"
+                f"file\t{destination}\tpresent\t{mode_from_stat(info)}\t"
+                f"{owner_from_stat(info)}\t{sha256(destination)}\t{snapshot}"
             )
-        elif destination.exists():
+        elif info is not None:
             raise SystemExit(f"Managed file destination is not a regular file: {destination}")
         else:
-            marker = absence_root / (str(relative).replace("/", "__") + ".absent")
+            marker = marker_root / (str(relative).replace("/", "__") + ".absent")
             marker.write_text(f"ABSENT\t{destination}\n", encoding="utf-8")
             metadata.append(f"file\t{destination}\tabsent\t-\t-\t-\t{marker}")
 
@@ -128,14 +159,20 @@ def snapshot_paths(entries: list[ManifestEntry], review_root: Path) -> Path:
         if entry.kind != "directory":
             continue
         destination = Path(entry.destination)
-        if destination.is_symlink():
+        try:
+            info = destination.lstat()
+        except FileNotFoundError:
+            info = None
+        except PermissionError as exc:
+            raise SystemExit(f"Cannot inspect managed directory {destination}: {exc}") from exc
+        if info is not None and stat.S_ISLNK(info.st_mode):
             raise SystemExit(f"Refusing symlinked managed directory: {destination}")
-        if destination.is_dir():
+        if info is not None and stat.S_ISDIR(info.st_mode):
             metadata.append(
-                f"directory\t{destination}\tpresent\t{mode_string(destination)}\t"
-                f"{owner_string(destination)}\t-\t-"
+                f"directory\t{destination}\tpresent\t{mode_from_stat(info)}\t"
+                f"{owner_from_stat(info)}\t-\t-"
             )
-        elif destination.exists():
+        elif info is not None:
             raise SystemExit(f"Managed directory destination has a conflicting type: {destination}")
         else:
             metadata.append(f"directory\t{destination}\tabsent\t-\t-\t-\t-")
