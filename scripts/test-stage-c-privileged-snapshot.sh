@@ -9,7 +9,7 @@ SNAPSHOT_ROOT=""
 REQUIRED_CONFIRMATION="STAGE-C3-PRIVILEGED-SNAPSHOT-READ-ONLY"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENGINE="$SCRIPT_DIR/stage_c_transaction/privileged_snapshot.py"
+ENGINE="$SCRIPT_DIR/stage_c_transaction/privileged_snapshot_entry.py"
 PYTHON3="$(command -v python3 || true)"
 
 usage() {
