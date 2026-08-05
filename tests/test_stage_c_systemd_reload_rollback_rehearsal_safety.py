@@ -148,13 +148,25 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
             self.assertIn(marker, source)
 
     def test_daemon_reload_command_is_literal_and_only_systemd_mutation(self) -> None:
-        source = self.method_source(
+        reload_source = self.method_source(
             self.adapter_tree,
             self.adapter,
             "SystemdReloadRollbackRehearsalAdapter",
             "_run_daemon_reload",
         )
-        self.assertIn('host_run(["systemctl", "daemon-reload"])', source)
+        observation_source = self.method_source(
+            self.adapter_tree,
+            self.adapter,
+            "SystemdReloadRollbackRehearsalAdapter",
+            "_observe_managed_units",
+        )
+        self.assertIn(
+            'host_run(["systemctl", "daemon-reload"])',
+            reload_source,
+        )
+        self.assertIn('"systemctl"', observation_source)
+        self.assertIn('"show"', observation_source)
+        self.assertIn("host_run(command)", observation_source)
         self.assertNotIn("shell=True", self.adapter)
         self.assertNotIn("subprocess", self.adapter)
         host_calls = []
@@ -164,7 +176,7 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
                     host_calls.append(ast.get_source_segment(self.adapter, node) or "")
         self.assertEqual(len(host_calls), 2)
         self.assertTrue(any("daemon-reload" in call for call in host_calls))
-        self.assertTrue(any('"show"' in call for call in host_calls))
+        self.assertTrue(any("host_run(command)" in call for call in host_calls))
         for forbidden in (
             '"start"',
             '"enable"',
@@ -235,7 +247,9 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
                     "UnitFileState": "",
                     "FragmentPath": "",
                 }
-            stdout = "".join(f"{name}={values[name]}\n" for name in SYSTEMD_PROPERTIES)
+            stdout = "".join(
+                f"{name}={values[name]}\n" for name in SYSTEMD_PROPERTIES
+            )
             return CompletedProcess(command, 0, stdout=stdout, stderr="")
 
         with tempfile.TemporaryDirectory() as raw:
@@ -274,7 +288,9 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
             self.assertEqual(call[-1], "--no-pager")
 
     def test_property_parser_rejects_missing_or_duplicate_fields(self) -> None:
-        complete = "".join(f"{name}=value\n" for name in SYSTEMD_PROPERTIES)
+        complete = "".join(
+            f"{name}=value\n" for name in SYSTEMD_PROPERTIES
+        )
         parsed = SystemdReloadRollbackRehearsalAdapter._parse_systemctl_show(
             complete
         )
@@ -300,10 +316,14 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
         self.assertIn("permits exactly two daemon reloads", source)
         self.assertLess(
             source.index("first daemon reload requires installed managed files"),
-            source.index('self._run_daemon_reload("candidate-files-installed")'),
+            source.index(
+                'self._run_daemon_reload("candidate-files-installed")'
+            ),
         )
         self.assertLess(
-            source.index("second daemon reload requires exact filesystem rollback"),
+            source.index(
+                "second daemon reload requires exact filesystem rollback"
+            ),
             source.index("self._restore_systemd_manager_exact()"),
         )
 
@@ -322,7 +342,11 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
             source.index("self._restore_systemd_manager_exact()"),
             source.index("super().__exit__"),
         )
-        self.assertIn("intentionally retained", source)
+        self.assertIn(
+            "production lock and transaction are intentionally",
+            source,
+        )
+        self.assertIn('f"retained: {rollback_exc}"', source)
 
     def test_application_services_are_gated_on_manager_restoration(self) -> None:
         source = self.method_source(
@@ -344,7 +368,9 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
         )
         self.assertIn("continued service quiescence", restore)
         self.assertLess(
-            restore.index('self._run_daemon_reload("rollback-files-absent")'),
+            restore.index(
+                'self._run_daemon_reload("rollback-files-absent")'
+            ),
             restore.index("self._systemd_manager_restored = True"),
         )
 
@@ -367,7 +393,8 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
             "self._systemd_manager_restored",
             "self._systemd_reload_count != 2",
             "systemd-reload-rolled-back-and-closed",
-            "daemon_reload_count=2",
+            "daemon_reload_count\\t2",
+            "daemon_reload_count=self._systemd_reload_count",
         ):
             self.assertIn(marker, v5)
         self.assertNotIn("lifecycle-v4.tsv", v5)
@@ -388,7 +415,9 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
 
     def test_wrapper_is_prepare_only_with_one_constrained_sudo(self) -> None:
         self.assertIn('MODE="prepare"', self.wrapper)
-        prepare_index = self.wrapper.index('if [[ "$MODE" == "prepare" ]]')
+        prepare_index = self.wrapper.index(
+            'if [[ "$MODE" == "prepare" ]]'
+        )
         sudo_index = self.wrapper.index("exec sudo env")
         self.assertLess(prepare_index, sudo_index)
         self.assertEqual(self.wrapper.count("exec sudo env"), 1)
@@ -400,7 +429,10 @@ class StageCSystemdReloadRollbackRehearsalSafetyTests(unittest.TestCase):
             "/var/tmp/a-clockwork-plex-stage-c18-managed-file-rollback.H3P4Po",
             self.wrapper,
         )
-        self.assertIn("Exactly two `systemctl daemon-reload`", self.wrapper)
+        self.assertIn(
+            "Exactly two `systemctl daemon-reload`",
+            self.wrapper,
+        )
         self.assertNotIn("--keep-active", self.wrapper)
 
     def test_design_records_exact_manager_rollback_contract(self) -> None:
