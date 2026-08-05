@@ -1,10 +1,10 @@
 # Production EQ Stage C guarded installation design
 
-Status: design accepted for implementation preparation only. Stages A, A2 and B passed. No persistent DSP route is approved or active.
+Status: Stages A, A2, B and C0 passed physically on `plexamp-bedroom`. Persistent Stage C preparation may continue, but no persistent DSP route is approved or active.
 
 ## Purpose
 
-Stage C promotes the physically proven split-bus topology into a managed appliance route without sacrificing the exact rollback discipline that protected the bedroom Pi during the laboratories and rehearsal.
+Stage C promotes the physically proven split-bus topology into a managed appliance route without sacrificing the exact rollback discipline that protected the bedroom Pi during the laboratories and rehearsals.
 
 The production topology remains:
 
@@ -24,13 +24,13 @@ The current known-good direct shared mixer places `acp_alarm` beneath `acp_maste
 Stage C therefore needs two distinct recovery concepts:
 
 1. **Exact uninstall rollback** — restore every pre-install file, service state and mixer level exactly as found.
-2. **Managed runtime failback** — use a separately validated direct route where Plexamp and AirPlay remain beneath Music Master but alarm feeds the stereo `dmix` independently.
+2. **Managed runtime failback** — use the physically validated direct route where Plexamp and AirPlay remain beneath Music Master but alarm feeds the stereo `dmix` independently.
 
 The managed failback route loses EQ and the final limiter, but it preserves the more important alarm-independence guarantee.
 
 ## Stage C0 prerequisite — direct failback proof
 
-Before the persistent installer exists, a temporary mandatory-rollback rehearsal must prove this no-DSP route:
+Stage C0 physically proved this no-DSP route on 5 August 2026:
 
 ```text
 Plexamp -> Plexamp trim --\
@@ -39,18 +39,19 @@ AirPlay -> AirPlay trim --/
 Alarm -> Maximum Alarm Volume -----------> stereo dmix -> DAC
 ```
 
-Required checks:
+The temporary mandatory-rollback rehearsal passed all required checks:
 
-- Plexamp and AirPlay sound normal;
-- AirPlay still pauses Plexamp;
-- Music Master at 0% silences Plexamp and AirPlay;
-- a real scheduled alarm remains audible at Music Master 0%;
-- alarm takeover, Snooze and Dismiss still work;
-- restoring Music Master restores music;
-- exact Ctrl-C/error rollback returns the original direct configuration and service states;
-- no CamillaDSP process is involved.
+- Plexamp and AirPlay sounded normal;
+- AirPlay paused Plexamp;
+- Music Master at 0% silenced Plexamp and AirPlay;
+- a real scheduled alarm remained audible at Music Master 0%;
+- alarm takeover, Snooze, repeated ringing and Dismiss worked;
+- restoring Music Master restored music;
+- exact rollback restored the original ALSA checksum, displayed mixer levels and prior states of Plexamp, Shairport Sync and the dashboard;
+- rollback reported zero failures;
+- no CamillaDSP process was involved.
 
-This becomes the route used by runtime failback only after it passes physically.
+The route is now approved as the managed runtime failback target. See `docs/direct-alarm-bypass-failback-result-2026-08-05.md`.
 
 ## Managed files
 
@@ -230,20 +231,35 @@ The root route helper and dashboard diagnostics expose:
 
 The dashboard is not allowed to report EQ as active merely because the helper file exists.
 
+## Host discovery gate
+
+Before prepare-only installation assets are generated, `scripts/inspect-stage-c-host.sh` records the current Pi facts without mutation:
+
+- loaded `snd_aloop` parameters and any persistence files;
+- ALSA card numbers and identities;
+- current route checksum, owner, mode and alarm placement;
+- active and enabled states of application and proposed Stage C services;
+- any existing CamillaDSP process;
+- verified CamillaDSP binary version and checksum;
+- physical DAC identity, owner and current `hw_params`.
+
+The discovery output becomes an input to the deterministic loopback and service design. It must not be replaced by assumed defaults.
+
 ## Promotion sequence
 
-1. Build and statically test the Stage C0 direct-failback rehearsal.
-2. Run prepare-only on the Pi.
-3. Physically activate the temporary direct-failback route and prove alarm independence plus exact rollback.
-4. Build the Stage C persistent installer in prepare-only form.
-5. Review every generated file and transaction rule.
-6. Run activated installation with mandatory automatic rollback available.
-7. Test normal Plexamp, AirPlay, NFC, alarm, Snooze, Dismiss and EQ behaviour.
-8. Deliberately kill CamillaDSP and prove automatic direct alarm-bypass failback.
-9. Reboot and prove deterministic route selection.
-10. Test explicit uninstall rollback to the exact pre-install direct mixer.
-11. Keep PR #2 Draft until the user explicitly approves readiness and merge.
+1. Build and statically test the Stage C0 direct-failback rehearsal. **PASS**
+2. Run prepare-only on the Pi. **PASS**
+3. Physically activate the temporary direct-failback route and prove alarm independence plus exact rollback. **PASS**
+4. Inspect the real host module, service and binary state without mutation.
+5. Build the Stage C persistent installer in prepare-only form.
+6. Review every generated file and transaction rule.
+7. Run activated installation with mandatory automatic rollback available.
+8. Test normal Plexamp, AirPlay, NFC, alarm, Snooze, Dismiss and EQ behaviour.
+9. Deliberately kill CamillaDSP and prove automatic direct alarm-bypass failback.
+10. Reboot and prove deterministic route selection.
+11. Test explicit uninstall rollback to the exact pre-install direct mixer.
+12. Keep PR #2 Draft until the user explicitly approves readiness and merge.
 
 ## Current decision
 
-Stage C implementation may proceed only through prepare-only assets and the Stage C0 temporary failback proof. Persistent activation remains blocked.
+Stage C implementation may proceed through read-only host discovery and prepare-only assets. Persistent activation remains blocked until every generated file, transaction rule and rollback path has been reviewed and the user explicitly authorises the physical install.
