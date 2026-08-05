@@ -11,8 +11,10 @@ from pathlib import Path
 from stage_c_package.core import PUBLIC_PCMS, build_validation_root, result, run, sha256
 from stage_c_package.templates import HostContract
 
+from .runtime_templates import PACKAGE_PHASE
 
-EXPECTED_FILES = 21
+
+EXPECTED_FILES = 28
 RUNTIME_MODULES = (
     "__init__.py",
     "model.py",
@@ -20,7 +22,15 @@ RUNTIME_MODULES = (
     "state_machine.py",
     "supervisor_model.py",
     "runtime_executor.py",
-    "recording_runtime_adapter.py",
+    "linux_runtime_filesystem.py",
+    "linux_runtime_process.py",
+    "linux_runtime_adapter.py",
+    "install_runtime_filesystem.py",
+    "install_runtime_process.py",
+    "install_runtime_adapter.py",
+    "install_runtime_executor.py",
+    "supervisor_service.py",
+    "package_entry.py",
 )
 
 
@@ -28,7 +38,7 @@ def create_lab_root(requested: Path | None) -> Path:
     if requested is None:
         root = Path(
             tempfile.mkdtemp(
-                prefix="a-clockwork-plex-stage-c21-activation-package.",
+                prefix="a-clockwork-plex-stage-c21-activation-package-v2.",
                 dir="/var/tmp",
             )
         )
@@ -95,8 +105,8 @@ def validate_package(
         raise SystemExit("CamillaDSP configuration failed validation; see camilladsp-check.txt")
     result(results, "camilladsp-config", "PASS", version)
 
-    python_candidates = [paths["route_helper"], paths["package_entry"]]
-    python_candidates.extend(paths["runtime_package"].glob("*.py"))
+    python_candidates = [paths["route_helper"]]
+    python_candidates.extend(sorted(paths["runtime_package"].glob("*.py")))
     for source_path in python_candidates:
         source = source_path.read_text(encoding="utf-8")
         compile(source, str(source_path), "exec")
@@ -113,7 +123,7 @@ def validate_package(
         (lab / "visudo.txt").write_text(checked.stdout + checked.stderr, encoding="utf-8")
         if checked.returncode != 0:
             raise SystemExit("Sudoers candidate failed validation; see visudo.txt")
-        result(results, "sudoers-candidate", "PASS", "visudo accepted read-only rules")
+        result(results, "sudoers-candidate", "PASS", "visudo accepted read-only user rules")
     else:
         result(results, "sudoers-candidate", "SKIP", "visudo unavailable")
 
@@ -133,11 +143,13 @@ def validate_package(
         raise SystemExit(
             f"Package file count mismatch: expected {EXPECTED_FILES}, found {len(files)}"
         )
+    if (paths["runtime_package"] / "recording_runtime_adapter.py").exists():
+        raise SystemExit("Production package unexpectedly contains the recording test adapter")
     result(
         results,
         "package-purity",
         "PASS",
-        f"{len(files)} regular files; no cache, symlink or special objects",
+        f"{len(files)} regular files; no cache, symlink, special object or recording adapter",
     )
 
     unit_text = "\n".join(
@@ -165,6 +177,8 @@ def validate_package(
 
     entry = paths["package_entry"].read_text(encoding="utf-8")
     for action in (
+        "status",
+        "validate-runtime",
         "accept-install-handoff",
         "promote-committed-approval",
         "boot-prepare",
@@ -173,22 +187,39 @@ def validate_package(
     ):
         if action not in entry:
             raise SystemExit(f"Package entry is missing fixed action identity: {action}")
-    if "host_mutation_available\": False" not in entry:
-        raise SystemExit("Package entry does not advertise its blocked host adapter state")
-    if "mutation remains blocked" not in entry:
-        raise SystemExit("Package entry does not fail closed for mutation actions")
+    for required in (
+        "INSTALLED_PACKAGE_ROOT",
+        PACKAGE_PHASE,
+        'contract.get("host_mutation_available") is not True',
+        "transaction-only approval operation is not exposed through the service helper",
+        "runtime mutation requires root",
+    ):
+        if required not in entry:
+            raise SystemExit(f"Activation-capable package entry is missing guard: {required}")
+    for forbidden in (
+        "subprocess.Popen",
+        "shell=True",
+        "systemctl",
+        "os.system",
+        "os.exec",
+        "def dispatch",
+    ):
+        if forbidden in entry:
+            raise SystemExit(f"Package entry contains a forbidden direct boundary: {forbidden}")
     result(
         results,
-        "adapter-boundary",
+        "runtime-entry-boundary",
         "PASS",
-        "fixed runtime action names packaged; production host mutation still blocked",
+        "fixed installed actions are package-bound; transaction-only approval operations remain unexposed",
     )
 
     contract_payload = json.loads(paths["package_contract"].read_text(encoding="utf-8"))
     if contract_payload.get("schema_version") != 1:
         raise SystemExit("Package contract schema mismatch")
-    if contract_payload.get("host_mutation_available") is not False:
-        raise SystemExit("Package contract unexpectedly enables host mutation")
+    if contract_payload.get("package_phase") != PACKAGE_PHASE:
+        raise SystemExit("Package contract phase mismatch")
+    if contract_payload.get("host_mutation_available") is not True:
+        raise SystemExit("Package contract does not identify the reviewed runtime authority")
     rows = contract_payload.get("files")
     if not isinstance(rows, list) or len(rows) != EXPECTED_FILES - 1:
         raise SystemExit("Package contract file set mismatch")
