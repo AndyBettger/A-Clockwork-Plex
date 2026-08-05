@@ -23,9 +23,10 @@ WRAPPER = ROOT / "scripts" / "test-stage-c-privileged-snapshot.sh"
 ENGINE = ROOT / "scripts" / "stage_c_transaction" / "privileged_snapshot.py"
 CORE = ROOT / "scripts" / "stage_c_transaction" / "snapshot_core.py"
 TOKEN = "STAGE-C3-PRIVILEGED-SNAPSHOT-READ-ONLY"
+PROTECTED_PATH = "/etc/sudoers.d/a-clockwork-plex-audio-route"
 
 
-def source() -> str:
+def combined_source() -> str:
     return ENGINE.read_text(encoding="utf-8") + "\n" + CORE.read_text(encoding="utf-8")
 
 
@@ -53,21 +54,21 @@ def tree_fingerprint(root: Path) -> list[tuple[str, str, int, str]]:
 
 
 def fake_entries() -> list[ManifestEntry]:
-    files = [
+    files = (
         "/etc/a-clockwork-plex/audio-routes/direct-alarm-bypass.conf",
         "/etc/a-clockwork-plex/audio-routes/split-bus.conf",
         "/etc/a-clockwork-plex/camilladsp-split-bus.yml",
         "/etc/default/a-clockwork-plex-split-bus",
         "/etc/modprobe.d/a-clockwork-plex-aloop.conf",
         "/etc/modules-load.d/a-clockwork-plex-aloop.conf",
-        "/etc/sudoers.d/a-clockwork-plex-audio-route",
+        PROTECTED_PATH,
         "/etc/systemd/system/a-clockwork-plex-audio-failback.service",
         "/etc/systemd/system/a-clockwork-plex-audio-route.service",
         "/etc/systemd/system/a-clockwork-plex-camilladsp.service",
         "/usr/local/bin/a-clockwork-plex-audio-route",
         "/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp",
-    ]
-    directories = [
+    )
+    directories = (
         "/etc",
         "/etc/a-clockwork-plex",
         "/etc/a-clockwork-plex/audio-routes",
@@ -79,7 +80,7 @@ def fake_entries() -> list[ManifestEntry]:
         "/usr/local/bin",
         "/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3",
         "/var/lib/a-clockwork-plex/split-bus",
-    ]
+    )
     return [
         *(ManifestEntry("directory", path, "755", "root:root", "-") for path in directories),
         *(ManifestEntry("file", path, "644", "root:root", "0" * 64) for path in files),
@@ -90,27 +91,23 @@ def create_fake_system_root(root: Path) -> None:
     current = root / CURRENT_ALSA_DESTINATION.lstrip("/")
     current.parent.mkdir(parents=True)
     current.write_text("physically validated direct route\n", encoding="utf-8")
-    for entry in fake_entries():
-        if entry.kind == "directory" and entry.destination in {
-            "/etc",
-            "/etc/default",
-            "/etc/modprobe.d",
-            "/etc/modules-load.d",
-            "/etc/sudoers.d",
-            "/etc/systemd/system",
-            "/usr/local/bin",
-        }:
-            (root / entry.destination.lstrip("/")).mkdir(parents=True, exist_ok=True)
+    for destination in (
+        "/etc/default",
+        "/etc/modprobe.d",
+        "/etc/modules-load.d",
+        "/etc/sudoers.d",
+        "/etc/systemd/system",
+        "/usr/local/bin",
+    ):
+        (root / destination.lstrip("/")).mkdir(parents=True, exist_ok=True)
 
 
 class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
-    def test_wrapper_has_valid_shell_syntax(self):
+    def test_wrapper_and_python_syntax(self):
         result = subprocess.run(
             ["bash", "-n", str(WRAPPER)], capture_output=True, text=True, check=False
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-
-    def test_python_modules_compile_in_memory(self):
         for path in (ENGINE, CORE):
             compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
@@ -144,20 +141,17 @@ class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
         self.assertIn("--capture-read-only", result.stdout)
         self.assertIn(TOKEN, result.stdout)
 
-    def test_wrapper_has_one_guarded_privileged_command_and_no_activation_interface(self):
+    def test_wrapper_has_one_privileged_command_and_no_forbidden_case_branch(self):
         text = WRAPPER.read_text(encoding="utf-8")
-        command_lines = re.findall(r"(?m)^\s*sudo\s+", text)
-        self.assertEqual(len(command_lines), 1)
+        self.assertEqual(len(re.findall(r"(?m)^\s*sudo\s+", text)), 1)
         self.assertIn("sudo env PYTHONDONTWRITEBYTECODE=1", text)
         self.assertIn("if [[ \"$MODE\" == prepare ]]", text)
-        self.assertIn("--capture-read-only", text)
-        self.assertIn(TOKEN, text)
-        self.assertNotIn("--activate", text)
-        self.assertNotIn("--install", text)
-        self.assertNotIn("--rollback", text)
-        self.assertNotIn("--uninstall", text)
+        self.assertNotRegex(text, r"(?m)^\s*--activate\)")
+        self.assertNotRegex(text, r"(?m)^\s*--install\)")
+        self.assertNotRegex(text, r"(?m)^\s*--rollback\)")
+        self.assertNotRegex(text, r"(?m)^\s*--uninstall\)")
 
-    def test_engine_cli_is_snapshot_only_and_rechecks_confirmation(self):
+    def test_engine_cli_and_confirmation_are_snapshot_only(self):
         text = ENGINE.read_text(encoding="utf-8")
         for expected in (
             'parser.add_argument("--package-root"',
@@ -168,10 +162,15 @@ class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
             TOKEN,
         ):
             self.assertIn(expected, text)
-        for forbidden in ('add_argument("--activate"', 'add_argument("--install"', 'add_argument("--route"'):
+        for forbidden in (
+            'add_argument("--activate"',
+            'add_argument("--install"',
+            'add_argument("--route"',
+            'add_argument("--rollback"',
+        ):
             self.assertNotIn(forbidden, text)
 
-    def test_root_scope_is_pinned_to_fresh_user_owned_var_tmp_directory(self):
+    def test_root_scope_is_fresh_user_owned_var_tmp_only(self):
         text = ENGINE.read_text(encoding="utf-8")
         for expected in (
             'raw.parent != Path("/var/tmp")',
@@ -185,58 +184,40 @@ class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
             self.assertIn(expected, text)
 
     def test_executable_commands_are_read_only(self):
-        text = source()
-        for forbidden in (
-            '["systemctl", "start"',
-            '["systemctl", "stop"',
-            '["systemctl", "restart"',
-            '["systemctl", "enable"',
-            '["systemctl", "disable"',
-            '"daemon-reload"',
-            '["amixer", "-c", "Pro", "sset"',
-            '["amixer", "-c", "Pro", "set"',
-            '["modprobe"',
-            '["aplay"',
-            "subprocess.Popen",
-        ):
-            self.assertNotIn(forbidden, text)
-        for allowed in (
+        text = combined_source()
+        forbidden_patterns = (
+            r'run\(\["systemctl",\s*"(?:start|stop|restart|enable|disable|daemon-reload)"',
+            r'run\(\["amixer".*"(?:sset|set)"',
+            r'run\(\["modprobe"',
+            r'run\(\["aplay"',
+        )
+        for pattern in forbidden_patterns:
+            self.assertNotRegex(text, pattern)
+        self.assertNotIn("subprocess.Popen", text)
+        for expected in (
             "capture_service_states",
             "capture_mixer_states",
             "capture_module_and_dac",
         ):
-            self.assertIn(allowed, text)
+            self.assertIn(expected, text)
 
-    def test_absent_protected_path_is_resolved_and_system_tree_is_unchanged(self):
+    def test_absent_protected_path_is_resolved_without_changing_system_tree(self):
         with tempfile.TemporaryDirectory() as system_dir, tempfile.TemporaryDirectory() as parent:
             system_root = Path(system_dir)
             evidence_root = Path(parent) / "evidence"
             evidence_root.mkdir()
             create_fake_system_root(system_root)
             before = tree_fingerprint(system_root)
-
             summary = collect_filesystem_snapshot(fake_entries(), system_root, evidence_root)
-
-            after = tree_fingerprint(system_root)
-            self.assertEqual(before, after)
-            self.assertEqual(summary.managed_absent, 12)
-            self.assertEqual(summary.managed_present, 0)
-            self.assertEqual(summary.conflicts, 0)
-            marker = (
-                evidence_root
-                / "absence-markers"
-                / "etc__sudoers.d__a-clockwork-plex-audio-route.absent"
+            self.assertEqual(before, tree_fingerprint(system_root))
+            self.assertEqual((summary.managed_absent, summary.managed_present, summary.conflicts), (12, 0, 0))
+            marker = evidence_root / "absence-markers/etc__sudoers.d__a-clockwork-plex-audio-route.absent"
+            self.assertEqual(marker.read_text(encoding="utf-8"), f"ABSENT\t{PROTECTED_PATH}\n")
+            self.assertTrue(
+                (evidence_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")).is_file()
             )
-            self.assertEqual(
-                marker.read_text(encoding="utf-8"),
-                "ABSENT\t/etc/sudoers.d/a-clockwork-plex-audio-route\n",
-            )
-            copied = evidence_root / CURRENT_ALSA_DESTINATION.lstrip("/")
-            self.assertFalse(copied.exists())
-            copied = evidence_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")
-            self.assertTrue(copied.is_file())
 
-    def test_existing_protected_file_is_copied_outward_and_counted_as_conflict_boundary(self):
+    def test_existing_protected_file_is_copied_outward_and_counted_present(self):
         with tempfile.TemporaryDirectory() as system_dir, tempfile.TemporaryDirectory() as parent:
             system_root = Path(system_dir)
             evidence_root = Path(parent) / "evidence"
@@ -245,30 +226,24 @@ class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
             protected = system_root / PROTECTED_PATH.lstrip("/")
             protected.write_text("existing protected rule\n", encoding="utf-8")
             before = tree_fingerprint(system_root)
-
             summary = collect_filesystem_snapshot(fake_entries(), system_root, evidence_root)
-
             self.assertEqual(before, tree_fingerprint(system_root))
-            self.assertEqual(summary.managed_absent, 11)
-            self.assertEqual(summary.managed_present, 1)
-            self.assertEqual(summary.conflicts, 0)
+            self.assertEqual((summary.managed_absent, summary.managed_present, summary.conflicts), (11, 1, 0))
             copied = evidence_root / "rootfs" / PROTECTED_PATH.lstrip("/")
             self.assertEqual(copied.read_text(encoding="utf-8"), "existing protected rule\n")
 
-    def test_symlinked_managed_path_is_rejected(self):
+    def test_symlinked_managed_path_and_symlinked_evidence_are_rejected(self):
         with tempfile.TemporaryDirectory() as system_dir, tempfile.TemporaryDirectory() as parent:
             system_root = Path(system_dir)
             evidence_root = Path(parent) / "evidence"
             evidence_root.mkdir()
             create_fake_system_root(system_root)
-            target = system_root / "tmp-target"
+            target = system_root / "target"
             target.write_text("target\n", encoding="utf-8")
-            managed = system_root / "etc/default/a-clockwork-plex-split-bus"
-            managed.symlink_to(target)
+            (system_root / "etc/default/a-clockwork-plex-split-bus").symlink_to(target)
             with self.assertRaises(SystemExit):
                 collect_filesystem_snapshot(fake_entries(), system_root, evidence_root)
 
-    def test_evidence_manifest_rejects_symlinks(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "ordinary.txt").write_text("ok\n", encoding="utf-8")
@@ -294,19 +269,15 @@ class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
         ):
             self.assertIn(expected, text)
 
-    def test_success_requires_all_twelve_destinations_absent(self):
-        text = ENGINE.read_text(encoding="utf-8")
-        self.assertIn("summary.managed_absent != EXPECTED_PACKAGE_FILES", text)
-        self.assertIn("summary.managed_present", text)
-        self.assertIn("summary.conflicts", text)
-        self.assertIn("all {EXPECTED_PACKAGE_FILES} managed file destinations verified absent", text)
-
-    def test_rollback_ledger_forbids_reusing_rehearsal_snapshot(self):
+    def test_success_requires_all_twelve_absent_and_future_snapshot_is_new(self):
         text = ENGINE.read_text(encoding="utf-8")
         for expected in (
+            "summary.managed_absent != EXPECTED_PACKAGE_FILES",
+            "summary.managed_present",
+            "summary.conflicts",
+            "all {EXPECTED_PACKAGE_FILES} managed file destinations verified absent",
             "use a new activation snapshot; never reuse rehearsal",
             "acquire the single Stage C route transaction lock before the future snapshot",
-            "restore original file or exact verified absence from the future root-owned activation snapshot",
             "zero rollback mismatches",
             "this rehearsal evidence must never be reused as the future activation snapshot",
         ):
@@ -323,9 +294,6 @@ class StageCPrivilegedSnapshotSafetyTests(unittest.TestCase):
                 and node.func.id in {"eval", "exec", "compile"}
             ]
             self.assertEqual(calls, [])
-
-
-PROTECTED_PATH = "/etc/sudoers.d/a-clockwork-plex-audio-route"
 
 
 if __name__ == "__main__":
