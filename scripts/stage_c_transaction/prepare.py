@@ -14,9 +14,7 @@ if str(REPO_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(REPO_SCRIPTS))
 
 from stage_c_transaction.host_review import (
-    APPLICATION_SERVICES,
     EXPECTED_PRE_STAGE_C_ALSA_SHA256,
-    STAGE_C_SERVICES,
     capture_mixer_states,
     capture_module_and_dac,
     capture_service_states,
@@ -34,7 +32,7 @@ from stage_c_transaction.package_review import (
 )
 from stage_c_transaction.plans import write_command_plans, write_rollback_obligations
 
-PLANNER_VERSION = 1
+PLANNER_VERSION = 2
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,23 +78,25 @@ def main() -> int:
     append_result(results, "package-inertness", "helper mutations blocked; units gated by absent approval marker")
 
     destination_state = review_root / "destination-state.tsv"
-    existing_files = write_destination_state(entries, package_root, destination_state)
-    if existing_files:
+    destination_review = write_destination_state(entries, package_root, destination_state)
+    if destination_review.conflicts:
         raise SystemExit(
-            f"Destination conflict gate failed: {existing_files} managed file destination(s) already exist. "
+            f"Destination conflict gate failed: {destination_review.conflicts} managed destination conflict(s). "
             f"See {destination_state}"
         )
+    privileged_paths = set(destination_review.privileged_checks)
     append_result(
         results,
         "destination-conflict-gate",
-        f"all {EXPECTED_PACKAGE_FILES} managed file destinations absent",
+        f"{destination_review.verified_absent_files} file destinations verified absent; "
+        f"{len(privileged_paths)} protected destination(s) require activation-time privileged verification",
     )
 
-    snapshot_root = snapshot_paths(entries, review_root)
+    snapshot_root = snapshot_paths(entries, review_root, privileged_paths)
     append_result(
         results,
         "review-snapshot",
-        f"filesystem content/absence/mode/owner evidence recorded under {snapshot_root}",
+        f"filesystem content/absence/protected-path evidence recorded under {snapshot_root}",
     )
 
     service_state = review_root / "service-state.tsv"
@@ -121,10 +121,10 @@ def main() -> int:
     append_result(
         results,
         "rollback-contract",
-        "exact file/absence/service/module/mixer verification obligations generated",
+        "exact file/absence/protected-path/service/module/mixer verification obligations generated",
     )
 
-    write_command_plans(review_root)
+    write_command_plans(review_root, destination_review.privileged_checks)
     append_result(results, "activation-interface", "absent by design; command plans are review text only")
 
     (review_root / "package-fingerprint.tsv").write_text(
@@ -135,6 +135,7 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    protected_lines = "\n".join(f"- {path}" for path in destination_review.privileged_checks) or "- none"
     report = review_root / "report.txt"
     report.write_text(
         f"""A Clockwork Plex Stage C2 prepare-only installation transaction review
@@ -146,15 +147,21 @@ Stage C1 package: {package_root}
 Stage C2 review: {review_root}
 Verified pre-Stage-C ALSA SHA-256: {EXPECTED_PRE_STAGE_C_ALSA_SHA256}
 Managed package files: {EXPECTED_PACKAGE_FILES}
-Existing managed file conflicts: {existing_files}
+Verified absent managed files: {destination_review.verified_absent_files}
+Existing managed destination conflicts: {destination_review.conflicts}
+Privileged destination checks required: {len(destination_review.privileged_checks)}
+
+Protected destinations requiring a fresh privileged activation-time snapshot:
+{protected_lines}
 
 Evidence:
 - Stage C1 package checksums, modes, directory contract and PASS results were replayed
 - current production ALSA remains the exact physically validated rollback graph
 - snd_aloop remains index 7 / ACP_Loopback / 2 substreams / pcm_notify 1
 - no CamillaDSP process or activation-approved marker exists
-- every managed file destination is absent
-- a review snapshot records the current ALSA file and absence markers
+- every unprivilegedly verifiable managed file destination is absent
+- protected destinations are recorded as unverified, never falsely recorded as absent
+- a review snapshot records the current ALSA file, true absence markers and protected-path markers
 - service, mixer, module, DAC owner and DAC hw_params state were captured read-only
 - exact rollback obligations and future command ordering were generated
 
@@ -167,6 +174,7 @@ Safety state:
 - no PCM was opened
 - no mixer value was changed
 - no approval marker was created
+- protected destinations must be resolved by a fresh root-owned activation-time snapshot before any write
 - this review snapshot is evidence only and must be repeated immediately at activation time
 - persistent activation remains blocked by activation-blockers.txt
 """,
@@ -191,8 +199,9 @@ A Clockwork Plex Stage C2 transaction review prepared.
   Report:             {report}
 
 No activation path exists. Nothing outside the Stage C2 review directory was
-written or changed. The captured snapshot is for review only; a future approved
-installer must repeat it immediately before any privileged write.
+written or changed. Protected destinations remain explicitly unverified, and a
+future approved installer must repeat a root-owned snapshot immediately before
+any privileged write.
 """.strip()
     )
     return 0
