@@ -111,12 +111,16 @@ class RecordingProductionAdapter:
         failures: tuple[FailureInjection, ...] = (),
         *,
         initial_lock_held: bool = False,
+        initial_transaction: AuthoritativeTransaction | None = None,
     ) -> None:
         if len({(item.operation, item.occurrence) for item in failures}) != len(failures):
             raise ValueError("duplicate failure injection")
+        if initial_transaction is not None and not initial_lock_held:
+            raise ValueError("an initial authoritative transaction requires a held lock")
         self._failures = failures
         self._occurrences: dict[AdapterOperation, int] = {}
         self._transaction_counter = 0
+        self.current_transaction = initial_transaction
         self.lock_file_exists = initial_lock_held
         self.lock_held = initial_lock_held
         self.attempted_operations: list[AdapterOperation] = []
@@ -142,13 +146,40 @@ class RecordingProductionAdapter:
             detail="simulation operation requires the held route lock",
         )
 
-    def _receipt(self, operation: AdapterOperation) -> AdapterResult[None]:
-        injected = self._begin(operation)
-        if injected is not None:
-            return injected
+    def _require_transaction(
+        self,
+        operation: AdapterOperation,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None] | None:
         missing = self._require_lock(operation)
         if missing is not None:
             return missing
+        authoritative = self.current_transaction
+        if authoritative is None:
+            return AdapterResult(
+                operation=operation,
+                status=AdapterStatus.FAIL,
+                detail="simulation operation requires an adapter-generated transaction",
+            )
+        if transaction != authoritative.transaction:
+            return AdapterResult(
+                operation=operation,
+                status=AdapterStatus.FAIL,
+                detail="simulation rejected a substituted transaction identity",
+            )
+        return None
+
+    def _receipt(
+        self,
+        operation: AdapterOperation,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        injected = self._begin(operation)
+        if injected is not None:
+            return injected
+        invalid = self._require_transaction(operation, transaction)
+        if invalid is not None:
+            return invalid
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
@@ -234,7 +265,9 @@ class RecordingProductionAdapter:
         )
 
     def create_authoritative_transaction(
-        self, action: TransactionAction, package: PackageFingerprint
+        self,
+        action: TransactionAction,
+        package: PackageFingerprint,
     ) -> AdapterResult[AuthoritativeTransaction]:
         operation = AdapterOperation.CREATE_AUTHORITATIVE_TRANSACTION
         injected = self._begin(operation)
@@ -243,6 +276,12 @@ class RecordingProductionAdapter:
         missing = self._require_lock(operation)
         if missing is not None:
             return cast(AdapterResult[AuthoritativeTransaction], missing)
+        if self.current_transaction is not None:
+            return AdapterResult(
+                operation=operation,
+                status=AdapterStatus.FAIL,
+                detail="simulation already has an authoritative transaction",
+            )
         self._transaction_counter += 1
         suffix = f"{action.value}-{self._transaction_counter}"
         payload = AuthoritativeTransaction(
@@ -251,6 +290,7 @@ class RecordingProductionAdapter:
             action=action,
             package=package,
         )
+        self.current_transaction = payload
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
@@ -259,49 +299,61 @@ class RecordingProductionAdapter:
         )
 
     def capture_filesystem_state(
-        self, transaction: TransactionIdentity
+        self,
+        transaction: TransactionIdentity,
     ) -> AdapterResult[FilesystemSnapshot]:
         operation = AdapterOperation.CAPTURE_FILESYSTEM_STATE
         injected = self._begin(operation)
         if injected is not None:
             return cast(AdapterResult[FilesystemSnapshot], injected)
-        missing = self._require_lock(operation)
-        if missing is not None:
-            return cast(AdapterResult[FilesystemSnapshot], missing)
+        invalid = self._require_transaction(operation, transaction)
+        if invalid is not None:
+            return cast(AdapterResult[FilesystemSnapshot], invalid)
+        authoritative = cast(AuthoritativeTransaction, self.current_transaction)
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
             detail="synthetic exact filesystem snapshot captured",
             payload=FilesystemSnapshot(
-                identity=SnapshotIdentity(f"{transaction.value}-filesystem"),
+                identity=authoritative.snapshot,
                 managed_entries=12,
                 exact=True,
             ),
         )
 
     def capture_service_state(
-        self, transaction: TransactionIdentity
+        self,
+        transaction: TransactionIdentity,
     ) -> AdapterResult[ServiceSnapshot]:
-        del transaction
         operation = AdapterOperation.CAPTURE_SERVICE_STATE
         injected = self._begin(operation)
         if injected is not None:
             return cast(AdapterResult[ServiceSnapshot], injected)
-        missing = self._require_lock(operation)
-        if missing is not None:
-            return cast(AdapterResult[ServiceSnapshot], missing)
+        invalid = self._require_transaction(operation, transaction)
+        if invalid is not None:
+            return cast(AdapterResult[ServiceSnapshot], invalid)
         services = tuple(
             ServiceState(
                 unit=unit,
                 load=ServiceLoadState.LOADED,
                 active=(
                     ServiceActiveState.ACTIVE
-                    if unit in {ServiceUnit.PLEXAMP, ServiceUnit.SHAIRPORT_SYNC, ServiceUnit.DASHBOARD}
+                    if unit
+                    in {
+                        ServiceUnit.PLEXAMP,
+                        ServiceUnit.SHAIRPORT_SYNC,
+                        ServiceUnit.DASHBOARD,
+                    }
                     else ServiceActiveState.INACTIVE
                 ),
                 enabled=(
                     ServiceEnableState.ENABLED
-                    if unit in {ServiceUnit.PLEXAMP, ServiceUnit.SHAIRPORT_SYNC, ServiceUnit.DASHBOARD}
+                    if unit
+                    in {
+                        ServiceUnit.PLEXAMP,
+                        ServiceUnit.SHAIRPORT_SYNC,
+                        ServiceUnit.DASHBOARD,
+                    }
                     else ServiceEnableState.DISABLED
                 ),
             )
@@ -315,16 +367,16 @@ class RecordingProductionAdapter:
         )
 
     def capture_mixer_state(
-        self, transaction: TransactionIdentity
+        self,
+        transaction: TransactionIdentity,
     ) -> AdapterResult[MixerSnapshot]:
-        del transaction
         operation = AdapterOperation.CAPTURE_MIXER_STATE
         injected = self._begin(operation)
         if injected is not None:
             return cast(AdapterResult[MixerSnapshot], injected)
-        missing = self._require_lock(operation)
-        if missing is not None:
-            return cast(AdapterResult[MixerSnapshot], missing)
+        invalid = self._require_transaction(operation, transaction)
+        if invalid is not None:
+            return cast(AdapterResult[MixerSnapshot], invalid)
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
@@ -333,16 +385,16 @@ class RecordingProductionAdapter:
         )
 
     def capture_loopback_state(
-        self, transaction: TransactionIdentity
+        self,
+        transaction: TransactionIdentity,
     ) -> AdapterResult[LoopbackSnapshot]:
-        del transaction
         operation = AdapterOperation.CAPTURE_LOOPBACK_STATE
         injected = self._begin(operation)
         if injected is not None:
             return cast(AdapterResult[LoopbackSnapshot], injected)
-        missing = self._require_lock(operation)
-        if missing is not None:
-            return cast(AdapterResult[LoopbackSnapshot], missing)
+        invalid = self._require_transaction(operation, transaction)
+        if invalid is not None:
+            return cast(AdapterResult[LoopbackSnapshot], invalid)
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
@@ -351,16 +403,16 @@ class RecordingProductionAdapter:
         )
 
     def capture_dac_state(
-        self, transaction: TransactionIdentity
+        self,
+        transaction: TransactionIdentity,
     ) -> AdapterResult[DacSnapshot]:
-        del transaction
         operation = AdapterOperation.CAPTURE_DAC_STATE
         injected = self._begin(operation)
         if injected is not None:
             return cast(AdapterResult[DacSnapshot], injected)
-        missing = self._require_lock(operation)
-        if missing is not None:
-            return cast(AdapterResult[DacSnapshot], missing)
+        invalid = self._require_transaction(operation, transaction)
+        if invalid is not None:
+            return cast(AdapterResult[DacSnapshot], invalid)
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
@@ -373,110 +425,189 @@ class RecordingProductionAdapter:
         )
 
     def stage_candidate_files(
-        self, transaction: TransactionIdentity, package: PackageFingerprint
+        self,
+        transaction: TransactionIdentity,
+        package: PackageFingerprint,
     ) -> AdapterResult[None]:
-        del transaction, package
-        return self._receipt(AdapterOperation.STAGE_CANDIDATE_FILES)
+        authoritative = self.current_transaction
+        if authoritative is None or package != authoritative.package:
+            return AdapterResult(
+                operation=AdapterOperation.STAGE_CANDIDATE_FILES,
+                status=AdapterStatus.FAIL,
+                detail="simulation rejected a substituted package fingerprint",
+            )
+        return self._receipt(AdapterOperation.STAGE_CANDIDATE_FILES, transaction)
 
-    def validate_candidate_alsa(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_ALSA)
+    def validate_candidate_alsa(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_ALSA, transaction)
 
-    def validate_candidate_sudoers(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_SUDOERS)
+    def validate_candidate_sudoers(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_SUDOERS, transaction)
 
-    def validate_candidate_units(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_UNITS)
+    def validate_candidate_units(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_UNITS, transaction)
 
-    def validate_candidate_camilladsp(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_CAMILLADSP)
+    def validate_candidate_camilladsp(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VALIDATE_CANDIDATE_CAMILLADSP, transaction)
 
     def stop_captured_application_services(
-        self, transaction: TransactionIdentity, services: ServiceSnapshot
+        self,
+        transaction: TransactionIdentity,
+        services: ServiceSnapshot,
     ) -> AdapterResult[None]:
-        del transaction, services
-        return self._receipt(AdapterOperation.STOP_CAPTURED_APPLICATION_SERVICES)
+        del services
+        return self._receipt(
+            AdapterOperation.STOP_CAPTURED_APPLICATION_SERVICES,
+            transaction,
+        )
 
-    def verify_dac_released(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VERIFY_DAC_RELEASED)
+    def verify_dac_released(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VERIFY_DAC_RELEASED, transaction)
 
-    def install_managed_files(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.INSTALL_MANAGED_FILES)
+    def install_managed_files(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.INSTALL_MANAGED_FILES, transaction)
 
-    def reload_systemd(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.RELOAD_SYSTEMD)
+    def reload_systemd(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.RELOAD_SYSTEMD, transaction)
 
-    def select_split_bus_route(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.SELECT_SPLIT_BUS_ROUTE)
+    def select_split_bus_route(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.SELECT_SPLIT_BUS_ROUTE, transaction)
 
-    def start_managed_stage_c_services(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.START_MANAGED_STAGE_C_SERVICES)
+    def start_managed_stage_c_services(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(
+            AdapterOperation.START_MANAGED_STAGE_C_SERVICES,
+            transaction,
+        )
 
-    def stop_managed_stage_c_services(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES)
+    def stop_managed_stage_c_services(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(
+            AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES,
+            transaction,
+        )
 
-    def verify_split_bus_health(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VERIFY_SPLIT_BUS_HEALTH)
+    def verify_split_bus_health(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VERIFY_SPLIT_BUS_HEALTH, transaction)
 
-    def run_finite_music_probe(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.RUN_FINITE_MUSIC_PROBE)
+    def run_finite_music_probe(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.RUN_FINITE_MUSIC_PROBE, transaction)
 
-    def run_finite_alarm_probe(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.RUN_FINITE_ALARM_PROBE)
+    def run_finite_alarm_probe(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.RUN_FINITE_ALARM_PROBE, transaction)
 
     def restore_captured_application_services(
-        self, transaction: TransactionIdentity, services: ServiceSnapshot
+        self,
+        transaction: TransactionIdentity,
+        services: ServiceSnapshot,
     ) -> AdapterResult[None]:
-        del transaction, services
-        return self._receipt(AdapterOperation.RESTORE_CAPTURED_APPLICATION_SERVICES)
+        del services
+        return self._receipt(
+            AdapterOperation.RESTORE_CAPTURED_APPLICATION_SERVICES,
+            transaction,
+        )
 
-    def verify_dashboard_health(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.VERIFY_DASHBOARD_HEALTH)
+    def verify_dashboard_health(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.VERIFY_DASHBOARD_HEALTH, transaction)
 
-    def write_commit_manifest(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.WRITE_COMMIT_MANIFEST)
+    def write_commit_manifest(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(AdapterOperation.WRITE_COMMIT_MANIFEST, transaction)
 
-    def select_direct_failback_route(self, transaction: TransactionIdentity) -> AdapterResult[None]:
-        del transaction
-        return self._receipt(AdapterOperation.SELECT_DIRECT_FAILBACK_ROUTE)
+    def select_direct_failback_route(
+        self,
+        transaction: TransactionIdentity,
+    ) -> AdapterResult[None]:
+        return self._receipt(
+            AdapterOperation.SELECT_DIRECT_FAILBACK_ROUTE,
+            transaction,
+        )
 
     def restore_exact_snapshot(
-        self, transaction: TransactionIdentity, snapshot: SnapshotIdentity
+        self,
+        transaction: TransactionIdentity,
+        snapshot: SnapshotIdentity,
     ) -> AdapterResult[None]:
-        del transaction, snapshot
-        return self._receipt(AdapterOperation.RESTORE_EXACT_SNAPSHOT)
+        authoritative = self.current_transaction
+        if authoritative is None or snapshot != authoritative.snapshot:
+            return AdapterResult(
+                operation=AdapterOperation.RESTORE_EXACT_SNAPSHOT,
+                status=AdapterStatus.FAIL,
+                detail="simulation rejected a substituted snapshot identity",
+            )
+        return self._receipt(AdapterOperation.RESTORE_EXACT_SNAPSHOT, transaction)
 
     def restore_mixer_state(
-        self, transaction: TransactionIdentity, mixer: MixerSnapshot
+        self,
+        transaction: TransactionIdentity,
+        mixer: MixerSnapshot,
     ) -> AdapterResult[None]:
-        del transaction, mixer
-        return self._receipt(AdapterOperation.RESTORE_MIXER_STATE)
+        del mixer
+        return self._receipt(AdapterOperation.RESTORE_MIXER_STATE, transaction)
 
     def restore_service_state(
-        self, transaction: TransactionIdentity, services: ServiceSnapshot
+        self,
+        transaction: TransactionIdentity,
+        services: ServiceSnapshot,
     ) -> AdapterResult[None]:
-        del transaction, services
-        return self._receipt(AdapterOperation.RESTORE_SERVICE_STATE)
+        del services
+        return self._receipt(AdapterOperation.RESTORE_SERVICE_STATE, transaction)
 
     def verify_exact_rollback(
-        self, transaction: TransactionIdentity, snapshot: SnapshotIdentity
+        self,
+        transaction: TransactionIdentity,
+        snapshot: SnapshotIdentity,
     ) -> AdapterResult[None]:
-        del transaction, snapshot
-        return self._receipt(AdapterOperation.VERIFY_EXACT_ROLLBACK)
+        authoritative = self.current_transaction
+        if authoritative is None or snapshot != authoritative.snapshot:
+            return AdapterResult(
+                operation=AdapterOperation.VERIFY_EXACT_ROLLBACK,
+                status=AdapterStatus.FAIL,
+                detail="simulation rejected a substituted snapshot identity",
+            )
+        return self._receipt(AdapterOperation.VERIFY_EXACT_ROLLBACK, transaction)
 
 
 def _require_transaction(context: _SimulationContext) -> AuthoritativeTransaction:
@@ -504,7 +635,6 @@ def _invoke(
     context: _SimulationContext,
 ) -> AdapterResult[object]:
     operation = step.operation
-    transaction = context.transaction.transaction if context.transaction else None
 
     match operation:
         case AdapterOperation.INSPECT_HOST_CONTRACT:
@@ -516,64 +646,115 @@ def _invoke(
         case AdapterOperation.RELEASE_PRODUCTION_LOCK:
             result = adapter.release_production_lock()
         case AdapterOperation.CREATE_AUTHORITATIVE_TRANSACTION:
-            result = adapter.create_authoritative_transaction(program.action, context.package)
+            result = adapter.create_authoritative_transaction(
+                program.action,
+                context.package,
+            )
         case AdapterOperation.CAPTURE_FILESYSTEM_STATE:
-            result = adapter.capture_filesystem_state(_require_transaction(context).transaction)
+            result = adapter.capture_filesystem_state(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.CAPTURE_SERVICE_STATE:
-            result = adapter.capture_service_state(_require_transaction(context).transaction)
+            result = adapter.capture_service_state(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.CAPTURE_MIXER_STATE:
-            result = adapter.capture_mixer_state(_require_transaction(context).transaction)
+            result = adapter.capture_mixer_state(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.CAPTURE_LOOPBACK_STATE:
-            result = adapter.capture_loopback_state(_require_transaction(context).transaction)
+            result = adapter.capture_loopback_state(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.CAPTURE_DAC_STATE:
-            result = adapter.capture_dac_state(_require_transaction(context).transaction)
+            result = adapter.capture_dac_state(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.STAGE_CANDIDATE_FILES:
-            result = adapter.stage_candidate_files(_require_transaction(context).transaction, context.package)
+            result = adapter.stage_candidate_files(
+                _require_transaction(context).transaction,
+                context.package,
+            )
         case AdapterOperation.VALIDATE_CANDIDATE_ALSA:
-            result = adapter.validate_candidate_alsa(_require_transaction(context).transaction)
+            result = adapter.validate_candidate_alsa(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.VALIDATE_CANDIDATE_SUDOERS:
-            result = adapter.validate_candidate_sudoers(_require_transaction(context).transaction)
+            result = adapter.validate_candidate_sudoers(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.VALIDATE_CANDIDATE_UNITS:
-            result = adapter.validate_candidate_units(_require_transaction(context).transaction)
+            result = adapter.validate_candidate_units(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.VALIDATE_CANDIDATE_CAMILLADSP:
-            result = adapter.validate_candidate_camilladsp(_require_transaction(context).transaction)
+            result = adapter.validate_candidate_camilladsp(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.STOP_CAPTURED_APPLICATION_SERVICES:
             result = adapter.stop_captured_application_services(
                 _require_transaction(context).transaction,
                 _require_services(context),
             )
         case AdapterOperation.VERIFY_DAC_RELEASED:
-            result = adapter.verify_dac_released(_require_transaction(context).transaction)
+            result = adapter.verify_dac_released(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.INSTALL_MANAGED_FILES:
-            result = adapter.install_managed_files(_require_transaction(context).transaction)
+            result = adapter.install_managed_files(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.RELOAD_SYSTEMD:
-            result = adapter.reload_systemd(_require_transaction(context).transaction)
+            result = adapter.reload_systemd(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.SELECT_SPLIT_BUS_ROUTE:
-            result = adapter.select_split_bus_route(_require_transaction(context).transaction)
+            result = adapter.select_split_bus_route(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.START_MANAGED_STAGE_C_SERVICES:
-            result = adapter.start_managed_stage_c_services(_require_transaction(context).transaction)
+            result = adapter.start_managed_stage_c_services(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES:
-            result = adapter.stop_managed_stage_c_services(_require_transaction(context).transaction)
+            result = adapter.stop_managed_stage_c_services(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.VERIFY_SPLIT_BUS_HEALTH:
-            result = adapter.verify_split_bus_health(_require_transaction(context).transaction)
+            result = adapter.verify_split_bus_health(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.RUN_FINITE_MUSIC_PROBE:
-            result = adapter.run_finite_music_probe(_require_transaction(context).transaction)
+            result = adapter.run_finite_music_probe(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.RUN_FINITE_ALARM_PROBE:
-            result = adapter.run_finite_alarm_probe(_require_transaction(context).transaction)
+            result = adapter.run_finite_alarm_probe(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.RESTORE_CAPTURED_APPLICATION_SERVICES:
             result = adapter.restore_captured_application_services(
                 _require_transaction(context).transaction,
                 _require_services(context),
             )
         case AdapterOperation.VERIFY_DASHBOARD_HEALTH:
-            result = adapter.verify_dashboard_health(_require_transaction(context).transaction)
+            result = adapter.verify_dashboard_health(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.WRITE_COMMIT_MANIFEST:
-            result = adapter.write_commit_manifest(_require_transaction(context).transaction)
+            result = adapter.write_commit_manifest(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.SELECT_DIRECT_FAILBACK_ROUTE:
-            result = adapter.select_direct_failback_route(_require_transaction(context).transaction)
+            result = adapter.select_direct_failback_route(
+                _require_transaction(context).transaction
+            )
         case AdapterOperation.RESTORE_EXACT_SNAPSHOT:
             authoritative = _require_transaction(context)
-            result = adapter.restore_exact_snapshot(authoritative.transaction, authoritative.snapshot)
+            result = adapter.restore_exact_snapshot(
+                authoritative.transaction,
+                authoritative.snapshot,
+            )
         case AdapterOperation.RESTORE_MIXER_STATE:
             result = adapter.restore_mixer_state(
                 _require_transaction(context).transaction,
@@ -586,7 +767,10 @@ def _invoke(
             )
         case AdapterOperation.VERIFY_EXACT_ROLLBACK:
             authoritative = _require_transaction(context)
-            result = adapter.verify_exact_rollback(authoritative.transaction, authoritative.snapshot)
+            result = adapter.verify_exact_rollback(
+                authoritative.transaction,
+                authoritative.snapshot,
+            )
         case _:
             raise ValueError(f"unhandled Stage C operation: {operation.value}")
 
@@ -623,19 +807,25 @@ def _consume_payload(
 
     if expected is None:
         if payload is not None:
-            raise ValueError(f"receipt-only operation returned a payload: {operation.value}")
+            raise ValueError(
+                f"receipt-only operation returned a payload: {operation.value}"
+            )
         return
     if not isinstance(payload, expected):
         raise ValueError(f"typed payload mismatch for operation: {operation.value}")
 
     if isinstance(payload, AuthoritativeTransaction):
         if payload.package != context.package:
-            raise ValueError("adapter-generated transaction changed the package fingerprint")
+            raise ValueError(
+                "adapter-generated transaction changed the package fingerprint"
+            )
         context.transaction = payload
     elif isinstance(payload, FilesystemSnapshot):
         authoritative = _require_transaction(context)
-        if payload.identity.value != f"{authoritative.transaction.value}-filesystem":
-            raise ValueError("filesystem snapshot is not bound to the current transaction")
+        if payload.identity != authoritative.snapshot:
+            raise ValueError(
+                "filesystem snapshot is not bound to the authoritative transaction"
+            )
     elif isinstance(payload, ServiceSnapshot):
         context.services = payload
     elif isinstance(payload, MixerSnapshot):
@@ -746,17 +936,22 @@ def simulate_action(
     package = PackageFingerprint("0" * 64)
     program = program_for_action(action)
     initial_lock = program.entry_lock_state is EntryLockState.HELD
-    adapter = RecordingProductionAdapter(
-        failures,
-        initial_lock_held=initial_lock,
-    )
     context = (
         _seed_held_rollback_context(package)
         if initial_lock
         else _SimulationContext(package=package)
     )
+    adapter = RecordingProductionAdapter(
+        failures,
+        initial_lock_held=initial_lock,
+        initial_transaction=context.transaction,
+    )
 
-    failure_operation, disposition = _execute_program(program, adapter, context)
+    failure_operation, disposition = _execute_program(
+        program,
+        adapter,
+        context,
+    )
     rollback_started = False
     rollback_completed = False
 
