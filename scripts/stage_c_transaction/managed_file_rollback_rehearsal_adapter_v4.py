@@ -5,9 +5,9 @@ from __future__ import annotations
 
 Installation acceptance remains strict about type, mode, owner and digest.
 Mandatory rollback deliberately requires only the exact device/inode and object
-type that the adapter itself recorded at mkdir or rename time. This lets the
-adapter remove its own partial object even when a later chmod, chown, fsync or
-post-install verification failed, without weakening successful-install proof.
+type that the adapter itself recorded at mkdir, temporary creation or atomic
+no-overwrite publication time. This lets the adapter remove its own partial
+object after a later failure without weakening successful-install proof.
 """
 
 import os
@@ -22,7 +22,6 @@ from .managed_file_rollback_rehearsal_adapter import (
 from .managed_file_rollback_rehearsal_adapter_v3 import (
     ManagedFileRollbackRehearsalAdapterV3,
 )
-from .snapshot_core import CURRENT_ALSA_DESTINATION
 
 
 class ManagedFileRollbackRehearsalAdapterV4(
@@ -55,34 +54,89 @@ class ManagedFileRollbackRehearsalAdapterV4(
             )
         return path
 
+    def _remove_exact_file_if_present(
+        self,
+        record: InstalledObject,
+        *,
+        action: str,
+        allow_absent: bool,
+    ) -> bool:
+        path = _safe_destination(record.destination)
+        try:
+            info = path.lstat()
+        except FileNotFoundError:
+            if allow_absent:
+                return False
+            raise ManagedFileRollbackFailure(
+                f"recorded rollback file is unavailable: {record.destination}"
+            )
+        if (
+            stat.S_ISLNK(info.st_mode)
+            or not stat.S_ISREG(info.st_mode)
+            or info.st_dev != record.device
+            or info.st_ino != record.inode
+        ):
+            raise ManagedFileRollbackFailure(
+                f"refusing rollback after pathname substitution: {record.destination}"
+            )
+        parent_fd, _parent = self._open_parent(path)
+        try:
+            current = os.stat(
+                path.name,
+                dir_fd=parent_fd,
+                follow_symlinks=False,
+            )
+            if current.st_dev != record.device or current.st_ino != record.inode:
+                raise ManagedFileRollbackFailure(
+                    f"refusing removal after pathname substitution: {record.destination}"
+                )
+            os.unlink(path.name, dir_fd=parent_fd)
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+        self._record_managed_action(
+            action,
+            record.destination,
+            "PASS",
+            f"removed exact inode={record.inode}",
+        )
+        return True
+
     def _restore_managed_files_exact(self) -> None:
         if not self._managed_files_installed:
             raise ManagedFileRollbackFailure(
                 "managed-file rollback was not armed"
             )
-        for record in reversed(self._installed_files):
-            path = self._verify_rollback_identity(record)
-            parent_fd, _parent = self._open_parent(path)
-            try:
-                current = os.stat(
-                    path.name,
-                    dir_fd=parent_fd,
-                    follow_symlinks=False,
-                )
-                if current.st_dev != record.device or current.st_ino != record.inode:
-                    raise ManagedFileRollbackFailure(
-                        f"refusing removal after pathname substitution: {record.destination}"
-                    )
-                os.unlink(path.name, dir_fd=parent_fd)
-                os.fsync(parent_fd)
-            finally:
-                os.close(parent_fd)
-            self._record_managed_action(
-                "remove-file",
-                record.destination,
-                "PASS",
-                f"removed exact inode={record.inode}",
+
+        pending = self._pending_publication
+        if pending is not None:
+            removed = self._remove_exact_file_if_present(
+                pending,
+                action="remove-pending-publication",
+                allow_absent=self._publication_failed_cleanly,
             )
+            if not removed and not self._publication_failed_cleanly:
+                raise ManagedFileRollbackFailure(
+                    "managed-file publication outcome is not provably absent"
+                )
+            self._pending_publication = None
+            self._publication_failed_cleanly = False
+
+        for record in reversed(self._installed_files):
+            self._remove_exact_file_if_present(
+                record,
+                action="remove-file",
+                allow_absent=False,
+            )
+
+        for record in reversed(self._temporary_files):
+            self._remove_exact_file_if_present(
+                record,
+                action="remove-temporary",
+                allow_absent=True,
+            )
+        self._temporary_files.clear()
+
         for record in reversed(self._created_directories):
             path = self._verify_rollback_identity(record)
             parent_fd, _parent = self._open_parent(path)
@@ -137,6 +191,8 @@ class ManagedFileRollbackRehearsalAdapterV4(
             f"installed_file_count\t{len(self._installed_files)}\n"
             f"removed_file_count\t{len(self._installed_files)}\n"
             f"removed_directory_count\t{len(self._created_directories)}\n"
+            "pending_publication_count\t0\n"
+            "temporary_file_count\t0\n"
             "systemd_reloaded\tfalse\n"
             "route_selected\tfalse\n"
             "committed\tfalse\n",
