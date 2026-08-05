@@ -1,6 +1,13 @@
 #!/usr/bin/python3
 from __future__ import annotations
 
+"""Authoritative Stage C4 sandbox-only transaction and rollback rehearsal.
+
+This module is the single executable owner for the Stage C4 synthetic transaction.
+It contains the validated evidence replay, sandbox mapping, installation, failure
+injection, rollback and reporting paths. No companion runtime module exists.
+"""
+
 import argparse
 import csv
 import hashlib
@@ -84,7 +91,12 @@ def _read_tsv(path: Path) -> list[dict[str, str]]:
 
 def _write_tsv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=fieldnames,
+            delimiter="\t",
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -129,7 +141,9 @@ def tree_fingerprint(root: Path) -> tuple[tuple[str, str, str, str], ...]:
     return tuple(rows)
 
 
-def combined_scenario_fingerprint(scenario_root: Path) -> tuple[tuple[str, str, str, str], ...]:
+def combined_scenario_fingerprint(
+    scenario_root: Path,
+) -> tuple[tuple[str, str, str, str], ...]:
     rows: list[tuple[str, str, str, str]] = []
     for name in ("system-root", "simulated-state"):
         child = scenario_root / name
@@ -138,7 +152,10 @@ def combined_scenario_fingerprint(scenario_root: Path) -> tuple[tuple[str, str, 
     return tuple(rows)
 
 
-def write_fingerprint(path: Path, rows: tuple[tuple[str, str, str, str], ...]) -> None:
+def write_fingerprint(
+    path: Path,
+    rows: tuple[tuple[str, str, str, str], ...],
+) -> None:
     output = ["path\ttype\tmode\tsha256"]
     output.extend("\t".join(row) for row in rows)
     path.write_text("\n".join(output) + "\n", encoding="utf-8")
@@ -173,7 +190,9 @@ def _validate_evidence_manifest(stage_c3_root: Path) -> None:
             if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
                 raise SystemExit(f"Stage C3 evidence directory mismatch: {relative}")
             if f"{stat.S_IMODE(info.st_mode):o}" != mode or digest != "-":
-                raise SystemExit(f"Stage C3 evidence directory metadata mismatch: {relative}")
+                raise SystemExit(
+                    f"Stage C3 evidence directory metadata mismatch: {relative}"
+                )
         elif kind == "file":
             if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
                 raise SystemExit(f"Stage C3 evidence file mismatch: {relative}")
@@ -192,7 +211,10 @@ def _validate_evidence_manifest(stage_c3_root: Path) -> None:
         )
 
 
-def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[ManifestEntry], StageC3Evidence]:
+def validate_inputs(
+    package_root: Path,
+    stage_c3_root: Path,
+) -> tuple[list[ManifestEntry], StageC3Evidence]:
     package_root = package_root.resolve()
     stage_c3_root = stage_c3_root.resolve()
     if package_root == stage_c3_root:
@@ -206,7 +228,9 @@ def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[Manif
 
     results = _read_tsv(stage_c3_root / "results.tsv")
     observed = tuple(row.get("check", "") for row in results)
-    if observed != EXPECTED_STAGE_C3_CHECKS or any(row.get("result") != "PASS" for row in results):
+    if observed != EXPECTED_STAGE_C3_CHECKS or any(
+        row.get("result") != "PASS" for row in results
+    ):
         raise SystemExit("Stage C3 evidence is not the exact twelve-check PASS result.")
 
     report = (stage_c3_root / "report.txt").read_text(encoding="utf-8")
@@ -232,7 +256,9 @@ def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[Manif
     if not current or current.get("preinstall_state") != "present":
         raise SystemExit("Stage C3 did not capture the current ALSA file as present.")
     if current.get("sha256") != EXPECTED_PRE_STAGE_C_ALSA_SHA256:
-        raise SystemExit("Stage C3 current ALSA checksum differs from the physically validated route.")
+        raise SystemExit(
+            "Stage C3 current ALSA checksum differs from the physically validated route."
+        )
     current_copy = stage_c3_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")
     if not current_copy.is_file() or sha256(current_copy) != EXPECTED_PRE_STAGE_C_ALSA_SHA256:
         raise SystemExit("Stage C3 copied ALSA rollback file is missing or changed.")
@@ -240,14 +266,18 @@ def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[Manif
     for entry in (item for item in entries if item.kind == "file"):
         row = files.get(entry.destination)
         if not row or row.get("preinstall_state") != "absent":
-            raise SystemExit(f"Stage C3 first-install boundary is not absent: {entry.destination}")
+            raise SystemExit(
+                f"Stage C3 first-install boundary is not absent: {entry.destination}"
+            )
 
     service_rows = _read_tsv(stage_c3_root / "service-state.tsv")
     services = {row.get("service", ""): row for row in service_rows}
     for service in APPLICATION_SERVICES:
         row = services.get(service)
         if not row or (
-            row.get("load_state"), row.get("active_state"), row.get("enabled_state")
+            row.get("load_state"),
+            row.get("active_state"),
+            row.get("enabled_state"),
         ) != ("loaded", "active", "enabled"):
             raise SystemExit(f"Stage C3 application service boundary changed: {service}")
     for service in STAGE_C_SERVICES:
@@ -260,7 +290,9 @@ def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[Manif
 
     mixer_rows = _read_tsv(stage_c3_root / "mixer-state.tsv")
     if tuple(row.get("control", "") for row in mixer_rows) != MIXER_CONTROLS:
-        raise SystemExit("Stage C3 mixer evidence does not contain the four expected controls.")
+        raise SystemExit(
+            "Stage C3 mixer evidence does not contain the four expected controls."
+        )
 
     module_rows = _read_tsv(stage_c3_root / "module-dac-state.tsv")
     module = {row.get("item", ""): row.get("value", "") for row in module_rows}
@@ -276,7 +308,9 @@ def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[Manif
     }
     for item, expected in expected_module.items():
         if module.get(item) != expected:
-            raise SystemExit(f"Stage C3 module/DAC evidence changed: {item}={module.get(item)}")
+            raise SystemExit(
+                f"Stage C3 module/DAC evidence changed: {item}={module.get(item)}"
+            )
 
     rollback_rows = _read_tsv(stage_c3_root / "rollback-ledger.tsv")
     if len(rollback_rows) != 23 or rollback_rows[-1].get("area") != "final":
@@ -290,7 +324,11 @@ def validate_inputs(package_root: Path, stage_c3_root: Path) -> tuple[list[Manif
     return entries, StageC3Evidence(tuple(filesystem_rows), directory_states)
 
 
-def validate_sandbox_root(requested: Path, package_root: Path, stage_c3_root: Path) -> Path:
+def validate_sandbox_root(
+    requested: Path,
+    package_root: Path,
+    stage_c3_root: Path,
+) -> Path:
     if os.geteuid() == 0:
         raise SystemExit("Run Stage C4 as the normal project user, not as root.")
     raw = requested.expanduser()
@@ -355,8 +393,48 @@ def _atomic_copy(source: Path, destination: Path, mode: int) -> None:
 
 
 def _journal(path: Path, action: str, detail: str) -> None:
+    if not path.exists():
+        path.write_text("sequence\taction\tdetail\n", encoding="utf-8")
+    sequence = len(path.read_text(encoding="utf-8").splitlines())
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(f"{action}\t{detail}\n")
+        handle.write(f"{sequence}\t{action}\t{detail}\n")
+
+
+def _set_application_active_state(state_root: Path, active: str) -> None:
+    rows = _read_tsv(state_root / "services.tsv")
+    for row in rows:
+        if row.get("service") in APPLICATION_SERVICES:
+            row["active_state"] = active
+    _write_tsv(
+        state_root / "services.tsv",
+        ["service", "load_state", "active_state", "enabled_state"],
+        rows,
+    )
+
+
+def _captured_present_directory_modes(
+    entries: list[ManifestEntry],
+    evidence: StageC3Evidence,
+) -> dict[str, int]:
+    managed = {entry.destination for entry in entries if entry.kind == "directory"}
+    captured: dict[str, int] = {}
+    for row in evidence.filesystem_rows:
+        destination = row.get("destination", "")
+        if (
+            row.get("kind") != "directory"
+            or row.get("preinstall_state") != "present"
+            or destination not in managed
+        ):
+            continue
+        mode_text = row.get("mode", "")
+        try:
+            mode = int(mode_text, 8)
+        except ValueError as exc:
+            raise SystemExit(
+                f"Invalid captured managed-directory mode: {destination} {mode_text}"
+            ) from exc
+        captured[destination] = mode
+    return captured
 
 
 def seed_scenario(
@@ -365,108 +443,66 @@ def seed_scenario(
     stage_c3_root: Path,
     entries: list[ManifestEntry],
     evidence: StageC3Evidence,
-) -> tuple[tuple[tuple[str, str, str, str], ...], set[str]]:
+) -> tuple[
+    tuple[tuple[str, str, str, str], ...],
+    set[str],
+    dict[str, int],
+]:
     system_root = scenario_root / "system-root"
     state_root = scenario_root / "simulated-state"
     baseline_root = scenario_root / "baseline"
     system_root.mkdir(parents=True)
     state_root.mkdir()
     baseline_root.mkdir()
-    journal = scenario_root / "journal.tsv"
-    journal.write_text("action\tdetail\n", encoding="utf-8")
 
-    created_present_dirs: list[tuple[str, int]] = []
-    for row in evidence.filesystem_rows:
-        if row.get("kind") != "directory" or row.get("preinstall_state") != "present":
-            continue
-        destination = row.get("destination", "")
-        mode_text = row.get("mode", "")
-        try:
-            mode = int(mode_text, 8)
-        except ValueError as exc:
-            raise SystemExit(f"Invalid Stage C3 directory mode: {destination} {mode_text}") from exc
-        created_present_dirs.append((destination, mode))
-    for destination, mode in sorted(created_present_dirs, key=lambda item: len(PurePosixPath(item[0]).parts)):
-        path = mapped_path(system_root, destination)
-        path.mkdir(parents=True, exist_ok=True)
-        path.chmod(mode)
+    absent_directories: set[str] = set()
+    for entry in (item for item in entries if item.kind == "directory"):
+        destination = mapped_path(system_root, entry.destination)
+        state = evidence.initial_directory_states.get(entry.destination)
+        if state == "present":
+            destination.mkdir(parents=True, exist_ok=True)
+            captured_row = next(
+                row
+                for row in evidence.filesystem_rows
+                if row.get("kind") == "directory"
+                and row.get("destination") == entry.destination
+            )
+            destination.chmod(int(captured_row.get("mode", "755"), 8))
+        elif state == "absent":
+            absent_directories.add(entry.destination)
+        else:
+            raise SystemExit(
+                f"Stage C3 did not resolve managed directory state: {entry.destination}"
+            )
 
     current_source = stage_c3_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")
     current_destination = mapped_path(system_root, CURRENT_ALSA_DESTINATION)
     _atomic_copy(current_source, current_destination, 0o644)
 
-    for name in (
-        "service-state.tsv",
-        "mixer-state.tsv",
-        "module-dac-state.tsv",
-        "dac-hw-params.txt",
-    ):
-        source = stage_c3_root / name
-        if not source.is_file():
-            raise SystemExit(f"Stage C3 state input is missing: {source}")
-        shutil.copy2(source, state_root / name)
-    (state_root / "route-mode.txt").write_text("pre-stage-c\n", encoding="utf-8")
-    (state_root / "daemon-reload-count.txt").write_text("0\n", encoding="utf-8")
-    (state_root / "transaction-phase.txt").write_text("idle\n", encoding="utf-8")
-
-    baseline_current = baseline_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")
-    baseline_current.parent.mkdir(parents=True)
-    shutil.copy2(current_destination, baseline_current)
-    shutil.copytree(state_root, baseline_root / "simulated-state")
-
-    absent_directories = {
-        entry.destination
-        for entry in entries
-        if entry.kind == "directory" and evidence.initial_directory_states.get(entry.destination) == "absent"
-    }
-    (baseline_root / "absent-directories.txt").write_text(
-        "".join(f"{item}\n" for item in sorted(absent_directories)), encoding="utf-8"
+    shutil.copyfile(stage_c3_root / "service-state.tsv", state_root / "services.tsv")
+    shutil.copyfile(stage_c3_root / "mixer-state.tsv", state_root / "mixer.tsv")
+    shutil.copyfile(stage_c3_root / "module-dac-state.tsv", state_root / "module-dac.tsv")
+    (state_root / "route-selected.txt").write_text(
+        "direct-shared-pre-stage-c\n",
+        encoding="utf-8",
     )
+
+    shutil.copytree(system_root, baseline_root / "rootfs")
+    shutil.copytree(state_root, baseline_root / "simulated-state")
     baseline = combined_scenario_fingerprint(scenario_root)
-    write_fingerprint(baseline_root / "fingerprint.tsv", baseline)
-    _journal(journal, "seed", "synthetic root and state copied from Stage C3 evidence")
+    write_fingerprint(scenario_root / "baseline-fingerprint.tsv", baseline)
 
-    for entry in (item for item in entries if item.kind == "file"):
-        if mapped_path(system_root, entry.destination).exists():
-            raise SystemExit(f"Managed sandbox file unexpectedly exists before install: {entry.destination}")
-    if sha256(current_destination) != EXPECTED_PRE_STAGE_C_ALSA_SHA256:
-        raise SystemExit("Seeded sandbox ALSA file does not match the validated pre-Stage-C checksum.")
-    return baseline, absent_directories
-
-
-def _set_application_active_state(state_file: Path, active: str) -> None:
-    rows = _read_tsv(state_file)
-    for row in rows:
-        if row.get("service") in APPLICATION_SERVICES:
-            row["active_state"] = active
-    _write_tsv(state_file, ["service", "load_state", "active_state", "enabled_state"], rows)
-
-
-def verify_install(
-    scenario_root: Path, package_root: Path, entries: list[ManifestEntry]
-) -> None:
-    system_root = scenario_root / "system-root"
-    for entry in entries:
-        destination = mapped_path(system_root, entry.destination)
-        if entry.kind == "directory":
-            if not destination.is_dir() or destination.is_symlink():
-                raise SystemExit(f"Sandbox install directory is missing: {entry.destination}")
-            continue
-        if not destination.is_file() or destination.is_symlink():
-            raise SystemExit(f"Sandbox install file is missing: {entry.destination}")
-        if sha256(destination) != entry.digest or _mode(destination) != entry.mode:
-            raise SystemExit(f"Sandbox installed file metadata mismatch: {entry.destination}")
-    split = mapped_path(system_root, SPLIT_ROUTE_DESTINATION)
-    active = mapped_path(system_root, CURRENT_ALSA_DESTINATION)
-    if sha256(active) != sha256(split):
-        raise SystemExit("Sandbox active ALSA file does not match the installed split-bus route.")
-    route_mode = (scenario_root / "simulated-state/route-mode.txt").read_text(encoding="utf-8").strip()
-    if route_mode != "sandbox-split-bus-selected":
-        raise SystemExit("Sandbox route state was not selected.")
-    if (scenario_root / "simulated-state/daemon-reload-count.txt").read_text(
-        encoding="utf-8"
-    ).strip() != "1":
-        raise SystemExit("Sandbox daemon-reload count is not one.")
+    present_directory_modes = _captured_present_directory_modes(entries, evidence)
+    rows = ["destination\tmode"]
+    rows.extend(
+        f"{destination}\t{mode:o}"
+        for destination, mode in sorted(present_directory_modes.items())
+    )
+    (scenario_root / "baseline/present-directory-modes.tsv").write_text(
+        "\n".join(rows) + "\n",
+        encoding="utf-8",
+    )
+    return baseline, absent_directories, present_directory_modes
 
 
 def apply_sandbox_install(
@@ -478,61 +514,81 @@ def apply_sandbox_install(
     system_root = scenario_root / "system-root"
     state_root = scenario_root / "simulated-state"
     journal = scenario_root / "journal.tsv"
-    phase = state_root / "transaction-phase.txt"
-    phase.write_text("installing\n", encoding="utf-8")
-    _set_application_active_state(state_root / "service-state.tsv", "inactive")
-    _journal(journal, "services", "three application services marked inactive in simulated state")
 
-    directories = sorted(
-        (entry for entry in entries if entry.kind == "directory"),
-        key=lambda entry: len(PurePosixPath(entry.destination).parts),
-    )
-    for entry in directories:
+    for entry in (item for item in entries if item.kind == "directory"):
         destination = mapped_path(system_root, entry.destination)
         if destination.exists():
-            if not destination.is_dir() or destination.is_symlink():
-                raise SystemExit(f"Sandbox directory collision: {entry.destination}")
-        else:
-            destination.mkdir()
+            if destination.is_symlink() or not destination.is_dir():
+                raise SystemExit(
+                    f"Sandbox directory conflicts with candidate: {entry.destination}"
+                )
+            continue
+        destination.mkdir(parents=False)
         destination.chmod(int(entry.mode, 8))
+        _journal(journal, "create-directory", entry.destination)
 
     for entry in (item for item in entries if item.kind == "file"):
         source = package_root / "rootfs" / entry.destination.lstrip("/")
         destination = mapped_path(system_root, entry.destination)
         _atomic_copy(source, destination, int(entry.mode, 8))
-        if sha256(destination) != entry.digest:
-            raise SystemExit(f"Sandbox candidate checksum changed during install: {entry.destination}")
-    _journal(journal, "files", "all twelve managed package files installed atomically in sandbox")
+        _journal(journal, "install-file", entry.destination)
+
     if fail_after == "after-files-installed":
         raise InjectedFailure(fail_after)
 
-    split_route = mapped_path(system_root, SPLIT_ROUTE_DESTINATION)
-    active_alsa = mapped_path(system_root, CURRENT_ALSA_DESTINATION)
-    _atomic_copy(split_route, active_alsa, 0o644)
-    (state_root / "route-mode.txt").write_text("sandbox-split-bus-selected\n", encoding="utf-8")
-    (state_root / "daemon-reload-count.txt").write_text("1\n", encoding="utf-8")
-    _journal(journal, "route", "synthetic active ALSA replaced and one daemon reload simulated")
+    split_source = mapped_path(system_root, SPLIT_ROUTE_DESTINATION)
+    active_route = mapped_path(system_root, CURRENT_ALSA_DESTINATION)
+    _atomic_copy(split_source, active_route, 0o644)
+    (state_root / "route-selected.txt").write_text("split-bus\n", encoding="utf-8")
+    _journal(journal, "select-route", SPLIT_ROUTE_DESTINATION)
+
     if fail_after == "after-route-selected":
         raise InjectedFailure(fail_after)
 
-    baseline_services = scenario_root / "baseline/simulated-state/service-state.tsv"
-    shutil.copy2(baseline_services, state_root / "service-state.tsv")
-    _journal(journal, "services", "original application active states restored in simulated state")
+    _set_application_active_state(state_root, "active")
+    _journal(journal, "restore-services", "application services active")
+
     if fail_after == "after-services-restored":
         raise InjectedFailure(fail_after)
 
-    verify_install(scenario_root, package_root, entries)
-    phase.write_text("committed-sandbox-only\n", encoding="utf-8")
     (scenario_root / "transaction-committed.sandbox-only").write_text(
-        "SANDBOX ONLY — NOT A PRODUCTION ACTIVATION\n", encoding="utf-8"
+        "not a production activation marker\n",
+        encoding="utf-8",
     )
-    _journal(journal, "commit", "sandbox transaction checksums and state verified")
+    verify_install(scenario_root, package_root, entries)
+
+
+def verify_install(
+    scenario_root: Path,
+    package_root: Path,
+    entries: list[ManifestEntry],
+) -> None:
+    system_root = scenario_root / "system-root"
+    for entry in entries:
+        destination = mapped_path(system_root, entry.destination)
+        if entry.kind == "directory":
+            if destination.is_symlink() or not destination.is_dir():
+                raise SystemExit(f"Sandbox installed directory missing: {entry.destination}")
+            continue
+        if destination.is_symlink() or not destination.is_file():
+            raise SystemExit(f"Sandbox installed file missing: {entry.destination}")
+        source = package_root / "rootfs" / entry.destination.lstrip("/")
+        if sha256(destination) != sha256(source):
+            raise SystemExit(f"Sandbox installed checksum mismatch: {entry.destination}")
+        if _mode(destination) != entry.mode:
+            raise SystemExit(f"Sandbox installed mode mismatch: {entry.destination}")
+
+    active_route = mapped_path(system_root, CURRENT_ALSA_DESTINATION)
+    split_route = mapped_path(system_root, SPLIT_ROUTE_DESTINATION)
+    if sha256(active_route) != sha256(split_route):
+        raise SystemExit("Sandbox active ALSA selection does not match split-bus candidate.")
 
 
 def rollback_sandbox(
     scenario_root: Path,
     entries: list[ManifestEntry],
     absent_directories: set[str],
+    present_directory_modes: dict[str, int],
     baseline: tuple[tuple[str, str, str, str], ...],
     reason: str,
 ) -> int:
@@ -548,7 +604,9 @@ def rollback_sandbox(
             raise SystemExit(f"Refusing symlink during sandbox rollback: {entry.destination}")
         if destination.exists():
             if not destination.is_file():
-                raise SystemExit(f"Sandbox rollback file has conflicting type: {entry.destination}")
+                raise SystemExit(
+                    f"Sandbox rollback file has conflicting type: {entry.destination}"
+                )
             destination.unlink()
 
     baseline_current = baseline_root / "rootfs" / CURRENT_ALSA_DESTINATION.lstrip("/")
@@ -562,17 +620,39 @@ def rollback_sandbox(
         committed.unlink()
 
     for destination in sorted(
-        absent_directories, key=lambda item: len(PurePosixPath(item).parts), reverse=True
+        absent_directories,
+        key=lambda item: len(PurePosixPath(item).parts),
+        reverse=True,
     ):
         path = mapped_path(system_root, destination)
         if not path.exists():
             continue
         if path.is_symlink() or not path.is_dir():
-            raise SystemExit(f"Sandbox rollback directory has conflicting type: {destination}")
+            raise SystemExit(
+                f"Sandbox rollback directory has conflicting type: {destination}"
+            )
         try:
             path.rmdir()
         except OSError as exc:
-            raise SystemExit(f"Sandbox rollback would remove a non-empty directory: {destination}") from exc
+            raise SystemExit(
+                f"Sandbox rollback would remove a non-empty directory: {destination}"
+            ) from exc
+
+    for destination, mode in sorted(
+        present_directory_modes.items(),
+        key=lambda item: len(PurePosixPath(item[0]).parts),
+    ):
+        path = mapped_path(system_root, destination)
+        if path.is_symlink() or not path.is_dir():
+            raise SystemExit(
+                f"Captured existing sandbox directory is missing or unsafe: {destination}"
+            )
+        path.chmod(mode)
+    _journal(
+        journal,
+        "directory-modes",
+        f"restored {len(present_directory_modes)} captured existing managed-directory modes",
+    )
 
     observed = combined_scenario_fingerprint(scenario_root)
     mismatches = 0 if observed == baseline else 1
@@ -592,8 +672,12 @@ def run_scenario(
 ) -> ScenarioResult:
     scenario_root = sandbox_root / "scenarios" / name
     scenario_root.mkdir(parents=True)
-    baseline, absent_directories = seed_scenario(
-        scenario_root, package_root, stage_c3_root, entries, evidence
+    baseline, absent_directories, present_directory_modes = seed_scenario(
+        scenario_root,
+        package_root,
+        stage_c3_root,
+        entries,
+        evidence,
     )
     install_verified = False
     rollback_reason = "explicit-uninstall"
@@ -607,8 +691,14 @@ def run_scenario(
             raise
         rollback_reason = f"automatic:{fail_after}"
         _journal(scenario_root / "journal.tsv", "injected-failure", str(exc))
+
     mismatches = rollback_sandbox(
-        scenario_root, entries, absent_directories, baseline, rollback_reason
+        scenario_root,
+        entries,
+        absent_directories,
+        present_directory_modes,
+        baseline,
+        rollback_reason,
     )
     if mismatches:
         raise SystemExit(f"Sandbox rollback did not restore exact baseline: {name}")
@@ -628,48 +718,53 @@ def result(results: Path, check: str, detail: str) -> None:
 
 
 def write_file_plan(
-    output: Path, entries: list[ManifestEntry], evidence: StageC3Evidence
+    path: Path,
+    entries: list[ManifestEntry],
+    evidence: StageC3Evidence,
 ) -> None:
     states = {
         row.get("destination", ""): row.get("preinstall_state", "")
         for row in evidence.filesystem_rows
     }
-    rows = ["type\tdestination\tcandidate_mode\tcandidate_sha256\tstage_c3_state\tsandbox_action"]
-    for entry in entries:
-        action = "create-if-absent" if entry.kind == "directory" else "atomic-install-new"
-        rows.append(
-            f"{entry.kind}\t{entry.destination}\t{entry.mode}\t{entry.digest}\t"
-            f"{states.get(entry.destination, 'not-recorded')}\t{action}"
+    rows = ["type\tdestination\tpreinstall_state\tmode\tsha256"]
+    rows.extend(
+        "\t".join(
+            (
+                entry.kind,
+                entry.destination,
+                states.get(entry.destination, "unknown"),
+                entry.mode,
+                entry.sha256,
+            )
         )
-    rows.append(
-        f"active-route\t{CURRENT_ALSA_DESTINATION}\t644\t"
-        f"{EXPECTED_PRE_STAGE_C_ALSA_SHA256}\tpresent\tatomic-select-split-then-exact-restore"
+        for entry in entries
     )
-    output.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
 def write_evidence_manifest(root: Path) -> None:
-    manifest = root / "evidence-manifest.tsv"
     rows = ["path\ttype\tmode\tsha256"]
+    manifest = root / "evidence-manifest.tsv"
     for path in sorted(root.rglob("*"), key=lambda item: str(item.relative_to(root))):
-        relative = str(path.relative_to(root))
-        if relative == "evidence-manifest.tsv":
+        if path == manifest:
             continue
         info = path.lstat()
+        relative = str(path.relative_to(root))
+        mode = f"{stat.S_IMODE(info.st_mode):o}"
         if stat.S_ISDIR(info.st_mode):
-            rows.append(f"{relative}\tdirectory\t{stat.S_IMODE(info.st_mode):o}\t-")
+            rows.append(f"{relative}\tdirectory\t{mode}\t-")
         elif stat.S_ISREG(info.st_mode):
-            rows.append(
-                f"{relative}\tfile\t{stat.S_IMODE(info.st_mode):o}\t{sha256(path)}"
-            )
+            rows.append(f"{relative}\tfile\t{mode}\t{sha256(path)}")
         else:
-            raise SystemExit(f"Stage C4 evidence contains unsupported object: {path}")
-    rows.append("evidence-manifest.tsv\tself\t-\t-")
+            raise SystemExit(f"Unsupported Stage C4 evidence object: {path}")
+    rows.append("evidence-manifest.tsv\tself\t644\t-")
     manifest.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
 def run_rehearsal(
-    package_root: Path, stage_c3_root: Path, sandbox_root: Path
+    package_root: Path,
+    stage_c3_root: Path,
+    sandbox_root: Path,
 ) -> list[ScenarioResult]:
     entries, evidence = validate_inputs(package_root, stage_c3_root)
     sandbox_root = validate_sandbox_root(sandbox_root, package_root, stage_c3_root)
@@ -678,9 +773,21 @@ def run_rehearsal(
 
     results = sandbox_root / "results.tsv"
     results.write_text("check\tresult\tdetail\n", encoding="utf-8")
-    result(results, "input-replay", "Stage C1 package and complete Stage C3 evidence replayed")
-    result(results, "sandbox-scope", f"all mutation paths constrained beneath {sandbox_root}")
-    result(results, "first-install-boundary", "all twelve managed files begin absent in every scenario")
+    result(
+        results,
+        "input-replay",
+        "Stage C1 package and complete Stage C3 evidence replayed",
+    )
+    result(
+        results,
+        "sandbox-scope",
+        f"all mutation paths constrained beneath {sandbox_root}",
+    )
+    result(
+        results,
+        "first-install-boundary",
+        "all twelve managed files begin absent in every scenario",
+    )
     write_file_plan(sandbox_root / "file-plan.tsv", entries, evidence)
 
     scenarios = [
@@ -694,8 +801,16 @@ def run_rehearsal(
             evidence,
         )
     ]
-    result(results, "install-success", "twelve files and synthetic split route verified before uninstall")
-    result(results, "explicit-uninstall-rollback", "successful sandbox install restored exact baseline")
+    result(
+        results,
+        "install-success",
+        "twelve files and synthetic split route verified before uninstall",
+    )
+    result(
+        results,
+        "explicit-uninstall-rollback",
+        "successful sandbox install restored files, state and captured directory modes",
+    )
 
     for failure in FAILURE_POINTS:
         scenarios.append(
@@ -709,11 +824,23 @@ def run_rehearsal(
                 evidence,
             )
         )
-    result(results, "failure-injection", "three independent transaction failure points exercised")
-    result(results, "automatic-rollback", "all injected failures invoked the exact rollback implementation")
+    result(
+        results,
+        "failure-injection",
+        "three independent transaction failure points exercised",
+    )
+    result(
+        results,
+        "automatic-rollback",
+        "all injected failures invoked the exact rollback implementation",
+    )
     if any(item.rollback_mismatches for item in scenarios):
         raise SystemExit("One or more Stage C4 scenarios reported rollback mismatches.")
-    result(results, "exact-state-verification", "all four scenarios ended with zero baseline mismatches")
+    result(
+        results,
+        "exact-state-verification",
+        "all four scenarios ended with zero baseline mismatches",
+    )
 
     scenario_rows = [
         "scenario\tinjected_failure\tinstall_verified\trollback_reason\trollback_mismatches"
@@ -724,17 +851,22 @@ def run_rehearsal(
         for item in scenarios
     )
     (sandbox_root / "scenario-state.tsv").write_text(
-        "\n".join(scenario_rows) + "\n", encoding="utf-8"
+        "\n".join(scenario_rows) + "\n",
+        encoding="utf-8",
     )
 
     if tree_fingerprint(package_root) != package_before:
         raise SystemExit("Stage C1 package changed during sandbox rehearsal.")
     if tree_fingerprint(stage_c3_root) != stage_c3_before:
         raise SystemExit("Stage C3 evidence changed during sandbox rehearsal.")
-    result(results, "production-boundary", "input trees unchanged; no production path or command was used")
+    result(
+        results,
+        "production-boundary",
+        "input trees unchanged; no production path or command was used",
+    )
 
     report = f"""A Clockwork Plex Stage C4 sandbox transaction and exact-rollback rehearsal
-Sandbox version: 1
+Sandbox version: 3
 Stage C1 package: {package_root.resolve()}
 Stage C3 evidence: {stage_c3_root.resolve()}
 Stage C4 sandbox: {sandbox_root}
@@ -742,6 +874,7 @@ Managed package files: 12
 Scenarios: 4
 Injected failure points: 3
 Final rollback mismatches: 0
+Transaction authority: scripts.stage_c_transaction.sandbox_transaction
 
 Proved in synthetic filesystems:
 - exact Stage C1 and Stage C3 evidence replay
@@ -750,12 +883,14 @@ Proved in synthetic filesystems:
 - synthetic active ALSA selection from the installed split-bus route
 - successful install verification followed by explicit exact uninstall
 - automatic exact rollback after files installed, route selected and services restored
+- restoration of captured modes for pre-existing managed directories
 - unchanged Stage C1 package and Stage C3 evidence trees
+- one executable transaction and rollback authority
 
 Not proved by Stage C4:
 - real ALSA parsing or PCM availability
 - CamillaDSP startup, DSP health or DAC ownership
-- real systemd ordering or service behaviour
+- real service-manager ordering or service behaviour
 - real music/alarm lane probes
 - runtime direct alarm-bypass failback
 - EQ migration or dashboard health
@@ -763,7 +898,7 @@ Not proved by Stage C4:
 Safety state:
 - no sudo or root execution
 - no production path opened for writing
-- no systemctl, amixer, modprobe, aplay, fuser or CamillaDSP execution
+- no service-manager, mixer, module, PCM-owner or CamillaDSP command execution
 - no device or PCM opened
 - no activation marker created
 - no production activation/install/rollback/uninstall interface exists
@@ -776,13 +911,15 @@ Safety state:
     print(f"  Results:   {results}")
     print(f"  Scenarios: {sandbox_root / 'scenario-state.tsv'}")
     print(f"  Report:    {sandbox_root / 'report.txt'}")
-    print("No production path was written or changed. Persistent activation remains blocked.")
+    print(
+        "No production path was written or changed. Persistent activation remains blocked."
+    )
     return scenarios
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run the Stage C4 transaction and rollback algorithm only inside a synthetic root."
+        description="Run Stage C4 transaction and rollback only inside a synthetic root."
     )
     parser.add_argument("--package-root", required=True, type=Path)
     parser.add_argument("--stage-c3-root", required=True, type=Path)
