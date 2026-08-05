@@ -114,6 +114,7 @@ class AdapterOperation(str, Enum):
     RELOAD_SYSTEMD = "reload-systemd"
     SELECT_SPLIT_BUS_ROUTE = "select-split-bus-route"
     START_MANAGED_STAGE_C_SERVICES = "start-managed-stage-c-services"
+    STOP_MANAGED_STAGE_C_SERVICES = "stop-managed-stage-c-services"
     VERIFY_SPLIT_BUS_HEALTH = "verify-split-bus-health"
     RUN_FINITE_MUSIC_PROBE = "run-finite-music-probe"
     RUN_FINITE_ALARM_PROBE = "run-finite-alarm-probe"
@@ -266,6 +267,9 @@ class ProductionAdapter(Protocol):
     def start_managed_stage_c_services(
         self, transaction: TransactionIdentity
     ) -> AdapterResult: ...
+    def stop_managed_stage_c_services(
+        self, transaction: TransactionIdentity
+    ) -> AdapterResult: ...
     def verify_split_bus_health(self, transaction: TransactionIdentity) -> AdapterResult: ...
     def run_finite_music_probe(self, transaction: TransactionIdentity) -> AdapterResult: ...
     def run_finite_alarm_probe(self, transaction: TransactionIdentity) -> AdapterResult: ...
@@ -388,6 +392,12 @@ class BlockedProductionAdapter:
     ) -> AdapterResult:
         del transaction
         return self._blocked(AdapterOperation.START_MANAGED_STAGE_C_SERVICES)
+
+    def stop_managed_stage_c_services(
+        self, transaction: TransactionIdentity
+    ) -> AdapterResult:
+        del transaction
+        return self._blocked(AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES)
 
     def verify_split_bus_health(self, transaction: TransactionIdentity) -> AdapterResult:
         del transaction
