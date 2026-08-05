@@ -4,26 +4,37 @@ from __future__ import annotations
 """Pure failure simulation for the Stage C21 activation suffix.
 
 This module proves failure ownership around the single committed-approval
-terminal marker. It contains no host adapter, filesystem access, command
-execution, CLI or generic dispatch boundary.
+terminal marker and the complete proved exact-rollback program with its one
+Stage C21 temporary-approval removal insertion. It contains no host adapter,
+filesystem access, command execution, CLI or generic dispatch boundary.
 """
 
 from dataclasses import dataclass
 from enum import Enum
 
 from .activation_commit_program_v7 import (
+    ACTIVATION_EXACT_ROLLBACK_V7,
     ACTIVATION_INSTALL_SUFFIX_V7,
     PROMOTE_COMMITTED_APPROVAL,
     PUBLISH_TEMPORARY_APPROVAL,
     RELEASE_PRODUCTION_LOCK,
+    RELOAD_SYSTEMD,
     REMOVE_TEMPORARY_APPROVAL,
-    RESTORE_PREVIOUS_INSTALLATION,
+    RESTORE_CAPTURED_APPLICATION_SERVICES,
+    RESTORE_EXACT_SNAPSHOT,
+    RESTORE_MIXER_STATE,
+    RESTORE_SERVICE_STATE,
+    RUN_FINITE_ALARM_PROBE,
+    RUN_FINITE_MUSIC_PROBE,
+    START_MANAGED_SERVICES,
+    STOP_CAPTURED_APPLICATION_SERVICES,
     STOP_MANAGED_SERVICES,
+    VERIFY_DAC_RELEASED,
+    VERIFY_DASHBOARD_HEALTH,
+    VERIFY_EXACT_ROLLBACK,
+    VERIFY_SPLIT_BUS_HEALTH,
 )
-from .production_adapter_lifecycle_v7 import (
-    ALL_OPERATIONS_V7,
-    ProductionOperationV7,
-)
+from .production_adapter_lifecycle_v7 import ProductionOperationV7
 
 
 class ActivationSimulationStatus(str, Enum):
@@ -43,6 +54,9 @@ class ActivationSimulationStateV7:
     split_health_verified: bool
     dashboard_health_verified: bool
     committed_approval_present: bool
+    exact_snapshot_restored: bool
+    mixer_state_restored: bool
+    service_state_restored: bool
     exact_previous_installation_restored: bool
 
     def __post_init__(self) -> None:
@@ -52,6 +66,12 @@ class ActivationSimulationStateV7:
             raise ValueError("committed installation cannot also be rolled back")
         if self.exact_previous_installation_restored and self.managed_runtime_running:
             raise ValueError("restored previous installation cannot retain managed runtime")
+        if self.exact_previous_installation_restored and not (
+            self.exact_snapshot_restored
+            and self.mixer_state_restored
+            and self.service_state_restored
+        ):
+            raise ValueError("verified exact rollback requires every restoration component")
 
 
 @dataclass(frozen=True)
@@ -102,16 +122,6 @@ class ActivationSimulationResultV7:
                 raise ValueError("failed pre-terminal rollback cannot invent committed state")
 
 
-def _fixed_operation(value: str) -> ProductionOperationV7:
-    matches = tuple(operation for operation in ALL_OPERATIONS_V7 if operation.value == value)
-    if len(matches) != 1:
-        raise RuntimeError(f"fixed simulation operation is unavailable: {value}")
-    return matches[0]
-
-
-VERIFY_EXACT_RESTORATION = _fixed_operation("verify-exact-restoration")
-
-
 def _initial_state() -> dict[str, bool]:
     return {
         "lock_held": True,
@@ -122,6 +132,9 @@ def _initial_state() -> dict[str, bool]:
         "split_health_verified": False,
         "dashboard_health_verified": False,
         "committed_approval_present": False,
+        "exact_snapshot_restored": False,
+        "mixer_state_restored": False,
+        "service_state_restored": False,
         "exact_previous_installation_restored": False,
     }
 
@@ -134,8 +147,7 @@ def _apply_install_operation(
     operation: ProductionOperationV7,
     state: dict[str, bool],
 ) -> None:
-    value = operation.value
-    if value == "bind-production-lock-lease":
+    if operation.value == "bind-production-lock-lease":
         if not state["lock_held"]:
             raise RuntimeError("lease binding requires the held transaction lock")
         state["lease_bound"] = True
@@ -143,22 +155,22 @@ def _apply_install_operation(
         if not state["lease_bound"] or state["temporary_approval_present"]:
             raise RuntimeError("temporary approval publication precondition failed")
         state["temporary_approval_present"] = True
-    elif value == "start-managed-stage-c-services":
+    elif operation is START_MANAGED_SERVICES:
         if not state["temporary_approval_present"]:
             raise RuntimeError("managed startup requires temporary approval")
         state["managed_runtime_running"] = True
-    elif value in {"open-music-probe", "open-alarm-probe"}:
+    elif operation is VERIFY_SPLIT_BUS_HEALTH:
         if not state["managed_runtime_running"]:
-            raise RuntimeError("finite probe requires managed runtime")
-    elif value == "verify-post-start-health":
-        if not state["managed_runtime_running"]:
-            raise RuntimeError("post-start health requires managed runtime")
+            raise RuntimeError("split-bus health requires managed runtime")
         state["split_health_verified"] = True
-    elif value == "restore-application-services":
+    elif operation in {RUN_FINITE_MUSIC_PROBE, RUN_FINITE_ALARM_PROBE}:
+        if not state["managed_runtime_running"] or not state["split_health_verified"]:
+            raise RuntimeError("finite probe requires verified managed runtime")
+    elif operation is RESTORE_CAPTURED_APPLICATION_SERVICES:
         if not state["split_health_verified"]:
             raise RuntimeError("application restoration requires split health")
         state["applications_restored"] = True
-    elif value == "verify-dashboard-health":
+    elif operation is VERIFY_DASHBOARD_HEALTH:
         if not state["applications_restored"]:
             raise RuntimeError("dashboard health requires restored applications")
         state["dashboard_health_verified"] = True
@@ -176,7 +188,56 @@ def _apply_install_operation(
             raise RuntimeError("normal lock release requires committed approval")
         state["lock_held"] = False
     else:
-        raise RuntimeError(f"unsupported fixed activation simulation step: {value}")
+        raise RuntimeError(
+            f"unsupported fixed activation simulation step: {operation.value}"
+        )
+
+
+def _apply_rollback_operation(
+    operation: ProductionOperationV7,
+    state: dict[str, bool],
+) -> None:
+    if operation is STOP_CAPTURED_APPLICATION_SERVICES:
+        state["applications_restored"] = False
+        state["dashboard_health_verified"] = False
+    elif operation is STOP_MANAGED_SERVICES:
+        state["managed_runtime_running"] = False
+        state["split_health_verified"] = False
+    elif operation is REMOVE_TEMPORARY_APPROVAL:
+        state["temporary_approval_present"] = False
+    elif operation is VERIFY_DAC_RELEASED:
+        if state["managed_runtime_running"]:
+            raise RuntimeError("DAC release verification requires managed runtime stopped")
+    elif operation is RESTORE_EXACT_SNAPSHOT:
+        state["exact_snapshot_restored"] = True
+    elif operation is RELOAD_SYSTEMD:
+        if not state["exact_snapshot_restored"]:
+            raise RuntimeError("systemd reload requires exact snapshot restoration")
+    elif operation is RESTORE_MIXER_STATE:
+        if not state["exact_snapshot_restored"]:
+            raise RuntimeError("mixer restoration requires exact snapshot restoration")
+        state["mixer_state_restored"] = True
+    elif operation is RESTORE_SERVICE_STATE:
+        if not state["mixer_state_restored"]:
+            raise RuntimeError("service restoration requires mixer restoration")
+        state["service_state_restored"] = True
+        state["applications_restored"] = True
+    elif operation is VERIFY_EXACT_ROLLBACK:
+        if not (
+            state["exact_snapshot_restored"]
+            and state["mixer_state_restored"]
+            and state["service_state_restored"]
+            and not state["managed_runtime_running"]
+            and not state["temporary_approval_present"]
+        ):
+            raise RuntimeError("exact rollback verification precondition failed")
+        state["exact_previous_installation_restored"] = True
+    elif operation is RELEASE_PRODUCTION_LOCK:
+        if not state["exact_previous_installation_restored"]:
+            raise RuntimeError("rollback lock release requires exact verification")
+        state["lock_held"] = False
+    else:
+        raise RuntimeError(f"unsupported exact rollback step: {operation.value}")
 
 
 def _run_exact_rollback(
@@ -185,34 +246,17 @@ def _run_exact_rollback(
     rollback_fail_at: ProductionOperationV7 | None,
 ) -> tuple[tuple[str, ...], str | None]:
     trace: list[str] = []
-
-    def attempt(operation: ProductionOperationV7) -> bool:
+    for step in ACTIVATION_EXACT_ROLLBACK_V7:
+        operation = step.operation
+        if (
+            operation is REMOVE_TEMPORARY_APPROVAL
+            and not state["temporary_approval_present"]
+        ):
+            continue
         trace.append(operation.value)
-        return operation is rollback_fail_at
-
-    if attempt(STOP_MANAGED_SERVICES):
-        return tuple(trace), STOP_MANAGED_SERVICES.value
-    state["managed_runtime_running"] = False
-
-    if state["temporary_approval_present"]:
-        if attempt(REMOVE_TEMPORARY_APPROVAL):
-            return tuple(trace), REMOVE_TEMPORARY_APPROVAL.value
-        state["temporary_approval_present"] = False
-
-    if attempt(RESTORE_PREVIOUS_INSTALLATION):
-        return tuple(trace), RESTORE_PREVIOUS_INSTALLATION.value
-    state["lease_bound"] = False
-    state["applications_restored"] = True
-    state["split_health_verified"] = False
-    state["dashboard_health_verified"] = False
-    state["exact_previous_installation_restored"] = True
-
-    if attempt(VERIFY_EXACT_RESTORATION):
-        return tuple(trace), VERIFY_EXACT_RESTORATION.value
-
-    if attempt(RELEASE_PRODUCTION_LOCK):
-        return tuple(trace), RELEASE_PRODUCTION_LOCK.value
-    state["lock_held"] = False
+        if operation is rollback_fail_at:
+            return tuple(trace), operation.value
+        _apply_rollback_operation(operation, state)
     return tuple(trace), None
 
 
@@ -221,16 +265,13 @@ def simulate_activation_commit_v7(
     fail_at: ProductionOperationV7 | None = None,
     rollback_fail_at: ProductionOperationV7 | None = None,
 ) -> ActivationSimulationResultV7:
-    if fail_at is not None and fail_at not in tuple(
+    install_operations = tuple(
         step.operation for step in ACTIVATION_INSTALL_SUFFIX_V7
-    ):
+    )
+    if fail_at is not None and fail_at not in install_operations:
         raise ValueError("install failure injection is outside the fixed activation suffix")
     valid_rollback_failures = {
-        STOP_MANAGED_SERVICES,
-        REMOVE_TEMPORARY_APPROVAL,
-        RESTORE_PREVIOUS_INSTALLATION,
-        VERIFY_EXACT_RESTORATION,
-        RELEASE_PRODUCTION_LOCK,
+        step.operation for step in ACTIVATION_EXACT_ROLLBACK_V7
     }
     if rollback_fail_at is not None and rollback_fail_at not in valid_rollback_failures:
         raise ValueError("rollback failure injection is outside the fixed exact rollback")
