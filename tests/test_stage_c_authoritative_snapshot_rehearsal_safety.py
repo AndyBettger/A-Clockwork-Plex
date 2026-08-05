@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import ast
 import inspect
-import os
 import stat
 import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -376,18 +374,51 @@ class StageCAuthoritativeSnapshotRehearsalSafetyTests(unittest.TestCase):
                 "urllib",
             }.isdisjoint(imported)
         )
-        for marker in (
+
+        for node in ast.walk(self.engine_tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name):
+                self.assertNotIn(node.func.id, {"eval", "exec", "host_run"})
+            elif isinstance(node.func, ast.Attribute) and isinstance(
+                node.func.value, ast.Name
+            ):
+                owner = node.func.value.id
+                if owner == "os":
+                    self.assertNotIn(node.func.attr, {"open", "popen", "system"})
+                self.assertNotEqual(owner, "subprocess")
+
+        blocked_function = next(
+            node
+            for node in self.engine_tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "prove_blocked_operations"
+        )
+        blocked_source = (
+            ast.get_source_segment(self.engine_source, blocked_function) or ""
+        ).lower()
+        lines = self.engine_source.splitlines(keepends=True)
+        engine_without_blocked_proof = "".join(
+            lines[: blocked_function.lineno - 1]
+            + lines[blocked_function.end_lineno :]
+        ).lower()
+        blocked_call_markers = tuple(
+            f"adapter.{operation.value.replace('-', '_')}("
+            for operation in contract.AdapterOperation
+            if operation not in adapter_module.PERMITTED_OPERATIONS
+        )
+        for marker in blocked_call_markers:
+            self.assertIn(marker, blocked_source)
+            self.assertNotIn(marker, engine_without_blocked_proof)
+
+        for executable_marker in (
             "systemctl",
             "amixer",
             "modprobe",
             "aplay",
-            "subprocess.run",
-            "os.open(",
-            "flock(",
-            "install_managed_files(",
-            "select_split_bus_route(",
+            "shell=true",
         ):
-            self.assertNotIn(marker, self.engine_source.lower())
+            self.assertNotIn(executable_marker, self.engine_source.lower())
 
     def test_wrapper_is_prepare_only_and_has_one_constrained_sudo(self) -> None:
         syntax = subprocess.run(
