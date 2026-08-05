@@ -10,15 +10,24 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "scripts" / "stage_c_runtime_authority"
 WRAPPER = ROOT / "scripts" / "test-stage-c-runtime-authority-core.sh"
 FILES = tuple(sorted(PACKAGE.glob("*.py")))
+HOST_BOUNDARY_FILES = {
+    PACKAGE / "linux_runtime_filesystem.py",
+}
+PURE_FILES = tuple(path for path in FILES if path not in HOST_BOUNDARY_FILES)
 
 
 class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
     @staticmethod
-    def source() -> str:
+    def pure_source() -> str:
+        return "\n".join(path.read_text(encoding="utf-8") for path in PURE_FILES)
+
+    @staticmethod
+    def all_source() -> str:
         return "\n".join(path.read_text(encoding="utf-8") for path in FILES)
 
     def test_modules_compile_and_wrapper_has_valid_shell_syntax(self):
         self.assertGreaterEqual(len(FILES), 5)
+        self.assertTrue(HOST_BOUNDARY_FILES.issubset(set(FILES)))
         for path in FILES:
             compile(path.read_text(encoding="utf-8"), str(path), "exec")
         checked = subprocess.run(["bash", "-n", str(WRAPPER)], capture_output=True, text=True, check=False)
@@ -28,7 +37,7 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
         self.assertIn("PYTHONPATH=", wrapper)
 
     def test_core_has_no_host_mutation_or_network_process_boundary(self):
-        text = self.source()
+        text = self.pure_source()
         tree = ast.parse(text)
         forbidden_imports = {"subprocess", "socket", "requests", "urllib"}
         for node in ast.walk(tree):
@@ -45,18 +54,45 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
         for forbidden_command in ("systemctl", "amixer", "alsactl", "aplay"):
             self.assertNotIn(forbidden_command, text)
 
+    def test_linux_filesystem_is_one_explicit_fixed_host_boundary(self):
+        self.assertEqual(
+            HOST_BOUNDARY_FILES,
+            {PACKAGE / "linux_runtime_filesystem.py"},
+        )
+        text = (PACKAGE / "linux_runtime_filesystem.py").read_text(encoding="utf-8")
+        for required_path in (
+            "/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf",
+            "/run/lock/a-clockwork-plex-audio-route.lock",
+            "/var/lib/a-clockwork-plex/split-bus",
+        ):
+            self.assertIn(required_path, text)
+        for forbidden_boundary in (
+            "subprocess",
+            "systemctl",
+            "amixer",
+            "alsactl",
+            "aplay",
+            "shell=True",
+            "os.system",
+            "os.exec",
+        ):
+            self.assertNotIn(forbidden_boundary, text)
+        self.assertIn("class LinuxRuntimeFilesystem", text)
+        self.assertIn("def __init__(self) -> None", text)
+        self.assertIn("def _for_test(cls, root: Path)", text)
+
     def test_no_arbitrary_command_path_unit_or_transaction_arguments(self):
-        tree = ast.parse(self.source())
+        tree = ast.parse(self.pure_source())
         forbidden_parameter_names = {"command", "unit_name", "path_override", "route_name"}
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 names = {arg.arg for arg in (*node.args.args, *node.args.kwonlyargs)}
                 self.assertTrue(names.isdisjoint(forbidden_parameter_names), (node.name, names))
-        self.assertIn("EXPECTED_MANAGED_UNITS", self.source())
-        self.assertIn("RuntimeAction", self.source())
+        self.assertIn("EXPECTED_MANAGED_UNITS", self.pure_source())
+        self.assertIn("RuntimeAction", self.pure_source())
 
     def test_review_is_disposable_only_and_has_no_activation_or_keep_active_mode(self):
-        text = self.source() + "\n" + WRAPPER.read_text(encoding="utf-8")
+        text = self.all_source() + "\n" + WRAPPER.read_text(encoding="utf-8")
         self.assertIn("a-clockwork-plex-stage-c21-runtime-authority.", text)
         self.assertIn("--lab-root must be empty", text)
         self.assertNotIn("--activate", text)
@@ -65,7 +101,7 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
         self.assertIn("No host observation, sudo, service, route, mixer, PCM or production write occurred.", text)
 
     def test_approval_record_is_structured_not_a_marker_flag(self):
-        text = self.source()
+        text = self.pure_source()
         for required in (
             "schema_version",
             "transaction_id",
