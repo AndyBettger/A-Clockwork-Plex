@@ -23,6 +23,7 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
         cls.wrapper = SCRIPTS / "prepare-stage-c21-activation-package.sh"
         cls.prepare = SCRIPTS / "stage_c_activation_package/prepare.py"
         cls.package_dir = SCRIPTS / "stage_c_activation_package"
+        cls.authority_dir = SCRIPTS / "stage_c_runtime_authority"
         cls.contract = HostContract(
             project_user="andy",
             dac_card="Pro",
@@ -57,15 +58,16 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
         self.assertNotIn("systemctl ", wrapper)
         self.assertNotIn("aplay -D", source)
         self.assertNotIn("amixer ", source)
+        self.assertNotIn("subprocess", source)
 
     def test_stage_c1_package_remains_historical_and_blocked(self):
         historical = (SCRIPTS / "stage_c_package/runtime_templates.py").read_text(encoding="utf-8")
         self.assertIn("stage-c1-candidate-only", historical)
         self.assertIn("mutation is deliberately blocked", historical)
         self.assertIn("return 78", historical)
-        self.assertNotIn("stage-c21-adapter-pending-review", historical)
+        self.assertNotIn(runtime_templates.PACKAGE_PHASE, historical)
 
-    def test_new_package_vendors_exact_runtime_core_modules(self):
+    def test_v2_package_vendors_exact_runtime_modules_without_test_adapter(self):
         self.assertEqual(
             core.RUNTIME_MODULES,
             (
@@ -75,18 +77,38 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
                 "state_machine.py",
                 "supervisor_model.py",
                 "runtime_executor.py",
-                "recording_runtime_adapter.py",
+                "linux_runtime_filesystem.py",
+                "linux_runtime_process.py",
+                "linux_runtime_adapter.py",
+                "install_runtime_filesystem.py",
+                "install_runtime_process.py",
+                "install_runtime_adapter.py",
+                "install_runtime_executor.py",
+                "supervisor_service.py",
+                "package_entry.py",
             ),
         )
         source = self.prepare.read_text(encoding="utf-8")
         self.assertIn("AUTHORITY_SOURCE", source)
         self.assertIn("shutil.copy2(source, destination)", source)
         self.assertIn("source.is_symlink()", source)
-        self.assertEqual(core.EXPECTED_FILES, 21)
+        self.assertEqual(core.EXPECTED_FILES, 28)
+        self.assertNotIn("recording_runtime_adapter.py", core.RUNTIME_MODULES)
+        for module_name in core.RUNTIME_MODULES:
+            self.assertTrue((self.authority_dir / module_name).is_file(), module_name)
 
-    def test_generated_entry_has_fixed_actions_and_blocks_host_mutation(self):
-        entry = runtime_templates.package_entry()
-        compile(entry, "package_entry.py", "exec")
+    def test_entrypoint_is_copied_not_synthesised(self):
+        templates_source = (self.package_dir / "runtime_templates.py").read_text(encoding="utf-8")
+        prepare_source = self.prepare.read_text(encoding="utf-8")
+        self.assertNotIn("def package_entry", templates_source)
+        self.assertNotIn('"package_entry": (runtime_templates.package_entry()', prepare_source)
+        self.assertIn('"package_entry": runtime_package / "package_entry.py"', prepare_source)
+        self.assertIn('"package_entry.py",', (self.package_dir / "core.py").read_text(encoding="utf-8"))
+
+    def test_packaged_entry_has_fixed_actions_and_installed_image_guards(self):
+        entry_path = self.authority_dir / "package_entry.py"
+        entry = entry_path.read_text(encoding="utf-8")
+        compile(entry, str(entry_path), "exec")
         for action in (
             "status",
             "validate-runtime",
@@ -97,12 +119,15 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
             "emergency-direct-failback",
         ):
             self.assertIn(action, entry)
-        self.assertIn('"host_mutation_available": False', entry)
-        self.assertIn("mutation remains blocked", entry)
-        self.assertIn("return 78 if action in MUTATING_ACTIONS else 1", entry)
-        self.assertNotIn("subprocess", entry)
+        self.assertIn("INSTALLED_PACKAGE_ROOT", entry)
+        self.assertIn(runtime_templates.PACKAGE_PHASE, entry)
+        self.assertIn('contract.get("host_mutation_available") is not True', entry)
+        self.assertIn("runtime mutation requires root", entry)
+        self.assertIn("transaction-only approval operation is not exposed", entry)
+        self.assertNotIn("subprocess.Popen", entry)
         self.assertNotIn("systemctl", entry)
         self.assertNotIn("os.system", entry)
+        self.assertNotIn("def dispatch", entry)
 
     def test_type_notify_supervisor_is_the_application_readiness_gate(self):
         route = runtime_templates.route_unit()
@@ -144,7 +169,7 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
             changed[0]["sha256"] = "0" * 64
             self.assertNotEqual(core.package_fingerprint(rows), core.package_fingerprint(changed))
 
-    def test_contract_records_blocked_phase_and_bound_payload(self):
+    def test_contract_records_activation_capable_phase_and_bound_payload(self):
         rows = [
             {"path": "/etc/example", "sha256": "a" * 64},
             {"path": "/usr/example", "sha256": "b" * 64},
@@ -157,11 +182,12 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
             )
         )
         self.assertEqual(payload["schema_version"], 1)
+        self.assertEqual(payload["package_phase"], runtime_templates.PACKAGE_PHASE)
         self.assertEqual(payload["package_fingerprint"], fingerprint)
-        self.assertFalse(payload["host_mutation_available"])
+        self.assertTrue(payload["host_mutation_available"])
         self.assertEqual(payload["files"], rows)
 
-    def test_sudoers_remains_read_only(self):
+    def test_sudoers_remains_read_only_despite_root_owned_service_runtime(self):
         rules = runtime_templates.sudoers("andy")
         self.assertIn(" status", rules)
         self.assertIn(" validate-runtime", rules)
@@ -173,6 +199,14 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
             "promote-committed-approval",
         ):
             self.assertNotIn(forbidden, rules)
+
+    def test_report_describes_disposable_v2_not_an_install(self):
+        source = self.prepare.read_text(encoding="utf-8")
+        self.assertIn("PACKAGE_VERSION = 2", source)
+        self.assertIn("complete fixed runtime authority", source)
+        self.assertIn("It has not been installed or activated", source)
+        self.assertIn("Approval creation and promotion remain outside the service helper", source)
+        self.assertIn("No production path, service, process, ALSA route, mixer or PCM was changed", source)
 
 
 if __name__ == "__main__":
