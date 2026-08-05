@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 import errno
 import inspect
-import os
 import stat
 import subprocess
 import unittest
@@ -18,24 +17,10 @@ from scripts.stage_c_transaction import production_lock_rehearsal_adapter as loc
 
 class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.repo = Path(__file__).resolve().parents[1]
-        self.adapter_path = (
-            self.repo
-            / "scripts"
-            / "stage_c_transaction"
-            / "production_lock_rehearsal_adapter.py"
-        )
-        self.engine_path = (
-            self.repo
-            / "scripts"
-            / "stage_c_transaction"
-            / "production_lock_rehearsal.py"
-        )
-        self.wrapper_path = (
-            self.repo
-            / "scripts"
-            / "test-stage-c-production-lock-rehearsal.sh"
-        )
+        repo = Path(__file__).resolve().parents[1]
+        self.adapter_path = repo / "scripts/stage_c_transaction/production_lock_rehearsal_adapter.py"
+        self.engine_path = repo / "scripts/stage_c_transaction/production_lock_rehearsal.py"
+        self.wrapper_path = repo / "scripts/test-stage-c-production-lock-rehearsal.sh"
         self.adapter_source = self.adapter_path.read_text(encoding="utf-8")
         self.engine_source = self.engine_path.read_text(encoding="utf-8")
         self.wrapper_source = self.wrapper_path.read_text(encoding="utf-8")
@@ -44,31 +29,34 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
 
     @staticmethod
     def service_snapshot() -> contract.ServiceSnapshot:
-        states = []
-        for unit in contract.ServiceUnit:
-            if unit in {
-                contract.ServiceUnit.PLEXAMP,
-                contract.ServiceUnit.SHAIRPORT_SYNC,
-                contract.ServiceUnit.DASHBOARD,
-            }:
-                states.append(
-                    contract.ServiceState(
-                        unit=unit,
-                        load=contract.ServiceLoadState.LOADED,
-                        active=contract.ServiceActiveState.ACTIVE,
-                        enabled=contract.ServiceEnableState.ENABLED,
-                    )
+        application = {
+            contract.ServiceUnit.PLEXAMP,
+            contract.ServiceUnit.SHAIRPORT_SYNC,
+            contract.ServiceUnit.DASHBOARD,
+        }
+        return contract.ServiceSnapshot(
+            tuple(
+                contract.ServiceState(
+                    unit=unit,
+                    load=(
+                        contract.ServiceLoadState.LOADED
+                        if unit in application
+                        else contract.ServiceLoadState.NOT_FOUND
+                    ),
+                    active=(
+                        contract.ServiceActiveState.ACTIVE
+                        if unit in application
+                        else contract.ServiceActiveState.INACTIVE
+                    ),
+                    enabled=(
+                        contract.ServiceEnableState.ENABLED
+                        if unit in application
+                        else contract.ServiceEnableState.NOT_FOUND
+                    ),
                 )
-            else:
-                states.append(
-                    contract.ServiceState(
-                        unit=unit,
-                        load=contract.ServiceLoadState.NOT_FOUND,
-                        active=contract.ServiceActiveState.INACTIVE,
-                        enabled=contract.ServiceEnableState.NOT_FOUND,
-                    )
-                )
-        return contract.ServiceSnapshot(tuple(states))
+                for unit in contract.ServiceUnit
+            )
+        )
 
     def test_exact_eight_operations_and_twenty_five_blocked(self) -> None:
         self.assertEqual(
@@ -121,12 +109,15 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
             "acquire_production_lock",
             "release_production_lock",
         ):
-            parameters = tuple(
-                inspect.signature(
-                    getattr(lock_adapter.ProductionLockRehearsalAdapter, method_name)
-                ).parameters
+            self.assertEqual(
+                tuple(
+                    inspect.signature(
+                        getattr(lock_adapter.ProductionLockRehearsalAdapter, method_name)
+                    ).parameters
+                ),
+                ("self",),
+                method_name,
             )
-            self.assertEqual(parameters, ("self",), method_name)
 
     def test_adapter_has_no_cli_command_runner_or_audio_command(self) -> None:
         imported: set[str] = set()
@@ -159,22 +150,22 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
             self.assertNotIn(marker, self.adapter_source.lower())
 
     def test_acquisition_flags_are_exclusive_nonfollowing_and_close_on_exec(self) -> None:
-        create_function = next(
+        function = next(
             node
             for node in self.adapter_tree.body
             if isinstance(node, ast.FunctionDef) and node.name == "_open_flags"
         )
-        text = ast.get_source_segment(self.adapter_source, create_function) or ""
+        text = ast.get_source_segment(self.adapter_source, function) or ""
         self.assertIn("os.O_CREAT | os.O_EXCL", text)
         self.assertIn("os.O_CLOEXEC", text)
         self.assertIn("os.O_NOFOLLOW", text)
-        acquire = self.adapter_source.index("def acquire_production_lock")
-        release = self.adapter_source.index("def release_production_lock")
-        acquisition_source = self.adapter_source[acquire:release]
-        self.assertIn("fcntl.LOCK_EX | fcntl.LOCK_NB", acquisition_source)
-        self.assertIn("os.fchmod(fd, LOCK_MODE)", acquisition_source)
-        self.assertIn("os.fchown(fd, 0, 0)", acquisition_source)
-        self.assertIn("_prove_contention()", acquisition_source)
+        acquire_start = self.adapter_source.index("def acquire_production_lock")
+        release_start = self.adapter_source.index("def release_production_lock")
+        acquire = self.adapter_source[acquire_start:release_start]
+        self.assertIn("fcntl.LOCK_EX | fcntl.LOCK_NB", acquire)
+        self.assertIn("os.fchmod(fd, LOCK_MODE)", acquire)
+        self.assertIn("os.fchown(fd, 0, 0)", acquire)
+        self.assertIn("_prove_contention()", acquire)
 
     def test_exact_unlink_checks_inode_and_device_before_removal(self) -> None:
         function = next(
@@ -183,9 +174,10 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
             if isinstance(node, ast.FunctionDef) and node.name == "_safe_unlink_exact"
         )
         text = ast.get_source_segment(self.adapter_source, function) or ""
-        comparison = text.index("descriptor.st_ino != path.st_ino")
-        unlink = text.index("LOCK_PATH.unlink()")
-        self.assertLess(comparison, unlink)
+        self.assertLess(
+            text.index("descriptor.st_ino != path.st_ino"),
+            text.index("LOCK_PATH.unlink()"),
+        )
         self.assertIn("descriptor.st_dev != path.st_dev", text)
         self.assertIn("stat.S_ISREG", text)
 
@@ -274,7 +266,7 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
                 lock_adapter._safe_unlink_exact(10)
         fake_path.unlink.assert_not_called()
 
-    def test_contention_accepts_only_busy_and_rejects_second_acquisition(self) -> None:
+    def test_contention_accepts_busy_and_rejects_second_acquisition(self) -> None:
         fake_path = Mock()
         with (
             patch.object(lock_adapter, "LOCK_PATH", fake_path),
@@ -298,15 +290,13 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
             with self.assertRaises(lock_adapter.ProductionLockFailure):
                 lock_adapter._prove_contention()
 
-    def test_all_twenty_five_nonlock_operations_remain_blocked(self) -> None:
+    def test_all_twenty_five_transaction_and_audio_operations_remain_blocked(self) -> None:
         adapter = lock_adapter.ProductionLockRehearsalAdapter()
-        services = self.service_snapshot()
-        mixer = contract.MixerSnapshot(94, 100, 100, 100)
         rows = rehearsal.prove_blocked_operations(
             adapter,
             transaction=adapter.observation_transaction,
-            services=services,
-            mixer=mixer,
+            services=self.service_snapshot(),
+            mixer=contract.MixerSnapshot(94, 100, 100, 100),
         )
         expected = set(contract.AdapterOperation).difference(
             lock_adapter.PERMITTED_OPERATIONS
@@ -341,14 +331,44 @@ class StageCProductionLockRehearsalSafetyTests(unittest.TestCase):
                 "activation-interface",
             ),
         )
+        imported: set[str] = set()
+        for node in ast.walk(self.engine_tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".", 1)[0])
+        self.assertTrue(
+            {"fcntl", "requests", "shlex", "socket", "subprocess", "urllib"}.isdisjoint(
+                imported
+            )
+        )
+        forbidden_calls: list[str] = []
+        for node in ast.walk(self.engine_tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name):
+                called = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                owner = node.func.value.id if isinstance(node.func.value, ast.Name) else ""
+                called = f"{owner}.{node.func.attr}" if owner else node.func.attr
+            else:
+                continue
+            if called in {
+                "host_run",
+                "run",
+                "popen",
+                "system",
+                "os.open",
+                "subprocess.run",
+                "fcntl.flock",
+            }:
+                forbidden_calls.append(called)
+        self.assertEqual(forbidden_calls, [])
         for marker in (
             "systemctl",
             "amixer",
             "modprobe",
             "aplay",
-            "subprocess.run",
-            "os.open(",
-            "flock",
             "mkdir(",
             "write_text(TRANSACTION_ROOT",
         ):
