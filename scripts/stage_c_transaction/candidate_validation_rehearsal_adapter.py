@@ -40,6 +40,7 @@ from .sandbox_transaction import tree_fingerprint
 
 CANDIDATE_ROOT_NAME = "candidate-rootfs"
 VALIDATION_ROOT_NAME = "candidate-validation"
+FAILED_VALIDATION_ROOT_NAME = "failed-validation"
 PERMITTED_V1_OPERATIONS = (
     AdapterOperation.INSPECT_HOST_CONTRACT,
     AdapterOperation.INSPECT_PRODUCTION_LOCK,
@@ -319,6 +320,33 @@ class CandidateValidationRehearsalAdapter(
         self._validation_root = root
         return root
 
+    def _retain_failed_command(
+        self,
+        name: str,
+        result: subprocess.CompletedProcess[str],
+    ) -> Path:
+        root = self._evidence_root / FAILED_VALIDATION_ROOT_NAME
+        if root.exists():
+            info = root.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                raise CandidateValidationFailure("failed-validation evidence root is unsafe")
+        else:
+            root.mkdir(mode=0o700, exist_ok=False)
+            os.chown(root, 0, 0)
+            root.chmod(0o700)
+        target = root / name
+        if target.exists():
+            raise CandidateValidationFailure(f"failed-validation evidence already exists: {name}")
+        _write_command_evidence(target, result)
+        os.chown(target, 0, 0)
+        target.chmod(0o600)
+        return target
+
+    @staticmethod
+    def _failure_summary(result: subprocess.CompletedProcess[str]) -> str:
+        text = (result.stderr or result.stdout).strip()
+        return text.splitlines()[0] if text else "validator returned no diagnostic text"
+
     def validate_candidate_alsa(
         self,
         transaction: TransactionIdentity,
@@ -343,7 +371,11 @@ class CandidateValidationRehearsalAdapter(
                 result = _run_fixed((aplay, "-L"), env=env)
                 _write_command_evidence(validation_root / f"aplay-{name}.txt", result)
                 if result.returncode != 0:
-                    raise CandidateValidationFailure(f"ALSA {name} candidate did not parse")
+                    retained = self._retain_failed_command(f"aplay-{name}.txt", result)
+                    raise CandidateValidationFailure(
+                        f"ALSA {name} candidate did not parse; retained {retained}; "
+                        f"{self._failure_summary(result)}"
+                    )
                 names = set(result.stdout.splitlines())
                 missing = set(PUBLIC_PCMS).difference(names)
                 if missing:
@@ -378,7 +410,11 @@ class CandidateValidationRehearsalAdapter(
             result = _run_fixed((visudo, "-cf", str(self._fixed_paths()["sudoers"])))
             _write_command_evidence(validation_root / "visudo.txt", result)
             if result.returncode != 0:
-                raise CandidateValidationFailure("staged sudoers candidate failed visudo")
+                retained = self._retain_failed_command("visudo.txt", result)
+                raise CandidateValidationFailure(
+                    f"staged sudoers candidate failed visudo; retained {retained}; "
+                    f"{self._failure_summary(result)}"
+                )
         except (OSError, subprocess.SubprocessError, CandidateValidationFailure) as exc:
             return _fail(operation, str(exc))
         self._sudoers_validated = True
@@ -459,10 +495,17 @@ class CandidateValidationRehearsalAdapter(
                 "systemd-modules-load.service",
             ):
                 (unit_dir / name).write_text(
-                    "[Unit]\nDescription=Stage C16 validation stub\n[Service]\nType=oneshot\nExecStart=/bin/true\n",
+                    "[Unit]\nDescription=Stage C16 validation stub\n"
+                    "[Service]\nType=oneshot\nExecStart=/bin/true\n",
                     encoding="utf-8",
                 )
-            for name in ("sound.target", "multi-user.target"):
+            for name in (
+                "sound.target",
+                "multi-user.target",
+                "sysinit.target",
+                "basic.target",
+                "shutdown.target",
+            ):
                 (unit_dir / name).write_text(
                     "[Unit]\nDescription=Stage C16 validation target\n",
                     encoding="utf-8",
@@ -479,7 +522,11 @@ class CandidateValidationRehearsalAdapter(
             )
             _write_command_evidence(validation_root / "systemd-analyze.txt", result)
             if result.returncode != 0:
-                raise CandidateValidationFailure("staged systemd candidates failed verification")
+                retained = self._retain_failed_command("systemd-analyze.txt", result)
+                raise CandidateValidationFailure(
+                    f"staged systemd candidates failed verification; retained {retained}; "
+                    f"{self._failure_summary(result)}"
+                )
         except (
             OSError,
             SyntaxError,
@@ -520,7 +567,11 @@ class CandidateValidationRehearsalAdapter(
             )
             _write_command_evidence(validation_root / "camilladsp-check.txt", result)
             if result.returncode != 0:
-                raise CandidateValidationFailure("staged CamillaDSP configuration failed --check")
+                retained = self._retain_failed_command("camilladsp-check.txt", result)
+                raise CandidateValidationFailure(
+                    f"staged CamillaDSP configuration failed --check; retained {retained}; "
+                    f"{self._failure_summary(result)}"
+                )
         except (
             OSError,
             StopIteration,
