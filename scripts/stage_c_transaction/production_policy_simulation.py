@@ -952,6 +952,7 @@ def simulate_action(
         adapter,
         context,
     )
+    primary_terminal_success = context.terminal_success
     rollback_started = False
     rollback_completed = False
 
@@ -991,7 +992,7 @@ def simulate_action(
         failure_operation=failure_operation,
         failure_disposition=disposition,
         lock_held=adapter.lock_held,
-        terminal_success=context.terminal_success,
+        terminal_success=primary_terminal_success,
         rollback_started=rollback_started,
         rollback_completed=rollback_completed,
     )
