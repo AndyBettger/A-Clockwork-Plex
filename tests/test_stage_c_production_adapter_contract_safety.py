@@ -154,9 +154,9 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
 
     def test_operation_vocabulary_is_complete_and_partitioned_once(self) -> None:
         operations = tuple(contract.AdapterOperation)
-        self.assertEqual(len(operations), 34)
+        self.assertEqual(len(operations), 33)
         self.assertEqual(len(contract.READ_ONLY_OPERATIONS), 17)
-        self.assertEqual(len(contract.MUTATING_OPERATIONS), 17)
+        self.assertEqual(len(contract.MUTATING_OPERATIONS), 16)
         self.assertEqual(
             set(contract.READ_ONLY_OPERATIONS).union(contract.MUTATING_OPERATIONS),
             set(operations),
@@ -190,6 +190,11 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
         self.assertEqual(len(protocol_methods), len(contract.AdapterOperation))
         self.assertNotIn("execute", protocol_methods)
         self.assertNotIn("run", protocol_methods)
+        self.assertNotIn("explicit_uninstall", protocol_methods)
+        self.assertIn(
+            contract.TransactionAction.EXPLICIT_UNINSTALL,
+            tuple(contract.TransactionAction),
+        )
 
     def test_every_typed_operation_fails_closed_with_its_exact_identity(self) -> None:
         adapter = contract.BlockedProductionAdapter()
@@ -344,11 +349,6 @@ class StageCProductionAdapterContractSafetyTests(unittest.TestCase):
                 "verify_exact_rollback",
                 (transaction, snapshot),
                 contract.AdapterOperation.VERIFY_EXACT_ROLLBACK,
-            ),
-            (
-                "explicit_uninstall",
-                (transaction, snapshot),
-                contract.AdapterOperation.EXPLICIT_UNINSTALL,
             ),
         )
         self.assertEqual(len(calls), len(contract.AdapterOperation))
