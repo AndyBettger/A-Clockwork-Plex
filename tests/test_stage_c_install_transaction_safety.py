@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import ast
 import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+from stage_c_transaction.package_review import ManifestEntry, write_destination_state
+
 WRAPPER = ROOT / "scripts" / "prepare-stage-c-install-transaction.sh"
 MODULES = (
     ROOT / "scripts" / "stage_c_transaction" / "package_review.py",
@@ -98,8 +107,46 @@ class StageCInstallTransactionSafetyTests(unittest.TestCase):
         text = source()
         self.assertIn("write_destination_state", text)
         self.assertIn("Destination conflict gate failed", text)
-        self.assertIn("managed file destinations absent", text)
+        self.assertIn("file destinations verified absent", text)
         self.assertNotIn("overwrite existing", text.lower())
+
+    def test_permission_denied_destination_is_unverified_not_absent(self):
+        protected = "/etc/sudoers.d/a-clockwork-plex-audio-route"
+        entry = ManifestEntry(
+            kind="file",
+            destination=protected,
+            mode="440",
+            owner="root:root",
+            digest="0" * 64,
+        )
+        original_lstat = Path.lstat
+
+        def guarded_lstat(path: Path):
+            if str(path) == protected:
+                raise PermissionError(13, "Permission denied", protected)
+            return original_lstat(path)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "rootfs").mkdir()
+            output = root / "destination-state.tsv"
+            with mock.patch.object(Path, "lstat", guarded_lstat):
+                review = write_destination_state([entry], root, output)
+
+            self.assertEqual(review.conflicts, 0)
+            self.assertEqual(review.verified_absent_files, 0)
+            self.assertEqual(review.privileged_checks, (protected,))
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("unverified", text)
+            self.assertIn("privileged-check-required", text)
+            self.assertNotIn("\tabsent\t", text)
+
+    def test_protected_snapshot_marker_is_not_an_absence_marker(self):
+        text = source()
+        self.assertIn(".privileged-check-required", text)
+        self.assertIn("UNVERIFIED", text)
+        self.assertIn("privileged activation-time snapshot required before any write", text)
+        self.assertIn("protected destinations are recorded as unverified, never falsely recorded as absent", text)
 
     def test_service_boundary_is_pinned_to_discovery(self):
         text = source()
@@ -132,7 +179,7 @@ class StageCInstallTransactionSafetyTests(unittest.TestCase):
         text = source()
         for expected in (
             "rollback-obligations.tsv",
-            "restore original file or exact absence marker",
+            "restore original file or exact absence marker from the fresh privileged activation-time snapshot",
             "restore exact enabled states",
             "restore loaded and persistence state exactly",
             "restore all four captured control percentages",
@@ -150,6 +197,7 @@ class StageCInstallTransactionSafetyTests(unittest.TestCase):
     def test_activation_blockers_cover_runtime_eq_health_and_failure_proof(self):
         text = source()
         for expected in (
+            "resolve every protected destination",
             "transactional mutation logic",
             "activation-time snapshot/rollback",
             "automatic direct failback",
