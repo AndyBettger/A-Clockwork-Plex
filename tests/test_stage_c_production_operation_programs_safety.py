@@ -108,6 +108,14 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
                     program.steps[-1].operation,
                     AdapterOperation.RELEASE_PRODUCTION_LOCK,
                 )
+                self.assertIs(
+                    program.steps[-2].operation,
+                    program.terminal_success_operation,
+                )
+                self.assertIs(
+                    program.after_terminal_success_failure,
+                    programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+                )
         self.assertFalse(hasattr(AdapterOperation, "EXPLICIT_UNINSTALL"))
 
     def test_unheld_programs_acquire_before_every_lock_bound_step(self) -> None:
@@ -186,6 +194,14 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             programs.FailureDisposition.AUTOMATIC_EXACT_ROLLBACK,
         )
         self.assertIs(
+            program.terminal_success_operation,
+            AdapterOperation.WRITE_COMMIT_MANIFEST,
+        )
+        self.assertIs(
+            program.after_terminal_success_failure,
+            programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+        )
+        self.assertIs(
             program.snapshot_source,
             programs.SnapshotSource.FRESH_AUTHORITATIVE,
         )
@@ -229,6 +245,14 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
         )
         self.assertIs(
+            program.terminal_success_operation,
+            AdapterOperation.VERIFY_EXACT_ROLLBACK,
+        )
+        self.assertIs(
+            program.after_terminal_success_failure,
+            programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+        )
+        self.assertIs(
             program.snapshot_source,
             programs.SnapshotSource.ACTIVE_TRANSACTION_AUTHORITATIVE,
         )
@@ -268,6 +292,10 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             operations.index(AdapterOperation.RUN_FINITE_ALARM_PROBE),
         )
         self.assertIs(
+            program.terminal_success_operation,
+            AdapterOperation.WRITE_COMMIT_MANIFEST,
+        )
+        self.assertIs(
             program.snapshot_source,
             programs.SnapshotSource.COMMITTED_INSTALLATION_PLUS_LIVE,
         )
@@ -300,6 +328,10 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             program.snapshot_source,
             programs.SnapshotSource.COMMITTED_INSTALLATION_AUTHORITATIVE,
         )
+        self.assertIs(
+            program.terminal_success_operation,
+            AdapterOperation.WRITE_COMMIT_MANIFEST,
+        )
         self.assertFalse(hasattr(AdapterOperation, "EXPLICIT_UNINSTALL"))
         self.assertNotIn(AdapterOperation.SELECT_DIRECT_FAILBACK_ROUTE, operations)
         self.assertNotIn(AdapterOperation.SELECT_SPLIT_BUS_ROUTE, operations)
@@ -309,7 +341,7 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
         )
         self.assertLess(
             operations.index(AdapterOperation.VERIFY_EXACT_ROLLBACK),
-            operations.index(AdapterOperation.RELEASE_PRODUCTION_LOCK),
+            operations.index(AdapterOperation.WRITE_COMMIT_MANIFEST),
         )
 
     def test_program_snapshot_is_static_and_complete(self) -> None:
@@ -322,8 +354,9 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
         for row, program in zip(snapshot, programs.PROGRAMS, strict=True):
             self.assertEqual(row[1], program.action.value)
             self.assertEqual(row[2], program.entry_lock_state.value)
+            self.assertEqual(row[3], program.terminal_success_operation.value)
             self.assertEqual(
-                row[3].split(","),
+                row[4].split(","),
                 [step.operation.value for step in program.steps],
             )
 
@@ -336,16 +369,18 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             lock_required=True,
             detail="release",
         )
+        common = {
+            "name": programs.ProgramName.INSTALL,
+            "action": TransactionAction.INSTALL,
+            "entry_lock_state": programs.EntryLockState.UNHELD,
+            "snapshot_source": programs.SnapshotSource.FRESH_AUTHORITATIVE,
+            "before_mutation_failure": programs.FailureDisposition.ABORT_RELEASE_LOCK,
+            "after_mutation_failure": programs.FailureDisposition.AUTOMATIC_EXACT_ROLLBACK,
+            "terminal_success_operation": AdapterOperation.WRITE_COMMIT_MANIFEST,
+            "after_terminal_success_failure": programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+        }
         with self.assertRaises(ValueError):
-            programs.OperationProgram(
-                name=programs.ProgramName.INSTALL,
-                action=TransactionAction.INSTALL,
-                entry_lock_state=programs.EntryLockState.UNHELD,
-                snapshot_source=programs.SnapshotSource.FRESH_AUTHORITATIVE,
-                before_mutation_failure=programs.FailureDisposition.ABORT_RELEASE_LOCK,
-                after_mutation_failure=programs.FailureDisposition.AUTOMATIC_EXACT_ROLLBACK,
-                steps=(release,),
-            )
+            programs.OperationProgram(steps=(release,), **common)
 
         acquire = programs.OperationStep(
             order=10,
@@ -355,6 +390,22 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
             lock_required=False,
             detail="acquire",
         )
+        terminal = programs.OperationStep(
+            order=20,
+            phase=programs.ProgramPhase.VALIDATION,
+            operation=AdapterOperation.VERIFY_EXACT_ROLLBACK,
+            changes_managed_audio_state=False,
+            lock_required=True,
+            detail="verify",
+        )
+        release_30 = programs.OperationStep(
+            order=30,
+            phase=programs.ProgramPhase.COMPLETION,
+            operation=AdapterOperation.RELEASE_PRODUCTION_LOCK,
+            changes_managed_audio_state=False,
+            lock_required=True,
+            detail="release",
+        )
         with self.assertRaises(ValueError):
             programs.OperationProgram(
                 name=programs.ProgramName.AUTOMATIC_EXACT_ROLLBACK,
@@ -363,7 +414,39 @@ class StageCProductionOperationProgramsSafetyTests(unittest.TestCase):
                 snapshot_source=programs.SnapshotSource.ACTIVE_TRANSACTION_AUTHORITATIVE,
                 before_mutation_failure=programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
                 after_mutation_failure=programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
-                steps=(acquire, release),
+                terminal_success_operation=AdapterOperation.VERIFY_EXACT_ROLLBACK,
+                after_terminal_success_failure=programs.FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+                steps=(acquire, terminal, release_30),
+            )
+
+        late_terminal = programs.OperationStep(
+            order=20,
+            phase=programs.ProgramPhase.COMMIT,
+            operation=AdapterOperation.WRITE_COMMIT_MANIFEST,
+            changes_managed_audio_state=True,
+            lock_required=True,
+            detail="commit",
+        )
+        extra = programs.OperationStep(
+            order=30,
+            phase=programs.ProgramPhase.VALIDATION,
+            operation=AdapterOperation.VERIFY_DASHBOARD_HEALTH,
+            changes_managed_audio_state=False,
+            lock_required=True,
+            detail="too late",
+        )
+        release_40 = programs.OperationStep(
+            order=40,
+            phase=programs.ProgramPhase.COMPLETION,
+            operation=AdapterOperation.RELEASE_PRODUCTION_LOCK,
+            changes_managed_audio_state=False,
+            lock_required=True,
+            detail="release",
+        )
+        with self.assertRaises(ValueError):
+            programs.OperationProgram(
+                steps=(acquire, late_terminal, extra, release_40),
+                **common,
             )
 
 
