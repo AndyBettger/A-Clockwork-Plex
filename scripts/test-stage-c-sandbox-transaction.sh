@@ -116,7 +116,7 @@ fi
 
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -B -m stage_c_transaction.sandbox_transaction_runtime \
+exec python3 -B -m stage_c_transaction.sandbox_transaction \
   --confirm "$CONFIRM" \
   --package-root "$PACKAGE_ROOT" \
   --stage-c3-root "$STAGE_C3_ROOT" \
