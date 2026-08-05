@@ -118,6 +118,12 @@ class StageCRootOwnedDisposableTransactionSafetyTests(unittest.TestCase):
         current_digest = hashlib.sha256(current_content).hexdigest()
         current = c6 / "rootfs/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf"
         self._write(current, current_content)
+        for directory in (
+            current.parent,
+            current.parent.parent,
+            current.parent.parent.parent,
+        ):
+            directory.chmod(0o755)
 
         result_rows = [("check", "result", "detail")]
         result_rows.extend((check, "PASS", "fixture") for check in transaction.EXPECTED_C6_CHECKS)
@@ -145,8 +151,6 @@ class StageCRootOwnedDisposableTransactionSafetyTests(unittest.TestCase):
 
         present_directories = {
             "/etc": "755",
-            "/etc/alsa": "755",
-            "/etc/alsa/conf.d": "755",
             "/etc/default": "755",
             "/etc/modprobe.d": "755",
             "/etc/modules-load.d": "755",
@@ -335,6 +339,55 @@ class StageCRootOwnedDisposableTransactionSafetyTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(info.st_mode), 0o640)
             self.assertEqual(info.st_uid, os.getuid())
             self.assertEqual(info.st_gid, os.getgid())
+
+    def test_real_c6_shape_seeds_unlisted_current_alsa_parent_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            package = self._build_package(root)
+            c6, current_digest = self._build_c6(root, package)
+            with (c6 / "filesystem-state.tsv").open(
+                encoding="utf-8", newline=""
+            ) as handle:
+                filesystem_rows = list(csv.DictReader(handle, delimiter="\t"))
+            listed_directories = {
+                row["destination"]
+                for row in filesystem_rows
+                if row["kind"] == "directory"
+            }
+            self.assertNotIn("/etc/alsa", listed_directories)
+            self.assertNotIn("/etc/alsa/conf.d", listed_directories)
+
+            scenario = root / "scenario"
+            scenario.mkdir()
+            entries = transaction.parse_manifest(package)
+            with mock.patch.object(
+                transaction,
+                "EXPECTED_PRE_STAGE_C_ALSA_SHA256",
+                current_digest,
+            ):
+                evidence = transaction.validate_c6(c6)
+                baseline, existing, _ = transaction.seed_scenario(
+                    scenario,
+                    evidence,
+                    entries,
+                    os.getuid(),
+                    os.getgid(),
+                )
+
+            self.assertTrue(baseline)
+            for destination in ("/etc/alsa", "/etc/alsa/conf.d"):
+                self.assertIn(destination, existing)
+                self.assertEqual(existing[destination][0], 0o755)
+                path = transaction.mapped_path(
+                    scenario / "system-root", destination
+                )
+                self.assertTrue(path.is_dir())
+                self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o755)
+            current = transaction.mapped_path(
+                scenario / "system-root",
+                transaction.CURRENT_ALSA_DESTINATION,
+            )
+            self.assertEqual(transaction.sha256(current), current_digest)
 
     def test_existing_directory_is_never_rechmodded_during_install(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
