@@ -3,7 +3,7 @@ from __future__ import annotations
 
 """Stage C11 immutable transaction-policy operation programs.
 
-The programs in this module are static metadata.  They contain no adapter,
+The programs in this module are static metadata. They contain no adapter,
 callback, executable command or host-access implementation and cannot perform
 an operation.
 """
@@ -75,6 +75,8 @@ class OperationProgram:
     snapshot_source: SnapshotSource
     before_mutation_failure: FailureDisposition
     after_mutation_failure: FailureDisposition
+    terminal_success_operation: AdapterOperation
+    after_terminal_success_failure: FailureDisposition
     steps: tuple[OperationStep, ...]
 
     def __post_init__(self) -> None:
@@ -87,6 +89,18 @@ class OperationProgram:
             raise ValueError("operation program must release the production lock last")
         if not self.steps[-1].lock_required:
             raise ValueError("route-lock release must occur while the lock is held")
+
+        terminal_positions = tuple(
+            index
+            for index, step in enumerate(self.steps)
+            if step.operation is self.terminal_success_operation
+        )
+        if terminal_positions != (len(self.steps) - 2,):
+            raise ValueError(
+                "terminal success must occur exactly once immediately before lock release"
+            )
+        if not self.steps[terminal_positions[0]].lock_required:
+            raise ValueError("terminal success must occur while the lock is held")
 
         acquire_positions = tuple(
             index
@@ -135,6 +149,8 @@ INSTALL_PROGRAM = OperationProgram(
     snapshot_source=SnapshotSource.FRESH_AUTHORITATIVE,
     before_mutation_failure=FailureDisposition.ABORT_RELEASE_LOCK,
     after_mutation_failure=FailureDisposition.AUTOMATIC_EXACT_ROLLBACK,
+    terminal_success_operation=AdapterOperation.WRITE_COMMIT_MANIFEST,
+    after_terminal_success_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
     steps=(
         _step(10, ProgramPhase.PREFLIGHT, AdapterOperation.INSPECT_HOST_CONTRACT, False, False, "Replay and verify the exact host contract."),
         _step(20, ProgramPhase.PREFLIGHT, AdapterOperation.INSPECT_PRODUCTION_LOCK, False, False, "Inspect the single fixed production-lock boundary."),
@@ -175,6 +191,8 @@ AUTOMATIC_EXACT_ROLLBACK_PROGRAM = OperationProgram(
     snapshot_source=SnapshotSource.ACTIVE_TRANSACTION_AUTHORITATIVE,
     before_mutation_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
     after_mutation_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+    terminal_success_operation=AdapterOperation.VERIFY_EXACT_ROLLBACK,
+    after_terminal_success_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
     steps=(
         _step(10, ProgramPhase.RESTORATION, AdapterOperation.STOP_CAPTURED_APPLICATION_SERVICES, True, True, "Stop captured application services, including late-restored services."),
         _step(20, ProgramPhase.RESTORATION, AdapterOperation.STOP_MANAGED_STAGE_C_SERVICES, True, True, "Stop managed Stage C services before restoring files."),
@@ -196,6 +214,8 @@ RUNTIME_DIRECT_FAILBACK_PROGRAM = OperationProgram(
     snapshot_source=SnapshotSource.COMMITTED_INSTALLATION_PLUS_LIVE,
     before_mutation_failure=FailureDisposition.ABORT_RELEASE_LOCK,
     after_mutation_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+    terminal_success_operation=AdapterOperation.WRITE_COMMIT_MANIFEST,
+    after_terminal_success_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
     steps=(
         _step(10, ProgramPhase.PREFLIGHT, AdapterOperation.INSPECT_HOST_CONTRACT, False, False, "Verify the committed Stage C host boundary."),
         _step(20, ProgramPhase.PREFLIGHT, AdapterOperation.INSPECT_PRODUCTION_LOCK, False, False, "Inspect the single production-lock boundary."),
@@ -226,6 +246,8 @@ EXPLICIT_UNINSTALL_PROGRAM = OperationProgram(
     snapshot_source=SnapshotSource.COMMITTED_INSTALLATION_AUTHORITATIVE,
     before_mutation_failure=FailureDisposition.ABORT_RELEASE_LOCK,
     after_mutation_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
+    terminal_success_operation=AdapterOperation.WRITE_COMMIT_MANIFEST,
+    after_terminal_success_failure=FailureDisposition.FAIL_CLOSED_RETAIN_LOCK,
     steps=(
         _step(10, ProgramPhase.PREFLIGHT, AdapterOperation.INSPECT_HOST_CONTRACT, False, False, "Verify the installed Stage C host boundary and committed snapshot."),
         _step(20, ProgramPhase.PREFLIGHT, AdapterOperation.INSPECT_PRODUCTION_LOCK, False, False, "Inspect the single production-lock boundary."),
@@ -265,7 +287,7 @@ def program_for_action(action: TransactionAction) -> OperationProgram:
     return matches[0]
 
 
-def program_snapshot() -> tuple[tuple[str, str, str, str], ...]:
+def program_snapshot() -> tuple[tuple[str, str, str, str, str], ...]:
     """Return static review metadata without constructing or invoking an adapter."""
 
     return tuple(
@@ -273,6 +295,7 @@ def program_snapshot() -> tuple[tuple[str, str, str, str], ...]:
             program.name.value,
             program.action.value,
             program.entry_lock_state.value,
+            program.terminal_success_operation.value,
             ",".join(step.operation.value for step in program.steps),
         )
         for program in PROGRAMS
