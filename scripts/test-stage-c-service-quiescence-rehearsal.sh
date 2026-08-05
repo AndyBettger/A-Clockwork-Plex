@@ -25,8 +25,9 @@ Usage:
 The default invocation is prepare-only. The guarded rehearsal briefly stops only
 the captured-active Plexamp, Shairport Sync and dashboard services, proves the
 physical DAC and fixed loopback endpoints are released, restores the exact
-captured application service state, verifies the stable direct appliance and
-closes the restored rehearsal transaction. It installs or activates nothing.
+captured application service state, waits boundedly for dashboard and DAC runtime
+readiness, verifies the stable direct appliance and closes the restored rehearsal
+transaction. It installs or activates nothing.
 EOF
 }
 
@@ -76,6 +77,9 @@ Prepare-only invoked no sudo, performed no host observation, stopped no service,
 and created no Stage C17 evidence directory, production lock, transaction or
 candidate tree.
 
+This corrected retry waits for the dashboard HTTP response and then polls the
+strict DAC runtime contract for up to 30 seconds. It does not use a blind delay.
+
 After review, run the exact guarded rehearsal using the retained Stage C1 package
 and successful corrected Stage C16 evidence:
 
@@ -97,9 +101,10 @@ The guarded rehearsal uses one constrained sudo command. It repeats the accepted
 lock, snapshot, staging and validation prefix, then briefly stops Plexamp,
 Shairport Sync and the dashboard. The dashboard and local touchscreen will be
 unavailable for a short interval, but SSH remains available. It proves the DAC
-released, restores the three captured services, verifies the stable direct route,
-mixer, loopback, DAC ownership and dashboard HTTP response, then closes and
-removes the restored transaction before releasing the lock.
+released, restores the three captured services, waits for the dashboard and the
+full known-good DAC runtime contract, verifies the stable direct route, mixer and
+loopback, then closes and removes the restored transaction before releasing the
+lock.
 
 Managed-file installation, systemd reload, route selection, CamillaDSP startup,
 audio probes and commit remain blocked.
@@ -118,7 +123,7 @@ fi
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -m stage_c_transaction.service_quiescence_rehearsal \
+  python3 -m stage_c_transaction.service_quiescence_rehearsal_v2 \
     --package-root "$PACKAGE_ROOT" \
     --stage-c16-root "$STAGE_C16_ROOT" \
     --evidence-root "$EVIDENCE_ROOT" \
