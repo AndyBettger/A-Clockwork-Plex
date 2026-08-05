@@ -202,7 +202,7 @@ class StageCLockedPrivilegedSnapshotSafetyTests(unittest.TestCase):
             "prove_lock_contention(lock)",
             "identity = write_identity",
             'event("snapshot-started"',
-            "collect_filesystem_snapshot",
+            "summary = collect_filesystem_snapshot",
             'event("snapshot-verified"',
             "write_evidence_manifest(snapshot_root)",
             "lock.release()",
