@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import platform
+import pwd
 import re
 import shutil
 import stat
@@ -228,6 +229,80 @@ def capture_mixer_states(output: Path, raw_dir: Path) -> None:
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
+def _fd_access_mode(fdinfo: Path) -> str:
+    try:
+        text = fdinfo.read_text(encoding="utf-8")
+    except OSError:
+        return "unavailable"
+    match = re.search(r"(?m)^flags:\s*([0-7]+)$", text)
+    if not match:
+        return "unknown"
+    flags = int(match.group(1), 8)
+    access = flags & os.O_ACCMODE
+    return {
+        os.O_RDONLY: "read",
+        os.O_WRONLY: "write",
+        os.O_RDWR: "read-write",
+    }.get(access, "unknown")
+
+
+def _dac_owner_rows(device: Path, fuser_stdout: str, proc_root: Path = Path("/proc")) -> list[str]:
+    pids = sorted({int(value) for value in re.findall(r"\b\d+\b", fuser_stdout)})
+    rows = [
+        f"dac.owner_count\t{len(pids)}",
+        f"dac.owners\t{','.join(str(pid) for pid in pids) if pids else 'none'}",
+    ]
+    for position, pid in enumerate(pids, start=1):
+        process_root = proc_root / str(pid)
+        try:
+            command = (process_root / "comm").read_text(encoding="utf-8").strip()
+        except OSError:
+            command = "unavailable"
+
+        uid: int | None = None
+        try:
+            status = (process_root / "status").read_text(encoding="utf-8")
+            match = re.search(r"(?m)^Uid:\s*(\d+)", status)
+            if match:
+                uid = int(match.group(1))
+        except OSError:
+            pass
+        if uid is None:
+            user = "unavailable"
+        else:
+            try:
+                user = pwd.getpwuid(uid).pw_name
+            except KeyError:
+                user = str(uid)
+
+        fd_details: list[str] = []
+        fd_root = process_root / "fd"
+        try:
+            descriptors = sorted(fd_root.iterdir(), key=lambda item: int(item.name))
+        except (OSError, ValueError):
+            descriptors = []
+        for descriptor in descriptors:
+            try:
+                target = os.readlink(descriptor)
+            except OSError:
+                continue
+            if target != str(device):
+                continue
+            access = _fd_access_mode(process_root / "fdinfo" / descriptor.name)
+            fd_details.append(f"{descriptor.name}:{access}")
+
+        prefix = f"dac.owner.{position}"
+        rows.extend(
+            (
+                f"{prefix}.pid\t{pid}",
+                f"{prefix}.user\t{user}",
+                f"{prefix}.command\t{command or 'unavailable'}",
+                f"{prefix}.fds\t{','.join(fd_details) if fd_details else 'unavailable'}",
+            )
+        )
+    return rows
+
+
 def capture_module_and_dac(output: Path, review_root: Path) -> None:
     params = {
         name: _first_module_parameter(name)
@@ -241,14 +316,15 @@ def capture_module_and_dac(output: Path, review_root: Path) -> None:
         encoding="utf-8",
     )
     fuser = run(["fuser", str(device)])
-    owners = (fuser.stdout + fuser.stderr).strip().replace("\t", " ")
+    if fuser.returncode not in (0, 1):
+        raise SystemExit(f"Could not inspect DAC owners with fuser: {fuser.stderr.strip()}")
     rows = [
         "item\tvalue",
         "snd_aloop.loaded\ttrue",
         *(f"snd_aloop.{name}\t{value}" for name, value in params.items()),
         f"dac.device\t{device}",
         f"dac.exists\t{str(device.exists()).lower()}",
-        f"dac.owners\t{owners or 'none'}",
+        *_dac_owner_rows(device, fuser.stdout),
         f"dac.hw_params\t{hw_copy}",
     ]
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
