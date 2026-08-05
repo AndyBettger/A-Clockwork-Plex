@@ -74,13 +74,15 @@ class StageCActivationPackageSafetyTests(unittest.TestCase):
                 "approval_store.py",
                 "state_machine.py",
                 "supervisor_model.py",
+                "runtime_executor.py",
+                "recording_runtime_adapter.py",
             ),
         )
         source = self.prepare.read_text(encoding="utf-8")
         self.assertIn("AUTHORITY_SOURCE", source)
         self.assertIn("shutil.copy2(source, destination)", source)
         self.assertIn("source.is_symlink()", source)
-        self.assertEqual(core.EXPECTED_FILES, 19)
+        self.assertEqual(core.EXPECTED_FILES, 21)
 
     def test_generated_entry_has_fixed_actions_and_blocks_host_mutation(self):
         entry = runtime_templates.package_entry()
