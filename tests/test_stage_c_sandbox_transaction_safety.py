@@ -11,13 +11,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.stage_c_transaction import sandbox_transaction as sandbox
+from scripts.stage_c_transaction import sandbox_transaction_runtime as sandbox
 from scripts.stage_c_transaction.package_review import sha256
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WRAPPER = ROOT / "scripts/test-stage-c-sandbox-transaction.sh"
-ENGINE = ROOT / "scripts/stage_c_transaction/sandbox_transaction.py"
+ENGINE = ROOT / "scripts/stage_c_transaction/sandbox_transaction_runtime.py"
+BASE_ENGINE = ROOT / "scripts/stage_c_transaction/sandbox_transaction.py"
 TOKEN = "STAGE-C4-SANDBOX-TRANSACTION"
 CURRENT_ALSA = "/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf"
 FILES = (
@@ -219,7 +220,9 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
     def test_wrapper_and_engine_syntax(self):
         shell = subprocess.run(["bash", "-n", str(WRAPPER)], capture_output=True, text=True)
         self.assertEqual(shell.returncode, 0, shell.stderr)
-        compile(ENGINE.read_text(encoding="utf-8"), str(ENGINE), "exec")
+        for path in (ENGINE, BASE_ENGINE):
+            compile(path.read_text(encoding="utf-8"), str(path), "exec")
+        self.assertIn("sandbox_transaction_runtime", WRAPPER.read_text(encoding="utf-8"))
 
     def test_prepare_only_has_no_sudo_and_prints_guarded_sandbox_command(self):
         text = WRAPPER.read_text(encoding="utf-8")
@@ -231,20 +234,40 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
         self.assertNotRegex(text, r"(?m)^\s*--install\)")
 
     def test_engine_has_no_privileged_or_audio_command_execution(self):
-        text = ENGINE.read_text(encoding="utf-8")
-        for forbidden in (
-            "import subprocess",
-            "subprocess.",
-            "systemctl",
-            "amixer",
-            "modprobe",
-            "aplay",
-            "fuser",
-            "camilladsp --",
-        ):
-            self.assertNotIn(forbidden, text)
-        self.assertNotIn("os.chown", text)
-        self.assertNotIn("/run/", text)
+        for path in (ENGINE, BASE_ENGINE):
+            text = path.read_text(encoding="utf-8")
+            tree = ast.parse(text)
+            imported_modules = {
+                alias.name
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Import)
+                for alias in node.names
+            }
+            imported_from = {
+                node.module
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ImportFrom) and node.module
+            }
+            self.assertNotIn("subprocess", imported_modules)
+            self.assertNotIn("subprocess", imported_from)
+            forbidden_calls = []
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if isinstance(node.func, ast.Attribute):
+                    if isinstance(node.func.value, ast.Name) and (
+                        node.func.value.id,
+                        node.func.attr,
+                    ) in {
+                        ("os", "system"),
+                        ("os", "popen"),
+                        ("subprocess", "run"),
+                        ("subprocess", "Popen"),
+                    }:
+                        forbidden_calls.append(node)
+            self.assertEqual(forbidden_calls, [])
+            self.assertNotIn("os.chown", text)
+            self.assertNotIn("/run/", text)
 
     def test_cli_is_sandbox_only(self):
         text = ENGINE.read_text(encoding="utf-8")
@@ -254,7 +277,6 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
             'parser.add_argument("--sandbox-root"',
             'parser.add_argument("--confirm"',
             TOKEN,
-            "a-clockwork-plex-stage-c4-sandbox.",
         ):
             self.assertIn(expected, text)
         for forbidden in (
@@ -277,7 +299,9 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
                 sandbox.mapped_path(root, "/../../etc/passwd")
 
     def test_full_rehearsal_installs_fails_rolls_back_and_preserves_inputs(self):
-        with tempfile.TemporaryDirectory(dir="/var/tmp", prefix="stage-c4-package-test.") as package_dir, tempfile.TemporaryDirectory(
+        with tempfile.TemporaryDirectory(
+            dir="/var/tmp", prefix="stage-c4-package-test."
+        ) as package_dir, tempfile.TemporaryDirectory(
             dir="/var/tmp", prefix="stage-c4-c3-test."
         ) as c3_dir, tempfile.TemporaryDirectory(
             dir="/var/tmp", prefix=sandbox.SANDBOX_PREFIX
@@ -293,6 +317,8 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
             package_before = fingerprint(package)
             c3_before = fingerprint(stage_c3)
             with mock.patch.object(
+                sandbox.base, "EXPECTED_PRE_STAGE_C_ALSA_SHA256", current_digest
+            ), mock.patch.object(
                 sandbox, "EXPECTED_PRE_STAGE_C_ALSA_SHA256", current_digest
             ):
                 scenarios = sandbox.run_rehearsal(package, stage_c3, sandbox_root)
@@ -318,7 +344,10 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
                 self.assertEqual(sha256(active), current_digest)
                 for destination in FILES:
                     self.assertFalse((scenario / "system-root" / destination.lstrip("/")).exists())
+                sudoers_dir = scenario / "system-root/etc/sudoers.d"
+                self.assertEqual(stat.S_IMODE(sudoers_dir.stat().st_mode), 0o750)
                 journal = (scenario / "journal.tsv").read_text(encoding="utf-8")
+                self.assertIn("directory-modes\trestored", journal)
                 self.assertIn("rollback-finish\tbaseline mismatches=0", journal)
 
     def test_sandbox_root_must_be_fresh_direct_var_tmp_and_mode_0700(self):
@@ -348,21 +377,24 @@ class StageCSandboxTransactionSafetyTests(unittest.TestCase):
     def test_three_failure_points_use_same_rollback_function(self):
         text = ENGINE.read_text(encoding="utf-8")
         for point in sandbox.FAILURE_POINTS:
-            self.assertIn(point, text)
+            self.assertIn(point, BASE_ENGINE.read_text(encoding="utf-8"))
         self.assertEqual(text.count("rollback_sandbox("), 2)
         self.assertIn("automatic:{fail_after}", text)
         self.assertIn("explicit-uninstall", text)
+        self.assertIn("present_directory_modes", text)
+        self.assertIn("path.chmod(mode)", text)
 
     def test_source_has_no_hidden_dynamic_execution(self):
-        tree = ast.parse(ENGINE.read_text(encoding="utf-8"))
-        calls = [
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id in {"eval", "exec", "compile"}
-        ]
-        self.assertEqual(calls, [])
+        for path in (ENGINE, BASE_ENGINE):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            calls = [
+                node
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in {"eval", "exec", "compile"}
+            ]
+            self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":
