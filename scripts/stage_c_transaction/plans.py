@@ -23,7 +23,7 @@ def write_rollback_obligations(entries: list[ManifestEntry], output: Path) -> No
     for entry in (item for item in entries if item.kind == "file"):
         add(
             entry.destination,
-            "restore original file or exact absence marker",
+            "restore original file or exact absence marker from the fresh privileged activation-time snapshot",
             "checksum/mode/owner or verified absence matches activation-time snapshot",
         )
     add("managed directories", "remove only directories absent before install and empty after file rollback", "preinstall existence/mode/owner restored")
@@ -35,27 +35,30 @@ def write_rollback_obligations(entries: list[ManifestEntry], output: Path) -> No
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
-def write_command_plans(review_root: Path) -> None:
-    install = """STAGE C2 REVIEW ONLY — NOT AN EXECUTABLE INSTALLER
+def write_command_plans(review_root: Path, privileged_paths: tuple[str, ...]) -> None:
+    protected = "\n".join(f"- {path}" for path in privileged_paths) or "- none"
+    install = f"""STAGE C2 REVIEW ONLY — NOT AN EXECUTABLE INSTALLER
 
 Future activated Stage C transaction sequence:
 
 01. Acquire an exclusive route/install lock.
 02. Re-run every host, package, checksum, conflict and service preflight.
-03. Create a new activation-time snapshot; never reuse this Stage C2 review snapshot.
-04. Stage every candidate on the destination filesystem and revalidate checksums/modes.
-05. Stop plexamp.service, shairport-sync.service and a-clockwork-plex.service only.
-06. Verify the DAC and loopback playback/capture endpoints are released.
-07. Install deterministic snd_aloop persistence and the managed package atomically.
-08. Run systemd daemon-reload without enabling source services differently.
-09. Install the split-bus ALSA route atomically.
-10. Start the route authority and managed CamillaDSP service.
-11. Prove CamillaDSP PID, DAC format and split-bus route state.
-12. Run finite low-level music-lane and alarm-lane probes.
-13. Restore only the application services that were active before the transaction.
-14. Verify CamillaDSP survives real service startup and dashboard health agrees.
-15. Commit the transaction manifest only after every check passes.
-16. On any failure before commit, execute exact rollback and verify every restored item.
+03. Create a new root-owned activation-time snapshot; never reuse this Stage C2 review snapshot.
+04. Resolve every protected destination below before any write and record file or exact absence state:
+{protected}
+05. Stage every candidate on the destination filesystem and revalidate checksums/modes.
+06. Stop plexamp.service, shairport-sync.service and a-clockwork-plex.service only.
+07. Verify the DAC and loopback playback/capture endpoints are released.
+08. Install deterministic snd_aloop persistence and the managed package atomically.
+09. Run systemd daemon-reload without enabling source services differently.
+10. Install the split-bus ALSA route atomically.
+11. Start the route authority and managed CamillaDSP service.
+12. Prove CamillaDSP PID, DAC format and split-bus route state.
+13. Run finite low-level music-lane and alarm-lane probes.
+14. Restore only the application services that were active before the transaction.
+15. Verify CamillaDSP survives real service startup and dashboard health agrees.
+16. Commit the transaction manifest only after every check passes.
+17. On any failure before commit, execute exact rollback and verify every restored item.
 
 Stage C2 intentionally contains no --activate option, no confirmation token and no root command path.
 """
@@ -65,7 +68,7 @@ Stage C2 intentionally contains no --activate option, no confirmation token and 
 02. Stop the application services that the failed transaction restarted.
 03. Stop the managed CamillaDSP service and verify the DAC is released.
 04. Restore the exact preinstall active ALSA file atomically.
-05. Restore each managed file or its original absence marker.
+05. Restore each managed file or its original state from the fresh privileged activation-time snapshot.
 06. Restore managed directory existence, modes and owners without deleting unrelated content.
 07. Run systemd daemon-reload.
 08. Restore exact service enabled states.
@@ -75,9 +78,13 @@ Stage C2 intentionally contains no --activate option, no confirmation token and 
 12. Compare every checksum, absence marker, mode, owner, module parameter, mixer value and service state.
 13. Report rollback success only when the mismatch count is zero.
 """
-    blockers = """Stage C activation remains blocked after this transaction-plan rehearsal.
+    blockers = f"""Stage C activation remains blocked after this transaction-plan rehearsal.
+
+Protected destination checks that cannot be resolved by the unprivileged Stage C2 review:
+{protected}
 
 Still required before any persistent install can be authorised:
+- resolve every protected destination in a fresh root-owned activation-time snapshot before any write;
 - replace the inert Stage C1 route helper with reviewed transactional mutation logic;
 - add activation-time snapshot/rollback implementation and one exact confirmation token;
 - add atomic installation and exact uninstall entry points;
