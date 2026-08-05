@@ -12,6 +12,7 @@ WRAPPER = ROOT / "scripts" / "test-stage-c-runtime-authority-core.sh"
 FILES = tuple(sorted(PACKAGE.glob("*.py")))
 HOST_BOUNDARY_FILES = {
     PACKAGE / "linux_runtime_filesystem.py",
+    PACKAGE / "linux_runtime_process.py",
 }
 PURE_FILES = tuple(path for path in FILES if path not in HOST_BOUNDARY_FILES)
 
@@ -55,10 +56,6 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
             self.assertNotIn(forbidden_command, text)
 
     def test_linux_filesystem_is_one_explicit_fixed_host_boundary(self):
-        self.assertEqual(
-            HOST_BOUNDARY_FILES,
-            {PACKAGE / "linux_runtime_filesystem.py"},
-        )
         text = (PACKAGE / "linux_runtime_filesystem.py").read_text(encoding="utf-8")
         for required_path in (
             "/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf",
@@ -80,6 +77,40 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
         self.assertIn("class LinuxRuntimeFilesystem", text)
         self.assertIn("def __init__(self) -> None", text)
         self.assertIn("def _for_test(cls, root: Path)", text)
+
+    def test_linux_process_is_one_explicit_fixed_process_boundary(self):
+        self.assertEqual(
+            HOST_BOUNDARY_FILES,
+            {
+                PACKAGE / "linux_runtime_filesystem.py",
+                PACKAGE / "linux_runtime_process.py",
+            },
+        )
+        text = (PACKAGE / "linux_runtime_process.py").read_text(encoding="utf-8")
+        self.assertEqual(text.count("subprocess.Popen"), 1)
+        self.assertIn("shell=False", text)
+        for required_path in (
+            "/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp",
+            "/etc/a-clockwork-plex/camilladsp-split-bus.yml",
+            "/dev/snd/pcmC7D1c",
+        ):
+            self.assertIn(required_path, text)
+        for forbidden_boundary in (
+            "systemctl",
+            "amixer",
+            "alsactl",
+            "aplay",
+            "shell=True",
+            "os.system",
+            "os.exec",
+            "def dispatch",
+            "command:",
+            "path_override",
+        ):
+            self.assertNotIn(forbidden_boundary, text)
+        self.assertIn("class LinuxRuntimeProcess", text)
+        self.assertIn("def __init__(self) -> None", text)
+        self.assertIn("def _for_test(", text)
 
     def test_no_arbitrary_command_path_unit_or_transaction_arguments(self):
         tree = ast.parse(self.pure_source())
