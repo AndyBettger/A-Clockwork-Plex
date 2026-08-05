@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import grp
 import hashlib
+import os
 import pwd
 import re
 import stat
@@ -27,6 +28,13 @@ class ManifestEntry:
         return Path(self.destination.lstrip("/"))
 
 
+@dataclass(frozen=True)
+class DestinationReview:
+    conflicts: int
+    verified_absent_files: int
+    privileged_checks: tuple[str, ...]
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -35,8 +43,7 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def owner_string(path: Path) -> str:
-    info = path.lstat()
+def owner_from_stat(info: os.stat_result) -> str:
     try:
         user = pwd.getpwuid(info.st_uid).pw_name
     except KeyError:
@@ -48,8 +55,25 @@ def owner_string(path: Path) -> str:
     return f"{user}:{group}"
 
 
+def mode_from_stat(info: os.stat_result) -> str:
+    return f"{stat.S_IMODE(info.st_mode):o}"
+
+
+def owner_string(path: Path) -> str:
+    return owner_from_stat(path.lstat())
+
+
 def mode_string(path: Path) -> str:
-    return f"{stat.S_IMODE(path.lstat().st_mode):o}"
+    return mode_from_stat(path.lstat())
+
+
+def _safe_lstat(path: Path) -> tuple[os.stat_result | None, str | None]:
+    try:
+        return path.lstat(), None
+    except FileNotFoundError:
+        return None, None
+    except PermissionError as exc:
+        return None, f"permission-denied-errno-{exc.errno}"
 
 
 def _safe_destination(raw: str) -> str:
@@ -161,25 +185,46 @@ def validate_stage_c1_evidence(package_root: Path) -> None:
             raise SystemExit(f"Generated unit lacks the approval-marker gate: /{relative}")
 
 
-def write_destination_state(entries: list[ManifestEntry], package_root: Path, output: Path) -> int:
+def write_destination_state(
+    entries: list[ManifestEntry], package_root: Path, output: Path
+) -> DestinationReview:
     rows = [
         "type\tdestination\tcandidate_mode\tcandidate_sha256\tcurrent_state\t"
         "current_mode\tcurrent_owner\tcurrent_sha256\tverdict"
     ]
-    existing_files = 0
+    conflicts = 0
+    verified_absent_files = 0
+    privileged_checks: list[str] = []
     rootfs = package_root / "rootfs"
+
     for entry in entries:
         destination = Path(entry.destination)
+        info, access_error = _safe_lstat(destination)
+
+        if access_error:
+            privileged_checks.append(entry.destination)
+            rows.append(
+                f"{entry.kind}\t{entry.destination}\t{entry.mode}\t{entry.digest}\t"
+                f"unverified\t-\t-\t-\tprivileged-check-required:{access_error}"
+            )
+            continue
+
         if entry.kind == "directory":
-            if destination.exists():
-                current_state = "directory" if destination.is_dir() and not destination.is_symlink() else "conflict"
-                current_mode = mode_string(destination)
-                current_owner = owner_string(destination)
-                verdict = "existing-directory" if current_state == "directory" else "conflict"
-            else:
+            if info is None:
                 current_state = "absent"
                 current_mode = current_owner = "-"
                 verdict = "create-directory"
+            elif stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
+                current_state = "directory"
+                current_mode = mode_from_stat(info)
+                current_owner = owner_from_stat(info)
+                verdict = "existing-directory"
+            else:
+                conflicts += 1
+                current_state = "conflict"
+                current_mode = mode_from_stat(info)
+                current_owner = owner_from_stat(info)
+                verdict = "unexpected-existing-destination"
             rows.append(
                 f"directory\t{entry.destination}\t{entry.mode}\t-\t{current_state}\t"
                 f"{current_mode}\t{current_owner}\t-\t{verdict}"
@@ -187,23 +232,34 @@ def write_destination_state(entries: list[ManifestEntry], package_root: Path, ou
             continue
 
         candidate = rootfs / entry.relative
-        if not destination.exists() and not destination.is_symlink():
+        if info is None:
+            verified_absent_files += 1
             rows.append(
                 f"file\t{entry.destination}\t{entry.mode}\t{sha256(candidate)}\tabsent\t-\t-\t-\tinstall-new"
             )
             continue
 
-        existing_files += 1
-        if destination.is_symlink():
+        conflicts += 1
+        current_mode = mode_from_stat(info)
+        current_owner = owner_from_stat(info)
+        if stat.S_ISLNK(info.st_mode):
             current_state, current_sha = "symlink", "-"
-        elif destination.is_file():
-            current_state, current_sha = "file", sha256(destination)
+        elif stat.S_ISREG(info.st_mode):
+            current_state = "file"
+            try:
+                current_sha = sha256(destination)
+            except PermissionError:
+                current_sha = "unreadable"
         else:
             current_state, current_sha = "non-file", "-"
         rows.append(
             f"file\t{entry.destination}\t{entry.mode}\t{entry.digest}\t{current_state}\t"
-            f"{mode_string(destination)}\t{owner_string(destination)}\t{current_sha}\t"
-            "unexpected-existing-destination"
+            f"{current_mode}\t{current_owner}\t{current_sha}\tunexpected-existing-destination"
         )
+
     output.write_text("\n".join(rows) + "\n", encoding="utf-8")
-    return existing_files
+    return DestinationReview(
+        conflicts=conflicts,
+        verified_absent_files=verified_absent_files,
+        privileged_checks=tuple(sorted(set(privileged_checks))),
+    )
