@@ -1,6 +1,6 @@
 # Production EQ split-bus design
 
-Status: Stage A isolated split-bus proof passed on the bedroom Pi; guarded Stage B real-service rehearsal remains pending and production activation remains blocked.
+Status: Stage A isolated CamillaDSP split-bus proof passed on the bedroom Pi; the isolated ALSA source-lane routing gate and guarded Stage B real-service rehearsal remain pending. Production activation remains blocked.
 
 ## User requirement
 
@@ -107,9 +107,21 @@ No persistent DSP activation may rely on that installer or the rejected `alsaequ
 
 Stage A passed on `plexamp-bedroom` on 5 August 2026 with CamillaDSP 4.1.3. Music Master measured −19.984 dB on music and 0.000 dB on alarm; music EQ measured +6.002 dB on music and +0.008 dB on alarm; the final limiter held the combined stress signal at −1.000 dBFS. See `docs/split-bus-dsp-laboratory-result-2026-08-05.md`.
 
+### Stage A2 — isolated ALSA source-lane routing
+
+`scripts/test-split-bus-alsa-routing-lab.sh` uses a temporary `ALSA_CONFIG_PATH` and `snd_aloop` only. It verifies the source-side arrangement required by the real-service rehearsal:
+
+- a stereo music PCM maps only to bus channels 0/1;
+- a stereo alarm PCM maps only to bus channels 2/3;
+- inactive channels remain digitally silent within the laboratory threshold;
+- music and alarm PCMs can remain open concurrently through one four-channel `dmix` bus;
+- the physical DAC remains unchanged.
+
+Stage A2 must pass on the bedroom Pi before any split-bus physical-DAC rehearsal is activated.
+
 ### Stage B — temporary real-service route
 
-After Stage A passes on the Pi, a mandatory-rollback rehearsal may temporarily route Plexamp, AirPlay and alarm into their separate loopback lanes. It must prove:
+After Stage A and Stage A2 pass on the Pi, a mandatory-rollback rehearsal may temporarily route Plexamp, AirPlay and alarm into their separate loopback lanes. It must prove:
 
 - Plexamp and AirPlay use the music lane;
 - scheduled alarm uses the alarm lane;
@@ -146,4 +158,4 @@ The production route is not approved until all of the following are true:
 
 ## Production activation status
 
-Stage A passed. Production activation remains blocked pending the mandatory-rollback Stage B real-service rehearsal and the later guarded persistent installation design. PR #2 remains Draft and must not be merged without explicit approval.
+Stage A passed. Production activation remains blocked pending Stage A2, the mandatory-rollback Stage B real-service rehearsal and the later guarded persistent installation design. PR #2 remains Draft and must not be merged without explicit approval.
