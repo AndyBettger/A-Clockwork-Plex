@@ -14,7 +14,7 @@ from typing import Self
 
 from .authoritative_snapshot_rehearsal_adapter import _atomic_text
 from .managed_file_rollback_rehearsal_adapter import (
-    _open_parent,
+    ManagedFileRollbackFailure,
     _owner_ids,
     _safe_destination,
     _write_all,
@@ -321,6 +321,26 @@ class RouteSelectionRollbackRehearsalAdapter(
             )
         return source, identity
 
+    @staticmethod
+    def _unlink_partial_candidate(
+        parent_fd: int,
+        name: str,
+        device: int,
+        inode: int,
+    ) -> None:
+        current = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if (
+            stat.S_ISLNK(current.st_mode)
+            or not stat.S_ISREG(current.st_mode)
+            or current.st_dev != device
+            or current.st_ino != inode
+        ):
+            raise RouteSelectionRollbackFailure(
+                "refusing partial route-candidate cleanup after substitution"
+            )
+        os.unlink(name, dir_fd=parent_fd)
+        os.fsync(parent_fd)
+
     def _restore_active_route_exact(self) -> None:
         rollback_name = self._route_rollback_name
         original = self._route_original
@@ -331,7 +351,7 @@ class RouteSelectionRollbackRehearsalAdapter(
             )
         active = _safe_destination(CURRENT_ALSA_DESTINATION)
         rollback_path = active.parent / rollback_name
-        parent_fd, _parent = _open_parent(active)
+        parent_fd, _parent = self._open_parent(active)
         try:
             if self._route_exchange_completed:
                 _require_identity(active, candidate, "selected active route")
@@ -341,20 +361,12 @@ class RouteSelectionRollbackRehearsalAdapter(
                 os.fsync(parent_fd)
                 _require_identity(active, original, "restored active route")
                 _require_identity(rollback_path, candidate, "parked candidate route")
-                current = os.stat(
+                self._unlink_partial_candidate(
+                    parent_fd,
                     rollback_name,
-                    dir_fd=parent_fd,
-                    follow_symlinks=False,
+                    candidate.device,
+                    candidate.inode,
                 )
-                if (
-                    current.st_dev != candidate.device
-                    or current.st_ino != candidate.inode
-                ):
-                    raise RouteSelectionRollbackFailure(
-                        "refusing candidate cleanup after pathname substitution"
-                    )
-                os.unlink(rollback_name, dir_fd=parent_fd)
-                os.fsync(parent_fd)
                 self._route_selected = False
                 self._route_restored = True
                 self._record_route_action(
@@ -367,29 +379,18 @@ class RouteSelectionRollbackRehearsalAdapter(
                     ),
                 )
             else:
-                try:
-                    _require_identity(
-                        rollback_path,
-                        candidate,
-                        "unexchanged candidate route",
-                    )
-                except OSError:
-                    raise
-                _require_identity(active, original, "unchanged active route")
-                current = os.stat(
-                    rollback_name,
-                    dir_fd=parent_fd,
-                    follow_symlinks=False,
+                _require_identity(
+                    rollback_path,
+                    candidate,
+                    "unexchanged candidate route",
                 )
-                if (
-                    current.st_dev != candidate.device
-                    or current.st_ino != candidate.inode
-                ):
-                    raise RouteSelectionRollbackFailure(
-                        "refusing temporary route cleanup after substitution"
-                    )
-                os.unlink(rollback_name, dir_fd=parent_fd)
-                os.fsync(parent_fd)
+                _require_identity(active, original, "unchanged active route")
+                self._unlink_partial_candidate(
+                    parent_fd,
+                    rollback_name,
+                    candidate.device,
+                    candidate.inode,
+                )
                 self._record_route_action(
                     "remove-unselected-route-candidate",
                     "PASS",
@@ -441,6 +442,10 @@ class RouteSelectionRollbackRehearsalAdapter(
         active = _safe_destination(CURRENT_ALSA_DESTINATION)
         parent_fd: int | None = None
         fd: int | None = None
+        temporary_device: int | None = None
+        temporary_inode: int | None = None
+        original: RouteIdentity | None = None
+        candidate: RouteIdentity | None = None
         try:
             source, source_identity = self._installed_split_route()
             original = self._original_route_identity()
@@ -448,7 +453,7 @@ class RouteSelectionRollbackRehearsalAdapter(
                 f".{active.name}.stage-c20-{secrets.token_hex(12)}.rollback"
             )
             rollback_path = active.parent / rollback_name
-            parent_fd, _parent = _open_parent(active)
+            parent_fd, _parent = self._open_parent(active)
             try:
                 os.stat(
                     rollback_name,
@@ -472,6 +477,8 @@ class RouteSelectionRollbackRehearsalAdapter(
             self._route_original = original
             fd = os.open(rollback_name, flags, 0o600, dir_fd=parent_fd)
             created = os.fstat(fd)
+            temporary_device = created.st_dev
+            temporary_inode = created.st_ino
             uid, gid = _owner_ids(
                 self._snapshot_rows()[CURRENT_ALSA_DESTINATION].owner
             )
@@ -525,21 +532,60 @@ class RouteSelectionRollbackRehearsalAdapter(
             )
         except (
             OSError,
+            ManagedFileRollbackFailure,
             RouteSelectionRollbackFailure,
             SystemdReloadRollbackFailure,
         ) as exc:
+            cleanup_error: BaseException | None = None
+            try:
+                if self._route_exchange_completed:
+                    self._restore_active_route_exact()
+                elif (
+                    parent_fd is not None
+                    and self._route_rollback_name is not None
+                    and temporary_device is not None
+                    and temporary_inode is not None
+                ):
+                    if fd is not None:
+                        os.close(fd)
+                        fd = None
+                    self._unlink_partial_candidate(
+                        parent_fd,
+                        self._route_rollback_name,
+                        temporary_device,
+                        temporary_inode,
+                    )
+                    self._route_rollback_name = None
+                    if original is not None:
+                        _require_identity(
+                            active,
+                            original,
+                            "unchanged active route after failed preparation",
+                        )
+                    self._record_route_action(
+                        "remove-failed-route-candidate",
+                        "PASS",
+                        f"removed_candidate_inode={temporary_inode}",
+                    )
+            except BaseException as immediate_cleanup_exc:
+                cleanup_error = immediate_cleanup_exc
+            detail = str(exc)
+            if cleanup_error is not None:
+                detail += f"; immediate route cleanup failed: {cleanup_error}"
             self._record_route_action(
                 "select-split-bus-route",
                 "FAIL",
-                str(exc),
+                detail,
             )
-            return _fail(operation, str(exc))
+            return _fail(operation, detail)
         finally:
             if fd is not None:
                 os.close(fd)
             if parent_fd is not None:
                 os.close(parent_fd)
 
+        assert original is not None
+        assert candidate is not None
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
@@ -586,6 +632,7 @@ class RouteSelectionRollbackRehearsalAdapter(
                 )
             except (OSError, RouteSelectionRollbackFailure) as exc:
                 return _fail(operation, str(exc))
+            assert self._route_original is not None
             return AdapterResult(
                 operation=operation,
                 status=AdapterStatus.PASS,
@@ -764,6 +811,7 @@ class RouteSelectionRollbackRehearsalAdapter(
         except (
             OSError,
             SystemExit,
+            ManagedFileRollbackFailure,
             ServiceQuiescenceFailure,
             SystemdReloadRollbackFailure,
             RouteSelectionRollbackFailure,
