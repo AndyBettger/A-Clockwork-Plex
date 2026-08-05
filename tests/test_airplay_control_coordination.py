@@ -73,6 +73,7 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         self.assertIn("DEFAULT_AIRPLAY_HOLD_SECONDS = 420", application_text)
         self.assertIn("MIN_SECONDS = 15", helper_text)
         self.assertIn("MAX_SECONDS = 86400", helper_text)
+        self.assertIn("DEFAULT_SECONDS = 420", helper_text)
         self.assertIn("pause_hold_seconds", helper_text)
 
     def test_disconnect_is_polled_from_sender_not_play_end_hook(self):
