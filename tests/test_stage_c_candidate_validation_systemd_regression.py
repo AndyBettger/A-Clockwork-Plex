@@ -59,7 +59,13 @@ class StageCCandidateValidationSystemdRegressionTests(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("systemd-analyze"), "systemd-analyze unavailable")
     def test_exact_private_systemd_model_verifies_without_host_unit_path(self) -> None:
-        contract = HostContract(project_user="andy")
+        contract = HostContract(
+            project_user="andy",
+            dac_card="Pro",
+            dac_device=0,
+            loopback_index=7,
+            loopback_id="ACP_Loopback",
+        )
         units = {
             "a-clockwork-plex-audio-route.service": runtime_templates.route_unit(),
             "a-clockwork-plex-camilladsp.service": runtime_templates.camilladsp_unit(contract),
