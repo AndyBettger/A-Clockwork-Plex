@@ -28,16 +28,16 @@ from stage_c_package.core import validate_host, validate_name
 from stage_c_package.templates import HostContract
 
 
-PACKAGE_VERSION = 1
+PACKAGE_VERSION = 2
 AUTHORITY_SOURCE = REPO_SCRIPTS / "stage_c_runtime_authority"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate and validate the separately versioned Stage C21 runtime-authority package. "
-            "The generator has no install or activation mode and performs no privileged, service, "
-            "module, mixer or PCM mutation."
+            "Generate and validate the separately versioned Stage C21 activation-capable "
+            "runtime-authority package v2. The generator has no install or activation mode "
+            "and performs no privileged, service, module, mixer or PCM mutation."
         )
     )
     parser.add_argument("--binary", required=True, type=Path, help="Verified CamillaDSP 4.1.3 executable")
@@ -129,7 +129,6 @@ def main() -> int:
         "route_unit": (runtime_templates.route_unit(), 0o644),
         "camilla_unit": (runtime_templates.camilladsp_unit(contract), 0o644),
         "failback_unit": (runtime_templates.failback_unit(), 0o644),
-        "package_entry": (runtime_templates.package_entry(), 0o644),
     }
     for name, (content, mode) in templates_to_write.items():
         write_text(paths[name], content, mode)
@@ -163,10 +162,10 @@ def main() -> int:
     file_count = sum(1 for path in rootfs.rglob("*") if path.is_file())
     report = lab / "report.txt"
     report.write_text(
-        f"""A Clockwork Plex Stage C21 runtime-authority package review
+        f"""A Clockwork Plex Stage C21 activation-capable runtime package review
 Generated: {datetime.now().astimezone().isoformat(timespec='seconds')}
 Package version: {PACKAGE_VERSION}
-Package phase: stage-c21-adapter-pending-review
+Package phase: {runtime_templates.PACKAGE_PHASE}
 Package fingerprint: {fingerprint}
 Host: {platform.node()}
 Architecture: {platform.machine()}
@@ -179,22 +178,32 @@ Loopback: index {contract.loopback_index}, ID {contract.loopback_id}, substreams
 DAC: hw:CARD={contract.dac_card},DEV={contract.dac_device}
 Format: {contract.sample_rate} Hz / {contract.sample_format} / period {contract.period_size} / buffer {contract.buffer_size}
 Package files: {file_count}
+Fingerprinted payload files: {len(rows)}
 
 Runtime structure:
-- Stage C1 remains immutable historical input
-- Stage C21 core and supervisor model are vendored as exact source files
+- Stage C1 remains immutable historical candidate-only evidence
+- the complete reviewed Stage C21 runtime modules are copied verbatim
+- the recording test adapter is excluded
+- ordinary committed boot/runtime owns its fixed production lock
+- temporary first start proves the authoritative transaction's externally held lease
+- pre-commit child failure defers to exact transaction rollback
+- post-commit child failure selects the committed direct alarm-safe route
 - route preparation remains a oneshot authority
 - the CamillaDSP unit is a Type=notify supervisor gate
 - application services remain ordered behind that supervisor
-- the package entry has fixed runtime action names
-- the production host adapter is deliberately absent and all mutation actions return exit 78
+- the installed entrypoint has seven fixed action identities
+- repository execution and altered package contents fail closed
+- approval creation and promotion remain transaction-only operations
+- sudoers exposes only status and validate-runtime to the project user
 
 Safety state:
-- no installer or activation option exists in this generator
+- this generator has no installer or activation option
 - no sudo command was invoked
 - no production path was written
+- no approval record or production lock was created
 - no module was loaded or unloaded
 - no service was started, stopped, restarted, enabled or disabled
+- no CamillaDSP process was started
 - no PCM was opened
 - no mixer value was changed
 - supplied laboratory roots must be empty
@@ -205,7 +214,7 @@ Safety state:
     )
     print(
         f"""
-A Clockwork Plex Stage C21 runtime-authority package prepared and validated.
+A Clockwork Plex Stage C21 activation-capable runtime package v2 prepared and validated.
 
   Directory:    {lab}
   Rootfs:       {rootfs}
@@ -213,13 +222,15 @@ A Clockwork Plex Stage C21 runtime-authority package prepared and validated.
   Results:      {results}
   Report:       {report}
   Fingerprint:  {fingerprint}
+  Files:        {file_count} ({len(rows)} fingerprinted payload files)
 
-This is a separately versioned review package. It contains the Stage C21 core,
-structured approval store, supervised readiness model and corrected three-unit
-systemd graph. The production host adapter is not present yet, so every
-route-changing action remains blocked with exit 78.
+This disposable package contains the complete fixed runtime authority, both
+transaction-held and committed runtime lanes, the Type=notify supervisor and
+the guarded installed entrypoint. It has not been installed or activated.
+Approval creation and promotion remain outside the service helper and must be
+owned by a later reviewed transaction stage.
 
-No production path, service, ALSA route, mixer or PCM was changed.
+No production path, service, process, ALSA route, mixer or PCM was changed.
 """.strip()
     )
     return 0
