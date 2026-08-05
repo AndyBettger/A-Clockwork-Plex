@@ -734,7 +734,7 @@ def write_file_plan(
                 entry.destination,
                 states.get(entry.destination, "unknown"),
                 entry.mode,
-                entry.sha256,
+                entry.digest,
             )
         )
         for entry in entries
