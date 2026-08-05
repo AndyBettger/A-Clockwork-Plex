@@ -18,7 +18,14 @@ PROCESS_BOUNDARY_FILES = {
     PACKAGE / "linux_runtime_process.py",
     PACKAGE / "install_runtime_process.py",
 }
-HOST_BOUNDARY_FILES = FILESYSTEM_BOUNDARY_FILES | PROCESS_BOUNDARY_FILES
+ORCHESTRATION_BOUNDARY_FILES = {
+    PACKAGE / "package_entry.py",
+}
+HOST_BOUNDARY_FILES = (
+    FILESYSTEM_BOUNDARY_FILES
+    | PROCESS_BOUNDARY_FILES
+    | ORCHESTRATION_BOUNDARY_FILES
+)
 PURE_FILES = tuple(path for path in FILES if path not in HOST_BOUNDARY_FILES)
 
 
@@ -133,7 +140,31 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
         self.assertIn("def __init__(self) -> None", production)
         self.assertIn("def _for_test(", production)
 
-    def test_all_host_capability_is_confined_to_two_boundary_families(self):
+    def test_installed_entry_is_one_fixed_orchestration_boundary(self):
+        self.assertEqual(
+            ORCHESTRATION_BOUNDARY_FILES,
+            {PACKAGE / "package_entry.py"},
+        )
+        text = (PACKAGE / "package_entry.py").read_text(encoding="utf-8")
+        self.assertIn("INSTALLED_PACKAGE_ROOT", text)
+        self.assertIn("FIXED_ACTIONS", text)
+        self.assertIn("transaction-only approval operation", text)
+        for forbidden_primitive in (
+            "subprocess.Popen",
+            "socket.socket",
+            "os.replace",
+            "fcntl.flock",
+            "systemctl",
+            "aplay",
+            "amixer",
+            "shell=True",
+            "os.system",
+            "os.exec",
+            "def dispatch",
+        ):
+            self.assertNotIn(forbidden_primitive, text)
+
+    def test_host_capability_is_confined_to_named_boundaries(self):
         self.assertEqual(
             HOST_BOUNDARY_FILES,
             {
@@ -141,6 +172,7 @@ class StageCRuntimeAuthoritySafetyTests(unittest.TestCase):
                 PACKAGE / "install_runtime_filesystem.py",
                 PACKAGE / "linux_runtime_process.py",
                 PACKAGE / "install_runtime_process.py",
+                PACKAGE / "package_entry.py",
             },
         )
         for path in PURE_FILES:
