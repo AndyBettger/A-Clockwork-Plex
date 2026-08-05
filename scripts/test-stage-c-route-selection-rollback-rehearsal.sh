@@ -80,6 +80,10 @@ started. It then exchanges the original active-route inode back before removing
 the managed files, restoring systemd's manager view and restarting the captured
 application services.
 
+The corrected route rollback derives the exchange phase from the two exact
+on-disk inode identities. It does not rely only on an in-memory flag written
+after the exchange syscall.
+
 After review, run the exact guarded rehearsal using the retained Stage C1 package
 and successful Stage C19 evidence:
 
@@ -120,7 +124,7 @@ fi
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -m stage_c_transaction.route_selection_rollback_rehearsal \
+  python3 -m stage_c_transaction.route_selection_rollback_rehearsal_v2 \
     --package-root "$PACKAGE_ROOT" \
     --stage-c19-root "$STAGE_C19_ROOT" \
     --evidence-root "$EVIDENCE_ROOT" \
