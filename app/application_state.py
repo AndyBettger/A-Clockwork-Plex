@@ -22,7 +22,7 @@ except ImportError:  # Supports direct execution imports.
 StateProvider = Callable[[], dict[str, Any]]
 MIN_AIRPLAY_HOLD_SECONDS = 15
 MAX_AIRPLAY_HOLD_SECONDS = 86400
-DEFAULT_AIRPLAY_HOLD_SECONDS = 600
+DEFAULT_AIRPLAY_HOLD_SECONDS = 420
 
 
 class ApplicationStateHub:
