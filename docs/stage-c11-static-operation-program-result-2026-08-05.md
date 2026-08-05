@@ -28,7 +28,7 @@ The focused safety coverage is defined in:
 tests/test_stage_c_production_operation_programs_safety.py
 ```
 
-No program can import, construct or invoke a production adapter. No CLI, wrapper, confirmation token, root command or Pi execution path exists in Stage C11.
+No program imports, constructs or invokes a production adapter. No CLI, wrapper, confirmation token, root command or Pi execution path exists in Stage C11.
 
 Persistent Stage C activation remains blocked.
 
@@ -46,66 +46,23 @@ b1e130b5a2d85687f52369e185bbbed3da72d9b5
 
 4eca2dd7ec7286c8690e5956dd068d3a176c3eee
   Pin Stage C11 action mapping explicitly
+
+45016da0e3a5c54b0a595ec44a0e6430c383f157
+  Model Stage C11 terminal success boundary
+
+3386181601530a5f7790a738700865fac1404029
+  Test Stage C11 terminal success boundary
 ```
 
 ## Authority boundary
 
-Stage C11 does not create another transaction engine.
-
-The existing authorities remain:
-
-```text
-Transaction and exact rollback mechanics:
-  scripts.stage_c_transaction.sandbox_transaction
-
-Root-owned disposable filesystem mechanics:
-  scripts.stage_c_transaction.root_owned_transaction
-
-Reviewed production state-machine contract:
-  scripts.stage_c_transaction.production_plan
-
-Typed blocked host-operation vocabulary:
-  scripts.stage_c_transaction.production_adapter_contract
-```
-
-Stage C11 adds only immutable policy metadata that maps a `TransactionAction` to an ordered tuple of Stage C10 `AdapterOperation` values.
+Stage C11 does not create another transaction engine. It adds only immutable policy metadata mapping a `TransactionAction` to an ordered tuple of Stage C10 `AdapterOperation` values.
 
 The module imports no adapter protocol or implementation, carries no callback or callable, performs no dynamic dispatch and has no method capable of executing a step.
 
-## Immutable program model
-
-Each `OperationProgram` records:
-
-- one `ProgramName`;
-- one `TransactionAction`;
-- whether the production lock is unheld or already held on entry;
-- the required snapshot source;
-- the failure disposition before the first mutation;
-- the failure disposition after the first mutation;
-- an ordered tuple of frozen `OperationStep` records.
-
-Each step records:
-
-- a fixed sequence number in increments of ten;
-- a fixed policy phase;
-- one Stage C10 `AdapterOperation` enum value;
-- whether it changes managed audio state;
-- whether the production lock must already be held;
-- fixed explanatory text.
-
-Import-time structural validation requires:
-
-- strictly sequential step numbers;
-- production-lock release as the final operation;
-- exactly one acquisition in an unheld-entry program;
-- no lock-required step before acquisition;
-- every step after acquisition to require the held lock;
-- no reacquisition in a held-entry program;
-- every step in a held-entry program to require the existing lock.
-
 ## Exact policy mapping
 
-The final mapping is deliberately ordered by policy role rather than by the declaration order of the `TransactionAction` enum:
+The final mapping is deliberately ordered by policy role rather than by enum declaration order:
 
 ```text
 install                  -> install
@@ -116,171 +73,164 @@ explicit-uninstall       -> explicit-uninstall
 
 Every `TransactionAction` appears exactly once.
 
-## Install program
+## Immutable program model
 
-The install program contains 28 ordered operations.
+Each `OperationProgram` records:
 
-Its sequence is:
+- one program name and transaction action;
+- entry lock state;
+- snapshot source;
+- failure disposition before managed-audio mutation;
+- failure disposition after mutation but before terminal success;
+- one terminal-success operation;
+- failure disposition after terminal success;
+- an ordered tuple of frozen steps.
+
+Import-time validation requires:
+
+- step numbers in exact increments of ten;
+- one terminal-success operation exactly once;
+- terminal success immediately before lock release;
+- lock release as the final operation;
+- one acquisition in every unheld-entry program;
+- no lock-required step before acquisition;
+- every later step to require the held lock;
+- no reacquisition by automatic rollback.
+
+## Three failure zones
+
+Stage C11 now distinguishes three failure zones.
+
+### Before managed-audio mutation
+
+A failure before the first managed-audio mutation is a pre-mutation abort. It does not claim production rollback.
+
+### After mutation but before terminal success
+
+For install, this zone invokes automatic exact rollback while retaining the same production lock.
+
+Rollback, runtime failback and explicit uninstall instead fail closed and retain the lock if their own recovery/removal sequence fails.
+
+### After terminal success
+
+Terminal success is:
 
 ```text
-inspect host contract
-inspect production lock
-acquire production lock
-create fresh authoritative transaction
-capture filesystem state
-capture service state
-capture mixer state
-capture loopback state
-capture DAC state
-stage candidate files
-validate candidate ALSA
-validate candidate sudoers
-validate candidate units
-validate candidate CamillaDSP
-stop captured application services
-verify DAC released
-install managed files
-reload systemd
-select split-bus route
-start managed Stage C services
-verify split-bus health
-run finite music probe
-run finite alarm probe
-restore captured application services
-verify split-bus health again
-verify dashboard health
-write commit manifest
-release production lock
+install                 write-commit-manifest
+automatic rollback      verify-exact-rollback
+runtime failback        write-commit-manifest
+explicit uninstall      write-commit-manifest
 ```
 
-The first managed-audio mutation is stopping the captured application services. Every earlier failure is classified as a pre-mutation abort. Every failure from that point until commit is classified for automatic exact rollback.
+It occurs immediately before lock release. A lock-release failure after terminal success is `fail-closed-retain-lock`; it must never re-enter rollback or undo a committed or exactly verified result.
 
-The commit manifest is written only after application-service restoration, post-start split-bus health and dashboard health have passed. The lock is released only after commit.
+This boundary was added after reviewing how a future C12 runner would classify a release failure after a successful install commit. The correction was made while C11 remained static metadata and before any adapter execution existed.
+
+## Install program
+
+The 28-step install program:
+
+- inspects the host and lock boundary;
+- acquires the one route lock;
+- creates a fresh authoritative transaction;
+- captures filesystem, service, mixer, loopback and DAC state;
+- stages and validates all candidate families;
+- stops only captured-active application services as its first managed-audio mutation;
+- verifies DAC release;
+- installs files, reloads systemd and selects split bus;
+- starts Stage C services;
+- verifies health and finite music/alarm probes;
+- restores captured-active application services;
+- re-verifies split-bus and dashboard health;
+- writes the commit manifest;
+- releases the lock.
+
+Only failures after the first managed-audio mutation and before the commit manifest invoke automatic exact rollback.
 
 ## Automatic exact rollback program
 
-Automatic rollback contains nine operations and enters with the production lock already held by the failed transaction:
+The nine-step rollback program enters with the failed transaction's lock already held. It:
 
-```text
-stop captured application services
-stop managed Stage C services
-verify DAC released
-restore exact authoritative snapshot
-reload systemd
-restore exact mixer state
-restore exact service state
-verify exact rollback
-release production lock
-```
+- stops captured application services;
+- stops Stage C services;
+- verifies DAC release;
+- restores the exact authoritative snapshot;
+- reloads systemd;
+- restores mixer and service state;
+- verifies zero exact-restoration mismatches;
+- releases the lock.
 
-It does not reacquire the lock. Both pre- and post-mutation failures inside rollback are classified `fail-closed-retain-lock`; the program cannot claim success or release the lock before exact verification.
+It never reacquires the lock. Exact rollback verification is terminal success.
 
 ## Runtime direct failback program
 
-Runtime failback contains 18 operations. It acquires the same production lock, records current live service/mixer/DAC state, stops application and Stage C services, selects the physically proven direct alarm-bypass route, restores live mixer values and application services, runs finite music and alarm probes, verifies dashboard degraded-route health, records the transition and then releases the lock.
+The 18-step runtime failback program preserves the committed installation while selecting the physically proven direct alarm-bypass route.
 
-It contains:
+It stops application and Stage C services, verifies DAC release, selects direct failback, restores live mixer and application-service state, runs finite music and alarm probes, verifies dashboard degraded-route health, records the transition and releases the lock.
 
-```text
-select-direct-failback-route
-```
-
-and deliberately contains neither:
-
-```text
-restore-exact-snapshot
-select-split-bus-route
-```
-
-Runtime failback therefore preserves the committed installation rather than pretending to be uninstall or exact rollback.
+It contains neither `restore-exact-snapshot` nor `select-split-bus-route`.
 
 ## Explicit uninstall program
 
-Explicit uninstall contains 17 operations. It is composed by transaction policy from small typed operations:
+The 17-step explicit-uninstall program is composed by transaction policy from small typed operations. It stops application and Stage C services, restores the committed installation's exact pre-install snapshot, reloads systemd, restores original mixer/service state, verifies exact restoration, records completion and releases the lock.
 
-```text
-inspect host and lock boundaries
-acquire lock
-create uninstall transaction record
-capture current service/mixer/DAC observations
-stop application services
-stop managed Stage C services
-verify DAC released
-restore committed installation's exact pre-install snapshot
-reload systemd
-restore original mixer state
-restore original service state
-verify exact restoration
-write completed uninstall record
-release lock
-```
+`TransactionAction.EXPLICIT_UNINSTALL` remains present, but Stage C10 contains no adapter-level `explicit_uninstall()` method or operation. This preserves one orchestration authority.
 
-`TransactionAction.EXPLICIT_UNINSTALL` remains present, but Stage C10 contains no adapter-level `explicit_uninstall()` method or `AdapterOperation.EXPLICIT_UNINSTALL`. This keeps uninstall ordering and rollback ownership under the single transaction-policy authority.
+## CI corrections discovered
 
-## Test correction discovered during CI
+### Program-order assertion
 
-The first Stage C11 CI run reported one failure in:
+The first Stage C11 CI run had one failing test because it compared policy program order with enum declaration order. All substantive ordering tests passed. The test was corrected to pin the exact name-to-action mapping and separately verify complete action coverage. No operation program changed for that correction.
 
-```text
-test_exactly_four_immutable_programs_map_each_action_once
-```
+### Terminal-success boundary
 
-The test compared the policy program order directly with the declaration order of the `TransactionAction` enum. All four actions were present exactly once and every substantive sequence test passed; only the ordering assumption was incorrect.
+A subsequent commit-boundary review identified that a two-zone failure model could misclassify lock-release failure after a successful install commit. Stage C11 was corrected to record one terminal-success operation and a distinct post-terminal failure disposition.
 
-The test was corrected to assert the exact intended name-to-action mapping shown above and separately prove complete set coverage. No production-operation program or runtime module changed as part of this correction.
-
-This retained the useful policy order—install beside its automatic rollback—without assigning accidental meaning to enum declaration order.
+Tests now require terminal success to be the penultimate step and require all four programs to use `fail-closed-retain-lock` after terminal success.
 
 ## Focused safety coverage
 
 The 11 Stage C11 tests prove that:
 
-1. the module is static metadata with no execution or entrypoint imports;
+1. the module is static metadata without execution imports;
 2. exactly four immutable programs map every action once;
-3. every step uses only a valid Stage C10 operation enum;
-4. unheld programs acquire the lock before identity, snapshot or mutation;
+3. every step uses only Stage C10 operation enums;
+4. unheld programs acquire before every lock-bound step;
 5. install matches the reviewed order and first-mutation boundary;
 6. install commits only after post-start and dashboard health;
-7. automatic rollback retains the existing lock and verifies before release;
-8. runtime failback is alarm-safe and never performs uninstall restoration;
-9. explicit uninstall is composed policy rather than an adapter shortcut;
-10. the static program snapshot is complete;
-11. structural guards reject unsafe lock and sequence shapes.
+7. rollback retains the existing lock and verifies before release;
+8. runtime failback remains alarm-safe and distinct from uninstall;
+9. explicit uninstall is policy composition, not an adapter shortcut;
+10. static snapshots include terminal-success metadata;
+11. structural guards reject unsafe sequence, lock and terminal shapes.
 
 ## Full CI result
 
-The corrected Stage C11 branch passed the complete suite:
+The final terminal-success version passed the complete branch suite:
 
 ```text
-Ran 612 tests in 3.885s
+Ran 612 tests
 OK
 ```
 
-All Stage C10 and Stage C11 focused tests passed. The Stage C7 disposable-root transaction and consolidated Stage C4 sandbox transaction also completed successfully during the same run with exact rollback and no production writes.
+The Stage C7 disposable-root transaction and consolidated Stage C4 sandbox transaction also completed successfully during the same run with exact rollback and no production writes.
 
 ## What Stage C11 proves
 
 Stage C11 proves that:
 
-- install, automatic rollback, runtime failback and explicit uninstall have one explicit policy-owned order;
-- the production lock boundary is encoded consistently across all four programs;
+- install, rollback, failback and uninstall have one explicit policy-owned order;
+- lock ownership is consistent across all programs;
 - rollback retains rather than reacquires the failed transaction's lock;
-- runtime failback remains distinct from uninstall and exact rollback;
+- runtime failback remains distinct from exact rollback and uninstall;
 - explicit uninstall cannot be delegated to a broad adapter shortcut;
+- committed or exactly verified results are not rolled back because lock release fails;
 - every program consists only of fixed Stage C10 operation identities;
 - no program can execute an adapter or touch the host.
 
 ## What Stage C11 does not prove
 
-Stage C11 does not prove:
-
-- adapter dispatch;
-- operation result handling;
-- failure injection between production operations;
-- production lock behaviour;
-- authoritative snapshot creation;
-- service, mixer, loopback, DAC, ALSA or CamillaDSP behaviour;
-- real rollback, failback or uninstall.
+Stage C11 does not prove adapter dispatch, result handling, failure injection between operations, production lock behaviour or any real filesystem, service, mixer, loopback, DAC, ALSA or CamillaDSP behaviour.
 
 It is immutable ordering metadata only.
 
