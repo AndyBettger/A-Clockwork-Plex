@@ -187,9 +187,18 @@ class StageCRouteSelectionRollbackRehearsalSafetyTests(unittest.TestCase):
         self.assertNotIn("aplay", self.adapter)
         self.assertNotIn("speaker-test", self.adapter)
         self.assertNotIn("amixer", self.adapter)
+        getattr_calls: list[str] = []
         for node in ast.walk(self.adapter_tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                self.assertNotIn(node.func.id, {"eval", "exec", "getattr"})
+                self.assertNotIn(node.func.id, {"eval", "exec"})
+                if node.func.id == "getattr":
+                    getattr_calls.append(
+                        ast.get_source_segment(self.adapter, node) or ""
+                    )
+        self.assertEqual(
+            getattr_calls,
+            ['getattr(libc, "renameat2", None)'],
+        )
 
     def test_route_selection_requires_exact_c19_state(self) -> None:
         source = self.method_source(
@@ -302,14 +311,14 @@ class StageCRouteSelectionRollbackRehearsalSafetyTests(unittest.TestCase):
     def test_normal_order_is_reload_route_block_restore_reload_services(self) -> None:
         source = self.function_source("main")
         markers = (
-            "candidate_reload_result = adapter.reload_systemd",
-            "route_result = adapter.select_split_bus_route",
-            "post_route_blocked = prove_blocked_operations",
-            "rollback_result = adapter.restore_exact_snapshot",
-            "manager_reload_result = adapter.reload_systemd",
-            "restore_result = adapter.restore_captured_application_services",
-            "dashboard_result = adapter.verify_dashboard_health",
-            "verify_result = adapter.verify_exact_rollback",
+            "\n            candidate_reload_result = adapter.reload_systemd",
+            "\n            route_result = adapter.select_split_bus_route",
+            "\n            post_route_blocked = prove_blocked_operations",
+            "\n            rollback_result = adapter.restore_exact_snapshot",
+            "\n            manager_reload_result = adapter.reload_systemd",
+            "\n            restore_result = adapter.restore_captured_application_services",
+            "\n            dashboard_result = adapter.verify_dashboard_health",
+            "\n            verify_result = adapter.verify_exact_rollback",
         )
         positions = [source.index(marker) for marker in markers]
         self.assertEqual(positions, sorted(positions))
@@ -348,7 +357,6 @@ class StageCRouteSelectionRollbackRehearsalSafetyTests(unittest.TestCase):
         for marker in (
             "renameat2",
             "RENAME_EXCHANGE",
-            "same bytes, SHA-256, mode, ownership, device and inode",
             "production lock and authoritative transaction are intentionally retained",
             "permitted  29",
             "blocked     9",
@@ -356,6 +364,11 @@ class StageCRouteSelectionRollbackRehearsalSafetyTests(unittest.TestCase):
             "PR #2 must remain Draft, open and unmerged",
         ):
             self.assertIn(marker, self.design)
+        normalized = " ".join(self.design.split())
+        self.assertIn(
+            "same bytes, SHA-256, mode, ownership, device and inode",
+            normalized,
+        )
 
     def test_python_and_shell_syntax(self) -> None:
         subprocess.run(
