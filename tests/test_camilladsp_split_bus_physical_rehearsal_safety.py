@@ -39,6 +39,13 @@ class CamillaDspSplitBusPhysicalRehearsalSafetyTests(unittest.TestCase):
         self.assertNotIn("modprobe snd_aloop", text)
         self.assertNotIn("install-master-eq.sh", text)
 
+    def test_generated_command_uses_selected_duration_and_ctrl_c_keeps_sudo_warm(self):
+        text = LAB.read_text(encoding="utf-8")
+        self.assertIn("--duration $DURATION_SECONDS", text)
+        self.assertNotIn("--duration 1200", text)
+        self.assertIn("trap '' INT", text)
+        self.assertIn("full seven-minute AirPlay hold", text)
+
     def test_public_source_pcms_are_preserved_but_alarm_bypasses_master(self):
         text = LAB.read_text(encoding="utf-8")
         for pcm in (
@@ -89,7 +96,7 @@ class CamillaDspSplitBusPhysicalRehearsalSafetyTests(unittest.TestCase):
 
     def test_manual_gate_covers_hold_real_alarm_and_live_only_master(self):
         text = LAB.read_text(encoding="utf-8")
-        self.assertIn("complete ten-minute hold", text)
+        self.assertIn("up to seven minutes while the sender remains connected", text)
         self.assertIn("real scheduled alarm", text)
         self.assertIn("master-zero", text)
         self.assertIn("master-restore", text)
