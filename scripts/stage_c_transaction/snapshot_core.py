@@ -126,7 +126,9 @@ def collect_filesystem_snapshot(
                 f"Root-owned snapshot could not resolve protected destination {entry.destination}: {exc}"
             ) from exc
 
-        if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        if stat.S_ISLNK(info.st_mode):
+            raise SystemExit(f"Refusing symlinked managed file destination: {entry.destination}")
+        if not stat.S_ISREG(info.st_mode):
             conflicts += 1
             rows.append(
                 f"file\t{entry.destination}\tconflict\t{_mode_from_stat(info)}\t"
@@ -151,7 +153,9 @@ def collect_filesystem_snapshot(
                 f"Root-owned snapshot could not resolve managed directory {entry.destination}: {exc}"
             ) from exc
 
-        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        if stat.S_ISLNK(info.st_mode):
+            raise SystemExit(f"Refusing symlinked managed directory: {entry.destination}")
+        if not stat.S_ISDIR(info.st_mode):
             conflicts += 1
             rows.append(
                 f"directory\t{entry.destination}\tconflict\t{_mode_from_stat(info)}\t"
