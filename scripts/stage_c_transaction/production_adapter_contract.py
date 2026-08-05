@@ -126,7 +126,6 @@ class AdapterOperation(str, Enum):
     RESTORE_MIXER_STATE = "restore-mixer-state"
     RESTORE_SERVICE_STATE = "restore-service-state"
     VERIFY_EXACT_ROLLBACK = "verify-exact-rollback"
-    EXPLICIT_UNINSTALL = "explicit-uninstall"
 
 
 READ_ONLY_OPERATIONS = (
@@ -293,9 +292,6 @@ class ProductionAdapter(Protocol):
     def verify_exact_rollback(
         self, transaction: TransactionIdentity, snapshot: SnapshotIdentity
     ) -> AdapterResult: ...
-    def explicit_uninstall(
-        self, transaction: TransactionIdentity, snapshot: SnapshotIdentity
-    ) -> AdapterResult: ...
 
 
 class BlockedProductionAdapter:
@@ -454,12 +450,6 @@ class BlockedProductionAdapter:
     ) -> AdapterResult:
         del transaction, snapshot
         return self._blocked(AdapterOperation.VERIFY_EXACT_ROLLBACK)
-
-    def explicit_uninstall(
-        self, transaction: TransactionIdentity, snapshot: SnapshotIdentity
-    ) -> AdapterResult:
-        del transaction, snapshot
-        return self._blocked(AdapterOperation.EXPLICIT_UNINSTALL)
 
 
 def contract_snapshot() -> tuple[tuple[str, str], ...]:
