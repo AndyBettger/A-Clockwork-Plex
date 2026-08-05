@@ -6,7 +6,6 @@ import sys
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from types import SimpleNamespace
 from unittest import mock
 
 
@@ -16,8 +15,19 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from stage_c_runtime_authority import package_entry
+from stage_c_runtime_authority.install_runtime_executor import InstallRuntimeReceipt
 from stage_c_runtime_authority.model import ActivationApprovalRecord, ApprovalPhase, RuntimeAuthorityError
-from stage_c_runtime_authority.supervisor_model import PreparedRoute, SupervisorMode
+from stage_c_runtime_authority.runtime_executor import RuntimeExecutionReceipt
+from stage_c_runtime_authority.supervisor_model import (
+    BootPreparationDecision,
+    PreparedRoute,
+    SupervisorAction,
+    SupervisorMode,
+    SupervisorStartupObservation,
+    child_failure_failback,
+    start_supervisor,
+)
+from stage_c_runtime_authority.supervisor_service import SupervisorServiceOutcome
 
 
 HASH_A = "a" * 64
@@ -53,6 +63,42 @@ def approval(phase: ApprovalPhase) -> ActivationApprovalRecord:
         buffer_size=8192,
         created_at="2026-08-05T20:00:00Z",
         committed_at="2026-08-05T20:01:00Z" if phase is ApprovalPhase.COMMITTED else None,
+    )
+
+
+def install_receipt(*, supervisor: bool) -> InstallRuntimeReceipt:
+    return InstallRuntimeReceipt(
+        phase="install-supervisor-startup" if supervisor else "install-route-entry",
+        lease_id="stage-c21-entry-lease",
+        prepared_route=PreparedRoute.SPLIT_PENDING,
+        split_bus_healthy=supervisor,
+        borrowed_assertion_closed=True,
+        systemd_ready=supervisor,
+    )
+
+
+def boot_decision() -> BootPreparationDecision:
+    return BootPreparationDecision(
+        prepared_route=PreparedRoute.SPLIT_PENDING,
+        reason="prepared",
+        actions=(
+            SupervisorAction.ACQUIRE_PRODUCTION_LOCK,
+            SupervisorAction.VALIDATE_COMMITTED_STATE,
+            SupervisorAction.SELECT_SPLIT_BUS_ROUTE,
+            SupervisorAction.PUBLISH_SPLIT_PENDING,
+            SupervisorAction.RELEASE_PRODUCTION_LOCK,
+        ),
+    )
+
+
+def runtime_receipt(*, phase: str, mode: str, ready: bool) -> RuntimeExecutionReceipt:
+    return RuntimeExecutionReceipt(
+        phase=phase,
+        mode=mode,
+        reason="prepared",
+        lease_id="stage-c21-entry-runtime-lease",
+        lock_released=True,
+        systemd_ready=ready,
     )
 
 
@@ -139,14 +185,7 @@ class StageCPackageEntryTests(unittest.TestCase):
         self.assertTrue(payload["host_mutation_available"])
 
     def test_temporary_boot_prepare_uses_only_install_route_entry(self):
-        receipt = SimpleNamespace(
-            phase="install-route-entry",
-            lease_id="lease",
-            prepared_route=PreparedRoute.SPLIT_PENDING,
-            split_bus_healthy=False,
-            borrowed_assertion_closed=True,
-            systemd_ready=False,
-        )
+        receipt = install_receipt(supervisor=False)
         install_adapter = object()
         with mock.patch.object(package_entry, "_approval_phase", return_value=ApprovalPhase.TEMPORARY), mock.patch.object(
             package_entry,
@@ -164,18 +203,11 @@ class StageCPackageEntryTests(unittest.TestCase):
         ordinary_run.assert_not_called()
 
     def test_committed_boot_prepare_uses_only_ordinary_runtime(self):
-        decision = SimpleNamespace(
-            prepared_route=PreparedRoute.SPLIT_PENDING,
-            reason="prepared",
-            actions=(),
-        )
-        receipt = SimpleNamespace(
+        decision = boot_decision()
+        receipt = runtime_receipt(
             phase="boot-preparation",
             mode=PreparedRoute.SPLIT_PENDING.value,
-            reason="prepared",
-            lease_id="lease",
-            lock_released=True,
-            systemd_ready=False,
+            ready=False,
         )
         ordinary_adapter = object()
         with mock.patch.object(package_entry, "_approval_phase", return_value=ApprovalPhase.COMMITTED), mock.patch.object(
@@ -195,16 +227,16 @@ class StageCPackageEntryTests(unittest.TestCase):
 
     def test_supervise_routes_temporary_start_then_enters_shared_lifetime(self):
         adapter = object()
-        decision = SimpleNamespace(mode=SupervisorMode.SPLIT_ACTIVE, reason="healthy", actions=())
-        receipt = SimpleNamespace(
-            phase="install-supervisor-startup",
-            lease_id="lease",
-            prepared_route=PreparedRoute.SPLIT_PENDING,
-            split_bus_healthy=True,
-            borrowed_assertion_closed=True,
-            systemd_ready=True,
+        decision = start_supervisor(
+            SupervisorStartupObservation(
+                prepared_route=PreparedRoute.SPLIT_PENDING,
+                production_lock_held=True,
+                camilladsp_child_started=True,
+                split_bus_health_valid=True,
+            )
         )
-        outcome = SimpleNamespace(
+        receipt = install_receipt(supervisor=True)
+        outcome = SupervisorServiceOutcome(
             exit_code=0,
             final_mode=SupervisorMode.SPLIT_ACTIVE,
             reason="stopped",
@@ -248,14 +280,11 @@ class StageCPackageEntryTests(unittest.TestCase):
         self.assertIn("transaction rollback", payload["reason"])
         runtime.assert_not_called()
 
-        decision = SimpleNamespace(mode=SupervisorMode.DIRECT_FAILBACK, reason="failed", actions=())
-        receipt = SimpleNamespace(
+        decision = child_failure_failback(production_lock_held=True)
+        receipt = runtime_receipt(
             phase="runtime-child-failure",
             mode=SupervisorMode.DIRECT_FAILBACK.value,
-            reason="failed",
-            lease_id="lease",
-            lock_released=True,
-            systemd_ready=True,
+            ready=True,
         )
         adapter = object()
         with mock.patch.object(package_entry, "_approval_phase", return_value=ApprovalPhase.COMMITTED), mock.patch.object(
@@ -272,17 +301,16 @@ class StageCPackageEntryTests(unittest.TestCase):
         runtime.assert_called_once_with(adapter)
 
     def test_transaction_only_actions_remain_unexposed(self):
-        guard = InstalledGuard()
-        first, second, third = guard.patches()
         for action in package_entry.TRANSACTION_ONLY_ACTIONS:
-            with self.subTest(action=action), first, second, third:
-                stderr = io.StringIO()
-                with redirect_stderr(stderr):
-                    code = package_entry.main((action,))
-                self.assertEqual(code, 78)
-                self.assertIn("transaction-only", stderr.getvalue())
-            guard = InstalledGuard()
-            first, second, third = guard.patches()
+            with self.subTest(action=action):
+                guard = InstalledGuard()
+                first, second, third = guard.patches()
+                with first, second, third:
+                    stderr = io.StringIO()
+                    with redirect_stderr(stderr):
+                        code = package_entry.main((action,))
+                    self.assertEqual(code, 78)
+                    self.assertIn("transaction-only", stderr.getvalue())
 
     def test_extra_or_unknown_arguments_are_rejected(self):
         for arguments in (("status", "extra"), ("unknown",), ()):
