@@ -3,14 +3,16 @@ from __future__ import annotations
 
 """Final pre-physical Stage C18 write-boundary hardening.
 
-The rollback ledger adopts a created directory immediately after mkdir and an
-installed file immediately after atomic rename, before any later fsync or
-verification can fail.
+The rollback ledger adopts a created directory immediately after mkdir. File
+publication uses an atomic no-overwrite hard link from a private temporary inode;
+the destination inode is pre-bound in the rollback ledger before publication and
+adopted immediately after the link succeeds.
 """
 
 import os
 import secrets
 import stat
+from pathlib import Path
 
 from .managed_file_rollback_rehearsal_adapter import (
     InstalledObject,
@@ -24,10 +26,33 @@ from .managed_file_rollback_rehearsal_adapter_v2 import (
 from .package_review import ManifestEntry, sha256
 
 
+def _publish_noreplace(parent_fd: int, temporary: str, destination: str) -> None:
+    """Atomically publish one inode and refuse an existing destination."""
+
+    os.link(
+        temporary,
+        destination,
+        src_dir_fd=parent_fd,
+        dst_dir_fd=parent_fd,
+        follow_symlinks=False,
+    )
+
+
 class ManagedFileRollbackRehearsalAdapterV3(
     ManagedFileRollbackRehearsalAdapterV2
 ):
-    """Stage C18 with ledger ownership at the first durable pathname mutation."""
+    """Stage C18 with complete temporary and publication rollback ledgers."""
+
+    def __init__(
+        self,
+        package_root: Path,
+        invoking_user: str,
+        evidence_root: Path,
+    ) -> None:
+        super().__init__(package_root, invoking_user, evidence_root)
+        self._temporary_files: list[InstalledObject] = []
+        self._pending_publication: InstalledObject | None = None
+        self._publication_failed_cleanly = False
 
     def _create_directory(self, entry: ManifestEntry) -> InstalledObject:
         destination = _safe_destination(entry.destination)
@@ -105,6 +130,35 @@ class ManagedFileRollbackRehearsalAdapterV3(
         )
         return installed
 
+    def _cleanup_temporary(
+        self,
+        parent_fd: int,
+        temporary: str,
+        record: InstalledObject,
+    ) -> None:
+        try:
+            info = os.stat(
+                temporary,
+                dir_fd=parent_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            if record in self._temporary_files:
+                self._temporary_files.remove(record)
+            return
+        if (
+            stat.S_ISLNK(info.st_mode)
+            or not stat.S_ISREG(info.st_mode)
+            or info.st_dev != record.device
+            or info.st_ino != record.inode
+        ):
+            raise ManagedFileRollbackFailure(
+                f"refusing temporary cleanup after substitution: {record.destination}"
+            )
+        os.unlink(temporary, dir_fd=parent_fd)
+        os.fsync(parent_fd)
+        self._temporary_files.remove(record)
+
     def _atomic_install_file(self, entry: ManifestEntry) -> InstalledObject:
         destination = _safe_destination(entry.destination)
         assert self._candidate_root is not None
@@ -121,7 +175,9 @@ class ManagedFileRollbackRehearsalAdapterV3(
             )
         parent_fd, _parent = self._open_parent(destination)
         temporary = f".{destination.name}.stage-c18-{secrets.token_hex(8)}.tmp"
+        temporary_path = destination.parent / temporary
         fd: int | None = None
+        temporary_record: InstalledObject | None = None
         record: InstalledObject | None = None
         try:
             try:
@@ -143,6 +199,18 @@ class ManagedFileRollbackRehearsalAdapterV3(
             if hasattr(os, "O_NOFOLLOW"):
                 flags |= os.O_NOFOLLOW
             fd = os.open(temporary, flags, 0o600, dir_fd=parent_fd)
+            temporary_info = os.fstat(fd)
+            temporary_record = InstalledObject(
+                destination=str(temporary_path),
+                kind="file",
+                device=temporary_info.st_dev,
+                inode=temporary_info.st_ino,
+                mode=0o600,
+                uid=0,
+                gid=0,
+                digest=None,
+            )
+            self._temporary_files.append(temporary_record)
             with source.open("rb") as reader:
                 for chunk in iter(lambda: reader.read(1024 * 1024), b""):
                     _write_all(fd, chunk)
@@ -152,17 +220,10 @@ class ManagedFileRollbackRehearsalAdapterV3(
             temporary_info = os.fstat(fd)
             os.close(fd)
             fd = None
-            temporary_path = destination.parent / temporary
             if sha256(source) != entry.digest or sha256(temporary_path) != entry.digest:
                 raise ManagedFileRollbackFailure(
                     f"atomic install digest verification failed: {entry.destination}"
                 )
-            os.replace(
-                temporary,
-                destination.name,
-                src_dir_fd=parent_fd,
-                dst_dir_fd=parent_fd,
-            )
             record = InstalledObject(
                 destination=entry.destination,
                 kind="file",
@@ -173,7 +234,25 @@ class ManagedFileRollbackRehearsalAdapterV3(
                 gid=0,
                 digest=entry.digest,
             )
+            self._pending_publication = record
+            self._publication_failed_cleanly = False
+            try:
+                _publish_noreplace(
+                    parent_fd,
+                    temporary,
+                    destination.name,
+                )
+            except OSError:
+                self._publication_failed_cleanly = True
+                raise
             self._installed_files.append(record)
+            self._pending_publication = None
+            self._publication_failed_cleanly = False
+            self._cleanup_temporary(
+                parent_fd,
+                temporary,
+                temporary_record,
+            )
             os.fsync(parent_fd)
             info = destination.lstat()
             if (
@@ -193,10 +272,12 @@ class ManagedFileRollbackRehearsalAdapterV3(
         finally:
             if fd is not None:
                 os.close(fd)
-            try:
-                os.unlink(temporary, dir_fd=parent_fd)
-            except FileNotFoundError:
-                pass
+            if temporary_record is not None and temporary_record in self._temporary_files:
+                self._cleanup_temporary(
+                    parent_fd,
+                    temporary,
+                    temporary_record,
+                )
             os.close(parent_fd)
         assert record is not None
         self._record_managed_action(
