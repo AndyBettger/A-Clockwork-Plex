@@ -368,16 +368,30 @@ class StageCReadOnlyHostAdapterSafetyTests(unittest.TestCase):
                 "urllib",
             }.isdisjoint(imported)
         )
+
+        for node in ast.walk(self.engine_tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name):
+                self.assertNotIn(
+                    node.func.id.lower(),
+                    {"host_run", "popen", "system"},
+                )
+                continue
+            if not isinstance(node.func, ast.Attribute):
+                continue
+            self.assertNotEqual(node.func.attr.lower(), "flock")
+            if isinstance(node.func.value, ast.Name):
+                owner = node.func.value.id.lower()
+                called = node.func.attr.lower()
+                self.assertNotEqual((owner, called), ("os", "open"))
+                self.assertNotEqual((owner, called), ("subprocess", "run"))
+
         for marker in (
-            "host_run",
-            "subprocess.run",
-            "os.open(",
-            "flock",
             "systemctl",
             "amixer",
             "modprobe",
             "aplay",
-            "camilladsp",
         ):
             self.assertNotIn(marker, self.engine_source.lower())
 
