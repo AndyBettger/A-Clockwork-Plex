@@ -93,15 +93,14 @@ def run_install_supervisor_startup(
     adapter: InstallRuntimeHostAdapter,
 ) -> tuple[SupervisorDecision, InstallRuntimeReceipt]:
     lease_id = adapter.assert_borrowed_transaction_lock()
-    child_started = False
+    assertion_closed = False
     try:
         approval = adapter.validate_install_prepared_contract()
         if approval.lock_lease_id != lease_id:
             raise InstallRuntimeExecutionError("install supervisor lease identity mismatch")
         if adapter.read_install_prepared_route() is not PreparedRoute.SPLIT_PENDING:
             raise InstallRuntimeExecutionError("install route entry did not prepare split-bus")
-        child_started = adapter.start_camilladsp_child()
-        if not child_started:
+        if not adapter.start_camilladsp_child():
             raise InstallRuntimeExecutionError("CamillaDSP child did not remain running")
         if not adapter.verify_split_bus_health():
             raise InstallRuntimeExecutionError("strict split-bus first-start health failed")
@@ -117,20 +116,29 @@ def run_install_supervisor_startup(
             raise InstallRuntimeExecutionError("healthy install supervisor did not select split-bus")
         adapter.publish_install_split_active(decision.reason)
         _close_assertion_or_fail(adapter, lease_id)
+        assertion_closed = True
         adapter.notify_systemd_ready(decision.mode, decision.reason)
     except BaseException as exc:
+        stop_error: BaseException | None = None
         try:
             adapter.stop_camilladsp_child()
-        except BaseException as stop_exc:
+        except BaseException as candidate:
+            stop_error = candidate
+        close_error: BaseException | None = None
+        if not assertion_closed:
+            try:
+                _close_assertion_or_fail(adapter, lease_id)
+                assertion_closed = True
+            except BaseException as candidate:
+                close_error = candidate
+        if stop_error is not None:
             raise InstallRuntimeExecutionError(
                 "first-start failure and CamillaDSP stop both failed; readiness withheld"
-            ) from stop_exc
-        try:
-            _close_assertion_or_fail(adapter, lease_id)
-        except InstallRuntimeExecutionError as close_exc:
+            ) from stop_error
+        if close_error is not None:
             raise InstallRuntimeExecutionError(
                 "first-start failure left the borrowed lease assertion unresolved; transaction rollback required"
-            ) from close_exc
+            ) from close_error
         if isinstance(exc, InstallRuntimeExecutionError):
             raise
         raise InstallRuntimeExecutionError(
