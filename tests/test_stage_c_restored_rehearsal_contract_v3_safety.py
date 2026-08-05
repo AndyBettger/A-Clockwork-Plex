@@ -166,11 +166,39 @@ class StageCRestoredRehearsalContractV3SafetyTests(unittest.TestCase):
             "shell=True",
             "eval(",
             "exec(",
-            "dispatch",
             "argparse",
             "__main__",
         ):
             self.assertNotIn(forbidden, self.source)
+
+        dispatch_definitions = [
+            node
+            for node in ast.walk(self.tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "dispatch"
+        ]
+        dispatch_calls = [
+            node
+            for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Name) and node.func.id == "dispatch")
+                or (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "dispatch"
+                )
+            )
+        ]
+        generic_getattr_calls = [
+            node
+            for node in ast.walk(self.tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+        ]
+        self.assertEqual(dispatch_definitions, [])
+        self.assertEqual(dispatch_calls, [])
+        self.assertEqual(generic_getattr_calls, [])
 
     def test_contract_snapshot_is_static_and_complete(self) -> None:
         snapshot = dict(contract_snapshot_v3())
