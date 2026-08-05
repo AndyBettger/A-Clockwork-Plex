@@ -6,6 +6,7 @@ from stage_c_package.templates import HostContract
 
 
 RUNTIME_ROOT = "/usr/local/lib/a-clockwork-plex/runtime-authority"
+PACKAGE_PHASE = "stage-c21-activation-capable-review-v2"
 
 
 def route_launcher() -> str:
@@ -22,107 +23,9 @@ if __name__ == "__main__":
 '''
 
 
-def package_entry() -> str:
-    return '''#!/usr/bin/python3
-from __future__ import annotations
-
-import hashlib
-import json
-import sys
-from pathlib import Path
-
-from .approval_store import ApprovalStore
-from .model import RuntimeAuthorityError
-
-STATE_ROOT = Path("/var/lib/a-clockwork-plex/split-bus")
-CONTRACT = Path("/usr/local/lib/a-clockwork-plex/runtime-authority/package-contract.json")
-MUTATING_ACTIONS = {
-    "accept-install-handoff",
-    "promote-committed-approval",
-    "boot-prepare",
-    "supervise",
-    "emergency-direct-failback",
-}
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _contract() -> dict[str, object]:
-    payload = json.loads(CONTRACT.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
-        raise RuntimeAuthorityError("runtime package contract is invalid")
-    return payload
-
-
-def validate_runtime() -> dict[str, object]:
-    contract = _contract()
-    files = contract.get("files")
-    if not isinstance(files, list):
-        raise RuntimeAuthorityError("runtime package file contract is invalid")
-    checked = 0
-    for row in files:
-        if not isinstance(row, dict) or set(row) != {"path", "sha256"}:
-            raise RuntimeAuthorityError("runtime package file row is invalid")
-        path = Path(str(row["path"]))
-        expected = str(row["sha256"])
-        if not path.is_file() or path.is_symlink() or _sha256(path) != expected:
-            raise RuntimeAuthorityError(f"runtime package file mismatch: {path}")
-        checked += 1
-    return {
-        "ok": True,
-        "package_phase": "stage-c21-adapter-pending-review",
-        "package_fingerprint": contract.get("package_fingerprint"),
-        "checked_files": checked,
-        "host_mutation_available": False,
-    }
-
-
-def status() -> dict[str, object]:
-    payload = validate_runtime()
-    try:
-        approval = ApprovalStore(STATE_ROOT).read()
-    except RuntimeAuthorityError as exc:
-        payload["approval"] = None
-        payload["approval_status"] = str(exc)
-    else:
-        payload["approval"] = approval.as_dict()
-        payload["approval_status"] = "valid"
-    return payload
-
-
-def main() -> int:
-    action = sys.argv[1] if len(sys.argv) == 2 else ""
-    try:
-        if action == "status":
-            print(json.dumps(status(), sort_keys=True))
-            return 0
-        if action == "validate-runtime":
-            print(json.dumps(validate_runtime(), sort_keys=True))
-            return 0
-        if action in MUTATING_ACTIONS:
-            raise RuntimeAuthorityError(
-                "Stage C21 package review has no production host adapter; mutation remains blocked"
-            )
-        raise RuntimeAuthorityError("unsupported fixed runtime action")
-    except (OSError, ValueError, json.JSONDecodeError, RuntimeAuthorityError) as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True), file=sys.stderr)
-        return 78 if action in MUTATING_ACTIONS else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-'''
-
-
 def defaults(c: HostContract) -> str:
-    return f"""# A Clockwork Plex Stage C21 activation package review candidate.
-PACKAGE_PHASE=stage-c21-adapter-pending-review
+    return f"""# A Clockwork Plex Stage C21 activation-capable package review candidate.
+PACKAGE_PHASE={PACKAGE_PHASE}
 PROJECT_USER={c.project_user}
 DAC_CARD={c.dac_card}
 DAC_DEVICE={c.dac_device}
@@ -145,7 +48,7 @@ RUNTIME_ROOT={RUNTIME_ROOT}
 
 
 def sudoers(project_user: str) -> str:
-    return f"""# Stage C21 package review: read-only actions only.
+    return f"""# Stage C21 package review: read-only user actions only.
 {project_user} ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-route status
 {project_user} ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-route validate-runtime
 """
@@ -170,7 +73,8 @@ WantedBy=multi-user.target
 
 
 def camilladsp_unit(c: HostContract) -> str:
-    return f"""[Unit]
+    del c
+    return """[Unit]
 Description=A Clockwork Plex supervised split-bus runtime
 After=a-clockwork-plex-audio-route.service systemd-modules-load.service sound.target
 Requires=a-clockwork-plex-audio-route.service sound.target
@@ -212,9 +116,9 @@ ExecStart=/usr/local/bin/a-clockwork-plex-audio-route emergency-direct-failback
 def contract_json(*, package_fingerprint: str, files: list[dict[str, str]]) -> str:
     payload = {
         "schema_version": 1,
-        "package_phase": "stage-c21-adapter-pending-review",
+        "package_phase": PACKAGE_PHASE,
         "package_fingerprint": package_fingerprint,
-        "host_mutation_available": False,
+        "host_mutation_available": True,
         "files": files,
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
