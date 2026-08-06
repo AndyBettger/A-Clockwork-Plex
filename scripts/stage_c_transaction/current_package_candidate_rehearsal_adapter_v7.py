@@ -13,7 +13,6 @@ unit/runtime validation differ.
 import json
 import os
 import secrets
-import stat
 from pathlib import Path
 
 from stage_c_activation_package.core import (
@@ -25,7 +24,6 @@ from stage_c_activation_package.runtime_templates import PACKAGE_PHASE
 
 from .authoritative_snapshot_rehearsal_adapter import (
     AuthoritativeSnapshotFailure,
-    AuthoritativeTransaction,
     PARENT_CONTRACT,
     PathState,
     TRANSACTION_ROOT,
@@ -54,6 +52,7 @@ from .production_adapter_contract import (
     AdapterOperation,
     AdapterResult,
     AdapterStatus,
+    AuthoritativeTransaction,
     FilesystemSnapshot,
     PackageFingerprint,
     SnapshotIdentity,
@@ -75,7 +74,10 @@ CURRENT_PARENT_CONTRACT = (
     (TRANSACTION_ROOT, 0o700),
 )
 
-if CURRENT_PARENT_CONTRACT[0] != PARENT_CONTRACT[0] or CURRENT_PARENT_CONTRACT[2] != PARENT_CONTRACT[2]:
+if (
+    CURRENT_PARENT_CONTRACT[0] != PARENT_CONTRACT[0]
+    or CURRENT_PARENT_CONTRACT[2] != PARENT_CONTRACT[2]
+):
     raise RuntimeError("current package changed the inherited outer transaction contract")
 
 
@@ -231,7 +233,10 @@ class CurrentPackageCandidateValidationAdapterV7(
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
-            detail="fresh current-package authoritative transaction created under the held lock",
+            detail=(
+                "fresh current-package authoritative transaction created "
+                "under the held lock"
+            ),
             payload=transaction,
             evidence=(
                 ("path", str(path)),
@@ -337,7 +342,11 @@ class CurrentPackageCandidateValidationAdapterV7(
                 os.chown(destination, 0, 0)
                 destination.chmod(int(entry.mode, 8))
             for entry in (item for item in self._entries if item.kind == "file"):
-                source = self._package_root / "rootfs" / entry.destination.lstrip("/")
+                source = (
+                    self._package_root
+                    / "rootfs"
+                    / entry.destination.lstrip("/")
+                )
                 destination = candidate / entry.destination.lstrip("/")
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 _atomic_copy(source, destination, int(entry.mode, 8))
@@ -349,7 +358,8 @@ class CurrentPackageCandidateValidationAdapterV7(
             files = [path for path in candidate.rglob("*") if path.is_file()]
             if len(files) != EXPECTED_FILES:
                 raise CandidateValidationFailure(
-                    f"staged file count mismatch: expected {EXPECTED_FILES}, found {len(files)}"
+                    f"staged file count mismatch: expected {EXPECTED_FILES}, "
+                    f"found {len(files)}"
                 )
             staged_rows = tree_fingerprint(candidate)
             (self.transaction_path / "candidate-tree.tsv").write_text(
@@ -380,7 +390,10 @@ class CurrentPackageCandidateValidationAdapterV7(
         return AdapterResult(
             operation=operation,
             status=AdapterStatus.PASS,
-            detail="28 current-package files staged atomically inside the authoritative transaction",
+            detail=(
+                "28 current-package files staged atomically inside the "
+                "authoritative transaction"
+            ),
             evidence=(
                 ("candidate_root", str(candidate)),
                 ("file_count", str(EXPECTED_FILES)),
@@ -392,10 +405,14 @@ class CurrentPackageCandidateValidationAdapterV7(
     def _fixed_paths(self) -> dict[str, Path]:
         paths = super()._fixed_paths()
         assert self._candidate_root is not None
-        runtime_parent = self._candidate_root / "usr/local/lib/a-clockwork-plex/runtime-authority"
+        runtime_parent = (
+            self._candidate_root
+            / "usr/local/lib/a-clockwork-plex/runtime-authority"
+        )
         runtime_package = runtime_parent / "stage_c_runtime_authority"
         paths.update(
             {
+                "candidate_root": self._candidate_root,
                 "runtime_parent": runtime_parent,
                 "runtime_package": runtime_package,
                 "package_entry": runtime_package / "package_entry.py",
@@ -418,7 +435,8 @@ class CurrentPackageCandidateValidationAdapterV7(
             "ExecStart=/usr/local/bin/a-clockwork-plex-audio-route supervise",
             "Before=plexamp.service shairport-sync.service a-clockwork-plex.service",
             "OnFailure=a-clockwork-plex-audio-failback.service",
-            "ExecStart=/usr/local/bin/a-clockwork-plex-audio-route emergency-direct-failback",
+            "ExecStart=/usr/local/bin/a-clockwork-plex-audio-route "
+            "emergency-direct-failback",
         )
         for marker in required:
             if marker not in combined:
@@ -426,7 +444,8 @@ class CurrentPackageCandidateValidationAdapterV7(
                     f"staged current unit contract omitted: {marker}"
                 )
         approval = (
-            "ConditionPathExists=/var/lib/a-clockwork-plex/split-bus/activation-approved"
+            "ConditionPathExists=/var/lib/a-clockwork-plex/split-bus/"
+            "activation-approved"
         )
         if sum(text.count(approval) for text in (route, camilla, failback)) != 3:
             raise CandidateValidationFailure(
@@ -479,7 +498,8 @@ class CurrentPackageCandidateValidationAdapterV7(
             "INSTALLED_PACKAGE_ROOT",
             PACKAGE_PHASE,
             'contract.get("host_mutation_available") is not True',
-            "transaction-only approval operation is not exposed through the service helper",
+            "transaction-only approval operation is not exposed through "
+            "the service helper",
             "runtime mutation requires root",
         ):
             if guard not in entry:
@@ -514,7 +534,7 @@ class CurrentPackageCandidateValidationAdapterV7(
                 raise CandidateValidationFailure(
                     "staged package contract row shape changed"
                 )
-            candidate = paths["runtime_parent"].parents[3] / row["path"].lstrip("/")
+            candidate = paths["candidate_root"] / row["path"].lstrip("/")
             if not candidate.is_file() or candidate.is_symlink():
                 raise CandidateValidationFailure(
                     f"staged package payload is unavailable: {row['path']}"
@@ -550,8 +570,10 @@ class CurrentPackageCandidateValidationAdapterV7(
             if line and not line.startswith("#")
         )
         expected = (
-            "andy ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-route status",
-            "andy ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-route validate-runtime",
+            "andy ALL=(root) NOPASSWD: "
+            "/usr/local/bin/a-clockwork-plex-audio-route status",
+            "andy ALL=(root) NOPASSWD: "
+            "/usr/local/bin/a-clockwork-plex-audio-route validate-runtime",
         )
         if lines != expected:
             self._sudoers_validated = False
@@ -562,7 +584,10 @@ class CurrentPackageCandidateValidationAdapterV7(
         return AdapterResult(
             operation=AdapterOperation.VALIDATE_CANDIDATE_SUDOERS,
             status=AdapterStatus.PASS,
-            detail="staged current sudoers exposes only status and validate-runtime",
+            detail=(
+                "staged current sudoers exposes only status and "
+                "validate-runtime"
+            ),
             evidence=(("approval_operations_exposed", "0"),),
         )
 
@@ -576,7 +601,10 @@ class CurrentPackageCandidateValidationAdapterV7(
         return AdapterResult(
             operation=AdapterOperation.VALIDATE_CANDIDATE_UNITS,
             status=AdapterStatus.PASS,
-            detail="current units, launcher, 15 runtime modules and package contract passed private validation",
+            detail=(
+                "current units, launcher, 15 runtime modules and package "
+                "contract passed private validation"
+            ),
             evidence=result.evidence
             + (
                 ("runtime_modules", str(len(RUNTIME_MODULES))),
