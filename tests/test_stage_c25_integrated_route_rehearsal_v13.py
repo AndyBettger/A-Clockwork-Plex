@@ -60,8 +60,14 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
     def test_sequence_combines_install_reload_route_and_exact_rollback(self) -> None:
         install = self.entry.index("adapter.install_managed_files(")
         first_reload = self.entry.index("adapter.reload_systemd(", install)
-        select = self.entry.index("route_result = adapter.select_split_bus_route(", first_reload)
-        rollback = self.entry.index("rollback_result = adapter.restore_exact_snapshot(", select)
+        select = self.entry.index(
+            "route_result = adapter.select_split_bus_route(",
+            first_reload,
+        )
+        rollback = self.entry.index(
+            "rollback_result = adapter.restore_exact_snapshot(",
+            select,
+        )
         second_reload = self.entry.index("adapter.reload_systemd(", rollback)
         restore_services = self.entry.index(
             "adapter.restore_captured_application_services(",
@@ -71,7 +77,7 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
             "adapter.close_current_package_route_rollback_rehearsal(",
             restore_services,
         )
-        self.assertLess(
+        observed = (
             install,
             first_reload,
             select,
@@ -80,6 +86,7 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
             restore_services,
             close,
         )
+        self.assertEqual(observed, tuple(sorted(observed)))
 
     def test_runtime_and_approval_are_only_exercised_as_blocked_boundaries(self) -> None:
         self.assertIn("runtime-activation-blocked.tsv", self.entry)
@@ -107,7 +114,8 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
         prepare = self.wrapper.index('if [[ "$MODE" == "prepare" ]]')
         prepare_exit = self.wrapper.index("  exit 0", prepare)
         privileged = self.wrapper.index("exec sudo env")
-        self.assertLess(prepare, prepare_exit, privileged)
+        self.assertLess(prepare, prepare_exit)
+        self.assertLess(prepare_exit, privileged)
 
     def test_identity_and_report_explicitly_forbid_activation_reuse(self) -> None:
         self.assertIn('"reusable_for_activation\\tfalse\\n"', self.entry)
