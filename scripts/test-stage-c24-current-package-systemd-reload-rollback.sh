@@ -37,6 +37,10 @@ reload that must forget those units, and restores the accepted appliance state.
 The total daemon-reload command budget is two attempts, including failures; an
 unapproved third attempt is refused before a command is issued.
 
+Before lock acquisition, guarded mode prints the already collected read-only
+host observations so a baseline refusal identifies the exact failed domain.
+That diagnostic adds no observation, mutation or authority.
+
 Route selection, mixer writes, managed Stage C service startup, approval
 publication, CamillaDSP startup, audio probes, commit and activation remain
 blocked throughout.
@@ -140,10 +144,12 @@ fi
 [[ -n "$STAGE_C23_ROOT" ]] || { echo "--stage-c23-root is required" >&2; exit 64; }
 [[ -n "$EVIDENCE_ROOT" ]] || { echo "--evidence-root is required" >&2; exit 64; }
 
+# v12 composes current_package_systemd_reload_rollback_rehearsal_v11's
+# two-attempt adapter guard and adds only frozen pre-live report diagnostics.
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -B -m stage_c_transaction.current_package_systemd_reload_rollback_rehearsal_v11 \
+  python3 -B -m stage_c_transaction.current_package_systemd_reload_rollback_rehearsal_v12 \
     --package-root "$PACKAGE_ROOT" \
     --baseline-root "$BASELINE_ROOT" \
     --stage-c21-root "$STAGE_C21_ROOT" \
