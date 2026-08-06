@@ -53,16 +53,18 @@ class DisposableCanonicalLeaseBindingResultV7:
             raise ValueError("disposable lease-binding result requires identity and detail")
         if self.canonical_bytes != (self.lease_id + "\n").encode("ascii"):
             raise ValueError("disposable lease-binding canonical bytes changed")
-        if not self.owner_lock_remains_held:
-            raise ValueError("disposable lease binder never releases owner authority")
         if self.disposition is DisposableLeaseBindingDispositionV7.CANONICAL_BOUND:
             if self.status is not AdapterStatus.PASS:
                 raise ValueError("canonical-bound disposition must pass")
+            if not self.owner_lock_remains_held:
+                raise ValueError("canonical binding requires retained owner authority")
             if self.ordinary_rollback_permitted or self.manual_reconciliation_required:
                 raise ValueError("canonical-bound disposition cannot request recovery")
         elif self.disposition is DisposableLeaseBindingDispositionV7.EMPTY_ROLLBACK_PERMITTED:
             if self.status is AdapterStatus.PASS:
                 raise ValueError("empty rollback disposition must report failure")
+            if not self.owner_lock_remains_held:
+                raise ValueError("empty rollback begins beneath retained owner authority")
             if not self.ordinary_rollback_permitted or self.manual_reconciliation_required:
                 raise ValueError("empty disposition requires ordinary rollback only")
             if self.reconciled_after_exception:
@@ -99,7 +101,7 @@ def _result(
             disposition
             is DisposableLeaseBindingDispositionV7.MANUAL_RECONCILIATION
         ),
-        owner_lock_remains_held=True,
+        owner_lock_remains_held=owner.lock_held,
     )
 
 
