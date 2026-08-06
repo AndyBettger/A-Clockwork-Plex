@@ -78,7 +78,8 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         reload = self.entry.index("adapter.reload_systemd(", install)
         route = self.entry.index("adapter.select_split_bus_route(", reload)
         executor = self.entry.index("execute_activation_commit_v7(", route)
-        self.assertEqual((install, reload, route, executor), tuple(sorted((install, reload, route, executor))))
+        observed = (install, reload, route, executor)
+        self.assertEqual(observed, tuple(sorted(observed)))
 
     def test_commit_is_one_atomic_approval_marker(self) -> None:
         self.assertIn("store.replace_exact(", self.adapter_v16)
@@ -89,12 +90,16 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
 
     def test_precommit_runtime_is_not_boot_enabled(self) -> None:
         start = self.adapter_v15.index("def start_managed_stage_c_services(")
+        health = self.adapter_v15.index("def verify_split_bus_health(", start)
         promote = self.adapter_v16.index("def promote_committed_activation_approval(")
-        self.assertNotIn("systemctl\", \"enable", self.adapter_v15[start:])
-        self.assertIn("\"systemctl\",\n                \"enable\"", self.adapter_v16[promote:])
+        self.assertNotIn("\"enable\"", self.adapter_v15[start:health])
+        self.assertIn("\"enable\"", self.adapter_v16[promote:])
 
     def test_committed_install_retains_uninstall_source(self) -> None:
-        self.assertIn("ORIGINAL_ROUTE_NAME = \"pre-eq-active-route.conf\"", self.adapter_v15)
+        self.assertIn(
+            "ORIGINAL_ROUTE_NAME = \"pre-eq-active-route.conf\"",
+            self.adapter_v15,
+        )
         self.assertIn("os.rename(parked_route, original_destination)", self.adapter_v16)
         self.assertIn("pre_eq_route_sha256", self.adapter_v16)
         self.assertIn("reboot_verification\": \"pending\"", self.adapter_v16)
