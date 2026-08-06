@@ -74,14 +74,14 @@ System ancestors `/`, `/var` and `/var/lib` must be:
 - root-owned;
 - not group- or world-writable.
 
-If present, the private Stage C directories:
+If present, the Stage C state directories:
 
 ```text
 /var/lib/a-clockwork-plex
 /var/lib/a-clockwork-plex/split-bus
 ```
 
-must additionally be mode `0700`.
+must match the activation package manifest: root-owned, mode `0755`, real directories and not symlinks. This corrects an earlier draft assumption of `0700`; the reviewed activation package explicitly records `/var/lib/a-clockwork-plex/split-bus` as `root:root 0755`.
 
 A missing component means the fixed public approval object is absent. It does not create the missing directory.
 
@@ -275,6 +275,6 @@ Only after this in-memory inspector passes may the project design a separate evi
 
 - persists the already-frozen report beneath a fresh user-owned `/var/tmp` review directory;
 - contains no activation token or mutation command;
-- requires no sudo;
-- performs no production write;
+- may use at most one tightly constrained read-only sudo invocation solely to inspect the fixed root-owned `0600` approval record and fixed host evidence;
+- grants no production-write, lock, service, route, mixer, audio or device authority;
 - is separately reviewed before any request to run it on the Pi.
