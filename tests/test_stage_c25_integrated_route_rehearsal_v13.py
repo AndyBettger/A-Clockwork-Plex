@@ -5,6 +5,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,22 +20,41 @@ ENTRY_PATH = (
     / "scripts/stage_c_transaction/"
     "current_package_route_selection_rollback_rehearsal_v13.py"
 )
+COMPAT_PATH = (
+    ROOT
+    / "scripts/stage_c_transaction/"
+    "current_package_route_selection_rollback_rehearsal_v14.py"
+)
 WRAPPER_PATH = ROOT / "scripts/test-stage-c25-current-package-route-rollback.sh"
 
-from scripts.stage_c_transaction.current_package_route_selection_rollback_rehearsal_v13 import (  # noqa: E402
+from scripts.stage_c_transaction import (  # noqa: E402
+    current_package_candidate_rehearsal_adapter_v7 as current_v7,
+)
+from scripts.stage_c_transaction.current_package_route_selection_rollback_adapter_v13 import (  # noqa: E402
+    CURRENT_ROUTE_SNAPSHOT_PREFIX_V13,
+    CURRENT_ROUTE_TRANSACTION_PREFIX_V13,
+)
+from scripts.stage_c_transaction.current_package_route_selection_rollback_rehearsal_v14 import (  # noqa: E402
     EVIDENCE_PREFIX,
     EXPECTED_CHECKS,
     REQUIRED_CONFIRMATION,
+    apply_current_route_identity_contract_v14,
+)
+from scripts.stage_c_transaction.current_package_systemd_reload_rollback_adapter_v10 import (  # noqa: E402
+    CURRENT_SYSTEMD_SNAPSHOT_PREFIX_V10,
+    CURRENT_SYSTEMD_TRANSACTION_PREFIX_V10,
 )
 
 
 class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
     def setUp(self) -> None:
         self.entry = ENTRY_PATH.read_text(encoding="utf-8")
+        self.compat = COMPAT_PATH.read_text(encoding="utf-8")
         self.wrapper = WRAPPER_PATH.read_text(encoding="utf-8")
 
     def test_entry_and_wrapper_parse(self) -> None:
         ast.parse(self.entry)
+        ast.parse(self.compat)
         result = subprocess.run(
             ["bash", "-n", str(WRAPPER_PATH)],
             check=False,
@@ -88,6 +108,30 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
         )
         self.assertEqual(observed, tuple(sorted(observed)))
 
+    def test_idempotent_entry_advances_c24_once(self) -> None:
+        with (
+            patch.object(
+                current_v7,
+                "CURRENT_TRANSACTION_PREFIX",
+                CURRENT_SYSTEMD_TRANSACTION_PREFIX_V10,
+            ),
+            patch.object(
+                current_v7,
+                "CURRENT_SNAPSHOT_PREFIX",
+                CURRENT_SYSTEMD_SNAPSHOT_PREFIX_V10,
+            ),
+        ):
+            apply_current_route_identity_contract_v14()
+            self.assertEqual(
+                current_v7.CURRENT_TRANSACTION_PREFIX,
+                CURRENT_ROUTE_TRANSACTION_PREFIX_V13,
+            )
+            self.assertEqual(
+                current_v7.CURRENT_SNAPSHOT_PREFIX,
+                CURRENT_ROUTE_SNAPSHOT_PREFIX_V13,
+            )
+            apply_current_route_identity_contract_v14()
+
     def test_runtime_and_approval_are_only_exercised_as_blocked_boundaries(self) -> None:
         self.assertIn("runtime-activation-blocked.tsv", self.entry)
         self.assertIn("prove_approval_operations_blocked", self.entry)
@@ -97,9 +141,16 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
         self.assertNotIn("host_run(", self.entry)
         self.assertNotIn("subprocess", self.entry)
         self.assertNotIn("install-master-eq.sh", self.entry)
+        self.assertNotIn("host_run(", self.compat)
+        self.assertNotIn("systemctl", self.compat)
 
     def test_wrapper_has_one_fixed_privileged_entry(self) -> None:
         self.assertIn(
+            "current_package_route_selection_rollback_rehearsal_v14",
+            self.wrapper,
+        )
+        self.assertNotIn(
+            "python3 -B -m stage_c_transaction."
             "current_package_route_selection_rollback_rehearsal_v13",
             self.wrapper,
         )
@@ -122,6 +173,10 @@ class IntegratedCurrentPackageRouteRehearsalV13Tests(unittest.TestCase):
         self.assertIn("This is the final rollback-only checkpoint", self.entry)
         self.assertIn("approval_published", self.entry)
         self.assertIn('"committed": False', self.entry)
+        self.assertIn(
+            "base.apply_current_route_identity_contract_v13 = observed",
+            self.compat,
+        )
 
 
 if __name__ == "__main__":
