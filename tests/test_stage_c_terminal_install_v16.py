@@ -48,6 +48,7 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
     def test_terminal_modules_import(self) -> None:
         from scripts.stage_c_transaction.current_package_terminal_install_adapter_v16 import (  # noqa: E501
             CurrentPackageTerminalInstallAdapterV16,
+            IndeterminateCommitPublication,
         )
         from scripts.stage_c_transaction.current_package_terminal_install_v16 import (
             EXPECTED_CHECKS,
@@ -57,6 +58,7 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.assertEqual(REQUIRED_CONFIRMATION, "INSTALL-AND-ENABLE-STAGE-C-EQ")
         self.assertEqual(len(EXPECTED_CHECKS), 22)
         self.assertTrue(CurrentPackageTerminalInstallAdapterV16.__name__.endswith("V16"))
+        self.assertTrue(issubclass(IndeterminateCommitPublication, RuntimeError))
 
     def test_wrapper_has_one_fixed_privileged_entry(self) -> None:
         self.assertEqual(self.wrapper.count("exec sudo env"), 1)
@@ -103,6 +105,24 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.assertIn("os.rename(parked_route, original_destination)", self.adapter_v16)
         self.assertIn("pre_eq_route_sha256", self.adapter_v16)
         self.assertIn("reboot_verification\": \"pending\"", self.adapter_v16)
+
+    def test_indeterminate_publication_cannot_enter_known_failure_rollback(self) -> None:
+        declaration = self.adapter_v16.index(
+            "class IndeterminateCommitPublication(TerminalInstallFailure):"
+        )
+        indeterminate = self.adapter_v16.index(
+            "except IndeterminateCommitPublication as exc:",
+            declaration,
+        )
+        known_failure = self.adapter_v16.index(
+            "except BaseException as exc:",
+            indeterminate,
+        )
+        self.assertLess(declaration, indeterminate, known_failure)
+        indeterminate_handler = self.adapter_v16[indeterminate:known_failure]
+        self.assertIn("raise", indeterminate_handler)
+        self.assertNotIn("_revert_commit_preparation", indeterminate_handler)
+        self.assertIn("INDETERMINATE", indeterminate_handler)
 
     def test_failure_outcomes_are_explicit(self) -> None:
         self.assertIn("ActivationExecutionOutcomeV7.COMMITTED", self.entry)
