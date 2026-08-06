@@ -3,14 +3,14 @@ from __future__ import annotations
 
 """Final terminal adapter correction.
 
-The v15 adapter supplies the complete fixed terminal runtime.  This narrow
+The v15 adapter supplies the complete fixed terminal runtime. This narrow
 layer replaces only terminal publication so every known pre-publication failure
 returns FAIL after reversing enablement and persistent-path preparation, while
-an indeterminate approval exchange still fails closed for inspection.
+an indeterminate approval exchange fails closed with authority retained for
+inspection.
 """
 
 import os
-from pathlib import Path
 
 from stage_c_runtime_authority.approval_store import ApprovalStore
 from stage_c_runtime_authority.model import utc_timestamp
@@ -40,6 +40,10 @@ from .current_package_terminal_install_adapter_v15 import (
     sha256,
 )
 from .production_adapter_contract import TransactionIdentity
+
+
+class IndeterminateCommitPublication(TerminalInstallFailure):
+    """The committed approval may have been published; rollback is forbidden."""
 
 
 class CurrentPackageTerminalInstallAdapterV16(
@@ -184,10 +188,10 @@ class CurrentPackageTerminalInstallAdapterV16(
             except BaseException as publication_exc:
                 try:
                     observed = store.read()
-                except BaseException:
-                    raise TerminalInstallFailure(
+                except BaseException as observation_exc:
+                    raise IndeterminateCommitPublication(
                         "committed approval publication became indeterminate"
-                    ) from publication_exc
+                    ) from observation_exc
                 if observed == committed_plan.record:
                     pass
                 elif observed == self._temporary_plan.record:
@@ -213,23 +217,42 @@ class CurrentPackageTerminalInstallAdapterV16(
                         ),
                     )
                 else:
-                    raise TerminalInstallFailure(
+                    raise IndeterminateCommitPublication(
                         "approval store contains neither exact temporary nor "
                         "exact committed record"
                     ) from publication_exc
 
-            if store.read() != committed_plan.record:
+            try:
+                observed_after = store.read()
+            except BaseException as verification_exc:
+                raise IndeterminateCommitPublication(
+                    "committed approval cannot be verified after publication"
+                ) from verification_exc
+            if observed_after == self._temporary_plan.record:
                 raise TerminalInstallFailure(
-                    "committed approval changed after publication"
+                    "approval remained temporary after committed publication"
+                )
+            if observed_after != committed_plan.record:
+                raise IndeterminateCommitPublication(
+                    "approval identity changed after committed publication"
                 )
 
+        except IndeterminateCommitPublication as exc:
+            self._record_runtime_action(
+                "promote-committed-approval",
+                "INDETERMINATE",
+                str(exc),
+            )
+            raise
         except BaseException as exc:
             try:
                 observed = store.read()
             except BaseException:
                 observed = None
             if committed_plan is not None and observed == committed_plan.record:
-                raise
+                raise IndeterminateCommitPublication(
+                    "committed approval exists after a terminal publication error"
+                ) from exc
             try:
                 if transaction_moved or route_moved or self._managed_enablement_started:
                     self._revert_commit_preparation(
