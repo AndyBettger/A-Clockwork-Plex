@@ -24,6 +24,7 @@ ADAPTER_V16 = (
 )
 ENTRY = ROOT / "scripts/stage_c_transaction/current_package_terminal_install_v16.py"
 WRAPPER = ROOT / "scripts/install-and-enable-stage-c-eq.sh"
+OPERATOR = ROOT / "scripts/run-stage-c-terminal-install-verified.sh"
 
 
 class StageCTerminalInstallV16Tests(unittest.TestCase):
@@ -32,18 +33,20 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.adapter_v16 = ADAPTER_V16.read_text(encoding="utf-8")
         self.entry = ENTRY.read_text(encoding="utf-8")
         self.wrapper = WRAPPER.read_text(encoding="utf-8")
+        self.operator = OPERATOR.read_text(encoding="utf-8")
 
     def test_python_and_shell_sources_parse(self) -> None:
         ast.parse(self.adapter_v15)
         ast.parse(self.adapter_v16)
         ast.parse(self.entry)
-        result = subprocess.run(
-            ["bash", "-n", str(WRAPPER)],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        for path in (WRAPPER, OPERATOR):
+            result = subprocess.run(
+                ["bash", "-n", str(path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
 
     def test_terminal_modules_import(self) -> None:
         from scripts.stage_c_transaction.current_package_terminal_install_adapter_v16 import (  # noqa: E501
@@ -69,10 +72,33 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.assertNotIn("--probe", self.wrapper)
         self.assertNotIn("--keep-active", self.wrapper)
 
+    def test_operator_runs_full_suite_before_physical_marker(self) -> None:
+        suite = self.operator.index("-m unittest discover -s tests -q")
+        marker = self.operator.index("STAGE_C_TERMINAL_GUARDED_INVOCATION_BEGIN")
+        install = self.operator.index("scripts/install-and-enable-stage-c-eq.sh")
+        self.assertLess(suite, marker, install)
+        self.assertEqual(
+            self.operator.count("STAGE_C_TERMINAL_GUARDED_INVOCATION_BEGIN"),
+            1,
+        )
+        self.assertIn("STAGE_C_EQ_INSTALLED_AND_ENABLED=PASS", self.operator)
+        self.assertIn("INSPECT_DO_NOT_CLEAN_OR_RERUN", self.operator)
+
+    def test_operator_binds_exact_accepted_evidence(self) -> None:
+        self.assertIn(
+            "/var/tmp/a-clockwork-plex-stage-c25-current-package-route-rollback.Q4Ltus",
+            self.operator,
+        )
+        self.assertIn("EXPECTED_C25_RESULTS=29", self.operator)
+        self.assertIn("EXPECTED_TERMINAL_RESULTS=22", self.operator)
+        self.assertIn("EXPECTED_PACKAGE_SHA", self.operator)
+        self.assertIn("EXPECTED_DIRECT_SHA", self.operator)
+
     def test_legacy_installer_is_named_only_in_prohibition_text(self) -> None:
         self.assertIn("legacy install-master-eq.sh path is not used", self.wrapper)
         self.assertNotIn("bash scripts/install-master-eq.sh", self.wrapper)
         self.assertNotIn("exec scripts/install-master-eq.sh", self.wrapper)
+        self.assertNotIn("install-master-eq.sh", self.operator)
         self.assertNotIn("subprocess", self.entry)
 
     def test_physical_prefix_precedes_terminal_executor(self) -> None:
