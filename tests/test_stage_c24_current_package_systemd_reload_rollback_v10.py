@@ -33,6 +33,8 @@ from scripts.stage_c_transaction import (  # noqa: E402
     current_package_candidate_rehearsal_adapter_v7 as current_v7,
 )
 from scripts.stage_c_transaction.current_package_managed_file_rollback_adapter_v9 import (  # noqa: E402
+    CURRENT_PACKAGE_FILE_COUNT_V9,
+    CURRENT_PACKAGE_PAYLOAD_COUNT_V9,
     CurrentPackageManagedFileRollbackAdapterV9,
 )
 from scripts.stage_c_transaction.current_package_systemd_reload_rollback_adapter_v10 import (  # noqa: E402
@@ -57,6 +59,10 @@ from scripts.stage_c_transaction.production_adapter_lifecycle_v3 import (  # noq
 from scripts.stage_c_transaction.production_adapter_lifecycle_v7 import (  # noqa: E402
     ProductionAdapterV7,
 )
+from scripts.stage_c_transaction.stage_c23_evidence_identity import (  # noqa: E402
+    ACCEPTED_STAGE_C23_MANIFEST_ROWS,
+    ACCEPTED_STAGE_C23_MANIFEST_SHA256,
+)
 from scripts.stage_c_transaction.systemd_reload_rollback_rehearsal_adapter import (  # noqa: E402
     SystemdReloadRollbackRehearsalAdapter,
 )
@@ -67,6 +73,11 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
         self.adapter_source = ADAPTER_PATH.read_text(encoding="utf-8")
         self.rehearsal_source = REHEARSAL_PATH.read_text(encoding="utf-8")
         self.wrapper_source = WRAPPER_PATH.read_text(encoding="utf-8")
+        self.adapter_literals = {
+            node.value
+            for node in ast.walk(ast.parse(self.adapter_source))
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
 
     def test_adapter_extends_accepted_current_package_file_owner(self) -> None:
         self.assertTrue(
@@ -76,13 +87,21 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
             )
         )
         self.assertTrue(
-            issubclass(CurrentPackageSystemdReloadRollbackAdapterV10, ProductionAdapterV3)
+            issubclass(
+                CurrentPackageSystemdReloadRollbackAdapterV10,
+                ProductionAdapterV3,
+            )
         )
         self.assertFalse(
-            issubclass(CurrentPackageSystemdReloadRollbackAdapterV10, ProductionAdapterV7)
+            issubclass(
+                CurrentPackageSystemdReloadRollbackAdapterV10,
+                ProductionAdapterV7,
+            )
         )
 
-    def test_physically_exercised_systemd_primitives_are_reused_by_identity(self) -> None:
+    def test_physically_exercised_systemd_primitives_are_reused_by_identity(
+        self,
+    ) -> None:
         self.assertIs(
             CurrentPackageSystemdReloadRollbackAdapterV10._run_daemon_reload,
             SystemdReloadRollbackRehearsalAdapter._run_daemon_reload,
@@ -106,7 +125,9 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
             "stage-c24-systemd-reload-rollback-snapshot-",
         )
 
-    def test_identity_binding_accepts_only_legacy_or_already_bound_state(self) -> None:
+    def test_identity_binding_accepts_only_legacy_or_already_bound_state(
+        self,
+    ) -> None:
         with (
             patch.object(
                 current_v7,
@@ -131,14 +152,24 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
             apply_current_systemd_reload_identity_contract_v10()
 
         with (
-            patch.object(current_v7, "CURRENT_TRANSACTION_PREFIX", "unexpected-"),
-            patch.object(current_v7, "CURRENT_SNAPSHOT_PREFIX", "unexpected-"),
+            patch.object(
+                current_v7,
+                "CURRENT_TRANSACTION_PREFIX",
+                "unexpected-",
+            ),
+            patch.object(
+                current_v7,
+                "CURRENT_SNAPSHOT_PREFIX",
+                "unexpected-",
+            ),
         ):
             with self.assertRaisesRegex(SystemExit, "contract changed"):
                 apply_current_systemd_reload_identity_contract_v10()
 
     def test_receipt_requires_28_files_27_payloads_and_two_reloads(self) -> None:
-        transaction = TransactionIdentity("stage-c24-systemd-reload-rollback-install-test")
+        transaction = TransactionIdentity(
+            "stage-c24-systemd-reload-rollback-install-test"
+        )
         receipt = CurrentPackageSystemdReloadRollbackReceiptV10(
             transaction=transaction,
             state="current-package-systemd-reload-rolled-back-and-closed",
@@ -166,12 +197,20 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
             )
 
     def test_frozen_stage_c23_evidence_shape_is_exact(self) -> None:
+        self.assertEqual(
+            ACCEPTED_STAGE_C23_MANIFEST_SHA256,
+            "e51bac4fb54357c5b30a31152af1309f484b5f2a82c0d2e9e9a866f64432466a",
+        )
+        self.assertEqual(ACCEPTED_STAGE_C23_MANIFEST_ROWS, 144)
         self.assertEqual(STAGE_C23_MANIFEST_ENTRIES, 143)
         self.assertIn(
-            "e51bac4fb54357c5b30a31152af1309f484b5f2a82c0d2e9e9a866f64432466a",
+            "ACCEPTED_STAGE_C23_MANIFEST_SHA256",
             self.rehearsal_source,
         )
-        self.assertIn("ACCEPTED_STAGE_C23_MANIFEST_ROWS", self.rehearsal_source)
+        self.assertIn(
+            "ACCEPTED_STAGE_C23_MANIFEST_ROWS",
+            self.rehearsal_source,
+        )
         self.assertIn("validate_stage_c23_results", self.rehearsal_source)
         self.assertIn("validate_stage_c23_identity", self.rehearsal_source)
 
@@ -198,7 +237,10 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
             ("exact-rollback-close-c24", "production-lock-released"),
             ("production-lock-released", "post-lock-live-baseline"),
         ):
-            self.assertLess(EXPECTED_CHECKS.index(earlier), EXPECTED_CHECKS.index(later))
+            self.assertLess(
+                EXPECTED_CHECKS.index(earlier),
+                EXPECTED_CHECKS.index(later),
+            )
 
     def test_confirmation_and_evidence_prefix_are_fixed(self) -> None:
         self.assertEqual(
@@ -277,7 +319,10 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
             '"committed": False',
         ):
             self.assertIn(marker, self.rehearsal_source)
-        self.assertNotIn("start_managed_stage_c_services(", self.adapter_source)
+        self.assertNotIn(
+            "start_managed_stage_c_services(",
+            self.adapter_source,
+        )
         self.assertNotIn("select_split_bus_route(", self.adapter_source)
 
     def test_failure_cleanup_orders_files_manager_then_services(self) -> None:
@@ -290,28 +335,41 @@ class StageC24CurrentPackageSystemdReloadRollbackV10Tests(unittest.TestCase):
         )
         self.assertLess(
             exit_source.index("self._restore_systemd_manager_exact()"),
-            exit_source.index("CurrentPackageManagedFileRollbackAdapterV9.__exit__"),
+            exit_source.index(
+                "CurrentPackageManagedFileRollbackAdapterV9.__exit__"
+            ),
         )
 
     def test_failure_path_retains_lock_and_transaction(self) -> None:
-        self.assertIn(
-            "production lock and transaction are intentionally retained",
-            self.adapter_source,
+        self.assertTrue(
+            any(
+                "production lock and transaction are intentionally retained"
+                in literal
+                for literal in self.adapter_literals
+            )
         )
         self.assertIn("do not clean it manually", self.wrapper_source)
 
     def test_c23_file_only_closure_is_refused_after_manager_mutation(self) -> None:
-        self.assertIn(
-            "C23 file-only closure is unavailable after systemd-manager mutation",
-            self.adapter_source,
+        self.assertTrue(
+            any(
+                "C23 file-only closure is unavailable after systemd-manager mutation"
+                in literal
+                for literal in self.adapter_literals
+            )
         )
         self.assertIn("c23-closure-refusal", self.rehearsal_source)
 
     def test_historical_twelve_file_receipt_is_not_reused(self) -> None:
-        self.assertNotIn("SystemdReloadRollbackTransactionReceipt", self.adapter_source)
+        self.assertNotIn(
+            "SystemdReloadRollbackTransactionReceipt",
+            self.adapter_source,
+        )
         self.assertNotIn("installed_file_count=12", self.adapter_source)
-        self.assertIn("installed_file_count=28", self.adapter_source)
-        self.assertIn("payload_file_count=27", self.adapter_source)
+        self.assertEqual(CURRENT_PACKAGE_FILE_COUNT_V9, 28)
+        self.assertEqual(CURRENT_PACKAGE_PAYLOAD_COUNT_V9, 27)
+        self.assertIn("CURRENT_PACKAGE_FILE_COUNT_V9", self.adapter_source)
+        self.assertIn("CURRENT_PACKAGE_PAYLOAD_COUNT_V9", self.adapter_source)
 
     def test_no_master_eq_installer_reference(self) -> None:
         combined = "\n".join(
