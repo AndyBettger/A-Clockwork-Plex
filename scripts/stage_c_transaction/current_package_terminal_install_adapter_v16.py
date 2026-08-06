@@ -25,6 +25,7 @@ from .current_package_terminal_install_adapter_v15 import (
     ENABLE_UNITS,
     ORIGINAL_ROUTE_NAME,
     RUNTIME_HELPER,
+    SPLIT_ROUTE,
     STATE_ROOT,
     TRANSACTION_ROOT,
     ActivationApprovalAdapterResult,
