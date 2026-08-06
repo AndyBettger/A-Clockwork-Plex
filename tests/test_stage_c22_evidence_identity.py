@@ -85,7 +85,7 @@ class StageC22EvidenceIdentityTests(unittest.TestCase):
         for forbidden in (
             "subprocess",
             "systemctl",
-            "sudo",
+            "os.system",
             "os.chmod",
             "os.chown",
             "os.unlink",
