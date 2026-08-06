@@ -50,6 +50,8 @@ def _noop_fault_hook(_point: str) -> None:
 
 
 def _rename_exchange(dir_fd: int, private_name: str) -> None:
+    """Exchange one validated private candidate with the fixed public name."""
+
     if dir_fd < 0:
         raise ValueError("committed exchange requires a live directory descriptor")
     if not private_name.startswith(PRIVATE_PREFIX) or "/" in private_name:
@@ -111,6 +113,26 @@ class OpenApprovalProofV7:
             raise ValueError("open approval proof requires bounded bytes")
 
 
+@dataclass
+class _PromotionStateV7:
+    preflight_device: int
+    preflight_inode: int
+    temporary: OpenApprovalProofV7 | None = None
+    private_name: str | None = None
+    candidate: OpenApprovalProofV7 | None = None
+
+    def close_descriptors(self) -> None:
+        seen: set[int] = set()
+        for proof in (self.candidate, self.temporary):
+            if proof is None or proof.descriptor in seen:
+                continue
+            seen.add(proof.descriptor)
+            try:
+                os.close(proof.descriptor)
+            except OSError:
+                pass
+
+
 @dataclass(frozen=True)
 class DisposableCommittedApprovalPromotionResultV7:
     status: AdapterStatus
@@ -140,7 +162,7 @@ class DisposableCommittedApprovalPromotionResultV7:
             ):
                 raise ValueError("committed promotion result requires SHA-256 values")
         if self.public_temporary_identity_proved and self.public_committed_identity_proved:
-            raise ValueError("public approval cannot prove both temporary and committed identity")
+            raise ValueError("public approval cannot prove temporary and committed identity")
         if self.disposition is DisposableCommittedPromotionDispositionV7.COMMITTED_PROMOTED:
             if (
                 self.status is not AdapterStatus.PASS
@@ -241,7 +263,7 @@ def _result(
 
 
 class DisposableCommittedApprovalPromoterV7:
-    """One-shot atomic exchange with irreversible committed-state recovery."""
+    """Atomic exchange promoter with irreversible committed-state recovery."""
 
     def __init__(
         self,
@@ -278,6 +300,9 @@ class DisposableCommittedApprovalPromoterV7:
         self._temporary = temporary
         self._committed = committed
         self._fault_hook = fault_hook or _noop_fault_hook
+
+    def _dir_fd(self) -> int:
+        return self._approval_root._borrow_directory_descriptor_for_publisher()
 
     def _verify_owner(self) -> tuple[bool, str]:
         observed = self._owner.observe()
@@ -316,7 +341,19 @@ class DisposableCommittedApprovalPromoterV7:
             observed.payload,
         )
 
-    def _verify_open_proof(
+    @staticmethod
+    def _identity_matches(
+        observation: DisposableApprovalFileObservationV7 | None,
+        proof: OpenApprovalProofV7 | None,
+    ) -> bool:
+        return bool(
+            observation is not None
+            and observation.present
+            and proof is not None
+            and (observation.device, observation.inode) == (proof.device, proof.inode)
+        )
+
+    def _verify_proof(
         self,
         proof: OpenApprovalProofV7,
         *,
@@ -349,13 +386,8 @@ class DisposableCommittedApprovalPromoterV7:
                 f"open approval descriptor has {after.st_nlink} links, expected {expected_links}"
             )
 
-    def _recheck_name(
-        self,
-        name: str,
-        proof: OpenApprovalProofV7,
-    ) -> None:
-        dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-        path_info = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+    def _recheck_name(self, name: str, proof: OpenApprovalProofV7) -> None:
+        path_info = os.stat(name, dir_fd=self._dir_fd(), follow_symlinks=False)
         if (
             stat.S_ISLNK(path_info.st_mode)
             or not stat.S_ISREG(path_info.st_mode)
@@ -372,29 +404,26 @@ class DisposableCommittedApprovalPromoterV7:
         if name is None:
             return True
         try:
-            dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-            os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+            os.stat(name, dir_fd=self._dir_fd(), follow_symlinks=False)
         except FileNotFoundError:
             return True
         except BaseException:
             return False
         return False
 
-    def _open_public_temporary(self) -> OpenApprovalProofV7:
-        dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
+    def _open_public_temporary(self, state: _PromotionStateV7) -> None:
         file_fd: int | None = None
         try:
             self._fault_hook("before-public-temporary-open")
             file_fd = os.open(
                 APPROVAL_NAME,
                 os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
-                dir_fd=dir_fd,
+                dir_fd=self._dir_fd(),
             )
-            self._fault_hook("after-public-temporary-open")
             descriptor = os.fstat(file_fd)
             path_info = os.stat(
                 APPROVAL_NAME,
-                dir_fd=dir_fd,
+                dir_fd=self._dir_fd(),
                 follow_symlinks=False,
             )
             if (
@@ -415,12 +444,23 @@ class DisposableCommittedApprovalPromoterV7:
                 raise DisposableApprovalRootFailure(
                     "public temporary approval metadata or identity mismatch"
                 )
-            raw = os.pread(file_fd, MAX_APPROVAL_BYTES + 1, 0)
-            self._fault_hook("after-public-temporary-read")
-            after = os.fstat(file_fd)
+            state.temporary = OpenApprovalProofV7(
+                descriptor=file_fd,
+                device=descriptor.st_dev,
+                inode=descriptor.st_ino,
+                raw_content=self._temporary.encoded_bytes,
+            )
+            file_fd = None
+            self._fault_hook("after-public-temporary-open")
+            raw = os.pread(
+                state.temporary.descriptor,
+                MAX_APPROVAL_BYTES + 1,
+                0,
+            )
+            after = os.fstat(state.temporary.descriptor)
             after_path = os.stat(
                 APPROVAL_NAME,
-                dir_fd=dir_fd,
+                dir_fd=self._dir_fd(),
                 follow_symlinks=False,
             )
             if (
@@ -441,101 +481,84 @@ class DisposableCommittedApprovalPromoterV7:
                 raise DisposableApprovalRootFailure(
                     "public approval is not the exact canonical temporary plan"
                 )
-            proof = OpenApprovalProofV7(
-                descriptor=file_fd,
-                device=descriptor.st_dev,
-                inode=descriptor.st_ino,
-                raw_content=raw,
-            )
-            file_fd = None
-            return proof
+            self._fault_hook("after-public-temporary-read")
         finally:
             if file_fd is not None:
                 os.close(file_fd)
 
-    def _create_committed_candidate(
-        self,
-    ) -> tuple[str, OpenApprovalProofV7]:
-        dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-        private_name = f"{PRIVATE_PREFIX}{secrets.token_hex(12)}"
+    def _create_candidate(self, state: _PromotionStateV7) -> None:
+        state.private_name = f"{PRIVATE_PREFIX}{secrets.token_hex(12)}"
         candidate_fd: int | None = None
         try:
             self._fault_hook("before-candidate-create")
             candidate_fd = os.open(
-                private_name,
+                state.private_name,
                 os.O_RDWR
                 | os.O_CREAT
                 | os.O_EXCL
                 | os.O_NOFOLLOW
                 | os.O_CLOEXEC,
                 APPROVAL_MODE,
-                dir_fd=dir_fd,
+                dir_fd=self._dir_fd(),
             )
             descriptor = os.fstat(candidate_fd)
-            proof = OpenApprovalProofV7(
+            state.candidate = OpenApprovalProofV7(
                 descriptor=candidate_fd,
                 device=descriptor.st_dev,
                 inode=descriptor.st_ino,
                 raw_content=self._committed.encoded_bytes,
             )
+            candidate_fd = None
             self._fault_hook("after-candidate-create")
-            _write_all_at(candidate_fd, self._committed.encoded_bytes)
+            _write_all_at(state.candidate.descriptor, self._committed.encoded_bytes)
             self._fault_hook("after-candidate-write")
-            os.ftruncate(candidate_fd, len(self._committed.encoded_bytes))
+            os.ftruncate(
+                state.candidate.descriptor,
+                len(self._committed.encoded_bytes),
+            )
             self._fault_hook("after-candidate-truncate")
-            os.fsync(candidate_fd)
+            os.fsync(state.candidate.descriptor)
             self._fault_hook("after-candidate-fsync")
-            self._verify_open_proof(
-                proof,
+            self._verify_proof(
+                state.candidate,
                 expected_bytes=self._committed.encoded_bytes,
                 expected_sha256=self._committed.encoded_sha256,
                 expected_links=1,
             )
-            self._recheck_name(private_name, proof)
+            self._recheck_name(state.private_name, state.candidate)
             if classify_approval_record_v7(
                 self._temporary,
                 self._committed,
-                observed_raw=os.pread(candidate_fd, MAX_APPROVAL_BYTES + 1, 0),
+                observed_raw=os.pread(
+                    state.candidate.descriptor,
+                    MAX_APPROVAL_BYTES + 1,
+                    0,
+                ),
             ).state is not ApprovalObservedStateV7.EXACT_COMMITTED:
                 raise DisposableApprovalRootFailure(
                     "private candidate is not the exact committed plan"
                 )
-            candidate_fd = None
-            return private_name, proof
         finally:
             if candidate_fd is not None:
                 os.close(candidate_fd)
 
-    def _public_identity_matches(
-        self,
-        observation: DisposableApprovalFileObservationV7 | None,
-        proof: OpenApprovalProofV7 | None,
-    ) -> bool:
-        return bool(
-            observation is not None
-            and observation.present
-            and proof is not None
-            and (observation.device, observation.inode) == (proof.device, proof.inode)
-        )
-
     def _unlink_private_exact(
         self,
-        private_name: str,
+        name: str,
         proof: OpenApprovalProofV7,
         *,
         expected_bytes: bytes,
         expected_sha256: str,
     ) -> None:
-        self._verify_open_proof(
+        self._verify_proof(
             proof,
             expected_bytes=expected_bytes,
             expected_sha256=expected_sha256,
             expected_links=1,
         )
-        self._recheck_name(private_name, proof)
-        dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-        os.unlink(private_name, dir_fd=dir_fd)
-        self._verify_open_proof(
+        self._recheck_name(name, proof)
+        os.unlink(name, dir_fd=self._dir_fd())
+        self._verify_proof(
             proof,
             expected_bytes=expected_bytes,
             expected_sha256=expected_sha256,
@@ -546,8 +569,8 @@ class DisposableCommittedApprovalPromoterV7:
         self,
         state: ApprovalObservedStateV7,
         detail: str,
+        promotion: _PromotionStateV7,
         *,
-        private_name: str | None,
         public_temporary_identity_proved: bool = False,
         public_committed_identity_proved: bool = False,
     ) -> DisposableCommittedApprovalPromotionResultV7:
@@ -559,7 +582,7 @@ class DisposableCommittedApprovalPromoterV7:
             disposition=DisposableCommittedPromotionDispositionV7.MANUAL_RECONCILIATION,
             observed_state=state,
             detail=detail,
-            private_name_absent=self._name_absent(private_name),
+            private_name_absent=self._name_absent(promotion.private_name),
             public_temporary_identity_proved=public_temporary_identity_proved,
             public_committed_identity_proved=public_committed_identity_proved,
         )
@@ -567,8 +590,8 @@ class DisposableCommittedApprovalPromoterV7:
     def _forward_result(
         self,
         detail: str,
+        promotion: _PromotionStateV7,
         *,
-        private_name: str | None,
         public_committed_identity_proved: bool,
     ) -> DisposableCommittedApprovalPromotionResultV7:
         return _result(
@@ -581,138 +604,72 @@ class DisposableCommittedApprovalPromoterV7:
             ),
             observed_state=ApprovalObservedStateV7.EXACT_COMMITTED,
             detail=detail,
-            private_name_absent=self._name_absent(private_name),
+            private_name_absent=self._name_absent(promotion.private_name),
             public_committed_identity_proved=public_committed_identity_proved,
-        )
-
-    def _reconcile_committed(
-        self,
-        exc: BaseException,
-        temporary_proof: OpenApprovalProofV7 | None,
-        candidate_proof: OpenApprovalProofV7 | None,
-        private_name: str | None,
-        observation: DisposableApprovalFileObservationV7 | None,
-    ) -> DisposableCommittedApprovalPromotionResultV7:
-        if not self._public_identity_matches(observation, candidate_proof):
-            return self._forward_result(
-                f"promotion raised {type(exc).__name__}: {exc}; exact committed bytes are public but not on the tracked candidate inode",
-                private_name=private_name,
-                public_committed_identity_proved=False,
-            )
-        assert candidate_proof is not None
-        try:
-            self._verify_open_proof(
-                candidate_proof,
-                expected_bytes=self._committed.encoded_bytes,
-                expected_sha256=self._committed.encoded_sha256,
-                expected_links=1,
-            )
-            self._recheck_name(APPROVAL_NAME, candidate_proof)
-            dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-            os.fsync(dir_fd)
-            if private_name is None or temporary_proof is None:
-                raise DisposableApprovalRootFailure(
-                    "committed state lacks the tracked parked temporary identity"
-                )
-            if self._name_absent(private_name):
-                self._verify_open_proof(
-                    temporary_proof,
-                    expected_bytes=self._temporary.encoded_bytes,
-                    expected_sha256=self._temporary.encoded_sha256,
-                    expected_links=0,
-                )
-            else:
-                self._unlink_private_exact(
-                    private_name,
-                    temporary_proof,
-                    expected_bytes=self._temporary.encoded_bytes,
-                    expected_sha256=self._temporary.encoded_sha256,
-                )
-            os.fsync(dir_fd)
-            repeated, repeated_observation = self._observe_and_classify()
-            if (
-                repeated.state is not ApprovalObservedStateV7.EXACT_COMMITTED
-                or not self._public_identity_matches(
-                    repeated_observation,
-                    candidate_proof,
-                )
-                or not self._name_absent(private_name)
-            ):
-                raise DisposableApprovalRootFailure(
-                    "committed forward recovery did not reach stable exact state"
-                )
-            owner_ok, owner_detail = self._verify_owner()
-            if not owner_ok:
-                raise DisposableApprovalRootFailure(owner_detail)
-        except BaseException as recovery_exc:
-            return self._forward_result(
-                f"promotion raised {type(exc).__name__}: {exc}; committed forward recovery remains required: {recovery_exc}",
-                private_name=private_name,
-                public_committed_identity_proved=True,
-            )
-        return _result(
-            owner=self._owner,
-            temporary=self._temporary,
-            committed=self._committed,
-            status=AdapterStatus.PASS,
-            disposition=DisposableCommittedPromotionDispositionV7.COMMITTED_PROMOTED,
-            observed_state=ApprovalObservedStateV7.EXACT_COMMITTED,
-            detail=(
-                f"promotion raised {type(exc).__name__}: {exc}; exact committed state was reconciled forward without reverse exchange"
-            ),
-            reconciled_after_exception=True,
-            private_name_absent=True,
-            public_committed_identity_proved=True,
         )
 
     def _reconcile_temporary(
         self,
         exc: BaseException,
-        temporary_proof: OpenApprovalProofV7 | None,
-        candidate_proof: OpenApprovalProofV7 | None,
-        private_name: str | None,
+        promotion: _PromotionStateV7,
         observation: DisposableApprovalFileObservationV7 | None,
     ) -> DisposableCommittedApprovalPromotionResultV7:
-        if not self._public_identity_matches(observation, temporary_proof):
+        observed_identity = (
+            None
+            if observation is None or not observation.present
+            else (observation.device, observation.inode)
+        )
+        expected_identity = (
+            (promotion.temporary.device, promotion.temporary.inode)
+            if promotion.temporary is not None
+            else (promotion.preflight_device, promotion.preflight_inode)
+        )
+        if observed_identity != expected_identity:
             return self._manual_result(
                 ApprovalObservedStateV7.EXACT_TEMPORARY,
                 f"promotion raised {type(exc).__name__}: {exc}; exact temporary bytes are attached to a different inode",
-                private_name=private_name,
+                promotion,
             )
-        assert temporary_proof is not None
         try:
-            self._verify_open_proof(
-                temporary_proof,
-                expected_bytes=self._temporary.encoded_bytes,
-                expected_sha256=self._temporary.encoded_sha256,
-                expected_links=1,
-            )
-            self._recheck_name(APPROVAL_NAME, temporary_proof)
-            dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-            if private_name is not None and candidate_proof is not None:
-                if self._name_absent(private_name):
-                    self._verify_open_proof(
-                        candidate_proof,
+            if promotion.temporary is not None:
+                self._verify_proof(
+                    promotion.temporary,
+                    expected_bytes=self._temporary.encoded_bytes,
+                    expected_sha256=self._temporary.encoded_sha256,
+                    expected_links=1,
+                )
+                self._recheck_name(APPROVAL_NAME, promotion.temporary)
+            if promotion.private_name is not None:
+                if promotion.candidate is None:
+                    if not self._name_absent(promotion.private_name):
+                        raise DisposableApprovalRootFailure(
+                            "untracked committed candidate name remains"
+                        )
+                elif self._name_absent(promotion.private_name):
+                    self._verify_proof(
+                        promotion.candidate,
                         expected_bytes=self._committed.encoded_bytes,
                         expected_sha256=self._committed.encoded_sha256,
                         expected_links=0,
                     )
                 else:
                     self._unlink_private_exact(
-                        private_name,
-                        candidate_proof,
+                        promotion.private_name,
+                        promotion.candidate,
                         expected_bytes=self._committed.encoded_bytes,
                         expected_sha256=self._committed.encoded_sha256,
                     )
-            os.fsync(dir_fd)
+            os.fsync(self._dir_fd())
             repeated, repeated_observation = self._observe_and_classify()
+            repeated_identity = (
+                None
+                if repeated_observation is None or not repeated_observation.present
+                else (repeated_observation.device, repeated_observation.inode)
+            )
             if (
                 repeated.state is not ApprovalObservedStateV7.EXACT_TEMPORARY
-                or not self._public_identity_matches(
-                    repeated_observation,
-                    temporary_proof,
-                )
-                or not self._name_absent(private_name)
+                or repeated_identity != expected_identity
+                or not self._name_absent(promotion.private_name)
             ):
                 raise DisposableApprovalRootFailure(
                     "temporary recovery did not retain stable exact state"
@@ -724,7 +681,7 @@ class DisposableCommittedApprovalPromoterV7:
             return self._manual_result(
                 ApprovalObservedStateV7.EXACT_TEMPORARY,
                 f"promotion raised {type(exc).__name__}: {exc}; exact temporary cleanup failed: {recovery_exc}",
-                private_name=private_name,
+                promotion,
                 public_temporary_identity_proved=True,
             )
         return _result(
@@ -743,12 +700,92 @@ class DisposableCommittedApprovalPromoterV7:
             public_temporary_identity_proved=True,
         )
 
+    def _reconcile_committed(
+        self,
+        exc: BaseException,
+        promotion: _PromotionStateV7,
+        observation: DisposableApprovalFileObservationV7 | None,
+    ) -> DisposableCommittedApprovalPromotionResultV7:
+        if not self._identity_matches(observation, promotion.candidate):
+            return self._forward_result(
+                f"promotion raised {type(exc).__name__}: {exc}; exact committed bytes are public but not on the tracked candidate inode",
+                promotion,
+                public_committed_identity_proved=False,
+            )
+        if promotion.candidate is None:
+            return self._forward_result(
+                f"promotion raised {type(exc).__name__}: {exc}; committed state lacks the tracked candidate descriptor",
+                promotion,
+                public_committed_identity_proved=False,
+            )
+        try:
+            self._verify_proof(
+                promotion.candidate,
+                expected_bytes=self._committed.encoded_bytes,
+                expected_sha256=self._committed.encoded_sha256,
+                expected_links=1,
+            )
+            self._recheck_name(APPROVAL_NAME, promotion.candidate)
+            os.fsync(self._dir_fd())
+            if promotion.private_name is None or promotion.temporary is None:
+                raise DisposableApprovalRootFailure(
+                    "committed state lacks the tracked parked temporary identity"
+                )
+            if self._name_absent(promotion.private_name):
+                self._verify_proof(
+                    promotion.temporary,
+                    expected_bytes=self._temporary.encoded_bytes,
+                    expected_sha256=self._temporary.encoded_sha256,
+                    expected_links=0,
+                )
+            else:
+                self._unlink_private_exact(
+                    promotion.private_name,
+                    promotion.temporary,
+                    expected_bytes=self._temporary.encoded_bytes,
+                    expected_sha256=self._temporary.encoded_sha256,
+                )
+            os.fsync(self._dir_fd())
+            repeated, repeated_observation = self._observe_and_classify()
+            if (
+                repeated.state is not ApprovalObservedStateV7.EXACT_COMMITTED
+                or not self._identity_matches(
+                    repeated_observation,
+                    promotion.candidate,
+                )
+                or not self._name_absent(promotion.private_name)
+            ):
+                raise DisposableApprovalRootFailure(
+                    "committed forward recovery did not reach stable exact state"
+                )
+            owner_ok, owner_detail = self._verify_owner()
+            if not owner_ok:
+                raise DisposableApprovalRootFailure(owner_detail)
+        except BaseException as recovery_exc:
+            return self._forward_result(
+                f"promotion raised {type(exc).__name__}: {exc}; committed forward recovery remains required: {recovery_exc}",
+                promotion,
+                public_committed_identity_proved=True,
+            )
+        return _result(
+            owner=self._owner,
+            temporary=self._temporary,
+            committed=self._committed,
+            status=AdapterStatus.PASS,
+            disposition=DisposableCommittedPromotionDispositionV7.COMMITTED_PROMOTED,
+            observed_state=ApprovalObservedStateV7.EXACT_COMMITTED,
+            detail=(
+                f"promotion raised {type(exc).__name__}: {exc}; exact committed state was reconciled forward without reverse exchange"
+            ),
+            reconciled_after_exception=True,
+            private_name_absent=True,
+            public_committed_identity_proved=True,
+        )
+
     def _reconcile_exception(
         self,
         exc: BaseException,
-        temporary_proof: OpenApprovalProofV7 | None,
-        candidate_proof: OpenApprovalProofV7 | None,
-        private_name: str | None,
+        promotion: _PromotionStateV7,
     ) -> DisposableCommittedApprovalPromotionResultV7:
         try:
             owner_ok, owner_detail = self._verify_owner()
@@ -757,37 +794,25 @@ class DisposableCommittedApprovalPromoterV7:
                 if not owner_ok:
                     return self._forward_result(
                         f"promotion raised {type(exc).__name__}: {exc}; committed bytes are public but owner authority is unavailable: {owner_detail}",
-                        private_name=private_name,
-                        public_committed_identity_proved=self._public_identity_matches(
+                        promotion,
+                        public_committed_identity_proved=self._identity_matches(
                             observation,
-                            candidate_proof,
+                            promotion.candidate,
                         ),
                     )
-                return self._reconcile_committed(
-                    exc,
-                    temporary_proof,
-                    candidate_proof,
-                    private_name,
-                    observation,
-                )
+                return self._reconcile_committed(exc, promotion, observation)
             if not owner_ok:
                 return self._manual_result(
                     classification.state,
                     f"promotion raised {type(exc).__name__}: {exc}; owner authority unavailable: {owner_detail}",
-                    private_name=private_name,
+                    promotion,
                 )
             if classification.state is ApprovalObservedStateV7.EXACT_TEMPORARY:
-                return self._reconcile_temporary(
-                    exc,
-                    temporary_proof,
-                    candidate_proof,
-                    private_name,
-                    observation,
-                )
+                return self._reconcile_temporary(exc, promotion, observation)
             return self._manual_result(
                 classification.state,
                 f"promotion raised {type(exc).__name__}: {exc}; observed approval cannot be reconciled automatically",
-                private_name=private_name,
+                promotion,
             )
         except BaseException as reconciliation_exc:
             state = ApprovalObservedStateV7.OBSERVATION_FAILURE
@@ -800,76 +825,86 @@ class DisposableCommittedApprovalPromoterV7:
             if state is ApprovalObservedStateV7.EXACT_COMMITTED:
                 return self._forward_result(
                     f"promotion raised {type(exc).__name__}: {exc}; committed reconciliation failed: {reconciliation_exc}",
-                    private_name=private_name,
-                    public_committed_identity_proved=self._public_identity_matches(
+                    promotion,
+                    public_committed_identity_proved=self._identity_matches(
                         observation,
-                        candidate_proof,
+                        promotion.candidate,
                     ),
                 )
             return self._manual_result(
                 state,
                 f"promotion raised {type(exc).__name__}: {exc}; exact reconciliation failed: {reconciliation_exc}",
-                private_name=private_name,
+                promotion,
             )
 
     def promote(self) -> DisposableCommittedApprovalPromotionResultV7:
         owner_ok, owner_detail = self._verify_owner()
+        empty_state = _PromotionStateV7(preflight_device=1, preflight_inode=1)
         if not owner_ok:
             return self._manual_result(
                 ApprovalObservedStateV7.OBSERVATION_FAILURE,
                 f"cannot establish pre-promotion owner authority: {owner_detail}",
-                private_name=None,
+                empty_state,
             )
-        classification, _observation = self._observe_and_classify()
-        if classification.state is not ApprovalObservedStateV7.EXACT_TEMPORARY:
+        classification, observation = self._observe_and_classify()
+        if (
+            classification.state is not ApprovalObservedStateV7.EXACT_TEMPORARY
+            or observation is None
+            or not observation.present
+            or observation.device is None
+            or observation.inode is None
+        ):
             return self._manual_result(
                 classification.state,
                 "pre-existing approval is not the exact planned temporary record",
-                private_name=None,
+                empty_state,
             )
 
-        temporary_proof: OpenApprovalProofV7 | None = None
-        candidate_proof: OpenApprovalProofV7 | None = None
-        private_name: str | None = None
+        promotion = _PromotionStateV7(
+            preflight_device=observation.device,
+            preflight_inode=observation.inode,
+        )
         try:
-            temporary_proof = self._open_public_temporary()
-            self._verify_open_proof(
-                temporary_proof,
+            self._open_public_temporary(promotion)
+            assert promotion.temporary is not None
+            self._verify_proof(
+                promotion.temporary,
                 expected_bytes=self._temporary.encoded_bytes,
                 expected_sha256=self._temporary.encoded_sha256,
                 expected_links=1,
             )
-            private_name, candidate_proof = self._create_committed_candidate()
-            self._verify_open_proof(
-                candidate_proof,
+            self._create_candidate(promotion)
+            assert promotion.private_name is not None
+            assert promotion.candidate is not None
+            self._verify_proof(
+                promotion.candidate,
                 expected_bytes=self._committed.encoded_bytes,
                 expected_sha256=self._committed.encoded_sha256,
                 expected_links=1,
             )
             self._fault_hook("before-final-exchange-name-recheck")
-            self._recheck_name(APPROVAL_NAME, temporary_proof)
-            self._recheck_name(private_name, candidate_proof)
-            dir_fd = self._approval_root._borrow_directory_descriptor_for_publisher()
-            _rename_exchange(dir_fd, private_name)
+            self._recheck_name(APPROVAL_NAME, promotion.temporary)
+            self._recheck_name(promotion.private_name, promotion.candidate)
+            _rename_exchange(self._dir_fd(), promotion.private_name)
             self._fault_hook("after-exchange")
 
-            self._verify_open_proof(
-                candidate_proof,
+            self._verify_proof(
+                promotion.candidate,
                 expected_bytes=self._committed.encoded_bytes,
                 expected_sha256=self._committed.encoded_sha256,
                 expected_links=1,
             )
-            self._verify_open_proof(
-                temporary_proof,
+            self._verify_proof(
+                promotion.temporary,
                 expected_bytes=self._temporary.encoded_bytes,
                 expected_sha256=self._temporary.encoded_sha256,
                 expected_links=1,
             )
-            self._recheck_name(APPROVAL_NAME, candidate_proof)
-            self._recheck_name(private_name, temporary_proof)
+            self._recheck_name(APPROVAL_NAME, promotion.candidate)
+            self._recheck_name(promotion.private_name, promotion.temporary)
 
             self._fault_hook("before-exchange-directory-fsync")
-            os.fsync(dir_fd)
+            os.fsync(self._dir_fd())
             self._fault_hook("after-exchange-directory-fsync")
             self._fault_hook("before-committed-observation")
             committed_classification, committed_observation = self._observe_and_classify()
@@ -877,9 +912,9 @@ class DisposableCommittedApprovalPromoterV7:
             if (
                 committed_classification.state
                 is not ApprovalObservedStateV7.EXACT_COMMITTED
-                or not self._public_identity_matches(
+                or not self._identity_matches(
                     committed_observation,
-                    candidate_proof,
+                    promotion.candidate,
                 )
             ):
                 raise DisposableApprovalRootFailure(
@@ -887,26 +922,29 @@ class DisposableCommittedApprovalPromoterV7:
                 )
 
             self._fault_hook("before-parked-temporary-unlink")
-            self._recheck_name(private_name, temporary_proof)
-            os.unlink(private_name, dir_fd=dir_fd)
+            self._recheck_name(promotion.private_name, promotion.temporary)
+            os.unlink(promotion.private_name, dir_fd=self._dir_fd())
             self._fault_hook("after-parked-temporary-unlink")
-            self._verify_open_proof(
-                temporary_proof,
+            self._verify_proof(
+                promotion.temporary,
                 expected_bytes=self._temporary.encoded_bytes,
                 expected_sha256=self._temporary.encoded_sha256,
                 expected_links=0,
             )
 
             self._fault_hook("before-cleanup-directory-fsync")
-            os.fsync(dir_fd)
+            os.fsync(self._dir_fd())
             self._fault_hook("after-cleanup-directory-fsync")
             self._fault_hook("before-final-committed-observation")
             final, final_observation = self._observe_and_classify()
             self._fault_hook("after-final-committed-observation")
             if (
                 final.state is not ApprovalObservedStateV7.EXACT_COMMITTED
-                or not self._public_identity_matches(final_observation, candidate_proof)
-                or not self._name_absent(private_name)
+                or not self._identity_matches(
+                    final_observation,
+                    promotion.candidate,
+                )
+                or not self._name_absent(promotion.private_name)
             ):
                 raise DisposableApprovalRootFailure(
                     "final public approval is not stable exact committed state"
@@ -917,23 +955,11 @@ class DisposableCommittedApprovalPromoterV7:
                 raise DisposableApprovalRootFailure(owner_detail)
             self._fault_hook("after-final-owner-verification")
         except BaseException as exc:
-            result = self._reconcile_exception(
-                exc,
-                temporary_proof,
-                candidate_proof,
-                private_name,
-            )
-            for proof in (candidate_proof, temporary_proof):
-                if proof is not None:
-                    try:
-                        os.close(proof.descriptor)
-                    except OSError:
-                        pass
+            result = self._reconcile_exception(exc, promotion)
+            promotion.close_descriptors()
             return result
 
-        assert temporary_proof is not None and candidate_proof is not None
-        os.close(candidate_proof.descriptor)
-        os.close(temporary_proof.descriptor)
+        promotion.close_descriptors()
         return _result(
             owner=self._owner,
             temporary=self._temporary,
