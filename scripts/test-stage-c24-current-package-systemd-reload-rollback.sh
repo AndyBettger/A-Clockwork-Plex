@@ -34,6 +34,8 @@ proves DAC release, atomically writes all 28 accepted managed files, performs
 one fixed systemd daemon-reload and observes three loaded but inactive managed
 units. It then removes the exact installed inodes, performs a second fixed
 reload that must forget those units, and restores the accepted appliance state.
+The total daemon-reload command budget is two attempts, including failures; an
+unapproved third attempt is refused before a command is issued.
 
 Route selection, mixer writes, managed Stage C service startup, approval
 publication, CamillaDSP startup, audio probes, commit and activation remain
@@ -114,10 +116,11 @@ The intended separately approved inputs are:
 
 Do not run guarded mode without a new explicit approval. Plexamp, AirPlay and
 the dashboard will be temporarily unavailable. Twenty-eight fixed production
-files will exist briefly and systemd will be reloaded twice before mandatory
-exact rollback. SSH remains outside the application boundary. Any rollback or
-restoration failure deliberately retains the canonical lock and transaction for
-inspection; leave all retained state untouched and do not clean it manually.
+files will exist briefly and systemd has a hard budget of two daemon-reload
+attempts before mandatory exact rollback. SSH remains outside the application
+boundary. Any rollback or restoration failure deliberately retains the
+canonical lock and transaction for inspection; leave all retained state
+untouched and do not clean it manually.
 EOF
   exit 0
 fi
@@ -140,7 +143,7 @@ fi
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -B -m stage_c_transaction.current_package_systemd_reload_rollback_rehearsal_v10 \
+  python3 -B -m stage_c_transaction.current_package_systemd_reload_rollback_rehearsal_v11 \
     --package-root "$PACKAGE_ROOT" \
     --baseline-root "$BASELINE_ROOT" \
     --stage-c21-root "$STAGE_C21_ROOT" \
