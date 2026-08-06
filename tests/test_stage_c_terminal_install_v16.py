@@ -93,6 +93,8 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.assertIn("EXPECTED_TERMINAL_RESULTS=22", self.operator)
         self.assertIn("EXPECTED_PACKAGE_SHA", self.operator)
         self.assertIn("EXPECTED_DIRECT_SHA", self.operator)
+        self.assertNotIn("a-clockwork-plex-stage-c25-console.", self.operator)
+        self.assertNotIn("STAGE_C25_INTEGRATED_ROUTE_ROLLBACK=PASS", self.operator)
 
     def test_legacy_installer_is_named_only_in_prohibition_text(self) -> None:
         self.assertIn("legacy install-master-eq.sh path is not used", self.wrapper)
