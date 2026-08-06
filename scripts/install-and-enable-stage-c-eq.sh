@@ -119,7 +119,7 @@ done
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -B -m stage_c_transaction.current_package_terminal_install_v16 \
+  python3 -B -m stage_c_transaction.current_package_terminal_install_v17 \
     --package-root "$PACKAGE_ROOT" \
     --baseline-root "$BASELINE_ROOT" \
     --stage-c21-root "$STAGE_C21_ROOT" \
