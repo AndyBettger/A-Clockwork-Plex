@@ -27,6 +27,10 @@ The guarded rehearsal acquires the canonical production lock, creates one fresh
 authoritative transaction, captures the exact five-domain snapshot, stages and
 validates the accepted current package only below that transaction, retains
 review evidence, then aborts and releases the lock before any appliance mutation.
+
+The guarded entrypoint includes the target-proved parent-mode correction:
+/var/lib/a-clockwork-plex remains root:root 0755; split-bus remains 0755 and the
+transaction directory remains root:root 0700. No chmod or chown repair is made.
 EOF
 }
 
@@ -114,7 +118,7 @@ fi
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -B -m stage_c_transaction.current_package_candidate_rehearsal_v7 \
+  python3 -B -m stage_c_transaction.current_package_candidate_rehearsal_parent_contract_v8 \
     --package-root "$PACKAGE_ROOT" \
     --baseline-root "$BASELINE_ROOT" \
     --evidence-root "$EVIDENCE_ROOT" \
