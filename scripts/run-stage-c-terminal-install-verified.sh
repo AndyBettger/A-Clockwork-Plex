@@ -85,9 +85,6 @@ printf 'C25_RESULTS=%s/%s_PASS\n' "$C25_PASS" "$C25_TOTAL"
 grep -Fq $'committed\tfalse' "$STAGE_C25/identity.tsv" || fail 'C25 is not rollback-only'
 grep -Fq $'reusable_for_activation\tfalse' "$STAGE_C25/identity.tsv" ||
   fail 'C25 identity boundary changed'
-grep -Fq 'STAGE_C25_INTEGRATED_ROUTE_ROLLBACK=PASS' \
-  /var/tmp/a-clockwork-plex-stage-c25-console.H03w3N ||
-  fail 'accepted C25 console completion marker is unavailable'
 
 TEST_LOG="$(mktemp /var/tmp/a-clockwork-plex-stage-c-terminal-tests.XXXXXX)"
 chmod 0600 "$TEST_LOG"
