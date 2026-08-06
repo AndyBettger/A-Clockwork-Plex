@@ -22,7 +22,12 @@ ADAPTER_V16 = (
     ROOT
     / "scripts/stage_c_transaction/current_package_terminal_install_adapter_v16.py"
 )
+ADAPTER_V17 = (
+    ROOT
+    / "scripts/stage_c_transaction/current_package_terminal_install_adapter_v17.py"
+)
 ENTRY = ROOT / "scripts/stage_c_transaction/current_package_terminal_install_v16.py"
+ENTRY_V17 = ROOT / "scripts/stage_c_transaction/current_package_terminal_install_v17.py"
 WRAPPER = ROOT / "scripts/install-and-enable-stage-c-eq.sh"
 OPERATOR = ROOT / "scripts/run-stage-c-terminal-install-verified.sh"
 
@@ -31,14 +36,18 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
     def setUp(self) -> None:
         self.adapter_v15 = ADAPTER_V15.read_text(encoding="utf-8")
         self.adapter_v16 = ADAPTER_V16.read_text(encoding="utf-8")
+        self.adapter_v17 = ADAPTER_V17.read_text(encoding="utf-8")
         self.entry = ENTRY.read_text(encoding="utf-8")
+        self.entry_v17 = ENTRY_V17.read_text(encoding="utf-8")
         self.wrapper = WRAPPER.read_text(encoding="utf-8")
         self.operator = OPERATOR.read_text(encoding="utf-8")
 
     def test_python_and_shell_sources_parse(self) -> None:
         ast.parse(self.adapter_v15)
         ast.parse(self.adapter_v16)
+        ast.parse(self.adapter_v17)
         ast.parse(self.entry)
+        ast.parse(self.entry_v17)
         for path in (WRAPPER, OPERATOR):
             result = subprocess.run(
                 ["bash", "-n", str(path)],
@@ -53,6 +62,9 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
             CurrentPackageTerminalInstallAdapterV16,
             IndeterminateCommitPublication,
         )
+        from scripts.stage_c_transaction.current_package_terminal_install_adapter_v17 import (  # noqa: E501
+            CurrentPackageTerminalInstallAdapterV17,
+        )
         from scripts.stage_c_transaction.current_package_terminal_install_v16 import (
             EXPECTED_CHECKS,
             REQUIRED_CONFIRMATION,
@@ -61,16 +73,39 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.assertEqual(REQUIRED_CONFIRMATION, "INSTALL-AND-ENABLE-STAGE-C-EQ")
         self.assertEqual(len(EXPECTED_CHECKS), 22)
         self.assertTrue(CurrentPackageTerminalInstallAdapterV16.__name__.endswith("V16"))
+        self.assertTrue(CurrentPackageTerminalInstallAdapterV17.__name__.endswith("V17"))
+        self.assertTrue(
+            issubclass(
+                CurrentPackageTerminalInstallAdapterV17,
+                CurrentPackageTerminalInstallAdapterV16,
+            )
+        )
         self.assertTrue(issubclass(IndeterminateCommitPublication, RuntimeError))
 
     def test_wrapper_has_one_fixed_privileged_entry(self) -> None:
         self.assertEqual(self.wrapper.count("exec sudo env"), 1)
-        self.assertIn("current_package_terminal_install_v16", self.wrapper)
+        self.assertIn("current_package_terminal_install_v17", self.wrapper)
         self.assertIn("INSTALL-AND-ENABLE-STAGE-C-EQ", self.wrapper)
         self.assertNotIn("--route", self.wrapper)
         self.assertNotIn("--unit", self.wrapper)
         self.assertNotIn("--probe", self.wrapper)
         self.assertNotIn("--keep-active", self.wrapper)
+
+    def test_v17_uses_proved_first_stop_and_terminal_restop(self) -> None:
+        mutation_guard = self.adapter_v17.index("if not self._mutation_started:")
+        proved_stop = self.adapter_v17.index(
+            "ServiceQuiescenceRehearsalAdapter.stop_captured_application_services(",
+            mutation_guard,
+        )
+        terminal_restop = self.adapter_v17.index(
+            "return super().stop_captured_application_services(",
+            proved_stop,
+        )
+        self.assertLess(mutation_guard, proved_stop, terminal_restop)
+        self.assertIn(
+            "v16.CurrentPackageTerminalInstallAdapterV16 = CurrentPackageTerminalInstallAdapterV17",
+            self.entry_v17,
+        )
 
     def test_operator_runs_full_suite_before_physical_marker(self) -> None:
         suite = self.operator.index("-m unittest discover -s tests -q")
@@ -102,6 +137,7 @@ class StageCTerminalInstallV16Tests(unittest.TestCase):
         self.assertNotIn("exec scripts/install-master-eq.sh", self.wrapper)
         self.assertNotIn("install-master-eq.sh", self.operator)
         self.assertNotIn("subprocess", self.entry)
+        self.assertNotIn("subprocess", self.entry_v17)
 
     def test_physical_prefix_precedes_terminal_executor(self) -> None:
         install = self.entry.index("adapter.install_managed_files(")
