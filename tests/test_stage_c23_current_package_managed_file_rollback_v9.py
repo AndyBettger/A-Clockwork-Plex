@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -145,6 +146,15 @@ class StageC23CurrentPackageManagedFileRollbackV9Tests(unittest.TestCase):
         self.assertIn("wrote no production file", self.wrapper_source)
         self.assertEqual(self.wrapper_source.count("exec sudo env"), 1)
 
+    def test_wrapper_has_valid_shell_syntax(self) -> None:
+        checked = subprocess.run(
+            ["bash", "-n", str(WRAPPER_PATH)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+
     def test_wrapper_requires_only_fixed_inputs(self) -> None:
         for option in (
             "--package-root",
@@ -196,6 +206,15 @@ class StageC23CurrentPackageManagedFileRollbackV9Tests(unittest.TestCase):
             "committed\": False",
         ):
             self.assertIn(marker, self.rehearsal_source)
+
+    def test_failure_cleanup_rolls_files_back_before_services(self) -> None:
+        exit_start = self.adapter_source.index("def __exit__")
+        exit_end = self.adapter_source.index("    @property", exit_start)
+        exit_source = self.adapter_source[exit_start:exit_end]
+        self.assertLess(
+            exit_source.index("self._restore_managed_files_exact()"),
+            exit_source.index("CurrentPackageServiceQuiescenceAdapterV8.__exit__"),
+        )
 
     def test_failure_path_retains_lock_and_transaction(self) -> None:
         self.assertIn(
