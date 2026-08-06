@@ -97,8 +97,8 @@ if [[ "$MODE" == "prepare" ]]; then
 The integrated current-package route rollback checkpoint is prepared.
 
 Prepare-only invoked no sudo, performed no host observation, stopped no service,
-wrote no production file, called no systemctl command, selected no ALSA route
-and created no evidence root, lock or transaction.
+wrote no production file, called no service-manager command, selected no ALSA
+route and created no evidence root, lock or transaction.
 
 This is the final rollback-only checkpoint. After it passes, work proceeds to
 the guarded terminal install/enable transaction rather than another micro-stage.
@@ -124,7 +124,7 @@ fi
 exec sudo env \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$REPO_ROOT:$REPO_ROOT/scripts" \
-  python3 -B -m stage_c_transaction.current_package_route_selection_rollback_rehearsal_v13 \
+  python3 -B -m stage_c_transaction.current_package_route_selection_rollback_rehearsal_v14 \
     --package-root "$PACKAGE_ROOT" \
     --baseline-root "$BASELINE_ROOT" \
     --stage-c21-root "$STAGE_C21_ROOT" \
