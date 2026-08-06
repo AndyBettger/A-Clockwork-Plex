@@ -386,6 +386,27 @@ class DisposableCommittedApprovalPromoterV7:
                 f"open approval descriptor has {after.st_nlink} links, expected {expected_links}"
             )
 
+    def _verify_owned_candidate_identity(
+        self,
+        proof: OpenApprovalProofV7,
+        *,
+        expected_links: int,
+    ) -> None:
+        descriptor = os.fstat(proof.descriptor)
+        if (
+            not stat.S_ISREG(descriptor.st_mode)
+            or (descriptor.st_dev, descriptor.st_ino) != (proof.device, proof.inode)
+            or descriptor.st_uid != os.geteuid()
+            or descriptor.st_gid != os.getegid()
+            or stat.S_IMODE(descriptor.st_mode) != APPROVAL_MODE
+            or descriptor.st_size < 0
+            or descriptor.st_size > MAX_APPROVAL_BYTES
+            or descriptor.st_nlink != expected_links
+        ):
+            raise DisposableApprovalRootFailure(
+                "tracked committed candidate identity changed"
+            )
+
     def _recheck_name(self, name: str, proof: OpenApprovalProofV7) -> None:
         path_info = os.stat(name, dir_fd=self._dir_fd(), follow_symlinks=False)
         if (
@@ -565,6 +586,16 @@ class DisposableCommittedApprovalPromoterV7:
             expected_links=0,
         )
 
+    def _unlink_owned_candidate(
+        self,
+        name: str,
+        proof: OpenApprovalProofV7,
+    ) -> None:
+        self._verify_owned_candidate_identity(proof, expected_links=1)
+        self._recheck_name(name, proof)
+        os.unlink(name, dir_fd=self._dir_fd())
+        self._verify_owned_candidate_identity(proof, expected_links=0)
+
     def _manual_result(
         self,
         state: ApprovalObservedStateV7,
@@ -646,18 +677,14 @@ class DisposableCommittedApprovalPromoterV7:
                             "untracked committed candidate name remains"
                         )
                 elif self._name_absent(promotion.private_name):
-                    self._verify_proof(
+                    self._verify_owned_candidate_identity(
                         promotion.candidate,
-                        expected_bytes=self._committed.encoded_bytes,
-                        expected_sha256=self._committed.encoded_sha256,
                         expected_links=0,
                     )
                 else:
-                    self._unlink_private_exact(
+                    self._unlink_owned_candidate(
                         promotion.private_name,
                         promotion.candidate,
-                        expected_bytes=self._committed.encoded_bytes,
-                        expected_sha256=self._committed.encoded_sha256,
                     )
             os.fsync(self._dir_fd())
             repeated, repeated_observation = self._observe_and_classify()
