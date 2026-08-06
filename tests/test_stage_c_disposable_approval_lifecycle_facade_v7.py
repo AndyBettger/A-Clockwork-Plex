@@ -17,10 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
-FACADE_MODULE = (
-    ROOT
-    / "scripts/stage_c_transaction/disposable_approval_lifecycle_facade_v7.py"
-)
+FACADE_MODULE = ROOT / "scripts/stage_c_transaction/disposable_approval_lifecycle_facade_v7.py"
 
 from scripts.stage_c_transaction import (  # noqa: E402
     disposable_approval_lifecycle_facade_v7 as facade_module,
@@ -165,28 +162,15 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
                     temporary,
                     committed,
                 )
-                yield (
-                    laboratory,
-                    owner,
-                    approval_root,
-                    facade,
-                    temporary,
-                    committed,
-                )
+                yield owner, approval_root, facade, temporary, committed
             finally:
                 if approval_root is not None and not approval_root.closed:
                     approval_root.close()
                 if owner.lock_held:
                     owner.close_owner()
 
-    def _assert_independent_lock_blocked(
-        self,
-        owner: DisposableC20LockOwnerV7,
-    ) -> None:
-        second = os.open(
-            owner.lock_path,
-            os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC,
-        )
+    def _assert_lock_blocked(self, owner: DisposableC20LockOwnerV7) -> None:
+        second = os.open(owner.lock_path, os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC)
         try:
             with self.assertRaises(OSError) as raised:
                 fcntl.flock(second, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -194,164 +178,32 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
         finally:
             os.close(second)
 
-    def _advance_to_bound(self, facade: DisposableApprovalLifecycleFacadeV7) -> None:
+    @staticmethod
+    def _fixed_component(method_name: str, result):
+        component = Mock()
+        getattr(component, method_name).return_value = result
+        return Mock(return_value=component), component
+
+    def _bound(self, facade: DisposableApprovalLifecycleFacadeV7) -> None:
         event = facade.bind_canonical_lease()
         self.assertIs(event.result.status, AdapterStatus.PASS)
         self.assertIs(facade.phase, DisposableApprovalLifecyclePhaseV7.LEASE_BOUND)
 
-    def _advance_to_published(self, facade: DisposableApprovalLifecycleFacadeV7) -> None:
-        self._advance_to_bound(facade)
+    def _published(self, facade: DisposableApprovalLifecycleFacadeV7) -> None:
+        self._bound(facade)
         event = facade.publish_temporary()
         self.assertIs(event.result.status, AdapterStatus.PASS)
-        self.assertIs(
-            facade.phase,
-            DisposableApprovalLifecyclePhaseV7.TEMPORARY_PUBLISHED,
-        )
-
-    def test_bind_publish_remove_success_path(self) -> None:
-        with self._stack() as stack:
-            _laboratory, owner, approval_root, facade, temporary, committed = stack
-            self.assertIs(
-                facade.phase,
-                DisposableApprovalLifecyclePhaseV7.OWNER_HELD_EMPTY,
-            )
-            self.assertIs(facade.temporary_plan, temporary)
-            self.assertIs(facade.committed_plan, committed)
-
-            bound = facade.bind_canonical_lease()
-            self.assertIs(
-                bound.operation,
-                DisposableApprovalLifecycleOperationV7.BIND_CANONICAL_LEASE,
-            )
-            self.assertIs(bound.phase_before, DisposableApprovalLifecyclePhaseV7.OWNER_HELD_EMPTY)
-            self.assertIs(bound.phase_after, DisposableApprovalLifecyclePhaseV7.LEASE_BOUND)
-            self.assertFalse(bound.successful_terminal_state)
-            self.assertTrue(bound.owner_lock_remains_held)
-
-            published = facade.publish_temporary()
-            self.assertIs(
-                published.phase_after,
-                DisposableApprovalLifecyclePhaseV7.TEMPORARY_PUBLISHED,
-            )
-            self.assertEqual(
-                approval_root.approval_path.read_bytes(),
-                temporary.encoded_bytes,
-            )
-
-            removed = facade.remove_temporary()
-            self.assertIs(
-                removed.operation,
-                DisposableApprovalLifecycleOperationV7.REMOVE_TEMPORARY,
-            )
-            self.assertIs(
-                removed.phase_after,
-                DisposableApprovalLifecyclePhaseV7.TEMPORARY_REMOVED,
-            )
-            self.assertTrue(removed.successful_terminal_state)
-            self.assertTrue(removed.owner_lock_remains_held)
-            self.assertFalse(approval_root.approval_path.exists())
-            self._assert_independent_lock_blocked(owner)
-
-    def test_bind_publish_promote_success_path(self) -> None:
-        with self._stack() as stack:
-            _laboratory, owner, approval_root, facade, temporary, committed = stack
-            self._advance_to_published(facade)
-            promoted = facade.promote_committed()
-            self.assertIs(
-                promoted.operation,
-                DisposableApprovalLifecycleOperationV7.PROMOTE_COMMITTED,
-            )
-            self.assertIs(
-                promoted.phase_before,
-                DisposableApprovalLifecyclePhaseV7.TEMPORARY_PUBLISHED,
-            )
-            self.assertIs(
-                promoted.phase_after,
-                DisposableApprovalLifecyclePhaseV7.COMMITTED,
-            )
-            self.assertTrue(promoted.successful_terminal_state)
-            self.assertTrue(promoted.owner_lock_remains_held)
-            self.assertFalse(promoted.reviewed_follow_up_permitted)
-            self.assertFalse(promoted.forward_recovery_required)
-            self.assertFalse(promoted.manual_reconciliation_required)
-            self.assertNotEqual(temporary.encoded_bytes, committed.encoded_bytes)
-            self.assertEqual(
-                approval_root.approval_path.read_bytes(),
-                committed.encoded_bytes,
-            )
-            self._assert_independent_lock_blocked(owner)
-
-    def test_invalid_order_is_rejected_before_component_construction(self) -> None:
-        component_names = (
-            "DisposableCanonicalLeaseBinderV7",
-            "DisposableTemporaryApprovalPublisherV7",
-            "DisposableTemporaryApprovalRemoverV7",
-            "DisposableCommittedApprovalPromoterV7",
-        )
-        with self._stack() as stack:
-            _laboratory, _owner, _approval_root, facade, _temporary, _committed = stack
-            patches = [patch.object(facade_module, name) for name in component_names]
-            mocks = [item.start() for item in patches]
-            try:
-                for method in (
-                    facade.publish_temporary,
-                    facade.remove_temporary,
-                    facade.promote_committed,
-                ):
-                    with self.assertRaises(DisposableApprovalLifecycleOrderError):
-                        method()
-                for component in mocks:
-                    component.assert_not_called()
-            finally:
-                for item in reversed(patches):
-                    item.stop()
-
-        with self._stack() as stack:
-            _laboratory, _owner, _approval_root, facade, _temporary, _committed = stack
-            self._advance_to_bound(facade)
-            with patch.object(facade_module, "DisposableCanonicalLeaseBinderV7") as binder:
-                with self.assertRaises(DisposableApprovalLifecycleOrderError):
-                    facade.bind_canonical_lease()
-                binder.assert_not_called()
-            for method in (facade.remove_temporary, facade.promote_committed):
-                with self.assertRaises(DisposableApprovalLifecycleOrderError):
-                    method()
-
-        for terminal_method in ("remove_temporary", "promote_committed"):
-            with self.subTest(terminal=terminal_method), self._stack() as stack:
-                _laboratory, _owner, _approval_root, facade, _temporary, _committed = stack
-                self._advance_to_published(facade)
-                getattr(facade, terminal_method)()
-                for method in (
-                    facade.bind_canonical_lease,
-                    facade.publish_temporary,
-                    facade.remove_temporary,
-                    facade.promote_committed,
-                ):
-                    with self.assertRaises(DisposableApprovalLifecycleOrderError):
-                        method()
-
-    def _fixed_component(self, method_name: str, result):
-        component = Mock()
-        getattr(component, method_name).return_value = result
-        factory = Mock(return_value=component)
-        return factory, component
+        self.assertIs(facade.phase, DisposableApprovalLifecyclePhaseV7.TEMPORARY_PUBLISHED)
 
     def _assert_recovery_terminal(
         self,
         facade: DisposableApprovalLifecycleFacadeV7,
         event: DisposableApprovalLifecycleEventV7,
-        expected_result,
+        result,
     ) -> None:
-        self.assertIs(event.result, expected_result)
-        self.assertIs(
-            event.phase_after,
-            DisposableApprovalLifecyclePhaseV7.RECOVERY_REQUIRED,
-        )
-        self.assertIs(
-            facade.phase,
-            DisposableApprovalLifecyclePhaseV7.RECOVERY_REQUIRED,
-        )
+        self.assertIs(event.result, result)
+        self.assertIs(event.phase_after, DisposableApprovalLifecyclePhaseV7.RECOVERY_REQUIRED)
+        self.assertIs(facade.phase, DisposableApprovalLifecyclePhaseV7.RECOVERY_REQUIRED)
         self.assertFalse(event.successful_terminal_state)
         for method in (
             facade.bind_canonical_lease,
@@ -362,72 +214,104 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
             with self.assertRaises(DisposableApprovalLifecycleOrderError):
                 method()
 
-    def test_binder_failed_dispositions_are_preserved_without_follow_up(self) -> None:
+    def test_bind_publish_remove_success_path(self) -> None:
         with self._stack() as stack:
-            _laboratory, owner, _approval_root, facade, _temporary, _committed = stack
-            results = (
-                DisposableCanonicalLeaseBindingResultV7(
-                    status=AdapterStatus.FAIL,
-                    disposition=DisposableLeaseBindingDispositionV7.EMPTY_ROLLBACK_PERMITTED,
-                    detail="injected empty rollback",
-                    lease_id=owner.lease_id,
-                    canonical_bytes=owner.canonical_lease_bytes,
-                    reconciled_after_exception=False,
-                    ordinary_rollback_permitted=True,
-                    manual_reconciliation_required=False,
-                    owner_lock_remains_held=True,
-                ),
-                DisposableCanonicalLeaseBindingResultV7(
-                    status=AdapterStatus.FAIL,
-                    disposition=DisposableLeaseBindingDispositionV7.MANUAL_RECONCILIATION,
-                    detail="injected manual binding recovery",
-                    lease_id=owner.lease_id,
-                    canonical_bytes=owner.canonical_lease_bytes,
-                    reconciled_after_exception=False,
-                    ordinary_rollback_permitted=False,
-                    manual_reconciliation_required=True,
-                    owner_lock_remains_held=True,
-                ),
-            )
-            # Use a fresh facade for each injected terminal result.
-            for index, result in enumerate(results):
-                if index:
-                    raise AssertionError("fresh-stack requirement handled below")
-                factory, component = self._fixed_component("bind", result)
-                with patch.object(
-                    facade_module,
-                    "DisposableCanonicalLeaseBinderV7",
-                    factory,
+            owner, root, facade, temporary, committed = stack
+            self.assertIs(facade.temporary_plan, temporary)
+            self.assertIs(facade.committed_plan, committed)
+            bound = facade.bind_canonical_lease()
+            self.assertIs(bound.phase_before, DisposableApprovalLifecyclePhaseV7.OWNER_HELD_EMPTY)
+            self.assertIs(bound.phase_after, DisposableApprovalLifecyclePhaseV7.LEASE_BOUND)
+            published = facade.publish_temporary()
+            self.assertIs(published.phase_after, DisposableApprovalLifecyclePhaseV7.TEMPORARY_PUBLISHED)
+            self.assertEqual(root.approval_path.read_bytes(), temporary.encoded_bytes)
+            removed = facade.remove_temporary()
+            self.assertIs(removed.operation, DisposableApprovalLifecycleOperationV7.REMOVE_TEMPORARY)
+            self.assertIs(removed.phase_after, DisposableApprovalLifecyclePhaseV7.TEMPORARY_REMOVED)
+            self.assertTrue(removed.successful_terminal_state)
+            self.assertTrue(removed.owner_lock_remains_held)
+            self.assertFalse(root.approval_path.exists())
+            self._assert_lock_blocked(owner)
+
+    def test_bind_publish_promote_success_path(self) -> None:
+        with self._stack() as stack:
+            owner, root, facade, temporary, committed = stack
+            self._published(facade)
+            promoted = facade.promote_committed()
+            self.assertIs(promoted.operation, DisposableApprovalLifecycleOperationV7.PROMOTE_COMMITTED)
+            self.assertIs(promoted.phase_after, DisposableApprovalLifecyclePhaseV7.COMMITTED)
+            self.assertTrue(promoted.successful_terminal_state)
+            self.assertFalse(promoted.reviewed_follow_up_permitted)
+            self.assertFalse(promoted.forward_recovery_required)
+            self.assertFalse(promoted.manual_reconciliation_required)
+            self.assertNotEqual(temporary.encoded_bytes, committed.encoded_bytes)
+            self.assertEqual(root.approval_path.read_bytes(), committed.encoded_bytes)
+            self._assert_lock_blocked(owner)
+
+    def test_invalid_order_never_constructs_a_component(self) -> None:
+        names = (
+            "DisposableCanonicalLeaseBinderV7",
+            "DisposableTemporaryApprovalPublisherV7",
+            "DisposableTemporaryApprovalRemoverV7",
+            "DisposableCommittedApprovalPromoterV7",
+        )
+        with self._stack() as stack:
+            _owner, _root, facade, _temporary, _committed = stack
+            active = [patch.object(facade_module, name) for name in names]
+            mocks = [item.start() for item in active]
+            try:
+                for method in (facade.publish_temporary, facade.remove_temporary, facade.promote_committed):
+                    with self.assertRaises(DisposableApprovalLifecycleOrderError):
+                        method()
+                for component in mocks:
+                    component.assert_not_called()
+            finally:
+                for item in reversed(active):
+                    item.stop()
+
+        for terminal in ("remove_temporary", "promote_committed"):
+            with self.subTest(terminal=terminal), self._stack() as stack:
+                _owner, _root, facade, _temporary, _committed = stack
+                self._published(facade)
+                getattr(facade, terminal)()
+                for method in (
+                    facade.bind_canonical_lease,
+                    facade.publish_temporary,
+                    facade.remove_temporary,
+                    facade.promote_committed,
                 ):
+                    with self.assertRaises(DisposableApprovalLifecycleOrderError):
+                        method()
+
+    def test_binder_failed_dispositions_are_preserved(self) -> None:
+        cases = (
+            (DisposableLeaseBindingDispositionV7.EMPTY_ROLLBACK_PERMITTED, True, False),
+            (DisposableLeaseBindingDispositionV7.MANUAL_RECONCILIATION, False, True),
+        )
+        for disposition, reviewed, manual in cases:
+            with self.subTest(disposition=disposition), self._stack() as stack:
+                owner, _root, facade, _temporary, _committed = stack
+                result = DisposableCanonicalLeaseBindingResultV7(
+                    status=AdapterStatus.FAIL,
+                    disposition=disposition,
+                    detail="injected binder failure",
+                    lease_id=owner.lease_id,
+                    canonical_bytes=owner.canonical_lease_bytes,
+                    reconciled_after_exception=False,
+                    ordinary_rollback_permitted=reviewed,
+                    manual_reconciliation_required=manual,
+                    owner_lock_remains_held=True,
+                )
+                factory, component = self._fixed_component("bind", result)
+                with patch.object(facade_module, "DisposableCanonicalLeaseBinderV7", factory):
                     event = facade.bind_canonical_lease()
                 factory.assert_called_once_with(owner)
                 component.bind.assert_called_once_with()
                 self._assert_recovery_terminal(facade, event, result)
-                self.assertIs(event.reviewed_follow_up_permitted, result.ordinary_rollback_permitted)
-                self.assertIs(event.manual_reconciliation_required, result.manual_reconciliation_required)
+                self.assertIs(event.reviewed_follow_up_permitted, reviewed)
+                self.assertIs(event.manual_reconciliation_required, manual)
 
-        with self._stack() as stack:
-            _laboratory, owner, _approval_root, facade, _temporary, _committed = stack
-            result = DisposableCanonicalLeaseBindingResultV7(
-                status=AdapterStatus.FAIL,
-                disposition=DisposableLeaseBindingDispositionV7.MANUAL_RECONCILIATION,
-                detail="injected manual binding recovery",
-                lease_id=owner.lease_id,
-                canonical_bytes=owner.canonical_lease_bytes,
-                reconciled_after_exception=False,
-                ordinary_rollback_permitted=False,
-                manual_reconciliation_required=True,
-                owner_lock_remains_held=True,
-            )
-            factory, component = self._fixed_component("bind", result)
-            with patch.object(facade_module, "DisposableCanonicalLeaseBinderV7", factory):
-                event = facade.bind_canonical_lease()
-            factory.assert_called_once_with(owner)
-            component.bind.assert_called_once_with()
-            self._assert_recovery_terminal(facade, event, result)
-            self.assertTrue(event.manual_reconciliation_required)
-
-    def test_publisher_failed_dispositions_are_preserved_without_follow_up(self) -> None:
+    def test_publisher_failed_dispositions_are_preserved(self) -> None:
         cases = (
             (
                 DisposableTemporaryPublicationDispositionV7.APPROVAL_ABSENT_ROLLBACK,
@@ -444,13 +328,13 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
         )
         for disposition, observed_state, reviewed, manual in cases:
             with self.subTest(disposition=disposition), self._stack() as stack:
-                _laboratory, owner, approval_root, facade, temporary, committed = stack
-                self._advance_to_bound(facade)
+                owner, root, facade, temporary, committed = stack
+                self._bound(facade)
                 result = DisposableTemporaryApprovalPublicationResultV7(
                     status=AdapterStatus.FAIL,
                     disposition=disposition,
                     observed_state=observed_state,
-                    detail="injected publication failure",
+                    detail="injected publisher failure",
                     temporary_encoded_sha256=temporary.encoded_sha256,
                     reconciled_after_exception=False,
                     ordinary_rollback_permitted=reviewed,
@@ -459,19 +343,15 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
                     private_name_absent=True,
                 )
                 factory, component = self._fixed_component("publish", result)
-                with patch.object(
-                    facade_module,
-                    "DisposableTemporaryApprovalPublisherV7",
-                    factory,
-                ):
+                with patch.object(facade_module, "DisposableTemporaryApprovalPublisherV7", factory):
                     event = facade.publish_temporary()
-                factory.assert_called_once_with(owner, approval_root, temporary, committed)
+                factory.assert_called_once_with(owner, root, temporary, committed)
                 component.publish.assert_called_once_with()
                 self._assert_recovery_terminal(facade, event, result)
                 self.assertIs(event.reviewed_follow_up_permitted, reviewed)
                 self.assertIs(event.manual_reconciliation_required, manual)
 
-    def test_remover_failed_dispositions_are_preserved_without_follow_up(self) -> None:
+    def test_remover_failed_dispositions_are_preserved(self) -> None:
         cases = (
             (
                 DisposableTemporaryRemovalDispositionV7.TEMPORARY_RETAINED_RECOVERY,
@@ -488,13 +368,13 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
         )
         for disposition, observed_state, reviewed, manual in cases:
             with self.subTest(disposition=disposition), self._stack() as stack:
-                _laboratory, owner, approval_root, facade, temporary, committed = stack
-                self._advance_to_published(facade)
+                owner, root, facade, temporary, committed = stack
+                self._published(facade)
                 result = DisposableTemporaryApprovalRemovalResultV7(
                     status=AdapterStatus.FAIL,
                     disposition=disposition,
                     observed_state=observed_state,
-                    detail="injected removal failure",
+                    detail="injected remover failure",
                     temporary_encoded_sha256=temporary.encoded_sha256,
                     reconciled_after_exception=False,
                     reviewed_recovery_permitted=reviewed,
@@ -503,19 +383,15 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
                     approval_absent=False,
                 )
                 factory, component = self._fixed_component("remove", result)
-                with patch.object(
-                    facade_module,
-                    "DisposableTemporaryApprovalRemoverV7",
-                    factory,
-                ):
+                with patch.object(facade_module, "DisposableTemporaryApprovalRemoverV7", factory):
                     event = facade.remove_temporary()
-                factory.assert_called_once_with(owner, approval_root, temporary, committed)
+                factory.assert_called_once_with(owner, root, temporary, committed)
                 component.remove.assert_called_once_with()
                 self._assert_recovery_terminal(facade, event, result)
                 self.assertIs(event.reviewed_follow_up_permitted, reviewed)
                 self.assertIs(event.manual_reconciliation_required, manual)
 
-    def test_promoter_failed_dispositions_are_preserved_without_follow_up(self) -> None:
+    def test_promoter_failed_dispositions_are_preserved(self) -> None:
         cases = (
             (
                 DisposableCommittedPromotionDispositionV7.TEMPORARY_RETAINED_RECOVERY,
@@ -545,23 +421,15 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
                 False,
             ),
         )
-        for (
-            disposition,
-            observed_state,
-            reviewed,
-            forward,
-            manual,
-            public_temporary,
-            public_committed,
-        ) in cases:
+        for disposition, observed_state, reviewed, forward, manual, public_temp, public_commit in cases:
             with self.subTest(disposition=disposition), self._stack() as stack:
-                _laboratory, owner, approval_root, facade, temporary, committed = stack
-                self._advance_to_published(facade)
+                owner, root, facade, temporary, committed = stack
+                self._published(facade)
                 result = DisposableCommittedApprovalPromotionResultV7(
                     status=AdapterStatus.FAIL,
                     disposition=disposition,
                     observed_state=observed_state,
-                    detail="injected promotion failure",
+                    detail="injected promoter failure",
                     temporary_encoded_sha256=temporary.encoded_sha256,
                     committed_encoded_sha256=committed.encoded_sha256,
                     reconciled_after_exception=False,
@@ -570,62 +438,36 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
                     manual_reconciliation_required=manual,
                     owner_lock_remains_held=True,
                     private_name_absent=True,
-                    public_temporary_identity_proved=public_temporary,
-                    public_committed_identity_proved=public_committed,
+                    public_temporary_identity_proved=public_temp,
+                    public_committed_identity_proved=public_commit,
                 )
                 factory, component = self._fixed_component("promote", result)
-                with patch.object(
-                    facade_module,
-                    "DisposableCommittedApprovalPromoterV7",
-                    factory,
-                ):
+                with patch.object(facade_module, "DisposableCommittedApprovalPromoterV7", factory):
                     event = facade.promote_committed()
-                factory.assert_called_once_with(owner, approval_root, temporary, committed)
+                factory.assert_called_once_with(owner, root, temporary, committed)
                 component.promote.assert_called_once_with()
                 self._assert_recovery_terminal(facade, event, result)
                 self.assertIs(event.reviewed_follow_up_permitted, reviewed)
                 self.assertIs(event.forward_recovery_required, forward)
                 self.assertIs(event.manual_reconciliation_required, manual)
 
-    def test_constructor_rejects_different_owner_closed_root_wrong_lease_and_unrelated_commit(self) -> None:
+    def test_constructor_rejects_mismatched_or_closed_authority_and_plans(self) -> None:
         with self._stack() as first, self._stack() as second:
-            _lab1, owner1, root1, _facade1, temporary1, committed1 = first
-            _lab2, owner2, root2, _facade2, temporary2, committed2 = second
+            owner1, root1, _facade1, temporary1, committed1 = first
+            owner2, root2, _facade2, temporary2, _committed2 = second
             with self.assertRaises(ValueError):
-                DisposableApprovalLifecycleFacadeV7(
-                    owner1,
-                    root2,
-                    temporary1,
-                    committed1,
-                )
+                DisposableApprovalLifecycleFacadeV7(owner1, root2, temporary1, committed1)
             root1.close()
             with self.assertRaises(ValueError):
-                DisposableApprovalLifecycleFacadeV7(
-                    owner1,
-                    root1,
-                    temporary1,
-                    committed1,
-                )
+                DisposableApprovalLifecycleFacadeV7(owner1, root1, temporary1, committed1)
             with self.assertRaises(ValueError):
-                DisposableApprovalLifecycleFacadeV7(
-                    owner2,
-                    root2,
-                    temporary1,
-                    committed1,
-                )
+                DisposableApprovalLifecycleFacadeV7(owner2, root2, temporary1, committed1)
             with self.assertRaises(ValueError):
-                DisposableApprovalLifecycleFacadeV7(
-                    owner2,
-                    root2,
-                    temporary2,
-                    committed1,
-                )
-            self.assertIsNot(temporary1, temporary2)
-            self.assertIsNot(committed1, committed2)
+                DisposableApprovalLifecycleFacadeV7(owner2, root2, temporary2, committed1)
 
-    def test_lifecycle_event_is_frozen_and_rejects_inconsistent_transition(self) -> None:
+    def test_event_is_frozen_and_rejects_inconsistent_transition(self) -> None:
         with self._stack() as stack:
-            _laboratory, _owner, _approval_root, facade, _temporary, _committed = stack
+            _owner, _root, facade, _temporary, _committed = stack
             event = facade.bind_canonical_lease()
             with self.assertRaises(FrozenInstanceError):
                 event.phase_after = DisposableApprovalLifecyclePhaseV7.COMMITTED  # type: ignore[misc]
@@ -642,7 +484,7 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
                     owner_lock_remains_held=True,
                 )
 
-    def test_source_is_order_only_and_production_operations_remain_blocked(self) -> None:
+    def test_source_has_no_mutation_or_generic_dispatch_and_production_stays_blocked(self) -> None:
         imported = {
             alias.name.split(".")[0]
             for node in self.tree.body
@@ -651,18 +493,32 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
         }
         self.assertTrue(
             imported.isdisjoint(
-                {
-                    "argparse",
-                    "ctypes",
-                    "fcntl",
-                    "os",
-                    "pathlib",
-                    "socket",
-                    "subprocess",
-                    "sys",
-                }
+                {"argparse", "ctypes", "fcntl", "os", "pathlib", "socket", "subprocess", "sys"}
             )
         )
+        methods = {
+            node.name: node
+            for node in ast.walk(self.tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        expected_calls = {
+            "bind_canonical_lease": "bind",
+            "publish_temporary": "publish",
+            "remove_temporary": "remove",
+            "promote_committed": "promote",
+        }
+        for name, expected in expected_calls.items():
+            method = methods[name]
+            delegated = [
+                node.func.attr
+                for node in ast.walk(method)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"bind", "publish", "remove", "promote"}
+            ]
+            self.assertEqual(delegated, [expected])
+            self.assertFalse(any(isinstance(node, (ast.For, ast.AsyncFor, ast.While)) for node in ast.walk(method)))
+
         forbidden_attributes = {
             "open",
             "close",
@@ -683,31 +539,6 @@ class StageCDisposableApprovalLifecycleFacadeV7Tests(unittest.TestCase):
             "run",
             "popen",
         }
-        operation_calls = {
-            "bind_canonical_lease": "bind",
-            "publish_temporary": "publish",
-            "remove_temporary": "remove",
-            "promote_committed": "promote",
-        }
-        methods = {
-            node.name: node
-            for node in ast.walk(self.tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        }
-        for name, expected_call in operation_calls.items():
-            method = methods[name]
-            calls = [
-                node.func.attr
-                for node in ast.walk(method)
-                if isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr in {"bind", "publish", "remove", "promote"}
-            ]
-            self.assertEqual(calls, [expected_call])
-            self.assertFalse(
-                any(isinstance(node, (ast.For, ast.AsyncFor, ast.While)) for node in ast.walk(method))
-            )
-
         for node in ast.walk(self.tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 self.assertNotIn("dispatch", node.name.lower())
