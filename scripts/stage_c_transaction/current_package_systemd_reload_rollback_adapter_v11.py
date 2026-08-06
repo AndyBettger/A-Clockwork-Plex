@@ -12,8 +12,11 @@ inspection.
 """
 
 from .current_package_systemd_reload_rollback_adapter_v10 import (
+    CurrentPackageSystemdReloadLifecycleOperationV10,
     CurrentPackageSystemdReloadRollbackAdapterV10,
+    CurrentPackageSystemdReloadRollbackResultV10,
 )
+from .production_adapter_contract import AdapterStatus, TransactionIdentity
 from .systemd_reload_rollback_rehearsal_adapter import (
     SystemdReloadRollbackFailure,
     SystemdReloadRollbackRehearsalAdapter,
@@ -44,3 +47,24 @@ class CurrentPackageSystemdReloadRollbackAdapterV11(
             )
         self._systemd_reload_attempt_count += 1
         SystemdReloadRollbackRehearsalAdapter._run_daemon_reload(self, phase)
+
+    def close_current_package_systemd_reload_rollback_rehearsal(
+        self,
+        transaction: TransactionIdentity,
+    ) -> CurrentPackageSystemdReloadRollbackResultV10:
+        operation = (
+            CurrentPackageSystemdReloadLifecycleOperationV10.
+            CLOSE_CURRENT_PACKAGE_SYSTEMD_RELOAD_ROLLBACK_REHEARSAL
+        )
+        if self._systemd_reload_attempt_count != MAX_DAEMON_RELOAD_ATTEMPTS_V11:
+            return CurrentPackageSystemdReloadRollbackResultV10(
+                operation=operation,
+                status=AdapterStatus.FAIL,
+                detail=(
+                    "Stage C24 closure requires exactly two attempted "
+                    "daemon-reload commands"
+                ),
+            )
+        return super().close_current_package_systemd_reload_rollback_rehearsal(
+            transaction
+        )
