@@ -49,8 +49,8 @@ class EqAudioInstallerLibraryTests(unittest.TestCase):
 source {COMMON!s}
 source {AUDIO!s}
 ACP_ROOT={root!s}
-acp_install_audio_files {binary!s} testuser || return 41
-acp_write_installed_marker || return 42
+acp_install_audio_files {binary!s} testuser &&
+acp_write_installed_marker
 '''
             result = self.run_bash(script)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -110,9 +110,9 @@ acp_write_installed_marker || return 42
 source {COMMON!s}
 source {AUDIO!s}
 ACP_ROOT={root!s}
-acp_install_audio_files {binary!s} testuser || return 51
-acp_write_installed_marker || return 52
-acp_remove_managed_audio_files || return 53
+acp_install_audio_files {binary!s} testuser &&
+acp_write_installed_marker &&
+acp_remove_managed_audio_files
 '''
             result = self.run_bash(script)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -133,7 +133,7 @@ acp_remove_managed_audio_files || return 53
 source {COMMON!s}
 source {SERVICES!s}
 ACP_ROOT={directory!s}
-acp_capture_application_services {snapshot!s} || return 61
+acp_capture_application_services {snapshot!s}
 '''
             result = self.run_bash(script, env={'PATH': '/usr/bin:/bin'})
             self.assertEqual(result.returncode, 0, result.stderr)
