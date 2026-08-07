@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve is neutral with Bass/Mid/Treble `0.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`, automatic music headroom `-6.5 dB`, EQ active/not bypassed; helper-level bypass/restore semantics are accepted; the deployed dashboard API mirrors the live EQ state except that it currently normalises helper `backend_state=split-bus-active` to `active`, with the preservation fix committed on the branch and awaiting physical dashboard deployment/recheck  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -263,8 +263,8 @@ Installer/live-verifier results:
 - [x] Treble control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [ ] AirPlay plays through the same music EQ lane.
 - [ ] AirPlay/Plexamp takeover and return still work.
-- [ ] EQ disable uses bypass without route remapping.
-- [ ] Stored values survive bypass and return when enabled.
+- [x] EQ disable uses bypass without route remapping.
+- [x] Stored values survive bypass and return when enabled.
 - [ ] Controls are greyed and locked while bypassed.
 - [ ] Return to neutral sets all bands to `0 dB`.
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
@@ -315,7 +315,25 @@ Starting from the confirmed neutral curve, Treble was changed to `+6.0 dB`. The 
 
 Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12 dB relative A/B swing used for Bass and Mid. The helper reported Treble stored/applied/effective `-6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend still `split-bus-active`, CamillaDSP PID still `1543417`, config SHA `d6b941ac78d1460781672b956e0929da2a1fbd48d1f9ec4e145061ac221475da`, headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual listening confirmed the track became markedly darker, conclusively accepting the Treble control both audibly and from the reported backend state.
 
-Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, headroom `0.0 dB`, backend still `split-bus-active`, original neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to neutral. This leaves the live appliance at the accepted neutral EQ baseline before bypass testing.
+Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, headroom `0.0 dB`, backend still `split-bus-active`, original neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to neutral. This established the accepted neutral EQ baseline before bypass testing.
+
+#### Everyday bypass/restore — PASS
+
+A deliberately obvious Bass `+6.0 dB` curve was reapplied while Plexamp remained active and audible. Before bypass the helper reported Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, headroom `-6.5 dB`, route `split-bus-active` and CamillaDSP PID `1543417`; manual listening confirmed the expected very bass-heavy sound.
+
+`a-clockwork-plex-audio-eq bypass on` then reported `bypassed: true` while preserving Bass `stored_db=6.0` and `db=6.0`, but changing Bass `applied_db` and `effective_db` to `0.0 dB`. Headroom returned to `0.0 dB`, config SHA changed to `8e3216a59b7cb69441d45a5e788399b24ac61ee44f6fb491fd22f591e6564114`, route remained `split-bus-active`, CamillaDSP PID remained `1543417`, playback remained continuous and manual listening confirmed the sound became neutral.
+
+`a-clockwork-plex-audio-eq bypass off` restored Bass stored/applied/effective `+6.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2` and headroom `-6.5 dB` while the route and CamillaDSP PID remained unchanged. Manual listening immediately confirmed the heavy Bass curve returned.
+
+This accepts both required runtime semantics: everyday EQ disable is a DSP bypass rather than route remapping, and stored values survive bypass and return when EQ is re-enabled.
+
+#### Dashboard API state — one truthfulness fix pending physical confirmation
+
+With the live Bass `+6.0 dB` curve active, `GET /api/audio/eq` correctly surfaced backend `camilladsp`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed: false`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, CamillaDSP PID `1543417`, headroom `-6.5 dB`, final limiter `-1.0 dB`, installed/configured/available state, route `split-bus-active`, selected route `split-bus-selected` and the expected route reason.
+
+One presentation inconsistency was exposed: the deployed dashboard wrapper replaced the helper's detailed `backend_state=split-bus-active` with the generic value `active`, even though `route_mode` remained correctly detailed. The underlying EQ backend was not wrong; `MasterEqualizer.status()` was overwriting a truthful helper field after merging the helper payload.
+
+Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` changes the wrapper so an explicit helper `backend_state` is preserved and the generic `active` fallback is used only when the helper supplied no backend state. Commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` adds a regression assertion that `split-bus-active` survives the dashboard wrapper. The dashboard/API checklist item remains open until this code is physically deployed/restarted on the bedroom Pi and the same GET is rechecked.
 
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
@@ -364,7 +382,7 @@ Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Bass, Mid and Treble A/B tests accepted and all returned to neutral; bypass/restore semantics next |
+| 5. Feature/interface acceptance | In progress | Three-band A/B and helper bypass/restore accepted; dashboard API detail-preservation fix committed and awaiting Pi deployment/recheck |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
@@ -373,12 +391,12 @@ Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported
 
 Continue Phase 5 while **Plexamp remains actively playing and audible**:
 
-1. test everyday EQ bypass/restore semantics without changing ALSA route or restarting source services;
-2. first apply a clearly non-neutral stored curve, then bypass it and confirm the audible curve disappears while stored values remain;
-3. confirm CamillaDSP PID and split-bus route remain unchanged throughout bypass/restore;
-4. re-enable EQ and confirm the stored curve returns audibly and in reported applied values;
-5. confirm the Settings/drawer controls truthfully show bypassed state and are greyed/locked while bypassed;
-6. then return to neutral and proceed to AirPlay handover and alarm-isolation tests.
+1. allow CI to validate the dashboard backend-state preservation change and regression test;
+2. deploy only the accepted dashboard-side fix to the bedroom Pi and restart/reload the dashboard without disturbing the installed audio graph;
+3. re-run `GET /api/audio/eq` and confirm both `backend_state` and `route_mode` report `split-bus-active` while the Bass `+6.0 dB` curve remains truthful;
+4. test the actual Settings/drawer EQ switch and confirm bypassed state is shown truthfully, playback remains continuous, stored values remain, and the EQ controls are greyed/locked while bypassed;
+5. test the `neutral` action explicitly so its separate reset semantics are accepted;
+6. then proceed to AirPlay handover, Music Master and alarm-isolation tests.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
