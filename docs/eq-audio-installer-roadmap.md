@@ -248,7 +248,7 @@ The final active route remained exactly:
 08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9
 ```
 
-No production file, route, module, mixer control, PCM or service was changed.
+No production file, route, module, mixer control, PCM or service was changed. **No bedroom-Pi installation** was performed by the preflight.
 
 **Exit condition:** Met. Phase 3 is complete.
 
