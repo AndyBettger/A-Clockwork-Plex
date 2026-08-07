@@ -98,6 +98,27 @@ acp_verify_installed_files
             result = self.run_bash(script)
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_protected_file_cleanup_uses_privileged_boundary(self) -> None:
+        script = f'''
+source {COMMON!s}
+ACP_ROOT=/
+protected=/opaque/protected-sudoers-file
+acp_path() {{ printf '%s\\n' "$protected"; }}
+acp_run_root() {{
+    printf '%s\\n' "$*"
+    case "$1" in
+        test) return 0 ;;
+        rm) return 0 ;;
+        *) return 99 ;;
+    esac
+}}
+acp_remove_file '/etc/sudoers.d/protected'
+'''
+        result = self.run_bash(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('test -e /opaque/protected-sudoers-file', result.stdout)
+        self.assertIn('rm -f -- /opaque/protected-sudoers-file', result.stdout)
+
 
 if __name__ == '__main__':
     unittest.main()
