@@ -150,8 +150,11 @@ def calculate_headroom_db(bands: dict[str, Any], bypassed: bool = False) -> floa
 def render_config(settings: Settings, state: dict[str, Any]) -> str:
     state = normalise_state(state)
     bypassed = bool(state['bypassed'])
-    applied = {band: clamp_db(state['bands'][band]) for band in BANDS}
-    headroom = calculate_headroom_db(applied)
+    applied = {
+        band: 0.0 if bypassed else clamp_db(state['bands'][band])
+        for band in BANDS
+    }
+    headroom = calculate_headroom_db(applied, bypassed)
     pipeline_bypassed = 'true' if bypassed else 'false'
     return f'''---
 title: "A Clockwork Plex EQ-capable split bus"
