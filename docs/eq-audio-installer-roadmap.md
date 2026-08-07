@@ -2,9 +2,9 @@
 
 **Status:** Active roadmap — Phase 4 controlled bedroom-Pi installation is complete; Phase 5 feature and interface acceptance is in progress  
 **Started:** 7 August 2026  
-**Last updated:** 7 August 2026  
+**Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp remains audible through CamillaDSP; current saved curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`; EQ is currently bypassed from the live mixer overlay so applied/effective bands are neutral and headroom is `0.0 dB`; helper-level bypass/restore, dashboard/API truthfulness and mixer-overlay bypass/lock behaviour are accepted; the separate Settings → Audio → Equaliser page exposed a duplicate staged-EQ authority and its live-runtime unification fix is committed but still requires physical Pi deployment/acceptance  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp remains audible through CamillaDSP; current saved curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`; EQ is currently bypassed from the live mixer overlay so applied/effective bands are neutral and headroom is `0.0 dB`; helper-level bypass/restore, dashboard/API truthfulness and mixer-overlay bypass/lock behaviour are accepted; the separate Settings → Audio → Equaliser duplicate staged-EQ authority and the Settings → Display → Motion regressions are fixed in source with green CI but still require physical Pi deployment/acceptance  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -369,7 +369,24 @@ The correction is now committed:
 - `2df281bb8572955fd734b8dd2fc4979792715714` — backend runtime-authority regression coverage;
 - `b56e51f2fa35be949698528b312708f47f692ffe` — fresh example configuration no longer defines the obsolete staged EQ block.
 
-Physical Settings-page acceptance remains open until the new JavaScript and `settings_unified.py` are deployed to the bedroom Pi, the dashboard is restarted/refreshed, and the Equaliser subpage proves it mirrors the current bypassed saved Bass `+6 dB` state and locks its sliders.
+The first CI run against that authority cleanup exposed one obsolete test that still expected a unified Settings save to call `equalizer.set_band()`. That expectation contradicted the new single-authority design rather than revealing an implementation failure. Commit `73bb464c42a4411bcf503e3ce91fa76dda9f1c96` updates the test so alarm/forecast/screen post-save hooks remain covered while asserting that a normal Settings save leaves the live EQ backend untouched and removes the legacy staged EQ config.
+
+#### Settings Display Motion regression — fixed in source, Pi acceptance pending
+
+The same Settings review found two regressions in **Settings → Display → Motion** following the custom-select migration used to keep menus inside the night-mode overlay:
+
+- Transition style had collapsed from the eight transition choices supported by the dashboard engine to only Grow and fade, Crossfade and Instant.
+- Transition duration had regressed from a slider to a numeric text-entry field.
+
+The transition engine and CSS still contained the missing effects; only the Settings exposure/validation contract had been narrowed. Source corrections are now committed:
+
+- `91428e26d4fc8c765d267ad72218f5642ad6d671` — unified Settings accepts the complete transition vocabulary again, including the existing `instant` compatibility value and canonical `none` value;
+- `8efb04361f1f4f25d12a840f4b199c669080241b` — the Display section restores all eight user-facing choices before the custom select wrapper is built: Grow and fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom, Blur dissolve and Instant; transition duration is restored as a `0–2000 ms` range slider in `50 ms` steps;
+- `e8c74b3595c238e6f069b5841f7da3220b26c5a1` — dedicated regression coverage protects the eight-style list and slider contract.
+
+GitHub Actions run **31227257674** / **#2729** passed the combined Settings EQ-authority and Motion-control head. Python compilation, JavaScript/page wiring, shell syntax and the complete unit-test suite are green.
+
+Physical Settings-page acceptance remains open until `app/static/js/audio-eq.js`, `app/settings_unified.py` and `app/static/js/settings-display-sections.js` are deployed to the bedroom Pi, the dashboard is restarted/refreshed, and both Settings subpages are checked together: Equaliser must mirror the live bypassed Bass `+6 dB` state with locked controls, and Motion must expose all eight transition styles plus the duration slider.
 
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
@@ -418,7 +435,7 @@ Physical Settings-page acceptance remains open until the new JavaScript and `set
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore, dashboard API and mixer-overlay bypass/lock accepted; duplicate Settings EQ authority removed in source and awaiting Pi acceptance |
+| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore, dashboard API and mixer-overlay bypass/lock accepted; Settings EQ duplicate authority and Display Motion regressions fixed with green CI, awaiting combined Pi acceptance |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
@@ -427,10 +444,10 @@ Physical Settings-page acceptance remains open until the new JavaScript and `set
 
 Continue Phase 5 while **Plexamp remains actively playing and audible** and leave the current EQ state **bypassed with saved Bass `+6.0 dB`**:
 
-1. allow CI to validate the live-Settings authority cleanup and regression contracts;
-2. deploy only the accepted `app/static/js/audio-eq.js` and `app/settings_unified.py` changes to the bedroom Pi without overwriting the unrelated local kiosk-launcher modification;
-3. restart only `a-clockwork-plex.service`, hard-refresh the dashboard, and open Settings → Audio → Equaliser;
-4. confirm that subpage now shows the live bypassed state: Bass saved `+6.0 dB`, Mid/Treble `0.0 dB`, status Bypassed, Restore EQ action, and all three sliders greyed/locked;
+1. deploy only the accepted `app/static/js/audio-eq.js`, `app/settings_unified.py` and `app/static/js/settings-display-sections.js` changes to the bedroom Pi without overwriting the unrelated local kiosk-launcher modification;
+2. restart only `a-clockwork-plex.service` and hard-refresh the dashboard;
+3. open Settings → Audio → Equaliser and confirm it now shows the live bypassed state: Bass saved `+6.0 dB`, Mid/Treble `0.0 dB`, status Bypassed, Restore EQ action, and all three sliders greyed/locked;
+4. open Settings → Display → Motion and confirm the custom transition selector now exposes all eight styles and transition duration is a slider from `0–2000 ms` in `50 ms` steps;
 5. use **Restore EQ** from the Settings subpage and confirm the heavy Bass curve returns with route/PID unchanged;
 6. then test the separate `neutral` action explicitly so its reset semantics are accepted;
 7. proceed to AirPlay handover, Music Master and alarm-isolation tests.
