@@ -14,6 +14,7 @@
   let postInFlight = false;
   let pendingAction = null;
   let pollTimer = null;
+  let settingsDomainRegistered = false;
   const dragging = new Set();
   const desired = new Map();
   const debounceTimers = new Map();
@@ -113,7 +114,7 @@
         <div class="acp-eq-settings-actions">
           <button class="button settings-secondary" type="button" id="acp-eq-settings-bypass" aria-pressed="false">Bypass EQ</button>
           <button class="button settings-secondary" type="button" id="acp-eq-settings-neutral">Return to neutral</button>
-          <span class="muted small" id="acp-eq-settings-message">Centre is 0 dB. Double-tap a drawer knob to centre that band.</span>
+          <span class="muted small" id="acp-eq-settings-message">Centre is 0 dB. Changes apply immediately.</span>
         </div>
       </section>
     `;
@@ -134,13 +135,36 @@
   function installSettings() {
     const panel = byId('settings-panel-audio');
     if (!panel) return false;
+    const subpage = panel.querySelector('[data-settings-subpage="audio:eq"]');
+    if (!subpage) return false;
     if (!byId('acp-eq-settings-card')) {
-      const defaultCard = byId('audio-airplay-default-card');
-      if (defaultCard) defaultCard.insertAdjacentHTML('beforebegin', settingsMarkup());
-      else panel.insertAdjacentHTML('beforeend', settingsMarkup());
+      subpage.querySelectorAll(':scope > .settings-card').forEach((card) => card.remove());
+      subpage.insertAdjacentHTML('beforeend', settingsMarkup());
       installSettingsInteractions();
     }
     return true;
+  }
+
+  function eqSettingsModel() {
+    const snapshotStatus = window.ACPUnifiedSettings?.getSnapshot?.()?.status?.eq;
+    const source = latest?.bands ? latest : (snapshotStatus || {});
+    return {
+      eq: {
+        enabled: source.available === true && source.bypassed !== true,
+        bands: Object.fromEntries(BANDS.map((band) => [band, clampDb(source.bands?.[band]?.db ?? source.bands?.[band]?.stored_db ?? 0)])),
+      },
+    };
+  }
+
+  function registerUnifiedSettingsDomain() {
+    if (settingsDomainRegistered) return;
+    const settings = window.ACPUnifiedSettings;
+    if (!settings?.registerDomain) {
+      window.setTimeout(registerUnifiedSettingsDomain, 100);
+      return;
+    }
+    settings.registerDomain('audio', { get: eqSettingsModel });
+    settingsDomainRegistered = true;
   }
 
   function setMessage(text = '', error = false) {
@@ -404,6 +428,7 @@
   function install() {
     const drawerReady = installDrawer();
     installSettings();
+    registerUnifiedSettingsDomain();
     if (!drawerReady) {
       window.setTimeout(install, 100);
       return;
