@@ -33,7 +33,17 @@ ScreenModeSetter = Callable[[str], Any]
 
 VALID_MODES = {"clock", "weather", "plexamp", "airplay"}
 VALID_CLOCK_FORMATS = {"12h", "24h"}
-VALID_TRANSITIONS = {"grow-fade", "crossfade", "instant"}
+VALID_TRANSITIONS = {
+    "grow-fade",
+    "crossfade",
+    "instant",
+    "none",
+    "horizontal-slide",
+    "vertical-lift",
+    "cover-reveal",
+    "zoom",
+    "blur-dissolve",
+}
 VALID_TEMPERATURE_UNITS = {"c", "f"}
 VALID_PRESSURE_UNITS = {"hpa", "inhg"}
 VALID_RAIN_UNITS = {"mm", "in"}
