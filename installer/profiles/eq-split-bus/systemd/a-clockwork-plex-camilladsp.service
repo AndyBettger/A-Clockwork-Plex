@@ -10,7 +10,7 @@ StartLimitBurst=3
 
 [Service]
 Type=simple
-User=root
+User=andy
 Group=audio
 ExecStart=/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp /etc/a-clockwork-plex/camilladsp-split-bus.yml
 Restart=on-failure
