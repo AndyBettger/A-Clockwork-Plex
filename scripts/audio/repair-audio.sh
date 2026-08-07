@@ -7,6 +7,8 @@ ACP_REPO_ROOT="$REPO_ROOT"
 source "$REPO_ROOT/installer/lib/common.sh"
 source "$REPO_ROOT/installer/lib/services.sh"
 source "$REPO_ROOT/installer/lib/audio.sh"
+source "$REPO_ROOT/installer/lib/runtime.sh"
+source "$REPO_ROOT/installer/lib/verification.sh"
 
 MODE=prepare
 REQUESTED_ROOT=/
@@ -126,6 +128,8 @@ capture_repair_snapshot() {
     active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
     [[ -f "$active" && ! -L "$active" ]] || return 1
     acp_run_root cp -p -- "$active" "$snapshot/active-alsa.conf" || return 1
+    acp_capture_runtime_state "$snapshot/runtime" || return 1
+    acp_capture_managed_service_state "$snapshot/managed-services.tsv" || return 1
     if acp_is_production_root && [[ -d /sys/module/snd_aloop ]]; then
         printf 'loaded\n' >"$snapshot/loopback.txt"
     else
@@ -147,6 +151,7 @@ restore_repair_snapshot() {
     done <"$snapshot/managed-current.tsv"
     active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
     acp_run_root cp -p -- "$snapshot/active-alsa.conf" "$active" || failures=$((failures + 1))
+    acp_restore_runtime_state "$snapshot/runtime" || failures=$((failures + 1))
     if acp_is_production_root && [[ "$(cat "$snapshot/loopback.txt")" == absent && -d /sys/module/snd_aloop ]]; then
         sudo -- modprobe -r snd_aloop || failures=$((failures + 1))
     fi
@@ -185,13 +190,16 @@ activate_repair() {
             failure='split-bus reactivation failed'
     fi
     [[ -n "$failure" ]] || acp_write_install_manifest || failure='manifest rewrite failed'
-    [[ -n "$failure" ]] || acp_verify_install_manifest || failure='repaired file verification failed'
+    [[ -n "$failure" ]] || "$SCRIPT_DIR/verify-audio.sh" --root "$ACP_ROOT" || \
+        failure='repaired audio verification failed'
 
     if [[ -n "$failure" ]]; then
         stop_current_applications || rollback_failures=$((rollback_failures + 1))
         acp_stop_eq_audio_units || rollback_failures=$((rollback_failures + 1))
         restore_repair_snapshot "$snapshot" || rollback_failures=$((rollback_failures + 1))
         acp_reload_systemd || rollback_failures=$((rollback_failures + 1))
+        acp_restore_managed_service_state "$snapshot/managed-services.tsv" || \
+            rollback_failures=$((rollback_failures + 1))
         acp_restore_captured_enablement "$service_snapshot" || rollback_failures=$((rollback_failures + 1))
         acp_restore_captured_applications "$service_snapshot" || rollback_failures=$((rollback_failures + 1))
         acp_install_text "$(date --iso-8601=seconds) repair failed: $failure\n" \
@@ -207,12 +215,9 @@ activate_repair() {
     fi
 
     rm -rf "$snapshot"
-    acp_write_operation_log 'EQ-capable audio profile repaired successfully' || return 1
+    acp_write_operation_log 'EQ-capable audio profile repaired successfully' || \
+        acp_error 'Warning: repair succeeded but the operation log could not be written.'
     acp_log 'EQ-capable audio profile repaired successfully.'
-    if acp_is_production_root; then
-        sudo -- /usr/local/bin/a-clockwork-plex-audio-route status || return 1
-        sudo -- /usr/local/bin/a-clockwork-plex-audio-eq status || return 1
-    fi
 }
 
 main() {

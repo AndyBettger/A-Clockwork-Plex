@@ -7,6 +7,8 @@ import os
 import re
 import subprocess
 import sys
+
+sys.dont_write_bytecode = True
 import tempfile
 import time
 from datetime import datetime, timezone

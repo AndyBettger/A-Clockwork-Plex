@@ -7,6 +7,8 @@ ACP_REPO_ROOT="$REPO_ROOT"
 source "$REPO_ROOT/installer/lib/common.sh"
 source "$REPO_ROOT/installer/lib/services.sh"
 source "$REPO_ROOT/installer/lib/audio.sh"
+source "$REPO_ROOT/installer/lib/runtime.sh"
+source "$REPO_ROOT/installer/lib/verification.sh"
 
 MODE=prepare
 REQUESTED_ROOT=/
@@ -154,6 +156,10 @@ stop_current_applications() {
 prepare_backup_indexes() {
     local backup="$1" service_snapshot="$2" temporary
     acp_run_root chmod 0755 "$backup" || return 1
+    acp_run_root chmod 0755 "$backup/runtime-before" || return 1
+    acp_run_root chmod 0644 \
+        "$backup/runtime-before/state-files.tsv" \
+        "$backup/runtime-before/managed-services.tsv" || return 1
     acp_run_root chmod 0644 \
         "$backup/managed-before.tsv" \
         "$backup/pre-eq-active-route.sha256" \
@@ -181,7 +187,10 @@ rollback_first_install() {
     acp_disable_eq_audio_units || true
     acp_remove_file '/var/lib/a-clockwork-plex/split-bus/installed' || failures=$((failures + 1))
     acp_restore_preinstall_files || failures=$((failures + 1))
+    acp_restore_runtime_state "$backup/runtime-before" || failures=$((failures + 1))
     acp_reload_systemd || failures=$((failures + 1))
+    acp_restore_managed_service_state \
+        "$backup/runtime-before/managed-services.tsv" || failures=$((failures + 1))
     acp_restore_loopback_state || failures=$((failures + 1))
     acp_restore_captured_enablement "$service_snapshot" || failures=$((failures + 1))
     acp_restore_captured_applications "$service_snapshot" || failures=$((failures + 1))
@@ -197,7 +206,7 @@ rollback_first_install() {
 }
 
 first_install() {
-    local marker backup service_snapshot failure=
+    local marker backup service_snapshot runtime_snapshot failure=
     marker="$(acp_path '/var/lib/a-clockwork-plex/split-bus/installed')" || return 1
     backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
     service_snapshot="$backup/service-before.tsv"
@@ -207,7 +216,23 @@ first_install() {
         return 1
     }
 
-    acp_capture_preinstall_files || return 1
+    runtime_snapshot="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-preinstall-state.XXXXXX")" || return 1
+    if ! acp_capture_runtime_state "$runtime_snapshot" || \
+       ! acp_capture_managed_service_state "$runtime_snapshot/managed-services.tsv"; then
+        rm -rf "$runtime_snapshot"
+        return 1
+    fi
+    if ! acp_capture_preinstall_files; then
+        rm -rf "$runtime_snapshot"
+        acp_remove_preinstall_backup || true
+        return 1
+    fi
+    if ! acp_run_root cp -a "$runtime_snapshot" "$backup/runtime-before"; then
+        rm -rf "$runtime_snapshot"
+        acp_remove_preinstall_backup || true
+        return 1
+    fi
+    rm -rf "$runtime_snapshot"
     if ! prepare_backup_indexes "$backup" "$service_snapshot"; then
         write_failure_report 'could not prepare the readable backup indexes'
         acp_remove_preinstall_backup || true
@@ -225,19 +250,17 @@ first_install() {
             failure='split-bus activation failed'
     fi
     [[ -n "$failure" ]] || acp_write_install_manifest || failure='install manifest write failed'
-    [[ -n "$failure" ]] || acp_verify_install_manifest || failure='installed file verification failed'
+    [[ -n "$failure" ]] || "$SCRIPT_DIR/verify-audio.sh" --root "$ACP_ROOT" || \
+        failure='installed audio verification failed'
 
     if [[ -n "$failure" ]]; then
         rollback_first_install "$service_snapshot" "$failure"
         return 1
     fi
 
-    acp_write_operation_log 'EQ-capable audio profile installed successfully' || return 1
+    acp_write_operation_log 'EQ-capable audio profile installed successfully' || \
+        acp_error 'Warning: installation succeeded but the operation log could not be written.'
     acp_log 'EQ-capable audio profile installed successfully.'
-    if acp_is_production_root; then
-        sudo -- /usr/local/bin/a-clockwork-plex-audio-route status || return 1
-        sudo -- /usr/local/bin/a-clockwork-plex-audio-eq status || return 1
-    fi
 }
 
 activate() {

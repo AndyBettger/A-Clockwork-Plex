@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import sys
+
+sys.dont_write_bytecode = True
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).resolve().parent

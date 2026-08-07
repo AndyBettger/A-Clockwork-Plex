@@ -7,6 +7,8 @@ ACP_REPO_ROOT="$REPO_ROOT"
 source "$REPO_ROOT/installer/lib/common.sh"
 source "$REPO_ROOT/installer/lib/services.sh"
 source "$REPO_ROOT/installer/lib/audio.sh"
+source "$REPO_ROOT/installer/lib/runtime.sh"
+source "$REPO_ROOT/installer/lib/verification.sh"
 
 MODE=prepare
 REQUESTED_ROOT=/
@@ -120,6 +122,8 @@ capture_current_install() {
     active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
     acp_run_root cp -p -- "$active" "$snapshot/active-alsa.conf" || return 1
     acp_capture_application_services "$snapshot/services.tsv" || return 1
+    acp_capture_runtime_state "$snapshot/runtime" || return 1
+    acp_capture_managed_service_state "$snapshot/managed-services.tsv" || return 1
     if acp_is_production_root && [[ -d /sys/module/snd_aloop ]]; then
         printf 'loaded\n' >"$snapshot/loopback.txt"
     else
@@ -141,8 +145,11 @@ restore_current_install() {
     done <"$snapshot/managed-current.tsv"
     active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
     acp_run_root cp -p -- "$snapshot/active-alsa.conf" "$active" || failures=$((failures + 1))
+    acp_restore_runtime_state "$snapshot/runtime" || failures=$((failures + 1))
     acp_write_installed_marker || failures=$((failures + 1))
     acp_reload_systemd || failures=$((failures + 1))
+    acp_restore_managed_service_state "$snapshot/managed-services.tsv" || \
+        failures=$((failures + 1))
     if acp_is_production_root && [[ "$(cat "$snapshot/loopback.txt")" == loaded && ! -d /sys/module/snd_aloop ]]; then
         sudo -- modprobe snd_aloop || failures=$((failures + 1))
     fi
@@ -215,7 +222,8 @@ activate_uninstall() {
 
     acp_remove_preinstall_backup || { rm -rf "$snapshot"; return 1; }
     rm -rf "$snapshot"
-    acp_write_operation_log 'EQ-capable audio profile uninstalled; direct audio restored' || return 1
+    acp_write_operation_log 'EQ-capable audio profile uninstalled; direct audio restored' || \
+        acp_error 'Warning: uninstall succeeded but the operation log could not be written.'
     acp_log 'EQ-capable audio profile uninstalled; the original direct-audio state was restored.'
 }
 
