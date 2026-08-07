@@ -1,0 +1,72 @@
+name: Complete EQ installer Phase 2 v2
+
+on:
+  push:
+    branches:
+      - feature/alarm-engine
+
+permissions:
+  contents: write
+
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alarm-engine
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          if [[ -f requirements.txt ]]; then
+            python3 -m pip install -r requirements.txt
+          fi
+
+      - name: Apply final hardening and remove transient runners
+        shell: bash
+        run: |
+          if [[ -f scripts/dev/apply_eq_entry_hardening_v4.py ]]; then
+            python3 scripts/dev/apply_eq_entry_hardening_v4.py
+          fi
+          rm -f \
+            .github/workflows/apply-eq-entry-hardening.yml \
+            .github/workflows/apply-eq-entry-hardening-v2.yml \
+            .github/workflows/apply-eq-entry-hardening-v3.yml \
+            .github/workflows/finalize-eq-entry-hardening.yml \
+            .github/workflows/finalize-eq-entry-hardening-v2.yml \
+            .github/workflows/finalize-eq-entry-hardening-v3.yml \
+            .github/workflows/complete-eq-phase2.yml \
+            .github/workflows/complete-eq-phase2-v2.yml \
+            scripts/dev/apply_eq_entry_hardening_v2.py \
+            scripts/dev/apply_eq_entry_hardening_v3.py \
+            scripts/dev/apply_eq_entry_hardening_v4.py
+
+      - name: Run complete repository test suite
+        shell: bash
+        run: |
+          bash -n installer/lib/*.sh scripts/audio/*.sh
+          python3 -m unittest discover -v
+
+      - name: Update roadmap after the suite passes
+        shell: bash
+        run: |
+          if [[ -f scripts/dev/finalize_eq_phase2_roadmap.py ]]; then
+            python3 scripts/dev/finalize_eq_phase2_roadmap.py
+          fi
+
+      - name: Commit tested final tree
+        shell: bash
+        run: |
+          rm -f scripts/dev/finalize_eq_phase2_roadmap.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Complete standalone EQ audio installer Phase 2"
+          git push origin HEAD:feature/alarm-engine
