@@ -1,0 +1,16 @@
+[Unit]
+Description=A Clockwork Plex EQ audio route selection
+After=systemd-modules-load.service sound.target
+Wants=sound.target
+Before=a-clockwork-plex-camilladsp.service plexamp.service shairport-sync.service a-clockwork-plex.service
+OnFailure=a-clockwork-plex-audio-failback.service
+ConditionPathExists=/var/lib/a-clockwork-plex/split-bus/installed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/a-clockwork-plex-audio-route prepare-split-bus
+RemainAfterExit=yes
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
