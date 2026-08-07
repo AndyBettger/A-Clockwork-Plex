@@ -86,13 +86,14 @@ The standalone EQ installer owns only the audio capability. It does not reinstal
 ### Supported commands
 
 ```text
+scripts/audio/preflight-eq.sh
 scripts/audio/install-eq.sh
 scripts/audio/uninstall-eq.sh
 scripts/audio/verify-audio.sh
 scripts/audio/repair-audio.sh
 ```
 
-All four commands exist on `feature/alarm-engine`.
+The first command is the read-only host/parser gate. The other four commands own the installed audio lifecycle.
 
 ### Installation responsibilities
 
@@ -152,6 +153,7 @@ installer/
     └── eq-split-bus/
 
 scripts/audio/
+├── preflight-eq.sh
 ├── install-eq.sh
 ├── uninstall-eq.sh
 ├── verify-audio.sh
@@ -242,7 +244,7 @@ The standalone audio commands are intended to become library-backed entry points
 
 **Goal:** Prove file handling, idempotence and rollback without changing live audio, then validate the candidate with the real Pi parsers in read-only or prepare-only mode.
 
-- [x] Validate shell syntax for the installer libraries and four supported commands.
+- [x] Validate shell syntax for the installer libraries and four lifecycle commands.
 - [x] Add temporary-root installation lifecycle coverage.
 - [x] Add repeated-install and original-backup preservation coverage.
 - [x] Add explicit uninstall and reinstall coverage.
@@ -251,10 +253,11 @@ The standalone audio commands are intended to become library-backed entry points
 - [x] Confirm temporary-root tests do not write production paths.
 - [x] Resolve the six failures from the earlier complete repository suite.
 - [x] Re-run the complete repository suite and record a green result.
+- [ ] Implement the dedicated read-only `preflight-eq.sh` host/parser command.
 - [ ] Validate both ALSA configurations with the Pi's real ALSA parser in an isolated configuration root.
 - [ ] Validate rendered CamillaDSP configuration with the accepted CamillaDSP 4.1.3 binary.
 - [ ] Validate the systemd units with the Pi's real systemd verifier.
-- [ ] Confirm the read-only and prepare-only host checks make no production change.
+- [ ] Confirm the read-only host checks make no production change.
 
 #### Green repository-validation checkpoint
 
@@ -377,8 +380,8 @@ The physical run will:
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and installation manifest published |
-| 2. Standalone installer | Complete | Four supported commands, shared libraries and complete 1,340-test gate are green |
-| 3. Non-production/read-only validation | In progress | Repository and temporary-root validation are green; real Pi ALSA, CamillaDSP and systemd parser checks remain |
+| 2. Standalone installer | Complete | Four lifecycle commands, shared libraries and complete 1,340-test gate are green |
+| 3. Non-production/read-only validation | In progress | Repository and temporary-root validation are green; standalone preflight and real Pi parser checks remain |
 | 4. Bedroom-Pi installation | Not started | Blocked only on the remaining read-only Phase 3 checks |
 | 5. Feature and interface acceptance | Not started | Follows controlled installation |
 | 6. Failure, reboot and uninstall acceptance | Not started | Follows feature acceptance |
@@ -387,15 +390,19 @@ The physical run will:
 
 ## Immediate next action
 
-Complete the remaining **read-only bedroom-Pi validation gate**:
+Implement and run the **read-only bedroom-Pi validation gate** as `scripts/audio/preflight-eq.sh`:
 
 1. check out the exact reviewed branch head in a fresh temporary directory rather than using the stale production checkout;
 2. keep normal direct audio active and audible during the checks;
-3. validate both candidate ALSA route files with the Pi's real ALSA parser using an isolated configuration root;
-4. validate the rendered neutral CamillaDSP configuration with the accepted CamillaDSP 4.1.3 binary;
-5. validate the candidate systemd units with the Pi's real verifier;
-6. capture the direct-route checksum and application-service state before and after to prove no production change;
-7. record the result here before preparing a controlled installation command.
+3. validate both candidate ALSA route files with the Pi's real ALSA parser using isolated configuration roots;
+4. render and validate the neutral CamillaDSP configuration with the accepted CamillaDSP 4.1.3 binary;
+5. validate the candidate systemd units with the Pi's real verifier in a private unit model;
+6. validate rendered restricted sudoers rules with `visudo`;
+7. capture the direct-route checksum, managed-file absence, loopback state, DAC parameters and application-service state before and after;
+8. require exact before/after equality and retain an evidence directory under `/var/tmp`;
+9. record the result here before preparing a controlled installation command.
+
+The preflight must contain no `sudo`, route selection, module loading, service start/stop/restart, mixer write or PCM-opening command.
 
 No bedroom-Pi installation, route change, module load, service restart or EQ activation is authorised by this validation step.
 
