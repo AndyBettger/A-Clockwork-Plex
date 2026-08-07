@@ -482,9 +482,29 @@ class RouteController:
         }
 
     def _stop_applications(self, snapshot: dict[str, bool]) -> None:
-        for name in APP_STOP_ORDER:
-            if snapshot.get(name):
-                self._systemctl('stop', self.settings.services[name])
+        stopped: list[str] = []
+        try:
+            for name in APP_STOP_ORDER:
+                if snapshot.get(name):
+                    self._systemctl('stop', self.settings.services[name])
+                    stopped.append(name)
+        except RuntimeError as exc:
+            restore_failures: list[str] = []
+            for name in APP_START_ORDER:
+                if name not in stopped:
+                    continue
+                try:
+                    self._systemctl('start', self.settings.services[name])
+                except RuntimeError as restore_exc:
+                    restore_failures.append(str(restore_exc))
+            if restore_failures:
+                raise RuntimeError(
+                    'Application quiescence failed and partial restoration failed: '
+                    f'{exc}; {"; ".join(restore_failures)}'
+                ) from exc
+            raise RuntimeError(
+                f'Application quiescence failed; already stopped services were restored: {exc}'
+            ) from exc
 
     def _restore_applications(self, snapshot: dict[str, bool]) -> None:
         failures: list[str] = []
