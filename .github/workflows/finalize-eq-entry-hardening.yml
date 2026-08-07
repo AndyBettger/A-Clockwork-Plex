@@ -1,0 +1,51 @@
+name: Finalize EQ entry hardening
+
+on:
+  push:
+    branches:
+      - feature/alarm-engine
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alarm-engine
+          fetch-depth: 0
+
+      - name: Apply remaining patch when needed
+        shell: bash
+        run: |
+          if [[ -f scripts/dev/apply_eq_entry_hardening_v3.py ]]; then
+            python3 scripts/dev/apply_eq_entry_hardening_v3.py
+          fi
+
+      - name: Prove permanent hardening contract
+        shell: bash
+        run: |
+          bash -n scripts/audio/install-eq.sh scripts/audio/repair-audio.sh scripts/audio/verify-audio.sh scripts/audio/uninstall-eq.sh
+          python3 -m unittest tests.test_eq_audio_entry_hardening_contract
+
+      - name: Remove transient patch assets and commit
+        shell: bash
+        run: |
+          rm -f \
+            .github/workflows/apply-eq-entry-hardening.yml \
+            .github/workflows/apply-eq-entry-hardening-v2.yml \
+            .github/workflows/apply-eq-entry-hardening-v3.yml \
+            .github/workflows/finalize-eq-entry-hardening.yml \
+            scripts/dev/apply_eq_entry_hardening_v2.py \
+            scripts/dev/apply_eq_entry_hardening_v3.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            printf 'No finalization changes were needed.\n'
+          else
+            git commit -m "Finalize EQ entry rollback and verification hardening"
+            git push origin HEAD:feature/alarm-engine
+          fi
