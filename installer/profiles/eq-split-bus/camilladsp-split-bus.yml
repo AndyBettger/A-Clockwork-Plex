@@ -87,6 +87,7 @@ pipeline:
   - type: Filter
     description: "Music-only EQ and automatic headroom"
     channels: [0, 1]
+    bypassed: false
     names: [bass, mid, treble, headroom]
   - type: Mixer
     description: "Join alarm after music processing"
