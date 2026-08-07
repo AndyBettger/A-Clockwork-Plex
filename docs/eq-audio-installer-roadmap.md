@@ -164,6 +164,12 @@ scripts/audio/
 ├── uninstall-eq.sh
 ├── verify-audio.sh
 └── repair-audio.sh
+
+scripts/audio_eq_camilladsp/
+├── __init__.py
+├── model.py
+├── runtime.py
+└── cli.py
 ```
 
 The standalone audio scripts should later become library-backed entry points used by the full installer rather than being rewritten.
@@ -200,7 +206,7 @@ The standalone audio scripts should later become library-backed entry points use
 - [x] Publish [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md).
 - [x] Freeze `stage-c-terminal-install-20260806` as historical/recovery-only; do not merge it.
 
-**Finding:** the current `scripts/a-clockwork-plex-audio-eq.py` is tied to the rejected `alsaequal` backend. Phase 2 must replace its implementation with a CamillaDSP-backed helper while preserving the existing dashboard command and JSON contract.
+**Finding:** the former `scripts/a-clockwork-plex-audio-eq.py` was tied to the rejected `alsaequal` backend. Phase 2 has replaced that implementation with a CamillaDSP-backed helper while preserving the existing dashboard command and JSON contract.
 
 **Exit condition:** Met. The exact audio contract and a concise installation manifest are documented without mutating the Pi.
 
@@ -209,7 +215,7 @@ The standalone audio scripts should later become library-backed entry points use
 **Goal:** Build the smallest readable installer that can install and reverse the known-good audio design.
 
 - [x] Materialise the accepted split-bus, direct-failback and neutral CamillaDSP profiles as reviewed static files.
-- [ ] Implement the CamillaDSP-backed EQ helper while preserving `status`, `set`, `live`, `bypass` and `neutral`.
+- [x] Implement the CamillaDSP-backed EQ helper while preserving `status`, `set`, `live`, `bypass` and `neutral`.
 - [ ] Implement shared shell helpers with clear error messages.
 - [ ] Implement direct-route backup and validation.
 - [ ] Implement EQ file installation.
@@ -226,10 +232,21 @@ The standalone audio scripts should later become library-backed entry points use
 
 - reviewed static split-bus ALSA profile committed;
 - reviewed static direct alarm-bypass profile committed;
-- reviewed neutral CamillaDSP profile committed;
+- reviewed neutral CamillaDSP profile committed with explicit `bypassed: false`;
 - reviewed `snd_aloop` load and options profiles committed;
-- focused profile contract test committed;
-- laboratory-proven live reload method confirmed as atomic YAML replacement followed by `SIGHUP`, with the same CamillaDSP PID required to remain healthy.
+- focused profile contract tests committed;
+- modular CamillaDSP EQ helper committed under `scripts/audio_eq_camilladsp/`;
+- stable launcher retained at `scripts/a-clockwork-plex-audio-eq.py`;
+- existing dashboard commands and JSON fields preserved;
+- authoritative state selected as `/var/lib/a-clockwork-plex/split-bus/master-eq.json`;
+- automatic music headroom implemented as the largest positive boost plus `0.5 dB` attenuation margin;
+- native pipeline bypass implemented without route swapping or source-service restart;
+- complete candidate YAML is validated before atomic replacement;
+- live reload uses `SIGHUP` and requires the same CamillaDSP PID to remain healthy;
+- prior state and YAML are restored if validation or reload fails;
+- status distinguishes split-bus active, direct failback, direct rollback and offline;
+- helper contract documented in [`camilladsp-eq-helper-contract.md`](camilladsp-eq-helper-contract.md);
+- boot and repair paths are required to render the saved JSON state before CamillaDSP starts so a transient `live` drag value cannot persist across restart.
 
 **Exit condition:** The scripts are readable, shell-checked and complete without touching the production Pi.
 
@@ -343,8 +360,8 @@ The physical run should:
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and installation manifest published |
-| 2. Standalone installer | In progress | Static profiles committed; CamillaDSP EQ helper is next |
-| 3. Non-production tests | Not started | Profile contract test exists; full installer tests follow Phase 2 |
+| 2. Standalone installer | In progress | Static profiles and CamillaDSP EQ helper complete; route helper and installer shell follow |
+| 3. Non-production tests | Not started | Profile/helper contract tests exist; full installer tests follow Phase 2 |
 | 4. Bedroom-Pi installation | Not started | One controlled run after Phase 3 |
 | 5. Feature/interface acceptance | Not started | Includes bypass and locked controls |
 | 6. Failure/reboot/uninstall | Not started | Required before full-installer integration |
@@ -385,6 +402,7 @@ The EQ-capable audio feature is complete only when all of the following are true
 ## Related documents
 
 - [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md)
+- [`camilladsp-eq-helper-contract.md`](camilladsp-eq-helper-contract.md)
 - [`production-eq-split-bus-design.md`](production-eq-split-bus-design.md)
 - [`production-eq-stage-c-install-design.md`](production-eq-stage-c-install-design.md)
 - [`bedroom-dsp-laboratory-results.md`](bedroom-dsp-laboratory-results.md)
@@ -394,4 +412,4 @@ The EQ-capable audio feature is complete only when all of the following are true
 
 ## Next action
 
-Continue **Phase 2 — standalone installer implementation** by building and unit-testing the CamillaDSP-backed EQ helper. It will preserve the existing dashboard API, render the reviewed profile, validate with CamillaDSP 4.1.3, reload the same process using `SIGHUP`, and roll back state/configuration if the reload fails.
+Continue **Phase 2 — standalone installer implementation** with the small route helper, defaults file, restricted sudoers templates and three reviewed systemd units. The route/startup path must render the saved EQ JSON into the active CamillaDSP YAML before starting the DSP service, then publish one truthful route state for both the EQ helper and dashboard diagnostics.
