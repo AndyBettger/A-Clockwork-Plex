@@ -53,7 +53,7 @@ class EqAudioEntryScriptTests(unittest.TestCase):
             "if [[ \"${1:-}\" == '--version' ]]; then\n"
             "  printf 'CamillaDSP 4.1.3\\n'\n"
             'else\n'
-            '  return 0\n'
+            '  true\n'
             'fi\n',
             encoding='utf-8',
         )
