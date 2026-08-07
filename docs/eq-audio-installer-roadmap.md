@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve is neutral with Bass/Mid/Treble `0.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve has Bass/Mid `0.0 dB`, Treble `-6.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -260,7 +260,7 @@ Installer/live-verifier results:
 - [ ] Confirm the dashboard/API surfaces the same truthful EQ state.
 - [x] Bass control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] Mid control is audibly distinct, persists the requested value and reports the applied value correctly.
-- [ ] Treble control is audibly distinct and reported correctly.
+- [x] Treble control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [ ] AirPlay plays through the same music EQ lane.
 - [ ] AirPlay/Plexamp takeover and return still work.
 - [ ] EQ disable uses bypass without route remapping.
@@ -303,33 +303,17 @@ Bass was then returned to neutral `0.0 dB`. The helper returned the original neu
 
 #### Mid live EQ A/B — PASS
 
-Starting from the confirmed neutral curve, Mid was changed to `+6.0 dB`. The helper reported:
+Starting from the confirmed neutral curve, Mid was changed to `+6.0 dB`. The helper reported Mid stored/applied/effective `+6.0 dB`, Bass/Treble `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, config SHA `833f54aa09099c56543d12a70bab202862c3cc60e06f9dd04146ab698dd6addc`, headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual observation confirmed continuous playback and a strongly mid-forward tonal balance.
 
-- Mid stored/applied/effective `+6.0 dB`;
-- Bass and Treble exactly `0.0 dB`;
-- persisted `true`;
-- backend remained `split-bus-active`;
-- CamillaDSP PID remained exactly `1543417`;
-- active CamillaDSP config SHA `833f54aa09099c56543d12a70bab202862c3cc60e06f9dd04146ab698dd6addc`;
-- automatic music headroom `-6.5 dB`;
-- final limiter `-1.0 dB`.
+Mid was then moved directly to `-6.0 dB`. The helper reported Mid stored/applied/effective `-6.0 dB`, Bass/Treble `0.0 dB`, persisted `true`, unchanged backend/PID, config SHA `081875711e1a874ab6a5097bf826d7a270b4c2013aa3583038f4721914f3d7ce`, headroom `0.0 dB` and final limiter `-1.0 dB`. Manual observation confirmed a strongly scooped sound with bass/treble relatively prominent and vocals clearly thinner/recessed.
 
-Manual observation: playback remained continuous and the tonal balance became strongly mid-forward, perceived as less bassy and less trebley.
+Mid was then returned to neutral `0.0 dB`, restoring the original neutral config SHA, `0.0 dB` headroom and normal tonal balance with PID still `1543417`.
 
-Mid was then moved directly from `+6.0 dB` to `-6.0 dB`, again creating a 12 dB relative swing. The helper reported:
+#### Treble live EQ A/B — PASS
 
-- Mid stored/applied/effective `-6.0 dB`;
-- Bass and Treble exactly `0.0 dB`;
-- persisted `true`;
-- backend still `split-bus-active`;
-- CamillaDSP PID still exactly `1543417`;
-- active CamillaDSP config SHA `081875711e1a874ab6a5097bf826d7a270b4c2013aa3583038f4721914f3d7ce`;
-- automatic music headroom returned to `0.0 dB`;
-- final limiter remained `-1.0 dB`.
+Starting from the confirmed neutral curve, Treble was changed to `+6.0 dB`. The helper reported Treble stored/applied/effective `+6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, config SHA `0b9abd96aef92c132f9d11dfa8c400bb09cb3e83e520143b5f451b7a9e523039`, headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual listening clearly confirmed boosted treble/brightness with playback remaining continuous.
 
-Manual observation: playback remained uninterrupted and the sound became strongly scooped, with bass and treble relatively prominent and vocals clearly thinner/recessed. This conclusively accepts the Mid control both audibly and from the reported backend state.
-
-Mid was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, headroom `0.0 dB`, backend still `split-bus-active`, the original neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to normal.
+Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12 dB relative A/B swing used for Bass and Mid. The helper reported Treble stored/applied/effective `-6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend still `split-bus-active`, CamillaDSP PID still `1543417`, config SHA `d6b941ac78d1460781672b956e0929da2a1fbd48d1f9ec4e145061ac221475da`, headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual listening confirmed the track became markedly darker, conclusively accepting the Treble control both audibly and from the reported backend state.
 
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
@@ -378,7 +362,7 @@ Mid was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Ba
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Bass and Mid A/B accepted and both returned to neutral; Treble test next |
+| 5. Feature/interface acceptance | In progress | Bass, Mid and Treble A/B tests accepted with continuous playback and unchanged DSP PID; return Treble to neutral, then test bypass/UI |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
@@ -387,11 +371,11 @@ Mid was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Ba
 
 Continue Phase 5 while **Plexamp remains actively playing and audible**:
 
-1. test Treble from the confirmed neutral baseline using the same bounded `+6.0 dB` / `-6.0 dB` A/B method;
-2. confirm playback remains uninterrupted, the CamillaDSP PID remains unchanged and automatic headroom behaves as expected;
-3. return Treble to neutral;
-4. after all three bands are accepted, test bypass/restore semantics and the UI lock/grey state;
-5. proceed to AirPlay handover and alarm-isolation tests only after the basic music EQ path is accepted.
+1. return Treble from `-6.0 dB` to neutral `0.0 dB` and confirm the original neutral config returns;
+2. then test everyday EQ bypass/restore semantics without changing ALSA route or restarting source services;
+3. confirm stored EQ values survive bypass and return when re-enabled;
+4. confirm the Settings/drawer controls truthfully show bypassed state and are greyed/locked while bypassed;
+5. then proceed to AirPlay handover and alarm-isolation tests.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
