@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve has Bass/Mid `0.0 dB`, Treble `-6.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve is neutral with Bass/Mid/Treble `0.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -315,6 +315,8 @@ Starting from the confirmed neutral curve, Treble was changed to `+6.0 dB`. The 
 
 Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12 dB relative A/B swing used for Bass and Mid. The helper reported Treble stored/applied/effective `-6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend still `split-bus-active`, CamillaDSP PID still `1543417`, config SHA `d6b941ac78d1460781672b956e0929da2a1fbd48d1f9ec4e145061ac221475da`, headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual listening confirmed the track became markedly darker, conclusively accepting the Treble control both audibly and from the reported backend state.
 
+Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, headroom `0.0 dB`, backend still `split-bus-active`, original neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to neutral. This leaves the live appliance at the accepted neutral EQ baseline before bypass testing.
+
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
 ### Phase 6 — failure, reboot and uninstall acceptance
@@ -362,7 +364,7 @@ Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Bass, Mid and Treble A/B tests accepted with continuous playback and unchanged DSP PID; return Treble to neutral, then test bypass/UI |
+| 5. Feature/interface acceptance | In progress | Bass, Mid and Treble A/B tests accepted and all returned to neutral; bypass/restore semantics next |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
@@ -371,11 +373,12 @@ Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12
 
 Continue Phase 5 while **Plexamp remains actively playing and audible**:
 
-1. return Treble from `-6.0 dB` to neutral `0.0 dB` and confirm the original neutral config returns;
-2. then test everyday EQ bypass/restore semantics without changing ALSA route or restarting source services;
-3. confirm stored EQ values survive bypass and return when re-enabled;
-4. confirm the Settings/drawer controls truthfully show bypassed state and are greyed/locked while bypassed;
-5. then proceed to AirPlay handover and alarm-isolation tests.
+1. test everyday EQ bypass/restore semantics without changing ALSA route or restarting source services;
+2. first apply a clearly non-neutral stored curve, then bypass it and confirm the audible curve disappears while stored values remain;
+3. confirm CamillaDSP PID and split-bus route remain unchanged throughout bypass/restore;
+4. re-enable EQ and confirm the stored curve returns audibly and in reported applied values;
+5. confirm the Settings/drawer controls truthfully show bypassed state and are greyed/locked while bypassed;
+6. then return to neutral and proceed to AirPlay handover and alarm-isolation tests.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
