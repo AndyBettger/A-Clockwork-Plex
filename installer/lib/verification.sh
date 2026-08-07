@@ -2,7 +2,7 @@
 
 acp_copy_root_file_to_temporary() {
     local source="$1" temporary="$2"
-    [[ -f "$source" ]] || return 1
+    acp_run_root test -f "$source" || return 1
     acp_run_root cat -- "$source" >"$temporary"
 }
 
@@ -18,7 +18,7 @@ acp_verify_installed_files() {
     while IFS=$'\t' read -r destination expected mode; do
         [[ "$destination" == destination ]] && continue
         path="$(acp_path "$destination")" || { failures=$((failures + 1)); continue; }
-        if [[ ! -f "$path" ]]; then
+        if ! acp_run_root test -f "$path"; then
             failures=$((failures + 1))
             continue
         fi
