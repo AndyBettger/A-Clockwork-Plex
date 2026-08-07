@@ -101,7 +101,7 @@ class MasterEqualizer:
             payload['available'] = False
             payload['backend_state'] = 'unavailable'
             payload['error'] = error or payload.get('error') or 'The EQ helper is unavailable.'
-        elif payload.get('available'):
+        elif payload.get('available') and not helper.get('backend_state'):
             payload['backend_state'] = 'active'
         return payload
 
