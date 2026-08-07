@@ -363,7 +363,7 @@ class RouteController:
                 checks[name] = value
                 if name == 'loopback' and not value['ok']:
                     errors.append('snd_aloop does not match the accepted contract')
-            except RuntimeError as exc:
+            except (RuntimeError, OSError) as exc:
                 checks[name] = {'ok': False, 'error': str(exc)}
                 errors.append(str(exc))
         if self.settings.camilladsp_config.is_file():
@@ -371,7 +371,7 @@ class RouteController:
                 checks['camilladsp_config'] = self._validate_camilla(
                     self.settings.camilladsp_config
                 )
-            except RuntimeError as exc:
+            except (RuntimeError, OSError) as exc:
                 checks['camilladsp_config'] = {'ok': False, 'error': str(exc)}
                 errors.append(str(exc))
         return {'ok': not errors, 'checks': checks, 'errors': errors}
@@ -523,12 +523,18 @@ class RouteController:
             self._systemctl('stop', self.settings.camilladsp_service)
 
     def _wait_dac_released(self) -> None:
+        if not self.settings.dac_hw_params.is_file():
+            raise RuntimeError(
+                f'DAC hardware state is unavailable: {self.settings.dac_hw_params}'
+            )
         for _ in range(40):
             try:
                 value = self.settings.dac_hw_params.read_text(encoding='utf-8').strip()
-            except OSError:
-                value = ''
-            if value in {'', 'closed'}:
+            except OSError as exc:
+                raise RuntimeError(
+                    f'Could not read DAC hardware state: {self.settings.dac_hw_params}'
+                ) from exc
+            if value == 'closed':
                 return
             self.sleeper(0.1)
         raise RuntimeError('The physical DAC did not become idle.')
@@ -571,10 +577,10 @@ class RouteController:
                     'loopback': loopback,
                     'camilladsp_config_sha256': sha256(self.settings.camilladsp_config),
                 }
-            except RuntimeError as exc:
+            except (RuntimeError, OSError) as exc:
                 try:
                     self._select_direct_locked(f'split-bus preparation failed: {exc}')
-                except RuntimeError as failback_exc:
+                except (RuntimeError, OSError) as failback_exc:
                     raise RuntimeError(
                         f'Split-bus preparation failed and direct failback failed: {exc}; {failback_exc}'
                     ) from exc
@@ -593,14 +599,14 @@ class RouteController:
             self._wait_camilla_active()
             self._restore_applications(snapshot)
             return self.status()
-        except RuntimeError as exc:
+        except (RuntimeError, OSError) as exc:
             try:
                 self._stop_camilla()
                 self._wait_dac_released()
                 with self.locked():
                     self._select_direct_locked(f'split-bus activation failed: {exc}')
                 self._restore_applications(snapshot)
-            except RuntimeError as recovery_exc:
+            except (RuntimeError, OSError) as recovery_exc:
                 raise RuntimeError(
                     f'Split-bus activation failed and recovery was incomplete: {exc}; {recovery_exc}'
                 ) from exc
@@ -618,7 +624,7 @@ class RouteController:
                 self._select_direct_locked('managed direct failback requested')
             self._restore_applications(snapshot)
             return self.status()
-        except RuntimeError as exc:
+        except (RuntimeError, OSError) as exc:
             try:
                 self._restore_applications(snapshot)
             except RuntimeError as restore_exc:
@@ -630,8 +636,8 @@ class RouteController:
 
 def main() -> int:
     action = sys.argv[1].strip().lower() if len(sys.argv) > 1 else 'status'
-    controller = RouteController(RouteSettings(read_defaults()))
     try:
+        controller = RouteController(RouteSettings(read_defaults()))
         if action == 'status' and len(sys.argv) == 2:
             return emit(controller.status())
         if action == 'validate' and len(sys.argv) == 2:
