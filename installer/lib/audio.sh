@@ -203,7 +203,7 @@ acp_verify_initial_direct_route() {
 }
 
 acp_capture_preinstall_files() {
-    local backup active destination path key present hash mode uid gid
+    local backup active destination path key present hash mode uid gid table active_hash
     backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
     active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
     [[ ! -e "$backup/complete" ]] || {
@@ -213,10 +213,12 @@ acp_capture_preinstall_files() {
     acp_verify_initial_direct_route || return 1
     acp_run_root install -d -m 0700 "$backup/files" || return 1
     acp_run_root cp -p -- "$active" "$backup/pre-eq-active-route.conf" || return 1
-    sha256sum "$active" | awk '{print $1}' | \
-        acp_run_root tee "$backup/pre-eq-active-route.sha256" >/dev/null || return 1
-    printf 'destination\tpresent\tsha256\tmode\tuid\tgid\tbackup_key\n' >"${TMPDIR:-/tmp}/a-clockwork-plex-managed-before.$$" || return 1
-    local table="${TMPDIR:-/tmp}/a-clockwork-plex-managed-before.$$"
+    active_hash="$(sha256sum "$active" | awk '{print $1}')" || return 1
+    acp_install_text "$active_hash\n" \
+        "$ACP_BACKUP_DESTINATION/pre-eq-active-route.sha256" 0600 || return 1
+
+    table="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-managed-before.XXXXXX")" || return 1
+    printf 'destination\tpresent\tsha256\tmode\tuid\tgid\tbackup_key\n' >"$table"
     while IFS= read -r destination; do
         path="$(acp_path "$destination")" || { rm -f "$table"; return 1; }
         key="$(acp_backup_key "$destination")" || { rm -f "$table"; return 1; }
@@ -243,6 +245,7 @@ acp_capture_preinstall_files() {
     done < <(acp_managed_file_destinations)
     acp_run_root install -m 0600 "$table" "$backup/managed-before.tsv" || { rm -f "$table"; return 1; }
     rm -f "$table"
+
     if acp_is_production_root && [[ -d /sys/module/snd_aloop ]]; then
         acp_install_text 'loaded\n' "$ACP_BACKUP_DESTINATION/loopback-before.txt" 0600 || return 1
     else
@@ -252,7 +255,7 @@ acp_capture_preinstall_files() {
 }
 
 acp_restore_preinstall_files() {
-    local backup table destination present hash mode uid gid key path restored_hash expected_hash failures=0
+    local backup table destination present hash mode uid gid key path restored_hash expected_hash failures=0 active
     backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
     table="$backup/managed-before.tsv"
     [[ -f "$backup/complete" && -f "$table" && -f "$backup/pre-eq-active-route.conf" ]] || {
@@ -267,15 +270,18 @@ acp_restore_preinstall_files() {
                 failures=$((failures + 1))
                 continue
             fi
-            acp_is_production_root && acp_run_root chown "$uid:$gid" "$path" || true
+            if acp_is_production_root; then
+                acp_run_root chown "$uid:$gid" "$path" || failures=$((failures + 1))
+            fi
             restored_hash="$(sha256sum "$path" | awk '{print $1}')" || restored_hash=''
             [[ "$restored_hash" == "$hash" ]] || failures=$((failures + 1))
         else
             acp_remove_file "$destination" || failures=$((failures + 1))
         fi
     done <"$table"
-    acp_run_root install -D -m "$(stat -c '%a' "$backup/pre-eq-active-route.conf")" \
-        "$backup/pre-eq-active-route.conf" "$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || \
+
+    active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
+    acp_run_root cp -p -- "$backup/pre-eq-active-route.conf" "$active" || \
         failures=$((failures + 1))
     expected_hash="$(cat "$backup/pre-eq-active-route.sha256")"
     restored_hash="$(acp_sha256 "$ACP_ACTIVE_ALSA_DESTINATION" 2>/dev/null || true)"
@@ -283,10 +289,58 @@ acp_restore_preinstall_files() {
     [[ "$failures" -eq 0 ]]
 }
 
+acp_loopback_parameter() {
+    local name="$1"
+    [[ -r "/sys/module/snd_aloop/parameters/$name" ]] || return 1
+    cut -d, -f1 "/sys/module/snd_aloop/parameters/$name"
+}
+
+acp_loopback_matches() {
+    acp_is_production_root || return 0
+    [[ -d /sys/module/snd_aloop ]] || return 1
+    [[ "$(acp_loopback_parameter index)" == 7 ]] || return 1
+    [[ "$(acp_loopback_parameter id)" == ACP_Loopback ]] || return 1
+    [[ "$(acp_loopback_parameter pcm_substreams)" == 2 ]] || return 1
+    [[ "$(acp_loopback_parameter pcm_notify)" == 1 ]] || return 1
+}
+
+acp_ensure_loopback() {
+    acp_is_production_root || return 0
+    if [[ -d /sys/module/snd_aloop ]]; then
+        acp_loopback_matches || {
+            acp_error 'Loaded snd_aloop parameters do not match the accepted EQ profile.'
+            return 1
+        }
+        return 0
+    fi
+    sudo -- modprobe snd_aloop || return 1
+    acp_loopback_matches || {
+        acp_error 'snd_aloop loaded with unexpected parameters.'
+        return 1
+    }
+}
+
+acp_restore_loopback_state() {
+    local backup before
+    acp_is_production_root || return 0
+    backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
+    [[ -f "$backup/loopback-before.txt" ]] || return 1
+    before="$(cat "$backup/loopback-before.txt")"
+    if [[ "$before" == absent && -d /sys/module/snd_aloop ]]; then
+        sudo -- modprobe -r snd_aloop
+    elif [[ "$before" == loaded ]]; then
+        [[ -d /sys/module/snd_aloop ]]
+    else
+        [[ "$before" == absent ]]
+    fi
+}
+
 acp_remove_preinstall_backup() {
     local backup
     backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
-    [[ -d "$backup" ]] && acp_run_root rm -rf -- "$backup"
+    if [[ -d "$backup" ]]; then
+        acp_run_root rm -rf -- "$backup"
+    fi
 }
 
 acp_write_install_manifest() {
@@ -301,6 +355,28 @@ acp_write_install_manifest() {
         mode="$(stat -c '%a' "$path")" || { rm -f "$temporary"; return 1; }
         printf '%s\t%s\t%s\n' "$destination" "$hash" "$mode" >>"$temporary"
     done < <(acp_managed_file_destinations)
-    acp_run_root install -D -m 0600 "$temporary" "$manifest"
+    if ! acp_run_root install -D -m 0600 "$temporary" "$manifest"; then
+        rm -f "$temporary"
+        return 1
+    fi
     rm -f "$temporary"
+}
+
+acp_verify_install_manifest() {
+    local manifest destination expected mode path observed observed_mode failures=0
+    manifest="$(acp_path '/var/lib/a-clockwork-plex/split-bus/install-manifest.tsv')" || return 1
+    [[ -f "$manifest" ]] || return 1
+    while IFS=$'\t' read -r destination expected mode; do
+        [[ "$destination" == destination ]] && continue
+        path="$(acp_path "$destination")" || { failures=$((failures + 1)); continue; }
+        if [[ ! -f "$path" ]]; then
+            failures=$((failures + 1))
+            continue
+        fi
+        observed="$(sha256sum "$path" | awk '{print $1}')"
+        observed_mode="$(stat -c '%a' "$path")"
+        [[ "$observed" == "$expected" && "$observed_mode" == "$mode" ]] || \
+            failures=$((failures + 1))
+    done <"$manifest"
+    [[ "$failures" -eq 0 ]]
 }
