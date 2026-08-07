@@ -219,7 +219,32 @@
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="audio:hardware"><span><strong>Hardware status</strong><small>Shared mixer and DAC path</small></span><span>›</span></button>
           </div>
           <section class="settings-subpage" data-settings-subpage="audio:trims" hidden><button class="settings-back" type="button" data-settings-back="audio">‹ Audio</button><section class="settings-card"><div class="settings-card-heading"><div><h3>Persistent output trims</h3><p class="muted small">These are calibration controls and are applied immediately.</p></div><span class="settings-chip">Applied immediately</span></div><div id="settings-audio-trims" class="settings-live-trims"></div><div class="settings-action-row"><button type="button" class="button settings-secondary" data-action="refresh-mixer">Refresh mixer</button><span class="muted small" data-mixer-message></span></div></section></section>
-          <section class="settings-subpage" data-settings-subpage="audio:eq" hidden><button class="settings-back" type="button" data-settings-back="audio">‹ Audio</button><section class="settings-card"><div class="settings-card-heading"><div><h3>Master equaliser</h3><p class="muted small">Production three-band EQ after the shared mixer.</p></div><span class="settings-chip" data-eq-health>Checking…</span></div><label class="setting-toggle"><input type="checkbox" data-setting-path="audio.eq.enabled"><span>Equaliser enabled</span></label><div class="settings-eq-grid">{% for band in ['bass','mid','treble'] %}<label class="setting-field"><span>{{ band|title }}</span><input type="range" min="-6" max="6" step="0.5" data-setting-path="audio.eq.bands.{{ band }}"><output data-setting-output="audio.eq.bands.{{ band }}">0 dB</output></label>{% endfor %}</div><button class="button settings-secondary" type="button" data-action="eq-flat">Reset staged values to flat</button><p class="muted small" data-eq-message></p></section></section>
+          <section class="settings-subpage" data-settings-subpage="audio:eq" hidden>
+            <button class="settings-back" type="button" data-settings-back="audio">‹ Audio</button>
+            <section class="settings-card acp-eq-settings" id="acp-eq-settings-card">
+              <div class="settings-card-heading">
+                <div>
+                  <h2>Master equalizer</h2>
+                  <p class="muted small">A restrained three-band curve for Plexamp and AirPlay. Scheduled alarms bypass the music EQ.</p>
+                </div>
+                <span class="settings-chip" id="acp-eq-settings-health">Checking…</span>
+              </div>
+              <div class="acp-eq-settings-grid">
+                {% for band in ['bass','mid','treble'] %}
+                <label class="acp-eq-settings-band">
+                  <span>{{ band|title }}</span>
+                  <input type="range" min="-6" max="6" step="0.5" value="0" data-eq-range="{{ band }}" aria-label="{{ band|title }} equalizer gain">
+                  <output id="acp-eq-settings-value-{{ band }}">0 dB</output>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="acp-eq-settings-actions">
+                <button class="button settings-secondary" type="button" id="acp-eq-settings-bypass" aria-pressed="false">Bypass EQ</button>
+                <button class="button settings-secondary" type="button" id="acp-eq-settings-neutral">Return to neutral</button>
+                <span class="muted small" id="acp-eq-settings-message">Centre is 0 dB. Changes apply immediately.</span>
+              </div>
+            </section>
+          </section>
           <section class="settings-subpage" data-settings-subpage="audio:hardware" hidden><button class="settings-back" type="button" data-settings-back="audio">‹ Audio</button><section class="settings-card"><h3>Hardware status</h3><div class="settings-status-grid" id="settings-audio-hardware-status"><p class="muted">Loading shared-mixer status…</p></div></section></section>
         </div>
 
