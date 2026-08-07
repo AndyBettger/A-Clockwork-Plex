@@ -123,15 +123,26 @@ class EqController:
             f'(expected PID {expected_pid}, observed {observed or "none"}).'
         )
 
-    def _reload_config(self, state: dict[str, Any], *, persist: bool) -> None:
+    def _reload_config(
+        self,
+        state: dict[str, Any],
+        *,
+        persist: bool,
+        expected_pid: int,
+    ) -> None:
         if not self.settings.active_config.is_file():
             raise RuntimeError(
                 'Active CamillaDSP configuration is unavailable: '
                 f'{self.settings.active_config}'
             )
-        expected_pid = self._service_pid()
-        if expected_pid <= 0 or not self._service_active():
-            raise RuntimeError('CamillaDSP is not active; EQ changes are unavailable.')
+        if (
+            expected_pid <= 0
+            or not self._service_active()
+            or self._service_pid() != expected_pid
+        ):
+            raise RuntimeError(
+                'CamillaDSP changed before EQ reload began; no change was applied.'
+            )
 
         old_config = self.settings.active_config.read_bytes()
         old_state = (
@@ -142,6 +153,10 @@ class EqController:
         candidate = self._write_candidate(render_config(self.settings, state))
         try:
             self._validate_candidate(candidate)
+            if not self._service_active() or self._service_pid() != expected_pid:
+                raise RuntimeError(
+                    'CamillaDSP changed while the candidate was being validated.'
+                )
             candidate.replace(self.settings.active_config)
             self.signal_sender(expected_pid, signal.SIGHUP)
             self._wait_for_same_process(expected_pid)
@@ -186,15 +201,17 @@ class EqController:
             return 'split-bus-active' if service_active else 'split-bus-selected'
         return selected
 
-    def _mutation_ready(self) -> None:
+    def _mutation_ready(self) -> int:
         selected = self._selected_route_mode()
-        service_active = self._service_pid() > 0 and self._service_active()
+        expected_pid = self._service_pid()
+        service_active = expected_pid > 0 and self._service_active()
         if selected not in {'split-bus-selected', 'split-bus-active'} or not service_active:
             effective = self._effective_route_mode(selected, service_active)
             raise RuntimeError(
                 'The EQ curve is stored but cannot be applied while the audio '
                 f'route is {effective}.'
             )
+        return expected_pid
 
     def status(
         self,
@@ -280,10 +297,10 @@ class EqController:
     def set_band(self, band: str, value: Any, *, persist: bool) -> dict[str, Any]:
         if band not in BANDS:
             raise ValueError(f'Unknown EQ band: {band or "-"}')
-        self._mutation_ready()
+        expected_pid = self._mutation_ready()
         state = load_state(self.settings.state_path)
         state['bands'][band] = clamp_db(value)
-        self._reload_config(state, persist=persist)
+        self._reload_config(state, persist=persist, expected_pid=expected_pid)
         payload = self.status(state)
         payload.update({
             'changed_band': band,
@@ -293,16 +310,16 @@ class EqController:
         return payload
 
     def set_bypass(self, enabled: bool) -> dict[str, Any]:
-        self._mutation_ready()
+        expected_pid = self._mutation_ready()
         state = load_state(self.settings.state_path)
         state['bypassed'] = bool(enabled)
-        self._reload_config(state, persist=True)
+        self._reload_config(state, persist=True, expected_pid=expected_pid)
         return self.status(state)
 
     def neutral(self) -> dict[str, Any]:
-        self._mutation_ready()
+        expected_pid = self._mutation_ready()
         state = default_state()
-        self._reload_config(state, persist=True)
+        self._reload_config(state, persist=True, expected_pid=expected_pid)
         return self.status(state)
 
     def locked(self):
