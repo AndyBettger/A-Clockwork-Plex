@@ -33,11 +33,11 @@ source {AUDIO!s}
 source {VERIFICATION!s}
 ACP_ROOT=/
 protected=/opaque/protected-sudoers-file
-manifest={manifest!s}
+expected_manifest={manifest!s}
 acp_managed_file_destinations() {{ printf '/etc/sudoers.d/protected\\n'; }}
 acp_path() {{
     if [[ "$1" == '/var/lib/a-clockwork-plex/split-bus/install-manifest.tsv' ]]; then
-        printf '%s\\n' "$manifest"
+        printf '%s\\n' "$expected_manifest"
     else
         printf '%s\\n' "$protected"
     fi
@@ -56,7 +56,7 @@ acp_run_root() {{
     esac
 }}
 acp_write_install_manifest
-cat "$manifest"
+cat "$expected_manifest"
 '''
             result = self.run_bash(script)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -76,10 +76,10 @@ source {AUDIO!s}
 source {VERIFICATION!s}
 ACP_ROOT=/
 protected=/opaque/protected-sudoers-file
-manifest={manifest!s}
+expected_manifest={manifest!s}
 acp_path() {{
     if [[ "$1" == '/var/lib/a-clockwork-plex/split-bus/install-manifest.tsv' ]]; then
-        printf '%s\\n' "$manifest"
+        printf '%s\\n' "$expected_manifest"
     else
         printf '%s\\n' "$protected"
     fi
