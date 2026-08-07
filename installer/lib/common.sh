@@ -81,7 +81,7 @@ acp_install_file() {
 acp_install_text() {
     local content="$1" destination="$2" mode="$3" temporary
     temporary="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-install-text.XXXXXX")" || return 1
-    printf '%s' "$content" >"$temporary"
+    printf '%b' "$content" >"$temporary"
     if ! acp_install_file "$temporary" "$destination" "$mode"; then
         rm -f "$temporary"
         return 1
