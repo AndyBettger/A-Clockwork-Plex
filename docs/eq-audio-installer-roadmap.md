@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve has Bass `0.0 dB`, Mid `-6.0 dB`, Treble `0.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve is neutral with Bass/Mid/Treble `0.0 dB`, automatic music headroom `0.0 dB`, EQ active/not bypassed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -329,6 +329,8 @@ Mid was then moved directly from `+6.0 dB` to `-6.0 dB`, again creating a 12 dB 
 
 Manual observation: playback remained uninterrupted and the sound became strongly scooped, with bass and treble relatively prominent and vocals clearly thinner/recessed. This conclusively accepts the Mid control both audibly and from the reported backend state.
 
+Mid was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, headroom `0.0 dB`, backend still `split-bus-active`, the original neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to normal.
+
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
 ### Phase 6 — failure, reboot and uninstall acceptance
@@ -376,7 +378,7 @@ Manual observation: playback remained uninterrupted and the sound became strongl
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Bass and Mid A/B accepted with continuous playback and unchanged DSP PID; return Mid to neutral, then test Treble |
+| 5. Feature/interface acceptance | In progress | Bass and Mid A/B accepted and both returned to neutral; Treble test next |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
@@ -385,12 +387,11 @@ Manual observation: playback remained uninterrupted and the sound became strongl
 
 Continue Phase 5 while **Plexamp remains actively playing and audible**:
 
-1. return Mid from `-6.0 dB` to neutral `0.0 dB`;
-2. confirm playback remains uninterrupted, the neutral config returns and the CamillaDSP PID remains unchanged;
-3. test Treble from neutral using the same bounded `+6.0 dB` / `-6.0 dB` A/B method;
-4. return Treble to neutral;
-5. after all three bands are accepted, test bypass/restore semantics and the UI lock/grey state;
-6. proceed to AirPlay handover and alarm-isolation tests only after the basic music EQ path is accepted.
+1. test Treble from the confirmed neutral baseline using the same bounded `+6.0 dB` / `-6.0 dB` A/B method;
+2. confirm playback remains uninterrupted, the CamillaDSP PID remains unchanged and automatic headroom behaves as expected;
+3. return Treble to neutral;
+4. after all three bands are accepted, test bypass/restore semantics and the UI lock/grey state;
+5. proceed to AirPlay handover and alarm-isolation tests only after the basic music EQ path is accepted.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
