@@ -178,12 +178,22 @@ class EqController:
         finally:
             candidate.unlink(missing_ok=True)
 
+    def _selected_route_mode(self) -> str:
+        return str(self._route_state().get('mode') or 'offline')
+
+    def _effective_route_mode(self, selected: str, service_active: bool) -> str:
+        if selected in {'split-bus-selected', 'split-bus-active'}:
+            return 'split-bus-active' if service_active else 'split-bus-selected'
+        return selected
+
     def _mutation_ready(self) -> None:
-        route = self._route_state()
-        if route.get('mode') != 'split-bus-active':
+        selected = self._selected_route_mode()
+        service_active = self._service_pid() > 0 and self._service_active()
+        if selected not in {'split-bus-selected', 'split-bus-active'} or not service_active:
+            effective = self._effective_route_mode(selected, service_active)
             raise RuntimeError(
                 'The EQ curve is stored but cannot be applied while the audio '
-                f"route is {route.get('mode', 'offline')}."
+                f'route is {effective}.'
             )
 
     def status(
@@ -196,9 +206,10 @@ class EqController:
             else load_state(self.settings.state_path)
         )
         route = self._route_state()
-        route_mode = str(route.get('mode') or 'offline')
+        selected_route_mode = str(route.get('mode') or 'offline')
         pid = self._service_pid()
         service_active = pid > 0 and self._service_active()
+        route_mode = self._effective_route_mode(selected_route_mode, service_active)
         installed = self.settings.binary.is_file()
         configured = self.settings.active_config.is_file()
         available = (
@@ -226,10 +237,10 @@ class EqController:
             error = (
                 'The EQ backend is not installed in the active direct-audio profile.'
             )
+        elif selected_route_mode in {'split-bus-selected', 'split-bus-active'} and not service_active:
+            error = 'The split-bus route is selected but CamillaDSP is not active.'
         elif route_mode != 'split-bus-active':
             error = str(route.get('reason') or 'The EQ-capable audio route is offline.')
-        elif not service_active:
-            error = 'CamillaDSP is not active.'
         elif not installed or not configured:
             error = 'The CamillaDSP EQ backend is incomplete.'
 
@@ -259,6 +270,7 @@ class EqController:
             'final_limiter_db': FINAL_LIMITER_DB,
             'controls': [],
             'route_mode': route_mode,
+            'selected_route_mode': selected_route_mode,
             'route_reason': route.get('reason'),
             'camilladsp_pid': pid or None,
             'camilladsp_config_sha256': sha256(self.settings.active_config),
