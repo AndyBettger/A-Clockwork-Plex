@@ -1,0 +1,97 @@
+---
+title: "A Clockwork Plex EQ-capable split bus"
+description: "Music-only EQ and headroom, independent alarm lane, final limiter"
+devices:
+  samplerate: 44100
+  chunksize: 1024
+  queuelimit: 4
+  silence_timeout: 0
+  target_level: 2048
+  adjust_period: 1
+  enable_rate_adjust: true
+  resampler: null
+  volume_ramp_time: 100
+  volume_limit: 0.0
+  capture:
+    type: Alsa
+    channels: 4
+    device: "hw:7,1,0"
+    format: S16_LE
+  playback:
+    type: Alsa
+    channels: 2
+    device: "hw:CARD=Pro,DEV=0"
+    format: S16_LE
+filters:
+  bass:
+    type: Biquad
+    parameters:
+      type: Lowshelf
+      freq: 125
+      gain: 0.0
+      slope: 6
+  mid:
+    type: Biquad
+    parameters:
+      type: Peaking
+      freq: 1000
+      gain: 0.0
+      q: 0.7
+  treble:
+    type: Biquad
+    parameters:
+      type: Highshelf
+      freq: 4000
+      gain: 0.0
+      slope: 6
+  headroom:
+    type: Gain
+    parameters:
+      gain: 0.0
+      scale: dB
+      inverted: false
+      mute: false
+  final_safety_limiter:
+    type: Limiter
+    parameters:
+      soft_clip: false
+      clip_limit: -1.0
+mixers:
+  combine_music_and_alarm:
+    description: "Music 0/1 plus independent alarm 2/3 into stereo"
+    channels:
+      in: 4
+      out: 2
+    mapping:
+      - dest: 0
+        sources:
+          - channel: 0
+            gain: 0
+            scale: dB
+            inverted: false
+          - channel: 2
+            gain: 0
+            scale: dB
+            inverted: false
+      - dest: 1
+        sources:
+          - channel: 1
+            gain: 0
+            scale: dB
+            inverted: false
+          - channel: 3
+            gain: 0
+            scale: dB
+            inverted: false
+pipeline:
+  - type: Filter
+    description: "Music-only EQ and automatic headroom"
+    channels: [0, 1]
+    names: [bass, mid, treble, headroom]
+  - type: Mixer
+    description: "Join alarm after music processing"
+    name: combine_music_and_alarm
+  - type: Filter
+    description: "Final limiter protects the shared DAC output"
+    channels: [0, 1]
+    names: [final_safety_limiter]
