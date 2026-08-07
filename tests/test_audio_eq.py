@@ -263,11 +263,29 @@ class CamillaDspEqHelperTests(unittest.TestCase):
             self.assertFalse(status['bypassed'])
             self.assertEqual(status['headroom_db'], 0.0)
 
-    def test_changed_pid_causes_exact_config_rollback(self):
+    def test_pid_change_before_replacement_refuses_without_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
             controller, settings, _signals = self.make_controller(
                 directory,
                 pid_sequence=[321, 999],
+            )
+            original = settings.active_config.read_text(encoding='utf-8')
+            with self.assertRaisesRegex(
+                RuntimeError,
+                'no change was applied',
+            ):
+                controller.set_band('mid', 3, persist=True)
+            self.assertEqual(
+                settings.active_config.read_text(encoding='utf-8'),
+                original,
+            )
+            self.assertFalse(settings.state_path.exists())
+
+    def test_pid_change_after_replacement_causes_exact_config_rollback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            controller, settings, _signals = self.make_controller(
+                directory,
+                pid_sequence=[321, 321, 321, 999],
             )
             original = settings.active_config.read_text(encoding='utf-8')
             with self.assertRaisesRegex(
