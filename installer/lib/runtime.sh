@@ -11,8 +11,10 @@ acp_runtime_key() {
 }
 
 acp_capture_runtime_state() {
-    local snapshot="$1" table="$snapshot/state-files.tsv"
+    local snapshot table
     local destination path key mode uid gid
+    snapshot="$1"
+    table="$snapshot/state-files.tsv"
     mkdir -p "$snapshot/files" || return 1
     printf 'destination\tpresent\tmode\tuid\tgid\tbackup_key\n' >"$table"
 
@@ -36,8 +38,10 @@ acp_capture_runtime_state() {
 }
 
 acp_restore_runtime_state() {
-    local snapshot="$1" table="$snapshot/state-files.tsv"
+    local snapshot table
     local destination present mode uid gid key path failures=0
+    snapshot="$1"
+    table="$snapshot/state-files.tsv"
     [[ -f "$table" ]] || {
         acp_error "Runtime-state snapshot is incomplete: $snapshot"
         return 1
