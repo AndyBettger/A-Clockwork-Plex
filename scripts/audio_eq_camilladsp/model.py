@@ -150,11 +150,9 @@ def calculate_headroom_db(bands: dict[str, Any], bypassed: bool = False) -> floa
 def render_config(settings: Settings, state: dict[str, Any]) -> str:
     state = normalise_state(state)
     bypassed = bool(state['bypassed'])
-    applied = {
-        band: 0.0 if bypassed else clamp_db(state['bands'][band])
-        for band in BANDS
-    }
-    headroom = calculate_headroom_db(applied, bypassed)
+    applied = {band: clamp_db(state['bands'][band]) for band in BANDS}
+    headroom = calculate_headroom_db(applied)
+    pipeline_bypassed = 'true' if bypassed else 'false'
     return f'''---
 title: "A Clockwork Plex EQ-capable split bus"
 description: "Music-only three-band EQ and headroom, independent alarm, final limiter"
@@ -208,7 +206,7 @@ mixers:
           - {{channel: 1, gain: 0, scale: dB, inverted: false}}
           - {{channel: 3, gain: 0, scale: dB, inverted: false}}
 pipeline:
-  - {{type: Filter, channels: [0, 1], names: [bass, mid, treble, headroom]}}
+  - {{type: Filter, channels: [0, 1], bypassed: {pipeline_bypassed}, names: [bass, mid, treble, headroom]}}
   - {{type: Mixer, name: combine_music_and_alarm}}
   - {{type: Filter, channels: [0, 1], names: [final_safety_limiter]}}
 '''
