@@ -70,7 +70,7 @@
         <header class="acp-eq-heading">
           <div>
             <strong>Master EQ</strong>
-            <span>All sources · before Master</span>
+            <span>Plexamp + AirPlay · music only</span>
           </div>
           <span class="acp-eq-health" id="acp-eq-health">Checking…</span>
         </header>
@@ -94,7 +94,7 @@
         <div class="settings-card-heading">
           <div>
             <h2>Master equalizer</h2>
-            <p class="muted small">A restrained three-band curve shared by Plexamp, AirPlay and alarms before the Master output stage.</p>
+            <p class="muted small">A restrained three-band curve for Plexamp and AirPlay. Scheduled alarms bypass the music EQ.</p>
           </div>
           <span class="settings-chip" id="acp-eq-settings-health">Checking…</span>
         </div>
@@ -187,6 +187,7 @@
     latest = eq || {};
     const available = latest.available === true;
     const bypassed = latest.bypassed === true;
+    const controlsEnabled = available && !bypassed;
     BANDS.forEach((band) => {
       const payload = latest.bands?.[band] || {};
       const value = desired.has(band) ? desired.get(band) : Number(payload.db ?? 0);
@@ -194,11 +195,11 @@
       const knob = byId(`acp-eq-knob-${band}`);
       const range = document.querySelector(`[data-eq-range="${band}"]`);
       if (knob) {
-        knob.setAttribute('aria-disabled', available ? 'false' : 'true');
-        knob.tabIndex = available ? 0 : -1;
+        knob.setAttribute('aria-disabled', controlsEnabled ? 'false' : 'true');
+        knob.tabIndex = controlsEnabled ? 0 : -1;
         knob.classList.toggle('is-bypassed', bypassed);
       }
-      if (range) range.disabled = !available;
+      if (range) range.disabled = !controlsEnabled;
     });
 
     const healthText = available ? (bypassed ? 'Bypassed' : 'Active') : 'Install required';
