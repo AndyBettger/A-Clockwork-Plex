@@ -1,15 +1,15 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 2 and repository validation are complete; Phase 3 now requires only the read-only bedroom-Pi validation gate  
+**Status:** Active roadmap — Phase 3 read-only validation is complete; Phase 4 controlled bedroom-Pi installation is ready  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Current production state:** Direct shared audio route restored and working; no EQ installation committed  
+**Production state:** Direct shared audio route remains active and working; no EQ installation committed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
 
-The split-bus EQ audio design has already been selected and physically proven with Plexamp, AirPlay and scheduled alarms. The supported work now turns that known-good design into a small, understandable and repeatable installer that:
+The split-bus EQ audio design has already been selected and physically proven with Plexamp, AirPlay and scheduled alarms. The supported work turns that known-good design into a small, understandable and repeatable installer that:
 
 1. installs the EQ-capable audio architecture on the bedroom Pi;
 2. provides the backend required for final interface and Settings testing;
@@ -61,7 +61,7 @@ Everyday EQ bypass is not failback. Automatic failback is reserved for a genuine
 
 ## Known-good production baseline
 
-The bedroom Pi is currently restored to the accepted direct-audio baseline:
+The bedroom Pi remains on the accepted direct-audio baseline:
 
 - `plexamp.service`, `shairport-sync.service` and `a-clockwork-plex.service` are active and enabled;
 - the original direct ALSA route is active;
@@ -69,9 +69,9 @@ The bedroom Pi is currently restored to the accepted direct-audio baseline:
 - no production EQ lock or authoritative transaction remains;
 - no supported EQ installation is committed;
 - Plexamp sees its normal outputs and audible playback works;
-- the retained Stage C failure was archived and closed successfully.
+- the retained Stage C failure remains archived and closed.
 
-This remains the rollback reference state. Repository, CI and temporary-root tests have not changed the bedroom Pi.
+This remains the rollback reference state.
 
 ## Supported commands
 
@@ -206,57 +206,67 @@ The standalone audio commands will later become the tested audio component calle
 - [x] Re-run the complete suite successfully.
 - [x] Implement standalone read-only `preflight-eq.sh`.
 - [x] Add a static safety contract proving the preflight has no privileged or audio-mutation path.
-- [ ] Run the preflight on the bedroom Pi with the accepted CamillaDSP 4.1.3 binary.
-- [ ] Record successful real ALSA, CamillaDSP, systemd and sudoers parser results.
-- [ ] Record exact before/after production-state equality.
+- [x] Run the preflight on the bedroom Pi with the accepted CamillaDSP 4.1.3 binary.
+- [x] Record successful real ALSA, CamillaDSP, systemd and sudoers parser results.
+- [x] Record exact before/after production-state equality.
 
 #### Repository-validation checkpoint
 
-The first corrected full gate, GitHub Actions run **31144537952** for commit `f465d60aa8aa7deae637585b0495a2b940e30f2b`, produced **1,340/1,340 passing tests**.
+GitHub Actions run **31145374614** produced **1,346/1,346 passing tests**, including all six dedicated preflight safety tests. Python compilation, JavaScript/page wiring and shell-syntax checks passed.
 
-The six earlier failures were fixed by:
+#### Bedroom-Pi read-only validation checkpoint — PASS
 
-1. assigning the runtime snapshot root before deriving `state-files.tsv`;
-2. using the privileged installed-file read boundary and structural JSON validation in `verify-audio.sh`;
-3. explicitly invoking Bash for internal installer-to-verifier and installer-to-repair handoffs.
+The **read-only bedroom-Pi validation gate** was run from exact source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534` while normal direct Plexamp audio remained active.
 
-#### Read-only preflight implementation checkpoint
+Accepted CamillaDSP binary:
 
-The dedicated preflight was added in commit `ff69a805a2ab5e52b7be9de2bb436239bd4713f1`, with its safety tests in commit `e283b9578659b97be918d0d3402a03f5b33152ab`.
+- path: `/var/tmp/a-clockwork-plex-stage-c21-activation-package-v2.R2GyTo/rootfs/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp`;
+- version: `CamillaDSP 4.1.3 (05e9cfc)`;
+- SHA-256: `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`.
 
-GitHub Actions run **31145374614** produced:
+Observed results:
 
-- **1,346 tests run**;
-- **1,346 passed**;
-- **0 failed**;
-- Python compilation passed;
-- JavaScript, page-wiring and shell-syntax checks passed;
-- all six new preflight safety tests passed.
+- `host-baseline` — PASS;
+- `camilladsp-binary` — PASS;
+- `alsa-split` — PASS; isolated `aplay -L` parse with all five public PCMs and no PCM opened;
+- `alsa-direct` — PASS; isolated `aplay -L` parse with all five public PCMs and no PCM opened;
+- `camilladsp-config` — PASS; reviewed and rendered neutral profiles accepted by `CamillaDSP --check`;
+- `sudoers` — PASS; both restricted rules accepted by `visudo`;
+- `systemd-units` — PASS; all three units accepted in the private unit model;
+- `production-state` — PASS; route, services, managed paths, loopback and DAC parameters were unchanged;
+- final marker: `EQ_AUDIO_READ_ONLY_PREFLIGHT=PASS`.
 
-The preflight:
+Evidence is retained at:
 
-- requires the exact direct-route checksum and active/enabled application services;
-- requires EQ managed paths, lock, approval record, installed marker and backup to be absent;
-- pins the accepted CamillaDSP 4.1.3 binary digest;
-- parses both candidate routes with isolated `aplay -L` configurations without opening a PCM;
-- renders and checks the neutral DSP configuration with `camilladsp --check`;
-- verifies candidate units inside a private systemd model;
-- checks rendered restricted rules with `visudo`;
-- captures route, service, loopback, managed-path and DAC state before and after;
-- requires exact equality and retains evidence beneath `/var/tmp/a-clockwork-plex-eq-preflight.*`;
-- contains no `sudo`, install, route-selection, module-load, service-mutation, mixer-write or PCM-opening command.
+```text
+/var/tmp/a-clockwork-plex-eq-preflight.KztFun
+```
 
-No production Pi state was changed while implementing or testing it.
+The final active route remained exactly:
 
-**Exit condition:** The repository half is met. Phase 3 completes when the bedroom Pi reports `EQ_AUDIO_READ_ONLY_PREFLIGHT=PASS` with exact before/after equality.
+```text
+08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9
+```
+
+No production file, route, module, mixer control, PCM or service was changed.
+
+**Exit condition:** Met. Phase 3 is complete.
 
 ### Phase 4 — controlled bedroom-Pi installation
 
 **Goal:** Install the EQ-capable backend once on the current appliance.
 
-Before the run, operator instructions must explicitly state the required audio state, expected temporary outage, success markers, rollback behaviour and final verifier.
+The installation must use the same reviewed source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534` that passed the physical preflight. Documentation-only commits after that point do not change the candidate installer.
 
-- [ ] Verify the accepted direct baseline and checksum.
+Before activation:
+
+- direct audio should be **ACTIVE and audible** so the installer proves it can quiesce and restore a genuinely in-use source;
+- Plexamp, AirPlay and the dashboard are expected to stop briefly during route handover;
+- audio will go silent while the physical DAC is released and CamillaDSP takes ownership;
+- success means the installer reports success, the live verifier passes and Plexamp returns through split-bus audio;
+- on an activation failure, the installer is expected to select direct failback and restore the captured application services.
+
+- [ ] Verify the accepted direct baseline and checksum immediately before activation.
 - [ ] Capture the exact pre-EQ backup.
 - [ ] Install and start the EQ-capable graph.
 - [ ] Restore Plexamp, AirPlay and dashboard availability.
@@ -323,8 +333,8 @@ Before the run, operator instructions must explicitly state the required audio s
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and manifest published |
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
-| 3. Non-production/read-only validation | In progress | 1,346/1,346 repository tests pass; only the read-only Pi run remains |
-| 4. Bedroom-Pi installation | Not started | Blocked only on a successful read-only preflight |
+| 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production state equality |
+| 4. Bedroom-Pi installation | Ready | Same preflight-tested source commit will be used for controlled activation |
 | 5. Feature/interface acceptance | Not started | Follows controlled installation |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
@@ -332,18 +342,11 @@ Before the run, operator instructions must explicitly state the required audio s
 
 ## Immediate next action
 
-Run the **read-only bedroom-Pi validation gate** with `scripts/audio/preflight-eq.sh` from a fresh checkout pinned to its reviewed branch head while **normal direct audio remains active and audible**.
+Perform the controlled Phase 4 installation from the exact preflight-tested source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534` with **normal direct audio active and audible** at the start.
 
-The run must:
+The activation command must use the exact accepted CamillaDSP binary from the retained Stage C21 package and the explicit `INSTALL-EQ-AUDIO` token. After activation, run the standalone verifier and confirm audible Plexamp playback before moving into feature acceptance.
 
-1. locate the accepted CamillaDSP 4.1.3 binary by its exact digest;
-2. run without `sudo`;
-3. retain its evidence directory;
-4. report the accepted direct-route checksum;
-5. report `EQ_AUDIO_READ_ONLY_PREFLIGHT=PASS`;
-6. prove the before/after production snapshots are identical.
-
-No bedroom-Pi installation, route change, module load, service restart, mixer write or EQ activation is authorised by this step.
+No additional installer redesign, Stage C transaction work or PR #2 merge is part of this step.
 
 ## Roadmap maintenance discipline
 
