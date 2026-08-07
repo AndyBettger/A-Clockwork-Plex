@@ -291,7 +291,7 @@ class UnifiedSettingsTests(unittest.TestCase):
         self.assertEqual(len(saves), 1)
         self.assertTrue(saved["changed"]["airplay_receiver_restarted"])
 
-    def test_alarm_forecast_screen_and_eq_post_save_hooks_run_after_one_write(self):
+    def test_alarm_forecast_and_screen_hooks_run_without_mutating_live_eq(self):
         service, stored, saves, forecast, equalizer, _shairport, scheduler, _audio, idle_modes = self.build()
         snapshot = service.snapshot()
         settings = deepcopy(snapshot["settings"])
@@ -312,8 +312,9 @@ class UnifiedSettingsTests(unittest.TestCase):
         self.assertEqual(scheduler.recalculate_count, 1)
         self.assertEqual(forecast.wake_count, 1)
         self.assertEqual(forecast.refresh_calls, [True])
-        self.assertIn(("band", "bass", 1.5, True), equalizer.calls)
-        self.assertTrue(result["changed"]["eq_applied"])
+        self.assertEqual(equalizer.calls, [])
+        self.assertNotIn("audio", stored)
+        self.assertFalse(result["changed"]["eq_applied"])
 
     def test_stale_revision_rejects_without_writing_or_applying(self):
         service, _stored, saves, _forecast, equalizer, shairport, *_rest = self.build()
