@@ -48,6 +48,7 @@ class MasterEqualizerTests(unittest.TestCase):
         status = eq.status()
         self.assertTrue(status['available'])
         self.assertEqual(status['backend'], 'camilladsp')
+        self.assertEqual(status['backend_state'], 'split-bus-active')
         self.assertEqual(status['bands']['bass']['db'], 1.0)
         self.assertEqual(status['helper_path'], str(self.helper))
 
