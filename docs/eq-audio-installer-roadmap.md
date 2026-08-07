@@ -1,10 +1,10 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 3 read-only validation is complete; Phase 4 controlled bedroom-Pi installation is ready  
+**Status:** Active roadmap — Phase 4 controlled bedroom-Pi installation is in progress; first live activation proved the split-bus audio graph and exposed a corrected protected-file verification bug  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** Direct shared audio route remains active and working; no EQ installation committed  
+**Production state:** Direct shared audio is working after automatic rollback; exact direct-baseline checksum will be rechecked before the corrected retry; no EQ installation committed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -61,15 +61,16 @@ Everyday EQ bypass is not failback. Automatic failback is reserved for a genuine
 
 ## Known-good production baseline
 
-The bedroom Pi remains on the accepted direct-audio baseline:
+The accepted direct-audio baseline is:
 
-- `plexamp.service`, `shairport-sync.service` and `a-clockwork-plex.service` are active and enabled;
-- the original direct ALSA route is active;
-- active route SHA-256 is `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
-- no production EQ lock or authoritative transaction remains;
-- no supported EQ installation is committed;
-- Plexamp sees its normal outputs and audible playback works;
-- the retained Stage C failure remains archived and closed.
+- `plexamp.service`, `shairport-sync.service` and `a-clockwork-plex.service` active and enabled;
+- the original direct ALSA route active;
+- active route SHA-256 `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
+- no production EQ lock or authoritative transaction;
+- no supported EQ installation committed;
+- Plexamp normal outputs and audible playback working.
+
+After Phase 4 attempt #1, the installer reported successful restoration of this original direct-audio state and audible Plexamp playback was confirmed manually. The exact route checksum and residual managed-state checks are intentionally repeated before the corrected retry rather than inferred from the rollback message.
 
 This remains the rollback reference state.
 
@@ -256,7 +257,7 @@ No production file, route, module, mixer control, PCM or service was changed. **
 
 **Goal:** Install the EQ-capable backend once on the current appliance.
 
-The installation must use the same reviewed source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534` that passed the physical preflight. Documentation-only commits after that point do not change the candidate installer.
+The audio/configuration candidate was physically preflighted at source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534`. Phase 4 attempt #1 then exposed a protected-file inspection bug in installer bookkeeping after the audio graph was already healthy. The corrected retry source is commit `c3682ac9727d1373ab3813c93fd412531f861af3`. That correction changes manifest/verifier access to protected root-owned files and adds regression coverage; it does not alter the ALSA profiles, CamillaDSP configuration, binary, loopback contract, route logic or service ordering.
 
 Before activation:
 
@@ -266,15 +267,58 @@ Before activation:
 - success means the installer reports success, the live verifier passes and Plexamp returns through split-bus audio;
 - on an activation failure, the installer is expected to select direct failback and restore the captured application services.
 
-- [ ] Verify the accepted direct baseline and checksum immediately before activation.
-- [ ] Capture the exact pre-EQ backup.
-- [ ] Install and start the EQ-capable graph.
+#### Attempt #1 — audio graph PASS; installation bookkeeping FAIL; automatic rollback PASS
+
+Source commit: `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534`  
+Accepted CamillaDSP SHA-256: `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`
+
+The attempt began with Plexamp playing and audible. The installer quiesced the applications, released the DAC and activated the split-bus graph. Before the later manifest failure, the route status reported:
+
+- `ok: true`;
+- effective mode `split-bus-active`;
+- active route matched the split route;
+- active split-route SHA-256 `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
+- CamillaDSP active with a live PID (observed PID `1439706` for this run only);
+- `snd_aloop` present with index `7`, id `ACP_Loopback`, `pcm_substreams=2` and `pcm_notify=1`;
+- Plexamp, Shairport Sync and dashboard active and enabled;
+- route and CamillaDSP units active and enabled;
+- failback unit enabled and inactive, as expected during healthy split-bus operation.
+
+The dashboard/Plexamp interface returned with Plexamp paused. Manual Play produced audible audio through the live split-bus graph.
+
+The installation then failed while creating its managed-file manifest:
+
+```text
+[A Clockwork Plex] ERROR: Installed file is missing: /etc/sudoers.d/a-clockwork-plex-audio-route
+```
+
+Root cause: manifest creation performed an unprivileged existence/hash/mode inspection of managed files. `/etc/sudoers.d/a-clockwork-plex-audio-route` had been installed successfully but cannot be inspected normally by user `andy`, so it was falsely classified as missing. The post-install verifier contained the same class of unprivileged pre-check and would have failed at the same protected boundary.
+
+The installer then entered its automatic failure rollback. It removed the EQ unit enablement and reported:
+
+```text
+Installation failed, but the original direct-audio state was restored: install manifest write failed
+```
+
+Plexamp returned and audible direct playback was manually confirmed.
+
+#### Protected-file verification correction — PASS
+
+Commit `c3682ac9727d1373ab3813c93fd412531f861af3` corrects both manifest creation and installed-file verification so protected managed files are tested, hashed and statted through the existing privileged boundary. Regression tests explicitly simulate a protected installed path that is unavailable to the unprivileged caller.
+
+GitHub Actions run **31153855355** completed successfully, including Python compilation, JavaScript/page wiring, shell checks, the complete unit-test suite and the new protected-file regression tests.
+
+No audio graph, ALSA profile, CamillaDSP configuration, binary, systemd ordering or loopback contract was changed by this correction.
+
+- [ ] Recheck the accepted direct baseline, checksum and rollback cleanup after attempt #1.
+- [ ] Capture the exact pre-EQ backup for the corrected retry.
+- [ ] Install and start the EQ-capable graph from corrected commit `c3682ac9727d1373ab3813c93fd412531f861af3`.
 - [ ] Restore Plexamp, AirPlay and dashboard availability.
 - [ ] Verify public PCMs, backend state and rollback assets.
-- [ ] Verify audible Plexamp playback through the split-bus route.
-- [ ] Record the result here.
+- [ ] Verify audible Plexamp playback through the persistent split-bus route.
+- [x] Record attempt #1, its protected-path defect and successful automatic rollback.
 
-**Exit condition:** The installer reports success and Plexamp is audible through the split-bus route.
+**Exit condition:** The corrected installer reports success and Plexamp is audible through the persistent split-bus route.
 
 ### Phase 5 — feature and interface acceptance
 
@@ -334,17 +378,19 @@ Before activation:
 | 1. Artifact inventory | Complete | Exact audio contract and manifest published |
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production state equality |
-| 4. Bedroom-Pi installation | Ready | Same preflight-tested source commit will be used for controlled activation |
-| 5. Feature/interface acceptance | Not started | Follows controlled installation |
+| 4. Bedroom-Pi installation | In progress | Attempt #1 reached healthy audible split-bus; protected manifest check triggered successful rollback; corrected verifier is green |
+| 5. Feature/interface acceptance | Not started | Follows corrected controlled installation |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Perform the controlled Phase 4 installation from the exact preflight-tested source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534` with **normal direct audio active and audible** at the start.
+With **normal direct audio active and audible**, perform one focused read-only post-rollback baseline check on the bedroom Pi. Confirm the accepted direct-route checksum, application service state and absence/inactivity of the supported EQ installation after attempt #1.
 
-The activation command must use the exact accepted CamillaDSP binary from the retained Stage C21 package and the explicit `INSTALL-EQ-AUDIO` token. After activation, run the standalone verifier and confirm audible Plexamp playback before moving into feature acceptance.
+If that focused baseline passes, repeat the controlled Phase 4 installation from corrected source commit `c3682ac9727d1373ab3813c93fd412531f861af3`, using the exact accepted CamillaDSP binary from the retained Stage C21 package and the explicit `INSTALL-EQ-AUDIO` token.
+
+The full parser preflight is not repeated: the audio/configuration assets already passed the real Pi parsers, and attempt #1 additionally proved the split-bus route, loopback, CamillaDSP process and audible Plexamp path on the live appliance. The retry change is confined to protected managed-file inspection and its regression coverage.
 
 No additional installer redesign, Stage C transaction work or PR #2 merge is part of this step.
 
