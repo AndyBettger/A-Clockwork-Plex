@@ -1,10 +1,10 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 4 controlled bedroom-Pi installation is in progress; first live activation proved the split-bus audio graph and exposed a corrected protected-file verification bug  
+**Status:** Active roadmap — Phase 4 controlled bedroom-Pi installation is in progress; attempt #1 proved the split-bus graph, rollback cleanup is now complete, and the corrected retry is ready  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** Direct shared audio is working after automatic rollback; exact direct-baseline checksum will be rechecked before the corrected retry; no EQ installation committed  
+**Production state:** Accepted direct shared audio restored and audible; route checksum `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`; Plexamp, AirPlay and dashboard active/enabled; failed-install marker/backup and protected sudoers residues absent; no EQ installation committed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -70,9 +70,19 @@ The accepted direct-audio baseline is:
 - no supported EQ installation committed;
 - Plexamp normal outputs and audible playback working.
 
-After Phase 4 attempt #1, the installer reported successful restoration of this original direct-audio state and audible Plexamp playback was confirmed manually. The exact route checksum and residual managed-state checks are intentionally repeated before the corrected retry rather than inferred from the rollback message.
+After Phase 4 attempt #1, the direct route and all three application services were restored successfully. A follow-up protected-path check found that the two installer-generated sudoers files had survived rollback because the generic removal helper performed an unprivileged existence check before calling privileged `rm`. Both files were verified against the exact installer-generated SHA-256 values before manual removal. The final post-rollback cleanup check then reported:
 
-This remains the rollback reference state.
+- exact accepted direct route checksum;
+- Plexamp, Shairport Sync and dashboard active and enabled;
+- `/var/lib/a-clockwork-plex/split-bus/installed` absent;
+- `/var/lib/a-clockwork-plex/split-bus/pre-eq-backup` absent;
+- both installer sudoers files absent;
+- `POST_ROLLBACK_CLEANUP=PASS`;
+- audible Plexamp playback confirmed.
+
+`snd_aloop` remained loaded, but that observation did not contribute to the rollback-check failure and was deliberately left unchanged rather than assuming it was introduced by attempt #1.
+
+This is the current rollback reference state.
 
 ## Supported commands
 
@@ -257,7 +267,12 @@ No production file, route, module, mixer control, PCM or service was changed. **
 
 **Goal:** Install the EQ-capable backend once on the current appliance.
 
-The audio/configuration candidate was physically preflighted at source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534`. Phase 4 attempt #1 then exposed a protected-file inspection bug in installer bookkeeping after the audio graph was already healthy. The corrected retry source is commit `c3682ac9727d1373ab3813c93fd412531f861af3`. That correction changes manifest/verifier access to protected root-owned files and adds regression coverage; it does not alter the ALSA profiles, CamillaDSP configuration, binary, loopback contract, route logic or service ordering.
+The audio/configuration candidate was physically preflighted at source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534`. Attempt #1 then exposed two instances of the same protected-file boundary defect after the audio graph itself had already become healthy:
+
+1. protected installed files could not be inspected by the unprivileged manifest/verifier path;
+2. protected installed files could survive rollback because the generic removal helper first performed an unprivileged existence check.
+
+The corrected retry source is commit `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2`. The corrections are confined to protected managed-file inspection/removal and regression coverage; they do not alter the ALSA profiles, CamillaDSP configuration, binary, loopback contract, route logic or service ordering.
 
 Before activation:
 
@@ -267,7 +282,7 @@ Before activation:
 - success means the installer reports success, the live verifier passes and Plexamp returns through split-bus audio;
 - on an activation failure, the installer is expected to select direct failback and restore the captured application services.
 
-#### Attempt #1 — audio graph PASS; installation bookkeeping FAIL; automatic rollback PASS
+#### Attempt #1 — audio graph PASS; installation bookkeeping FAIL; automatic audio rollback PASS
 
 Source commit: `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534`  
 Accepted CamillaDSP SHA-256: `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`
@@ -292,31 +307,36 @@ The installation then failed while creating its managed-file manifest:
 [A Clockwork Plex] ERROR: Installed file is missing: /etc/sudoers.d/a-clockwork-plex-audio-route
 ```
 
-Root cause: manifest creation performed an unprivileged existence/hash/mode inspection of managed files. `/etc/sudoers.d/a-clockwork-plex-audio-route` had been installed successfully but cannot be inspected normally by user `andy`, so it was falsely classified as missing. The post-install verifier contained the same class of unprivileged pre-check and would have failed at the same protected boundary.
+Root cause: manifest creation performed an unprivileged existence/hash/mode inspection of managed files. `/etc/sudoers.d/a-clockwork-plex-audio-route` had been installed successfully but could not be traversed by user `andy`, so it was falsely classified as missing. The post-install verifier contained the same class of pre-check.
 
-The installer then entered its automatic failure rollback. It removed the EQ unit enablement and reported:
+The installer entered automatic rollback and restored the accepted direct audio route and application services. Plexamp returned and audible direct playback was manually confirmed.
+
+#### Protected managed-file corrections — PASS
+
+Commit `c3682ac9727d1373ab3813c93fd412531f861af3` corrected manifest creation and installed-file verification so protected paths are tested, hashed and statted through the existing privileged boundary. GitHub Actions run **31153855355** passed.
+
+The post-rollback baseline check then revealed that the two installer-generated sudoers files were still present even though the route, services and install markers were correctly restored. Root cause: `acp_remove_file()` used an unprivileged existence check before its privileged removal operation, so an inaccessible protected file could be mistaken for an absent one.
+
+Both surviving files were checked before manual removal:
 
 ```text
-Installation failed, but the original direct-audio state was restored: install manifest write failed
+365cdb1e5d9f45983c685119d92d024d6039fde629b07bfb4c1e7dd407dd6d0a  /etc/sudoers.d/a-clockwork-plex-audio-route
+7e7d992016ee52a6bf9158e3fff4cab657af96c487a1fdfeab120bd89234583f  /etc/sudoers.d/a-clockwork-plex-audio-eq
 ```
 
-Plexamp returned and audible direct playback was manually confirmed.
+These matched the exact installer-generated contents. They were removed explicitly, and the final read-only cleanup check reported `POST_ROLLBACK_CLEANUP=PASS` with the accepted direct checksum and all three application services active/enabled.
 
-#### Protected-file verification correction — PASS
+Commit `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2` updates the shared removal boundary so production existence/symlink checks and removal all use the fixed privileged path. A regression test specifically proves that an unprivileged-invisible protected file still reaches the privileged removal operation. GitHub Actions run **31154999148** completed successfully.
 
-Commit `c3682ac9727d1373ab3813c93fd412531f861af3` corrects both manifest creation and installed-file verification so protected managed files are tested, hashed and statted through the existing privileged boundary. Regression tests explicitly simulate a protected installed path that is unavailable to the unprivileged caller.
+No audio graph, ALSA profile, CamillaDSP configuration, binary, systemd ordering or loopback contract changed in either correction.
 
-GitHub Actions run **31153855355** completed successfully, including Python compilation, JavaScript/page wiring, shell checks, the complete unit-test suite and the new protected-file regression tests.
-
-No audio graph, ALSA profile, CamillaDSP configuration, binary, systemd ordering or loopback contract was changed by this correction.
-
-- [ ] Recheck the accepted direct baseline, checksum and rollback cleanup after attempt #1.
+- [x] Recheck the accepted direct baseline, checksum and rollback cleanup after attempt #1.
 - [ ] Capture the exact pre-EQ backup for the corrected retry.
-- [ ] Install and start the EQ-capable graph from corrected commit `c3682ac9727d1373ab3813c93fd412531f861af3`.
+- [ ] Install and start the EQ-capable graph from corrected commit `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2`.
 - [ ] Restore Plexamp, AirPlay and dashboard availability.
 - [ ] Verify public PCMs, backend state and rollback assets.
 - [ ] Verify audible Plexamp playback through the persistent split-bus route.
-- [x] Record attempt #1, its protected-path defect and successful automatic rollback.
+- [x] Record attempt #1, both protected-path defects and final rollback cleanup.
 
 **Exit condition:** The corrected installer reports success and Plexamp is audible through the persistent split-bus route.
 
@@ -378,7 +398,7 @@ No audio graph, ALSA profile, CamillaDSP configuration, binary, systemd ordering
 | 1. Artifact inventory | Complete | Exact audio contract and manifest published |
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production state equality |
-| 4. Bedroom-Pi installation | In progress | Attempt #1 reached healthy audible split-bus; protected manifest check triggered successful rollback; corrected verifier is green |
+| 4. Bedroom-Pi installation | In progress | Attempt #1 reached healthy audible split-bus; both protected-path defects are corrected; direct rollback cleanup PASS; retry ready |
 | 5. Feature/interface acceptance | Not started | Follows corrected controlled installation |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
@@ -386,11 +406,11 @@ No audio graph, ALSA profile, CamillaDSP configuration, binary, systemd ordering
 
 ## Immediate next action
 
-With **normal direct audio active and audible**, perform one focused read-only post-rollback baseline check on the bedroom Pi. Confirm the accepted direct-route checksum, application service state and absence/inactivity of the supported EQ installation after attempt #1.
+With **normal direct audio active and audible**, repeat the controlled Phase 4 installation from exact corrected source commit `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2`, using the accepted CamillaDSP 4.1.3 binary from the retained Stage C21 package and the explicit `INSTALL-EQ-AUDIO` token.
 
-If that focused baseline passes, repeat the controlled Phase 4 installation from corrected source commit `c3682ac9727d1373ab3813c93fd412531f861af3`, using the exact accepted CamillaDSP binary from the retained Stage C21 package and the explicit `INSTALL-EQ-AUDIO` token.
+The full parser preflight is not repeated: the audio/configuration assets already passed the real Pi parsers, attempt #1 additionally proved the split-bus route, loopback, CamillaDSP process and audible Plexamp path on the live appliance, and the two retry corrections are confined to protected managed-file inspection/removal.
 
-The full parser preflight is not repeated: the audio/configuration assets already passed the real Pi parsers, and attempt #1 additionally proved the split-bus route, loopback, CamillaDSP process and audible Plexamp path on the live appliance. The retry change is confined to protected managed-file inspection and its regression coverage.
+After the retry, record the installer output, active route/backend status, persistent rollback backup, application-service state and manual audible Plexamp result before beginning Phase 5 feature tests.
 
 No additional installer redesign, Stage C transaction work or PR #2 merge is part of this step.
 
