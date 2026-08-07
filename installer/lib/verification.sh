@@ -1,9 +1,39 @@
 #!/bin/bash
 
+# Manifest creation and verification live here because installed files may sit
+# beneath protected directories such as /etc/sudoers.d. Production inspection
+# must therefore use the same fixed sudo boundary as installation.
+acp_write_install_manifest() {
+    local manifest temporary destination path hash mode
+    manifest="$(acp_path '/var/lib/a-clockwork-plex/split-bus/install-manifest.tsv')" || return 1
+    temporary="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-install-manifest.XXXXXX")" || return 1
+    printf 'destination\tsha256\tmode\n' >"$temporary"
+    while IFS= read -r destination; do
+        path="$(acp_path "$destination")" || { rm -f "$temporary"; return 1; }
+        if ! acp_run_root test -f "$path"; then
+            acp_error "Installed file is missing: $path"
+            rm -f "$temporary"
+            return 1
+        fi
+        hash="$(acp_run_root sha256sum "$path" | awk '{print $1}')" || { rm -f "$temporary"; return 1; }
+        mode="$(acp_run_root stat -c '%a' "$path")" || { rm -f "$temporary"; return 1; }
+        printf '%s\t%s\t%s\n' "$destination" "$hash" "$mode" >>"$temporary"
+    done < <(acp_managed_file_destinations)
+    if ! acp_run_root install -D -m 0600 "$temporary" "$manifest"; then
+        rm -f "$temporary"
+        return 1
+    fi
+    rm -f "$temporary"
+}
+
 acp_copy_root_file_to_temporary() {
     local source="$1" temporary="$2"
     acp_run_root test -f "$source" || return 1
     acp_run_root cat -- "$source" >"$temporary"
+}
+
+acp_verify_install_manifest() {
+    acp_verify_installed_files
 }
 
 acp_verify_installed_files() {
