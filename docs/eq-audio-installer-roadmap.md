@@ -1,6 +1,6 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 2 and repository validation are complete; Phase 3 now requires only the read-only bedroom-Pi preflight run  
+**Status:** Active roadmap — Phase 2 and repository validation are complete; Phase 3 now requires only the read-only bedroom-Pi validation gate  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
@@ -332,7 +332,7 @@ Before the run, operator instructions must explicitly state the required audio s
 
 ## Immediate next action
 
-Run `scripts/audio/preflight-eq.sh` from a fresh checkout pinned to its reviewed branch head while **normal direct audio remains active and audible**.
+Run the **read-only bedroom-Pi validation gate** with `scripts/audio/preflight-eq.sh` from a fresh checkout pinned to its reviewed branch head while **normal direct audio remains active and audible**.
 
 The run must:
 
