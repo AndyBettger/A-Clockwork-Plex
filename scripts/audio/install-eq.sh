@@ -151,6 +151,27 @@ stop_current_applications() {
     [[ "$failures" -eq 0 ]]
 }
 
+prepare_backup_indexes() {
+    local backup="$1" service_snapshot="$2" temporary
+    acp_run_root chmod 0755 "$backup" || return 1
+    acp_run_root chmod 0644 \
+        "$backup/managed-before.tsv" \
+        "$backup/pre-eq-active-route.sha256" \
+        "$backup/loopback-before.txt" \
+        "$backup/complete" || return 1
+
+    temporary="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-services-before.XXXXXX")" || return 1
+    if ! acp_capture_application_services "$temporary"; then
+        rm -f "$temporary"
+        return 1
+    fi
+    if ! acp_run_root install -m 0644 "$temporary" "$service_snapshot"; then
+        rm -f "$temporary"
+        return 1
+    fi
+    rm -f "$temporary"
+}
+
 rollback_first_install() {
     local service_snapshot="$1" reason="$2" failures=0
     acp_log 'Installation failed; restoring the accepted direct-audio baseline.'
@@ -187,8 +208,8 @@ first_install() {
     }
 
     acp_capture_preinstall_files || return 1
-    if ! acp_capture_application_services "$service_snapshot"; then
-        write_failure_report 'could not capture application service state'
+    if ! prepare_backup_indexes "$backup" "$service_snapshot"; then
+        write_failure_report 'could not prepare the readable backup indexes'
         acp_remove_preinstall_backup || true
         return 1
     fi
