@@ -137,11 +137,25 @@
     if (!panel) return false;
     const subpage = panel.querySelector('[data-settings-subpage="audio:eq"]');
     if (!subpage) return false;
-    if (!byId('acp-eq-settings-card')) {
-      subpage.querySelectorAll(':scope > .settings-card').forEach((card) => card.remove());
-      subpage.insertAdjacentHTML('beforeend', settingsMarkup());
-      installSettingsInteractions();
+
+    let card = byId('acp-eq-settings-card');
+    if (!card) {
+      const template = document.createElement('template');
+      template.innerHTML = settingsMarkup().trim();
+      const candidate = template.content.firstElementChild;
+      if (!candidate) return false;
+
+      subpage.appendChild(candidate);
+      card = byId('acp-eq-settings-card');
+      if (!card) return false;
+
+      subpage.querySelectorAll(':scope > .settings-card').forEach((legacyCard) => {
+        if (legacyCard !== card) legacyCard.remove();
+      });
     }
+
+    installSettingsInteractions(card);
+    if (latest) render(latest);
     return true;
   }
 
@@ -393,8 +407,11 @@
     });
   }
 
-  function installSettingsInteractions() {
-    document.querySelectorAll('[data-eq-range]').forEach((range) => {
+  function installSettingsInteractions(card = byId('acp-eq-settings-card')) {
+    if (!card || card.dataset.eqInteractionsInstalled === 'true') return;
+    card.dataset.eqInteractionsInstalled = 'true';
+
+    card.querySelectorAll('[data-eq-range]').forEach((range) => {
       const band = range.dataset.eqRange;
       range.addEventListener('pointerdown', () => dragging.add(`settings-${band}`));
       range.addEventListener('pointerup', () => {
@@ -416,10 +433,10 @@
         queueBandChange(band, 0, true, 0);
       });
     });
-    byId('acp-eq-settings-bypass')?.addEventListener('click', () => {
+    card.querySelector('#acp-eq-settings-bypass')?.addEventListener('click', () => {
       postAction({ action: 'bypass', enabled: latest?.bypassed !== true });
     });
-    byId('acp-eq-settings-neutral')?.addEventListener('click', () => {
+    card.querySelector('#acp-eq-settings-neutral')?.addEventListener('click', () => {
       desired.clear();
       postAction({ action: 'neutral' });
     });
