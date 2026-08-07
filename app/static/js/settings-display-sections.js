@@ -5,6 +5,16 @@
 
   const RETRY_MS = 80;
   const MAX_ATTEMPTS = 100;
+  const TRANSITION_OPTIONS = [
+    ['grow-fade', 'Grow and fade'],
+    ['crossfade', 'Crossfade'],
+    ['horizontal-slide', 'Horizontal slide'],
+    ['vertical-lift', 'Vertical lift'],
+    ['cover-reveal', 'Cover reveal'],
+    ['zoom', 'Zoom'],
+    ['blur-dissolve', 'Blur dissolve'],
+    ['instant', 'Instant'],
+  ];
 
   function make(tag, className = '', text = '') {
     const node = document.createElement(tag);
@@ -16,6 +26,31 @@
   function findCard(panel, title) {
     return [...panel.querySelectorAll(':scope > .settings-card')]
       .find((card) => card.querySelector('h3')?.textContent.trim() === title);
+  }
+
+  function restoreMotionControls(card) {
+    const style = card.querySelector('[data-setting-path="display.transition_style"]');
+    if (style) {
+      const current = style.value;
+      style.replaceChildren(...TRANSITION_OPTIONS.map(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        return option;
+      }));
+      if (TRANSITION_OPTIONS.some(([value]) => value === current)) style.value = current;
+    }
+
+    const duration = card.querySelector('[data-setting-path="display.transition_duration_ms"]');
+    if (duration) {
+      duration.type = 'range';
+      duration.min = '0';
+      duration.max = '2000';
+      duration.step = '50';
+      duration.removeAttribute('inputmode');
+      duration.removeAttribute('data-keyboard');
+      duration.setAttribute('aria-label', 'Transition duration in milliseconds');
+    }
   }
 
   function openSubpage(panel, overview, key) {
@@ -122,6 +157,8 @@
     }
     if (panel.dataset.displaySectionsReady === 'true') return;
     panel.dataset.displaySectionsReady = 'true';
+
+    restoreMotionControls(motionCard);
 
     const header = panel.querySelector('.settings-detail-header');
     const headerCopy = header?.querySelector('p');
