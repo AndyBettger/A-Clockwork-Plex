@@ -92,7 +92,11 @@ acp_install_text() {
 acp_remove_file() {
     local destination
     destination="$(acp_path "$1")" || return 1
-    if [[ -e "$destination" || -L "$destination" ]]; then
+    # Production managed files may live below directories that the project user
+    # cannot traverse (notably /etc/sudoers.d). Inspect through the same fixed
+    # root boundary used to create/remove them; otherwise a protected existing
+    # file can be mistaken for an absent one and silently survive rollback.
+    if acp_run_root test -e "$destination" || acp_run_root test -L "$destination"; then
         acp_run_root rm -f -- "$destination"
     fi
 }
@@ -101,10 +105,10 @@ acp_copy_preserving() {
     local source destination
     source="$(acp_path "$1")" || return 1
     destination="$(acp_path "$2")" || return 1
-    [[ -f "$source" && ! -L "$source" ]] || {
+    if ! acp_run_root test -f "$source" || acp_run_root test -L "$source"; then
         acp_error "Backup source is not a regular file: $source"
         return 1
-    }
+    fi
     acp_run_root install -d -m 0755 "$(dirname "$destination")" || return 1
     acp_run_root cp -p -- "$source" "$destination"
 }
@@ -112,8 +116,8 @@ acp_copy_preserving() {
 acp_sha256() {
     local path
     path="$(acp_path "$1")" || return 1
-    [[ -f "$path" ]] || return 1
-    sha256sum "$path" | awk '{print $1}'
+    acp_run_root test -f "$path" || return 1
+    acp_run_root sha256sum "$path" | awk '{print $1}'
 }
 
 acp_write_operation_log() {
