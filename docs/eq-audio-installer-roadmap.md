@@ -1,6 +1,6 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 2 implementation is substantially complete; Phase 3 validation is in progress and currently blocked by six repository-test failures  
+**Status:** Active roadmap — Phase 2 implementation and repository validation are complete; Phase 3 continues with read-only bedroom-Pi parser validation  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
@@ -92,7 +92,7 @@ scripts/audio/verify-audio.sh
 scripts/audio/repair-audio.sh
 ```
 
-All four commands now exist on `feature/alarm-engine`.
+All four commands exist on `feature/alarm-engine`.
 
 ### Installation responsibilities
 
@@ -145,7 +145,8 @@ installer/
 │   ├── backup.sh
 │   ├── files.sh
 │   ├── runtime.sh
-│   └── services.sh
+│   ├── services.sh
+│   └── verification.sh
 └── profiles/
     ├── direct/
     └── eq-split-bus/
@@ -231,15 +232,13 @@ The standalone audio commands are intended to become library-backed entry points
 - one exact pre-EQ backup supports rollback and later uninstall;
 - repair and failed uninstall snapshot the current route, state files and CamillaDSP service state;
 - a full live verifier is required before install or repair can report success;
-- temporary-root lifecycle, repeated-install and injected-failure tests have been added;
+- temporary-root lifecycle, repeated-install and injected-failure tests are present;
 - the former approval, authority-borrowing and retained-transaction machinery is not used;
-- no Phase 2 implementation work has changed the bedroom Pi.
+- no Phase 2 implementation work changed the bedroom Pi.
 
-**Current qualification:** implementation work is present, but Phase 2 is not declared formally complete until the repository validation gate is green. The latest complete suite exposed six installer-test failures described under Phase 3.
+**Exit condition:** Met. All implementation items exist and the complete repository suite passes with no installer regression.
 
-**Exit condition:** All Phase 2 implementation items exist and the complete repository suite passes with no installer regressions. The first half is met; the green-suite gate is not yet met.
-
-### Phase 3 — non-production validation
+### Phase 3 — non-production and read-only host validation
 
 **Goal:** Prove file handling, idempotence and rollback without changing live audio, then validate the candidate with the real Pi parsers in read-only or prepare-only mode.
 
@@ -249,42 +248,37 @@ The standalone audio commands are intended to become library-backed entry points
 - [x] Add explicit uninstall and reinstall coverage.
 - [x] Add injected mid-install rollback coverage.
 - [x] Add runtime snapshot and permission coverage.
-- [x] Confirm temporary-root tests are designed not to write production paths.
-- [ ] Resolve the six failures in the latest complete repository suite.
-- [ ] Re-run the complete repository suite and record a green result.
+- [x] Confirm temporary-root tests do not write production paths.
+- [x] Resolve the six failures from the earlier complete repository suite.
+- [x] Re-run the complete repository suite and record a green result.
 - [ ] Validate both ALSA configurations with the Pi's real ALSA parser in an isolated configuration root.
 - [ ] Validate rendered CamillaDSP configuration with the accepted CamillaDSP 4.1.3 binary.
 - [ ] Validate the systemd units with the Pi's real systemd verifier.
 - [ ] Confirm the read-only and prepare-only host checks make no production change.
 
-#### Latest complete-suite checkpoint
+#### Green repository-validation checkpoint
 
-The GitHub Actions `Tests` run for source commit `27f173cb8e567488bdde9fc38e576849be2e5cc9` on 7 August 2026 produced:
+GitHub Actions `Tests` run **31144537952** for source commit `f465d60aa8aa7deae637585b0495a2b940e30f2b` on 7 August 2026 produced:
 
 - **1,340 tests run**;
-- **1,334 passed**;
-- **6 failed**;
+- **1,340 passed**;
+- **0 failed**;
 - Python compilation passed;
-- JavaScript checks, page wiring checks and shell-syntax checks passed;
-- no production Pi path or service was changed.
+- JavaScript checks, page-wiring checks and shell-syntax checks passed;
+- the temporary-root install, verify, repair, uninstall and reinstall lifecycle passed;
+- repeated installation preserved the original pre-EQ backup;
+- injected mid-install failure restored the direct baseline;
+- runtime-state snapshots restored present and absent files correctly;
+- privileged verifier and manifest-tampering checks passed;
+- no production Pi path, route, module or service was changed.
 
-The six failing tests are confined to the new standalone EQ installer work:
+The six earlier failures were resolved by three narrow corrections:
 
-1. `test_live_verifier_reads_root_owned_files_and_parses_json`
-2. `test_install_verify_repair_uninstall_and_reinstall_lifecycle`
-3. `test_mid_install_failure_restores_direct_baseline_and_existing_file`
-4. `test_second_install_delegates_to_repair_and_keeps_original_backup`
-5. `test_install_retains_readable_indexes_and_private_copies`
-6. `test_runtime_snapshot_restores_present_and_absent_state_files`
+1. `installer/lib/runtime.sh` now assigns the snapshot root before deriving `state-files.tsv`, preventing accidental resolution to `/state-files.tsv`;
+2. `scripts/audio/verify-audio.sh` now uses the privileged installed-file read boundary, validates saved state through the shared verifier library and parses the route/EQ helper JSON structurally;
+3. installer-to-verifier and installer-to-repair handoffs explicitly invoke Bash, so correctness does not depend on repository executable-bit preservation.
 
-The observed causes are:
-
-- `installer/lib/runtime.sh` is resolving its snapshot index as `/state-files.tsv` during temporary-root tests instead of placing it beneath the intended snapshot directory;
-- the verifier contract test expects the privileged installed-file verification boundary `acp_verify_installed_files`, while the current script still calls `acp_verify_install_manifest` directly.
-
-These are validation blockers, not evidence of a production audio failure. They must be fixed and the complete suite rerun before any bedroom-Pi installation.
-
-**Exit condition:** The complete suite is green and the real Pi parsers accept the candidate without changing production audio or service state.
+**Exit condition:** The complete suite is green and the real Pi parsers accept the candidate without changing production audio or service state. The repository half is met; the read-only Pi parser half remains.
 
 ### Phase 4 — controlled bedroom-Pi installation
 
@@ -383,9 +377,9 @@ The physical run will:
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and installation manifest published |
-| 2. Standalone installer | Implementation complete; gate pending | Four supported commands and shared libraries exist; six validation failures prevent formal completion |
-| 3. Non-production validation | In progress | 1,334 of 1,340 tests pass; temporary-root path and verifier-boundary regressions must be fixed before Pi parser checks |
-| 4. Bedroom-Pi installation | Not started | Blocked on a green Phase 3 gate |
+| 2. Standalone installer | Complete | Four supported commands, shared libraries and complete 1,340-test gate are green |
+| 3. Non-production/read-only validation | In progress | Repository and temporary-root validation are green; real Pi ALSA, CamillaDSP and systemd parser checks remain |
+| 4. Bedroom-Pi installation | Not started | Blocked only on the remaining read-only Phase 3 checks |
 | 5. Feature and interface acceptance | Not started | Follows controlled installation |
 | 6. Failure, reboot and uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone installer |
@@ -393,15 +387,17 @@ The physical run will:
 
 ## Immediate next action
 
-Fix the two identified validation defects without touching production audio:
+Complete the remaining **read-only bedroom-Pi validation gate**:
 
-1. make the runtime snapshot index resolve beneath the supplied snapshot directory rather than `/state-files.tsv`;
-2. route privileged installed-file verification through the intended `acp_verify_installed_files` boundary;
-3. run the focused installer tests;
-4. run the complete repository suite;
-5. only after a green suite, perform the remaining read-only Pi parser validation for ALSA, CamillaDSP and systemd.
+1. check out the exact reviewed branch head in a fresh temporary directory rather than using the stale production checkout;
+2. keep normal direct audio active and audible during the checks;
+3. validate both candidate ALSA route files with the Pi's real ALSA parser using an isolated configuration root;
+4. validate the rendered neutral CamillaDSP configuration with the accepted CamillaDSP 4.1.3 binary;
+5. validate the candidate systemd units with the Pi's real verifier;
+6. capture the direct-route checksum and application-service state before and after to prove no production change;
+7. record the result here before preparing a controlled installation command.
 
-No bedroom-Pi installation, route change or service restart is authorised by this step.
+No bedroom-Pi installation, route change, module load, service restart or EQ activation is authorised by this validation step.
 
 ## Roadmap maintenance discipline
 
