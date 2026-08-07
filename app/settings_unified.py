@@ -109,6 +109,11 @@ def _eq_band_value(model: dict[str, Any], band: str, fallback: float = 0.0) -> f
 
 
 def normalise_eq_model(value: Any, fallback: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Normalise the legacy EQ shape for compatibility callers.
+
+    Unified Settings no longer owns or applies this model. Runtime EQ state is
+    authoritative through MasterEqualizer and /api/audio/eq.
+    """
     source = _object(value)
     previous = _object(fallback)
     previous_bands = _object(previous.get("bands"))
@@ -122,10 +127,8 @@ def normalise_eq_model(value: Any, fallback: dict[str, Any] | None = None) -> di
 
 
 def eq_model_from_status(config: dict[str, Any], status: dict[str, Any]) -> dict[str, Any]:
-    audio = _object(config.get("audio"))
-    configured = _object(audio.get("eq"))
-    if configured:
-        return normalise_eq_model(configured)
+    """Return the live EQ model; saved config.audio.eq is intentionally ignored."""
+    _ = config  # Compatibility parameter for existing callers/tests.
     bands = _object(status.get("bands"))
     return {
         "enabled": status.get("bypassed") is not True and status.get("available") is True,
@@ -145,7 +148,7 @@ class UnifiedSettingsService:
     """Validate and commit appliance configuration as one transaction.
 
     Configuration is staged here. Runtime actions such as tests, live volume,
-    diagnostic refreshes and forecast refresh-now remain separate endpoints.
+    EQ, diagnostic refreshes and forecast refresh-now remain separate endpoints.
     """
 
     def __init__(
@@ -292,7 +295,8 @@ class UnifiedSettingsService:
                 "transactional_save": True,
                 "actions_are_separate": True,
                 "airplay_receiver_management": receiver_status.get("installed") is True,
-                "eq_configuration": True,
+                "eq_configuration": False,
+                "eq_runtime_control": True,
                 "eq_backend_available": eq_status.get("available") is True,
                 "persistent_mixer_trims_are_immediate": True,
             },
@@ -461,16 +465,14 @@ class UnifiedSettingsService:
             }
         )
 
-    def _apply_eq(self, model: dict[str, Any]) -> None:
-        status = self._equalizer.status()
-        if status.get("available") is not True:
-            raise ValueError(
-                status.get("error")
-                or "The EQ backend is not available, so EQ changes cannot be committed yet."
-            )
-        for band in ("bass", "mid", "treble"):
-            self._equalizer.set_band(band, model["bands"][band], persist=True)
-        self._equalizer.set_bypass(not model["enabled"])
+    @staticmethod
+    def _remove_legacy_eq_config(config: dict[str, Any]) -> None:
+        audio = config.get("audio")
+        if not isinstance(audio, dict):
+            return
+        audio.pop("eq", None)
+        if not audio:
+            config.pop("audio", None)
 
     def apply(self, payload: Any) -> dict[str, Any]:
         if not isinstance(payload, dict):
@@ -504,11 +506,7 @@ class UnifiedSettingsService:
 
         self._normalise_airplay(candidate, submitted.get("airplay"))
         self._normalise_plexamp(candidate, submitted.get("plexamp"))
-
-        before_eq = eq_model_from_status(before_config, before_snapshot["status"]["eq"])
-        submitted_audio = _object(submitted.get("audio"))
-        candidate_eq = normalise_eq_model(submitted_audio.get("eq"), before_eq)
-        candidate.setdefault("audio", {})["eq"] = candidate_eq
+        self._remove_legacy_eq_config(candidate)
 
         before_public = before_snapshot["settings"]
         candidate_public = self._public_settings(
@@ -520,7 +518,6 @@ class UnifiedSettingsService:
             candidate_public["airplay"]["receiver_name"]
             != before_public["airplay"]["receiver_name"]
         )
-        eq_changed = candidate_eq != before_eq
         forecast_changed = (
             candidate_public["weather"]["forecast"]
             != before_public["weather"]["forecast"]
@@ -536,22 +533,13 @@ class UnifiedSettingsService:
             )
 
         receiver_applied = False
-        eq_applied = False
         previous_receiver_name = before_public["airplay"]["receiver_name"]
         try:
             if receiver_changed:
                 self._shairport_name.apply(candidate_public["airplay"]["receiver_name"])
                 receiver_applied = True
-            if eq_changed:
-                self._apply_eq(candidate_eq)
-                eq_applied = True
             self._save_config(candidate)
         except Exception:
-            if eq_applied:
-                try:
-                    self._apply_eq(before_eq)
-                except Exception:
-                    pass
             if receiver_applied:
                 try:
                     self._shairport_name.apply(previous_receiver_name)
@@ -597,7 +585,7 @@ class UnifiedSettingsService:
                 "message": "Settings saved as one validated transaction.",
                 "changed": {
                     "airplay_receiver_restarted": receiver_changed,
-                    "eq_applied": eq_changed,
+                    "eq_applied": False,
                     "forecast_refreshed": forecast_changed,
                     "alarms_recalculated": alarms_changed,
                     "alarm_audio_safety_updated": alarm_audio_changed,
