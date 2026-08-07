@@ -190,7 +190,7 @@ activate_repair() {
             failure='split-bus reactivation failed'
     fi
     [[ -n "$failure" ]] || acp_write_install_manifest || failure='manifest rewrite failed'
-    [[ -n "$failure" ]] || "$SCRIPT_DIR/verify-audio.sh" --root "$ACP_ROOT" || \
+    [[ -n "$failure" ]] || bash "$SCRIPT_DIR/verify-audio.sh" --root "$ACP_ROOT" || \
         failure='repaired audio verification failed'
 
     if [[ -n "$failure" ]]; then
