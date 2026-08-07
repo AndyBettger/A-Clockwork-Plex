@@ -1,6 +1,6 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 1 complete; Phase 2 next  
+**Status:** Active roadmap — Phase 2 in progress  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
@@ -138,7 +138,7 @@ Running the uninstaller on a direct-audio system should report that no EQ backen
 
 ## Proposed repository layout
 
-The exact layout will be finalised as Phase 2 begins, but the target shape is:
+The exact layout will be finalised as Phase 2 continues, but the target shape is:
 
 ```text
 installer/
@@ -155,7 +155,9 @@ installer/
     └── eq-split-bus/
         ├── split-bus.conf
         ├── direct-alarm-bypass.conf
-        └── camilladsp-split-bus.yml
+        ├── camilladsp-split-bus.yml
+        ├── modules-load.d/
+        └── modprobe.d/
 
 scripts/audio/
 ├── install-eq.sh
@@ -206,7 +208,7 @@ The standalone audio scripts should later become library-backed entry points use
 
 **Goal:** Build the smallest readable installer that can install and reverse the known-good audio design.
 
-- [ ] Materialise the accepted split-bus, direct-failback and neutral CamillaDSP profiles as reviewed static files.
+- [x] Materialise the accepted split-bus, direct-failback and neutral CamillaDSP profiles as reviewed static files.
 - [ ] Implement the CamillaDSP-backed EQ helper while preserving `status`, `set`, `live`, `bypass` and `neutral`.
 - [ ] Implement shared shell helpers with clear error messages.
 - [ ] Implement direct-route backup and validation.
@@ -219,6 +221,15 @@ The standalone audio scripts should later become library-backed entry points use
 - [ ] Implement explicit uninstall.
 - [ ] Implement verification and repair commands.
 - [ ] Produce a concise installation report.
+
+**Implementation checkpoint — 7 August 2026:**
+
+- reviewed static split-bus ALSA profile committed;
+- reviewed static direct alarm-bypass profile committed;
+- reviewed neutral CamillaDSP profile committed;
+- reviewed `snd_aloop` load and options profiles committed;
+- focused profile contract test committed;
+- laboratory-proven live reload method confirmed as atomic YAML replacement followed by `SIGHUP`, with the same CamillaDSP PID required to remain healthy.
 
 **Exit condition:** The scripts are readable, shell-checked and complete without touching the production Pi.
 
@@ -332,8 +343,8 @@ The physical run should:
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and installation manifest published |
-| 2. Standalone installer | Next | Begin with static profiles and the CamillaDSP EQ helper |
-| 3. Non-production tests | Not started | Temporary-root and parser tests only |
+| 2. Standalone installer | In progress | Static profiles committed; CamillaDSP EQ helper is next |
+| 3. Non-production tests | Not started | Profile contract test exists; full installer tests follow Phase 2 |
 | 4. Bedroom-Pi installation | Not started | One controlled run after Phase 3 |
 | 5. Feature/interface acceptance | Not started | Includes bypass and locked controls |
 | 6. Failure/reboot/uninstall | Not started | Required before full-installer integration |
@@ -383,4 +394,4 @@ The EQ-capable audio feature is complete only when all of the following are true
 
 ## Next action
 
-Begin **Phase 2 — standalone installer implementation**. First materialise the three reviewed static audio profiles and implement the CamillaDSP-backed EQ helper contract without touching the production Pi.
+Continue **Phase 2 — standalone installer implementation** by building and unit-testing the CamillaDSP-backed EQ helper. It will preserve the existing dashboard API, render the reviewed profile, validate with CamillaDSP 4.1.3, reload the same process using `SIGHUP`, and roll back state/configuration if the reload fails.
