@@ -44,6 +44,7 @@ class EqAudioInstallerProfileTests(unittest.TestCase):
         limiter = self.camilla.index("names: [final_safety_limiter]", combine)
         self.assertLess(music_filter, combine)
         self.assertLess(combine, limiter)
+        self.assertIn("bypassed: false", self.camilla[:music_filter])
         self.assertIn('device: "hw:7,1,0"', self.camilla)
         self.assertIn('device: "hw:CARD=Pro,DEV=0"', self.camilla)
         self.assertIn("clip_limit: -1.0", self.camilla)
