@@ -1,7 +1,8 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap  
+**Status:** Active roadmap — Phase 1 complete; Phase 2 next  
 **Started:** 7 August 2026  
+**Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
 **Current production state:** Direct shared audio route restored and working; no EQ installation committed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
@@ -137,7 +138,7 @@ Running the uninstaller on a direct-audio system should report that no EQ backen
 
 ## Proposed repository layout
 
-The exact layout will be finalised after the artifact inventory, but the target shape is:
+The exact layout will be finalised as Phase 2 begins, but the target shape is:
 
 ```text
 installer/
@@ -184,27 +185,34 @@ The standalone audio scripts should later become library-backed entry points use
 
 **Goal:** Identify the exact tested files and runtime behaviour to reuse without redesigning the audio graph.
 
-- [ ] Inventory the accepted Stage A, A2 and Stage B artifacts.
-- [ ] Identify the final split-bus ALSA configuration.
-- [ ] Identify the direct-alarm-bypass configuration.
-- [ ] Identify the accepted CamillaDSP configuration and binary provenance.
-- [ ] Identify the EQ helper, runtime state and sudo rule.
-- [ ] Identify the route, CamillaDSP and failback service units.
-- [ ] Identify persistent `snd_aloop` requirements.
-- [ ] Record all installation destinations, modes and owners.
-- [ ] Record the required service start, stop and restart order.
-- [ ] Confirm which existing files are source-controlled and which must be generated.
+- [x] Inventory the accepted Stage A, A2, Stage B and Stage C0 artifacts.
+- [x] Identify the final split-bus ALSA configuration.
+- [x] Identify the direct-alarm-bypass configuration.
+- [x] Identify the accepted CamillaDSP configuration and binary provenance.
+- [x] Identify the EQ helper, runtime state and sudo-rule requirements.
+- [x] Identify the route, CamillaDSP and failback service units.
+- [x] Identify persistent `snd_aloop` requirements.
+- [x] Record all installation destinations, modes and owners.
+- [x] Record the required service start, stop and restart order.
+- [x] Confirm which existing files are source-controlled and which must be generated.
+- [x] Publish [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md).
+- [x] Freeze `stage-c-terminal-install-20260806` as historical/recovery-only; do not merge it.
 
-**Exit condition:** A concise manifest exists for the exact EQ-capable installation.
+**Finding:** the current `scripts/a-clockwork-plex-audio-eq.py` is tied to the rejected `alsaequal` backend. Phase 2 must replace its implementation with a CamillaDSP-backed helper while preserving the existing dashboard command and JSON contract.
+
+**Exit condition:** Met. The exact audio contract and a concise installation manifest are documented without mutating the Pi.
 
 ### Phase 2 — standalone installer implementation
 
 **Goal:** Build the smallest readable installer that can install and reverse the known-good audio design.
 
+- [ ] Materialise the accepted split-bus, direct-failback and neutral CamillaDSP profiles as reviewed static files.
+- [ ] Implement the CamillaDSP-backed EQ helper while preserving `status`, `set`, `live`, `bypass` and `neutral`.
 - [ ] Implement shared shell helpers with clear error messages.
 - [ ] Implement direct-route backup and validation.
 - [ ] Implement EQ file installation.
 - [ ] Implement persistent loopback setup.
+- [ ] Implement the small route helper and route-state reporting.
 - [ ] Implement systemd reload, enablement and service ordering.
 - [ ] Implement saved Settings state application: active or bypassed.
 - [ ] Implement automatic rollback on installation failure.
@@ -307,6 +315,8 @@ The physical run should:
 
 **Goal:** Reduce confusion and leave maintainable documentation.
 
+- [ ] Preserve the final `stage-c-terminal-install-20260806` head as an archival reference after its Phase 1 evidence has been extracted.
+- [ ] Delete the frozen `stage-c-terminal-install-20260806` branch after archival reference is recorded.
 - [ ] Mark the experimental Stage C transactional installer as archived or non-production.
 - [ ] Keep its evidence and lessons without presenting it as the supported install path.
 - [ ] Update `README.md` with the audio-profile choices.
@@ -321,14 +331,14 @@ The physical run should:
 | Phase | State | Current note |
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
-| 1. Artifact inventory | Next | Extract the exact tested package contents and service behaviour |
-| 2. Standalone installer | Not started | Depends on Phase 1 manifest |
+| 1. Artifact inventory | Complete | Exact audio contract and installation manifest published |
+| 2. Standalone installer | Next | Begin with static profiles and the CamillaDSP EQ helper |
 | 3. Non-production tests | Not started | Temporary-root and parser tests only |
 | 4. Bedroom-Pi installation | Not started | One controlled run after Phase 3 |
 | 5. Feature/interface acceptance | Not started | Includes bypass and locked controls |
 | 6. Failure/reboot/uninstall | Not started | Required before full-installer integration |
 | 7. Full installer integration | Not started | Reuse the standalone audio installer |
-| 8. Cleanup/release preparation | Not started | Archive experimental path; update docs |
+| 8. Cleanup/release preparation | Not started | Archive experimental path and remove frozen branch later |
 
 ## Communication and operating rules
 
@@ -363,7 +373,9 @@ The EQ-capable audio feature is complete only when all of the following are true
 
 ## Related documents
 
+- [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md)
 - [`production-eq-split-bus-design.md`](production-eq-split-bus-design.md)
+- [`production-eq-stage-c-install-design.md`](production-eq-stage-c-install-design.md)
 - [`bedroom-dsp-laboratory-results.md`](bedroom-dsp-laboratory-results.md)
 - [`master-eq-testing.md`](master-eq-testing.md)
 - [`direct-alarm-bypass-failback-result-2026-08-05.md`](direct-alarm-bypass-failback-result-2026-08-05.md)
@@ -371,4 +383,4 @@ The EQ-capable audio feature is complete only when all of the following are true
 
 ## Next action
 
-Begin **Phase 1 — known-good artifact inventory**. Produce a concise manifest of the exact configurations, helper, binary, units, destinations, ownership, loopback settings and service ordering that the standalone installer must reproduce.
+Begin **Phase 2 — standalone installer implementation**. First materialise the three reviewed static audio profiles and implement the CamillaDSP-backed EQ helper contract without touching the production Pi.
