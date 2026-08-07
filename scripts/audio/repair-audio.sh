@@ -113,7 +113,7 @@ capture_repair_snapshot() {
         path="$(acp_path "$destination")" || return 1
         key="$(acp_backup_key "$destination")" || return 1
         if [[ -f "$path" && ! -L "$path" ]]; then
-            cp -p -- "$path" "$snapshot/files/$key" || return 1
+            acp_run_root cp -p -- "$path" "$snapshot/files/$key" || return 1
             printf '%s\ttrue\t%s\t%s\n' \
                 "$destination" "$(stat -c '%a' "$path")" "$key" >>"$table"
         elif [[ ! -e "$path" && ! -L "$path" ]]; then
@@ -125,7 +125,7 @@ capture_repair_snapshot() {
     done < <(acp_managed_file_destinations)
     active="$(acp_path "$ACP_ACTIVE_ALSA_DESTINATION")" || return 1
     [[ -f "$active" && ! -L "$active" ]] || return 1
-    cp -p -- "$active" "$snapshot/active-alsa.conf" || return 1
+    acp_run_root cp -p -- "$active" "$snapshot/active-alsa.conf" || return 1
     if acp_is_production_root && [[ -d /sys/module/snd_aloop ]]; then
         printf 'loaded\n' >"$snapshot/loopback.txt"
     else
