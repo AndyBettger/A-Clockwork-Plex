@@ -4,9 +4,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
+SOURCE_ROOT = Path(__file__).resolve().parent
+INSTALLED_ROOT = Path('/usr/local/lib/a-clockwork-plex/audio-eq')
+for root in (INSTALLED_ROOT, SOURCE_ROOT):
+    if root.is_dir() and str(root) not in sys.path:
+        sys.path.insert(0, str(root))
 
 from audio_eq_camilladsp import *  # noqa: F401,F403
 
