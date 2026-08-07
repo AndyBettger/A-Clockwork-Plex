@@ -1,6 +1,6 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 2 in progress  
+**Status:** Active roadmap — Phase 2 implementation is substantially complete; Phase 3 validation is in progress and currently blocked by six repository-test failures  
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
@@ -9,18 +9,18 @@
 
 ## Purpose
 
-The split-bus EQ audio design has already been selected and physically proven with Plexamp, AirPlay and scheduled alarms. The next task is not to redesign that audio graph. It is to turn the known-good design into a small, understandable and repeatable installer that:
+The split-bus EQ audio design has already been selected and physically proven with Plexamp, AirPlay and scheduled alarms. The current task is not to redesign that graph. It is to turn the known-good design into a small, understandable and repeatable installer that:
 
 1. installs the EQ-capable audio architecture on the current bedroom Pi;
 2. provides the backend required for final interface and Settings testing;
-3. can be removed or repaired without rebuilding the Pi;
+3. can be verified, repaired and removed without rebuilding the Pi;
 4. can later be called by the full A Clockwork Plex installer after an SD-card replacement or fresh deployment.
 
-This roadmap replaces further development of the experimental multi-stage transactional installer as the intended production deployment path. The existing Stage C evidence and code remain preserved for reference, but the new installer should favour readable operations, explicit checks and straightforward rollback.
+This roadmap replaces further development of the experimental multi-stage transactional installer as the intended production deployment path. The existing Stage C evidence and code remain preserved for reference, but the supported installer favours readable operations, explicit checks and straightforward rollback.
 
 ## Decisions already made
 
-These decisions are considered settled unless new physical evidence proves one of them unsafe.
+These decisions are settled unless new physical evidence proves one of them unsafe.
 
 ### Audio graph
 
@@ -45,11 +45,11 @@ The future full installer will offer two audio capabilities:
 
 This choice determines which audio architecture is installed. It is not the same as the everyday EQ on/off setting.
 
-### Runtime EQ enable/disable
+### Runtime EQ enable and disable
 
-When the EQ-capable architecture is installed, Plexamp and AirPlay remain mapped to the same split-bus PCMs whether the EQ is enabled or disabled.
+When the EQ-capable architecture is installed, Plexamp and AirPlay remain mapped to the same split-bus PCMs whether EQ is enabled or disabled.
 
-The Settings switch must use CamillaDSP bypass:
+The Settings switch uses CamillaDSP bypass:
 
 - **EQ enabled:** stored Bass, Mid and Treble values are applied.
 - **EQ disabled:** the EQ filters are bypassed while the stored curve is preserved.
@@ -57,17 +57,17 @@ The Settings switch must use CamillaDSP bypass:
 
 Disabling EQ must not remap ALSA devices, restart Plexamp, restart AirPlay or swap the active route.
 
-While bypassed, the Settings and drawer EQ controls should remain visible but be greyed and locked. Re-enabling EQ restores the stored curve.
+While bypassed, the Settings and drawer EQ controls remain visible but are greyed and locked. Re-enabling EQ restores the stored curve.
 
 ### Failure behaviour
 
 Everyday EQ bypass is not failback.
 
-Automatic failback is reserved for a genuine backend failure, such as CamillaDSP failing to start or the expected audio PCMs becoming unavailable. In that case the appliance must return to the known-good direct shared route, restart the affected services and report that the EQ backend is unavailable.
+Automatic failback is reserved for a genuine backend failure, such as CamillaDSP failing to start or the expected audio PCMs becoming unavailable. In that case the appliance returns to the known-good direct shared route, restores the affected application services and reports that the EQ backend is unavailable.
 
-## Known-good starting state
+## Known-good production baseline
 
-The current bedroom Pi has been restored to the accepted direct-audio baseline:
+The bedroom Pi is currently restored to the accepted direct-audio baseline:
 
 - `plexamp.service`, `shairport-sync.service` and `a-clockwork-plex.service` are active and enabled;
 - the original direct ALSA route is active;
@@ -77,35 +77,13 @@ The current bedroom Pi has been restored to the accepted direct-audio baseline:
 - Plexamp sees its normal audio outputs and audible playback works;
 - the retained Stage C failure was archived and closed successfully.
 
-This is the rollback reference state for the new installer.
+This remains the rollback reference state for the new installer. Repository-only and temporary-root tests performed during Phases 2 and 3 have not changed the bedroom Pi.
 
-## Installer scope
+## Supported installer scope
 
-The standalone EQ installer must own only the audio capability. It should not attempt to reinstall the whole dashboard or rebuild unrelated application features.
+The standalone EQ installer owns only the audio capability. It does not reinstall the dashboard or rebuild unrelated application features.
 
-### Required installation responsibilities
-
-The installer should:
-
-1. verify the host, invoking user and required existing services;
-2. verify the current direct route and record a backup;
-3. verify the DAC and accepted sample contract;
-4. install and persist the required `snd_aloop` configuration;
-5. install the known-good split-bus and direct-alarm-bypass ALSA configurations;
-6. install the tested CamillaDSP binary and configuration;
-7. install the dashboard EQ control helper and its sudo rule;
-8. install the route, CamillaDSP and failback systemd units;
-9. reload systemd;
-10. select the split-bus route;
-11. enable and start the managed audio services in the correct order;
-12. restart Plexamp, AirPlay and the dashboard as required;
-13. apply the saved Settings EQ state as active or bypassed;
-14. verify the public audio PCMs, managed services, dashboard backend and direct rollback copy;
-15. print a short human-readable result.
-
-### Required companion commands
-
-The initial implementation should provide:
+### Supported commands
 
 ```text
 scripts/audio/install-eq.sh
@@ -114,50 +92,63 @@ scripts/audio/verify-audio.sh
 scripts/audio/repair-audio.sh
 ```
 
-The final names may change slightly to fit repository conventions, but the responsibilities should remain separate and obvious.
+All four commands now exist on `feature/alarm-engine`.
+
+### Installation responsibilities
+
+The supported installer is designed to:
+
+1. verify the host, invoking user and required existing services;
+2. verify the current direct route and retain one exact pre-EQ backup;
+3. verify the DAC and accepted sample contract;
+4. install and persist the required `snd_aloop` configuration;
+5. install the known-good split-bus and direct-alarm-bypass ALSA configurations;
+6. install the accepted CamillaDSP binary and configuration;
+7. install the dashboard EQ control helper and restricted sudo rules;
+8. install the route, CamillaDSP and failback systemd units;
+9. reload systemd;
+10. select the split-bus route;
+11. enable and start the managed audio services in the correct order;
+12. restart Plexamp, AirPlay and the dashboard only where required;
+13. apply the saved Settings EQ state as active or bypassed;
+14. verify the public audio PCMs, managed services, dashboard backend and rollback copy;
+15. print a short human-readable result.
 
 ### Rollback responsibilities
 
-If installation fails before completion, rollback should:
+If installation fails before completion, rollback must:
 
-1. stop any newly started managed services;
-2. restore the backed-up direct ALSA route;
+1. stop newly started managed services;
+2. restore the exact backed-up direct ALSA route;
 3. remove only files installed by the EQ installer;
 4. reload systemd;
-5. restore the original enabled/active state of Plexamp, AirPlay and the dashboard;
-6. verify that the direct public PCMs are visible;
-7. leave a readable failure report.
+5. restore the captured active and enabled state of Plexamp, AirPlay and the dashboard;
+6. restore captured runtime state files and the prior CamillaDSP service state where applicable;
+7. verify the direct public PCMs and direct route;
+8. leave a readable failure report.
 
-Rollback does not need authority borrowing, temporary approval records, numbered adapter generations or a separate retained-transaction framework.
+This path deliberately does not use Stage C authority borrowing, temporary approval records, numbered adapter generations or a retained-transaction framework.
 
 ### Idempotence
 
-Running the installer again on an already installed system should verify and repair the installation rather than duplicate files or create a second configuration.
+Running the installer again on an already installed system delegates to repair and preserves the original pre-EQ backup rather than creating a second baseline.
 
-Running the uninstaller on a direct-audio system should report that no EQ backend is installed and leave the system unchanged.
+Running the uninstaller on a direct-audio system reports that no EQ backend is installed and leaves the system unchanged.
 
-## Proposed repository layout
-
-The exact layout will be finalised as Phase 2 continues, but the target shape is:
+## Current repository layout
 
 ```text
 installer/
-├── install.sh
-├── uninstall.sh
-├── verify.sh
 ├── lib/
 │   ├── common.sh
 │   ├── audio.sh
+│   ├── backup.sh
+│   ├── files.sh
+│   ├── runtime.sh
 │   └── services.sh
 └── profiles/
     ├── direct/
-    │   └── 99-a-clockwork-plex-shared.conf
     └── eq-split-bus/
-        ├── split-bus.conf
-        ├── direct-alarm-bypass.conf
-        ├── camilladsp-split-bus.yml
-        ├── modules-load.d/
-        └── modprobe.d/
 
 scripts/audio/
 ├── install-eq.sh
@@ -172,7 +163,7 @@ scripts/audio_eq_camilladsp/
 └── cli.py
 ```
 
-The standalone audio scripts should later become library-backed entry points used by the full installer rather than being rewritten.
+The standalone audio commands are intended to become library-backed entry points used by the future full installer rather than being rewritten.
 
 ## Roadmap
 
@@ -187,7 +178,7 @@ The standalone audio scripts should later become library-backed entry points use
 - [x] Agree that the Settings switch uses DSP bypass rather than route swapping.
 - [x] Publish this roadmap.
 
-**Exit condition:** The next implementation step can be evaluated against an agreed plan rather than reconstructed from chat history.
+**Exit condition:** Met. The implementation can be assessed against an agreed plan rather than reconstructed from chat history.
 
 ### Phase 1 — known-good artifact inventory
 
@@ -200,15 +191,15 @@ The standalone audio scripts should later become library-backed entry points use
 - [x] Identify the EQ helper, runtime state and sudo-rule requirements.
 - [x] Identify the route, CamillaDSP and failback service units.
 - [x] Identify persistent `snd_aloop` requirements.
-- [x] Record all installation destinations, modes and owners.
+- [x] Record installation destinations, modes and owners.
 - [x] Record the required service start, stop and restart order.
-- [x] Confirm which existing files are source-controlled and which must be generated.
+- [x] Confirm which files are source-controlled and which are generated.
 - [x] Publish [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md).
-- [x] Freeze `stage-c-terminal-install-20260806` as historical/recovery-only; do not merge it.
+- [x] Freeze `stage-c-terminal-install-20260806` as historical and recovery-only; do not merge it.
 
-**Finding:** the former `scripts/a-clockwork-plex-audio-eq.py` was tied to the rejected `alsaequal` backend. Phase 2 has replaced that implementation with a CamillaDSP-backed helper while preserving the existing dashboard command and JSON contract.
+**Finding:** the former `scripts/a-clockwork-plex-audio-eq.py` implementation was tied to the rejected `alsaequal` backend. It has been replaced with a CamillaDSP-backed helper while preserving the dashboard command and JSON contract.
 
-**Exit condition:** Met. The exact audio contract and a concise installation manifest are documented without mutating the Pi.
+**Exit condition:** Met. The audio contract and installation manifest are documented without mutating the Pi.
 
 ### Phase 2 — standalone installer implementation
 
@@ -216,75 +207,107 @@ The standalone audio scripts should later become library-backed entry points use
 
 - [x] Materialise the accepted split-bus, direct-failback and neutral CamillaDSP profiles as reviewed static files.
 - [x] Implement the CamillaDSP-backed EQ helper while preserving `status`, `set`, `live`, `bypass` and `neutral`.
-- [ ] Implement shared shell helpers with clear error messages.
-- [ ] Implement direct-route backup and validation.
-- [ ] Implement EQ file installation.
-- [ ] Implement persistent loopback setup.
-- [ ] Implement the small route helper and route-state reporting.
-- [ ] Implement systemd reload, enablement and service ordering.
-- [ ] Implement saved Settings state application: active or bypassed.
-- [ ] Implement automatic rollback on installation failure.
-- [ ] Implement explicit uninstall.
-- [ ] Implement verification and repair commands.
-- [ ] Produce a concise installation report.
+- [x] Implement shared shell helpers with clear errors and fixed root handling.
+- [x] Implement direct-route backup and validation.
+- [x] Implement managed EQ file installation and manifests.
+- [x] Implement persistent loopback setup.
+- [x] Implement the small route helper and route-state reporting.
+- [x] Implement systemd reload, enablement and service ordering.
+- [x] Implement saved Settings state application as active or bypassed.
+- [x] Implement automatic rollback on installation failure.
+- [x] Implement explicit uninstall.
+- [x] Implement verification and repair commands.
+- [x] Implement concise installation and failure reporting.
+- [x] Add repeated-install delegation to repair while retaining the original backup.
+- [x] Add runtime snapshots for repair, failed install and failed uninstall restoration.
+- [x] Ensure installed Python launchers do not leave bytecode cache files.
 
 **Implementation checkpoint — 7 August 2026:**
 
-- reviewed static split-bus ALSA profile committed;
-- reviewed static direct alarm-bypass profile committed;
-- reviewed neutral CamillaDSP profile committed with explicit `bypassed: false`;
-- reviewed `snd_aloop` load and options profiles committed;
-- focused profile contract tests committed;
-- modular CamillaDSP EQ helper committed under `scripts/audio_eq_camilladsp/`;
-- stable launcher retained at `scripts/a-clockwork-plex-audio-eq.py`;
-- existing dashboard commands and JSON fields preserved;
-- authoritative state selected as `/var/lib/a-clockwork-plex/split-bus/master-eq.json`;
-- automatic music headroom implemented as the largest positive boost plus `0.5 dB` attenuation margin;
-- native pipeline bypass implemented without route swapping or source-service restart;
-- complete candidate YAML is validated before atomic replacement;
-- live reload uses `SIGHUP` and requires the same CamillaDSP PID to remain healthy;
-- prior state and YAML are restored if validation or reload fails;
-- status distinguishes split-bus active, direct failback, direct rollback and offline;
-- helper contract documented in [`camilladsp-eq-helper-contract.md`](camilladsp-eq-helper-contract.md);
-- boot and repair paths are required to render the saved JSON state before CamillaDSP starts so a transient `live` drag value cannot persist across restart.
+- the CamillaDSP-backed EQ helper preserves the dashboard command and JSON contract;
+- the route helper owns only fixed route, validation and failback actions;
+- install, verify, repair and uninstall are separate, readable entry points;
+- destructive commands require explicit activation tokens while prepare remains the default;
+- one exact pre-EQ backup supports rollback and later uninstall;
+- repair and failed uninstall snapshot the current route, state files and CamillaDSP service state;
+- a full live verifier is required before install or repair can report success;
+- temporary-root lifecycle, repeated-install and injected-failure tests have been added;
+- the former approval, authority-borrowing and retained-transaction machinery is not used;
+- no Phase 2 implementation work has changed the bedroom Pi.
 
-**Exit condition:** The scripts are readable, shell-checked and complete without touching the production Pi.
+**Current qualification:** implementation work is present, but Phase 2 is not declared formally complete until the repository validation gate is green. The latest complete suite exposed six installer-test failures described under Phase 3.
 
-### Phase 3 — non-production tests
+**Exit condition:** All Phase 2 implementation items exist and the complete repository suite passes with no installer regressions. The first half is met; the green-suite gate is not yet met.
 
-**Goal:** Prove file handling and rollback without changing live audio.
+### Phase 3 — non-production validation
 
-- [ ] Validate shell syntax.
-- [ ] Validate ALSA configuration parsing in an isolated configuration root.
-- [ ] Validate CamillaDSP configuration parsing.
-- [ ] Validate systemd unit syntax.
-- [ ] Exercise install against a temporary filesystem root.
-- [ ] Exercise repeated install for idempotence.
-- [ ] Exercise explicit uninstall.
-- [ ] Inject one or more simple failures and verify restoration.
-- [ ] Confirm no test command writes to production paths.
+**Goal:** Prove file handling, idempotence and rollback without changing live audio, then validate the candidate with the real Pi parsers in read-only or prepare-only mode.
 
-**Exit condition:** The installer and uninstaller produce the expected temporary-root state and exact rollback.
+- [x] Validate shell syntax for the installer libraries and four supported commands.
+- [x] Add temporary-root installation lifecycle coverage.
+- [x] Add repeated-install and original-backup preservation coverage.
+- [x] Add explicit uninstall and reinstall coverage.
+- [x] Add injected mid-install rollback coverage.
+- [x] Add runtime snapshot and permission coverage.
+- [x] Confirm temporary-root tests are designed not to write production paths.
+- [ ] Resolve the six failures in the latest complete repository suite.
+- [ ] Re-run the complete repository suite and record a green result.
+- [ ] Validate both ALSA configurations with the Pi's real ALSA parser in an isolated configuration root.
+- [ ] Validate rendered CamillaDSP configuration with the accepted CamillaDSP 4.1.3 binary.
+- [ ] Validate the systemd units with the Pi's real systemd verifier.
+- [ ] Confirm the read-only and prepare-only host checks make no production change.
+
+#### Latest complete-suite checkpoint
+
+The GitHub Actions `Tests` run for source commit `27f173cb8e567488bdde9fc38e576849be2e5cc9` on 7 August 2026 produced:
+
+- **1,340 tests run**;
+- **1,334 passed**;
+- **6 failed**;
+- Python compilation passed;
+- JavaScript checks, page wiring checks and shell-syntax checks passed;
+- no production Pi path or service was changed.
+
+The six failing tests are confined to the new standalone EQ installer work:
+
+1. `test_live_verifier_reads_root_owned_files_and_parses_json`
+2. `test_install_verify_repair_uninstall_and_reinstall_lifecycle`
+3. `test_mid_install_failure_restores_direct_baseline_and_existing_file`
+4. `test_second_install_delegates_to_repair_and_keeps_original_backup`
+5. `test_install_retains_readable_indexes_and_private_copies`
+6. `test_runtime_snapshot_restores_present_and_absent_state_files`
+
+The observed causes are:
+
+- `installer/lib/runtime.sh` is resolving its snapshot index as `/state-files.tsv` during temporary-root tests instead of placing it beneath the intended snapshot directory;
+- the verifier contract test expects the privileged installed-file verification boundary `acp_verify_installed_files`, while the current script still calls `acp_verify_install_manifest` directly.
+
+These are validation blockers, not evidence of a production audio failure. They must be fixed and the complete suite rerun before any bedroom-Pi installation.
+
+**Exit condition:** The complete suite is green and the real Pi parsers accept the candidate without changing production audio or service state.
 
 ### Phase 4 — controlled bedroom-Pi installation
 
 **Goal:** Install the EQ-capable backend once on the current appliance.
 
-Before the physical run, the operator instructions must explicitly state:
+Before the physical run, operator instructions must explicitly state:
 
-- whether Plexamp must be playing or paused;
-- what services and screen elements will temporarily disappear;
-- whether audio will go silent;
-- what success and rollback will look like.
+- whether Plexamp must be playing, paused or stopped;
+- which services and screen elements will temporarily disappear;
+- when audio will go silent;
+- what success and automatic rollback will look like;
+- which command verifies the final state.
 
-The physical run should:
+The physical run will:
 
-- [ ] verify the direct baseline;
+- [ ] verify the accepted direct baseline and checksum;
+- [ ] capture the exact pre-EQ backup;
 - [ ] install the EQ-capable audio graph;
 - [ ] start the managed services;
 - [ ] restore Plexamp, AirPlay and dashboard availability;
-- [ ] verify public PCMs and backend status;
-- [ ] leave a direct-route rollback copy.
+- [ ] verify public PCMs, backend state and rollback copy;
+- [ ] verify ordinary Plexamp playback is audible through the split-bus route;
+- [ ] record the installation result in this roadmap.
 
 **Exit condition:** The installer reports success and ordinary Plexamp playback is audible through the split-bus route.
 
@@ -308,7 +331,7 @@ The physical run should:
 - [ ] The final limiter protects combined music and alarm playback.
 - [ ] NFC playback and dashboard controls still work.
 
-**Exit condition:** The installed backend and the redesigned Settings interface behave as one coherent feature.
+**Exit condition:** The installed backend and redesigned Settings interface behave as one coherent feature.
 
 ### Phase 6 — failure, reboot and uninstall acceptance
 
@@ -317,7 +340,7 @@ The physical run should:
 - [ ] Controlled CamillaDSP failure returns to direct audio.
 - [ ] Failback leaves Plexamp, AirPlay and dashboard usable.
 - [ ] One controlled reboot restores the EQ-capable graph.
-- [ ] Saved active/bypassed state survives reboot.
+- [ ] Saved active or bypassed state survives reboot.
 - [ ] Persistent `snd_aloop` state is verified after reboot.
 - [ ] Explicit uninstall restores the accepted direct-route checksum.
 - [ ] Direct audio remains usable after uninstall and reboot.
@@ -331,9 +354,9 @@ The physical run should:
 
 - [ ] Add the full-installer choice: Direct audio or EQ-capable audio.
 - [ ] Make the EQ option call the tested standalone audio installer.
-- [ ] Ensure a non-interactive audio-profile argument is available.
+- [ ] Provide a non-interactive audio-profile argument.
 - [ ] Ensure the direct profile does not expose a misleading active EQ toggle.
-- [ ] Ensure the EQ-capable profile applies saved active/bypassed state.
+- [ ] Ensure the EQ-capable profile applies saved active or bypassed state.
 - [ ] Add fresh-Pi documentation and prerequisites.
 - [ ] Add post-install verification output.
 
@@ -343,13 +366,13 @@ The physical run should:
 
 **Goal:** Reduce confusion and leave maintainable documentation.
 
-- [ ] Preserve the final `stage-c-terminal-install-20260806` head as an archival reference after its Phase 1 evidence has been extracted.
-- [ ] Delete the frozen `stage-c-terminal-install-20260806` branch after archival reference is recorded.
+- [ ] Preserve the final `stage-c-terminal-install-20260806` head as an archival reference after its evidence has been extracted.
+- [ ] Delete the frozen `stage-c-terminal-install-20260806` branch after the archival reference is recorded.
 - [ ] Mark the experimental Stage C transactional installer as archived or non-production.
 - [ ] Keep its evidence and lessons without presenting it as the supported install path.
-- [ ] Update `README.md` with the audio-profile choices.
+- [ ] Update `README.md` with the two audio-profile choices.
 - [ ] Link the installer, verifier, repair and uninstall documentation.
-- [ ] Update this roadmap with final results and any accepted deviations.
+- [ ] Update this roadmap with final results and accepted deviations.
 - [ ] Review PR #2 separately; do not merge without explicit approval.
 
 **Exit condition:** The supported installation path is obvious to a future maintainer or to the owner rebuilding after an SD-card failure.
@@ -360,56 +383,37 @@ The physical run should:
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and installation manifest published |
-| 2. Standalone installer | In progress | Static profiles and CamillaDSP EQ helper complete; route helper and installer shell follow |
-| 3. Non-production tests | Not started | Profile/helper contract tests exist; full installer tests follow Phase 2 |
-| 4. Bedroom-Pi installation | Not started | One controlled run after Phase 3 |
-| 5. Feature/interface acceptance | Not started | Includes bypass and locked controls |
-| 6. Failure/reboot/uninstall | Not started | Required before full-installer integration |
-| 7. Full installer integration | Not started | Reuse the standalone audio installer |
-| 8. Cleanup/release preparation | Not started | Archive experimental path and remove frozen branch later |
+| 2. Standalone installer | Implementation complete; gate pending | Four supported commands and shared libraries exist; six validation failures prevent formal completion |
+| 3. Non-production validation | In progress | 1,334 of 1,340 tests pass; temporary-root path and verifier-boundary regressions must be fixed before Pi parser checks |
+| 4. Bedroom-Pi installation | Not started | Blocked on a green Phase 3 gate |
+| 5. Feature and interface acceptance | Not started | Follows controlled installation |
+| 6. Failure, reboot and uninstall acceptance | Not started | Follows feature acceptance |
+| 7. Full-installer integration | Not started | Reuses the accepted standalone installer |
+| 8. Cleanup and release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
-## Communication and operating rules
+## Immediate next action
 
-To prevent repeated or ambiguous physical testing:
+Fix the two identified validation defects without touching production audio:
 
-1. Every Pi command must state the required audio state first: **playing**, **paused** or **idle**.
-2. Every mutating command must state which services or interface elements may disappear and whether silence is expected.
-3. Validation and installation should be separate commands when practical.
-4. Commands must not contain `exit`, `logout`, reboot, shutdown or process-wide kill operations that could close the active SSH session unexpectedly.
-5. Do not rerun a failed installer while a retained failure or lock is present.
-6. Prefer short, understandable commands over large one-line orchestration.
-7. Do not repeat accepted physical tests unless a changed component invalidates their evidence.
-8. After each milestone, update the progress table and provide the owner with:
-   - what was completed;
-   - what changed;
-   - what remains;
-   - the next concrete step.
+1. make the runtime snapshot index resolve beneath the supplied snapshot directory rather than `/state-files.tsv`;
+2. route privileged installed-file verification through the intended `acp_verify_installed_files` boundary;
+3. run the focused installer tests;
+4. run the complete repository suite;
+5. only after a green suite, perform the remaining read-only Pi parser validation for ALSA, CamillaDSP and systemd.
 
-## Acceptance summary
+No bedroom-Pi installation, route change or service restart is authorised by this step.
 
-The EQ-capable audio feature is complete only when all of the following are true:
+## Roadmap maintenance discipline
 
-- the standalone installer can add the known-good split-bus design;
-- Plexamp and AirPlay both work through the music EQ lane;
-- scheduled alarms remain independent of Music Master and music EQ;
-- the Settings switch uses bypass and preserves the user curve;
-- bypassed controls are visibly locked;
-- reboot restores the chosen state;
-- failure returns to direct audio;
-- uninstall restores the current direct baseline;
-- the full installer can select and invoke the same tested audio component.
+This file is part of the implementation workflow, not an occasional retrospective document.
 
-## Related documents
+From this checkpoint onward:
 
-- [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md)
-- [`camilladsp-eq-helper-contract.md`](camilladsp-eq-helper-contract.md)
-- [`production-eq-split-bus-design.md`](production-eq-split-bus-design.md)
-- [`production-eq-stage-c-install-design.md`](production-eq-stage-c-install-design.md)
-- [`bedroom-dsp-laboratory-results.md`](bedroom-dsp-laboratory-results.md)
-- [`master-eq-testing.md`](master-eq-testing.md)
-- [`direct-alarm-bypass-failback-result-2026-08-05.md`](direct-alarm-bypass-failback-result-2026-08-05.md)
-- [`alarm-audio-testing.md`](alarm-audio-testing.md)
+- any commit that materially completes, blocks or changes a roadmap item must update this file in the same change or the immediately following documentation commit;
+- a phase must not be described as complete until its recorded exit condition has passed;
+- failed test gates must be recorded with the exact scope and result rather than omitted;
+- any physical Pi change must record the resulting route, checksum, relevant service state and rollback outcome;
+- the roadmap must be checked before project status is reported in chat;
+- PR #2 remains Draft and must not be merged without explicit approval.
 
-## Next action
-
-Continue **Phase 2 — standalone installer implementation** with the small route helper, defaults file, restricted sudoers templates and three reviewed systemd units. The route/startup path must render the saved EQ JSON into the active CamillaDSP YAML before starting the DSP service, then publish one truthful route state for both the EQ helper and dashboard diagnostics.
+The owner should not need to prompt for routine roadmap updates as development progresses.
