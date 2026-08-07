@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`, automatic music headroom `-6.5 dB`, EQ active/not bypassed; helper-level bypass/restore semantics and dashboard/API state truthfulness are accepted; the frontend bypass-lock/copy correction is committed and awaiting physical UI deployment/acceptance  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp remains audible through CamillaDSP; current saved curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`; EQ is currently bypassed from the live mixer overlay so applied/effective bands are neutral and headroom is `0.0 dB`; helper-level bypass/restore, dashboard/API truthfulness and mixer-overlay bypass/lock behaviour are accepted; the separate Settings → Audio → Equaliser page exposed a duplicate staged-EQ authority and its live-runtime unification fix is committed but still requires physical Pi deployment/acceptance  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -265,7 +265,7 @@ Installer/live-verifier results:
 - [ ] AirPlay/Plexamp takeover and return still work.
 - [x] EQ disable uses bypass without route remapping.
 - [x] Stored values survive bypass and return when enabled.
-- [ ] Controls are greyed and locked while bypassed.
+- [ ] Controls are greyed and locked while bypassed. *(Mixer overlay PASS; Settings subpage re-test pending authority fix deployment.)*
 - [ ] Return to neutral sets all bands to `0 dB`.
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
@@ -337,14 +337,39 @@ The bedroom Pi checkout was deliberately not wholesale-updated because it was 33
 
 The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, CamillaDSP PID `1543417`, headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
 
-#### Frontend bypass-lock contract — correction committed, physical acceptance pending
+#### Mixer overlay bypass/lock — PASS; duplicate Settings EQ authority found
 
-Source inspection before clicking the Settings bypass control found two frontend inconsistencies:
+The accepted frontend bypass-lock/copy correction was deployed by restoring only `app/static/js/audio-eq.js` from the fetched branch. The diff contained only the expected music-only/alarm-bypass copy change plus the `controlsEnabled = available && !bypassed` lock logic; audio continued uninterrupted during the static-file deployment.
 
-- bypassed sections received the visual bypass class, but knobs/ranges remained interactive because they were disabled only when the backend was unavailable;
-- drawer/Settings copy incorrectly described the EQ as affecting all sources/alarms even though the accepted graph routes scheduled alarms around the music EQ.
+After a hard refresh, the **audio mixer overlay** showed the live Bass `+6.0 dB`, Mid/Treble `0.0 dB` curve and the corrected Plexamp/AirPlay music-only wording. Pressing the overlay Bypass control successfully entered bypass and the three EQ knobs became greyed/locked as designed. The immediate API check reported:
 
-Commit `7d7ff583de0cf478b39b64d4886800558dcfbdc2` introduces `controlsEnabled = available && !bypassed`, uses it to remove drawer knob interaction/focus and disable Settings ranges while bypassed, preserves the saved displayed band values, and corrects the UI copy to identify the EQ as Plexamp/AirPlay music-only with scheduled alarms bypassing it. Commit `daece238b8c67edd7ee3a01ae0743650bb84bac5` adds a static regression contract for those behaviours. Physical Settings/drawer acceptance remains open until this JavaScript is deployed to the bedroom Pi and exercised against the existing Bass `+6.0 dB` test curve.
+- `bypassed=true`;
+- Bass `db=6.0`, `stored_db=6.0`, `applied_db=0.0`, `effective_db=0.0`;
+- Mid/Treble stored/applied/effective `0.0 dB`;
+- bypass config SHA `8e3216a59b7cb69441d45a5e788399b24ac61ee44f6fb491fd22f591e6564114`;
+- headroom `0.0 dB`;
+- route/backend `split-bus-active`;
+- CamillaDSP PID still `1543417`;
+- `ok=true`.
+
+This accepts the mixer-overlay user-facing bypass/lock path.
+
+The same physical check exposed a separate defect in **Settings → Audio → Equaliser**: that page still showed all three bands at `0 dB` with “Equaliser enabled” unticked while the live overlay/backend held saved Bass `+6 dB`. Source review found two competing EQ authorities:
+
+1. the old unified Settings page used staged `audio.eq.enabled` / `audio.eq.bands.*` values from `config.audio.eq`;
+2. the production EQ controls used `/api/audio/eq` and CamillaDSP live state.
+
+Worse, `eq_model_from_status()` preferred the saved config block over live status, and the unified Settings transaction could apply that stale staged model during Save. This was the exact kind of duplicate authority the audio redesign is intended to eliminate.
+
+The correction is now committed:
+
+- `4d24ca5fee0839d9094e8cc2cb93f475fc4cea52` — the existing Settings Equaliser subpage is replaced at runtime by the same live EQ surface used by the production controls; stale staged controls are removed from the DOM; the live EQ domain is supplied to unified Settings so normal saves cannot submit stale zero values;
+- `cacd0b73684fdc980ae04c67ec54ea0a49b0ed31` — frontend authority regression contract;
+- `083bea77618d39041ad8fefb35b0204349020c5d` — unified Settings now always derives its EQ view from live backend status, no longer applies EQ changes during transactional Save, advertises runtime rather than staged EQ control, and removes legacy `config.audio.eq` on the next Settings save;
+- `2df281bb8572955fd734b8dd2fc4979792715714` — backend runtime-authority regression coverage;
+- `b56e51f2fa35be949698528b312708f47f692ffe` — fresh example configuration no longer defines the obsolete staged EQ block.
+
+Physical Settings-page acceptance remains open until the new JavaScript and `settings_unified.py` are deployed to the bedroom Pi, the dashboard is restarted/refreshed, and the Equaliser subpage proves it mirrors the current bypassed saved Bass `+6 dB` state and locks its sliders.
 
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
@@ -393,21 +418,22 @@ Commit `7d7ff583de0cf478b39b64d4886800558dcfbdc2` introduces `controlsEnabled = 
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore and dashboard API accepted; frontend bypass-lock/copy correction awaits Pi UI acceptance |
+| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore, dashboard API and mixer-overlay bypass/lock accepted; duplicate Settings EQ authority removed in source and awaiting Pi acceptance |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 while **Plexamp remains actively playing and audible**:
+Continue Phase 5 while **Plexamp remains actively playing and audible** and leave the current EQ state **bypassed with saved Bass `+6.0 dB`**:
 
-1. allow CI to validate the frontend bypass-lock/copy correction and regression contract;
-2. deploy only the accepted `app/static/js/audio-eq.js` change to the bedroom Pi without overwriting its unrelated local kiosk-launcher modification;
-3. refresh the dashboard and confirm Settings/drawer show Bass `+6.0 dB`, Mid/Treble `0.0 dB`, EQ Active, and truthful music-only/alarm-bypass copy;
-4. use the actual UI Bypass control and confirm playback becomes neutral, stored Bass remains visibly `+6.0 dB`, band controls are greyed/locked, route/PID remain unchanged, and Restore EQ immediately returns the heavy Bass curve;
-5. test the `neutral` action explicitly so its separate reset semantics are accepted;
-6. then proceed to AirPlay handover, Music Master and alarm-isolation tests.
+1. allow CI to validate the live-Settings authority cleanup and regression contracts;
+2. deploy only the accepted `app/static/js/audio-eq.js` and `app/settings_unified.py` changes to the bedroom Pi without overwriting the unrelated local kiosk-launcher modification;
+3. restart only `a-clockwork-plex.service`, hard-refresh the dashboard, and open Settings → Audio → Equaliser;
+4. confirm that subpage now shows the live bypassed state: Bass saved `+6.0 dB`, Mid/Treble `0.0 dB`, status Bypassed, Restore EQ action, and all three sliders greyed/locked;
+5. use **Restore EQ** from the Settings subpage and confirm the heavy Bass curve returns with route/PID unchanged;
+6. then test the separate `neutral` action explicitly so its reset semantics are accepted;
+7. proceed to AirPlay handover, Music Master and alarm-isolation tests.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
