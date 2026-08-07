@@ -250,7 +250,7 @@ first_install() {
             failure='split-bus activation failed'
     fi
     [[ -n "$failure" ]] || acp_write_install_manifest || failure='install manifest write failed'
-    [[ -n "$failure" ]] || "$SCRIPT_DIR/verify-audio.sh" --root "$ACP_ROOT" || \
+    [[ -n "$failure" ]] || bash "$SCRIPT_DIR/verify-audio.sh" --root "$ACP_ROOT" || \
         failure='installed audio verification failed'
 
     if [[ -n "$failure" ]]; then
@@ -272,7 +272,7 @@ activate() {
     marker="$(acp_path '/var/lib/a-clockwork-plex/split-bus/installed')" || return 1
     if [[ -f "$marker" ]]; then
         acp_log 'The EQ audio profile is already installed; delegating to repair.'
-        "$SCRIPT_DIR/repair-audio.sh" \
+        bash "$SCRIPT_DIR/repair-audio.sh" \
             --activate \
             --confirm REPAIR-EQ-AUDIO \
             --binary "$CAMILLADSP_BINARY" \
