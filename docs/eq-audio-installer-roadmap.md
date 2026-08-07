@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 7 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp playback audible through CamillaDSP after restart  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp audible through CamillaDSP; current test curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`, automatic music headroom `-6.5 dB`, EQ active/not bypassed  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -256,8 +256,9 @@ Installer/live-verifier results:
 **Goal:** Test the installed user-facing feature rather than the deployment framework.
 
 - [x] Plexamp plays audibly through the EQ-capable split-bus route.
-- [ ] Verify current EQ helper/API state is available and truthful in the dashboard.
-- [ ] Bass, Mid and Treble changes are audible and reported correctly.
+- [x] Verify installed EQ-helper backend state is available, configured and truthful.
+- [ ] Confirm the dashboard/API surfaces the same truthful EQ state.
+- [ ] Bass, Mid and Treble changes are audibly distinct and reported correctly.
 - [ ] AirPlay plays through the same music EQ lane.
 - [ ] AirPlay/Plexamp takeover and return still work.
 - [ ] EQ disable uses bypass without route remapping.
@@ -270,6 +271,41 @@ Installer/live-verifier results:
 - [ ] Maximum Alarm Volume still caps scheduled alarms.
 - [ ] The final limiter protects combined music and alarm playback.
 - [ ] NFC playback and dashboard controls still work.
+
+#### Initial EQ status — PASS
+
+With Plexamp actively playing, `a-clockwork-plex-audio-eq status` reported:
+
+- `ok: true`;
+- installed/configured/available all `true`;
+- backend `camilladsp`;
+- backend/route mode `split-bus-active`;
+- selected route `split-bus-selected`;
+- EQ not bypassed;
+- Bass, Mid and Treble stored/applied/effective values all exactly `0.0 dB`;
+- automatic headroom `0.0 dB`;
+- final limiter `-1.0 dB`;
+- CamillaDSP PID `1543417`.
+
+This exactly matched the expected neutral post-install state.
+
+#### First live EQ change — backend PASS; audible distinction still under test
+
+With the same Plexamp stream active, Bass was changed from `0.0 dB` to `+6.0 dB` using the installed helper.
+
+The returned state reported:
+
+- `ok: true`;
+- Bass stored/applied/effective `+6.0 dB`;
+- Mid and Treble remained `0.0 dB`;
+- persisted `true`;
+- backend remained `split-bus-active`;
+- CamillaDSP PID remained exactly `1543417`, proving the live EQ update did not restart the DSP process;
+- active CamillaDSP config SHA changed from `52feaf6e...` to `ce53497e...` as expected for the new curve;
+- automatic music headroom became `-6.5 dB`;
+- final limiter remained `-1.0 dB`.
+
+Manual observation: playback remained available and the overall music level became noticeably quieter, with the tonal balance sounding somewhat more bass-heavy. The quieter overall level is expected because the `+6 dB` positive boost activates `-6.5 dB` music-lane headroom. Because the test was being heard at a low listening level, the audible Bass-band distinction is recorded as promising but not yet conclusive.
 
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
@@ -318,20 +354,22 @@ Installer/live-verifier results:
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Plexamp path accepted; begin EQ state/control and audible band testing |
+| 5. Feature/interface acceptance | In progress | Helper status truthful; live Bass +6 update applied with same DSP PID; audible band distinction continues |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Begin Phase 5 with the least invasive checks while **Plexamp remains actively playing and audible**:
+Continue Phase 5 while **Plexamp remains actively playing and audible**:
 
-1. inspect the installed EQ helper status and dashboard/API state without changing any gain;
-2. confirm the backend reports `camilladsp`, `split-bus-active`, installed/configured/available and neutral stored/applied values;
-3. then test one band at a time with a clearly audible but bounded change, returning it to neutral before moving to the next band;
-4. after backend/audible EQ acceptance, test bypass/restore semantics and the UI lock/grey state;
-5. proceed to AirPlay handover and alarm-isolation tests only after the basic music EQ path is accepted.
+1. move Bass from `+6.0 dB` to `-6.0 dB` on the same stream;
+2. expect the automatic `-6.5 dB` headroom attenuation to return to `0.0 dB`, making the overall stream louder again while simultaneously creating a 12 dB relative Bass swing from the current test state;
+3. confirm the CamillaDSP PID remains unchanged and playback is uninterrupted;
+4. use that larger A/B contrast to decide conclusively whether the Bass filter is audibly affecting the music;
+5. then return Bass to neutral before testing Mid and Treble;
+6. after backend/audible EQ acceptance, test bypass/restore semantics and the UI lock/grey state;
+7. proceed to AirPlay handover and alarm-isolation tests only after the basic music EQ path is accepted.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
