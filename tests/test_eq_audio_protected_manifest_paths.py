@@ -47,8 +47,11 @@ acp_run_root() {{
         test) return 0 ;;
         sha256sum) printf '0123456789abcdef  %s\\n' "$2" ; return 0 ;;
         stat) printf '440\\n' ; return 0 ;;
-        install) command install "${{@:2}}" ;;
-        cat) command cat "${{@:2}}" ;;
+        install)
+            command cp -- "$5" "$6" || return 1
+            command chmod "$4" "$6"
+            ;;
+        cat) command cat -- "$3" ;;
         *) return 99 ;;
     esac
 }}
@@ -86,7 +89,7 @@ acp_run_root() {{
         test) return 0 ;;
         sha256sum) printf '0123456789abcdef  %s\\n' "$2" ; return 0 ;;
         stat) printf '440\\n' ; return 0 ;;
-        cat) command cat "${{@:2}}" ;;
+        cat) command cat -- "$3" ;;
         *) return 99 ;;
     esac
 }}
