@@ -1,0 +1,49 @@
+name: Finalize EQ entry hardening v2
+
+on:
+  push:
+    branches:
+      - feature/alarm-engine
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/alarm-engine
+          fetch-depth: 0
+
+      - name: Apply remaining patch and remove transient assets
+        shell: bash
+        run: |
+          if [[ -f scripts/dev/apply_eq_entry_hardening_v3.py ]]; then
+            python3 scripts/dev/apply_eq_entry_hardening_v3.py
+          fi
+          rm -f \
+            .github/workflows/apply-eq-entry-hardening.yml \
+            .github/workflows/apply-eq-entry-hardening-v2.yml \
+            .github/workflows/apply-eq-entry-hardening-v3.yml \
+            .github/workflows/finalize-eq-entry-hardening.yml \
+            .github/workflows/finalize-eq-entry-hardening-v2.yml \
+            scripts/dev/apply_eq_entry_hardening_v2.py \
+            scripts/dev/apply_eq_entry_hardening_v3.py
+
+      - name: Prove the final tree
+        shell: bash
+        run: |
+          bash -n scripts/audio/install-eq.sh scripts/audio/repair-audio.sh scripts/audio/verify-audio.sh scripts/audio/uninstall-eq.sh
+          python3 -m py_compile scripts/a-clockwork-plex-audio-eq.py scripts/a-clockwork-plex-audio-route.py
+          python3 -m unittest tests.test_eq_audio_entry_hardening_contract
+
+      - name: Commit final tree
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Finalize EQ entry rollback and verification hardening"
+          git push origin HEAD:feature/alarm-engine
