@@ -4,12 +4,12 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; current saved curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB` and EQ is currently bypassed after the AirPlay A/B test; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted; dynamic EQ headroom has now exposed an undesirable volume jump and a fixed `-6.5 dB` music-lane pre-EQ reserve is the proposed refinement before the remaining Phase 5 tests  
+**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The live Pi still has the accepted **dynamic-headroom** helper/config until the next surgical deployment. The replacement **fixed `-6.5 dB` music-lane reserve** is implemented on `feature/alarm-engine`, green in CI, and awaits physical Pi acceptance.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
 
-The split-bus EQ audio design has been selected, physically proven and is now installed on the bedroom Pi. The remaining work is to accept the feature behaviour, failure/reboot/uninstall behaviour, integrate the supported standalone component into the future full installer, and archive the superseded Stage C deployment machinery.
+The split-bus EQ audio design has been selected, physically proven and is now installed on the bedroom Pi. The remaining work is to accept the refined feature behaviour, failure/reboot/uninstall behaviour, integrate the supported standalone component into the future full installer, and archive the superseded Stage C deployment machinery.
 
 The supported path deliberately favours readable operations, explicit checks and straightforward rollback over the former Stage C authority/transaction framework.
 
@@ -19,13 +19,13 @@ The supported path deliberately favours readable operations, explicit checks and
 
 ```text
 Plexamp player volume -> Plexamp trim --\
-                                         +-> Music Master -> music EQ/headroom --\
-AirPlay sender volume -> AirPlay trim ---/                                      \
-                                                                                  +-> final limiter -> DAC
-Alarm start/target/fade -> Maximum Alarm Volume -------------------------------/
+                                         +-> Music Master -> fixed EQ reserve -> tone controls --\
+AirPlay sender volume -> AirPlay trim ---/                                                      \
+                                                                                                  +-> final limiter -> DAC
+Alarm start/target/fade -> Maximum Alarm Volume -----------------------------------------------/
 ```
 
-The alarm lane bypasses Music Master and the music EQ, then joins the music lane before the final limiter.
+The alarm lane bypasses Music Master, the permanent music-EQ reserve and the music tone controls, then joins the music lane before the final limiter.
 
 ### Install-time audio profiles
 
@@ -40,17 +40,17 @@ This is an installation choice, not the everyday EQ on/off setting.
 
 When EQ-capable audio is installed, Plexamp and AirPlay stay mapped to the split-bus PCMs whether EQ is enabled or bypassed.
 
-- **EQ enabled:** stored Bass, Mid and Treble values are applied.
-- **EQ disabled:** CamillaDSP bypasses the music EQ while preserving the stored curve.
-- **Return to neutral:** deliberately sets all three bands to `0 dB`.
+- **EQ enabled:** stored Bass, Mid and Treble values are applied after the fixed music-lane reserve.
+- **EQ disabled:** CamillaDSP bypasses only the Bass/Mid/Treble tone stage while preserving the stored curve and fixed music-lane reserve.
+- **Return to neutral:** deliberately sets all three bands to `0 dB` while leaving the fixed reserve in place.
 
 Everyday bypass must not remap ALSA devices, restart source services or select another route. While bypassed, the Settings and drawer controls remain visible but are greyed and locked.
 
-#### Proposed fixed music-lane headroom refinement
+#### Fixed music-lane headroom refinement — implemented in source; Pi acceptance pending
 
-Physical Plexamp and AirPlay A/B tests exposed a usability problem with the current dynamic-headroom implementation: a positive tone boost adds attenuation at the same time as it changes tonal balance, and bypass removes that attenuation at the same time as it flattens the EQ. The result is a conspicuous loudness jump when a tone control is boosted or bypassed.
+Physical Plexamp and AirPlay A/B tests exposed a usability problem with the original dynamic-headroom implementation: a positive tone boost added attenuation at the same time as it changed tonal balance, and bypass removed that attenuation at the same time as it flattened the EQ. The result was a conspicuous loudness jump whenever a positive tone control was introduced or bypassed.
 
-The preferred refinement is to reserve the current worst-case EQ headroom permanently on the music lane rather than dynamically:
+The accepted replacement design reserves the worst-case EQ headroom permanently on the music lane:
 
 ```text
 Plexamp / AirPlay
@@ -66,9 +66,38 @@ mix with alarm
 -1 dB final limiter
 ```
 
-The `-6.5 dB` value matches the existing maximum `+6 dB` band boost plus the existing `0.5 dB` safety margin. Under this model Neutral and Bypass stay at the same base level; bypass defeats only Bass/Mid/Treble and does not remove the fixed reserve. This is the digital equivalent of provisioning tone-control headroom rather than changing the apparent master level whenever a tone control is moved.
+The `-6.5 dB` value is the existing maximum `+6 dB` band boost plus the existing `0.5 dB` safety margin. Under this model Neutral and Bypass stay at the same base level; bypass defeats only Bass/Mid/Treble and does not remove the fixed reserve. This is the digital equivalent of provisioning tone-control headroom rather than changing the apparent master level whenever a tone control is moved.
 
-The trade-off is that the EQ-capable music lane has `6.5 dB` less maximum digital level even at neutral. Before accepting this refinement, the bedroom Pi must confirm that Music Master at 100% still provides adequate maximum listening level. The alarm lane remains outside this music attenuation and continues to be governed by Maximum Alarm Volume and the final limiter.
+The trade-off is that the EQ-capable music lane has `6.5 dB` less maximum digital level even at neutral. The planned bedroom system uses a separate analogue amplifier, so normal physical listening gain can be established there while preserving conservative digital headroom. Physical acceptance must still confirm that Music Master at 100% provides adequate maximum listening level.
+
+Implementation checkpoint:
+
+- `scripts/audio_eq_camilladsp/model.py` now defines `FIXED_MUSIC_HEADROOM_DB = -6.5` and always renders that reserve on music channels 0/1;
+- the CamillaDSP pipeline now has a permanently enabled `[headroom]` filter followed by a separately bypassable `[bass, mid, treble]` filter stage;
+- bypass preserves the actual saved tone-filter gains in the configuration instead of simulating bypass by rewriting them to zero;
+- `runtime.py` reports `headroom_db=-6.5` whenever the EQ-capable backend is actually available, including Neutral and Bypass, but reports `0.0` when the backend is unavailable/direct-failback because the reserve is then physically absent;
+- the static installer neutral profile mirrors the same pipeline so future install/repair does not regress to the dynamic model;
+- dedicated tests protect fixed headroom at neutral/boost/cut/bypass, real tone-stage bypass, alarm-after-music processing order and truthful direct-failback reporting.
+
+Source head `7555b8186355cddc214fe5e08908fa79ff8fd6c4` passed GitHub Actions **#2767 / run 31234727079**: compilation PASS, JavaScript/page-wiring/shell-syntax PASS, and **1,353/1,353 unit tests PASS**.
+
+The live bedroom Pi has not yet received this refinement; until the next controlled helper reload it still exhibits the previously observed dynamic-headroom level jump.
+
+### Alarm loudness and speaker-safety acceptance
+
+The alarm lane intentionally bypasses the music-lane `-6.5 dB` reserve as well as Music Master and the tone controls. That independence is required, but it means alarm loudness must be calibrated deliberately rather than inferred from music loudness.
+
+The Phase 5 alarm test is therefore a **stepped calibration**, not a maximum-output blast test:
+
+1. use the real scheduled-alarm path rather than a sustained speaker-stress tone;
+2. set the physical amplifier conservatively;
+3. begin Maximum Alarm Volume around `20–25%`;
+4. increase only in controlled steps while listening for clean, unstressed reproduction;
+5. stop before any audible distortion, knocking/bottoming, harshness or cabinet/driver distress;
+6. establish a sensible software maximum well below any questionable level;
+7. repeat final Maximum Alarm Volume calibration when the intended Sony amplifier and Wharfedale speakers replace the present test system.
+
+The final `-1 dB` limiter protects against digital clipping at the combined output. It cannot protect a loudspeaker from excessive analogue amplifier power, so it is not a substitute for this physical calibration. There will be **no initial 100% alarm-output test**.
 
 ### Failure behaviour
 
@@ -104,10 +133,8 @@ scripts/audio/repair-audio.sh
 ```text
 installer/
 ├── lib/
-│   ├── common.sh
 │   ├── audio.sh
-│   ├── backup.sh
-│   ├── files.sh
+│   ├── common.sh
 │   ├── runtime.sh
 │   ├── services.sh
 │   └── verification.sh
@@ -130,6 +157,14 @@ scripts/audio_eq_camilladsp/
 ```
 
 The standalone audio commands will later become the tested audio component called by the full installer rather than being rewritten.
+
+The installed EQ-helper package lives at:
+
+```text
+/usr/local/lib/a-clockwork-plex/audio-eq/audio_eq_camilladsp/
+```
+
+and the stable launcher remains `/usr/local/bin/a-clockwork-plex-audio-eq`.
 
 ## Roadmap
 
@@ -251,8 +286,8 @@ Installer/live-verifier results:
 - effective mode `split-bus-active`;
 - active route matches split profile;
 - active split-route SHA-256 `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
-- active CamillaDSP configuration SHA-256 `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`;
-- CamillaDSP running with live PID `1543417` for this observed run;
+- active CamillaDSP configuration SHA-256 `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae` for the original dynamic-headroom neutral profile;
+- CamillaDSP running with live PID `1543417` for the observed acceptance run;
 - `snd_aloop` present and correct: index `7`, id `ACP_Loopback`, `pcm_substreams=2`, `pcm_notify=1`;
 - `plexamp.service` active/enabled;
 - `shairport-sync.service` active/enabled;
@@ -286,16 +321,18 @@ Installer/live-verifier results:
 - [x] Mid control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] Treble control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] AirPlay plays through the same music EQ lane.
-- [ ] AirPlay/Plexamp takeover and return still work. *(Plexamp → AirPlay takeover PASS; reverse Plexamp takeover/return still open.)*
+- [ ] AirPlay/Plexamp takeover and return still work. *(Plexamp → AirPlay takeover PASS; reverse AirPlay → Plexamp takeover/return still open.)*
 - [x] EQ disable uses bypass without route remapping.
 - [x] Stored values survive bypass and return when enabled.
 - [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
 - [x] Return to neutral sets all bands to `0 dB`.
-- [ ] Replace dynamic EQ headroom with a fixed `-6.5 dB` music-lane pre-EQ reserve and physically accept level consistency.
+- [ ] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI PASS; live Pi deployment pending.)*
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
 - [ ] EQ and bypass do not alter alarm tone or level.
 - [ ] Maximum Alarm Volume still caps scheduled alarms.
+- [ ] Safe stepped Maximum Alarm Volume calibration completed on the current test system.
+- [ ] Final Maximum Alarm Volume recalibrated on the intended Sony amplifier / Wharfedale speaker system.
 - [ ] The final limiter protects combined music and alarm playback.
 - [ ] NFC playback and dashboard controls still work.
 
@@ -310,47 +347,47 @@ With Plexamp actively playing, `a-clockwork-plex-audio-eq status` reported:
 - selected route `split-bus-selected`;
 - EQ not bypassed;
 - Bass, Mid and Treble stored/applied/effective values all exactly `0.0 dB`;
-- automatic headroom `0.0 dB`;
+- original dynamic headroom `0.0 dB`;
 - final limiter `-1.0 dB`;
 - CamillaDSP PID `1543417`.
 
-This exactly matched the expected neutral post-install state.
+This exactly matched the expected original neutral post-install state.
 
 #### Bass live EQ A/B — PASS
 
 With the same Plexamp stream active, Bass was first changed from `0.0 dB` to `+6.0 dB` using the installed helper.
 
-The returned state reported Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, automatic music headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual observation confirmed continuous playback, a lower overall level from protective headroom and a more bass-heavy tonal balance.
+The returned state reported Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, original automatic music headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual observation confirmed continuous playback, a lower overall level from protective headroom and a more bass-heavy tonal balance.
 
-Bass was then moved directly from `+6.0 dB` to `-6.0 dB`, creating a 12 dB relative swing while the same track continued playing. The returned state reported Bass stored/applied/effective `-6.0 dB`, Mid/Treble `0.0 dB`, backend still `split-bus-active`, unchanged PID `1543417`, active config SHA `6022cac742227c72e41a71fb6b530a05c3848ade38580184d0cbfcdfbb997ec0`, headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual observation confirmed the level came back up and the music became clearly thinner/less bass-heavy.
+Bass was then moved directly from `+6.0 dB` to `-6.0 dB`, creating a 12 dB relative swing while the same track continued playing. The returned state reported Bass stored/applied/effective `-6.0 dB`, Mid/Treble `0.0 dB`, backend still `split-bus-active`, unchanged PID `1543417`, active config SHA `6022cac742227c72e41a71fb6b530a05c3848ade38580184d0cbfcdfbb997ec0`, original headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual observation confirmed the level came back up and the music became clearly thinner/less bass-heavy.
 
-Bass was then returned to neutral `0.0 dB`. The helper returned the original neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, headroom `0.0 dB`, unchanged PID `1543417`, and manual listening confirmed the tonal balance sounded normal again.
+Bass was then returned to neutral `0.0 dB`. The original helper returned neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, original headroom `0.0 dB`, unchanged PID `1543417`, and manual listening confirmed the tonal balance sounded normal again.
 
 #### Mid live EQ A/B — PASS
 
-Starting from the confirmed neutral curve, Mid was changed to `+6.0 dB`. The helper reported Mid stored/applied/effective `+6.0 dB`, Bass/Treble `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, config SHA `833f54aa09099c56543d12a70bab202862c3cc60e06f9dd04146ab698dd6addc`, headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual observation confirmed continuous playback and a strongly mid-forward tonal balance.
+Starting from the confirmed neutral curve, Mid was changed to `+6.0 dB`. The helper reported Mid stored/applied/effective `+6.0 dB`, Bass/Treble `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, config SHA `833f54aa09099c56543d12a70bab202862c3cc60e06f9dd04146ab698dd6addc`, original headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual observation confirmed continuous playback and a strongly mid-forward tonal balance.
 
-Mid was then moved directly to `-6.0 dB`. The helper reported Mid stored/applied/effective `-6.0 dB`, Bass/Treble `0.0 dB`, persisted `true`, unchanged backend/PID, config SHA `081875711e1a874ab6a5097bf826d7a270b4c2013aa3583038f4721914f3d7ce`, headroom `0.0 dB` and final limiter `-1.0 dB`. Manual observation confirmed a strongly scooped sound with bass/treble relatively prominent and vocals clearly thinner/recessed.
+Mid was then moved directly to `-6.0 dB`. The helper reported Mid stored/applied/effective `-6.0 dB`, Bass/Treble `0.0 dB`, persisted `true`, unchanged backend/PID, config SHA `081875711e1a874ab6a5097bf826d7a270b4c2013aa3583038f4721914f3d7ce`, original headroom `0.0 dB` and final limiter `-1.0 dB`. Manual observation confirmed a strongly scooped sound with bass/treble relatively prominent and vocals clearly thinner/recessed.
 
 Mid was then returned to neutral `0.0 dB`, restoring the original neutral config SHA, `0.0 dB` headroom and normal tonal balance with PID still `1543417`.
 
 #### Treble live EQ A/B — PASS
 
-Starting from the confirmed neutral curve, Treble was changed to `+6.0 dB`. The helper reported Treble stored/applied/effective `+6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, config SHA `0b9abd96aef92c132f9d11dfa8c400bb09cb3e83e520143b5f451b7a9e523039`, headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual listening clearly confirmed boosted treble/brightness with playback remaining continuous.
+Starting from the confirmed neutral curve, Treble was changed to `+6.0 dB`. The helper reported Treble stored/applied/effective `+6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend `split-bus-active`, unchanged CamillaDSP PID `1543417`, config SHA `0b9abd96aef92c132f9d11dfa8c400bb09cb3e83e520143b5f451b7a9e523039`, original headroom `-6.5 dB` and final limiter `-1.0 dB`. Manual listening clearly confirmed boosted treble/brightness with playback remaining continuous.
 
-Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12 dB relative A/B swing used for Bass and Mid. The helper reported Treble stored/applied/effective `-6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend still `split-bus-active`, CamillaDSP PID still `1543417`, config SHA `d6b941ac78d1460781672b956e0929da2a1fbd48d1f9ec4e145061ac221475da`, headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual listening confirmed the track became markedly darker, conclusively accepting the Treble control both audibly and from the reported backend state.
+Treble was then moved directly from `+6.0 dB` to `-6.0 dB`, creating the same 12 dB relative A/B swing used for Bass and Mid. The helper reported Treble stored/applied/effective `-6.0 dB`, Bass/Mid `0.0 dB`, persisted `true`, backend still `split-bus-active`, CamillaDSP PID still `1543417`, config SHA `d6b941ac78d1460781672b956e0929da2a1fbd48d1f9ec4e145061ac221475da`, original headroom returned to `0.0 dB` and final limiter remained `-1.0 dB`. Manual listening confirmed the track became markedly darker, conclusively accepting the Treble control both audibly and from the reported backend state.
 
-Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, headroom `0.0 dB`, backend still `split-bus-active`, original neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to neutral. This established the accepted neutral EQ baseline before bypass testing.
+Treble was then returned from `-6.0 dB` to neutral `0.0 dB`. The helper reported Bass/Mid/Treble all stored/applied/effective `0.0 dB`, original headroom `0.0 dB`, backend still `split-bus-active`, original neutral config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and unchanged CamillaDSP PID `1543417`. Manual listening confirmed the tonal balance returned to neutral.
 
-#### Everyday bypass/restore — PASS
+#### Everyday bypass/restore — PASS under original dynamic-headroom implementation
 
-A deliberately obvious Bass `+6.0 dB` curve was reapplied while Plexamp remained active and audible. Before bypass the helper reported Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, headroom `-6.5 dB`, route `split-bus-active` and CamillaDSP PID `1543417`; manual listening confirmed the expected very bass-heavy sound.
+A deliberately obvious Bass `+6.0 dB` curve was reapplied while Plexamp remained active and audible. Before bypass the helper reported Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, original headroom `-6.5 dB`, route `split-bus-active` and CamillaDSP PID `1543417`; manual listening confirmed the expected very bass-heavy sound.
 
-`a-clockwork-plex-audio-eq bypass on` then reported `bypassed: true` while preserving Bass `stored_db=6.0` and `db=6.0`, but changing Bass `applied_db` and `effective_db` to `0.0 dB`. Headroom returned to `0.0 dB`, config SHA changed to `8e3216a59b7cb69441d45a5e788399b24ac61ee44f6fb491fd22f591e6564114`, route remained `split-bus-active`, CamillaDSP PID remained `1543417`, playback remained continuous and manual listening confirmed the sound became neutral.
+`a-clockwork-plex-audio-eq bypass on` then reported `bypassed: true` while preserving Bass `stored_db=6.0` and `db=6.0`, but changing Bass `applied_db` and `effective_db` to `0.0 dB`. Under the original implementation headroom returned to `0.0 dB`, config SHA changed to `8e3216a59b7cb69441d45a5e788399b24ac61ee44f6fb491fd22f591e6564114`, route remained `split-bus-active`, CamillaDSP PID remained `1543417`, playback remained continuous and manual listening confirmed the sound became neutral.
 
-`a-clockwork-plex-audio-eq bypass off` restored Bass stored/applied/effective `+6.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2` and headroom `-6.5 dB` while the route and CamillaDSP PID remained unchanged. Manual listening immediately confirmed the heavy Bass curve returned.
+`a-clockwork-plex-audio-eq bypass off` restored Bass stored/applied/effective `+6.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2` and original headroom `-6.5 dB` while the route and CamillaDSP PID remained unchanged. Manual listening immediately confirmed the heavy Bass curve returned.
 
-This accepts both required runtime semantics: everyday EQ disable is a DSP bypass rather than route remapping, and stored values survive bypass and return when EQ is re-enabled. The later AirPlay A/B test showed that the associated dynamic-headroom level jump is undesirable UX and motivates the proposed fixed-reserve refinement above.
+This accepted the required runtime semantics that everyday EQ disable is a DSP operation rather than route remapping and stored values survive bypass. The later AirPlay A/B test exposed the associated dynamic-headroom level jump as undesirable UX; the replacement fixed-reserve implementation now awaits physical acceptance.
 
 #### Dashboard API state — PASS
 
@@ -358,47 +395,19 @@ With the live Bass `+6.0 dB` curve active, the first `GET /api/audio/eq` correct
 
 Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` changed the wrapper so an explicit helper `backend_state` is preserved, and commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` added the regression assertion. GitHub Actions run **31219132479** / **#2703** passed.
 
-The bedroom Pi checkout was deliberately not wholesale-updated because it was 331 commits behind the branch and had an unrelated local modification to `scripts/launch-dashboard-kiosk.sh`. Only `app/audio_eq.py` was restored from the fetched branch version. Restarting only `a-clockwork-plex.service` left Plexamp audio uninterrupted.
+The bedroom Pi checkout was deliberately not wholesale-updated because it was hundreds of commits behind the branch and had an unrelated local modification to `scripts/launch-dashboard-kiosk.sh`. Only `app/audio_eq.py` was restored from the fetched branch version. Restarting only `a-clockwork-plex.service` left Plexamp audio uninterrupted.
 
-The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, CamillaDSP PID `1543417`, headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
+The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, original config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, CamillaDSP PID `1543417`, original headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
 
-#### Mixer overlay bypass/lock — PASS; duplicate Settings EQ authority found
+#### Mixer overlay bypass/lock — PASS; duplicate Settings EQ authority found and removed
 
-The accepted frontend bypass-lock/copy correction was deployed by restoring only `app/static/js/audio-eq.js` from the fetched branch. The diff contained only the expected music-only/alarm-bypass copy change plus the `controlsEnabled = available && !bypassed` lock logic; audio continued uninterrupted during the static-file deployment.
+The accepted frontend bypass-lock/copy correction was deployed by restoring only `app/static/js/audio-eq.js` from the fetched branch. After a hard refresh, the **audio mixer overlay** showed the live Bass `+6.0 dB`, Mid/Treble `0.0 dB` curve and the corrected Plexamp/AirPlay music-only wording. Pressing the overlay Bypass control successfully entered bypass and the three EQ knobs became greyed/locked as designed.
 
-After a hard refresh, the **audio mixer overlay** showed the live Bass `+6.0 dB`, Mid/Treble `0.0 dB` curve and the corrected Plexamp/AirPlay music-only wording. Pressing the overlay Bypass control successfully entered bypass and the three EQ knobs became greyed/locked as designed. The immediate API check reported:
+The same physical check exposed a separate defect in **Settings → Audio → Equaliser**: that page still showed stale staged values while the live overlay/backend held saved Bass `+6 dB`. Source review found two competing EQ authorities: the old unified Settings `config.audio.eq` model and the production `/api/audio/eq`/CamillaDSP state.
 
-- `bypassed=true`;
-- Bass `db=6.0`, `stored_db=6.0`, `applied_db=0.0`, `effective_db=0.0`;
-- Mid/Treble stored/applied/effective `0.0 dB`;
-- bypass config SHA `8e3216a59b7cb69441d45a5e788399b24ac61ee44f6fb491fd22f591e6564114`;
-- headroom `0.0 dB`;
-- route/backend `split-bus-active`;
-- CamillaDSP PID still `1543417`;
-- `ok=true`.
+Unified Settings was corrected to derive EQ exclusively from the live backend and to stop applying EQ from normal transactional Settings Save. The legacy `config.audio.eq` block is removed on a subsequent Settings save and was also removed from fresh example configuration.
 
-This accepts the mixer-overlay user-facing bypass/lock path.
-
-The same physical check exposed a separate defect in **Settings → Audio → Equaliser**: that page still showed all three bands at `0 dB` with “Equaliser enabled” unticked while the live overlay/backend held saved Bass `+6 dB`. Source review found two competing EQ authorities:
-
-1. the old unified Settings page used staged `audio.eq.enabled` / `audio.eq.bands.*` values from `config.audio.eq`;
-2. the production EQ controls used `/api/audio/eq` and CamillaDSP live state.
-
-Worse, `eq_model_from_status()` preferred the saved config block over live status, and the unified Settings transaction could apply that stale staged model during Save. This was the exact kind of duplicate authority the audio redesign is intended to eliminate.
-
-The correction is now committed:
-
-- `4d24ca5fee0839d9094e8cc2cb93f475fc4cea52` — the initial live-authority frontend change;
-- `083bea77618d39041ad8fefb35b0204349020c5d` — unified Settings now always derives its EQ view from live backend status, no longer applies EQ changes during transactional Save, advertises runtime rather than staged EQ control, and removes legacy `config.audio.eq` on the next Settings save;
-- `2df281bb8572955fd734b8dd2fc4979792715714` — backend runtime-authority regression coverage;
-- `b56e51f2fa35be949698528b312708f47f692ffe` — fresh example configuration no longer defines the obsolete staged EQ block;
-- `73bb464c42a4411bcf503e3ce91fa76dda9f1c96` — the old unified-Settings test was corrected to prove normal Settings saves leave live EQ untouched.
-
-The first physical retest after deploying the authority cleanup showed the **Equaliser subpage shell and Back button, but no EQ card at all**. Display → Motion was working correctly in the same deployed Settings build, isolating this to the EQ frontend rather than the general Settings router.
-
-The static-template/resilient-mount work then ensured that the live card existed in `settings.html`, that `/settings` actually rendered it, and that the current `audio-eq.js` was being served. Targeted checks on the Pi proved all three of those facts, which ruled out the server, template, router and JavaScript delivery paths.
-
-The actual remaining culprit was a stale migration rule in `settings-physical-followup.css`:
+The first live-authority retest then exposed a blank Equaliser subpage. Static-template/resilient-mount work proved the correct template and JavaScript were reaching Chromium. The actual remaining culprit was a stale migration CSS rule:
 
 ```css
 body.mode-settings #acp-eq-settings-card {
@@ -406,15 +415,15 @@ body.mode-settings #acp-eq-settings-card {
 }
 ```
 
-That rule had intentionally hidden the historic globally injected EQ card while the old staged Equaliser page was authoritative. After the architecture was reversed so `#acp-eq-settings-card` became the real production Settings surface, the obsolete CSS continued hiding the correct card.
+That rule had intentionally hidden the historic injected EQ card while the old staged Equaliser page was authoritative. After the architecture was reversed, it continued hiding the correct production card.
 
 The final correction:
 
-- `72517ff1439e86d9c6e0ed0040a5296c41a34a83` — removed the obsolete hide rule and retargeted the follow-up EQ layout CSS to the live `.acp-eq-settings-*` controls;
-- `bf8c000e3745a0aa0cd0e9eca40e22ee628d5ad0` — added a regression guard preventing the live Settings EQ card from being hidden again;
-- `733ef321034374fe31ee25873569c1bff0dd0fec` — updated the remaining old visual-contract test from the retired `.settings-eq-grid` classes to the live EQ classes.
+- `72517ff1439e86d9c6e0ed0040a5296c41a34a83` — removed the obsolete hide rule and retargeted EQ layout CSS to the live controls;
+- `bf8c000e3745a0aa0cd0e9eca40e22ee628d5ad0` — regression guard preventing the live Settings EQ card from being hidden again;
+- `733ef321034374fe31ee25873569c1bff0dd0fec` — updated the remaining old visual-contract test.
 
-GitHub Actions run **31230224890** / **#2749** then passed all **1,354 tests** with JavaScript/page wiring and shell syntax green.
+GitHub Actions **#2749 / run 31230224890** passed all **1,354 tests** with JavaScript/page wiring and shell syntax green.
 
 Only the corrected CSS file was restored on the bedroom Pi. After refresh, **Settings → Audio → Equaliser displayed correctly** in the physically bypassed state: saved Bass `+6.0 dB`, Mid/Treble `0.0 dB`, bypass status visible and all three sliders greyed/locked. Pressing **Restore EQ** from that Settings page restored the EQ and immediately re-enabled the sliders; the saved Bass-heavy curve returned. This physically accepts the Settings EQ bypass/lock/restore path and closes the duplicate-authority/blank-card defect chain.
 
@@ -422,32 +431,26 @@ Only the corrected CSS file was restored on the bedroom Pi. After refresh, **Set
 
 From the restored Bass `+6.0 dB` curve, **Return to neutral** was pressed in Settings → Audio → Equaliser while Plexamp remained audible. The UI moved Bass, Mid and Treble to `0 dB` and the music returned to a natural tonal balance without entering bypass.
 
-The immediate `GET /api/audio/eq` reported all three bands with `db`, `stored_db`, `applied_db` and `effective_db` exactly `0.0 dB`, `bypassed=false`, headroom `0.0 dB`, the original neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, route/backend `split-bus-active`, final limiter `-1.0 dB`, `ok=true`, and unchanged CamillaDSP PID `1543417`. This physically accepts Neutral as a distinct reset operation rather than another form of bypass.
+The immediate `GET /api/audio/eq` reported all three bands with `db`, `stored_db`, `applied_db` and `effective_db` exactly `0.0 dB`, `bypassed=false`, original dynamic headroom `0.0 dB`, original neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, route/backend `split-bus-active`, final limiter `-1.0 dB`, `ok=true`, and unchanged CamillaDSP PID `1543417`. This physically accepts Neutral as a distinct reset operation rather than another form of bypass.
 
 #### AirPlay shared-EQ lane and Plexamp takeover — physical PASS
 
-Starting from the accepted neutral baseline, Bass was moved to `+6.0 dB` while Plexamp was playing. Plexamp immediately became strongly bass-heavy and, under the current dynamic-headroom model, quieter by the expected `6.5 dB` reserve.
+Starting from the accepted neutral baseline, Bass was moved to `+6.0 dB` while Plexamp was playing. Plexamp immediately became strongly bass-heavy and, under the original dynamic-headroom model, quieter by the expected `6.5 dB` reserve.
 
 AirPlay was then started from the iPhone while Plexamp remained playing. The appliance correctly **paused Plexamp on AirPlay takeover**, and AirPlay playback was audibly just as bass-heavy, physically proving that AirPlay traverses the same CamillaDSP music-EQ lane as Plexamp.
 
-While AirPlay continued playing, EQ Bypass was pressed. Playback remained continuous, the exaggerated bass disappeared and the sound became neutral, while overall level rose because the current implementation also removes the `-6.5 dB` dynamic headroom when bypassed. This accepts the shared AirPlay EQ lane and the Plexamp → AirPlay takeover direction. The reverse Plexamp takeover/return direction remains to be tested separately.
+While AirPlay continued playing, EQ Bypass was pressed. Playback remained continuous, the exaggerated bass disappeared and the sound became neutral, while overall level rose because the original implementation also removed the `-6.5 dB` dynamic headroom when bypassed. This accepts the shared AirPlay EQ lane and Plexamp → AirPlay takeover direction. Reverse AirPlay → Plexamp takeover/return remains to be tested separately.
 
-The same A/B exposed a user-facing weakness in the dynamic-headroom policy: bypassing or adding a positive tone boost changes both tonal balance and apparent volume. The proposed fixed pre-EQ reserve documented above is intended to remove that coupling before the remaining Music Master/alarm acceptance tests.
+The same A/B exposed the user-facing weakness that motivated the fixed reserve now implemented in source.
 
 #### Settings Display Motion regression — physical PASS
 
-The same Settings review found two regressions in **Settings → Display → Motion** following the custom-select migration used to keep menus inside the night-mode overlay:
+The Settings review also found two regressions in **Settings → Display → Motion** following the custom-select migration:
 
 - Transition style had collapsed from the eight transition choices supported by the dashboard engine to only Grow and fade, Crossfade and Instant.
 - Transition duration had regressed from a slider to a numeric text-entry field.
 
-The transition engine and CSS still contained the missing effects; only the Settings exposure/validation contract had been narrowed. Source corrections were committed as:
-
-- `91428e26d4fc8c765d267ad72218f5642ad6d671` — unified Settings accepts the complete transition vocabulary again, including the existing `instant` compatibility value and canonical `none` value;
-- `8efb04361f1f4f25d12a840f4b199c669080241b` — the Display section restores all eight user-facing choices before the custom select wrapper is built: Grow and fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom, Blur dissolve and Instant; transition duration is restored as a `0–2000 ms` range slider in `50 ms` steps;
-- `e8c74b3595c238e6f069b5841f7da3220b26c5a1` — dedicated regression coverage protects the eight-style list and slider contract.
-
-GitHub Actions run **31227257674** / **#2729** passed the combined Settings EQ-authority and Motion-control head. After deployment to the bedroom Pi and hard refresh, the owner confirmed **Settings → Display → Motion is working again**, accepting the restored transition selector and duration-slider UI on the physical appliance.
+The transition engine and CSS still contained the missing effects; only the Settings exposure/validation contract had been narrowed. Corrections restored the eight user-facing choices and the `0–2000 ms` range slider. GitHub Actions **#2729 / run 31227257674** passed, and the owner subsequently confirmed the Motion page is working correctly on the bedroom Pi.
 
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
@@ -493,24 +496,25 @@ GitHub Actions run **31227257674** / **#2729** passed the combined Settings EQ-a
 |---|---|---|
 | 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
 | 1. Artifact inventory | Complete | Exact audio contract and manifest published |
-| 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
+| 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Neutral and AirPlay shared-EQ/Plexamp→AirPlay takeover now physically accepted; fixed pre-EQ headroom refinement proposed before remaining Music Master/alarm tests |
+| 5. Feature/interface acceptance | In progress | Neutral and AirPlay shared-EQ/Plexamp→AirPlay takeover accepted; fixed `-6.5 dB` reserve implemented and CI-green, awaiting surgical Pi deployment/physical acceptance |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 while **audio remains active/audible**. The current live state after the AirPlay A/B is EQ bypassed with saved Bass `+6.0 dB`:
+Continue Phase 5 with **audio active/audible**. The live Pi remains on the original dynamic-headroom runtime until the following controlled deployment:
 
-1. accept and implement the fixed `-6.5 dB` music-lane pre-EQ reserve so headroom remains present at Neutral, with tone boosts and during EQ Bypass;
-2. keep Bass/Mid/Treble as a separate bypassable filter stage so Bypass changes tone only, not the reserved base level;
-3. update the neutral/bypass/headroom contracts and static split-bus profile, then run the complete repository suite before changing the Pi;
-4. deploy the corrected backend surgically and physically compare Neutral → Bass `+6 dB` → Bypass → Restore, expecting tonal changes without the previous broad volume jump;
-5. verify Music Master at 100% remains sufficiently loud with the permanent reserve;
-6. then test the reverse AirPlay → Plexamp takeover, Music Master isolation and alarm-lane behaviour.
+1. fetch `feature/alarm-engine` and surgically restore only the changed EQ package source files needed for this refinement;
+2. install those package modules to `/usr/local/lib/a-clockwork-plex/audio-eq/audio_eq_camilladsp/` without remapping ALSA or restarting Plexamp/AirPlay/dashboard;
+3. with EQ bypassed and saved Bass `+6.0 dB`, re-apply bypass through the installed helper so CamillaDSP reloads the new fixed-reserve configuration in place; **expect one intentional broad level drop of about 6.5 dB at this first transition** because the old bypass had no headroom reserve;
+4. verify route remains `split-bus-active`, CamillaDSP retains the same PID if healthy, saved Bass remains `+6.0 dB`, applied/effective Bass remains `0.0 dB` while bypassed, and API `headroom_db` changes to `-6.5`;
+5. physically compare Bypass → Restore → Neutral → Bass `+6` → Bypass → Restore, expecting obvious tone changes but **no repeated ~6.5 dB broad-volume jump**;
+6. verify Music Master at 100% remains adequately loud with the permanent reserve;
+7. then test reverse AirPlay → Plexamp takeover/return, Music Master isolation and the alarm lane using the conservative stepped speaker-safety procedure above.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
