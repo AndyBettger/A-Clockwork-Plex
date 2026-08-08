@@ -15,7 +15,8 @@ class SettingsPhysicalFollowupTests(unittest.TestCase):
         self.base = Path("app/templates/base.html").read_text(encoding="utf-8")
         self.settings_template = Path("app/templates/settings.html").read_text(encoding="utf-8")
         self.client = Path("app/static/js/settings-physical-followup.js").read_text(encoding="utf-8")
-        self.audio_workspace = Path("app/static/js/settings-audio-workspace.js").read_text(encoding="utf-8")
+        self.settings_ipad = Path("app/static/js/settings-ipad.js").read_text(encoding="utf-8")
+        self.audio_mixer = Path("app/audio_mixer.py").read_text(encoding="utf-8")
         self.css = Path("app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
 
     def test_promoted_unified_settings_preserves_scheduled_alarm_switch(self):
@@ -87,11 +88,13 @@ default
         self.assertIn("Levels and equaliser", self.settings_template)
         self.assertIn("Output levels", self.settings_template)
         self.assertIn("Persistent output levels", self.settings_template)
-        self.assertIn("Maximum alarm volume", self.audio_workspace)
-        self.assertIn("Global ceiling after each alarm’s target and fade.", self.audio_workspace)
-        self.assertIn("Plexamp trim", self.audio_workspace)
-        self.assertIn("AirPlay trim", self.audio_workspace)
-        self.assertNotIn("alarm: ['Alarm trim'", self.audio_workspace)
+        self.assertIn('"label": "Maximum alarm volume"', self.audio_mixer)
+        self.assertIn('"description": "Global ceiling after each alarm\'s target and fade."', self.audio_mixer)
+        self.assertIn('"label": "Plexamp trim"', self.audio_mixer)
+        self.assertIn('"label": "AirPlay trim"', self.audio_mixer)
+        self.assertNotIn('"label": "Alarm trim"', self.audio_mixer)
+        self.assertIn("const label = data.label || channel", self.settings_ipad)
+        self.assertIn("data.error || data.description || data.pcm", self.settings_ipad)
         self.assertIn('<option value="in">in</option>', self.settings_template)
 
     def test_equaliser_uses_full_width_stacked_live_rows_with_button_spacing(self):
