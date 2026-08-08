@@ -145,21 +145,25 @@ class CamillaDspEqHelperTests(unittest.TestCase):
         )
         return controller, settings, signals
 
-    def test_clamp_uses_half_db_steps(self):
-        self.assertEqual(self.helper_module.clamp_db(1.24), 1.0)
-        self.assertEqual(self.helper_module.clamp_db(1.26), 1.5)
-        self.assertEqual(self.helper_module.clamp_db(99), 6.0)
-
-    def test_headroom_uses_largest_positive_boost_plus_margin(self):
-        headroom = self.helper_module.calculate_headroom_db(
-            {'bass': 6.0, 'mid': 2.0, 'treble': -3.0}
+    def test_headroom_is_fixed_for_neutral_boost_cut_and_bypass(self):
+        self.assertEqual(
+            self.helper_module.calculate_headroom_db(
+                {'bass': 6.0, 'mid': 2.0, 'treble': -3.0}
+            ),
+            -6.5,
         )
-        self.assertEqual(headroom, -6.5)
         self.assertEqual(
             self.helper_module.calculate_headroom_db(
                 {'bass': -2.0, 'mid': 0.0, 'treble': -1.0}
             ),
-            0.0,
+            -6.5,
+        )
+        self.assertEqual(
+            self.helper_module.calculate_headroom_db(
+                {'bass': 0.0, 'mid': 0.0, 'treble': 0.0},
+                True,
+            ),
+            -6.5,
         )
 
     def test_render_preserves_alarm_bypass_and_final_limiter_order(self):
@@ -174,13 +178,15 @@ class CamillaDspEqHelperTests(unittest.TestCase):
         self.assertIn('gain: 6.0', config)
         self.assertIn('gain: -6.5, scale: dB', config)
         self.assertIn('{channel: 2, gain: 0', config)
-        music = config.index('names: [bass, mid, treble, headroom]')
+        headroom = config.index('names: [headroom]')
+        tone = config.index('names: [bass, mid, treble]')
         combine = config.index('name: combine_music_and_alarm')
         limiter = config.index('names: [final_safety_limiter]')
-        self.assertLess(music, combine)
+        self.assertLess(headroom, tone)
+        self.assertLess(tone, combine)
         self.assertLess(combine, limiter)
 
-    def test_bypass_renders_neutral_filters_but_preserves_stored_curve(self):
+    def test_bypass_preserves_stored_curve_and_fixed_headroom(self):
         state = {
             'schema_version': 2,
             'bypassed': True,
@@ -191,18 +197,26 @@ class CamillaDspEqHelperTests(unittest.TestCase):
             state,
         )
         self.assertIn(
-            'parameters: {type: Lowshelf, freq: 125, gain: 0.0, slope: 6}',
+            'parameters: {type: Lowshelf, freq: 125, gain: 6.0, slope: 6}',
             config,
         )
         self.assertIn(
-            'parameters: {type: Peaking, freq: 1000, gain: 0.0, q: 0.7}',
+            'parameters: {type: Peaking, freq: 1000, gain: -2.0, q: 0.7}',
             config,
         )
         self.assertIn(
-            'parameters: {type: Highshelf, freq: 4000, gain: 0.0, slope: 6}',
+            'parameters: {type: Highshelf, freq: 4000, gain: 3.0, slope: 6}',
             config,
         )
-        self.assertIn('parameters: {gain: 0.0, scale: dB', config)
+        self.assertIn('parameters: {gain: -6.5, scale: dB', config)
+        self.assertIn(
+            'bypassed: false, names: [headroom]',
+            config,
+        )
+        self.assertIn(
+            'bypassed: true, names: [bass, mid, treble]',
+            config,
+        )
         self.assertEqual(
             self.helper_module.normalise_state(state)['bands']['bass'],
             6.0,
@@ -243,7 +257,7 @@ class CamillaDspEqHelperTests(unittest.TestCase):
                 settings.active_config.read_text(encoding='utf-8'),
             )
 
-    def test_neutral_clears_curve_and_bypass(self):
+    def test_neutral_clears_curve_and_bypass_but_keeps_fixed_headroom(self):
         with tempfile.TemporaryDirectory() as directory:
             controller, settings, _signals = self.make_controller(directory)
             settings.state_path.write_text(
@@ -262,7 +276,7 @@ class CamillaDspEqHelperTests(unittest.TestCase):
                 {'bass': 0.0, 'mid': 0.0, 'treble': 0.0},
             )
             self.assertFalse(status['bypassed'])
-            self.assertEqual(status['headroom_db'], 0.0)
+            self.assertEqual(status['headroom_db'], -6.5)
 
     def test_pid_change_before_replacement_refuses_without_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -300,7 +314,7 @@ class CamillaDspEqHelperTests(unittest.TestCase):
             )
             self.assertFalse(settings.state_path.exists())
 
-    def test_direct_failback_reports_saved_curve_unavailable(self):
+    def test_direct_failback_reports_saved_curve_unavailable_without_headroom(self):
         with tempfile.TemporaryDirectory() as directory:
             controller, settings, _signals = self.make_controller(directory)
             settings.route_state_path.write_text(
@@ -310,6 +324,7 @@ class CamillaDspEqHelperTests(unittest.TestCase):
             status = controller.status()
             self.assertFalse(status['available'])
             self.assertEqual(status['backend_state'], 'direct-failback')
+            self.assertEqual(status['headroom_db'], 0.0)
             self.assertIn('saved EQ curve is unavailable', status['error'])
 
 
