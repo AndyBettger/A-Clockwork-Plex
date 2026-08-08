@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane, correctly pauses an already-playing Plexamp session on takeover, and cleanly releases ownership on genuine disconnect while Plexamp remains paused at the exact takeover position. Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. Music Master at `0%` has now been physically accepted as muting both Plexamp and AirPlay while each source continues under normal ownership semantics and returns immediately when Music Master is restored. The live EQ state is currently bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
+**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane, correctly pauses an already-playing Plexamp session on takeover, and cleanly releases ownership on genuine disconnect while Plexamp remains paused at the exact takeover position. Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. Music Master at `0%` is physically accepted as muting both Plexamp and AirPlay while each source continues under normal ownership semantics and returns immediately when Music Master is restored. A real scheduled alarm has now also been physically proven to bypass Music Master completely: with Music Master at `0%` the alarm remained independently audible and paused Plexamp as designed. The independent **Maximum Alarm Volume** control is physically proven as a real ceiling: with the same `50%` per-alarm target, a `15%` global ceiling was audibly quieter and a `22%` ceiling returned to the previously observed level. The live EQ state remains bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -85,7 +85,7 @@ The live bedroom Pi then received only `__init__.py`, `model.py` and `runtime.py
 
 The saved curve was then restored in place. Playback remained continuous and the Bass boost became immediately and more clearly audible because the overall music level no longer moved with it. The helper reported Bass stored/applied/effective `+6.0 dB`, `bypassed=false`, fixed `headroom_db=-6.5`, config SHA `2ee27d5fb13c0a087704f197cb0c3420cb453cc15f94c9fa5902a40584ac600f`, route/backend `split-bus-active`, final limiter `-1.0 dB`, and unchanged PID `1543417`.
 
-Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad-volume rise. The helper returned to `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
+Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad-volume rise. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
 
 This physically accepts the fixed-headroom refinement in both directions: the tone stage changes tonal balance while the permanent reserve remains stable, so everyday EQ A/B no longer introduces the distracting repeated `6.5 dB` master-level jump.
 
@@ -343,9 +343,9 @@ Installer/live-verifier results:
 - [x] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI, surgical deployment and Restore/Bypass A/B all PASS.)*
 - [x] Music Master at 100% remains adequately loud with the permanent reserve.
 - [x] Music Master at 0% silences Plexamp and AirPlay.
-- [ ] Music Master at 0% does not reduce a real scheduled alarm.
+- [x] Music Master at 0% does not reduce a real scheduled alarm.
 - [ ] EQ and bypass do not alter alarm tone or level.
-- [ ] Maximum Alarm Volume still caps scheduled alarms.
+- [x] Maximum Alarm Volume still caps scheduled alarms.
 - [ ] Safe stepped Maximum Alarm Volume calibration completed on the current test system.
 - [ ] Final Maximum Alarm Volume recalibrated on the intended Sony amplifier / Wharfedale speaker system.
 - [ ] The final limiter protects combined music and alarm playback.
@@ -431,6 +431,16 @@ Plexamp was started and then taken over by AirPlay from the iPhone. AirPlay corr
 Music Master isolation was then exercised independently with both music sources. With Plexamp actively playing, reducing Music Master from the normal listening position to `0%` silenced the output while Plexamp continued progressing; restoring Music Master immediately restored the audio. The same test with AirPlay produced the same result: Music Master `0%` silenced AirPlay without changing the sender's playback ownership, and restoring Music Master immediately restored the audible stream.
 
 This physically accepts bidirectional source-handoff return semantics and confirms that Music Master is a true shared music-lane control for both Plexamp and AirPlay.
+
+#### Real scheduled-alarm isolation and maximum-ceiling A/B — physical PASS
+
+A real scheduled alarm was first tested with Plexamp playing, the physical amplifier at a conservative setting and Music Master deliberately reduced to `0%`. The temporary alarm used a `22%` **per-alarm target** while the then-labelled Alarm trim/global ceiling was still at `100%`. Plexamp became silent at Music Master `0%`, but when the alarm fired it remained clearly audible and took ownership by pausing Plexamp. This physically proves that Music Master controls only the music lane and does not reduce the alarm lane.
+
+The global ceiling was then tested separately so the individual alarm target and the safety cap could not be confused. The same temporary alarm target was held at `50%`. With Maximum Alarm Volume set to `15%`, the alarm was audibly quieter. Raising only Maximum Alarm Volume to `22%` restored the alarm to the previously heard louder level. Both runs were clean and controllable, and the owner noted that `22%` is already fairly loud compared with the normal music listening setup at the current external-amplifier gain.
+
+This physically accepts Maximum Alarm Volume as a genuine hard ceiling after the per-alarm target/fade. It does **not** declare `22%` to be the final current-system safety calibration, and no higher-output search is required merely to prove the cap.
+
+The Settings presentation exposed during this test was also clarified in source without changing the internal `alarm` mixer key or ALSA/DSP behaviour: **Output trims** is renamed **Output levels**, the card becomes **Persistent output levels**, Plexamp/AirPlay retain their genuine trim wording, and the alarm control becomes **Maximum alarm volume — Global ceiling after each alarm’s target and fade.** A regression guard also protects the unrelated Weather rain-unit label after a copy-edit typo was caught before deployment. Source commit `0da7204bc79bd943d9c9014c38d7ea88cf053f24` passed GitHub Actions **#2770 / run 31240548216** with compilation, JavaScript/page-wiring/shell syntax, audio-asset checks and **1,354/1,354 unit tests PASS**.
 
 #### Dashboard API state — PASS
 
@@ -542,18 +552,18 @@ The transition engine and CSS still contained the missing effects; only the Sett
 | 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Fixed headroom, maximum useful Music Master level, bidirectional handoff-return semantics and Music Master zero isolation are physically accepted; next is real-alarm isolation and safe alarm calibration |
+| 5. Feature/interface acceptance | In progress | Fixed headroom, useful Music Master range, handoff-return semantics, Music Master/alarm isolation and the Maximum Alarm Volume ceiling are physically accepted; next is alarm EQ-isolation, safe calibration, combined limiter and NFC regression |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 with **audio active/audible until Music Master is deliberately reduced to zero for the alarm-isolation test**. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`. The external amplifier gain has been raised to a comfortable fixed setting and Music Master is normally around `79%`; `100%` has already been physically confirmed to provide ample output with the permanent reserve.
+Continue Phase 5 with **audio/DAC active and audible** and the external amplifier kept at its current sensible setting. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`. Music Master is normally around `79%`. Real scheduled-alarm independence from Music Master and the global alarm ceiling are already physically accepted; a `22%` global ceiling is clearly audible and already fairly loud at the present amplifier gain.
 
-1. set Maximum Alarm Volume conservatively around `20–25%`, reduce Music Master to `0%`, and trigger a real scheduled alarm to confirm the alarm remains independently audible;
-2. while staying at a safe alarm level, compare the real alarm with EQ active versus bypassed to confirm music tone processing does not change alarm tone or loudness;
-3. then raise Maximum Alarm Volume only in controlled steps to establish a safe current-system ceiling and prove the cap works;
+1. deploy the presentation-only Settings wording cleanup after green CI and confirm **Output levels / Maximum alarm volume** appears without changing the live audio graph;
+2. keep Maximum Alarm Volume at a conservative `15%` for repeated testing, restore the saved Bass `+6 dB` curve for one real alarm run, then bypass the EQ for an otherwise identical second run; confirm the alarm tone and level do not change between the two runs;
+3. decide a sensible current-system Maximum Alarm Volume calibration without deliberately searching for a maximum; the already-proven `22%` point may be sufficient if it is clean and more than loud enough;
 4. test combined music + alarm behaviour and final-limiter protection without starting from maximum output;
 5. finally recheck NFC playback/dashboard controls before Phase 5 is closed.
 
