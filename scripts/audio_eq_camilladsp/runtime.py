@@ -239,10 +239,7 @@ class EqController:
             band: 0.0 if state['bypassed'] or not available else state['bands'][band]
             for band in BANDS
         }
-        headroom = calculate_headroom_db(
-            applied,
-            state['bypassed'] or not available,
-        )
+        headroom = calculate_headroom_db() if available else 0.0
 
         error: str | None = None
         if route_mode == 'direct-failback':
