@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 AUDIO_EQ_JS = (ROOT / "app/static/js/audio-eq.js").read_text(encoding="utf-8")
 SETTINGS_HTML = (ROOT / "app/templates/settings.html").read_text(encoding="utf-8")
+SETTINGS_PHYSICAL_CSS = (ROOT / "app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
 
 
 def test_live_eq_settings_card_is_rendered_by_the_template():
@@ -28,6 +29,14 @@ def test_live_eq_mount_is_non_destructive_and_idempotent():
     assert "card.dataset.eqInteractionsInstalled === 'true'" in AUDIO_EQ_JS
     assert "card.dataset.eqInteractionsInstalled = 'true'" in AUDIO_EQ_JS
     assert "querySelectorAll(':scope > .settings-card').forEach((card) => card.remove())" not in AUDIO_EQ_JS
+
+
+def test_live_eq_settings_card_is_not_hidden_by_followup_css():
+    compact = "".join(SETTINGS_PHYSICAL_CSS.split())
+    assert "#acp-eq-settings-card{display:none!important;}" not in compact
+    assert "#acp-eq-settings-card{display:block;}" in compact
+    assert ".acp-eq-settings-grid" in SETTINGS_PHYSICAL_CSS
+    assert ".acp-eq-settings-band" in SETTINGS_PHYSICAL_CSS
 
 
 def test_unified_settings_submission_uses_live_eq_domain():
