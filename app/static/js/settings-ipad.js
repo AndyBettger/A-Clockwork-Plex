@@ -341,22 +341,24 @@
 
   function mixerCard(channel, data = {}) {
     const article = document.createElement('article');
+    const label = data.label || channel;
+    const detail = data.error || data.description || data.pcm || `acp_${channel}`;
     article.className = 'settings-live-trim';
-    article.innerHTML = `<header><strong>${data.label || channel}</strong><output>${Math.round(Number(data.percent) || 0)}%</output></header><input type="range" min="0" max="100" step="1" value="${Math.round(Number(data.percent) || 0)}" aria-label="${data.label || channel} trim"><small>${data.error || data.pcm || `acp_${channel}`}</small>`;
+    article.innerHTML = `<header><strong>${label}</strong><output>${Math.round(Number(data.percent) || 0)}%</output></header><input type="range" min="0" max="100" step="1" value="${Math.round(Number(data.percent) || 0)}" aria-label="${label}"><small>${detail}</small>`;
     const slider = article.querySelector('input');
     const output = article.querySelector('output');
     slider.disabled = data.available !== true || data.pcm_available === false;
     slider.addEventListener('input', () => { output.textContent = `${slider.value}%`; });
     slider.addEventListener('change', async () => {
       const message = document.querySelector('[data-mixer-message]');
-      if (message) message.textContent = `Applying ${data.label || channel}…`;
+      if (message) message.textContent = `Applying ${label}…`;
       try {
         const response = await fetch('/api/audio/mixer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channel, percent: Number(slider.value) }) });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || payload.ok === false) throw new Error(payload.error || `Mixer returned HTTP ${response.status}.`);
-        if (message) message.textContent = `${data.label || channel} applied immediately.`;
+        if (message) message.textContent = `${label} applied immediately.`;
       } catch (error) {
-        if (message) message.textContent = error.message || 'Could not change the mixer trim.';
+        if (message) message.textContent = error.message || 'Could not change the output level.';
       }
     });
     return article;
