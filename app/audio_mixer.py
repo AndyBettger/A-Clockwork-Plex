@@ -27,7 +27,7 @@ MIXER_CHANNELS: dict[str, dict[str, Any]] = {
         "control": "A Clockwork Master",
         "pcm": "acp_master",
         "default_percent": 80,
-        "description": "Persistent final trim applied to Plexamp, AirPlay and alarm audio.",
+        "description": "Persistent final output level applied to Plexamp, AirPlay and alarm audio.",
     },
     "plexamp": {
         "label": "Plexamp trim",
@@ -44,11 +44,11 @@ MIXER_CHANNELS: dict[str, dict[str, Any]] = {
         "description": "Persistent downstream calibration after the AirPlay sender volume.",
     },
     "alarm": {
-        "label": "Alarm trim",
+        "label": "Maximum alarm volume",
         "control": "A Clockwork Alarm",
         "pcm": "acp_alarm",
         "default_percent": 100,
-        "description": "Persistent output ceiling after each alarm's own fade and target volume.",
+        "description": "Global ceiling after each alarm's target and fade.",
     },
 }
 
@@ -423,7 +423,7 @@ def _register_audio_api() -> None:
                     )
             except ValueError as exc:
                 return jsonify({"ok": False, "error": str(exc)}), 400
-            message = "Persistent audio trim saved." if persist else "Audio trim changed."
+            message = "Persistent output level saved." if persist else "Audio output level changed."
             return jsonify({"ok": True, "mixer": status, "persisted": persist, "message": message})
 
     if "api_live_audio" not in app.view_functions:
