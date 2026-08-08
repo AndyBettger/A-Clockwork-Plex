@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The live Pi still has the accepted **dynamic-headroom** helper/config until the next surgical deployment. The replacement **fixed `-6.5 dB` music-lane reserve** is implemented on `feature/alarm-engine`, green in CI, and awaits physical Pi acceptance.  
+**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve** is now surgically deployed on the live Pi and its first bypass-state reload is physically accepted: Plexamp remained continuous, the expected one-off `6.5 dB` level reduction occurred, saved Bass `+6 dB` was preserved while applied/effective Bass stayed at `0 dB`, the route remained `split-bus-active`, and CamillaDSP retained PID `1543417`. Restore/bypass level-consistency A/B is the next acceptance step.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -46,7 +46,7 @@ When EQ-capable audio is installed, Plexamp and AirPlay stay mapped to the split
 
 Everyday bypass must not remap ALSA devices, restart source services or select another route. While bypassed, the Settings and drawer controls remain visible but are greyed and locked.
 
-#### Fixed music-lane headroom refinement — implemented in source; Pi acceptance pending
+#### Fixed music-lane headroom refinement — deployed; level-consistency A/B pending
 
 Physical Plexamp and AirPlay A/B tests exposed a usability problem with the original dynamic-headroom implementation: a positive tone boost added attenuation at the same time as it changed tonal balance, and bypass removed that attenuation at the same time as it flattened the EQ. The result was a conspicuous loudness jump whenever a positive tone control was introduced or bypassed.
 
@@ -81,7 +81,7 @@ Implementation checkpoint:
 
 Source head `7555b8186355cddc214fe5e08908fa79ff8fd6c4` passed GitHub Actions **#2767 / run 31234727079**: compilation PASS, JavaScript/page-wiring/shell-syntax PASS, and **1,353/1,353 unit tests PASS**.
 
-The live bedroom Pi has not yet received this refinement; until the next controlled helper reload it still exhibits the previously observed dynamic-headroom level jump.
+The live bedroom Pi then received only `__init__.py`, `model.py` and `runtime.py` into the installed helper package. With Plexamp actively audible, EQ already bypassed and saved Bass `+6.0 dB`, `a-clockwork-plex-audio-eq bypass on` reloaded the new graph in place. Playback remained continuous and the expected one-off broad level reduction was heard as the permanent reserve entered the music path. The helper reported `headroom_db=-6.5`, `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active`, final limiter `-1.0 dB`, and unchanged CamillaDSP PID `1543417`. This accepts the surgical deployment and fixed-reserve bypass baseline; the Restore/Bypass A/B still needs to confirm that no repeated broad-volume jump remains.
 
 ### Alarm loudness and speaker-safety acceptance
 
@@ -326,7 +326,7 @@ Installer/live-verifier results:
 - [x] Stored values survive bypass and return when enabled.
 - [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
 - [x] Return to neutral sets all bands to `0 dB`.
-- [ ] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI PASS; live Pi deployment pending.)*
+- [ ] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI PASS; surgical live deployment and fixed-reserve bypass baseline PASS; Restore/Bypass A/B pending.)*
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
 - [ ] EQ and bypass do not alter alarm tone or level.
@@ -387,7 +387,15 @@ A deliberately obvious Bass `+6.0 dB` curve was reapplied while Plexamp remained
 
 `a-clockwork-plex-audio-eq bypass off` restored Bass stored/applied/effective `+6.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2` and original headroom `-6.5 dB` while the route and CamillaDSP PID remained unchanged. Manual listening immediately confirmed the heavy Bass curve returned.
 
-This accepted the required runtime semantics that everyday EQ disable is a DSP operation rather than route remapping and stored values survive bypass. The later AirPlay A/B test exposed the associated dynamic-headroom level jump as undesirable UX; the replacement fixed-reserve implementation now awaits physical acceptance.
+This accepted the required runtime semantics that everyday EQ disable is a DSP operation rather than route remapping and stored values survive bypass. The later AirPlay A/B test exposed the associated dynamic-headroom level jump as undesirable UX; the replacement fixed-reserve implementation is now deployed and undergoing physical A/B acceptance.
+
+#### Fixed-reserve deployment baseline — physical PASS
+
+The live helper package was surgically updated while Plexamp remained actively audible. No ALSA route, Plexamp service, AirPlay service or dashboard service was remapped/restarted. The pre-existing bypassed state with saved Bass `+6.0 dB` was then reapplied through the installed helper so CamillaDSP could reload the fixed-headroom graph in place.
+
+Plexamp playback remained continuous. The expected one-time broad level reduction was audible as the permanent `-6.5 dB` music reserve first entered the path. The returned state reported `bypassed=true`, Bass `db=6.0` / `stored_db=6.0` / `applied_db=0.0` / `effective_db=0.0`, Mid/Treble all zero, `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active`, selected route `split-bus-selected`, final limiter `-1.0 dB`, `ok=true`, and unchanged CamillaDSP PID `1543417`.
+
+This proves the production helper can activate the new graph without interrupting the stream or restarting CamillaDSP. The next physical check is Restore → Bypass with the saved Bass `+6.0 dB` curve, where tone should change clearly but the old repeated `6.5 dB` broad-volume jump should be absent.
 
 #### Dashboard API state — PASS
 
@@ -441,7 +449,7 @@ AirPlay was then started from the iPhone while Plexamp remained playing. The app
 
 While AirPlay continued playing, EQ Bypass was pressed. Playback remained continuous, the exaggerated bass disappeared and the sound became neutral, while overall level rose because the original implementation also removed the `-6.5 dB` dynamic headroom when bypassed. This accepts the shared AirPlay EQ lane and Plexamp → AirPlay takeover direction. Reverse AirPlay → Plexamp takeover/return remains to be tested separately.
 
-The same A/B exposed the user-facing weakness that motivated the fixed reserve now implemented in source.
+The same A/B exposed the user-facing weakness that motivated the fixed reserve now deployed on the live Pi.
 
 #### Settings Display Motion regression — physical PASS
 
@@ -499,22 +507,20 @@ The transition engine and CSS still contained the missing effects; only the Sett
 | 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Neutral and AirPlay shared-EQ/Plexamp→AirPlay takeover accepted; fixed `-6.5 dB` reserve implemented and CI-green, awaiting surgical Pi deployment/physical acceptance |
+| 5. Feature/interface acceptance | In progress | Fixed `-6.5 dB` reserve surgically deployed with continuous Plexamp and stable CamillaDSP PID; Restore/Bypass level-consistency A/B now pending |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 with **audio active/audible**. The live Pi remains on the original dynamic-headroom runtime until the following controlled deployment:
+Continue Phase 5 with **audio active/audible**. The live Pi is now on the fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`.
 
-1. fetch `feature/alarm-engine` and surgically restore only the changed EQ package source files needed for this refinement;
-2. install those package modules to `/usr/local/lib/a-clockwork-plex/audio-eq/audio_eq_camilladsp/` without remapping ALSA or restarting Plexamp/AirPlay/dashboard;
-3. with EQ bypassed and saved Bass `+6.0 dB`, re-apply bypass through the installed helper so CamillaDSP reloads the new fixed-reserve configuration in place; **expect one intentional broad level drop of about 6.5 dB at this first transition** because the old bypass had no headroom reserve;
-4. verify route remains `split-bus-active`, CamillaDSP retains the same PID if healthy, saved Bass remains `+6.0 dB`, applied/effective Bass remains `0.0 dB` while bypassed, and API `headroom_db` changes to `-6.5`;
-5. physically compare Bypass → Restore → Neutral → Bass `+6` → Bypass → Restore, expecting obvious tone changes but **no repeated ~6.5 dB broad-volume jump**;
-6. verify Music Master at 100% remains adequately loud with the permanent reserve;
-7. then test reverse AirPlay → Plexamp takeover/return, Music Master isolation and the alarm lane using the conservative stepped speaker-safety procedure above.
+1. restore the saved EQ curve in place and confirm playback remains continuous, Bass `+6 dB` audibly returns, `headroom_db` remains `-6.5`, route stays `split-bus-active`, and there is **no old broad ~6.5 dB level jump**;
+2. bypass once more and confirm the tonal boost disappears while the same fixed reserve remains and no broad level jump returns;
+3. if both directions pass, mark fixed-headroom level consistency accepted and return to a sensible neutral/bypassed test state;
+4. verify Music Master at 100% remains adequately loud with the permanent reserve;
+5. then test reverse AirPlay → Plexamp takeover/return, Music Master isolation and the alarm lane using the conservative stepped speaker-safety procedure above.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
