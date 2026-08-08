@@ -81,13 +81,16 @@ default
         self.assertIn("settings-output-fader", self.css)
         self.assertIn("calibrated Audio-drawer fader", self.css)
 
-    def test_equaliser_uses_full_width_stacked_rows_with_button_spacing(self):
-        self.assertIn('[data-settings-subpage="audio:eq"] .settings-eq-grid', self.css)
+    def test_equaliser_uses_full_width_stacked_live_rows_with_button_spacing(self):
+        self.assertIn('[data-settings-subpage="audio:eq"] .acp-eq-settings-grid', self.css)
+        self.assertIn('[data-settings-subpage="audio:eq"] .acp-eq-settings-band', self.css)
         self.assertIn("grid-template-columns: 1fr !important", self.css)
         self.assertIn("86px minmax(0, 1fr) 74px", self.css)
-        self.assertIn(".settings-eq-grid + .button", self.css)
+        self.assertIn('[data-settings-subpage="audio:eq"] .acp-eq-settings-actions', self.css)
         self.assertIn("margin-top: 19px", self.css)
         self.assertIn("#acp-eq-settings-card", self.css)
+        compact = "".join(self.css.split())
+        self.assertNotIn("#acp-eq-settings-card{display:none!important;}", compact)
 
     def test_physical_audio_route_is_read_only_not_an_alias_dropdown(self):
         self.assertIn("arrangeAudioHardware", self.client)
