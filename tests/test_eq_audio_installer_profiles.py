@@ -38,13 +38,18 @@ class EqAudioInstallerProfileTests(unittest.TestCase):
         self.assertIn('slave.pcm "acp_dmix"', alarm_block)
         self.assertNotIn('slave.pcm "acp_master"', alarm_block)
 
-    def test_camilladsp_pipeline_processes_music_before_alarm_combine(self) -> None:
-        music_filter = self.camilla.index("names: [bass, mid, treble, headroom]")
-        combine = self.camilla.index("name: combine_music_and_alarm", music_filter)
+    def test_camilladsp_pipeline_keeps_fixed_headroom_before_bypassable_tone_stage(self) -> None:
+        headroom = self.camilla.index("names: [headroom]")
+        tone = self.camilla.index("names: [bass, mid, treble]", headroom)
+        combine = self.camilla.index("name: combine_music_and_alarm", tone)
         limiter = self.camilla.index("names: [final_safety_limiter]", combine)
-        self.assertLess(music_filter, combine)
+        self.assertLess(headroom, tone)
+        self.assertLess(tone, combine)
         self.assertLess(combine, limiter)
-        self.assertIn("bypassed: false", self.camilla[:music_filter])
+        headroom_block = self.camilla[self.camilla.index("headroom:"):self.camilla.index("final_safety_limiter:")]
+        self.assertIn("gain: -6.5", headroom_block)
+        self.assertIn("bypassed: false", self.camilla[:headroom])
+        self.assertIn("bypassed: false", self.camilla[headroom:tone])
         self.assertIn('device: "hw:7,1,0"', self.camilla)
         self.assertIn('device: "hw:CARD=Pro,DEV=0"', self.camilla)
         self.assertIn("clip_limit: -1.0", self.camilla)
