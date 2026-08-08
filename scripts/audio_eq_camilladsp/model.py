@@ -13,6 +13,7 @@ USER_MIN_DB = -6.0
 USER_MAX_DB = 6.0
 STEP_DB = 0.5
 HEADROOM_MARGIN_DB = 0.5
+FIXED_MUSIC_HEADROOM_DB = -(USER_MAX_DB + HEADROOM_MARGIN_DB)
 FINAL_LIMITER_DB = -1.0
 BANDS = ('bass', 'mid', 'treble')
 
@@ -140,25 +141,33 @@ def load_state(path: Path) -> dict[str, Any]:
     return normalise_state(raw)
 
 
-def calculate_headroom_db(bands: dict[str, Any], bypassed: bool = False) -> float:
-    if bypassed:
-        return 0.0
-    largest_boost = max(0.0, *(clamp_db(bands.get(band, 0.0)) for band in BANDS))
-    return -(largest_boost + HEADROOM_MARGIN_DB) if largest_boost > 0 else 0.0
+def calculate_headroom_db(
+    bands: dict[str, Any] | None = None,
+    bypassed: bool = False,
+) -> float:
+    """Return the permanent music-lane reserve for the EQ-capable graph.
+
+    ``bands`` and ``bypassed`` remain accepted for compatibility with the
+    original dynamic-headroom helper API. Neither changes the reserve: the
+    music lane always keeps enough room for the maximum +6 dB tone boost plus
+    the 0.5 dB safety margin.
+    """
+    del bands, bypassed
+    return FIXED_MUSIC_HEADROOM_DB
 
 
 def render_config(settings: Settings, state: dict[str, Any]) -> str:
     state = normalise_state(state)
     bypassed = bool(state['bypassed'])
-    applied = {
-        band: 0.0 if bypassed else clamp_db(state['bands'][band])
+    stored = {
+        band: clamp_db(state['bands'][band])
         for band in BANDS
     }
-    headroom = calculate_headroom_db(applied, bypassed)
-    pipeline_bypassed = 'true' if bypassed else 'false'
+    headroom = calculate_headroom_db(stored, bypassed)
+    tone_bypassed = 'true' if bypassed else 'false'
     return f'''---
 title: "A Clockwork Plex EQ-capable split bus"
-description: "Music-only three-band EQ and headroom, independent alarm, final limiter"
+description: "Fixed music headroom, bypassable three-band EQ, independent alarm, final limiter"
 devices:
   samplerate: {settings.sample_rate}
   chunksize: {settings.chunksize}
@@ -183,13 +192,13 @@ devices:
 filters:
   bass:
     type: Biquad
-    parameters: {{type: Lowshelf, freq: 125, gain: {applied['bass']:.1f}, slope: 6}}
+    parameters: {{type: Lowshelf, freq: 125, gain: {stored['bass']:.1f}, slope: 6}}
   mid:
     type: Biquad
-    parameters: {{type: Peaking, freq: 1000, gain: {applied['mid']:.1f}, q: 0.7}}
+    parameters: {{type: Peaking, freq: 1000, gain: {stored['mid']:.1f}, q: 0.7}}
   treble:
     type: Biquad
-    parameters: {{type: Highshelf, freq: 4000, gain: {applied['treble']:.1f}, slope: 6}}
+    parameters: {{type: Highshelf, freq: 4000, gain: {stored['treble']:.1f}, slope: 6}}
   headroom:
     type: Gain
     parameters: {{gain: {headroom:.1f}, scale: dB, inverted: false, mute: false}}
@@ -209,7 +218,8 @@ mixers:
           - {{channel: 1, gain: 0, scale: dB, inverted: false}}
           - {{channel: 3, gain: 0, scale: dB, inverted: false}}
 pipeline:
-  - {{type: Filter, channels: [0, 1], bypassed: {pipeline_bypassed}, names: [bass, mid, treble, headroom]}}
+  - {{type: Filter, channels: [0, 1], bypassed: false, names: [headroom]}}
+  - {{type: Filter, channels: [0, 1], bypassed: {tone_bypassed}, names: [bass, mid, treble]}}
   - {{type: Mixer, name: combine_music_and_alarm}}
   - {{type: Filter, channels: [0, 1], names: [final_safety_limiter]}}
 '''
