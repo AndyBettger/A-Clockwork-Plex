@@ -13,7 +13,9 @@ from app.settings_unified_scheduled import UnifiedSettingsService
 class SettingsPhysicalFollowupTests(unittest.TestCase):
     def setUp(self) -> None:
         self.base = Path("app/templates/base.html").read_text(encoding="utf-8")
+        self.settings_template = Path("app/templates/settings.html").read_text(encoding="utf-8")
         self.client = Path("app/static/js/settings-physical-followup.js").read_text(encoding="utf-8")
+        self.audio_workspace = Path("app/static/js/settings-audio-workspace.js").read_text(encoding="utf-8")
         self.css = Path("app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
 
     def test_promoted_unified_settings_preserves_scheduled_alarm_switch(self):
@@ -80,6 +82,17 @@ default
         self.assertIn("data-settings-fader-step", self.client)
         self.assertIn("settings-output-fader", self.css)
         self.assertIn("calibrated Audio-drawer fader", self.css)
+
+    def test_audio_output_copy_distinguishes_source_trims_from_alarm_ceiling(self):
+        self.assertIn("Levels and equaliser", self.settings_template)
+        self.assertIn("Output levels", self.settings_template)
+        self.assertIn("Persistent output levels", self.settings_template)
+        self.assertIn("Maximum alarm volume", self.audio_workspace)
+        self.assertIn("Global ceiling after each alarm’s target and fade.", self.audio_workspace)
+        self.assertIn("Plexamp trim", self.audio_workspace)
+        self.assertIn("AirPlay trim", self.audio_workspace)
+        self.assertNotIn("alarm: ['Alarm trim'", self.audio_workspace)
+        self.assertIn('<option value="in">in</option>', self.settings_template)
 
     def test_equaliser_uses_full_width_stacked_live_rows_with_button_spacing(self):
         self.assertIn('[data-settings-subpage="audio:eq"] .acp-eq-settings-grid', self.css)
