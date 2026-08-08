@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp remains audible through CamillaDSP; current saved/applied curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB` after restoring EQ from the live Settings subpage; helper-level bypass/restore, dashboard/API truthfulness, mixer-overlay bypass/lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; current saved curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB` and EQ is currently bypassed after the AirPlay A/B test; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted; dynamic EQ headroom has now exposed an undesirable volume jump and a fixed `-6.5 dB` music-lane pre-EQ reserve is the proposed refinement before the remaining Phase 5 tests  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -45,6 +45,30 @@ When EQ-capable audio is installed, Plexamp and AirPlay stay mapped to the split
 - **Return to neutral:** deliberately sets all three bands to `0 dB`.
 
 Everyday bypass must not remap ALSA devices, restart source services or select another route. While bypassed, the Settings and drawer controls remain visible but are greyed and locked.
+
+#### Proposed fixed music-lane headroom refinement
+
+Physical Plexamp and AirPlay A/B tests exposed a usability problem with the current dynamic-headroom implementation: a positive tone boost adds attenuation at the same time as it changes tonal balance, and bypass removes that attenuation at the same time as it flattens the EQ. The result is a conspicuous loudness jump when a tone control is boosted or bypassed.
+
+The preferred refinement is to reserve the current worst-case EQ headroom permanently on the music lane rather than dynamically:
+
+```text
+Plexamp / AirPlay
+        ↓
+Music Master
+        ↓
+fixed -6.5 dB EQ preamp/headroom reserve   (always active)
+        ↓
+Bass / Mid / Treble                         (bypassable)
+        ↓
+mix with alarm
+        ↓
+-1 dB final limiter
+```
+
+The `-6.5 dB` value matches the existing maximum `+6 dB` band boost plus the existing `0.5 dB` safety margin. Under this model Neutral and Bypass stay at the same base level; bypass defeats only Bass/Mid/Treble and does not remove the fixed reserve. This is the digital equivalent of provisioning tone-control headroom rather than changing the apparent master level whenever a tone control is moved.
+
+The trade-off is that the EQ-capable music lane has `6.5 dB` less maximum digital level even at neutral. Before accepting this refinement, the bedroom Pi must confirm that Music Master at 100% still provides adequate maximum listening level. The alarm lane remains outside this music attenuation and continues to be governed by Maximum Alarm Volume and the final limiter.
 
 ### Failure behaviour
 
@@ -261,12 +285,13 @@ Installer/live-verifier results:
 - [x] Bass control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] Mid control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] Treble control is audibly distinct, persists the requested value and reports the applied value correctly.
-- [ ] AirPlay plays through the same music EQ lane.
-- [ ] AirPlay/Plexamp takeover and return still work.
+- [x] AirPlay plays through the same music EQ lane.
+- [ ] AirPlay/Plexamp takeover and return still work. *(Plexamp → AirPlay takeover PASS; reverse Plexamp takeover/return still open.)*
 - [x] EQ disable uses bypass without route remapping.
 - [x] Stored values survive bypass and return when enabled.
 - [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
-- [ ] Return to neutral sets all bands to `0 dB`.
+- [x] Return to neutral sets all bands to `0 dB`.
+- [ ] Replace dynamic EQ headroom with a fixed `-6.5 dB` music-lane pre-EQ reserve and physically accept level consistency.
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
 - [ ] EQ and bypass do not alter alarm tone or level.
@@ -325,7 +350,7 @@ A deliberately obvious Bass `+6.0 dB` curve was reapplied while Plexamp remained
 
 `a-clockwork-plex-audio-eq bypass off` restored Bass stored/applied/effective `+6.0 dB`, config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2` and headroom `-6.5 dB` while the route and CamillaDSP PID remained unchanged. Manual listening immediately confirmed the heavy Bass curve returned.
 
-This accepts both required runtime semantics: everyday EQ disable is a DSP bypass rather than route remapping, and stored values survive bypass and return when EQ is re-enabled.
+This accepts both required runtime semantics: everyday EQ disable is a DSP bypass rather than route remapping, and stored values survive bypass and return when EQ is re-enabled. The later AirPlay A/B test showed that the associated dynamic-headroom level jump is undesirable UX and motivates the proposed fixed-reserve refinement above.
 
 #### Dashboard API state — PASS
 
@@ -393,6 +418,22 @@ GitHub Actions run **31230224890** / **#2749** then passed all **1,354 tests** w
 
 Only the corrected CSS file was restored on the bedroom Pi. After refresh, **Settings → Audio → Equaliser displayed correctly** in the physically bypassed state: saved Bass `+6.0 dB`, Mid/Treble `0.0 dB`, bypass status visible and all three sliders greyed/locked. Pressing **Restore EQ** from that Settings page restored the EQ and immediately re-enabled the sliders; the saved Bass-heavy curve returned. This physically accepts the Settings EQ bypass/lock/restore path and closes the duplicate-authority/blank-card defect chain.
 
+#### Neutral action — physical PASS
+
+From the restored Bass `+6.0 dB` curve, **Return to neutral** was pressed in Settings → Audio → Equaliser while Plexamp remained audible. The UI moved Bass, Mid and Treble to `0 dB` and the music returned to a natural tonal balance without entering bypass.
+
+The immediate `GET /api/audio/eq` reported all three bands with `db`, `stored_db`, `applied_db` and `effective_db` exactly `0.0 dB`, `bypassed=false`, headroom `0.0 dB`, the original neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, route/backend `split-bus-active`, final limiter `-1.0 dB`, `ok=true`, and unchanged CamillaDSP PID `1543417`. This physically accepts Neutral as a distinct reset operation rather than another form of bypass.
+
+#### AirPlay shared-EQ lane and Plexamp takeover — physical PASS
+
+Starting from the accepted neutral baseline, Bass was moved to `+6.0 dB` while Plexamp was playing. Plexamp immediately became strongly bass-heavy and, under the current dynamic-headroom model, quieter by the expected `6.5 dB` reserve.
+
+AirPlay was then started from the iPhone while Plexamp remained playing. The appliance correctly **paused Plexamp on AirPlay takeover**, and AirPlay playback was audibly just as bass-heavy, physically proving that AirPlay traverses the same CamillaDSP music-EQ lane as Plexamp.
+
+While AirPlay continued playing, EQ Bypass was pressed. Playback remained continuous, the exaggerated bass disappeared and the sound became neutral, while overall level rose because the current implementation also removes the `-6.5 dB` dynamic headroom when bypassed. This accepts the shared AirPlay EQ lane and the Plexamp → AirPlay takeover direction. The reverse Plexamp takeover/return direction remains to be tested separately.
+
+The same A/B exposed a user-facing weakness in the dynamic-headroom policy: bypassing or adding a positive tone boost changes both tonal balance and apparent volume. The proposed fixed pre-EQ reserve documented above is intended to remove that coupling before the remaining Music Master/alarm acceptance tests.
+
 #### Settings Display Motion regression — physical PASS
 
 The same Settings review found two regressions in **Settings → Display → Motion** following the custom-select migration used to keep menus inside the night-mode overlay:
@@ -455,19 +496,21 @@ GitHub Actions run **31227257674** / **#2729** passed the combined Settings EQ-a
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore, dashboard API, mixer-overlay bypass/lock, Settings EQ bypass/lock/restore and Display Motion physically accepted; Neutral is next |
+| 5. Feature/interface acceptance | In progress | Neutral and AirPlay shared-EQ/Plexamp→AirPlay takeover now physically accepted; fixed pre-EQ headroom refinement proposed before remaining Music Master/alarm tests |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 while **Plexamp remains actively playing and audible** with the restored Bass `+6.0 dB` curve active:
+Continue Phase 5 while **audio remains active/audible**. The current live state after the AirPlay A/B is EQ bypassed with saved Bass `+6.0 dB`:
 
-1. use **Neutral** from Settings → Audio → Equaliser;
-2. confirm Bass, Mid and Treble all move to `0.0 dB`, EQ remains enabled rather than bypassed, and the audible tonal balance returns to normal;
-3. confirm the live EQ state reports all three stored/applied/effective bands at `0.0 dB`, headroom `0.0 dB`, the exact neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and the same healthy split-bus route/process;
-4. then proceed to AirPlay handover, Music Master and alarm-isolation tests.
+1. accept and implement the fixed `-6.5 dB` music-lane pre-EQ reserve so headroom remains present at Neutral, with tone boosts and during EQ Bypass;
+2. keep Bass/Mid/Treble as a separate bypassable filter stage so Bypass changes tone only, not the reserved base level;
+3. update the neutral/bypass/headroom contracts and static split-bus profile, then run the complete repository suite before changing the Pi;
+4. deploy the corrected backend surgically and physically compare Neutral → Bass `+6 dB` → Bypass → Restore, expecting tonal changes without the previous broad volume jump;
+5. verify Music Master at 100% remains sufficiently loud with the permanent reserve;
+6. then test the reverse AirPlay → Plexamp takeover, Music Master isolation and alarm-lane behaviour.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
