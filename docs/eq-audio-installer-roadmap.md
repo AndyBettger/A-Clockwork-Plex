@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. The live state is currently bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
+**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. The live EQ state is currently bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -68,7 +68,7 @@ mix with alarm
 
 The `-6.5 dB` value is the existing maximum `+6 dB` band boost plus the existing `0.5 dB` safety margin. Under this model Neutral and Bypass stay at the same base level; bypass defeats only Bass/Mid/Treble and does not remove the fixed reserve. This is the digital equivalent of provisioning tone-control headroom rather than changing the apparent master level whenever a tone control is moved.
 
-The trade-off is that the EQ-capable music lane has `6.5 dB` less maximum digital level even at neutral. The planned bedroom system uses a separate analogue amplifier, so normal physical listening gain can be established there while preserving conservative digital headroom. Physical acceptance must still confirm that Music Master at 100% provides adequate maximum listening level.
+The trade-off is that the EQ-capable music lane has `6.5 dB` less maximum digital level even at neutral. The planned bedroom system uses a separate analogue amplifier, so normal physical listening gain can be established there while preserving conservative digital headroom. Physical testing has now confirmed that Music Master at `100%` still provides ample usable output with the reserve in place, so this trade-off is accepted.
 
 Implementation checkpoint:
 
@@ -333,6 +333,7 @@ Installer/live-verifier results:
 - [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
 - [x] Return to neutral sets all bands to `0 dB`.
 - [x] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI, surgical deployment and Restore/Bypass A/B all PASS.)*
+- [x] Music Master at 100% remains adequately loud with the permanent reserve.
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
 - [ ] EQ and bypass do not alter alarm tone or level.
@@ -406,6 +407,14 @@ Restore then reapplied the saved Bass `+6.0 dB` curve without a broad level jump
 A final bypass removed the Bass boost and returned the music to a normal tonal balance, again without the previous broad loudness jump. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active`, and PID `1543417`.
 
 This completes physical acceptance of the permanent music headroom design. Everyday EQ Bypass/Restore now changes tone without also moving the broad music level, while the safety reserve remains continuously available for the maximum `+6 dB` tone boost.
+
+#### Music Master maximum-level acceptance — physical PASS
+
+The fixed-reserve system was then exercised with Music Master, trims and source volumes at `100%`. With the external Sony test amplifier set to a sensible listening gain, the permanent `-6.5 dB` reserve still left ample maximum music output. The amplifier gain was then increased slightly and Music Master returned to approximately `79%`, producing a comfortable normal listening level with substantial digital control range still available.
+
+This closes the practical trade-off introduced by the permanent reserve: the music lane retains conservative EQ headroom without making the appliance feel underpowered in normal use.
+
+Several source tracks identified by Plexamp as `96 kHz / 24-bit` were also auditioned and sounded excellent subjectively. This does **not** establish native high-resolution output: the currently accepted split-bus/CamillaDSP contract remains fixed at `44.1 kHz`, `S16_LE`, two channels, so higher-rate/higher-bit-depth source material is converted somewhere in the playback path before the DAC under the present design.
 
 #### Dashboard API state — PASS
 
@@ -517,20 +526,19 @@ The transition engine and CSS still contained the missing effects; only the Sett
 | 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Fixed `-6.5 dB` reserve physically accepted in both Restore/Bypass directions; next check is maximum useful music level, then takeover/Music Master/alarm isolation |
+| 5. Feature/interface acceptance | In progress | Fixed `-6.5 dB` reserve and maximum useful Music Master level physically accepted; next is reverse AirPlay→Plexamp handover, then Music Master/alarm isolation |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 with **audio active/audible**. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`.
+Continue Phase 5 with **audio active/audible**. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`. The external amplifier gain has been raised to a comfortable fixed setting and Music Master is currently around `79%`; `100%` has already been physically confirmed to provide ample output with the permanent reserve.
 
-1. verify Music Master at 100% remains adequately loud with the permanent reserve; this is a listening-level acceptance check, not a speaker-stress test, so set the physical amplifier sensibly first;
-2. test reverse AirPlay → Plexamp takeover/return and record whether source ownership returns cleanly;
-3. test Music Master at 0% independently with Plexamp and AirPlay and confirm both music sources mute;
-4. then test that a real scheduled alarm remains independent of Music Master and EQ/bypass, followed by Maximum Alarm Volume and combined-output limiter checks using the conservative stepped speaker-safety procedure above;
-5. finally recheck NFC playback/dashboard controls before Phase 5 is closed.
+1. test reverse AirPlay → Plexamp takeover/return and record whether source ownership returns cleanly;
+2. test Music Master at 0% independently with Plexamp and AirPlay and confirm both music sources mute;
+3. then test that a real scheduled alarm remains independent of Music Master and EQ/bypass, followed by Maximum Alarm Volume and combined-output limiter checks using the conservative stepped speaker-safety procedure above;
+4. finally recheck NFC playback/dashboard controls before Phase 5 is closed.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
