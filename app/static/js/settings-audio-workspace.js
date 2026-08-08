@@ -145,7 +145,7 @@
       if (message) {
         message.textContent = Number.isFinite(confirmed)
           ? `${channel} saved at ${Math.round(confirmed)}%.`
-          : (payload.message || 'Persistent output trim saved.');
+          : (payload.message || 'Persistent output level saved.');
       }
     } catch (error) {
       if (message) {
@@ -265,10 +265,10 @@
     const bannerTitle = card.querySelector('.audio-mixer-banner strong');
     const bannerCopy = card.querySelector('.audio-mixer-banner span');
     if (heading) {
-      heading.textContent = 'Persistent output trims';
+      heading.textContent = 'Persistent output levels';
     }
     if (copy) {
-      copy.textContent = 'Per-source calibration stages stored in ALSA. Live player volume lives in the bottom Audio drawer.';
+      copy.textContent = 'Source calibration stages and the alarm safety ceiling stored in ALSA. Live player volume lives in the bottom Audio drawer.';
     }
     if (bannerTitle) {
       bannerTitle.textContent = 'Human-scale faders.';
@@ -281,7 +281,7 @@
       master: ['Master', 'Persistent final output default.'],
       plexamp: ['Plexamp trim', 'Downstream of Plexamp’s own volume.'],
       airplay: ['AirPlay trim', 'Downstream of the iPhone/sender volume.'],
-      alarm: ['Alarm trim', 'Ceiling after the alarm fade and target.'],
+      alarm: ['Maximum alarm volume', 'Global ceiling after each alarm’s target and fade.'],
     };
     Object.entries(labels).forEach(([id, values]) => {
       const channel = card.querySelector(`[data-mixer-channel="${id}"]`);
