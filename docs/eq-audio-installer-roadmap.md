@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp remains audible through CamillaDSP; current saved curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB`; EQ is currently bypassed from the live mixer overlay so applied/effective bands are neutral and headroom is `0.0 dB`; helper-level bypass/restore, dashboard/API truthfulness, mixer-overlay bypass/lock and Settings → Display → Motion are physically accepted; the first physical retest of Settings → Audio → Equaliser exposed a blank live-card mount, whose static-template/resilient-mount correction is green in CI and awaits Pi retest  
+**Production state:** EQ-capable split-bus audio installed and verified on the bedroom Pi; Plexamp remains audible through CamillaDSP; current saved/applied curve has Bass `+6.0 dB`, Mid/Treble `0.0 dB` after restoring EQ from the live Settings subpage; helper-level bypass/restore, dashboard/API truthfulness, mixer-overlay bypass/lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -265,7 +265,7 @@ Installer/live-verifier results:
 - [ ] AirPlay/Plexamp takeover and return still work.
 - [x] EQ disable uses bypass without route remapping.
 - [x] Stored values survive bypass and return when enabled.
-- [ ] Controls are greyed and locked while bypassed. *(Mixer overlay PASS; Settings subpage first retest exposed blank live-card mount; corrected source awaits Pi retest.)*
+- [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
 - [ ] Return to neutral sets all bands to `0 dB`.
 - [ ] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
@@ -369,19 +369,29 @@ The correction is now committed:
 - `b56e51f2fa35be949698528b312708f47f692ffe` — fresh example configuration no longer defines the obsolete staged EQ block;
 - `73bb464c42a4411bcf503e3ce91fa76dda9f1c96` — the old unified-Settings test was corrected to prove normal Settings saves leave live EQ untouched.
 
-The first physical retest after deploying the authority cleanup showed the **Equaliser subpage shell and Back button, but no EQ card at all**. Display → Motion was working correctly in the same deployed Settings build, isolating this to the EQ frontend mount rather than the general Settings router.
+The first physical retest after deploying the authority cleanup showed the **Equaliser subpage shell and Back button, but no EQ card at all**. Display → Motion was working correctly in the same deployed Settings build, isolating this to the EQ frontend rather than the general Settings router.
 
-Source review showed the first live-authority frontend implementation destructively removed the old staged `.settings-card` before attempting to inject the live replacement. That made an insertion/mount failure capable of leaving the exact blank subpage observed on the Pi. The corrected implementation now:
+The static-template/resilient-mount work then ensured that the live card existed in `settings.html`, that `/settings` actually rendered it, and that the current `audio-eq.js` was being served. Targeted checks on the Pi proved all three of those facts, which ruled out the server, template, router and JavaScript delivery paths.
 
-- renders the production live-EQ card directly in `settings.html`, so the normal page does not depend on runtime card creation;
-- removes the obsolete staged `audio.eq.enabled` and `audio.eq.bands.*` controls from the template entirely;
-- binds live-EQ interactions idempotently when the subpage is revisited;
-- retains a compatibility fallback for older templates, but constructs and verifies the new DOM node **before** removing any legacy card;
-- updates CI page-wiring checks and the older iPad Settings test so they require live EQ controls and reject the retired staged authority.
+The actual remaining culprit was a stale migration rule in `settings-physical-followup.css`:
 
-Relevant commits are `a5fb2d9ef7988f7109932fb5ed1cd39d2056b9bd`, `dd8b925fdc5f2c3c577eca95353dba67c07a987b`, `b1fd6bad955f0da4595ae4396de8ea73540ffaf8`, `5eec25bd0a6cb252e069088f030f025885728bb0` and `4b375d47f941fed00b585e18764b92e868dbf557`. GitHub Actions run **31228846307** / **#2741** passed all **1,354 tests**, with JavaScript/page wiring and shell syntax also green.
+```css
+body.mode-settings #acp-eq-settings-card {
+  display: none !important;
+}
+```
 
-Physical acceptance of Settings → Audio → Equaliser therefore remains open for one more Pi retest of this corrected mount.
+That rule had intentionally hidden the historic globally injected EQ card while the old staged Equaliser page was authoritative. After the architecture was reversed so `#acp-eq-settings-card` became the real production Settings surface, the obsolete CSS continued hiding the correct card.
+
+The final correction:
+
+- `72517ff1439e86d9c6e0ed0040a5296c41a34a83` — removed the obsolete hide rule and retargeted the follow-up EQ layout CSS to the live `.acp-eq-settings-*` controls;
+- `bf8c000e3745a0aa0cd0e9eca40e22ee628d5ad0` — added a regression guard preventing the live Settings EQ card from being hidden again;
+- `733ef321034374fe31ee25873569c1bff0dd0fec` — updated the remaining old visual-contract test from the retired `.settings-eq-grid` classes to the live EQ classes.
+
+GitHub Actions run **31230224890** / **#2749** then passed all **1,354 tests** with JavaScript/page wiring and shell syntax green.
+
+Only the corrected CSS file was restored on the bedroom Pi. After refresh, **Settings → Audio → Equaliser displayed correctly** in the physically bypassed state: saved Bass `+6.0 dB`, Mid/Treble `0.0 dB`, bypass status visible and all three sliders greyed/locked. Pressing **Restore EQ** from that Settings page restored the EQ and immediately re-enabled the sliders; the saved Bass-heavy curve returned. This physically accepts the Settings EQ bypass/lock/restore path and closes the duplicate-authority/blank-card defect chain.
 
 #### Settings Display Motion regression — physical PASS
 
@@ -445,21 +455,19 @@ GitHub Actions run **31227257674** / **#2729** passed the combined Settings EQ-a
 | 2. Standalone installer | Complete | Four lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore, dashboard API, mixer-overlay bypass/lock and Display Motion accepted; Settings EQ blank-mount correction green and awaiting Pi retest |
+| 5. Feature/interface acceptance | In progress | Three-band A/B, helper bypass/restore, dashboard API, mixer-overlay bypass/lock, Settings EQ bypass/lock/restore and Display Motion physically accepted; Neutral is next |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 while **Plexamp remains actively playing and audible** and leave the current EQ state **bypassed with saved Bass `+6.0 dB`**:
+Continue Phase 5 while **Plexamp remains actively playing and audible** with the restored Bass `+6.0 dB` curve active:
 
-1. deploy only the latest `app/templates/settings.html` and `app/static/js/audio-eq.js` from `feature/alarm-engine`; the backend authority and Display Motion files are already deployed from the previous pass;
-2. restart only `a-clockwork-plex.service` and hard-refresh the dashboard;
-3. open Settings → Audio → Equaliser and confirm the live card is now present and mirrors the bypassed state: Bass saved `+6.0 dB`, Mid/Treble `0.0 dB`, status Bypassed, Restore EQ action, and all three sliders greyed/locked;
-4. use **Restore EQ** from the Settings subpage and confirm the heavy Bass curve returns with route/PID unchanged;
-5. then test the separate `neutral` action explicitly so its reset semantics are accepted;
-6. proceed to AirPlay handover, Music Master and alarm-isolation tests.
+1. use **Neutral** from Settings → Audio → Equaliser;
+2. confirm Bass, Mid and Treble all move to `0.0 dB`, EQ remains enabled rather than bypassed, and the audible tonal balance returns to normal;
+3. confirm the live EQ state reports all three stored/applied/effective bands at `0.0 dB`, headroom `0.0 dB`, the exact neutral CamillaDSP config SHA `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae`, and the same healthy split-bus route/process;
+4. then proceed to AirPlay handover, Music Master and alarm-isolation tests.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
