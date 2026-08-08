@@ -106,10 +106,9 @@ body.mode-settings .settings-option-dirty::after {
   pointer-events: none;
 }
 
-/* The historic globally injected Settings EQ card is hidden. The unified
-   Equaliser subpage remains the one configuration owner. */
+/* The live production EQ card is the sole Settings EQ surface. */
 body.mode-settings #acp-eq-settings-card {
-  display: none !important;
+  display: block;
 }
 
 body.mode-settings [data-settings-subpage="audio:eq"] > .settings-card {
@@ -120,18 +119,17 @@ body.mode-settings [data-settings-subpage="audio:eq"] > .settings-card {
     rgba(8, 17, 30, .9);
 }
 
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-card-heading,
-body.mode-settings [data-settings-subpage="audio:eq"] > .settings-card > h3 {
+body.mode-settings [data-settings-subpage="audio:eq"] .settings-card-heading {
   margin-bottom: 12px;
 }
 
-/* Return to the older screen-wide bars: Bass, Mid and Treble are stacked. */
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid {
+/* Keep the bedside Settings page as three screen-wide live EQ bars. */
+body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-grid {
   grid-template-columns: 1fr !important;
   gap: 11px;
 }
 
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field {
+body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-band {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr) 74px;
   align-items: center;
@@ -143,19 +141,19 @@ body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting
   text-align: left;
 }
 
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field > span {
+body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-band > span {
   color: #d8f2ff;
   font-family: var(--display-font);
   font-size: .92rem;
   letter-spacing: .04em;
 }
 
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid input[type="range"] {
+body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-band input[type="range"] {
   width: 100%;
   min-width: 0;
 }
 
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid output {
+body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-band output {
   color: #d8f2ff;
   font-family: var(--display-font);
   font-size: .95rem;
@@ -164,12 +162,7 @@ body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid output {
   white-space: nowrap;
 }
 
-body.mode-settings [data-settings-subpage="audio:eq"] .setting-toggle {
-  max-width: 260px;
-  margin-bottom: 10px;
-}
-
-body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid + .button {
+body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-actions {
   margin-top: 19px;
 }
 
@@ -305,7 +298,7 @@ body.mode-settings .setting-toggle {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  body.mode-settings [data-settings-subpage="audio:eq"] .settings-eq-grid .setting-field {
+  body.mode-settings [data-settings-subpage="audio:eq"] .acp-eq-settings-band {
     grid-template-columns: 72px minmax(0, 1fr) 68px;
     gap: 8px;
   }
