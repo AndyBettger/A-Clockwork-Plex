@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 8 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane and correctly pauses an already-playing Plexamp session on takeover; Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. The live EQ state is currently bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
+**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane, correctly pauses an already-playing Plexamp session on takeover, and cleanly releases ownership on genuine disconnect while Plexamp remains paused at the exact takeover position. Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. Music Master at `0%` has now been physically accepted as muting both Plexamp and AirPlay while each source continues under normal ownership semantics and returns immediately when Music Master is restored. The live EQ state is currently bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -104,6 +104,14 @@ The Phase 5 alarm test is therefore a **stepped calibration**, not a maximum-out
 7. repeat final Maximum Alarm Volume calibration when the intended Sony amplifier and Wharfedale speakers replace the present test system.
 
 The final `-1 dB` limiter protects against digital clipping at the combined output. It cannot protect a loudspeaker from excessive analogue amplifier power, so it is not a substitute for this physical calibration. There will be **no initial 100% alarm-output test**.
+
+### Deferred Plexamp high-resolution / variable-rate investigation
+
+Native or near-native Plexamp playback is explicitly deferred until the current installer roadmap is complete. The later investigation should start from Plexamp's existing strict sample-rate matching and CamillaDSP's sample-format/resampling capabilities rather than assuming that the only solution is a separate raw-DAC bypass mode.
+
+The promising direction is to investigate whether the Plexamp lane can negotiate or follow source sample rate/bit depth while AirPlay remains on a fixed `44.1 kHz / 16-bit` lane for podcasts/audiobooks, with CamillaDSP converting/mixing only where required and the DAC operating at the appropriate resulting rate. The Raspberry Pi DAC Pro is expected to support high-resolution rates up to its hardware/driver limits, but no bit-perfect or native-rate claim is accepted until the real end-to-end path is measured and verified.
+
+This is a future enhancement only and must not block Phase 5–8 completion.
 
 ### Failure behaviour
 
@@ -327,14 +335,14 @@ Installer/live-verifier results:
 - [x] Mid control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] Treble control is audibly distinct, persists the requested value and reports the applied value correctly.
 - [x] AirPlay plays through the same music EQ lane.
-- [ ] AirPlay/Plexamp takeover and return still work. *(Plexamp → AirPlay takeover PASS; reverse AirPlay → Plexamp takeover/return still open.)*
+- [x] AirPlay/Plexamp takeover and return still work. *(Plexamp → AirPlay takeover pauses Plexamp; genuine AirPlay disconnect releases ownership cleanly and leaves Plexamp paused at the takeover position, ready for deliberate manual resume.)*
 - [x] EQ disable uses bypass without route remapping.
 - [x] Stored values survive bypass and return when enabled.
 - [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
 - [x] Return to neutral sets all bands to `0 dB`.
 - [x] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI, surgical deployment and Restore/Bypass A/B all PASS.)*
 - [x] Music Master at 100% remains adequately loud with the permanent reserve.
-- [ ] Music Master at 0% silences Plexamp and AirPlay.
+- [x] Music Master at 0% silences Plexamp and AirPlay.
 - [ ] Music Master at 0% does not reduce a real scheduled alarm.
 - [ ] EQ and bypass do not alter alarm tone or level.
 - [ ] Maximum Alarm Volume still caps scheduled alarms.
@@ -416,6 +424,14 @@ This closes the practical trade-off introduced by the permanent reserve: the mus
 
 Several source tracks identified by Plexamp as `96 kHz / 24-bit` were also auditioned and sounded excellent subjectively. This does **not** establish native high-resolution output: the currently accepted split-bus/CamillaDSP contract remains fixed at `44.1 kHz`, `S16_LE`, two channels, so higher-rate/higher-bit-depth source material is converted somewhere in the playback path before the DAC under the present design.
 
+#### AirPlay return and Music Master zero acceptance — physical PASS
+
+Plexamp was started and then taken over by AirPlay from the iPhone. AirPlay correctly paused Plexamp. On genuine AirPlay disconnect the dashboard returned to Clock because no source was actively audible, AirPlay ownership was released, and Plexamp remained paused at exactly the point where AirPlay had taken over. Opening Plexamp showed the interrupted track ready to resume deliberately. This matches the existing playback-authority contract: disconnect releases the AirPlay hold but does not synthesize a new Plexamp Play command.
+
+Music Master isolation was then exercised independently with both music sources. With Plexamp actively playing, reducing Music Master from the normal listening position to `0%` silenced the output while Plexamp continued progressing; restoring Music Master immediately restored the audio. The same test with AirPlay produced the same result: Music Master `0%` silenced AirPlay without changing the sender's playback ownership, and restoring Music Master immediately restored the audible stream.
+
+This physically accepts bidirectional source-handoff return semantics and confirms that Music Master is a true shared music-lane control for both Plexamp and AirPlay.
+
 #### Dashboard API state — PASS
 
 With the live Bass `+6.0 dB` curve active, the first `GET /api/audio/eq` correctly surfaced all functional EQ values but exposed one presentation inconsistency: the dashboard wrapper replaced helper `backend_state=split-bus-active` with generic `active`, even though `route_mode` remained correctly detailed. The underlying backend was healthy; `MasterEqualizer.status()` was overwriting a truthful helper field after merging the helper payload.
@@ -466,7 +482,7 @@ Starting from the accepted neutral baseline, Bass was moved to `+6.0 dB` while P
 
 AirPlay was then started from the iPhone while Plexamp remained playing. The appliance correctly **paused Plexamp on AirPlay takeover**, and AirPlay playback was audibly just as bass-heavy, physically proving that AirPlay traverses the same CamillaDSP music-EQ lane as Plexamp.
 
-While AirPlay continued playing, EQ Bypass was pressed. Playback remained continuous, the exaggerated bass disappeared and the sound became neutral, while overall level rose because the original implementation also removed the `-6.5 dB` dynamic headroom when bypassed. This accepts the shared AirPlay EQ lane and Plexamp → AirPlay takeover direction. Reverse AirPlay → Plexamp takeover/return remains to be tested separately.
+While AirPlay continued playing, EQ Bypass was pressed. Playback remained continuous, the exaggerated bass disappeared and the sound became neutral, while overall level rose because the original implementation also removed the `-6.5 dB` dynamic headroom when bypassed. This accepts the shared AirPlay EQ lane and Plexamp → AirPlay takeover direction. The later reverse-direction test confirmed that genuine AirPlay disconnect cleanly releases ownership and leaves Plexamp paused at the takeover position, which is the deliberate no-synthetic-resume contract.
 
 The same A/B exposed the user-facing weakness that motivated the fixed reserve now physically accepted on the live Pi.
 
@@ -526,19 +542,20 @@ The transition engine and CSS still contained the missing effects; only the Sett
 | 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Fixed `-6.5 dB` reserve and maximum useful Music Master level physically accepted; next is reverse AirPlay→Plexamp handover, then Music Master/alarm isolation |
+| 5. Feature/interface acceptance | In progress | Fixed headroom, maximum useful Music Master level, bidirectional handoff-return semantics and Music Master zero isolation are physically accepted; next is real-alarm isolation and safe alarm calibration |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 with **audio active/audible**. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`. The external amplifier gain has been raised to a comfortable fixed setting and Music Master is currently around `79%`; `100%` has already been physically confirmed to provide ample output with the permanent reserve.
+Continue Phase 5 with **audio active/audible until Music Master is deliberately reduced to zero for the alarm-isolation test**. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`. The external amplifier gain has been raised to a comfortable fixed setting and Music Master is normally around `79%`; `100%` has already been physically confirmed to provide ample output with the permanent reserve.
 
-1. test reverse AirPlay → Plexamp takeover/return and record whether source ownership returns cleanly;
-2. test Music Master at 0% independently with Plexamp and AirPlay and confirm both music sources mute;
-3. then test that a real scheduled alarm remains independent of Music Master and EQ/bypass, followed by Maximum Alarm Volume and combined-output limiter checks using the conservative stepped speaker-safety procedure above;
-4. finally recheck NFC playback/dashboard controls before Phase 5 is closed.
+1. set Maximum Alarm Volume conservatively around `20–25%`, reduce Music Master to `0%`, and trigger a real scheduled alarm to confirm the alarm remains independently audible;
+2. while staying at a safe alarm level, compare the real alarm with EQ active versus bypassed to confirm music tone processing does not change alarm tone or loudness;
+3. then raise Maximum Alarm Volume only in controlled steps to establish a safe current-system ceiling and prove the cap works;
+4. test combined music + alarm behaviour and final-limiter protection without starting from maximum output;
+5. finally recheck NFC playback/dashboard controls before Phase 5 is closed.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
