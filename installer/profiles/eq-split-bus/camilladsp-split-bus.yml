@@ -1,6 +1,6 @@
 ---
 title: "A Clockwork Plex EQ-capable split bus"
-description: "Music-only EQ and headroom, independent alarm lane, final limiter"
+description: "Fixed music headroom, bypassable three-band EQ, independent alarm lane, final limiter"
 devices:
   samplerate: 44100
   chunksize: 1024
@@ -47,7 +47,7 @@ filters:
   headroom:
     type: Gain
     parameters:
-      gain: 0.0
+      gain: -6.5
       scale: dB
       inverted: false
       mute: false
@@ -85,10 +85,15 @@ mixers:
             inverted: false
 pipeline:
   - type: Filter
-    description: "Music-only EQ and automatic headroom"
+    description: "Permanent music-lane EQ headroom reserve"
     channels: [0, 1]
     bypassed: false
-    names: [bass, mid, treble, headroom]
+    names: [headroom]
+  - type: Filter
+    description: "Bypassable music-only three-band tone controls"
+    channels: [0, 1]
+    bypassed: false
+    names: [bass, mid, treble]
   - type: Mixer
     description: "Join alarm after music processing"
     name: combine_music_and_alarm
