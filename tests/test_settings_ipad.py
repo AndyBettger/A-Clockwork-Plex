@@ -98,14 +98,17 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("currentUnitPreset", self.client)
         self.assertIn("markDirty('weather')", self.client)
 
-    def test_receiver_management_and_eq_remain_first_class_settings(self):
+    def test_receiver_management_and_live_eq_remain_first_class_settings(self):
         self.assertIn('data-setting-path="airplay.receiver_name"', self.template)
         self.assertIn("Save and restart AirPlay", self.template)
         self.assertIn("automatic rollback", self.template)
-        self.assertIn('data-setting-path="audio.eq.enabled"', self.template)
+        self.assertIn('id="acp-eq-settings-card"', self.template)
         self.assertIn("{% for band in ['bass','mid','treble'] %}", self.template)
-        self.assertIn('data-setting-path="audio.eq.bands.{{ band }}"', self.template)
-        self.assertIn('data-action="eq-flat"', self.template)
+        self.assertIn('data-eq-range="{{ band }}"', self.template)
+        self.assertIn('id="acp-eq-settings-bypass"', self.template)
+        self.assertIn('id="acp-eq-settings-neutral"', self.template)
+        self.assertNotIn('data-setting-path="audio.eq.enabled"', self.template)
+        self.assertNotIn('data-setting-path="audio.eq.bands.{{ band }}"', self.template)
         self.assertIn("Production ready", self.client)
 
     def test_alarm_editor_registers_with_transaction_instead_of_saving_itself(self):
