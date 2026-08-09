@@ -145,26 +145,32 @@
 }
 
 /*
- * Output-level cards use one fixed heading/value band so every physical fader
- * starts on the same horizontal line. The API retains the precise mixer names;
- * these shorter titles are the bedside presentation labels only.
+ * Output-level cards share one fixed heading/value band and one fixed copy row.
+ * That leaves the same middle-row height for every calibrated fader, regardless
+ * of whether its explanatory copy wraps to two or three lines. The full-width
+ * header column also cancels the older space-between rule so each value pill is
+ * centred on the fader's 50% centreline rather than on a max-content grid track.
  */
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
-  grid-template-rows: 70px minmax(225px, 1fr) auto;
+  grid-template-rows: 70px minmax(225px, 1fr) 78px;
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
   display: grid;
+  grid-template-columns: 1fr;
   grid-template-rows: 27px 31px;
   align-content: start;
+  justify-content: stretch;
   justify-items: center;
   gap: 6px;
+  width: 100%;
   min-height: 64px;
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong {
   display: grid;
   place-items: center;
+  justify-self: center;
   min-width: 0;
   height: 27px;
   color: transparent;
@@ -199,6 +205,7 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
   display: grid;
   place-items: center;
+  justify-self: center;
   min-width: 58px;
   min-height: 27px;
   box-sizing: border-box;
@@ -217,6 +224,11 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim hea
   white-space: nowrap;
 }
 
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim > small {
+  align-self: stretch;
+  min-height: 0;
+}
+
 /* The right pane is the real scroll owner while the keyboard is open. */
 body.keyboard-open .settings-detail {
   padding-bottom: calc(var(--settings-keyboard-height, 300px) + 28px);
@@ -230,7 +242,7 @@ body.keyboard-open .settings-subpage {
 
 @media (max-height: 620px) {
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
-    grid-template-rows: 64px minmax(190px, 1fr) auto;
+    grid-template-rows: 64px minmax(190px, 1fr) 66px;
   }
 
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
