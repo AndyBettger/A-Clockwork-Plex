@@ -145,31 +145,31 @@
 }
 
 /*
- * Output-level cards share one fixed heading/value band and one fixed copy row.
- * That leaves the same middle-row height for every calibrated fader, regardless
- * of whether its explanatory copy wraps to two or three lines. The full-width
- * header column also cancels the older space-between rule so each value pill is
- * centred on the fader's 50% centreline while the short heading stays left.
+ * Output-level cards keep the value pill in the same compact top row as the
+ * short bedside heading. The reclaimed header/copy height is handed to the
+ * calibrated fader, while the description is bottom-aligned in a shorter,
+ * fixed copy row so all four tracks retain identical start/end baselines.
  */
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
-  grid-template-rows: 70px minmax(225px, 1fr) 78px;
+  grid-template-rows: 42px minmax(263px, 1fr) 58px;
+  padding-bottom: 6px;
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
   display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 27px 31px;
-  align-content: start;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 1fr;
+  align-content: center;
+  align-items: center;
   justify-content: stretch;
-  justify-items: start;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
-  min-height: 64px;
+  min-height: 38px;
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong {
   display: grid;
-  place-items: center;
+  place-items: center start;
   justify-self: start;
   min-width: 0;
   height: 27px;
@@ -205,7 +205,7 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
   display: grid;
   place-items: center;
-  justify-self: center;
+  justify-self: end;
   min-width: 58px;
   min-height: 27px;
   box-sizing: border-box;
@@ -225,8 +225,14 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim hea
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim > small {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   align-self: stretch;
+  width: 100%;
   min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: 0;
 }
 
 /* The right pane is the real scroll owner while the keyboard is open. */
@@ -242,13 +248,12 @@ body.keyboard-open .settings-subpage {
 
 @media (max-height: 620px) {
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
-    grid-template-rows: 64px minmax(190px, 1fr) 66px;
+    grid-template-rows: 40px minmax(226px, 1fr) 52px;
+    padding-bottom: 5px;
   }
 
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
-    grid-template-rows: 25px 27px;
-    gap: 5px;
-    min-height: 57px;
+    min-height: 36px;
   }
 
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
