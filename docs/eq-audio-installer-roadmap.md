@@ -4,7 +4,7 @@
 **Started:** 7 August 2026  
 **Last updated:** 9 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane, correctly pauses an already-playing Plexamp session on takeover, and cleanly releases ownership on genuine disconnect while Plexamp remains paused at the exact takeover position. Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. Settings → Audio → Output Levels is also physically accepted at the target 1024×600 presentation: the short Music/Plexamp/AirPlay/Alarms headings, top-right live percentage pills, equal-length calibrated faders and bottom-aligned explanatory copy now present the split-bus authority model clearly without changing mixer keys or audio behaviour. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. Music Master at `0%` is physically accepted as muting both Plexamp and AirPlay while each source continues under normal ownership semantics and returns immediately when Music Master is restored. A real scheduled alarm has now also been physically proven to bypass Music Master completely: with Music Master at `0%` the alarm remained independently audible and paused Plexamp as designed. The independent **Maximum Alarm Volume** control is physically proven as a real ceiling: with the same `50%` per-alarm target, a `15%` global ceiling was audibly quieter and a `22%` ceiling returned to the previously observed level. A repeated real-alarm A/B with saved Bass `+6 dB` active versus EQ bypassed sounded identical in both tone and level, physically proving scheduled alarms bypass the music tone stage as designed. The live EQ state remains bypassed with saved Bass `+6 dB`, applied/effective Bass `0 dB` and fixed headroom `-6.5 dB`.  
+**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi; AirPlay is physically proven through the same CamillaDSP music-EQ lane, correctly pauses an already-playing Plexamp session on takeover, and cleanly releases ownership on genuine disconnect while Plexamp remains paused at the exact takeover position. Neutral, helper/dashboard bypass/restore, mixer-overlay lock, Settings EQ bypass/lock/restore and Settings → Display → Motion are physically accepted. Settings → Audio → Output Levels is also physically accepted at the target 1024×600 presentation: the short Music/Plexamp/AirPlay/Alarms headings, top-right live percentage pills, equal-length calibrated faders and bottom-aligned explanatory copy now present the split-bus authority model clearly without changing mixer keys or audio behaviour. The replacement **fixed `-6.5 dB` music-lane reserve is now fully physically accepted** on the live Pi: Plexamp remained continuous through deployment and both Restore/Bypass directions, the saved Bass `+6 dB` curve changes tone without the previous broad `6.5 dB` level jump, the route remains `split-bus-active`, and CamillaDSP remains on PID `1543417`. Music Master at `100%` has also been physically accepted as providing ample maximum listening level with the permanent reserve; with the test amplifier gain increased to a comfortable fixed point, normal listening is currently around Music Master `79%`. Music Master at `0%` is physically accepted as muting both Plexamp and AirPlay while each source continues under normal ownership semantics and returns immediately when Music Master is restored. A real scheduled alarm has now also been physically proven to bypass Music Master completely: with Music Master at `0%` the alarm remained independently audible and paused Plexamp as designed. The independent **Maximum Alarm Volume** control is physically proven as a real ceiling: with the same `50%` per-alarm target, a `15%` global ceiling was audibly quieter and a `22%` ceiling returned to the previously observed level. A repeated real-alarm A/B with saved Bass `+6 dB` active versus EQ bypassed sounded identical in both tone and level, physically proving scheduled alarms bypass the music tone stage as designed. The bedroom-Pi source checkout has now been reconciled cleanly to `origin/feature/alarm-engine` at `dc2df0e`, with no tracked or untracked working-tree changes left in the repository. A post-reconciliation live check found `plexamp.service`, `shairport-sync.service`, `a-clockwork-plex.service`, `a-clockwork-plex-audio-route.service` and `a-clockwork-plex-camilladsp.service` all active. The EQ helper remains healthy on `split-bus-active`, now reporting a neutral, non-bypassed curve with Bass/Mid/Treble all stored/applied/effective `0.0 dB`, fixed headroom `-6.5 dB`, final limiter `-1.0 dB`, CamillaDSP PID `1543417` and config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`. A known-good NFC tag also opened Plexamp and started the correct album normally, and Plexamp's own playback controls remained normal.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
@@ -217,7 +217,6 @@ and the stable launcher remains `/usr/local/bin/a-clockwork-plex-audio-eq`.
 - [x] Implement managed file installation and manifests.
 - [x] Implement persistent loopback setup.
 - [x] Implement fixed route actions and route-state reporting.
-- [x] Implement systemd reload, enablement and service ordering.
 - [x] Apply saved active or bypassed EQ state.
 - [x] Implement automatic install rollback.
 - [x] Implement explicit uninstall, verification and repair.
@@ -347,10 +346,10 @@ Installer/live-verifier results:
 - [x] EQ and bypass do not alter alarm tone or level.
 - [x] Maximum Alarm Volume still caps scheduled alarms.
 - [x] Output Levels wording and fader presentation accurately represent Music Master, source trims and Maximum Alarm Volume. *(Physical PASS at 1024×600; final layout refinement commit `1cc797b0e90d449dedbc8d5d91f9c5de4bda7c5e`.)*
+- [x] NFC playback still launches the correct Plexamp content and Plexamp's own playback controls remain normal. *(The earlier “dashboard controls” wording was corrected because the dashboard does not expose Plexamp transport controls.)*
 - [ ] Safe stepped Maximum Alarm Volume calibration completed on the current test system.
 - [ ] Final Maximum Alarm Volume recalibrated on the intended Sony amplifier / Wharfedale speaker system.
 - [ ] The final limiter protects combined music and alarm playback.
-- [ ] NFC playback and dashboard controls still work.
 
 #### Initial EQ status — PASS
 
@@ -457,7 +456,7 @@ Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` changed the wrapper so an expl
 
 The bedroom Pi checkout was deliberately not wholesale-updated because it was hundreds of commits behind the branch and had an unrelated local modification to `scripts/launch-dashboard-kiosk.sh`. Only `app/audio_eq.py` was restored from the fetched branch version. Restarting only `a-clockwork-plex.service` left Plexamp audio uninterrupted.
 
-The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, original config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, CamillaDSP PID `1543417`, original headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
+The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, original config SHA `ce53497e62006b985cee8c471703d91d82821a1`, CamillaDSP PID `1543417`, original headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
 
 #### Mixer overlay bypass/lock — PASS; duplicate Settings EQ authority found and removed
 
@@ -512,6 +511,16 @@ The Settings review also found two regressions in **Settings → Display → Mot
 
 The transition engine and CSS still contained the missing effects; only the Settings exposure/validation contract had been narrowed. Corrections restored the eight user-facing choices and the `0–2000 ms` range slider. GitHub Actions **#2729 / run 31227257674** passed, and the owner subsequently confirmed the Motion page is working correctly on the bedroom Pi.
 
+#### Clean checkout reconciliation and NFC regression — physical PASS
+
+The bedroom-Pi source checkout was reconciled from its much older local HEAD to `origin/feature/alarm-engine` after several days of deliberate selective-file deployment. Before reconciliation, all genuinely different local files plus the untracked helper copies were preserved outside the repository at `/home/andy/acp-pi-reconcile-20260809-024152`, including a binary patch and tar archive. The branch was then advanced with `git reset --hard origin/feature/alarm-engine` and configured to track the remote branch.
+
+The resulting checkout was clean: `git status --short` produced no output and both local and remote-tracking HEADs were `dc2df0e`. This closes the temporary selective-deployment state; future ordinary source updates can return to `git pull --ff-only` provided the working tree remains clean.
+
+A read-only runtime check immediately afterward found all five relevant services active: `plexamp.service`, `shairport-sync.service`, `a-clockwork-plex.service`, `a-clockwork-plex-audio-route.service` and `a-clockwork-plex-camilladsp.service`. The installed EQ helper remained healthy with `ok=true`, backend/route `split-bus-active`, selected route `split-bus-selected`, fixed `headroom_db=-6.5`, final limiter `-1.0 dB`, CamillaDSP PID `1543417` and config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`. The observed live curve was neutral and not bypassed, with Bass/Mid/Treble stored/applied/effective values all `0.0 dB`.
+
+A known-good NFC tag was then scanned. Plexamp opened and played the correct album normally, and Plexamp's own playback controls behaved normally. The former checklist wording referred to “dashboard controls”, but the dashboard does not provide Plexamp transport controls; that checklist item is therefore corrected to the actual supported acceptance surface rather than inventing a control path that does not exist.
+
 **Exit condition:** The installed backend and redesigned Settings/interface behave as one coherent feature.
 
 ### Phase 6 — failure, reboot and uninstall acceptance
@@ -560,20 +569,19 @@ The transition engine and CSS still contained the missing effects; only the Sett
 | 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | In progress | Fixed headroom, Music Master/handoff/alarm isolation, Maximum Alarm Volume ceiling and final Output Levels presentation are physically accepted; remaining audible alarm calibration/combined-limiter work is deferred to a sensible daytime, while NFC/dashboard regression can proceed quietly |
+| 5. Feature/interface acceptance | In progress | Fixed headroom, Music Master/handoff/alarm isolation, Maximum Alarm Volume ceiling, final Output Levels presentation, clean-checkout reconciliation and NFC/Plexamp-control regression are physically accepted; remaining audible alarm calibration and combined-limiter work is deferred to daytime, with final alarm calibration repeated later on the intended speaker system |
 | 6. Failure/reboot/uninstall acceptance | Not started | Follows feature acceptance |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival and documentation cleanup |
 
 ## Immediate next action
 
-Continue Phase 5 without forcing noisy alarm work at an unsuitable hour. The live Pi is on the physically accepted fixed-headroom runtime, currently bypassed with saved Bass `+6.0 dB`, applied/effective Bass `0.0 dB`, `headroom_db=-6.5`, route `split-bus-active`, fixed-reserve bypass config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, and CamillaDSP PID `1543417`. Music Master is normally around `79%`. Real scheduled-alarm independence from Music Master, independence from EQ/bypass and the global alarm ceiling are already physically accepted; a `22%` global ceiling is clearly audible and already fairly loud at the present amplifier gain. The Output Levels wording and final four-fader presentation are now physically accepted as well.
+Phase 5 now has no remaining quiet overnight acceptance item. Keep the current healthy neutral split-bus state and return in a sensible daytime session for the remaining audible work. The post-reconciliation live state is `split-bus-active`, not bypassed, Bass/Mid/Treble all `0.0 dB`, fixed `headroom_db=-6.5`, final limiter `-1.0 dB`, config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, CamillaDSP PID `1543417`, with all five relevant services active and the source checkout clean at `dc2df0e` at the time of acceptance.
 
-1. reconcile the bedroom-Pi Git checkout with `origin/feature/alarm-engine` so selectively deployed source files no longer appear as uncommitted local changes, preserving and reviewing any genuinely local differences before advancing/resetting the checkout;
-2. while avoiding alarm noise, recheck NFC playback and normal dashboard controls as the next quiet Phase 5 acceptance item;
-3. return in daytime to the safe stepped current-system Maximum Alarm Volume calibration; the already-proven `20–22%` range is the starting point and there is no requirement to search for a maximum;
-4. in the same daytime session, test combined music + alarm behaviour and final-limiter protection without starting from maximum output;
-5. repeat the final Maximum Alarm Volume calibration when the intended Sony amplifier / Wharfedale speaker system replaces the current test system.
+1. in daytime, complete the safe stepped current-system Maximum Alarm Volume calibration, beginning in the already-proven `20–22%` range and without deliberately searching for a maximum;
+2. in the same daytime session, test combined music + alarm behaviour and final-limiter protection without starting from maximum output;
+3. repeat the final Maximum Alarm Volume calibration when the intended Sony amplifier / Wharfedale speaker system replaces the current test system;
+4. only after those Phase 5 items are complete, begin Phase 6 reboot, controlled backend failure and uninstall/reinstall acceptance.
 
 Do not begin reboot, intentional backend failure or uninstall testing until Phase 5 is complete.
 
