@@ -217,6 +217,7 @@ and the stable launcher remains `/usr/local/bin/a-clockwork-plex-audio-eq`.
 - [x] Implement managed file installation and manifests.
 - [x] Implement persistent loopback setup.
 - [x] Implement fixed route actions and route-state reporting.
+- [x] Implement systemd reload, enablement and service ordering.
 - [x] Apply saved active or bypassed EQ state.
 - [x] Implement automatic install rollback.
 - [x] Implement explicit uninstall, verification and repair.
@@ -456,7 +457,7 @@ Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` changed the wrapper so an expl
 
 The bedroom Pi checkout was deliberately not wholesale-updated because it was hundreds of commits behind the branch and had an unrelated local modification to `scripts/launch-dashboard-kiosk.sh`. Only `app/audio_eq.py` was restored from the fetched branch version. Restarting only `a-clockwork-plex.service` left Plexamp audio uninterrupted.
 
-The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, original config SHA `ce53497e62006b985cee8c471703d91d82821a1`, CamillaDSP PID `1543417`, original headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
+The subsequent live `GET /api/audio/eq` reported backend `camilladsp`, `backend_state=split-bus-active`, `route_mode=split-bus-active`, selected route `split-bus-selected`, Bass stored/applied/effective `+6.0 dB`, Mid/Treble `0.0 dB`, `bypassed=false`, original config SHA `ce53497e62006b985cee198ecb7b274c7bfca0feca3b90762a13f6c142e53fa2`, CamillaDSP PID `1543417`, original headroom `-6.5 dB`, final limiter `-1.0 dB`, and overall `ok=true`. This accepts dashboard/API truthfulness and confirms a dashboard-only restart does not disturb the live audio graph.
 
 #### Mixer overlay bypass/lock — PASS; duplicate Settings EQ authority found and removed
 
