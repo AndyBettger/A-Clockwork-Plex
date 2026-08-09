@@ -4,12 +4,12 @@
 **Started:** 7 August 2026  
 **Last updated:** 9 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed and verified on the bedroom Pi. Plexamp and AirPlay are physically proven through the same CamillaDSP music-EQ lane, while scheduled alarms independently bypass Music Master, the fixed music-EQ reserve and Bass/Mid/Treble before joining at the final limiter. The fixed `-6.5 dB` music reserve, Music Master isolation, alarm isolation, Maximum Alarm Volume ceiling, Output Levels presentation, EQ bypass/restore/neutral semantics, live Settings authority, NFC playback, AirPlay takeover/release and installed-helper truthfulness are physically accepted. Phase 5 is now closed: choosing a final Maximum Alarm Volume for a future amplifier/speaker combination is hardware commissioning through the already-proven fader, not unfinished code, and combined-output limiter protection was already objectively demonstrated in Stage A at exactly `-1.000 dBFS`. The Phase 6 pre-reboot gate exposed and corrected one lifecycle defect: the generated live CamillaDSP YAML had been treated as immutable installation-manifest state even though normal EQ changes legitimately rewrite it. Commits `42b839db305f03104c238f052a45b4d759636119` and `80c0868ccebfac86a7adeccde1e9085097388ece` introduce a `runtime-generated` manifest policy for that file, retain exact hash/mode checks for static installed assets, add useful mismatch diagnostics and regression coverage, and passed GitHub Actions Tests #2833 / run 31291978735. A guarded production repair from source head `80c0868` then reinstalled the reviewed assets, preserved the saved Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB` state, rewrote the manifest, and passed the live verifier. The repaired graph used split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, rendered config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, fixed headroom `-6.5 dB`, final limiter `-1.0 dB`, and CamillaDSP PID `1871368`. The subsequent controlled reboot at `2026-08-09 04:37:49` physically passed: all five main services returned active, the EQ curve survived exactly at `+2 / 0 / +2` with bypass off, CamillaDSP restarted normally on PID `934`, the split route and generated config hashes remained correct, the verifier passed, `snd_aloop` returned as card index `7`, id `ACP_Loopback`, `pcm_substreams=2`, `pcm_notify=1`, the dashboard returned, and a known-good NFC card started the correct Plexamp content audibly with EQ active. The checkout remained clean at `80c0868`.  
+**Production state:** EQ-capable split-bus audio is installed on the bedroom Pi, with Phase 5 feature/interface behaviour accepted and the Phase 6 reboot/persistence gate physically passed. The saved Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB` curve, fixed `-6.5 dB` music reserve, `-1 dB` final limiter, split route and `snd_aloop` contract all survived the controlled reboot, and a known-good NFC card started the correct Plexamp content audibly with EQ active. The Phase 6 pre-reboot manifest defect was corrected by treating the generated live CamillaDSP YAML as `runtime-generated`, and a guarded production repair reconciled the installed assets and manifest before reboot. The first controlled automatic-failback attempt has now produced a **physical FAIL with successful manual recovery**: one SIGKILL of CamillaDSP correctly triggered `OnFailure` and selected the reviewed direct alarm-safe route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, but `Restart=on-failure` simultaneously restarted CamillaDSP while the failback oneshot was running, and the failback unit's `Before=plexamp.service shairport-sync.service a-clockwork-plex.service` ordering blocked the route helper's own synchronous application restoration until the oneshot timed out after 30 seconds. Plexamp, AirPlay and the dashboard were therefore left stopped. Manual recovery stopped CamillaDSP/failback, reset the failed units and restored all three applications on the direct failback route; Plexamp is audibly usable again, CamillaDSP is inactive, and EQ status truthfully reports direct failback/unavailable processing while preserving the saved `+2 / 0 / +2` curve. Source commit `6bf5b0df5a1048ae20966d086ff4e5096990de64` removes the restart race, removes the failback/application ordering deadlock, and adds static regression coverage; GitHub Actions Tests #2843 / run 31294416551 passed. The live Pi has **not** yet installed that source fix and intentionally remains on usable direct failback pending the guarded corrected-unit deployment and repeat fault test.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
 
-The split-bus EQ audio design has been selected, physically proven and installed on the bedroom Pi. Feature/interface acceptance is complete. The remaining work is to accept controlled backend failure/failback and uninstall/reinstall behaviour, integrate the supported standalone component into the future full installer, and archive the superseded Stage C deployment machinery.
+The split-bus EQ audio design has been selected, physically proven and installed on the bedroom Pi. Feature/interface acceptance is complete. The remaining work is to finish controlled backend-failure/failback acceptance, then validate uninstall/reinstall behaviour, integrate the supported standalone component into the future full installer, and archive the superseded Stage C deployment machinery.
 
 The supported path deliberately favours readable operations, explicit checks and straightforward rollback over the former Stage C authority/transaction framework.
 
@@ -111,7 +111,7 @@ This is a future enhancement only and must not block Phase 6–8 completion.
 
 Everyday EQ bypass is not failback. Automatic failback is reserved for a genuine backend failure, such as CamillaDSP failing to start or the expected PCMs becoming unavailable. The appliance must then return to the known-good direct alarm-safe route, restore affected application services and report that the EQ backend is unavailable.
 
-The installed systemd contract is explicit: `a-clockwork-plex-camilladsp.service` uses `Restart=on-failure`, a 60-second start-limit window with burst 3, and `OnFailure=a-clockwork-plex-audio-failback.service`. The route-preparation unit also points failures to the same failback oneshot. The failback unit calls `/usr/local/bin/a-clockwork-plex-audio-route activate-direct-failback`, which stops CamillaDSP, waits for the DAC to become idle, selects the reviewed direct alarm-safe route and restores whichever Plexamp/AirPlay/dashboard services were active before the transition.
+The first physical failure-injection attempt proved that combining `Restart=on-failure` with `OnFailure=a-clockwork-plex-audio-failback.service` races an automatic CamillaDSP restart against direct failback. It also proved that placing `Before=plexamp.service shairport-sync.service a-clockwork-plex.service` on the failback oneshot deadlocks the route helper's own synchronous application-restoration calls. The corrected source contract is deterministic: CamillaDSP uses `Restart=no` and `OnFailure=a-clockwork-plex-audio-failback.service`; the failback oneshot has no `Before=` relationship to Plexamp/AirPlay/dashboard and delegates the complete stop/route-switch/restore transaction to `/usr/local/bin/a-clockwork-plex-audio-route activate-direct-failback`. The route-preparation unit continues to point genuine route-preparation failures to the same failback oneshot.
 
 ## Accepted direct rollback baseline
 
@@ -427,8 +427,8 @@ The remaining proposed “Maximum Alarm Volume calibration” was reviewed and e
 
 ### Phase 6 — failure, reboot and uninstall acceptance
 
-- [ ] Controlled CamillaDSP failure returns to usable direct audio.
-- [ ] Failback leaves Plexamp, AirPlay and dashboard usable.
+- [ ] Controlled CamillaDSP failure returns to usable direct audio. *(Attempt #1 physical FAIL: direct route selected, but service restoration deadlocked; manual direct-failback recovery succeeded.)*
+- [ ] Failback leaves Plexamp, AirPlay and dashboard usable. *(Attempt #1 physical FAIL: the failback oneshot timed out with all three stopped.)*
 - [x] One controlled reboot restores the EQ-capable graph.
 - [x] Saved active/bypassed state survives reboot. *(Active `+2 / 0 / +2` curve survived exactly.)*
 - [x] Persistent `snd_aloop` state is verified after reboot. *(Index 7, id `ACP_Loopback`, two substreams, notify 1.)*
@@ -480,7 +480,31 @@ Post-reboot acceptance:
 
 This accepts reboot restoration, saved EQ persistence, persistent loopback setup, dashboard return and real post-boot source playback.
 
-**Exit condition:** In progress. Reboot persistence is accepted; controlled backend failback and uninstall/reinstall remain.
+#### Controlled CamillaDSP failure attempt #1 — physical FAIL; direct recovery PASS
+
+A single controlled `SIGKILL` was sent to the running CamillaDSP main process PID `934` while Plexamp was playing. Systemd immediately recorded the signal failure and triggered `OnFailure=a-clockwork-plex-audio-failback.service`. Two conflicting paths then ran at the same time:
+
+- `Restart=on-failure` scheduled a CamillaDSP restart after two seconds and started a new process at PID `44862`;
+- the failback oneshot started `/usr/local/bin/a-clockwork-plex-audio-route activate-direct-failback`.
+
+The failback helper successfully installed the reviewed direct alarm-safe route: active ALSA SHA became `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, `active_matches_direct_failback=true`, and route/EQ status truthfully changed to `direct-failback` / unavailable while retaining saved Bass `+2`, Mid `0`, Treble `+2` state. However, the failback unit itself declared `Before=plexamp.service shairport-sync.service a-clockwork-plex.service`, while the helper's contract is to synchronously restart whichever of those applications were active before the transition. Those start jobs therefore waited for the failback unit to finish, while the failback helper waited for the start jobs to return. After 30 seconds systemd terminated the failback oneshot for timeout, leaving Plexamp, AirPlay and the dashboard stopped. The automatic CamillaDSP restart had also raced back into service despite the route already being direct failback.
+
+The journal captured the sequence explicitly: CamillaDSP signal failure and `OnFailure` trigger at `05:01:56`, CamillaDSP restart counter 1 and PID `44862` at `05:01:58`, then failback start timeout/termination at `05:02:26`.
+
+Recovery deliberately preserved the successful direct-route transition rather than forcing the EQ graph back immediately. The stuck failback was stopped, the racing CamillaDSP service was stopped, both failure states were reset, and Plexamp, AirPlay and the dashboard were started manually. The resulting recovery state is healthy direct failback: Plexamp/AirPlay/dashboard active, CamillaDSP inactive, failback inactive, direct route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, loopback contract still correct, saved `+2 / 0 / +2` curve preserved but unapplied, `headroom_db=0.0` because the DSP path is absent, and Plexamp is physically audible again. The Pi checkout remained clean at `3391d64` at that recovery checkpoint. The captured journal is stored at `~/acp-phase6-failback-failure-journal.txt`.
+
+#### Deterministic failback correction — source/CI PASS; physical retest pending
+
+Commit `6bf5b0df5a1048ae20966d086ff4e5096990de64` corrects the two systemd orchestration defects without changing the ALSA profiles or route-helper transaction:
+
+- CamillaDSP now uses explicit `Restart=no`; the redundant restart delay/start-limit settings are removed, so a genuine service failure proceeds directly to `OnFailure` rather than racing a DSP restart against failback;
+- the failback oneshot no longer has a `Before=` relationship to Plexamp, AirPlay or the dashboard, so the route helper can complete its existing stop/switch/restore transaction without circular systemd ordering;
+- `tests/test_eq_audio_runtime_assets.py` now locks both policies and continues to require the fixed failback helper action;
+- the existing route-helper tests already cover stopping and restoring only the applications that were active before failback.
+
+GitHub Actions **Tests #2843 / run 31294416551** passed at `6bf5b0d`. The production Pi has not yet installed these corrected unit definitions; it intentionally remains in the recovered direct-failback state until the guarded deployment and repeat single-fault acceptance test.
+
+**Exit condition:** In progress. Reboot persistence is accepted. Automatic failback attempt #1 failed at service orchestration, direct audio was manually recovered, and the source/CI correction is ready for physical deployment/retest before uninstall work begins.
 
 ### Phase 7 — integration with the full Pi installer
 
@@ -517,21 +541,22 @@ This accepts reboot restoration, saved EQ persistence, persistent loopback setup
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
-| 6. Failure/reboot/uninstall acceptance | In progress | Manifest/runtime-config lifecycle defect corrected and repaired; controlled reboot, saved EQ persistence, loopback persistence and NFC playback PASS; controlled failback is next |
+| 6. Failure/reboot/uninstall acceptance | In progress | Reboot/persistence PASS; automatic failback attempt #1 exposed restart race + oneshot ordering deadlock; direct audio manually recovered; deterministic source fix `6bf5b0d` and Tests #2843 PASS; physical retest next |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-Phase 6 now proceeds to a deliberately controlled CamillaDSP backend-failure test. The rebooted appliance is healthy at the acceptance checkpoint: source HEAD `80c0868`, clean checkout, split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, generated CamillaDSP config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, saved EQ `+2 / 0 / +2`, bypass off, fixed headroom `-6.5 dB`, final limiter `-1.0 dB`, CamillaDSP PID `934`, loopback contract correct, verifier PASS and NFC/Plexamp playback audible.
+Keep the bedroom Pi in its current healthy **direct-failback recovery state** until the corrected units are deliberately deployed. Plexamp, AirPlay and dashboard are active; CamillaDSP and the failback oneshot are inactive; active ALSA SHA is the reviewed direct alarm-safe route `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`; saved EQ `+2 / 0 / +2` remains preserved but unapplied; and Plexamp is audibly usable.
 
-1. inspect/confirm the installed CamillaDSP, route and failback units against the reviewed source immediately before fault injection;
-2. deliberately force CamillaDSP through its configured `Restart=on-failure` / start-limit path until systemd invokes `a-clockwork-plex-audio-failback.service`;
-3. verify the active ALSA route becomes the reviewed direct alarm-safe failback route, CamillaDSP is unavailable/failed as expected, and Plexamp/AirPlay/dashboard are restored and usable;
-4. verify the public EQ/backend status truthfully reports direct failback / unavailable processing rather than pretending the EQ remains active;
-5. restore the split-bus graph through the supported route/repair path and re-run the verifier before moving to explicit uninstall.
+1. fast-forward the Pi checkout from `3391d64` to the source/CI correction and this roadmap update;
+2. deploy the corrected CamillaDSP and failback unit definitions through the guarded supported repair path rather than hand-editing `/etc/systemd/system`;
+3. verify the repair returns a healthy split-bus graph with saved `+2 / 0 / +2` state and live verifier PASS;
+4. repeat exactly one controlled CamillaDSP `SIGKILL` while Plexamp is active;
+5. verify no CamillaDSP restart occurs, the failback oneshot completes rather than timing out, the direct route SHA is `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, Plexamp/AirPlay/dashboard are active/usable, and EQ/backend status truthfully reports direct failback/unavailable processing;
+6. only after that automatic failback PASS, restore the split-bus graph through the supported path and proceed to explicit uninstall/reinstall acceptance.
 
-Do not begin explicit uninstall until controlled automatic failback and restoration have passed.
+Do not begin explicit uninstall until controlled automatic failback and application restoration have passed.
 
 ## Roadmap maintenance discipline
 
