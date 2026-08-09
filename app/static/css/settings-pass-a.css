@@ -149,7 +149,7 @@
  * That leaves the same middle-row height for every calibrated fader, regardless
  * of whether its explanatory copy wraps to two or three lines. The full-width
  * header column also cancels the older space-between rule so each value pill is
- * centred on the fader's 50% centreline rather than on a max-content grid track.
+ * centred on the fader's 50% centreline while the short heading stays left.
  */
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
   grid-template-rows: 70px minmax(225px, 1fr) 78px;
@@ -161,7 +161,7 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim hea
   grid-template-rows: 27px 31px;
   align-content: start;
   justify-content: stretch;
-  justify-items: center;
+  justify-items: start;
   gap: 6px;
   width: 100%;
   min-height: 64px;
@@ -170,7 +170,7 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim hea
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong {
   display: grid;
   place-items: center;
-  justify-self: center;
+  justify-self: start;
   min-width: 0;
   height: 27px;
   color: transparent;
