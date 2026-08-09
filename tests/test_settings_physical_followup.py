@@ -18,6 +18,7 @@ class SettingsPhysicalFollowupTests(unittest.TestCase):
         self.settings_ipad = Path("app/static/js/settings-ipad.js").read_text(encoding="utf-8")
         self.audio_mixer = Path("app/audio_mixer.py").read_text(encoding="utf-8")
         self.css = Path("app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
+        self.pass_a_css = Path("app/static/css/settings-pass-a.css").read_text(encoding="utf-8")
 
     def test_promoted_unified_settings_preserves_scheduled_alarm_switch(self):
         fixture = unified_fixtures.UnifiedSettingsTests()
@@ -83,6 +84,14 @@ default
         self.assertIn("data-settings-fader-step", self.client)
         self.assertIn("settings-output-fader", self.css)
         self.assertIn("calibrated Audio-drawer fader", self.css)
+
+    def test_output_trim_pills_share_fader_centreline_and_fader_length(self):
+        self.assertIn("grid-template-columns: 1fr", self.pass_a_css)
+        self.assertIn("justify-content: stretch", self.pass_a_css)
+        self.assertIn("justify-self: center", self.pass_a_css)
+        self.assertIn("grid-template-rows: 70px minmax(225px, 1fr) 78px", self.pass_a_css)
+        self.assertIn("grid-template-rows: 64px minmax(190px, 1fr) 66px", self.pass_a_css)
+        self.assertIn("centred on the fader's 50% centreline", self.pass_a_css)
 
     def test_audio_output_copy_distinguishes_source_trims_from_alarm_ceiling(self):
         self.assertIn("Levels and equaliser", self.settings_template)
