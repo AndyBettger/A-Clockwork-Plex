@@ -23,11 +23,11 @@ except ImportError:  # Supports direct execution imports.
 
 MIXER_CHANNELS: dict[str, dict[str, Any]] = {
     "master": {
-        "label": "Master output",
+        "label": "Music master",
         "control": "A Clockwork Master",
         "pcm": "acp_master",
         "default_percent": 80,
-        "description": "Persistent final output level applied to Plexamp, AirPlay and alarm audio.",
+        "description": "Shared persistent level for Plexamp and AirPlay. Scheduled alarms bypass this control.",
     },
     "plexamp": {
         "label": "Plexamp trim",
