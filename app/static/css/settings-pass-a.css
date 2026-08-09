@@ -144,6 +144,79 @@
   white-space: nowrap;
 }
 
+/*
+ * Output-level cards use one fixed heading/value band so every physical fader
+ * starts on the same horizontal line. The API retains the precise mixer names;
+ * these shorter titles are the bedside presentation labels only.
+ */
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
+  grid-template-rows: 70px minmax(225px, 1fr) auto;
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
+  display: grid;
+  grid-template-rows: 27px 31px;
+  align-content: start;
+  justify-items: center;
+  gap: 6px;
+  min-height: 64px;
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 27px;
+  color: transparent;
+  font-size: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong::after {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth-child(1) header strong::after {
+  content: "Music";
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth-child(2) header strong::after {
+  content: "Plexamp";
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth-child(3) header strong::after {
+  content: "AirPlay";
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth-child(4) header strong::after {
+  content: "Alarms";
+}
+
+body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
+  display: grid;
+  place-items: center;
+  min-width: 58px;
+  min-height: 27px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(143, 211, 255, 0.22);
+  border-radius: 999px;
+  color: #d8f2ff;
+  background: rgba(143, 211, 255, 0.085);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  font-family: var(--display-font);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 /* The right pane is the real scroll owner while the keyboard is open. */
 body.keyboard-open .settings-detail {
   padding-bottom: calc(var(--settings-keyboard-height, 300px) + 28px);
@@ -153,6 +226,24 @@ body.keyboard-open .settings-detail {
 body.keyboard-open .settings-detail-panel,
 body.keyboard-open .settings-subpage {
   padding-bottom: 24px;
+}
+
+@media (max-height: 620px) {
+  body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
+    grid-template-rows: 64px minmax(190px, 1fr) auto;
+  }
+
+  body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
+    grid-template-rows: 25px 27px;
+    gap: 5px;
+    min-height: 57px;
+  }
+
+  body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
+    min-height: 25px;
+    padding: 3px 9px;
+    font-size: 0.74rem;
+  }
 }
 
 @media (max-width: 720px) {
