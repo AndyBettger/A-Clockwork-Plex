@@ -85,13 +85,15 @@ default
         self.assertIn("settings-output-fader", self.css)
         self.assertIn("calibrated Audio-drawer fader", self.css)
 
-    def test_output_trim_pills_share_fader_centreline_and_fader_length(self):
-        self.assertIn("grid-template-columns: 1fr", self.pass_a_css)
+    def test_output_trim_pills_share_header_row_and_equal_fader_length(self):
+        self.assertIn("grid-template-columns: minmax(0, 1fr) auto", self.pass_a_css)
         self.assertIn("justify-content: stretch", self.pass_a_css)
-        self.assertIn("justify-self: center", self.pass_a_css)
-        self.assertIn("grid-template-rows: 70px minmax(225px, 1fr) 78px", self.pass_a_css)
-        self.assertIn("grid-template-rows: 64px minmax(190px, 1fr) 66px", self.pass_a_css)
-        self.assertIn("centred on the fader's 50% centreline", self.pass_a_css)
+        self.assertIn("justify-self: start", self.pass_a_css)
+        self.assertIn("justify-self: end", self.pass_a_css)
+        self.assertIn("grid-template-rows: 34px minmax(271px, 1fr) 58px", self.pass_a_css)
+        self.assertIn("grid-template-rows: 32px minmax(234px, 1fr) 52px", self.pass_a_css)
+        self.assertIn("heading is vertically centred on the pill", self.pass_a_css)
+        self.assertIn("equal-length calibrated faders", self.pass_a_css)
 
     def test_audio_output_copy_distinguishes_source_trims_from_alarm_ceiling(self):
         self.assertIn("Levels and equaliser", self.settings_template)
