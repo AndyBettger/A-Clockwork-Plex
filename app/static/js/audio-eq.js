@@ -33,6 +33,19 @@
     return `${db > 0 ? '+' : '−'}${magnitude} dB`;
   }
 
+  function eqHealthText(eq = {}) {
+    if (eq.available === true) return eq.bypassed === true ? 'Bypassed' : 'Active';
+    const installed = eq.installed === true;
+    const failback = (
+      eq.route_mode === 'direct-failback'
+      || eq.backend_state === 'direct-failback'
+      || eq.selected_route_mode === 'direct-failback'
+    );
+    if (installed && failback) return 'Direct failback';
+    if (installed) return 'Unavailable';
+    return 'Install required';
+  }
+
   function requestJson(options = {}) {
     return fetch(ENDPOINT, { cache: 'no-store', ...options }).then(async (response) => {
       const payload = await response.json().catch(() => ({}));
@@ -240,7 +253,7 @@
       if (range) range.disabled = !controlsEnabled;
     });
 
-    const healthText = available ? (bypassed ? 'Bypassed' : 'Active') : 'Install required';
+    const healthText = eqHealthText(latest);
     const health = byId('acp-eq-health');
     const settingsHealth = byId('acp-eq-settings-health');
     [health, settingsHealth].forEach((node) => {
