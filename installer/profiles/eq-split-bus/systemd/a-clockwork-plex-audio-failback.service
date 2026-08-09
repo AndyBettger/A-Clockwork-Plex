@@ -2,7 +2,6 @@
 Description=A Clockwork Plex direct alarm-safe audio failback
 After=sound.target
 Wants=sound.target
-Before=plexamp.service shairport-sync.service a-clockwork-plex.service
 ConditionPathExists=/var/lib/a-clockwork-plex/split-bus/installed
 
 [Service]
