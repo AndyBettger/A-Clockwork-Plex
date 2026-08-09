@@ -146,33 +146,36 @@
 
 /*
  * Output-level cards keep the value pill in the same compact top row as the
- * short bedside heading. The reclaimed header/copy height is handed to the
- * calibrated fader, while the description is bottom-aligned in a shorter,
- * fixed copy row so all four tracks retain identical start/end baselines.
+ * short bedside heading. Top and side insets are deliberately equal, the
+ * heading is vertically centred on the pill, and every pixel reclaimed from
+ * the header/copy bands is handed to the equal-length calibrated faders.
  */
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
-  grid-template-rows: 42px minmax(263px, 1fr) 58px;
-  padding-bottom: 6px;
+  grid-template-rows: 34px minmax(271px, 1fr) 58px;
+  padding: 8px 8px 6px;
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: 1fr;
-  align-content: center;
+  grid-template-rows: 31px;
+  align-self: start;
+  align-content: start;
   align-items: center;
   justify-content: stretch;
   gap: 8px;
   width: 100%;
-  min-height: 38px;
+  min-height: 31px;
 }
 
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong {
-  display: grid;
-  place-items: center start;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: stretch;
   justify-self: start;
   min-width: 0;
-  height: 27px;
+  height: 31px;
   color: transparent;
   font-size: 0;
   line-height: 1;
@@ -205,9 +208,11 @@ body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim:nth
 body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
   display: grid;
   place-items: center;
+  align-self: start;
   justify-self: end;
   min-width: 58px;
-  min-height: 27px;
+  height: 31px;
+  min-height: 31px;
   box-sizing: border-box;
   margin: 0;
   padding: 4px 10px;
@@ -248,16 +253,22 @@ body.keyboard-open .settings-subpage {
 
 @media (max-height: 620px) {
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim {
-    grid-template-rows: 40px minmax(226px, 1fr) 52px;
-    padding-bottom: 5px;
+    grid-template-rows: 32px minmax(234px, 1fr) 52px;
+    padding: 7px 8px 5px;
   }
 
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header {
-    min-height: 36px;
+    grid-template-rows: 29px;
+    min-height: 29px;
+  }
+
+  body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header strong {
+    height: 29px;
   }
 
   body.mode-settings [data-settings-subpage="audio:trims"] .settings-live-trim header output {
-    min-height: 25px;
+    height: 29px;
+    min-height: 29px;
     padding: 3px 9px;
     font-size: 0.74rem;
   }
