@@ -16,6 +16,9 @@ CAMILLADSP_BINARY=
 PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
 CONFIRMATION=
 REQUIRED_CONFIRMATION=INSTALL-EQ-AUDIO
+DIRECT_BASELINE=phase6-direct
+PHASE6_DIRECT_SHA256="$ACP_ACCEPTED_DIRECT_SHA256"
+ALARM_SAFE_DIRECT_SHA256=654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
 
 usage() {
     cat <<'EOF_USAGE'
@@ -27,12 +30,18 @@ Options:
   --confirm TOKEN        Required for production activation: INSTALL-EQ-AUDIO
   --binary PATH          Verified CamillaDSP 4.1.3 aarch64 executable.
   --project-user USER    Dashboard/audio user (default: invoking user).
+  --baseline PROFILE     First-install direct baseline: phase6-direct (default)
+                         or alarm-safe-direct for a fresh appliance.
   --root PATH            Alternate filesystem root for non-production tests.
   -h, --help             Show this help.
 
 Production activation must be run as the normal project user. The script uses
 sudo only for fixed filesystem, module and systemd operations. A repeated
 activation on an installed EQ profile delegates to repair-audio.sh.
+
+The default phase6-direct baseline preserves the physically accepted Phase 6
+standalone lifecycle. Fresh appliance orchestration must explicitly request
+alarm-safe-direct after installing the first-class Direct profile.
 EOF_USAGE
 }
 
@@ -62,6 +71,11 @@ parse_args() {
                 PROJECT_USER="$2"
                 shift 2
                 ;;
+            --baseline)
+                [[ $# -ge 2 ]] || { acp_error '--baseline requires a profile.'; return 64; }
+                DIRECT_BASELINE="$2"
+                shift 2
+                ;;
             --root)
                 [[ $# -ge 2 ]] || { acp_error '--root requires a path.'; return 64; }
                 REQUESTED_ROOT="$2"
@@ -80,9 +94,26 @@ parse_args() {
     done
 }
 
+select_direct_baseline() {
+    case "$DIRECT_BASELINE" in
+        phase6-direct)
+            ACP_ACCEPTED_DIRECT_SHA256="$PHASE6_DIRECT_SHA256"
+            ;;
+        alarm-safe-direct)
+            ACP_ACCEPTED_DIRECT_SHA256="$ALARM_SAFE_DIRECT_SHA256"
+            ;;
+        *)
+            acp_error "Unsupported direct baseline: $DIRECT_BASELINE (use phase6-direct or alarm-safe-direct)"
+            return 64
+            ;;
+    esac
+    export ACP_ACCEPTED_DIRECT_SHA256
+}
+
 validate_inputs() {
     ACP_ROOT="$(acp_normalise_root "$REQUESTED_ROOT")" || return 1
     export ACP_ROOT ACP_REPO_ROOT
+    select_direct_baseline || return $?
 
     [[ "$PROJECT_USER" =~ ^[A-Za-z0-9_.@-]+$ ]] || {
         acp_error "Invalid project user: $PROJECT_USER"
@@ -119,18 +150,20 @@ Filesystem root:  $ACP_ROOT
 Project user:     $PROJECT_USER
 CamillaDSP:       $CAMILLADSP_BINARY
 Profile:          eq-split-bus
+Direct baseline:  $DIRECT_BASELINE
+Baseline SHA-256: $ACP_ACCEPTED_DIRECT_SHA256
 Managed files:    $(acp_managed_file_destinations | wc -l)
 Installed marker: $marker
 Uninstall backup: $backup
 
 Activation will:
-  1. verify the accepted direct ALSA baseline on first install;
+  1. verify the selected accepted direct ALSA baseline on first install;
   2. capture one exact pre-EQ backup and application-service snapshot;
   3. install the reviewed routes, helpers, binary, units and loopback settings;
   4. load or verify snd_aloop;
   5. reload systemd and enable the route and CamillaDSP units;
   6. activate split-bus audio through the fixed route helper;
-  7. verify the installed manifest and retain the pre-EQ backup for uninstall.
+  7. verify the installed manifest and retain the exact pre-EQ backup for uninstall.
 
 No production file, module, service, route, mixer or PCM was changed.
 EOF_PLAN
