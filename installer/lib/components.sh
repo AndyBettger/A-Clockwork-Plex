@@ -49,16 +49,16 @@ acp_component_record() {
         alarm-audio-helper)
             printf '%s\t%s\t%s\t%s\t%s\n' \
                 alarm-audio-helper adapter-check \
-                scripts/install-alarm-audio-helper.sh \
+                scripts/install-appliance-helpers.sh \
                 'bash scripts/check-appliance-components.sh --component alarm-audio-helper' \
-                'sudo bash scripts/install-alarm-audio-helper.sh'
+                'bash scripts/install-appliance-helpers.sh --activate --confirm INSTALL-APPLIANCE-HELPERS'
             ;;
         shairport-name-helper)
             printf '%s\t%s\t%s\t%s\t%s\n' \
                 shairport-name-helper adapter-check \
-                scripts/install-shairport-name-helper.sh \
+                scripts/install-appliance-helpers.sh \
                 'bash scripts/check-appliance-components.sh --component shairport-name-helper' \
-                'bash scripts/install-shairport-name-helper.sh'
+                'bash scripts/install-appliance-helpers.sh --activate --confirm INSTALL-APPLIANCE-HELPERS'
             ;;
         *)
             printf '[A Clockwork Plex] ERROR: Unknown component: %s\n' "$1" >&2
@@ -85,11 +85,11 @@ EOF
 acp_verify_component_sources() {
     local source failures=0
     while IFS= read -r source; do
-        if [[ ! -f "$source" || -L "$source" ]]; then
+        [[ -f "$source" && ! -L "$source" ]] || {
             printf '[A Clockwork Plex] ERROR: Required appliance component source is unavailable: %s\n' "$source" >&2
             failures=$((failures + 1))
             continue
-        fi
+        }
         case "$source" in
             *.sh)
                 if ! bash -n "$source"; then
@@ -116,11 +116,11 @@ acp_component_plan() {
     cat <<'EOF'
 
   native-check  = the specialist installer already owns a safe read-only check mode.
-  adapter-check = the legacy apply-only installer is inspected through the shared
-                  read-only component adapter; the root installer must not invoke
-                  the mutating entrypoint while planning/preflighting.
+  adapter-check = installed state is inspected through the shared read-only adapter.
 
-Apply commands remain specialist-owned and are intentionally not executed by the
-Phase 7 root installer yet.
+Alarm-audio and Shairport-name helper runtime implementations remain specialist
+sources, but their fresh-appliance packaging/sudo policy is now jointly owned by
+the guarded scripts/install-appliance-helpers.sh entrypoint. AirPlay hooks and
+metadata remain legacy apply-only and are not executed by the root installer yet.
 EOF
 }
