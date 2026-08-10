@@ -44,6 +44,7 @@ class ApplianceComponentAdapterTests(unittest.TestCase):
             result.stdout,
         )
         self.assertIn("Apply commands remain specialist-owned", result.stdout)
+        self.assertIn("scripts/install-airplay-integration.sh", result.stdout)
         self.assertIn("No production file", result.stdout)
 
     def test_adapter_treats_missing_targets_as_fresh_pi_state_without_failure(self) -> None:
@@ -57,6 +58,7 @@ class ApplianceComponentAdapterTests(unittest.TestCase):
         self.assertIn("alarm-audio-helper:", result.stdout)
         self.assertIn("shairport-name-helper:", result.stdout)
         self.assertIn("missing", result.stdout)
+        self.assertIn("scripts/install-airplay-integration.sh (shared guarded owner)", result.stdout)
         self.assertIn("COMPONENT_ADAPTER_CHECK=PASS", result.stdout)
         self.assertIn("No production file", result.stdout)
 
@@ -91,7 +93,7 @@ class ApplianceComponentAdapterTests(unittest.TestCase):
         self.assertNotIn("> /etc/", source)
         self.assertNotIn("> /usr/local/", source)
 
-    def test_component_library_describes_but_does_not_execute_legacy_apply_entries(self) -> None:
+    def test_component_library_describes_guarded_apply_without_root_execution(self) -> None:
         source = LIBRARY.read_text(encoding="utf-8")
         root_installer = INSTALLER.read_text(encoding="utf-8")
 
@@ -99,13 +101,25 @@ class ApplianceComponentAdapterTests(unittest.TestCase):
         self.assertIn("native-check", source)
         self.assertIn("acp_verify_component_sources", source)
         self.assertIn("acp_component_plan", source)
-        for legacy in (
+        self.assertIn(
+            "bash scripts/install-airplay-integration.sh --activate --confirm INSTALL-AIRPLAY-INTEGRATION",
+            source,
+        )
+        self.assertIn(
+            "bash scripts/install-appliance-helpers.sh --activate --confirm INSTALL-APPLIANCE-HELPERS",
+            source,
+        )
+        for mutating_entrypoint in (
+            "install-airplay-integration.sh",
+            "install-appliance-helpers.sh",
             "install-airplay-hooks.sh",
             "install-airplay-metadata-listener.sh",
             "install-alarm-audio-helper.sh",
             "install-shairport-name-helper.sh",
         ):
-            invocation = re.compile(rf"(?m)^\s*(?:sudo\s+)?bash\s+scripts/{re.escape(legacy)}\b")
+            invocation = re.compile(
+                rf"(?m)^\s*(?:sudo\s+)?bash\s+scripts/{re.escape(mutating_entrypoint)}\b"
+            )
             self.assertIsNone(invocation.search(root_installer))
 
     def test_unknown_adapter_component_is_rejected(self) -> None:
