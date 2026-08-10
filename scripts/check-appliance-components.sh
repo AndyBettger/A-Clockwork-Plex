@@ -14,9 +14,9 @@ usage() {
     cat <<'EOF'
 Usage: bash scripts/check-appliance-components.sh [options]
 
-Read-only adapter for legacy appliance component installers. It inspects source
-and installed-path state but never installs, removes, chmods, chowns, restarts or
-reloads anything.
+Read-only adapter for appliance components that do not own a native check mode.
+It inspects source and installed-path state but never installs, removes, chmods,
+chowns, restarts or reloads anything.
 
 Options:
   --component NAME   airplay-hooks, airplay-metadata, alarm-audio-helper,
@@ -124,7 +124,7 @@ check_airplay_metadata() {
 }
 
 check_alarm_audio_helper() {
-    local installer="$REPO_ROOT/scripts/install-alarm-audio-helper.sh"
+    local installer="$REPO_ROOT/scripts/install-appliance-helpers.sh"
     local source="$REPO_ROOT/scripts/a-clockwork-plex-alarm-audio-helper.sh"
     local target sudoers
     target="$(root_path '/usr/local/bin/a-clockwork-plex-alarm-audio')"
@@ -132,14 +132,14 @@ check_alarm_audio_helper() {
     bash -n "$installer"
     [[ -f "$source" && ! -L "$source" ]] || { echo "Missing helper source: $source" >&2; return 1; }
     echo 'alarm-audio-helper:'
-    printf '  installer source: valid shell\n'
+    printf '  guarded packager: valid shell\n'
     printf '  helper target:    %s\n' "$(copy_state "$source" "$target")"
     printf '  sudoers policy:   %s\n' "$(present_state "$sudoers")"
-    printf '  apply ownership:  scripts/install-alarm-audio-helper.sh (legacy apply-only)\n'
+    printf '  apply ownership:  scripts/install-appliance-helpers.sh (guarded)\n'
 }
 
 check_shairport_name_helper() {
-    local installer="$REPO_ROOT/scripts/install-shairport-name-helper.sh"
+    local installer="$REPO_ROOT/scripts/install-appliance-helpers.sh"
     local source="$REPO_ROOT/scripts/a-clockwork-plex-shairport-name.py"
     local target sudoers
     target="$(root_path '/usr/local/bin/a-clockwork-plex-shairport-name')"
@@ -147,10 +147,10 @@ check_shairport_name_helper() {
     bash -n "$installer"
     [[ -f "$source" && ! -L "$source" ]] || { echo "Missing helper source: $source" >&2; return 1; }
     echo 'shairport-name-helper:'
-    printf '  installer source: valid shell\n'
+    printf '  guarded packager: valid shell\n'
     printf '  helper target:    %s\n' "$(copy_state "$source" "$target")"
     printf '  sudoers policy:   %s\n' "$(present_state "$sudoers")"
-    printf '  apply ownership:  scripts/install-shairport-name-helper.sh (legacy apply-only)\n'
+    printf '  apply ownership:  scripts/install-appliance-helpers.sh (guarded)\n'
 }
 
 check_one() {
@@ -187,8 +187,9 @@ fi
 
 cat <<'EOF'
 This adapter is informational: missing/stale targets are expected on a fresh Pi
-and are not repaired here. Specialist apply entrypoints remain disabled from the
-root Phase 7 installer until guarded orchestration is implemented.
+and are not repaired here. Restricted helper apply is now guarded by the shared
+helper packager; AirPlay hook/metadata mutation remains disabled from root Phase 7
+orchestration until equivalent guarded ownership exists.
 
 No production file, package, service, route, mixer, PCM or configuration was changed.
 COMPONENT_ADAPTER_CHECK=PASS
