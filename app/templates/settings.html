@@ -109,20 +109,58 @@
         </div>
 
         <div class="settings-detail-panel" data-settings-section="weather" hidden>
-          <header class="settings-detail-header"><div><h2>Weather</h2><p>Live Ecowitt observations, online forecasts and Clock summaries.</p></div></header>
+          <header class="settings-detail-header"><div><h2>Weather</h2><p>Local observations, online forecasts and Clock summaries.</p></div></header>
           <div class="settings-subpage-overview" data-settings-overview="weather">
-            {% for item in [('station','Station','Names and observation refresh'),('units','Units','Presets with full custom control'),('forecast','Online forecast','Open-Meteo location and cache'),('clock-cards','Clock weather cards','Choose and order compact readings')] %}
+            {% for item in [('station','Station','Observation provider and station identity'),('units','Units','Presets with full custom control'),('forecast','Online forecast','Open-Meteo location and cache'),('clock-cards','Clock weather cards','Choose and order compact readings')] %}
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="weather:{{ item[0] }}"><span><strong>{{ item[1] }}</strong><small>{{ item[2] }}</small></span><span>›</span></button>
             {% endfor %}
           </div>
           <section class="settings-subpage" data-settings-subpage="weather:station" hidden>
             <button class="settings-back" type="button" data-settings-back="weather">‹ Weather</button>
             <section class="settings-card">
-              <h3>Station</h3>
+              <div class="settings-card-heading">
+                <div><h3>Observation source</h3><p class="muted small">Choose how this clock receives current outdoor readings. Forecasts remain independent.</p></div>
+                <span class="settings-chip" data-observation-status>Checking…</span>
+              </div>
+              <div class="settings-grid two-col">
+                <label class="setting-field">
+                  <span>Provider</span>
+                  <select data-setting-path="weather.observations.provider">
+                    <option value="ecowitt_push">Ecowitt custom push</option>
+                    <option value="weather_underground">Weather Underground PWS</option>
+                  </select>
+                  <small>Ecowitt remains the default; Weather Underground lets each clock poll the station independently.</small>
+                </label>
+                <div class="setting-field">
+                  <span>Weather Underground API key</span>
+                  <strong>Server environment only</strong>
+                  <small>The API key is never displayed, stored or submitted by this Settings page.</small>
+                </div>
+              </div>
+              <p class="muted small" data-observation-message>Observation provider status will appear here.</p>
+            </section>
+            <section class="settings-card" data-observation-provider-panel="ecowitt_push">
+              <h3>Ecowitt custom push</h3>
+              <div class="settings-grid two-col">
+                <label class="setting-field"><span>Push endpoint</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.observations.ecowitt_push.path"><small>Path used by the existing Ecowitt custom HTTP upload.</small></label>
+                <label class="setting-field"><span>Freshness window</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.observations.ecowitt_push.fresh_seconds"><small>Seconds before the last pushed reading is considered old; 30–3600.</small></label>
+              </div>
+            </section>
+            <section class="settings-card" data-observation-provider-panel="weather_underground" hidden>
+              <h3>Weather Underground PWS</h3>
+              <div class="settings-grid two-col">
+                <label class="setting-field"><span>Station ID</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.observations.weather_underground.station_id"><small>Personal Weather Station identifier; required for this provider.</small></label>
+                <label class="setting-field"><span>Poll interval</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.observations.weather_underground.refresh_seconds"><small>Seconds between current-observation requests; 30–3600.</small></label>
+                <label class="setting-field"><span>Stale after</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.observations.weather_underground.stale_seconds"><small>Seconds before the last successful pull is reported stale; 60–21600.</small></label>
+                <label class="setting-field"><span>Request timeout</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.observations.weather_underground.request_timeout_seconds"><small>HTTP timeout in seconds; 2–60.</small></label>
+              </div>
+            </section>
+            <section class="settings-card">
+              <h3>Dashboard labels and refresh</h3>
               <div class="settings-grid two-col">
                 <label class="setting-field"><span>Weather page title</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.station_name"></label>
                 <label class="setting-field"><span>Reporting station name</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.reporting_station_name"></label>
-                <label class="setting-field"><span>Observation refresh</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.auto_refresh_seconds"><small>Seconds; 0 disables periodic observation refresh.</small></label>
+                <label class="setting-field"><span>Dashboard observation refresh</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.auto_refresh_seconds"><small>Browser refresh cadence in seconds; 0 disables periodic screen refresh.</small></label>
               </div>
             </section>
           </section>
@@ -148,7 +186,7 @@
           <section class="settings-subpage" id="settings-weather-forecast" data-settings-subpage="weather:forecast" hidden>
             <button class="settings-back" type="button" data-settings-back="weather">‹ Weather</button>
             <section class="settings-card">
-              <div class="settings-card-heading"><div><h3>Online forecast</h3><p class="muted small">Cached Open-Meteo guidance; Ecowitt remains the observation source.</p></div><span class="settings-chip" data-forecast-status>Loading…</span></div>
+              <div class="settings-card-heading"><div><h3>Online forecast</h3><p class="muted small">Cached Open-Meteo guidance; current observations use the provider selected under Station.</p></div><span class="settings-chip" data-forecast-status>Loading…</span></div>
               <div class="settings-grid two-col">
                 <label class="setting-toggle"><input type="checkbox" data-setting-path="weather.forecast.enabled"><span>Enable online forecast</span></label>
                 <div class="setting-field"><span>Provider</span><strong>Open-Meteo</strong><small>No API key required.</small></div>
@@ -295,6 +333,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/settings-ipad.js', v='20260802-unified-settings') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-weather-observations.js', v='20260810-observation-providers') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-alarms.js', v='20260802-unified-settings') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-advanced.js', v='20260802-isolated-diagnostics') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-clock-cards.js') }}"></script>
