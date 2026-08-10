@@ -150,7 +150,7 @@ fi
     echo "Shairport validation binary is unavailable: $VALIDATOR_BINARY" >&2
     exit 1
 }
-python3 - "$CONFIG_VALIDATOR" "$CANDIDATES/shairport-sync.conf" "$VALIDATOR_BINARY" <<'PY'
+if ! python3 - "$CONFIG_VALIDATOR" "$CANDIDATES/shairport-sync.conf" "$VALIDATOR_BINARY" <<'PY'
 import importlib.util
 import sys
 from pathlib import Path
@@ -165,9 +165,13 @@ spec.loader.exec_module(module)
 module.SHAIRPORT_BINARY = validator_binary
 ok, detail = module.validate_config(candidate)
 if not ok:
-    print(f"Shairport candidate validation failed: {detail or 'unknown validation error'}", file=sys.stderr)
+    print(detail or "unknown validation error", file=sys.stderr)
     raise SystemExit(1)
 PY
+then
+    echo 'Shairport candidate validation failed.' >&2
+    exit 1
+fi
 
 cat >"$CANDIDATES/$METADATA_SERVICE" <<EOF
 [Unit]
@@ -346,7 +350,7 @@ activate() {
     acp_run_root chmod 0666 "$fifo" || return 1
 
     acp_install_file "$CANDIDATES/$METADATA_SERVICE" "$METADATA_UNIT" 0644 || return 1
-    acp_install_file "$CANDIDATES/shairport-sync.conf" "$SHAIRPORT_CONFIG" "$CONFIG_MODE" || return 1
+    acp_install_file "$CANDIDATES/shairport-sync.conf" "$SHAIRPORT_CONFIG" "0$CONFIG_MODE" || return 1
     live_config="$(acp_path "$SHAIRPORT_CONFIG")" || return 1
     if acp_is_production_root; then
         acp_run_root chown "$CONFIG_UID:$CONFIG_GID" "$live_config" || return 1
