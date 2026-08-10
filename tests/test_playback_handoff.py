@@ -16,6 +16,7 @@ from app.playback_handoff_retention import RetainedBidirectionalHandoffCoordinat
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
+WRAPPER_RENDERER = ROOT / "scripts" / "a-clockwork-plex-airplay-wrappers.py"
 RUNNER = ROOT / "app" / "runner.py"
 TRANSPORT = ROOT / "app" / "playback_transport.py"
 NAVIGATION = ROOT / "app" / "playback_navigation.py"
@@ -220,10 +221,10 @@ class ScreenAndLegacyBoundaryTests(unittest.TestCase):
                 self.assertNotIn(symbol, sources[module], f"{symbol} returned in {module}")
 
     def test_start_hook_contains_no_direct_plexamp_pause(self):
-        text = INSTALLER.read_text(encoding="utf-8")
+        text = WRAPPER_RENDERER.read_text(encoding="utf-8")
         self.assertNotIn("PLEXAMP_URL", text)
         self.assertNotIn("/player/playback/pause", text)
-        self.assertIn("PlaybackCoordinator owns any required Plexamp pause", text)
+        self.assertIn("PlaybackCoordinator owns Plexamp pause", text)
         self.assertNotIn("systemctl restart plexamp", text.lower())
 
     def test_runner_builds_final_authority_before_registering_apis(self):
