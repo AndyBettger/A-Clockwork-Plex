@@ -193,6 +193,9 @@ class AirPlayIntegrationInstallerTests(unittest.TestCase):
                 path.chmod(permissions)
             fifo = root / "tmp/shairport-sync-metadata"
             os.mkfifo(fifo, 0o620)
+            # mkfifo honours the process umask, so explicitly establish the
+            # pre-state that this rollback test intends to prove exact.
+            fifo.chmod(0o620)
 
             result = self.run_installer(
                 root,
