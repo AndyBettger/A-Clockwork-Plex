@@ -11,6 +11,7 @@ TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 RUNNER = ROOT / "app" / "runner.py"
 IDLE_RETURN = ROOT / "app" / "static" / "js" / "idle-return.js"
 HOOK_INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
+WRAPPER_RENDERER = ROOT / "scripts" / "a-clockwork-plex-airplay-wrappers.py"
 COORDINATOR = ROOT / "app" / "playback_coordinator.py"
 APPLICATION_STATE = ROOT / "app" / "application_state.py"
 SHAIRPORT_SESSION = ROOT / "app" / "shairport_session.py"
@@ -49,15 +50,15 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_pause_hold_is_owned_by_playback_coordinator(self):
-        hook_text = HOOK_INSTALLER.read_text(encoding="utf-8")
+        wrapper_text = WRAPPER_RENDERER.read_text(encoding="utf-8")
         coordinator_text = COORDINATOR.read_text(encoding="utf-8")
         application_text = APPLICATION_STATE.read_text(encoding="utf-8")
-        self.assertIn('/api/playback/events', hook_text)
-        self.assertIn('"event":"paused"', hook_text)
-        self.assertIn("PlaybackCoordinator owns the configured hold", hook_text)
-        self.assertNotIn("WATCHDOG_SECONDS", hook_text)
-        self.assertNotIn("HOLD_TOKEN_FILE", hook_text)
-        self.assertNotIn("hold_token_is_current", hook_text)
+        self.assertIn('/api/playback/events', wrapper_text)
+        self.assertIn('"event":"paused"', wrapper_text)
+        self.assertIn("PlaybackCoordinator owns the configured hold", wrapper_text)
+        self.assertNotIn("WATCHDOG_SECONDS", wrapper_text)
+        self.assertNotIn("HOLD_TOKEN_FILE", wrapper_text)
+        self.assertNotIn("hold_token_is_current", wrapper_text)
         self.assertIn("DEFAULT_AIRPLAY_HOLD_SECONDS", coordinator_text)
         self.assertIn("configured_airplay_hold_seconds", application_text)
         self.assertIn("airplay_hold_seconds=hold_seconds", application_text)
@@ -91,11 +92,11 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         self.assertIn("sender_available", session_text)
 
     def test_hooks_never_restart_audio_services(self):
-        text = HOOK_INSTALLER.read_text(encoding="utf-8")
+        text = WRAPPER_RENDERER.read_text(encoding="utf-8")
         self.assertNotIn("systemctl stop plexamp", text)
         self.assertNotIn("systemctl start plexamp", text)
         self.assertNotIn("systemctl restart plexamp", text)
-        self.assertNotIn("systemctl restart shairport-sync.service\n", text.split("Then run:")[0])
+        self.assertNotIn("systemctl restart shairport-sync.service", text)
 
 
 if __name__ == "__main__":
