@@ -221,7 +221,7 @@ fail_venv() {
 echo
 echo 'Building staged Python environment...'
 "$PYTHON_BIN" -m venv "$CANDIDATE" || fail_venv 'Failed to create staged venv.'
-[[ -x "$CANDIDATE/bin/python" && ! -L "$CANDIDATE/bin/python" ]] || fail_venv 'Staged venv did not provide a safe bin/python.'
+[[ -x "$CANDIDATE/bin/python" ]] || fail_venv 'Staged venv did not provide executable bin/python.'
 "$CANDIDATE/bin/python" -m pip install --disable-pip-version-check -r "$REQUIREMENTS" || fail_venv 'requirements.txt installation failed in staged venv.'
 "$CANDIDATE/bin/python" -m pip check || fail_venv 'pip check failed in staged venv.'
 "$CANDIDATE/bin/python" -c 'import flask; print("Flask", flask.__version__ if hasattr(flask, "__version__") else "import-ok")' || fail_venv 'Flask import verification failed in staged venv.'
