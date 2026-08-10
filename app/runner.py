@@ -20,6 +20,8 @@ try:
     from .time_formatting import promote_server_time_formatting
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
+    from .weather_observation_store import store_dashboard_observation
+    from .weather_observations import WeatherObservationService, register_weather_observation_api
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from alarm_audio_scheduled import promote_scheduled_alarm_audio
@@ -40,6 +42,8 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from time_formatting import promote_server_time_formatting
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
+    from weather_observation_store import store_dashboard_observation
+    from weather_observations import WeatherObservationService, register_weather_observation_api
 
 
 app = dashboard.app
@@ -66,6 +70,11 @@ register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 register_audio_devices_api(app, config_loader=dashboard.load_config)
 master_equalizer = register_audio_eq(app)
+weather_observations = WeatherObservationService(
+    dashboard.load_config,
+    lambda observation: store_dashboard_observation(dashboard, observation),
+)
+register_weather_observation_api(app, weather_observations)
 weather_forecast = WeatherForecastService(
     dashboard.load_config,
     dashboard.BASE_DIR / "weather-forecast-cache.json",
@@ -98,6 +107,7 @@ if __name__ == "__main__":
     dashboard_config = config.get("dashboard", {})
     dashboard.alarm_scheduler.start()
     dashboard.alarm_audio.start()
+    weather_observations.start()
     weather_forecast.start()
     if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
         input_activity_monitor.start()
@@ -116,5 +126,6 @@ if __name__ == "__main__":
         if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
             input_activity_monitor.shutdown()
         weather_forecast.shutdown()
+        weather_observations.shutdown()
         dashboard.alarm_audio.shutdown()
         dashboard.alarm_scheduler.stop()
