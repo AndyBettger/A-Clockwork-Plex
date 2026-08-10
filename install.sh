@@ -96,10 +96,12 @@ required_sources=(
     "$REPO_ROOT/scripts/install-alarm-audio-helper.sh"
     "$REPO_ROOT/scripts/install-shairport-name-helper.sh"
     "$REPO_ROOT/scripts/check-appliance-components.sh"
+    "$REPO_ROOT/scripts/check-appliance-packages.sh"
     "$REPO_ROOT/scripts/preflight-appliance.sh"
     "$REPO_ROOT/scripts/audio/install-eq.sh"
     "$REPO_ROOT/scripts/audio/verify-audio.sh"
     "$REPO_ROOT/installer/lib/components.sh"
+    "$REPO_ROOT/installer/lib/packages.sh"
     "$REPO_ROOT/installer/lib/prerequisites.sh"
     "$REPO_ROOT/installer/lib/direct_audio.sh"
     "$REPO_ROOT/installer/profiles/direct/alarm-safe.conf"
@@ -117,6 +119,8 @@ done
 ACP_REPO_ROOT="$REPO_ROOT"
 # shellcheck source=installer/lib/components.sh
 source "$REPO_ROOT/installer/lib/components.sh"
+# shellcheck source=installer/lib/packages.sh
+source "$REPO_ROOT/installer/lib/packages.sh"
 # shellcheck source=installer/lib/prerequisites.sh
 source "$REPO_ROOT/installer/lib/prerequisites.sh"
 # shellcheck source=installer/lib/direct_audio.sh
@@ -148,6 +152,8 @@ EOF
 
 echo
 acp_prerequisite_plan "$AUDIO_PROFILE" "$WEATHER_OBSERVATIONS" "$PROJECT_USER"
+echo
+acp_package_plan "$AUDIO_PROFILE" "$WEATHER_OBSERVATIONS"
 echo
 acp_component_plan "$PROJECT_USER"
 
@@ -192,7 +198,8 @@ fi
 
 cat <<'EOF'
 
-Before any future --apply path is enabled, run the read-only host gate:
+Before any future --apply path is enabled, run the matching read-only gates:
+  bash scripts/check-appliance-packages.sh [matching profile options]
   bash scripts/preflight-appliance.sh [matching profile options]
 
 No production file, package, service, route, mixer, PCM or configuration was changed.
