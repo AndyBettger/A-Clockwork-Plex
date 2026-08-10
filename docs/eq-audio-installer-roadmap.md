@@ -1,6 +1,6 @@
 # EQ-capable Audio + Full Appliance Installer Roadmap
 
-**Last updated:** 10 August 2026  
+**Last updated:** 11 August 2026  
 **Branch:** `feature/alarm-engine`  
 **PR:** #2 — must remain Draft/open/unmerged until explicit owner approval.
 
@@ -64,7 +64,7 @@ Real lifecycle passed: install → reboot → controlled Camilla failure → aut
 
 Completed source/read-only work:
 
-- [x] Root `install.sh` plan-only orchestrator; production `--apply` remains blocked.
+- [x] Root `install.sh` plan-only orchestrator; production mutation remains blocked behind guarded apply.
 - [x] Repeatable Direct/EQ, Ecowitt/WU, project-user and non-interactive profile choices.
 - [x] Alarm-safe Direct profile at exact `654ff170...`.
 - [x] EQ baseline bridge `--baseline phase6-direct|alarm-safe-direct`; historical default preserved.
@@ -81,7 +81,7 @@ Completed source/read-only work:
 - [x] Alarm-audio and Shairport-name helper packaging now share guarded `scripts/install-appliance-helpers.sh`, preserving the existing runtime implementations while adding exact rollback and project-user-aware sudo policy.
 - [x] Deterministic Shairport integration renderer owns candidate config transformation for `acp_airplay`, lifecycle callbacks and metadata without altering receiver name/unrelated settings.
 - [x] Safe root apply/rollback ownership for AirPlay lifecycle wrappers, metadata FIFO/service and Shairport integration through guarded `scripts/install-airplay-integration.sh`.
-- [ ] Guarded root `--apply` with explicit confirmation and immediately repeated matching package/host/preflight gates.
+- [x] Guarded root `--apply` boundary with explicit confirmation and immediately repeated matching package/host/preflight gates; it still fails closed before any production transaction or specialist activation.
 - [ ] Root-owned package + venv + `requirements.txt` mutation transaction and explicit package rollback policy.
 - [ ] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
@@ -91,7 +91,7 @@ Completed source/read-only work:
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging and guarded AirPlay integration are green. Remaining major gates are guarded top-level/package/weather/dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
+**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging, guarded AirPlay integration and the fail-closed top-level `--apply` pre-mutation boundary are green. Remaining major gates are package/venv, weather and dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -129,6 +129,12 @@ CI caught only test/fixture and mode-boundary defects while building this owner,
 
 Finally, both `airplay-hooks` and `airplay-metadata` component records/read-only adapter output now point at the shared guarded owner while root `install.sh` still does **not** invoke it. **Tests #3072 / run `31426194328` — PASS** at `9847c2e` after that ownership promotion.
 
+#### Phase 7 checkpoint #13 — guarded top-level apply boundary — **SOURCE LANDED; CI PENDING**
+
+Root `install.sh` now accepts `--apply --confirm APPLY-A-CLOCKWORK-PLEX` but remains deliberately non-mutating. Missing or wrong confirmation is rejected before package/host gates; EQ apply additionally requires the verified CamillaDSP path. A confirmed apply repeats the selected `scripts/check-appliance-packages.sh` and `scripts/preflight-appliance.sh` gates, loads/verifies the whole-appliance transaction primitives, but does **not** call `acp_transaction_begin` and does not invoke any specialist `--activate` path. If both read-only gates pass it exits fail-closed with code 3 and `MUTATION_BLOCKED=PACKAGE-WEATHER-DASHBOARD-STAGES-INCOMPLETE`.
+
+`tests/test_root_installer_apply_gate.py` covers default plan-only behaviour, missing/wrong confirmation, confirmed Direct gate execution followed by the deliberate mutation block, confirmation misuse, EQ CamillaDSP input enforcement, help text and static non-invocation of the guarded specialist owners. Commits `0ad1c49` and `64ab63b` contain the implementation and regression coverage. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
+
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
@@ -146,8 +152,8 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Add the guarded top-level `install.sh --apply` confirmation/outer transaction boundary around the now-green Direct, AirPlay and restricted-helper owners, but keep production mutation refused while package/weather stages are incomplete.
-2. Define root-owned package/venv/`requirements.txt` mutation and rollback policy before allowing package mutation.
+1. Let normal PR Tests validate checkpoint #13; fix only genuine current-workflow failures, not obsolete self-mutating Phase 2 workflows.
+2. Define root-owned package/venv/`requirements.txt` mutation and rollback policy before allowing package mutation or beginning the outer transaction.
 3. Apply observation-provider config/secret reference safely while retaining Open-Meteo forecast configuration.
 4. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
 5. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
