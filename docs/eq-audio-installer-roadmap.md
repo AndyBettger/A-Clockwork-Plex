@@ -1,15 +1,15 @@
 # EQ-capable audio installer roadmap
 
-**Status:** Active roadmap — Phase 5 feature and interface acceptance is complete; Phase 6 failure, reboot and uninstall acceptance is in progress  
+**Status:** Active roadmap — Phase 6 failure, reboot and uninstall acceptance is complete; Phase 7 full-installer integration is next  
 **Started:** 7 August 2026  
 **Last updated:** 10 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** The bedroom Pi is intentionally in the original **direct-only** audio state after a successful explicit EQ uninstall and controlled direct-only reboot. The reboot physically passed: exact accepted pre-EQ active ALSA SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` survived unchanged, Plexamp/AirPlay/dashboard returned active and enabled, the supported EQ helpers/units/marker remained absent, saved EQ `+2 / 0 / +2` remained retained for reinstall, and Plexamp was audibly usable. `snd_aloop` is absent after this reboot, which is expected evidence rather than a direct-audio failure because the supported EQ persistence files were removed by uninstall. The reboot exposed a presentation-only truthfulness regression: both EQ surfaces displayed **Backend offline** even though the genuine uninstalled state should be **Install required**. The backend API was already truthful (`installed=false`, `available=false`, `backend_state=offline`); a legacy second presenter, `audio-eq-backend-status.js`, was hiding the canonical `audio-eq.js` copy with CSS pseudo-content. Commits `4aee9e1`, `54d35a0`, `5c653bb` and `837370c` removed that duplicate presenter, cache-busted the authoritative presenter, added regression coverage and retired stale CI wiring. Corrected Tests #2865 / run `31344951914` passed compilation, JavaScript/page wiring/shell checks and the complete unit suite. The Pi then fast-forwarded cleanly to `4ef4626`, retained the exact `08d00093...` direct route with Plexamp/AirPlay/dashboard active, restarted only the dashboard service, and physically confirmed that both the drawer EQ box and Settings → Audio → Equaliser now show **Install required** while `/api/audio/eq` continues to report the truthful low-level `offline`/uninstalled state. The remaining Phase 6 gate is the final supported EQ-capable reinstall from this genuine direct baseline, with restoration of saved `+2 / 0 / +2`, live verification and audible Plexamp/EQ.  
+**Production state:** The bedroom Pi is back in the accepted **EQ-capable split-bus** state after a successful reinstall from the genuine post-uninstall direct baseline. The final Phase 6 reinstall ran from clean source `a824977`, with the verified CamillaDSP 4.1.3 binary SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`; the direct starting route was exact accepted pre-EQ SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, all first-install markers/helpers/backups were absent, and prepare-only made no production changes. Guarded `INSTALL-EQ-AUDIO` activation returned `INSTALL_RC=0`, recreated the uninstall baseline, loaded the accepted `snd_aloop` contract, selected split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, started CamillaDSP PID `71236`, and restored saved Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB`, bypass off, fixed `-6.5 dB` music reserve and `-1 dB` final limiter. Plexamp, AirPlay, dashboard, route and CamillaDSP are active; route/CamillaDSP units are enabled and failback is correctly static; live verification passed; Plexamp is physically audible and the EQ is physically working. Phase 6 is therefore complete.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
 
-The split-bus EQ audio design has been selected, physically proven and fully exercised through installation, reboot, failure/failback, repair, explicit uninstall, direct-only reboot and direct-only UI truthfulness recovery. Feature/interface acceptance is complete. The only remaining Phase 6 acceptance work is the final EQ-capable reinstall from the genuine direct baseline; after that, work moves to integration of the supported standalone component into the future full installer and cleanup/archive work.
+The split-bus EQ audio design has now been physically proven through installation, feature acceptance, reboot persistence, deliberate backend failure and automatic failback, repair, explicit uninstall, direct-only reboot, direct-only UI truthfulness and full reinstall from the genuine direct baseline. The standalone audio lifecycle component is accepted. The next work is Phase 7: integrate that tested component into the full Pi installer without reimplementing its audio logic, then complete cleanup/archive work in Phase 8.
 
 The supported path deliberately favours readable operations, explicit checks and straightforward rollback over the former Stage C authority/transaction framework.
 
@@ -85,7 +85,7 @@ The live bedroom Pi then received only `__init__.py`, `model.py` and `runtime.py
 
 The saved curve was then restored in place. Playback remained continuous and the Bass boost became immediately and more clearly audible because the overall music level no longer moved with it. The helper reported Bass stored/applied/effective `+6.0 dB`, `bypassed=false`, fixed `headroom_db=-6.5`, config SHA `2ee27d5fb13c0a087704f197cb0c3420cb453cc15f94c9fa5902a40584ac600f`, route/backend `split-bus-active`, final limiter `-1.0 dB`, and unchanged PID `1543417`.
 
-Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad loudness rise. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
+Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad-volume rise. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
 
 This physically accepts the fixed-headroom refinement in both directions: the tone stage changes tonal balance while the permanent reserve remains stable, so everyday EQ A/B no longer introduces the distracting repeated `6.5 dB` master-level jump.
 
@@ -391,7 +391,7 @@ The resulting Settings presentation was clarified and physically accepted as **M
 
 #### Dashboard API state — PASS
 
-The dashboard wrapper was corrected so an explicit helper `backend_state=split-bus-active` is preserved rather than overwritten with a generic state. Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` and regression commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` passed GitHub Actions. The live API subsequently reported the same detailed backend, route, EQ, headroom and limiter state as the helper.
+The dashboard wrapper was corrected so an explicit helper `backend_state=split-bus-active` is preserved rather than overwritten with a generic state. Commit `44d86a7cbdb6bdff14f8c471703d91d82821a1` and regression commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` passed GitHub Actions. The live API subsequently reported the same detailed backend, route, EQ, headroom and limiter state as the helper.
 
 #### Mixer overlay bypass/lock and Settings authority — PASS
 
@@ -434,7 +434,7 @@ The remaining proposed “Maximum Alarm Volume calibration” was reviewed and e
 - [x] Persistent `snd_aloop` state is verified after reboot. *(Index 7, id `ACP_Loopback`, two substreams, notify 1.)*
 - [x] Explicit uninstall restores the accepted direct-route checksum. *(Physical PASS: exact `08d00093...` active route restored, managed EQ installation removed, original services restored.)*
 - [x] Direct audio remains usable after uninstall and reboot. *(Physical PASS: exact direct checksum survives reboot, original services return active/enabled, managed EQ installation stays absent, Plexamp is audible.)*
-- [ ] Reinstall after uninstall succeeds.
+- [x] Reinstall after uninstall succeeds. *(Physical PASS from exact direct baseline: split-bus restored, saved `+2 / 0 / +2` restored, verifier PASS and Plexamp/EQ audible.)*
 
 #### Pre-reboot manifest/verifier reconciliation — physical PASS
 
@@ -624,7 +624,33 @@ The live API remained deliberately low-level and truthful: `installed=false`, `a
 
 After loading the corrected presenter, both user-facing surfaces physically displayed **Install required**. This confirms that `audio-eq.js` is now the single presentation authority and correctly translates the genuine uninstalled backend state without hiding or falsifying the underlying API status.
 
-**Exit condition:** In progress. Reboot persistence, corrected automatic failback/application restoration, post-failback repair, explicit uninstall, direct-only reboot and direct-only UI truthfulness are accepted. The only remaining Phase 6 gate is EQ-capable reinstall acceptance from the genuine direct baseline.
+#### EQ-capable reinstall after uninstall — physical PASS
+
+The Pi fast-forwarded cleanly to docs-only source `a824977`. The retained CamillaDSP 4.1.3 binary was executable and still matched SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`. Before reinstall, the exact direct ALSA route remained `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, Plexamp/AirPlay/dashboard were active, and the installed marker, install manifest, pre-EQ backup, route helper and EQ helper were absent. `install-eq.sh --prepare-only` listed 18 managed files and explicitly confirmed that no production file, module, service, route, mixer or PCM was changed.
+
+Guarded first-install activation then ran with `--confirm INSTALL-EQ-AUDIO` and returned `INSTALL_RC=0`. The installer itself reported both `EQ-capable audio verification passed.` and `EQ-capable audio profile installed successfully.`
+
+Post-reinstall acceptance:
+
+- active route/backend `split-bus-active`, selected mode `split-bus-selected`;
+- active split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
+- generated CamillaDSP config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`;
+- CamillaDSP PID `71236`;
+- managed direct-failback SHA remains `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`;
+- saved Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB` were restored as stored/applied/effective values rather than reset;
+- `bypassed=false`, fixed `headroom_db=-6.5`, final limiter `-1.0 dB`;
+- Plexamp, AirPlay, dashboard, route and CamillaDSP services all active;
+- Plexamp, AirPlay, dashboard, route and CamillaDSP units enabled; failback correctly reports `static`;
+- a fresh uninstall backup was recreated and records exact pre-EQ route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
+- saved `master-eq.json` remains schema 2 with Bass `2.0`, Mid `0.0`, Treble `2.0`, `bypassed=false`;
+- `snd_aloop` is loaded again with first index `7`, id `ACP_Loopback`, first `pcm_substreams=2` and first `pcm_notify=1`;
+- the standalone live verifier reports `EQ-capable audio verification passed.`;
+- checkout remains clean at physical source `a824977`;
+- Plexamp physically plays and the EQ is physically working.
+
+This completes the complete install → reboot → failure/failback → repair → uninstall → direct-only reboot → reinstall lifecycle acceptance on the real bedroom Pi.
+
+**Exit condition:** Met. Phase 6 is complete.
 
 ### Phase 7 — integration with the full Pi installer
 
@@ -661,23 +687,24 @@ After loading the corrected presenter, both user-facing surfaces physically disp
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
-| 6. Failure/reboot/uninstall acceptance | In progress | Reboot/persistence + corrected automatic failback + explicit uninstall + direct-only reboot + direct-only UI truthfulness PASS; final reinstall remains |
-| 7. Full-installer integration | Not started | Reuses the accepted standalone component |
+| 6. Failure/reboot/uninstall acceptance | Complete | Full real-Pi lifecycle PASS including corrected failback, exact uninstall/direct reboot and saved-state reinstall |
+| 7. Full-installer integration | Not started | Reuse the accepted standalone audio component; do not reimplement it |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-The bedroom Pi is in the accepted **direct-only post-uninstall/reboot state** at clean physical source `4ef4626`: active ALSA SHA is exact original direct `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, Plexamp/AirPlay/dashboard are active, EQ helpers/units/marker are absent, saved `+2 / 0 / +2` remains retained, `snd_aloop` is absent after reboot, Plexamp is audibly usable, the API truthfully reports the uninstalled backend as `offline`, and both user-facing EQ surfaces now correctly show **Install required**.
+The bedroom Pi is in a healthy accepted **EQ-capable split-bus state** at clean physical source `a824977`: active split-route SHA is `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, CamillaDSP config SHA is `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, saved/applied EQ is `+2 / 0 / +2`, bypass is off, fixed headroom is `-6.5 dB`, final limiter is `-1.0 dB`, the loopback contract is restored, the live verifier passes and Plexamp/EQ are physically working.
 
-1. fast-forward the Pi checkout to this roadmap update and confirm the checkout remains clean;
-2. confirm the retained CamillaDSP 4.1.3 binary exists and still hashes to `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`;
-3. run `bash scripts/audio/install-eq.sh --prepare-only --binary <verified-binary>` and confirm it reports no production change;
-4. run the guarded first-install path with `--activate --confirm INSTALL-EQ-AUDIO --binary <verified-binary>` from the normal project user;
-5. verify active split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, route/backend `split-bus-active`, loopback index/id/substream contract, Plexamp/AirPlay/dashboard/route/CamillaDSP active, and live verifier PASS;
-6. confirm saved Bass `+2`, Mid `0`, Treble `+2`, bypass off, fixed headroom `-6.5 dB` and final limiter `-1.0 dB` are restored rather than reset to neutral;
-7. physically confirm Plexamp is audible and the drawer/Settings EQ surfaces return to the active working state.
+Phase 7 should begin with a read-only inventory of the repository's current full-Pi installation/bootstrap entrypoints and their existing audio responsibilities. The integration design should then:
 
-A successful result closes Phase 6 and moves the roadmap to Phase 7 full-installer integration.
+1. identify the one full-installer authority and any legacy/parallel install paths that must not become competing audio owners;
+2. expose explicit **Direct audio** and **EQ-capable audio** profile selection, including a non-interactive argument for repeatable builds;
+3. invoke the already accepted standalone `scripts/audio/*` component for EQ-capable install/verify/repair semantics rather than copying its implementation;
+4. preserve Direct audio as a first-class no-CamillaDSP profile and make the dashboard EQ state truthfully reflect the selected capability;
+5. add fresh-Pi prerequisite checks, CamillaDSP artifact handling/provenance and post-install verification around the component boundary;
+6. exercise both profiles in non-production tests before any fresh-Pi physical installation rehearsal.
+
+No additional bedroom-Pi audio mutation is required merely to begin Phase 7 source integration.
 
 ## Roadmap maintenance discipline
 
