@@ -91,36 +91,42 @@ present_state() {
 }
 
 check_airplay_hooks() {
-    local installer="$REPO_ROOT/scripts/install-airplay-hooks.sh"
+    local installer="$REPO_ROOT/scripts/install-airplay-integration.sh"
+    local renderer="$REPO_ROOT/scripts/a-clockwork-plex-airplay-wrappers.py"
     local start end
     start="$(root_path '/usr/local/bin/a-clockwork-plex-airplay-start')"
     end="$(root_path '/usr/local/bin/a-clockwork-plex-airplay-end')"
     bash -n "$installer"
+    [[ -f "$renderer" && ! -L "$renderer" ]] || { echo "Missing wrapper renderer: $renderer" >&2; return 1; }
     echo 'airplay-hooks:'
-    printf '  installer source: valid shell\n'
+    printf '  guarded owner:     valid shell\n'
+    printf '  wrapper renderer:  present\n'
     printf '  start wrapper:     %s\n' "$(present_state "$start")"
     printf '  end wrapper:       %s\n' "$(present_state "$end")"
-    printf '  apply ownership:   scripts/install-airplay-hooks.sh (legacy apply-only)\n'
+    printf '  apply ownership:   scripts/install-airplay-integration.sh (shared guarded owner)\n'
 }
 
 check_airplay_metadata() {
-    local installer="$REPO_ROOT/scripts/install-airplay-metadata-listener.sh"
+    local installer="$REPO_ROOT/scripts/install-airplay-integration.sh"
     local listener="$REPO_ROOT/scripts/airplay-metadata-listener.py"
+    local renderer="$REPO_ROOT/scripts/a-clockwork-plex-shairport-integration.py"
     local unit fifo
     unit="$(root_path '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service')"
     fifo="$(root_path '/tmp/shairport-sync-metadata')"
     bash -n "$installer"
     [[ -f "$listener" && ! -L "$listener" ]] || { echo "Missing listener source: $listener" >&2; return 1; }
+    [[ -f "$renderer" && ! -L "$renderer" ]] || { echo "Missing Shairport renderer: $renderer" >&2; return 1; }
     echo 'airplay-metadata:'
-    printf '  installer source: valid shell\n'
-    printf '  listener source:  present\n'
-    printf '  service unit:     %s\n' "$(present_state "$unit")"
+    printf '  guarded owner:     valid shell\n'
+    printf '  listener source:   present\n'
+    printf '  config renderer:   present\n'
+    printf '  service unit:      %s\n' "$(present_state "$unit")"
     if [[ -p "$fifo" ]]; then
-        printf '  metadata FIFO:    fifo\n'
+        printf '  metadata FIFO:     fifo\n'
     else
-        printf '  metadata FIFO:    %s\n' "$(present_state "$fifo")"
+        printf '  metadata FIFO:     %s\n' "$(present_state "$fifo")"
     fi
-    printf '  apply ownership:  scripts/install-airplay-metadata-listener.sh (legacy apply-only)\n'
+    printf '  apply ownership:   scripts/install-airplay-integration.sh (shared guarded owner)\n'
 }
 
 check_alarm_audio_helper() {
@@ -187,9 +193,9 @@ fi
 
 cat <<'EOF'
 This adapter is informational: missing/stale targets are expected on a fresh Pi
-and are not repaired here. Restricted helper apply is now guarded by the shared
-helper packager; AirPlay hook/metadata mutation remains disabled from root Phase 7
-orchestration until equivalent guarded ownership exists.
+and are not repaired here. AirPlay integration and restricted helper packaging
+now each have guarded specialist owners; root Phase 7 orchestration still does
+not invoke those mutating entrypoints until the whole-appliance boundary exists.
 
 No production file, package, service, route, mixer, PCM or configuration was changed.
 COMPONENT_ADAPTER_CHECK=PASS
