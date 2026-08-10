@@ -2,14 +2,14 @@
 
 **Status:** Active roadmap — Phase 5 feature and interface acceptance is complete; Phase 6 failure, reboot and uninstall acceptance is in progress  
 **Started:** 7 August 2026  
-**Last updated:** 9 August 2026  
+**Last updated:** 10 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** EQ-capable split-bus audio is installed on the bedroom Pi, with Phase 5 feature/interface behaviour accepted and the Phase 6 reboot/persistence and automatic-failback gates physically passed. The corrected failback path has been proven end-to-end: CamillaDSP remains failed after a controlled SIGKILL, the reviewed direct alarm-safe route is selected, Plexamp/AirPlay/dashboard recover automatically, Plexamp is audibly usable, saved EQ state is preserved, and the UI truthfully reports **Direct failback**. The supported repair path has now restored the normal EQ-capable graph again from that accepted failback state. The Pi is clean at source `24e1ee4`, active split-route SHA is `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, CamillaDSP PID is `216238`, saved/applied EQ is Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB`, bypass is off, fixed music reserve is `-6.5 dB`, final limiter is `-1 dB`, all five main services are active, the live verifier passes, Plexamp is audible, and both EQ surfaces show active working EQ. The next Phase 6 gate is explicit uninstall from this known-good installed state, which must restore the original pre-EQ direct-route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` rather than the managed failback SHA `654ff170...`.  
+**Production state:** The bedroom Pi is intentionally in the original **direct-only** audio state after a successful explicit EQ uninstall. Phase 6 reboot/persistence and corrected automatic-failback gates have already passed. The guarded uninstall ran from clean source `9eacee8`, returned `UNINSTALL_RC=0`, restored the exact accepted pre-EQ active ALSA SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, restored Plexamp/AirPlay/dashboard active and enabled, removed the EQ installed marker, install manifest, retained pre-EQ backup, route/EQ helpers and the three managed EQ systemd units, and left Plexamp physically audible in direct-only mode. The original pre-install loopback snapshot was `loaded`, so `snd_aloop` remains loaded after uninstall exactly as recorded. Saved EQ state is deliberately retained at Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB`, bypass off, for the later reinstall. `route-state.json` truthfully records `direct-rollback` with the exact `08d00093...` checksum, while both EQ UI surfaces now correctly show **Install required** because the supported EQ installation is genuinely absent. The next Phase 6 gate is one controlled reboot in this direct-only state, followed by proof that the original direct route and normal Plexamp/AirPlay/dashboard operation survive reboot before EQ-capable reinstall is attempted.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
 
-The split-bus EQ audio design has been selected, physically proven and installed on the bedroom Pi. Feature/interface acceptance is complete. The remaining work is explicit uninstall/direct-reboot/reinstall acceptance, then integration of the supported standalone component into the future full installer and cleanup/archive work.
+The split-bus EQ audio design has been selected, physically proven and fully exercised through installation, reboot, failure/failback, repair and explicit uninstall. Feature/interface acceptance is complete. The remaining Phase 6 work is direct-only reboot acceptance followed by EQ-capable reinstall acceptance, then integration of the supported standalone component into the future full installer and cleanup/archive work.
 
 The supported path deliberately favours readable operations, explicit checks and straightforward rollback over the former Stage C authority/transaction framework.
 
@@ -432,8 +432,8 @@ The remaining proposed “Maximum Alarm Volume calibration” was reviewed and e
 - [x] One controlled reboot restores the EQ-capable graph.
 - [x] Saved active/bypassed state survives reboot. *(Active `+2 / 0 / +2` curve survived exactly.)*
 - [x] Persistent `snd_aloop` state is verified after reboot. *(Index 7, id `ACP_Loopback`, two substreams, notify 1.)*
-- [ ] Explicit uninstall restores the accepted direct-route checksum.
-- [ ] Direct audio remains usable after uninstall and reboot.
+- [x] Explicit uninstall restores the accepted direct-route checksum. *(Physical PASS: exact `08d00093...` active route restored, managed EQ installation removed, original services restored.)*
+- [ ] Direct audio remains usable after uninstall and reboot. *(Pre-reboot direct-only Plexamp PASS; reboot still pending.)*
 - [ ] Reinstall after uninstall succeeds.
 
 #### Pre-reboot manifest/verifier reconciliation — physical PASS
@@ -550,7 +550,38 @@ Post-repair acceptance:
 
 This re-establishes a known-good installed EQ-capable starting point for the explicit uninstall test.
 
-**Exit condition:** In progress. Reboot persistence, automatic failback/application restoration and post-failback repair are accepted. Remaining Phase 6 work is explicit uninstall/direct-reboot/reinstall acceptance.
+#### Explicit uninstall — physical PASS; direct reboot pending
+
+The Pi fast-forwarded cleanly to docs-only head `9eacee8` and ran `bash scripts/audio/uninstall-eq.sh --prepare-only`. The prepare gate reported retained direct-route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` and explicitly confirmed that no production file, module, service, route, mixer or PCM was changed. Immediately before activation, the current route remained split-bus SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, and Plexamp/AirPlay/dashboard/route/CamillaDSP were all active.
+
+The original retained pre-EQ snapshots were copied to `~/acp-phase6-uninstall-acceptance` before activation. They recorded:
+
+- loopback runtime state `loaded`;
+- Plexamp, AirPlay and dashboard all active and enabled;
+- original active route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`.
+
+The guarded uninstall then ran with `--confirm UNINSTALL-EQ-AUDIO`, returned `UNINSTALL_RC=0`, and reported that the original direct-audio state was restored. Post-uninstall acceptance was:
+
+- active `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf` SHA exactly `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
+- Plexamp active/enabled;
+- AirPlay active/enabled;
+- dashboard active/enabled;
+- `/var/lib/a-clockwork-plex/split-bus/installed` absent;
+- `/var/lib/a-clockwork-plex/split-bus/install-manifest.tsv` absent;
+- `/var/lib/a-clockwork-plex/split-bus/pre-eq-backup` absent after successful rollback completion;
+- `/usr/local/bin/a-clockwork-plex-audio-route` absent;
+- `/usr/local/bin/a-clockwork-plex-audio-eq` absent;
+- route, CamillaDSP and failback managed systemd unit files absent;
+- saved `master-eq.json` intentionally retained with Bass `+2.0`, Mid `0.0`, Treble `+2.0`, `bypassed=false`;
+- `route-state.json` records `mode=direct-rollback`, reason `EQ-capable audio profile uninstalled`, and exact active ALSA SHA `08d00093...`;
+- `snd_aloop` remains loaded, matching the original recorded pre-install runtime state;
+- checkout remains clean at `9eacee8`;
+- Plexamp physically plays through the restored direct-only route;
+- drawer Audio EQ and Settings → Audio → Equaliser both truthfully show **Install required** because the supported EQ installation is now actually absent.
+
+This physically accepts explicit uninstall and exact direct-route restoration before reboot.
+
+**Exit condition:** In progress. Reboot persistence, corrected automatic failback/application restoration, post-failback repair and explicit uninstall are accepted. Remaining Phase 6 work is direct-only reboot acceptance followed by EQ-capable reinstall acceptance.
 
 ### Phase 7 — integration with the full Pi installer
 
@@ -587,23 +618,23 @@ This re-establishes a known-good installed EQ-capable starting point for the exp
 | 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
-| 6. Failure/reboot/uninstall acceptance | In progress | Reboot/persistence + corrected automatic failback PASS; split-bus restored and verified; explicit uninstall/direct reboot/reinstall remain |
+| 6. Failure/reboot/uninstall acceptance | In progress | Reboot/persistence + corrected automatic failback PASS; explicit uninstall/direct restoration PASS; direct-only reboot and reinstall remain |
 | 7. Full-installer integration | Not started | Reuses the accepted standalone component |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-The bedroom Pi is now back in a healthy **EQ-capable split-bus state** after the accepted failback test: source checkout clean at `24e1ee4`, Plexamp/AirPlay/dashboard/route/CamillaDSP active, active ALSA SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, saved/applied EQ `+2 / 0 / +2`, fixed `-6.5 dB` headroom, `-1 dB` final limiter, live verifier PASS, and Plexamp audibly usable.
+The bedroom Pi is intentionally in the accepted **direct-only post-uninstall state**: source checkout clean at `9eacee8`, original active ALSA SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, Plexamp/AirPlay/dashboard active and enabled, supported EQ helpers/units/marker absent, saved `+2 / 0 / +2` curve retained for reinstall, Plexamp audibly usable, and the UI truthfully reports **Install required**.
 
 1. fast-forward the Pi checkout to this roadmap update;
-2. run `bash scripts/audio/uninstall-eq.sh --prepare-only` and confirm the retained backup reports direct-route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` with no production changes;
-3. capture the installed pre-uninstall state, then run the guarded explicit uninstall with confirmation token `UNINSTALL-EQ-AUDIO`;
-4. require uninstall to restore exact active ALSA SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, remove the EQ installed marker/managed installation and leave Plexamp/AirPlay/dashboard active and usable;
-5. verify direct Plexamp audio physically before reboot;
-6. reboot the direct-only state and prove direct audio remains usable;
-7. reinstall EQ-capable audio through the supported installer and re-run the live verifier plus a short audible source check.
+2. reboot the Pi without reinstalling or repairing EQ first;
+3. after reboot, confirm `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf` still hashes to exact direct SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
+4. confirm Plexamp, AirPlay and dashboard are active/enabled and the managed EQ helpers/units remain absent;
+5. physically start Plexamp (NFC is acceptable) and confirm normal audible direct-only playback; confirm both EQ surfaces still show **Install required**;
+6. record `snd_aloop` post-reboot state for evidence only — its presence or absence is not a direct-audio pass/fail criterion because the supported EQ persistence files have been removed;
+7. only after direct-only reboot PASS, reinstall EQ-capable audio through the supported installer using the retained verified CamillaDSP 4.1.3 binary, then verify the live graph and saved EQ restoration.
 
-Do not treat the managed failback SHA `654ff170...` as the uninstall target; explicit uninstall must restore the original pre-EQ direct SHA `08d00093...`.
+Do not reinstall EQ before the direct-only reboot gate is complete.
 
 ## Roadmap maintenance discipline
 
