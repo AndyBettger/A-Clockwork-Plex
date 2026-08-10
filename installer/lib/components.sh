@@ -118,9 +118,10 @@ acp_component_plan() {
   native-check  = the specialist installer already owns a safe read-only check mode.
   adapter-check = installed state is inspected through the shared read-only adapter.
 
-Alarm-audio and Shairport-name helper runtime implementations remain specialist
-sources, but their fresh-appliance packaging/sudo policy is now jointly owned by
-the guarded scripts/install-appliance-helpers.sh entrypoint. AirPlay hooks and
-metadata remain legacy apply-only and are not executed by the root installer yet.
+Apply commands remain specialist-owned. Alarm-audio and Shairport-name helper
+runtime implementations remain specialist sources, while their fresh-appliance
+packaging/sudo policy is jointly owned by the guarded
+scripts/install-appliance-helpers.sh entrypoint. AirPlay hooks and metadata
+remain legacy apply-only and are not executed by the root installer yet.
 EOF
 }
