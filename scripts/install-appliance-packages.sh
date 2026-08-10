@@ -88,6 +88,16 @@ REQUIREMENTS="$REPO_ROOT/requirements.txt"
     exit 1
 }
 
+if [[ "$MODE" == activate ]]; then
+    [[ "$CONFIRM" == "$CONFIRM_TOKEN" ]] || {
+        error "Activation requires --confirm $CONFIRM_TOKEN."
+        exit 64
+    }
+elif [[ -n "$CONFIRM" ]]; then
+    error '--confirm is only valid with --activate.'
+    exit 64
+fi
+
 run_package_gate() {
     local args=(
         --audio "$AUDIO_PROFILE"
@@ -128,10 +138,6 @@ if [[ "$MODE" == prepare-only ]]; then
     exit 0
 fi
 [[ "$MODE" == activate ]] || { error "Unsupported mode: $MODE"; exit 64; }
-[[ "$CONFIRM" == "$CONFIRM_TOKEN" ]] || {
-    error "Activation requires --confirm $CONFIRM_TOKEN."
-    exit 64
-}
 
 if [[ "$ROOT" == / ]]; then
     [[ "$EUID" -ne 0 ]] || {
