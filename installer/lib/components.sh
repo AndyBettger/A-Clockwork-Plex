@@ -103,10 +103,14 @@ acp_verify_component_sources() {
 }
 
 acp_component_plan() {
+    local project_user="${1:-${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}}"
     local id kind source check apply
     echo 'Specialist component ownership:'
     for id in "${ACP_COMPONENT_IDS[@]}"; do
         IFS=$'\t' read -r id kind source check apply < <(acp_component_record "$id") || return 1
+        if [[ "$id" == dashboard-service ]]; then
+            check="$check --project-user $project_user"
+        fi
         printf '  %-22s %-13s %s\n' "$id" "$kind" "$check"
     done
     cat <<'EOF'
