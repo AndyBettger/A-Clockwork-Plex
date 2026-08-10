@@ -1,0 +1,367 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+ROOT=/
+AUDIO_PROFILE=eq
+WEATHER_PROVIDER=ecowitt-push
+PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
+PROJECT_DIR=
+CONFIG_PATH=
+DASHBOARD_URL=http://localhost:8088
+FAILURES=0
+WARNINGS=0
+DIRECT_SHA256=654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
+
+usage() {
+    cat <<'EOF'
+Usage: bash scripts/verify-appliance.sh [options]
+
+Read-only post-install verification for one selected appliance profile.
+Production mode also verifies service/API health. An alternate --root performs
+filesystem/config verification only for non-production integration tests.
+
+Options:
+  --audio direct|eq
+  --weather-observations ecowitt-push|weather-underground
+  --project-user USER
+  --project-dir PATH     logical installed repository path
+  --config PATH          logical config.json path
+  --root PATH            alternate filesystem root; disables live service/API probes
+  --dashboard-url URL    production dashboard base URL (default http://localhost:8088)
+  -h, --help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --audio)
+            [[ $# -ge 2 ]] || { echo '--audio requires a profile.' >&2; exit 64; }
+            AUDIO_PROFILE="$2"
+            shift 2
+            ;;
+        --weather-observations)
+            [[ $# -ge 2 ]] || { echo '--weather-observations requires a provider.' >&2; exit 64; }
+            WEATHER_PROVIDER="$2"
+            shift 2
+            ;;
+        --project-user)
+            [[ $# -ge 2 ]] || { echo '--project-user requires a user.' >&2; exit 64; }
+            PROJECT_USER="$2"
+            shift 2
+            ;;
+        --project-dir)
+            [[ $# -ge 2 ]] || { echo '--project-dir requires a path.' >&2; exit 64; }
+            PROJECT_DIR="$2"
+            shift 2
+            ;;
+        --config)
+            [[ $# -ge 2 ]] || { echo '--config requires a path.' >&2; exit 64; }
+            CONFIG_PATH="$2"
+            shift 2
+            ;;
+        --root)
+            [[ $# -ge 2 ]] || { echo '--root requires a path.' >&2; exit 64; }
+            ROOT="$2"
+            shift 2
+            ;;
+        --dashboard-url)
+            [[ $# -ge 2 ]] || { echo '--dashboard-url requires a URL.' >&2; exit 64; }
+            DASHBOARD_URL="${2%/}"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 64
+            ;;
+    esac
+done
+
+case "$AUDIO_PROFILE" in direct|eq) ;; *) echo "Unsupported audio profile: $AUDIO_PROFILE" >&2; exit 64 ;; esac
+case "$WEATHER_PROVIDER" in ecowitt-push|weather-underground) ;; *) echo "Unsupported weather provider: $WEATHER_PROVIDER" >&2; exit 64 ;; esac
+[[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || { echo "Invalid project user: $PROJECT_USER" >&2; exit 64; }
+[[ "$PROJECT_DIR" == /* || -z "$PROJECT_DIR" ]] || { echo '--project-dir must be absolute.' >&2; exit 64; }
+[[ "$CONFIG_PATH" == /* || -z "$CONFIG_PATH" ]] || { echo '--config must be absolute.' >&2; exit 64; }
+
+if [[ "$ROOT" != / ]]; then
+    ROOT="${ROOT%/}"
+    [[ -d "$ROOT" ]] || { echo "Alternate root does not exist: $ROOT" >&2; exit 1; }
+fi
+
+if [[ -z "$PROJECT_DIR" ]]; then
+    if [[ "$ROOT" == / ]]; then
+        PROJECT_DIR="$REPO_ROOT"
+    else
+        PROJECT_DIR="/home/$PROJECT_USER/A-Clockwork-Plex"
+    fi
+fi
+if [[ -z "$CONFIG_PATH" ]]; then
+    CONFIG_PATH="$PROJECT_DIR/config.json"
+fi
+
+root_path() {
+    local path="$1"
+    if [[ "$ROOT" == / ]]; then
+        printf '%s\n' "$path"
+    else
+        printf '%s%s\n' "$ROOT" "$path"
+    fi
+}
+
+pass() { printf 'PASS  %-24s %s\n' "$1" "$2"; }
+fail_check() { printf 'FAIL  %-24s %s\n' "$1" "$2"; FAILURES=$((FAILURES + 1)); }
+warn_check() { printf 'WARN  %-24s %s\n' "$1" "$2"; WARNINGS=$((WARNINGS + 1)); }
+
+require_file() {
+    local label="$1" logical="$2" path
+    path="$(root_path "$logical")"
+    if [[ -f "$path" && ! -L "$path" ]]; then
+        pass "$label" "$logical"
+    else
+        fail_check "$label" "missing/unsafe: $logical"
+    fi
+}
+
+require_contains() {
+    local label="$1" logical="$2" needle="$3" path
+    path="$(root_path "$logical")"
+    if [[ -f "$path" && ! -L "$path" ]] && grep -Fq "$needle" "$path"; then
+        pass "$label" "$needle"
+    else
+        fail_check "$label" "$logical does not contain: $needle"
+    fi
+}
+
+cat <<EOF
+A Clockwork Plex appliance post-install verification
+
+Filesystem root:      $ROOT
+Project directory:    $PROJECT_DIR
+Project user:         $PROJECT_USER
+Audio profile:        $AUDIO_PROFILE
+Weather observations: $WEATHER_PROVIDER
+EOF
+
+echo
+echo 'Application/integration files:'
+require_contains dashboard-unit '/etc/systemd/system/a-clockwork-plex.service' "User=$PROJECT_USER"
+require_contains dashboard-unit '/etc/systemd/system/a-clockwork-plex.service' "Group=$PROJECT_USER"
+require_contains dashboard-unit '/etc/systemd/system/a-clockwork-plex.service' "WorkingDirectory=$PROJECT_DIR"
+require_contains dashboard-unit '/etc/systemd/system/a-clockwork-plex.service' "ExecStart=$PROJECT_DIR/venv/bin/python $PROJECT_DIR/app/runner.py"
+require_file airplay-start '/usr/local/bin/a-clockwork-plex-airplay-start'
+require_file airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end'
+require_contains airplay-start '/usr/local/bin/a-clockwork-plex-airplay-start' '/api/airplay/event'
+require_contains airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end' '/api/airplay/event'
+require_file metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service'
+require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' '/usr/local/bin/a-clockwork-plex-airplay-metadata-listener'
+require_file alarm-helper '/usr/local/bin/a-clockwork-plex-alarm-audio'
+require_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
+require_file shairport-name-helper '/usr/local/bin/a-clockwork-plex-shairport-name'
+require_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'
+require_contains shairport-config '/etc/shairport-sync.conf' '/usr/local/bin/a-clockwork-plex-airplay-start'
+require_contains shairport-config '/etc/shairport-sync.conf' '/usr/local/bin/a-clockwork-plex-airplay-end'
+require_contains shairport-config '/etc/shairport-sync.conf' '/tmp/shairport-sync-metadata'
+require_contains shairport-config '/etc/shairport-sync.conf' 'acp_airplay'
+require_contains kiosk-autostart "/home/$PROJECT_USER/.config/autostart/a-clockwork-plex-dashboard.desktop" "$PROJECT_DIR/scripts/launch-dashboard-kiosk.sh"
+
+echo
+echo 'Audio profile:'
+if [[ "$AUDIO_PROFILE" == direct ]]; then
+    route="$(root_path '/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf')"
+    if [[ -f "$route" && ! -L "$route" ]]; then
+        observed="$(sha256sum "$route" | awk '{print $1}')"
+        if [[ "$observed" == "$DIRECT_SHA256" ]]; then
+            pass direct-route "sha256=$observed"
+        else
+            fail_check direct-route "expected $DIRECT_SHA256 observed $observed"
+        fi
+    else
+        fail_check direct-route 'active direct ALSA route missing/unsafe'
+    fi
+    marker="$(root_path '/var/lib/a-clockwork-plex/split-bus/installed')"
+    if [[ ! -e "$marker" ]]; then
+        pass eq-marker 'absent as required for Direct profile'
+    else
+        fail_check eq-marker 'EQ installed marker exists on Direct profile'
+    fi
+else
+    verify_command=(bash "$REPO_ROOT/scripts/audio/verify-audio.sh")
+    if [[ "$ROOT" != / ]]; then
+        verify_command+=(--root "$ROOT")
+    fi
+    if "${verify_command[@]}" >/tmp/a-clockwork-plex-appliance-audio-verify.$$ 2>&1; then
+        pass eq-audio 'standalone EQ verifier passed'
+    else
+        fail_check eq-audio "standalone verifier failed: $(tr '\n' ' ' </tmp/a-clockwork-plex-appliance-audio-verify.$$ | tail -c 300)"
+    fi
+    rm -f /tmp/a-clockwork-plex-appliance-audio-verify.$$
+fi
+
+echo
+echo 'Weather/configuration:'
+config_file="$(root_path "$CONFIG_PATH")"
+if [[ ! -f "$config_file" || -L "$config_file" ]]; then
+    fail_check config "missing/unsafe: $CONFIG_PATH"
+else
+    mapfile -t weather_values < <(python3 - "$config_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+weather = config.get("weather") if isinstance(config.get("weather"), dict) else {}
+wu = weather.get("weather_underground") if isinstance(weather.get("weather_underground"), dict) else {}
+ecowitt = weather.get("ecowitt_push") if isinstance(weather.get("ecowitt_push"), dict) else {}
+forecast = weather.get("forecast") if isinstance(weather.get("forecast"), dict) else {}
+secret_keys = {"api_key", "apikey", "password", "secret", "token"}
+secret_present = any(str(key).lower() in secret_keys for key in wu)
+print(str(weather.get("provider") or "ecowitt_push"))
+print(str(forecast.get("provider") or "open_meteo"))
+print(str(wu.get("station_id") or ""))
+print(str(wu.get("api_key_env") or "WEATHER_UNDERGROUND_API_KEY"))
+print(str(ecowitt.get("path") or "/ecowitt"))
+print("true" if secret_present else "false")
+PY
+)
+    configured_provider="${weather_values[0]:-}"
+    forecast_provider="${weather_values[1]:-}"
+    wu_station="${weather_values[2]:-}"
+    wu_key_env="${weather_values[3]:-}"
+    ecowitt_path="${weather_values[4]:-}"
+    secret_present="${weather_values[5]:-true}"
+
+    if [[ "$configured_provider" == "$WEATHER_PROVIDER" ]]; then
+        pass weather-provider "$configured_provider"
+    else
+        fail_check weather-provider "expected $WEATHER_PROVIDER configured $configured_provider"
+    fi
+    if [[ "$forecast_provider" == open_meteo ]]; then
+        pass forecast-provider 'open_meteo'
+    else
+        fail_check forecast-provider "expected open_meteo configured $forecast_provider"
+    fi
+    if [[ "$secret_present" == false ]]; then
+        pass weather-secret 'no API secret stored in config.json'
+    else
+        fail_check weather-secret 'Weather Underground secret-like field exists in config.json'
+    fi
+
+    if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
+        if [[ -n "$wu_station" ]]; then
+            pass wu-station "$wu_station"
+        else
+            fail_check wu-station 'station_id is empty'
+        fi
+        if [[ "$wu_key_env" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            pass wu-key-env "$wu_key_env (name only)"
+        else
+            fail_check wu-key-env "invalid environment variable name: $wu_key_env"
+        fi
+        if [[ "$ROOT" == / ]]; then
+            if [[ -n "${!wu_key_env:-}" ]]; then
+                pass wu-credential "$wu_key_env is set (value hidden)"
+            else
+                fail_check wu-credential "$wu_key_env is not set"
+            fi
+        fi
+    else
+        if [[ "$ecowitt_path" == /* && "$ecowitt_path" != *'?'* && "$ecowitt_path" != *'#'* ]]; then
+            pass ecowitt-path "$ecowitt_path"
+        else
+            fail_check ecowitt-path "invalid path: $ecowitt_path"
+        fi
+    fi
+fi
+
+if [[ "$ROOT" == / ]]; then
+    echo
+echo 'Live runtime/API:'
+    for unit in plexamp.service shairport-sync.service a-clockwork-plex.service a-clockwork-plex-airplay-metadata.service; do
+        if systemctl is-active --quiet "$unit"; then
+            pass "service:$unit" active
+        else
+            fail_check "service:$unit" inactive
+        fi
+        enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
+        if [[ "$enabled" == enabled || "$enabled" == static ]]; then
+            pass "enable:$unit" "$enabled"
+        else
+            fail_check "enable:$unit" "${enabled:-unknown}"
+        fi
+    done
+
+    state_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-api-state.XXXXXX")"
+    weather_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-weather-state.XXXXXX")"
+    eq_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-eq-state.XXXXXX")"
+    trap 'rm -f "$state_json" "$weather_json" "$eq_json"' EXIT
+
+    if curl -fsS "$DASHBOARD_URL/api/state" -o "$state_json"; then
+        pass dashboard-api '/api/state HTTP success'
+    else
+        fail_check dashboard-api '/api/state unavailable'
+    fi
+
+    if curl -fsS "$DASHBOARD_URL/api/weather/observations" -o "$weather_json"; then
+        if python3 - "$weather_json" "$WEATHER_PROVIDER" <<'PY'
+import json
+import sys
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+status = payload.get("status") if isinstance(payload, dict) else None
+expected = sys.argv[2]
+actual = status.get("provider") if isinstance(status, dict) else None
+state = status.get("status") if isinstance(status, dict) else None
+allowed = {"ecowitt-push": {"push"}, "weather-underground": {"ready", "pending", "degraded"}}
+raise SystemExit(0 if actual == expected and state in allowed[expected] else 1)
+PY
+        then
+            pass weather-api "provider=$WEATHER_PROVIDER status acceptable"
+        else
+            fail_check weather-api 'provider/status does not match selected observation profile'
+        fi
+    else
+        fail_check weather-api '/api/weather/observations unavailable'
+    fi
+
+    if curl -fsS "$DASHBOARD_URL/api/audio/eq" -o "$eq_json"; then
+        if python3 - "$eq_json" "$AUDIO_PROFILE" <<'PY'
+import json
+import sys
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+profile = sys.argv[2]
+installed = payload.get("installed") is True
+if profile == "direct":
+    raise SystemExit(0 if not installed else 1)
+raise SystemExit(0 if installed and payload.get("configured") is True else 1)
+PY
+        then
+            pass eq-api "truthful for $AUDIO_PROFILE profile"
+        else
+            fail_check eq-api "does not match $AUDIO_PROFILE installation"
+        fi
+    else
+        fail_check eq-api '/api/audio/eq unavailable'
+    fi
+
+    rm -f "$state_json" "$weather_json" "$eq_json"
+    trap - EXIT
+else
+    echo
+    warn_check live-runtime 'skipped for alternate-root non-production verification'
+fi
+
+echo
+printf 'Failures: %d\nWarnings: %d\n' "$FAILURES" "$WARNINGS"
+echo 'No production file, package, service, route, mixer, PCM or configuration was changed.'
+if [[ "$FAILURES" -eq 0 ]]; then
+    echo 'APPLIANCE_VERIFY=PASS'
+    exit 0
+fi
+echo 'APPLIANCE_VERIFY=FAIL'
+exit 1
