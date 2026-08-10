@@ -7,6 +7,9 @@ WEATHER_OBSERVATIONS="${ACP_WEATHER_OBSERVATIONS:-ecowitt-push}"
 NON_INTERACTIVE=false
 MODE=plan
 
+# The legacy install-shared-audio.sh remains historical input only. The root
+# appliance installer must never execute it as a competing audio authority.
+
 usage() {
     cat <<'EOF'
 Usage:
