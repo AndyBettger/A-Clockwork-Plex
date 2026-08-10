@@ -131,11 +131,8 @@ Planned orchestration boundary:
   6. configure one weather-observation provider while retaining Open-Meteo forecast;
   7. install/verify dashboard kiosk startup;
   8. run one appliance-level post-install verification report.
-
-eof-marker
 EOF
-# Remove the marker without hiding the plan structure from shell/static checks.
-printf '\b\b\b\b\b\b\b\b\b\b          \b\b\b\b\b\b\b\b\b\b'
+
 echo
 acp_component_plan
 
