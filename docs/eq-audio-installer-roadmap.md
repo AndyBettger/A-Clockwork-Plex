@@ -78,8 +78,9 @@ Completed source/read-only work:
 - [x] Complete rooted/non-production **Direct/EQ × Ecowitt/WU 2×2 profile matrix**, including real rooted EQ install/uninstall and exact `654ff170...` restoration.
 - [x] Whole-appliance transaction primitives: explicit file/absence capture, metadata, reverse restore, production-root service state capture/restore and alternate-root testability.
 - [x] Guarded alarm-safe Direct activation owner `scripts/audio/install-direct.sh`, with prepare-only default, explicit confirmation, exact checksum install and rollback/failure-injection coverage.
+- [x] Alarm-audio and Shairport-name helper packaging now share guarded `scripts/install-appliance-helpers.sh`, preserving the existing runtime implementations while adding exact rollback and project-user-aware sudo policy.
 - [ ] Guarded root `--apply` with explicit confirmation and immediately repeated matching package/host/preflight gates.
-- [ ] Safe root apply/rollback ownership for legacy immediate-mutating specialist installers.
+- [ ] Safe root apply/rollback ownership for the remaining legacy immediate-mutating AirPlay hooks/metadata installers.
 - [ ] Root-owned package + venv + `requirements.txt` mutation transaction and explicit package rollback policy.
 - [ ] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
@@ -89,7 +90,7 @@ Completed source/read-only work:
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives and the fresh Direct component owner are green. Remaining major gates are guarded whole-appliance mutation/rollback and physical fresh-appliance acceptance.
+**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation and restricted-helper packaging are green. Remaining major gates are AirPlay/package/weather/top-level guarded mutation/rollback and physical fresh-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -103,9 +104,17 @@ The first run, **Tests #3007 / run `31355957280`**, failed four new/roadmap test
 
 #### Phase 7 checkpoint #9 — guarded alarm-safe Direct component — **PASS**
 
-`scripts/audio/install-direct.sh` now owns the fresh Direct route activation rather than promoting the legacy shared-audio installer. It defaults to prepare-only, requires `--activate --confirm INSTALL-DIRECT-AUDIO`, validates the exact alarm-safe source SHA `654ff170...`, captures the previous active route and production service state, stops the three audio/dashboard applications only for the route switch, restores their previous state, and rolls back the previous route/service state if activation fails. Alternate-root activation and a non-production post-route failure injection prove exact rollback without touching live ALSA/systemd.
+`scripts/audio/install-direct.sh` now owns the fresh Direct route activation rather than promoting the legacy shared-audio installer. It defaults to prepare-only, requires `--activate --confirm INSTALL-DIRECT-AUDIO`, validates exact alarm-safe source SHA `654ff170...`, captures the previous active route and production service state, stops the three audio/dashboard applications only for the route switch, restores their previous state and rolls back the previous route/service state on failure. Alternate-root activation and post-route failure injection prove exact rollback without touching live ALSA/systemd.
 
-The first CI after adding the Direct installer, **Tests #3023 / run `31356602256`**, failed two new tests because the installer created its transaction directory with `mktemp -d` and then correctly called `acp_transaction_begin`, whose contract requires the transaction directory itself not to exist yet. The installer now creates a private temporary parent and lets the transaction library create a child directory. No production mutation occurred. **Tests #3025 / run `31356684593` — PASS** at `b60b2b9`, including the new prepare/activation/wrong-token/failure-rollback Direct tests.
+The first Direct CI, **Tests #3023 / run `31356602256`**, failed two new tests because the installer pre-created the transaction directory that `acp_transaction_begin` intentionally owns. It now creates a private parent and lets the transaction library create a child. No production mutation occurred. **Tests #3025 / run `31356684593` — PASS** at `b60b2b9`.
+
+#### Phase 7 checkpoint #10 — guarded restricted-helper packaging — **PASS**
+
+`scripts/install-appliance-helpers.sh` is now the guarded packaging/sudo-policy owner for the alarm-audio and Shairport receiver-name helpers. The actual helper algorithms remain in `scripts/a-clockwork-plex-alarm-audio-helper.sh` and `scripts/a-clockwork-plex-shairport-name.py`; the new installer does not fork those implementations. It defaults to prepare-only, requires `--activate --confirm INSTALL-APPLIANCE-HELPERS`, validates the selected project user, renders only the established restricted sudo actions, captures all four helper/policy targets and restores exact prior files/modes or absence if activation fails. Alternate-root tests prove normal install, wrong-token/invalid-user rejection and injected-failure rollback.
+
+`installer/lib/components.sh` and the read-only component adapter now report this shared guarded packaging owner for both helper components. AirPlay lifecycle hooks and metadata remain explicitly legacy apply-only and are still blocked from root activation.
+
+The first integrated ownership run, **Tests #3035 / run `31356948272`**, had one failure only: an established component-plan regression test still required the phrase `Apply commands remain specialist-owned`, which had been removed while clarifying the new shared packaging owner. That wording was restored because it remains architecturally true. **Tests #3037 / run `31357016840` — PASS** at `8356e80`. No production mutation occurred.
 
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
@@ -124,10 +133,10 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Add the guarded top-level apply confirmation/transaction boundary around the green component infrastructure while still refusing incomplete production stages.
-2. Give the four legacy immediate-mutating specialist installers safe prepare/apply/rollback boundaries without duplicating subsystem logic.
+1. Replace the remaining AirPlay hook/metadata legacy apply-only path with a guarded owner that can safely capture Shairport integration, wrappers, metadata service/FIFO state and rollback without duplicating playback-coordinator logic.
+2. Then add the guarded top-level apply confirmation/transaction boundary around green component owners while still refusing incomplete package/weather stages.
 3. Define package/venv mutation and rollback policy before allowing package mutation.
-4. Root orchestration should establish Direct via `scripts/audio/install-direct.sh`, then optionally hand off to standalone EQ using `--baseline alarm-safe-direct`.
+4. Root orchestration establishes Direct via `scripts/audio/install-direct.sh`, then optionally hands off to standalone EQ using `--baseline alarm-safe-direct`.
 5. Apply weather-provider config/secret reference while retaining Open-Meteo, then dashboard/kiosk.
 6. Treat `scripts/verify-appliance.sh` failure as install failure and reverse rollback.
 7. Inject failures in non-production and prove restoration before any fresh-Pi physical rehearsal.
