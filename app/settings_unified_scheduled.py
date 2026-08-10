@@ -8,9 +8,9 @@ boundary in alarm_audio_scheduled, so the unified Settings transaction must use
 the promoted normaliser as well or every save would clear scheduled_enabled.
 
 This module also extends the established transaction with the dashboard-wide
-night-dimming model. Keeping that model here lets the browser use the same
-revisioned Settings authority without disturbing the already validated base
-transaction implementation.
+night-dimming model and the promoted weather-observation provider contract.
+Keeping those models here lets the browser use the same revisioned Settings
+authority without disturbing the already validated base transaction.
 """
 
 import re
@@ -19,9 +19,19 @@ from typing import Any
 try:
     from . import settings_unified as _base
     from .alarm_audio_scheduled import normalise_audio_settings
+    from .weather_observation_settings import (
+        public_observation_config,
+        submitted_observation_config,
+    )
+    from .weather_observations import WeatherObservationService
 except ImportError:  # Supports direct execution imports.
     import settings_unified as _base
     from alarm_audio_scheduled import normalise_audio_settings
+    from weather_observation_settings import (
+        public_observation_config,
+        submitted_observation_config,
+    )
+    from weather_observations import WeatherObservationService
 
 
 # UnifiedSettingsService resolves this module global at call time. Rebinding it
@@ -74,7 +84,16 @@ def _clock_card_slot_count(values: Any) -> int:
 
 
 class UnifiedSettingsService(_base.UnifiedSettingsService):
-    """Production Settings service with scheduled display-dimming support."""
+    """Production Settings with scheduled display and observation providers."""
+
+    def __init__(
+        self,
+        *,
+        observations: WeatherObservationService | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._observations = observations
 
     def _public_settings(
         self,
@@ -124,7 +143,17 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 ),
             }
         )
+        weather = settings.setdefault("weather", {})
+        weather["observations"] = public_observation_config(config)
         return settings
+
+    def snapshot(self) -> dict[str, Any]:
+        snapshot = super().snapshot()
+        if self._observations is not None:
+            snapshot.setdefault("status", {})["weather_observations"] = (
+                self._observations.snapshot()
+            )
+        return snapshot
 
     def _normalise_display(self, config: dict[str, Any], payload: Any) -> None:
         super()._normalise_display(config, payload)
@@ -188,12 +217,41 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
 
     def _normalise_weather(self, config: dict[str, Any], payload: Any) -> None:
         super()._normalise_weather(config, payload)
+        source = _base._object(payload)
+        observations_payload = source.get("observations")
+        if observations_payload is not None:
+            if not isinstance(observations_payload, dict):
+                raise ValueError("Weather observation settings must be a JSON object.")
+            updated, _normalised = submitted_observation_config(
+                config,
+                observations_payload,
+            )
+            config.clear()
+            config.update(updated)
+
         weather = _base._object(config.get("weather"))
         slot_count = _clock_card_slot_count(weather.get("clock_cards"))
         if slot_count > _MAX_CLOCK_CARD_SLOTS:
             raise ValueError(
                 f"Clock weather cards support at most {_MAX_CLOCK_CARD_SLOTS} displayed slots."
             )
+
+    def apply(self, payload: Any) -> dict[str, Any]:
+        before_observations = public_observation_config(self._load_config())
+        result = super().apply(payload)
+        after_observations = public_observation_config(self._load_config())
+        observations_changed = before_observations != after_observations
+
+        changed = result.setdefault("changed", {})
+        changed["weather_observations_refreshed"] = observations_changed
+        if observations_changed and self._observations is not None:
+            self._observations.wake()
+            result.setdefault("status", {})["weather_observations"] = (
+                self._observations.refresh(
+                    force=after_observations.get("provider") == "weather_underground"
+                )
+            )
+        return result
 
 
 register_unified_settings_api = _base.register_unified_settings_api
