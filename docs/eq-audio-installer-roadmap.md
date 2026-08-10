@@ -129,11 +129,13 @@ CI caught only test/fixture and mode-boundary defects while building this owner,
 
 Finally, both `airplay-hooks` and `airplay-metadata` component records/read-only adapter output now point at the shared guarded owner while root `install.sh` still does **not** invoke it. **Tests #3072 / run `31426194328` — PASS** at `9847c2e` after that ownership promotion.
 
-#### Phase 7 checkpoint #13 — guarded top-level apply boundary — **SOURCE LANDED; CI PENDING**
+#### Phase 7 checkpoint #13 — guarded top-level apply boundary — **PASS**
 
 Root `install.sh` now accepts `--apply --confirm APPLY-A-CLOCKWORK-PLEX` but remains deliberately non-mutating. Missing or wrong confirmation is rejected before package/host gates; EQ apply additionally requires the verified CamillaDSP path. A confirmed apply repeats the selected `scripts/check-appliance-packages.sh` and `scripts/preflight-appliance.sh` gates, loads/verifies the whole-appliance transaction primitives, but does **not** call `acp_transaction_begin` and does not invoke any specialist `--activate` path. If both read-only gates pass it exits fail-closed with code 3 and `MUTATION_BLOCKED=PACKAGE-WEATHER-DASHBOARD-STAGES-INCOMPLETE`.
 
-`tests/test_root_installer_apply_gate.py` covers default plan-only behaviour, missing/wrong confirmation, confirmed Direct gate execution followed by the deliberate mutation block, confirmation misuse, EQ CamillaDSP input enforcement, help text and static non-invocation of the guarded specialist owners. Commits `0ad1c49` and `64ab63b` contain the implementation and regression coverage. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
+`tests/test_root_installer_apply_gate.py` covers default plan-only behaviour, missing/wrong confirmation, confirmed Direct gate execution followed by the deliberate mutation block, confirmation misuse, EQ CamillaDSP input enforcement, help text and static non-invocation of the guarded specialist owners. Commits `0ad1c49` and `64ab63b` contain the implementation and regression coverage.
+
+The first normal PR run, **Tests #3081 / run `31443722305`**, passed compilation and shell/JS wiring but failed one stale existing unit assertion that still expected the old `--apply is not implemented yet` refusal. The production code and new guarded-apply tests were not the failure. `tests/test_full_installer_plan.py` was updated at `f424479` to assert the new explicit-confirmation boundary instead. **Tests #3083 / run `31443831762` — PASS** at `f424479`, including unit tests and all earlier workflow steps. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
 
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
@@ -152,12 +154,11 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Let normal PR Tests validate checkpoint #13; fix only genuine current-workflow failures, not obsolete self-mutating Phase 2 workflows.
-2. Define root-owned package/venv/`requirements.txt` mutation and rollback policy before allowing package mutation or beginning the outer transaction.
-3. Apply observation-provider config/secret reference safely while retaining Open-Meteo forecast configuration.
-4. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
-5. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
-6. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
+1. Define root-owned package/venv/`requirements.txt` mutation and explicit rollback policy before allowing package mutation or beginning the outer application transaction.
+2. Apply observation-provider config/secret reference safely while retaining Open-Meteo forecast configuration.
+3. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
+4. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
+5. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
 
 No local weather caching/fan-out server is part of the design.
 
