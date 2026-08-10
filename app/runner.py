@@ -105,6 +105,7 @@ unified_settings = UnifiedSettingsService(
     alarm_scheduler=dashboard.alarm_scheduler,
     alarm_audio=dashboard.alarm_audio,
     screen_idle_mode=screen_projection.set_idle_return_mode,
+    observations=weather_observations,
 )
 register_unified_settings_api(app, unified_settings)
 
