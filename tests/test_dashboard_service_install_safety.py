@@ -28,6 +28,18 @@ class DashboardServiceInstallSafetyTests(unittest.TestCase):
         self.assertIn('CONFIRM_TOKEN="INSTALL-DASHBOARD-RUNNER"', text)
         self.assertIn('if [[ "$CONFIRM" != "$CONFIRM_TOKEN" ]]', text)
 
+    def test_installer_renders_selected_project_user_and_repository_path(self):
+        text = INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("--project-user", text)
+        self.assertIn("EXPECTED_UNIT", text)
+        self.assertIn('User=$PROJECT_USER', text)
+        self.assertIn('Group=$PROJECT_USER', text)
+        self.assertIn('WorkingDirectory=$ROOT_DIR', text)
+        self.assertIn('$ROOT_DIR/venv/bin/python $ROOT_DIR/app/runner.py', text)
+        self.assertIn('cmp -s "$EXPECTED_UNIT" "$TARGET_UNIT"', text)
+        self.assertIn('systemd-analyze verify "$EXPECTED_UNIT"', text)
+        self.assertIn('0644 "$EXPECTED_UNIT" "$TARGET_UNIT"', text)
+
     def test_installer_verifies_route_and_rolls_back(self):
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn("/api/state", text)
