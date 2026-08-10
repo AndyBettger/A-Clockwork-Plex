@@ -86,6 +86,10 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("Plexamp Headless", result.stdout)
         self.assertIn("external appliance prerequisite", result.stdout)
         self.assertIn("scripts/preflight-appliance.sh", result.stdout)
+        self.assertIn(
+            "install-dashboard-service.sh --check --project-user bedroomclock",
+            result.stdout,
+        )
 
     def test_preflight_is_statically_read_only(self) -> None:
         source = PREFLIGHT.read_text(encoding="utf-8")
@@ -116,11 +120,12 @@ class AppliancePreflightTests(unittest.TestCase):
 
     def test_prerequisite_library_contains_no_activation_path(self) -> None:
         source = PREREQS.read_text(encoding="utf-8")
+        mutating = re.compile(
+            r"(?m)^\s*(?:sudo\s+)?(?:apt|apt-get|install|cp|mv|rm|chmod|chown|"
+            r"systemctl|modprobe|tee)\b"
+        )
         self.assertIn("acp_prerequisite_plan", source)
-        self.assertNotIn("systemctl", source)
-        self.assertNotIn("sudo ", source)
-        self.assertNotIn("apt ", source)
-        self.assertNotIn("install ", source)
+        self.assertIsNone(mutating.search(source))
 
 
 if __name__ == "__main__":
