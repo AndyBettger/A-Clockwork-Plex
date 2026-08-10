@@ -4,12 +4,12 @@
 **Started:** 7 August 2026  
 **Last updated:** 10 August 2026  
 **Target branch:** `feature/alarm-engine`  
-**Production state:** The bedroom Pi is back in the accepted **EQ-capable split-bus** state after a successful reinstall from the genuine post-uninstall direct baseline. The final Phase 6 reinstall ran from clean source `a824977`, with the verified CamillaDSP 4.1.3 binary SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`; the direct starting route was exact accepted pre-EQ SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, all first-install markers/helpers/backups were absent, and prepare-only made no production changes. Guarded `INSTALL-EQ-AUDIO` activation returned `INSTALL_RC=0`, recreated the uninstall baseline, loaded the accepted `snd_aloop` contract, selected split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, started CamillaDSP PID `71236`, and restored saved Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB`, bypass off, fixed `-6.5 dB` music reserve and `-1 dB` final limiter. Plexamp, AirPlay, dashboard, route and CamillaDSP are active; route/CamillaDSP units are enabled and failback is correctly static; live verification passed; Plexamp is physically audible and the EQ is physically working. Phase 6 is therefore complete. No Phase 7 source work has been deployed to the Pi; the accepted audio graph remains untouched while installer/weather integration proceeds in source and CI.  
+**Production state:** The bedroom Pi is back in the accepted **EQ-capable split-bus** state after a successful reinstall from the genuine post-uninstall direct baseline. The final Phase 6 reinstall ran from clean source `a824977`, with the verified CamillaDSP 4.1.3 binary SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`; the direct starting route was exact accepted pre-EQ SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, all first-install markers/helpers/backups were absent, and prepare-only made no production changes. Guarded `INSTALL-EQ-AUDIO` activation returned `INSTALL_RC=0`, recreated the uninstall baseline, loaded the accepted `snd_aloop` contract, selected split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, started CamillaDSP PID `71236`, and restored saved Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB`, bypass off, fixed `-6.5 dB` music reserve and `-1 dB` final limiter. Plexamp, AirPlay, dashboard, route and CamillaDSP are active; route/CamillaDSP units are enabled and failback is correctly static; live verification passed; Plexamp is physically audible and the EQ is physically working. Phase 6 is therefore complete. No Phase 7 source work has been deployed to the Pi; the accepted audio graph and current Ecowitt-push weather runtime remain untouched while installer/weather integration proceeds in source and CI.  
 **Related PR:** PR #2 remains Draft and must not be merged without explicit approval
 
 ## Purpose
 
-The split-bus EQ audio design has now been physically proven through installation, feature acceptance, reboot persistence, deliberate backend failure and automatic failback, repair, explicit uninstall, direct-only reboot, direct-only UI truthfulness and full reinstall from the genuine direct baseline. The standalone audio lifecycle component is accepted. Phase 7 now turns the repository's collection of specialist installers into one repeatable A Clockwork Plex appliance installer without reimplementing their subsystem logic. Because the intended deployment is multiple clocks, Phase 7 also expands the current weather-observation path so each appliance can obtain current station data independently without introducing a local weather fan-out/cache server. Open-Meteo remains the forecast provider.
+The split-bus EQ audio design has now been physically proven through installation, feature acceptance, reboot persistence, deliberate backend failure and automatic failback, repair, explicit uninstall, direct-only reboot, direct-only UI truthfulness and full reinstall from the genuine direct baseline. The standalone audio lifecycle component is accepted. Phase 7 now turns the repository's collection of specialist installers into one repeatable A Clockwork Plex appliance installer without reimplementing their subsystem logic. Because the intended deployment is multiple clocks, Phase 7 also expands the current weather-observation path so each appliance can obtain current station data independently without introducing a local weather fan-out/cache server. Open-Meteo remains the provider for forecast data.
 
 The supported path deliberately favours readable operations, explicit checks and straightforward rollback over the former Stage C authority/transaction framework.
 
@@ -141,15 +141,19 @@ scripts/audio/repair-audio.sh
 ## Current repository layout
 
 ```text
+install.sh
+
 installer/
 ├── lib/
 │   ├── audio.sh
 │   ├── common.sh
+│   ├── direct_audio.sh
 │   ├── runtime.sh
 │   ├── services.sh
 │   └── verification.sh
 └── profiles/
     ├── direct/
+    │   └── alarm-safe.conf
     └── eq-split-bus/
 
 scripts/audio/
@@ -166,7 +170,7 @@ scripts/audio_eq_camilladsp/
 └── cli.py
 ```
 
-The standalone audio commands will later become the tested audio component called by the full installer rather than being rewritten.
+The standalone audio commands will become the tested EQ-capable component called by the full installer rather than being rewritten. The Direct profile now has a separate read-only Phase 7 component boundary built from the already-proven alarm-safe route; activation remains intentionally blocked until its fresh-install ownership and rollback contract are complete.
 
 The installed EQ-helper package lives at:
 
@@ -658,16 +662,19 @@ This completes the complete install → reboot → failure/failback → repair �
 - [x] Establish root `install.sh` as a **read-only plan-only** top-level installer skeleton; activation remains deliberately blocked.
 - [x] Expose plan-time Direct audio / EQ-capable audio selection.
 - [x] Expose a plan-time non-interactive profile argument for repeatable multi-appliance builds.
-- [ ] Define the supported Direct-audio component boundary without promoting legacy `scripts/install-shared-audio.sh` into a competing audio authority.
+- [x] Define the supported alarm-safe Direct-audio component boundary without promoting legacy `scripts/install-shared-audio.sh` into a competing audio authority.
+- [ ] Generalise/bridge the EQ first-install baseline so a fresh appliance can transition from the alarm-safe Direct route without weakening the existing Phase 6 rollback contract.
 - [ ] Call the tested standalone `scripts/audio/*` component for EQ-capable activation/verification rather than reimplementing it.
 - [ ] Hide or truthfully disable EQ controls for a direct-only installation.
 - [ ] Apply saved active/bypassed state for EQ-capable installs.
 - [x] Preserve Open-Meteo as the independent forecast provider while adding observation-provider selection to the installer plan.
 - [x] Add Weather Underground PWS configuration/URL/mapping foundation with the API key referenced outside `config.json`.
-- [ ] Implement an owned Weather Underground observation polling service while retaining the current Ecowitt-push path.
-- [ ] Route both observation providers through one dashboard storage/history function so they cannot become competing state owners.
-- [ ] Add observation-provider configuration/status to unified Settings without exposing API secrets.
-- [ ] Inspect a real Weather Underground history response and accept or reject pressure-history bootstrap semantics; never fabricate historical pressure points.
+- [x] Implement an owned Weather Underground observation polling service while retaining the current Ecowitt-push path.
+- [x] Route both observation providers through one dashboard storage/history function so they cannot become competing state owners.
+- [x] Add observation-provider configuration/status to unified Settings without exposing API secrets.
+- [ ] Add browser Settings controls for observation-provider choice/station/timings without adding a browser API-key field.
+- [x] Review the documented Weather Underground history pressure schema and reject aggregate/range fields as fake instantaneous barometer history.
+- [ ] Inspect a real station current/history response before live-provider acceptance; do not reinterpret aggregate fields merely to prefill the barometer.
 - [ ] Add fresh-Pi prerequisites, package/artifact handling and appliance-level post-install verification.
 - [ ] Exercise both audio profiles and both observation profiles in non-production integration tests before guarded full-installer activation.
 
@@ -679,13 +686,41 @@ Root `install.sh` now exists in plan-only form. It accepts `--audio direct|eq`, 
 
 Multi-appliance weather requirements are recorded in [`full-appliance-installer-design.md`](full-appliance-installer-design.md). The existing Ecowitt custom-push provider remains the default so the current clock does not change behaviour. Weather Underground PWS is selected as the first remote observation provider because it allows each clock to pull the station's current observations independently. Open-Meteo remains unchanged as the forecast source. No new local weather fan-out/cache server is introduced.
 
-`app/weather_observations.py` now provides the non-runtime foundation: provider/config normalisation, validation, Weather Underground current/recent-history URL construction, and mapping of available current PWS fields into the dashboard's established weather keys. The real API key is referenced by environment-variable name rather than stored in `config.json`. `config.example.json` documents the new provider settings. This foundation is not yet wired into `runner.py`, unified Settings or the live weather state, so the bedroom Pi's observation path is unchanged.
-
-Pressure-history bootstrap remains deliberately unclaimed. The dashboard already keeps local pressure history and uses a roughly three-hour comparison for the barometer; a remote provider can continue building that history from current polls. Weather Underground exposes recent rapid/hourly PWS history, but the documented pressure values are aggregate/range/trend fields rather than an obviously equivalent instantaneous reading. A real station response will be inspected before deciding whether several historical hours can be seeded truthfully. If not, the barometer will warm up from locally accumulated polls rather than invent data.
+`app/weather_observations.py` initially established the provider/config normalisation, validation, Weather Underground current/recent-history URL construction and mapping foundation. The real API key is referenced by environment-variable name rather than stored in `config.json`. `config.example.json` documents the provider settings.
 
 GitHub Actions **Tests #2885 / run 31348189281** passed compilation, JavaScript/page wiring/shell syntax and the complete unit suite at source checkpoint `a1eb6b4`.
 
-**Exit condition:** In progress. The top-level plan and remote-observation foundation exist, but no full-appliance activation path or live Weather Underground polling has been enabled yet.
+#### Phase 7 source checkpoint #2 — owned observation runtime and shared state authority
+
+The Weather Underground foundation is now promoted into one owned remote observation service while retaining Ecowitt push as the passive/default mode. `WeatherObservationService` polls only when `weather.provider=weather_underground`, reads the configured API-key environment variable at runtime, bounds its poll/stale/timeout settings, reports provider health without exposing the secret/request URL, and is started/stopped by `app/runner.py` alongside the independent Open-Meteo forecast service.
+
+The Weather Underground current mapper now sends imperial pressure to the dashboard's existing `baromrelin` key. That is deliberate: the existing display and pressure-history code already treats `baromrelin` as inHg, so the same real PWS pressure reading feeds both display conversion and barometer history correctly instead of disappearing behind an unrecognised provisional key.
+
+`app/weather_observation_store.py` is now the single production writer for current observation state, receipt time, daily extremes and pressure history. The existing `/api/weather/ecowitt` route is promoted at composition time to use this same store without changing its public URL/response contract; the remote poller writes through the same function. This removes the risk of Ecowitt and Weather Underground becoming competing state owners. The store also strips empty/sensitive fields before persistence.
+
+Unified Settings now has a backend observation-provider transaction/status contract. It can persist the selected provider, Weather Underground station ID, environment-variable name and bounded timing fields, wake/refresh the owned service when settings change, and deliberately rejects attempts to submit API keys/passwords/tokens/secrets through normal Settings. Browser controls have not yet been added, so this is backend authority first rather than a second browser-specific config path.
+
+The documented Weather Underground PWS recent-history schemas were reviewed before writing any pressure bootstrap. The documented historical pressure fields are aggregate/range/trend values rather than the same instantaneous `pressure` field returned by current observations. Phase 7 therefore rejects fabricating instantaneous historical samples from those aggregates. Normal reboots already retain local `state.json` pressure history; a genuinely empty/new installation will accumulate real current observations unless a later real station payload proves a stronger history field contract.
+
+CI checkpoints:
+
+- Weather Underground service/mapping: **Tests #2891 / run 31349111589 — PASS**;
+- shared Ecowitt/WU observation store and runner ownership: **Tests #2903 / run 31349260055 — PASS**;
+- unified Settings backend observation contract: **Tests #2911 / run 31349402818 — PASS**.
+
+No part of this checkpoint has been deployed to the bedroom Pi, so its current Ecowitt push path and accepted Open-Meteo forecast remain physically unchanged.
+
+#### Phase 7 source checkpoint #3 — first-class alarm-safe Direct profile
+
+Review of the historical direct route exposed an important distinction that the future multi-appliance installer must not hide. Exact Phase 6 uninstall baseline SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` is the route produced by the old `scripts/install-shared-audio.sh`; in that historical route `acp_alarm_volume` feeds `acp_master`. It is still the correct exact rollback target for the already-proven bedroom-Pi Phase 6 lifecycle, but it does not satisfy the settled fresh-appliance requirement that alarms bypass Music Master.
+
+The first-class Direct profile therefore uses the already physically proven direct alarm-safe route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, now materialised exactly as `installer/profiles/direct/alarm-safe.conf`. Plexamp/AirPlay trims feed Music Master and then the DAC-facing dmix; the alarm fader feeds that dmix independently and therefore bypasses Music Master. `installer/lib/direct_audio.sh` is deliberately read-only at this stage: it validates the exact profile checksum and reports the ownership/plan but has no activation path.
+
+This review also exposed the next audio-integration gate. The accepted standalone EQ first-install path currently validates historical SHA `08d00093...` as its expected direct baseline, while a fresh full appliance should begin from alarm-safe Direct SHA `654ff170...`. The full installer must generalise or bridge that baseline contract under non-production tests without weakening the existing exact rollback guarantee for the current installed appliance.
+
+The first Direct-profile CI run, **Tests #2919 / run 31349560141**, exposed three test-only/wording regressions: one new read-only test used an over-broad substring check and two existing plan assertions expected established explanatory text. No runtime or audio defect was involved. The test was made command-aware and the established plan wording restored. **Tests #2927 / run 31349811843 then passed compilation, JavaScript/page wiring/shell syntax and the complete unit suite at source head `2f9fd7f`.**
+
+**Exit condition:** In progress. The observation runtime/backend authority and alarm-safe Direct plan exist and are green, but browser observation controls, the fresh-EQ baseline bridge, remaining prerequisite/check adapters, full 2×2 integration testing and guarded activation are still pending.
 
 ### Phase 8 — cleanup and release preparation
 
@@ -712,23 +747,21 @@ GitHub Actions **Tests #2885 / run 31348189281** passed compilation, JavaScript/
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
 | 6. Failure/reboot/uninstall acceptance | Complete | Full real-Pi lifecycle PASS including corrected failback, exact uninstall/direct reboot and saved-state reinstall |
-| 7. Full appliance installer integration | In progress | Plan-only top-level installer + WU observation foundation landed; live orchestration/provider wiring next |
+| 7. Full appliance installer integration | In progress | WU runtime/shared state/backend Settings + alarm-safe Direct plan landed; browser Settings and fresh-EQ baseline bridge next |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Phase 7 source head `a1eb6b4` contains only installer/weather foundation and documentation; nothing in this checkpoint requires a production audio or weather mutation.
+The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 source work through `2f9fd7f` is source/CI-only and does not require a production audio or weather mutation.
 
 Next source work should:
 
-1. define the supported Direct-audio component boundary and ownership of the shared mixer prerequisites;
-2. turn the component inventory into explicit check/plan adapters so the root installer can report one coherent fresh-Pi plan without invoking mutation;
-3. implement `WeatherObservationService` using the same owned background-service pattern as `WeatherForecastService`, active only when `weather.provider=weather_underground`;
-4. extract one dashboard observation-storage function used by both Ecowitt push and remote polling so weather state, daily extremes and pressure history have one writer contract;
-5. add unified Settings provider selection and public health while keeping the Weather Underground API key outside normal config/status payloads;
-6. obtain the actual Weather Underground station ID/API key only when a live provider test is ready, then inspect current/history payload semantics before implementing pressure-history bootstrap;
-7. keep Open-Meteo forecast behaviour unchanged throughout;
-8. add guarded full-installer activation only after both audio and weather profile combinations pass non-production integration tests.
+1. add the browser Settings presentation for observation-provider selection, station ID and timing controls while keeping API-key material completely outside the browser/unified-settings payload;
+2. generalise the accepted EQ first-install baseline contract so a fresh appliance can transition safely from alarm-safe Direct SHA `654ff170...` without weakening the existing physical Phase 6 rollback guarantee tied to `08d00093...`;
+3. turn the remaining application/service/helper inventory into explicit check/plan adapters so the root installer can produce one coherent fresh-Pi prerequisite report without mutation;
+4. add fresh-Pi package/user/hardware prerequisites and an appliance-level verifier;
+5. exercise Direct/EQ × Ecowitt/WU combinations under non-production roots/mocks before adding any top-level `--apply` path;
+6. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
 
 No new local weather caching/fan-out server is part of the design.
 
