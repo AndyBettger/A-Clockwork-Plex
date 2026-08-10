@@ -1,826 +1,184 @@
-# EQ-capable audio installer roadmap
+# EQ-capable Audio + Full Appliance Installer Roadmap
 
-**Status:** Active roadmap — Phase 6 is complete; Phase 7 full-appliance installer integration is in progress  
-**Started:** 7 August 2026  
 **Last updated:** 10 August 2026  
-**Target branch:** `feature/alarm-engine`  
-**Production state:** The bedroom Pi is back in the accepted **EQ-capable split-bus** state after a successful reinstall from the genuine post-uninstall direct baseline. The final Phase 6 reinstall ran from clean source `a824977`, with the verified CamillaDSP 4.1.3 binary SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`; the direct starting route was exact accepted pre-EQ SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, all first-install markers/helpers/backups were absent, and prepare-only made no production changes. Guarded `INSTALL-EQ-AUDIO` activation returned `INSTALL_RC=0`, recreated the uninstall baseline, loaded the accepted `snd_aloop` contract, selected split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, started CamillaDSP PID `71236`, and restored saved Bass `+2 dB` / Mid `0 dB` / Treble `+2 dB`, bypass off, fixed `-6.5 dB` music reserve and `-1 dB` final limiter. Plexamp, AirPlay, dashboard, route and CamillaDSP are active; route/CamillaDSP units are enabled and failback is correctly static; live verification passed; Plexamp is physically audible and the EQ is physically working. Phase 6 is therefore complete. No Phase 7 source work has been deployed to the Pi; the accepted audio graph and current Ecowitt-push weather runtime remain untouched while installer/weather integration proceeds in source and CI.  
-**Related PR:** PR #2 remains Draft and must not be merged without explicit approval
+**Branch:** `feature/alarm-engine`  
+**PR:** #2 — must remain Draft/open/unmerged until explicit owner approval.
 
-## Purpose
+## Historical evidence
 
-The split-bus EQ audio design has now been physically proven through installation, feature acceptance, reboot persistence, deliberate backend failure and automatic failback, repair, explicit uninstall, direct-only reboot, direct-only UI truthfulness and full reinstall from the genuine direct baseline. The standalone audio lifecycle component is accepted. Phase 7 now turns the repository's collection of specialist installers into one repeatable A Clockwork Plex appliance installer without reimplementing their subsystem logic. Because the intended deployment is multiple clocks, Phase 7 also expands the current weather-observation path so each appliance can obtain current station data independently without introducing a local weather fan-out/cache server. Open-Meteo remains the provider for forecast data.
+The exact detailed roadmap that carried the project from the pre-EQ baseline through Phase 7 source checkpoint #6 is preserved verbatim at:
 
-The supported path deliberately favours readable operations, explicit checks and straightforward rollback over the former Stage C authority/transaction framework.
+`docs/eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md`
 
-## Settled design
+That archive retains the detailed physical Phase 4–6 acceptance evidence, Stage C history, failure journals, checksums, CI checkpoints and prior decision trail. This active file is now the current implementation/acceptance authority so routine roadmap maintenance remains readable; the archive is historical evidence and should not be edited to rewrite past results.
 
-### Audio graph
+## Settled invariants
 
-```text
-Plexamp player volume -> Plexamp trim --\
-                                         +-> Music Master -> fixed EQ reserve -> tone controls --\
-AirPlay sender volume -> AirPlay trim ---/                                                      \
-                                                                                                  +-> final limiter -> DAC
-Alarm start/target/fade -> Maximum Alarm Volume -----------------------------------------------/
-```
+### Audio semantics
 
-The alarm lane bypasses Music Master, the permanent music-EQ reserve and the music tone controls, then joins the music lane before the final limiter.
+- Scheduled alarms **bypass Music Master**.
+- Visible copy must never imply Music Master affects alarm audio.
+- EQ-capable music path: Plexamp/AirPlay → source trims → Music Master → fixed `-6.5 dB` reserve → Bass/Mid/Treble → final limiter → DAC.
+- Alarm path: per-alarm target/fade → **Maximum Alarm Volume** → joins after music reserve/tone processing → final limiter → DAC.
+- Direct fresh-appliance audio preserves the same ownership principle: Plexamp/AirPlay remain under Music Master while alarm joins the DAC-facing mix independently.
+- Presentation-only Settings changes must not alter runtime/audio routing.
 
-### Install-time audio profiles
+### Accepted identities
 
-The future full installer will expose two audio capabilities:
-
-- **Direct audio** — Plexamp, AirPlay and alarm playback without CamillaDSP EQ.
-- **EQ-capable audio** — the split-bus route with CamillaDSP, music-only EQ and direct alarm bypass.
-
-This is an installation choice, not the everyday EQ on/off setting.
-
-### Runtime EQ enable and disable
-
-When EQ-capable audio is installed, Plexamp and AirPlay stay mapped to the split-bus PCMs whether EQ is enabled or bypassed.
-
-- **EQ enabled:** stored Bass, Mid and Treble values are applied after the fixed music-lane reserve.
-- **EQ disabled:** CamillaDSP bypasses only the Bass/Mid/Treble tone stage while preserving the stored curve and fixed music-lane reserve.
-- **Return to neutral:** deliberately sets all three bands to `0 dB` while leaving the fixed reserve in place.
-
-Everyday bypass must not remap ALSA devices, restart source services or select another route. While bypassed, the Settings and drawer controls remain visible but are greyed and locked.
-
-#### Fixed music-lane headroom refinement — physical PASS
-
-Physical Plexamp and AirPlay A/B tests exposed a usability problem with the original dynamic-headroom implementation: a positive tone boost added attenuation at the same time as it changed tonal balance, and bypass removed that attenuation at the same time as it flattened the EQ. The result was a conspicuous loudness jump whenever a positive tone control was introduced or bypassed.
-
-The accepted replacement design reserves the worst-case EQ headroom permanently on the music lane:
-
-```text
-Plexamp / AirPlay
-        ↓
-Music Master
-        ↓
-fixed -6.5 dB EQ preamp/headroom reserve   (always active)
-        ↓
-Bass / Mid / Treble                         (bypassable)
-        ↓
-mix with alarm
-        ↓
--1 dB final limiter
-```
-
-The `-6.5 dB` value is the existing maximum `+6 dB` band boost plus the existing `0.5 dB` safety margin. Under this model Neutral and Bypass stay at the same base level; bypass defeats only Bass/Mid/Treble and does not remove the fixed reserve. This is the digital equivalent of provisioning tone-control headroom rather than changing the apparent master level whenever a tone control is moved.
-
-The trade-off is that the EQ-capable music lane has `6.5 dB` less maximum digital level even at neutral. The bedroom system uses a separate analogue amplifier, so normal physical listening gain can be established there while preserving conservative digital headroom. Physical testing confirmed that Music Master at `100%` still provides ample usable output with the reserve in place, so this trade-off is accepted.
-
-Implementation checkpoint:
-
-- `scripts/audio_eq_camilladsp/model.py` defines `FIXED_MUSIC_HEADROOM_DB = -6.5` and always renders that reserve on music channels 0/1;
-- the CamillaDSP pipeline has a permanently enabled `[headroom]` filter followed by a separately bypassable `[bass, mid, treble]` filter stage;
-- bypass preserves the actual saved tone-filter gains in the configuration instead of simulating bypass by rewriting them to zero;
-- `runtime.py` reports `headroom_db=-6.5` whenever the EQ-capable backend is actually available, including Neutral and Bypass, but reports `0.0` when the backend is unavailable/direct-failback because the reserve is then physically absent;
-- the static installer neutral profile mirrors the same pipeline so future install/repair does not regress to the dynamic model;
-- dedicated tests protect fixed headroom at neutral/boost/cut/bypass, real tone-stage bypass, alarm-after-music processing order and truthful direct-failback reporting.
-
-Source head `7555b8186355cddc214fe5e08908fa79ff8fd6c4` passed GitHub Actions **#2767 / run 31234727079**: compilation PASS, JavaScript/page-wiring/shell-syntax PASS, and **1,353/1,353 unit tests PASS**.
-
-The live bedroom Pi then received only `__init__.py`, `model.py` and `runtime.py` into the installed helper package. With Plexamp actively audible, EQ already bypassed and saved Bass `+6.0 dB`, `a-clockwork-plex-audio-eq bypass on` reloaded the new graph in place. Playback remained continuous and the expected one-off broad level reduction was heard as the permanent reserve entered the music path. The helper reported `headroom_db=-6.5`, `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active`, final limiter `-1.0 dB`, and unchanged CamillaDSP PID `1543417`.
-
-The saved curve was then restored in place. Playback remained continuous and the Bass boost became immediately and more clearly audible because the overall music level no longer moved with it. The helper reported Bass stored/applied/effective `+6.0 dB`, `bypassed=false`, fixed `headroom_db=-6.5`, config SHA `2ee27d5fb13c0a087704f197cb0c3420cb453cc15f94c9fa5902a40584ac600f`, route/backend `split-bus-active`, final limiter `-1.0 dB`, and unchanged PID `1543417`.
-
-Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad loudness rise. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
-
-This physically accepts the fixed-headroom refinement in both directions: the tone stage changes tonal balance while the permanent reserve remains stable, so everyday EQ A/B no longer introduces the distracting repeated `6.5 dB` master-level jump.
-
-### Alarm loudness, limiter and hardware commissioning
-
-The alarm lane intentionally bypasses the music-lane `-6.5 dB` reserve as well as Music Master and the tone controls. That independence is required and is physically accepted.
-
-Maximum Alarm Volume has already been proven as a genuine persistent global ceiling after each alarm's target and fade: with the same `50%` per-alarm target, `15%` was audibly quieter than `22%`. No additional code calibration is required. Choosing the final fader position for the eventual amplifier/speaker combination is normal hardware commissioning and can be repeated whenever the analogue system changes; it is not a blocker for software acceptance.
-
-The final `-1 dB` limiter protects against digital clipping at the combined output. Stage A objectively stressed simultaneous music and alarm content and measured the final output at exactly `-1.000 dBFS`, proving that the limiter protects the post-mix output. There is therefore no requirement to reproduce a deliberately loud combined-output stress test through the bedroom speakers.
-
-The limiter cannot protect a loudspeaker from excessive analogue amplifier power, so sensible amplifier gain and Maximum Alarm Volume commissioning still matter on whatever final hardware is chosen.
-
-### Deferred Plexamp high-resolution / variable-rate investigation
-
-Native or near-native Plexamp playback is explicitly deferred until the current installer roadmap is complete. The later investigation should start from Plexamp's existing strict sample-rate matching and CamillaDSP's sample-format/resampling capabilities rather than assuming that the only solution is a separate raw-DAC bypass mode.
-
-The promising direction is to investigate whether the Plexamp lane can negotiate or follow source sample rate/bit depth while AirPlay remains on a fixed `44.1 kHz / 16-bit` lane for podcasts/audiobooks, with CamillaDSP converting/mixing only where required and the DAC operating at the appropriate resulting rate. The Raspberry Pi DAC Pro is expected to support high-resolution rates up to its hardware/driver limits, but no bit-perfect or native-rate claim is accepted until the real end-to-end path is measured and verified.
-
-This is a future enhancement only and must not block Phase 6–8 completion.
-
-### Failure behaviour
-
-Everyday EQ bypass is not failback. Automatic failback is reserved for a genuine backend failure, such as CamillaDSP failing to start or the expected PCMs becoming unavailable. The appliance must then return to the known-good direct alarm-safe route, restore affected application services and report that the EQ backend is unavailable.
-
-The first physical failure-injection attempt proved that combining `Restart=on-failure` with `OnFailure=a-clockwork-plex-audio-failback.service` races an automatic CamillaDSP restart against direct failback. It also proved that placing `Before=plexamp.service shairport-sync.service a-clockwork-plex.service` on the failback oneshot deadlocks the route helper's own synchronous application-restoration calls. The corrected source contract is deterministic: CamillaDSP uses `Restart=no` and `OnFailure=a-clockwork-plex-audio-failback.service`; the failback oneshot has no `Before=` relationship to Plexamp/AirPlay/dashboard and delegates the complete stop/route-switch/restore transaction to `/usr/local/bin/a-clockwork-plex-audio-route activate-direct-failback`. The route-preparation unit continues to point genuine route-preparation failures to the same failback oneshot. The repeat physical SIGKILL test passed this corrected contract end-to-end: CamillaDSP did not restart, failback completed successfully, applications were restored and usable direct audio returned automatically.
-
-## Accepted direct rollback baseline
-
-The exact pre-EQ direct baseline remains the uninstall rollback reference:
-
-- `plexamp.service`, `shairport-sync.service` and `a-clockwork-plex.service` active and enabled;
-- active direct ALSA route SHA-256 `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
-- audible Plexamp playback;
-- no supported EQ installation committed.
-
-After failed Phase 4 attempt #1, this baseline was explicitly restored and rechecked. A protected-file cleanup defect left two installer sudoers files behind; those files were verified against their exact installer-generated hashes before manual removal. The final check reported `POST_ROLLBACK_CLEANUP=PASS` with the exact direct checksum and all three application services active/enabled.
-
-`snd_aloop` remained loaded after attempt #1 but was not part of that rollback-check failure and was deliberately left unchanged rather than assuming it was introduced by the attempt.
-
-## Supported commands
-
-```text
-scripts/audio/preflight-eq.sh
-scripts/audio/install-eq.sh
-scripts/audio/uninstall-eq.sh
-scripts/audio/verify-audio.sh
-scripts/audio/repair-audio.sh
-```
-
-`preflight-eq.sh` is the read-only bedroom-Pi validation gate. The other four commands own the installed audio lifecycle. The repository scripts are currently invoked explicitly through `bash`; their tracked mode is intentionally left unchanged rather than applying local executable-bit changes.
-
-## Current repository layout
-
-```text
-install.sh
-
-installer/
-├── lib/
-│   ├── audio.sh
-│   ├── common.sh
-│   ├── components.sh
-│   ├── direct_audio.sh
-│   ├── prerequisites.sh
-│   ├── runtime.sh
-│   ├── services.sh
-│   └── verification.sh
-└── profiles/
-    ├── direct/
-    │   └── alarm-safe.conf
-    └── eq-split-bus/
-
-scripts/
-├── check-appliance-components.sh
-├── preflight-appliance.sh
-└── audio/
-    ├── preflight-eq.sh
-    ├── install-eq.sh
-    ├── uninstall-eq.sh
-    ├── verify-audio.sh
-    └── repair-audio.sh
-
-scripts/audio_eq_camilladsp/
-├── __init__.py
-├── model.py
-├── runtime.py
-└── cli.py
-```
-
-The standalone audio commands will become the tested EQ-capable component called by the full installer rather than being rewritten. The Direct profile now has a separate read-only Phase 7 component boundary built from the already-proven alarm-safe route; activation remains intentionally blocked until its fresh-install ownership and rollback contract are complete.
-
-The installed EQ-helper package lives at:
-
-```text
-/usr/local/lib/a-clockwork-plex/audio-eq/audio_eq_camilladsp/
-```
-
-and the stable launcher remains `/usr/local/bin/a-clockwork-plex-audio-eq`.
-
-## Roadmap
-
-### Phase 0 — roadmap and baseline
-
-- [x] Confirm direct audio is restored and audible.
-- [x] Confirm the retained Stage C transaction and lock are absent.
-- [x] Preserve failed Stage C evidence for diagnosis.
-- [x] Stop expanding the experimental transactional installer.
-- [x] Define DSP bypass rather than route swapping for everyday EQ disable.
-- [x] Publish and maintain this roadmap.
-
-**Exit condition:** Met.
-
-### Phase 1 — known-good artifact inventory
-
-- [x] Inventory accepted Stage A, A2, Stage B and Stage C0 artifacts.
-- [x] Identify split-bus and direct-alarm-bypass ALSA configurations.
-- [x] Identify CamillaDSP configuration, binary provenance and EQ-helper contract.
-- [x] Identify route, CamillaDSP and failback units.
-- [x] Identify persistent `snd_aloop` requirements.
-- [x] Record destinations, modes, owners and service ordering.
-- [x] Publish [`eq-audio-installation-manifest.md`](eq-audio-installation-manifest.md).
-- [x] Freeze `stage-c-terminal-install-20260806` as historical and recovery-only.
-
-**Finding:** the former `scripts/a-clockwork-plex-audio-eq.py` implementation was tied to the rejected `alsaequal` backend. The supported implementation uses CamillaDSP while preserving the dashboard command and JSON contract.
-
-**Exit condition:** Met.
-
-### Phase 2 — standalone installer implementation
-
-- [x] Materialise accepted route, CamillaDSP and loopback profiles.
-- [x] Implement the CamillaDSP EQ helper with `status`, `set`, `live`, `bypass` and `neutral`.
-- [x] Implement shared shell helpers and fixed root handling.
-- [x] Implement exact direct-route backup and validation.
-- [x] Implement managed file installation and manifests.
-- [x] Implement persistent loopback setup.
-- [x] Implement fixed route actions and route-state reporting.
-- [x] Implement systemd reload, enablement and service ordering.
-- [x] Apply saved active or bypassed EQ state.
-- [x] Implement automatic install rollback.
-- [x] Implement explicit uninstall, verification and repair.
-- [x] Preserve the original backup across repeated install/repair.
-- [x] Add runtime snapshots for failed install, repair and uninstall restoration.
-- [x] Prevent installed Python launchers from leaving bytecode cache files.
-
-**Exit condition:** Met. The implementation exists and the complete repository suite passes.
-
-### Phase 3 — non-production and read-only host validation
-
-- [x] Validate installer-library and command shell syntax.
-- [x] Exercise install, verify, repair, uninstall and reinstall under a temporary root.
-- [x] Exercise repeated install and original-backup preservation.
-- [x] Inject mid-install failure and verify exact direct-baseline restoration.
-- [x] Exercise runtime snapshot and permission handling.
-- [x] Confirm tests do not write production paths.
-- [x] Resolve the six failures exposed by the first complete repository run.
-- [x] Re-run the complete suite successfully.
-- [x] Implement standalone read-only `preflight-eq.sh`.
-- [x] Add a static safety contract proving the preflight has no privileged or audio-mutation path.
-- [x] Run the preflight on the bedroom Pi with the accepted CamillaDSP 4.1.3 binary.
-- [x] Record successful real ALSA, CamillaDSP, systemd and sudoers parser results.
-- [x] Record exact before/after production-state equality.
-
-#### Repository-validation checkpoint
-
-GitHub Actions run **31145374614** produced **1,346/1,346 passing tests**, including all six dedicated preflight safety tests. Python compilation, JavaScript/page-wiring and shell-syntax checks passed.
-
-#### Bedroom-Pi read-only validation checkpoint — PASS
-
-The read-only bedroom-Pi validation gate ran from exact source commit `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534` while normal direct Plexamp audio remained active.
-
-Results:
-
-- exact direct baseline — PASS;
-- CamillaDSP 4.1.3 binary/version/SHA — PASS;
-- split route isolated `aplay -L` parse — PASS;
-- direct route isolated `aplay -L` parse — PASS;
-- reviewed and rendered neutral CamillaDSP `--check` — PASS;
-- restricted sudoers `visudo` validation — PASS;
-- three units in private systemd model — PASS;
-- exact before/after production-state equality — PASS;
-- final marker `EQ_AUDIO_READ_ONLY_PREFLIGHT=PASS`.
-
-Evidence remains at `/var/tmp/a-clockwork-plex-eq-preflight.KztFun`.
-
-No production file, route, module, mixer control, PCM or service was changed. No bedroom-Pi installation was performed by the preflight.
-
-**Exit condition:** Met.
-
-### Phase 4 — controlled bedroom-Pi installation
-
-**Goal:** Install the EQ-capable backend once on the current appliance.
-
-#### Attempt #1 — audio graph PASS; installer bookkeeping FAIL; direct rollback PASS
-
-Source commit: `9757006c2f1987b2a4c93a88f5a5bbd7cc3dc534`.
-
-The live appliance reached healthy `split-bus-active`, CamillaDSP was running, loopback matched the accepted contract, all three application services returned and manual Plexamp playback was audible. Installation then failed because protected `/etc/sudoers.d` files were inspected through an unprivileged existence/hash path.
-
-Manifest/verifier inspection was corrected in commit `c3682ac9727d1373ab3813c93fd412531f861af3`; rollback removal of protected files was corrected in commit `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2`. GitHub Actions run **31154999148** passed the latter correction and regression test.
-
-The direct baseline and protected-file cleanup were then rechecked manually with `POST_ROLLBACK_CLEANUP=PASS`.
-
-#### Attempt #2 — PASS
-
-Source commit: `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2`.
-
-The retry began with Plexamp actively playing and audible. During the controlled handover:
-
-- Plexamp audio silenced at the same time as the dashboard/interface disappeared;
-- Plexamp, AirPlay and dashboard services were intentionally quiesced for DAC handover;
-- the interface returned with Plexamp paused;
-- manual Play then produced audible Plexamp audio through the installed split-bus route.
-
-Installer/live-verifier results:
-
-- `ok: true`;
-- effective mode `split-bus-active`;
-- active route matches split profile;
-- active split-route SHA-256 `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
-- active CamillaDSP configuration SHA-256 `52feaf6e97624b067811d0e440355d42f0e97d5585192cae5a25ac7d67d107ae` for the original dynamic-headroom neutral profile;
-- CamillaDSP running with live PID `1543417` for the observed acceptance run;
-- `snd_aloop` present and correct: index `7`, id `ACP_Loopback`, `pcm_substreams=2`, `pcm_notify=1`;
-- `plexamp.service` active/enabled;
-- `shairport-sync.service` active/enabled;
-- `a-clockwork-plex.service` active/enabled;
-- `a-clockwork-plex-audio-route.service` active/enabled;
-- `a-clockwork-plex-camilladsp.service` active/enabled;
-- failback service available and inactive during healthy split-bus operation;
-- installed marker present;
-- installer verifier reported `EQ-capable audio verification passed.`;
-- installer reported `EQ-capable audio profile installed successfully.`;
-- audible Plexamp playback manually confirmed after pressing Play.
-
-- [x] Recheck accepted direct baseline after attempt #1.
-- [x] Capture the exact pre-EQ backup for the corrected retry.
-- [x] Install and start the EQ-capable graph from corrected commit `3c17b7fba115e95e7e419c48edbfe8cc3ee512f2`.
-- [x] Restore Plexamp, AirPlay and dashboard availability.
-- [x] Verify public route/backend/service state through the live installer verifier.
-- [x] Verify audible Plexamp playback through the persistent split-bus route.
-- [x] Record both live attempts and their outcomes.
-
-**Exit condition:** Met. The corrected installer reports success and Plexamp is audible through the persistent split-bus route.
-
-### Phase 5 — feature and interface acceptance
-
-**Goal:** Test the installed user-facing feature rather than the deployment framework.
-
-- [x] Plexamp plays audibly through the EQ-capable split-bus route.
-- [x] Verify installed EQ-helper backend state is available, configured and truthful.
-- [x] Unprivileged installed `status` reports the same authoritative saved EQ state as the elevated restricted-sudo status path. *(Physical PASS after privilege-delegation fix.)*
-- [x] Confirm the dashboard/API surfaces the same truthful EQ state.
-- [x] Bass control is audibly distinct, persists the requested value and reports the applied value correctly.
-- [x] Mid control is audibly distinct, persists the requested value and reports the applied value correctly.
-- [x] Treble control is audibly distinct, persists the requested value and reports the applied value correctly.
-- [x] AirPlay plays through the same music EQ lane.
-- [x] AirPlay/Plexamp takeover and return still work. *(Plexamp → AirPlay takeover pauses Plexamp; genuine AirPlay disconnect releases ownership cleanly and leaves Plexamp paused at the takeover position, ready for deliberate manual resume.)*
-- [x] EQ disable uses bypass without route remapping.
-- [x] Stored values survive bypass and return when enabled.
-- [x] Controls are greyed and locked while bypassed. *(Mixer overlay and Settings subpage physical PASS.)*
-- [x] Return to neutral sets all bands to `0 dB`.
-- [x] Fixed `-6.5 dB` music-lane pre-EQ reserve is physically accepted for level consistency. *(Source/CI, surgical deployment and Restore/Bypass A/B all PASS.)*
-- [x] Music Master at 100% remains adequately loud with the permanent reserve.
-- [x] Music Master at 0% silences Plexamp and AirPlay.
-- [x] Music Master at 0% does not reduce a real scheduled alarm.
-- [x] EQ and bypass do not alter alarm tone or level.
-- [x] Maximum Alarm Volume still caps scheduled alarms.
-- [x] Output Levels wording and fader presentation accurately represent Music Master, source trims and Maximum Alarm Volume. *(Physical PASS at 1024×600; final layout refinement commit `1cc797b0e90d449dedbc8d5d91f9c5de4bda7c5e`.)*
-- [x] NFC playback still launches the correct Plexamp content and Plexamp's own playback controls remain normal. *(The earlier “dashboard controls” wording was corrected because the dashboard does not expose Plexamp transport controls.)*
-- [x] Maximum Alarm Volume requires no further software calibration: the ceiling behaviour is physically proven, while the eventual fader position is hardware commissioning for the chosen analogue amplifier and speakers.
-- [x] The final limiter protects combined music and alarm playback. *(Stage A measured the deliberately overdriven combined output at exactly `-1.000 dBFS`.)*
-- [x] Future amplifier/speaker alarm-volume commissioning is tracked as a hardware setup task rather than a Phase 5 software gate.
-
-#### Initial EQ status — PASS
-
-With Plexamp actively playing, the installed helper reported the expected original neutral post-install state: backend/route `split-bus-active`, selected route `split-bus-selected`, all three bands at `0.0 dB`, EQ not bypassed, original dynamic headroom `0.0 dB`, final limiter `-1.0 dB`, and CamillaDSP PID `1543417`.
-
-#### Bass / Mid / Treble live EQ A/B — PASS
-
-Each band was exercised independently through a deliberately obvious `+6 dB` / `-6 dB` swing while Plexamp remained playing. The helper reported the requested stored/applied/effective values correctly, the route and CamillaDSP PID remained stable, and manual listening clearly confirmed the expected tonal changes. Each band was subsequently returned to neutral. These tests physically accepted all three live controls and their state reporting.
-
-#### Everyday bypass/restore — PASS
-
-A deliberately obvious saved Bass `+6.0 dB` curve was bypassed and restored with playback continuous. Bypass preserved the saved curve while setting the tone stage's applied/effective values to zero and did not remap the ALSA route. Restore immediately brought the saved tonal curve back. The later fixed-headroom refinement removed the original distracting broad-level jump while preserving those bypass semantics.
-
-#### Fixed-reserve deployment and level-consistency A/B — physical PASS
-
-The live helper package was surgically updated while Plexamp remained actively audible. No ALSA route, Plexamp service, AirPlay service or dashboard service was remapped/restarted. The pre-existing bypassed state with saved Bass `+6.0 dB` was reapplied through the installed helper so CamillaDSP could reload the fixed-headroom graph in place.
-
-Plexamp playback remained continuous. The expected one-time broad level reduction was audible as the permanent `-6.5 dB` music reserve first entered the path. Restore then reapplied the saved Bass `+6.0 dB` curve without a broad level jump, and a final bypass removed the Bass boost without the previous broad loudness rise. Route/backend stayed `split-bus-active`, the final limiter remained `-1.0 dB`, and CamillaDSP remained on PID `1543417` throughout.
-
-This completes physical acceptance of the permanent music headroom design. Everyday EQ Bypass/Restore now changes tone without also moving the broad music level, while the safety reserve remains continuously available for the maximum `+6 dB` tone boost.
-
-#### Music Master maximum-level acceptance — physical PASS
-
-The fixed-reserve system was exercised with Music Master, trims and source volumes at `100%`. With the external test amplifier at a sensible gain, the permanent `-6.5 dB` reserve still left ample maximum music output. The amplifier gain was then increased slightly and Music Master returned to approximately `79%`, producing a comfortable normal listening level with substantial digital control range still available.
-
-Several source tracks identified by Plexamp as `96 kHz / 24-bit` were also auditioned and sounded excellent subjectively. This does not establish native high-resolution output: the currently accepted split-bus/CamillaDSP contract remains fixed at `44.1 kHz`, `S16_LE`, two channels, so higher-rate/higher-bit-depth source material is converted somewhere in the current playback path.
-
-#### AirPlay return and Music Master zero acceptance — physical PASS
-
-Plexamp was started and then taken over by AirPlay from the iPhone. AirPlay correctly paused Plexamp. On genuine AirPlay disconnect the dashboard returned to Clock because no source was actively audible, AirPlay ownership was released, and Plexamp remained paused at exactly the takeover position, ready for deliberate manual resume.
-
-Music Master isolation was then exercised independently with both sources. Music Master `0%` silenced Plexamp and AirPlay without changing source ownership or playback progression, and restoring Music Master immediately restored audible output. This physically accepts the shared music-lane master control and the deliberate no-synthetic-resume handoff contract.
-
-#### Real scheduled-alarm isolation and maximum-ceiling A/B — physical PASS
-
-A real scheduled alarm was tested with Plexamp playing and Music Master deliberately reduced to `0%`. Plexamp became silent, but the alarm remained clearly audible and took ownership by pausing Plexamp, physically proving that Music Master controls only the music lane.
-
-The global alarm ceiling was then tested with the same `50%` per-alarm target. Maximum Alarm Volume `15%` was audibly quieter than `22%`, proving the control is a genuine hard ceiling after the per-alarm target/fade. A repeated real-alarm A/B with the saved Bass `+6 dB` curve active versus EQ bypassed sounded identical in both tone and level, physically proving that scheduled alarms bypass Bass/Mid/Treble, fixed music reserve and Music Master.
-
-The resulting Settings presentation was clarified and physically accepted as **Music**, **Plexamp**, **AirPlay** and **Alarms**, with top-right percentage pills, equal fader geometry and bottom-aligned explanatory copy. The underlying `master`, `plexamp`, `airplay` and `alarm` mixer semantics are unchanged.
-
-#### Dashboard API state — PASS
-
-The dashboard wrapper was corrected so an explicit helper `backend_state=split-bus-active` is preserved rather than overwritten with a generic state. Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` and regression commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` passed GitHub Actions. The live API subsequently reported the same detailed backend, route, EQ, headroom and limiter state as the helper.
-
-#### Mixer overlay bypass/lock and Settings authority — PASS
-
-The physical review exposed duplicate EQ authority between the old unified Settings model and the production `/api/audio/eq`/CamillaDSP state. Unified Settings was corrected to derive EQ exclusively from the live backend and to stop applying EQ from normal transactional Settings Save. A stale CSS rule that still hid the newly authoritative live EQ card was then removed. The final corrected Settings → Audio → Equaliser page physically displayed the saved curve, bypass state and lock/restore behaviour correctly.
-
-#### Neutral action — physical PASS
-
-From the restored Bass `+6.0 dB` curve, **Return to neutral** moved Bass, Mid and Treble to `0 dB`, kept bypass off and restored normal tonal balance. The backend reported every stored/applied/effective band value at exactly `0.0 dB`. Neutral is therefore physically accepted as a distinct reset operation rather than another form of bypass.
-
-#### AirPlay shared-EQ lane and Plexamp takeover — physical PASS
-
-A deliberate Bass `+6 dB` curve was applied while Plexamp played, then AirPlay took over from the iPhone. Plexamp paused correctly and AirPlay was audibly just as bass-heavy, proving that both sources traverse the same music-EQ lane. Bypass while AirPlay continued removed the exaggerated Bass without interrupting playback.
-
-#### Settings Display Motion regression — physical PASS
-
-Following the custom-select migration, Transition style had accidentally narrowed and Transition duration had regressed to numeric text entry. The eight supported transition choices and the `0–2000 ms` range slider were restored and physically confirmed working on the bedroom Pi.
-
-#### Clean checkout reconciliation and NFC regression — physical PASS
-
-The bedroom-Pi source checkout was reconciled from its older selective-deployment state after preserving the genuinely different local files outside the repository at `/home/andy/acp-pi-reconcile-20260809-024152`. The branch was reset to the remote feature branch, configured for normal fast-forward pulls and subsequently advanced cleanly through the status and Phase 6 fixes. A known-good NFC tag opened Plexamp and played the correct album, and Plexamp's own playback controls behaved normally.
-
-#### Installed status privilege truthfulness — physical PASS
-
-The authoritative saved EQ JSON is intentionally root-owned and mode `0600`. A direct unprivileged helper status had been silently falling back to neutral when it could not read that file, while the dashboard/restricted-sudo path remained truthful. Commit `f4453a5d69467a46cdc7e3ddeb236c2e5a46fba2` makes only the installed helper's exact unprivileged `status` command delegate to the existing restricted `sudo -n` status rule; commit `e7f4fbaa10610ca9dd41381cad3c0d20d388b861` adds regression coverage.
-
-The live retest produced identical normal and elevated JSON status payloads: Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB`, `bypassed=false`, fixed headroom `-6.5 dB`, final limiter `-1.0 dB`, route/backend `split-bus-active`, config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, and `ok=true`.
-
-#### Phase 5 closure decision — accepted
-
-The remaining proposed “Maximum Alarm Volume calibration” was reviewed and explicitly removed as a software acceptance gate. The code already exposes and persists the working global ceiling; selecting its final position is simply commissioning against the chosen analogue amplifier and speakers. The combined-output limiter was also already objectively proven in the isolated Stage A DSP stress run at exactly `-1.000 dBFS`, so reproducing that deliberate overdrive through the bedroom speakers adds no software evidence. Future analogue-hardware commissioning remains sensible but does not block Phase 6.
-
-**Exit condition:** Met. The installed backend and redesigned Settings/interface behave as one coherent feature, and no unfinished software calibration remains.
-
-### Phase 6 — failure, reboot and uninstall acceptance
-
-- [x] Controlled CamillaDSP failure returns to usable direct audio. *(Attempt #1 exposed the service defects; corrected attempt #2 physical PASS with automatic direct failback and audible Plexamp.)*
-- [x] Failback leaves Plexamp, AirPlay and dashboard usable. *(Corrected attempt #2 physical PASS; all three returned active without manual recovery.)*
-- [x] One controlled reboot restores the EQ-capable graph.
-- [x] Saved active/bypassed state survives reboot. *(Active `+2 / 0 / +2` curve survived exactly.)*
-- [x] Persistent `snd_aloop` state is verified after reboot. *(Index 7, id `ACP_Loopback`, two substreams, notify 1.)*
-- [x] Explicit uninstall restores the accepted direct-route checksum. *(Physical PASS: exact `08d00093...` active route restored, managed EQ installation removed, original services restored.)*
-- [x] Direct audio remains usable after uninstall and reboot. *(Physical PASS: exact direct checksum survives reboot, original services return active/enabled, managed EQ installation stays absent, Plexamp is audible.)*
-- [x] Reinstall after uninstall succeeds. *(Physical PASS from exact direct baseline: split-bus restored, saved `+2 / 0 / +2` restored, verifier PASS and Plexamp/EQ audible.)*
-
-#### Pre-reboot manifest/verifier reconciliation — physical PASS
-
-The first Phase 6 pre-reboot verifier run correctly stopped progression but initially exposed an ambiguous generic manifest error. Instrumented comparison found five mismatches. Four were expected static-program drift from the deliberately deployed `__init__.py`, `model.py`, `runtime.py` and `cli.py` refinements; the fifth revealed the actual design defect: `/etc/a-clockwork-plex/camilladsp-split-bus.yml` had an installation-time hash in the manifest even though normal EQ/bypass changes legitimately regenerate that live file.
-
-The manifest contract was corrected in commit `42b839db305f03104c238f052a45b4d759636119`: the live CamillaDSP YAML is now recorded as `runtime-generated`, its existence/mode and later semantic CamillaDSP validation remain enforced, while genuinely static installed files retain exact hash and mode checking. Commit `80c0868ccebfac86a7adeccde1e9085097388ece` adds regression coverage including old-manifest compatibility and useful mismatch diagnostics. GitHub Actions **Tests #2833 / run 31291978735** passed.
-
-The bedroom Pi fast-forwarded cleanly to `80c0868`. A verified copy of the already-installed CamillaDSP 4.1.3 binary had SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`. `repair-audio.sh --prepare-only` made no production change. The guarded repair then snapshotted the installation, reinstalled the reviewed assets, preserved the original uninstall backup and saved EQ state, rewrote the manifest and reactivated split-bus audio. It completed with live verifier PASS and CamillaDSP PID `1871368`.
-
-The post-repair manifest contained:
-
-- generated CamillaDSP config: `runtime-generated`, mode `644`;
-- `__init__.py` SHA `e7f5f8c1aa35c054069796328426ea842010a9417ab40168c509ef14b9c759b9`;
-- `model.py` SHA `85fa2a7a2bfc8713f0990324099bcfe3d54fb5cd2d35a0d52f43e14205cda4cd`;
-- `runtime.py` SHA `df68a2b4fae100da9bba698e2b726a86f76e0590aa2ce5a46331152b1218958a`;
-- `cli.py` SHA `b0dc88be7d267b9b8c5a21a47fca285125332c316bf31e1bf6207dc027f3ff49`.
-
-The saved EQ remained Bass `+2`, Mid `0`, Treble `+2`, bypass off, fixed `-6.5 dB` headroom, final limiter `-1.0 dB`, route `split-bus-active`, split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, generated config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, and the checkout remained clean at `80c0868`.
-
-#### Controlled reboot — physical PASS
-
-The bedroom Pi rebooted normally at `2026-08-09 04:37:49` on kernel `6.18.39+rpt-rpi-2712`.
-
-Post-reboot acceptance:
-
-- `plexamp.service` active;
-- `shairport-sync.service` active;
-- `a-clockwork-plex.service` active;
-- `a-clockwork-plex-audio-route.service` active;
-- `a-clockwork-plex-camilladsp.service` active;
-- all five main units remain enabled; the failback unit correctly reports `static` because it is invoked through `OnFailure` rather than independently enabled;
-- saved Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB` returned exactly with `bypassed=false`;
-- fixed headroom remained `-6.5 dB` and final limiter `-1.0 dB`;
-- CamillaDSP restarted normally with PID `934`;
-- route/backend returned `split-bus-active`, selected route `split-bus-selected`;
-- active split-route SHA remained `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
-- generated CamillaDSP config SHA remained `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`;
-- live verifier reported `EQ-capable audio verification passed.`;
-- `snd_aloop` loaded with index `7`, id `ACP_Loopback`, first-card `pcm_substreams=2` and `pcm_notify=1`;
-- the dashboard returned normally;
-- a known-good NFC card opened Plexamp and started the correct album audibly, with the saved EQ active and working;
-- `git status --short` remained empty and source HEAD remained `80c0868` at the physical acceptance point.
-
-This accepts reboot restoration, saved EQ persistence, persistent loopback setup, dashboard return and real post-boot source playback.
-
-#### Controlled CamillaDSP failure attempt #1 — physical FAIL; direct recovery PASS
-
-A single controlled `SIGKILL` was sent to the running CamillaDSP main process PID `934` while Plexamp was playing. Systemd immediately recorded the signal failure and triggered `OnFailure=a-clockwork-plex-audio-failback.service`. Two conflicting paths then ran at the same time:
-
-- `Restart=on-failure` scheduled a CamillaDSP restart after two seconds and started a new process at PID `44862`;
-- the failback oneshot started `/usr/local/bin/a-clockwork-plex-audio-route activate-direct-failback`.
-
-The failback helper successfully installed the reviewed direct alarm-safe route: active ALSA SHA became `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, `active_matches_direct_failback=true`, and route/EQ status truthfully changed to `direct-failback` / unavailable while retaining saved Bass `+2`, Mid `0`, Treble `+2` state. However, the failback unit itself declared `Before=plexamp.service shairport-sync.service a-clockwork-plex.service`, while the helper's contract is to synchronously restart whichever of those applications were active before the transition. Those start jobs therefore waited for the failback unit to finish, while the failback helper waited for the start jobs to return. After 30 seconds systemd terminated the failback oneshot for timeout, leaving Plexamp, AirPlay and the dashboard stopped. The automatic CamillaDSP restart had also raced back into service despite the route already being direct failback.
-
-The journal captured the sequence explicitly: CamillaDSP signal failure and `OnFailure` trigger at `05:01:56`, CamillaDSP restart counter 1 and PID `44862` at `05:01:58`, then failback start timeout/termination at `05:02:26`.
-
-Recovery deliberately preserved the successful direct-route transition rather than forcing the EQ graph back immediately. The stuck failback was stopped, the racing CamillaDSP service was stopped, both failure states were reset, and Plexamp, AirPlay and the dashboard were started manually. The resulting recovery state is healthy direct failback: Plexamp/AirPlay/dashboard active, CamillaDSP inactive, failback inactive, direct route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, loopback contract still correct, saved `+2 / 0 / +2` curve preserved but unapplied, `headroom_db=0.0` because the DSP path is absent, and Plexamp is physically audible again. The Pi checkout remained clean at `3391d64` at that recovery checkpoint. The captured journal is stored at `~/acp-phase6-failback-failure-journal.txt`.
-
-#### Deterministic failback correction and repeat test — physical PASS
-
-Commit `6bf5b0df5a1048ae20966d086ff4e5096990de64` corrects the two systemd orchestration defects without changing the ALSA profiles or route-helper transaction:
-
-- CamillaDSP now uses explicit `Restart=no`; the redundant restart delay/start-limit settings are removed, so a genuine service failure proceeds directly to `OnFailure` rather than racing a DSP restart against failback;
-- the failback oneshot no longer has a `Before=` relationship to Plexamp, AirPlay or the dashboard, so the route helper can complete its existing stop/switch/restore transaction without circular systemd ordering;
-- `tests/test_eq_audio_runtime_assets.py` now locks both policies and continues to require the fixed failback helper action;
-- the existing route-helper tests already cover stopping and restoring only the applications that were active before failback.
-
-GitHub Actions **Tests #2843 / run 31294416551** passed at `6bf5b0d`.
-
-The production Pi then fast-forwarded cleanly from `3391d64` to `a2e079c`. The retained CamillaDSP 4.1.3 repair binary was present with expected SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`. `repair-audio.sh --prepare-only` again made no production change. The guarded repair reinstalled the reviewed assets and returned `split-bus-active` with CamillaDSP PID `168877`.
-
-Physical installed-unit verification confirmed effective `Restart=no`, `OnFailure=a-clockwork-plex-audio-failback.service`, no failback `Before=` line for Plexamp/AirPlay/dashboard, active split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, saved/applied `+2 / 0 / +2`, fixed `-6.5 dB` headroom, final limiter `-1.0 dB`, all five main services active, live verifier PASS and audible Plexamp/EQ.
-
-The same source head contains the EQ-health wording correction: installed direct failback is reported as **Direct failback** rather than the false **Install required** state, with regression coverage in `tests/test_audio_eq_failback_status_copy.py`. GitHub Actions **Tests #2849 / run 31294821174** passed at `a2e079c`.
-
-The Pi then fast-forwarded the docs-only roadmap commit to clean HEAD `3e07957` and repeated exactly one controlled SIGKILL while Plexamp was active. Pre-fault CamillaDSP PID was `168877`, `Restart=no`, `NRestarts=0`, route was `split-bus-active`, and Plexamp/AirPlay/dashboard were active.
-
-At `06:40:03` systemd recorded the SIGKILL and triggered the failback dependency. By `06:40:04` the route helper had selected the reviewed direct alarm-safe route and the failback oneshot had completed successfully. Post-fault acceptance was:
-
-- CamillaDSP `ActiveState=failed`, `SubState=failed`, `MainPID=0`, `Result=signal`, `NRestarts=0`, proving there was no restart race;
-- failback `Result=success`, `ExecMainStatus=0`, `ActiveState=inactive`, `SubState=dead`, proving the oneshot completed rather than timing out;
-- Plexamp active;
-- AirPlay active;
-- dashboard active;
-- route service active;
-- active ALSA SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` with `active_matches_direct_failback=true`;
-- CamillaDSP PID absent and selected route `direct-failback`;
-- saved Bass `+2`, Mid `0`, Treble `+2` preserved with applied/effective values `0` while processing is unavailable;
-- `headroom_db=0.0`, correctly reflecting that the DSP music reserve is physically absent on direct failback;
-- Plexamp physically playable/audible after failback without any manual recovery;
-- both the drawer EQ box and Settings → Audio → Equaliser physically displayed **Direct failback**;
-- checkout remained clean at `3e07957`.
-
-This accepts the corrected automatic failback path end-to-end and physically closes the EQ failback-status wording regression.
-
-#### Split-bus restoration after accepted failback — physical PASS
-
-After recording the automatic-failback PASS, the Pi fast-forwarded cleanly to docs-only head `24e1ee4`. The retained CamillaDSP 4.1.3 binary again matched SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`. `repair-audio.sh --prepare-only` made no production changes, then guarded repair restored the normal split-bus graph from the accepted direct-failback state.
-
-Post-repair acceptance:
-
-- active route/backend `split-bus-active`, selected mode `split-bus-selected`;
-- active split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
-- generated CamillaDSP config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`;
-- CamillaDSP PID `216238`;
-- Bass stored/applied/effective `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB`;
-- `bypassed=false`, fixed `headroom_db=-6.5`, final limiter `-1.0 dB`;
-- Plexamp, AirPlay, dashboard, route and CamillaDSP services all active;
-- live verifier reported `EQ-capable audio verification passed.`;
-- Plexamp physically audible;
-- drawer Audio EQ and Settings → Audio → Equaliser both physically showed the active, working EQ;
-- checkout remained clean at `24e1ee4`.
-
-This re-establishes a known-good installed EQ-capable starting point for the explicit uninstall test.
-
-#### Explicit uninstall — physical PASS
-
-The Pi fast-forwarded cleanly to docs-only head `9eacee8` and ran `bash scripts/audio/uninstall-eq.sh --prepare-only`. The prepare gate reported retained direct-route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` and explicitly confirmed that no production file, module, service, route, mixer or PCM was changed. Immediately before activation, the current route remained split-bus SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, and Plexamp/AirPlay/dashboard/route/CamillaDSP were all active.
-
-The original retained pre-EQ snapshots were copied to `~/acp-phase6-uninstall-acceptance` before activation. They recorded:
-
-- loopback runtime state `loaded`;
-- Plexamp, AirPlay and dashboard all active and enabled;
-- original active route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`.
-
-The guarded uninstall then ran with `--confirm UNINSTALL-EQ-AUDIO`, returned `UNINSTALL_RC=0`, and reported that the original direct-audio state was restored. Post-uninstall acceptance was:
-
-- active `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf` SHA exactly `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
-- Plexamp active/enabled;
-- AirPlay active/enabled;
-- dashboard active/enabled;
-- `/var/lib/a-clockwork-plex/split-bus/installed` absent;
-- `/var/lib/a-clockwork-plex/split-bus/install-manifest.tsv` absent;
-- `/var/lib/a-clockwork-plex/split-bus/pre-eq-backup` absent after successful rollback completion;
-- `/usr/local/bin/a-clockwork-plex-audio-route` absent;
-- `/usr/local/bin/a-clockwork-plex-audio-eq` absent;
-- route, CamillaDSP and failback managed systemd unit files absent;
-- saved `master-eq.json` intentionally retained with Bass `+2.0`, Mid `0.0`, Treble `+2.0`, `bypassed=false`;
-- `route-state.json` records `mode=direct-rollback`, reason `EQ-capable audio profile uninstalled`, and exact active ALSA SHA `08d00093...`;
-- `snd_aloop` remains loaded, matching the original recorded pre-install runtime state;
-- checkout remains clean at `9eacee8`;
-- Plexamp physically plays through the restored direct-only route;
-- drawer Audio EQ and Settings → Audio → Equaliser both showed **Install required** immediately after uninstall because the supported EQ installation was genuinely absent.
-
-This physically accepts explicit uninstall and exact direct-route restoration before reboot.
-
-#### Direct-only reboot — physical PASS; legacy EQ status presenter regression found
-
-The post-uninstall Pi rebooted at `2026-08-10 01:22:05` on kernel `6.18.39+rpt-rpi-2712`, without reinstalling or repairing EQ first. The checkout remained clean at `cafcb19`.
-
-Direct-only reboot acceptance:
-
-- active `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf` SHA remained exactly `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
-- Plexamp active/enabled;
-- AirPlay active/enabled;
-- dashboard active/enabled;
-- EQ installed marker and manifest remained absent;
-- route and EQ helpers remained absent;
-- route, CamillaDSP and failback managed unit files remained absent;
-- saved `master-eq.json` remained Bass `+2.0`, Mid `0.0`, Treble `+2.0`, `bypassed=false`;
-- `route-state.json` remained `direct-rollback` with exact `08d00093...` active checksum;
-- `snd_aloop` was absent after reboot. This is accepted: direct audio does not depend on the loopback module, and uninstall removed the managed module-load persistence files;
-- Plexamp physically played normally in direct-only mode.
-
-The audio path therefore passes the direct-only reboot gate. However, the full page load exposed a separate presentation regression: both the drawer EQ box and Settings → Audio → Equaliser showed **Backend offline** instead of the intended **Install required**.
-
-Source review established that the backend and canonical presenter were already semantically correct. `app/audio_eq.py` reports `installed=false` and low-level `backend_state=offline` when the installed helper is absent. The canonical `app/static/js/audio-eq.js` deliberately maps `installed=false` to user-facing **Install required**, while distinguishing installed direct failback as **Direct failback** and installed-but-unavailable states as **Unavailable**.
-
-The wrong visible label came from the older `app/static/js/audio-eq-backend-status.js`, which was still loaded globally after `audio-eq.js`. It performed its own one-time API fetch, stored only the low-level `backend_state` on the document, then injected CSS that hid the canonical health text and replaced `offline` with pseudo-content **Backend offline**. Immediately after uninstall this legacy script retained its prior page-lifetime state, so the canonical label happened to remain visible; after reboot/full page load it fetched `offline` afresh and overrode the correct label. This was a redundant second presentation authority rather than an audio/backend defect.
-
-Correction:
-
-- `4aee9e135aaf6266ba8806e7e046825b92df5a31` removes the legacy presenter from `base.html`, makes `audio-eq.js` the single UI status authority and adds a cache-busting version to force the corrected asset on the kiosk;
-- `54d35a0ffa48bff0be9dc681ee046be5b61b4b5f` deletes `audio-eq-backend-status.js`;
-- `5c653bb63e1f9a5b55106a8d89eb69b2d66df26f` adds regression coverage for single-presenter authority and the distinct **Direct failback / Unavailable / Install required** mappings;
-- Tests #2863 / run `31344903809` then failed before unit tests only because `.github/workflows/tests.yml` still explicitly syntax-checked and grepped for the deleted legacy file;
-- `837370c94a6629e8ce6f499333c8bf3666fd26ea` removes those stale CI expectations;
-- corrected Tests #2865 / run `31344951914` passed compilation, JavaScript/page wiring/shell syntax, unit tests and diagnostics upload.
-
-No audio route, service ownership, alarm semantics or runtime EQ routing changed in this correction.
-
-#### Direct-only EQ status presenter correction — physical PASS
-
-The bedroom Pi fast-forwarded cleanly from `cafcb19` to `4ef4626`. The pull itself left the exact accepted direct ALSA route unchanged at `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, with Plexamp, AirPlay and the dashboard all active. Only `a-clockwork-plex.service` was then restarted so Flask/Jinja served the updated base template; Plexamp, AirPlay and ALSA were not restarted or remapped.
-
-The live API remained deliberately low-level and truthful: `installed=false`, `available=false`, `configured=false`, `backend_state=offline`, `activation=laboratory-only`, helper path `/usr/local/bin/a-clockwork-plex-audio-eq`, and no production EQ backend present. The direct route checksum remained exact `08d00093...` after the dashboard restart and Plexamp/AirPlay stayed active.
-
-After loading the corrected presenter, both user-facing surfaces physically displayed **Install required**. This confirms that `audio-eq.js` is now the single presentation authority and correctly translates the genuine uninstalled backend state without hiding or falsifying the underlying API status.
-
-#### EQ-capable reinstall after uninstall — physical PASS
-
-The Pi fast-forwarded cleanly to docs-only source `a824977`. The retained CamillaDSP 4.1.3 binary was executable and still matched SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`. Before reinstall, the exact direct ALSA route remained `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, Plexamp/AirPlay/dashboard were active, and the installed marker, install manifest, pre-EQ backup, route helper and EQ helper were absent. `install-eq.sh --prepare-only` listed 18 managed files and explicitly confirmed that no production file, module, service, route, mixer or PCM was changed.
-
-Guarded first-install activation then ran with `--confirm INSTALL-EQ-AUDIO` and returned `INSTALL_RC=0`. The installer itself reported both `EQ-capable audio verification passed.` and `EQ-capable audio profile installed successfully.`
-
-Post-reinstall acceptance:
-
-- active route/backend `split-bus-active`, selected mode `split-bus-selected`;
-- active split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
-- generated CamillaDSP config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`;
-- CamillaDSP PID `71236`;
-- managed direct-failback SHA remains `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`;
-- saved Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB` were restored as stored/applied/effective values rather than reset;
-- `bypassed=false`, fixed `headroom_db=-6.5`, final limiter `-1.0 dB`;
-- Plexamp, AirPlay, dashboard, route and CamillaDSP services all active;
-- Plexamp, AirPlay, dashboard, route and CamillaDSP units enabled; failback correctly reports `static`;
-- a fresh uninstall backup was recreated and records exact pre-EQ route SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`;
-- saved `master-eq.json` remains schema 2 with Bass `2.0`, Mid `0.0`, Treble `2.0`, `bypassed=false`;
-- `snd_aloop` is loaded again with first index `7`, id `ACP_Loopback`, first `pcm_substreams=2` and first `pcm_notify=1`;
-- the standalone live verifier reports `EQ-capable audio verification passed.`;
-- checkout remains clean at physical source `a824977`;
-- Plexamp physically plays and the EQ is physically working.
-
-This completes the complete install → reboot → failure/failback → repair → uninstall → direct-only reboot → reinstall lifecycle acceptance on the real bedroom Pi.
-
-**Exit condition:** Met. Phase 6 is complete.
-
-### Phase 7 — full appliance installer integration
-
-- [x] Inventory current installation/bootstrap entrypoints and identify that no single full-appliance authority currently exists.
-- [x] Establish root `install.sh` as a **read-only plan-only** top-level installer skeleton; activation remains deliberately blocked.
-- [x] Expose plan-time Direct audio / EQ-capable audio selection.
-- [x] Expose a plan-time non-interactive profile argument for repeatable multi-appliance builds.
-- [x] Define the supported alarm-safe Direct-audio component boundary without promoting legacy `scripts/install-shared-audio.sh` into a competing audio authority.
-- [x] Generalise/bridge the EQ first-install baseline so a fresh appliance can transition from the alarm-safe Direct route without weakening the existing Phase 6 rollback contract.
-- [ ] Call the tested standalone `scripts/audio/*` component for EQ-capable activation/verification rather than reimplementing it.
-- [ ] Hide or truthfully disable EQ controls for a direct-only installation.
-- [ ] Apply saved active/bypassed state for EQ-capable installs.
-- [x] Preserve Open-Meteo as the independent forecast provider while adding observation-provider selection to the installer plan.
-- [x] Add Weather Underground PWS configuration/URL/mapping foundation with the API key referenced outside `config.json`.
-- [x] Implement an owned Weather Underground observation polling service while retaining the current Ecowitt-push path.
-- [x] Route both observation providers through one dashboard storage/history function so they cannot become competing state owners.
-- [x] Add observation-provider configuration/status to unified Settings without exposing API secrets.
-- [x] Add browser Settings controls for observation-provider choice/station/timings without adding a browser API-key field.
-- [x] Review the documented Weather Underground history pressure schema and reject aggregate/range fields as fake instantaneous barometer history.
-- [ ] Inspect a real station current/history response before live-provider acceptance; do not reinterpret aggregate fields merely to prefill the barometer.
-- [x] Add read-only component adapters and a fresh-Pi prerequisite/source/host preflight contract.
-- [ ] Add package/artifact handling and appliance-level post-install verification.
-- [ ] Exercise both audio profiles and both observation profiles in non-production integration tests before guarded full-installer activation.
-
-#### Phase 7 source checkpoint #1 — plan-only installer and multi-node weather foundation
-
-Repository inventory confirmed a mixed generation of component installers. Newer dashboard service/kiosk installers are check-first and guarded, while older scripts such as `install-shared-audio.sh`, the metadata-listener installer and several helper installers mutate immediately. The top-level installer will therefore be the conductor rather than another implementation: it will sequence specialist components behind one plan/apply contract and will not blindly chain legacy scripts.
-
-Root `install.sh` now exists in plan-only form. It accepts `--audio direct|eq`, `--weather-observations ecowitt-push|weather-underground` and `--non-interactive`, verifies required component source files, prints the intended appliance sequence, explicitly identifies the accepted EQ lifecycle as the future EQ component, and rejects `--apply` until guarded activation is implemented. Dedicated tests protect those semantics and ensure the legacy shared-audio installer is not silently invoked as a second audio authority.
-
-Multi-appliance weather requirements are recorded in [`full-appliance-installer-design.md`](full-appliance-installer-design.md). The existing Ecowitt custom-push provider remains the default so the current clock does not change behaviour. Weather Underground PWS is selected as the first remote observation provider because it allows each clock to pull the station's current observations independently. Open-Meteo remains unchanged as the forecast source. No new local weather fan-out/cache server is introduced.
-
-`app/weather_observations.py` initially established the provider/config normalisation, validation, Weather Underground current/recent-history URL construction and mapping foundation. The real API key is referenced by environment-variable name rather than stored in `config.json`. `config.example.json` documents the provider settings.
-
-GitHub Actions **Tests #2885 / run 31348189281** passed compilation, JavaScript/page wiring/shell syntax and the complete unit suite at source checkpoint `a1eb6b4`.
-
-#### Phase 7 source checkpoint #2 — owned observation runtime and shared state authority
-
-The Weather Underground foundation is now promoted into one owned remote observation service while retaining Ecowitt push as the passive/default mode. `WeatherObservationService` polls only when `weather.provider=weather_underground`, reads the configured API-key environment variable at runtime, bounds its poll/stale/timeout settings, reports provider health without exposing the secret/request URL, and is started/stopped by `app/runner.py` alongside the independent Open-Meteo forecast service.
-
-The Weather Underground current mapper now sends imperial pressure to the dashboard's existing `baromrelin` key. That is deliberate: the existing display and pressure-history code already treats `baromrelin` as inHg, so the same real PWS pressure reading feeds both display conversion and barometer history correctly instead of disappearing behind an unrecognised provisional key.
-
-`app/weather_observation_store.py` is now the single production writer for current observation state, receipt time, daily extremes and pressure history. The existing `/api/weather/ecowitt` route is promoted at composition time to use this same store without changing its public URL/response contract; the remote poller writes through the same function. This removes the risk of Ecowitt and Weather Underground becoming competing state owners. The store also strips empty/sensitive fields before persistence.
-
-Unified Settings now has a backend observation-provider transaction/status contract. It can persist the selected provider, Weather Underground station ID, environment-variable name and bounded timing fields, wake/refresh the owned service when settings change, and deliberately rejects attempts to submit API keys/passwords/tokens/secrets through normal Settings. Browser controls have not yet been added, so this is backend authority first rather than a second browser-specific config path.
-
-The documented Weather Underground PWS recent-history schemas were reviewed before writing any pressure bootstrap. The documented historical pressure fields are aggregate/range/trend values rather than the same instantaneous `pressure` field returned by current observations. Phase 7 therefore rejects fabricating instantaneous historical samples from those aggregates. Normal reboots already retain local `state.json` pressure history; a genuinely empty/new installation will accumulate real current observations unless a later real station payload proves a stronger history field contract.
-
-CI checkpoints:
-
-- Weather Underground service/mapping: **Tests #2891 / run 31349111589 — PASS**;
-- shared Ecowitt/WU observation store and runner ownership: **Tests #2903 / run 31349260055 — PASS**;
-- unified Settings backend observation contract: **Tests #2911 / run 31349402818 — PASS**.
-
-No part of this checkpoint has been deployed to the bedroom Pi, so its current Ecowitt push path and accepted Open-Meteo forecast remain physically unchanged.
-
-#### Phase 7 source checkpoint #3 — first-class alarm-safe Direct profile
-
-Review of the historical direct route exposed an important distinction that the future multi-appliance installer must not hide. Exact Phase 6 uninstall baseline SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` is the route produced by the old `scripts/install-shared-audio.sh`; in that historical route `acp_alarm_volume` feeds `acp_master`. It is still the correct exact rollback target for the already-proven bedroom-Pi Phase 6 lifecycle, but it does not satisfy the settled fresh-appliance requirement that alarms bypass Music Master.
-
-The first-class Direct profile therefore uses the already physically proven direct alarm-safe route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`, now materialised exactly as `installer/profiles/direct/alarm-safe.conf`. Plexamp/AirPlay trims feed Music Master and then the DAC-facing dmix; the alarm fader feeds that dmix independently and therefore bypasses Music Master. `installer/lib/direct_audio.sh` is deliberately read-only at this stage: it validates the exact profile checksum and reports the ownership/plan but has no activation path.
-
-This review also exposed the next audio-integration gate. The accepted standalone EQ first-install path currently validates historical SHA `08d00093...` as its expected direct baseline, while a fresh full appliance should begin from alarm-safe Direct SHA `654ff170...`. The full installer must generalise or bridge that baseline contract under non-production tests without weakening the existing exact rollback guarantee for the current installed appliance.
-
-The first Direct-profile CI run, **Tests #2919 / run 31349560141**, exposed three test-only/wording regressions: one new read-only test used an over-broad substring check and two existing plan assertions expected established explanatory text. No runtime or audio defect was involved. The test was made command-aware and the established plan wording restored. **Tests #2927 / run 31349811843 then passed compilation, JavaScript/page wiring/shell syntax and the complete unit suite at source head `2f9fd7f`.**
-
-#### Phase 7 source checkpoint #4 — explicit EQ direct-baseline bridge
-
-The standalone EQ first-install path now has an explicit baseline selector rather than silently broadening one checksum gate. `scripts/audio/install-eq.sh` accepts `--baseline phase6-direct|alarm-safe-direct`: `phase6-direct` remains the default and therefore preserves the physically accepted standalone Phase 6 expectation of exact direct SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, while a fresh whole-appliance build explicitly selects `alarm-safe-direct` and validates exact alarm-safe Direct SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` before first-install capture.
-
-Root `install.sh` remains read-only/plan-only, but its EQ plan now states that future fresh-appliance orchestration will call the existing EQ component with `--baseline alarm-safe-direct`. `installer/lib/direct_audio.sh` records the same bridge while remaining read-only. This keeps historical standalone behaviour conservative instead of making both hashes implicitly acceptable everywhere.
-
-The exact uninstall guarantee is unchanged. `uninstall-eq.sh` does not hard-code the historical `08d...` route; it verifies and restores the checksum and route bytes retained in the genuine pre-EQ backup. New rooted/non-production lifecycle coverage therefore proves an alarm-safe `654...` first install can capture that route, activate the EQ profile and then uninstall back to those exact captured bytes, while separate tests prove the alarm-safe selector rejects a simulated historical `08d...` starting route and the default plan still advertises the historical Phase 6 baseline.
-
-The first CI run after the bridge, **Tests #2937 / run 31351187599**, reached the unit suite with all five new baseline lifecycle tests passing; its sole failure was an older Direct-profile test that still expected the previous “bridge pending” plan wording. That stale expectation was updated in commit `b957c58434d7c66a055573ac49118b988340bae8`. Corrected GitHub Actions **Tests #2939 / run 31351416033 — PASS** at `b957c58`, covering compilation, JavaScript/page wiring, shell syntax and the complete unit suite.
-
-No part of this bridge has been deployed to the bedroom Pi. Its accepted Phase 6 installation and exact historical uninstall evidence remain untouched.
-
-#### Phase 7 source checkpoint #5 — browser observation-provider Settings
-
-The Weather → Station Settings page now presents the same unified observation-provider authority already owned by the backend. The provider selector offers **Ecowitt custom push** and **Weather Underground PWS**; provider-specific cards expose the Ecowitt push path/freshness or the Weather Underground station ID, poll interval, stale threshold and request timeout. A small presentation-only script switches those cards and translates the owned service status into concise health text by reading `ACPUnifiedSettings.getSnapshot()`; it does not fetch or save through a second weather API.
-
-No Weather Underground API-key field exists in the page. Visible copy states that the credential belongs to the server environment, and regression coverage rejects secret-setting paths/password inputs. The backend continues to own the configurable environment-variable name without exposing the secret value. `pressure_history_hours` is also intentionally not presented as a working browser bootstrap control because the reviewed WU historical pressure fields do not justify fabricating instantaneous barometer samples.
-
-Weather copy is now provider-neutral: the Weather section describes local observations, and the forecast card explicitly says Open-Meteo remains the forecast provider while current observations use the provider selected under Station. Existing dashboard label/browser-refresh controls remain separate from source polling/freshness settings.
-
-GitHub Actions **Tests #2947 / run 31352047078 — PASS** at source head `1d99aa5`, covering compilation, JavaScript/page wiring, shell syntax and the complete unit suite including the new observation-Settings regression tests.
-
-No Phase 7 Settings/weather code has been deployed to the bedroom Pi; its current accepted Ecowitt push runtime remains unchanged.
-
-#### Phase 7 source checkpoint #6 — read-only component adapters and fresh-Pi preflight
-
-The remaining installer inventory is now explicit rather than implicit. `installer/lib/components.sh` records each specialist component, whether it already owns a native read-only check or currently needs the shared adapter, and its still-specialist-owned apply entrypoint. The dashboard service and kiosk remain `native-check`; AirPlay lifecycle hooks, AirPlay metadata, alarm-audio helper and Shairport-name helper are classified `adapter-check` because their older install scripts still mutate immediately. `scripts/check-appliance-components.sh` gives those legacy components one source/target inspection path without running the mutating entrypoints. Missing targets are reported as the expected state of a fresh Pi rather than “repaired” during planning.
-
-Root `install.sh` now sources that inventory and prints the exact read-only check ownership for every component. It still refuses `--apply`, so merely planning an appliance cannot accidentally invoke one of the older apply-only installers.
-
-The fresh-Pi prerequisite contract is now owned by `installer/lib/prerequisites.sh` and `scripts/preflight-appliance.sh`. Source-only mode validates repository/component sources and can be exercised on any CI host. Host mode is deliberately read-only and checks the intended production assumptions: Debian/Raspberry Pi OS family on `aarch64`, a normal project account with sudo capability, Python/venv and base command availability, ALSA tools, Shairport Sync, a Chromium-compatible browser, external `plexamp.service`, ALSA card id `Pro`, and — only for EQ — the verified CamillaDSP 4.1.3 artifact plus `snd_aloop` availability. A Weather Underground profile additionally requires the selected API-key environment variable to be present but never prints its value. Ecowitt network reachability remains a later physical/site check.
-
-Plexamp Headless is explicitly classified as an **external prerequisite** for now: this repository can verify its service/API contract but does not yet claim installation/update authority for the Plexamp distribution itself.
-
-Adding a selectable project user exposed one more reusable-install issue before activation: `systemd/a-clockwork-plex.service` historically contains the current `/home/andy/A-Clockwork-Plex` identity/path. Rather than pretend a different `--project-user` was supported, `scripts/install-dashboard-service.sh` now renders its candidate unit from the repository definition using the selected project user and actual repository root, compares that candidate in read-only mode, validates the rendered unit before guarded apply, and retains its existing exact rollback/API-health checks. For the current `andy` checkout the rendered result is the same established unit; no production service has been changed.
-
-Source-only preflight coverage already runs all four Direct/EQ × Ecowitt/WU profile combinations and confirms profile-specific requirements. This is prerequisite-contract coverage only, not yet the full installation 2×2 lifecycle acceptance.
-
-GitHub Actions **Tests #2976 / run 31352803277 — PASS** at source head `dc27a96`, including compilation, JavaScript/page wiring, shell syntax and the complete unit suite with the new component-adapter, prerequisite and parameterised-dashboard-service tests.
-
-No Phase 7 adapter, preflight or dashboard-service rendering change has been deployed to the bedroom Pi.
-
-**Exit condition:** In progress. Observation runtime/backend/browser authority, alarm-safe Direct, explicit fresh-EQ baseline selection, specialist check adapters and the read-only fresh-Pi prerequisite gate are green. Package/artifact installation ownership, the appliance-level post-install verifier, full non-production 2×2 lifecycle integration and guarded activation are still pending.
-
-### Phase 8 — cleanup and release preparation
-
-- [ ] Record an archival reference for the final Stage C branch head.
-- [ ] Delete `stage-c-terminal-install-20260806` after archival reference is recorded.
-- [ ] Mark Stage C transactional material as historical/non-production.
-- [ ] Retire or archive orphan Settings presentation code such as `settings-audio-workspace.js` once the supported presenter path is frozen.
-- [ ] Retire obsolete self-mutating Phase 2 completion workflows after preserving any historical evidence they still provide; they currently fire on branch pushes independently of the normal PR test workflow.
-- [ ] Update `README.md` with the two audio profiles and supported commands.
-- [ ] Link installer, verifier, repair and uninstall documentation.
-- [ ] Record final results and accepted deviations here.
-- [ ] Review PR #2 separately; do not merge without explicit approval.
-
-**Exit condition:** The supported path is obvious to a future maintainer or owner rebuilding the Pi.
-
-## Progress status
-
-| Phase | State | Current note |
+| Identity | SHA-256 / value | Meaning |
 |---|---|---|
-| 0. Roadmap and baseline | Complete | Direct audio recovered; roadmap published |
-| 1. Artifact inventory | Complete | Exact audio contract and manifest published |
-| 2. Standalone installer | Complete | Lifecycle commands and shared libraries are green |
-| 3. Non-production/read-only validation | Complete | Real Pi preflight PASS; exact before/after production-state equality |
-| 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
-| 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
-| 6. Failure/reboot/uninstall acceptance | Complete | Full real-Pi lifecycle PASS including corrected failback, exact uninstall/direct reboot and saved-state reinstall |
-| 7. Full appliance installer integration | In progress | WU runtime/shared state/browser Settings + alarm-safe Direct + fresh-EQ bridge + read-only component/preflight gates landed; package/artifact ownership, verifier and lifecycle 2×2 next |
-| 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
+| Historical Phase 6 direct route | `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` | Exact rollback target for the physically accepted bedroom-Pi Phase 6 lifecycle; **not** the future fresh Direct profile |
+| Alarm-safe Direct route | `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` | Fresh-appliance Direct profile and managed no-DSP failback route; alarm bypasses Music Master |
+| EQ split-bus route | `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` | Accepted active EQ route |
+| Accepted +2/0/+2 Camilla config | `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578` | Physically accepted fixed-headroom configuration |
+| CamillaDSP | `4.1.3`, SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa` | Verified aarch64 artifact; must not be silently substituted/downloaded |
+
+### Weather semantics
+
+- Open-Meteo remains the forecast provider.
+- Current observations may be Ecowitt custom push or Weather Underground PWS.
+- No local weather cache/fan-out server is part of the design.
+- Each Weather Underground appliance polls the upstream PWS independently.
+- The WU API key is a server-environment secret, not normal Settings/config/browser data.
+- Both observation providers write through one shared observation store, including local pressure-history accumulation.
+- WU historical pressure aggregates are not reinterpreted as instantaneous barometer samples unless a real payload later proves a trustworthy like-for-like field.
+
+## Phase status
+
+### Phase 0 — roadmap and baseline — **Complete**
+
+Direct audio was recovered, baseline state captured and the implementation roadmap established.
+
+### Phase 1 — artifact inventory — **Complete**
+
+Exact audio contract, managed-file inventory and accepted route identities were documented.
+
+### Phase 2 — standalone EQ lifecycle — **Complete**
+
+Guarded install, verify, repair and uninstall entrypoints plus shared libraries are accepted under non-production tests.
+
+### Phase 3 — non-production/read-only validation — **Complete**
+
+Real-Pi prepare-only/preflight proved exact before/after production-state equality with no mutation.
+
+### Phase 4 — bedroom-Pi EQ installation — **Complete**
+
+The split-bus graph was installed on the real Pi, verified and physically audible.
+
+### Phase 5 — feature/interface acceptance — **Complete**
+
+Physically accepted: Plexamp/AirPlay music routing, Bass/Mid/Treble, EQ persistence/bypass/neutral, fixed `-6.5 dB` reserve, Music Master behaviour, alarm independence and Maximum Alarm Volume, Output Levels UI, NFC playback/handoff, final `-1 dB` limiter protection and truthful EQ UI.
+
+### Phase 6 — failure/reboot/uninstall acceptance — **Complete**
+
+The complete real-Pi lifecycle passed:
+
+`install → reboot → controlled CamillaDSP failure → automatic alarm-safe direct failback → supported repair → explicit uninstall → exact historical direct reboot → reinstall`
+
+Accepted results include:
+
+- reboot persistence of split-bus, `snd_aloop` and saved EQ;
+- corrected deterministic CamillaDSP failure handling with `Restart=no` and no failback ordering deadlock;
+- automatic failback kept Plexamp/AirPlay/dashboard usable without manual recovery;
+- UI distinguished **Direct failback**, **Install required** and active EQ truthfully;
+- explicit uninstall restored exact historical direct route `08d00093...` and removed supported EQ assets;
+- direct-only reboot remained usable;
+- reinstall restored split-bus, saved `+2 / 0 / +2`, fixed headroom and audible Plexamp/EQ.
+
+The bedroom Pi remains in this healthy accepted EQ-capable state unless a later physical gate explicitly changes it.
+
+### Phase 7 — full appliance installer integration — **In progress**
+
+Completed source/read-only work:
+
+- [x] Root `install.sh` exists as a deliberately plan-only whole-appliance orchestrator; `--apply` remains blocked.
+- [x] Repeatable `--audio direct|eq`, `--weather-observations ecowitt-push|weather-underground`, `--project-user` and non-interactive profile choices exist.
+- [x] Alarm-safe Direct profile is materialised and checksum-validated at `654ff170...`.
+- [x] Standalone EQ first-install baseline bridge supports explicit `--baseline alarm-safe-direct` while preserving historical `phase6-direct` default behaviour.
+- [x] Exact uninstall continues to restore the route genuinely captured before EQ activation.
+- [x] Weather Underground current-observation provider, polling lifecycle and health endpoint exist.
+- [x] Ecowitt push and WU polling share one observation-state/history authority.
+- [x] Unified Settings backend/browser controls support observation-provider choice without exposing the WU API key.
+- [x] Open-Meteo forecast remains independent.
+- [x] Remaining specialist component inventory and read-only adapter checks are explicit.
+- [x] Fresh-Pi prerequisite gate exists for platform/user/hardware/profile assumptions.
+- [x] Package/artifact ownership is defined and a read-only package checker exists.
+- [x] Plexamp Headless is truthfully classified as an external prerequisite rather than an unsupported installer-owned download.
+- [x] Appliance-level profile-aware post-install verifier exists and remains read-only.
+- [x] Complete rooted/non-production **Direct/EQ × Ecowitt/WU 2×2 profile matrix** passes, including real rooted EQ install/uninstall lifecycle and exact alarm-safe Direct restoration.
+- [ ] Design and implement guarded root `--apply` with explicit confirmation and matching host/package/preflight gates.
+- [ ] Give legacy immediate-mutating specialist installers a safe root-level apply/rollback contract without duplicating their implementation logic.
+- [ ] Implement root-owned package + venv + `requirements.txt` mutation transaction and rollback.
+- [ ] Establish alarm-safe Direct as the common fresh-build audio baseline, then optionally call accepted standalone EQ activation.
+- [ ] Apply observation-provider configuration/secret reference safely while retaining Open-Meteo forecast config.
+- [ ] Finish root-level dashboard/kiosk orchestration and run the appliance verifier as the commit gate.
+- [ ] Add deliberate non-production failure injection/rollback coverage for guarded root activation.
+- [ ] Physically accept a fresh Direct appliance build, including audible Plexamp/alarm isolation and truthful **Install required** EQ UI.
+- [ ] Physically accept a fresh EQ-capable appliance build, including split-bus/EQ/alarm isolation and reboot.
+- [ ] Inspect the real Weather Underground station current/history payload only when station ID/runtime credentials are deliberately available; do not put the API key in chat/config/browser.
+- [ ] Complete whole-appliance fresh-Pi acceptance for supported profile combinations/repeatable installs.
+
+**Exit condition:** source/read-only ownership, post-install verification and the complete non-production 2×2 profile lifecycle are green. Remaining major gates are guarded top-level activation/rollback and physical fresh-appliance acceptance.
+
+#### Phase 7 source checkpoint #7 — package ownership, verifier and complete 2×2 lifecycle
+
+Package ownership now explicitly covers the root-installer Debian/Raspberry Pi OS package set (`git`, `curl`, `python3`, `python3-venv`, `alsa-utils`, `shairport-sync`, `chromium`), future venv/`requirements.txt` ownership, external Plexamp Headless prerequisite and pinned CamillaDSP artifact. The checker is read-only and distinguishes package availability/state without running apt/pip/download mutation.
+
+`scripts/verify-appliance.sh` is now the single profile-aware read-only end-state verifier. It checks common dashboard/AirPlay/helper/Shairport/kiosk integration, exact Direct/EQ profile state, selected weather configuration, Open-Meteo retention, secret hygiene and — on a real root — service/API truthfulness. Alternate-root mode allows the same contract to be exercised in CI without touching system state.
+
+`tests/test_appliance_profile_matrix.py` now exercises all four Direct/EQ × Ecowitt/WU combinations through root planning, package/preflight contracts, materialised common integration state and the whole-appliance verifier. EQ cases execute the real rooted standalone installer with `--baseline alarm-safe-direct`, verify the resulting appliance, uninstall and require exact return to `654ff170...`.
+
+The first integrated matrix/plan CI passes exposed only source/test contract defects, not a production mutation: provider-name normalization (`ecowitt_push` versus `ecowitt-push`), the actual top-level shape of `/api/weather/observations`, the nested `eq` object returned by `/api/audio/eq`, a static test falsely reading descriptive heredoc text as executable `pip install`, one missing root-plan verifier command, and a stale exact-spacing assertion. These were corrected without weakening the read-only boundary.
+
+CI sequence:
+
+- `ce4f29c` / Tests #2993: first complete matrix attempt, failed and exposed integration-contract mismatches.
+- `7a8cd27` / Tests #2995 / run `31354009373`: reduced/clarified failures; eight source/test contract failures remained.
+- `908f560`, `a07fb90`, `b86ab4d`: verifier normalization, command-aware package safety test and explicit profile-matched verifier plan.
+- `b86ab4d` / Tests #3001: only one stale project-user spacing assertion remained.
+- `3606f59` / **Tests #3003 / run `31355427351` — PASS**: compile, JS/page wiring, shell syntax and **1440 unit tests** all green, including the complete 2×2 profile matrix.
+
+No Phase 7 source checkpoint has been deployed to the bedroom Pi.
+
+### Phase 8 — cleanup and release preparation — **Not started**
+
+- [ ] Record an archival reference for the final Stage C branch/head evidence before removing historical material.
+- [ ] Delete/retire obsolete Stage C terminal-install working material after archival reference is preserved.
+- [ ] Mark retained Stage C transactional material historical/non-production where needed.
+- [ ] Retire orphan Settings presentation code once supported presenters are frozen.
+- [ ] Retire obsolete self-mutating Phase 2 workflows after preserving useful historical evidence; do not repair/reactivate them.
+- [ ] Update `README.md` for Direct/EQ appliance profiles, weather observation choices and supported install/verify/repair/uninstall commands.
+- [ ] Link full installer, verifier, EQ repair/uninstall and recovery documentation.
+- [ ] Record final physical results and accepted deviations.
+- [ ] Review PR #2 separately; do not make ready or merge without explicit approval.
+
+**Exit condition:** a future owner can identify and rebuild the supported appliance path without reconstructing project history.
 
 ## Immediate next action
 
-The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 work through `dc27a96` is source/CI-only and does not require a production audio, service or weather mutation.
+The bedroom Pi remains untouched in the healthy accepted Phase 6 EQ-capable split-bus state while Phase 7 source work continues.
 
-Next source work should:
+Next engineering sequence:
 
-1. define package/artifact ownership for a genuinely fresh Raspberry Pi without making Plexamp distribution installation an unsupported promise;
-2. implement an appliance-level **post-install verifier** that checks the selected audio profile, dashboard, Shairport integration/helpers, kiosk and chosen weather-observation mode without changing them;
-3. exercise Direct/EQ × Ecowitt/WU as complete non-production installation plans/lifecycles rather than only source-preflight combinations;
-4. only after those gates are green, design the top-level guarded `--apply` orchestration using the specialist component owners rather than duplicating them;
-5. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
+1. design the guarded top-level `--apply` transaction with a new explicit confirmation token and mandatory matching host/package/preflight checks;
+2. define safe apply/rollback ownership for the legacy specialist component scripts instead of blindly chaining immediate mutations;
+3. implement root-owned package/venv mutation with captured pre-state and deterministic rollback;
+4. establish alarm-safe Direct `654ff170...` as the fresh-build audio baseline, optionally hand off to standalone EQ using `--baseline alarm-safe-direct`;
+5. apply selected weather observation config/secret reference while preserving Open-Meteo forecast, then dashboard/kiosk integration;
+6. make `scripts/verify-appliance.sh` the final commit gate and roll back on a failed post-install verification;
+7. exercise failure injection and exact restoration in non-production before any fresh-Pi physical rehearsal;
+8. only then schedule physical Direct/EQ fresh-build acceptance and later deliberate live-WU payload inspection.
 
 No new local weather caching/fan-out server is part of the design.
 
 ## Roadmap maintenance discipline
 
-This file is part of the implementation workflow, not an occasional retrospective document.
+This file remains part of the implementation workflow.
 
-- Any commit that materially completes, blocks or changes a roadmap item must update this file in the same change or immediately afterward.
-- A phase must not be marked complete until its exit condition passes.
-- Failed gates must be recorded with exact scope and result.
-- Any physical Pi change must record route, checksum, relevant service state and rollback outcome.
-- The roadmap must be checked before project status is reported in chat.
-- PR #2 remains Draft and must not be merged without explicit approval.
-
-The owner should not need to prompt for routine roadmap updates as development progresses.
+- Any material completion, blocker or scope/architecture change updates this file in the same change or immediately afterward.
+- A phase is not complete until its exit condition passes.
+- Failed gates are recorded with exact scope/result rather than silently retried away.
+- Any physical Pi mutation records route/checksum, relevant service state and rollback outcome.
+- Check this roadmap before reporting project status in chat.
+- PR #2 remains Draft and must not be made ready or merged without explicit owner approval.
+- The owner should not need to prompt for routine roadmap updates.
