@@ -147,7 +147,9 @@ installer/
 ├── lib/
 │   ├── audio.sh
 │   ├── common.sh
+│   ├── components.sh
 │   ├── direct_audio.sh
+│   ├── prerequisites.sh
 │   ├── runtime.sh
 │   ├── services.sh
 │   └── verification.sh
@@ -156,12 +158,15 @@ installer/
     │   └── alarm-safe.conf
     └── eq-split-bus/
 
-scripts/audio/
-├── preflight-eq.sh
-├── install-eq.sh
-├── uninstall-eq.sh
-├── verify-audio.sh
-└── repair-audio.sh
+scripts/
+├── check-appliance-components.sh
+├── preflight-appliance.sh
+└── audio/
+    ├── preflight-eq.sh
+    ├── install-eq.sh
+    ├── uninstall-eq.sh
+    ├── verify-audio.sh
+    └── repair-audio.sh
 
 scripts/audio_eq_camilladsp/
 ├── __init__.py
@@ -675,7 +680,8 @@ This completes the complete install → reboot → failure/failback → repair �
 - [x] Add browser Settings controls for observation-provider choice/station/timings without adding a browser API-key field.
 - [x] Review the documented Weather Underground history pressure schema and reject aggregate/range fields as fake instantaneous barometer history.
 - [ ] Inspect a real station current/history response before live-provider acceptance; do not reinterpret aggregate fields merely to prefill the barometer.
-- [ ] Add fresh-Pi prerequisites, package/artifact handling and appliance-level post-install verification.
+- [x] Add read-only component adapters and a fresh-Pi prerequisite/source/host preflight contract.
+- [ ] Add package/artifact handling and appliance-level post-install verification.
 - [ ] Exercise both audio profiles and both observation profiles in non-production integration tests before guarded full-installer activation.
 
 #### Phase 7 source checkpoint #1 — plan-only installer and multi-node weather foundation
@@ -744,7 +750,25 @@ GitHub Actions **Tests #2947 / run 31352047078 — PASS** at source head `1d99aa
 
 No Phase 7 Settings/weather code has been deployed to the bedroom Pi; its current accepted Ecowitt push runtime remains unchanged.
 
-**Exit condition:** In progress. The observation runtime/backend/browser authority, alarm-safe Direct plan and explicit fresh-EQ baseline bridge are green. Remaining prerequisite/check adapters, fresh-Pi prerequisite/verifier work, full 2×2 integration testing and guarded activation are still pending.
+#### Phase 7 source checkpoint #6 — read-only component adapters and fresh-Pi preflight
+
+The remaining installer inventory is now explicit rather than implicit. `installer/lib/components.sh` records each specialist component, whether it already owns a native read-only check or currently needs the shared adapter, and its still-specialist-owned apply entrypoint. The dashboard service and kiosk remain `native-check`; AirPlay lifecycle hooks, AirPlay metadata, alarm-audio helper and Shairport-name helper are classified `adapter-check` because their older install scripts still mutate immediately. `scripts/check-appliance-components.sh` gives those legacy components one source/target inspection path without running the mutating entrypoints. Missing targets are reported as the expected state of a fresh Pi rather than “repaired” during planning.
+
+Root `install.sh` now sources that inventory and prints the exact read-only check ownership for every component. It still refuses `--apply`, so merely planning an appliance cannot accidentally invoke one of the older apply-only installers.
+
+The fresh-Pi prerequisite contract is now owned by `installer/lib/prerequisites.sh` and `scripts/preflight-appliance.sh`. Source-only mode validates repository/component sources and can be exercised on any CI host. Host mode is deliberately read-only and checks the intended production assumptions: Debian/Raspberry Pi OS family on `aarch64`, a normal project account with sudo capability, Python/venv and base command availability, ALSA tools, Shairport Sync, a Chromium-compatible browser, external `plexamp.service`, ALSA card id `Pro`, and — only for EQ — the verified CamillaDSP 4.1.3 artifact plus `snd_aloop` availability. A Weather Underground profile additionally requires the selected API-key environment variable to be present but never prints its value. Ecowitt network reachability remains a later physical/site check.
+
+Plexamp Headless is explicitly classified as an **external prerequisite** for now: this repository can verify its service/API contract but does not yet claim installation/update authority for the Plexamp distribution itself.
+
+Adding a selectable project user exposed one more reusable-install issue before activation: `systemd/a-clockwork-plex.service` historically contains the current `/home/andy/A-Clockwork-Plex` identity/path. Rather than pretend a different `--project-user` was supported, `scripts/install-dashboard-service.sh` now renders its candidate unit from the repository definition using the selected project user and actual repository root, compares that candidate in read-only mode, validates the rendered unit before guarded apply, and retains its existing exact rollback/API-health checks. For the current `andy` checkout the rendered result is the same established unit; no production service has been changed.
+
+Source-only preflight coverage already runs all four Direct/EQ × Ecowitt/WU profile combinations and confirms profile-specific requirements. This is prerequisite-contract coverage only, not yet the full installation 2×2 lifecycle acceptance.
+
+GitHub Actions **Tests #2976 / run 31352803277 — PASS** at source head `dc27a96`, including compilation, JavaScript/page wiring, shell syntax and the complete unit suite with the new component-adapter, prerequisite and parameterised-dashboard-service tests.
+
+No Phase 7 adapter, preflight or dashboard-service rendering change has been deployed to the bedroom Pi.
+
+**Exit condition:** In progress. Observation runtime/backend/browser authority, alarm-safe Direct, explicit fresh-EQ baseline selection, specialist check adapters and the read-only fresh-Pi prerequisite gate are green. Package/artifact installation ownership, the appliance-level post-install verifier, full non-production 2×2 lifecycle integration and guarded activation are still pending.
 
 ### Phase 8 — cleanup and release preparation
 
@@ -771,19 +795,20 @@ No Phase 7 Settings/weather code has been deployed to the bedroom Pi; its curren
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
 | 6. Failure/reboot/uninstall acceptance | Complete | Full real-Pi lifecycle PASS including corrected failback, exact uninstall/direct reboot and saved-state reinstall |
-| 7. Full appliance installer integration | In progress | WU runtime/shared state/unified browser Settings + alarm-safe Direct + explicit fresh-EQ bridge landed; adapters/prerequisites/verifier and 2×2 integration next |
+| 7. Full appliance installer integration | In progress | WU runtime/shared state/browser Settings + alarm-safe Direct + fresh-EQ bridge + read-only component/preflight gates landed; package/artifact ownership, verifier and lifecycle 2×2 next |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 source work through `1d99aa5` is source/CI-only and does not require a production audio or weather mutation.
+The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 work through `dc27a96` is source/CI-only and does not require a production audio, service or weather mutation.
 
 Next source work should:
 
-1. turn the remaining application/service/helper inventory into explicit check/plan adapters so the root installer can produce one coherent fresh-Pi prerequisite report without mutation;
-2. add fresh-Pi package/user/hardware prerequisites and an appliance-level verifier;
-3. exercise Direct/EQ × Ecowitt/WU combinations under non-production roots/mocks before adding any top-level `--apply` path;
-4. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
+1. define package/artifact ownership for a genuinely fresh Raspberry Pi without making Plexamp distribution installation an unsupported promise;
+2. implement an appliance-level **post-install verifier** that checks the selected audio profile, dashboard, Shairport integration/helpers, kiosk and chosen weather-observation mode without changing them;
+3. exercise Direct/EQ × Ecowitt/WU as complete non-production installation plans/lifecycles rather than only source-preflight combinations;
+4. only after those gates are green, design the top-level guarded `--apply` orchestration using the specialist component owners rather than duplicating them;
+5. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
 
 No new local weather caching/fan-out server is part of the design.
 
