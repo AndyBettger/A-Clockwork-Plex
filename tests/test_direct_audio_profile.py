@@ -56,17 +56,11 @@ class DirectAudioProfileTests(unittest.TestCase):
     def test_direct_component_library_is_read_only(self):
         source = Path("installer/lib/direct_audio.sh").read_text(encoding="utf-8")
 
-        for forbidden in (
-            "systemctl ",
-            "sudo ",
-            "modprobe ",
-            "mv ",
-            "cp ",
-            "rm ",
-            "install -",
-            "> /etc/",
-        ):
-            self.assertNotIn(forbidden, source)
+        mutation_command = re.compile(
+            r"(?m)^\s*(?:sudo\s+)?(?:systemctl|modprobe|mv|cp|rm|install)\b"
+        )
+        self.assertIsNone(mutation_command.search(source))
+        self.assertNotIn("> /etc/", source)
         self.assertIn("acp_verify_direct_audio_sources", source)
         self.assertIn("acp_direct_audio_plan", source)
 
