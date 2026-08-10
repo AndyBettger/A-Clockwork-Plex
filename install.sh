@@ -16,8 +16,8 @@ APPLY_CONFIRMATION_TOKEN=APPLY-A-CLOCKWORK-PLEX
 #
 # Phase 7 now exposes a guarded --apply boundary, but production mutation is
 # intentionally refused after the matching read-only package and host/preflight
-# gates. The outer transaction is not begun until package/weather/dashboard
-# ownership and rollback policy are implemented and green.
+# gates. The guarded package/venv bootstrap owner now exists, but root apply does
+# not invoke it until weather/dashboard ownership and rollback are also green.
 
 usage() {
     cat <<EOF
@@ -42,10 +42,10 @@ Profile options:
   --non-interactive                require all future choices from arguments/env
   -h, --help                       show this help
 
-The guarded --apply boundary does not yet install packages, files, services,
-audio routes, weather configuration, dashboard startup or any other appliance
-state. A successful gate run exits non-zero with MUTATION_BLOCKED until the
-remaining Phase 7 mutation owners and rollback policy are complete.
+The guarded --apply boundary does not yet invoke the package bootstrap or install
+files, services, audio routes, weather configuration, dashboard startup or any
+other appliance state. A successful gate run exits non-zero with MUTATION_BLOCKED
+until the remaining Phase 7 mutation owners and rollback policy are complete.
 EOF
 }
 
@@ -140,6 +140,7 @@ required_sources=(
     "$REPO_ROOT/scripts/install-airplay-metadata-listener.sh"
     "$REPO_ROOT/scripts/install-alarm-audio-helper.sh"
     "$REPO_ROOT/scripts/install-shairport-name-helper.sh"
+    "$REPO_ROOT/scripts/install-appliance-packages.sh"
     "$REPO_ROOT/scripts/install-appliance-helpers.sh"
     "$REPO_ROOT/scripts/install-airplay-integration.sh"
     "$REPO_ROOT/scripts/check-appliance-components.sh"
@@ -264,6 +265,9 @@ Before guarded --apply can cross into mutation, it repeats the matching read-onl
   bash scripts/check-appliance-packages.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
   bash scripts/preflight-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
+Guarded package/venv bootstrap owner (not invoked by root apply yet):
+  bash scripts/install-appliance-packages.sh --activate --confirm INSTALL-APPLIANCE-PACKAGES --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
+
 After a future guarded installation, the selected profile must pass:
   bash scripts/verify-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
@@ -296,15 +300,17 @@ cat <<'EOF'
 Guarded --apply read-only gates passed.
 Outer transaction boundary: READY, NOT STARTED.
 Guarded specialist owners behind that boundary:
+  scripts/install-appliance-packages.sh
   scripts/audio/install-direct.sh
   scripts/audio/install-eq.sh
   scripts/install-appliance-helpers.sh
   scripts/install-airplay-integration.sh
 
 No specialist --activate path was invoked and acp_transaction_begin was not
-called. Package/venv rollback ownership and weather/dashboard mutation remain
-unfinished Phase 7 gates, so production mutation is intentionally refused.
-MUTATION_BLOCKED=PACKAGE-WEATHER-DASHBOARD-STAGES-INCOMPLETE
+called. Package/venv bootstrap ownership is now guarded and tested, but root
+apply intentionally does not invoke it while weather/dashboard mutation and
+rollback remain unfinished Phase 7 gates.
+MUTATION_BLOCKED=WEATHER-DASHBOARD-STAGES-INCOMPLETE
 No production file, package, service, route, mixer, PCM or configuration was changed.
 EOF
 
