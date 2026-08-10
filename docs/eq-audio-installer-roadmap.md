@@ -77,19 +77,19 @@ Completed source/read-only work:
 - [x] Profile-aware appliance post-install verifier.
 - [x] Complete rooted/non-production **Direct/EQ × Ecowitt/WU 2×2 profile matrix**, including real rooted EQ install/uninstall and exact `654ff170...` restoration.
 - [x] Whole-appliance transaction primitives: explicit file/absence capture, metadata, reverse restore, production-root service state capture/restore and alternate-root testability.
+- [x] Guarded alarm-safe Direct activation owner `scripts/audio/install-direct.sh`, with prepare-only default, explicit confirmation, exact checksum install and rollback/failure-injection coverage.
 - [ ] Guarded root `--apply` with explicit confirmation and immediately repeated matching package/host/preflight gates.
 - [ ] Safe root apply/rollback ownership for legacy immediate-mutating specialist installers.
 - [ ] Root-owned package + venv + `requirements.txt` mutation transaction and explicit package rollback policy.
-- [ ] Guarded alarm-safe Direct activation as the common fresh-build baseline; optional accepted EQ handoff.
-- [ ] Safe weather-provider config/secret-reference application retaining Open-Meteo forecast config.
+- [ ] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
-- [ ] Deliberate non-production failure injection with exact restoration.
+- [ ] Deliberate non-production whole-appliance failure injection with exact restoration.
 - [ ] Physical fresh Direct acceptance: Plexamp, alarm isolation, truthful **Install required** EQ UI.
 - [ ] Physical fresh EQ acceptance: split-bus/EQ/alarm isolation and reboot.
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle and transaction primitives are green. Remaining major gates are guarded top-level mutation/rollback and physical fresh-appliance acceptance.
+**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives and the fresh Direct component owner are green. Remaining major gates are guarded whole-appliance mutation/rollback and physical fresh-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -100,6 +100,12 @@ Package ownership and the single appliance verifier landed. The integrated matri
 `installer/lib/transaction.sh` adds explicit stateless transaction-directory capture/restore primitives without enabling production installation. Regular file or deliberate absence is captured with SHA/mode/ownership metadata; symlinks/directories and duplicate capture are rejected; paths/services restore in reverse order; live service capture/restore is production-root-only; alternate-root file capture supports CI.
 
 The first run, **Tests #3007 / run `31355957280`**, failed four new/roadmap tests only: three transaction tests omitted the library's explicit transaction-directory argument, and compacting the active roadmap had removed the historical `scripts/audio/preflight-eq.sh` safety-gate wording required by regression coverage. No production mutation occurred; compile/JS/page/shell syntax all passed. The tests were corrected to use the explicit stateless API and Phase 3 wording was restored. **Tests #3013 / run `31356363970` — PASS** at `bc7b1fe`.
+
+#### Phase 7 checkpoint #9 — guarded alarm-safe Direct component — **PASS**
+
+`scripts/audio/install-direct.sh` now owns the fresh Direct route activation rather than promoting the legacy shared-audio installer. It defaults to prepare-only, requires `--activate --confirm INSTALL-DIRECT-AUDIO`, validates the exact alarm-safe source SHA `654ff170...`, captures the previous active route and production service state, stops the three audio/dashboard applications only for the route switch, restores their previous state, and rolls back the previous route/service state if activation fails. Alternate-root activation and a non-production post-route failure injection prove exact rollback without touching live ALSA/systemd.
+
+The first CI after adding the Direct installer, **Tests #3023 / run `31356602256`**, failed two new tests because the installer created its transaction directory with `mktemp -d` and then correctly called `acp_transaction_begin`, whose contract requires the transaction directory itself not to exist yet. The installer now creates a private temporary parent and lets the transaction library create a child directory. No production mutation occurred. **Tests #3025 / run `31356684593` — PASS** at `b60b2b9`, including the new prepare/activation/wrong-token/failure-rollback Direct tests.
 
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
@@ -118,10 +124,10 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Build the guarded top-level apply transaction and confirmation gate around the now-green transaction primitives.
-2. Give legacy specialist installers safe apply/rollback boundaries without duplicating their subsystem logic.
+1. Add the guarded top-level apply confirmation/transaction boundary around the green component infrastructure while still refusing incomplete production stages.
+2. Give the four legacy immediate-mutating specialist installers safe prepare/apply/rollback boundaries without duplicating subsystem logic.
 3. Define package/venv mutation and rollback policy before allowing package mutation.
-4. Establish alarm-safe Direct `654ff170...`, optionally hand off to standalone EQ `--baseline alarm-safe-direct`.
+4. Root orchestration should establish Direct via `scripts/audio/install-direct.sh`, then optionally hand off to standalone EQ using `--baseline alarm-safe-direct`.
 5. Apply weather-provider config/secret reference while retaining Open-Meteo, then dashboard/kiosk.
 6. Treat `scripts/verify-appliance.sh` failure as install failure and reverse rollback.
 7. Inject failures in non-production and prove restoration before any fresh-Pi physical rehearsal.
