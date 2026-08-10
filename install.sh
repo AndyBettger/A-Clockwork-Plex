@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUDIO_PROFILE="${ACP_AUDIO_PROFILE:-eq}"
 WEATHER_OBSERVATIONS="${ACP_WEATHER_OBSERVATIONS:-ecowitt-push}"
+PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
 NON_INTERACTIVE=false
 MODE=plan
 
@@ -14,7 +15,7 @@ usage() {
     cat <<'EOF'
 Usage:
   bash install.sh [--audio direct|eq] [--weather-observations ecowitt-push|weather-underground]
-                  [--non-interactive] [--plan]
+                  [--project-user USER] [--non-interactive] [--plan]
 
 Phase 7 currently implements a read-only installation plan only. It does not
 change files, packages, services, audio routes or application configuration.
@@ -22,6 +23,7 @@ change files, packages, services, audio routes or application configuration.
 Options:
   --audio PROFILE                  direct or eq (default: eq)
   --weather-observations PROVIDER  ecowitt-push or weather-underground
+  --project-user USER              normal appliance account (default: invoking user)
   --non-interactive                require all future choices from arguments/env
   --plan                           print the installation plan (current default)
   -h, --help                       show this help
@@ -43,6 +45,11 @@ while [[ $# -gt 0 ]]; do
         --weather-observations)
             [[ $# -ge 2 ]] || fail "--weather-observations requires a provider"
             WEATHER_OBSERVATIONS="$2"
+            shift 2
+            ;;
+        --project-user)
+            [[ $# -ge 2 ]] || fail "--project-user requires a user"
+            PROJECT_USER="$2"
             shift 2
             ;;
         --non-interactive)
@@ -78,6 +85,7 @@ case "$WEATHER_OBSERVATIONS" in
         ;;
 esac
 
+[[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || fail "invalid project user '$PROJECT_USER'"
 [[ "$MODE" == plan ]] || fail "unsupported installer mode: $MODE"
 
 required_sources=(
@@ -88,9 +96,11 @@ required_sources=(
     "$REPO_ROOT/scripts/install-alarm-audio-helper.sh"
     "$REPO_ROOT/scripts/install-shairport-name-helper.sh"
     "$REPO_ROOT/scripts/check-appliance-components.sh"
+    "$REPO_ROOT/scripts/preflight-appliance.sh"
     "$REPO_ROOT/scripts/audio/install-eq.sh"
     "$REPO_ROOT/scripts/audio/verify-audio.sh"
     "$REPO_ROOT/installer/lib/components.sh"
+    "$REPO_ROOT/installer/lib/prerequisites.sh"
     "$REPO_ROOT/installer/lib/direct_audio.sh"
     "$REPO_ROOT/installer/profiles/direct/alarm-safe.conf"
 )
@@ -107,6 +117,8 @@ done
 ACP_REPO_ROOT="$REPO_ROOT"
 # shellcheck source=installer/lib/components.sh
 source "$REPO_ROOT/installer/lib/components.sh"
+# shellcheck source=installer/lib/prerequisites.sh
+source "$REPO_ROOT/installer/lib/prerequisites.sh"
 # shellcheck source=installer/lib/direct_audio.sh
 source "$REPO_ROOT/installer/lib/direct_audio.sh"
 acp_verify_component_sources || fail "Appliance component source validation failed"
@@ -120,6 +132,7 @@ Repository:           $REPO_ROOT
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_OBSERVATIONS
 Forecast provider:    open-meteo (retained)
+Project user:          $PROJECT_USER
 Non-interactive:      $NON_INTERACTIVE
 
 Planned orchestration boundary:
@@ -133,6 +146,8 @@ Planned orchestration boundary:
   8. run one appliance-level post-install verification report.
 EOF
 
+echo
+acp_prerequisite_plan "$AUDIO_PROFILE" "$WEATHER_OBSERVATIONS" "$PROJECT_USER"
 echo
 acp_component_plan
 
@@ -176,6 +191,9 @@ EOF
 fi
 
 cat <<'EOF'
+
+Before any future --apply path is enabled, run the read-only host gate:
+  bash scripts/preflight-appliance.sh [matching profile options]
 
 No production file, package, service, route, mixer, PCM or configuration was changed.
 EOF
