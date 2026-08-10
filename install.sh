@@ -149,7 +149,7 @@ EOF
 echo
 acp_prerequisite_plan "$AUDIO_PROFILE" "$WEATHER_OBSERVATIONS" "$PROJECT_USER"
 echo
-acp_component_plan
+acp_component_plan "$PROJECT_USER"
 
 if [[ "$AUDIO_PROFILE" == eq ]]; then
     cat <<'EOF'
