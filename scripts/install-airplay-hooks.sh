@@ -1,21 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
 START_WRAPPER="${START_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-start}"
 END_WRAPPER="${END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-end}"
 LEGACY_SESSION_END_WRAPPER="${LEGACY_SESSION_END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-session-end}"
 LEGACY_SUDOERS_FILE="${LEGACY_SUDOERS_FILE:-/etc/sudoers.d/a-clockwork-plex-airplay}"
-
-validate_url_value() {
-    local name="$1"
-    local value="$2"
-    if [[ "$value" =~ [[:space:]\"\'\`\\] ]]; then
-        echo "Invalid $name: $value" >&2
-        echo "$name must not contain spaces, quotes, backticks or backslashes." >&2
-        exit 1
-    fi
-}
+WRAPPER_RENDERER="$SCRIPT_DIR/a-clockwork-plex-airplay-wrappers.py"
 
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -24,90 +16,30 @@ require_command() {
     fi
 }
 
-validate_url_value "DASHBOARD_BASE" "$DASHBOARD_BASE"
+require_command python3
 require_command sudo
-require_command tee
-
-# START is now a pure lifecycle adapter. The dashboard route journals the real
-# AirPlay playing transition; PlaybackCoordinator owns any required Plexamp pause.
-# The route also preserves an explicitly open Plexamp surface instead of stealing
-# the screen at connection time.
-cat <<START_WRAPPER_EOF | sudo tee "$START_WRAPPER" >/dev/null
-#!/bin/bash
-set -euo pipefail
-
-DASHBOARD_BASE="$DASHBOARD_BASE"
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - publishing playing intent to PlaybackCoordinator"
-/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/start" >/dev/null || true
-
-/usr/bin/logger -t shairport-plexamp "PlaybackCoordinator owns Plexamp pause; shared ALSA services remain running"
-START_WRAPPER_EOF
-
-# END classifies the active-to-inactive transition. A connected sender means
-# pause; an already unavailable sender means the session ended at the same time.
-# It publishes lifecycle only and never chooses a dashboard screen.
-cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
-#!/bin/bash
-set -euo pipefail
-
-DASHBOARD_BASE="$DASHBOARD_BASE"
-
-remote_available_status() {
-    if command -v /usr/bin/busctl >/dev/null 2>&1; then
-        /usr/bin/busctl --system get-property \
-            org.gnome.ShairportSync \
-            /org/gnome/ShairportSync \
-            org.gnome.ShairportSync.RemoteControl \
-            Available 2>/dev/null || printf 'unknown'
-    else
-        printf 'unknown'
-    fi
+require_command install
+[[ -f "$WRAPPER_RENDERER" && ! -L "$WRAPPER_RENDERER" ]] || {
+    echo "Could not find AirPlay wrapper renderer: $WRAPPER_RENDERER" >&2
+    exit 1
 }
 
-remote_player_state() {
-    if command -v /usr/bin/busctl >/dev/null 2>&1; then
-        /usr/bin/busctl --system get-property \
-            org.gnome.ShairportSync \
-            /org/gnome/ShairportSync \
-            org.gnome.ShairportSync.RemoteControl \
-            PlayerState 2>/dev/null || printf 'unknown'
-    else
-        printf 'unknown'
-    fi
+CANDIDATE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-airplay-hooks.XXXXXX")"
+cleanup() {
+    rm -rf "$CANDIDATE_DIR"
 }
+trap cleanup EXIT
 
-post_pause_event() {
-    /usr/bin/curl -fsS -X POST \
-        -H 'Content-Type: application/json' \
-        --data '{"source":"airplay","event":"paused","details":{"origin":"shairport-end-wrapper"}}' \
-        "\$DASHBOARD_BASE/api/playback/events" >/dev/null
-}
+python3 "$WRAPPER_RENDERER" \
+    --output-dir "$CANDIDATE_DIR" \
+    --dashboard-base "$DASHBOARD_BASE"
 
-PLAYER_STATE="\$(remote_player_state)"
-REMOTE_AVAILABLE="\$(remote_available_status)"
-
-# A stale END may arrive just after START on resume. The newer START route has
-# already journalled airplay.playing, so this older END must not overwrite it.
-if [ "\$PLAYER_STATE" = 's "Playing"' ]; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay END observed after playback resumed - retaining the newer playing session"
-    exit 0
-fi
-
-if [ "\$REMOTE_AVAILABLE" = "b false" ]; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay sender disconnected during active-state exit - ending the dashboard session"
-    /usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
-    exit 0
-fi
-
-if post_pause_event; then
-    /usr/bin/logger -t shairport-plexamp "AirPlay paused with sender available - PlaybackCoordinator owns the configured hold"
-else
-    /usr/bin/logger -t shairport-plexamp "AirPlay pause event could not reach PlaybackCoordinator; the current screen was left untouched"
-fi
-END_WRAPPER_EOF
-
-sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
+sudo install -D -m 0755 \
+    "$CANDIDATE_DIR/a-clockwork-plex-airplay-start" \
+    "$START_WRAPPER"
+sudo install -D -m 0755 \
+    "$CANDIDATE_DIR/a-clockwork-plex-airplay-end" \
+    "$END_WRAPPER"
 
 # Remove the experimental play-end callback. On the bedroom Shairport build it
 # fires for an ordinary pause and therefore must never publish a disconnect.
