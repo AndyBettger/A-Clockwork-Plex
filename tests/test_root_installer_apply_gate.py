@@ -24,6 +24,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             "scripts/install-airplay-metadata-listener.sh",
             "scripts/install-alarm-audio-helper.sh",
             "scripts/install-shairport-name-helper.sh",
+            "scripts/install-appliance-packages.sh",
             "scripts/install-appliance-helpers.sh",
             "scripts/install-airplay-integration.sh",
             "scripts/check-appliance-components.sh",
@@ -138,7 +139,8 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             self.assertIn("PACKAGE_GATE", result.stdout)
             self.assertIn("PREFLIGHT_GATE", result.stdout)
             self.assertIn("Outer transaction boundary: READY, NOT STARTED", result.stdout)
-            self.assertIn("MUTATION_BLOCKED=PACKAGE-WEATHER-DASHBOARD-STAGES-INCOMPLETE", result.stdout)
+            self.assertIn("MUTATION_BLOCKED=WEATHER-DASHBOARD-STAGES-INCOMPLETE", result.stdout)
+            self.assertIn("scripts/install-appliance-packages.sh", result.stdout)
             log = (installer.parent / "gate.log").read_text(encoding="utf-8")
             self.assertIn("package --audio direct --weather-observations ecowitt-push", log)
             self.assertIn("preflight --audio direct --weather-observations ecowitt-push", log)
@@ -176,6 +178,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
         source = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('declare -F acp_transaction_begin', source)
         self.assertNotIn('acp_transaction_begin "', source)
+        self.assertNotIn('install-appliance-packages.sh" --activate', source)
         self.assertNotIn('install-direct.sh" --activate', source)
         self.assertNotIn('install-eq.sh" --activate', source)
         self.assertNotIn('install-appliance-helpers.sh" --activate', source)
