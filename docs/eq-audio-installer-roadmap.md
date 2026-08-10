@@ -672,7 +672,7 @@ This completes the complete install → reboot → failure/failback → repair �
 - [x] Implement an owned Weather Underground observation polling service while retaining the current Ecowitt-push path.
 - [x] Route both observation providers through one dashboard storage/history function so they cannot become competing state owners.
 - [x] Add observation-provider configuration/status to unified Settings without exposing API secrets.
-- [ ] Add browser Settings controls for observation-provider choice/station/timings without adding a browser API-key field.
+- [x] Add browser Settings controls for observation-provider choice/station/timings without adding a browser API-key field.
 - [x] Review the documented Weather Underground history pressure schema and reject aggregate/range fields as fake instantaneous barometer history.
 - [ ] Inspect a real station current/history response before live-provider acceptance; do not reinterpret aggregate fields merely to prefill the barometer.
 - [ ] Add fresh-Pi prerequisites, package/artifact handling and appliance-level post-install verification.
@@ -732,7 +732,19 @@ The first CI run after the bridge, **Tests #2937 / run 31351187599**, reached th
 
 No part of this bridge has been deployed to the bedroom Pi. Its accepted Phase 6 installation and exact historical uninstall evidence remain untouched.
 
-**Exit condition:** In progress. The observation runtime/backend authority, alarm-safe Direct plan and explicit fresh-EQ baseline bridge are green. Browser observation controls, remaining prerequisite/check adapters, full 2×2 integration testing and guarded activation are still pending.
+#### Phase 7 source checkpoint #5 — browser observation-provider Settings
+
+The Weather → Station Settings page now presents the same unified observation-provider authority already owned by the backend. The provider selector offers **Ecowitt custom push** and **Weather Underground PWS**; provider-specific cards expose the Ecowitt push path/freshness or the Weather Underground station ID, poll interval, stale threshold and request timeout. A small presentation-only script switches those cards and translates the owned service status into concise health text by reading `ACPUnifiedSettings.getSnapshot()`; it does not fetch or save through a second weather API.
+
+No Weather Underground API-key field exists in the page. Visible copy states that the credential belongs to the server environment, and regression coverage rejects secret-setting paths/password inputs. The backend continues to own the configurable environment-variable name without exposing the secret value. `pressure_history_hours` is also intentionally not presented as a working browser bootstrap control because the reviewed WU historical pressure fields do not justify fabricating instantaneous barometer samples.
+
+Weather copy is now provider-neutral: the Weather section describes local observations, and the forecast card explicitly says Open-Meteo remains the forecast provider while current observations use the provider selected under Station. Existing dashboard label/browser-refresh controls remain separate from source polling/freshness settings.
+
+GitHub Actions **Tests #2947 / run 31352047078 — PASS** at source head `1d99aa5`, covering compilation, JavaScript/page wiring, shell syntax and the complete unit suite including the new observation-Settings regression tests.
+
+No Phase 7 Settings/weather code has been deployed to the bedroom Pi; its current accepted Ecowitt push runtime remains unchanged.
+
+**Exit condition:** In progress. The observation runtime/backend/browser authority, alarm-safe Direct plan and explicit fresh-EQ baseline bridge are green. Remaining prerequisite/check adapters, fresh-Pi prerequisite/verifier work, full 2×2 integration testing and guarded activation are still pending.
 
 ### Phase 8 — cleanup and release preparation
 
@@ -759,20 +771,19 @@ No part of this bridge has been deployed to the bedroom Pi. Its accepted Phase 6
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
 | 6. Failure/reboot/uninstall acceptance | Complete | Full real-Pi lifecycle PASS including corrected failback, exact uninstall/direct reboot and saved-state reinstall |
-| 7. Full appliance installer integration | In progress | WU runtime/shared state/backend Settings + alarm-safe Direct + explicit fresh-EQ baseline bridge landed; browser Settings, adapters/prerequisites and 2×2 integration next |
+| 7. Full appliance installer integration | In progress | WU runtime/shared state/unified browser Settings + alarm-safe Direct + explicit fresh-EQ bridge landed; adapters/prerequisites/verifier and 2×2 integration next |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 source work through `b957c58` is source/CI-only and does not require a production audio or weather mutation.
+The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 source work through `1d99aa5` is source/CI-only and does not require a production audio or weather mutation.
 
 Next source work should:
 
-1. add the browser Settings presentation for observation-provider selection, station ID and timing controls while keeping API-key material completely outside the browser/unified-settings payload;
-2. turn the remaining application/service/helper inventory into explicit check/plan adapters so the root installer can produce one coherent fresh-Pi prerequisite report without mutation;
-3. add fresh-Pi package/user/hardware prerequisites and an appliance-level verifier;
-4. exercise Direct/EQ × Ecowitt/WU combinations under non-production roots/mocks before adding any top-level `--apply` path;
-5. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
+1. turn the remaining application/service/helper inventory into explicit check/plan adapters so the root installer can produce one coherent fresh-Pi prerequisite report without mutation;
+2. add fresh-Pi package/user/hardware prerequisites and an appliance-level verifier;
+3. exercise Direct/EQ × Ecowitt/WU combinations under non-production roots/mocks before adding any top-level `--apply` path;
+4. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
 
 No new local weather caching/fan-out server is part of the design.
 
