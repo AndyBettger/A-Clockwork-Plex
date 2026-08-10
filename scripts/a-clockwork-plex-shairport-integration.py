@@ -9,7 +9,7 @@ from typing import Mapping
 
 
 BLOCK_RE_TEMPLATE = r"(?P<prefix>\b{block}\s*=\s*\{{)(?P<body>.*?)(?P<suffix>\}}\s*;)"
-ASSIGNMENT_RE_TEMPLATE = r"(?m)^(?P<indent>\s*){key}\s*=\s*(?P<value>[^;]*);\s*$"
+ASSIGNMENT_RE_TEMPLATE = r"(?m)^(?P<indent>[ \t]*){key}[ \t]*=[ \t]*(?P<value>[^;]*);[ \t]*$"
 
 
 def quote(value: str) -> str:
