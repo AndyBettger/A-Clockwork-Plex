@@ -456,7 +456,7 @@ The post-repair manifest contained:
 - `runtime.py` SHA `df68a2b4fae100da9bba698e2b726a86f76e0590aa2ce5a46331152b1218958a`;
 - `cli.py` SHA `b0dc88be7d267b9b8c5a21a47fca285125332c316bf31e1bf6207dc027f3ff49`.
 
-The saved EQ remained Bass `+2`, Mid `0`, Treble `+2`, bypass off, fixed headroom `-6.5 dB`, final limiter `-1.0 dB`, route `split-bus-active`, split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, generated config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, and the checkout remained clean at `80c0868`.
+The saved EQ remained Bass `+2`, Mid `0`, Treble `+2`, bypass off, fixed `-6.5 dB` headroom, final limiter `-1.0 dB`, route `split-bus-active`, split-route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, generated config SHA `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578`, and the checkout remained clean at `80c0868`.
 
 #### Controlled reboot — physical PASS
 
@@ -663,7 +663,7 @@ This completes the complete install → reboot → failure/failback → repair �
 - [x] Expose plan-time Direct audio / EQ-capable audio selection.
 - [x] Expose a plan-time non-interactive profile argument for repeatable multi-appliance builds.
 - [x] Define the supported alarm-safe Direct-audio component boundary without promoting legacy `scripts/install-shared-audio.sh` into a competing audio authority.
-- [ ] Generalise/bridge the EQ first-install baseline so a fresh appliance can transition from the alarm-safe Direct route without weakening the existing Phase 6 rollback contract.
+- [x] Generalise/bridge the EQ first-install baseline so a fresh appliance can transition from the alarm-safe Direct route without weakening the existing Phase 6 rollback contract.
 - [ ] Call the tested standalone `scripts/audio/*` component for EQ-capable activation/verification rather than reimplementing it.
 - [ ] Hide or truthfully disable EQ controls for a direct-only installation.
 - [ ] Apply saved active/bypassed state for EQ-capable installs.
@@ -720,7 +720,19 @@ This review also exposed the next audio-integration gate. The accepted standalon
 
 The first Direct-profile CI run, **Tests #2919 / run 31349560141**, exposed three test-only/wording regressions: one new read-only test used an over-broad substring check and two existing plan assertions expected established explanatory text. No runtime or audio defect was involved. The test was made command-aware and the established plan wording restored. **Tests #2927 / run 31349811843 then passed compilation, JavaScript/page wiring/shell syntax and the complete unit suite at source head `2f9fd7f`.**
 
-**Exit condition:** In progress. The observation runtime/backend authority and alarm-safe Direct plan exist and are green, but browser observation controls, the fresh-EQ baseline bridge, remaining prerequisite/check adapters, full 2×2 integration testing and guarded activation are still pending.
+#### Phase 7 source checkpoint #4 — explicit EQ direct-baseline bridge
+
+The standalone EQ first-install path now has an explicit baseline selector rather than silently broadening one checksum gate. `scripts/audio/install-eq.sh` accepts `--baseline phase6-direct|alarm-safe-direct`: `phase6-direct` remains the default and therefore preserves the physically accepted standalone Phase 6 expectation of exact direct SHA `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9`, while a fresh whole-appliance build explicitly selects `alarm-safe-direct` and validates exact alarm-safe Direct SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` before first-install capture.
+
+Root `install.sh` remains read-only/plan-only, but its EQ plan now states that future fresh-appliance orchestration will call the existing EQ component with `--baseline alarm-safe-direct`. `installer/lib/direct_audio.sh` records the same bridge while remaining read-only. This keeps historical standalone behaviour conservative instead of making both hashes implicitly acceptable everywhere.
+
+The exact uninstall guarantee is unchanged. `uninstall-eq.sh` does not hard-code the historical `08d...` route; it verifies and restores the checksum and route bytes retained in the genuine pre-EQ backup. New rooted/non-production lifecycle coverage therefore proves an alarm-safe `654...` first install can capture that route, activate the EQ profile and then uninstall back to those exact captured bytes, while separate tests prove the alarm-safe selector rejects a simulated historical `08d...` starting route and the default plan still advertises the historical Phase 6 baseline.
+
+The first CI run after the bridge, **Tests #2937 / run 31351187599**, reached the unit suite with all five new baseline lifecycle tests passing; its sole failure was an older Direct-profile test that still expected the previous “bridge pending” plan wording. That stale expectation was updated in commit `b957c58434d7c66a055573ac49118b988340bae8`. Corrected GitHub Actions **Tests #2939 / run 31351416033 — PASS** at `b957c58`, covering compilation, JavaScript/page wiring, shell syntax and the complete unit suite.
+
+No part of this bridge has been deployed to the bedroom Pi. Its accepted Phase 6 installation and exact historical uninstall evidence remain untouched.
+
+**Exit condition:** In progress. The observation runtime/backend authority, alarm-safe Direct plan and explicit fresh-EQ baseline bridge are green. Browser observation controls, remaining prerequisite/check adapters, full 2×2 integration testing and guarded activation are still pending.
 
 ### Phase 8 — cleanup and release preparation
 
@@ -747,21 +759,20 @@ The first Direct-profile CI run, **Tests #2919 / run 31349560141**, exposed thre
 | 4. Bedroom-Pi installation | Complete | Attempt #2 installed split-bus successfully; live verifier PASS; audible Plexamp confirmed |
 | 5. Feature/interface acceptance | Complete | Fixed headroom, source/master/alarm isolation, Output Levels, NFC/handoff, EQ authority/truthfulness and measured final-limiter protection accepted; future analogue alarm level is hardware commissioning |
 | 6. Failure/reboot/uninstall acceptance | Complete | Full real-Pi lifecycle PASS including corrected failback, exact uninstall/direct reboot and saved-state reinstall |
-| 7. Full appliance installer integration | In progress | WU runtime/shared state/backend Settings + alarm-safe Direct plan landed; browser Settings and fresh-EQ baseline bridge next |
+| 7. Full appliance installer integration | In progress | WU runtime/shared state/backend Settings + alarm-safe Direct + explicit fresh-EQ baseline bridge landed; browser Settings, adapters/prerequisites and 2×2 integration next |
 | 8. Cleanup/release preparation | Not started | Includes Stage C archival, obsolete self-mutating workflow retirement and documentation cleanup |
 
 ## Immediate next action
 
-The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 source work through `2f9fd7f` is source/CI-only and does not require a production audio or weather mutation.
+The bedroom Pi remains in its healthy accepted **EQ-capable split-bus state** from Phase 6. Current Phase 7 source work through `b957c58` is source/CI-only and does not require a production audio or weather mutation.
 
 Next source work should:
 
 1. add the browser Settings presentation for observation-provider selection, station ID and timing controls while keeping API-key material completely outside the browser/unified-settings payload;
-2. generalise the accepted EQ first-install baseline contract so a fresh appliance can transition safely from alarm-safe Direct SHA `654ff170...` without weakening the existing physical Phase 6 rollback guarantee tied to `08d00093...`;
-3. turn the remaining application/service/helper inventory into explicit check/plan adapters so the root installer can produce one coherent fresh-Pi prerequisite report without mutation;
-4. add fresh-Pi package/user/hardware prerequisites and an appliance-level verifier;
-5. exercise Direct/EQ × Ecowitt/WU combinations under non-production roots/mocks before adding any top-level `--apply` path;
-6. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
+2. turn the remaining application/service/helper inventory into explicit check/plan adapters so the root installer can produce one coherent fresh-Pi prerequisite report without mutation;
+3. add fresh-Pi package/user/hardware prerequisites and an appliance-level verifier;
+4. exercise Direct/EQ × Ecowitt/WU combinations under non-production roots/mocks before adding any top-level `--apply` path;
+5. perform a real Weather Underground station-current/history inspection only when station ID/runtime credentials are deliberately available, while preserving Open-Meteo as the forecast provider and never fabricating pressure history.
 
 No new local weather caching/fan-out server is part of the design.
 
