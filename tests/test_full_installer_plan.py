@@ -42,11 +42,13 @@ class FullInstallerPlanTests(unittest.TestCase):
         self.assertIn("Open-Meteo remains the forecast provider", result.stdout)
         self.assertIn("Direct audio is a first-class profile", result.stdout)
 
-    def test_apply_is_explicitly_blocked_until_phase7_activation_exists(self):
+    def test_apply_is_guarded_by_explicit_confirmation_before_any_host_gate(self):
         result = self.run_installer("--apply")
 
         self.assertEqual(result.returncode, 2)
-        self.assertIn("--apply is not implemented yet", result.stderr)
+        self.assertIn("--apply requires --confirm APPLY-A-CLOCKWORK-PLEX", result.stderr)
+        self.assertNotIn("APPLIANCE_PACKAGE_CHECK", result.stdout)
+        self.assertNotIn("APPLIANCE_PREFLIGHT", result.stdout)
 
     def test_invalid_profiles_are_rejected(self):
         audio = self.run_installer("--audio", "mystery")
