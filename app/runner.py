@@ -20,7 +20,10 @@ try:
     from .time_formatting import promote_server_time_formatting
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
-    from .weather_observation_store import store_dashboard_observation
+    from .weather_observation_store import (
+        promote_ecowitt_observation_store,
+        store_dashboard_observation,
+    )
     from .weather_observations import WeatherObservationService, register_weather_observation_api
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
@@ -42,7 +45,10 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from time_formatting import promote_server_time_formatting
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
-    from weather_observation_store import store_dashboard_observation
+    from weather_observation_store import (
+        promote_ecowitt_observation_store,
+        store_dashboard_observation,
+    )
     from weather_observations import WeatherObservationService, register_weather_observation_api
 
 
@@ -70,6 +76,7 @@ register_application_state_api(app, application_state_hub)
 register_playback_command_api(app, application_state_hub)
 register_audio_devices_api(app, config_loader=dashboard.load_config)
 master_equalizer = register_audio_eq(app)
+promote_ecowitt_observation_store(app, dashboard)
 weather_observations = WeatherObservationService(
     dashboard.load_config,
     lambda observation: store_dashboard_observation(dashboard, observation),
