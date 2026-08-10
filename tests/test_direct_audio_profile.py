@@ -78,7 +78,7 @@ class DirectAudioProfileTests(unittest.TestCase):
         self.assertIn("install-shared-audio.sh is not an appliance-installer authority", result.stdout)
         self.assertIn("No production file", result.stdout)
 
-    def test_top_level_eq_plan_exposes_fresh_baseline_bridge_as_pending(self):
+    def test_top_level_eq_plan_uses_explicit_alarm_safe_first_install_baseline(self):
         result = subprocess.run(
             ["bash", "install.sh", "--audio", "eq", "--non-interactive"],
             check=False,
@@ -87,9 +87,13 @@ class DirectAudioProfileTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Fresh-appliance integration is deliberately not claimed yet", result.stdout)
-        self.assertIn("alarms bypass Music Master", result.stdout)
-        self.assertIn("bridge/generalise", result.stdout)
+        self.assertIn("Fresh-appliance EQ will explicitly request", result.stdout)
+        self.assertIn("--baseline alarm-safe-direct", result.stdout)
+        self.assertIn("historical Phase 6 direct baseline", result.stdout)
+        self.assertIn("exact", result.stdout)
+        self.assertIn("rollback guarantee is not weakened", result.stdout)
+        self.assertIn("No production file", result.stdout)
+        self.assertNotIn("--apply is implemented", result.stdout)
 
 
 if __name__ == "__main__":
