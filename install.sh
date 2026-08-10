@@ -86,6 +86,8 @@ required_sources=(
     "$REPO_ROOT/scripts/install-shairport-name-helper.sh"
     "$REPO_ROOT/scripts/audio/install-eq.sh"
     "$REPO_ROOT/scripts/audio/verify-audio.sh"
+    "$REPO_ROOT/installer/lib/direct_audio.sh"
+    "$REPO_ROOT/installer/profiles/direct/alarm-safe.conf"
 )
 
 missing=0
@@ -96,6 +98,11 @@ for source in "${required_sources[@]}"; do
     fi
 done
 [[ "$missing" -eq 0 ]] || fail "$missing required component source(s) are missing"
+
+ACP_REPO_ROOT="$REPO_ROOT"
+# shellcheck source=installer/lib/direct_audio.sh
+source "$REPO_ROOT/installer/lib/direct_audio.sh"
+acp_verify_direct_audio_sources || fail "Direct-audio component source validation failed"
 
 cat <<EOF
 A Clockwork Plex appliance installation plan
@@ -124,15 +131,16 @@ if [[ "$AUDIO_PROFILE" == eq ]]; then
 Audio component:
   EQ-capable audio will call scripts/audio/install-eq.sh and its accepted
   verifier/repair lifecycle. The top-level installer will not copy that logic.
+
+  Fresh-appliance integration is deliberately not claimed yet: the accepted EQ
+  installer currently validates the historical pre-EQ direct checksum, whereas
+  the new first-class Direct profile must use the physically proven alarm-safe
+  route where alarms bypass Music Master. Phase 7 will bridge/generalise that
+  baseline contract under tests before --apply can be enabled.
 EOF
 else
-    cat <<'EOF'
-
-Audio component:
-  Direct audio is a first-class profile. Phase 7 will extract/define its
-  supported component boundary rather than making legacy install-shared-audio.sh
-  a second audio authority.
-EOF
+    echo
+    acp_direct_audio_plan
 fi
 
 if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
