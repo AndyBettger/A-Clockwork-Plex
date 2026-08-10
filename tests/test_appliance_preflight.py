@@ -81,7 +81,7 @@ class AppliancePreflightTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Project user:          bedroomclock", result.stdout)
+        self.assertRegex(result.stdout, r"Project user:\s+bedroomclock")
         self.assertIn("Fresh-Pi prerequisite contract", result.stdout)
         self.assertIn("Plexamp Headless", result.stdout)
         self.assertIn("external appliance prerequisite", result.stdout)
