@@ -135,11 +135,14 @@ Audio component:
   EQ-capable audio will call scripts/audio/install-eq.sh and its accepted
   verifier/repair lifecycle. The top-level installer will not copy that logic.
 
-  Fresh-appliance integration is deliberately not claimed yet: the accepted EQ
-  installer currently validates the historical pre-EQ direct checksum, whereas
-  the new first-class Direct profile must use the physically proven alarm-safe
-  route where alarms bypass Music Master. Phase 7 will bridge/generalise that
-  baseline contract under tests before --apply can be enabled.
+  Fresh-appliance EQ will explicitly request:
+    --baseline alarm-safe-direct
+
+  That first-install selector validates the physically proven alarm-safe Direct
+  SHA before capture, while the standalone script still defaults to the exact
+  historical Phase 6 direct baseline. Uninstall continues to restore the exact
+  route actually captured before EQ activation, so the existing bedroom-Pi
+  rollback guarantee is not weakened.
 EOF
 else
     echo
