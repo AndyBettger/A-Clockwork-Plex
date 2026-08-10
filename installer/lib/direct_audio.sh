@@ -42,6 +42,7 @@ acp_verify_direct_audio_sources() {
 
 acp_direct_audio_plan() {
     cat <<EOF
+Direct audio is a first-class profile.
 Direct audio component boundary:
   route source:        installer/profiles/direct/alarm-safe.conf
   route SHA-256:       $ACP_DIRECT_AUDIO_ROUTE_SHA256
