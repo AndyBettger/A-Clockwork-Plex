@@ -4,7 +4,10 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
+from flask import Flask, jsonify, request
+
 from app.weather_observation_store import (
+    promote_ecowitt_observation_store,
     sanitise_weather_observation,
     store_dashboard_observation,
 )
@@ -40,6 +43,15 @@ class FakeDashboard:
 
     def save_json(self, path, state):
         self.saved = (path, state)
+
+    def normalise_weather_payload(self):
+        return dict(request.get_json(silent=True) or {})
+
+    def pick_weather_fields(self, config, weather, state):
+        return {"fields": len(weather)}
+
+    def weather_detail_data(self, config, weather, state):
+        return {"weather": dict(weather)}
 
 
 class WeatherObservationStoreTests(unittest.TestCase):
@@ -86,11 +98,34 @@ class WeatherObservationStoreTests(unittest.TestCase):
         self.assertIs(dashboard.saved[1], state)
         self.assertNotIn("api_key", str(dashboard.saved))
 
+    def test_promoted_ecowitt_endpoint_uses_shared_store_and_filters_secrets(self):
+        app = Flask(__name__)
+        dashboard = FakeDashboard()
+
+        @app.route("/api/weather/ecowitt", methods=["GET", "POST"])
+        def api_weather_ecowitt():
+            return jsonify({"legacy": True})
+
+        promote_ecowitt_observation_store(app, dashboard)
+        response = app.test_client().post(
+            "/api/weather/ecowitt",
+            json={"tempf": 63.1, "baromrelin": 30.01, "api_key": "secret"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["stored"])
+        self.assertEqual(response.get_json()["received_fields"], 2)
+        self.assertEqual(dashboard.saved[1]["weather"], {"tempf": 63.1, "baromrelin": 30.01})
+        self.assertEqual(dashboard.extremes_payload, dashboard.saved[1]["weather"])
+        self.assertEqual(dashboard.pressure_payload, dashboard.saved[1]["weather"])
+        self.assertNotIn("secret", str(dashboard.saved))
+
     def test_runner_owns_remote_observation_service_lifecycle(self):
         source = Path("app/runner.py").read_text(encoding="utf-8")
 
         self.assertIn("WeatherObservationService", source)
         self.assertIn("register_weather_observation_api", source)
+        self.assertIn("promote_ecowitt_observation_store(app, dashboard)", source)
         self.assertIn("store_dashboard_observation", source)
         self.assertIn("weather_observations.start()", source)
         self.assertIn("weather_observations.shutdown()", source)
