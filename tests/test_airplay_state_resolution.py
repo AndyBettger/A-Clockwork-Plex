@@ -10,7 +10,7 @@ from app.airplay_coordination import resolve_airplay_remote
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "app" / "runner.py"
 TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
-HOOK_INSTALLER = ROOT / "scripts" / "install-airplay-hooks.sh"
+WRAPPER_RENDERER = ROOT / "scripts" / "a-clockwork-plex-airplay-wrappers.py"
 
 
 class AirPlayStateResolutionTests(unittest.TestCase):
@@ -82,12 +82,12 @@ class AirPlayStateResolutionTests(unittest.TestCase):
         self.assertNotIn("airplay-control-coordinator.js", text)
 
     def test_start_hook_publishes_lifecycle_without_direct_plexamp_control(self):
-        text = HOOK_INSTALLER.read_text(encoding="utf-8")
+        text = WRAPPER_RENDERER.read_text(encoding="utf-8")
         self.assertIn("$DASHBOARD_BASE/api/airplay/start", text)
         self.assertNotIn("PLEXAMP_URL", text)
         self.assertNotIn("/player/playback/pause", text)
         self.assertNotIn("/api/mode/airplay", text)
-        self.assertIn("PlaybackCoordinator owns any required Plexamp pause", text)
+        self.assertIn("PlaybackCoordinator owns Plexamp pause", text)
 
 
 if __name__ == "__main__":
