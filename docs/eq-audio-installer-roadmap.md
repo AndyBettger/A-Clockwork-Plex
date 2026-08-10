@@ -59,7 +59,7 @@ Guarded install, verify, repair and uninstall entrypoints plus shared libraries 
 
 ### Phase 3 — non-production/read-only validation — **Complete**
 
-Real-Pi prepare-only/preflight proved exact before/after production-state equality with no mutation.
+`scripts/audio/preflight-eq.sh` was the read-only bedroom-Pi validation gate. It proved exact before/after production-state equality before persistent EQ installation. **No bedroom-Pi installation** was permitted until that gate passed.
 
 ### Phase 4 — bedroom-Pi EQ installation — **Complete**
 
@@ -106,6 +106,7 @@ Completed source/read-only work:
 - [x] Plexamp Headless is truthfully classified as an external prerequisite rather than an unsupported installer-owned download.
 - [x] Appliance-level profile-aware post-install verifier exists and remains read-only.
 - [x] Complete rooted/non-production **Direct/EQ × Ecowitt/WU 2×2 profile matrix** passes, including real rooted EQ install/uninstall lifecycle and exact alarm-safe Direct restoration.
+- [ ] Whole-appliance transaction primitives have landed and are under CI correction before they are promoted into guarded root `--apply`.
 - [ ] Design and implement guarded root `--apply` with explicit confirmation and matching host/package/preflight gates.
 - [ ] Give legacy immediate-mutating specialist installers a safe root-level apply/rollback contract without duplicating their implementation logic.
 - [ ] Implement root-owned package + venv + `requirements.txt` mutation transaction and rollback.
@@ -140,6 +141,12 @@ CI sequence:
 
 No Phase 7 source checkpoint has been deployed to the bedroom Pi.
 
+#### Phase 7 source checkpoint #8 — root transaction primitives (in progress)
+
+`installer/lib/transaction.sh` now provides explicit whole-appliance capture/restore primitives without enabling `install.sh --apply`. It can capture regular files or deliberate absence with SHA/mode/ownership metadata, rejects unsafe symlink/directory capture, records service active/enablement state on the production root and restores captured paths/services in reverse order. Alternate-root file capture/restore exists specifically for non-production tests; live systemd capture/restore refuses alternate roots.
+
+The first normal CI run for the new library, **Tests #3007 / run `31355957280`**, failed four unit tests. Three were an interface mismatch in the new test itself: the library intentionally requires an explicit transaction-directory argument for `acp_transaction_capture_path`, while the initial tests supplied only the logical path. The fourth was a compact-roadmap regression test that still required the historical `scripts/audio/preflight-eq.sh` safety-gate wording to remain present in the active roadmap. No production mutation occurred and compile/JavaScript/page/shell-syntax checks passed. The capture tests have been corrected to use the explicit stateless transaction-directory API, and the Phase 3 safety-gate wording has been restored here. Await a clean normal CI run before checking this checkpoint complete.
+
 ### Phase 8 — cleanup and release preparation — **Not started**
 
 - [ ] Record an archival reference for the final Stage C branch/head evidence before removing historical material.
@@ -160,14 +167,14 @@ The bedroom Pi remains untouched in the healthy accepted Phase 6 EQ-capable spli
 
 Next engineering sequence:
 
-1. design the guarded top-level `--apply` transaction with a new explicit confirmation token and mandatory matching host/package/preflight checks;
-2. define safe apply/rollback ownership for the legacy specialist component scripts instead of blindly chaining immediate mutations;
-3. implement root-owned package/venv mutation with captured pre-state and deterministic rollback;
-4. establish alarm-safe Direct `654ff170...` as the fresh-build audio baseline, optionally hand off to standalone EQ using `--baseline alarm-safe-direct`;
-5. apply selected weather observation config/secret reference while preserving Open-Meteo forecast, then dashboard/kiosk integration;
-6. make `scripts/verify-appliance.sh` the final commit gate and roll back on a failed post-install verification;
-7. exercise failure injection and exact restoration in non-production before any fresh-Pi physical rehearsal;
-8. only then schedule physical Direct/EQ fresh-build acceptance and later deliberate live-WU payload inspection.
+1. get checkpoint #8 transaction-primitives CI fully green and then promote it from “under correction” to accepted source infrastructure;
+2. design the guarded top-level `--apply` transaction with a new explicit confirmation token and mandatory matching host/package/preflight checks;
+3. define safe apply/rollback ownership for the legacy specialist component scripts instead of blindly chaining immediate mutations;
+4. implement root-owned package/venv mutation with captured pre-state and deterministic rollback;
+5. establish alarm-safe Direct `654ff170...` as the fresh-build audio baseline, optionally hand off to standalone EQ using `--baseline alarm-safe-direct`;
+6. apply selected weather observation config/secret reference while preserving Open-Meteo forecast, then dashboard/kiosk integration;
+7. make `scripts/verify-appliance.sh` the final commit gate and roll back on a failed post-install verification;
+8. exercise failure injection and exact restoration in non-production before any fresh-Pi physical rehearsal.
 
 No new local weather caching/fan-out server is part of the design.
 
