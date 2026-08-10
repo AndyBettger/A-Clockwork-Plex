@@ -98,6 +98,7 @@ required_sources=(
     "$REPO_ROOT/scripts/check-appliance-components.sh"
     "$REPO_ROOT/scripts/check-appliance-packages.sh"
     "$REPO_ROOT/scripts/preflight-appliance.sh"
+    "$REPO_ROOT/scripts/verify-appliance.sh"
     "$REPO_ROOT/scripts/audio/install-eq.sh"
     "$REPO_ROOT/scripts/audio/verify-audio.sh"
     "$REPO_ROOT/installer/lib/components.sh"
@@ -136,7 +137,7 @@ Repository:           $REPO_ROOT
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_OBSERVATIONS
 Forecast provider:    open-meteo (retained)
-Project user:          $PROJECT_USER
+Project user:         $PROJECT_USER
 Non-interactive:      $NON_INTERACTIVE
 
 Planned orchestration boundary:
@@ -196,11 +197,14 @@ Weather component:
 EOF
 fi
 
-cat <<'EOF'
+cat <<EOF
 
 Before any future --apply path is enabled, run the matching read-only gates:
-  bash scripts/check-appliance-packages.sh [matching profile options]
-  bash scripts/preflight-appliance.sh [matching profile options]
+  bash scripts/check-appliance-packages.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
+  bash scripts/preflight-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
+
+After a future guarded installation, the selected profile must pass:
+  bash scripts/verify-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
 No production file, package, service, route, mixer, PCM or configuration was changed.
 EOF
