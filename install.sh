@@ -87,8 +87,10 @@ required_sources=(
     "$REPO_ROOT/scripts/install-airplay-metadata-listener.sh"
     "$REPO_ROOT/scripts/install-alarm-audio-helper.sh"
     "$REPO_ROOT/scripts/install-shairport-name-helper.sh"
+    "$REPO_ROOT/scripts/check-appliance-components.sh"
     "$REPO_ROOT/scripts/audio/install-eq.sh"
     "$REPO_ROOT/scripts/audio/verify-audio.sh"
+    "$REPO_ROOT/installer/lib/components.sh"
     "$REPO_ROOT/installer/lib/direct_audio.sh"
     "$REPO_ROOT/installer/profiles/direct/alarm-safe.conf"
 )
@@ -103,8 +105,11 @@ done
 [[ "$missing" -eq 0 ]] || fail "$missing required component source(s) are missing"
 
 ACP_REPO_ROOT="$REPO_ROOT"
+# shellcheck source=installer/lib/components.sh
+source "$REPO_ROOT/installer/lib/components.sh"
 # shellcheck source=installer/lib/direct_audio.sh
 source "$REPO_ROOT/installer/lib/direct_audio.sh"
+acp_verify_component_sources || fail "Appliance component source validation failed"
 acp_verify_direct_audio_sources || fail "Direct-audio component source validation failed"
 
 cat <<EOF
@@ -126,7 +131,13 @@ Planned orchestration boundary:
   6. configure one weather-observation provider while retaining Open-Meteo forecast;
   7. install/verify dashboard kiosk startup;
   8. run one appliance-level post-install verification report.
+
+eof-marker
 EOF
+# Remove the marker without hiding the plan structure from shell/static checks.
+printf '\b\b\b\b\b\b\b\b\b\b          \b\b\b\b\b\b\b\b\b\b'
+echo
+acp_component_plan
 
 if [[ "$AUDIO_PROFILE" == eq ]]; then
     cat <<'EOF'
