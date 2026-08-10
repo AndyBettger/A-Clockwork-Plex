@@ -84,8 +84,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-case "$AUDIO_PROFILE" in direct|eq) ;; *) echo "Unsupported audio profile: $AUDIO_PROFILE" >&2; exit 64 ;; esac
-case "$WEATHER_PROVIDER" in ecowitt-push|weather-underground) ;; *) echo "Unsupported weather provider: $WEATHER_PROVIDER" >&2; exit 64 ;; esac
+case "$AUDIO_PROFILE" in
+    direct|eq) ;;
+    *) echo "Unsupported audio profile: $AUDIO_PROFILE" >&2; exit 64 ;;
+esac
+case "$WEATHER_PROVIDER" in
+    ecowitt-push|weather-underground) ;;
+    *) echo "Unsupported weather provider: $WEATHER_PROVIDER" >&2; exit 64 ;;
+esac
 [[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || { echo "Invalid project user: $PROJECT_USER" >&2; exit 64; }
 [[ "$PROJECT_DIR" == /* || -z "$PROJECT_DIR" ]] || { echo '--project-dir must be absolute.' >&2; exit 64; }
 [[ "$CONFIG_PATH" == /* || -z "$CONFIG_PATH" ]] || { echo '--config must be absolute.' >&2; exit 64; }
@@ -196,12 +202,13 @@ else
     if [[ "$ROOT" != / ]]; then
         verify_command+=(--root "$ROOT")
     fi
-    if "${verify_command[@]}" >/tmp/a-clockwork-plex-appliance-audio-verify.$$ 2>&1; then
+    verify_output="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-appliance-audio-verify.XXXXXX")"
+    if "${verify_command[@]}" >"$verify_output" 2>&1; then
         pass eq-audio 'standalone EQ verifier passed'
     else
-        fail_check eq-audio "standalone verifier failed: $(tr '\n' ' ' </tmp/a-clockwork-plex-appliance-audio-verify.$$ | tail -c 300)"
+        fail_check eq-audio "standalone verifier failed: $(tr '\n' ' ' <"$verify_output" | tail -c 300)"
     fi
-    rm -f /tmp/a-clockwork-plex-appliance-audio-verify.$$
+    rm -f "$verify_output"
 fi
 
 echo
@@ -222,7 +229,9 @@ ecowitt = weather.get("ecowitt_push") if isinstance(weather.get("ecowitt_push"),
 forecast = weather.get("forecast") if isinstance(weather.get("forecast"), dict) else {}
 secret_keys = {"api_key", "apikey", "password", "secret", "token"}
 secret_present = any(str(key).lower() in secret_keys for key in wu)
-print(str(weather.get("provider") or "ecowitt_push"))
+provider = str(weather.get("provider") or "ecowitt_push").strip().lower()
+provider = {"ecowitt_push": "ecowitt-push", "weather_underground": "weather-underground"}.get(provider, provider)
+print(provider)
 print(str(forecast.get("provider") or "open_meteo"))
 print(str(wu.get("station_id") or ""))
 print(str(wu.get("api_key_env") or "WEATHER_UNDERGROUND_API_KEY"))
@@ -312,11 +321,12 @@ echo 'Live runtime/API:'
         if python3 - "$weather_json" "$WEATHER_PROVIDER" <<'PY'
 import json
 import sys
+
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-status = payload.get("status") if isinstance(payload, dict) else None
 expected = sys.argv[2]
-actual = status.get("provider") if isinstance(status, dict) else None
-state = status.get("status") if isinstance(status, dict) else None
+actual = payload.get("provider") if isinstance(payload, dict) else None
+actual = {"ecowitt_push": "ecowitt-push", "weather_underground": "weather-underground"}.get(actual, actual)
+state = payload.get("status") if isinstance(payload, dict) else None
 allowed = {"ecowitt-push": {"push"}, "weather-underground": {"ready", "pending", "degraded"}}
 raise SystemExit(0 if actual == expected and state in allowed[expected] else 1)
 PY
@@ -333,12 +343,16 @@ PY
         if python3 - "$eq_json" "$AUDIO_PROFILE" <<'PY'
 import json
 import sys
+
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
 profile = sys.argv[2]
-installed = payload.get("installed") is True
+eq = payload.get("eq") if isinstance(payload, dict) else None
+if not isinstance(eq, dict):
+    eq = payload if isinstance(payload, dict) else {}
+installed = eq.get("installed") is True
 if profile == "direct":
     raise SystemExit(0 if not installed else 1)
-raise SystemExit(0 if installed and payload.get("configured") is True else 1)
+raise SystemExit(0 if installed and eq.get("configured") is True else 1)
 PY
         then
             pass eq-api "truthful for $AUDIO_PROFILE profile"
