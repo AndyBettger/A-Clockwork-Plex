@@ -55,10 +55,12 @@ The older scripts/install-shared-audio.sh is not an appliance-installer authorit
 Its historical route SHA $ACP_LEGACY_EQ_INSTALL_BASELINE_SHA256 puts acp_alarm
 under Music Master and is therefore not the final Direct-audio profile.
 
-Fresh-EQ integration note:
-  scripts/audio/install-eq.sh currently validates that historical SHA as its
-  accepted first-install baseline. Phase 7 must bridge/generalise that baseline
-  contract before a fresh appliance can safely select EQ-capable audio from the
-  alarm-safe Direct profile. No activation is performed by this library.
+Fresh-EQ integration:
+  scripts/audio/install-eq.sh keeps phase6-direct as its standalone default but
+  now accepts --baseline alarm-safe-direct. The full appliance installer will
+  use that explicit selector after this Direct profile is installed, allowing
+  EQ first-install validation to recognise SHA $ACP_DIRECT_AUDIO_ROUTE_SHA256
+  without changing the physically accepted Phase 6 default or exact uninstall
+  backup semantics. No Direct activation is performed by this library yet.
 EOF
 }
