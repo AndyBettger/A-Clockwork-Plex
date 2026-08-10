@@ -16,7 +16,7 @@ MODE=prepare-only
 CONFIRM=
 ROOT="${ACP_ROOT:-/}"
 TARGET_ROUTE=/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf
-EXPECTED_SHA="$ACP_DIRECT_ALARM_SAFE_SHA256"
+EXPECTED_SHA="$ACP_DIRECT_AUDIO_ROUTE_SHA256"
 
 usage() {
     cat <<'EOF'
@@ -73,7 +73,7 @@ fi
 export ACP_ROOT="$ROOT"
 
 acp_verify_direct_audio_sources || exit 1
-SOURCE_SHA="$(sha256sum "$ACP_DIRECT_PROFILE_SOURCE" | awk '{print $1}')"
+SOURCE_SHA="$(sha256sum "$ACP_DIRECT_AUDIO_ROUTE" | awk '{print $1}')"
 [[ "$SOURCE_SHA" == "$EXPECTED_SHA" ]] || {
     echo "Direct profile source checksum mismatch: $SOURCE_SHA" >&2
     exit 1
@@ -84,7 +84,7 @@ A Clockwork Plex alarm-safe Direct audio plan
 
 Mode:             $MODE
 Filesystem root:  $ROOT
-Source:           ${ACP_DIRECT_PROFILE_SOURCE#$REPO_ROOT/}
+Source:           ${ACP_DIRECT_AUDIO_ROUTE#$REPO_ROOT/}
 Active route:     $TARGET_ROUTE
 Expected SHA-256: $EXPECTED_SHA
 
@@ -149,7 +149,7 @@ activate() {
         done
     fi
 
-    acp_install_file "$ACP_DIRECT_PROFILE_SOURCE" "$TARGET_ROUTE" 0644 || return 1
+    acp_install_file "$ACP_DIRECT_AUDIO_ROUTE" "$TARGET_ROUTE" 0644 || return 1
     destination="$(acp_path "$TARGET_ROUTE")" || return 1
     observed="$(sha256sum "$destination" | awk '{print $1}')" || return 1
     [[ "$observed" == "$EXPECTED_SHA" ]] || {
