@@ -80,8 +80,8 @@ Completed source/read-only work:
 - [x] Guarded alarm-safe Direct activation owner `scripts/audio/install-direct.sh`, with prepare-only default, explicit confirmation, exact checksum install and rollback/failure-injection coverage.
 - [x] Alarm-audio and Shairport-name helper packaging now share guarded `scripts/install-appliance-helpers.sh`, preserving the existing runtime implementations while adding exact rollback and project-user-aware sudo policy.
 - [x] Deterministic Shairport integration renderer owns candidate config transformation for `acp_airplay`, lifecycle callbacks and metadata without altering receiver name/unrelated settings.
+- [x] Safe root apply/rollback ownership for AirPlay lifecycle wrappers, metadata FIFO/service and Shairport integration through guarded `scripts/install-airplay-integration.sh`.
 - [ ] Guarded root `--apply` with explicit confirmation and immediately repeated matching package/host/preflight gates.
-- [ ] Safe root apply/rollback ownership for the remaining legacy immediate-mutating AirPlay hooks/metadata installers.
 - [ ] Root-owned package + venv + `requirements.txt` mutation transaction and explicit package rollback policy.
 - [ ] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
@@ -91,7 +91,7 @@ Completed source/read-only work:
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging and deterministic Shairport candidate rendering are green. Remaining major gates are the guarded AirPlay/package/weather/top-level mutation/rollback paths and physical fresh-appliance acceptance.
+**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging and guarded AirPlay integration are green. Remaining major gates are guarded top-level/package/weather/dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -113,15 +113,21 @@ The first Direct CI, **Tests #3023 / run `31356602256`**, failed two new tests b
 
 `scripts/install-appliance-helpers.sh` is now the guarded packaging/sudo-policy owner for the alarm-audio and Shairport receiver-name helpers. The actual helper algorithms remain in `scripts/a-clockwork-plex-alarm-audio-helper.sh` and `scripts/a-clockwork-plex-shairport-name.py`; the new installer does not fork those implementations. It defaults to prepare-only, requires `--activate --confirm INSTALL-APPLIANCE-HELPERS`, validates the selected project user, renders only the established restricted sudo actions, captures all four helper/policy targets and restores exact prior files/modes or absence if activation fails. Alternate-root tests prove normal install, wrong-token/invalid-user rejection and injected-failure rollback.
 
-`installer/lib/components.sh` and the read-only component adapter now report this shared guarded packaging owner for both helper components. AirPlay lifecycle hooks and metadata remain explicitly legacy apply-only and are still blocked from root activation.
-
-The first integrated ownership run, **Tests #3035 / run `31356948272`**, had one failure only: an established component-plan regression test still required the phrase `Apply commands remain specialist-owned`, which had been removed while clarifying the new shared packaging owner. That wording was restored because it remains architecturally true. **Tests #3037 / run `31357016840` — PASS** at `8356e80`. No production mutation occurred.
+`installer/lib/components.sh` and the read-only component adapter report this shared guarded packaging owner for both helper components. **Tests #3037 / run `31357016840` — PASS** at `8356e80`. No production mutation occurred.
 
 #### Phase 7 checkpoint #11 — deterministic Shairport integration candidate — **PASS**
 
-`scripts/a-clockwork-plex-shairport-integration.py` now produces a candidate Shairport configuration instead of asking a future installer to edit the live file with ad-hoc `sed`/echo logic. It sets ALSA output to `acp_airplay`, installs the physically accepted active-state lifecycle callbacks, timeout/completion policy and metadata pipe settings, removes the retired `run_this_after_play_ends`/`session_timeout` rehearsal settings, preserves the receiver name and unrelated assignments, and is covered for missing blocks and CLI candidate rendering.
+`scripts/a-clockwork-plex-shairport-integration.py` produces a candidate Shairport configuration instead of asking an installer to edit the live file with ad-hoc `sed`/echo logic. It sets ALSA output to `acp_airplay`, installs the physically accepted active-state lifecycle callbacks, timeout/completion policy and metadata pipe settings, removes retired rehearsal settings, preserves receiver name/unrelated assignments and is byte-stable on repeat rendering. **Tests #3045 / run `31357275403` — PASS** at `9795c0a`. No live Shairport config or service was changed.
 
-The first renderer CI, **Tests #3043 / run `31357172800`**, failed only the new idempotence test because the assignment regex used `\s*` at end-of-line and could consume the following newline during a second render. The renderer now restricts statement whitespace matching to spaces/tabs so repeated rendering is byte-stable. **Tests #3045 / run `31357275403` — PASS** at `9795c0a`. No live Shairport config or service was changed.
+#### Phase 7 checkpoint #12 — guarded AirPlay integration owner — **PASS**
+
+AirPlay lifecycle and metadata are now one guarded specialist boundary instead of two legacy immediate-mutating installers. `scripts/a-clockwork-plex-airplay-wrappers.py` renders the accepted START/END callback scripts from one source; the old `scripts/install-airplay-hooks.sh` delegates to that renderer rather than carrying a second copy of the runtime logic. START only publishes the AirPlay lifecycle event; END retains the accepted Shairport DBus Playing/Available checks and publishes pause/disconnect events to the existing PlaybackCoordinator authority.
+
+`scripts/install-airplay-integration.sh` defaults to prepare-only and requires `--activate --confirm INSTALL-AIRPLAY-INTEGRATION`. It renders wrapper and Shairport candidates, validates the candidate through the Shairport parser **before** replacing the live config, preserves unrelated Shairport settings/receiver name and captured file metadata, owns the metadata FIFO/unit lifecycle, retires the obsolete play-end wrapper/sudo policy, captures Shairport service state and rolls back exact prior files/absence, FIFO mode/state and services on failure. Production validation is fixed to `/usr/bin/shairport-sync`; the validation-binary override and post-install failure injection are alternate-root test facilities only.
+
+CI caught only test/fixture and mode-boundary defects while building this owner, with no production mutation: **Tests #3053 / run `31424266991`** exposed three stale assertions still inspecting the legacy installer after wrapper ownership moved; the corrected source-location coverage then passed at `0ee2507` / run `31424599120`. **Tests #3061 / run `31424865001`** exposed two file-mode parsing failures plus one diagnostics assertion; those were corrected at `5a3781a`. **Tests #3065 / run `31425471627`** then exposed only a test fixture that assumed `mkfifo(0620)` ignored process umask—the implementation had correctly restored the actually captured `0600`; the fixture now establishes `0620` explicitly and run `31425968201` passed.
+
+Finally, both `airplay-hooks` and `airplay-metadata` component records/read-only adapter output now point at the shared guarded owner while root `install.sh` still does **not** invoke it. **Tests #3072 / run `31426194328` — PASS** at `9847c2e` after that ownership promotion.
 
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
@@ -140,13 +146,12 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Build the guarded AirPlay integration owner around the now-green Shairport renderer, wrapper sources and metadata service/FIFO lifecycle; candidate config must be validated before live replacement and rollback must restore exact Shairport config/service/FIFO state.
-2. Then add the guarded top-level apply confirmation/transaction boundary around green component owners while still refusing incomplete package/weather stages.
-3. Define package/venv mutation and rollback policy before allowing package mutation.
-4. Root orchestration establishes Direct via `scripts/audio/install-direct.sh`, then optionally hands off to standalone EQ using `--baseline alarm-safe-direct`.
-5. Apply weather-provider config/secret reference while retaining Open-Meteo, then dashboard/kiosk.
-6. Treat `scripts/verify-appliance.sh` failure as install failure and reverse rollback.
-7. Inject failures in non-production and prove restoration before any fresh-Pi physical rehearsal.
+1. Add the guarded top-level `install.sh --apply` confirmation/outer transaction boundary around the now-green Direct, AirPlay and restricted-helper owners, but keep production mutation refused while package/weather stages are incomplete.
+2. Define root-owned package/venv/`requirements.txt` mutation and rollback policy before allowing package mutation.
+3. Apply observation-provider config/secret reference safely while retaining Open-Meteo forecast configuration.
+4. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
+5. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
+6. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
 
 No local weather caching/fan-out server is part of the design.
 
