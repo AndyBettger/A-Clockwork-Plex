@@ -77,11 +77,31 @@ class AppliancePackageOwnershipTests(unittest.TestCase):
 
     def test_package_checker_is_statically_read_only(self) -> None:
         source = CHECKER.read_text(encoding="utf-8")
+
+        # Ignore literal help/report heredoc bodies: words such as "pip install"
+        # there describe forbidden behaviour rather than execute it. Scan only
+        # shell program lines for mutating command entrypoints.
+        executable_lines: list[str] = []
+        heredoc_terminator: str | None = None
+        heredoc_start = re.compile(r"<<-?['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
+        for line in source.splitlines():
+            if heredoc_terminator is not None:
+                if line.strip() == heredoc_terminator:
+                    heredoc_terminator = None
+                continue
+            executable_lines.append(line)
+            match = heredoc_start.search(line)
+            if match:
+                heredoc_terminator = match.group(1)
+
+        executable_source = "\n".join(executable_lines)
         mutation = re.compile(
-            r"(?m)^\s*(?:sudo\s+)?(?:apt|apt-get|dpkg\s+-i|pip|python3\s+-m\s+pip|"
-            r"install|cp|mv|rm|chmod|chown|systemctl|modprobe|curl\s+https?://|wget)\b"
+            r"(?m)^\s*(?:sudo\s+)?(?:apt(?:-get)?\s+(?:update|upgrade|install|remove|purge)|"
+            r"dpkg\s+-i|pip(?:3)?\s+install|python3\s+-m\s+pip\s+install|install|cp|mv|rm|"
+            r"chmod|chown|systemctl\s+(?:start|stop|restart|enable|disable|daemon-reload)|"
+            r"modprobe|curl\s+https?://|wget\s+https?://)\b"
         )
-        self.assertIsNone(mutation.search(source))
+        self.assertIsNone(mutation.search(executable_source))
         self.assertIn("dpkg-query", source)
         self.assertIn("apt-cache show", source)
         self.assertNotIn("apt-cache update", source)
