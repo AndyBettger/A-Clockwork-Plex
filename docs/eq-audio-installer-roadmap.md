@@ -85,7 +85,7 @@ The live bedroom Pi then received only `__init__.py`, `model.py` and `runtime.py
 
 The saved curve was then restored in place. Playback remained continuous and the Bass boost became immediately and more clearly audible because the overall music level no longer moved with it. The helper reported Bass stored/applied/effective `+6.0 dB`, `bypassed=false`, fixed `headroom_db=-6.5`, config SHA `2ee27d5fb13c0a087704f197cb0c3420cb453cc15f94c9fa5902a40584ac600f`, route/backend `split-bus-active`, final limiter `-1.0 dB`, and unchanged PID `1543417`.
 
-Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad-volume rise. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
+Bypass was then re-enabled. The Bass boost disappeared and the music returned to a neutral tonal balance without the old broad loudness rise. The helper returned `bypassed=true`, saved Bass `+6.0 dB`, Bass applied/effective `0.0 dB`, fixed `headroom_db=-6.5`, config SHA `79adf02f489f3cc43c591e0bfe0f1883e81387a195b7a56e42f49ba23b026495`, route/backend `split-bus-active` and PID `1543417`.
 
 This physically accepts the fixed-headroom refinement in both directions: the tone stage changes tonal balance while the permanent reserve remains stable, so everyday EQ A/B no longer introduces the distracting repeated `6.5 dB` master-level jump.
 
@@ -391,7 +391,7 @@ The resulting Settings presentation was clarified and physically accepted as **M
 
 #### Dashboard API state — PASS
 
-The dashboard wrapper was corrected so an explicit helper `backend_state=split-bus-active` is preserved rather than overwritten with a generic state. Commit `44d86a7cbdb6bdff14f8c471703d91d82821a1` and regression commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` passed GitHub Actions. The live API subsequently reported the same detailed backend, route, EQ, headroom and limiter state as the helper.
+The dashboard wrapper was corrected so an explicit helper `backend_state=split-bus-active` is preserved rather than overwritten with a generic state. Commit `44d86a7cbdbbc6bdff14f8c471703d91d82821a1` and regression commit `28fe66d49f6b6145227dd58cf0cd794dbc5a3727` passed GitHub Actions. The live API subsequently reported the same detailed backend, route, EQ, headroom and limiter state as the helper.
 
 #### Mixer overlay bypass/lock and Settings authority — PASS
 
