@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Read-only Direct-audio component contract for the Phase 7 appliance installer.
-# This library deliberately exposes no activation function yet.
+# Activation is owned separately by scripts/audio/install-direct.sh so planning
+# can validate this contract without acquiring a production write path.
 
 if [[ -z "${ACP_REPO_ROOT:-}" ]]; then
     ACP_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,6 +18,7 @@ acp_direct_audio_source_files() {
 $ACP_DIRECT_AUDIO_ROUTE
 $ACP_REPO_ROOT/scripts/a-clockwork-plex-audio-mixer.py
 $ACP_REPO_ROOT/scripts/install-airplay-hooks.sh
+$ACP_REPO_ROOT/scripts/audio/install-direct.sh
 EOF_PATHS
 }
 
@@ -50,6 +52,7 @@ Direct audio component boundary:
   alarm path:          Maximum Alarm Volume -> DAC (bypasses Music Master)
   public PCMs:         acp_plexamp, acp_airplay, acp_alarm, acp_master
   common integration:  mixer helper, Plexamp default PCM, Shairport acp_airplay output
+  guarded apply owner: scripts/audio/install-direct.sh
 
 The older scripts/install-shared-audio.sh is not an appliance-installer authority.
 Its historical route SHA $ACP_LEGACY_EQ_INSTALL_BASELINE_SHA256 puts acp_alarm
@@ -57,10 +60,10 @@ under Music Master and is therefore not the final Direct-audio profile.
 
 Fresh-EQ integration:
   scripts/audio/install-eq.sh keeps phase6-direct as its standalone default but
-  now accepts --baseline alarm-safe-direct. The full appliance installer will
-  use that explicit selector after this Direct profile is installed, allowing
-  EQ first-install validation to recognise SHA $ACP_DIRECT_AUDIO_ROUTE_SHA256
-  without changing the physically accepted Phase 6 default or exact uninstall
-  backup semantics. No Direct activation is performed by this library yet.
+  accepts --baseline alarm-safe-direct. The full appliance installer will use
+  that explicit selector after the guarded Direct component establishes SHA
+  $ACP_DIRECT_AUDIO_ROUTE_SHA256. Uninstall still restores the exact route
+  captured before EQ activation, preserving the existing Phase 6 rollback
+  guarantee as well as future fresh-appliance alarm-safe rollback.
 EOF
 }
