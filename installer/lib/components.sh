@@ -35,16 +35,16 @@ acp_component_record() {
         airplay-hooks)
             printf '%s\t%s\t%s\t%s\t%s\n' \
                 airplay-hooks adapter-check \
-                scripts/install-airplay-hooks.sh \
+                scripts/install-airplay-integration.sh \
                 'bash scripts/check-appliance-components.sh --component airplay-hooks' \
-                'bash scripts/install-airplay-hooks.sh'
+                'bash scripts/install-airplay-integration.sh --activate --confirm INSTALL-AIRPLAY-INTEGRATION'
             ;;
         airplay-metadata)
             printf '%s\t%s\t%s\t%s\t%s\n' \
                 airplay-metadata adapter-check \
-                scripts/install-airplay-metadata-listener.sh \
+                scripts/install-airplay-integration.sh \
                 'bash scripts/check-appliance-components.sh --component airplay-metadata' \
-                'bash scripts/install-airplay-metadata-listener.sh'
+                'bash scripts/install-airplay-integration.sh --activate --confirm INSTALL-AIRPLAY-INTEGRATION'
             ;;
         alarm-audio-helper)
             printf '%s\t%s\t%s\t%s\t%s\n' \
@@ -75,6 +75,8 @@ acp_component_source_files() {
     done
 
     cat <<EOF
+$ACP_REPO_ROOT/scripts/a-clockwork-plex-airplay-wrappers.py
+$ACP_REPO_ROOT/scripts/a-clockwork-plex-shairport-integration.py
 $ACP_REPO_ROOT/scripts/airplay-metadata-listener.py
 $ACP_REPO_ROOT/scripts/a-clockwork-plex-alarm-audio-helper.sh
 $ACP_REPO_ROOT/scripts/a-clockwork-plex-shairport-name.py
@@ -118,10 +120,11 @@ acp_component_plan() {
   native-check  = the specialist installer already owns a safe read-only check mode.
   adapter-check = installed state is inspected through the shared read-only adapter.
 
-Apply commands remain specialist-owned. Alarm-audio and Shairport-name helper
-runtime implementations remain specialist sources, while their fresh-appliance
-packaging/sudo policy is jointly owned by the guarded
-scripts/install-appliance-helpers.sh entrypoint. AirPlay hooks and metadata
-remain legacy apply-only and are not executed by the root installer yet.
+Apply commands remain specialist-owned. AirPlay lifecycle wrappers, metadata
+service/FIFO and Shairport integration are jointly owned by the guarded
+scripts/install-airplay-integration.sh entrypoint. Alarm-audio and Shairport-name
+helper runtime implementations remain specialist sources, while their packaging
+and restricted sudo policy are jointly owned by scripts/install-appliance-helpers.sh.
+The root installer still does not execute either guarded apply entrypoint yet.
 EOF
 }
