@@ -40,8 +40,8 @@ export ACP_REPO_ROOT={ROOT!s}
 export ACP_ROOT={root!s}
 source {LIBRARY!s}
 acp_transaction_begin {transaction!s}
-acp_transaction_capture_path /etc/example.conf
-acp_transaction_capture_path /usr/local/bin/new-helper
+acp_transaction_capture_path {transaction!s} /etc/example.conf
+acp_transaction_capture_path {transaction!s} /usr/local/bin/new-helper
 printf 'after\n' > {existing!s}
 mkdir -p {created.parent!s}
 printf 'created\n' > {created!s}
@@ -75,8 +75,8 @@ export ACP_REPO_ROOT={ROOT!s}
 export ACP_ROOT={root!s}
 source {LIBRARY!s}
 acp_transaction_begin {transaction!s}
-acp_transaction_capture_path /etc/example.conf
-acp_transaction_capture_path /etc/example.conf
+acp_transaction_capture_path {transaction!s} /etc/example.conf
+acp_transaction_capture_path {transaction!s} /etc/example.conf
 '''
             )
 
@@ -100,7 +100,7 @@ export ACP_REPO_ROOT={ROOT!s}
 export ACP_ROOT={root!s}
 source {LIBRARY!s}
 acp_transaction_begin {transaction!s}
-acp_transaction_capture_path /etc/example.conf
+acp_transaction_capture_path {transaction!s} /etc/example.conf
 '''
             )
 
