@@ -116,9 +116,10 @@ if acp_is_production_root; then
     acp_require_command systemctl
 fi
 
-TRANSACTION="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-direct-install.XXXXXX")"
+TRANSACTION_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-direct-install.XXXXXX")"
+TRANSACTION="$TRANSACTION_PARENT/transaction"
 cleanup() {
-    rm -rf "$TRANSACTION"
+    rm -rf "$TRANSACTION_PARENT"
 }
 trap cleanup EXIT
 acp_transaction_begin "$TRANSACTION"
