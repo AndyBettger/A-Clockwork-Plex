@@ -53,6 +53,18 @@
       "rain": "mm",
       "wind": "mph"
     },
+    "ecowitt_push": {
+      "path": "/ecowitt",
+      "fresh_seconds": 180
+    },
+    "weather_underground": {
+      "station_id": "",
+      "api_key_env": "WEATHER_UNDERGROUND_API_KEY",
+      "refresh_seconds": 60,
+      "stale_seconds": 300,
+      "request_timeout_seconds": 8,
+      "pressure_history_hours": 6
+    },
     "forecast": {
       "enabled": false,
       "provider": "open_meteo",
