@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Package/artifact ownership for the future whole-appliance installer.
-# This file is descriptive/read-only until top-level guarded activation exists.
+# Package/artifact ownership for the whole-appliance installer.
+# Read-only planning/checking lives here; guarded mutation is owned by
+# scripts/install-appliance-packages.sh and is not invoked by root install.sh yet.
 
 ACP_APT_PACKAGES=(
     git
@@ -18,11 +19,19 @@ acp_package_plan() {
 
     cat <<'EOF'
 Package and artifact ownership:
-  Debian/Raspberry Pi OS packages (future root-installer ownership):
+  Debian/Raspberry Pi OS packages (guarded bootstrap ownership):
     git curl python3 python3-venv alsa-utils shairport-sync chromium
 
-  Python application environment (future root-installer ownership):
-    create/reuse repository venv, then install requirements.txt into that venv
+  Python application environment (guarded bootstrap ownership):
+    build a complete staged repository venv, install requirements.txt, run
+    pip check/import verification, then atomically swap it into repository/venv
+
+  Explicit rollback boundary:
+    APT packages are additive shared-host prerequisites and are never automatically
+    removed/purged/autoremoved on rollback. A failed venv activation restores the
+    exact previous venv directory (or previous absence) by same-filesystem rename.
+    A successful package/venv bootstrap becomes the prerequisite baseline for the
+    later exact application-managed whole-appliance transaction.
 
   Platform baseline (checked, not claimed as application packages):
     systemd, sudo, a normal desktop/session environment, kernel/ALSA support
@@ -63,9 +72,9 @@ EOF
 
     cat <<'EOF'
 
-The eventual package apply path must query package availability first, use the
-host package manager rather than downloading .deb files directly, and retain the
-same specialist ownership boundaries used by the plan/preflight stages.
+The guarded package owner queries package availability first, uses the host package
+manager rather than downloading .deb files directly, and retains the same specialist
+ownership boundaries used by the plan/preflight stages.
 EOF
 }
 
