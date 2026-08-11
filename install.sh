@@ -266,8 +266,11 @@ Audio component:
   Fresh-appliance EQ will explicitly request:
     --baseline alarm-safe-direct
 
-  Rollback unwinds a newly installed EQ through the accepted EQ uninstaller
-  before restoring the outer generic application state.
+  That first-install selector validates the physically proven alarm-safe Direct
+  SHA before capture, while the standalone script still defaults to the exact
+  historical Phase 6 direct baseline. Uninstall continues to restore the exact
+  route actually captured before EQ activation, so the existing bedroom-Pi
+  rollback guarantee is not weakened.
 EOF
 else
     echo
