@@ -43,17 +43,43 @@ class ApplianceVerifierTests(unittest.TestCase):
         )
         write(
             "/usr/local/bin/a-clockwork-plex-airplay-start",
-            "#!/bin/bash\ncurl /api/airplay/event\n",
+            "\n".join(
+                (
+                    "#!/bin/bash",
+                    'DASHBOARD_BASE="http://localhost:8088"',
+                    'curl "$DASHBOARD_BASE/api/airplay/start"',
+                    'echo "PlaybackCoordinator owns Plexamp pause"',
+                    "",
+                )
+            ),
             0o755,
         )
         write(
             "/usr/local/bin/a-clockwork-plex-airplay-end",
-            "#!/bin/bash\ncurl /api/airplay/event\n",
+            "\n".join(
+                (
+                    "#!/bin/bash",
+                    'DASHBOARD_BASE="http://localhost:8088"',
+                    "echo org.gnome.ShairportSync.RemoteControl",
+                    'curl "$DASHBOARD_BASE/api/airplay/end"',
+                    'curl "$DASHBOARD_BASE/api/playback/events"',
+                    "",
+                )
+            ),
             0o755,
         )
         write(
             "/etc/systemd/system/a-clockwork-plex-airplay-metadata.service",
-            "ExecStart=/usr/local/bin/a-clockwork-plex-airplay-metadata-listener\n",
+            "\n".join(
+                (
+                    "[Service]",
+                    f"User={user}",
+                    "Environment=SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata",
+                    f"WorkingDirectory={project_dir}",
+                    f"ExecStart=/usr/bin/python3 {project_dir}/scripts/airplay-metadata-listener.py",
+                    "",
+                )
+            ),
         )
         write("/usr/local/bin/a-clockwork-plex-alarm-audio", "#!/bin/bash\n", 0o755)
         write("/etc/sudoers.d/a-clockwork-plex-alarm-audio", "testclock ALL=(root) NOPASSWD: /bin/true\n", 0o440)
@@ -138,6 +164,28 @@ class ApplianceVerifierTests(unittest.TestCase):
         self.assertIn("forecast-provider        open_meteo", result.stdout)
         self.assertIn("live-runtime             skipped", result.stdout)
         self.assertIn("APPLIANCE_VERIFY=PASS", result.stdout)
+
+    def test_current_airplay_contract_is_verified_instead_of_retired_event_helper(self) -> None:
+        source = VERIFIER.read_text(encoding="utf-8")
+        self.assertIn("/api/airplay/start", source)
+        self.assertIn("/api/airplay/end", source)
+        self.assertIn("/api/playback/events", source)
+        self.assertIn("org.gnome.ShairportSync.RemoteControl", source)
+        self.assertIn("scripts/airplay-metadata-listener.py", source)
+        self.assertIn("Environment=SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata", source)
+        self.assertNotIn("/api/airplay/event", source)
+        self.assertNotIn("/usr/local/bin/a-clockwork-plex-airplay-metadata-listener", source)
+
+    def test_verifier_rejects_retired_airplay_wrapper_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root, user, project_dir = self.make_common_fixture(directory, "ecowitt-push")
+            start = root / "usr/local/bin/a-clockwork-plex-airplay-start"
+            start.write_text("#!/bin/bash\ncurl /api/airplay/event\n", encoding="utf-8")
+            result = self.run_verifier(root, user, project_dir, "ecowitt-push")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("FAIL  airplay-start", result.stdout)
+        self.assertIn("APPLIANCE_VERIFY=FAIL", result.stdout)
 
     def test_direct_weather_underground_fixture_passes_without_secret_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
