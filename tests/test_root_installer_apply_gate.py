@@ -72,7 +72,11 @@ class RootInstallerApplyGateTests(unittest.TestCase):
         (root / "scripts/preflight-appliance.sh").write_text(
             "#!/usr/bin/env bash\n"
             "echo PREFLIGHT_GATE\n"
-            "printf '02-preflight %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
+            "if [[ \" $* \" == *\" --bootstrap-pending \"* ]]; then\n"
+            "  printf '02-platform-preflight %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n"
+            "else\n"
+            "  printf '04-full-preflight %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n"
+            "fi\n",
             encoding="utf-8",
         )
         (root / "scripts/install-appliance-packages.sh").write_text(
@@ -85,7 +89,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             "#!/usr/bin/env bash\n"
             "echo APPLIANCE_VERIFY=PASS\n"
             "echo APPLICATION_TRANSACTION=COMMITTED\n"
-            "printf '04-application %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
+            "printf '05-application %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
             encoding="utf-8",
         )
         return installer
@@ -131,7 +135,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
                 self.assertNotIn("PREFLIGHT_GATE", result.stdout)
                 self.assertFalse((installer.parent / "gate.log").exists())
 
-    def test_confirmed_apply_runs_gates_baseline_then_one_application_transaction(self) -> None:
+    def test_confirmed_apply_runs_platform_gate_bootstrap_full_gate_then_application(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             installer = self.make_fixture(Path(directory))
             result = self.run_fixture(
@@ -145,7 +149,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("PACKAGE_GATE", result.stdout)
-            self.assertIn("PREFLIGHT_GATE", result.stdout)
+            self.assertGreaterEqual(result.stdout.count("PREFLIGHT_GATE"), 2)
             self.assertIn("PACKAGE_BOOTSTRAP", result.stdout)
             self.assertIn("APPLICATION_TRANSACTION=COMMITTED", result.stdout)
             self.assertIn("ROOT_INSTALL=COMMITTED", result.stdout)
@@ -153,15 +157,18 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             self.assertNotIn("MUTATION_BLOCKED", result.stdout)
 
             lines = (installer.parent / "gate.log").read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(lines), 4)
+            self.assertEqual(len(lines), 5)
             self.assertTrue(lines[0].startswith("01-package-gate "), lines)
-            self.assertTrue(lines[1].startswith("02-preflight "), lines)
+            self.assertTrue(lines[1].startswith("02-platform-preflight "), lines)
             self.assertTrue(lines[2].startswith("03-package-bootstrap "), lines)
-            self.assertTrue(lines[3].startswith("04-application "), lines)
+            self.assertTrue(lines[3].startswith("04-full-preflight "), lines)
+            self.assertTrue(lines[4].startswith("05-application "), lines)
             self.assertIn("--audio direct --weather-observations ecowitt-push", lines[0])
+            self.assertIn("--bootstrap-pending", lines[1])
+            self.assertNotIn("--bootstrap-pending", lines[3])
             self.assertIn("--activate --confirm INSTALL-APPLIANCE-PACKAGES", lines[2])
-            self.assertIn("--activate --confirm INSTALL-APPLIANCE-APPLICATION", lines[3])
-            self.assertIn(f"--project-dir {installer.parent}", lines[3])
+            self.assertIn("--activate --confirm INSTALL-APPLIANCE-APPLICATION", lines[4])
+            self.assertIn(f"--project-dir {installer.parent}", lines[4])
 
     def test_weather_underground_apply_forwards_secret_file_path_not_secret_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -190,8 +197,9 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             lines = (installer.parent / "gate.log").read_text(encoding="utf-8").splitlines()
             log = "\n".join(lines)
             self.assertIn(f"--weather-api-key-file {secret}", lines[1])
-            self.assertIn(f"--wu-api-key-file {secret}", lines[3])
-            self.assertIn("--wu-station-id ITEST1", lines[3])
+            self.assertIn(f"--weather-api-key-file {secret}", lines[3])
+            self.assertIn(f"--wu-api-key-file {secret}", lines[4])
+            self.assertIn("--wu-station-id ITEST1", lines[4])
             self.assertNotIn(secret_value, log)
             self.assertNotIn(secret_value, result.stdout)
             self.assertNotIn(secret_value, result.stderr)
@@ -242,13 +250,16 @@ class RootInstallerApplyGateTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(f"--apply --confirm {CONFIRMATION}", result.stdout)
-        self.assertIn("run one guarded application transaction", result.stdout)
+        self.assertIn("run one guarded", result.stdout)
+        self.assertIn("application transaction", result.stdout)
         self.assertIn("final appliance verifier inside its commit boundary", INSTALLER.read_text(encoding="utf-8"))
 
         source = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('bash "$REPO_ROOT/scripts/install-appliance-packages.sh"', source)
         self.assertIn('bash "$REPO_ROOT/scripts/install-appliance-application.sh"', source)
         self.assertIn('--weather-api-key-file "$WU_API_KEY_FILE"', source)
+        self.assertIn("--bootstrap-pending", source)
+        self.assertIn("Repeating full host preflight", source)
         self.assertNotIn("MUTATION_BLOCKED", source)
         self.assertNotIn("acp_application_transaction_begin", source)
         self.assertNotIn("install-shared-audio.sh\" --activate", source)
