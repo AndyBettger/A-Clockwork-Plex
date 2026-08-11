@@ -18,6 +18,7 @@ WEATHER_PROVIDER=ecowitt-push
 PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
 CAMILLA_BINARY=
 WU_KEY_ENV=WEATHER_UNDERGROUND_API_KEY
+WU_KEY_FILE=
 FAILURES=0
 WARNINGS=0
 
@@ -25,7 +26,7 @@ usage() {
     cat <<'EOF'
 Usage: bash scripts/preflight-appliance.sh [options]
 
-Read-only fresh-Pi prerequisite report for the future whole-appliance installer.
+Read-only fresh-Pi prerequisite report for the whole-appliance installer.
 It never installs packages/files, changes configuration, loads modules, opens an
 audio PCM, or starts/stops/restarts/enables/disables services.
 
@@ -35,6 +36,9 @@ Options:
   --project-user USER
   --binary PATH             verified CamillaDSP 4.1.3 executable for EQ host check
   --weather-api-key-env NAME
+                            existing WU runtime credential environment name
+  --weather-api-key-file PATH
+                            fresh-install WU secret file; value is never displayed
   --source-only             validate repository/component sources and print the
                             prerequisite contract without probing this host
   -h, --help
@@ -86,6 +90,11 @@ while [[ $# -gt 0 ]]; do
             WU_KEY_ENV="$2"
             shift 2
             ;;
+        --weather-api-key-file)
+            [[ $# -ge 2 ]] || { error '--weather-api-key-file requires a path.'; exit 64; }
+            WU_KEY_FILE="$2"
+            shift 2
+            ;;
         --source-only)
             MODE=source
             shift
@@ -118,6 +127,10 @@ esac
     error "Invalid Weather Underground API-key environment name: $WU_KEY_ENV"
     exit 64
 }
+if [[ "$WEATHER_PROVIDER" != weather-underground && -n "$WU_KEY_FILE" ]]; then
+    error '--weather-api-key-file is only valid with --weather-observations weather-underground.'
+    exit 64
+fi
 
 acp_verify_component_sources || exit 1
 acp_verify_direct_audio_sources || exit 1
@@ -132,7 +145,7 @@ A Clockwork Plex fresh-Pi prerequisite report
 Mode:                 $MODE
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_PROVIDER
-Project user:          $PROJECT_USER
+Project user:         $PROJECT_USER
 EOF
 
 echo
@@ -274,10 +287,31 @@ else
 fi
 
 if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
-    if [[ -n "${!WU_KEY_ENV:-}" ]]; then
-        pass weather-credential "$WU_KEY_ENV is set (value not displayed)"
+    if [[ -n "$WU_KEY_FILE" ]]; then
+        if [[ ! -f "$WU_KEY_FILE" || -L "$WU_KEY_FILE" || ! -r "$WU_KEY_FILE" ]]; then
+            fail_check weather-credential 'candidate API-key file must be a readable regular file, not a symlink'
+        elif python3 - "$WU_KEY_FILE" <<'PY'
+import sys
+from pathlib import Path
+
+raw = Path(sys.argv[1]).read_bytes().rstrip(b"\r\n")
+if not raw or b"\x00" in raw or b"\n" in raw or b"\r" in raw:
+    raise SystemExit(1)
+try:
+    value = raw.decode("utf-8")
+except UnicodeDecodeError:
+    raise SystemExit(1)
+raise SystemExit(0 if value.strip() else 1)
+PY
+        then
+            pass weather-credential 'fresh-install API-key file is readable and structurally valid (value not displayed)'
+        else
+            fail_check weather-credential 'candidate API-key file is empty, multiline or invalid UTF-8'
+        fi
+    elif [[ -n "${!WU_KEY_ENV:-}" ]]; then
+        pass weather-credential "$WU_KEY_ENV is set for an existing installation (value not displayed)"
     else
-        fail_check weather-credential "$WU_KEY_ENV is not set"
+        fail_check weather-credential "provide --weather-api-key-file PATH for fresh install or set $WU_KEY_ENV for an existing installation"
     fi
 else
     warn_check weather-ingress 'Ecowitt custom-push network reachability requires physical/site acceptance'
