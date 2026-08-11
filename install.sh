@@ -303,6 +303,10 @@ Guarded --apply first repeats these matching read-only gates:
   bash scripts/check-appliance-packages.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
   bash scripts/preflight-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
+For a fresh Weather Underground install, that preflight also receives the API-key
+file path so it can validate the candidate credential without requiring a secret
+to be pre-exported in the shell environment.
+
 Then it establishes the prerequisite baseline through:
   bash scripts/install-appliance-packages.sh --activate --confirm INSTALL-APPLIANCE-PACKAGES --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
 
@@ -334,6 +338,9 @@ preflight_args=(
 )
 if [[ "$AUDIO_PROFILE" == eq ]]; then
     preflight_args+=(--binary "$CAMILLA_BINARY")
+fi
+if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+    preflight_args+=(--weather-api-key-file "$WU_API_KEY_FILE")
 fi
 
 bash "$REPO_ROOT/scripts/preflight-appliance.sh" "${preflight_args[@]}" \
