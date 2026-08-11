@@ -18,13 +18,10 @@ class RootInstallerApplyGateTests(unittest.TestCase):
         installer.write_text(INSTALLER.read_text(encoding="utf-8"), encoding="utf-8")
 
         required = (
-            "scripts/install-dashboard-service.sh",
-            "scripts/install-dashboard-kiosk.sh",
-            "scripts/install-airplay-hooks.sh",
-            "scripts/install-airplay-metadata-listener.sh",
-            "scripts/install-alarm-audio-helper.sh",
-            "scripts/install-shairport-name-helper.sh",
+            "scripts/install-dashboard-integration.sh",
+            "scripts/install-weather-config.sh",
             "scripts/install-appliance-packages.sh",
+            "scripts/install-appliance-application.sh",
             "scripts/install-appliance-helpers.sh",
             "scripts/install-airplay-integration.sh",
             "scripts/check-appliance-components.sh",
@@ -33,12 +30,14 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             "scripts/verify-appliance.sh",
             "scripts/audio/install-direct.sh",
             "scripts/audio/install-eq.sh",
+            "scripts/audio/uninstall-eq.sh",
             "scripts/audio/verify-audio.sh",
             "installer/lib/components.sh",
             "installer/lib/packages.sh",
             "installer/lib/prerequisites.sh",
             "installer/lib/direct_audio.sh",
             "installer/lib/transaction.sh",
+            "installer/lib/application_transaction.sh",
             "installer/profiles/direct/alarm-safe.conf",
         )
         for relative in required:
@@ -64,21 +63,29 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             "acp_direct_audio_plan() { echo DIRECT_PLAN; }\n",
             encoding="utf-8",
         )
-        (root / "installer/lib/transaction.sh").write_text(
-            "acp_transaction_begin() { :; }\n"
-            "acp_transaction_restore_paths() { :; }\n",
-            encoding="utf-8",
-        )
         (root / "scripts/check-appliance-packages.sh").write_text(
             "#!/usr/bin/env bash\n"
             "echo PACKAGE_GATE\n"
-            "printf 'package %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
+            "printf '01-package-gate %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
             encoding="utf-8",
         )
         (root / "scripts/preflight-appliance.sh").write_text(
             "#!/usr/bin/env bash\n"
             "echo PREFLIGHT_GATE\n"
-            "printf 'preflight %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
+            "printf '02-preflight %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
+            encoding="utf-8",
+        )
+        (root / "scripts/install-appliance-packages.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "echo PACKAGE_BOOTSTRAP\n"
+            "printf '03-package-bootstrap %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
+            encoding="utf-8",
+        )
+        (root / "scripts/install-appliance-application.sh").write_text(
+            "#!/usr/bin/env bash\n"
+            "echo APPLIANCE_VERIFY=PASS\n"
+            "echo APPLICATION_TRANSACTION=COMMITTED\n"
+            "printf '04-application %s\\n' \"$*\" >>\"$ACP_TEST_GATE_LOG\"\n",
             encoding="utf-8",
         )
         return installer
@@ -106,6 +113,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             self.assertIn("No production file, package, service, route, mixer, PCM or configuration was changed", result.stdout)
             self.assertNotIn("PACKAGE_GATE", result.stdout)
             self.assertNotIn("PREFLIGHT_GATE", result.stdout)
+            self.assertNotIn("PACKAGE_BOOTSTRAP", result.stdout)
             self.assertFalse((installer.parent / "gate.log").exists())
 
     def test_apply_requires_exact_confirmation_before_any_gate(self) -> None:
@@ -123,7 +131,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
                 self.assertNotIn("PREFLIGHT_GATE", result.stdout)
                 self.assertFalse((installer.parent / "gate.log").exists())
 
-    def test_confirmed_apply_runs_read_only_gates_then_fails_closed(self) -> None:
+    def test_confirmed_apply_runs_gates_baseline_then_one_application_transaction(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             installer = self.make_fixture(Path(directory))
             result = self.run_fixture(
@@ -135,15 +143,74 @@ class RootInstallerApplyGateTests(unittest.TestCase):
                 CONFIRMATION,
             )
 
-            self.assertEqual(result.returncode, 3, result.stderr)
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("PACKAGE_GATE", result.stdout)
             self.assertIn("PREFLIGHT_GATE", result.stdout)
-            self.assertIn("Outer transaction boundary: READY, NOT STARTED", result.stdout)
-            self.assertIn("MUTATION_BLOCKED=WEATHER-DASHBOARD-STAGES-INCOMPLETE", result.stdout)
-            self.assertIn("scripts/install-appliance-packages.sh", result.stdout)
+            self.assertIn("PACKAGE_BOOTSTRAP", result.stdout)
+            self.assertIn("APPLICATION_TRANSACTION=COMMITTED", result.stdout)
+            self.assertIn("ROOT_INSTALL=COMMITTED", result.stdout)
+            self.assertIn("APPLICATION_VERIFY=PASS", result.stdout)
+            self.assertNotIn("MUTATION_BLOCKED", result.stdout)
+
+            lines = (installer.parent / "gate.log").read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(lines), 4)
+            self.assertTrue(lines[0].startswith("01-package-gate "), lines)
+            self.assertTrue(lines[1].startswith("02-preflight "), lines)
+            self.assertTrue(lines[2].startswith("03-package-bootstrap "), lines)
+            self.assertTrue(lines[3].startswith("04-application "), lines)
+            self.assertIn("--audio direct --weather-observations ecowitt-push", lines[0])
+            self.assertIn("--activate --confirm INSTALL-APPLIANCE-PACKAGES", lines[2])
+            self.assertIn("--activate --confirm INSTALL-APPLIANCE-APPLICATION", lines[3])
+            self.assertIn(f"--project-dir {installer.parent}", lines[3])
+
+    def test_weather_underground_apply_forwards_secret_file_path_not_secret_value(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            installer = self.make_fixture(Path(directory))
+            secret = installer.parent / "wu-key"
+            secret_value = "super-secret-test-key-value"
+            secret.write_text(secret_value + "\n", encoding="utf-8")
+            secret.chmod(0o600)
+
+            result = self.run_fixture(
+                installer,
+                "--audio",
+                "direct",
+                "--weather-observations",
+                "weather-underground",
+                "--wu-station-id",
+                "ITEST1",
+                "--wu-api-key-file",
+                str(secret),
+                "--apply",
+                "--confirm",
+                CONFIRMATION,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
             log = (installer.parent / "gate.log").read_text(encoding="utf-8")
-            self.assertIn("package --audio direct --weather-observations ecowitt-push", log)
-            self.assertIn("preflight --audio direct --weather-observations ecowitt-push", log)
+            self.assertIn(f"--wu-api-key-file {secret}", log)
+            self.assertIn("--wu-station-id ITEST1", log)
+            self.assertNotIn(secret_value, log)
+            self.assertNotIn(secret_value, result.stdout)
+            self.assertNotIn(secret_value, result.stderr)
+
+    def test_weather_underground_apply_requires_station_and_secret_file_before_gates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            installer = self.make_fixture(Path(directory))
+            result = self.run_fixture(
+                installer,
+                "--audio",
+                "direct",
+                "--weather-observations",
+                "weather-underground",
+                "--apply",
+                "--confirm",
+                CONFIRMATION,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--wu-station-id", result.stderr)
+            self.assertFalse((installer.parent / "gate.log").exists())
 
     def test_confirm_is_rejected_without_apply(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -163,7 +230,7 @@ class RootInstallerApplyGateTests(unittest.TestCase):
             self.assertIn("--camilladsp-binary PATH", result.stderr)
             self.assertFalse((installer.parent / "gate.log").exists())
 
-    def test_help_and_source_keep_mutation_boundary_explicit(self) -> None:
+    def test_help_and_source_keep_delegated_transaction_boundary_explicit(self) -> None:
         result = subprocess.run(
             ["bash", str(INSTALLER), "--help"],
             cwd=ROOT,
@@ -173,16 +240,16 @@ class RootInstallerApplyGateTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(f"--apply --confirm {CONFIRMATION}", result.stdout)
-        self.assertIn("fail closed before any production mutation", result.stdout)
+        self.assertIn("run one guarded application transaction", result.stdout)
+        self.assertIn("final appliance verifier inside its commit boundary", INSTALLER.read_text(encoding="utf-8"))
 
         source = INSTALLER.read_text(encoding="utf-8")
-        self.assertIn('declare -F acp_transaction_begin', source)
-        self.assertNotIn('acp_transaction_begin "', source)
-        self.assertNotIn('install-appliance-packages.sh" --activate', source)
-        self.assertNotIn('install-direct.sh" --activate', source)
-        self.assertNotIn('install-eq.sh" --activate', source)
-        self.assertNotIn('install-appliance-helpers.sh" --activate', source)
-        self.assertNotIn('install-airplay-integration.sh" --activate', source)
+        self.assertIn('bash "$REPO_ROOT/scripts/install-appliance-packages.sh"', source)
+        self.assertIn('bash "$REPO_ROOT/scripts/install-appliance-application.sh"', source)
+        self.assertNotIn("MUTATION_BLOCKED", source)
+        self.assertNotIn("acp_application_transaction_begin", source)
+        self.assertNotIn("install-shared-audio.sh\" --activate", source)
+        self.assertNotIn("install-master-eq.sh", source)
 
 
 if __name__ == "__main__":
