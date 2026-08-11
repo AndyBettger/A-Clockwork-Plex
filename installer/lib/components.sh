@@ -21,16 +21,16 @@ acp_component_record() {
         dashboard-service)
             printf '%s\t%s\t%s\t%s\t%s\n' \
                 dashboard-service native-check \
-                scripts/install-dashboard-service.sh \
-                'bash scripts/install-dashboard-service.sh --check' \
-                'bash scripts/install-dashboard-service.sh --apply --confirm INSTALL-DASHBOARD-RUNNER'
+                scripts/install-dashboard-integration.sh \
+                'bash scripts/install-dashboard-integration.sh --prepare-only' \
+                'bash scripts/install-dashboard-integration.sh --activate --confirm INSTALL-DASHBOARD-INTEGRATION'
             ;;
         dashboard-kiosk)
             printf '%s\t%s\t%s\t%s\t%s\n' \
                 dashboard-kiosk native-check \
-                scripts/install-dashboard-kiosk.sh \
-                'bash scripts/install-dashboard-kiosk.sh --check' \
-                'bash scripts/install-dashboard-kiosk.sh --apply --confirm INSTALL-DASHBOARD-KIOSK'
+                scripts/install-dashboard-integration.sh \
+                'bash scripts/install-dashboard-integration.sh --prepare-only' \
+                'bash scripts/install-dashboard-integration.sh --activate --confirm INSTALL-DASHBOARD-INTEGRATION'
             ;;
         airplay-hooks)
             printf '%s\t%s\t%s\t%s\t%s\n' \
@@ -110,21 +110,24 @@ acp_component_plan() {
     echo 'Specialist component ownership:'
     for id in "${ACP_COMPONENT_IDS[@]}"; do
         IFS=$'\t' read -r id kind source check apply < <(acp_component_record "$id") || return 1
-        if [[ "$id" == dashboard-service ]]; then
-            check="$check --project-user $project_user"
-        fi
+        case "$id" in
+            dashboard-service|dashboard-kiosk)
+                check="$check --project-user $project_user"
+                ;;
+        esac
         printf '  %-22s %-13s %s\n' "$id" "$kind" "$check"
     done
     cat <<'EOF'
 
-  native-check  = the specialist installer already owns a safe read-only check mode.
+  native-check  = the guarded specialist owner provides a safe read-only mode.
   adapter-check = installed state is inspected through the shared read-only adapter.
 
-Apply commands remain specialist-owned. AirPlay lifecycle wrappers, metadata
-service/FIFO and Shairport integration are jointly owned by the guarded
-scripts/install-airplay-integration.sh entrypoint. Alarm-audio and Shairport-name
+Apply commands remain specialist-owned. Dashboard service and kiosk startup are
+jointly owned by guarded scripts/install-dashboard-integration.sh. AirPlay
+lifecycle wrappers, metadata service/FIFO and Shairport integration are jointly
+owned by scripts/install-airplay-integration.sh. Alarm-audio and Shairport-name
 helper runtime implementations remain specialist sources, while their packaging
 and restricted sudo policy are jointly owned by scripts/install-appliance-helpers.sh.
-The root installer still does not execute either guarded apply entrypoint yet.
+The root installer still does not execute these guarded apply entrypoints yet.
 EOF
 }
