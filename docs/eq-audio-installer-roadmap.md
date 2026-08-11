@@ -83,7 +83,7 @@ Completed source/read-only work:
 - [x] Safe root apply/rollback ownership for AirPlay lifecycle wrappers, metadata FIFO/service and Shairport integration through guarded `scripts/install-airplay-integration.sh`.
 - [x] Guarded root `--apply` boundary with explicit confirmation and immediately repeated matching package/host/preflight gates; it still fails closed before any production transaction or specialist activation.
 - [x] Guarded package + venv + `requirements.txt` bootstrap owner with explicit additive-package rollback policy and exact staged-venv restoration; root recognises it but does not invoke mutation yet.
-- [ ] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
+- [x] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
 - [ ] Deliberate non-production whole-appliance failure injection with exact restoration.
 - [ ] Physical fresh Direct acceptance: Plexamp, alarm isolation, truthful **Install required** EQ UI.
@@ -91,7 +91,7 @@ Completed source/read-only work:
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging, guarded AirPlay integration, the fail-closed top-level `--apply` pre-mutation boundary and package/venv bootstrap ownership are green. Remaining major gates are weather and dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
+**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging, guarded AirPlay integration, the fail-closed top-level `--apply` pre-mutation boundary, package/venv bootstrap ownership and guarded weather configuration ownership are green. Remaining major gates are dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -145,6 +145,14 @@ The repository venv has a stronger exact rollback boundary. A complete candidate
 
 Implementation/test commits are `3b12321`, `e5f0038`, `68a4d83`, `96897ca` and `56dff3d`. **Tests #3095 / run `31444251583` — PASS** at `56dff3d`, including compile, shell/JS wiring and unit tests. Root `install.sh` then promoted this guarded package owner into its declared specialist boundary at `f87d463` without invoking it; the top-level apply path still stops after read-only gates and now reports `MUTATION_BLOCKED=WEATHER-DASHBOARD-STAGES-INCOMPLETE`. Root regression coverage was updated at `e106c47`, and **Tests #3099 / run `31444400034` — PASS** at `e106c47`. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
 
+#### Phase 7 checkpoint #15 — guarded weather observation configuration owner — **PASS**
+
+`scripts/install-weather-config.sh` now owns only the observation-provider configuration and Weather Underground secret boundary. It defaults to prepare-only and requires `--activate --confirm INSTALL-WEATHER-CONFIG`. The external installer choice remains `ecowitt-push|weather-underground`, translated to the runtime-native `weather.provider` values `ecowitt_push|weather_underground`. Existing unrelated configuration is retained; Open-Meteo forecast configuration is deliberately untouched. Weather Underground station ID is stored under `weather.weather_underground`, while the API key is accepted only through a key-file path and rendered to `/etc/default/a-clockwork-plex-weather` as `WEATHER_UNDERGROUND_API_KEY`; literal secret command-line/config fields are not supported. Historical inline `api_key` fields are removed. Selecting Ecowitt removes the managed WU environment file after successful configuration.
+
+The owner stages and validates candidate JSON/secret files before mutation, never restarts services, and records/restores exact prior `config.json` and managed-secret bytes/existence on failure. Alternate-root failure injection after the config replacement and after secret mutation proves restoration of both prior files and deliberate prior absence; secret mode is verified as `0600`. `systemd/a-clockwork-plex.service` now has an optional `EnvironmentFile=-/etc/default/a-clockwork-plex-weather`, leaving service installation/restart ownership with the guarded dashboard installer rather than this weather owner.
+
+Implementation/test commits are `669023a`, `b87bd06` and `a52686d`. **Tests #3107 / run `31446688664` — PASS** at `a52686d`, including compile, shell/JS wiring and unit tests. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
+
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
@@ -162,11 +170,10 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Add the guarded observation-provider configuration/secret-reference owner while preserving Open-Meteo forecast configuration and keeping the WU API key out of `config.json`, browser state and repository history.
-2. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
-3. Only after weather/dashboard owners are green, allow root `--apply` to invoke package bootstrap and begin the outer application transaction.
-4. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
-5. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
+1. Integrate dashboard service/kiosk ownership and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
+2. Only after dashboard ownership is green, allow root `--apply` to invoke package bootstrap, weather configuration and the remaining guarded specialists inside the outer application transaction.
+3. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
+4. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
 
 No local weather caching/fan-out server is part of the design.
 
