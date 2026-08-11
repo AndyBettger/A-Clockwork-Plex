@@ -64,7 +64,7 @@ Real lifecycle passed: install → reboot → controlled Camilla failure → aut
 
 Completed source/read-only work:
 
-- [x] Root `install.sh` plan-only orchestrator; production mutation remains blocked behind guarded apply.
+- [x] Root `install.sh` remains plan-only by default; guarded production apply now exists behind exact confirmation and matching preflight gates.
 - [x] Repeatable Direct/EQ, Ecowitt/WU, project-user and non-interactive profile choices.
 - [x] Alarm-safe Direct profile at exact `654ff170...`.
 - [x] EQ baseline bridge `--baseline phase6-direct|alarm-safe-direct`; historical default preserved.
@@ -81,17 +81,17 @@ Completed source/read-only work:
 - [x] Alarm-audio and Shairport-name helper packaging now share guarded `scripts/install-appliance-helpers.sh`, preserving the existing runtime implementations while adding exact rollback and project-user-aware sudo policy.
 - [x] Deterministic Shairport integration renderer owns candidate config transformation for `acp_airplay`, lifecycle callbacks and metadata without altering receiver name/unrelated settings.
 - [x] Safe root apply/rollback ownership for AirPlay lifecycle wrappers, metadata FIFO/service and Shairport integration through guarded `scripts/install-airplay-integration.sh`.
-- [x] Guarded root `--apply` boundary with explicit confirmation and immediately repeated matching package/host/preflight gates; it still fails closed before any production transaction or specialist activation.
-- [x] Guarded package + venv + `requirements.txt` bootstrap owner with explicit additive-package rollback policy and exact staged-venv restoration; root recognises it but does not invoke mutation yet.
+- [x] Guarded root `--apply` now repeats package/host/preflight gates, establishes the package/venv baseline, then delegates all application mutation to one guarded application transaction.
+- [x] Guarded package + venv + `requirements.txt` bootstrap owner with explicit additive-package rollback policy and exact staged-venv restoration; root `--apply` now invokes it as the prerequisite baseline.
 - [x] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
-- [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
-- [ ] Deliberate non-production whole-appliance failure injection with exact restoration.
+- [x] Dashboard service/kiosk integration share one guarded owner inside the application commit boundary; appliance verifier is the final commit gate.
+- [x] Deliberate non-production whole-appliance failure injection proves exact restoration for Direct and fresh-EQ paths, including EQ-uninstall-before-outer-restore ordering.
 - [ ] Physical fresh Direct acceptance: Plexamp, alarm isolation, truthful **Install required** EQ UI.
 - [ ] Physical fresh EQ acceptance: split-bus/EQ/alarm isolation and reboot.
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging, guarded AirPlay integration, the fail-closed top-level `--apply` pre-mutation boundary, package/venv bootstrap ownership and guarded weather configuration ownership are green. Remaining major gates are dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
+**Exit condition:** source ownership, 2×2 lifecycle, guarded package/weather/dashboard/audio/helper/AirPlay owners, root apply delegation, final verifier commit gate and alternate-root Direct/fresh-EQ rollback are green. Remaining Phase 7 gates are physical fresh Direct, fresh EQ, real WU and repeatable whole-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -153,6 +153,22 @@ The owner stages and validates candidate JSON/secret files before mutation, neve
 
 Implementation/test commits are `669023a`, `b87bd06` and `a52686d`. **Tests #3107 / run `31446688664` — PASS** at `a52686d`, including compile, shell/JS wiring and unit tests. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
 
+#### Phase 7 checkpoint #16 — shared dashboard owner, application transaction and promoted root apply — **PASS**
+
+Dashboard service installation and kiosk autostart now share guarded `scripts/install-dashboard-integration.sh` rather than two independent mutation/rollback authorities. It is prepare-only by default, requires `--activate --confirm INSTALL-DASHBOARD-INTEGRATION`, renders and validates both candidates before mutation, captures both targets in one transaction, preserves the Weather Underground environment-file hook and verifies `/api/state` on production activation. Alternate-root tests prove exact restoration of previous files/modes and previous absence.
+
+`installer/lib/application_transaction.sh` adds the outer application-managed capture boundary after package/venv bootstrap. It captures configuration, weather environment, dashboard/kiosk, helper policies, AirPlay/Shairport integration, the metadata FIFO, Direct/EQ route/state and relevant production service state. `scripts/install-appliance-application.sh` is the single guarded mutation sequencer: weather → dashboard → Direct baseline → optional EQ → helpers → AirPlay → `scripts/verify-appliance.sh`. The verifier is inside the commit boundary. A fresh EQ installed by the transaction is explicitly unwound through `scripts/audio/uninstall-eq.sh` before generic application-state restoration.
+
+Root `install.sh --apply --confirm APPLY-A-CLOCKWORK-PLEX` is now promoted beyond the former `MUTATION_BLOCKED` boundary. It repeats the package/artifact and host/preflight gates, establishes the additive package/verified-venv prerequisite baseline through `scripts/install-appliance-packages.sh`, then delegates all application mutation to `scripts/install-appliance-application.sh`; it does not duplicate specialist mutation logic. Weather Underground apply accepts station ID plus an API-key **file path** only, and root regression coverage proves the secret value is never echoed/logged by the root installer.
+
+CI deliberately caught contract drift while this boundary was promoted: stale AirPlay verifier/profile fixtures, two semantic wrapper markers and several plan-text assertions all failed closed and were corrected without weakening the accepted runtime/safety contracts. The first fully green promoted-root head was **Tests #3149 / run `31451271274` — PASS** at `16f30fe`.
+
+#### Phase 7 checkpoint #17 — alternate-root whole-appliance rollback, including fresh EQ — **PASS**
+
+The application transaction now has deliberate late failure injection after specialist mutation. Direct-path coverage proves weather/config, dashboard/kiosk, Direct route, helper, Shairport/AirPlay files and FIFO state restore to exact captured bytes/modes or absence. Fresh-EQ coverage starts from a deliberately different pre-appliance route and a pre-existing FIFO, installs Direct then EQ, proceeds through helpers and AirPlay, injects failure after AirPlay, and requires the accepted EQ uninstaller to run **before** the outer application restore.
+
+The fresh-EQ test then verifies the original pre-appliance route bytes/mode, project config, Shairport config and FIFO mode are restored exactly, while the fresh EQ marker, CamillaDSP service/binary, dashboard unit and AirPlay wrapper return to prior absence. The rollback ordering is also statically pinned so a future refactor cannot silently invert EQ teardown and generic restoration. **Tests #3151 / run `31451366362` — PASS** at `1a38270`.
+
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
@@ -170,10 +186,11 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Integrate dashboard service/kiosk ownership and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
-2. Only after dashboard ownership is green, allow root `--apply` to invoke package bootstrap, weather configuration and the remaining guarded specialists inside the outer application transaction.
-3. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
-4. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
+1. Prepare the physical fresh-appliance acceptance runbook and choose a disposable/fresh target; do not use the accepted bedroom Pi for Phase 7 installer rehearsal.
+2. Run physical fresh Direct acceptance: root installer, Plexamp/AirPlay playback, Music Master isolation, real alarm bypass and truthful **Install required** EQ UI.
+3. On the same fresh target, run guarded EQ apply and verify split-bus/EQ/alarm isolation, reboot persistence and the accepted verifier/repair lifecycle.
+4. Run real Weather Underground acceptance with station ID and runtime secret installed on the host; inspect real current/history behaviour without pasting the secret into chat/config/browser state.
+5. Repeat the whole-appliance installer on the already-configured fresh target and require a clean verifier result without ownership drift before Phase 7 can close.
 
 No local weather caching/fan-out server is part of the design.
 
