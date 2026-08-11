@@ -77,7 +77,7 @@ while [[ $# -gt 0 ]]; do
             [[ $# -ge 2 ]] || { error '--wu-api-key-file requires a path.'; exit 64; }
             WU_API_KEY_FILE="$2"; shift 2 ;;
         --dashboard-url)
-            [[ $# -ge 2 ]] || { error '--dashboard-url requires a URL.' >&2; exit 64; }
+            [[ $# -ge 2 ]] || { error '--dashboard-url requires a URL.'; exit 64; }
             DASHBOARD_URL="${2%/}"; shift 2 ;;
         --root)
             [[ $# -ge 2 ]] || { error '--root requires a path.'; exit 64; }
@@ -300,36 +300,10 @@ verify_args=(
     --config "$PROJECT_DIR/config.json"
     --dashboard-url "$DASHBOARD_URL"
 )
-
-run_final_verifier() {
-    local wu_verify_key
-    if [[ "$WEATHER_PROVIDER" != weather-underground ]]; then
-        bash "$REPO_ROOT/scripts/verify-appliance.sh" "${verify_args[@]}"
-        return
-    fi
-
-    wu_verify_key="$(python3 - "$WU_API_KEY_FILE" <<'PY'
-import sys
-from pathlib import Path
-
-raw = Path(sys.argv[1]).read_bytes().rstrip(b"\r\n")
-if not raw or b"\x00" in raw or b"\n" in raw or b"\r" in raw:
-    raise SystemExit(1)
-try:
-    key = raw.decode("utf-8")
-except UnicodeDecodeError:
-    raise SystemExit(1)
-if not key.strip():
-    raise SystemExit(1)
-print(key, end="")
-PY
-)" || return 1
-
-    WEATHER_UNDERGROUND_API_KEY="$wu_verify_key" \
-        bash "$REPO_ROOT/scripts/verify-appliance.sh" "${verify_args[@]}"
-}
-
-run_final_verifier || fail_transaction verifier
+if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
+    verify_args+=(--weather-api-key-file "$WU_API_KEY_FILE")
+fi
+bash "$REPO_ROOT/scripts/verify-appliance.sh" "${verify_args[@]}" || fail_transaction verifier
 inject_failure verifier || fail_transaction verifier-injection
 
 acp_transaction_mark_complete "$TRANSACTION"
