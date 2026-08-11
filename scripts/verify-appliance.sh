@@ -11,6 +11,7 @@ PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
 PROJECT_DIR=
 CONFIG_PATH=
 DASHBOARD_URL=http://localhost:8088
+WU_KEY_FILE=
 FAILURES=0
 WARNINGS=0
 DIRECT_SHA256=654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
@@ -26,6 +27,9 @@ filesystem/config verification only for non-production integration tests.
 Options:
   --audio direct|eq
   --weather-observations ecowitt-push|weather-underground
+  --weather-api-key-file PATH
+                          WU credential file for production verification;
+                          value is validated but never displayed
   --project-user USER
   --project-dir PATH     logical installed repository path
   --config PATH          logical config.json path
@@ -45,6 +49,11 @@ while [[ $# -gt 0 ]]; do
         --weather-observations)
             [[ $# -ge 2 ]] || { echo '--weather-observations requires a provider.' >&2; exit 64; }
             WEATHER_PROVIDER="$2"
+            shift 2
+            ;;
+        --weather-api-key-file)
+            [[ $# -ge 2 ]] || { echo '--weather-api-key-file requires a path.' >&2; exit 64; }
+            WU_KEY_FILE="$2"
             shift 2
             ;;
         --project-user)
@@ -92,6 +101,10 @@ case "$WEATHER_PROVIDER" in
     ecowitt-push|weather-underground) ;;
     *) echo "Unsupported weather provider: $WEATHER_PROVIDER" >&2; exit 64 ;;
 esac
+if [[ "$WEATHER_PROVIDER" != weather-underground && -n "$WU_KEY_FILE" ]]; then
+    echo '--weather-api-key-file is only valid with --weather-observations weather-underground.' >&2
+    exit 64
+fi
 [[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || { echo "Invalid project user: $PROJECT_USER" >&2; exit 64; }
 [[ "$PROJECT_DIR" == /* || -z "$PROJECT_DIR" ]] || { echo '--project-dir must be absolute.' >&2; exit 64; }
 [[ "$CONFIG_PATH" == /* || -z "$CONFIG_PATH" ]] || { echo '--config must be absolute.' >&2; exit 64; }
@@ -143,6 +156,24 @@ require_contains() {
     else
         fail_check "$label" "$logical does not contain: $needle"
     fi
+}
+
+valid_wu_key_file() {
+    local path="$1"
+    [[ -f "$path" && ! -L "$path" && -r "$path" ]] || return 1
+    python3 - "$path" <<'PY'
+import sys
+from pathlib import Path
+
+raw = Path(sys.argv[1]).read_bytes().rstrip(b"\r\n")
+if not raw or b"\x00" in raw or b"\n" in raw or b"\r" in raw:
+    raise SystemExit(1)
+try:
+    value = raw.decode("utf-8")
+except UnicodeDecodeError:
+    raise SystemExit(1)
+raise SystemExit(0 if value.strip() else 1)
+PY
 }
 
 cat <<EOF
@@ -279,10 +310,12 @@ PY
             fail_check wu-key-env "invalid environment variable name: $wu_key_env"
         fi
         if [[ "$ROOT" == / ]]; then
-            if [[ -n "${!wu_key_env:-}" ]]; then
+            if [[ -n "$WU_KEY_FILE" ]] && valid_wu_key_file "$WU_KEY_FILE"; then
+                pass wu-credential 'credential file is readable and structurally valid (value hidden)'
+            elif [[ -n "${!wu_key_env:-}" ]]; then
                 pass wu-credential "$wu_key_env is set (value hidden)"
             else
-                fail_check wu-credential "$wu_key_env is not set"
+                fail_check wu-credential "provide --weather-api-key-file PATH or set $wu_key_env"
             fi
         fi
     else
