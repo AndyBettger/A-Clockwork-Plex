@@ -243,7 +243,8 @@ else
 fi
 
 # Platform commands are not owned by the package bootstrap and must already exist.
-for command in bash systemctl sudo install sha256sum stat awk sed grep getent; do
+# visudo is pinned here because restricted helper policies are validated before install.
+for command in bash systemctl sudo visudo install sha256sum stat awk sed grep getent; do
     if command -v "$command" >/dev/null 2>&1; then
         pass "command:$command" "$(command -v "$command")"
     else
