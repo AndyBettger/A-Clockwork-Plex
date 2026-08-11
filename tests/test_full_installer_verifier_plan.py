@@ -34,7 +34,9 @@ class FullInstallerVerifierPlanTests(unittest.TestCase):
             "--weather-observations weather-underground --project-user bedroomclock",
             result.stdout,
         )
-        self.assertIn("After a future guarded installation", result.stdout)
+        self.assertIn("Commit gate inside that application transaction", result.stdout)
+        self.assertIn("must pass before its transaction can commit", result.stdout)
+        self.assertNotIn("After a future guarded installation", result.stdout)
         self.assertIn("No production file", result.stdout)
 
 
