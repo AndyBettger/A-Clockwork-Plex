@@ -38,12 +38,24 @@ class ApplianceProfileMatrixTests(unittest.TestCase):
             f"[Service]\nUser={user}\nGroup={user}\nWorkingDirectory={project_dir}\n"
             f"ExecStart={project_dir}/venv/bin/python {project_dir}/app/runner.py\n",
         )
-        self.write(root, "/usr/local/bin/a-clockwork-plex-airplay-start", "#!/bin/bash\ncurl /api/airplay/event\n", 0o755)
-        self.write(root, "/usr/local/bin/a-clockwork-plex-airplay-end", "#!/bin/bash\ncurl /api/airplay/event\n", 0o755)
+        self.write(
+            root,
+            "/usr/local/bin/a-clockwork-plex-airplay-start",
+            "#!/bin/bash\ncurl /api/airplay/start\n",
+            0o755,
+        )
+        self.write(
+            root,
+            "/usr/local/bin/a-clockwork-plex-airplay-end",
+            "#!/bin/bash\ncurl /api/airplay/end\ncurl /api/playback/events\n",
+            0o755,
+        )
         self.write(
             root,
             "/etc/systemd/system/a-clockwork-plex-airplay-metadata.service",
-            "ExecStart=/usr/local/bin/a-clockwork-plex-airplay-metadata-listener\n",
+            f"[Service]\nUser={user}\n"
+            "Environment=SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata\n"
+            f"ExecStart=/usr/bin/python3 {project_dir}/scripts/airplay-metadata-listener.py\n",
         )
         self.write(root, "/usr/local/bin/a-clockwork-plex-alarm-audio", "#!/bin/bash\n", 0o755)
         self.write(root, "/etc/sudoers.d/a-clockwork-plex-alarm-audio", "test\n", 0o440)
