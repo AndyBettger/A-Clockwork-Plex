@@ -109,7 +109,9 @@ acp_application_restore_fifo() {
     fi
     case "$state" in
         absent)
-            [[ -p "$path" ]] && acp_run_root rm -f -- "$path"
+            if [[ -p "$path" ]]; then
+                acp_run_root rm -f -- "$path" || return 1
+            fi
             ;;
         fifo)
             if [[ ! -p "$path" ]]; then
@@ -125,6 +127,7 @@ acp_application_restore_fifo() {
             return 1
             ;;
     esac
+    return 0
 }
 
 acp_application_capture_loaded_services() {
