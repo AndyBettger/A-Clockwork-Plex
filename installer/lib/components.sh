@@ -128,6 +128,8 @@ lifecycle wrappers, metadata service/FIFO and Shairport integration are jointly
 owned by scripts/install-airplay-integration.sh. Alarm-audio and Shairport-name
 helper runtime implementations remain specialist sources, while their packaging
 and restricted sudo policy are jointly owned by scripts/install-appliance-helpers.sh.
-The root installer still does not execute these guarded apply entrypoints yet.
+Root install.sh does not call these specialist activate entrypoints directly;
+its guarded apply delegates the complete mutation sequence to
+scripts/install-appliance-application.sh under one application transaction.
 EOF
 }
