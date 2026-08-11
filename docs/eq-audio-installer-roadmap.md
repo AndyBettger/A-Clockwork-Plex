@@ -82,7 +82,7 @@ Completed source/read-only work:
 - [x] Deterministic Shairport integration renderer owns candidate config transformation for `acp_airplay`, lifecycle callbacks and metadata without altering receiver name/unrelated settings.
 - [x] Safe root apply/rollback ownership for AirPlay lifecycle wrappers, metadata FIFO/service and Shairport integration through guarded `scripts/install-airplay-integration.sh`.
 - [x] Guarded root `--apply` boundary with explicit confirmation and immediately repeated matching package/host/preflight gates; it still fails closed before any production transaction or specialist activation.
-- [ ] Root-owned package + venv + `requirements.txt` mutation transaction and explicit package rollback policy.
+- [x] Guarded package + venv + `requirements.txt` bootstrap owner with explicit additive-package rollback policy and exact staged-venv restoration; root recognises it but does not invoke mutation yet.
 - [ ] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [ ] Dashboard/kiosk integration under one root commit boundary and appliance verifier final gate.
 - [ ] Deliberate non-production whole-appliance failure injection with exact restoration.
@@ -91,7 +91,7 @@ Completed source/read-only work:
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging, guarded AirPlay integration and the fail-closed top-level `--apply` pre-mutation boundary are green. Remaining major gates are package/venv, weather and dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
+**Exit condition:** source/read-only ownership, 2×2 lifecycle, transaction primitives, fresh Direct activation, restricted-helper packaging, guarded AirPlay integration, the fail-closed top-level `--apply` pre-mutation boundary and package/venv bootstrap ownership are green. Remaining major gates are weather and dashboard mutation/rollback, deliberate whole-appliance failure restoration and physical fresh-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -131,11 +131,19 @@ Finally, both `airplay-hooks` and `airplay-metadata` component records/read-only
 
 #### Phase 7 checkpoint #13 — guarded top-level apply boundary — **PASS**
 
-Root `install.sh` now accepts `--apply --confirm APPLY-A-CLOCKWORK-PLEX` but remains deliberately non-mutating. Missing or wrong confirmation is rejected before package/host gates; EQ apply additionally requires the verified CamillaDSP path. A confirmed apply repeats the selected `scripts/check-appliance-packages.sh` and `scripts/preflight-appliance.sh` gates, loads/verifies the whole-appliance transaction primitives, but does **not** call `acp_transaction_begin` and does not invoke any specialist `--activate` path. If both read-only gates pass it exits fail-closed with code 3 and `MUTATION_BLOCKED=PACKAGE-WEATHER-DASHBOARD-STAGES-INCOMPLETE`.
+Root `install.sh` now accepts `--apply --confirm APPLY-A-CLOCKWORK-PLEX` but remains deliberately non-mutating. Missing or wrong confirmation is rejected before package/host gates; EQ apply additionally requires the verified CamillaDSP path. A confirmed apply repeats the selected `scripts/check-appliance-packages.sh` and `scripts/preflight-appliance.sh` gates, loads/verifies the whole-appliance transaction primitives, but does **not** call `acp_transaction_begin` and does not invoke any specialist `--activate` path. If both read-only gates pass it exits fail-closed with code 3 and a `MUTATION_BLOCKED` marker.
 
 `tests/test_root_installer_apply_gate.py` covers default plan-only behaviour, missing/wrong confirmation, confirmed Direct gate execution followed by the deliberate mutation block, confirmation misuse, EQ CamillaDSP input enforcement, help text and static non-invocation of the guarded specialist owners. Commits `0ad1c49` and `64ab63b` contain the implementation and regression coverage.
 
 The first normal PR run, **Tests #3081 / run `31443722305`**, passed compilation and shell/JS wiring but failed one stale existing unit assertion that still expected the old `--apply is not implemented yet` refusal. The production code and new guarded-apply tests were not the failure. `tests/test_full_installer_plan.py` was updated at `f424479` to assert the new explicit-confirmation boundary instead. **Tests #3083 / run `31443831762` — PASS** at `f424479`, including unit tests and all earlier workflow steps. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
+
+#### Phase 7 checkpoint #14 — guarded package and venv bootstrap owner — **PASS**
+
+`scripts/install-appliance-packages.sh` now owns the package/Python-environment bootstrap boundary. It remains prepare-only by default and requires `--activate --confirm INSTALL-APPLIANCE-PACKAGES`. Production activation queries the declared APT prerequisites, installs only missing packages through `apt-get` with `--no-install-recommends`, and repeats the read-only package gate. Package rollback is deliberately **additive rather than destructive**: packages successfully installed as shared host prerequisites are never automatically removed, purged or autoremoved after a later failure because doing so could damage unrelated/shared dependency state.
+
+The repository venv has a stronger exact rollback boundary. A complete candidate venv is built alongside the project, `requirements.txt` is installed into it, `pip check` and Flask import verification must pass, and only then is the existing `venv` moved aside and the candidate renamed into place on the same filesystem. Any activation-stage failure restores the exact prior venv directory (including metadata carried by the rename) or exact prior absence. Alternate-root activation never simulates APT implicitly; it uses an explicit non-production Python override, and post-swap failure injection proves both previous-directory and previous-absence restoration.
+
+Implementation/test commits are `3b12321`, `e5f0038`, `68a4d83`, `96897ca` and `56dff3d`. **Tests #3095 / run `31444251583` — PASS** at `56dff3d`, including compile, shell/JS wiring and unit tests. Root `install.sh` then promoted this guarded package owner into its declared specialist boundary at `f87d463` without invoking it; the top-level apply path still stops after read-only gates and now reports `MUTATION_BLOCKED=WEATHER-DASHBOARD-STAGES-INCOMPLETE`. Root regression coverage was updated at `e106c47`, and **Tests #3099 / run `31444400034` — PASS** at `e106c47`. No production mutation occurred and no bedroom-Pi action is requested at this checkpoint.
 
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
@@ -154,9 +162,9 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Define root-owned package/venv/`requirements.txt` mutation and explicit rollback policy before allowing package mutation or beginning the outer application transaction.
-2. Apply observation-provider config/secret reference safely while retaining Open-Meteo forecast configuration.
-3. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
+1. Add the guarded observation-provider configuration/secret-reference owner while preserving Open-Meteo forecast configuration and keeping the WU API key out of `config.json`, browser state and repository history.
+2. Integrate dashboard/kiosk and the final `scripts/verify-appliance.sh` gate under the same whole-appliance commit/rollback boundary.
+3. Only after weather/dashboard owners are green, allow root `--apply` to invoke package bootstrap and begin the outer application transaction.
 4. Inject deliberate alternate-root whole-appliance failures and prove exact restoration before any fresh-Pi physical rehearsal.
 5. Only then run physical fresh Direct, fresh EQ and real WU acceptance.
 
