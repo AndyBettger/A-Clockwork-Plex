@@ -62,6 +62,7 @@ class ApplianceApplicationTransactionTests(unittest.TestCase):
             fifo.chmod(0o620)
 
             transaction = root / "transaction"
+            new_helper = root / "usr/local/bin/a-clockwork-plex-alarm-audio"
             script = f'''
 set -euo pipefail
 export ACP_REPO_ROOT={ROOT!s}
@@ -72,7 +73,8 @@ printf 'changed config\n' > {existing_config!s}
 chmod 600 {existing_config!s}
 printf 'changed route\n' > {route!s}
 chmod 644 {route!s}
-printf 'new helper\n' > {root / 'usr/local/bin/a-clockwork-plex-alarm-audio'!s}
+mkdir -p {new_helper.parent!s}
+printf 'new helper\n' > {new_helper!s}
 rm -f {fifo!s}
 mkfifo {fifo!s}
 chmod 666 {fifo!s}
@@ -84,9 +86,29 @@ acp_application_transaction_restore {transaction!s}
             self.assertEqual(stat.S_IMODE(existing_config.stat().st_mode), 0o640)
             self.assertEqual(route.read_text(encoding="utf-8"), "old route\n")
             self.assertEqual(stat.S_IMODE(route.stat().st_mode), 0o600)
-            self.assertFalse((root / "usr/local/bin/a-clockwork-plex-alarm-audio").exists())
+            self.assertFalse(new_helper.exists())
             self.assertTrue(stat.S_ISFIFO(fifo.stat().st_mode))
             self.assertEqual(stat.S_IMODE(fifo.stat().st_mode), 0o620)
+
+    def test_fifo_absent_restore_is_successful_when_path_remains_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "root"
+            root.mkdir()
+            transaction = root / "transaction"
+            transaction.mkdir()
+            (transaction / "fifo.tsv").write_text(
+                "path\tstate\tmode\tuid\tgid\n/tmp/shairport-sync-metadata\tabsent\t-\t-\t-\n",
+                encoding="utf-8",
+            )
+            script = f'''
+set -euo pipefail
+export ACP_REPO_ROOT={ROOT!s}
+export ACP_ROOT={root!s}
+source {LIBRARY!s}
+acp_application_restore_fifo {transaction!s}
+'''
+            result = self.run_bash(script)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_transaction_rejects_unexpected_fifo_object_before_capture(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
