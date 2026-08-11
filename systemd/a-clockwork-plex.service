@@ -8,6 +8,7 @@ Type=simple
 User=andy
 Group=andy
 WorkingDirectory=/home/andy/A-Clockwork-Plex
+EnvironmentFile=-/etc/default/a-clockwork-plex-weather
 ExecStart=/home/andy/A-Clockwork-Plex/venv/bin/python /home/andy/A-Clockwork-Plex/app/runner.py
 Restart=on-failure
 RestartSec=5
