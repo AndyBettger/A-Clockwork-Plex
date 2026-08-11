@@ -261,8 +261,13 @@ if [[ "$AUDIO_PROFILE" == eq ]]; then
 Audio component:
   EQ-capable audio delegates to scripts/audio/install-eq.sh and its accepted
   verifier/repair/uninstall lifecycle. The top-level installer does not copy
-  that logic. Fresh-appliance EQ explicitly uses --baseline alarm-safe-direct,
-  and rollback unwinds a newly installed EQ before restoring generic state.
+  that logic.
+
+  Fresh-appliance EQ will explicitly request:
+    --baseline alarm-safe-direct
+
+  Rollback unwinds a newly installed EQ through the accepted EQ uninstaller
+  before restoring the outer generic application state.
 EOF
 else
     echo
@@ -274,9 +279,10 @@ if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
 
 Weather component:
   Current outdoor observations are pulled from the selected Weather Underground
-  PWS. The station ID is ordinary configuration; the API key is read from a file
-  and stored only in the managed root-readable environment file. Open-Meteo
-  remains the forecast provider. No literal API secret is stored in config.json.
+  PWS. Station ID is ordinary configuration; API key supplied outside config.json
+  through a key-file path is stored only in the managed root-readable environment
+  file. Open-Meteo remains the forecast provider. No literal API secret is stored
+  in config.json or browser state.
 EOF
 else
     cat <<'EOF'
@@ -300,8 +306,11 @@ Then it establishes the prerequisite baseline through:
 Application mutation is delegated intact to:
   bash scripts/install-appliance-application.sh --activate --confirm INSTALL-APPLIANCE-APPLICATION --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
-The application owner captures rollback state before mutation and requires
-scripts/verify-appliance.sh to pass before its transaction can commit.
+Commit gate inside that application transaction:
+  bash scripts/verify-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
+
+The application owner captures rollback state before mutation and the verifier
+must pass before its transaction can commit.
 
 No production file, package, service, route, mixer, PCM or configuration was changed.
 EOF
