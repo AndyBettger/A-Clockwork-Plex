@@ -13,6 +13,7 @@ source "$REPO_ROOT/installer/lib/direct_audio.sh"
 source "$REPO_ROOT/installer/lib/prerequisites.sh"
 
 MODE=host
+BOOTSTRAP_PENDING=false
 AUDIO_PROFILE=eq
 WEATHER_PROVIDER=ecowitt-push
 PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
@@ -39,6 +40,9 @@ Options:
                             existing WU runtime credential environment name
   --weather-api-key-file PATH
                             fresh-install WU secret file; value is never displayed
+  --bootstrap-pending       pre-package platform/external gate: package-owned
+                            commands/services may be READY rather than installed;
+                            run full preflight again after package bootstrap
   --source-only             validate repository/component sources and print the
                             prerequisite contract without probing this host
   -h, --help
@@ -53,6 +57,10 @@ pass() {
     printf 'PASS  %-22s %s\n' "$1" "$2"
 }
 
+ready_check() {
+    printf 'READY %-22s %s\n' "$1" "$2"
+}
+
 fail_check() {
     printf 'FAIL  %-22s %s\n' "$1" "$2"
     FAILURES=$((FAILURES + 1))
@@ -61,6 +69,17 @@ fail_check() {
 warn_check() {
     printf 'WARN  %-22s %s\n' "$1" "$2"
     WARNINGS=$((WARNINGS + 1))
+}
+
+owned_command_check() {
+    local label="$1" command="$2"
+    if command -v "$command" >/dev/null 2>&1; then
+        pass "$label" "$(command -v "$command")"
+    elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+        ready_check "$label" 'owned package bootstrap will install this prerequisite'
+    else
+        fail_check "$label" 'missing after package bootstrap'
+    fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -94,6 +113,10 @@ while [[ $# -gt 0 ]]; do
             [[ $# -ge 2 ]] || { error '--weather-api-key-file requires a path.'; exit 64; }
             WU_KEY_FILE="$2"
             shift 2
+            ;;
+        --bootstrap-pending)
+            BOOTSTRAP_PENDING=true
+            shift
             ;;
         --source-only)
             MODE=source
@@ -131,6 +154,10 @@ if [[ "$WEATHER_PROVIDER" != weather-underground && -n "$WU_KEY_FILE" ]]; then
     error '--weather-api-key-file is only valid with --weather-observations weather-underground.'
     exit 64
 fi
+if [[ "$MODE" == source && "$BOOTSTRAP_PENDING" == true ]]; then
+    error '--bootstrap-pending is a host-preflight mode and cannot be combined with --source-only.'
+    exit 64
+fi
 
 acp_verify_component_sources || exit 1
 acp_verify_direct_audio_sources || exit 1
@@ -139,10 +166,18 @@ acp_verify_direct_audio_sources || exit 1
     exit 1
 }
 
+if [[ "$MODE" == source ]]; then
+    DISPLAY_MODE=source
+elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+    DISPLAY_MODE=pre-bootstrap
+else
+    DISPLAY_MODE=host
+fi
+
 cat <<EOF
 A Clockwork Plex fresh-Pi prerequisite report
 
-Mode:                 $MODE
+Mode:                 $DISPLAY_MODE
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_PROVIDER
 Project user:         $PROJECT_USER
@@ -207,26 +242,30 @@ else
     fail_check project-user "$PROJECT_USER does not exist"
 fi
 
-for command in bash git curl python3 systemctl sudo install sha256sum stat awk sed grep getent; do
+# Platform commands are not owned by the package bootstrap and must already exist.
+for command in bash systemctl sudo install sha256sum stat awk sed grep getent; do
     if command -v "$command" >/dev/null 2>&1; then
         pass "command:$command" "$(command -v "$command")"
     else
-        fail_check "command:$command" 'missing'
+        fail_check "command:$command" 'missing platform prerequisite'
     fi
+done
+
+# These commands are explicitly owned by scripts/install-appliance-packages.sh.
+for command in git curl python3; do
+    owned_command_check "command:$command" "$command"
 done
 
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import venv' >/dev/null 2>&1; then
     pass python-venv 'python3 venv module available'
+elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+    ready_check python-venv 'python3-venv is owned by package bootstrap'
 else
-    fail_check python-venv 'python3 venv module unavailable'
+    fail_check python-venv 'python3 venv module unavailable after package bootstrap'
 fi
 
 for command in aplay amixer shairport-sync; do
-    if command -v "$command" >/dev/null 2>&1; then
-        pass "audio:$command" "$(command -v "$command")"
-    else
-        fail_check "audio:$command" 'missing'
-    fi
+    owned_command_check "audio:$command" "$command"
 done
 
 browser=
@@ -238,8 +277,10 @@ for candidate in chromium-browser chromium google-chrome-stable google-chrome; d
 done
 if [[ -n "$browser" ]]; then
     pass browser "$browser"
+elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+    ready_check browser 'Chromium is owned by package bootstrap'
 else
-    fail_check browser 'Chromium-compatible browser not found'
+    fail_check browser 'Chromium-compatible browser not found after package bootstrap'
 fi
 
 if systemctl cat plexamp.service >/dev/null 2>&1; then
@@ -250,8 +291,10 @@ fi
 
 if systemctl cat shairport-sync.service >/dev/null 2>&1; then
     pass shairport-service 'shairport-sync.service is installed'
+elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+    ready_check shairport-service 'shairport-sync package/service is owned by package bootstrap'
 else
-    fail_check shairport-service 'shairport-sync.service is not installed'
+    fail_check shairport-service 'shairport-sync.service is not installed after package bootstrap'
 fi
 
 if [[ -r /proc/asound/cards ]] && grep -Eq '^\s*[0-9]+\s+\[Pro\s*\]' /proc/asound/cards; then
@@ -290,7 +333,8 @@ if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
     if [[ -n "$WU_KEY_FILE" ]]; then
         if [[ ! -f "$WU_KEY_FILE" || -L "$WU_KEY_FILE" || ! -r "$WU_KEY_FILE" ]]; then
             fail_check weather-credential 'candidate API-key file must be a readable regular file, not a symlink'
-        elif python3 - "$WU_KEY_FILE" <<'PY'
+        elif command -v python3 >/dev/null 2>&1; then
+            if python3 - "$WU_KEY_FILE" <<'PY'
 import sys
 from pathlib import Path
 
@@ -303,10 +347,15 @@ except UnicodeDecodeError:
     raise SystemExit(1)
 raise SystemExit(0 if value.strip() else 1)
 PY
-        then
-            pass weather-credential 'fresh-install API-key file is readable and structurally valid (value not displayed)'
+            then
+                pass weather-credential 'fresh-install API-key file is readable and structurally valid (value not displayed)'
+            else
+                fail_check weather-credential 'candidate API-key file is empty, multiline or invalid UTF-8'
+            fi
+        elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+            ready_check weather-credential 'key file is readable; structural validation follows Python package bootstrap'
         else
-            fail_check weather-credential 'candidate API-key file is empty, multiline or invalid UTF-8'
+            fail_check weather-credential 'python3 unavailable for credential validation after package bootstrap'
         fi
     elif [[ -n "${!WU_KEY_ENV:-}" ]]; then
         pass weather-credential "$WU_KEY_ENV is set for an existing installation (value not displayed)"
@@ -324,7 +373,11 @@ No production file, package, service, route, mixer, PCM or configuration was cha
 EOF
 
 if [[ "$FAILURES" -eq 0 ]]; then
-    echo 'APPLIANCE_PREFLIGHT=PASS'
+    if [[ "$BOOTSTRAP_PENDING" == true ]]; then
+        echo 'APPLIANCE_PREFLIGHT=PLATFORM-PASS'
+    else
+        echo 'APPLIANCE_PREFLIGHT=PASS'
+    fi
     exit 0
 fi
 
