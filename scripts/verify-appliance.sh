@@ -163,10 +163,15 @@ require_contains dashboard-unit '/etc/systemd/system/a-clockwork-plex.service' "
 require_contains dashboard-unit '/etc/systemd/system/a-clockwork-plex.service' "ExecStart=$PROJECT_DIR/venv/bin/python $PROJECT_DIR/app/runner.py"
 require_file airplay-start '/usr/local/bin/a-clockwork-plex-airplay-start'
 require_file airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end'
-require_contains airplay-start '/usr/local/bin/a-clockwork-plex-airplay-start' '/api/airplay/event'
-require_contains airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end' '/api/airplay/event'
+require_contains airplay-start '/usr/local/bin/a-clockwork-plex-airplay-start' '/api/airplay/start'
+require_contains airplay-start '/usr/local/bin/a-clockwork-plex-airplay-start' 'PlaybackCoordinator owns Plexamp pause'
+require_contains airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end' '/api/airplay/end'
+require_contains airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end' '/api/playback/events'
+require_contains airplay-end '/usr/local/bin/a-clockwork-plex-airplay-end' 'org.gnome.ShairportSync.RemoteControl'
 require_file metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service'
-require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' '/usr/local/bin/a-clockwork-plex-airplay-metadata-listener'
+require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' "User=$PROJECT_USER"
+require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' 'Environment=SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata'
+require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' 'scripts/airplay-metadata-listener.py'
 require_file alarm-helper '/usr/local/bin/a-clockwork-plex-alarm-audio'
 require_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
 require_file shairport-name-helper '/usr/local/bin/a-clockwork-plex-shairport-name'
