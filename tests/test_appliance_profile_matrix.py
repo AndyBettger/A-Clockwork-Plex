@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import shutil
@@ -17,8 +18,16 @@ VERIFY = ROOT / "scripts/verify-appliance.sh"
 EQ_INSTALL = ROOT / "scripts/audio/install-eq.sh"
 EQ_UNINSTALL = ROOT / "scripts/audio/uninstall-eq.sh"
 DIRECT_PROFILE = ROOT / "installer/profiles/direct/alarm-safe.conf"
+AIRPLAY_RENDERER_PATH = ROOT / "scripts/a-clockwork-plex-airplay-wrappers.py"
 DIRECT_SHA = "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9"
 CAMILLA_SHA = "e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa"
+
+AIRPLAY_SPEC = importlib.util.spec_from_file_location(
+    "acp_profile_matrix_airplay_wrappers", AIRPLAY_RENDERER_PATH
+)
+AIRPLAY_RENDERER = importlib.util.module_from_spec(AIRPLAY_SPEC)
+assert AIRPLAY_SPEC and AIRPLAY_SPEC.loader
+AIRPLAY_SPEC.loader.exec_module(AIRPLAY_RENDERER)
 
 
 class ApplianceProfileMatrixTests(unittest.TestCase):
@@ -41,13 +50,13 @@ class ApplianceProfileMatrixTests(unittest.TestCase):
         self.write(
             root,
             "/usr/local/bin/a-clockwork-plex-airplay-start",
-            "#!/bin/bash\ncurl /api/airplay/start\n",
+            AIRPLAY_RENDERER.render_start_wrapper(),
             0o755,
         )
         self.write(
             root,
             "/usr/local/bin/a-clockwork-plex-airplay-end",
-            "#!/bin/bash\ncurl /api/airplay/end\ncurl /api/playback/events\n",
+            AIRPLAY_RENDERER.render_end_wrapper(),
             0o755,
         )
         self.write(
