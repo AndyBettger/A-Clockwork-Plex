@@ -32,9 +32,10 @@ Usage:
 
 Modes:
   --plan                           print the read-only installation plan (default)
-  --apply                          repeat matching read-only gates, establish the
+  --apply                          run the platform/external gate, establish the
                                    guarded package/venv prerequisite baseline,
-                                   then run one guarded application transaction
+                                   repeat full host preflight, then run one guarded
+                                   application transaction
   --confirm TOKEN                  required with --apply; expected token:
                                    $APPLY_CONFIRMATION_TOKEN
 
@@ -238,14 +239,15 @@ Project user:         $PROJECT_USER
 Non-interactive:      $NON_INTERACTIVE
 
 Supported orchestration:
-  1. validate package/artifact and Raspberry Pi host prerequisites read-only;
+  1. validate package/artifact availability plus platform/external prerequisites read-only;
   2. establish the additive package + verified-venv prerequisite baseline;
-  3. capture the complete application-managed pre-state;
-  4. configure the selected weather-observation provider;
-  5. install dashboard service + kiosk integration;
-  6. establish the selected Direct/EQ audio profile;
-  7. install restricted appliance helpers and validated AirPlay integration;
-  8. run one read-only appliance verifier inside the application commit boundary.
+  3. repeat full host preflight with every package-owned prerequisite now required;
+  4. capture the complete application-managed pre-state;
+  5. configure the selected weather-observation provider;
+  6. install dashboard service + kiosk integration;
+  7. establish the selected Direct/EQ audio profile;
+  8. install restricted appliance helpers and validated AirPlay integration;
+  9. run one read-only appliance verifier inside the application commit boundary.
 EOF
 
 echo
@@ -299,18 +301,22 @@ fi
 if [[ "$MODE" == plan ]]; then
     cat <<EOF
 
-Guarded --apply first repeats these matching read-only gates:
-  bash scripts/check-appliance-packages.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
-  bash scripts/preflight-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
+Guarded --apply uses these gates in order:
+  1. bash scripts/check-appliance-packages.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
+  2. bash scripts/preflight-appliance.sh --bootstrap-pending --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
+  3. bash scripts/install-appliance-packages.sh --activate --confirm INSTALL-APPLIANCE-PACKAGES --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
+  4. bash scripts/preflight-appliance.sh --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
-For a fresh Weather Underground install, that preflight also receives the API-key
-file path so it can validate the candidate credential without requiring a secret
-to be pre-exported in the shell environment.
+The first preflight proves platform, project-user, DAC, external Plexamp and
+profile-specific safety before additive package mutation. Package-owned tools such
+as Shairport Sync, ALSA utilities, Chromium and Python/venv may be READY there.
+The second preflight runs after bootstrap and requires those owned prerequisites.
 
-Then it establishes the prerequisite baseline through:
-  bash scripts/install-appliance-packages.sh --activate --confirm INSTALL-APPLIANCE-PACKAGES --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS
+For a fresh Weather Underground install, both preflights receive the API-key file
+path so they can validate the candidate credential without requiring a secret to
+be pre-exported in the shell environment.
 
-Application mutation is delegated intact to:
+Application mutation is then delegated intact to:
   bash scripts/install-appliance-application.sh --activate --confirm INSTALL-APPLIANCE-APPLICATION --audio $AUDIO_PROFILE --weather-observations $WEATHER_OBSERVATIONS --project-user $PROJECT_USER
 
 Commit gate inside that application transaction:
@@ -325,7 +331,7 @@ EOF
 fi
 
 echo
-echo 'Guarded --apply: repeating matching read-only pre-mutation gates.'
+echo 'Guarded --apply: checking package/artifact availability.'
 bash "$REPO_ROOT/scripts/check-appliance-packages.sh" \
     --audio "$AUDIO_PROFILE" \
     --weather-observations "$WEATHER_OBSERVATIONS" \
@@ -343,17 +349,26 @@ if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
     preflight_args+=(--weather-api-key-file "$WU_API_KEY_FILE")
 fi
 
-bash "$REPO_ROOT/scripts/preflight-appliance.sh" "${preflight_args[@]}" \
-    || fail "appliance host/preflight gate failed; no mutation was attempted"
+echo
+echo 'Running pre-bootstrap platform/external prerequisite gate.'
+bash "$REPO_ROOT/scripts/preflight-appliance.sh" \
+    --bootstrap-pending \
+    "${preflight_args[@]}" \
+    || fail "platform/external preflight failed; no mutation was attempted"
 
 echo
-echo 'Read-only gates passed. Establishing guarded package/venv prerequisite baseline.'
+echo 'Platform gate passed. Establishing guarded package/venv prerequisite baseline.'
 bash "$REPO_ROOT/scripts/install-appliance-packages.sh" \
     --activate \
     --confirm INSTALL-APPLIANCE-PACKAGES \
     --audio "$AUDIO_PROFILE" \
     --weather-observations "$WEATHER_OBSERVATIONS" \
     || fail "package/venv prerequisite baseline failed; application transaction was not started"
+
+echo
+echo 'Package/venv baseline established. Repeating full host preflight.'
+bash "$REPO_ROOT/scripts/preflight-appliance.sh" "${preflight_args[@]}" \
+    || fail "post-bootstrap host preflight failed; application transaction was not started"
 
 application_args=(
     --activate
@@ -375,7 +390,7 @@ if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
 fi
 
 echo
-echo 'Package/venv baseline verified. Starting one guarded application transaction.'
+echo 'Full host preflight passed. Starting one guarded application transaction.'
 if ! bash "$REPO_ROOT/scripts/install-appliance-application.sh" "${application_args[@]}"; then
     fail "whole-appliance application transaction failed; package/venv prerequisite baseline was retained by policy"
 fi
