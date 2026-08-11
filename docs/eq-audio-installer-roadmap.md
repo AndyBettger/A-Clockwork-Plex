@@ -81,17 +81,21 @@ Completed source/read-only work:
 - [x] Alarm-audio and Shairport-name helper packaging now share guarded `scripts/install-appliance-helpers.sh`, preserving the existing runtime implementations while adding exact rollback and project-user-aware sudo policy.
 - [x] Deterministic Shairport integration renderer owns candidate config transformation for `acp_airplay`, lifecycle callbacks and metadata without altering receiver name/unrelated settings.
 - [x] Safe root apply/rollback ownership for AirPlay lifecycle wrappers, metadata FIFO/service and Shairport integration through guarded `scripts/install-airplay-integration.sh`.
-- [x] Guarded root `--apply` now repeats package/host/preflight gates, establishes the package/venv baseline, then delegates all application mutation to one guarded application transaction.
-- [x] Guarded package + venv + `requirements.txt` bootstrap owner with explicit additive-package rollback policy and exact staged-venv restoration; root `--apply` now invokes it as the prerequisite baseline.
+- [x] Guarded root `--apply` establishes the package/venv baseline, repeats full host preflight and delegates all application mutation to one guarded application transaction.
+- [x] Guarded package + venv + `requirements.txt` bootstrap owner with explicit additive-package rollback policy and exact staged-venv restoration.
 - [x] Apply observation-provider config/secret-reference safely retaining Open-Meteo forecast config.
 - [x] Dashboard service/kiosk integration share one guarded owner inside the application commit boundary; appliance verifier is the final commit gate.
 - [x] Deliberate non-production whole-appliance failure injection proves exact restoration for Direct and fresh-EQ paths, including EQ-uninstall-before-outer-restore ordering.
+- [x] Fresh WU install uses one key-file path contract across root install, preflight, guarded weather owner and standalone/final verifier; secret value never enters normal CLI/config/browser/output.
+- [x] Read-only WU current/recent-history payload inspector reports live schema/pressure evidence without mutating observation/history state.
+- [x] Fresh host gating is split correctly around package ownership: platform/external preflight before additive bootstrap, full package-aware host preflight afterward.
+- [x] `docs/fresh-appliance-acceptance-runbook.md` prepared with hard bedroom-Pi guard and Direct → EQ → WU → repeat-install physical sequence.
 - [ ] Physical fresh Direct acceptance: Plexamp, alarm isolation, truthful **Install required** EQ UI.
 - [ ] Physical fresh EQ acceptance: split-bus/EQ/alarm isolation and reboot.
 - [ ] Deliberate real WU current/history payload inspection with station ID/runtime secret installed on host, never pasted into chat/config/browser.
 - [ ] Whole-appliance fresh-Pi/repeatable-install acceptance.
 
-**Exit condition:** source ownership, 2×2 lifecycle, guarded package/weather/dashboard/audio/helper/AirPlay owners, root apply delegation, final verifier commit gate and alternate-root Direct/fresh-EQ rollback are green. Remaining Phase 7 gates are physical fresh Direct, fresh EQ, real WU and repeatable whole-appliance acceptance.
+**Exit condition:** source ownership, 2×2 lifecycle, guarded package/weather/dashboard/audio/helper/AirPlay owners, two-stage fresh-host gating, root apply delegation, final verifier commit gate, WU key-file/inspection contracts and alternate-root Direct/fresh-EQ rollback are green. Remaining Phase 7 gates are physical fresh Direct, fresh EQ, real WU and repeatable whole-appliance acceptance.
 
 #### Phase 7 checkpoint #7 — package ownership, verifier and 2×2 lifecycle — **PASS**
 
@@ -169,6 +173,26 @@ The application transaction now has deliberate late failure injection after spec
 
 The fresh-EQ test then verifies the original pre-appliance route bytes/mode, project config, Shairport config and FIFO mode are restored exactly, while the fresh EQ marker, CamillaDSP service/binary, dashboard unit and AirPlay wrapper return to prior absence. The rollback ordering is also statically pinned so a future refactor cannot silently invert EQ teardown and generic restoration. **Tests #3151 / run `31451366362` — PASS** at `1a38270`.
 
+#### Phase 7 checkpoint #18 — first-install WU key-file contract — **PASS**
+
+Fresh Weather Underground installation no longer depends on a secret being pre-exported in the invoking shell. Root apply, host preflight, guarded weather configuration, whole-application sequencing and standalone/final appliance verification now share the same explicit **API-key file path** contract. Preflight and verifier validate file shape without displaying the value; `config.json` stores only station ID plus environment-variable name; production runtime secret material remains in `/etc/default/a-clockwork-plex-weather` and is consumed by the dashboard service EnvironmentFile.
+
+Regression coverage proves root orchestration forwards the file path but never the secret value, including stdout/stderr/log assertions. The application transaction can perform a genuine first WU install and still satisfy its final verifier without an operator manually exporting the credential. **Tests #3171 / run `31452097877` — PASS** at `d131644`.
+
+#### Phase 7 checkpoint #19 — read-only real WU payload inspector — **PASS**
+
+`scripts/inspect-weather-underground-payloads.py` now provides the deliberate current/history inspection path required by the accepted weather design. It uses the existing WU current and one-day history URL builders, accepts station ID plus API-key file, never displays credential-bearing URLs, and writes no config/dashboard/history state. It reports observation counts, field/unit structure, timestamp evidence and pressure-related paths, and runs the current payload through the existing dashboard mapper.
+
+History remains conservative by design: aggregate/range fields such as `pressureAvg`, `pressureMin` and `pressureMax` are not treated as instantaneous barometer samples. Even a history payload where every row exposes `obsTimeUtc + numeric imperial.pressure` is labelled only **YES — REVIEW REQUIRED**, never automatically ingested. Synthetic schema tests prove both behaviours and secret redaction. **Tests #3175 / run `31452388309` — PASS** at `caa583d`.
+
+#### Phase 7 checkpoint #20 — fresh package/bootstrap preflight ordering — **PASS**
+
+A final fresh-OS audit found an ownership-order contradiction: `git`, `curl`, Python/venv, ALSA utilities, Shairport Sync and Chromium are explicitly installer-owned packages, but the original full host preflight required several of them to exist before package bootstrap. The same preflight now has a `--bootstrap-pending` platform/external mode. Before package mutation, OS/architecture/project-user/DAC/external Plexamp/profile-specific safety still fail closed while installer-owned package prerequisites may report `READY`. After the guarded package/venv bootstrap, root runs normal full preflight and those owned prerequisites must actually exist before application mutation starts.
+
+Root regression coverage pins the five-stage order: package/artifact check → pre-bootstrap platform gate → package/venv bootstrap → full post-bootstrap host gate → one application transaction. WU key-file input reaches both preflights without exposing the secret. **Tests #3185 / run `31452688437` — PASS** at `ac7cec8`.
+
+`docs/full-appliance-installer-design.md` is now aligned with the implemented architecture, and `docs/fresh-appliance-acceptance-runbook.md` records the stop-on-first-failure physical Direct → EQ → WU → repeat-install procedure with a hard `plexamp-bedroom` guard.
+
 No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
@@ -186,11 +210,11 @@ No Phase 7 checkpoint has been deployed to the bedroom Pi.
 
 Bedroom Pi stays untouched in healthy Phase 6 EQ-capable split-bus state.
 
-1. Prepare the physical fresh-appliance acceptance runbook and choose a disposable/fresh target; do not use the accepted bedroom Pi for Phase 7 installer rehearsal.
-2. Run physical fresh Direct acceptance: root installer, Plexamp/AirPlay playback, Music Master isolation, real alarm bypass and truthful **Install required** EQ UI.
-3. On the same fresh target, run guarded EQ apply and verify split-bus/EQ/alarm isolation, reboot persistence and the accepted verifier/repair lifecycle.
-4. Run real Weather Underground acceptance with station ID and runtime secret installed on the host; inspect real current/history behaviour without pasting the secret into chat/config/browser state.
-5. Repeat the whole-appliance installer on the already-configured fresh target and require a clean verifier result without ownership drift before Phase 7 can close.
+1. Choose/prepare the disposable fresh target and execute sections 1–5 of `docs/fresh-appliance-acceptance-runbook.md` through **physical fresh Direct acceptance**. Stop on the first failed gate and record evidence before any retry.
+2. On the same accepted fresh target, execute EQ promotion/reboot acceptance and require split-bus/EQ/alarm isolation plus both verifiers.
+3. Run the read-only real WU current/history inspector, then WU runtime acceptance with station ID and key-file secret installed on the host only.
+4. Repeat the whole-appliance EQ+WU install on the already-configured fresh target and require a clean verifier result with no ownership drift.
+5. Commit the dated physical result document; only then can Phase 7 be considered for closure.
 
 No local weather caching/fan-out server is part of the design.
 
