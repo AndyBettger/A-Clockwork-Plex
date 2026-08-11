@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-appliance-application.sh"
+VERIFIER = ROOT / "scripts" / "verify-appliance.sh"
 
 BASE_CONFIG = '''general =
 {
@@ -54,7 +55,7 @@ class WeatherUndergroundApplicationVerifierHandoffTests(unittest.TestCase):
         env.pop("WEATHER_UNDERGROUND_API_KEY", None)
         return root, env
 
-    def test_first_wu_application_transaction_hands_secret_only_to_final_verifier(self) -> None:
+    def test_first_wu_application_transaction_passes_key_file_to_final_verifier_without_leak(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root, env = self.make_fixture(directory)
             key_file = Path(directory) / "wu-api-key"
@@ -103,13 +104,39 @@ class WeatherUndergroundApplicationVerifierHandoffTests(unittest.TestCase):
             self.assertIn('"api_key_env": "WEATHER_UNDERGROUND_API_KEY"', config)
             self.assertNotIn(secret, config)
 
-    def test_source_keeps_secret_off_verifier_command_line(self) -> None:
-        source = INSTALLER.read_text(encoding="utf-8")
-        self.assertIn("run_final_verifier()", source)
-        self.assertIn('WEATHER_UNDERGROUND_API_KEY="$wu_verify_key"', source)
-        self.assertIn('python3 - "$WU_API_KEY_FILE"', source)
-        self.assertNotIn('--weather-api-key "$wu_verify_key"', source)
-        self.assertNotIn('echo "$wu_verify_key"', source)
+    def test_application_and_verifier_share_key_file_path_contract(self) -> None:
+        application = INSTALLER.read_text(encoding="utf-8")
+        verifier = VERIFIER.read_text(encoding="utf-8")
+
+        self.assertIn('verify_args+=(--weather-api-key-file "$WU_API_KEY_FILE")', application)
+        self.assertNotIn('WEATHER_UNDERGROUND_API_KEY="$wu_verify_key"', application)
+        self.assertNotIn("run_final_verifier()", application)
+
+        self.assertIn("--weather-api-key-file", verifier)
+        self.assertIn("valid_wu_key_file()", verifier)
+        self.assertIn("value is validated but never displayed", verifier)
+        self.assertIn("credential file is readable and structurally valid (value hidden)", verifier)
+        self.assertNotIn("cat \"$WU_KEY_FILE\"", verifier)
+
+    def test_verifier_rejects_key_file_option_for_ecowitt_before_filesystem_checks(self) -> None:
+        result = subprocess.run(
+            [
+                "bash",
+                str(VERIFIER),
+                "--audio",
+                "direct",
+                "--weather-observations",
+                "ecowitt-push",
+                "--weather-api-key-file",
+                "/tmp/not-used",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("only valid with", result.stderr)
 
 
 if __name__ == "__main__":
