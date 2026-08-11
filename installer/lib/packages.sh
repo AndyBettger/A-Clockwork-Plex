@@ -2,7 +2,8 @@
 
 # Package/artifact ownership for the whole-appliance installer.
 # Read-only planning/checking lives here; guarded mutation is owned by
-# scripts/install-appliance-packages.sh and is not invoked by root install.sh yet.
+# scripts/install-appliance-packages.sh and is invoked by root install.sh only
+# after the pre-bootstrap platform/external gate has passed.
 
 ACP_APT_PACKAGES=(
     git
@@ -59,7 +60,7 @@ EOF
         cat <<'EOF'
 
   External secret/configuration:
-    Weather Underground station ID plus API key in a server environment variable;
+    Weather Underground station ID plus API key supplied through a host secret file;
     the key is not a package/artifact and must never enter config.json/browser state
 EOF
     else
