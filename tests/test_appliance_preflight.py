@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -13,10 +15,15 @@ PREREQS = ROOT / "installer" / "lib" / "prerequisites.sh"
 
 
 class AppliancePreflightTests(unittest.TestCase):
-    def run_preflight(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+    def run_preflight(
+        self,
+        *arguments: str,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["bash", str(PREFLIGHT), *arguments],
             cwd=ROOT,
+            env=env,
             capture_output=True,
             text=True,
             check=False,
@@ -63,6 +70,58 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("server environment variable", wu.stdout)
         self.assertIn("never config.json/browser", wu.stdout)
         self.assertNotIn("WEATHER_UNDERGROUND_API_KEY=", wu.stdout)
+
+    def test_fresh_wu_preflight_accepts_secret_file_without_exposing_value(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            secret = Path(directory) / "wu-key"
+            secret_value = "preflight-secret-must-not-leak"
+            secret.write_text(secret_value + "\n", encoding="utf-8")
+            secret.chmod(0o600)
+            env = os.environ.copy()
+            env.pop("WEATHER_UNDERGROUND_API_KEY", None)
+
+            result = self.run_preflight(
+                "--audio",
+                "direct",
+                "--weather-observations",
+                "weather-underground",
+                "--weather-api-key-file",
+                str(secret),
+                env=env,
+            )
+
+        # CI is not an aarch64 appliance, so the whole host report is expected
+        # to fail other hardware checks. The credential check itself must pass.
+        self.assertIn("PASS  weather-credential", result.stdout)
+        self.assertIn("fresh-install API-key file is readable", result.stdout)
+        self.assertNotIn(secret_value, result.stdout)
+        self.assertNotIn(secret_value, result.stderr)
+
+    def test_wu_preflight_without_file_or_existing_environment_fails_credential_check(self) -> None:
+        env = os.environ.copy()
+        env.pop("WEATHER_UNDERGROUND_API_KEY", None)
+        result = self.run_preflight(
+            "--audio",
+            "direct",
+            "--weather-observations",
+            "weather-underground",
+            env=env,
+        )
+        self.assertIn("FAIL  weather-credential", result.stdout)
+        self.assertIn("--weather-api-key-file PATH", result.stdout)
+
+    def test_wu_key_file_option_is_rejected_for_ecowitt(self) -> None:
+        result = self.run_preflight(
+            "--source-only",
+            "--audio",
+            "direct",
+            "--weather-observations",
+            "ecowitt-push",
+            "--weather-api-key-file",
+            "/tmp/not-used",
+        )
+        self.assertEqual(result.returncode, 64)
+        self.assertIn("only valid with", result.stderr)
 
     def test_root_plan_accepts_explicit_project_user_and_points_to_host_gate(self) -> None:
         result = subprocess.run(
