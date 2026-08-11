@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-appliance-application.sh"
 DIRECT_SHA = "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9"
+CAMILLA_SHA = "e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa"
 
 BASE_SHAIRPORT = '''general =
 {
@@ -55,6 +56,30 @@ class ApplianceApplicationInstallerTests(unittest.TestCase):
         env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
         env["ACP_AIRPLAY_TEST_SHAIRPORT_BINARY"] = str(validator)
         return root, config, env
+
+    def make_fake_camilla(self, directory: str, env: dict[str, str]) -> tuple[Path, dict[str, str]]:
+        camilla = Path(directory) / "camilladsp-4.1.3"
+        camilla.write_text(
+            "#!/bin/bash\n"
+            "if [[ \"${1:-}\" == \"--version\" ]]; then echo 'CamillaDSP 4.1.3'; exit 0; fi\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        camilla.chmod(0o755)
+
+        fake_bin = Path(directory) / "fake-bin"
+        real_sha = shutil.which("sha256sum") or "/usr/bin/sha256sum"
+        sha_wrapper = fake_bin / "sha256sum"
+        sha_wrapper.write_text(
+            "#!/bin/bash\n"
+            "case \"${1:-}\" in\n"
+            f"  *camilladsp*) echo '{CAMILLA_SHA}  $1';;\n"
+            f"  *) exec {real_sha} \"$@\";;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        sha_wrapper.chmod(0o755)
+        return camilla, dict(env)
 
     def run_installer(
         self,
@@ -195,6 +220,60 @@ class ApplianceApplicationInstallerTests(unittest.TestCase):
             self.assertFalse((root / "usr/local/bin/a-clockwork-plex-airplay-start").exists())
             self.assertFalse((root / "tmp/shairport-sync-metadata").exists())
 
+    def test_fresh_eq_late_failure_uninstalls_eq_then_restores_outer_prestate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root, shairport, env = self.make_fixture(directory)
+            camilla, env = self.make_fake_camilla(directory, env)
+
+            project_config = root / "project/config.json"
+            project_config.write_text('{"weather":{"provider":"old-eq"}}\n', encoding="utf-8")
+            project_config.chmod(0o640)
+            route = root / "etc/alsa/conf.d/99-a-clockwork-plex-shared.conf"
+            route.parent.mkdir(parents=True)
+            route.write_text("pre-appliance route\n", encoding="utf-8")
+            route.chmod(0o600)
+            fifo = root / "tmp/shairport-sync-metadata"
+            os.mkfifo(fifo, 0o620)
+            fifo.chmod(0o620)
+
+            shairport_before = shairport.read_bytes()
+            shairport_mode = stat.S_IMODE(shairport.stat().st_mode)
+            config_before = project_config.read_bytes()
+            config_mode = stat.S_IMODE(project_config.stat().st_mode)
+            route_before = route.read_bytes()
+            route_mode = stat.S_IMODE(route.stat().st_mode)
+
+            result = self.run_installer(
+                root,
+                env,
+                "--audio",
+                "eq",
+                "--camilladsp-binary",
+                str(camilla),
+                "--weather-observations",
+                "ecowitt-push",
+                "--activate",
+                "--confirm",
+                "INSTALL-APPLIANCE-APPLICATION",
+                env_extra={"ACP_APPLICATION_TEST_FAIL_AFTER": "airplay"},
+            )
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("Whole-appliance managed pre-state restored", result.stderr)
+            self.assertEqual(shairport.read_bytes(), shairport_before)
+            self.assertEqual(stat.S_IMODE(shairport.stat().st_mode), shairport_mode)
+            self.assertEqual(project_config.read_bytes(), config_before)
+            self.assertEqual(stat.S_IMODE(project_config.stat().st_mode), config_mode)
+            self.assertEqual(route.read_bytes(), route_before)
+            self.assertEqual(stat.S_IMODE(route.stat().st_mode), route_mode)
+            self.assertTrue(stat.S_ISFIFO(fifo.stat().st_mode))
+            self.assertEqual(stat.S_IMODE(fifo.stat().st_mode), 0o620)
+            self.assertFalse((root / "var/lib/a-clockwork-plex/split-bus/installed").exists())
+            self.assertFalse((root / "etc/systemd/system/a-clockwork-plex-camilladsp.service").exists())
+            self.assertFalse((root / "usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp").exists())
+            self.assertFalse((root / "etc/systemd/system/a-clockwork-plex.service").exists())
+            self.assertFalse((root / "usr/local/bin/a-clockwork-plex-airplay-start").exists())
+
     def test_source_keeps_final_verifier_inside_commit_boundary(self) -> None:
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn("install-dashboard-integration.sh", text)
@@ -207,6 +286,10 @@ class ApplianceApplicationInstallerTests(unittest.TestCase):
         self.assertIn("fail_transaction verifier", text)
         self.assertIn("acp_transaction_mark_complete", text)
         self.assertIn("uninstall-eq.sh", text)
+        self.assertLess(
+            text.index('scripts/audio/uninstall-eq.sh'),
+            text.index('acp_application_transaction_restore "$TRANSACTION"'),
+        )
         self.assertNotIn("install-shared-audio.sh", text)
         self.assertNotIn("install-master-eq.sh", text)
 
