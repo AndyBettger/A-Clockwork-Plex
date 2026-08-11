@@ -87,7 +87,7 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("external appliance prerequisite", result.stdout)
         self.assertIn("scripts/preflight-appliance.sh", result.stdout)
         self.assertIn(
-            "install-dashboard-service.sh --check --project-user bedroomclock",
+            "install-dashboard-integration.sh --prepare-only --project-user bedroomclock",
             result.stdout,
         )
 
