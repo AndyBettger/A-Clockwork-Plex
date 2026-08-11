@@ -71,6 +71,19 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("never config.json/browser", wu.stdout)
         self.assertNotIn("WEATHER_UNDERGROUND_API_KEY=", wu.stdout)
 
+    def test_bootstrap_pending_contract_is_host_only_and_fail_closed_after_bootstrap(self) -> None:
+        source = PREFLIGHT.read_text(encoding="utf-8")
+        self.assertIn("--bootstrap-pending", source)
+        self.assertIn("APPLIANCE_PREFLIGHT=PLATFORM-PASS", source)
+        self.assertIn("owned package bootstrap will install this prerequisite", source)
+        self.assertIn("missing after package bootstrap", source)
+        self.assertIn("shairport-sync package/service is owned by package bootstrap", source)
+        self.assertIn("shairport-sync.service is not installed after package bootstrap", source)
+
+        invalid = self.run_preflight("--source-only", "--bootstrap-pending", "--audio", "direct")
+        self.assertEqual(invalid.returncode, 64)
+        self.assertIn("cannot be combined", invalid.stderr)
+
     def test_fresh_wu_preflight_accepts_secret_file_without_exposing_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             secret = Path(directory) / "wu-key"
@@ -123,7 +136,7 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertEqual(result.returncode, 64)
         self.assertIn("only valid with", result.stderr)
 
-    def test_root_plan_accepts_explicit_project_user_and_points_to_host_gate(self) -> None:
+    def test_root_plan_accepts_explicit_project_user_and_points_to_both_host_gates(self) -> None:
         result = subprocess.run(
             [
                 "bash",
@@ -144,7 +157,11 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("Fresh-Pi prerequisite contract", result.stdout)
         self.assertIn("Plexamp Headless", result.stdout)
         self.assertIn("external appliance prerequisite", result.stdout)
-        self.assertIn("scripts/preflight-appliance.sh", result.stdout)
+        self.assertIn("scripts/preflight-appliance.sh --bootstrap-pending", result.stdout)
+        self.assertIn(
+            "scripts/preflight-appliance.sh --audio direct --weather-observations ecowitt-push --project-user bedroomclock",
+            result.stdout,
+        )
         self.assertIn(
             "install-dashboard-integration.sh --prepare-only --project-user bedroomclock",
             result.stdout,
