@@ -2,25 +2,25 @@
 
 **Status:** Phase 7 physical acceptance procedure  
 **Branch under test:** `feature/alarm-engine`  
-**Date prepared:** 11 August 2026
+**Prepared:** 11 August 2026
 
 ## Purpose
 
-This runbook proves that the guarded root installer can build a new A Clockwork Plex appliance from a fresh/disposable Raspberry Pi target and then repeat that installation without ownership drift.
+Prove that the guarded root installer can build a new A Clockwork Plex appliance on a fresh/disposable Raspberry Pi, promote it from Direct to EQ, accept real Weather Underground input, survive reboot and repeat the whole installation without ownership drift.
 
-It is **not** a bedroom-Pi rehearsal. The accepted bedroom appliance already carries the Phase 6 physical EQ/failback evidence and must remain untouched while Phase 7 fresh-appliance acceptance is performed.
+This is **not** a rehearsal on the accepted bedroom appliance. Phase 6 already supplied the physical EQ/failback evidence there.
 
-## Non-negotiable stop rules
+## Stop rules
 
-Stop immediately on the first failed gate or unexplained difference. Do not carry on to collect a mixture of Direct, EQ and weather symptoms from a known-bad state.
+Stop on the first failed gate or unexplained difference.
 
-- Do **not** run this procedure on `plexamp-bedroom`.
-- Do not run root `install.sh --apply` as `root`; use the normal project user.
-- Do not paste the Weather Underground API key into chat, shell command arguments, `config.json`, browser state or evidence documents.
-- Do not improvise an alternate CamillaDSP binary if the exact pinned artifact is unavailable.
-- Do not manually repair a failed transaction before recording its output and captured state.
-- Do not treat a dashboard that merely opens as a successful appliance install; the profile verifier and physical audio checks must pass.
-- Do not promote Weather Underground history into runtime barometer state during this acceptance. The history payload is inspection evidence only.
+- **Never run this procedure on `plexamp-bedroom`.**
+- Run root `install.sh --apply` as the normal project user, never as root.
+- Never put the WU API key in a literal shell argument, chat, `config.json`, browser state or evidence file.
+- Never substitute an unverified CamillaDSP binary.
+- Record a failed transaction before attempting repair/retry.
+- A dashboard that opens is not an acceptance result; the verifier and physical audio tests must pass.
+- WU history is inspection evidence only. Do not feed it into runtime barometer history during this run.
 
 ## Accepted identities
 
@@ -37,52 +37,49 @@ The historical bedroom-Pi Direct rollback `08d00093...` is deliberately **not** 
 
 ---
 
-# 1. Choose and identify the disposable target
+# 1. Identify the disposable target
 
-Use a fresh/disposable Raspberry Pi with the intended DAC/display hardware. The DAC must already be visible to ALSA as card id `Pro`; the repository does not own board-level/I2S commissioning.
-
-From the target, as the normal project user:
+Use a fresh/disposable Raspberry Pi with the intended DAC/display hardware. The DAC must already be visible to ALSA as card id `Pro`; board-level/I2S commissioning is outside repository ownership.
 
 ```bash
 hostname -s
 id
 uname -a
 cat /etc/os-release
-```
 
-Hard stop guard:
-
-```bash
 if [ "$(hostname -s)" = "plexamp-bedroom" ]; then
     echo 'STOP: this is the accepted bedroom appliance; do not run Phase 7 here.' >&2
     exit 1
 fi
 ```
 
-Record the chosen target hostname in the eventual physical result document.
+Record the target hostname and OS.
 
 ## External prerequisite: Plexamp Headless
 
-Plexamp Headless remains an external prerequisite rather than an installer-owned package. Before appliance installation:
+Plexamp Headless remains external to this repository.
+
+Before package bootstrap require at least:
 
 ```bash
 systemctl cat plexamp.service
 systemctl is-enabled plexamp.service || true
 systemctl is-active plexamp.service || true
-curl -fsS http://localhost:32500/player/playback/pause >/dev/null
 ```
 
-The pause request is only a reachability check; restore/confirm the desired idle state before physical playback testing.
+If `curl` already exists, the local API may also be checked now:
 
-**Pass:** `plexamp.service` exists and the local Plexamp control endpoint is reachable.
+```bash
+if command -v curl >/dev/null 2>&1; then
+    curl -fsS http://localhost:32500/player/playback/pause >/dev/null
+fi
+```
+
+Do not install `curl` manually just for this check; it is owned by the guarded package bootstrap. The full physical Plexamp/API check occurs after bootstrap.
 
 ## Source-tree bootstrap
 
-The installer can own `git` as a host package only after its own source tree exists. Therefore source delivery is a bootstrap transport concern, not an excuse to create a second package owner.
-
-Preferred acceptance approach: copy the exact repository working tree/checkout to the disposable target from a development machine (for example via `scp`/`rsync` over SSH), then let the guarded package bootstrap establish/verify its declared host packages. If Git is already present on the fresh image, a normal clone is also acceptable.
-
-Once the repository is present:
+The source tree must exist before its installer can own `git`. Prefer copying the exact checkout from a development host (`scp`/similar) to the disposable target, then let the guarded package owner establish its declared packages. If Git is already on the fresh image, a normal clone is also acceptable.
 
 ```bash
 cd ~/A-Clockwork-Plex
@@ -91,21 +88,22 @@ git rev-parse HEAD 2>/dev/null || true
 git status --short 2>/dev/null || true
 ```
 
-If using a Git checkout, require branch `feature/alarm-engine` and record the exact commit under test. If the source was transferred without `.git`, record the source commit separately before transfer.
+When `.git` is present require branch `feature/alarm-engine` and record the exact commit. When the tree was transferred without `.git`, record the source commit before transfer.
 
 ---
 
-# 2. Capture the untouched target baseline
+# 2. Capture untouched baseline
 
-Create an evidence directory outside the repository:
+Create an evidence directory outside the repository and persist its path so it survives reboot:
 
 ```bash
 EVIDENCE="$HOME/acp-phase7-acceptance-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$EVIDENCE"
+printf '%s\n' "$EVIDENCE" > "$HOME/.acp-phase7-evidence-path"
 printf '%s\n' "$EVIDENCE"
 ```
 
-Capture read-only host/audio state:
+Host/audio baseline:
 
 ```bash
 {
@@ -122,7 +120,7 @@ Capture read-only host/audio state:
 } | tee "$EVIDENCE/00-host-baseline.txt"
 ```
 
-Capture relevant service state without changing it:
+Service baseline:
 
 ```bash
 for unit in \
@@ -139,7 +137,7 @@ do
 done | tee "$EVIDENCE/01-services-before.txt"
 ```
 
-Capture prior managed-path identity/absence:
+Managed-path baseline:
 
 ```bash
 {
@@ -159,15 +157,13 @@ Capture prior managed-path identity/absence:
 } | tee "$EVIDENCE/02-managed-before.txt"
 ```
 
-**Pass:** target is not the bedroom Pi, ALSA card `Pro` is present, Plexamp external prerequisite exists, and the baseline is recorded.
+**Pass:** target is not the bedroom Pi, card id `Pro` is present, Plexamp service exists and baseline evidence is saved.
 
 ---
 
 # 3. Read-only fresh Direct gates
 
-Start with the least complex appliance profile: **Direct + Ecowitt push**. This proves the full installer and alarm-safe Direct graph before adding CamillaDSP or WU.
-
-## Root plan
+Start with **Direct + Ecowitt push** to prove the appliance installer/alarm-safe Direct graph before adding CamillaDSP or WU.
 
 ```bash
 bash install.sh \
@@ -178,9 +174,9 @@ bash install.sh \
   | tee "$EVIDENCE/10-direct-plan.txt"
 ```
 
-**Pass:** plan is read-only, names the two-stage preflight/package sequence and selects alarm-safe Direct.
+Require a read-only plan showing package/artifact check → pre-bootstrap platform gate → package/venv bootstrap → full host preflight → application transaction.
 
-## Package/artifact availability
+Package/artifact gate:
 
 ```bash
 bash scripts/check-appliance-packages.sh \
@@ -189,9 +185,9 @@ bash scripts/check-appliance-packages.sh \
   | tee "$EVIDENCE/11-direct-package-check.txt"
 ```
 
-**Pass:** `APPLIANCE_PACKAGE_CHECK=PASS`. Missing installer-owned packages may be reported `READY` if available from the host package manager.
+Require `APPLIANCE_PACKAGE_CHECK=PASS`. Installer-owned missing packages may be `READY` if available from APT.
 
-## Pre-bootstrap platform/external preflight
+Pre-bootstrap platform/external gate:
 
 ```bash
 bash scripts/preflight-appliance.sh \
@@ -202,15 +198,11 @@ bash scripts/preflight-appliance.sh \
   | tee "$EVIDENCE/12-direct-platform-preflight.txt"
 ```
 
-**Pass:** `APPLIANCE_PREFLIGHT=PLATFORM-PASS`.
-
-At this stage installer-owned Python/venv, ALSA utilities, Shairport Sync and Chromium may be `READY`; platform, user, physical DAC and external Plexamp requirements must already pass.
+Require `APPLIANCE_PREFLIGHT=PLATFORM-PASS`. Python/venv, ALSA utilities, Shairport Sync and Chromium may be `READY`; platform/user/DAC/external Plexamp requirements must pass now.
 
 ---
 
 # 4. Guarded fresh Direct install
-
-Run as the normal project user:
 
 ```bash
 bash install.sh \
@@ -223,9 +215,7 @@ bash install.sh \
   | tee "$EVIDENCE/20-direct-install.txt"
 ```
 
-The root installer will repeat the package check/platform gate, establish the additive package + verified-venv baseline, run full host preflight, then enter one application transaction.
-
-**Required terminal success markers:**
+Required success markers:
 
 ```text
 ROOT_INSTALL=COMMITTED
@@ -233,9 +223,9 @@ PACKAGE_VENV_BASELINE=RETAINED
 APPLICATION_VERIFY=PASS
 ```
 
-If the transaction fails, stop and preserve output. Do not continue to physical audio checks.
+If the transaction fails, stop.
 
-## Verify Direct end state
+Standalone Direct verification:
 
 ```bash
 bash scripts/verify-appliance.sh \
@@ -246,98 +236,68 @@ bash scripts/verify-appliance.sh \
   | tee "$EVIDENCE/21-direct-verifier.txt"
 ```
 
-Require:
+Require `APPLIANCE_VERIFY=PASS`.
 
-```text
-APPLIANCE_VERIFY=PASS
-```
-
-Check exact Direct route:
+Check route/no-EQ state:
 
 ```bash
 sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
   | tee "$EVIDENCE/22-direct-route.sha256"
+test ! -e /var/lib/a-clockwork-plex/split-bus/installed
 ```
 
-Require SHA:
+Require route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`.
 
-```text
-654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
-```
-
-Require no EQ installed marker:
+Now `curl` is installer-owned and available; confirm Plexamp local API reachability:
 
 ```bash
-test ! -e /var/lib/a-clockwork-plex/split-bus/installed
+curl -fsS http://localhost:32500/player/playback/pause >/dev/null
 ```
 
 ---
 
 # 5. Physical Direct acceptance
 
-Use the real DAC/speakers and dashboard UI.
-
 ## Dashboard/kiosk
 
-- Dashboard loads normally at the appliance display.
-- Settings and Clock surfaces render correctly.
-- Reopening/restarting the desktop session must not create duplicate kiosk windows.
+- Dashboard/Settings/Clock render normally.
+- Kiosk does not duplicate windows after normal desktop/session restart.
 
-## Plexamp
+## Plexamp and AirPlay
 
-- Start known music through Plexamp.
-- Confirm clean stereo playback with no obvious distortion/chopping.
-- Confirm dashboard playback state/artwork behaves normally.
-
-## AirPlay
-
-- Start AirPlay from the iPhone/normal sender.
-- Confirm it takes audio ownership according to the accepted PlaybackCoordinator behaviour.
-- Confirm stable stereo output and metadata/dashboard state.
-- End/pause AirPlay and confirm no unnecessary service restart is involved in ordinary handoff.
+- Known Plexamp track: clean stable stereo playback and correct dashboard state/artwork.
+- AirPlay from normal iPhone/sender: clean stereo, accepted PlaybackCoordinator takeover and metadata state.
+- Pause/end AirPlay: ordinary handoff must not depend on restarting the audio graph.
 
 ## Music Master / alarm isolation
 
-With music playing:
-
-1. set **Music Master = 0%**;
-2. require Plexamp/AirPlay music to become silent;
-3. trigger a real scheduled alarm through the normal alarm engine;
-4. require the alarm to remain audible;
-5. Snooze/Dismiss using the real UI;
-6. restore Music Master and require normal music level to return.
-
-**Pass:** the fresh Direct graph proves alarm bypass of Music Master through the physical DAC.
+1. Play music.
+2. Set **Music Master = 0%**; music must become silent.
+3. Trigger a real scheduled alarm; alarm must remain audible.
+4. Snooze/Dismiss normally.
+5. Restore Music Master; music returns at expected level.
 
 ## Direct-mode EQ truthfulness
 
-Open Settings → Audio/EQ while Direct is installed.
-
-**Required UI health text:**
+Settings → Audio/EQ must show:
 
 ```text
 Install required
 ```
 
-EQ controls must not pretend that an EQ runtime is installed/configured.
+The Direct profile must not pretend EQ is installed/configured.
 
-Record physical result notes in `$EVIDENCE/23-direct-physical-notes.txt` or the final result document.
+Record physical notes under the evidence directory.
 
 ---
 
-# 6. Prepare the pinned CamillaDSP artifact
+# 6. Prepare pinned CamillaDSP
 
-The repository deliberately does not silently download CamillaDSP. Supply the reviewed aarch64 4.1.3 executable through the same trusted acquisition method used for the accepted Phase 6 work.
-
-Set only a path variable; do not modify the binary:
+The repository never silently downloads/substitutes CamillaDSP. Supply the reviewed 4.1.3 aarch64 executable through the trusted acquisition path used for accepted EQ work.
 
 ```bash
 CAMILLA=/path/to/camilladsp-4.1.3-aarch64
-```
 
-Require a regular executable, not a symlink:
-
-```bash
 test -f "$CAMILLA" && test -x "$CAMILLA" && test ! -L "$CAMILLA"
 "$CAMILLA" --version
 sha256sum "$CAMILLA"
@@ -349,13 +309,13 @@ Require version `4.1.3` and SHA:
 e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa
 ```
 
-Store only the path and hash in evidence; do not copy an unverified binary into managed locations manually.
+Do not manually copy an unverified binary into managed locations.
 
 ---
 
 # 7. Guarded EQ promotion
 
-## Read-only EQ plan
+Plan:
 
 ```bash
 bash install.sh \
@@ -367,9 +327,9 @@ bash install.sh \
   | tee "$EVIDENCE/30-eq-plan.txt"
 ```
 
-Require that fresh EQ explicitly uses the `alarm-safe-direct` baseline while preserving the standalone historical default contract.
+Require fresh EQ to request `--baseline alarm-safe-direct` while preserving the standalone historical default contract.
 
-## Root EQ apply
+Apply:
 
 ```bash
 bash install.sh \
@@ -385,7 +345,7 @@ bash install.sh \
 
 Require root/application commit markers and no rollback warning.
 
-## Whole-appliance + specialist verification
+Whole-appliance + specialist verification:
 
 ```bash
 bash scripts/verify-appliance.sh \
@@ -399,66 +359,39 @@ bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/33-eq-audio-verify.txt"
 ```
 
-Require both verifiers to pass.
-
-Record active route identity:
+Require both to pass.
 
 ```bash
 sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
   | tee "$EVIDENCE/34-eq-route.sha256"
-```
-
-Require EQ split-bus SHA:
-
-```text
-1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9
-```
-
-Require installed marker:
-
-```bash
 test -f /var/lib/a-clockwork-plex/split-bus/installed
 ```
+
+Require EQ route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`.
 
 ---
 
 # 8. Physical EQ acceptance
 
-## Music paths
+## Music paths and EQ
 
-- Plexamp plays normally through the EQ-capable graph.
-- AirPlay plays normally through the same music processing path.
-- Source handoff remains governed by PlaybackCoordinator; ordinary handoff does not restart the audio graph.
+- Plexamp and AirPlay both play cleanly through the EQ-capable graph.
+- Change Bass/Mid/Treble one at a time using a familiar track and confirm credible audible changes.
+- Toggle EQ bypass and require processing to leave/return without changing alarm loudness.
+- Return controls to the desired acceptance state; do not use extreme boosts merely for drama.
 
-## EQ/bypass
+## Music Master / alarm isolation
 
-Using a familiar music track:
+1. Music playing.
+2. Music Master = 0%; music silent.
+3. Real scheduled alarm remains audible.
+4. Verify **Maximum Alarm Volume** independently governs the alarm ceiling.
+5. Snooze/Dismiss normally.
+6. Restore Music Master; music returns as expected.
 
-- change Bass and confirm an audible/credible tonal change;
-- change Mid and confirm an audible/credible tonal change;
-- change Treble and confirm an audible/credible tonal change;
-- toggle EQ bypass and require the tonal processing to leave/return without changing alarm loudness;
-- return controls to the desired acceptance state.
+## Guarded repair plan only
 
-Do not use extreme boosts simply to make the test obvious; limiter/headroom behaviour is already an accepted invariant.
-
-## Music Master / alarm isolation under EQ
-
-Repeat the Direct isolation test:
-
-1. music playing;
-2. Music Master = 0%;
-3. music must be silent;
-4. real scheduled alarm must remain audible;
-5. change/inspect **Maximum Alarm Volume** and require it to govern the alarm ceiling independently of Music Master/EQ;
-6. Snooze/Dismiss normally;
-7. restore Music Master and confirm music returns at the expected level.
-
-**Pass:** physical split-bus isolation matches the accepted architecture.
-
-## Guarded repair plan
-
-Without manufacturing a fault, confirm the installed profile can produce the accepted repair plan:
+Do not manufacture another destructive failure; Phase 6 already supplied physical failback evidence. Confirm the installed profile has the accepted non-mutating repair plan:
 
 ```bash
 bash scripts/audio/repair-audio.sh \
@@ -468,23 +401,33 @@ bash scripts/audio/repair-audio.sh \
   | tee "$EVIDENCE/35-eq-repair-plan.txt"
 ```
 
-This command must remain non-mutating. Do **not** activate repair unless an actual accepted recovery reason exists during the test.
+Activate repair only if a genuine accepted recovery reason arises.
 
 ---
 
 # 9. Reboot acceptance
 
-Capture current service/route state, then reboot the disposable target normally:
-
 ```bash
 sudo reboot
 ```
 
-After reconnect/login:
+After reconnecting, restore the persisted evidence path:
 
 ```bash
+EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
+test -d "$EVIDENCE"
 cd ~/A-Clockwork-Plex
+```
 
+Re-establish the Camilla artifact path if necessary:
+
+```bash
+CAMILLA=/path/to/camilladsp-4.1.3-aarch64
+```
+
+Run both verifiers:
+
+```bash
 bash scripts/verify-appliance.sh \
   --audio eq \
   --weather-observations ecowitt-push \
@@ -496,13 +439,13 @@ bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/41-eq-after-reboot-audio.txt"
 ```
 
-Recheck physical Plexamp and a short real alarm test. Require dashboard kiosk startup, music playback, EQ state and alarm isolation to survive reboot.
+Require both to pass. Recheck dashboard kiosk startup, short Plexamp playback and a real alarm/Music Master isolation test.
 
 ---
 
-# 10. Weather Underground secret preparation
+# 10. Prepare WU host secret
 
-Keep the WU key on the test host only. Do **not** put the literal secret into a shell command because shell history is evidence too.
+Never type the literal API key into a shell command.
 
 ```bash
 WU_DIR="$HOME/.config/a-clockwork-plex"
@@ -512,27 +455,23 @@ install -m 600 /dev/null "$WU_KEY_FILE"
 nano "$WU_KEY_FILE"
 ```
 
-Paste/type the key into the editor as one line, save and close. Do not show it in the terminal afterward.
-
-Set the non-secret station ID:
+Enter one key line in the editor, save and close. Set the non-secret station ID:
 
 ```bash
 WU_STATION_ID='YOUR_STATION_ID'
 ```
 
-Check **metadata only**:
+Check metadata only:
 
 ```bash
 stat -c '%a %U:%G %n' "$WU_KEY_FILE"
 ```
 
-Do not run `cat`, `sed`, `head`, `tail` or `echo $(...)` on the key file for evidence.
+Do not `cat`, `head`, `tail`, `sed` or command-substitute the key into evidence.
 
 ---
 
 # 11. Read-only real WU current/history inspection
-
-Before allowing history semantics to influence any future design decision, inspect the real station payloads with the dedicated diagnostic tool:
 
 ```bash
 ./venv/bin/python scripts/inspect-weather-underground-payloads.py \
@@ -548,29 +487,23 @@ WU_PAYLOAD_INSPECTION=PASS
 State mutation: none
 ```
 
-Record:
+Record current/history keys, observation counts, timestamp evidence and pressure-related paths.
 
-- current observation keys and pressure-related paths;
-- history observation count;
-- history timestamp evidence;
-- history pressure-related paths;
-- the tool's like-for-like history assessment.
+Interpretation:
 
-Interpretation rule:
+- `Like-for-like history candidate: NO` → no instantaneous history contract.
+- `YES — REVIEW REQUIRED` → evidence deserves design review only.
+- Neither result authorises history ingestion during this acceptance.
 
-- `NO` means history is not suitable for instantaneous pressure samples under the current contract;
-- `YES — REVIEW REQUIRED` means only that the live payload deserves design review;
-- neither result authorises this acceptance run to write WU history into dashboard pressure history.
-
-The new appliance continues to build pressure history from real current observations normally.
+The appliance continues to accumulate barometer history from real current observations.
 
 ---
 
 # 12. Guarded WU appliance apply
 
-Keep the accepted EQ profile while changing the observation provider. Because EQ is already installed, the EQ lifecycle will use its guarded repair path rather than creating a second first-install backup.
+Keep EQ selected. Existing EQ installation will delegate to the guarded repair lifecycle rather than create a second first-install backup.
 
-## Plan
+Plan:
 
 ```bash
 bash install.sh \
@@ -584,7 +517,7 @@ bash install.sh \
   | tee "$EVIDENCE/51-wu-plan.txt"
 ```
 
-## Apply
+Apply:
 
 ```bash
 bash install.sh \
@@ -600,9 +533,9 @@ bash install.sh \
   | tee "$EVIDENCE/52-wu-install.txt"
 ```
 
-Require the same root/application commit markers.
+Require commit markers.
 
-## Standalone verification using the same key-file contract
+Standalone verifier using the same key-file contract:
 
 ```bash
 bash scripts/verify-appliance.sh \
@@ -616,7 +549,7 @@ bash scripts/verify-appliance.sh \
 
 Require `APPLIANCE_VERIFY=PASS`.
 
-Inspect live observation API without exposing credentials:
+Inspect the credential-free runtime API:
 
 ```bash
 curl -fsS http://localhost:8088/api/weather/observations \
@@ -624,24 +557,22 @@ curl -fsS http://localhost:8088/api/weather/observations \
   | tee "$EVIDENCE/54-wu-runtime-observations.json"
 ```
 
-Require provider `weather-underground`/runtime-equivalent and an acceptable `ready`, `pending` or `degraded` state according to current verifier semantics. For physical acceptance, wait for/require a real current observation to become visible and compare its temperature/humidity/pressure plausibility with the PWS rather than accepting `pending` forever.
+Verifier semantics allow `ready`, `pending` or `degraded`, but physical acceptance must eventually see a genuine current observation and compare temperature/humidity/pressure plausibility with the selected PWS. Do not accept permanent `pending` as physical success.
 
-Check managed secret **metadata only**:
+Managed secret metadata only:
 
 ```bash
 sudo stat -c '%a %U:%G %n' /etc/default/a-clockwork-plex-weather \
   | tee "$EVIDENCE/55-wu-secret-metadata.txt"
 ```
 
-Do not save the file contents into evidence.
-
-Confirm `config.json` contains station ID + environment-variable name but **not** the API key value.
+Do not save `/etc/default/a-clockwork-plex-weather` contents into evidence. Confirm `config.json` contains station ID + environment-variable name and no literal key.
 
 ---
 
 # 13. Repeat whole-appliance installation
 
-This is the idempotency/ownership-drift acceptance gate. Run the same already-configured EQ + WU root apply again:
+Repeat the already-configured EQ + WU root apply:
 
 ```bash
 bash install.sh \
@@ -659,14 +590,13 @@ bash install.sh \
 
 Require:
 
-- package bootstrap reports already-satisfied prerequisites or otherwise makes only legitimate additive corrections;
-- EQ existing-install path delegates to guarded repair rather than replacing the original uninstall baseline;
-- no duplicate dashboard/kiosk/AirPlay/helper ownership appears;
-- final whole-appliance verifier passes;
-- root/application commit markers appear;
-- physical Plexamp/AirPlay/alarm behaviour remains unchanged.
+- package bootstrap is already satisfied or makes only legitimate additive corrections;
+- existing EQ delegates to guarded repair and preserves the original uninstall baseline;
+- no duplicate dashboard/kiosk/AirPlay/helper ownership;
+- final verifier passes and commit markers appear;
+- physical Plexamp/AirPlay/alarm behaviour is unchanged.
 
-Run the standalone verifier again:
+Final standalone verifier:
 
 ```bash
 bash scripts/verify-appliance.sh \
@@ -680,9 +610,7 @@ bash scripts/verify-appliance.sh \
 
 ---
 
-# 14. Final acceptance evidence
-
-Capture final state:
+# 14. Final evidence
 
 ```bash
 {
@@ -707,27 +635,27 @@ Capture final state:
 } | tee "$EVIDENCE/70-final-state.txt"
 ```
 
-Create a dated physical result document in `docs/` summarising:
+Create a dated physical result document in `docs/` containing:
 
-- target model/hostname and source commit;
+- target model/hostname and exact source commit;
 - pre-install state;
 - Direct installer/verifier/route result;
 - Direct Plexamp/AirPlay/Music Master/alarm/UI result;
 - EQ installer/verifier/route result;
 - EQ/bypass/Music Master/alarm/reboot result;
-- WU payload-inspector evidence and explicit decision about history semantics;
+- WU payload-inspector evidence and explicit history-semantics decision;
 - WU runtime result without secret content;
 - repeat-install result;
-- any deviations or failures and whether rollback occurred.
+- deviations/failures and whether rollback occurred.
 
-Do not mark Phase 7 complete until that evidence exists and all required physical gates pass.
+Do not close Phase 7 until that evidence exists and all required physical gates pass.
 
-## Acceptance summary checklist
+## Acceptance checklist
 
-- [ ] Disposable/fresh target identified; target is not `plexamp-bedroom`.
+- [ ] Disposable target identified; it is not `plexamp-bedroom`.
 - [ ] External Plexamp Headless prerequisite passes.
-- [ ] DAC card id `Pro` passes.
-- [ ] Baseline evidence captured.
+- [ ] ALSA card id `Pro` passes.
+- [ ] Baseline evidence captured and evidence path persisted across reboot.
 - [ ] Direct package availability + pre-bootstrap platform gate pass.
 - [ ] Root Direct install commits.
 - [ ] Direct route is exact `654ff170...`.
@@ -736,12 +664,12 @@ Do not mark Phase 7 complete until that evidence exists and all required physica
 - [ ] Direct EQ UI says **Install required**.
 - [ ] Pinned CamillaDSP 4.1.3 artifact/hash passes.
 - [ ] Root EQ install commits.
-- [ ] EQ route is exact `1bc69f...` and both verifiers pass.
+- [ ] EQ route is exact `1bc69f...`; both verifiers pass.
 - [ ] Physical EQ/bypass + alarm isolation passes.
 - [ ] Reboot verification passes.
-- [ ] WU key remains host-file-only and is never exposed in evidence.
+- [ ] WU key remains host-file-only and absent from evidence.
 - [ ] Real WU current/history inspector passes; history remains inspection-only.
 - [ ] WU runtime current observation is physically/plausibly accepted.
-- [ ] Repeat whole-appliance install commits with no ownership drift.
+- [ ] Repeat whole-appliance install commits without ownership drift.
 - [ ] Final physical result document is committed.
 - [ ] PR #2 remains Draft/open/unmerged pending explicit owner approval.
