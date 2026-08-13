@@ -29,16 +29,31 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
         self.assertIn('data-observation-provider-panel="ecowitt_push"', source)
         self.assertIn('data-observation-provider-panel="weather_underground"', source)
 
-    def test_browser_never_offers_or_submits_weather_underground_secret(self) -> None:
-        source = TEMPLATE.read_text(encoding="utf-8")
+    def test_secret_remains_outside_revisioned_settings_model(self) -> None:
+        template = TEMPLATE.read_text(encoding="utf-8")
+        presenter = PRESENTER.read_text(encoding="utf-8")
 
-        self.assertNotIn('data-setting-path="weather.observations.weather_underground.api_key"', source)
-        self.assertNotIn('data-setting-path="weather.observations.weather_underground.apikey"', source)
-        self.assertNotIn('data-setting-path="weather.observations.weather_underground.secret"', source)
-        self.assertNotIn('data-setting-path="weather.observations.weather_underground.token"', source)
-        self.assertNotIn('type="password"', source)
-        self.assertIn("Server environment only", source)
-        self.assertIn("never displayed, stored or submitted", source)
+        self.assertNotIn('data-setting-path="weather.observations.weather_underground.api_key"', template)
+        self.assertNotIn('data-setting-path="weather.observations.weather_underground.apikey"', template)
+        self.assertNotIn('data-setting-path="weather.observations.weather_underground.secret"', template)
+        self.assertNotIn('data-setting-path="weather.observations.weather_underground.token"', template)
+        self.assertNotIn('data-setting-path="weather.observations.weather_underground.api_key"', presenter)
+        self.assertIn('type="password"', presenter)
+        self.assertIn('data-wu-api-key', presenter)
+        self.assertIn('write-only', presenter)
+        self.assertIn("elements.input.value = ''", presenter)
+
+    def test_commissioning_uses_dedicated_credential_and_test_endpoints(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn("/api/weather/underground/credentials", presenter)
+        self.assertIn("/api/weather/underground/test", presenter)
+        self.assertIn("method: 'POST'", presenter)
+        self.assertIn("method: 'DELETE'", presenter)
+        self.assertIn("JSON.stringify({ api_key: key })", presenter)
+        self.assertIn("Test connection", presenter)
+        self.assertNotIn("localStorage", presenter)
+        self.assertNotIn("sessionStorage", presenter)
 
     def test_forecast_copy_keeps_open_meteo_independent_of_observation_provider(self) -> None:
         source = TEMPLATE.read_text(encoding="utf-8")
@@ -47,7 +62,7 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
         self.assertIn("<strong>Open-Meteo</strong>", source)
         self.assertNotIn("Ecowitt remains the observation source", source)
 
-    def test_observation_presenter_is_loaded_and_only_presents_unified_state(self) -> None:
+    def test_observation_presenter_still_presents_unified_runtime_state(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
         presenter = PRESENTER.read_text(encoding="utf-8")
 
@@ -57,8 +72,6 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
         self.assertIn("credentials_required", presenter)
         self.assertIn("configuration_required", presenter)
         self.assertNotIn("/api/weather/observations", presenter)
-        self.assertNotIn("fetch(", presenter)
-        self.assertNotIn("api_key", presenter.lower())
 
     def test_pressure_history_control_is_not_presented_as_a_working_bootstrap(self) -> None:
         source = TEMPLATE.read_text(encoding="utf-8")
