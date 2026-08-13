@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 import subprocess
 import tempfile
@@ -13,7 +12,11 @@ INSTALLER = ROOT / "scripts" / "install-nfc-listener.sh"
 VENDOR = ROOT / "vendor" / "plexamp-nfc-listener"
 CONFIRMATION = "INSTALL-NFC-LISTENER"
 UPSTREAM_COMMIT = "8f5f04213b22cfb5affc6931cb2db91fd07de537"
-UPSTREAM_BLOB = "5f87b477bfdac27a34373cb7708af8236c33c2ab"
+UPSTREAM_BLOBS = {
+    "nfc_listener.py": "5f87b477bfdac27a34373cb7708af8236c33c2ab",
+    "requirements.txt": "a35eb89930ffac8e5b25179832e450aaa4403a13",
+    "LICENSE": "739abcadcd68145a60b32ac67d2ec9fcd0a395ad",
+}
 
 
 class NfcListenerInstallerTests(unittest.TestCase):
@@ -54,17 +57,20 @@ class NfcListenerInstallerTests(unittest.TestCase):
     def test_vendored_runtime_is_bound_to_exact_upstream_identity(self) -> None:
         provenance = (VENDOR / "SOURCE.md").read_text(encoding="utf-8")
         self.assertIn(UPSTREAM_COMMIT, provenance)
-        self.assertIn(UPSTREAM_BLOB, provenance)
 
-        result = subprocess.run(
-            ["git", "hash-object", str(VENDOR / "nfc_listener.py")],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), UPSTREAM_BLOB)
+        for filename, expected_blob in UPSTREAM_BLOBS.items():
+            with self.subTest(filename=filename):
+                self.assertIn(expected_blob, provenance)
+                result = subprocess.run(
+                    ["git", "hash-object", str(VENDOR / filename)],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), expected_blob)
+
         self.assertTrue((VENDOR / "LICENSE").read_text(encoding="utf-8").startswith("MIT License"))
 
     def test_unit_is_project_user_aware_and_uses_dedicated_nfc_venv(self) -> None:
