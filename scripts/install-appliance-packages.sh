@@ -33,11 +33,12 @@ Rollback policy:
   * Debian/Raspberry Pi OS packages are additive bootstrap prerequisites. Packages
     installed successfully by this owner are NOT automatically removed/purged or
     autoremoved on a later failure because that could damage shared host state.
-  * The repository venv is staged completely before replacement. If venv activation
-    fails, its exact previous directory is restored by same-filesystem rename (or
-    the new venv is removed when none existed before).
-  * After this bootstrap owner succeeds, package and venv state form the prerequisite
-    baseline for the later whole-appliance application transaction.
+  * The main repository venv and NFC system-site-packages venv are both staged and
+    verified completely before either live directory is replaced.
+  * If either venv activation/verification fails, both exact previous directories
+    are restored (or both new directories are removed where previously absent).
+  * After this bootstrap owner succeeds, package and both venv states form the
+    prerequisite baseline for the later whole-appliance application transaction.
 EOF
 }
 
@@ -77,16 +78,20 @@ else
     PROJECT_ROOT="$REPO_ROOT"
 fi
 VENV_TARGET="$PROJECT_ROOT/venv"
+NFC_VENV_TARGET="$PROJECT_ROOT/nfc-venv"
 REQUIREMENTS="$REPO_ROOT/requirements.txt"
+NFC_REQUIREMENTS="$REPO_ROOT/vendor/plexamp-nfc-listener/requirements.txt"
 
 [[ -d "$PROJECT_ROOT" && ! -L "$PROJECT_ROOT" ]] || {
     error "Project root is unavailable or unsafe: $PROJECT_ROOT"
     exit 1
 }
-[[ -f "$REQUIREMENTS" && ! -L "$REQUIREMENTS" ]] || {
-    error "requirements.txt is unavailable or unsafe: $REQUIREMENTS"
-    exit 1
-}
+for requirements_file in "$REQUIREMENTS" "$NFC_REQUIREMENTS"; do
+    [[ -f "$requirements_file" && ! -L "$requirements_file" ]] || {
+        error "Requirements file is unavailable or unsafe: $requirements_file"
+        exit 1
+    }
+done
 
 if [[ "$MODE" == activate ]]; then
     [[ "$CONFIRM" == "$CONFIRM_TOKEN" ]] || {
@@ -115,7 +120,8 @@ A Clockwork Plex package + venv bootstrap plan
 Mode:                 $MODE
 Filesystem root:      $ROOT
 Project root:         $PROJECT_ROOT
-Venv target:          $VENV_TARGET
+Main venv target:     $VENV_TARGET
+NFC venv target:      $NFC_VENV_TARGET
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_PROVIDER
 
@@ -124,9 +130,10 @@ APT policy:
   rollback never runs apt remove, purge or autoremove.
 
 Venv policy:
-  build a complete candidate first, run pip check/import verification, then use
-  a same-filesystem rename swap so a failed activation can restore the exact
-  prior venv directory (or exact prior absence).
+  build complete main and NFC candidates first; the NFC candidate uses
+  --system-site-packages so Raspberry Pi OS python3-lgpio is visible. Verify both
+  candidates before a paired live swap. A later failure restores both exact
+  previous venv directories or their exact previous absence.
 EOF
 
 echo
@@ -185,71 +192,112 @@ else
     }
     PYTHON_BIN="$ACP_PACKAGES_TEST_PYTHON"
     echo
-    echo 'Alternate-root activation: APT mutation skipped by design; testing venv transaction only.'
+    echo 'Alternate-root activation: APT mutation skipped by design; testing paired venv transaction only.'
 fi
 
-if [[ -e "$VENV_TARGET" || -L "$VENV_TARGET" ]]; then
-    [[ -d "$VENV_TARGET" && ! -L "$VENV_TARGET" ]] || {
-        error "Existing venv target is not a safe directory: $VENV_TARGET"
-        exit 1
-    }
-fi
+for target in "$VENV_TARGET" "$NFC_VENV_TARGET"; do
+    if [[ -e "$target" || -L "$target" ]]; then
+        [[ -d "$target" && ! -L "$target" ]] || {
+            error "Existing venv target is not a safe directory: $target"
+            exit 1
+        }
+    fi
+done
 
 STAGE_PARENT="$(mktemp -d "$PROJECT_ROOT/.acp-package-stage.XXXXXX")"
-CANDIDATE="$STAGE_PARENT/venv.candidate"
-PREVIOUS="$STAGE_PARENT/venv.previous"
-PREVIOUS_PRESENT=false
-SWAPPED=false
+APP_CANDIDATE="$STAGE_PARENT/venv.candidate"
+NFC_CANDIDATE="$STAGE_PARENT/nfc-venv.candidate"
+APP_PREVIOUS="$STAGE_PARENT/venv.previous"
+NFC_PREVIOUS="$STAGE_PARENT/nfc-venv.previous"
+APP_PREVIOUS_PRESENT=false
+NFC_PREVIOUS_PRESENT=false
+APP_SWAPPED=false
+NFC_SWAPPED=false
 
 cleanup() {
     rm -rf -- "$STAGE_PARENT"
 }
 trap cleanup EXIT
 
-restore_previous_venv() {
+restore_previous_venvs() {
     set +e
-    if [[ "$SWAPPED" == true && -e "$VENV_TARGET" ]]; then
+    if [[ "$APP_SWAPPED" == true && -d "$VENV_TARGET" ]]; then
         rm -rf -- "$VENV_TARGET"
     fi
-    if [[ "$PREVIOUS_PRESENT" == true && -d "$PREVIOUS" ]]; then
-        mv -- "$PREVIOUS" "$VENV_TARGET"
+    if [[ "$NFC_SWAPPED" == true && -d "$NFC_VENV_TARGET" ]]; then
+        rm -rf -- "$NFC_VENV_TARGET"
+    fi
+    if [[ "$APP_PREVIOUS_PRESENT" == true && -d "$APP_PREVIOUS" ]]; then
+        [[ ! -e "$VENV_TARGET" ]] || rm -rf -- "$VENV_TARGET"
+        mv -- "$APP_PREVIOUS" "$VENV_TARGET"
+    fi
+    if [[ "$NFC_PREVIOUS_PRESENT" == true && -d "$NFC_PREVIOUS" ]]; then
+        [[ ! -e "$NFC_VENV_TARGET" ]] || rm -rf -- "$NFC_VENV_TARGET"
+        mv -- "$NFC_PREVIOUS" "$NFC_VENV_TARGET"
     fi
 }
 
-fail_venv() {
+fail_venvs() {
     local message="$1"
     error "$message"
-    restore_previous_venv
-    error 'Venv pre-state restored; additive APT prerequisites, if installed, are intentionally retained.'
+    restore_previous_venvs
+    error 'Main/NFC venv prestates restored; additive APT prerequisites, if installed, are intentionally retained.'
     exit 1
 }
 
 echo
-echo 'Building staged Python environment...'
-"$PYTHON_BIN" -m venv "$CANDIDATE" || fail_venv 'Failed to create staged venv.'
-[[ -x "$CANDIDATE/bin/python" ]] || fail_venv 'Staged venv did not provide executable bin/python.'
-"$CANDIDATE/bin/python" -m pip install --disable-pip-version-check -r "$REQUIREMENTS" || fail_venv 'requirements.txt installation failed in staged venv.'
-"$CANDIDATE/bin/python" -m pip check || fail_venv 'pip check failed in staged venv.'
-"$CANDIDATE/bin/python" -c 'import flask; print("Flask", flask.__version__ if hasattr(flask, "__version__") else "import-ok")' || fail_venv 'Flask import verification failed in staged venv.'
-
-if [[ -d "$VENV_TARGET" ]]; then
-    mv -- "$VENV_TARGET" "$PREVIOUS" || fail_venv 'Could not preserve the previous venv.'
-    PREVIOUS_PRESENT=true
-fi
-mv -- "$CANDIDATE" "$VENV_TARGET" || fail_venv 'Could not activate the staged venv.'
-SWAPPED=true
-
-if [[ "$ROOT" != / && "${ACP_PACKAGES_TEST_FAIL_AFTER_SWAP:-0}" == 1 ]]; then
-    fail_venv 'Injected non-production failure after venv swap.'
-fi
-
-"$VENV_TARGET/bin/python" -m pip check || fail_venv 'Activated venv failed pip check.'
-"$VENV_TARGET/bin/python" -c 'import flask' || fail_venv 'Activated venv failed Flask import verification.'
-
-SWAPPED=false
-rm -rf -- "$PREVIOUS"
+echo 'Building staged main Python environment...'
+"$PYTHON_BIN" -m venv "$APP_CANDIDATE" || fail_venvs 'Failed to create staged main venv.'
+[[ -x "$APP_CANDIDATE/bin/python" ]] || fail_venvs 'Staged main venv did not provide executable bin/python.'
+"$APP_CANDIDATE/bin/python" -m pip install --disable-pip-version-check -r "$REQUIREMENTS" || fail_venvs 'Main requirements.txt installation failed in staged venv.'
+"$APP_CANDIDATE/bin/python" -m pip check || fail_venvs 'pip check failed in staged main venv.'
+"$APP_CANDIDATE/bin/python" -c 'import flask; print("Flask", flask.__version__ if hasattr(flask, "__version__") else "import-ok")' || fail_venvs 'Flask import verification failed in staged main venv.'
 
 echo
-echo '[A Clockwork Plex] Package/venv bootstrap completed successfully.'
+echo 'Building staged NFC Python environment with system site packages...'
+"$PYTHON_BIN" -m venv --system-site-packages "$NFC_CANDIDATE" || fail_venvs 'Failed to create staged NFC venv.'
+[[ -x "$NFC_CANDIDATE/bin/python" ]] || fail_venvs 'Staged NFC venv did not provide executable bin/python.'
+"$NFC_CANDIDATE/bin/python" -m pip install --disable-pip-version-check -r "$NFC_REQUIREMENTS" || fail_venvs 'NFC requirements installation failed in staged venv.'
+"$NFC_CANDIDATE/bin/python" -m pip check || fail_venvs 'pip check failed in staged NFC venv.'
+if [[ "$ROOT" == / ]]; then
+    "$NFC_CANDIDATE/bin/python" -c 'import lgpio, board, busio, requests; from adafruit_pn532.i2c import PN532_I2C' || fail_venvs 'NFC hardware-library import verification failed in staged venv.'
+else
+    "$NFC_CANDIDATE/bin/python" -c 'import requests' || fail_venvs 'Alternate-root NFC candidate verification failed.'
+fi
+
+# Both candidates are complete before any live venv moves.
+if [[ -d "$VENV_TARGET" ]]; then
+    mv -- "$VENV_TARGET" "$APP_PREVIOUS" || fail_venvs 'Could not preserve the previous main venv.'
+    APP_PREVIOUS_PRESENT=true
+fi
+if [[ -d "$NFC_VENV_TARGET" ]]; then
+    mv -- "$NFC_VENV_TARGET" "$NFC_PREVIOUS" || fail_venvs 'Could not preserve the previous NFC venv.'
+    NFC_PREVIOUS_PRESENT=true
+fi
+mv -- "$APP_CANDIDATE" "$VENV_TARGET" || fail_venvs 'Could not activate the staged main venv.'
+APP_SWAPPED=true
+mv -- "$NFC_CANDIDATE" "$NFC_VENV_TARGET" || fail_venvs 'Could not activate the staged NFC venv.'
+NFC_SWAPPED=true
+
+if [[ "$ROOT" != / && "${ACP_PACKAGES_TEST_FAIL_AFTER_SWAP:-0}" == 1 ]]; then
+    fail_venvs 'Injected non-production failure after paired venv swap.'
+fi
+
+"$VENV_TARGET/bin/python" -m pip check || fail_venvs 'Activated main venv failed pip check.'
+"$VENV_TARGET/bin/python" -c 'import flask' || fail_venvs 'Activated main venv failed Flask import verification.'
+"$NFC_VENV_TARGET/bin/python" -m pip check || fail_venvs 'Activated NFC venv failed pip check.'
+if [[ "$ROOT" == / ]]; then
+    "$NFC_VENV_TARGET/bin/python" -c 'import lgpio, board, busio, requests; from adafruit_pn532.i2c import PN532_I2C' || fail_venvs 'Activated NFC venv failed hardware-library import verification.'
+else
+    "$NFC_VENV_TARGET/bin/python" -c 'import requests' || fail_venvs 'Activated alternate-root NFC venv failed verification.'
+fi
+
+APP_SWAPPED=false
+NFC_SWAPPED=false
+rm -rf -- "$APP_PREVIOUS" "$NFC_PREVIOUS"
+
+echo
+echo '[A Clockwork Plex] Package/main/NFC venv bootstrap completed successfully.'
 echo 'APT_ROLLBACK_POLICY=RETAIN-ADDITIVE-PREREQUISITES'
-echo 'VENV_ROLLBACK_POLICY=EXACT-PRESTATE-ON-STAGE-FAILURE'
+echo 'VENV_ROLLBACK_POLICY=EXACT-PAIRED-PRESTATE-ON-STAGE-FAILURE'
+echo 'NFC_VENV_SYSTEM_SITE_PACKAGES=REQUIRED'
