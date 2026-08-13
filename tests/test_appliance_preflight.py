@@ -71,7 +71,7 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("never config.json/browser", wu.stdout)
         self.assertNotIn("WEATHER_UNDERGROUND_API_KEY=", wu.stdout)
 
-    def test_bootstrap_pending_contract_is_host_only_and_fail_closed_after_bootstrap(self) -> None:
+    def test_bootstrap_pending_contract_is_host_only_and_preserves_compatibility_gate(self) -> None:
         source = PREFLIGHT.read_text(encoding="utf-8")
         self.assertIn("--bootstrap-pending", source)
         self.assertIn("APPLIANCE_PREFLIGHT=PLATFORM-PASS", source)
@@ -79,10 +79,54 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertIn("missing after package bootstrap", source)
         self.assertIn("shairport-sync package/service is owned by package bootstrap", source)
         self.assertIn("shairport-sync.service is not installed after package bootstrap", source)
+        self.assertIn(
+            "current compatibility/full gate still requires Plexamp",
+            source,
+        )
 
         invalid = self.run_preflight("--source-only", "--bootstrap-pending", "--audio", "direct")
         self.assertEqual(invalid.returncode, 64)
         self.assertIn("cannot be combined", invalid.stderr)
+
+    def test_fresh_stage_zero_marks_future_owned_hardware_and_player_ready_only(self) -> None:
+        result = self.run_preflight(
+            "--fresh-bootstrap-pending",
+            "--audio",
+            "direct",
+            "--project-user",
+            os.environ.get("USER", "runner"),
+        )
+
+        # CI is not the target aarch64 Raspberry Pi, so the overall host report
+        # can fail. The important contract is that not-yet-run owners are READY,
+        # not falsely PASS and not prematurely FAIL.
+        self.assertIn("Mode:                 fresh-bootstrap-stage-zero", result.stdout)
+        self.assertIn("READY plexamp-service", result.stdout)
+        self.assertIn("guarded Plexamp compatibility-runtime owner has not run yet", result.stdout)
+        self.assertIn("READY dac-card", result.stdout)
+        self.assertIn("guarded platform-hardware owner has not commissioned", result.stdout)
+        self.assertIn("READY pn532-i2c", result.stdout)
+        self.assertIn("bus 1 address 0x24", result.stdout)
+        self.assertNotIn("PASS  pn532-i2c", result.stdout)
+
+    def test_player_pending_requires_hardware_but_allows_only_player_to_remain_pending(self) -> None:
+        source = PREFLIGHT.read_text(encoding="utf-8")
+
+        self.assertIn("--player-pending", source)
+        self.assertIn("APPLIANCE_PREFLIGHT=HARDWARE-PASS-PLAYER-PENDING", source)
+        self.assertIn("PN532 not found on I2C bus 1 address 0x24 after hardware bootstrap", source)
+        self.assertIn("ALSA card id Pro not found", source)
+        self.assertIn("guarded Plexamp compatibility-runtime owner has not run yet", source)
+        self.assertIn('sudo -- i2cdetect -y 1 0x24 0x24', source)
+
+        invalid = self.run_preflight(
+            "--bootstrap-pending",
+            "--player-pending",
+            "--audio",
+            "direct",
+        )
+        self.assertEqual(invalid.returncode, 64)
+        self.assertIn("Choose only one staged host mode", invalid.stderr)
 
     def test_fresh_wu_preflight_accepts_secret_file_without_exposing_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
