@@ -13,6 +13,9 @@ ACP_APT_PACKAGES=(
     alsa-utils
     shairport-sync
     chromium
+    i2c-tools
+    python3-lgpio
+    raspi-config
 )
 
 acp_package_plan() {
@@ -22,10 +25,17 @@ acp_package_plan() {
 Package and artifact ownership:
   Debian/Raspberry Pi OS packages (guarded bootstrap ownership):
     git curl python3 python3-venv alsa-utils shairport-sync chromium
+    i2c-tools python3-lgpio raspi-config
 
   Python application environment (guarded bootstrap ownership):
     build a complete staged repository venv, install requirements.txt, run
     pip check/import verification, then atomically swap it into repository/venv
+
+  NFC/Pi hardware bootstrap support (guarded bootstrap ownership):
+    i2c-tools provides read-only PN532 bus discovery, python3-lgpio supplies the
+    Raspberry Pi GPIO backend required by Blinka, and raspi-config is used only
+    by the dedicated guarded platform-hardware owner to enable I2C. The package
+    owner does not itself edit boot configuration or probe NFC hardware.
 
   Explicit rollback boundary:
     APT packages are additive shared-host prerequisites and are never automatically
@@ -37,7 +47,7 @@ Package and artifact ownership:
   Platform baseline (checked, not claimed as application packages):
     systemd, sudo, a normal desktop/session environment, kernel/ALSA support
 
-  External prerequisite (verified but not installed by this repository):
+  External prerequisite pending Phase 7 ownership promotion:
     Plexamp Headless distribution and plexamp.service on local port 32500
 EOF
 
@@ -75,7 +85,8 @@ EOF
 
 The guarded package owner queries package availability first, uses the host package
 manager rather than downloading .deb files directly, and retains the same specialist
-ownership boundaries used by the plan/preflight stages.
+ownership boundaries used by the plan/preflight stages. It never runs apt upgrade,
+rpi-update or firmware update as part of appliance bootstrap.
 EOF
 }
 
