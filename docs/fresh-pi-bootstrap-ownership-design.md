@@ -24,7 +24,7 @@ repository installer.
 
 ## Why bootstrap must be staged
 
-The current Phase 7 installer grew from an already-working appliance, so its
+The current Phase 7 root installer grew from an already-working appliance, so its
 pre-bootstrap preflight still assumes two things a genuinely fresh Pi cannot
 provide:
 
@@ -40,7 +40,7 @@ Target order:
 ```text
 source tree
   -> platform/package availability gate
-  -> additive package + repository venv bootstrap
+  -> additive package + paired main/NFC venv bootstrap
   -> Pi board/HAT commissioning
        -> enable I2C
        -> project-user hardware groups
@@ -48,11 +48,12 @@ source tree
        -> exact pinned DAC boot configuration
        -> explicit reboot/resume if required
   -> pinned Plexamp Headless compatibility runtime
+       -> pinned Node runtime
        -> player service
        -> Plex authentication / player-name commissioning
        -> local port-32500 contract
-  -> pinned NFC listener runtime
-       -> isolated NFC venv
+  -> pinned NFC listener service
+       -> vendored exact listener runtime
        -> nfc-listener.service
        -> dashboard display-switch integration
   -> full application preflight
@@ -69,7 +70,7 @@ A reboot is a first-class bootstrap outcome, not a failure and not an automatic
 side effect. The installer must stop cleanly with a deterministic resume command;
 it must never reboot the appliance without the operator choosing to do so.
 
-## Package ownership
+## Package and Python-environment ownership
 
 The additive package baseline now includes the NFC/Pi hardware support packages:
 
@@ -81,6 +82,18 @@ raspi-config
 
 They join the existing `git`, `curl`, `python3`, `python3-venv`, `alsa-utils`,
 `shairport-sync` and `chromium` ownership.
+
+The bootstrap now owns **two staged Python environments as one paired transaction**:
+
+```text
+venv      -> A Clockwork Plex application dependencies
+nfc-venv  -> Plexamp NFC Listener dependencies, --system-site-packages
+```
+
+The NFC venv intentionally sees the Raspberry Pi OS `python3-lgpio` package so
+Blinka can use the system GPIO backend. Both venv candidates are built and
+verified before either live directory is replaced. A failure after either swap
+restores both exact prior directories, including exact prior absence.
 
 The package policy remains additive. A later application failure does not run
 `apt remove`, `purge`, `autoremove`, `apt upgrade`, `rpi-update`, bootloader
@@ -117,6 +130,10 @@ PLATFORM_HARDWARE=REBOOT-REQUIRED
 and exits before NFC/DAC acceptance. It prints a resume command and never invokes
 `reboot` itself.
 
+This source slice is CI-green at Phase 7 checkpoint #22. It is not yet promoted
+into root `install.sh` because the root preflight order still assumes Plexamp and
+the DAC already exist.
+
 ## DAC ownership is deliberately blocked until identity is captured
 
 The accepted audio contract proves that the DAC must appear as:
@@ -151,11 +168,29 @@ Phase 7 retains Plexamp Headless because the accepted appliance is coupled to it
 local browsing surface and port-32500 control API. Player migration is not mixed
 into fresh-installer acceptance.
 
+The selected compatibility build under investigation is:
+
+```text
+Plexamp Headless: 4.13.2
+```
+
+The Node runtime candidate is now pinned from the official Node release archive:
+
+```text
+Node:      20.20.2
+Platform:  linux-arm64
+Archive:   node-v20.20.2-linux-arm64.tar.xz
+SHA-256:   73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71
+```
+
+This is a **source/runtime candidate**, not yet physical acceptance. The final
+Plexamp owner still must prove that exact Node binary against the accepted 4.13.2
+headless runtime on the Pi.
+
 The future Plexamp owner must:
 
-- pin the exact compatibility version used for Phase 7;
-- pin and verify the downloadable artifact identity before extraction;
-- pin/review the required Node runtime strategy;
+- pin and verify the Plexamp 4.13.2 downloadable archive identity before extraction;
+- install the pinned Node runtime without NodeSource/nvm `curl | bash` bootstraps;
 - establish `plexamp.service` for the selected normal appliance user;
 - preserve an explicit Plex account authentication/player-name boundary without
   putting claim tokens in logs, evidence or ordinary command-line arguments;
@@ -167,35 +202,46 @@ The future Plexamp owner must:
 physical evidence collector for installed version, `upgrade.sh` hash, systemd
 unit/properties, journal, `audioDeviceUuid` and ALSA device lists.
 
-**Current blocker:** the exact Plexamp compatibility archive checksum/download
-contract has not yet been pinned. The production installer must not use a mutable
-community `curl | bash` installer or an unverified `latest` artifact.
+**Current blocker:** the exact Plexamp 4.13.2 archive checksum/download contract
+has not yet been pinned. The production installer must not use a mutable community
+`curl | bash` installer or an unverified `latest` artifact.
 
 ## NFC listener ownership
 
-The current `AndyBettger/Plexamp-NFC-Listener` repository is MIT-licensed and its
-runtime contract is small enough to own deterministically. The accepted listener:
+The NFC runtime is now vendored from exact upstream repository state:
 
-- uses PN532 over I2C;
-- converts Plexamp NFC `listen.plex.tv` playback URLs to the local port-32500 API;
-- asks A Clockwork Plex to switch the display to Plexamp after a successful scan.
+```text
+repository: AndyBettger/Plexamp-NFC-Listener
+commit:     8f5f04213b22cfb5affc6931cb2db91fd07de537
+```
 
-Its historical `setup.sh` must **not** be executed wholesale from this installer.
-That setup script also owns OS-wide upgrade, kiosk and AirPlay behaviour, including
-old direct Plexamp service stop/start hooks, which conflicts with current A
-Clockwork Plex authorities.
+The exact upstream blobs retained under `vendor/plexamp-nfc-listener/` are:
 
-The A Clockwork Plex NFC owner will instead own only:
+```text
+nfc_listener.py   5f87b477bfdac27a34373cb7708af8236c33c2ab
+requirements.txt  a35eb89930ffac8e5b25179832e450aaa4403a13
+LICENSE           739abcadcd68145a60b32ac67d2ec9fcd0a395ad
+```
 
-- a pinned listener source identity;
-- an NFC-specific venv using system site packages where required for `lgpio`;
-- the listener Python requirements;
-- `nfc-listener.service` rendered for the selected project user;
-- explicit display-switch/dashboard integration environment;
-- PN532/service verification.
+The historical standalone `setup.sh` is **not** executed or vendored as an
+appliance installer. It also owns OS-wide upgrades, kiosk and AirPlay behaviour,
+including old direct Plexamp service stop/start hooks, which conflicts with
+current A Clockwork Plex authorities.
 
-It will not write Chromium autostart, Shairport configuration or Plexamp/AirPlay
-handoff hooks.
+`scripts/install-nfc-listener.sh` is the guarded appliance owner. It renders only:
+
+```text
+/etc/systemd/system/nfc-listener.service
+```
+
+for the selected project user, uses `nfc-venv`, supplies the dashboard display
+switch explicitly, and lists `i2c gpio spi` as supplementary groups. Its own
+activation transaction restores exact previous unit contents/mode or exact prior
+absence on failure.
+
+It does **not** write Chromium autostart, Shairport configuration, AirPlay hooks,
+Plexamp service state or boot/I2C configuration. This source slice is CI-green at
+Phase 7 checkpoint #23.
 
 ## Final verifier expansion
 
@@ -204,7 +250,7 @@ truthful checks for installer-owned bootstrap state:
 
 - pinned Plexamp runtime/service and local API;
 - I2C bus and PN532 `0x24` availability;
-- NFC listener source/venv/unit/service;
+- exact vendored NFC source identity, NFC venv, unit and active service;
 - accepted DAC boot identity and `CARD=Pro` after the overlay is pinned;
 - reboot-resume completion marker/state where applicable.
 
