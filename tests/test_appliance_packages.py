@@ -49,11 +49,16 @@ class AppliancePackageOwnershipTests(unittest.TestCase):
             "alsa-utils",
             "shairport-sync",
             "chromium",
+            "i2c-tools",
+            "python3-lgpio",
+            "raspi-config",
         ):
             self.assertRegex(source, rf"(?m)^\s*{re.escape(package)}\s*$")
         self.assertIn("requirements.txt", source)
         self.assertIn("Plexamp Headless distribution", source)
         self.assertIn("never silently downloaded", source)
+        self.assertIn("never runs apt upgrade", source)
+        self.assertIn("rpi-update", source)
         self.assertIn(
             "e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa",
             source,
@@ -71,6 +76,8 @@ class AppliancePackageOwnershipTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Package and artifact ownership", result.stdout)
         self.assertIn("python3-venv", result.stdout)
+        self.assertIn("i2c-tools", result.stdout)
+        self.assertIn("python3-lgpio", result.stdout)
         self.assertIn("Plexamp Headless distribution", result.stdout)
         self.assertIn("check-appliance-packages.sh", result.stdout)
         self.assertIn("No production file", result.stdout)
