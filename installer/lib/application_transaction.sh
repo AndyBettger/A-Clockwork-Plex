@@ -53,6 +53,8 @@ $project_dir/config.json
 /etc/sudoers.d/a-clockwork-plex-alarm-audio
 /usr/local/bin/a-clockwork-plex-shairport-name
 /etc/sudoers.d/a-clockwork-plex-shairport-name
+/usr/local/bin/a-clockwork-plex-weather-secret
+/etc/sudoers.d/a-clockwork-plex-weather-secret
 /etc/shairport-sync.conf
 /usr/local/bin/a-clockwork-plex-airplay-start
 /usr/local/bin/a-clockwork-plex-airplay-end
