@@ -14,6 +14,8 @@ source "$REPO_ROOT/installer/lib/prerequisites.sh"
 
 MODE=host
 BOOTSTRAP_PENDING=false
+FRESH_BOOTSTRAP_PENDING=false
+PLAYER_PENDING=false
 AUDIO_PROFILE=eq
 WEATHER_PROVIDER=ecowitt-push
 PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
@@ -40,9 +42,14 @@ Options:
                             existing WU runtime credential environment name
   --weather-api-key-file PATH
                             fresh-install WU secret file; value is never displayed
-  --bootstrap-pending       pre-package platform/external gate: package-owned
-                            commands/services may be READY rather than installed;
-                            run full preflight again after package bootstrap
+  --bootstrap-pending       compatibility pre-package gate used by current root
+                            orchestration: package-owned requirements may be READY,
+                            but existing DAC and Plexamp remain required
+  --fresh-bootstrap-pending future fresh-OS stage-zero gate: package-owned tools,
+                            DAC/PN532 commissioning and Plexamp runtime may be READY
+                            because later guarded bootstrap owners have not run yet
+  --player-pending          post-package/post-hardware gate: package-owned tools,
+                            DAC and PN532 must pass; Plexamp may still be READY
   --source-only             validate repository/component sources and print the
                             prerequisite contract without probing this host
   -h, --help
@@ -71,11 +78,15 @@ warn_check() {
     WARNINGS=$((WARNINGS + 1))
 }
 
+package_bootstrap_pending() {
+    [[ "$BOOTSTRAP_PENDING" == true || "$FRESH_BOOTSTRAP_PENDING" == true ]]
+}
+
 owned_command_check() {
     local label="$1" command="$2"
     if command -v "$command" >/dev/null 2>&1; then
         pass "$label" "$(command -v "$command")"
-    elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+    elif package_bootstrap_pending; then
         ready_check "$label" 'owned package bootstrap will install this prerequisite'
     else
         fail_check "$label" 'missing after package bootstrap'
@@ -118,6 +129,14 @@ while [[ $# -gt 0 ]]; do
             BOOTSTRAP_PENDING=true
             shift
             ;;
+        --fresh-bootstrap-pending)
+            FRESH_BOOTSTRAP_PENDING=true
+            shift
+            ;;
+        --player-pending)
+            PLAYER_PENDING=true
+            shift
+            ;;
         --source-only)
             MODE=source
             shift
@@ -154,8 +173,17 @@ if [[ "$WEATHER_PROVIDER" != weather-underground && -n "$WU_KEY_FILE" ]]; then
     error '--weather-api-key-file is only valid with --weather-observations weather-underground.'
     exit 64
 fi
-if [[ "$MODE" == source && "$BOOTSTRAP_PENDING" == true ]]; then
-    error '--bootstrap-pending is a host-preflight mode and cannot be combined with --source-only.'
+
+stage_count=0
+[[ "$BOOTSTRAP_PENDING" == true ]] && stage_count=$((stage_count + 1))
+[[ "$FRESH_BOOTSTRAP_PENDING" == true ]] && stage_count=$((stage_count + 1))
+[[ "$PLAYER_PENDING" == true ]] && stage_count=$((stage_count + 1))
+if [[ "$stage_count" -gt 1 ]]; then
+    error 'Choose only one staged host mode: --bootstrap-pending, --fresh-bootstrap-pending or --player-pending.'
+    exit 64
+fi
+if [[ "$MODE" == source && "$stage_count" -gt 0 ]]; then
+    error 'Staged pending modes are host-preflight modes and cannot be combined with --source-only.'
     exit 64
 fi
 
@@ -169,7 +197,11 @@ acp_verify_direct_audio_sources || exit 1
 if [[ "$MODE" == source ]]; then
     DISPLAY_MODE=source
 elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
-    DISPLAY_MODE=pre-bootstrap
+    DISPLAY_MODE=pre-bootstrap-compatibility
+elif [[ "$FRESH_BOOTSTRAP_PENDING" == true ]]; then
+    DISPLAY_MODE=fresh-bootstrap-stage-zero
+elif [[ "$PLAYER_PENDING" == true ]]; then
+    DISPLAY_MODE=post-hardware-player-pending
 else
     DISPLAY_MODE=host
 fi
@@ -253,13 +285,13 @@ for command in bash systemctl sudo visudo install sha256sum stat awk sed grep ge
 done
 
 # These commands are explicitly owned by scripts/install-appliance-packages.sh.
-for command in git curl python3; do
+for command in git curl python3 i2cdetect; do
     owned_command_check "command:$command" "$command"
 done
 
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import venv' >/dev/null 2>&1; then
     pass python-venv 'python3 venv module available'
-elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+elif package_bootstrap_pending; then
     ready_check python-venv 'python3-venv is owned by package bootstrap'
 else
     fail_check python-venv 'python3 venv module unavailable after package bootstrap'
@@ -278,7 +310,7 @@ for candidate in chromium-browser chromium google-chrome-stable google-chrome; d
 done
 if [[ -n "$browser" ]]; then
     pass browser "$browser"
-elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+elif package_bootstrap_pending; then
     ready_check browser 'Chromium is owned by package bootstrap'
 else
     fail_check browser 'Chromium-compatible browser not found after package bootstrap'
@@ -286,13 +318,15 @@ fi
 
 if systemctl cat plexamp.service >/dev/null 2>&1; then
     pass plexamp-service 'plexamp.service is installed'
+elif [[ "$FRESH_BOOTSTRAP_PENDING" == true || "$PLAYER_PENDING" == true ]]; then
+    ready_check plexamp-service 'guarded Plexamp compatibility-runtime owner has not run yet'
 else
-    fail_check plexamp-service 'plexamp.service is not installed; Plexamp Headless is an external prerequisite'
+    fail_check plexamp-service 'plexamp.service is not installed; current compatibility/full gate still requires Plexamp'
 fi
 
 if systemctl cat shairport-sync.service >/dev/null 2>&1; then
     pass shairport-service 'shairport-sync.service is installed'
-elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+elif package_bootstrap_pending; then
     ready_check shairport-service 'shairport-sync package/service is owned by package bootstrap'
 else
     fail_check shairport-service 'shairport-sync.service is not installed after package bootstrap'
@@ -300,8 +334,25 @@ fi
 
 if [[ -r /proc/asound/cards ]] && grep -Eq '^\s*[0-9]+\s+\[Pro\s*\]' /proc/asound/cards; then
     pass dac-card 'ALSA card id Pro found'
+elif [[ "$FRESH_BOOTSTRAP_PENDING" == true ]]; then
+    ready_check dac-card 'guarded platform-hardware owner has not commissioned the accepted DAC yet'
 else
     fail_check dac-card 'ALSA card id Pro not found'
+fi
+
+if [[ "$FRESH_BOOTSTRAP_PENDING" == true ]]; then
+    ready_check pn532-i2c 'guarded platform-hardware owner will require bus 1 address 0x24'
+elif [[ "$PLAYER_PENDING" == true ]]; then
+    if ! command -v i2cdetect >/dev/null 2>&1; then
+        fail_check pn532-i2c 'i2cdetect missing after package bootstrap'
+    else
+        pn532_probe="$(sudo -- i2cdetect -y 1 0x24 0x24 2>/dev/null || true)"
+        if printf '%s\n' "$pn532_probe" | grep -Eq '(^|[[:space:]])24([[:space:]]|$)'; then
+            pass pn532-i2c 'PN532 found on I2C bus 1 address 0x24'
+        else
+            fail_check pn532-i2c 'PN532 not found on I2C bus 1 address 0x24 after hardware bootstrap'
+        fi
+    fi
 fi
 
 if [[ "$AUDIO_PROFILE" == eq ]]; then
@@ -353,7 +404,7 @@ PY
             else
                 fail_check weather-credential 'candidate API-key file is empty, multiline or invalid UTF-8'
             fi
-        elif [[ "$BOOTSTRAP_PENDING" == true ]]; then
+        elif package_bootstrap_pending; then
             ready_check weather-credential 'key file is readable; structural validation follows Python package bootstrap'
         else
             fail_check weather-credential 'python3 unavailable for credential validation after package bootstrap'
@@ -376,6 +427,10 @@ EOF
 if [[ "$FAILURES" -eq 0 ]]; then
     if [[ "$BOOTSTRAP_PENDING" == true ]]; then
         echo 'APPLIANCE_PREFLIGHT=PLATFORM-PASS'
+    elif [[ "$FRESH_BOOTSTRAP_PENDING" == true ]]; then
+        echo 'APPLIANCE_PREFLIGHT=FRESH-STAGE-ZERO-PASS'
+    elif [[ "$PLAYER_PENDING" == true ]]; then
+        echo 'APPLIANCE_PREFLIGHT=HARDWARE-PASS-PLAYER-PENDING'
     else
         echo 'APPLIANCE_PREFLIGHT=PASS'
     fi
