@@ -17,7 +17,7 @@ Detailed physical/CI history through Phase 7 checkpoint #6 is preserved verbatim
 - Alarm: per-alarm target/fade → **Maximum Alarm Volume** → joins after music reserve/EQ → final limiter → DAC.
 - Fresh Direct: Plexamp/AirPlay remain under Music Master while alarm joins the DAC-facing mix independently.
 - Presentation-only Settings changes do not alter runtime/audio routing.
-- `scripts/audio/preflight-eq.sh` remains the historical **read-only bedroom-Pi validation gate**; do not replace that evidence with a mutating rehearsal.
+- `scripts/audio/preflight-eq.sh` remains the historical **read-only bedroom-Pi validation gate**. **No bedroom-Pi installation** was permitted until that gate passed; do not replace that evidence with a mutating rehearsal.
 - Do not run the old bare `scripts/install-master-eq.sh` production path.
 
 | Identity | Accepted value |
