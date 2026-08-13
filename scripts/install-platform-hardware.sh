@@ -10,6 +10,7 @@ source "$REPO_ROOT/installer/lib/platform_hardware.sh"
 MODE=prepare-only
 CONFIRM=
 PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
+USERMOD_BIN=/usr/sbin/usermod
 
 usage() {
     cat <<EOF
@@ -82,9 +83,10 @@ fi
 [[ "$MODE" == activate ]] || { echo "Unsupported mode: $MODE" >&2; exit 64; }
 [[ "$EUID" -ne 0 ]] || fail 'Run activation as the normal project user, not as root.'
 
-for command in sudo raspi-config i2cdetect aplay id getent grep usermod; do
+for command in sudo raspi-config i2cdetect aplay id getent grep tr; do
     command -v "$command" >/dev/null 2>&1 || fail "Required command not found after package bootstrap: $command"
 done
+[[ -x "$USERMOD_BIN" ]] || fail "Required system command is missing: $USERMOD_BIN"
 
 id "$PROJECT_USER" >/dev/null 2>&1 || fail "Project user does not exist: $PROJECT_USER"
 
@@ -100,7 +102,7 @@ for group in $(acp_platform_hardware_groups); do
     fi
     if ! id -nG "$PROJECT_USER" | tr ' ' '\n' | grep -Fqx "$group"; then
         echo "Adding $PROJECT_USER to hardware group $group..."
-        sudo -- usermod -aG "$group" "$PROJECT_USER"
+        sudo -- "$USERMOD_BIN" -aG "$group" "$PROJECT_USER"
     fi
 done
 
