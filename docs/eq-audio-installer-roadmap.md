@@ -47,6 +47,8 @@ The historical `08d00093...` route remains the exact rollback identity for the p
 - **Plexamp Headless remains the A-Clockwork-Plex player runtime for this release.** Caldera migration is out of scope for Phase 7 because it does not provide the local Plexamp browsing interface this appliance uses.
 - Full-appliance bootstrap must install/pin the compatible Plexamp Headless runtime rather than treating it as a preinstalled external package.
 - The production Plexamp installer must not depend on a mutable community `curl | bash` installer or an unverified `latest` archive; exact compatibility archive identity/checksum and Node runtime strategy must be pinned first.
+- Node runtime candidate is pinned to **Node 20.20.2 ARM64** from the official Node archive, SHA-256 `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71`; physical Plexamp acceptance must still prove this runtime against the selected headless build.
+- Plexamp Headless `4.13.2` is the compatibility build under investigation; its archive checksum remains an explicit blocker before production download/extraction code may be enabled.
 - Any later player-runtime migration is a separate roadmap project, not part of WU commissioning.
 
 ### Fresh-Pi hardware/bootstrap direction
@@ -112,10 +114,14 @@ Fresh-Pi bootstrap ownership work:
 - [x] Hardware owner refuses to invent a DAC overlay; missing `CARD=Pro` reports `DAC-COMMISSIONING-REQUIRED` / `NO-GUESSED-OVERLAY`.
 - [x] `docs/fresh-pi-bootstrap-ownership-design.md` records the staged fresh-OS → complete-appliance target and authority boundaries.
 - [x] Fresh-Pi hardware/package source slice passed full CI at checkpoint #22.
+- [x] Plexamp NFC Listener runtime vendored from exact upstream commit `8f5f04213b22cfb5affc6931cb2db91fd07de537`; listener, requirements and MIT licence blobs are preserved exactly.
+- [x] Package bootstrap now stages/verifies the main application venv and NFC `--system-site-packages` venv before either live venv is replaced; failure restores both exact prestates.
+- [x] Guarded `scripts/install-nfc-listener.sh` owns only the project-user-aware `nfc-listener.service`, with exact alternate-root rollback and explicit dashboard display-switch integration; it owns no kiosk, Shairport or Plexamp handoff behaviour.
+- [x] NFC bootstrap/runtime source slice passed full CI at checkpoint #23.
 - [ ] Capture/pin exact accepted DAC HAT identity and boot overlay from the accepted bedroom image before wipe/reimage; then promote DAC configuration into the guarded hardware owner.
-- [ ] Pin exact Plexamp Headless compatibility archive checksum/download contract and reviewed Node runtime strategy.
+- [x] Pin official Node 20.20.2 ARM64 archive identity as the Plexamp compatibility-runtime candidate; physical/player tests remain required before final acceptance.
+- [ ] Pin exact Plexamp Headless 4.13.2 archive checksum/download contract.
 - [ ] Installer owns pinned compatible **Plexamp Headless** runtime plus account/player commissioning boundary.
-- [ ] Installer owns the Plexamp NFC Listener without importing its legacy kiosk/AirPlay ownership.
 - [ ] Move current preflight requirements to the correct sides of package/hardware/Plexamp/NFC bootstrap and wire staged reboot/resume through root `install.sh`.
 - [ ] Final verifier expands to cover owned Plexamp runtime, PN532/I2C, DAC boot identity and NFC listener.
 - [ ] Fresh-appliance runbook safety moves from hostname-only prohibition to a verified off-device SD-image/reimage guard so the exact bedroom hardware can be used safely after its accepted card is backed up.
@@ -144,8 +150,9 @@ Fresh-Pi bootstrap ownership work:
 - **#20 — fresh package/bootstrap preflight ordering — PASS.** Tests #3185 / run `31452688437`, `ac7cec8`.
 - **#21 — WU Settings commissioning and write-only credential boundary — PASS.** Tests #3219 / run `31663696066`, `7a901109e996e8b4cb342e915a708b02ed745d28`.
 - **#22 — guarded fresh-Pi I2C/PN532 hardware bootstrap foundation — PASS.** Tests #3237 / run `31664328721`, `d4570fb176013d7f96608ede96dd114510bf5d2a`.
+- **#23 — pinned NFC runtime, paired venv bootstrap and guarded NFC service owner — PASS.** Tests #3263 / run `31664707020`, `63fa8825e4949d8805e43db5beb346c2a3c6b9b6`.
 
-No Phase 7 checkpoint after #22 is recorded as PASS until its exact tested state has passed full CI.
+No Phase 7 checkpoint after #23 is recorded as PASS until its exact tested state has passed full CI.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
 
@@ -162,13 +169,12 @@ No Phase 7 checkpoint after #22 is recorded as PASS until its exact tested state
 
 ## Immediate next action
 
-1. Build the NFC-only bootstrap/runtime owner: pinned vendored listener source, separate `--system-site-packages` venv, project-user-aware service and verifier, with no Chromium/Shairport/Plexamp-service ownership imported from the historical NFC setup script.
-2. Pin Plexamp runtime acquisition/Node identity and implement the compatibility player owner without mutable community installers.
-3. Before wiping the accepted bedroom card, capture its exact DAC HAT/boot-overlay identity and run the existing read-only Plexamp upgrade evidence collector; then take/verify the off-device full SD image.
-4. Move preflight requirements to the correct sides of package/hardware/Plexamp/NFC bootstrap and wire staged reboot/resume through root `install.sh`.
-5. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
-6. Once complete bootstrap ownership is green, install fresh Raspberry Pi OS on the same target hardware and execute Direct → EQ → reboot → WU → repeat-install acceptance.
-7. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
+1. Finish the Plexamp compatibility-runtime acquisition contract: obtain and pin the exact Plexamp Headless 4.13.2 archive checksum, then implement a guarded Node/Plexamp installer and account/player commissioning boundary without mutable community installers.
+2. Before wiping the accepted bedroom card, capture its exact DAC HAT/boot-overlay identity and run the existing read-only Plexamp upgrade evidence collector; then take/verify the off-device full SD image.
+3. Move preflight requirements to the correct sides of package/hardware/Plexamp/NFC bootstrap, wire the promoted hardware/NFC owners plus staged reboot/resume through root `install.sh`, and expand the final verifier.
+4. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
+5. Once complete bootstrap ownership is green, install fresh Raspberry Pi OS on the same target hardware and execute Direct → EQ → reboot → WU → repeat-install acceptance.
+6. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
 
 No local weather caching/fan-out server is part of the design.
 
