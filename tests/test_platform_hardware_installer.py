@@ -55,10 +55,20 @@ class PlatformHardwareInstallerTests(unittest.TestCase):
         self.assertIn("ACP_PN532_I2C_BUS=1", library)
         self.assertIn("ACP_PN532_I2C_ADDRESS=0x24", library)
         self.assertIn("ACP_DAC_CARD_ID=Pro", library)
-        self.assertIn("i2cdetect -y", source)
+        self.assertIn("sudo -- i2cdetect -y", source)
         self.assertIn("PN532_I2C=PASS", source)
         for group in ("i2c", "gpio", "spi"):
             self.assertIn(group, library)
+
+    def test_immediate_pn532_probe_is_privileged_read_only_after_group_change(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+
+        group_change = source.index('sudo -- "$USERMOD_BIN" -aG')
+        probe = source.index("sudo -- i2cdetect -y")
+        self.assertLess(group_change, probe)
+        self.assertIn("Group changes made above do not affect the already-running login shell", source)
+        self.assertNotIn("sudo -- i2cset", source)
+        self.assertNotIn("sudo -- i2ctransfer", source)
 
     def test_dac_overlay_is_deliberately_not_guessed(self) -> None:
         library = LIBRARY.read_text(encoding="utf-8")
