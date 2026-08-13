@@ -92,7 +92,7 @@ Current Phase 7 source work — **WU Settings commissioning**:
 - [x] Settings Weather presenter adds Set/Replace key, Remove key, credential status and Test connection controls without a `data-setting-path` secret field or browser storage.
 - [x] Successful set/remove updates the running dashboard environment and wakes the observation worker without restarting the dashboard service.
 - [x] Test Connection uses the existing WU observation service/parser and returns only sanitized station/status/timestamp information.
-- [ ] New WU commissioning tests and full CI must pass before this work receives checkpoint #21.
+- [x] WU commissioning source tests and full CI passed at checkpoint #21.
 - [ ] Real WU acceptance: select provider/station in Settings, enter the API key locally, run Test connection, verify live observations/health, and confirm the secret never appears in Settings/config/log output.
 
 Fresh-appliance scope correction before physical acceptance:
@@ -125,8 +125,9 @@ Fresh-appliance scope correction before physical acceptance:
 - **#18 — first-install WU key-file contract — PASS.** Tests #3171 / run `31452097877`, `d131644`.
 - **#19 — read-only real WU payload inspector — PASS.** Tests #3175 / run `31452388309`, `caa583d`.
 - **#20 — fresh package/bootstrap preflight ordering — PASS.** Tests #3185 / run `31452688437`, `ac7cec8`.
+- **#21 — WU Settings commissioning and write-only credential boundary — PASS.** Tests #3219 / run `31663696066`, `7a901109e996e8b4cb342e915a708b02ed745d28`.
 
-No Phase 7 checkpoint after #20 is recorded as PASS until its exact head has passed full CI. The previously confirmed post-runbook head `20e8bed7660deaa5842a5e9e46b50bd861953e78` passed Tests #3197 before the present WU commissioning work began.
+No Phase 7 checkpoint after #21 is recorded as PASS until its exact tested state has passed full CI.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
 
@@ -143,11 +144,10 @@ No Phase 7 checkpoint after #20 is recorded as PASS until its exact head has pas
 
 ## Immediate next action
 
-1. Finish WU Settings commissioning source tests and obtain full green CI; only then record Phase 7 checkpoint #21.
-2. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
-3. Before wiping/reimaging the bedroom SD card for fresh-appliance acceptance, close the whole-appliance bootstrap gaps: Plexamp Headless, NFC Listener, Pi hardware commissioning, reboot/resume, verifier and revised backup/reimage safety guard.
-4. Take/verify an off-device full image of the accepted bedroom card, install fresh Raspberry Pi OS on the same target hardware, then execute Direct → EQ → reboot → WU → repeat-install acceptance.
-5. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
+1. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
+2. Before wiping/reimaging the bedroom SD card for fresh-appliance acceptance, close the whole-appliance bootstrap gaps: Plexamp Headless, NFC Listener, Pi hardware commissioning, reboot/resume, verifier and revised backup/reimage safety guard.
+3. Take/verify an off-device full image of the accepted bedroom card, install fresh Raspberry Pi OS on the same target hardware, then execute Direct → EQ → reboot → WU → repeat-install acceptance.
+4. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
 
 No local weather caching/fan-out server is part of the design.
 
