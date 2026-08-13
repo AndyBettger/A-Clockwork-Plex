@@ -111,7 +111,7 @@ Fresh-Pi bootstrap ownership work:
 - [x] Guarded `scripts/install-platform-hardware.sh` source owner added: prepare-only default, explicit confirmation, I2C enable, hardware groups, PN532 `0x24` verification and explicit reboot-resume result.
 - [x] Hardware owner refuses to invent a DAC overlay; missing `CARD=Pro` reports `DAC-COMMISSIONING-REQUIRED` / `NO-GUESSED-OVERLAY`.
 - [x] `docs/fresh-pi-bootstrap-ownership-design.md` records the staged fresh-OS → complete-appliance target and authority boundaries.
-- [ ] Full CI must pass before this source slice receives checkpoint #22.
+- [x] Fresh-Pi hardware/package source slice passed full CI at checkpoint #22.
 - [ ] Capture/pin exact accepted DAC HAT identity and boot overlay from the accepted bedroom image before wipe/reimage; then promote DAC configuration into the guarded hardware owner.
 - [ ] Pin exact Plexamp Headless compatibility archive checksum/download contract and reviewed Node runtime strategy.
 - [ ] Installer owns pinned compatible **Plexamp Headless** runtime plus account/player commissioning boundary.
@@ -143,8 +143,9 @@ Fresh-Pi bootstrap ownership work:
 - **#19 — read-only real WU payload inspector — PASS.** Tests #3175 / run `31452388309`, `caa583d`.
 - **#20 — fresh package/bootstrap preflight ordering — PASS.** Tests #3185 / run `31452688437`, `ac7cec8`.
 - **#21 — WU Settings commissioning and write-only credential boundary — PASS.** Tests #3219 / run `31663696066`, `7a901109e996e8b4cb342e915a708b02ed745d28`.
+- **#22 — guarded fresh-Pi I2C/PN532 hardware bootstrap foundation — PASS.** Tests #3237 / run `31664328721`, `d4570fb176013d7f96608ede96dd114510bf5d2a`.
 
-No Phase 7 checkpoint after #21 is recorded as PASS until its exact tested state has passed full CI.
+No Phase 7 checkpoint after #22 is recorded as PASS until its exact tested state has passed full CI.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
 
@@ -161,12 +162,13 @@ No Phase 7 checkpoint after #21 is recorded as PASS until its exact tested state
 
 ## Immediate next action
 
-1. Obtain full green CI for the fresh-Pi hardware/package source slice; if exact-head green, record checkpoint #22.
-2. Continue source work while physical access is pending: pin Plexamp runtime acquisition/Node identity and build the NFC-only runtime owner without importing the old NFC setup script's kiosk/AirPlay behaviour.
+1. Build the NFC-only bootstrap/runtime owner: pinned vendored listener source, separate `--system-site-packages` venv, project-user-aware service and verifier, with no Chromium/Shairport/Plexamp-service ownership imported from the historical NFC setup script.
+2. Pin Plexamp runtime acquisition/Node identity and implement the compatibility player owner without mutable community installers.
 3. Before wiping the accepted bedroom card, capture its exact DAC HAT/boot-overlay identity and run the existing read-only Plexamp upgrade evidence collector; then take/verify the off-device full SD image.
-4. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
-5. Once complete bootstrap ownership is green, install fresh Raspberry Pi OS on the same target hardware and execute Direct → EQ → reboot → WU → repeat-install acceptance.
-6. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
+4. Move preflight requirements to the correct sides of package/hardware/Plexamp/NFC bootstrap and wire staged reboot/resume through root `install.sh`.
+5. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
+6. Once complete bootstrap ownership is green, install fresh Raspberry Pi OS on the same target hardware and execute Direct → EQ → reboot → WU → repeat-install acceptance.
+7. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
 
 No local weather caching/fan-out server is part of the design.
 
