@@ -27,9 +27,12 @@ Package and artifact ownership:
     git curl python3 python3-venv alsa-utils shairport-sync chromium
     i2c-tools python3-lgpio raspi-config
 
-  Python application environment (guarded bootstrap ownership):
-    build a complete staged repository venv, install requirements.txt, run
-    pip check/import verification, then atomically swap it into repository/venv
+  Python environments (guarded paired bootstrap ownership):
+    * main repository venv: install requirements.txt, pip check/import verify;
+    * NFC venv: create with --system-site-packages, install the pinned vendored
+      Plexamp NFC Listener requirements, pip check/import verify including lgpio.
+    Both candidates are complete before either live venv is replaced. A failed
+    activation restores both exact previous directories or previous absence.
 
   NFC/Pi hardware bootstrap support (guarded bootstrap ownership):
     i2c-tools provides read-only PN532 bus discovery, python3-lgpio supplies the
@@ -39,10 +42,10 @@ Package and artifact ownership:
 
   Explicit rollback boundary:
     APT packages are additive shared-host prerequisites and are never automatically
-    removed/purged/autoremoved on rollback. A failed venv activation restores the
-    exact previous venv directory (or previous absence) by same-filesystem rename.
-    A successful package/venv bootstrap becomes the prerequisite baseline for the
-    later exact application-managed whole-appliance transaction.
+    removed/purged/autoremoved on rollback. The paired main/NFC venv transaction
+    restores exact prestate on failure. A successful package/venv bootstrap becomes
+    the prerequisite baseline for later bootstrap owners and the exact application
+    transaction.
 
   Platform baseline (checked, not claimed as application packages):
     systemd, sudo, a normal desktop/session environment, kernel/ALSA support
