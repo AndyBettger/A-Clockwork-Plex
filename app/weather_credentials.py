@@ -37,13 +37,19 @@ def _default_runner(command: list[str], stdin: str | None) -> subprocess.Complet
     )
 
 
-def _safe_error(result: subprocess.CompletedProcess[str], fallback: str) -> str:
+def _safe_error(
+    result: subprocess.CompletedProcess[str],
+    fallback: str,
+    *,
+    secret: str = "",
+) -> str:
     message = str(result.stderr or result.stdout or "").strip()
     if not message:
         return fallback
-    # The restricted helper never prints the secret, but keep public errors short
-    # and single-line so a future helper cannot accidentally turn this endpoint
-    # into an arbitrary diagnostic relay.
+    if secret:
+        message = message.replace(secret, "[redacted]")
+    # Keep public errors short and single-line so this endpoint cannot become an
+    # arbitrary privileged-helper diagnostic relay.
     return message.replace("\r", " ").replace("\n", " ")[:240]
 
 
@@ -70,6 +76,14 @@ class WeatherUndergroundCredentialManager:
         wunderground = settings.get("weather_underground", {})
         return str(wunderground.get("api_key_env") or DEFAULT_API_KEY_ENV)
 
+    def _commissioning_env(self) -> str:
+        env_name = self._api_key_env()
+        if env_name != DEFAULT_API_KEY_ENV:
+            raise ValueError(
+                "Settings commissioning requires the standard WEATHER_UNDERGROUND_API_KEY environment reference."
+            )
+        return env_name
+
     def status(self) -> dict[str, Any]:
         env_name = self._api_key_env()
         return {
@@ -91,20 +105,28 @@ class WeatherUndergroundCredentialManager:
 
     def set_secret(self, value: Any) -> dict[str, Any]:
         secret = self._validate_secret(value)
+        env_name = self._commissioning_env()
         command = ["sudo", "-n", self._helper, "set"]
         result = self._runner(command, secret)
         if result.returncode != 0:
-            raise OSError(_safe_error(result, "Could not store Weather Underground credential."))
-        self._environment[self._api_key_env()] = secret
+            raise OSError(
+                _safe_error(
+                    result,
+                    "Could not store Weather Underground credential.",
+                    secret=secret,
+                )
+            )
+        self._environment[env_name] = secret
         self._observations.wake()
         return {"ok": True, "configured": True, "message": "Weather Underground API key saved."}
 
     def remove_secret(self) -> dict[str, Any]:
+        env_name = self._commissioning_env()
         command = ["sudo", "-n", self._helper, "remove"]
         result = self._runner(command, None)
         if result.returncode != 0:
             raise OSError(_safe_error(result, "Could not remove Weather Underground credential."))
-        self._environment.pop(self._api_key_env(), None)
+        self._environment.pop(env_name, None)
         self._observations.wake()
         return {"ok": True, "configured": False, "message": "Weather Underground API key removed."}
 
@@ -115,6 +137,7 @@ class WeatherUndergroundCredentialManager:
         station_id = str(settings.get("weather_underground", {}).get("station_id") or "").strip()
         if not station_id:
             raise ValueError("Save a Weather Underground station ID before testing the connection.")
+        self._commissioning_env()
         if not self.status()["configured"]:
             raise ValueError("Set the Weather Underground API key before testing the connection.")
 
