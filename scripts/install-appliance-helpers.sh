@@ -21,14 +21,18 @@ ALARM_SUDOERS=/etc/sudoers.d/a-clockwork-plex-alarm-audio
 NAME_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-shairport-name.py"
 NAME_TARGET=/usr/local/bin/a-clockwork-plex-shairport-name
 NAME_SUDOERS=/etc/sudoers.d/a-clockwork-plex-shairport-name
+WEATHER_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-weather-secret.py"
+WEATHER_TARGET=/usr/local/bin/a-clockwork-plex-weather-secret
+WEATHER_SUDOERS=/etc/sudoers.d/a-clockwork-plex-weather-secret
 
 usage() {
     cat <<'EOF'
 Usage: bash scripts/install-appliance-helpers.sh [options]
 
-Guarded installer for the two restricted appliance helpers used by the alarm
-engine and managed Shairport receiver-name Settings. Prepare-only is the
-default and does not change production state.
+Guarded installer for the restricted appliance helpers used by the alarm engine,
+managed Shairport receiver-name Settings, and write-only Weather Underground
+credential commissioning. Prepare-only is the default and does not change
+production state.
 
 Options:
   --prepare-only
@@ -67,7 +71,7 @@ if [[ "$ROOT" != / ]]; then
 fi
 export ACP_ROOT="$ROOT"
 
-for source in "$ALARM_SOURCE" "$NAME_SOURCE"; do
+for source in "$ALARM_SOURCE" "$NAME_SOURCE" "$WEATHER_SOURCE"; do
     [[ -f "$source" && ! -L "$source" ]] || {
         echo "Required helper source is unavailable: $source" >&2
         exit 1
@@ -76,6 +80,7 @@ done
 
 ALARM_POLICY="# Managed by A Clockwork Plex. The helper validates every action and argument.\n$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release\n$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET restore *\n"
 NAME_POLICY="$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET set *\n"
+WEATHER_POLICY="# Managed by A Clockwork Plex. Secret value is supplied on stdin, never argv.\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove\n"
 
 validate_policy() {
     local text="$1" temporary
@@ -95,6 +100,7 @@ validate_policy() {
 
 validate_policy "$ALARM_POLICY"
 validate_policy "$NAME_POLICY"
+validate_policy "$WEATHER_POLICY"
 
 cat <<EOF
 A Clockwork Plex restricted helper installation plan
@@ -108,6 +114,8 @@ Managed targets:
   $ALARM_SUDOERS
   $NAME_TARGET
   $NAME_SUDOERS
+  $WEATHER_TARGET
+  $WEATHER_SUDOERS
 
 The runtime helper implementations remain in their existing specialist source
 files. This installer owns only guarded packaging and restricted sudo policy.
@@ -138,7 +146,7 @@ TRANSACTION="$TRANSACTION_PARENT/transaction"
 cleanup() { rm -rf "$TRANSACTION_PARENT"; }
 trap cleanup EXIT
 acp_transaction_begin "$TRANSACTION"
-for target in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS"; do
+for target in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS" "$WEATHER_TARGET" "$WEATHER_SUDOERS"; do
     acp_transaction_capture_path "$TRANSACTION" "$target"
 done
 
@@ -152,21 +160,27 @@ activate() {
     acp_install_text "$ALARM_POLICY" "$ALARM_SUDOERS" 0440 || return 1
     acp_install_file "$NAME_SOURCE" "$NAME_TARGET" 0755 || return 1
     acp_install_text "$NAME_POLICY" "$NAME_SUDOERS" 0440 || return 1
+    acp_install_file "$WEATHER_SOURCE" "$WEATHER_TARGET" 0755 || return 1
+    acp_install_text "$WEATHER_POLICY" "$WEATHER_SUDOERS" 0440 || return 1
 
     if [[ "$ROOT" != / && "${ACP_HELPERS_TEST_FAIL_AFTER_INSTALL:-0}" == 1 ]]; then
         echo 'Injected non-production failure after restricted helper install.' >&2
         return 1
     fi
 
-    for installed in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS"; do
+    for installed in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS" "$WEATHER_TARGET" "$WEATHER_SUDOERS"; do
         [[ -f "$(acp_path "$installed")" && ! -L "$(acp_path "$installed")" ]] || return 1
     done
     [[ "$(stat -c '%a' "$(acp_path "$ALARM_TARGET")")" == 755 ]] || return 1
     [[ "$(stat -c '%a' "$(acp_path "$NAME_TARGET")")" == 755 ]] || return 1
+    [[ "$(stat -c '%a' "$(acp_path "$WEATHER_TARGET")")" == 755 ]] || return 1
     [[ "$(stat -c '%a' "$(acp_path "$ALARM_SUDOERS")")" == 440 ]] || return 1
     [[ "$(stat -c '%a' "$(acp_path "$NAME_SUDOERS")")" == 440 ]] || return 1
+    [[ "$(stat -c '%a' "$(acp_path "$WEATHER_SUDOERS")")" == 440 ]] || return 1
     grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release" "$(acp_path "$ALARM_SUDOERS")" || return 1
     grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status" "$(acp_path "$NAME_SUDOERS")" || return 1
+    grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set" "$(acp_path "$WEATHER_SUDOERS")" || return 1
+    grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove" "$(acp_path "$WEATHER_SUDOERS")" || return 1
 }
 
 if ! activate; then
