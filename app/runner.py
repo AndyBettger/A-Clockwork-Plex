@@ -18,6 +18,10 @@ try:
     from .settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
     from .time_formatting import promote_server_time_formatting
+    from .weather_credentials import (
+        WeatherUndergroundCredentialManager,
+        register_weather_underground_credentials_api,
+    )
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
     from .weather_observation_store import (
@@ -43,6 +47,10 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
     from time_formatting import promote_server_time_formatting
+    from weather_credentials import (
+        WeatherUndergroundCredentialManager,
+        register_weather_underground_credentials_api,
+    )
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
     from weather_observation_store import (
@@ -82,6 +90,11 @@ weather_observations = WeatherObservationService(
     lambda observation: store_dashboard_observation(dashboard, observation),
 )
 register_weather_observation_api(app, weather_observations)
+weather_credentials = WeatherUndergroundCredentialManager(
+    load_config=dashboard.load_config,
+    observations=weather_observations,
+)
+register_weather_underground_credentials_api(app, weather_credentials)
 weather_forecast = WeatherForecastService(
     dashboard.load_config,
     dashboard.BASE_DIR / "weather-forecast-cache.json",
