@@ -117,7 +117,10 @@ fi
 
 echo
 echo "Checking PN532 at I2C bus $ACP_PN532_I2C_BUS address $ACP_PN532_I2C_ADDRESS..."
-I2C_OUTPUT="$(i2cdetect -y "$ACP_PN532_I2C_BUS" "$ACP_PN532_I2C_ADDRESS" "$ACP_PN532_I2C_ADDRESS" 2>&1)" || {
+# Group changes made above do not affect the already-running login shell. Use
+# sudo for this read-only immediate probe so commissioning does not falsely fail
+# solely because the new i2c supplementary group is not live until next login.
+I2C_OUTPUT="$(sudo -- i2cdetect -y "$ACP_PN532_I2C_BUS" "$ACP_PN532_I2C_ADDRESS" "$ACP_PN532_I2C_ADDRESS" 2>&1)" || {
     printf '%s\n' "$I2C_OUTPUT" >&2
     fail 'PN532 I2C probe failed.'
 }
