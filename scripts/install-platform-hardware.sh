@@ -3,7 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export ACP_REPO_ROOT="$REPO_ROOT"
 
+# shellcheck source=installer/lib/common.sh
+source "$REPO_ROOT/installer/lib/common.sh"
+# shellcheck source=installer/lib/transaction.sh
+source "$REPO_ROOT/installer/lib/transaction.sh"
 # shellcheck source=installer/lib/platform_hardware.sh
 source "$REPO_ROOT/installer/lib/platform_hardware.sh"
 
@@ -28,9 +33,9 @@ Options:
 
 Exit contracts during activation:
   0   I2C/PN532 and accepted CARD=$ACP_DAC_CARD_ID are ready
-  75  I2C was enabled/configured but a reboot is required before bus acceptance
-  78  I2C/PN532 passed but CARD=$ACP_DAC_CARD_ID is absent; exact DAC overlay
-      commissioning is intentionally blocked until its physical identity is pinned
+  75  an I2C or DAC Pro boot configuration change requires an operator reboot;
+      rerun the root installer after reboot
+  78  hardware identity/configuration is inconsistent and later bootstrap must stop
 EOF
 }
 
@@ -83,15 +88,16 @@ fi
 [[ "$MODE" == activate ]] || { echo "Unsupported mode: $MODE" >&2; exit 64; }
 [[ "$EUID" -ne 0 ]] || fail 'Run activation as the normal project user, not as root.'
 
-for command in sudo raspi-config i2cdetect aplay id getent grep tr; do
+for command in sudo raspi-config i2cdetect aplay id getent grep tr awk mktemp stat cmp install; do
     command -v "$command" >/dev/null 2>&1 || fail "Required command not found after package bootstrap: $command"
 done
 [[ -x "$USERMOD_BIN" ]] || fail "Required system command is missing: $USERMOD_BIN"
 
 id "$PROJECT_USER" >/dev/null 2>&1 || fail "Project user does not exist: $PROJECT_USER"
+[[ "$(id -un)" == "$PROJECT_USER" ]] || fail "Activation must be run by project user $PROJECT_USER."
 
-# Raspberry Pi OS owns the exact boot-file mechanics. Do not reproduce or guess
-# them here; use its constrained non-interactive I2C action only.
+# Raspberry Pi OS owns the exact boot-file mechanics. Use its constrained
+# non-interactive I2C action rather than reproducing interface configuration.
 echo
 echo 'Ensuring Raspberry Pi I2C is enabled...'
 sudo -- raspi-config nonint do_i2c 0
@@ -131,18 +137,122 @@ fi
 
 echo 'PN532_I2C=PASS'
 
-if ! aplay -l 2>/dev/null | grep -Eq 'card [0-9]+: Pro[[:space:]]+\['; then
+if aplay -l 2>/dev/null | grep -Eq 'card [0-9]+: Pro[[:space:]]+\['; then
     cat <<'EOF'
-PLATFORM_HARDWARE=DAC-COMMISSIONING-REQUIRED
-DAC_REQUIRED_CARD=Pro
-DAC_POLICY=NO-GUESSED-OVERLAY
+DAC_PRO=PASS
+DAC_BOOT_CONFIG=EEPROM-OR-EXISTING-CONFIG
+PLATFORM_HARDWARE=PASS
+PN532_I2C=PASS
+FIRMWARE_UPDATE=NOT-PERFORMED
+EOF
+    exit 0
+fi
+
+# CARD=Pro is absent. Determine whether this exact appliance's DAC Pro needs
+# the documented compatibility overlay, rather than applying a generic audio HAT.
+BOOT_CONFIG=
+for candidate in /boot/firmware/config.txt /boot/config.txt; do
+    if sudo test -f "$candidate" && ! sudo test -L "$candidate"; then
+        BOOT_CONFIG="$candidate"
+        break
+    fi
+done
+if [[ -z "$BOOT_CONFIG" ]]; then
+    echo 'PLATFORM_HARDWARE=DAC-COMMISSIONING-FAILED'
+    echo 'DAC_REASON=BOOT-CONFIG-NOT-FOUND'
+    exit 78
+fi
+
+if sudo grep -Eq '^[[:space:]]*dtoverlay=rpi-dacpro([,[:space:]]|$)' "$BOOT_CONFIG"; then
+    cat <<EOF
+PLATFORM_HARDWARE=DAC-COMMISSIONING-FAILED
+DAC_REQUIRED_CARD=$ACP_DAC_CARD_ID
+DAC_CONFIG=$BOOT_CONFIG
+DAC_REASON=RPI-DACPRO-CONFIG-PRESENT-BUT-CARD-MISSING
 EOF
     exit 78
 fi
 
-cat <<'EOF'
-PLATFORM_HARDWARE=PASS
-PN532_I2C=PASS
-DAC_PRO=PASS
-FIRMWARE_UPDATE=NOT-PERFORMED
+read_dt_property() {
+    local path="$1"
+    if [[ -r "$path" ]]; then
+        tr -d '\000' <"$path" 2>/dev/null || true
+    fi
+}
+HAT_VENDOR="$(read_dt_property /proc/device-tree/hat/vendor)"
+HAT_PRODUCT="$(read_dt_property /proc/device-tree/hat/product)"
+
+if [[ -n "$HAT_PRODUCT" ]] && ! printf '%s\n' "$HAT_PRODUCT" | grep -Eiq "$ACP_DAC_PRODUCT_PATTERN"; then
+    cat <<EOF
+PLATFORM_HARDWARE=DAC-COMMISSIONING-FAILED
+DAC_REASON=IDENTIFIED-HAT-IS-NOT-DAC-PRO
+HAT_VENDOR=$HAT_VENDOR
+HAT_PRODUCT=$HAT_PRODUCT
 EOF
+    exit 78
+fi
+
+DAC_CONFIG_MODE=
+case "$HAT_VENDOR" in
+    *'Raspberry Pi Ltd.'*)
+        cat <<EOF
+PLATFORM_HARDWARE=DAC-COMMISSIONING-FAILED
+DAC_REASON=RASPBERRY-PI-DAC-PRO-EEPROM-DETECTED-BUT-CARD-MISSING
+HAT_VENDOR=$HAT_VENDOR
+HAT_PRODUCT=$HAT_PRODUCT
+EOF
+        exit 78
+        ;;
+    *IQaudIO*|*IQAUDIO*|*iqaudio*)
+        DAC_CONFIG_MODE=iqaudio
+        ;;
+    '')
+        DAC_CONFIG_MODE=explicit
+        ;;
+    *)
+        cat <<EOF
+PLATFORM_HARDWARE=DAC-COMMISSIONING-FAILED
+DAC_REASON=UNRECOGNISED-HAT-VENDOR
+HAT_VENDOR=$HAT_VENDOR
+HAT_PRODUCT=$HAT_PRODUCT
+EOF
+        exit 78
+        ;;
+esac
+
+CURRENT_MODE="$(sudo stat -c '%a' "$BOOT_CONFIG")"
+CANDIDATE="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-dac-config.XXXXXX")"
+TRANSACTION_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-dac-boot.XXXXXX")"
+TRANSACTION="$TRANSACTION_PARENT/transaction"
+cleanup() { rm -f -- "$CANDIDATE"; rm -rf -- "$TRANSACTION_PARENT"; }
+trap cleanup EXIT
+
+sudo cat "$BOOT_CONFIG" >"$CANDIDATE.source"
+trap 'rm -f -- "$CANDIDATE" "$CANDIDATE.source"; rm -rf -- "$TRANSACTION_PARENT"' EXIT
+acp_render_dac_pro_config "$CANDIDATE.source" "$CANDIDATE" "$DAC_CONFIG_MODE" || fail 'Could not render DAC Pro boot configuration.'
+[[ "$(grep -Fxc "$ACP_DAC_CONFIG_BEGIN" "$CANDIDATE")" -eq 1 ]] || fail 'Rendered DAC config has an invalid begin marker count.'
+[[ "$(grep -Fxc "$ACP_DAC_CONFIG_END" "$CANDIDATE")" -eq 1 ]] || fail 'Rendered DAC config has an invalid end marker count.'
+grep -Fxq "dtoverlay=$ACP_DAC_OVERLAY" "$CANDIDATE" || fail 'Rendered DAC config does not select rpi-dacpro.'
+if [[ "$DAC_CONFIG_MODE" == iqaudio ]]; then
+    grep -Fxq 'dtoverlay=' "$CANDIDATE" || fail 'IQaudIO compatibility config does not suppress the legacy HAT overlay.'
+fi
+
+acp_transaction_begin "$TRANSACTION"
+acp_transaction_capture_path "$TRANSACTION" "$BOOT_CONFIG"
+if ! sudo -- install -m "$CURRENT_MODE" "$CANDIDATE" "$BOOT_CONFIG" || ! sudo -- cmp -s "$CANDIDATE" "$BOOT_CONFIG"; then
+    echo 'DAC boot configuration activation failed; restoring captured state.' >&2
+    acp_transaction_restore_paths "$TRANSACTION" || true
+    exit 1
+fi
+acp_transaction_mark_complete "$TRANSACTION"
+
+cat <<EOF
+PLATFORM_HARDWARE=REBOOT-REQUIRED
+REBOOT_REASON=DAC-PRO-BOOT-CONFIG-INSTALLED
+DAC_CONFIG=$BOOT_CONFIG
+DAC_CONFIG_MODE=$DAC_CONFIG_MODE
+DAC_OVERLAY=$ACP_DAC_OVERLAY
+FIRMWARE_UPDATE=NOT-PERFORMED
+RESUME_COMMAND=bash scripts/install-platform-hardware.sh --activate --confirm $ACP_PLATFORM_HARDWARE_CONFIRMATION --project-user $PROJECT_USER
+EOF
+exit 75
