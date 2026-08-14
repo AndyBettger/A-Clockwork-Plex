@@ -28,7 +28,7 @@ Guarded fresh-bootstrap ownership:
   display integration: Chromium kiosk/autostart and dashboard service
 
 Compatibility-route note:
-  install.sh without --fresh-bootstrap intentionally retains the older fail-closed
+  The route without --fresh-bootstrap intentionally retains the older fail-closed
   contract and requires an already-working CARD=Pro and plexamp.service before its
   application transaction. The fresh route owns those stages instead of weakening
   that compatibility gate.
