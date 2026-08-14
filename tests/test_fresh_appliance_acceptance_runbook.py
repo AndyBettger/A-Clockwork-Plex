@@ -9,55 +9,79 @@ RUNBOOK = ROOT / "docs" / "fresh-appliance-acceptance-runbook.md"
 
 
 class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
-    def test_runbook_hard_guards_the_accepted_bedroom_pi(self) -> None:
+    def test_runbook_protects_production_with_spare_sd_boundary(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn('if [ "$(hostname -s)" = "plexamp-bedroom" ]', text)
-        self.assertIn("STOP: this is the accepted bedroom appliance", text)
-        self.assertIn("Stop on the first failed gate", text)
+        self.assertIn("accepted production SD card", text)
+        self.assertIn("label/store that card safely", text)
+        self.assertIn("Do not reformat it for this test", text)
+        self.assertIn("spare SD card", text)
+        self.assertIn("Stop on the first unexplained failure", text)
+        self.assertIn("test hostname", text)
+        self.assertNotIn('if [ "$(hostname -s)" = "plexamp-bedroom" ]', text)
 
-    def test_runbook_pins_accepted_direct_eq_and_camilla_identities(self) -> None:
+    def test_runbook_pins_direct_eq_player_node_camilla_and_hardware_identities(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn(
+        for identity in (
             "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9",
-            text,
-        )
-        self.assertIn(
             "1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9",
-            text,
-        )
-        self.assertIn(
             "e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa",
-            text,
-        )
-        self.assertIn("APPLY-A-CLOCKWORK-PLEX", text)
-        self.assertIn("Install required", text)
+            "d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a",
+            "86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041",
+            "73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71",
+            "rpi-dacpro",
+            "0x24",
+            "APPLY-A-CLOCKWORK-PLEX",
+            "Install required",
+        ):
+            self.assertIn(identity, text)
 
-    def test_runbook_preserves_fresh_bootstrap_order_and_reboot_evidence(self) -> None:
+    def test_runbook_uses_fresh_bootstrap_reboot_and_claim_resume_contracts(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("--bootstrap-pending", text)
-        self.assertIn("APPLIANCE_PREFLIGHT=PLATFORM-PASS", text)
-        self.assertIn("PACKAGE_VENV_BASELINE=RETAINED", text)
+        self.assertIn("--fresh-bootstrap", text)
+        self.assertIn("fresh stage-zero preflight", text)
+        self.assertIn("Exit `75` — reboot required", text)
+        self.assertIn("ROOT_INSTALL=REBOOT-REQUIRED", text)
+        self.assertIn("Exit `76` — Plexamp claim required", text)
+        self.assertIn("/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js", text)
+        self.assertIn("https://plex.tv/claim", text)
+        self.assertIn("ROOT_INSTALL=COMMITTED", text)
         self.assertIn("$HOME/.acp-phase7-evidence-path", text)
-        self.assertIn('EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"', text)
 
-    def test_wu_acceptance_uses_key_file_and_diagnostic_history_only(self) -> None:
+    def test_runbook_requires_bootstrap_application_and_audio_verifiers(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("inspect-weather-underground-payloads.py", text)
-        self.assertIn("--api-key-file \"$WU_KEY_FILE\"", text)
-        self.assertIn("--wu-api-key-file \"$WU_KEY_FILE\"", text)
-        self.assertIn("--weather-api-key-file \"$WU_KEY_FILE\"", text)
-        self.assertIn("WU_PAYLOAD_INSPECTION=PASS", text)
-        self.assertIn("YES — REVIEW REQUIRED", text)
-        self.assertIn("Neither result authorises history ingestion", text)
-        self.assertNotIn('cat "$WU_KEY_FILE"', text)
-        self.assertNotIn('echo "$WU_KEY_FILE"', text)
+        self.assertIn("scripts/verify-fresh-bootstrap.sh", text)
+        self.assertIn("FRESH_BOOTSTRAP_VERIFY=PASS", text)
+        self.assertIn("scripts/verify-appliance.sh", text)
+        self.assertIn("APPLIANCE_VERIFY=PASS", text)
+        self.assertIn("scripts/audio/verify-audio.sh", text)
 
-    def test_repeat_install_and_result_evidence_are_required(self) -> None:
+    def test_runbook_uses_guarded_camilla_fetcher_before_eq(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("# 13. Repeat whole-appliance installation", text)
-        self.assertIn("60-repeat-install.txt", text)
-        self.assertIn("61-repeat-verifier.txt", text)
-        self.assertIn("Final physical result document is committed", text)
+        self.assertIn("scripts/fetch-camilladsp-4.1.3.sh", text)
+        self.assertIn("FETCH-CAMILLADSP-4.1.3", text)
+        self.assertIn("$HOME/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp", text)
+        self.assertIn("--camilladsp-binary \"$CAMILLA\"", text)
+
+    def test_wu_acceptance_is_settings_based_and_never_puts_secret_on_cli(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("# 14. Commission Weather Underground through Settings", text)
+        self.assertIn("Set API key", text)
+        self.assertIn("Replace API key", text)
+        self.assertIn("Test connection", text)
+        self.assertIn("WU_CONFIG_SECRET_FIELDS=NONE", text)
+        self.assertIn("/etc/default/a-clockwork-plex-weather", text)
+        self.assertNotIn("--wu-api-key-file", text)
+        self.assertNotIn("--weather-api-key-file", text)
+
+    def test_repeat_install_precedes_wu_and_result_evidence_are_required(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        repeat = text.index("# 13. Repeat the whole fresh-bootstrap install")
+        wu = text.index("# 14. Commission Weather Underground through Settings")
+        self.assertLess(repeat, wu)
+        self.assertIn("50-repeat-install.txt", text)
+        self.assertIn("51-repeat-bootstrap-verifier.txt", text)
+        self.assertIn("52-repeat-appliance-verifier.txt", text)
+        self.assertIn("Phase 7 does not close until that physical result is committed", text)
         self.assertIn("PR #2 remains Draft/open/unmerged", text)
 
 
