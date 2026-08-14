@@ -1,6 +1,6 @@
 # EQ-capable Audio + Full Appliance Installer Roadmap
 
-**Last updated:** 13 August 2026  
+**Last updated:** 14 August 2026  
 **Branch:** `feature/alarm-engine`  
 **PR:** #2 — must remain Draft/open/unmerged until explicit owner approval.
 
@@ -16,150 +16,141 @@ Detailed physical/CI history through Phase 7 checkpoint #6 is preserved verbatim
 - EQ music: Plexamp/AirPlay → source trims → Music Master → fixed `-6.5 dB` reserve → Bass/Mid/Treble → final limiter → DAC.
 - Alarm: per-alarm target/fade → **Maximum Alarm Volume** → joins after music reserve/EQ → final limiter → DAC.
 - Fresh Direct: Plexamp/AirPlay remain under Music Master while alarm joins the DAC-facing mix independently.
-- Presentation-only Settings changes do not alter runtime/audio routing.
 - `scripts/audio/preflight-eq.sh` remains the historical **read-only bedroom-Pi validation gate**. **No bedroom-Pi installation** was permitted until that gate passed; do not replace that evidence with a mutating rehearsal.
 - Do not run the old bare `scripts/install-master-eq.sh` production path.
 
 | Identity | Accepted value |
 |---|---|
-| Historical Phase 6 direct rollback | `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` |
+| Historical Phase 6 Direct rollback | `08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9` |
 | Fresh alarm-safe Direct / managed failback | `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` |
 | EQ split-bus | `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` |
 | +2/0/+2 Camilla config | `d2fed55d9bd10bb3b70837e7af9117400139247bad5ec65640f69ae3fb8f0578` |
-| CamillaDSP | `4.1.3`, SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa` |
+| CamillaDSP executable | `4.1.3`, SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa` |
+| CamillaDSP official aarch64 archive | SHA `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a` |
 
-The historical `08d00093...` route remains the exact rollback identity for the physically accepted bedroom-Pi Phase 6 lifecycle. It is **not** the future fresh Direct profile because that historical graph routes alarm through Music Master.
+The historical `08d00093...` route remains the exact rollback identity for the physically accepted Phase 6 lifecycle. It is **not** the fresh Direct profile because that historical graph routes alarm through Music Master.
 
 ### Weather
 
 - Open-Meteo remains the forecast provider.
 - Current observations may be Ecowitt custom push or Weather Underground PWS.
-- No local weather cache/fan-out server is part of the design; each WU appliance polls upstream independently.
-- WU provider/station configuration belongs in **Settings → Weather**, not in normal appliance-install commissioning.
-- The WU API key is **write-only commissioning data**: it may be typed into the local Settings page and submitted to the dedicated credential endpoint, but it is never returned to the browser, stored in browser storage, written to `config.json`, placed in argv or logged.
-- Persistent WU secret storage remains root-owned `/etc/default/a-clockwork-plex-weather` as `WEATHER_UNDERGROUND_API_KEY`, mode `0600`; the dashboard service consumes that EnvironmentFile on boot.
-- A restricted helper receives new key material on **stdin**, preserves unrelated environment-file lines and owns set/remove only. After a successful helper write/remove, the running dashboard updates its in-memory environment so no service restart is required.
-- Both observation providers write through one shared observation store/current/extrema/local-pressure-history authority.
-- WU historical aggregates are not fabricated into instantaneous barometer samples without a real-payload contract proving that is sound.
+- No local weather cache/fan-out server is part of the design.
+- WU provider/station configuration belongs in **Settings → Weather**, not normal fresh-install CLI commissioning.
+- WU API key is **write-only commissioning data**: it may be submitted locally to the dedicated credential endpoint but is never returned to the browser, written to `config.json`, stored in browser storage, placed in argv or logged.
+- Persistent WU secret storage is root-owned `/etc/default/a-clockwork-plex-weather`, mode `0600`; restricted helper receives new key material on stdin.
+- Successful set/remove updates the running dashboard environment so no dashboard restart is required.
 
-### Player/runtime direction
+### Player/runtime
 
-- **Plexamp Headless remains the A-Clockwork-Plex player runtime for this release.** Caldera migration is out of scope for Phase 7 because it does not provide the local Plexamp browsing interface this appliance uses.
-- Full-appliance bootstrap must install/pin the compatible Plexamp Headless runtime rather than treating it as a preinstalled external package.
-- The production Plexamp installer must not depend on a mutable community `curl | bash` installer or an unverified `latest` archive; exact compatibility archive identity/checksum and Node runtime strategy must be pinned first.
-- Node runtime candidate is pinned to **Node 20.20.2 ARM64** from the official Node archive, SHA-256 `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71`; physical Plexamp acceptance must still prove this runtime against the selected headless build.
-- Plexamp Headless `4.13.2` is the compatibility build under investigation; its archive checksum remains an explicit blocker before production download/extraction code may be enabled.
-- A fail-closed `install-plexamp-runtime.sh` entrypoint now pins the intended version/URL and Node runtime but refuses activation before network/filesystem mutation while the Plexamp digest or transactional implementation is missing.
-- Any later player-runtime migration is a separate roadmap project, not part of WU commissioning.
+- **Plexamp Headless remains the player for this release.** Caldera migration is out of scope for Phase 7.
+- Pinned Plexamp Headless compatibility runtime:
+  - version `4.13.2`;
+  - official archive `https://plexamp.plex.tv/headless/Plexamp-Linux-headless-v4.13.2.tar.bz2`;
+  - 14,566,439 bytes;
+  - SHA-256 `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041`.
+- Pinned Node runtime:
+  - `20.20.2` linux-arm64;
+  - SHA-256 `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71`;
+  - installed under `/opt/a-clockwork-plex`, not by NodeSource/nvm and not as a replacement for the distribution Node.
+- Fresh account/player setup is an explicit local interactive checkpoint. Claim material is never a normal installer argument or evidence field.
+- A fresh unclaimed runtime exits `76` with `PLEXAMP_RUNTIME=CLAIM-REQUIRED`; after local claim/name and Ctrl-C, rerunning the root installer resumes.
 
-### Fresh-Pi hardware/bootstrap direction
+### Fresh-Pi hardware/bootstrap
 
-- The fresh-appliance installer may use the exact bedroom Pi/HAT/display hardware only after the accepted SD card has a verified off-device full image and has been replaced by a genuinely fresh Raspberry Pi OS image.
-- Global OS upgrade, `rpi-update`, Pi EEPROM/bootloader update and external hardware firmware update are outside appliance bootstrap because rewriting the SD-card image would not restore them.
-- Known NFC hardware contract is PN532 on I2C bus `1`, address `0x24`; project user needs `i2c`, `gpio` and `spi` groups.
-- Accepted DAC runtime identity is ALSA `CARD=Pro`, but the exact physical DAC HAT model/boot `dtoverlay` contract has **not** yet been captured. The installer must fail closed rather than guess it.
-- A bootstrap-required reboot is an explicit stop/resume state, never an automatic reboot side effect.
-- Root `install.sh --fresh-bootstrap` is opt-in during Phase 7 so the established compatibility `--apply` route is not weakened while fresh ownership is still incomplete.
-- Detailed staged ownership is recorded in `docs/fresh-pi-bootstrap-ownership-design.md`.
+- Physical target is the actual bedroom Pi/HAT/display, but **the accepted production SD card is removed and kept untouched**. A separate spare SD card is the disposable fresh-install target.
+- This supersedes the earlier plan to wipe/reimage the accepted card; no backup/restore operation is required merely to perform the fresh test.
+- Global OS upgrade, `rpi-update`, Pi EEPROM/bootloader update, HAT EEPROM write and external hardware firmware update remain outside appliance bootstrap.
+- PN532 contract: I2C bus `1`, address `0x24`; project user groups `i2c`, `gpio`, `spi`.
+- Accepted DAC is **Raspberry Pi DAC Pro**, runtime ALSA `CARD=Pro`.
+- Hardware owner first accepts an already-working `CARD=Pro` without changing boot config. If required, it uses the documented `rpi-dacpro` path; older IQaudIO hardware receives the compatibility HAT-overlay suppression block before `rpi-dacpro`. An identified different HAT fails closed.
+- Any I2C/DAC boot mutation exits `75` with an operator-controlled reboot/resume contract; the installer never reboots automatically.
+- Root `install.sh --fresh-bootstrap` owns staged package → hardware → player → NFC → full-preflight → application construction. The compatibility route remains separately fail-closed and unchanged.
 
 ## Phase status
 
-### Phase 0 — roadmap and baseline — **Complete**
-Direct audio recovered and baseline/roadmap established.
+### Phases 0–6 — **Complete**
 
-### Phase 1 — artifact inventory — **Complete**
-Exact audio contract, route identities and managed-file inventory established.
+Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, feature/interface acceptance, and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 2 — standalone EQ lifecycle — **Complete**
-Guarded install/verify/repair/uninstall lifecycle accepted under non-production tests.
+### Phase 7 — full appliance installer integration — **In progress: source handoff complete; physical acceptance next**
 
-### Phase 3 — non-production/read-only validation — **Complete**
-`scripts/audio/preflight-eq.sh` proved exact before/after state equality before any bedroom-Pi installation was permitted.
+#### WU Settings commissioning — source/CI complete
 
-### Phase 4 — bedroom-Pi EQ installation — **Complete**
-Split-bus installed, verified and physically audible.
+- [x] Dedicated write-only credential manager/API outside the revisioned Settings transaction.
+- [x] Restricted stdin-only WU secret helper and root-owned `0600` environment file.
+- [x] Settings controls for Set/Replace/Remove key, credential status and Test connection.
+- [x] Running-process environment update without dashboard restart.
+- [x] Sanitized real-provider test path and source tests.
+- [x] Checkpoint #21 green.
+- [ ] **Physical:** enter real station ID/key locally, Test connection, verify live observations/health and prove secret absence from Settings/config/log output.
 
-### Phase 5 — feature/interface acceptance — **Complete**
-Plexamp/AirPlay routing, EQ, fixed headroom, Music Master/alarm isolation, Maximum Alarm Volume, Output Levels, NFC/handoff, limiter protection and truthful UI physically accepted.
+#### Fresh package/hardware/NFC bootstrap — source/CI complete
 
-### Phase 6 — failure/reboot/uninstall acceptance — **Complete**
-Real lifecycle passed: install → reboot → controlled Camilla failure → automatic alarm-safe failback → repair → explicit uninstall → direct-only reboot → reinstall. Exact historical uninstall returned `08d00093...`; reinstall restored split-bus and saved `+2 / 0 / +2`.
+- [x] Additive package owner includes `i2c-tools`, `python3-lgpio`, `raspi-config` without global OS/firmware upgrade.
+- [x] Paired app + NFC venv transaction; NFC uses `--system-site-packages` for `lgpio`.
+- [x] Guarded I2C/groups/PN532 owner and read-only immediate `0x24` probe.
+- [x] Deterministic Raspberry Pi DAC Pro commissioning with transactional marker-bounded boot config and explicit reboot checkpoint.
+- [x] Exact vendored NFC Listener source from upstream commit `8f5f04213b22cfb5affc6931cb2db91fd07de537`.
+- [x] Guarded project-user-aware `nfc-listener.service`; no import of the old standalone setup script's kiosk/AirPlay/Plexamp-handoff authority.
+- [x] Fresh bootstrap verifier covers pinned player runtime, claim state, PN532, `CARD=Pro`, NFC source/venv/unit/service and local Plexamp API.
 
-### Phase 7 — full appliance installer integration — **In progress**
+#### Plexamp compatibility runtime — source/CI complete
 
-Completed and previously green source/CI work:
+- [x] Exact Plexamp 4.13.2 archive identity pinned from official artifact probe.
+- [x] Exact Node 20.20.2 linux-arm64 identity pinned.
+- [x] Downloads are verified before extraction or live-state mutation.
+- [x] Staged runtime/service transaction with exact rollback and idempotent claimed rerun.
+- [x] Local interactive claim checkpoint; no claim token CLI/env/log path.
+- [x] Local `plexamp.service` uses pinned Node and exposes port `32500` after claim.
 
-- [x] Guarded root plan/apply boundary and single application transaction.
-- [x] Direct/EQ × Ecowitt/WU profile matrix and alarm-safe Direct owner.
-- [x] Package/venv bootstrap, weather owner, dashboard/kiosk owner, helper owner and AirPlay owner.
-- [x] Exact application rollback including fresh-EQ unwind-before-outer-restore.
-- [x] Profile-aware final verifier and split pre/post-package fresh-host preflight.
-- [x] WU current-observation poller/health/shared store plus read-only current/history payload inspector.
-- [x] WU key-file contract for the existing installer-driven compatibility path, with secret excluded from config/argv/output.
-- [x] Fresh-appliance physical acceptance runbook prepared.
+#### EQ artifact acquisition — source/CI complete
 
-WU Settings commissioning:
+- [x] Guarded `scripts/fetch-camilladsp-4.1.3.sh` added.
+- [x] Official aarch64 release archive SHA and physically accepted executable SHA are both pinned and checked before promotion.
+- [x] Temporary network probe independently confirmed archive `d9a170...aca5` extracts executable `e04c7a...edfa`; probe workflow was removed after evidence collection.
 
-- [x] Dedicated write-only WU credential manager/API added outside the revisioned `/api/settings` transaction.
-- [x] Restricted `a-clockwork-plex-weather-secret` helper added; set receives the secret on stdin and remove carries no secret material.
-- [x] Helper packaging/sudo policy added to `scripts/install-appliance-helpers.sh` and included in outer application rollback capture.
-- [x] Settings Weather presenter adds Set/Replace key, Remove key, credential status and Test connection controls without a `data-setting-path` secret field or browser storage.
-- [x] Successful set/remove updates the running dashboard environment and wakes the observation worker without restarting the dashboard service.
-- [x] Test Connection uses the existing WU observation service/parser and returns only sanitized station/status/timestamp information.
-- [x] WU commissioning source tests and full CI passed at checkpoint #21.
-- [ ] Real WU acceptance: select provider/station in Settings, enter the API key locally, run Test connection, verify live observations/health, and confirm the secret never appears in Settings/config/log output.
+#### Spare-SD physical acceptance handoff
 
-Fresh-Pi bootstrap ownership work:
+- [x] `docs/fresh-appliance-acceptance-runbook.md` rewritten for a **spare SD card** while the production card remains untouched.
+- [x] Runbook covers fresh OS/source baseline, evidence capture, Direct install, exit `75` reboot resume, exit `76` Plex claim resume, independent bootstrap/application verifiers, NFC/AirPlay/alarm checks, guarded Camilla acquisition, EQ promotion, reboot, repeat-install and WU Settings commissioning.
+- [x] Full source/CI handoff passed at checkpoint #25.
+- [ ] Physical fresh Direct installation and verification.
+- [ ] Physical Plexamp claim/local UI/playback acceptance.
+- [ ] Physical PN532/NFC playback + dashboard-switch acceptance.
+- [ ] Physical AirPlay/PlaybackCoordinator acceptance.
+- [ ] Physical Music Master = 0% versus real scheduled-alarm isolation acceptance.
+- [ ] Physical Direct-mode truthful **Install required** EQ UI acceptance.
+- [ ] Physical EQ installation, split-bus identity and audible Bass/Mid/Treble/bypass acceptance.
+- [ ] Reboot acceptance with bootstrap/application/audio verifiers green.
+- [ ] Repeat whole-appliance install with no ownership drift or renewed claim/reboot checkpoint.
+- [ ] Real WU Settings/Test Connection acceptance.
+- [ ] Commit a dated physical result/evidence document; only then close Phase 7.
 
-- [x] Additive package owner expanded with `i2c-tools`, `python3-lgpio` and `raspi-config`; no global upgrade/firmware path added.
-- [x] Guarded `scripts/install-platform-hardware.sh` source owner added: prepare-only default, explicit confirmation, I2C enable, hardware groups, PN532 `0x24` verification and explicit reboot-resume result.
-- [x] Immediate PN532 commissioning probe uses privileged **read-only** `i2cdetect` so newly added `i2c` group membership does not require a logout merely to verify hardware.
-- [x] Hardware owner refuses to invent a DAC overlay; missing `CARD=Pro` reports `DAC-COMMISSIONING-REQUIRED` / `NO-GUESSED-OVERLAY`.
-- [x] `docs/fresh-pi-bootstrap-ownership-design.md` records the staged fresh-OS → complete-appliance target and authority boundaries.
-- [x] Fresh-Pi hardware/package source slice passed full CI at checkpoint #22.
-- [x] Plexamp NFC Listener runtime vendored from exact upstream commit `8f5f04213b22cfb5affc6931cb2db91fd07de537`; listener, requirements and MIT licence blobs are preserved exactly.
-- [x] Package bootstrap now stages/verifies the main application venv and NFC `--system-site-packages` venv before either live venv is replaced; failure restores both exact prestates.
-- [x] Guarded `scripts/install-nfc-listener.sh` owns only the project-user-aware `nfc-listener.service`, with exact alternate-root rollback and explicit dashboard display-switch integration; it owns no kiosk, Shairport or Plexamp handoff behaviour.
-- [x] NFC bootstrap/runtime source slice passed full CI at checkpoint #23.
-- [x] Staged preflight ladder added without weakening the compatibility gate: fresh stage zero may mark future-owned hardware/player state READY; post-hardware/player-pending requires packages, `CARD=Pro` and PN532 before allowing only Plexamp to remain pending.
-- [x] Opt-in root `--fresh-bootstrap` route now orders package → hardware → player → NFC → full preflight → application, propagates hardware reboot exit `75` with a safe resume command, and stops later mutation on hardware/player blockers.
-- [x] The legacy compatibility root route remains separately tested with its original five-stage gate/application order.
-- [x] Fresh staged root/preflight/player-blocking source slice passed full CI at checkpoint #24.
-- [ ] Capture/pin exact accepted DAC HAT identity and boot overlay from the accepted bedroom image before wipe/reimage; then promote DAC configuration into the guarded hardware owner.
-- [x] Pin official Node 20.20.2 ARM64 archive identity as the Plexamp compatibility-runtime candidate; physical/player tests remain required before final acceptance.
-- [ ] Pin exact Plexamp Headless 4.13.2 archive checksum/download contract.
-- [ ] Implement/promote the transactional Plexamp runtime install plus secure account/player commissioning boundary; the current entrypoint intentionally remains blocked.
-- [ ] Expand final verifier with a fresh-bootstrap mode covering pinned Plexamp runtime, PN532/I2C, NFC source/venv/unit/service and eventually the pinned DAC boot identity.
-- [ ] Fresh-appliance runbook safety moves from hostname-only prohibition to a verified off-device SD-image/reimage guard so the exact bedroom hardware can be used safely after its accepted card is backed up.
-- [ ] Physical fresh Direct acceptance: Plexamp, alarm isolation and truthful **Install required** EQ UI.
-- [ ] Physical fresh EQ acceptance: split-bus/EQ/alarm isolation and reboot.
-- [ ] Repeat whole-appliance install and require zero ownership drift.
-- [ ] Commit dated physical result/evidence before Phase 7 closure.
-
-**Phase 7 exit condition:** WU Settings commissioning is source/CI and physically accepted; the installer owns all software/hardware bootstrap required to turn a fresh Raspberry Pi OS installation into the complete appliance; Direct and EQ physical fresh installs pass; reboot and repeat-install acceptance pass; final verifier is green. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** the spare-SD fresh appliance passes Direct → physical feature checks → EQ → reboot → repeat-install → real WU commissioning with `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable; dated evidence is committed. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
 - **#7 — package ownership, verifier and 2×2 lifecycle — PASS.** Tests #3003 / run `31355427351`, `3606f59`.
-- **#8 — whole-appliance transaction primitives — PASS.** Tests #3013 / run `31356363970`, `bc7b1fe`. This checkpoint also permanently pins the Phase 3 `scripts/audio/preflight-eq.sh` read-only safety wording.
+- **#8 — whole-appliance transaction primitives — PASS.** Tests #3013 / run `31356363970`, `bc7b1fe`. Historical Phase 3 read-only safety wording remains pinned.
 - **#9 — guarded alarm-safe Direct component — PASS.** Tests #3025 / run `31356684593`, `b60b2b9`.
 - **#10 — guarded restricted-helper packaging — PASS.** Tests #3037 / run `31357016840`, `8356e80`.
 - **#11 — deterministic Shairport integration candidate — PASS.** Tests #3045 / run `31357275403`, `9795c0a`.
-- **#12 — guarded AirPlay integration owner — PASS.** Final ownership promotion Tests #3072 / run `31426194328`, `9847c2e`.
+- **#12 — guarded AirPlay integration owner — PASS.** Tests #3072 / run `31426194328`, `9847c2e`.
 - **#13 — guarded top-level apply boundary — PASS.** Tests #3083 / run `31443831762`, `f424479`.
-- **#14 — guarded package and venv bootstrap owner — PASS.** Package baseline Tests #3095 / run `31444251583`, `56dff3d`; root ownership promotion Tests #3099 / run `31444400034`, `e106c47`.
+- **#14 — guarded package and venv bootstrap owner — PASS.** Tests #3095 / `31355427351`; root ownership Tests #3099 / `31444400034`, `e106c47`.
 - **#15 — guarded weather observation configuration owner — PASS.** Tests #3107 / run `31446688664`, `a52686d`.
 - **#16 — shared dashboard owner, application transaction and promoted root apply — PASS.** Tests #3149 / run `31451271274`, `16f30fe`.
 - **#17 — alternate-root whole-appliance rollback including fresh EQ — PASS.** Tests #3151 / run `31451366362`, `1a38270`.
 - **#18 — first-install WU key-file contract — PASS.** Tests #3171 / run `31452097877`, `d131644`.
 - **#19 — read-only real WU payload inspector — PASS.** Tests #3175 / run `31452388309`, `caa583d`.
 - **#20 — fresh package/bootstrap preflight ordering — PASS.** Tests #3185 / run `31452688437`, `ac7cec8`.
-- **#21 — WU Settings commissioning and write-only credential boundary — PASS.** Tests #3219 / run `31663696066`, `7a901109e996e8b4cb342e915a708b02ed745d28`.
+- **#21 — WU Settings commissioning/write-only credential boundary — PASS.** Tests #3219 / run `31663696066`, `7a901109e996e8b4cb342e915a708b02ed745d28`.
 - **#22 — guarded fresh-Pi I2C/PN532 hardware bootstrap foundation — PASS.** Tests #3237 / run `31664328721`, `d4570fb176013d7f96608ede96dd114510bf5d2a`.
 - **#23 — pinned NFC runtime, paired venv bootstrap and guarded NFC service owner — PASS.** Tests #3263 / run `31664707020`, `63fa8825e4949d8805e43db5beb346c2a3c6b9b6`.
 - **#24 — staged fresh-bootstrap preflight/root route with fail-closed player boundary — PASS.** Tests #3285 / run `31691861309`, `bf701e4ba256c45c0fd295f88026bfbe5a54ffc9`.
+- **#25 — test-ready spare-SD fresh appliance: pinned Plexamp/Node, deterministic DAC Pro, fresh verifier, guarded Camilla fetcher and physical runbook — PASS.** Tests #3339 / run `31848016743`, `a3f05ebee67565cfaa5a6f7a605fc770a7b4fbd8`.
 
-No Phase 7 checkpoint after #24 is recorded as PASS until its exact tested state has passed full CI.
+No Phase 7 checkpoint after #25 is recorded as PASS until its exact tested state has passed full CI.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
 
@@ -176,15 +167,11 @@ No Phase 7 checkpoint after #24 is recorded as PASS until its exact tested state
 
 ## Immediate next action
 
-1. Add a fresh-bootstrap final-verifier mode for Plexamp, PN532/I2C and NFC ownership without changing compatibility verification semantics.
-2. Finish the Plexamp compatibility-runtime acquisition contract: obtain and pin the exact Plexamp Headless 4.13.2 archive checksum, then implement the transactional Node/Plexamp installer and account/player commissioning boundary without mutable community installers.
-3. Before wiping the accepted bedroom card, capture its exact DAC HAT/boot-overlay identity and run the existing read-only Plexamp upgrade evidence collector; then take/verify the off-device full SD image.
-4. Revise the physical runbook from hostname-only prohibition to the verified backup/reimage safety guard.
-5. Perform real WU commissioning acceptance from the local Settings page using the real station ID/API key on the appliance only; do not paste the key into chat or config.
-6. Once complete bootstrap ownership is green, install fresh Raspberry Pi OS on the same target hardware and execute Direct → EQ → reboot → WU → repeat-install acceptance.
-7. Commit the dated physical result document; only then consider Phase 7 closure and the Phase 8 README/release pass.
-
-No local weather caching/fan-out server is part of the design.
+1. **Physical handoff:** power down the bedroom appliance, remove/store the accepted production SD card untouched, perform the intended cable/HAT/standoff tidy-up while unpowered, insert the spare SD card and flash current 64-bit Raspberry Pi OS with Desktop.
+2. Follow `docs/fresh-appliance-acceptance-runbook.md` exactly from the fresh baseline. Exit `75` is a normal operator reboot/resume checkpoint; exit `76` is a normal local Plexamp claim/name checkpoint.
+3. Stop at the first unexplained failure and preserve the evidence directory before repairing anything.
+4. Complete Direct physical acceptance, guarded EQ promotion, reboot, repeat install and real WU Settings commissioning.
+5. Commit the dated physical result document; only then consider Phase 7 complete and move to the Phase 8 README/release pass.
 
 ## Roadmap maintenance discipline
 
