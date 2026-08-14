@@ -471,7 +471,7 @@ PLEXAMP_RUNTIME=CLAIM-REQUIRED
 PLEXAMP_VERSION=$ACP_PLEXAMP_VERSION
 CLAIM_POLICY=INTERACTIVE-LOCAL-ONLY
 CLAIM_INSTRUCTIONS=Enter a fresh code from https://plex.tv/claim and a player name; wait for Plexamp to start, then press Ctrl-C.
-CLAIM_COMMAND=cd $(printf '%q' "$PLEXAMP_TARGET") '&&' $(printf '%q' "$NODE_TARGET/bin/node") js/index.js
+CLAIM_COMMAND=cd $(printf '%q' "$PLEXAMP_TARGET") && $(printf '%q' "$NODE_TARGET/bin/node") js/index.js
 RERUN_ROOT_INSTALLER_AFTER_CLAIM=YES
 EOF
     exit "$ACP_PLEXAMP_CLAIM_EXIT"
