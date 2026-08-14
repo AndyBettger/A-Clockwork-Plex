@@ -3,7 +3,7 @@
 # Package/artifact ownership for the whole-appliance installer.
 # Read-only planning/checking lives here; guarded mutation is owned by
 # scripts/install-appliance-packages.sh and is invoked by root install.sh only
-# after the pre-bootstrap platform/external gate has passed.
+# after the selected pre-bootstrap platform gate has passed.
 
 ACP_APT_PACKAGES=(
     git
@@ -40,6 +40,13 @@ Package and artifact ownership:
     by the dedicated guarded platform-hardware owner to enable I2C. The package
     owner does not itself edit boot configuration or probe NFC hardware.
 
+  Fresh-route runtime artifacts (specialist guarded owners, not APT packages):
+    * Plexamp Headless 4.13.2 official archive + Node 20.20.2 linux-arm64,
+      both immutable SHA-256 pinned before extraction;
+    * vendored Plexamp NFC Listener source pinned to an exact upstream commit;
+    * RPi DAC Pro boot overlay is owned by the hardware stage only when the
+      accepted CARD=Pro is not already exposed by EEPROM/existing configuration.
+
   Explicit rollback boundary:
     APT packages are additive shared-host prerequisites and are never automatically
     removed/purged/autoremoved on rollback. The paired main/NFC venv transaction
@@ -50,16 +57,19 @@ Package and artifact ownership:
   Platform baseline (checked, not claimed as application packages):
     systemd, sudo, a normal desktop/session environment, kernel/ALSA support
 
-  External prerequisite pending Phase 7 ownership promotion:
-    Plexamp Headless distribution and plexamp.service on local port 32500
+  Compatibility-route boundary:
+    install.sh without --fresh-bootstrap still requires an existing Plexamp service
+    and CARD=Pro before application mutation. The fresh route owns those stages.
 EOF
 
     if [[ "$audio_profile" == eq ]]; then
         cat <<'EOF'
 
-  Supplied EQ artifact (verified, never silently downloaded):
+  EQ artifact:
     CamillaDSP 4.1.3 aarch64 executable
     sha256 e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa
+    The guarded repository artifact fetcher verifies the official release archive
+    before verifying this accepted executable identity; no unverified substitution.
 EOF
     else
         cat <<'EOF'
@@ -72,9 +82,9 @@ EOF
     if [[ "$weather_provider" == weather-underground ]]; then
         cat <<'EOF'
 
-  External secret/configuration:
-    Weather Underground station ID plus API key supplied through a host secret file;
-    the key is not a package/artifact and must never enter config.json/browser state
+  Weather commissioning:
+    WU provider/station is ordinary Settings configuration; API-key material uses
+    the dedicated write-only credential helper and never enters config/browser state.
 EOF
     else
         cat <<'EOF'
