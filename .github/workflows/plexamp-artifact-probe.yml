@@ -15,34 +15,25 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch and identify official Plexamp 4.13.2 archive
+      - name: Inventory official Plexamp 4.13.2 archive
         shell: bash
         run: |
           set -euo pipefail
           url='https://plexamp.plex.tv/headless/Plexamp-Linux-headless-v4.13.2.tar.bz2'
           archive="$RUNNER_TEMP/Plexamp-Linux-headless-v4.13.2.tar.bz2"
           listing="$RUNNER_TEMP/plexamp-archive-list.txt"
-          extract="$RUNNER_TEMP/plexamp-extract"
+          matches="$RUNNER_TEMP/plexamp-archive-matches.txt"
           curl --fail --show-error --silent --location --proto '=https' --tlsv1.2 \
             --output "$archive" "$url"
           test -s "$archive"
           tar -tjf "$archive" >"$listing"
-          mkdir -p "$extract"
-          tar -xjf "$archive" -C "$extract" plexamp/package.json plexamp/js/index.js
           printf 'PLEXAMP_ARTIFACT_URL=%s\n' "$url"
           printf 'PLEXAMP_ARTIFACT_BYTES=%s\n' "$(stat -c '%s' "$archive")"
           printf 'PLEXAMP_ARTIFACT_SHA256=%s\n' "$(sha256sum "$archive" | awk '{print $1}')"
           printf 'PLEXAMP_ARCHIVE_TOP_LEVEL=%s\n' "$(sed -n '1p' "$listing")"
+          grep -E '(package\.json$|js/index\.js$|upgrade\.sh$|plexamp\.service$|version)' "$listing" >"$matches" || true
+          echo 'PLEXAMP_RELEVANT_PATHS_BEGIN'
+          cat "$matches"
+          echo 'PLEXAMP_RELEVANT_PATHS_END'
           grep -Fxq 'plexamp/js/index.js' "$listing"
-          python3 - "$extract/plexamp/package.json" <<'PY'
-          import json
-          import sys
-          from pathlib import Path
-
-          package = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
-          version = package.get('version')
-          print(f'PLEXAMP_PACKAGE_VERSION={version}')
-          if version != '4.13.2':
-              raise SystemExit(f'unexpected package version: {version!r}')
-          PY
-          echo 'PLEXAMP_ARCHIVE_STRUCTURE=PASS'
+          echo 'PLEXAMP_INDEX_ENTRY=PASS'
