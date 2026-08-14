@@ -55,8 +55,10 @@ class AppliancePackageOwnershipTests(unittest.TestCase):
         ):
             self.assertRegex(source, rf"(?m)^\s*{re.escape(package)}\s*$")
         self.assertIn("requirements.txt", source)
-        self.assertIn("Plexamp Headless distribution", source)
-        self.assertIn("never silently downloaded", source)
+        self.assertIn("Plexamp Headless 4.13.2", source)
+        self.assertIn("Node 20.20.2", source)
+        self.assertIn("vendored Plexamp NFC Listener", source)
+        self.assertIn("Compatibility-route boundary", source)
         self.assertIn("never runs apt upgrade", source)
         self.assertIn("rpi-update", source)
         self.assertIn(
@@ -66,7 +68,7 @@ class AppliancePackageOwnershipTests(unittest.TestCase):
 
     def test_root_plan_prints_package_contract_and_read_only_check(self) -> None:
         result = subprocess.run(
-            ["bash", str(INSTALLER), "--audio", "eq"],
+            ["bash", str(INSTALLER), "--fresh-bootstrap", "--audio", "eq"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -78,7 +80,8 @@ class AppliancePackageOwnershipTests(unittest.TestCase):
         self.assertIn("python3-venv", result.stdout)
         self.assertIn("i2c-tools", result.stdout)
         self.assertIn("python3-lgpio", result.stdout)
-        self.assertIn("Plexamp Headless distribution", result.stdout)
+        self.assertIn("Plexamp Headless 4.13.2", result.stdout)
+        self.assertIn("Node 20.20.2", result.stdout)
         self.assertIn("check-appliance-packages.sh", result.stdout)
         self.assertIn("No production file", result.stdout)
 
