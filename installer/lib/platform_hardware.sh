@@ -50,3 +50,28 @@ EOF
 acp_platform_hardware_groups() {
     printf '%s\n' "${ACP_PLATFORM_HARDWARE_GROUPS[@]}"
 }
+
+# Pure renderer used by the guarded hardware owner and unit tests. It removes
+# only this project's own marker block and preserves every unrelated boot line.
+# mode is either explicit (no HAT EEPROM identity) or iqaudio (older IQaudIO
+# EEPROM must be suppressed before loading the Raspberry Pi DAC Pro overlay).
+acp_render_dac_pro_config() {
+    local source="$1" destination="$2" mode="$3"
+    [[ -f "$source" && ! -L "$source" ]] || return 1
+    case "$mode" in explicit|iqaudio) ;; *) return 1 ;; esac
+
+    awk -v begin="$ACP_DAC_CONFIG_BEGIN" -v end="$ACP_DAC_CONFIG_END" '
+        $0 == begin { inside=1; next }
+        $0 == end { inside=0; next }
+        !inside { print }
+    ' "$source" >"$destination" || return 1
+
+    # Keep the appended block visually separate without rewriting existing text.
+    printf '\n%s\n' "$ACP_DAC_CONFIG_BEGIN" >>"$destination"
+    if [[ "$mode" == iqaudio ]]; then
+        printf '# Suppress legacy IQaudIO HAT EEPROM overlay before explicit DAC Pro selection\n' >>"$destination"
+        printf 'dtoverlay=\n' >>"$destination"
+    fi
+    printf 'dtoverlay=%s\n' "$ACP_DAC_OVERLAY" >>"$destination"
+    printf '%s\n' "$ACP_DAC_CONFIG_END" >>"$destination"
+}
