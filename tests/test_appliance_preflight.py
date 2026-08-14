@@ -65,10 +65,10 @@ class AppliancePreflightTests(unittest.TestCase):
         )
 
         self.assertIn("EQ artifact:         not required for Direct audio", direct.stdout)
-        self.assertIn("verified CamillaDSP 4.1.3", eq.stdout)
+        self.assertIn("exact CamillaDSP 4.1.3", eq.stdout)
         self.assertIn("snd_aloop module available", eq.stdout)
-        self.assertIn("server environment variable", wu.stdout)
-        self.assertIn("never config.json/browser", wu.stdout)
+        self.assertIn("provider/station in Settings", wu.stdout)
+        self.assertIn("write-only credential boundary", wu.stdout)
         self.assertNotIn("WEATHER_UNDERGROUND_API_KEY=", wu.stdout)
 
     def test_bootstrap_pending_contract_is_host_only_and_preserves_compatibility_gate(self) -> None:
@@ -180,8 +180,8 @@ class AppliancePreflightTests(unittest.TestCase):
         self.assertEqual(result.returncode, 64)
         self.assertIn("only valid with", result.stderr)
 
-    def test_root_plan_accepts_explicit_project_user_and_points_to_both_host_gates(self) -> None:
-        result = subprocess.run(
+    def test_root_plan_describes_compatibility_and_fresh_owned_player_boundaries(self) -> None:
+        compatibility = subprocess.run(
             [
                 "bash",
                 str(INSTALLER),
@@ -195,20 +195,39 @@ class AppliancePreflightTests(unittest.TestCase):
             text=True,
             check=False,
         )
+        fresh = subprocess.run(
+            [
+                "bash",
+                str(INSTALLER),
+                "--fresh-bootstrap",
+                "--project-user",
+                "bedroomclock",
+                "--audio",
+                "direct",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertRegex(result.stdout, r"Project user:\s+bedroomclock")
-        self.assertIn("Fresh-Pi prerequisite contract", result.stdout)
-        self.assertIn("Plexamp Headless", result.stdout)
-        self.assertIn("external appliance prerequisite", result.stdout)
-        self.assertIn("scripts/preflight-appliance.sh --bootstrap-pending", result.stdout)
+        self.assertEqual(compatibility.returncode, 0, compatibility.stderr)
+        self.assertEqual(fresh.returncode, 0, fresh.stderr)
+        self.assertRegex(compatibility.stdout, r"Project user:\s+bedroomclock")
+        self.assertIn("Fresh-Pi prerequisite contract", compatibility.stdout)
+        self.assertIn("Compatibility-route note", compatibility.stdout)
+        self.assertIn("scripts/preflight-appliance.sh --bootstrap-pending", compatibility.stdout)
         self.assertIn(
             "scripts/preflight-appliance.sh --audio direct --weather-observations ecowitt-push --project-user bedroomclock",
-            result.stdout,
+            compatibility.stdout,
         )
+        self.assertIn("Plexamp Headless 4.13.2", fresh.stdout)
+        self.assertIn("pinned Plexamp Headless 4.13.2", fresh.stdout)
+        self.assertIn("--fresh-bootstrap-pending", fresh.stdout)
+        self.assertIn("install-plexamp-runtime.sh --activate", fresh.stdout)
         self.assertIn(
             "install-dashboard-integration.sh --prepare-only --project-user bedroomclock",
-            result.stdout,
+            fresh.stdout,
         )
 
     def test_preflight_is_statically_read_only(self) -> None:
@@ -245,6 +264,7 @@ class AppliancePreflightTests(unittest.TestCase):
             r"systemctl|modprobe|tee)\b"
         )
         self.assertIn("acp_prerequisite_plan", source)
+        self.assertIn("fresh-bootstrap ownership", source)
         self.assertIsNone(mutating.search(source))
 
 
