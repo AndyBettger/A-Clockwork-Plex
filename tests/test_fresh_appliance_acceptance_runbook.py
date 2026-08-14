@@ -12,7 +12,7 @@ class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
     def test_runbook_protects_production_with_spare_sd_boundary(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
         self.assertIn("accepted production SD card", text)
-        self.assertIn("label/store that card safely", text)
+        self.assertIn("Label/store that card safely", text)
         self.assertIn("Do not reformat it for this test", text)
         self.assertIn("spare SD card", text)
         self.assertIn("Stop on the first unexplained failure", text)
