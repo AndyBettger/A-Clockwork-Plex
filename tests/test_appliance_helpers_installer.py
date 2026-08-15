@@ -137,6 +137,21 @@ class ApplianceHelpersInstallerTests(unittest.TestCase):
             self.assertIn("restoring captured state", result.stderr)
             self.assertIn("pre-state restored", result.stderr)
 
+    def test_protected_post_install_verification_uses_root_boundary(self) -> None:
+        source = INSTALLER.read_text(encoding="utf-8")
+
+        self.assertIn("verify_regular_file()", source)
+        self.assertIn("verify_mode()", source)
+        self.assertIn("verify_contains()", source)
+        self.assertIn('acp_run_root test -f "$physical"', source)
+        self.assertIn('acp_run_root test -L "$physical"', source)
+        self.assertIn("acp_run_root stat -c '%a'", source)
+        self.assertIn('acp_run_root grep -Fq -- "$expected" "$physical"', source)
+        self.assertIn("Installed helper target is not a regular non-symlink file", source)
+        self.assertIn("Installed helper policy is missing required rule", source)
+        self.assertNotIn('[[ -f "$(acp_path "$installed")"', source)
+        self.assertNotIn('grep -Fq "$PROJECT_USER ALL=(root)', source)
+
     def test_installer_packages_existing_runtime_sources_without_reimplementing_them(self) -> None:
         source = INSTALLER.read_text(encoding="utf-8")
         self.assertIn("a-clockwork-plex-alarm-audio-helper.sh", source)
