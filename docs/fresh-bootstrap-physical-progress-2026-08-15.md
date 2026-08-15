@@ -153,10 +153,45 @@ Regression coverage prevents reintroducing ordinary-user post-install reads of p
 
 Tests #3374 / run `31898610147` passed on source/test head `302a1ee3979c34e404b280590e43450d7cd83c16`: dependency setup, compile, JavaScript/page wiring, shell syntax, all 1,598 unit tests and diagnostics upload completed successfully.
 
+## Attempt 5 — helpers and AirPlay passed; final verifier repeated the protected sudoers assumption
+
+After pulling documented head `a3e960e41f5ff741276bbf94516e2a7faf535057`, the next real spare-SD Direct rerun repeated the established package, paired venv, PN532, DAC Pro, claimed Plexamp, NFC-service and full-preflight gates successfully. The whole-application transaction then advanced beyond the previous blocker:
+
+- Ecowitt-push configuration: PASS;
+- dashboard service and kiosk integration: PASS;
+- alarm-safe Direct route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`: PASS;
+- restricted appliance helper installation: PASS on the real protected filesystem, physically proving the Attempt 4 root-aware correction;
+- guarded AirPlay/Shairport integration: PASS, including metadata service enablement.
+
+The final whole-appliance verifier then reached its complete application/integration, audio, weather and live service/API checks. Every check passed except the two helper sudoers-file presence checks:
+
+```text
+FAIL  alarm-sudoers            missing/unsafe: /etc/sudoers.d/a-clockwork-plex-alarm-audio
+FAIL  shairport-name-sudoers   missing/unsafe: /etc/sudoers.d/a-clockwork-plex-shairport-name
+```
+
+This was the same host-permission assumption in a second independent consumer: `scripts/verify-appliance.sh` used its ordinary-user `require_file` helper for paths beneath real `/etc/sudoers.d`. The helper installer had already proved those installed files through its root-aware verification, while the final verifier could not traverse the protected directory as `andy`.
+
+The final commit gate correctly rejected the application transaction before commit. The complete application-managed pre-state was restored and the package/venv/Plexamp/NFC prerequisite baseline remained retained. The authoritative root installer exit was `2`.
+
+## Correction prepared after Attempt 5
+
+The independent verifier now has a narrowly scoped protected-file check:
+
+- only the two protected sudoers-file checks use `require_protected_file`;
+- production-root inspection is read-only and uses `sudo -n test -f` plus a non-symlink `test -L` rejection;
+- alternate-root integration fixtures retain the ordinary unprivileged `require_file` path;
+- all other verifier checks are unchanged;
+- a failed or unavailable production protected-file inspection still fails closed rather than treating the policy as present.
+
+Regression coverage now pins the two sudoers paths to the protected verifier and places a deliberately failing fake `sudo` first in `PATH` during an alternate-root fixture, proving non-production verification remains unprivileged. The existing static read-only verifier safety check remains green.
+
+Tests #3380 / run `31899362927` passed on source/test head `ab6271f896464a7bbff37e74803fbfc3e18ec5a0`: dependency setup, compile, JavaScript/page wiring, shell syntax, the full unit suite and diagnostics upload completed successfully.
+
 ## Current physical acceptance position
 
-The spare-SD appliance has now physically proven the fresh package/venv baseline, PN532 `0x24`, Raspberry Pi DAC Pro `CARD=Pro`, pinned/claimed Plexamp runtime, guarded NFC listener service, full mandatory host preflight, and successful entry into the guarded whole-application transaction. Weather, dashboard/kiosk and alarm-safe Direct activation all completed before the Attempt 4 helper-verification stop, and the complete application rollback boundary was physically exercised successfully.
+The spare-SD appliance has now physically proven the fresh package/venv baseline, PN532 `0x24`, Raspberry Pi DAC Pro `CARD=Pro`, pinned/claimed Plexamp runtime, guarded NFC listener service, full mandatory host preflight, Weather configuration, dashboard/kiosk, alarm-safe Direct audio, restricted helper packaging and guarded AirPlay integration. The final whole-appliance verifier has also physically passed every check except the two protected sudoers reads that were corrected after Attempt 5, while its failed commit gate again proved complete application rollback.
 
-The next run should pull the root-aware helper-verification correction, repeat the idempotent fresh Direct bootstrap, pass restricted helper installation, then advance to guarded AirPlay integration and the final `scripts/verify-appliance.sh` commit gate inside the application transaction.
+The next run should pull the protected-verifier correction, repeat the idempotent fresh Direct bootstrap and reach the final `scripts/verify-appliance.sh` commit gate again. If the two protected sudoers checks now pass and no new host-only issue appears, this is the first run expected to commit the complete fresh Direct application transaction and return root installer exit `0`.
 
 The production SD card remains the untouched recovery path. PR #2 remains Draft/open/unmerged until explicit approval.
