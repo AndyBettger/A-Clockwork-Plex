@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -131,7 +132,11 @@ class ApplianceVerifierTests(unittest.TestCase):
         provider: str,
         *,
         audio: str = "direct",
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        merged = os.environ.copy()
+        if env:
+            merged.update(env)
         return subprocess.run(
             [
                 "bash",
@@ -150,6 +155,7 @@ class ApplianceVerifierTests(unittest.TestCase):
             cwd=ROOT,
             capture_output=True,
             text=True,
+            env=merged,
             check=False,
         )
 
@@ -223,6 +229,48 @@ class ApplianceVerifierTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("FAIL  weather-secret", result.stdout)
         self.assertNotIn("must-not-be-here", result.stdout)
+
+    def test_protected_sudoers_verification_uses_read_only_root_boundary(self) -> None:
+        source = VERIFIER.read_text(encoding="utf-8")
+
+        self.assertIn("require_protected_file()", source)
+        self.assertIn('sudo -n test -f "$path"', source)
+        self.assertIn('sudo -n test -L "$path"', source)
+        self.assertIn(
+            "require_protected_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'",
+            source,
+        )
+        self.assertIn(
+            "require_protected_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'",
+            source,
+        )
+        self.assertNotIn(
+            "require_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'",
+            source,
+        )
+        self.assertNotIn(
+            "require_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'",
+            source,
+        )
+
+    def test_alternate_root_protected_files_do_not_require_sudo(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_directory:
+            root, user, project_dir = self.make_common_fixture(directory, "ecowitt-push")
+            fake_sudo = Path(bin_directory) / "sudo"
+            fake_sudo.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
+            fake_sudo.chmod(0o755)
+            result = self.run_verifier(
+                root,
+                user,
+                project_dir,
+                "ecowitt-push",
+                env={"PATH": f"{bin_directory}:{os.environ.get('PATH', '')}"},
+            )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS  alarm-sudoers", result.stdout)
+        self.assertIn("PASS  shairport-name-sudoers", result.stdout)
+        self.assertIn("APPLIANCE_VERIFY=PASS", result.stdout)
 
     def test_verifier_is_statically_read_only_against_production(self) -> None:
         source = VERIFIER.read_text(encoding="utf-8")
