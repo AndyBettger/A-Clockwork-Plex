@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-nfc-listener.sh"
-VENDOR = ROOT / "vendor" / "plexamp-nfc-listener"
+VENDOR = ROOT / "vendor/plexamp-nfc-listener"
 CONFIRMATION = "INSTALL-NFC-LISTENER"
 UPSTREAM_COMMIT = "8f5f04213b22cfb5affc6931cb2db91fd07de537"
 UPSTREAM_BLOBS = {
@@ -77,11 +78,45 @@ class NfcListenerInstallerTests(unittest.TestCase):
         source = INSTALLER.read_text(encoding="utf-8")
 
         self.assertIn("SupplementaryGroups=i2c gpio spi", source)
-        self.assertIn('NFC_PYTHON="$PROJECT_DIR/nfc-venv/bin/python"', source)
+        self.assertIn('NFC_PYTHON="$NFC_VENV/bin/python"', source)
         self.assertIn("PLEXAMP_DISPLAY_SWITCH_COMMAND", source)
         self.assertIn("scripts/nfc-plexamp-mode.sh", source)
         self.assertIn("http://localhost:8088/api/mode/plexamp", source)
         self.assertIn("After=network-online.target plexamp.service a-clockwork-plex.service", source)
+
+    def test_production_guard_accepts_standard_venv_python_layout_and_revalidates_it(self) -> None:
+        source = INSTALLER.read_text(encoding="utf-8")
+
+        self.assertNotIn('[[ -x "$NFC_PYTHON" && ! -L "$NFC_PYTHON" ]]', source)
+        self.assertIn('[[ -d "$NFC_VENV" && ! -L "$NFC_VENV" ]]', source)
+        self.assertIn('[[ -f "$NFC_VENV_CONFIG" && ! -L "$NFC_VENV_CONFIG" ]]', source)
+        self.assertIn('[[ -x "$NFC_PYTHON" ]]', source)
+        self.assertIn("sys.prefix != sys.base_prefix", source)
+        self.assertIn("import lgpio, board, busio, requests", source)
+
+        with tempfile.TemporaryDirectory() as directory:
+            venv_path = Path(directory) / "nfc-venv"
+            create = subprocess.run(
+                [sys.executable, "-m", "venv", "--without-pip", str(venv_path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(create.returncode, 0, create.stderr)
+            interpreter = venv_path / "bin/python"
+            self.assertTrue(interpreter.exists())
+            self.assertTrue(os.access(interpreter, os.X_OK))
+            runtime_check = subprocess.run(
+                [
+                    str(interpreter),
+                    "-c",
+                    "import sys; raise SystemExit(0 if sys.prefix != sys.base_prefix else 1)",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(runtime_check.returncode, 0, runtime_check.stderr)
 
     def test_installer_does_not_import_legacy_kiosk_airplay_or_plexamp_handoff_ownership(self) -> None:
         source = INSTALLER.read_text(encoding="utf-8")
