@@ -36,6 +36,11 @@ class AppliancePackageInstallerTests(unittest.TestCase):
             "  if [[ ${3:-} == install ]]; then printf 'installed\\n' >\"$venv/requirements-installed.txt\"; fi\n"
             "  exit 0\n"
             "fi\n"
+            "if [[ ${1:-} == */check_nfc_python_deps.py ]]; then\n"
+            "  venv=$(cd \"$(dirname \"$0\")/..\" && pwd)\n"
+            "  printf 'verified\\n' >\"$venv/nfc-dependencies-verified.txt\"\n"
+            "  exit 0\n"
+            "fi\n"
             "if [[ ${1:-} == -c ]]; then exit 0; fi\n"
             "exit 1\n",
             encoding="utf-8",
@@ -130,6 +135,10 @@ class AppliancePackageInstallerTests(unittest.TestCase):
                 "installed\n",
             )
             self.assertTrue((nfc_venv / "system-site-packages.txt").exists())
+            self.assertEqual(
+                (nfc_venv / "nfc-dependencies-verified.txt").read_text(encoding="utf-8"),
+                "verified\n",
+            )
             self.assertIn("APT mutation skipped by design", result.stdout)
             self.assertIn("APT_ROLLBACK_POLICY=RETAIN-ADDITIVE-PREREQUISITES", result.stdout)
             self.assertIn("VENV_ROLLBACK_POLICY=EXACT-PAIRED-PRESTATE-ON-STAGE-FAILURE", result.stdout)
