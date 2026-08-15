@@ -1,6 +1,6 @@
 # EQ-capable Audio + Full Appliance Installer Roadmap
 
-**Last updated:** 14 August 2026  
+**Last updated:** 15 August 2026  
 **Branch:** `feature/alarm-engine`  
 **PR:** #2 — must remain Draft/open/unmerged until explicit owner approval.
 
@@ -72,7 +72,7 @@ The historical `08d00093...` route remains the exact rollback identity for the p
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, feature/interface acceptance, and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: source handoff complete; physical acceptance next**
+### Phase 7 — full appliance installer integration — **In progress: first physical fresh apply reached a safe Trixie blocker; repaired source/CI handoff is ready for physical rerun**
 
 #### WU Settings commissioning — source/CI complete
 
@@ -88,6 +88,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 
 - [x] Additive package owner includes `i2c-tools`, `python3-lgpio`, `raspi-config` without global OS/firmware upgrade.
 - [x] Paired app + NFC venv transaction; NFC uses `--system-site-packages` for `lgpio`.
+- [x] NFC dependency verification keeps pip as the dependency authority while scoping failures to the recursive vendored listener graph; unrelated Debian system-site metadata gaps are informational and unclassified output fails closed.
 - [x] Guarded I2C/groups/PN532 owner and read-only immediate `0x24` probe.
 - [x] Deterministic Raspberry Pi DAC Pro commissioning with transactional marker-bounded boot config and explicit reboot checkpoint.
 - [x] Exact vendored NFC Listener source from upstream commit `8f5f04213b22cfb5affc6931cb2db91fd07de537`.
@@ -114,7 +115,8 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] `docs/fresh-appliance-acceptance-runbook.md` rewritten for a **spare SD card** while the production card remains untouched.
 - [x] Runbook covers fresh OS/source baseline, evidence capture, Direct install, exit `75` reboot resume, exit `76` Plex claim resume, independent bootstrap/application verifiers, NFC/AirPlay/alarm checks, guarded Camilla acquisition, EQ promotion, reboot, repeat-install and WU Settings commissioning.
 - [x] Full source/CI handoff passed at checkpoint #25.
-- [ ] Physical fresh Direct installation and verification.
+- [x] First real Debian 13/Trixie spare-SD Direct apply reached the package/venv boundary safely, exposed unrelated inherited-system `pip check` noise, restored both venv prestates and did not start hardware/Plexamp/NFC/application commissioning; source/CI repair is checkpoint #26.
+- [ ] Physical fresh Direct installation and verification — rerun checkpoint #26 head from the same spare SD.
 - [ ] Physical Plexamp claim/local UI/playback acceptance.
 - [ ] Physical PN532/NFC playback + dashboard-switch acceptance.
 - [ ] Physical AirPlay/PlaybackCoordinator acceptance.
@@ -149,8 +151,9 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#23 — pinned NFC runtime, paired venv bootstrap and guarded NFC service owner — PASS.** Tests #3263 / run `31664707020`, `63fa8825e4949d8805e43db5beb346c2a3c6b9b6`.
 - **#24 — staged fresh-bootstrap preflight/root route with fail-closed player boundary — PASS.** Tests #3285 / run `31691861309`, `bf701e4ba256c45c0fd295f88026bfbe5a54ffc9`.
 - **#25 — test-ready spare-SD fresh appliance: pinned Plexamp/Node, deterministic DAC Pro, fresh verifier, guarded Camilla fetcher and physical runbook — PASS.** Tests #3339 / run `31848016743`, `a3f05ebee67565cfaa5a6f7a605fc770a7b4fbd8`.
+- **#26 — spare-SD Debian 13/Trixie first apply: real fresh-package boundary exposed and repaired — PASS (source/CI), physical rerun next.** The first physical `--fresh-bootstrap --audio direct` apply on `plexamp-test` confirmed stock Trixie already exposes the accepted `CARD=Pro` and `/dev/i2c-1`, passed fresh stage-zero, installed the one missing additive prerequisite (`shairport-sync`), built the isolated main venv, then stopped before hardware/Plexamp/NFC/application commissioning because whole-environment `pip check` inside the intentionally `--system-site-packages` NFC candidate reported nine unrelated inherited Debian metadata gaps. The package owner restored the exact main/NFC venv prestates and did not start the application transaction. `scripts/check_nfc_python_deps.py` now keeps pip as dependency authority while failing only for requirements in the recursive vendored NFC graph, reports unrelated inherited host issues as information, and fails closed on unclassified output. Regression coverage includes the exact nine physical Trixie lines and a broken owned Blinka→`lgpio` dependency. Tests #3353 / run `31895570826`, `85db50016af086454208c2e0216f479d8b451790`: compile, JavaScript/page wiring, shell syntax and all 1,594 unit tests passed. The physical rerun from the same spare SD is the next gate.
 
-No Phase 7 checkpoint after #25 is recorded as PASS until its exact tested state has passed full CI.
+No Phase 7 checkpoint after #26 is recorded as PASS until its exact tested state has passed full CI.
 
 ### Phase 8 — cleanup and release preparation — **Not started**
 
@@ -167,9 +170,9 @@ No Phase 7 checkpoint after #25 is recorded as PASS until its exact tested state
 
 ## Immediate next action
 
-1. **Physical handoff:** power down the bedroom appliance, remove/store the accepted production SD card untouched, perform the intended cable/HAT/standoff tidy-up while unpowered, insert the spare SD card and flash current 64-bit Raspberry Pi OS with Desktop.
-2. Follow `docs/fresh-appliance-acceptance-runbook.md` exactly from the fresh baseline. Exit `75` is a normal operator reboot/resume checkpoint; exit `76` is a normal local Plexamp claim/name checkpoint.
-3. Stop at the first unexplained failure and preserve the evidence directory before repairing anything.
+1. **Fast-forward `plexamp-test` to the checkpoint #26 repair head** and verify a clean tree before any further mutation.
+2. Rerun the same spare-SD `--fresh-bootstrap --audio direct` apply, preserving the original failed evidence file and writing the rerun to a new evidence file. The scoped NFC dependency check should report the inherited Trixie issues informationally while still failing any owned NFC dependency break.
+3. Continue `docs/fresh-appliance-acceptance-runbook.md` from the first resulting checkpoint: PN532 `0x24` hardware acceptance, then exit `75` reboot/resume or exit `76` local Plexamp claim/name as applicable. Stop at any unexplained exit.
 4. Complete Direct physical acceptance, guarded EQ promotion, reboot, repeat install and real WU Settings commissioning.
 5. Commit the dated physical result document; only then consider Phase 7 complete and move to the Phase 8 README/release pass.
 
