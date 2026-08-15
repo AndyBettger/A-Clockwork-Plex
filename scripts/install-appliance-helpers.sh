@@ -154,6 +154,37 @@ rollback() {
     acp_transaction_restore_paths "$TRANSACTION"
 }
 
+verify_regular_file() {
+    local logical="$1" physical
+    physical="$(acp_path "$logical")" || return 1
+    if ! acp_run_root test -f "$physical" || acp_run_root test -L "$physical"; then
+        acp_error "Installed helper target is not a regular non-symlink file: $logical"
+        return 1
+    fi
+}
+
+verify_mode() {
+    local logical="$1" expected="$2" physical actual
+    physical="$(acp_path "$logical")" || return 1
+    if ! actual="$(acp_run_root stat -c '%a' "$physical")"; then
+        acp_error "Unable to inspect installed helper target mode: $logical"
+        return 1
+    fi
+    if [[ "$actual" != "$expected" ]]; then
+        acp_error "Installed helper target has mode $actual; expected $expected: $logical"
+        return 1
+    fi
+}
+
+verify_contains() {
+    local logical="$1" expected="$2" physical
+    physical="$(acp_path "$logical")" || return 1
+    if ! acp_run_root grep -Fq -- "$expected" "$physical"; then
+        acp_error "Installed helper policy is missing required rule: $logical"
+        return 1
+    fi
+}
+
 activate() {
     local installed
     acp_install_file "$ALARM_SOURCE" "$ALARM_TARGET" 0755 || return 1
@@ -169,18 +200,18 @@ activate() {
     fi
 
     for installed in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS" "$WEATHER_TARGET" "$WEATHER_SUDOERS"; do
-        [[ -f "$(acp_path "$installed")" && ! -L "$(acp_path "$installed")" ]] || return 1
+        verify_regular_file "$installed" || return 1
     done
-    [[ "$(stat -c '%a' "$(acp_path "$ALARM_TARGET")")" == 755 ]] || return 1
-    [[ "$(stat -c '%a' "$(acp_path "$NAME_TARGET")")" == 755 ]] || return 1
-    [[ "$(stat -c '%a' "$(acp_path "$WEATHER_TARGET")")" == 755 ]] || return 1
-    [[ "$(stat -c '%a' "$(acp_path "$ALARM_SUDOERS")")" == 440 ]] || return 1
-    [[ "$(stat -c '%a' "$(acp_path "$NAME_SUDOERS")")" == 440 ]] || return 1
-    [[ "$(stat -c '%a' "$(acp_path "$WEATHER_SUDOERS")")" == 440 ]] || return 1
-    grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release" "$(acp_path "$ALARM_SUDOERS")" || return 1
-    grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status" "$(acp_path "$NAME_SUDOERS")" || return 1
-    grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set" "$(acp_path "$WEATHER_SUDOERS")" || return 1
-    grep -Fq "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove" "$(acp_path "$WEATHER_SUDOERS")" || return 1
+    verify_mode "$ALARM_TARGET" 755 || return 1
+    verify_mode "$NAME_TARGET" 755 || return 1
+    verify_mode "$WEATHER_TARGET" 755 || return 1
+    verify_mode "$ALARM_SUDOERS" 440 || return 1
+    verify_mode "$NAME_SUDOERS" 440 || return 1
+    verify_mode "$WEATHER_SUDOERS" 440 || return 1
+    verify_contains "$ALARM_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release" || return 1
+    verify_contains "$NAME_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status" || return 1
+    verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set" || return 1
+    verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove" || return 1
 }
 
 if ! activate; then
