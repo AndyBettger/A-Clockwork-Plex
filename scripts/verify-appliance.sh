@@ -148,6 +148,20 @@ require_file() {
     fi
 }
 
+require_protected_file() {
+    local label="$1" logical="$2" path
+    path="$(root_path "$logical")"
+    if [[ "$ROOT" == / ]]; then
+        if sudo -n test -f "$path" 2>/dev/null && ! sudo -n test -L "$path" 2>/dev/null; then
+            pass "$label" "$logical"
+        else
+            fail_check "$label" "missing/unsafe or protected inspection unavailable: $logical"
+        fi
+    else
+        require_file "$label" "$logical"
+    fi
+}
+
 require_contains() {
     local label="$1" logical="$2" needle="$3" path
     path="$(root_path "$logical")"
@@ -204,9 +218,9 @@ require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-met
 require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' 'Environment=SHAIRPORT_METADATA_PIPE=/tmp/shairport-sync-metadata'
 require_contains metadata-unit '/etc/systemd/system/a-clockwork-plex-airplay-metadata.service' 'scripts/airplay-metadata-listener.py'
 require_file alarm-helper '/usr/local/bin/a-clockwork-plex-alarm-audio'
-require_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
+require_protected_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
 require_file shairport-name-helper '/usr/local/bin/a-clockwork-plex-shairport-name'
-require_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'
+require_protected_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'
 require_contains shairport-config '/etc/shairport-sync.conf' '/usr/local/bin/a-clockwork-plex-airplay-start'
 require_contains shairport-config '/etc/shairport-sync.conf' '/usr/local/bin/a-clockwork-plex-airplay-end'
 require_contains shairport-config '/etc/shairport-sync.conf' '/tmp/shairport-sync-metadata'
