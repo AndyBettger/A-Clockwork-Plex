@@ -141,6 +141,8 @@ class PlexampRuntimeInstallerTests(unittest.TestCase):
                 "ExecStart=/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node /home/clockuser/plexamp/js/index.js",
                 unit_text,
             )
+            self.assertEqual(list((root / "opt/a-clockwork-plex").glob(".acp-node-stage.*")), [])
+            self.assertEqual(list((root / "home/clockuser").glob(".acp-plexamp-stage.*")), [])
 
     def test_claimed_rerun_is_idempotent_and_does_not_need_archives_again(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -229,6 +231,8 @@ class PlexampRuntimeInstallerTests(unittest.TestCase):
             self.assertEqual(unit.stat().st_mode & 0o777, 0o600)
             self.assertFalse((old_node / "bin/node").exists())
             self.assertFalse((old_plex / "js/index.js").exists())
+            self.assertEqual(list((root / "opt/a-clockwork-plex").glob(".acp-node-stage.*")), [])
+            self.assertEqual(list((root / "home/clockuser").glob(".acp-plexamp-stage.*")), [])
 
     def test_digest_mismatch_fails_before_runtime_or_unit_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -271,6 +275,29 @@ class PlexampRuntimeInstallerTests(unittest.TestCase):
         self.assertNotIn("curl | bash", source)
         self.assertNotIn("nodesource", source.lower())
         self.assertNotIn("nvm install", source)
+
+    def test_systemd_verify_runs_only_after_activated_runtime_checks(self) -> None:
+        source = INSTALLER.read_text(encoding="utf-8")
+        verify_at = source.index('systemd-analyze verify "$UNIT_CANDIDATE"')
+        node_at = source.index("Activated Node runtime is incomplete.")
+        plexamp_at = source.index("Activated Plexamp runtime is incomplete.")
+        unit_install_at = source.index('acp_install_file "$UNIT_CANDIDATE" "$UNIT_TARGET"')
+
+        self.assertGreater(verify_at, node_at)
+        self.assertGreater(verify_at, plexamp_at)
+        self.assertLess(verify_at, unit_install_at)
+        self.assertIn(
+            "Rendered plexamp.service failed systemd verification after runtime activation.",
+            source,
+        )
+
+    def test_runtime_staging_cleanup_preserves_rollback_payloads(self) -> None:
+        source = INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("cleanup_stage_parents()", source)
+        self.assertIn('previous="${NODE_PREVIOUS:-}"', source)
+        self.assertIn('previous="${PLEXAMP_PREVIOUS:-}"', source)
+        self.assertIn('[[ -z "$previous" || ! -e "$previous" ]]', source)
+        self.assertIn("cleanup_transaction; cleanup_stage_parents; cleanup_downloads", source)
 
     def test_production_test_digest_overrides_are_explicitly_forbidden(self) -> None:
         source = INSTALLER.read_text(encoding="utf-8")

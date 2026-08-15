@@ -224,7 +224,32 @@ DOWNLOAD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-plexamp-download.XXX
 NODE_DOWNLOAD="$DOWNLOAD_DIR/$ACP_NODE_ARCHIVE"
 PLEXAMP_DOWNLOAD="$DOWNLOAD_DIR/$ACP_PLEXAMP_ARCHIVE"
 cleanup_downloads() { rm -rf -- "$DOWNLOAD_DIR"; }
-trap cleanup_downloads EXIT
+
+cleanup_stage_parents() {
+    local previous
+    if [[ -n "${NODE_STAGE_PARENT:-}" && -d "$NODE_STAGE_PARENT" ]]; then
+        previous="${NODE_PREVIOUS:-}"
+        if [[ -z "$previous" || ! -e "$previous" ]]; then
+            if [[ "$ROOT" == / ]]; then
+                sudo -- rm -rf -- "$NODE_STAGE_PARENT" >/dev/null 2>&1 || true
+            else
+                rm -rf -- "$NODE_STAGE_PARENT" >/dev/null 2>&1 || true
+            fi
+        fi
+    fi
+    if [[ -n "${PLEXAMP_STAGE_PARENT:-}" && -d "$PLEXAMP_STAGE_PARENT" ]]; then
+        previous="${PLEXAMP_PREVIOUS:-}"
+        if [[ -z "$previous" || ! -e "$previous" ]]; then
+            rm -rf -- "$PLEXAMP_STAGE_PARENT" >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+cleanup_pretransaction() {
+    cleanup_stage_parents
+    cleanup_downloads
+}
+trap cleanup_pretransaction EXIT
 
 obtain_archive() {
     local label="$1" supplied="$2" url="$3" destination="$4" expected="$5"
@@ -328,10 +353,6 @@ for expected in \
     "ExecStart=$NODE_TARGET/bin/node $PLEXAMP_TARGET/js/index.js"; do
     grep -Fxq "$expected" "$UNIT_CANDIDATE" || { error "Rendered Plexamp unit is missing: $expected"; exit 1; }
 done
-if [[ "$ROOT" == / ]] && command -v systemd-analyze >/dev/null 2>&1; then
-    systemd-analyze verify "$UNIT_CANDIDATE" >/dev/null
-fi
-
 # The unit uses exact-file transaction primitives. Runtime directories use a
 # paired same-filesystem rename transaction because the shared path transaction
 # intentionally supports regular files only.
@@ -351,7 +372,7 @@ NODE_SWAPPED=false
 PLEXAMP_SWAPPED=false
 
 cleanup_transaction() { rm -rf -- "$TRANSACTION_PARENT"; }
-trap 'cleanup_transaction; cleanup_downloads' EXIT
+trap 'cleanup_transaction; cleanup_stage_parents; cleanup_downloads' EXIT
 
 rollback_runtime() {
     local failed=0
@@ -427,13 +448,22 @@ if [[ "$plexamp_ready" != true ]]; then
     PLEXAMP_SWAPPED=true
 fi
 
-acp_install_file "$UNIT_CANDIDATE" "$UNIT_TARGET" 0644 || fail_after_mutation 'Could not install plexamp.service.'
-
 [[ -x "$NODE_TARGET_PATH/bin/node" ]] || fail_after_mutation 'Activated Node runtime is incomplete.'
 [[ "$($NODE_TARGET_PATH/bin/node --version 2>/dev/null || true)" == "v$ACP_NODE_VERSION" ]] || fail_after_mutation 'Activated Node runtime version mismatch.'
 manifest_matches "$NODE_MANIFEST" node "$ACP_NODE_VERSION" "$EXPECTED_NODE_SHA" || fail_after_mutation 'Activated Node runtime manifest mismatch.'
 [[ -f "$PLEXAMP_TARGET_PATH/js/index.js" ]] || fail_after_mutation 'Activated Plexamp runtime is incomplete.'
 manifest_matches "$PLEXAMP_MANIFEST" plexamp "$ACP_PLEXAMP_VERSION" "$EXPECTED_PLEXAMP_SHA" || fail_after_mutation 'Activated Plexamp runtime manifest mismatch.'
+
+# systemd-analyze resolves ExecStart while verifying a unit. On a genuinely
+# fresh Pi the pinned Node path does not exist until the runtime candidate has
+# been promoted. Keep verification fail-closed, but perform it here inside the
+# runtime transaction so the exact rendered paths exist and any failure can
+# restore the captured runtime/service pre-state.
+if [[ "$ROOT" == / ]] && command -v systemd-analyze >/dev/null 2>&1; then
+    systemd-analyze verify "$UNIT_CANDIDATE" >/dev/null ||         fail_after_mutation 'Rendered plexamp.service failed systemd verification after runtime activation.'
+fi
+
+acp_install_file "$UNIT_CANDIDATE" "$UNIT_TARGET" 0644 || fail_after_mutation 'Could not install plexamp.service.'
 
 if [[ "$ROOT" != / && "${ACP_PLEXAMP_TEST_FAIL_AFTER_SWAP:-0}" == 1 ]]; then
     fail_after_mutation 'Injected non-production failure after runtime swap.'
