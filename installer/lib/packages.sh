@@ -28,9 +28,12 @@ Package and artifact ownership:
     i2c-tools python3-lgpio raspi-config
 
   Python environments (guarded paired bootstrap ownership):
-    * main repository venv: install requirements.txt, pip check/import verify;
+    * main repository venv: install requirements.txt, full pip check/import verify;
     * NFC venv: create with --system-site-packages, install the pinned vendored
-      Plexamp NFC Listener requirements, pip check/import verify including lgpio.
+      Plexamp NFC Listener requirements, then use pip's dependency checker scoped
+      to the recursive listener dependency graph plus hardware imports including
+      lgpio. Unrelated Debian distributions inherited through system site packages
+      are reported but do not become A Clockwork Plex dependency failures.
     Both candidates are complete before either live venv is replaced. A failed
     activation restores both exact previous directories or previous absence.
 
