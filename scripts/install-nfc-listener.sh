@@ -104,7 +104,9 @@ if command -v git >/dev/null 2>&1; then
     }
 fi
 
-NFC_PYTHON="$PROJECT_DIR/nfc-venv/bin/python"
+NFC_VENV="$PROJECT_DIR/nfc-venv"
+NFC_VENV_CONFIG="$NFC_VENV/pyvenv.cfg"
+NFC_PYTHON="$NFC_VENV/bin/python"
 NFC_RUNTIME="$PROJECT_DIR/$VENDORED_RELATIVE"
 DISPLAY_SWITCH="$PROJECT_DIR/scripts/nfc-plexamp-mode.sh"
 
@@ -188,8 +190,30 @@ if acp_is_production_root; then
         echo 'Production NFC installation requires --project-dir to match the running repository.' >&2
         exit 1
     }
-    [[ -x "$NFC_PYTHON" && ! -L "$NFC_PYTHON" ]] || {
-        echo "NFC venv is not ready: $NFC_PYTHON" >&2
+    [[ -d "$NFC_VENV" && ! -L "$NFC_VENV" ]] || {
+        echo "NFC venv directory is not ready: $NFC_VENV" >&2
+        exit 1
+    }
+    [[ -f "$NFC_VENV_CONFIG" && ! -L "$NFC_VENV_CONFIG" ]] || {
+        echo "NFC venv metadata is not ready: $NFC_VENV_CONFIG" >&2
+        exit 1
+    }
+    # A standard Python venv normally exposes bin/python as a symlink to the
+    # distribution interpreter. Rejecting that symlink would reject the exact
+    # venv created and verified by install-appliance-packages.sh. Instead verify
+    # the containing venv metadata, require an executable interpreter, prove that
+    # Python recognises the invocation as a venv, and re-import the owned runtime
+    # dependencies before the systemd unit can be installed.
+    [[ -x "$NFC_PYTHON" ]] || {
+        echo "NFC venv interpreter is not executable: $NFC_PYTHON" >&2
+        exit 1
+    }
+    "$NFC_PYTHON" -c 'import sys; raise SystemExit(0 if sys.prefix != sys.base_prefix else 1)' || {
+        echo "NFC interpreter is not running inside the expected venv: $NFC_PYTHON" >&2
+        exit 1
+    }
+    "$NFC_PYTHON" -c 'import lgpio, board, busio, requests; from adafruit_pn532.i2c import PN532_I2C' || {
+        echo 'NFC venv runtime dependency verification failed.' >&2
         exit 1
     }
     [[ -f "$NFC_RUNTIME" && ! -L "$NFC_RUNTIME" ]] || {
