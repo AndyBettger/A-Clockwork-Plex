@@ -104,7 +104,18 @@ types-seaborn 0.13.2 requires pandas-stubs, which is not installed.
 
     def test_package_owner_uses_scoped_checker_for_candidate_and_live_nfc_venvs(self) -> None:
         source = PACKAGE_INSTALLER.read_text(encoding="utf-8")
-        self.assertGreaterEqual(source.count("check_nfc_python_deps.py"), 3)
+        self.assertIn(
+            'NFC_DEPENDENCY_CHECK="$REPO_ROOT/scripts/check_nfc_python_deps.py"',
+            source,
+        )
+        self.assertIn(
+            '"$NFC_CANDIDATE/bin/python" "$NFC_DEPENDENCY_CHECK" --requirements "$NFC_REQUIREMENTS"',
+            source,
+        )
+        self.assertIn(
+            '"$NFC_VENV_TARGET/bin/python" "$NFC_DEPENDENCY_CHECK" --requirements "$NFC_REQUIREMENTS"',
+            source,
+        )
         self.assertNotIn(
             '"$NFC_CANDIDATE/bin/python" -m pip check',
             source,
