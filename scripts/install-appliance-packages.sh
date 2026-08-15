@@ -81,6 +81,7 @@ VENV_TARGET="$PROJECT_ROOT/venv"
 NFC_VENV_TARGET="$PROJECT_ROOT/nfc-venv"
 REQUIREMENTS="$REPO_ROOT/requirements.txt"
 NFC_REQUIREMENTS="$REPO_ROOT/vendor/plexamp-nfc-listener/requirements.txt"
+NFC_DEPENDENCY_CHECK="$REPO_ROOT/scripts/check_nfc_python_deps.py"
 
 [[ -d "$PROJECT_ROOT" && ! -L "$PROJECT_ROOT" ]] || {
     error "Project root is unavailable or unsafe: $PROJECT_ROOT"
@@ -92,6 +93,10 @@ for requirements_file in "$REQUIREMENTS" "$NFC_REQUIREMENTS"; do
         exit 1
     }
 done
+[[ -f "$NFC_DEPENDENCY_CHECK" && ! -L "$NFC_DEPENDENCY_CHECK" ]] || {
+    error "NFC dependency verifier is unavailable or unsafe: $NFC_DEPENDENCY_CHECK"
+    exit 1
+}
 
 if [[ "$MODE" == activate ]]; then
     [[ "$CONFIRM" == "$CONFIRM_TOKEN" ]] || {
@@ -131,9 +136,12 @@ APT policy:
 
 Venv policy:
   build complete main and NFC candidates first; the NFC candidate uses
-  --system-site-packages so Raspberry Pi OS python3-lgpio is visible. Verify both
-  candidates before a paired live swap. A later failure restores both exact
-  previous venv directories or their exact previous absence.
+  --system-site-packages so Raspberry Pi OS python3-lgpio is visible. The main
+  isolated venv receives a complete pip check. NFC dependency verification uses
+  pip's checker but scopes failures to the recursive listener dependency graph,
+  because unrelated Debian distributions are intentionally inherited by that
+  venv. Verify both candidates before a paired live swap. A later failure restores
+  both exact previous venv directories or their exact previous absence.
 EOF
 
 echo
@@ -258,7 +266,7 @@ echo 'Building staged NFC Python environment with system site packages...'
 "$PYTHON_BIN" -m venv --system-site-packages "$NFC_CANDIDATE" || fail_venvs 'Failed to create staged NFC venv.'
 [[ -x "$NFC_CANDIDATE/bin/python" ]] || fail_venvs 'Staged NFC venv did not provide executable bin/python.'
 "$NFC_CANDIDATE/bin/python" -m pip install --disable-pip-version-check -r "$NFC_REQUIREMENTS" || fail_venvs 'NFC requirements installation failed in staged venv.'
-"$NFC_CANDIDATE/bin/python" -m pip check || fail_venvs 'pip check failed in staged NFC venv.'
+"$NFC_CANDIDATE/bin/python" "$NFC_DEPENDENCY_CHECK" --requirements "$NFC_REQUIREMENTS" || fail_venvs 'Owned dependency check failed in staged NFC venv.'
 if [[ "$ROOT" == / ]]; then
     "$NFC_CANDIDATE/bin/python" -c 'import lgpio, board, busio, requests; from adafruit_pn532.i2c import PN532_I2C' || fail_venvs 'NFC hardware-library import verification failed in staged venv.'
 else
@@ -285,7 +293,7 @@ fi
 
 "$VENV_TARGET/bin/python" -m pip check || fail_venvs 'Activated main venv failed pip check.'
 "$VENV_TARGET/bin/python" -c 'import flask' || fail_venvs 'Activated main venv failed Flask import verification.'
-"$NFC_VENV_TARGET/bin/python" -m pip check || fail_venvs 'Activated NFC venv failed pip check.'
+"$NFC_VENV_TARGET/bin/python" "$NFC_DEPENDENCY_CHECK" --requirements "$NFC_REQUIREMENTS" || fail_venvs 'Activated NFC venv failed owned dependency check.'
 if [[ "$ROOT" == / ]]; then
     "$NFC_VENV_TARGET/bin/python" -c 'import lgpio, board, busio, requests; from adafruit_pn532.i2c import PN532_I2C' || fail_venvs 'Activated NFC venv failed hardware-library import verification.'
 else
