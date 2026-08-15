@@ -93,6 +93,18 @@ require_file() {
     if [[ -f "$path" && ! -L "$path" ]]; then pass "$label" "$logical"; else fail_check "$label" "missing/unsafe: $logical"; fi
 }
 
+require_dir() {
+    local label="$1" logical="$2" path
+    path="$(root_path "$logical")"
+    if [[ -d "$path" && ! -L "$path" ]]; then pass "$label" "$logical"; else fail_check "$label" "missing/unsafe: $logical"; fi
+}
+
+require_executable() {
+    local label="$1" logical="$2" path
+    path="$(root_path "$logical")"
+    if [[ -x "$path" ]]; then pass "$label" "$logical"; else fail_check "$label" "missing/non-executable: $logical"; fi
+}
+
 require_contains() {
     local label="$1" logical="$2" needle="$3" path
     path="$(root_path "$logical")"
@@ -148,7 +160,15 @@ if [[ -f "$nfc_path" ]] && command -v git >/dev/null 2>&1; then
 else
     fail_check nfc-source 'git or pinned listener source unavailable'
 fi
-require_file nfc-python "$NFC_VENV/bin/python"
+require_dir nfc-venv "$NFC_VENV"
+require_file nfc-pyvenv "$NFC_VENV/pyvenv.cfg"
+require_executable nfc-python "$NFC_VENV/bin/python"
+nfc_python="$(root_path "$NFC_VENV/bin/python")"
+if [[ -x "$nfc_python" ]] && "$nfc_python" -c 'import sys; raise SystemExit(0 if sys.prefix != sys.base_prefix else 1)' >/dev/null 2>&1; then
+    pass nfc-venv-runtime 'sys.prefix != sys.base_prefix'
+else
+    fail_check nfc-venv-runtime 'NFC Python is not executing inside a venv'
+fi
 require_contains nfc-unit '/etc/systemd/system/nfc-listener.service' "User=$PROJECT_USER"
 require_contains nfc-unit '/etc/systemd/system/nfc-listener.service' 'SupplementaryGroups=i2c gpio spi'
 require_contains nfc-unit '/etc/systemd/system/nfc-listener.service' "ExecStart=$NFC_VENV/bin/python $NFC_RUNTIME"
@@ -170,7 +190,6 @@ echo 'Live hardware and services:'
 
     if curl -fsS "http://127.0.0.1:$ACP_PLEXAMP_PORT/" >/dev/null; then pass plexamp-api "localhost:$ACP_PLEXAMP_PORT"; else fail_check plexamp-api "localhost:$ACP_PLEXAMP_PORT unavailable"; fi
 
-    nfc_python="$(root_path "$NFC_VENV/bin/python")"
     if "$nfc_python" -c 'import lgpio, board, busio, requests; from adafruit_pn532.i2c import PN532_I2C' >/dev/null 2>&1; then
         pass nfc-imports 'lgpio/Blinka/PN532/requests'
     else

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -43,10 +44,13 @@ class FreshBootstrapVerifierTests(unittest.TestCase):
         vendor = project / "vendor/plexamp-nfc-listener"
         vendor.mkdir(parents=True)
         shutil.copyfile(VENDORED_NFC, vendor / "nfc_listener.py")
-        nfc_python = project / "nfc-venv/bin/python"
-        nfc_python.parent.mkdir(parents=True)
-        nfc_python.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
-        nfc_python.chmod(0o755)
+        nfc_venv = project / "nfc-venv"
+        subprocess.run(
+            [sys.executable, "-m", "venv", "--symlinks", str(nfc_venv)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
         systemd = root / "etc/systemd/system"
         systemd.mkdir(parents=True)
@@ -96,6 +100,8 @@ class FreshBootstrapVerifierTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
+            nfc_python = root / "project/nfc-venv/bin/python"
+            self.assertTrue(nfc_python.is_symlink())
             result = self.run_verifier(root)
 
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -103,6 +109,10 @@ class FreshBootstrapVerifierTests(unittest.TestCase):
         self.assertIn("PASS  plexamp-manifest", result.stdout)
         self.assertIn("PASS  plexamp-claim", result.stdout)
         self.assertIn("PASS  nfc-source", result.stdout)
+        self.assertIn("PASS  nfc-venv", result.stdout)
+        self.assertIn("PASS  nfc-pyvenv", result.stdout)
+        self.assertIn("PASS  nfc-python", result.stdout)
+        self.assertIn("PASS  nfc-venv-runtime", result.stdout)
         self.assertIn("WARN  live-hardware", result.stdout)
         self.assertIn("FRESH_BOOTSTRAP_VERIFY=PASS", result.stdout)
 
@@ -127,6 +137,17 @@ class FreshBootstrapVerifierTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("FAIL  nfc-source", result.stdout)
 
+    def test_missing_pyvenv_cfg_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "project/nfc-venv/pyvenv.cfg").unlink()
+            result = self.run_verifier(root)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("FAIL  nfc-pyvenv", result.stdout)
+        self.assertIn("FAIL  nfc-venv-runtime", result.stdout)
+
     def test_verifier_is_statically_read_only(self) -> None:
         source = VERIFIER.read_text(encoding="utf-8")
         for forbidden in (
@@ -144,6 +165,9 @@ class FreshBootstrapVerifierTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
         self.assertIn("FRESH_BOOTSTRAP_VERIFY=PASS", source)
         self.assertIn("sudo -- i2cdetect", source)
+        self.assertNotIn('require_file nfc-python "$NFC_VENV/bin/python"', source)
+        self.assertIn('require_executable nfc-python "$NFC_VENV/bin/python"', source)
+        self.assertIn("sys.prefix != sys.base_prefix", source)
 
 
 if __name__ == "__main__":
