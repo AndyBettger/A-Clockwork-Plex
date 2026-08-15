@@ -106,8 +106,57 @@ Regression coverage explicitly prevents reintroducing the `! -L "$NFC_PYTHON"` g
 
 Tests #3368 passed on source/test head `40c179de6a80cf6b91e4e0b5d308264a6e871b1f`: dependency setup, compile, JavaScript/page wiring, shell syntax, unit tests and diagnostics upload all completed successfully.
 
+## Attempt 4 — NFC and full preflight passed; protected sudoers verification exposed
+
+After pulling the documented NFC correction at `ac623156612030cf154e86c9851ce34759402ddf`, the real spare-SD Direct rerun advanced through every fresh-bootstrap owner and entered the whole-application transaction for the first time.
+
+Fresh/bootstrap evidence:
+
+- package/artifact availability: PASS;
+- fresh stage-zero preflight: PASS with only the expected Ecowitt site-commissioning warning;
+- paired main/NFC venv bootstrap: PASS;
+- NFC owned dependency graph: PASS, 23 owned distributions; the same nine unrelated inherited Trixie metadata issues remained informational;
+- PN532 I2C bus 1 address `0x24`: PASS;
+- Raspberry Pi DAC Pro `CARD=Pro`: PASS;
+- DAC boot config remained untouched because the accepted card was already exposed;
+- Plexamp Headless 4.13.2 / Node 20.20.2 claimed-runtime resume: PASS;
+- guarded `nfc-listener.service` install/enable: PASS;
+- full mandatory host preflight: PASS with the expected Ecowitt warning only.
+
+The guarded whole-application transaction then physically exercised these stages successfully:
+
+- Ecowitt-push observation-provider configuration: PASS;
+- dashboard service + Chromium kiosk integration: PASS;
+- alarm-safe Direct route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`: PASS.
+
+The transaction stopped at restricted helper packaging. The helper installer had already installed the helper and sudoers candidates through its root-aware write path, but its post-install verification attempted to inspect all six managed targets as the normal project user. On a real Raspberry Pi OS host `/etc/sudoers.d` is deliberately protected, so an ordinary-user `[[ -f ... ]]`, `stat`, or `grep` cannot reliably traverse/read those policy files even though the root-owned installation itself succeeded.
+
+The failure remained safe:
+
+- helper installer restored its captured helper pre-state;
+- outer whole-application transaction restored the complete managed application pre-state;
+- package/venv/Plexamp/NFC prerequisite baseline remained retained by explicit policy;
+- AirPlay activation and the final whole-appliance verifier were not reached;
+- authoritative root installer exit was `2`.
+
+## Correction prepared after Attempt 4
+
+The helper owner now verifies protected managed files through the same privileged boundary that owns their write and rollback paths:
+
+- regular-file/non-symlink checks use `acp_run_root test`;
+- mode checks use `acp_run_root stat`;
+- required sudoers-rule checks use `acp_run_root grep`;
+- every failed validation now emits the exact managed path/check rather than collapsing silently into the generic transaction failure;
+- helper executables and sudoers policies retain their existing `0755` / `0440` requirements and exact restricted command rules.
+
+Regression coverage prevents reintroducing ordinary-user post-install reads of protected helper policy files.
+
+Tests #3374 / run `31898610147` passed on source/test head `302a1ee3979c34e404b280590e43450d7cd83c16`: dependency setup, compile, JavaScript/page wiring, shell syntax, all 1,598 unit tests and diagnostics upload completed successfully.
+
 ## Current physical acceptance position
 
-The spare-SD appliance now has a successfully installed and locally claimed pinned Plexamp runtime, physically accepted PN532 and DAC hardware, and the paired Trixie Python environments. The next run should pull the documented NFC-venv correction, repeat the idempotent fresh Direct bootstrap, pass the NFC service owner, then reach the full host preflight and guarded whole-application transaction for the first time.
+The spare-SD appliance has now physically proven the fresh package/venv baseline, PN532 `0x24`, Raspberry Pi DAC Pro `CARD=Pro`, pinned/claimed Plexamp runtime, guarded NFC listener service, full mandatory host preflight, and successful entry into the guarded whole-application transaction. Weather, dashboard/kiosk and alarm-safe Direct activation all completed before the Attempt 4 helper-verification stop, and the complete application rollback boundary was physically exercised successfully.
+
+The next run should pull the root-aware helper-verification correction, repeat the idempotent fresh Direct bootstrap, pass restricted helper installation, then advance to guarded AirPlay integration and the final `scripts/verify-appliance.sh` commit gate inside the application transaction.
 
 The production SD card remains the untouched recovery path. PR #2 remains Draft/open/unmerged until explicit approval.
