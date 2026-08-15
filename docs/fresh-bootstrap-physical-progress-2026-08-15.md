@@ -40,9 +40,9 @@ The Plexamp owner downloaded and SHA-verified both pinned production artifacts:
 
 It then stopped before runtime promotion because `systemd-analyze verify` resolved the rendered `ExecStart` path while the fresh pinned Node candidate was still staged rather than present at its final `/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node` path.
 
-## Correction prepared
+## Correction prepared after Attempt 2
 
-Commit `1ca97d345ddb3caa2f1123db89146246101e9631` corrects the fresh-runtime transaction ordering:
+Commit `1ca97d345ddb3caa2f1123db89146246101e9631` corrected the fresh-runtime transaction ordering:
 
 1. stage and cryptographically verify Node and Plexamp before mutation;
 2. open the runtime/unit rollback transaction;
@@ -61,8 +61,53 @@ Focused validation passed before the patch commit was pushed:
 - regression coverage confirms systemd verification occurs after activated-runtime checks and before unit installation;
 - fresh claim-required and injected-rollback fixtures leave no new staging parents behind.
 
+## Attempt 3 — Plexamp claim/resume passed; standard NFC venv interpreter layout exposed
+
+After pulling the corrected Plexamp runtime head, the real spare-SD install repeated package, venv and hardware acceptance successfully. The corrected Plexamp transaction then reached the intended explicit local claim boundary:
+
+- pinned Node 20.20.2 installed under `/opt/a-clockwork-plex/node-v20.20.2-linux-arm64`;
+- pinned Plexamp Headless 4.13.2 installed under `/home/andy/plexamp`;
+- `plexamp.service` installed but deliberately left inactive/disabled before claim;
+- root installer exited `76` with `PLEXAMP_RUNTIME=CLAIM-REQUIRED`.
+
+Plexamp was then started locally in the foreground using the exact pinned Node executable. The fresh claim code and player name were entered only on the Pi. Plexamp reported `Plexamp is now signed in and ready!`; persistent state appeared at `/home/andy/.local/share/Plexamp/Settings`. Post-claim evidence confirmed Node `v20.20.2`, `PLEXAMP_SETTINGS=PRESENT`, and a loaded but still inactive/disabled `plexamp.service`, as intended before root-installer resume.
+
+On the resumed root installer run:
+
+- package/main/NFC venv bootstrap: PASS;
+- PN532 `0x24`: PASS;
+- `CARD=Pro`: PASS;
+- post-hardware/player-pending preflight: PASS;
+- claimed Plexamp runtime repair/resume: PASS;
+- `plexamp.service` was enabled and the pinned runtime owner reported `PLEXAMP_RUNTIME=PASS` and port `32500`.
+
+The installer then reached the guarded NFC listener owner for the first time and stopped before any NFC service or application transaction because that owner required:
+
+```text
+[[ -x "$NFC_PYTHON" && ! -L "$NFC_PYTHON" ]]
+```
+
+A Python `venv` created by the paired package owner normally exposes `bin/python` as a symlink to the distribution interpreter. The same live interpreter had just been executed successfully by the package owner after the paired venv swap, including `lgpio`, Blinka/busio, requests and PN532 imports. The NFC service owner therefore rejected a healthy, standard venv layout rather than a broken dependency state.
+
+The root wrapper maps NFC-owner failure through its generic fail-closed path (`exit 2`). The shell transcript displayed a stale `76` because `rc` had not been refreshed from the new installer pipeline after the previous claim-required run; this was evidence-command bookkeeping and did not alter installer behaviour.
+
+## Correction prepared after Attempt 3
+
+The NFC owner now validates the actual boundary it depends on instead of banning Python's standard venv interpreter symlink:
+
+- the `nfc-venv` directory itself must be a real directory, not a symlink;
+- `pyvenv.cfg` must be a real file, not a symlink;
+- `bin/python` must be executable, but may use the normal venv symlink layout;
+- the interpreter must prove `sys.prefix != sys.base_prefix`;
+- the owner re-imports `lgpio`, `board`, `busio`, `requests` and `PN532_I2C` before installing the unit;
+- the existing pinned NFC runtime/display-helper and systemd transaction checks remain unchanged.
+
+Regression coverage explicitly prevents reintroducing the `! -L "$NFC_PYTHON"` guard and constructs a real Python venv to prove the runtime-prefix check accepts standard interpreter layout.
+
+Tests #3368 passed on source/test head `40c179de6a80cf6b91e4e0b5d308264a6e871b1f`: dependency setup, compile, JavaScript/page wiring, shell syntax, unit tests and diagnostics upload all completed successfully.
+
 ## Current physical acceptance position
 
-The next spare-SD run should repeat the guarded fresh Direct installer from the root. Package, venv, I2C, PN532 and DAC stages are expected to be idempotent. If the corrected Plexamp transaction succeeds on the real Pi, the next deliberate bootstrap checkpoint is expected to be exit `76`, `PLEXAMP_RUNTIME=CLAIM-REQUIRED`, followed by local interactive Plexamp claim/name commissioning.
+The spare-SD appliance now has a successfully installed and locally claimed pinned Plexamp runtime, physically accepted PN532 and DAC hardware, and the paired Trixie Python environments. The next run should pull the documented NFC-venv correction, repeat the idempotent fresh Direct bootstrap, pass the NFC service owner, then reach the full host preflight and guarded whole-application transaction for the first time.
 
 The production SD card remains the untouched recovery path. PR #2 remains Draft/open/unmerged until explicit approval.
