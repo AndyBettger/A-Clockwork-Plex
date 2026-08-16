@@ -53,10 +53,12 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertIn('data-settings-subpage="advanced:alarm"', template)
         self.assertIn("settings-advanced-alarm-diagnostics", template)
         self.assertIn("Alarm runtime", advanced)
-        self.assertIn("Test screen in 10 seconds", advanced)
-        self.assertIn("Clear visual test", advanced)
+        self.assertIn("Test alarm in 10 seconds", advanced)
+        self.assertIn("Clear alarm test", advanced)
         self.assertIn("/api/alarms/scheduler", advanced)
-        self.assertIn("/api/alarms/test", advanced)
+        self.assertIn("/api/alarms/audio/test", advanced)
+        self.assertIn("full_screen: true", advanced)
+        self.assertIn("/api/alarms/test/cancel", advanced)
 
     def test_everyday_sound_safety_stays_under_alarms(self):
         template = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
@@ -135,12 +137,17 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertIn("It never changes preview loudness", text)
 
     def test_preview_volume_is_fixed_and_separate_from_alarm_target(self):
-        text = ALARM_EDITOR.read_text(encoding="utf-8")
-        self.assertIn("SAFE_PREVIEW_VOLUME_PERCENT = 15", text)
-        self.assertIn("master.gain.value = SAFE_PREVIEW_GAIN", text)
-        self.assertIn("previewTone(alarm.source.tone_id, previewToneButton)", text)
-        self.assertNotIn("previewTone(alarm.source.tone_id, alarm.volume.target_percent", text)
-        self.assertIn("capped independently from the scheduled alarm volume", text)
+        editor = ALARM_EDITOR.read_text(encoding="utf-8")
+        advanced = ADVANCED.read_text(encoding="utf-8")
+        self.assertIn("SAFE_PREVIEW_VOLUME_PERCENT = 15", editor)
+        self.assertIn("previewTone(alarm.source.tone_id, previewToneButton)", editor)
+        self.assertNotIn("previewTone(alarm.source.tone_id, alarm.volume.target_percent", editor)
+        self.assertIn("/api/alarms/audio/preview", advanced)
+        self.assertIn("/api/alarms/audio/stop", advanced)
+        self.assertIn("event.stopImmediatePropagation()", advanced)
+        self.assertIn("Stop preview", advanced)
+        self.assertIn("Fixed at 15% through the appliance alarm output", advanced)
+        self.assertIn("capped independently from the scheduled alarm volume", advanced)
 
     def test_retired_workspace_and_autosave_clients_are_not_loaded(self):
         base = BASE.read_text(encoding="utf-8")

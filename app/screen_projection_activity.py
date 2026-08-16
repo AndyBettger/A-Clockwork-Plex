@@ -180,7 +180,7 @@ class ActivityAwareScreenProjectionController(ScreenProjectionController):
         activity_token = self._source_activity_token(playback, active_source)
         sources = playback.get("sources") if isinstance(playback.get("sources"), dict) else {}
         alarm = sources.get("alarm") if isinstance(sources.get("alarm"), dict) else {}
-        alarm_active = alarm.get("active") is True
+        alarm_screen_required = alarm.get("screen_required") is True
         lease = self._lease_snapshot(current_screen, active_source, activity_token)
         now = self._now()
 
@@ -192,9 +192,9 @@ class ActivityAwareScreenProjectionController(ScreenProjectionController):
             last_error = self._last_error
 
         idle_elapsed = (now - last_activity).total_seconds() >= self._timeout_seconds()
-        if alarm_active:
+        if alarm_screen_required:
             recommended_screen = "alarm"
-            reason = "alarm-active"
+            reason = "alarm-screen-required"
         elif lease.get("active"):
             recommended_screen = str(lease.get("manual_surface") or current_screen)
             reason = f"manual-{recommended_screen}-lease"

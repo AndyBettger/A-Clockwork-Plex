@@ -26,6 +26,8 @@ except ImportError:  # Supports direct execution imports.
 DEFAULT_AUDIO_SETTINGS = _core.DEFAULT_AUDIO_SETTINGS
 MAX_TEST_SECONDS = _core.MAX_TEST_SECONDS
 MAX_TEST_VOLUME_PERCENT = _core.MAX_TEST_VOLUME_PERCENT
+SAFE_PREVIEW_VOLUME_PERCENT = 15
+MAX_PREVIEW_SECONDS = 8
 SAMPLE_RATE = 44100
 CHANNELS = 2
 SAMPLE_WIDTH_BYTES = 2
@@ -180,6 +182,58 @@ class AlarmAudioManager(_core.AlarmAudioManager):
     def settings(self) -> dict[str, Any]:
         config = self.config_loader()
         return normalise_audio_settings(config.get("alarm_audio") if isinstance(config, dict) else None)
+
+    def preview_tone(self, tone_id: Any) -> dict[str, Any]:
+        """Play a short appliance-routed preview with a fixed low signal cap."""
+        settings = self.settings()
+        if not settings["master_enabled"]:
+            raise ValueError("Alarm audio is locked. Enable the master safety switch first.")
+
+        wanted = str(tone_id or "").strip()
+        tone = self._tone(wanted)
+        if not tone:
+            raise ValueError(f"Unknown tone: {wanted or '(empty)'}")
+
+        manifest = self.manifest_loader()
+        duration = max(
+            3,
+            min(
+                MAX_PREVIEW_SECONDS,
+                _core._integer(
+                    manifest.get("preview_seconds") if isinstance(manifest, dict) else None,
+                    5,
+                ),
+            ),
+        )
+        fallback_id = (
+            str(manifest.get("fallback_tone_id") or "emergency-buzzer")
+            if isinstance(manifest, dict)
+            else "emergency-buzzer"
+        )
+        key = f"audio-preview|{uuid.uuid4().hex}"
+        occurrence = {
+            "occurrence_key": key,
+            "alarm_id": "tone-preview",
+            "label": f"{tone.get('label', wanted)} preview",
+            "audio_test": True,
+            "standalone_audio_test": True,
+            "audio_duration_seconds": duration,
+            "source": {
+                "type": "tone",
+                "tone_id": wanted,
+                "fallback_tone_id": fallback_id,
+            },
+            "volume": {
+                "start_percent": SAFE_PREVIEW_VOLUME_PERCENT,
+                "target_percent": SAFE_PREVIEW_VOLUME_PERCENT,
+                "fade_seconds": 0,
+            },
+        }
+        self._start(occurrence, f"preview|{key}")
+        status = self.status()
+        status["preview_duration_seconds"] = duration
+        status["preview_volume_percent"] = SAFE_PREVIEW_VOLUME_PERCENT
+        return status
 
     def _helper_status(self, settings: dict[str, Any]) -> dict[str, Any]:
         if settings.get("shared_mixer_enabled"):

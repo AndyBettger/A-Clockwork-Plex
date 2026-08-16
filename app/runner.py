@@ -2,6 +2,7 @@ from __future__ import annotations
 
 try:
     from . import main as dashboard
+    from .alarm_audio_preview import register_alarm_audio_preview_api
     from .alarm_audio_scheduled import promote_scheduled_alarm_audio
     from .alarm_audio_status_scheduled import register_scheduled_alarm_status_api
     from .application_state import (
@@ -31,6 +32,7 @@ try:
     from .weather_observations import WeatherObservationService, register_weather_observation_api
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
+    from alarm_audio_preview import register_alarm_audio_preview_api
     from alarm_audio_scheduled import promote_scheduled_alarm_audio
     from alarm_audio_status_scheduled import register_scheduled_alarm_status_api
     from application_state import (
@@ -63,6 +65,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
 app = dashboard.app
 promote_server_time_formatting(dashboard)
 scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
+register_alarm_audio_preview_api(app, dashboard)
 register_scheduled_alarm_status_api(dashboard)
 application_state_hub = build_default_application_state_hub(dashboard)
 playback_coordinator = promote_playback_authority(application_state_hub, dashboard)
