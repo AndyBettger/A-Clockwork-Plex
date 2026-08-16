@@ -169,12 +169,23 @@ acp_application_transaction_begin() {
 }
 
 acp_application_transaction_restore() {
-    local directory="$1" failures=0
+    local directory="$1" pre_service_restore_hook="${2:-}" failures=0
     acp_application_stop_owned_services || failures=$((failures + 1))
     acp_transaction_restore_paths "$directory" || failures=$((failures + 1))
     acp_application_restore_fifo "$directory" || failures=$((failures + 1))
     if acp_is_production_root; then
         sudo -- systemctl daemon-reload || failures=$((failures + 1))
+    fi
+    if [[ -n "$pre_service_restore_hook" ]]; then
+        if ! declare -F "$pre_service_restore_hook" >/dev/null; then
+            acp_error "Unknown application rollback hook: $pre_service_restore_hook"
+            failures=$((failures + 1))
+        elif ! "$pre_service_restore_hook"; then
+            acp_error "Application rollback hook failed: $pre_service_restore_hook"
+            failures=$((failures + 1))
+        fi
+    fi
+    if acp_is_production_root; then
         acp_transaction_restore_services "$directory" || failures=$((failures + 1))
     fi
     [[ "$failures" -eq 0 ]]
