@@ -43,16 +43,18 @@ class EqAudioRuntimeAssetTests(unittest.TestCase):
         )
         self.assertNotIn('activation-approved', unit)
 
-    def test_camilladsp_unit_fails_directly_into_failback_without_restart_race(self) -> None:
+    def test_camilladsp_unit_recovers_clean_exit_and_fails_abnormal_exit_into_failback(self) -> None:
         unit = (SYSTEMD / 'a-clockwork-plex-camilladsp.service').read_text(
             encoding='utf-8'
         )
         self.assertIn('Requires=a-clockwork-plex-audio-route.service sound.target', unit)
         self.assertIn('Before=plexamp.service shairport-sync.service a-clockwork-plex.service', unit)
         self.assertIn('OnFailure=a-clockwork-plex-audio-failback.service', unit)
-        self.assertIn('Restart=no', unit)
+        self.assertIn('Restart=on-success', unit)
+        self.assertIn('RestartSec=1', unit)
+        self.assertNotIn('Restart=no', unit)
         self.assertNotIn('Restart=on-failure', unit)
-        self.assertNotIn('RestartSec=', unit)
+        self.assertNotIn('Restart=always', unit)
         self.assertNotIn('StartLimitIntervalSec=', unit)
         self.assertNotIn('StartLimitBurst=', unit)
         self.assertIn(
