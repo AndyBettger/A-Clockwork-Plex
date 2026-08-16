@@ -2,7 +2,7 @@
 
 Test target: spare SD card on the real Raspberry Pi appliance hardware, hostname `plexamp-test`, Raspberry Pi OS / Debian 13 (Trixie), 64-bit `aarch64`.
 
-This file records Phase 7 physical bootstrap evidence while the accepted production SD card remains removed and untouched.
+This file records Phase 7 physical bootstrap evidence while the accepted production SD card remains removed and untouched. The spare SD is intentionally reused across the acceptance attempts below so each repaired owner must revalidate/converge already-accepted prerequisite state rather than relying on a wipe between failures.
 
 ## Attempt 1 — Trixie inherited Python metadata
 
@@ -10,9 +10,7 @@ The package owner installed the additive fresh-Pi prerequisites and built both c
 
 A raw whole-environment `pip check` then reported nine unrelated Debian system-site metadata issues (`types-flask-*`, `types-tree-sitter-languages`, `apt-listchanges`, `types-click-default-group`, and `types-seaborn`). The installer stopped before hardware, Plexamp, NFC-service, or application commissioning and restored the paired venv prestate.
 
-The owner was corrected so NFC dependency checking remains fail-closed for the recursive listener dependency graph while unrelated inherited Debian distributions are reported as informational. The main isolated application venv retains a whole-environment `pip check`.
-
-Checkpoint #26 is recorded in `docs/eq-audio-installer-roadmap.md`.
+The owner was corrected so NFC dependency checking remains fail-closed for the recursive listener dependency graph while unrelated inherited Debian distributions are reported as informational. The main isolated application venv retains a whole-environment `pip check`. Checkpoint #26 is recorded in `docs/eq-audio-installer-roadmap.md`.
 
 ## Attempt 2 — hardware passed; fresh Plexamp unit verification ordering exposed
 
@@ -20,178 +18,138 @@ After pulling checkpoint #26, the rerun established the package/venv baseline su
 
 - main application venv: PASS;
 - NFC venv owned dependency graph: PASS, 23 owned distributions;
-- the same nine Trixie inherited issues were reported informationally;
-- Shairport Sync and all other fresh prerequisites were already present.
+- the same nine Trixie inherited issues: informational only;
+- Shairport Sync and other fresh prerequisites: present.
 
-The real hardware commissioning then passed:
+Real hardware commissioning also passed:
 
-- Raspberry Pi I2C enabled and live;
-- PN532 detected at I2C bus 1 address `0x24`;
-- Raspberry Pi DAC Pro exposed as ALSA card id `Pro`;
-- no DAC boot-config mutation was required;
-- no firmware, bootloader, or HAT EEPROM update was performed.
+- Raspberry Pi I2C enabled/live;
+- PN532 at I2C bus 1 address `0x24`;
+- Raspberry Pi DAC Pro at ALSA card id `Pro`;
+- no DAC boot-config mutation;
+- no firmware, bootloader, or HAT EEPROM update.
 
-The post-hardware/player-pending preflight also passed with only the expected Ecowitt site-commissioning warning.
+The Plexamp owner SHA-verified pinned Node 20.20.2 and Plexamp Headless 4.13.2, then stopped because `systemd-analyze verify` was being run before the staged Node candidate existed at the rendered final `ExecStart` path.
 
-The Plexamp owner downloaded and SHA-verified both pinned production artifacts:
-
-- Node 20.20.2 linux-arm64 SHA-256 `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71`;
-- Plexamp Headless 4.13.2 SHA-256 `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041`.
-
-It then stopped before runtime promotion because `systemd-analyze verify` resolved the rendered `ExecStart` path while the fresh pinned Node candidate was still staged rather than present at its final `/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node` path.
-
-## Correction prepared after Attempt 2
-
-Commit `1ca97d345ddb3caa2f1123db89146246101e9631` corrected the fresh-runtime transaction ordering:
-
-1. stage and cryptographically verify Node and Plexamp before mutation;
-2. open the runtime/unit rollback transaction;
-3. promote both runtime candidates;
-4. verify the activated runtime files, versions, and manifests;
-5. run `systemd-analyze verify` while the exact rendered `ExecStart` and `WorkingDirectory` paths exist;
-6. install the verified unit only after that passes;
-7. retain exact rollback on any failure.
-
-The correction also cleans staging parents after safe pre-transaction exits and after successful/rolled-back transactions, while deliberately preserving a staging directory if it still contains a `.previous` rollback payload after an unexpected post-mutation exit.
-
-Focused validation passed before the patch commit was pushed:
-
-- `bash -n scripts/install-plexamp-runtime.sh`;
-- `python3 -m unittest tests.test_plexamp_runtime_installer -v`;
-- regression coverage confirms systemd verification occurs after activated-runtime checks and before unit installation;
-- fresh claim-required and injected-rollback fixtures leave no new staging parents behind.
+Commit `1ca97d345ddb3caa2f1123db89146246101e9631` corrected that transaction ordering so verified candidates are promoted inside rollback protection before unit verification/installation.
 
 ## Attempt 3 — Plexamp claim/resume passed; standard NFC venv interpreter layout exposed
 
-After pulling the corrected Plexamp runtime head, the real spare-SD install repeated package, venv and hardware acceptance successfully. The corrected Plexamp transaction then reached the intended explicit local claim boundary:
+The corrected Plexamp transaction reached the intended human authentication boundary:
 
-- pinned Node 20.20.2 installed under `/opt/a-clockwork-plex/node-v20.20.2-linux-arm64`;
-- pinned Plexamp Headless 4.13.2 installed under `/home/andy/plexamp`;
-- `plexamp.service` installed but deliberately left inactive/disabled before claim;
+- pinned Node installed under `/opt/a-clockwork-plex/node-v20.20.2-linux-arm64`;
+- pinned Plexamp Headless installed under `/home/andy/plexamp`;
 - root installer exited `76` with `PLEXAMP_RUNTIME=CLAIM-REQUIRED`.
 
-Plexamp was then started locally in the foreground using the exact pinned Node executable. The fresh claim code and player name were entered only on the Pi. Plexamp reported `Plexamp is now signed in and ready!`; persistent state appeared at `/home/andy/.local/share/Plexamp/Settings`. Post-claim evidence confirmed Node `v20.20.2`, `PLEXAMP_SETTINGS=PRESENT`, and a loaded but still inactive/disabled `plexamp.service`, as intended before root-installer resume.
+Plexamp was claimed locally on the Pi; no claim code was placed in argv, logs, evidence, or this document. On resume, package/venv, PN532 `0x24`, `CARD=Pro`, claimed Plexamp runtime and port `32500` all passed.
 
-On the resumed root installer run:
+The NFC owner then rejected a healthy standard Python venv because it required `bin/python` not to be a symlink. The owner was corrected to validate the venv directory/`pyvenv.cfg`, executable interpreter, `sys.prefix != sys.base_prefix`, and required runtime imports instead. Tests #3368 passed on `40c179de6a80cf6b91e4e0b5d308264a6e871b1f`.
 
-- package/main/NFC venv bootstrap: PASS;
-- PN532 `0x24`: PASS;
-- `CARD=Pro`: PASS;
-- post-hardware/player-pending preflight: PASS;
-- claimed Plexamp runtime repair/resume: PASS;
-- `plexamp.service` was enabled and the pinned runtime owner reported `PLEXAMP_RUNTIME=PASS` and port `32500`.
+## Attempt 4 — NFC/full preflight passed; protected sudoers verification exposed
 
-The installer then reached the guarded NFC listener owner for the first time and stopped before any NFC service or application transaction because that owner required:
+After the NFC correction (`ac623156612030cf154e86c9851ce34759402ddf`), the spare Pi passed package/artifact availability, both venvs, PN532 `0x24`, `CARD=Pro`, claimed Plexamp, guarded NFC service and the full mandatory host preflight. The application transaction then physically passed Ecowitt-push configuration, dashboard/kiosk and the alarm-safe Direct route SHA:
 
-```text
-[[ -x "$NFC_PYTHON" && ! -L "$NFC_PYTHON" ]]
-```
+`654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`
 
-A Python `venv` created by the paired package owner normally exposes `bin/python` as a symlink to the distribution interpreter. The same live interpreter had just been executed successfully by the package owner after the paired venv swap, including `lgpio`, Blinka/busio, requests and PN532 imports. The NFC service owner therefore rejected a healthy, standard venv layout rather than a broken dependency state.
+Restricted-helper post-install verification failed because it tried to traverse protected real `/etc/sudoers.d` paths as the normal project user. The helper owner was changed to perform its protected read-back checks through the same root-aware boundary that owns those files. Rollback restored the application-managed prestate; prerequisites remained retained by policy. Root installer exit: `2`.
 
-The root wrapper maps NFC-owner failure through its generic fail-closed path (`exit 2`). The shell transcript displayed a stale `76` because `rc` had not been refreshed from the new installer pipeline after the previous claim-required run; this was evidence-command bookkeeping and did not alter installer behaviour.
+Tests #3374 / run `31898610147` passed on `302a1ee3979c34e404b280590e43450d7cd83c16`.
 
-## Correction prepared after Attempt 3
+## Attempt 5 — helpers/AirPlay passed; final verifier repeated the protected sudoers assumption
 
-The NFC owner now validates the actual boundary it depends on instead of banning Python's standard venv interpreter symlink:
+After pulling `a3e960e41f5ff741276bbf94516e2a7faf535057`, the Direct rerun again passed the established fresh-bootstrap gates, then physically passed:
 
-- the `nfc-venv` directory itself must be a real directory, not a symlink;
-- `pyvenv.cfg` must be a real file, not a symlink;
-- `bin/python` must be executable, but may use the normal venv symlink layout;
-- the interpreter must prove `sys.prefix != sys.base_prefix`;
-- the owner re-imports `lgpio`, `board`, `busio`, `requests` and `PN532_I2C` before installing the unit;
-- the existing pinned NFC runtime/display-helper and systemd transaction checks remain unchanged.
+- Ecowitt-push configuration;
+- dashboard/kiosk;
+- alarm-safe Direct route;
+- restricted helper installation on the real protected filesystem;
+- guarded AirPlay/Shairport integration and metadata service enablement.
 
-Regression coverage explicitly prevents reintroducing the `! -L "$NFC_PYTHON"` guard and constructs a real Python venv to prove the runtime-prefix check accepts standard interpreter layout.
-
-Tests #3368 passed on source/test head `40c179de6a80cf6b91e4e0b5d308264a6e871b1f`: dependency setup, compile, JavaScript/page wiring, shell syntax, unit tests and diagnostics upload all completed successfully.
-
-## Attempt 4 — NFC and full preflight passed; protected sudoers verification exposed
-
-After pulling the documented NFC correction at `ac623156612030cf154e86c9851ce34759402ddf`, the real spare-SD Direct rerun advanced through every fresh-bootstrap owner and entered the whole-application transaction for the first time.
-
-Fresh/bootstrap evidence:
-
-- package/artifact availability: PASS;
-- fresh stage-zero preflight: PASS with only the expected Ecowitt site-commissioning warning;
-- paired main/NFC venv bootstrap: PASS;
-- NFC owned dependency graph: PASS, 23 owned distributions; the same nine unrelated inherited Trixie metadata issues remained informational;
-- PN532 I2C bus 1 address `0x24`: PASS;
-- Raspberry Pi DAC Pro `CARD=Pro`: PASS;
-- DAC boot config remained untouched because the accepted card was already exposed;
-- Plexamp Headless 4.13.2 / Node 20.20.2 claimed-runtime resume: PASS;
-- guarded `nfc-listener.service` install/enable: PASS;
-- full mandatory host preflight: PASS with the expected Ecowitt warning only.
-
-The guarded whole-application transaction then physically exercised these stages successfully:
-
-- Ecowitt-push observation-provider configuration: PASS;
-- dashboard service + Chromium kiosk integration: PASS;
-- alarm-safe Direct route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`: PASS.
-
-The transaction stopped at restricted helper packaging. The helper installer had already installed the helper and sudoers candidates through its root-aware write path, but its post-install verification attempted to inspect all six managed targets as the normal project user. On a real Raspberry Pi OS host `/etc/sudoers.d` is deliberately protected, so an ordinary-user `[[ -f ... ]]`, `stat`, or `grep` cannot reliably traverse/read those policy files even though the root-owned installation itself succeeded.
-
-The failure remained safe:
-
-- helper installer restored its captured helper pre-state;
-- outer whole-application transaction restored the complete managed application pre-state;
-- package/venv/Plexamp/NFC prerequisite baseline remained retained by explicit policy;
-- AirPlay activation and the final whole-appliance verifier were not reached;
-- authoritative root installer exit was `2`.
-
-## Correction prepared after Attempt 4
-
-The helper owner now verifies protected managed files through the same privileged boundary that owns their write and rollback paths:
-
-- regular-file/non-symlink checks use `acp_run_root test`;
-- mode checks use `acp_run_root stat`;
-- required sudoers-rule checks use `acp_run_root grep`;
-- every failed validation now emits the exact managed path/check rather than collapsing silently into the generic transaction failure;
-- helper executables and sudoers policies retain their existing `0755` / `0440` requirements and exact restricted command rules.
-
-Regression coverage prevents reintroducing ordinary-user post-install reads of protected helper policy files.
-
-Tests #3374 / run `31898610147` passed on source/test head `302a1ee3979c34e404b280590e43450d7cd83c16`: dependency setup, compile, JavaScript/page wiring, shell syntax, all 1,598 unit tests and diagnostics upload completed successfully.
-
-## Attempt 5 — helpers and AirPlay passed; final verifier repeated the protected sudoers assumption
-
-After pulling documented head `a3e960e41f5ff741276bbf94516e2a7faf535057`, the next real spare-SD Direct rerun repeated the established package, paired venv, PN532, DAC Pro, claimed Plexamp, NFC-service and full-preflight gates successfully. The whole-application transaction then advanced beyond the previous blocker:
-
-- Ecowitt-push configuration: PASS;
-- dashboard service and kiosk integration: PASS;
-- alarm-safe Direct route SHA `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`: PASS;
-- restricted appliance helper installation: PASS on the real protected filesystem, physically proving the Attempt 4 root-aware correction;
-- guarded AirPlay/Shairport integration: PASS, including metadata service enablement.
-
-The final whole-appliance verifier then reached its complete application/integration, audio, weather and live service/API checks. Every check passed except the two helper sudoers-file presence checks:
+The final whole-appliance verifier passed every check except its two ordinary-user reads beneath `/etc/sudoers.d`:
 
 ```text
 FAIL  alarm-sudoers            missing/unsafe: /etc/sudoers.d/a-clockwork-plex-alarm-audio
 FAIL  shairport-name-sudoers   missing/unsafe: /etc/sudoers.d/a-clockwork-plex-shairport-name
 ```
 
-This was the same host-permission assumption in a second independent consumer: `scripts/verify-appliance.sh` used its ordinary-user `require_file` helper for paths beneath real `/etc/sudoers.d`. The helper installer had already proved those installed files through its root-aware verification, while the final verifier could not traverse the protected directory as `andy`.
+The independent verifier was corrected so only those production-root protected-file checks use read-only `sudo -n`; alternate-root fixtures remain unprivileged. The failed final commit gate again restored the complete application-managed prestate. Root installer exit: `2`.
 
-The final commit gate correctly rejected the application transaction before commit. The complete application-managed pre-state was restored and the package/venv/Plexamp/NFC prerequisite baseline remained retained. The authoritative root installer exit was `2`.
+Tests #3380 / run `31899362927` passed on `ab6271f896464a7bbff37e74803fbfc3e18ec5a0`.
 
-## Correction prepared after Attempt 5
+## Attempt 6 — protected verifier passed upstream; reused spare SD exposed missing EQ → Direct convergence
 
-The independent verifier now has a narrowly scoped protected-file check:
+On 16 August 2026 the same spare SD was fast-forwarded and the Direct fresh-bootstrap acceptance command was run again with a new timestamped evidence log:
 
-- only the two protected sudoers-file checks use `require_protected_file`;
-- production-root inspection is read-only and uses `sudo -n test -f` plus a non-symlink `test -L` rejection;
-- alternate-root integration fixtures retain the ordinary unprivileged `require_file` path;
-- all other verifier checks are unchanged;
-- a failed or unavailable production protected-file inspection still fails closed rather than treating the policy as present.
+```bash
+set -o pipefail
+DIRECT_CMD=(
+  bash install.sh
+  --fresh-bootstrap
+  --audio direct
+  --weather-observations ecowitt-push
+  --project-user "$USER"
+  --non-interactive
+  --apply
+  --confirm APPLY-A-CLOCKWORK-PLEX
+)
+DIRECT_LOG="$EVIDENCE/20-direct-install-$(date +%Y%m%d-%H%M%S).txt"
+"${DIRECT_CMD[@]}" 2>&1 | tee "$DIRECT_LOG"
+rc=${PIPESTATUS[0]}
+```
 
-Regression coverage now pins the two sudoers paths to the protected verifier and places a deliberately failing fake `sudo` first in `PATH` during an alternate-root fixture, proving non-production verification remains unprivileged. The existing static read-only verifier safety check remains green.
+The already-proven substrate reconverged cleanly:
 
-Tests #3380 / run `31899362927` passed on source/test head `ab6271f896464a7bbff37e74803fbfc3e18ec5a0`: dependency setup, compile, JavaScript/page wiring, shell syntax, the full unit suite and diagnostics upload completed successfully.
+- package/main/NFC venv substrate: PASS;
+- PN532 bus 1 address `0x24`: PASS;
+- Raspberry Pi DAC Pro `CARD=Pro`: PASS;
+- pinned/claimed Plexamp repair/resume: PASS;
+- guarded NFC listener: PASS;
+- full mandatory host preflight: PASS;
+- application transaction reached the requested audio transition.
+
+The run then stopped with the explicit application-installer guard:
+
+```text
+Direct profile switching from an already-installed EQ appliance is not enabled
+```
+
+Authoritative installer exit: `2`.
+
+Evidence preserved at:
+
+`/home/andy/acp-phase7-spare-sd-20260815-171112/20-direct-install-20260816-222614.txt`
+
+This is a convergence gap, not a package, Trixie, hardware, Plexamp, NFC or preflight failure. The reused spare SD already contained the accepted EQ appliance from earlier Phase 7 work, and the requested Direct profile must therefore be able to converge from installed EQ without a manual uninstall.
+
+### Source repair after Attempt 6
+
+Commit `4bfd9d0ed83927473d0ae70f5947761de6fad817` (`Converge installed EQ appliances to Direct audio`) replaced the hard rejection with an enclosing-transaction-safe transition:
+
+- the specialist EQ uninstaller is invoked with its original pre-EQ backup retained;
+- the retained backup is staged by rename to a commit-pending tombstone rather than copied through the generic file transaction;
+- the currently loaded `snd_aloop` state is captured before teardown;
+- rollback restores the staged backup before generic application restore;
+- the outer application transaction restores the captured loopback state through its pre-service restore hook, before captured EQ services are reactivated;
+- the accepted Direct installer then owns the requested Direct route;
+- the retained pre-EQ backup is removed only after the outer transaction has committed;
+- no manual EQ uninstall is part of the acceptance procedure.
+
+Tests #3421 / run `31975846667` passed for `4bfd9d0ed83927473d0ae70f5947761de6fad817`.
+
+Commit `b4e64fcf279843a7f928c5da41252adb11aae00a` (`Add EQ to Direct transition regression coverage`) then added focused alternate-root regression tests for:
+
+- installed EQ → requested Direct successful convergence and canonical Direct SHA;
+- forced failure after Direct installation restoring the prior EQ marker/manifest/route/service files and retained-backup sentinel;
+- specialist `--retain-preinstall-backup` behaviour;
+- loopback restoration occurring before captured service reactivation;
+- retained-backup staging/rollback/commit-boundary ordering.
+
+Tests #3423 / run `31976778069` passed for `b4e64fcf279843a7f928c5da41252adb11aae00a`.
 
 ## Current physical acceptance position
 
-The spare-SD appliance has now physically proven the fresh package/venv baseline, PN532 `0x24`, Raspberry Pi DAC Pro `CARD=Pro`, pinned/claimed Plexamp runtime, guarded NFC listener service, full mandatory host preflight, Weather configuration, dashboard/kiosk, alarm-safe Direct audio, restricted helper packaging and guarded AirPlay integration. The final whole-appliance verifier has also physically passed every check except the two protected sudoers reads that were corrected after Attempt 5, while its failed commit gate again proved complete application rollback.
+The spare-SD appliance has physically proven the fresh package/venv baseline, PN532 `0x24`, Raspberry Pi DAC Pro `CARD=Pro`, pinned/claimed Plexamp runtime, guarded NFC listener service, full mandatory host preflight, Weather configuration, dashboard/kiosk, alarm-safe Direct routing, restricted helper packaging and guarded AirPlay integration. The sequence of failed commit gates has also repeatedly demonstrated that application-managed state is restored rather than being fixed forward manually.
 
-The next run should pull the protected-verifier correction, repeat the idempotent fresh Direct bootstrap and reach the final `scripts/verify-appliance.sh` commit gate again. If the two protected sudoers checks now pass and no new host-only issue appears, this is the first run expected to commit the complete fresh Direct application transaction and return root installer exit `0`.
+The current source/CI blocker is cleared: installed EQ is now a supported source state when `--audio direct` is requested, and the success/rollback contract is covered by Tests #3423. The **physical retry is still pending**. It must reuse the existing evidence directory, pull the latest green branch head, rerun the same timestamped Direct command, and require the full application transaction to commit with root installer exit `0`. Any new unexplained nonzero result must be preserved and investigated without manual fix-forward.
 
-The production SD card remains the untouched recovery path. PR #2 remains Draft/open/unmerged until explicit approval.
+The accepted production SD card remains removed and untouched as the recovery path. PR #2 remains Draft/open/unmerged until explicit approval.
