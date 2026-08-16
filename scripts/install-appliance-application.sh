@@ -138,6 +138,7 @@ fi
 if acp_is_production_root; then
     [[ "$EUID" -ne 0 ]] || { error 'Run the appliance installer as the normal project user, not as root.'; exit 1; }
     acp_require_command sudo
+    acp_require_command mv
     [[ -z "${ACP_APPLICATION_TEST_FAIL_AFTER:-}" ]] || {
         error 'ACP_APPLICATION_TEST_FAIL_AFTER is forbidden on the production root.'
         exit 1
@@ -146,9 +147,9 @@ fi
 
 EQ_PREEXISTED=false
 [[ -f "$(acp_path '/var/lib/a-clockwork-plex/split-bus/installed')" ]] && EQ_PREEXISTED=true
+EQ_TO_DIRECT=false
 if [[ "$AUDIO_PROFILE" == direct && "$EQ_PREEXISTED" == true ]]; then
-    error 'Direct profile switching from an already-installed EQ appliance is not enabled by this fresh/repeatable transaction yet.'
-    exit 1
+    EQ_TO_DIRECT=true
 fi
 
 cat <<EOF
@@ -162,21 +163,26 @@ Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_PROVIDER
 Package/venv baseline: already established before this transaction
 EQ already installed: $EQ_PREEXISTED
+EQ -> Direct migrate: $EQ_TO_DIRECT
 
 Activation order:
   1. capture the complete application-managed pre-state;
   2. configure weather observations and managed secret reference;
   3. install dashboard service + kiosk integration;
-  4. establish alarm-safe Direct audio when required;
-  5. install/repair EQ when selected;
-  6. install restricted appliance helpers;
-  7. install validated AirPlay/Shairport integration;
-  8. run the whole-appliance verifier as the commit gate.
+  4. transactionally unwind pre-existing EQ when Direct is requested;
+  5. establish alarm-safe Direct audio when required;
+  6. install/repair EQ when selected;
+  7. install restricted appliance helpers;
+  8. install validated AirPlay/Shairport integration;
+  9. run the whole-appliance verifier as the commit gate.
 
 Any failure before the verifier commits is rolled back. A fresh EQ install is
 unwound through scripts/audio/uninstall-eq.sh before generic application state
-is restored. Package additions and the verified venv remain the prerequisite
-baseline by explicit policy.
+is restored. An installed EQ appliance can also converge to Direct: its original
+pre-EQ backup is retained until the enclosing application transaction commits,
+and rollback restores snd_aloop before captured EQ service state is reactivated.
+Package additions and the verified venv remain the prerequisite baseline by
+explicit policy.
 EOF
 
 if [[ "$MODE" == prepare-only ]]; then
@@ -188,12 +194,18 @@ fi
 TRANSACTION_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-application.XXXXXX")"
 TRANSACTION="$TRANSACTION_PARENT/transaction"
 EQ_INSTALLED_BY_TRANSACTION=false
+EQ_LOOPBACK_BEFORE=absent
+EQ_BACKUP_STAGED=false
+EQ_BACKUP_TOMBSTONE='/var/lib/a-clockwork-plex/split-bus/pre-eq-backup.pending-direct-commit'
 SUCCESS=false
 
 cleanup() { rm -rf "$TRANSACTION_PARENT"; }
 trap cleanup EXIT
 
 acp_application_transaction_begin "$TRANSACTION" "$PROJECT_USER" "$PROJECT_DIR"
+if [[ "$EQ_TO_DIRECT" == true ]] && acp_is_production_root && [[ -d /sys/module/snd_aloop ]]; then
+    EQ_LOOPBACK_BEFORE=loaded
+fi
 
 inject_failure() {
     local stage="$1"
@@ -203,8 +215,75 @@ inject_failure() {
     fi
 }
 
+restore_eq_transition_loopback() {
+    [[ "$EQ_TO_DIRECT" == true ]] || return 0
+    acp_is_production_root || return 0
+    case "$EQ_LOOPBACK_BEFORE" in
+        loaded)
+            if [[ ! -d /sys/module/snd_aloop ]]; then
+                sudo -- modprobe snd_aloop || return 1
+            fi
+            ;;
+        absent)
+            if [[ -d /sys/module/snd_aloop ]]; then
+                sudo -- modprobe -r snd_aloop || return 1
+            fi
+            ;;
+        *)
+            error "Unknown captured snd_aloop state: $EQ_LOOPBACK_BEFORE"
+            return 1
+            ;;
+    esac
+}
+
+restore_staged_eq_backup() {
+    local backup tombstone
+    [[ "$EQ_BACKUP_STAGED" == true ]] || return 0
+    backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
+    tombstone="$(acp_path "$EQ_BACKUP_TOMBSTONE")" || return 1
+    [[ ! -e "$backup" && ! -L "$backup" ]] || {
+        error 'Cannot restore staged pre-EQ backup over an existing backup path.'
+        return 1
+    }
+    [[ -d "$tombstone" && ! -L "$tombstone" ]] || {
+        error 'Staged pre-EQ backup is unavailable during rollback.'
+        return 1
+    }
+    acp_run_root mv -- "$tombstone" "$backup" || return 1
+    EQ_BACKUP_STAGED=false
+}
+
+stage_eq_backup_for_commit() {
+    local backup tombstone
+    [[ "$EQ_TO_DIRECT" == true ]] || return 0
+    backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
+    tombstone="$(acp_path "$EQ_BACKUP_TOMBSTONE")" || return 1
+    [[ -d "$backup" && ! -L "$backup" && -f "$backup/complete" ]] || {
+        error 'Retained pre-EQ backup is unavailable before Direct commit.'
+        return 1
+    }
+    [[ ! -e "$tombstone" && ! -L "$tombstone" ]] || {
+        error "Stale staged pre-EQ backup exists: $tombstone"
+        return 1
+    }
+    acp_run_root mv -- "$backup" "$tombstone" || return 1
+    EQ_BACKUP_STAGED=true
+}
+
+cleanup_committed_eq_backup() {
+    local tombstone
+    [[ "$EQ_BACKUP_STAGED" == true ]] || return 0
+    tombstone="$(acp_path "$EQ_BACKUP_TOMBSTONE")" || return 1
+    if acp_run_root rm -rf -- "$tombstone"; then
+        EQ_BACKUP_STAGED=false
+        return 0
+    fi
+    error "Committed Direct migration left a removable backup tombstone: $tombstone"
+    return 1
+}
+
 rollback_application() {
-    local failures=0 marker
+    local failures=0 marker restore_hook=
     marker="$(acp_path '/var/lib/a-clockwork-plex/split-bus/installed')"
     if [[ "$EQ_INSTALLED_BY_TRANSACTION" == true && -f "$marker" ]]; then
         if ! bash "$REPO_ROOT/scripts/audio/uninstall-eq.sh" \
@@ -215,7 +294,14 @@ rollback_application() {
             failures=$((failures + 1))
         fi
     fi
-    if ! acp_application_transaction_restore "$TRANSACTION"; then
+    if ! restore_staged_eq_backup; then
+        error 'Retained pre-EQ backup restoration reported a failure.'
+        failures=$((failures + 1))
+    fi
+    if [[ "$EQ_TO_DIRECT" == true ]]; then
+        restore_hook=restore_eq_transition_loopback
+    fi
+    if ! acp_application_transaction_restore "$TRANSACTION" "$restore_hook"; then
         error 'Generic application-state restoration reported a failure.'
         failures=$((failures + 1))
     fi
@@ -255,6 +341,15 @@ bash "$REPO_ROOT/scripts/install-dashboard-integration.sh" \
     --dashboard-url "$DASHBOARD_URL" \
     --root "$ROOT" || fail_transaction dashboard
 inject_failure dashboard || fail_transaction dashboard-injection
+
+if [[ "$EQ_TO_DIRECT" == true ]]; then
+    bash "$REPO_ROOT/scripts/audio/uninstall-eq.sh" \
+        --root "$ROOT" \
+        --activate \
+        --confirm UNINSTALL-EQ-AUDIO \
+        --retain-preinstall-backup || fail_transaction eq-teardown
+    inject_failure eq-teardown || fail_transaction eq-teardown-injection
+fi
 
 if [[ "$AUDIO_PROFILE" == direct || "$EQ_PREEXISTED" == false ]]; then
     bash "$REPO_ROOT/scripts/audio/install-direct.sh" \
@@ -306,8 +401,12 @@ fi
 bash "$REPO_ROOT/scripts/verify-appliance.sh" "${verify_args[@]}" || fail_transaction verifier
 inject_failure verifier || fail_transaction verifier-injection
 
-acp_transaction_mark_complete "$TRANSACTION"
+stage_eq_backup_for_commit || fail_transaction eq-backup-finalize
+acp_transaction_mark_complete "$TRANSACTION" || fail_transaction commit-marker
 SUCCESS=true
+if ! cleanup_committed_eq_backup; then
+    error 'Direct migration committed successfully, but retained-backup tombstone cleanup needs attention.'
+fi
 echo
 echo '[A Clockwork Plex] Whole-appliance application transaction committed.'
 echo 'APPLICATION_TRANSACTION=COMMITTED'
