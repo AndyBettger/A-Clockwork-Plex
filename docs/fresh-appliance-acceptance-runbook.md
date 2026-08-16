@@ -216,7 +216,8 @@ The plan itself must make no production change.
 
 # 6. Fresh Direct apply — controlled resume loop
 
-Use `pipefail` so `tee` does not hide the installer's real exit code:
+Use `pipefail` so `tee` does not hide the installer's real exit code. Every rerun
+gets its own timestamped log so earlier failed-attempt evidence is never overwritten:
 
 ```bash
 set -o pipefail
@@ -231,9 +232,11 @@ DIRECT_CMD=(
   --confirm APPLY-A-CLOCKWORK-PLEX
 )
 
-"${DIRECT_CMD[@]}" 2>&1 | tee "$EVIDENCE/20-direct-install.txt"
+DIRECT_LOG="$EVIDENCE/20-direct-install-$(date +%Y%m%d-%H%M%S).txt"
+"${DIRECT_CMD[@]}" 2>&1 | tee "$DIRECT_LOG"
 rc=${PIPESTATUS[0]}
 echo "installer exit=$rc"
+echo "direct log=$DIRECT_LOG"
 ```
 
 There are three valid controlled outcomes.
@@ -264,9 +267,9 @@ EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
 set -o pipefail
 ```
 
-Recreate `DIRECT_CMD` from above and run it again. Already-successful bootstrap
-stages are expected to revalidate/idempotently converge rather than being blindly
-assumed.
+Recreate `DIRECT_CMD` and a new timestamped `DIRECT_LOG` from above and run it again.
+Already-successful bootstrap stages are expected to revalidate/idempotently converge
+rather than being blindly assumed.
 
 ## B. Exit `76` — Plexamp claim required
 
@@ -290,7 +293,8 @@ When Plexamp prompts:
 
 Do not save the claim code into evidence or pass it back to `install.sh`.
 
-Return to the repository, recreate `DIRECT_CMD`, and run it again.
+Return to the repository, recreate `DIRECT_CMD` plus a new timestamped `DIRECT_LOG`,
+and run it again.
 
 ## C. Exit `0` — committed
 
@@ -609,10 +613,11 @@ Require PASS from all three.
 
 ---
 
-# 14. Commission Weather Underground and historical rainfall through Settings
+# 14. Commission Weather Underground through Settings
 
-WU commissioning is deliberately **not** a fresh-install command-line secret step.
-Do this on the local dashboard after the repeat installer test has passed.
+This section also performs the historical-rainfall acceptance. WU commissioning is
+deliberately **not** a fresh-install command-line secret step. Do this on the local
+dashboard after the repeat installer test has passed.
 
 Open **Settings → Weather → Observation source**.
 
