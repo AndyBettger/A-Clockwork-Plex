@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-appliance-helpers.sh"
 ALARM_SOURCE = ROOT / "scripts" / "a-clockwork-plex-alarm-audio-helper.sh"
 NAME_SOURCE = ROOT / "scripts" / "a-clockwork-plex-shairport-name.py"
+MIXER_SOURCE = ROOT / "scripts" / "a-clockwork-plex-audio-mixer.py"
 
 
 class ApplianceHelpersInstallerTests(unittest.TestCase):
@@ -66,13 +67,20 @@ class ApplianceHelpersInstallerTests(unittest.TestCase):
             alarm_sudoers = self.target(root, "/etc/sudoers.d/a-clockwork-plex-alarm-audio")
             name = self.target(root, "/usr/local/bin/a-clockwork-plex-shairport-name")
             name_sudoers = self.target(root, "/etc/sudoers.d/a-clockwork-plex-shairport-name")
+            mixer = self.target(root, "/usr/local/bin/a-clockwork-plex-audio-mixer")
+            mixer_sudoers = self.target(root, "/etc/sudoers.d/a-clockwork-plex-audio-mixer")
+            mixer_defaults = self.target(root, "/etc/default/a-clockwork-plex-audio")
 
             self.assertEqual(alarm.read_bytes(), ALARM_SOURCE.read_bytes())
             self.assertEqual(name.read_bytes(), NAME_SOURCE.read_bytes())
+            self.assertEqual(mixer.read_bytes(), MIXER_SOURCE.read_bytes())
             self.assertEqual(oct(alarm.stat().st_mode & 0o777), "0o755")
             self.assertEqual(oct(name.stat().st_mode & 0o777), "0o755")
+            self.assertEqual(oct(mixer.stat().st_mode & 0o777), "0o755")
             self.assertEqual(oct(alarm_sudoers.stat().st_mode & 0o777), "0o440")
             self.assertEqual(oct(name_sudoers.stat().st_mode & 0o777), "0o440")
+            self.assertEqual(oct(mixer_sudoers.stat().st_mode & 0o777), "0o440")
+            self.assertEqual(oct(mixer_defaults.stat().st_mode & 0o777), "0o644")
             self.assertIn(
                 "clockuser ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-alarm-audio release",
                 alarm_sudoers.read_text(encoding="utf-8"),
@@ -81,6 +89,24 @@ class ApplianceHelpersInstallerTests(unittest.TestCase):
                 "clockuser ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-shairport-name status",
                 name_sudoers.read_text(encoding="utf-8"),
             )
+            mixer_policy = mixer_sudoers.read_text(encoding="utf-8")
+            self.assertIn(
+                "clockuser ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-mixer status",
+                mixer_policy,
+            )
+            self.assertIn(
+                "clockuser ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-mixer set *",
+                mixer_policy,
+            )
+            self.assertIn(
+                "clockuser ALL=(root) NOPASSWD: /usr/local/bin/a-clockwork-plex-audio-mixer live *",
+                mixer_policy,
+            )
+            defaults = mixer_defaults.read_text(encoding="utf-8")
+            self.assertIn("ALSA_CARD=Pro", defaults)
+            self.assertIn("ALSA_DEVICE=0", defaults)
+            self.assertIn("SAMPLE_RATE=44100", defaults)
+            self.assertIn("CHANNELS=2", defaults)
 
     def test_wrong_token_and_invalid_user_are_rejected_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -134,6 +160,15 @@ class ApplianceHelpersInstallerTests(unittest.TestCase):
             self.assertFalse(
                 self.target(root, "/etc/sudoers.d/a-clockwork-plex-shairport-name").exists()
             )
+            self.assertFalse(
+                self.target(root, "/usr/local/bin/a-clockwork-plex-audio-mixer").exists()
+            )
+            self.assertFalse(
+                self.target(root, "/etc/sudoers.d/a-clockwork-plex-audio-mixer").exists()
+            )
+            self.assertFalse(
+                self.target(root, "/etc/default/a-clockwork-plex-audio").exists()
+            )
             self.assertIn("restoring captured state", result.stderr)
             self.assertIn("pre-state restored", result.stderr)
 
@@ -156,8 +191,11 @@ class ApplianceHelpersInstallerTests(unittest.TestCase):
         source = INSTALLER.read_text(encoding="utf-8")
         self.assertIn("a-clockwork-plex-alarm-audio-helper.sh", source)
         self.assertIn("a-clockwork-plex-shairport-name.py", source)
+        self.assertIn("a-clockwork-plex-audio-mixer.py", source)
         self.assertIn("ACP_HELPERS_TEST_FAIL_AFTER_INSTALL", source)
         self.assertIn('[[ "$ROOT" != / && "${ACP_HELPERS_TEST_FAIL_AFTER_INSTALL:-0}" == 1 ]]', source)
+        self.assertIn("prime_mixer_controls()", source)
+        self.assertIn("acp_master acp_plexamp acp_airplay acp_alarm", source)
         self.assertNotIn("def apply_name", source)
         self.assertNotIn("amixer", source)
 
