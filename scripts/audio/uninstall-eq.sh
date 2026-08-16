@@ -16,6 +16,7 @@ CONFIRMATION=
 REQUIRED_CONFIRMATION=UNINSTALL-EQ-AUDIO
 PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
 RETAIN_PREINSTALL_BACKUP=false
+WIREPLUMBER_WAS_ACTIVE=false
 
 usage() {
     cat <<'EOF_USAGE'
@@ -101,7 +102,10 @@ Retain backup:    $RETAIN_PREINSTALL_BACKUP
 Activation will stop current audio applications, stop and disable the managed EQ
 units, restore the original active ALSA route and managed-file presence, reload
 systemd, restore the previous snd_aloop state, then restore the original service
-enablement and activity. The saved EQ curve is retained for a future reinstall.
+enablement and activity. If snd_aloop must be unloaded on Raspberry Pi Desktop,
+an active WirePlumber user service is temporarily quiesced and then restored so
+its ALSA card monitor cannot keep the loopback device busy. The saved EQ curve is
+retained for a future reinstall.
 
 No production file, module, service, route, mixer or PCM was changed.
 EOF_PLAN
@@ -155,11 +159,11 @@ restore_current_install() {
     acp_restore_runtime_state "$snapshot/runtime" || failures=$((failures + 1))
     acp_write_installed_marker || failures=$((failures + 1))
     acp_reload_systemd || failures=$((failures + 1))
-    acp_restore_managed_service_state "$snapshot/managed-services.tsv" || \
-        failures=$((failures + 1))
     if acp_is_production_root && [[ "$(cat "$snapshot/loopback.txt")" == loaded && ! -d /sys/module/snd_aloop ]]; then
         sudo -- modprobe snd_aloop || failures=$((failures + 1))
     fi
+    acp_restore_managed_service_state "$snapshot/managed-services.tsv" || \
+        failures=$((failures + 1))
     acp_restore_captured_enablement "$snapshot/services.tsv" || failures=$((failures + 1))
     acp_restore_captured_applications "$snapshot/services.tsv" || failures=$((failures + 1))
     [[ "$failures" -eq 0 ]]
@@ -174,6 +178,52 @@ stop_current_applications() {
         fi
     done
     [[ "$failures" -eq 0 ]]
+}
+
+verify_eq_audio_units_stopped() {
+    acp_is_production_root || return 0
+    local unit failures=0
+    for unit in \
+        a-clockwork-plex-camilladsp.service \
+        a-clockwork-plex-audio-route.service; do
+        if systemctl is-active --quiet "$unit"; then
+            acp_error "Managed EQ unit is still active after stop: $unit"
+            failures=$((failures + 1))
+        fi
+    done
+    [[ "$failures" -eq 0 ]]
+}
+
+quiesce_wireplumber_for_loopback_restore() {
+    local backup before
+    acp_is_production_root || return 0
+    WIREPLUMBER_WAS_ACTIVE=false
+    backup="$(acp_path "$ACP_BACKUP_DESTINATION")" || return 1
+    [[ -f "$backup/loopback-before.txt" ]] || return 1
+    before="$(cat "$backup/loopback-before.txt")"
+    [[ "$before" == absent && -d /sys/module/snd_aloop ]] || return 0
+
+    if systemctl --user is-active --quiet wireplumber.service; then
+        WIREPLUMBER_WAS_ACTIVE=true
+        if ! systemctl --user stop wireplumber.service; then
+            acp_error 'Could not temporarily stop the active WirePlumber user service.'
+            return 1
+        fi
+        if systemctl --user is-active --quiet wireplumber.service; then
+            acp_error 'WirePlumber remained active after its temporary stop request.'
+            return 1
+        fi
+    fi
+}
+
+restore_wireplumber_after_loopback_restore() {
+    acp_is_production_root || return 0
+    [[ "$WIREPLUMBER_WAS_ACTIVE" == true ]] || return 0
+    if ! systemctl --user start wireplumber.service; then
+        acp_error 'Could not restore the WirePlumber user service after loopback transition.'
+        return 1
+    fi
+    WIREPLUMBER_WAS_ACTIVE=false
 }
 
 write_direct_rollback_state() {
@@ -197,12 +247,18 @@ activate_uninstall() {
 
     stop_current_applications || failure='could not stop current audio applications'
     [[ -n "$failure" ]] || acp_stop_eq_audio_units || failure='could not stop managed EQ units'
+    [[ -n "$failure" ]] || verify_eq_audio_units_stopped || failure='managed EQ units remained active after stop'
     [[ -n "$failure" ]] || acp_disable_eq_audio_units || failure='could not disable managed EQ units'
     [[ -n "$failure" ]] || acp_remove_file '/var/lib/a-clockwork-plex/split-bus/installed' || \
         failure='could not remove installed marker'
     [[ -n "$failure" ]] || acp_restore_preinstall_files || failure='pre-EQ file restoration failed'
     [[ -n "$failure" ]] || acp_reload_systemd || failure='systemd reload failed'
+    [[ -n "$failure" ]] || quiesce_wireplumber_for_loopback_restore || \
+        failure='could not quiesce WirePlumber for snd_aloop restoration'
     [[ -n "$failure" ]] || acp_restore_loopback_state || failure='snd_aloop state restoration failed'
+    if ! restore_wireplumber_after_loopback_restore; then
+        [[ -n "$failure" ]] || failure='WirePlumber restoration failed after snd_aloop transition'
+    fi
     [[ -n "$failure" ]] || acp_restore_captured_enablement "$original_services" || \
         failure='original service enablement restoration failed'
     [[ -n "$failure" ]] || acp_restore_captured_applications "$original_services" || \
@@ -215,6 +271,7 @@ activate_uninstall() {
         stop_current_applications || recovery_failures=$((recovery_failures + 1))
         acp_stop_eq_audio_units || recovery_failures=$((recovery_failures + 1))
         restore_current_install "$snapshot" || recovery_failures=$((recovery_failures + 1))
+        restore_wireplumber_after_loopback_restore || recovery_failures=$((recovery_failures + 1))
         acp_install_text "$(date --iso-8601=seconds) uninstall failed: $failure\n" \
             '/var/lib/a-clockwork-plex/split-bus/last-uninstall-failure.log' 0644 || \
             recovery_failures=$((recovery_failures + 1))
