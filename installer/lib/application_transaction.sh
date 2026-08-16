@@ -47,6 +47,7 @@ acp_application_managed_paths() {
     cat <<EOF
 $project_dir/config.json
 /etc/default/a-clockwork-plex-weather
+/etc/default/a-clockwork-plex-audio
 /etc/systemd/system/a-clockwork-plex.service
 /home/$project_user/.config/autostart/a-clockwork-plex-dashboard.desktop
 /usr/local/bin/a-clockwork-plex-alarm-audio
@@ -55,6 +56,8 @@ $project_dir/config.json
 /etc/sudoers.d/a-clockwork-plex-shairport-name
 /usr/local/bin/a-clockwork-plex-weather-secret
 /etc/sudoers.d/a-clockwork-plex-weather-secret
+/usr/local/bin/a-clockwork-plex-audio-mixer
+/etc/sudoers.d/a-clockwork-plex-audio-mixer
 /etc/shairport-sync.conf
 /usr/local/bin/a-clockwork-plex-airplay-start
 /usr/local/bin/a-clockwork-plex-airplay-end
