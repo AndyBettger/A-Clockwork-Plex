@@ -15,6 +15,7 @@ REQUESTED_ROOT=/
 CONFIRMATION=
 REQUIRED_CONFIRMATION=UNINSTALL-EQ-AUDIO
 PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
+RETAIN_PREINSTALL_BACKUP=false
 
 usage() {
     cat <<'EOF_USAGE'
@@ -24,6 +25,9 @@ Options:
   --prepare-only         Inspect the retained backup and print the plan (default).
   --activate             Restore the exact pre-EQ audio installation.
   --confirm TOKEN        Required for production uninstall: UNINSTALL-EQ-AUDIO
+  --retain-preinstall-backup
+                         Keep the original pre-EQ backup after successful teardown.
+                         Intended for an enclosing application transaction only.
   --root PATH            Alternate filesystem root for non-production tests.
   -h, --help             Show this help.
 
@@ -41,6 +45,8 @@ parse_args() {
             --confirm)
                 [[ $# -ge 2 ]] || { acp_error '--confirm requires a token.'; return 64; }
                 CONFIRMATION="$2"; shift 2 ;;
+            --retain-preinstall-backup)
+                RETAIN_PREINSTALL_BACKUP=true; shift ;;
             --root)
                 [[ $# -ge 2 ]] || { acp_error '--root requires a path.'; return 64; }
                 REQUESTED_ROOT="$2"; shift 2 ;;
@@ -90,6 +96,7 @@ Filesystem root:  $ACP_ROOT
 Retained backup:  $backup
 Direct route SHA: $expected
 Saved EQ state:   $(acp_path '/var/lib/a-clockwork-plex/split-bus/master-eq.json')
+Retain backup:    $RETAIN_PREINSTALL_BACKUP
 
 Activation will stop current audio applications, stop and disable the managed EQ
 units, restore the original active ALSA route and managed-file presence, reload
@@ -220,11 +227,17 @@ activate_uninstall() {
         return 1
     fi
 
-    acp_remove_preinstall_backup || { rm -rf "$snapshot"; return 1; }
+    if [[ "$RETAIN_PREINSTALL_BACKUP" != true ]]; then
+        acp_remove_preinstall_backup || { rm -rf "$snapshot"; return 1; }
+    fi
     rm -rf "$snapshot"
     acp_write_operation_log 'EQ-capable audio profile uninstalled; direct audio restored' || \
         acp_error 'Warning: uninstall succeeded but the operation log could not be written.'
-    acp_log 'EQ-capable audio profile uninstalled; the original direct-audio state was restored.'
+    if [[ "$RETAIN_PREINSTALL_BACKUP" == true ]]; then
+        acp_log 'EQ-capable audio profile uninstalled; original pre-EQ backup retained for enclosing transaction.'
+    else
+        acp_log 'EQ-capable audio profile uninstalled; the original direct-audio state was restored.'
+    fi
 }
 
 main() {
