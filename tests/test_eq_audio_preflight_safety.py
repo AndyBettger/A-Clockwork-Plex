@@ -96,7 +96,8 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         roadmap = ROADMAP.read_text(encoding="utf-8")
         self.assertIn("scripts/audio/preflight-eq.sh", roadmap)
         self.assertIn("read-only bedroom-Pi validation gate", roadmap)
-        self.assertIn("No bedroom-Pi installation", roadmap)
+        self.assertIn("production SD card remains removed and untouched", roadmap)
+        self.assertIn("separate spare SD is the disposable acceptance target", roadmap)
 
 
 if __name__ == "__main__":
