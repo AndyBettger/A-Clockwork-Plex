@@ -63,6 +63,8 @@ class ApplianceApplicationTransactionTests(unittest.TestCase):
 
             transaction = root / "transaction"
             new_helper = root / "usr/local/bin/a-clockwork-plex-alarm-audio"
+            new_mixer = root / "usr/local/bin/a-clockwork-plex-audio-mixer"
+            new_mixer_defaults = root / "etc/default/a-clockwork-plex-audio"
             script = f'''
 set -euo pipefail
 export ACP_REPO_ROOT={ROOT!s}
@@ -75,6 +77,9 @@ printf 'changed route\n' > {route!s}
 chmod 644 {route!s}
 mkdir -p {new_helper.parent!s}
 printf 'new helper\n' > {new_helper!s}
+printf 'new mixer\n' > {new_mixer!s}
+mkdir -p {new_mixer_defaults.parent!s}
+printf 'new defaults\n' > {new_mixer_defaults!s}
 rm -f {fifo!s}
 mkfifo {fifo!s}
 chmod 666 {fifo!s}
@@ -87,6 +92,8 @@ acp_application_transaction_restore {transaction!s}
             self.assertEqual(route.read_text(encoding="utf-8"), "old route\n")
             self.assertEqual(stat.S_IMODE(route.stat().st_mode), 0o600)
             self.assertFalse(new_helper.exists())
+            self.assertFalse(new_mixer.exists())
+            self.assertFalse(new_mixer_defaults.exists())
             self.assertTrue(stat.S_ISFIFO(fifo.stat().st_mode))
             self.assertEqual(stat.S_IMODE(fifo.stat().st_mode), 0o620)
 
@@ -146,10 +153,13 @@ acp_application_managed_paths testclock /home/testclock/A-Clockwork-Plex
             "/etc/systemd/system/a-clockwork-plex.service",
             "/home/testclock/.config/autostart/a-clockwork-plex-dashboard.desktop",
             "/etc/default/a-clockwork-plex-weather",
+            "/etc/default/a-clockwork-plex-audio",
             "/etc/shairport-sync.conf",
             "/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf",
             "/etc/systemd/system/a-clockwork-plex-camilladsp.service",
             "/usr/local/bin/a-clockwork-plex-alarm-audio",
+            "/usr/local/bin/a-clockwork-plex-audio-mixer",
+            "/etc/sudoers.d/a-clockwork-plex-audio-mixer",
         ):
             self.assertIn(expected, result.stdout)
 
