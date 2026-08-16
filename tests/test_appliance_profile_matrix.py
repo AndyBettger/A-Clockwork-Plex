@@ -15,6 +15,7 @@ INSTALLER = ROOT / "install.sh"
 PREFLIGHT = ROOT / "scripts/preflight-appliance.sh"
 PACKAGE_CHECK = ROOT / "scripts/check-appliance-packages.sh"
 VERIFY = ROOT / "scripts/verify-appliance.sh"
+HELPER_INSTALL = ROOT / "scripts/install-appliance-helpers.sh"
 EQ_INSTALL = ROOT / "scripts/audio/install-eq.sh"
 EQ_UNINSTALL = ROOT / "scripts/audio/uninstall-eq.sh"
 DIRECT_PROFILE = ROOT / "installer/profiles/direct/alarm-safe.conf"
@@ -193,6 +194,22 @@ class ApplianceProfileMatrixTests(unittest.TestCase):
                     )
                     self.assertEqual(preflight.returncode, 0, preflight.stderr)
                     self.assertIn("APPLIANCE_PREFLIGHT=SOURCE-PASS", preflight.stdout)
+
+                    helpers = self.command(
+                        [
+                            "bash",
+                            str(HELPER_INSTALL),
+                            "--root",
+                            str(root),
+                            "--activate",
+                            "--confirm",
+                            "INSTALL-APPLIANCE-HELPERS",
+                            "--project-user",
+                            user,
+                        ]
+                    )
+                    self.assertEqual(helpers.returncode, 0, helpers.stdout + helpers.stderr)
+                    self.assertIn("Restricted appliance helpers installed successfully", helpers.stdout)
 
                     env = None
                     if audio == "eq":
