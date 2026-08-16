@@ -2,7 +2,7 @@
 
 **Status:** Phase 7 spare-SD physical acceptance procedure  
 **Branch under test:** `feature/alarm-engine`  
-**Updated:** 14 August 2026
+**Updated:** 16 August 2026
 
 ## Purpose
 
@@ -19,7 +19,8 @@ The test covers:
 - dashboard/kiosk/AirPlay/alarm-safe Direct audio;
 - EQ promotion using the exact accepted CamillaDSP 4.1.3 executable;
 - reboot/resume and repeat-install idempotence;
-- Weather Underground commissioning through Settings using the write-only secret path.
+- Weather Underground commissioning through Settings using the write-only secret path;
+- historical rainfall acceptance for Today / Last 7 days / Current month / Current year, including cache reuse and live-observation isolation.
 
 This is intentionally destructive **only to the spare SD card**. The accepted
 production card is the rollback mechanism: remove it before this procedure and keep
@@ -42,7 +43,7 @@ acceptance run; record what failed first.
   `config.json` or a normal installer argument.
 - Do not substitute an unverified Plexamp, Node or CamillaDSP artifact.
 - A dashboard that merely opens is not acceptance. Both software verifiers and the
-  physical audio/NFC/alarm checks must pass.
+  physical audio/NFC/alarm/weather checks must pass.
 - PR #2 remains Draft/open/unmerged throughout this procedure.
 
 | Item | Accepted value |
@@ -140,7 +141,9 @@ git rev-parse HEAD
 git status --short
 ```
 
-Require branch `feature/alarm-engine` and a clean tree.
+Require branch `feature/alarm-engine`, the latest green source head selected for the
+acceptance run, and a clean tree. **Do not deliberately reset to historical checkpoint
+#26; the physical spare-SD progress has moved beyond it.**
 
 ---
 
@@ -161,6 +164,10 @@ Capture the untouched fresh-card state:
   hostnamectl || true
   uname -a
   cat /etc/os-release
+  echo '--- source ---'
+  git branch --show-current 2>/dev/null || true
+  git rev-parse HEAD 2>/dev/null || true
+  git status --short 2>/dev/null || true
   echo '--- cards before bootstrap ---'
   cat /proc/asound/cards 2>/dev/null || true
   echo '--- i2c before bootstrap ---'
@@ -173,7 +180,9 @@ Capture the untouched fresh-card state:
 ```
 
 It is completely acceptable — and expected — for Plexamp/NFC/application services
-and even `CARD=Pro` to be absent at this point.
+and even `CARD=Pro` to be absent on a genuinely new card. On the currently reused
+spare acceptance card, previously accepted bootstrap state may already be present;
+the installer must revalidate/converge it rather than assuming it.
 
 ---
 
@@ -227,7 +236,7 @@ rc=${PIPESTATUS[0]}
 echo "installer exit=$rc"
 ```
 
-There are three valid outcomes.
+There are three valid controlled outcomes.
 
 ## A. Exit `75` — reboot required
 
@@ -294,8 +303,9 @@ PACKAGE_VENV_BASELINE=RETAINED
 APPLICATION_VERIFY=PASS
 ```
 
-Any other exit code is an acceptance failure. Stop and preserve the evidence before
-repairing anything.
+For the current reused spare-SD acceptance run, this is the expected next result
+after the protected-sudoers verifier correction. Any other exit code is an
+acceptance failure: stop and preserve the evidence before repairing anything.
 
 ---
 
@@ -564,8 +574,9 @@ tag and one real alarm/Music Master isolation test.
 
 # 13. Repeat the whole fresh-bootstrap install
 
-Do this **before switching Weather to WU**, because the repeat install intentionally
-reapplies the selected Ecowitt test profile.
+Do this **before switching current observations to WU**, because the repeat install
+intentionally reapplies the selected Ecowitt test profile. Historical WU rainfall is
+commissioned afterwards and may then coexist with Ecowitt Push as the live source.
 
 Recreate `EQ_CMD` from section 10 if this is a new shell, then:
 
@@ -598,19 +609,24 @@ Require PASS from all three.
 
 ---
 
-# 14. Commission Weather Underground through Settings
+# 14. Commission Weather Underground and historical rainfall through Settings
 
 WU commissioning is deliberately **not** a fresh-install command-line secret step.
 Do this on the local dashboard after the repeat installer test has passed.
 
-Open **Settings → Weather** and:
+Open **Settings → Weather → Observation source**.
 
-1. choose **Weather Underground** for current observations;
-2. enter the WU Station ID and save the ordinary Weather settings;
-3. use **Set API key** / **Replace API key** and type the key locally;
-4. press **Test connection**;
-5. require a sanitized success result and live observation health;
-6. after submission, the page must show only configured/not-configured status —
+## 14.1 Current observation source and write-only WU commissioning
+
+1. Confirm the top-right source chip truthfully matches the current live provider:
+   **Ecowitt Push** when Ecowitt supplies live observations, or **WU Ready** after a
+   healthy WU-current configuration.
+2. The live provider may remain **Ecowitt custom push** for this acceptance. WU
+   historical rainfall is independent of the current-observation choice.
+3. Enter the real WU Station ID and save the ordinary Weather settings.
+4. Use **Set API key** / **Replace API key** and type the key locally.
+5. Press **Test connection** and require a sanitized success result.
+6. After submission, the page must show only configured/not-configured status —
    never the stored key.
 
 Do not paste the key into a terminal or evidence file.
@@ -647,7 +663,7 @@ Require:
 WU_CONFIG_SECRET_FIELDS=NONE
 ```
 
-Finally inspect the observation health **without printing the key**:
+Inspect current-observation health without printing the key:
 
 ```bash
 curl -fsS http://localhost:8088/api/weather/observations \
@@ -655,9 +671,116 @@ curl -fsS http://localhost:8088/api/weather/observations \
   | tee "$EVIDENCE/62-wu-observation-health.json"
 ```
 
-Require the Weather Underground provider/status and a real recent observation.
-Use the dashboard itself to confirm temperature/pressure/current observation values
-look credible for the station.
+If WU is the live source, require a real recent observation. If Ecowitt remains the
+live source, require healthy Ecowitt current observations while WU remains available
+for history.
+
+## 14.2 Exercise all four rainfall periods
+
+In **Historical rainfall**, save and verify each option:
+
+1. **Today** — must continue to use the current live station Rain Today value. It
+   must not require a historical WU request merely to calculate today.
+2. **Last 7 days** — six completed dates plus today's live total.
+3. **Current month** — completed dates from the first of the month plus today live.
+4. **Current year** — completed dates from 1 January plus today live.
+
+After each save, inspect the sanitized history status:
+
+```bash
+curl -fsS http://localhost:8088/api/weather/rainfall \
+  | python3 -m json.tool \
+  | tee -a "$EVIDENCE/63-rainfall-history-health.json"
+```
+
+Require `complete: true` before accepting a displayed aggregate. If required dates
+are unavailable, the UI/API must report incomplete history and must **not** show a
+partial aggregate as though it were complete.
+
+The Weather page's **Rainy Day Fund** must show the selected non-Today historical
+aggregate while the existing Rain Today reading remains live and unchanged.
+
+## 14.3 Prove cache reuse
+
+With **Current year** selected and its first fill complete, explicitly request two
+refreshes:
+
+```bash
+curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
+  | python3 -m json.tool \
+  | tee "$EVIDENCE/64-rainfall-refresh-first.json"
+
+curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
+  | python3 -m json.tool \
+  | tee "$EVIDENCE/65-rainfall-refresh-second.json"
+```
+
+The second completed refresh must report:
+
+```text
+"fetched_ranges": 0
+```
+
+This proves completed dates are reused from the local cache rather than downloading
+the year repeatedly. Today's live total is deliberately not persisted as a completed
+historical day.
+
+Inspect cache structure without exposing credentials:
+
+```bash
+python3 - <<'PY' | tee "$EVIDENCE/66-rainfall-cache-check.txt"
+import json
+from pathlib import Path
+
+path = Path('weather-rainfall-history.json')
+data = json.loads(path.read_text(encoding='utf-8'))
+forbidden = {'api_key', 'apikey', 'password', 'secret', 'token'}
+found = []
+
+def walk(value, where='root'):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if str(key).lower() in forbidden:
+                found.append(f'{where}.{key}')
+            walk(child, f'{where}.{key}')
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            walk(child, f'{where}[{index}]')
+
+walk(data)
+stations = data.get('stations') if isinstance(data.get('stations'), dict) else {}
+day_count = 0
+for station in stations.values():
+    if isinstance(station, dict) and isinstance(station.get('days'), dict):
+        day_count += len(station['days'])
+print(f'RAINFALL_CACHE_VERSION={data.get("version")}')
+print(f'RAINFALL_CACHE_STATIONS={len(stations)}')
+print(f'RAINFALL_CACHE_DAYS={day_count}')
+print('RAINFALL_CACHE_SECRET_FIELDS=' + (','.join(found) if found else 'NONE'))
+raise SystemExit(1 if found else 0)
+PY
+```
+
+Require version `1`, at least one station/day after historical fill, and:
+
+```text
+RAINFALL_CACHE_SECRET_FIELDS=NONE
+```
+
+## 14.4 Supplemental-failure behaviour
+
+Historical rainfall is supplementary. If a history request is unavailable during
+acceptance, record that fact but require all of the following:
+
+- current Ecowitt/WU observations still update normally;
+- the normal Weather screen still renders current readings;
+- no API key appears in the history error/status output;
+- an incomplete historical period is marked incomplete and no misleading partial
+  total is displayed.
+
+Do not deliberately corrupt the real API key just to manufacture this failure if a
+natural provider failure is not available; source/CI coverage already exercises the
+failure path.
 
 ---
 
@@ -675,6 +798,7 @@ Create a short dated result document under `docs/` recording:
 - repeat-install/idempotence result;
 - NFC/AirPlay/alarm result;
 - real WU Settings/Test Connection result;
+- Observation Source/current-provider result and all four historical-rainfall period/cache results;
 - any deviations or repairs required.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
