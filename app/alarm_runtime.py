@@ -283,6 +283,81 @@ class ActiveAlarmScheduler(SilentAlarmScheduler):
             return True
         return False
 
+    def _deadline_candidates_locked(self, now: datetime) -> list[datetime]:
+        """Return future state transitions that should wake the active runtime."""
+        deadlines: list[datetime] = []
+
+        def add(raw: Any) -> None:
+            value = parse_iso_datetime(raw, self._timezone)
+            if value is not None and value > now:
+                deadlines.append(value)
+
+        next_occurrence = self._state.get("next_occurrence")
+        if isinstance(next_occurrence, dict):
+            add(next_occurrence.get("scheduled_for"))
+
+        pending = self._state.get("pending_test_occurrence")
+        if isinstance(pending, dict):
+            add(pending.get("trigger_at"))
+
+        active = self._state.get("active_occurrence")
+        if isinstance(active, dict):
+            scheduled = parse_iso_datetime(active.get("scheduled_for"), self._timezone)
+            if scheduled is not None:
+                try:
+                    expiry_minutes = max(15, int(active.get("occurrence_expiry_minutes", 120)))
+                except (TypeError, ValueError):
+                    expiry_minutes = 120
+                expiry = scheduled + timedelta(minutes=expiry_minutes)
+                if expiry > now:
+                    deadlines.append(expiry)
+
+            snoozed_until = parse_iso_datetime(self._state.get("snoozed_until"), self._timezone)
+            if snoozed_until is not None and snoozed_until > now:
+                deadlines.append(snoozed_until)
+            else:
+                ring_started = parse_iso_datetime(active.get("ring_cycle_started_at"), self._timezone)
+                if ring_started is not None:
+                    try:
+                        ring_minutes = max(1, min(10, int(active.get("ring_minutes", 3))))
+                    except (TypeError, ValueError):
+                        ring_minutes = 3
+                    ring_end = ring_started + timedelta(minutes=ring_minutes)
+                    if ring_end > now:
+                        deadlines.append(ring_end)
+
+        return deadlines
+
+    def _next_wait_seconds(self) -> float:
+        """Use the 15s poll as a ceiling, not as alarm timing resolution."""
+        now = self._now()
+        with self._lock:
+            deadlines = self._deadline_candidates_locked(now)
+        if not deadlines:
+            return float(self._poll_seconds)
+
+        now_utc = now.astimezone(timezone.utc)
+        seconds = min(
+            (deadline.astimezone(timezone.utc) - now_utc).total_seconds()
+            for deadline in deadlines
+        )
+        return max(0.01, min(float(self._poll_seconds), seconds))
+
+    def _thread_main(self) -> None:
+        while not self._stop_event.is_set():
+            self._wake_event.wait(self._next_wait_seconds())
+            self._wake_event.clear()
+            if self._stop_event.is_set():
+                break
+            try:
+                self.tick()
+            except Exception as exc:
+                with self._lock:
+                    now = self._now()
+                    self._state["last_error"] = f"Scheduler tick failed: {exc}"
+                    self._state["last_check_at"] = now.isoformat(timespec="seconds")
+                    self._persist_locked(now, force=True)
+
     def tick(
         self,
         *,

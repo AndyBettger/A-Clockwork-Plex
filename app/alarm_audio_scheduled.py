@@ -7,19 +7,18 @@ from typing import Any
 from flask import jsonify, request
 
 try:
-    from . import alarm_audio_core as _core
     from .alarm_audio import AlarmAudioManager as ControlledAlarmAudioManager
     from .alarm_audio import normalise_audio_settings as _normalise_test_audio_settings
+    from .alarm_audio_streaming import stream_scheduled_alarm
 except ImportError:  # Supports direct execution imports.
-    import alarm_audio_core as _core
     from alarm_audio import AlarmAudioManager as ControlledAlarmAudioManager
     from alarm_audio import normalise_audio_settings as _normalise_test_audio_settings
+    from alarm_audio_streaming import stream_scheduled_alarm
 
 
 MAX_CONTROLLED_TEST_SECONDS = 30
 MAX_SCHEDULED_RING_SECONDS = 630
 DEFAULT_SCHEDULED_VOLUME_CAP_PERCENT = 100
-_DURATION_LIMIT_LOCK = threading.Lock()
 
 
 def _integer(value: Any, fallback: int) -> int:
@@ -77,16 +76,10 @@ class ScheduledAlarmAudioManager(ControlledAlarmAudioManager):
         return bool(occurrence.get("scheduled_alarm")) and not bool(occurrence.get("test_mode"))
 
     def _play_scheduled(self, occurrence: dict[str, Any], settings: dict[str, Any]) -> None:
-        # The preserved player uses this module constant as its final renderer
-        # clamp. Widen it only while the one scheduled worker owns playback, then
-        # restore it so explicit tests and unrelated callers remain capped at 30s.
-        with _DURATION_LIMIT_LOCK:
-            original_limit = _core.MAX_TEST_SECONDS
-            _core.MAX_TEST_SECONDS = MAX_SCHEDULED_RING_SECONDS
-            try:
-                super()._play(occurrence, settings)
-            finally:
-                _core.MAX_TEST_SECONDS = original_limit
+        # Scheduled playback streams bounded stereo PCM straight into aplay. This
+        # starts sound as soon as the process is ready instead of rendering a
+        # multi-minute WAV before the first sample can be heard.
+        stream_scheduled_alarm(self, occurrence, settings)
 
     def _start(self, occurrence: dict[str, Any], cycle: str) -> None:
         settings = self.settings()
