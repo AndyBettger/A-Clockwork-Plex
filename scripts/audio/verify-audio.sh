@@ -59,6 +59,18 @@ check_root_text_equals() {
     [[ "$result" -eq 0 && "$observed" == "$expected" ]]
 }
 
+check_root_text_contains() {
+    local source="$1" expected="$2" temporary result=0
+    temporary="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-text-read.XXXXXX")" || return 1
+    if ! acp_copy_root_file_to_temporary "$source" "$temporary"; then
+        rm -f "$temporary"
+        return 1
+    fi
+    grep -Fxq -- "$expected" "$temporary" || result=1
+    rm -f "$temporary"
+    [[ "$result" -eq 0 ]]
+}
+
 check_python_source() {
     local source="$1" temporary result
     temporary="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-python-read.XXXXXX")" || return 1
@@ -142,8 +154,9 @@ PY_EQ
 }
 
 verify_filesystem() {
-    local failures=0 marker module source
+    local failures=0 marker module source camilla_unit
     marker="$(acp_path '/var/lib/a-clockwork-plex/split-bus/installed')" || return 1
+    camilla_unit="$(acp_path '/etc/systemd/system/a-clockwork-plex-camilladsp.service')" || return 1
 
     check_root_text_equals "$marker" eq-split-bus || {
         acp_error 'The EQ-capable installed marker is missing or invalid.'
@@ -155,6 +168,19 @@ verify_filesystem() {
     }
     acp_validate_eq_state_file || {
         acp_error 'The saved EQ state is missing or invalid.'
+        failures=$((failures + 1))
+    }
+
+    check_root_text_contains "$camilla_unit" 'Restart=on-success' || {
+        acp_error 'The installed CamillaDSP unit does not recover clean self-exits.'
+        failures=$((failures + 1))
+    }
+    check_root_text_contains "$camilla_unit" 'RestartSec=1' || {
+        acp_error 'The installed CamillaDSP unit has the wrong clean-exit restart delay.'
+        failures=$((failures + 1))
+    }
+    check_root_text_contains "$camilla_unit" 'OnFailure=a-clockwork-plex-audio-failback.service' || {
+        acp_error 'The installed CamillaDSP unit has lost direct-audio failback ownership.'
         failures=$((failures + 1))
     }
 
@@ -219,7 +245,7 @@ main() {
 
     ACP_ROOT="$(acp_normalise_root "$REQUESTED_ROOT")" || return 1
     export ACP_ROOT ACP_REPO_ROOT
-    for command in cat mktemp sha256sum stat python3; do
+    for command in cat grep mktemp sha256sum stat python3; do
         acp_require_command "$command" || return 1
     done
 
