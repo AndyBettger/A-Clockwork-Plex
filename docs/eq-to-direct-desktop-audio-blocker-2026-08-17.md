@@ -15,7 +15,7 @@ Fresh-bootstrap Direct retry reached the intended installed-EQ convergence path:
 - full host preflight passed
 - the whole-application transaction entered `eq-teardown`
 
-The retry then failed with installer exit `2` while restoring the pre-EQ `snd_aloop` state:
+The first physical retry then failed with installer exit `2` while restoring the pre-EQ `snd_aloop` state:
 
 ```text
 modprobe: FATAL: Module snd_aloop is in use.
@@ -55,6 +55,34 @@ The change deliberately does not kill arbitrary processes and does not broadly s
 
 Regression coverage is in `tests/test_eq_uninstall_desktop_audio_quiesce.py`.
 
-## Next physical gate
+## Physical resolution
 
-Do not rerun the spare-SD installer until the exact branch head containing this correction has a successful CI run. After that gate, fast-forward the spare Pi and repeat the guarded Direct fresh-bootstrap command, preserving a new evidence log.
+After the correction passed CI on exact source head `15beab92fc4edb2bb6967a13b2a846bf6d493acf`, the same spare SD was fast-forwarded and the identical guarded Direct fresh-bootstrap command was rerun without manual audio teardown.
+
+The repaired transition physically passed:
+
+- package/main/NFC venv baseline: PASS;
+- PN532 I2C `0x24`: PASS;
+- Raspberry Pi DAC Pro `CARD=Pro`: PASS;
+- pinned/claimed Plexamp runtime: PASS;
+- guarded NFC listener: PASS;
+- full host preflight: PASS;
+- installed EQ detection: `EQ already installed: true`;
+- requested convergence: `EQ -> Direct migrate: true`;
+- EQ teardown with retained enclosing-transaction backup: PASS;
+- alarm-safe Direct route install: PASS;
+- restricted helpers: PASS;
+- guarded AirPlay integration: PASS;
+- final whole-appliance verifier: 0 failures, 0 warnings;
+- `APPLICATION_TRANSACTION=COMMITTED`;
+- `ROOT_INSTALL=COMMITTED`;
+- `INSTALL_ROUTE=fresh-bootstrap`;
+- `PACKAGE_VENV_BASELINE=RETAINED`;
+- `APPLICATION_VERIFY=PASS`;
+- authoritative root installer exit: `0`.
+
+Successful evidence log:
+
+`/home/andy/acp-phase7-spare-sd-20260815-171112/20-direct-install-20260817-001024.txt`
+
+This closes the physical EQ → Direct convergence blocker on the spare SD. The next gate is independent post-install verification and physical Direct-mode acceptance; the production SD remains removed and untouched.
