@@ -15,6 +15,7 @@ WU_KEY_FILE=
 FAILURES=0
 WARNINGS=0
 DIRECT_SHA256=654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
+MIXER_HELPER=/usr/local/bin/a-clockwork-plex-audio-mixer
 
 usage() {
     cat <<'EOF'
@@ -190,6 +191,30 @@ raise SystemExit(0 if value.strip() else 1)
 PY
 }
 
+validate_mixer_payload() {
+    local source="$1"
+    python3 - "$source" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if isinstance(payload, dict) and isinstance(payload.get("mixer"), dict):
+    payload = payload["mixer"]
+channels = payload.get("channels") if isinstance(payload, dict) else None
+required = {"master", "plexamp", "airplay", "alarm"}
+ok = (
+    isinstance(payload, dict)
+    and payload.get("available") is True
+    and payload.get("configured") is True
+    and isinstance(channels, dict)
+    and required.issubset(channels)
+    and all(channels[name].get("available") is True and channels[name].get("pcm_available") is True for name in required)
+)
+raise SystemExit(0 if ok else 1)
+PY
+}
+
 cat <<EOF
 A Clockwork Plex appliance post-install verification
 
@@ -221,6 +246,11 @@ require_file alarm-helper '/usr/local/bin/a-clockwork-plex-alarm-audio'
 require_protected_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
 require_file shairport-name-helper '/usr/local/bin/a-clockwork-plex-shairport-name'
 require_protected_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'
+require_file mixer-helper "$MIXER_HELPER"
+require_protected_file mixer-sudoers '/etc/sudoers.d/a-clockwork-plex-audio-mixer'
+require_file mixer-defaults '/etc/default/a-clockwork-plex-audio'
+require_contains mixer-defaults '/etc/default/a-clockwork-plex-audio' 'ALSA_CARD=Pro'
+require_contains mixer-defaults '/etc/default/a-clockwork-plex-audio' 'ALSA_DEVICE=0'
 require_contains shairport-config '/etc/shairport-sync.conf' '/usr/local/bin/a-clockwork-plex-airplay-start'
 require_contains shairport-config '/etc/shairport-sync.conf' '/usr/local/bin/a-clockwork-plex-airplay-end'
 require_contains shairport-config '/etc/shairport-sync.conf' '/tmp/shairport-sync-metadata'
@@ -358,10 +388,18 @@ echo 'Live runtime/API:'
         fi
     done
 
+    mixer_helper_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-mixer-helper.XXXXXX")"
     state_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-api-state.XXXXXX")"
     weather_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-weather-state.XXXXXX")"
     eq_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-eq-state.XXXXXX")"
-    trap 'rm -f "$state_json" "$weather_json" "$eq_json"' EXIT
+    mixer_api_json="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-mixer-api.XXXXXX")"
+    trap 'rm -f "$mixer_helper_json" "$state_json" "$weather_json" "$eq_json" "$mixer_api_json"' EXIT
+
+    if sudo -n "$MIXER_HELPER" status >"$mixer_helper_json" 2>/dev/null && validate_mixer_payload "$mixer_helper_json"; then
+        pass mixer-runtime 'helper reports master/Plexamp/AirPlay/alarm controls ready'
+    else
+        fail_check mixer-runtime 'restricted mixer helper is unavailable or reports incomplete controls/PCMs'
+    fi
 
     if curl -fsS "$DASHBOARD_URL/api/state" -o "$state_json"; then
         pass dashboard-api '/api/state HTTP success'
@@ -415,7 +453,17 @@ PY
         fail_check eq-api '/api/audio/eq unavailable'
     fi
 
-    rm -f "$state_json" "$weather_json" "$eq_json"
+    if curl -fsS "$DASHBOARD_URL/api/audio/mixer" -o "$mixer_api_json"; then
+        if validate_mixer_payload "$mixer_api_json"; then
+            pass mixer-api 'master/Plexamp/AirPlay/alarm controls available'
+        else
+            fail_check mixer-api '/api/audio/mixer reports incomplete controls/PCMs'
+        fi
+    else
+        fail_check mixer-api '/api/audio/mixer unavailable'
+    fi
+
+    rm -f "$mixer_helper_json" "$state_json" "$weather_json" "$eq_json" "$mixer_api_json"
     trap - EXIT
 else
     echo
