@@ -6,44 +6,23 @@
 
 ## Purpose
 
-Prove that A Clockwork Plex can be built on a genuinely fresh Raspberry Pi OS
-installation using the real bedroom Pi/HAT/display hardware **without touching the
-accepted production SD card**.
+Prove that A Clockwork Plex can be built and reconverged on the real bedroom Pi/HAT/display hardware using a **spare SD card** while the **accepted production SD card** remains removed and untouched.
 
-The test covers:
-
-- fresh package and paired Python-environment bootstrap;
-- I2C/PN532 and Raspberry Pi DAC Pro commissioning;
-- pinned Plexamp Headless + Node runtime and local interactive Plex claim;
-- pinned NFC listener;
-- dashboard/kiosk/AirPlay/alarm-safe Direct audio;
-- EQ promotion using the exact accepted CamillaDSP 4.1.3 executable;
-- reboot/resume and repeat-install idempotence;
-- Weather Underground commissioning through Settings using the write-only secret path;
-- historical rainfall acceptance for Today / Last 7 days / Current month / Current year, including cache reuse and live-observation isolation.
-
-This is intentionally destructive **only to the spare SD card**. The accepted
-production card is the rollback mechanism: remove it before this procedure and keep
-it physically separate until testing is complete.
+The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry Pi DAC Pro, pinned Plexamp Headless/Node, NFC, dashboard/kiosk, AirPlay, alarm-safe Direct audio, guarded EQ promotion, reboot/repeat-install, Weather Underground commissioning and historical rainfall.
 
 ---
 
 # 0. Stop rules and accepted identities
 
-Stop on the first unexplained failure. Do not “fix forward” blindly during an
-acceptance run; record what failed first.
+**Stop on the first unexplained failure.** Preserve evidence and diagnose the failed owner; do not fix forward blindly.
 
-- Power the Pi down before removing/reseating HATs, display cables or SD cards.
-- Remove the accepted production SD card and label/store it somewhere safe before
-  the spare card is inserted.
-- Do not update Pi EEPROM/bootloader, audio-HAT EEPROM or hardware firmware during
-  this run. The installer intentionally does not do those things.
+- Power down before reseating hardware or SD cards.
+- Remove the accepted production SD card before the spare card is inserted.
+- **Label/store that card safely. Do not reformat it for this test.**
+- Do not update Pi EEPROM/bootloader, HAT EEPROM, audio-HAT firmware or other hardware firmware.
 - Run installers as the normal appliance user, never as root.
-- Never paste the Weather Underground API key or Plex claim code into chat, evidence,
-  `config.json` or a normal installer argument.
-- Do not substitute an unverified Plexamp, Node or CamillaDSP artifact.
-- A dashboard that merely opens is not acceptance. Both software verifiers and the
-  physical audio/NFC/alarm/weather checks must pass.
+- Never place a Weather Underground API key or Plex claim code in chat, evidence, `config.json`, installer argv or logs.
+- Do not substitute unverified Plexamp, Node or CamillaDSP artifacts.
 - PR #2 remains Draft/open/unmerged throughout this procedure.
 
 | Item | Accepted value |
@@ -55,54 +34,33 @@ acceptance run; record what failed first.
 | Plexamp Headless | `4.13.2`, SHA-256 `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041` |
 | Node | `20.20.2` linux-arm64, SHA-256 `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71` |
 | PN532 | I2C bus `1`, address `0x24` |
-| DAC | Raspberry Pi DAC Pro, accepted ALSA card id `Pro` |
-| DAC fallback overlay | `rpi-dacpro` only when required by commissioning |
-| Forecast provider | Open-Meteo |
+| DAC | Raspberry Pi DAC Pro, ALSA `CARD=Pro` |
+| DAC fallback overlay | `rpi-dacpro` only when commissioning requires it |
 | Root activation token | `APPLY-A-CLOCKWORK-PLEX` |
 
-The historical Phase 6 Direct rollback `08d00093...` remains historical evidence;
-it is deliberately not the fresh Direct target.
+The historical Phase 6 Direct rollback `08d00093...` is historical evidence, not the fresh Direct target.
 
 ---
 
-# 1. Rebuild the physical appliance and protect production state
+# 1. Protect production state and prepare the appliance
 
-1. Shut down the working appliance normally.
-2. Disconnect power.
-3. Remove the accepted production SD card.
-4. Label/store that card safely. **Do not reformat it for this test.**
-5. With the Pi still unpowered, carry out the intended physical tidy-up:
-   - correct-length internal cables;
-   - HATs properly seated;
-   - proper standoffs/screws rather than temporary support;
-   - display/audio/power wiring routed without strain.
-6. Insert the spare SD card only after the physical rebuild is complete.
+1. Shut the working appliance down normally and disconnect power.
+2. Remove the accepted production SD card.
+3. Label/store that card safely; do not reformat it for this test.
+4. Complete any intended cable/standoff tidy-up while unpowered.
+5. Insert only the spare acceptance card.
 
-The test uses the same Pi/HAT/display hardware, which is desirable: it proves the
-installer against the actual appliance hardware while the known-good software card
-remains untouched.
+The production card is the recovery boundary for this experiment.
 
 ---
 
-# 2. Flash a genuinely fresh Raspberry Pi OS card
+# 2. Fresh Raspberry Pi OS baseline
 
-Use Raspberry Pi Imager and install a current **64-bit Raspberry Pi OS with Desktop**.
-The desktop build is required because the finished appliance owns Chromium kiosk
-startup as well as the headless services.
+For a genuinely fresh run, use current 64-bit Raspberry Pi OS with Desktop. In Raspberry Pi Imager configure the normal appliance username, network/locale/timezone, SSH if wanted, and a **test hostname** distinct from production such as `plexamp-test`.
 
-In Imager, preconfigure:
+Do not manually preinstall Plexamp, NFC libraries, Shairport routing, CamillaDSP or A Clockwork Plex services.
 
-- the normal appliance username;
-- a **test hostname** distinct from the production installation, for example
-  `plexamp-test`;
-- network/Wi-Fi as needed;
-- locale/timezone;
-- SSH if desired.
-
-Do not preinstall Plexamp, Shairport Sync, NFC libraries, audio routing, CamillaDSP
-or A Clockwork Plex services manually.
-
-After first boot:
+Record:
 
 ```bash
 hostname -s
@@ -111,43 +69,30 @@ uname -m
 cat /etc/os-release
 ```
 
-Require `aarch64`/64-bit Raspberry Pi OS and record the test hostname.
+Require 64-bit/aarch64 Raspberry Pi OS.
 
 ---
 
-# 3. Obtain the source tree — the only source-bootstrap exception
-
-The repository must exist before its own installer can run. This is the one
-unavoidable bootstrap boundary.
-
-If `git` is already available on the fresh image:
+# 3. Obtain and verify the source tree
 
 ```bash
 cd ~
 git clone --branch feature/alarm-engine https://github.com/AndyBettger/A-Clockwork-Plex.git
 cd A-Clockwork-Plex
-```
-
-If `git` is not available, copy the exact `feature/alarm-engine` source tree from a
-trusted development machine to `~/A-Clockwork-Plex`; do not manually install the
-rest of the appliance dependencies. The guarded package stage owns `git` from then
-on.
-
-Record the exact source identity when `.git` is present:
-
-```bash
 git branch --show-current
 git rev-parse HEAD
 git status --short
 ```
 
-Require branch `feature/alarm-engine`, the latest green source head selected for the
-acceptance run, and a clean tree. **Do not deliberately reset to historical checkpoint
-#26; the physical spare-SD progress has moved beyond it.**
+If `git` is unavailable on a genuinely fresh image, copy the exact branch tree from a trusted machine only for this source-bootstrap boundary. Require `feature/alarm-engine`, the latest green head selected for acceptance, and a clean tree.
+
+On the current reused spare card, fast-forward the existing checkout rather than cloning again.
 
 ---
 
-# 4. Create the acceptance evidence directory
+# 4. Create or recover the acceptance evidence directory
+
+For a new fresh-card experiment only:
 
 ```bash
 cd ~/A-Clockwork-Plex
@@ -156,33 +101,15 @@ mkdir -p "$EVIDENCE"
 printf '%s\n' "$EVIDENCE" > "$HOME/.acp-phase7-evidence-path"
 ```
 
-Capture the untouched fresh-card state:
+For every resumed attempt, including the current EQ → Direct retry, **reuse the existing evidence directory**:
 
 ```bash
-{
-  date --iso-8601=seconds
-  hostnamectl || true
-  uname -a
-  cat /etc/os-release
-  echo '--- source ---'
-  git branch --show-current 2>/dev/null || true
-  git rev-parse HEAD 2>/dev/null || true
-  git status --short 2>/dev/null || true
-  echo '--- cards before bootstrap ---'
-  cat /proc/asound/cards 2>/dev/null || true
-  echo '--- i2c before bootstrap ---'
-  ls -l /dev/i2c-* 2>/dev/null || true
-  echo '--- relevant services before bootstrap ---'
-  for u in plexamp.service nfc-listener.service shairport-sync.service a-clockwork-plex.service; do
-    systemctl show "$u" -p LoadState -p ActiveState -p UnitFileState 2>/dev/null || true
-  done
-} | tee "$EVIDENCE/00-fresh-baseline.txt"
+EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
+printf 'EVIDENCE=%s\n' "$EVIDENCE"
+test -d "$EVIDENCE" && echo EVIDENCE_OK || echo EVIDENCE_MISSING
 ```
 
-It is completely acceptable — and expected — for Plexamp/NFC/application services
-and even `CARD=Pro` to be absent on a genuinely new card. On the currently reused
-spare acceptance card, previously accepted bootstrap state may already be present;
-the installer must revalidate/converge it rather than assuming it.
+Do not silently create a replacement directory if the saved path is missing.
 
 ---
 
@@ -198,26 +125,13 @@ bash install.sh \
   | tee "$EVIDENCE/10-direct-plan.txt"
 ```
 
-Require the plan to show this order:
-
-1. package/artifact check;
-2. fresh stage-zero preflight;
-3. package + paired main/NFC venv bootstrap;
-4. Pi hardware commissioning;
-5. player-pending gate;
-6. pinned Plexamp runtime;
-7. pinned NFC listener;
-8. full host preflight;
-9. application transaction/verifier.
-
-The plan itself must make no production change.
+Require the plan order to include package/artifact check, **fresh stage-zero preflight**, paired main/NFC venv bootstrap, hardware commissioning, player-pending gate, pinned Plexamp runtime, pinned NFC listener, full host preflight and application transaction/verifier. The plan must not mutate production state.
 
 ---
 
 # 6. Fresh Direct apply — controlled resume loop
 
-Use `pipefail` so `tee` does not hide the installer's real exit code. Every rerun
-gets its own timestamped log so earlier failed-attempt evidence is never overwritten:
+Use a new timestamped log on every attempt so prior failures remain evidence:
 
 ```bash
 set -o pipefail
@@ -239,62 +153,38 @@ echo "installer exit=$rc"
 echo "direct log=$DIRECT_LOG"
 ```
 
-There are three valid controlled outcomes.
+### Reused spare-SD EQ → Direct convergence
+
+The spare card may already contain an accepted EQ appliance from an earlier Phase 7 attempt. That is now a **supported convergent source state** for a requested Direct install.
+
+- Do **not** manually uninstall EQ before this run.
+- The application transaction owns specialist EQ teardown, retained-backup handling, live loopback rollback state and canonical Direct installation.
+- A failed transition must restore the prior EQ application state rather than requiring manual fix-forward.
+- Preserve the timestamped log on any nonzero exit.
+
+There are three controlled root-installer outcomes:
 
 ## A. Exit `75` — reboot required
 
-This is a **controlled checkpoint**, not a failure. Typical reasons are enabling
-I2C or installing the reviewed DAC Pro boot block.
-
-Require output containing:
+Require:
 
 ```text
 ROOT_INSTALL=REBOOT-REQUIRED
 REBOOT_POLICY=OPERATOR-CONTROLLED
 ```
 
-Then:
-
-```bash
-sudo reboot
-```
-
-After reconnecting:
-
-```bash
-cd ~/A-Clockwork-Plex
-EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
-set -o pipefail
-```
-
-Recreate `DIRECT_CMD` and a new timestamped `DIRECT_LOG` from above and run it again.
-Already-successful bootstrap stages are expected to revalidate/idempotently converge
-rather than being blindly assumed.
+This is a controlled hardware checkpoint. Reboot manually, recover `$HOME/.acp-phase7-evidence-path`, and rerun the same command with a new timestamped log.
 
 ## B. Exit `76` — Plexamp claim required
 
-The pinned Node and Plexamp runtimes have been installed and verified, but no Plex
-account/player state exists yet. This is the intended human authentication boundary.
-
-Run Plexamp locally in the foreground:
+Run the pinned player locally:
 
 ```bash
 cd ~/plexamp
 /opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js
 ```
 
-When Plexamp prompts:
-
-1. obtain a **fresh** claim code from `https://plex.tv/claim` on your own device;
-2. enter it directly into the local Plexamp prompt;
-3. enter the desired player name;
-4. wait until Plexamp reports that it has started successfully;
-5. press `Ctrl-C` to stop the foreground process.
-
-Do not save the claim code into evidence or pass it back to `install.sh`.
-
-Return to the repository, recreate `DIRECT_CMD` plus a new timestamped `DIRECT_LOG`,
-and run it again.
+Obtain a fresh code from `https://plex.tv/claim`, enter it only into the local Plexamp prompt, enter the player name, wait for successful sign-in, then `Ctrl-C`. Do not save the claim code. Return to the repository and rerun the same installer command.
 
 ## C. Exit `0` — committed
 
@@ -307,15 +197,11 @@ PACKAGE_VENV_BASELINE=RETAINED
 APPLICATION_VERIFY=PASS
 ```
 
-For the current reused spare-SD acceptance run, this is the expected next result
-after the protected-sudoers verifier correction. Any other exit code is an
-acceptance failure: stop and preserve the evidence before repairing anything.
+For the current reused spare-SD retry, exit `0` is the expected success result after the source/CI-tested EQ → Direct convergence repair. Any other unexplained nonzero exit is an acceptance failure: stop, preserve the log, and do not manually fix forward.
 
 ---
 
-# 7. Verify the completed fresh substrate and Direct appliance
-
-Run both independent verifiers:
+# 7. Verify the completed Direct appliance
 
 ```bash
 cd ~/A-Clockwork-Plex
@@ -341,7 +227,7 @@ FRESH_BOOTSTRAP_VERIFY=PASS
 APPLIANCE_VERIFY=PASS
 ```
 
-Also require the fresh Direct identity:
+Check the Direct route and absence of the EQ marker:
 
 ```bash
 sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
@@ -349,13 +235,9 @@ sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
 test ! -e /var/lib/a-clockwork-plex/split-bus/installed
 ```
 
-Expected route SHA:
+Expected SHA: `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`.
 
-```text
-654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
-```
-
-Useful substrate spot checks:
+Spot-check hardware/runtime:
 
 ```bash
 systemctl --no-pager --full status plexamp.service nfc-listener.service || true
@@ -363,99 +245,47 @@ i2cdetect -y 1
 aplay -l
 ```
 
-PN532 must be visible at `0x24`; ALSA must expose `CARD=Pro`.
+Require PN532 `0x24` and `CARD=Pro`.
 
 ---
 
 # 8. Physical Direct acceptance
 
-## Dashboard / kiosk / Plexamp
+Record notes in `$EVIDENCE/24-direct-physical-notes.txt` and require:
 
-- Dashboard, Settings and Clock render normally.
-- Chromium kiosk launches once after a normal desktop login/restart.
-- Embedded Plexamp UI loads and is usable.
-- Play a familiar Plexamp track and require clean stable stereo playback.
-
-## NFC
-
-Scan a known Plexamp album tag.
-
-Require all of the following:
-
-- PN532 scan is detected;
-- the tag triggers local Plexamp playback;
-- the dashboard switches to the Plexamp display;
-- repeated immediate scans are debounced rather than starting a storm of requests.
-
-## AirPlay
-
-- Connect from the normal sender/iPhone.
-- Require clean stereo and the accepted PlaybackCoordinator takeover.
-- End/pause AirPlay and require normal return without restarting the whole audio graph.
-
-## Music Master / alarm isolation
-
-1. Start music.
-2. Set **Music Master = 0%**; music must become silent.
-3. Trigger a real scheduled alarm; the alarm must remain audible.
-4. Exercise Snooze/Dismiss.
-5. Restore Music Master; music must return at the expected level.
-
-## Direct-mode EQ truthfulness
-
-Settings → Audio/EQ must show:
-
-```text
-Install required
-```
-
-Direct mode must not claim that EQ is installed/configured.
-
-Record physical notes in `$EVIDENCE/24-direct-physical-notes.txt`.
+- Dashboard, Settings and Clock render normally; Chromium kiosk starts normally.
+- Plexamp plays stable stereo.
+- A known NFC tag starts local Plexamp playback, switches the dashboard to Plexamp, and immediate repeated scans are debounced.
+- AirPlay takes over cleanly through PlaybackCoordinator and returns normally.
+- With music playing, **Music Master = 0%** silences music.
+- A real scheduled alarm remains audible while Music Master is 0%; Snooze/Dismiss work.
+- Settings → Audio/EQ shows **Install required** in Direct mode.
 
 ---
 
 # 9. Acquire the exact accepted CamillaDSP artifact
 
-Do not manually hunt for a similarly named binary. Use the guarded repository
-fetcher, which verifies both the official v4.1.3 aarch64 release archive and the
-exact executable identity already accepted by A Clockwork Plex.
-
-Plan:
-
 ```bash
 bash scripts/fetch-camilladsp-4.1.3.sh \
   | tee "$EVIDENCE/30-camilladsp-plan.txt"
-```
 
-Acquire:
-
-```bash
 bash scripts/fetch-camilladsp-4.1.3.sh \
   --activate \
   --confirm FETCH-CAMILLADSP-4.1.3 \
   | tee "$EVIDENCE/31-camilladsp-fetch.txt"
-```
 
-Set the deterministic resulting path:
-
-```bash
 CAMILLA="$HOME/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp"
 "$CAMILLA" --version
 sha256sum "$CAMILLA"
 ```
 
-Require version `4.1.3` and executable SHA:
-
-```text
-e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa
-```
+Require CamillaDSP 4.1.3 and executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`.
 
 ---
 
-# 10. Promote the same fresh appliance to EQ
+# 10. Promote the same appliance to EQ
 
-Plan:
+Plan and apply using the guarded fresh-bootstrap owner:
 
 ```bash
 bash install.sh \
@@ -466,11 +296,7 @@ bash install.sh \
   --camilladsp-binary "$CAMILLA" \
   --non-interactive \
   | tee "$EVIDENCE/32-eq-plan.txt"
-```
 
-Apply:
-
-```bash
 set -o pipefail
 EQ_CMD=(
   bash install.sh
@@ -483,65 +309,36 @@ EQ_CMD=(
   --apply
   --confirm APPLY-A-CLOCKWORK-PLEX
 )
-
 "${EQ_CMD[@]}" 2>&1 | tee "$EVIDENCE/33-eq-install.txt"
 rc=${PIPESTATUS[0]}
 test "$rc" -eq 0
 ```
 
-Because hardware, Plexamp claim and NFC are already commissioned, no claim or
-hardware reboot checkpoint should normally reappear here. If one does, stop and
-understand why rather than bypassing it.
-
-Verify:
+Then run all three verifiers:
 
 ```bash
 bash scripts/verify-fresh-bootstrap.sh \
-  --project-user "$USER" \
-  --project-dir "$PWD" \
+  --project-user "$USER" --project-dir "$PWD" \
   | tee "$EVIDENCE/34-eq-bootstrap-verify.txt"
 
 bash scripts/verify-appliance.sh \
-  --audio eq \
-  --weather-observations ecowitt-push \
-  --project-user "$USER" \
-  --project-dir "$PWD" \
+  --audio eq --weather-observations ecowitt-push \
+  --project-user "$USER" --project-dir "$PWD" \
   | tee "$EVIDENCE/35-eq-appliance-verify.txt"
 
 bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/36-eq-audio-verify.txt"
 ```
 
-All three must pass.
-
-```bash
-sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
-  | tee "$EVIDENCE/37-eq-route.sha256"
-test -f /var/lib/a-clockwork-plex/split-bus/installed
-```
-
-Expected EQ route SHA:
-
-```text
-1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9
-```
+Require all PASS and route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
 
 ---
 
 # 11. Physical EQ acceptance
 
-- Plexamp and AirPlay both play cleanly through the EQ graph.
-- Change Bass/Mid/Treble one at a time using a familiar track and confirm plausible
-  audible changes.
-- Toggle EQ bypass and require processing to leave/return without changing alarm loudness.
-- Music Master = 0% must silence music while a real alarm remains audible.
-- **Maximum Alarm Volume** must independently govern the alarm ceiling.
-- Snooze/Dismiss normally.
-- Confirm NFC still starts Plexamp playback and switches the display after EQ promotion.
+Require clean Plexamp/AirPlay through EQ, plausible Bass/Mid/Treble changes, working bypass, Music Master = 0% music isolation with alarm still audible, independent **Maximum Alarm Volume**, working Snooze/Dismiss, and NFC playback/display handoff after EQ promotion.
 
-Do not manufacture another Camilla failure merely for drama; Phase 6 already proved
-physical automatic failback. The fresh-install test is proving construction,
-reboot and repeatability.
+Phase 6 already physically proved controlled Camilla failure/failback; do not manufacture another failure merely for this fresh-construction run.
 
 ---
 
@@ -551,13 +348,9 @@ reboot and repeatability.
 sudo reboot
 ```
 
-After reconnecting:
+After reconnecting, recover the source/evidence path and run:
 
 ```bash
-cd ~/A-Clockwork-Plex
-EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
-CAMILLA="$HOME/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp"
-
 bash scripts/verify-fresh-bootstrap.sh \
   --project-user "$USER" --project-dir "$PWD" \
   | tee "$EVIDENCE/40-bootstrap-after-reboot.txt"
@@ -571,31 +364,20 @@ bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/42-audio-after-reboot.txt"
 ```
 
-Require all three to pass. Recheck kiosk startup, short Plexamp playback, one NFC
-tag and one real alarm/Music Master isolation test.
+Require all three to pass, then recheck kiosk, brief Plexamp playback, one NFC tag and one real alarm/Music Master isolation test.
 
 ---
 
 # 13. Repeat the whole fresh-bootstrap install
 
-Do this **before switching current observations to WU**, because the repeat install
-intentionally reapplies the selected Ecowitt test profile. Historical WU rainfall is
-commissioned afterwards and may then coexist with Ecowitt Push as the live source.
-
-Recreate `EQ_CMD` from section 10 if this is a new shell, then:
+Do this **before switching current observations to WU**. Historical WU rainfall may later coexist with Ecowitt Push as the live source.
 
 ```bash
 set -o pipefail
 "${EQ_CMD[@]}" 2>&1 | tee "$EVIDENCE/50-repeat-install.txt"
 rc=${PIPESTATUS[0]}
 test "$rc" -eq 0
-```
 
-Require normal commit markers, no reboot/claim prompt and no ownership drift.
-
-Then repeat all three verifiers:
-
-```bash
 bash scripts/verify-fresh-bootstrap.sh \
   --project-user "$USER" --project-dir "$PWD" \
   | tee "$EVIDENCE/51-repeat-bootstrap-verifier.txt"
@@ -609,34 +391,26 @@ bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/53-repeat-audio-verifier.txt"
 ```
 
-Require PASS from all three.
+Require normal commit markers, no renewed reboot/claim checkpoint, no ownership drift and PASS from all three verifiers.
 
 ---
 
 # 14. Commission Weather Underground through Settings
 
-This section also performs the historical-rainfall acceptance. WU commissioning is
-deliberately **not** a fresh-install command-line secret step. Do this on the local
-dashboard after the repeat installer test has passed.
+Do this locally after the repeat installer gate. WU credentials are write-only commissioning data, not fresh-install CLI material.
 
 Open **Settings → Weather → Observation source**.
 
-## 14.1 Current observation source and write-only WU commissioning
+## 14.1 Current observation source and write-only credential commissioning
 
-1. Confirm the top-right source chip truthfully matches the current live provider:
-   **Ecowitt Push** when Ecowitt supplies live observations, or **WU Ready** after a
-   healthy WU-current configuration.
-2. The live provider may remain **Ecowitt custom push** for this acceptance. WU
-   historical rainfall is independent of the current-observation choice.
-3. Enter the real WU Station ID and save the ordinary Weather settings.
-4. Use **Set API key** / **Replace API key** and type the key locally.
+1. Confirm the live-source chip truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state.
+2. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
+3. Enter the real WU Station ID and save ordinary Weather settings.
+4. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
 5. Press **Test connection** and require a sanitized success result.
-6. After submission, the page must show only configured/not-configured status —
-   never the stored key.
+6. After submission, only configured/not-configured status may be returned; never the stored key.
 
-Do not paste the key into a terminal or evidence file.
-
-Secret-storage metadata only:
+Check secret-file metadata without printing its contents:
 
 ```bash
 sudo stat -c '%a %U:%G %n' /etc/default/a-clockwork-plex-weather \
@@ -645,13 +419,12 @@ sudo stat -c '%a %U:%G %n' /etc/default/a-clockwork-plex-weather \
 
 Require root ownership and mode `600`.
 
-Confirm `config.json` has no literal WU secret-like field:
+Confirm `config.json` contains no literal WU secret field:
 
 ```bash
 python3 - <<'PY' | tee "$EVIDENCE/61-wu-config-secret-check.txt"
 import json
 from pathlib import Path
-
 cfg = json.loads(Path('config.json').read_text(encoding='utf-8'))
 weather = cfg.get('weather') if isinstance(cfg.get('weather'), dict) else {}
 wu = weather.get('weather_underground') if isinstance(weather.get('weather_underground'), dict) else {}
@@ -662,35 +435,18 @@ raise SystemExit(1 if found else 0)
 PY
 ```
 
-Require:
+Require `WU_CONFIG_SECRET_FIELDS=NONE`.
 
-```text
-WU_CONFIG_SECRET_FIELDS=NONE
-```
+## 14.2 Historical rainfall periods
 
-Inspect current-observation health without printing the key:
+Exercise and save all four supported periods:
 
-```bash
-curl -fsS http://localhost:8088/api/weather/observations \
-  | python3 -m json.tool \
-  | tee "$EVIDENCE/62-wu-observation-health.json"
-```
+- **Today** — live station `dailyrainin`; no WU historical request required.
+- **Last 7 days** — completed days plus today live.
+- **Current month** — completed month dates plus today live.
+- **Current year** — completed year dates plus today live.
 
-If WU is the live source, require a real recent observation. If Ecowitt remains the
-live source, require healthy Ecowitt current observations while WU remains available
-for history.
-
-## 14.2 Exercise all four rainfall periods
-
-In **Historical rainfall**, save and verify each option:
-
-1. **Today** — must continue to use the current live station Rain Today value. It
-   must not require a historical WU request merely to calculate today.
-2. **Last 7 days** — six completed dates plus today's live total.
-3. **Current month** — completed dates from the first of the month plus today live.
-4. **Current year** — completed dates from 1 January plus today live.
-
-After each save, inspect the sanitized history status:
+After each selection:
 
 ```bash
 curl -fsS http://localhost:8088/api/weather/rainfall \
@@ -698,17 +454,11 @@ curl -fsS http://localhost:8088/api/weather/rainfall \
   | tee -a "$EVIDENCE/63-rainfall-history-health.json"
 ```
 
-Require `complete: true` before accepting a displayed aggregate. If required dates
-are unavailable, the UI/API must report incomplete history and must **not** show a
-partial aggregate as though it were complete.
+Only a `complete: true` history may be presented as a completed aggregate. Incomplete history must not masquerade as a partial total. Rain Today/current observations must remain live.
 
-The Weather page's **Rainy Day Fund** must show the selected non-Today historical
-aggregate while the existing Rain Today reading remains live and unchanged.
+## 14.3 Cache reuse and secret absence
 
-## 14.3 Prove cache reuse
-
-With **Current year** selected and its first fill complete, explicitly request two
-refreshes:
+With Current year complete, refresh twice:
 
 ```bash
 curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
@@ -720,91 +470,17 @@ curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
   | tee "$EVIDENCE/65-rainfall-refresh-second.json"
 ```
 
-The second completed refresh must report:
+The second completed refresh must report `"fetched_ranges": 0`. Inspect `weather-rainfall-history.json` structurally and require cache version 1, at least one cached station/day after fill, and no keys named `api_key`, `apikey`, `password`, `secret` or `token`.
 
-```text
-"fetched_ranges": 0
-```
+## 14.4 Supplemental failure behaviour
 
-This proves completed dates are reused from the local cache rather than downloading
-the year repeatedly. Today's live total is deliberately not persisted as a completed
-historical day.
-
-Inspect cache structure without exposing credentials:
-
-```bash
-python3 - <<'PY' | tee "$EVIDENCE/66-rainfall-cache-check.txt"
-import json
-from pathlib import Path
-
-path = Path('weather-rainfall-history.json')
-data = json.loads(path.read_text(encoding='utf-8'))
-forbidden = {'api_key', 'apikey', 'password', 'secret', 'token'}
-found = []
-
-def walk(value, where='root'):
-    if isinstance(value, dict):
-        for key, child in value.items():
-            if str(key).lower() in forbidden:
-                found.append(f'{where}.{key}')
-            walk(child, f'{where}.{key}')
-    elif isinstance(value, list):
-        for index, child in enumerate(value):
-            walk(child, f'{where}[{index}]')
-
-walk(data)
-stations = data.get('stations') if isinstance(data.get('stations'), dict) else {}
-day_count = 0
-for station in stations.values():
-    if isinstance(station, dict) and isinstance(station.get('days'), dict):
-        day_count += len(station['days'])
-print(f'RAINFALL_CACHE_VERSION={data.get("version")}')
-print(f'RAINFALL_CACHE_STATIONS={len(stations)}')
-print(f'RAINFALL_CACHE_DAYS={day_count}')
-print('RAINFALL_CACHE_SECRET_FIELDS=' + (','.join(found) if found else 'NONE'))
-raise SystemExit(1 if found else 0)
-PY
-```
-
-Require version `1`, at least one station/day after historical fill, and:
-
-```text
-RAINFALL_CACHE_SECRET_FIELDS=NONE
-```
-
-## 14.4 Supplemental-failure behaviour
-
-Historical rainfall is supplementary. If a history request is unavailable during
-acceptance, record that fact but require all of the following:
-
-- current Ecowitt/WU observations still update normally;
-- the normal Weather screen still renders current readings;
-- no API key appears in the history error/status output;
-- an incomplete historical period is marked incomplete and no misleading partial
-  total is displayed.
-
-Do not deliberately corrupt the real API key just to manufacture this failure if a
-natural provider failure is not available; source/CI coverage already exercises the
-failure path.
+If historical rainfall is naturally unavailable, require current Ecowitt/WU observations and the normal Weather page to remain operational, no credential material in error output, and incomplete history to remain visibly incomplete. Do not corrupt the real API key merely to manufacture a failure already covered by source tests.
 
 ---
 
 # 15. Final acceptance record
 
-Create a short dated result document under `docs/` recording:
-
-- spare-SD Raspberry Pi OS version and test hostname;
-- exact `feature/alarm-engine` commit tested;
-- whether DAC Pro was EEPROM-discovered or required the managed `rpi-dacpro` reboot;
-- Plexamp claim checkpoint result;
-- Direct verifier + physical result;
-- EQ verifier + physical result;
-- reboot result;
-- repeat-install/idempotence result;
-- NFC/AirPlay/alarm result;
-- real WU Settings/Test Connection result;
-- Observation Source/current-provider result and all four historical-rainfall period/cache results;
-- any deviations or repairs required.
+Commit a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings/Test Connection result, and all four historical-rainfall/cache results plus any deviations.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
@@ -813,14 +489,4 @@ PR #2 remains Draft/open/unmerged until the owner separately approves release/me
 
 ## Recovery after the spare-SD experiment
 
-If the test card fails catastrophically, that is still safe evidence:
-
-1. power the Pi down;
-2. remove the spare test card;
-3. reinsert the untouched accepted production SD card;
-4. power the rebuilt hardware back on;
-5. verify the accepted production appliance normally.
-
-Because this acceptance route does not update Pi EEPROM/bootloader or HAT firmware,
-the software rollback boundary remains the SD card rather than hidden persistent
-firmware state.
+If the test card fails catastrophically: power down, remove the spare card, reinsert the untouched accepted production SD card, power up, and verify the accepted production appliance. This acceptance route does not update Pi EEPROM/bootloader or HAT firmware, so the SD card remains the software recovery boundary.
