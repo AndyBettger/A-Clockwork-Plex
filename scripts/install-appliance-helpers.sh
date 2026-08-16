@@ -24,15 +24,19 @@ NAME_SUDOERS=/etc/sudoers.d/a-clockwork-plex-shairport-name
 WEATHER_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-weather-secret.py"
 WEATHER_TARGET=/usr/local/bin/a-clockwork-plex-weather-secret
 WEATHER_SUDOERS=/etc/sudoers.d/a-clockwork-plex-weather-secret
+MIXER_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-audio-mixer.py"
+MIXER_TARGET=/usr/local/bin/a-clockwork-plex-audio-mixer
+MIXER_SUDOERS=/etc/sudoers.d/a-clockwork-plex-audio-mixer
+MIXER_DEFAULTS=/etc/default/a-clockwork-plex-audio
 
 usage() {
     cat <<'EOF'
 Usage: bash scripts/install-appliance-helpers.sh [options]
 
 Guarded installer for the restricted appliance helpers used by the alarm engine,
-managed Shairport receiver-name Settings, and write-only Weather Underground
-credential commissioning. Prepare-only is the default and does not change
-production state.
+managed Shairport receiver-name Settings, write-only Weather Underground
+credential commissioning, and persistent shared-audio mixer controls. Prepare-only
+is the default and does not change production state.
 
 Options:
   --prepare-only
@@ -48,7 +52,7 @@ while [[ $# -gt 0 ]]; do
         --prepare-only) MODE=prepare-only; shift ;;
         --activate) MODE=activate; shift ;;
         --confirm)
-            [[ $# -ge 2 ]] || { echo '--confirm requires a token.' >&2; exit 64; }
+            [[ $# -ge 2 ]] || { echo '--confirm requires a value.' >&2; exit 64; }
             CONFIRM="$2"; shift 2 ;;
         --project-user)
             [[ $# -ge 2 ]] || { echo '--project-user requires a user.' >&2; exit 64; }
@@ -71,7 +75,7 @@ if [[ "$ROOT" != / ]]; then
 fi
 export ACP_ROOT="$ROOT"
 
-for source in "$ALARM_SOURCE" "$NAME_SOURCE" "$WEATHER_SOURCE"; do
+for source in "$ALARM_SOURCE" "$NAME_SOURCE" "$WEATHER_SOURCE" "$MIXER_SOURCE"; do
     [[ -f "$source" && ! -L "$source" ]] || {
         echo "Required helper source is unavailable: $source" >&2
         exit 1
@@ -81,6 +85,8 @@ done
 ALARM_POLICY="# Managed by A Clockwork Plex. The helper validates every action and argument.\n$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release\n$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET restore *\n"
 NAME_POLICY="$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET set *\n"
 WEATHER_POLICY="# Managed by A Clockwork Plex. Secret value is supplied on stdin, never argv.\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove\n"
+MIXER_POLICY="# Managed by A Clockwork Plex. The helper validates channel names and 0-100 levels.\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET set *\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET live *\n"
+MIXER_DEFAULTS_TEXT="# Managed by A Clockwork Plex.\nALSA_CARD=Pro\nALSA_DEVICE=0\nSAMPLE_RATE=44100\nCHANNELS=2\n"
 
 validate_policy() {
     local text="$1" temporary
@@ -101,6 +107,7 @@ validate_policy() {
 validate_policy "$ALARM_POLICY"
 validate_policy "$NAME_POLICY"
 validate_policy "$WEATHER_POLICY"
+validate_policy "$MIXER_POLICY"
 
 cat <<EOF
 A Clockwork Plex restricted helper installation plan
@@ -116,9 +123,15 @@ Managed targets:
   $NAME_SUDOERS
   $WEATHER_TARGET
   $WEATHER_SUDOERS
+  $MIXER_TARGET
+  $MIXER_SUDOERS
+  $MIXER_DEFAULTS
 
 The runtime helper implementations remain in their existing specialist source
-files. This installer owns only guarded packaging and restricted sudo policy.
+files. This installer owns guarded packaging, restricted sudo policy and the
+fixed shared-audio helper defaults. On production activation it opens each named
+A Clockwork Plex PCM with silence so ALSA creates the softvol controls before the
+read-only appliance verifier and dashboard API inspect them.
 It captures every target before activation and restores exact prior presence,
 content and mode if activation fails.
 EOF
@@ -138,7 +151,9 @@ if acp_is_production_root; then
         echo 'Run this installer as the normal project user, not as root.' >&2
         exit 1
     }
-    acp_require_command sudo
+    for command in sudo aplay timeout python3; do
+        acp_require_command "$command"
+    done
 fi
 
 TRANSACTION_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-helper-install.XXXXXX")"
@@ -146,7 +161,11 @@ TRANSACTION="$TRANSACTION_PARENT/transaction"
 cleanup() { rm -rf "$TRANSACTION_PARENT"; }
 trap cleanup EXIT
 acp_transaction_begin "$TRANSACTION"
-for target in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS" "$WEATHER_TARGET" "$WEATHER_SUDOERS"; do
+for target in \
+    "$ALARM_TARGET" "$ALARM_SUDOERS" \
+    "$NAME_TARGET" "$NAME_SUDOERS" \
+    "$WEATHER_TARGET" "$WEATHER_SUDOERS" \
+    "$MIXER_TARGET" "$MIXER_SUDOERS" "$MIXER_DEFAULTS"; do
     acp_transaction_capture_path "$TRANSACTION" "$target"
 done
 
@@ -185,6 +204,49 @@ verify_contains() {
     fi
 }
 
+prime_mixer_controls() {
+    acp_is_production_root || return 0
+    local pcm rc status_file
+    for pcm in acp_master acp_plexamp acp_airplay acp_alarm; do
+        rc=0
+        timeout 0.35 /usr/bin/aplay -q -D "$pcm" -f S16_LE -r 44100 -c 2 /dev/zero >/dev/null 2>&1 || rc=$?
+        if [[ "$rc" -ne 0 && "$rc" -ne 124 ]]; then
+            acp_error "Could not initialise shared-audio PCM: $pcm"
+            return 1
+        fi
+    done
+
+    status_file="$(mktemp "${TMPDIR:-/tmp}/a-clockwork-plex-mixer-status.XXXXXX")" || return 1
+    if ! sudo -n "$MIXER_TARGET" status >"$status_file"; then
+        rm -f "$status_file"
+        acp_error 'Installed mixer helper status command failed.'
+        return 1
+    fi
+    if ! python3 - "$status_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+channels = payload.get("channels") if isinstance(payload, dict) else None
+required = {"master", "plexamp", "airplay", "alarm"}
+ok = (
+    payload.get("available") is True
+    and payload.get("configured") is True
+    and isinstance(channels, dict)
+    and required.issubset(channels)
+    and all(channels[name].get("available") is True and channels[name].get("pcm_available") is True for name in required)
+)
+raise SystemExit(0 if ok else 1)
+PY
+    then
+        rm -f "$status_file"
+        acp_error 'Installed mixer helper reports one or more unavailable controls/PCMs.'
+        return 1
+    fi
+    rm -f "$status_file"
+}
+
 activate() {
     local installed
     acp_install_file "$ALARM_SOURCE" "$ALARM_TARGET" 0755 || return 1
@@ -193,25 +255,43 @@ activate() {
     acp_install_text "$NAME_POLICY" "$NAME_SUDOERS" 0440 || return 1
     acp_install_file "$WEATHER_SOURCE" "$WEATHER_TARGET" 0755 || return 1
     acp_install_text "$WEATHER_POLICY" "$WEATHER_SUDOERS" 0440 || return 1
+    acp_install_file "$MIXER_SOURCE" "$MIXER_TARGET" 0755 || return 1
+    acp_install_text "$MIXER_POLICY" "$MIXER_SUDOERS" 0440 || return 1
+    acp_install_text "$MIXER_DEFAULTS_TEXT" "$MIXER_DEFAULTS" 0644 || return 1
 
     if [[ "$ROOT" != / && "${ACP_HELPERS_TEST_FAIL_AFTER_INSTALL:-0}" == 1 ]]; then
         echo 'Injected non-production failure after restricted helper install.' >&2
         return 1
     fi
 
-    for installed in "$ALARM_TARGET" "$ALARM_SUDOERS" "$NAME_TARGET" "$NAME_SUDOERS" "$WEATHER_TARGET" "$WEATHER_SUDOERS"; do
+    for installed in \
+        "$ALARM_TARGET" "$ALARM_SUDOERS" \
+        "$NAME_TARGET" "$NAME_SUDOERS" \
+        "$WEATHER_TARGET" "$WEATHER_SUDOERS" \
+        "$MIXER_TARGET" "$MIXER_SUDOERS" "$MIXER_DEFAULTS"; do
         verify_regular_file "$installed" || return 1
     done
     verify_mode "$ALARM_TARGET" 755 || return 1
     verify_mode "$NAME_TARGET" 755 || return 1
     verify_mode "$WEATHER_TARGET" 755 || return 1
+    verify_mode "$MIXER_TARGET" 755 || return 1
     verify_mode "$ALARM_SUDOERS" 440 || return 1
     verify_mode "$NAME_SUDOERS" 440 || return 1
     verify_mode "$WEATHER_SUDOERS" 440 || return 1
+    verify_mode "$MIXER_SUDOERS" 440 || return 1
+    verify_mode "$MIXER_DEFAULTS" 644 || return 1
     verify_contains "$ALARM_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release" || return 1
     verify_contains "$NAME_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status" || return 1
     verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set" || return 1
     verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove" || return 1
+    verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET status" || return 1
+    verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET set *" || return 1
+    verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET live *" || return 1
+    verify_contains "$MIXER_DEFAULTS" 'ALSA_CARD=Pro' || return 1
+    verify_contains "$MIXER_DEFAULTS" 'ALSA_DEVICE=0' || return 1
+    verify_contains "$MIXER_DEFAULTS" 'SAMPLE_RATE=44100' || return 1
+    verify_contains "$MIXER_DEFAULTS" 'CHANNELS=2' || return 1
+    prime_mixer_controls || return 1
 }
 
 if ! activate; then
