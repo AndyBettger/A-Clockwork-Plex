@@ -86,6 +86,12 @@ class ApplianceVerifierTests(unittest.TestCase):
         write("/etc/sudoers.d/a-clockwork-plex-alarm-audio", "testclock ALL=(root) NOPASSWD: /bin/true\n", 0o440)
         write("/usr/local/bin/a-clockwork-plex-shairport-name", "#!/usr/bin/env python3\n", 0o755)
         write("/etc/sudoers.d/a-clockwork-plex-shairport-name", "testclock ALL=(root) NOPASSWD: /bin/true\n", 0o440)
+        write("/usr/local/bin/a-clockwork-plex-audio-mixer", "#!/usr/bin/env python3\n", 0o755)
+        write("/etc/sudoers.d/a-clockwork-plex-audio-mixer", "testclock ALL=(root) NOPASSWD: /bin/true\n", 0o440)
+        write(
+            "/etc/default/a-clockwork-plex-audio",
+            "ALSA_CARD=Pro\nALSA_DEVICE=0\nSAMPLE_RATE=44100\nCHANNELS=2\n",
+        )
         write(
             "/etc/shairport-sync.conf",
             "\n".join(
@@ -166,6 +172,9 @@ class ApplianceVerifierTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(f"direct-route             sha256={DIRECT_SHA256}", result.stdout)
+        self.assertIn("PASS  mixer-helper", result.stdout)
+        self.assertIn("PASS  mixer-sudoers", result.stdout)
+        self.assertIn("PASS  mixer-defaults", result.stdout)
         self.assertIn("weather-provider         ecowitt-push", result.stdout)
         self.assertIn("forecast-provider        open_meteo", result.stdout)
         self.assertIn("live-runtime             skipped", result.stdout)
@@ -217,6 +226,16 @@ class ApplianceVerifierTests(unittest.TestCase):
         self.assertIn("FAIL  direct-route", result.stdout)
         self.assertIn("APPLIANCE_VERIFY=FAIL", result.stdout)
 
+    def test_verifier_rejects_missing_mixer_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root, user, project_dir = self.make_common_fixture(directory, "ecowitt-push")
+            (root / "usr/local/bin/a-clockwork-plex-audio-mixer").unlink()
+            result = self.run_verifier(root, user, project_dir, "ecowitt-push")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("FAIL  mixer-helper", result.stdout)
+        self.assertIn("APPLIANCE_VERIFY=FAIL", result.stdout)
+
     def test_verifier_rejects_secret_material_in_weather_config(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root, user, project_dir = self.make_common_fixture(directory, "weather-underground")
@@ -244,12 +263,20 @@ class ApplianceVerifierTests(unittest.TestCase):
             "require_protected_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'",
             source,
         )
+        self.assertIn(
+            "require_protected_file mixer-sudoers '/etc/sudoers.d/a-clockwork-plex-audio-mixer'",
+            source,
+        )
         self.assertNotIn(
             "require_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'",
             source,
         )
         self.assertNotIn(
             "require_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'",
+            source,
+        )
+        self.assertNotIn(
+            "require_file mixer-sudoers '/etc/sudoers.d/a-clockwork-plex-audio-mixer'",
             source,
         )
 
@@ -270,6 +297,7 @@ class ApplianceVerifierTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("PASS  alarm-sudoers", result.stdout)
         self.assertIn("PASS  shairport-name-sudoers", result.stdout)
+        self.assertIn("PASS  mixer-sudoers", result.stdout)
         self.assertIn("APPLIANCE_VERIFY=PASS", result.stdout)
 
     def test_verifier_is_statically_read_only_against_production(self) -> None:
@@ -284,6 +312,8 @@ class ApplianceVerifierTests(unittest.TestCase):
         self.assertIn("verify-audio.sh", source)
         self.assertIn("/api/weather/observations", source)
         self.assertIn("/api/audio/eq", source)
+        self.assertIn("/api/audio/mixer", source)
+        self.assertIn("validate_mixer_payload", source)
 
     def test_invalid_profiles_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
