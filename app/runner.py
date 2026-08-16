@@ -16,7 +16,7 @@ try:
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
     from .screen_projection_activity import register_activity_screen_projection
-    from .settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
+    from .settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
     from .time_formatting import promote_server_time_formatting
     from .weather_credentials import (
@@ -30,6 +30,7 @@ try:
         store_dashboard_observation,
     )
     from .weather_observations import WeatherObservationService, register_weather_observation_api
+    from .weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from alarm_audio_preview import register_alarm_audio_preview_api
@@ -46,7 +47,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
     from screen_projection_activity import register_activity_screen_projection
-    from settings_unified_scheduled import UnifiedSettingsService, register_unified_settings_api
+    from settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
     from time_formatting import promote_server_time_formatting
     from weather_credentials import (
@@ -60,6 +61,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         store_dashboard_observation,
     )
     from weather_observations import WeatherObservationService, register_weather_observation_api
+    from weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
 
 
 app = dashboard.app
@@ -109,6 +111,12 @@ register_weather_forecast_settings_api(
     dashboard.load_config,
     lambda config: dashboard.save_json(dashboard.CONFIG_PATH, config),
 )
+weather_rainfall = WeatherRainfallHistoryService(
+    dashboard.load_config,
+    dashboard.BASE_DIR / "weather-rainfall-history.json",
+    current_weather=lambda: dashboard.load_state(dashboard.load_config()).get("weather", {}),
+)
+register_weather_rainfall(app, dashboard, weather_rainfall)
 shairport_name = ShairportNameManager()
 unified_settings = UnifiedSettingsService(
     load_config=dashboard.load_config,
@@ -122,6 +130,7 @@ unified_settings = UnifiedSettingsService(
     alarm_audio=dashboard.alarm_audio,
     screen_idle_mode=screen_projection.set_idle_return_mode,
     observations=weather_observations,
+    rainfall=weather_rainfall,
 )
 register_unified_settings_api(app, unified_settings)
 
@@ -133,6 +142,7 @@ if __name__ == "__main__":
     dashboard.alarm_audio.start()
     weather_observations.start()
     weather_forecast.start()
+    weather_rainfall.start()
     if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
         input_activity_monitor.start()
     if isinstance(playback_coordinator, PlaybackCoordinator):
@@ -149,6 +159,7 @@ if __name__ == "__main__":
             playback_coordinator.shutdown()
         if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
             input_activity_monitor.shutdown()
+        weather_rainfall.shutdown()
         weather_forecast.shutdown()
         weather_observations.shutdown()
         dashboard.alarm_audio.shutdown()

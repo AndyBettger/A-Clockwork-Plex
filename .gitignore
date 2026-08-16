@@ -18,6 +18,7 @@ alarm-runtime.json
 alarm-audio-runtime.json
 playback-runtime.json
 weather-forecast-cache.json
+weather-rainfall-history.json
 *.log
 
 # Generated runtime assets

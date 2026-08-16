@@ -65,6 +65,9 @@
       "request_timeout_seconds": 8,
       "pressure_history_hours": 6
     },
+    "historical_rainfall": {
+      "period": "last_7_days"
+    },
     "forecast": {
       "enabled": false,
       "provider": "open_meteo",
