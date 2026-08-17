@@ -95,9 +95,16 @@ weather_observations = WeatherObservationService(
     lambda observation: store_dashboard_observation(dashboard, observation),
 )
 register_weather_observation_api(app, weather_observations)
+weather_rainfall = WeatherRainfallHistoryService(
+    dashboard.load_config,
+    dashboard.BASE_DIR / "weather-rainfall-history.json",
+    current_weather=lambda: dashboard.load_state(dashboard.load_config()).get("weather", {}),
+)
+register_weather_rainfall(app, dashboard, weather_rainfall)
 weather_credentials = WeatherUndergroundCredentialManager(
     load_config=dashboard.load_config,
     observations=weather_observations,
+    rainfall_wake=weather_rainfall.wake,
 )
 register_weather_underground_credentials_api(app, weather_credentials)
 weather_forecast = WeatherForecastService(
@@ -111,12 +118,6 @@ register_weather_forecast_settings_api(
     dashboard.load_config,
     lambda config: dashboard.save_json(dashboard.CONFIG_PATH, config),
 )
-weather_rainfall = WeatherRainfallHistoryService(
-    dashboard.load_config,
-    dashboard.BASE_DIR / "weather-rainfall-history.json",
-    current_weather=lambda: dashboard.load_state(dashboard.load_config()).get("weather", {}),
-)
-register_weather_rainfall(app, dashboard, weather_rainfall)
 shairport_name = ShairportNameManager()
 unified_settings = UnifiedSettingsService(
     load_config=dashboard.load_config,
