@@ -10,9 +10,9 @@ Prove that A Clockwork Plex can be built and reconverged on the real bedroom Pi/
 
 The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry Pi DAC Pro, pinned Plexamp Headless/Node, NFC, dashboard/kiosk, AirPlay, alarm-safe Direct audio, guarded EQ promotion, reboot/repeat-install, Weather Underground commissioning and historical rainfall.
 
-**Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. The focused Section 8 pre-EQ smoke has also passed: Plexamp playback is healthy, a known NFC tag triggered playback and the Plexamp dashboard state, and Direct mode truthfully reports **Install required** for EQ. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. **Continue at Section 9**; do not repeat the established AirPlay/handoff/alarm suite in Direct merely to delay EQ promotion.
+**Current resumed spare-SD position (17 August 2026):** Sections 6 through 10 are complete on `plexamp-test`. Guarded EQ → Direct convergence committed and independently verified, the focused Direct pre-EQ smoke passed, the accepted CamillaDSP 4.1.3 artifact was independently verified, and the guarded fresh-bootstrap EQ promotion then committed with root installer exit `0`, `APPLICATION_TRANSACTION=COMMITTED`, `APPLICATION_VERIFY=PASS`, `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, standalone audio verification PASS, the canonical EQ split-bus SHA and installed marker. The managed CamillaDSP unit is `a-clockwork-plex-camilladsp.service` and is physically active/enabled/running. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. **Continue at Section 11**; do not repeat the established Direct suite merely to regain context.
 
-The focused Weather work on this Direct spare card is now **physically complete** and does not invalidate Sections 6–8. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context.
+The focused Weather work on this spare card is **physically complete** and does not invalidate Sections 6–10. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context.
 
 ---
 
@@ -35,6 +35,7 @@ The focused Weather work on this Direct spare card is now **physically complete*
 | EQ split-bus route | `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` |
 | CamillaDSP executable | `4.1.3` aarch64, SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa` |
 | CamillaDSP official archive | SHA-256 `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a` |
+| Managed CamillaDSP unit | `a-clockwork-plex-camilladsp.service` |
 | Plexamp Headless | `4.13.2`, SHA-256 `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041` |
 | Node | `20.20.2` linux-arm64, SHA-256 `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71` |
 | PN532 | I2C bus `1`, address `0x24` |
@@ -292,6 +293,8 @@ sha256sum "$CAMILLA"
 
 Require CamillaDSP 4.1.3 and executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`.
 
+**Current physical result:** PASS. The existing cached artifact matched version 4.1.3 and the accepted executable SHA exactly.
+
 ---
 
 # 10. Promote the same appliance to EQ
@@ -342,6 +345,23 @@ bash scripts/audio/verify-audio.sh \
 ```
 
 Require all PASS and route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
+
+Verify the **canonical managed CamillaDSP unit** — do not use the unrelated generic `camilladsp.service` name:
+
+```bash
+systemctl is-active a-clockwork-plex-camilladsp.service
+systemctl is-enabled a-clockwork-plex-camilladsp.service
+systemctl show a-clockwork-plex-camilladsp.service \
+  -p ActiveState \
+  -p SubState \
+  -p MainPID
+```
+
+Require `active`, `enabled`, `ActiveState=active`, `SubState=running` and a non-zero `MainPID`.
+
+**Current physical result:** PASS. The guarded EQ apply exited `0` with `ROOT_INSTALL=COMMITTED`, `APPLICATION_TRANSACTION=COMMITTED` and `APPLICATION_VERIFY=PASS`; all three independent verifiers passed; the canonical split-bus route SHA and installed marker matched; Plexamp produced normal audio and EQ was audibly effective. `a-clockwork-plex-camilladsp.service` was active/enabled/running with non-zero MainPID. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
+
+Continue directly to Section 11.
 
 ---
 
@@ -624,7 +644,7 @@ Inspect `weather-rainfall-lifetime.json` with the same structural rules as the r
 
 Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, focused Direct smoke, EQ result, post-EQ NFC/AirPlay/alarm regression, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + Rain lifetime result, custom horizontal-scroll result, Ecowitt credential-preservation result, both cache structural/secret checks and all deviations.
 
-The focused Weather evidence and Direct pre-EQ smoke are complete. The remaining Phase 7 chain is **Camilla artifact → EQ installer/verifiers → post-EQ physical regression → reboot → repeat-install**.
+The focused Weather evidence, Direct pre-EQ smoke, Camilla artifact and persistent EQ installer/identity gate are complete. The remaining Phase 7 chain is **post-EQ physical regression → reboot → repeat-install**.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
