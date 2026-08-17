@@ -48,6 +48,17 @@
   font-size: 0.68rem;
 }
 
+.acp-eq-settings > .settings-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.acp-eq-settings > .settings-card-heading > div {
+  min-width: 0;
+}
+
 .acp-eq-health,
 #acp-eq-settings-health {
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -57,6 +68,12 @@
   font: 700 0.64rem/1 var(--font-display, "Oxanium", sans-serif);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+#acp-eq-settings-health {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  white-space: nowrap;
 }
 
 .acp-eq-health.is-ready,
