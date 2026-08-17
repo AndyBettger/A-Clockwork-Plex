@@ -70,7 +70,7 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
         self.assertIn("A date omitted from a range is retried once on its own", presenter)
         self.assertIn("confirmed station gaps are counted", presenter)
 
-    def test_rainy_day_fund_can_show_missing-day_coverage_note(self) -> None:
+    def test_rainy_day_fund_can_show_missing_day_coverage_note(self) -> None:
         template = WEATHER_TEMPLATE.read_text(encoding="utf-8")
 
         self.assertIn("{% if gauge.note %}", template)
