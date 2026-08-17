@@ -282,6 +282,24 @@
     return payload;
   }
 
+  async function refreshRainfallStatus(force = false) {
+    try {
+      const payload = await requestJson(
+        '/api/weather/rainfall',
+        force ? { method: 'POST', body: '{}' } : {},
+      );
+      renderRainfallStatus(payload);
+      return payload;
+    } catch (error) {
+      renderRainfallStatus({
+        status: 'error',
+        complete: false,
+        last_error: error.message || 'Could not refresh historical rainfall status.',
+      });
+      return null;
+    }
+  }
+
   async function refreshCredentialStatus() {
     try {
       const payload = await requestJson('/api/weather/underground/credentials');
@@ -340,6 +358,7 @@
         if (elements.input) elements.input.value = '';
         renderCredentialStatus(payload.configured === true);
         elements.message.textContent = payload.message || 'API key saved.';
+        await refreshRainfallStatus(true);
       } catch (error) {
         if (elements.input) elements.input.value = '';
         elements.message.textContent = error.message || 'Could not save API key.';
@@ -353,6 +372,7 @@
         if (elements.input) elements.input.value = '';
         renderCredentialStatus(false);
         elements.message.textContent = payload.message || 'API key removed.';
+        await refreshRainfallStatus(true);
       } catch (error) {
         elements.message.textContent = error.message || 'Could not remove API key.';
       }
@@ -365,8 +385,9 @@
           method: 'POST',
           body: '{}',
         });
+        renderStatus(payload);
         elements.message.textContent = payload.message || 'Weather Underground connection succeeded.';
-        window.setTimeout(syncFromSnapshot, 0);
+        await refreshRainfallStatus(true);
       } catch (error) {
         elements.message.textContent = error.message || 'Weather Underground connection test failed.';
       }
@@ -385,13 +406,19 @@
     if (snapshot.revision !== lastRevision) {
       lastRevision = snapshot.revision;
       renderStatus(snapshot.status?.weather_observations || {});
-      renderRainfallStatus(snapshot.status?.weather_rainfall || {});
     }
     return true;
   }
 
   function waitForInitialSnapshot(attempt = 0) {
-    if (syncFromSnapshot() || attempt >= 40) return;
+    if (syncFromSnapshot()) {
+      refreshRainfallStatus(false);
+      return;
+    }
+    if (attempt >= 40) {
+      refreshRainfallStatus(false);
+      return;
+    }
     window.setTimeout(() => waitForInitialSnapshot(attempt + 1), 100);
   }
 
@@ -399,12 +426,21 @@
   provider.addEventListener('change', updatePanels);
   rainfallPeriod?.addEventListener('change', updatePanels);
   form.addEventListener('submit', () => {
-    window.setTimeout(syncFromSnapshot, 500);
-    window.setTimeout(syncFromSnapshot, 1500);
+    window.setTimeout(() => {
+      syncFromSnapshot();
+      refreshRainfallStatus(false);
+    }, 500);
+    window.setTimeout(() => {
+      syncFromSnapshot();
+      refreshRainfallStatus(false);
+    }, 1500);
   });
   form.addEventListener('click', (event) => {
     if (event.target.closest('[data-action="discard-settings"]')) {
-      window.setTimeout(syncFromSnapshot, 0);
+      window.setTimeout(() => {
+        syncFromSnapshot();
+        refreshRainfallStatus(false);
+      }, 0);
     }
   });
 
