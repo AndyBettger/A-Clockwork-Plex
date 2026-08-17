@@ -12,7 +12,7 @@ The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry P
 
 **Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 have completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Continue at **Section 8** for the remaining hands-on Direct checks; do not rerun Direct construction merely to regain context.
 
-The focused Weather work may continue on that same Direct spare card without invalidating Sections 6–7. Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation and the selected-period Today / Last 7 days / Current month / Current year behavior have now passed physically. Current year naturally exposed three station-offline dates; these are accepted coverage gaps, not API failures, and the physical API correctly returned a 21.38-inch minimum-recorded total with zero repeat fetches. The remaining focused Weather gate is the corrected **Rainy Day Fund** projection: one-time previous-year backfill, six current/previous calendar gauges, optional station-lifetime Total and horizontal touch scrolling. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`.
+The focused Weather work may continue on that same Direct spare card without invalidating Sections 6–7. Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation and the selected-period Today / Last 7 days / Current month / Current year behavior have passed physically. Current year naturally exposed three station-offline dates; these are accepted coverage gaps, not API failures, and the physical API correctly returned a 21.38-inch minimum-recorded total with zero repeat fetches. The remaining focused Weather gate is the **Rainy Day Fund** physical retest on the latest green source: six current/previous calendar gauges, the same forecast-style custom scrollbar, and a separate older WU archive that must settle to a genuine **Rain lifetime** total. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`.
 
 ---
 
@@ -405,7 +405,7 @@ Require normal commit markers, no renewed reboot/claim checkpoint, no ownership 
 
 Do this locally after the repeat installer gate for a full fresh-card run. WU credentials are write-only commissioning data, not fresh-install CLI material.
 
-For the current focused Weather retest on the already-accepted Direct spare card, **14.1 through the selected-period portion of 14.3 and 14.5 have physically passed**. Do not rerun them merely to regain context. Continue with the Rainy Day Fund/backfill checks in **14.6**, then return to Section 8.
+For the current focused Weather retest on the already-accepted Direct spare card, **14.1 through the selected-period portion of 14.3 and 14.5 have physically passed**. Do not rerun them merely to regain context. Continue with the Rainy Day Fund/custom-scroll/lifetime checks in **14.6**, then return to Section 8.
 
 Open **Settings → Weather → Observation source**.
 
@@ -467,7 +467,7 @@ curl -fsS http://localhost:8088/api/weather/rainfall \
   | tee -a "$EVIDENCE/63-rainfall-history-health.json"
 ```
 
-Interpretation is now deliberately split between **calculation completeness** and **station coverage**:
+Interpretation is deliberately split between **calculation completeness** and **station coverage**:
 
 - `complete: true` means every required completed date is either recorded or has been confirmed, by a successful targeted WU request, as having no station data.
 - `coverage_complete: true` means every date actually has a recorded total.
@@ -493,7 +493,7 @@ curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
 
 Once selected-period days are cached or confirmed as station gaps, repeated refreshes must report `"fetched_ranges": 0` and `"retried_dates": 0` unless a genuinely new completed day has appeared since the prior refresh.
 
-The production service also prepares Rainy Day Fund comparison periods. On the **first refresh after enabling the expanded gauge history**, `gauge_fetched_ranges` may be nonzero while the previous calendar year is backfilled in ranges of at most 31 days. After that backfill has either recorded or gap-classified all returned dates, a second refresh must report `"gauge_fetched_ranges": 0` and `"gauge_retried_dates": 0`.
+The production service also prepares Rainy Day Fund previous-calendar-year comparison data. On the first refresh after enabling those comparison gauges, `gauge_fetched_ranges` may be nonzero while that prior year is backfilled in ranges of at most 31 days. After its returned/gap-classified days are cached, a later refresh must report `"gauge_fetched_ranges": 0` and `"gauge_retried_dates": 0`.
 
 Inspect `weather-rainfall-history.json` structurally and require:
 
@@ -521,7 +521,7 @@ Do not corrupt the real provider or credential merely to manufacture an omission
 
 If a WU history request is naturally unavailable, require current Ecowitt/WU observations and the normal Weather page to remain operational, no credential material in error output, and the appropriate selected-period/gauge diagnostic to report the failure. Do not corrupt the real API key merely to manufacture a failure already covered by source tests.
 
-The expanded Rainy Day Fund backfill uses separate `gauge_status` / `gauge_last_error` diagnostics so failure to fetch an older comparison period does not falsely turn an otherwise valid selected-period calculation into **History incomplete**.
+The Rainy Day Fund previous-year comparison backfill and separate lifetime archive are supplemental services; a failure in either must not take current observations down or expose credential material.
 
 ## 14.5 Ecowitt reconvergence must preserve the commissioned WU history credential
 
@@ -571,7 +571,7 @@ The final `stat` must still report root ownership and mode `600`. The command ou
 
 **Current physical result:** PASS and recorded in `docs/weather-physical-followup-2026-08-17.md`.
 
-## 14.6 Rainy Day Fund historical gauges
+## 14.6 Rainy Day Fund calendar gauges, forecast-style scroll and Rain lifetime
 
 This is the remaining focused Weather gate on the current Direct spare card.
 
@@ -583,11 +583,34 @@ The detailed Weather page must present independent historical summaries rather t
 - **Rain last month**;
 - **Rain this year**;
 - **Rain last year**;
-- **Total rain** only when Ecowitt actually supplies the station-lifetime `totalrainin` counter.
+- final **Rain lifetime** — WU daily history from the first discovered WU record through today.
 
-After loading the latest green source and restarting only `a-clockwork-plex.service`, force one rainfall refresh. Existing current-year data should remain cached; the first run may backfill the previous calendar year and therefore report nonzero `gauge_fetched_ranges` / `gauge_retried_dates`.
+The final gauge must **not** be the old `Last year + this year` two-year sum, and it must not rely on an unrelated live Ecowitt lifetime counter.
 
-Force a second refresh after the first has completed. Require:
+### 14.6.1 Load the exact green source
+
+For the current acceptance cycle, use green source/CI head `22455624917ce456087e3a11041937b3c0526623` or a later documentation-only descendant whose code still contains that checkpoint. The code checkpoint passed full Tests **#3523 / run `31994639762`**.
+
+```bash
+cd ~/A-Clockwork-Plex
+git pull --ff-only
+git rev-parse HEAD
+git status --short
+sudo systemctl restart a-clockwork-plex.service
+systemctl is-active a-clockwork-plex.service
+```
+
+Require a clean tree and active dashboard service.
+
+### 14.6.2 Confirm the calendar comparison cache remains settled
+
+```bash
+curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
+  | python3 -m json.tool \
+  | tee "$EVIDENCE/68-rainy-day-fund-refresh.json"
+```
+
+Once the already-established current/previous comparison windows are settled, require:
 
 ```text
 fetched_ranges: 0
@@ -595,24 +618,89 @@ gauge_fetched_ranges: 0
 gauge_retried_dates: 0
 ```
 
-assuming no new completed date arrived between the two calls.
+unless a genuinely new completed day appeared since the prior accepted run.
+
+### 14.6.3 Allow the separate older lifetime archive to settle
+
+The lifetime service owns a different cache, `weather-rainfall-lifetime.json`, and a separate sanitized endpoint:
+
+```bash
+curl -fsS http://localhost:8088/api/weather/rainfall/lifetime \
+  | python3 -m json.tool \
+  | tee "$EVIDENCE/69-rainfall-lifetime-initial.json"
+```
+
+On first use, `status` may be `backfilling`. The service discovers older WU history backwards in requests of at most 31 days, then fills coverage between the oldest discovered record and the end of the older archive window. It does not alter the accepted selected-period cache.
+
+If it is still backfilling, force one bounded work cycle at a time and inspect the sanitized response:
+
+```bash
+curl -fsS -X POST http://localhost:8088/api/weather/rainfall/lifetime \
+  | python3 -m json.tool \
+  | tee -a "$EVIDENCE/70-rainfall-lifetime-backfill.json"
+```
+
+Repeat only as needed until all three are true:
+
+```text
+status: ready
+discovery_complete: true
+coverage_complete: true
+```
+
+Do not assume one POST must finish the archive; the implementation deliberately bounds work per cycle.
+
+Once ready, force one **additional** POST and require:
+
+```text
+fetched_ranges: 0
+retried_dates: 0
+status: ready
+discovery_complete: true
+coverage_complete: true
+```
+
+This proves the lifetime archive becomes cache-only after it has settled.
+
+### 14.6.4 Physical scrollbar and gauge presentation
 
 On the physical display require:
 
 1. the six calendar gauges above are present once their data is resolved;
-2. station-lifetime Total appears only if supplied by Ecowitt;
-3. the Rainy Day Fund row scrolls horizontally by touch and remains readable at 1280×720 and 1024×600;
-4. confirmed gaps add concise per-gauge copy such as **3 days not recorded** rather than suppressing the numeric gauge;
-5. the Current-year gauge agrees with the selected-period API total for the same moment (physically 21.38 inches at the accepted checkpoint, subject only to subsequent live rainfall changing today’s contribution);
-6. Ecowitt live observation remains healthy throughout.
+2. the gauges retain their full-height treatment;
+3. the Rainy Day Fund uses the **same rounded custom rail/thumb appearance as the forecast strips**;
+4. Chromium's native scrollbar arrow buttons are absent;
+5. direct touch scrolling on the gauge strip works;
+6. dragging the custom thumb moves the gauge strip and keeps the thumb synchronized;
+7. confirmed gaps add concise per-gauge copy such as **3 days not recorded** rather than suppressing the numeric gauge;
+8. the Current-year gauge agrees with the selected-period API total for the same moment, subject only to subsequent live rainfall changing today's contribution;
+9. the final gauge is labelled **Rain lifetime**;
+10. after the lifetime API is ready, the final gauge note identifies the first WU record date and no longer says **Backfilling earlier WU history** or **Last year + this year**;
+11. Ecowitt live observation remains healthy throughout.
 
-The earlier physically blank Rainy Day Fund was traced to the rainfall wrapper patching the `app.main` facade while Flask's context processor resolved `dashboard_core.weather_detail_data`. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the actual core projection and has full CI coverage. Do not treat the old blank-gauge result as a WU data failure.
+The first expanded Rainy Day Fund's native browser scrollbar is explicitly superseded. Source now hides the native rain scrollbar and creates the forecast `weather-forecast-scrollbar` / `weather-forecast-scrollbar-thumb` control for the Rainy Day Fund strip.
+
+### 14.6.5 Lifetime cache structural check
+
+Inspect `weather-rainfall-lifetime.json` structurally without printing secrets. Require:
+
+- cache version `1`;
+- station-scoped records;
+- every value under `days` is a finite non-negative numeric total;
+- no `null` day markers;
+- any value under `gaps` is exactly `no_station_data`;
+- no keys named `api_key`, `apikey`, `password`, `secret` or `token` anywhere in the cache;
+- settled metadata has `discovery_complete: true` and `coverage_complete: true`.
+
+A station with an unusual multi-year mid-life outage may need the explicit `weather.historical_rainfall.lifetime_start_date` override because WU exposes no documented station-inception metadata. Do not add an override merely because the automatic discovery takes several bounded cycles; use it only if physical archive evidence demonstrates the automatic pre-station heuristic is inappropriate for this station.
+
+The earlier physically blank Rainy Day Fund was traced to the rainfall wrapper patching the `app.main` facade while Flask's context processor resolved `dashboard_core.weather_detail_data`. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` fixed the projection; current lifetime/custom-scroll source is covered by green checkpoint `22455624917ce456087e3a11041937b3c0526623`.
 
 ---
 
 # 15. Final acceptance record
 
-Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, any natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + optional lifetime Total result, horizontal-scroll result, Ecowitt credential-preservation result, cache structural/secret check and all deviations.
+Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, any natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year result, custom forecast-style rain scrollbar result, final Rain lifetime value + first-WU-record date + missing-day coverage, lifetime cache settled-zero-fetch result, Ecowitt credential-preservation result, both rainfall-cache structural/secret checks and all deviations.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
