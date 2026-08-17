@@ -86,6 +86,24 @@ Physical results:
 
 The immediate repeat-scan debounce was not freshly re-exercised during this focused smoke and is not a blocker for EQ promotion. Likewise, AirPlay/PlaybackCoordinator handoff, Music Master/alarm isolation and Snooze/Dismiss are not being redundantly re-run in Direct immediately before EQ. Those behaviors have prior physical evidence and the meaningful release regression is the **post-EQ** pass, where the new audio route can actually affect them.
 
-This closes the Direct pre-EQ gate. The next acceptance action is Section 9 of `docs/fresh-appliance-acceptance-runbook.md`: acquire/verify the exact accepted CamillaDSP 4.1.3 artifact, then promote this same spare appliance to EQ and run the EQ verifiers/physical regression.
+## CamillaDSP promotion artifact — PASS
+
+Section 9 of the fresh-appliance runbook was completed on the same spare card before EQ promotion.
+
+The prepare-only artifact plan selected:
+
+- CamillaDSP version `4.1.3`;
+- official archive SHA-256 `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a`;
+- accepted executable SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`;
+- cache location `/home/andy/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp`.
+
+Activation returned `CAMILLA_ARTIFACT=PASS-EXISTING`, so the exact accepted artifact was already present and no replacement download was required. Independent checks then reported `CamillaDSP 4.1.3 (05e9cfc)` and the executable SHA exactly matched the accepted value above.
+
+Evidence:
+
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/30-camilladsp-plan.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/31-camilladsp-fetch.txt`
+
+The next acceptance action is Section 10: promote this same verified Direct appliance to guarded EQ, then run the bootstrap, appliance and audio verifiers before the substantive post-EQ physical regression.
 
 PR #2 remains Draft, open and unmerged until explicit approval.
