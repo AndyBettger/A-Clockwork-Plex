@@ -82,6 +82,23 @@ After that point application writes repeatedly fail with `Errno 30`.
 
 Power telemetry on this boot returned `vcgencmd get_throttled` -> `throttled=0x0`, and the searched journal showed no undervoltage messages. There is therefore no current evidence that an undervoltage event caused this specific failure.
 
+## Reproduction after another clean power cycle
+
+A further shutdown/power-on reproduced the storage failure independently and much faster.
+
+At `2026-08-17 22:46:06` ext4 again mounted the root read-only for orphan cleanup and systemd remounted it read/write. Only 27 seconds later, at `22:46:33`, the kernel reported:
+
+```text
+I/O error, dev mmcblk0, sector 9802861 op 0x1:(WRITE) flags 0x9800 phys_seg 1 prio class 2
+Aborting journal on device mmcblk0p2-8.
+EXT4-fs error (device mmcblk0p2): ext4_journal_check_start:87: ... Detected aborted journal
+EXT4-fs (mmcblk0p2): Remounting filesystem read-only
+```
+
+This second independent failure occurred on a different sector from the earlier write failure and was followed immediately by both application and Plexamp state writes failing with `EROFS`. `vcgencmd get_throttled` again returned `throttled=0x0`, with no searched undervoltage indication.
+
+This reproduction materially strengthens the host/storage diagnosis: the failure is not merely residual ext4 damage from the earlier incident. A freshly booted writable filesystem repeatedly encounters a real `mmcblk0` write I/O error and then correctly protects itself by aborting the ext4 journal and entering emergency read-only state.
+
 The card is a **brand-new SanDisk Extreme A2**, so ordinary age/wear of an old spare is not a credible explanation. Remaining host-level candidates include a defective card/controller, counterfeit or faulty media, SD socket/contact/signal-integrity problems, or another MMC/host interaction. This evidence does not yet distinguish among them.
 
 This reclassifies the observed failure as a **host/storage/filesystem durability failure on the acceptance SD appliance**, not an A Clockwork Plex EQ or Settings application regression at the current evidence boundary.
@@ -91,6 +108,8 @@ This reclassifies the observed failure as a **host/storage/filesystem durability
 Section 12 reboot acceptance remains **BLOCKED**, now on host filesystem/storage health. Section 13 repeat whole-appliance installation must not run while ext4 is in emergency read-only state.
 
 Do not attempt an in-place `mount -o remount,rw /` or run a repairing filesystem check against the mounted root merely to continue acceptance. Preserve the current card state and diagnose/repair the filesystem offline, then verify the media/SD path before trusting the card for the remaining durability tests.
+
+Because this card was already intended to be wiped for a clean full-installer test, the preferred continuation is to preserve any remaining raw evidence, retire this runtime instance, and run the final blank-Raspberry-Pi-OS installer acceptance on trustworthy writable media. The already-passed feature regressions do not need to be repeated in full; the fresh construction run should focus on installer checkpoints, one reboot durability smoke, and one convergent repeat install.
 
 After the acceptance-card filesystem/storage issue is repaired or the card is replaced, rerun the reboot checkpoint from a writable root and confirm `/settings`, Ecowitt state writes, NFC and Music Master/alarm isolation before proceeding to repeat-install acceptance.
 
