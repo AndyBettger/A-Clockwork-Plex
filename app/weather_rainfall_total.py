@@ -1,17 +1,27 @@
 from __future__ import annotations
 
-"""Calculated Rainy Day Fund total from the fully backfilled dashboard history."""
+"""Rainy Day Fund lifetime total projection."""
 
+from datetime import date
 from typing import Any
 
 
-def register_calculated_rain_total(dashboard: Any, service: Any) -> None:
-    """Replace the unreliable station lifetime counter with a history-derived total.
+def _display_start(value: Any) -> str | None:
+    try:
+        parsed = date.fromisoformat(str(value or "").strip())
+    except ValueError:
+        return None
+    return parsed.strftime("%d/%m/%Y")
 
-    The Rainy Day Fund always backfills the complete previous calendar year plus
-    the current year to date. Summing those two non-overlapping windows gives a
-    deterministic recorded total without depending on a station lifetime counter
-    that may be absent, reset or zeroed.
+
+def register_calculated_rain_total(dashboard: Any, service: Any, lifetime: Any | None = None) -> None:
+    """Replace the unreliable live station total with WU-backed history.
+
+    ``service`` owns the previous/current-year comparison windows.  When the
+    optional lifetime archive service is supplied it walks farther backwards and
+    this projection becomes a true first-WU-record-to-today total.  While that
+    one-time backfill is still progressing the gauge remains useful but says so
+    explicitly instead of pretending the partial archive is complete.
     """
 
     projection_target = getattr(dashboard, "core", dashboard)
@@ -30,7 +40,7 @@ def register_calculated_rain_total(dashboard: Any, service: Any) -> None:
         gauges = [
             gauge
             for gauge in detail.get("rain_longer_gauges", [])
-            if isinstance(gauge, dict) and gauge.get("label") != "Total rain"
+            if isinstance(gauge, dict) and gauge.get("label") not in {"Total rain", "Rain total", "Rain lifetime"}
         ]
 
         calculations = {
@@ -49,16 +59,49 @@ def register_calculated_rain_total(dashboard: Any, service: Any) -> None:
             and isinstance(previous_total, (int, float))
             and isinstance(current_total, (int, float))
         ):
-            total_in = float(previous_total) + float(current_total)
+            older_total = 0.0
+            older_missing = 0
+            lifetime_snapshot: dict[str, Any] = {}
+            if lifetime is not None:
+                lifetime_snapshot = lifetime.snapshot()
+                candidate = lifetime_snapshot.get("total_in")
+                if isinstance(candidate, (int, float)):
+                    older_total = float(candidate)
+                older_missing = int(lifetime_snapshot.get("missing_days") or 0)
+
+            total_in = older_total + float(previous_total) + float(current_total)
             amount_mm = total_in * 25.4
             max_mm = projection_target.dynamic_rain_max_mm(amount_mm)
-            missing_days = int(previous.get("missing_days") or 0) + int(current.get("missing_days") or 0)
-            note = "Last year + this year"
+            missing_days = (
+                older_missing
+                + int(previous.get("missing_days") or 0)
+                + int(current.get("missing_days") or 0)
+            )
+
+            if lifetime is None:
+                label = "Rain total"
+                note = "Last year + this year"
+            else:
+                label = "Rain lifetime"
+                lifetime_status = str(lifetime_snapshot.get("status") or "pending")
+                ready = bool(
+                    lifetime_snapshot.get("discovery_complete")
+                    and lifetime_snapshot.get("coverage_complete")
+                )
+                start = _display_start(lifetime_snapshot.get("first_record_date"))
+                if ready:
+                    note = f"Since first WU record {start}" if start else "All discovered WU history"
+                elif lifetime_status == "error":
+                    note = "Older WU history unavailable"
+                else:
+                    note = "Backfilling earlier WU history"
+
             if missing_days:
                 note += f" · {missing_days} day{'s' if missing_days != 1 else ''} not recorded"
+
             gauges.append(
                 {
-                    "label": "Rain total",
+                    "label": label,
                     "value": projection_target.format_rain_mm(amount_mm, config),
                     "percent": round(max(0, min(100, amount_mm / max_mm * 100)) if max_mm else 0, 1),
                     "max_label": projection_target.format_rain_mm(max_mm, config),
