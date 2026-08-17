@@ -123,6 +123,45 @@ Evidence:
 
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/32-eq-plan.txt`
 
-This closes the pre-activation review. The next action is the guarded Section 10 EQ apply on this same spare appliance, followed immediately by the bootstrap, appliance and audio verifiers before any post-EQ listening/regression acceptance.
+## Guarded persistent EQ promotion — PASS
+
+The guarded Section 10 apply was then run on the same spare appliance. The full fresh-bootstrap route revalidated package/venv prerequisites, PN532 `0x24`, `CARD=Pro`, pinned Plexamp/Node, pinned NFC runtime and the full host preflight before entering one whole-application transaction.
+
+The EQ application transaction physically passed with:
+
+- root installer exit `0`;
+- `ROOT_INSTALL=COMMITTED`;
+- `INSTALL_ROUTE=fresh-bootstrap`;
+- `PACKAGE_VENV_BASELINE=RETAINED`;
+- `APPLICATION_TRANSACTION=COMMITTED`;
+- `APPLICATION_VERIFY=PASS`;
+- independent `FRESH_BOOTSTRAP_VERIFY=PASS`;
+- independent `APPLIANCE_VERIFY=PASS`;
+- independent `scripts/audio/verify-audio.sh` PASS;
+- active ALSA route SHA-256 exactly `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
+- `/var/lib/a-clockwork-plex/split-bus/installed` present;
+- split-bus loopback card present with the expected identity/settings;
+- the Audio and **Settings → Audio → Master equaliser** surfaces both reported **EQ Active**;
+- Plexamp produced normal audible playback and physical EQ adjustment was audibly effective.
+
+The production CamillaDSP unit is canonically named `a-clockwork-plex-camilladsp.service`. Physical systemd checks reported:
+
+- `systemctl is-active a-clockwork-plex-camilladsp.service` → `active`;
+- `systemctl is-enabled a-clockwork-plex-camilladsp.service` → `enabled`;
+- `MainPID=2468941`;
+- `ActiveState=active`;
+- `SubState=running`;
+- `systemctl list-unit-files '*camilla*'` listed only `a-clockwork-plex-camilladsp.service`.
+
+An earlier ad-hoc check of `camilladsp.service` returned `inactive` only because that is not the managed unit name; it was not an EQ/runtime failure. Future acceptance checks use `a-clockwork-plex-camilladsp.service`.
+
+Evidence:
+
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/33-eq-install.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/34-eq-bootstrap-verify.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/35-eq-appliance-verify.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/36-eq-audio-verify.txt`
+
+This closes the persistent EQ installer + split-bus identity gate. The next acceptance action is the focused post-EQ regression: controls/bypass, AirPlay through the installed split bus, Music Master/alarm isolation and Maximum Alarm Volume, Snooze/Dismiss, and NFC playback/display/debounce.
 
 PR #2 remains Draft, open and unmerged until explicit approval.
