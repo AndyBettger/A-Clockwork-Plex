@@ -12,7 +12,7 @@ The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry P
 
 **Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 have completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Continue at **Section 8** for the remaining hands-on Direct checks; do not rerun Direct construction merely to regain context.
 
-A later Weather physical check was a **partial PASS** and exposed three follow-up items: put the live-source chip in the Weather detail heading/top-right, increase Observation source card/grid separation on the real 1024×600 display, and preserve an already-commissioned WU history credential when Ecowitt is selected/reconverged as the live provider. Checkpoint #30 repairs all three in source/CI. Its focused visual and credential-preservation retest may be performed on the current Direct spare card before resuming the rest of Section 8; this does not invalidate or require repeating Sections 6–7.
+The focused Weather work may continue on that same Direct spare card without invalidating Sections 6–7. Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation and the selected-period Today / Last 7 days / Current month / Current year behavior have now passed physically. Current year naturally exposed three station-offline dates; these are accepted coverage gaps, not API failures, and the physical API correctly returned a 21.38-inch minimum-recorded total with zero repeat fetches. The remaining focused Weather gate is the corrected **Rainy Day Fund** projection: one-time previous-year backfill, six current/previous calendar gauges, optional station-lifetime Total and horizontal touch scrolling. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`.
 
 ---
 
@@ -403,22 +403,23 @@ Require normal commit markers, no renewed reboot/claim checkpoint, no ownership 
 
 # 14. Commission Weather Underground through Settings
 
-Do this locally after the repeat installer gate. WU credentials are write-only commissioning data, not fresh-install CLI material.
+Do this locally after the repeat installer gate for a full fresh-card run. WU credentials are write-only commissioning data, not fresh-install CLI material.
 
-For the focused checkpoint #30 retest on the current Direct spare card, it is safe to perform the **14.1 visual checks** and **14.5 Ecowitt credential-preservation check** now, then return to Section 8. There is no need to rerun the already-passed Direct construction simply to see the updated Weather UI.
+For the current focused Weather retest on the already-accepted Direct spare card, **14.1 through the selected-period portion of 14.3 and 14.5 have physically passed**. Do not rerun them merely to regain context. Continue with the Rainy Day Fund/backfill checks in **14.6**, then return to Section 8.
 
 Open **Settings → Weather → Observation source**.
 
 ## 14.1 Current observation source and write-only credential commissioning
 
 1. Confirm **Observation source** is a distinct Weather subpage rather than being mixed into Station settings.
-2. Confirm the live-source chip is in the **Weather detail heading/top-right** and truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state; it should no longer consume space in the Observation source card heading.
-3. Confirm Observation source cards and their internal grids have clear touch-friendly separation at 1024×600 and are no longer visually crowded/stacked.
-4. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
-5. Enter the real WU Station ID and save ordinary Weather settings.
-6. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
-7. If Weather Underground is selected as the **live** provider, press **Test connection** and require a sanitized success result. Weather Underground remains the selected provider through that live-source Test connection check. If Ecowitt remains live, do not switch providers merely to satisfy this button: prove the same commissioned WU credential through successful supplemental historical-rainfall requests in Sections 14.2–14.3.
-8. After submission, only configured/not-configured status may be returned; never the stored key.
+2. Confirm the live-source state is a proper bordered badge at the **top-right of the Observation source card** and truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state.
+3. Confirm Historical rainfall has its own bordered status badge at the **top-right of the Historical rainfall card**.
+4. Confirm Observation source cards and their internal grids have clear touch-friendly separation on both supported landscape targets, including 1024×600.
+5. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
+6. Enter the real WU Station ID and save ordinary Weather settings.
+7. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
+8. If Weather Underground is selected as the **live** provider, press **Test connection** and require a sanitized success result. If Ecowitt remains live, do not switch providers merely to satisfy this button: prove the same commissioned WU credential through successful supplemental historical-rainfall requests.
+9. After submission, only configured/not-configured status may be returned; never the stored key.
 
 Check secret-file metadata without printing its contents:
 
@@ -447,11 +448,13 @@ PY
 
 Require `WU_CONFIG_SECRET_FIELDS=NONE`.
 
+**Current physical result:** PASS. The real credential is commissioned write-only, Ecowitt Push remains live, History ready is healthy, config contains no WU secret field, and the managed secret remains root-owned mode `600`.
+
 ## 14.2 Historical rainfall periods
 
-Exercise and save all four supported periods:
+Exercise and save all four supported configurable periods:
 
-- **Today** — live station `dailyrainin`; no WU historical request required.
+- **Today** — live station `dailyrainin`; no WU historical request required for this selected total.
 - **Last 7 days** — completed days plus today live.
 - **Current month** — completed month dates plus today live.
 - **Current year** — completed year dates plus today live.
@@ -464,11 +467,19 @@ curl -fsS http://localhost:8088/api/weather/rainfall \
   | tee -a "$EVIDENCE/63-rainfall-history-health.json"
 ```
 
-Only a `complete: true` history may be presented as a completed aggregate. Incomplete history must not masquerade as a partial total. Rain Today/current observations must remain live.
+Interpretation is now deliberately split between **calculation completeness** and **station coverage**:
 
-## 14.3 Cache reuse, retryable gaps and secret absence
+- `complete: true` means every required completed date is either recorded or has been confirmed, by a successful targeted WU request, as having no station data.
+- `coverage_complete: true` means every date actually has a recorded total.
+- `complete: true` with `coverage_complete: false` is valid when confirmed station-offline dates exist. `total_in` remains numeric and is the **minimum recorded** rainfall; the UI must state how many days were not recorded.
+- `pending_days > 0` means unresolved dates remain and the calculation is not complete.
+- An actual provider/configuration/credential failure is a separate error state and must not take current observations down.
 
-With Current year complete, refresh twice:
+**Current physical result:** Today, Last 7 days, Current month and Current year are accepted. Current year physically returned 226 of 229 days with three confirmed station gaps (`2026-03-03`, `2026-03-05`, `2026-03-07`), `status: ready`, `complete: true`, `coverage_complete: false`, `pending_days: 0` and `total_in: 21.38`. Settings showed **History ready** and the explicit minimum-recorded coverage message.
+
+## 14.3 Cache reuse, confirmed gaps and secret absence
+
+For the selected Current-year calculation, refresh twice:
 
 ```bash
 curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
@@ -480,27 +491,41 @@ curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
   | tee "$EVIDENCE/65-rainfall-refresh-second.json"
 ```
 
-Once the selected completed history is fully cached, the next completed refresh must report `"fetched_ranges": 0`.
+Once selected-period days are cached or confirmed as station gaps, repeated refreshes must report `"fetched_ranges": 0` and `"retried_dates": 0` unless a genuinely new completed day has appeared since the prior refresh.
 
-Inspect `weather-rainfall-history.json` structurally and require cache version 1, at least one cached station/day after fill, and no keys named `api_key`, `apikey`, `password`, `secret` or `token`. Cached day values must be valid non-negative numeric totals; a provider omission/invalid completed day must **not** be persisted as a `null` unavailable marker.
+The production service also prepares Rainy Day Fund comparison periods. On the **first refresh after enabling the expanded gauge history**, `gauge_fetched_ranges` may be nonzero while the previous calendar year is backfilled in ranges of at most 31 days. After that backfill has either recorded or gap-classified all returned dates, a second refresh must report `"gauge_fetched_ranges": 0` and `"gauge_retried_dates": 0`.
 
-Retry semantics are deliberate:
+Inspect `weather-rainfall-history.json` structurally and require:
 
-- if WU omits a required completed date on an otherwise successful response, that evaluation must remain `complete: false` with `total_in: null`;
-- already-valid completed days remain cached and are not refetched;
-- the omitted/invalid date remains missing and is retried on a later refresh;
-- if WU later supplies that date, the aggregate may recover to `complete: true` without clearing the cache manually;
-- legacy `null` markers written by the earlier implementation are treated as missing and should be replaced when valid data is returned.
+- cache version `1`;
+- at least one cached station/day after fill;
+- no keys named `api_key`, `apikey`, `password`, `secret` or `token`;
+- every value under `days` is a finite non-negative numeric total;
+- no `null` day markers;
+- any accepted value under `gaps` is exactly `no_station_data`.
 
-Do not corrupt the real provider or credential merely to manufacture an omission. Source regression tests cover the synthetic missing-day/recovery path; if a natural gap occurs during physical acceptance, capture the before/retry/recovery evidence.
+Retry/gap semantics are deliberate:
+
+- a date omitted from a successful multi-day response is retried once as a single-day WU request;
+- if that successful single-day request still has no usable daily record, the date becomes a confirmed station-data gap;
+- confirmed gaps are retained separately from numeric totals and are not repeatedly fetched;
+- they reduce coverage but do not turn an otherwise successful history calculation into an API error;
+- if an old cache contains a legacy `null` day marker, it remains retryable and may be replaced by valid data;
+- actual WU request/configuration/credential failures remain errors and are never silently relabelled as station gaps.
+
+Do not corrupt the real provider or credential merely to manufacture an omission/failure. Source regression tests cover synthetic gap/recovery and provider-error paths.
+
+**Current selected-period physical result:** PASS. Two Current-year POSTs both returned `fetched_ranges: 0`, `retried_dates: 0`, three stable confirmed gaps and the same numeric minimum-recorded total.
 
 ## 14.4 Supplemental failure behaviour
 
-If historical rainfall is naturally unavailable, require current Ecowitt/WU observations and the normal Weather page to remain operational, no credential material in error output, and incomplete history to remain visibly incomplete. Do not corrupt the real API key merely to manufacture a failure already covered by source tests.
+If a WU history request is naturally unavailable, require current Ecowitt/WU observations and the normal Weather page to remain operational, no credential material in error output, and the appropriate selected-period/gauge diagnostic to report the failure. Do not corrupt the real API key merely to manufacture a failure already covered by source tests.
+
+The expanded Rainy Day Fund backfill uses separate `gauge_status` / `gauge_last_error` diagnostics so failure to fetch an older comparison period does not falsely turn an otherwise valid selected-period calculation into **History incomplete**.
 
 ## 14.5 Ecowitt reconvergence must preserve the commissioned WU history credential
 
-This is the checkpoint #30 installer follow-up. It deliberately exercises only the guarded Weather configuration owner, so it does **not** touch Direct/EQ routing, mixers, alarm behavior or playback services and it does not restart the dashboard.
+This checkpoint deliberately exercises only the guarded Weather configuration owner, so it does **not** touch Direct/EQ routing, mixers, alarm behavior or playback services and it does not restart the dashboard.
 
 With the WU key already commissioned and **Ecowitt Push** selected for live observations, compare the managed secret before/after without ever printing its contents or digest:
 
@@ -544,11 +569,50 @@ WU_HISTORY_CREDENTIAL_PRESERVED=PASS
 
 The final `stat` must still report root ownership and mode `600`. The command output/evidence must contain no key material and no key digest. Source regression coverage separately proves that if no managed WU credential exists, Ecowitt activation preserves that absence rather than creating a file.
 
+**Current physical result:** PASS and recorded in `docs/weather-physical-followup-2026-08-17.md`.
+
+## 14.6 Rainy Day Fund historical gauges
+
+This is the remaining focused Weather gate on the current Direct spare card.
+
+The detailed Weather page must present independent historical summaries rather than merely mirroring whichever single period is selected in Settings:
+
+- **Rain this week** — Monday through today;
+- **Rain last week** — previous Monday through Sunday;
+- **Rain this month**;
+- **Rain last month**;
+- **Rain this year**;
+- **Rain last year**;
+- **Total rain** only when Ecowitt actually supplies the station-lifetime `totalrainin` counter.
+
+After loading the latest green source and restarting only `a-clockwork-plex.service`, force one rainfall refresh. Existing current-year data should remain cached; the first run may backfill the previous calendar year and therefore report nonzero `gauge_fetched_ranges` / `gauge_retried_dates`.
+
+Force a second refresh after the first has completed. Require:
+
+```text
+fetched_ranges: 0
+gauge_fetched_ranges: 0
+gauge_retried_dates: 0
+```
+
+assuming no new completed date arrived between the two calls.
+
+On the physical display require:
+
+1. the six calendar gauges above are present once their data is resolved;
+2. station-lifetime Total appears only if supplied by Ecowitt;
+3. the Rainy Day Fund row scrolls horizontally by touch and remains readable at 1280×720 and 1024×600;
+4. confirmed gaps add concise per-gauge copy such as **3 days not recorded** rather than suppressing the numeric gauge;
+5. the Current-year gauge agrees with the selected-period API total for the same moment (physically 21.38 inches at the accepted checkpoint, subject only to subsequent live rainfall changing today’s contribution);
+6. Ecowitt live observation remains healthy throughout.
+
+The earlier physically blank Rainy Day Fund was traced to the rainfall wrapper patching the `app.main` facade while Flask's context processor resolved `dashboard_core.weather_detail_data`. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the actual core projection and has full CI coverage. Do not treat the old blank-gauge result as a WU data failure.
+
 ---
 
 # 15. Final acceptance record
 
-Commit a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings/live-or-history commissioning result, all four historical-rainfall/cache results, checkpoint #30 Weather heading/spacing retest, Ecowitt credential-preservation result, and all deviations. If a natural WU history gap occurs, include its incomplete/retry/recovery evidence without exposing credentials.
+Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, any natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + optional lifetime Total result, horizontal-scroll result, Ecowitt credential-preservation result, cache structural/secret check and all deviations.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
