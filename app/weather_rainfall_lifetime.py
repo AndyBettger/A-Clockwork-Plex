@@ -342,9 +342,37 @@ class WeatherRainfallLifetimeService:
         fetched_ranges = 0
         retried_dates = 0
 
+        configured_start_matches = (
+            configured_start is None
+            or meta.get("first_record_date") == configured_start.isoformat()
+        )
+        if (
+            meta.get("discovery_complete")
+            and meta.get("coverage_complete")
+            and configured_start_matches
+        ):
+            calculation = self._calculate(
+                station_id=station_id,
+                configured_start=configured_start,
+                today=today,
+                cache=cache,
+            )
+            with self._lock:
+                self._status.update(
+                    status="ready",
+                    last_error=None,
+                    last_refresh_at=now_text,
+                    last_success_at=now_text,
+                    fetched_ranges=0,
+                    retried_dates=0,
+                )
+                self._status.update(calculation)
+            return self.snapshot()
+
         try:
             if configured_start is not None:
                 meta["discovery_complete"] = True
+                meta["coverage_complete"] = False
                 meta["first_record_date"] = configured_start.isoformat()
                 meta["probe_cursor_end"] = None
                 meta["empty_probe_ranges"] = 0
@@ -369,7 +397,13 @@ class WeatherRainfallLifetimeService:
                     fetched_ranges += 1
                     if found:
                         block_first = min(
-                            day for day in (_parse_date(key) for key, value in days.items() if _valid_total(value)) if day is not None
+                            day
+                            for day in (
+                                _parse_date(key)
+                                for key, value in days.items()
+                                if _valid_total(value)
+                            )
+                            if day is not None
                         )
                         first_record = min(first_record, block_first) if first_record else block_first
                         empty_ranges = 0
