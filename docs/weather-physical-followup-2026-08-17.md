@@ -2,8 +2,9 @@
 
 **Host:** `plexamp-test`  
 **Branch:** `feature/alarm-engine`  
-**Presentation fix under test:** `7c163227b0faf5c8c727f72900d47f10bc5cac35`  
-**Status:** presentation retest PASS; WU commissioning/history/preservation checks still in progress.
+**Presentation fix physically accepted:** `7c163227b0faf5c8c727f72900d47f10bc5cac35`  
+**Status-sync repair source/CI head:** `2d9d5bdcdaa75db9c12b461da4a2131d10497a04`  
+**Status:** presentation + WU commissioning/live-history independence PASS; status-sync repair needs one focused physical retest; remaining period/cache/preservation checks still in progress.
 
 ## Display acceptance envelope
 
@@ -14,7 +15,7 @@ The Settings UI must remain usable on both supported landscape targets:
 
 Weather spacing must therefore use resolution-independent responsive/minimum spacing rather than a fix tied only to one panel size.
 
-## Physical presentation retest
+## Physical presentation retest — PASS
 
 After fast-forwarding the spare-SD checkout, restarting `a-clockwork-plex.service`, and confirming `DASHBOARD_API=PASS`, the following four Weather presentation items were physically accepted:
 
@@ -25,15 +26,56 @@ After fast-forwarding the spare-SD checkout, restarting `a-clockwork-plex.servic
 
 The earlier attempt that placed the live-source state beside the global Weather page heading is superseded by this accepted card-local treatment.
 
+## WU commissioning and live/history independence — backend PASS
+
+The real WU API key was entered only through the local write-only Settings control. No key material was copied into chat or terminal output.
+
+Physical results:
+
+- Credential status control reported **Configured**.
+- `GET /api/weather/underground/credentials` returned only `configured: true` / `ok: true`; no key was returned.
+- `/etc/default/a-clockwork-plex-weather` remained `600 root:root`.
+- Structural `config.json` inspection reported `WU_CONFIG_SECRET_FIELDS=NONE`.
+- With Weather Underground PWS selected as the live source, **Test connection** succeeded and the Observation source badge reached **WU Ready**.
+- Switching the live provider back to Ecowitt custom push produced **Ecowitt Push** while the WU credential control remained **Configured**.
+- With Ecowitt live, `GET /api/weather/rainfall` for Last 7 days returned:
+  - `status: ready`
+  - `complete: true`
+  - `required_days: 7`
+  - `available_days: 7`
+  - `cached_days: 6`
+  - `fetched_ranges: 0`
+  - `total_in: 0.0`
+  - no unavailable dates or last error.
+
+This physically proves that WU supplemental historical rainfall can remain healthy while Ecowitt is the live observation provider.
+
+## Status synchronization issue found and repaired in source/CI
+
+During commissioning, the **Historical rainfall** badge stayed on **Credentials required** even though the direct rainfall API was already `ready` and complete. The Observation source badge also required a page refresh/Test connection before visually catching up.
+
+Root cause:
+
+- WU credential changes woke the live-observation service but not the rainfall-history service.
+- the Weather presenter rendered rainfall state from a revision-gated unified Settings snapshot even though weather/credential status may change without a Settings revision;
+- Test connection received fresh live-provider status but then reread the cached snapshot instead of rendering the fresh response.
+
+Repair at source/CI head `2d9d5bdcdaa75db9c12b461da4a2131d10497a04`:
+
+- successful WU credential set/remove wakes both live observations and rainfall history;
+- the presenter reads `/api/weather/rainfall` directly for the Historical rainfall badge;
+- credential set/remove forces an immediate rainfall refresh;
+- successful Test connection renders its fresh observation result immediately and refreshes rainfall status;
+- rainfall display is no longer overwritten from the revision-gated Settings snapshot.
+
+Full Tests workflow **#3473 / run `31988059169`** passed compile, JavaScript/page/shell validation and unit tests.
+
 ## Still to prove physically
 
-- Commission the real WU API key locally without exposing it in chat, logs or `config.json`.
-- When WU is selected as the live provider, obtain a sanitized successful Test connection / `WU Ready` state.
-- Return live observations to Ecowitt Push while retaining WU for historical rainfall.
-- Verify the root-owned `0600` managed WU secret and absence of literal secret fields in `config.json`.
+- Fast-forward/restart and confirm the Historical rainfall badge immediately reflects **History ready** without a page reload after the already-commissioned credential is present.
 - Prove Ecowitt weather reconvergence preserves the commissioned WU credential exactly.
 - Exercise Today, Last 7 days, Current month and Current year historical rainfall.
 - Prove completed Current-year cache reuse (`fetched_ranges: 0` on the next completed refresh), secret-free numeric cache contents and no persisted `null` gap markers.
-- Confirm historical-rainfall failure/incompleteness does not take live observations down.
+- Confirm historical-rainfall failure/incompleteness does not take live observations down if such a condition occurs naturally; do not sabotage the real credential/provider to manufacture it.
 
 PR #2 remains Draft/open/unmerged until explicit owner approval.
