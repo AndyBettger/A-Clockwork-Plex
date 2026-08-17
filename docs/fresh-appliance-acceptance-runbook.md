@@ -10,9 +10,9 @@ Prove that A Clockwork Plex can be built and reconverged on the real bedroom Pi/
 
 The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry Pi DAC Pro, pinned Plexamp Headless/Node, NFC, dashboard/kiosk, AirPlay, alarm-safe Direct audio, guarded EQ promotion, reboot/repeat-install, Weather Underground commissioning and historical rainfall.
 
-**Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 have completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Continue at **Section 8** for the remaining hands-on Direct checks; do not rerun Direct construction merely to regain context.
+**Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. The focused Section 8 pre-EQ smoke has also passed: Plexamp playback is healthy, a known NFC tag triggered playback and the Plexamp dashboard state, and Direct mode truthfully reports **Install required** for EQ. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. **Continue at Section 9**; do not repeat the established AirPlay/handoff/alarm suite in Direct merely to delay EQ promotion.
 
-The focused Weather work on this Direct spare card is now **physically complete** and does not invalidate Sections 6–7. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context; resume Section 8.
+The focused Weather work on this Direct spare card is now **physically complete** and does not invalidate Sections 6–8. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context.
 
 ---
 
@@ -251,21 +251,26 @@ aplay -l
 
 Require PN532 `0x24` and `CARD=Pro`.
 
-**Current 17 August spare-SD result:** this section has passed and is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Resume at Section 8 unless a later change specifically invalidates the Direct construction/verifier evidence.
+**Current 17 August spare-SD result:** this section has passed and is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 
 ---
 
-# 8. Physical Direct acceptance
+# 8. Focused Direct smoke before EQ promotion
 
-Record notes in `$EVIDENCE/24-direct-physical-notes.txt` and require:
+This is deliberately a **small promotion gate**, not another replay of the already-established appliance handoff/alarm test suite. Its job is to prove the verified Direct appliance is still basically alive immediately before the EQ installer changes the route.
 
-- Dashboard, Settings and Clock render normally; Chromium kiosk starts normally.
-- Plexamp plays stable stereo.
-- A known NFC tag starts local Plexamp playback, switches the dashboard to Plexamp, and immediate repeated scans are debounced.
-- AirPlay takes over cleanly through PlaybackCoordinator and returns normally.
-- With music playing, **Music Master = 0%** silences music.
-- A real scheduled alarm remains audible while Music Master is 0%; Snooze/Dismiss work.
-- Settings → Audio/EQ shows **Install required** in Direct mode.
+Require:
+
+- Dashboard/Settings remain usable.
+- Plexamp produces normal stable stereo playback.
+- One known-good NFC tag starts local Plexamp playback and requests the Plexamp dashboard state.
+- Audio and **Settings → Audio → Master equaliser** truthfully report **Install required** while Direct is installed.
+
+Do **not** block EQ promotion on repeating AirPlay/PlaybackCoordinator takeover, Music Master/alarm isolation, Snooze/Dismiss or the entire NFC debounce suite in Direct. Those behaviors have prior physical evidence; the meaningful release regression is Section 11 **after EQ is installed**, where a routing/EQ integration defect could actually affect them.
+
+**Current physical result:** PASS. Plexamp playback was healthy, a known NFC tag triggered playback and the Plexamp dashboard state, and both EQ surfaces reported **Install required**. The NFC log also noted that `xdotool` is absent while mode state was updated; because the intended dashboard behavior was observed, this is retained as a non-blocking diagnostic note. Immediate repeat-scan debounce was not freshly re-exercised and is not a promotion blocker.
+
+Continue directly to Section 9.
 
 ---
 
@@ -342,7 +347,7 @@ Require all PASS and route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa891
 
 # 11. Physical EQ acceptance
 
-Require clean Plexamp/AirPlay through EQ, plausible Bass/Mid/Treble changes, working bypass, Music Master = 0% music isolation with alarm still audible, independent **Maximum Alarm Volume**, working Snooze/Dismiss, and NFC playback/display handoff after EQ promotion.
+This is the substantive playback regression gate. Require clean Plexamp/AirPlay through EQ, plausible Bass/Mid/Treble changes, working bypass, Music Master = 0% music isolation with alarm still audible, independent **Maximum Alarm Volume**, working Snooze/Dismiss, and NFC playback/display handoff after EQ promotion. Recheck immediate repeat-tag debounce here as part of the final NFC regression.
 
 Phase 6 already physically proved controlled Camilla failure/failback; do not manufacture another failure merely for this fresh-construction run.
 
@@ -405,7 +410,7 @@ Require normal commit markers, no renewed reboot/claim checkpoint, no ownership 
 
 Do this locally after the repeat installer gate for a full fresh-card run. WU credentials are write-only commissioning data, not fresh-install CLI material.
 
-For the current focused Weather retest on the already-accepted Direct spare card, **Sections 14.1 through 14.6 have all physically passed** and are recorded in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun them merely to regain context; return to Section 8.
+For the current focused Weather retest on the already-accepted Direct spare card, **Sections 14.1 through 14.6 have all physically passed** and are recorded in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun them merely to regain context.
 
 Open **Settings → Weather → Observation source**.
 
@@ -617,9 +622,9 @@ Inspect `weather-rainfall-lifetime.json` with the same structural rules as the r
 
 # 15. Final acceptance record
 
-Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + Rain lifetime result, custom horizontal-scroll result, Ecowitt credential-preservation result, both cache structural/secret checks and all deviations.
+Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, focused Direct smoke, EQ result, post-EQ NFC/AirPlay/alarm regression, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + Rain lifetime result, custom horizontal-scroll result, Ecowitt credential-preservation result, both cache structural/secret checks and all deviations.
 
-The focused Weather evidence is complete in `docs/weather-physical-followup-2026-08-17.md`; the remaining Phase 7 work is the hands-on Direct → EQ → reboot → repeat-install acceptance chain.
+The focused Weather evidence and Direct pre-EQ smoke are complete. The remaining Phase 7 chain is **Camilla artifact → EQ installer/verifiers → post-EQ physical regression → reboot → repeat-install**.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
