@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from app.weather_rainfall_history import (
+    CONFIRMED_GAP,
     MAX_RANGE_DAYS,
     WeatherRainfallHistoryService,
     contiguous_ranges,
@@ -118,6 +119,9 @@ class RainfallHistoryServiceTests(unittest.TestCase):
         self.assertEqual(first_call_count, 8)
         self.assertEqual(len(calls), first_call_count)
         self.assertTrue(second["complete"])
+        self.assertTrue(second["coverage_complete"])
+        self.assertEqual(second["fetched_ranges"], 0)
+        self.assertEqual(second["retried_dates"], 0)
         for _url, params, _timeout in calls:
             start = date.fromisoformat(f"{params['startDate'][:4]}-{params['startDate'][4:6]}-{params['startDate'][6:]}")
             end = date.fromisoformat(f"{params['endDate'][:4]}-{params['endDate'][4:6]}-{params['endDate'][6:]}")
@@ -138,6 +142,7 @@ class RainfallHistoryServiceTests(unittest.TestCase):
         snapshot = service.refresh()
 
         self.assertTrue(snapshot["complete"])
+        self.assertTrue(snapshot["coverage_complete"])
         self.assertEqual(snapshot["available_days"], 7)
         self.assertAlmostEqual(snapshot["total_in"], 0.8)
         cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
@@ -145,7 +150,7 @@ class RainfallHistoryServiceTests(unittest.TestCase):
         self.assertNotIn(self.today.isoformat(), cache["stations"]["IABC123"]["days"])
         self.assertNotIn("secret-key", self.cache_path.read_text(encoding="utf-8"))
 
-    def test_missing_provider_day_stays_incomplete_then_retries_only_that_day(self):
+    def test_range_omission_is_retried_once_as_a_single_day_before_becoming_a_gap(self):
         config = rainfall_config("last_7_days")
         calls = []
         missing_day = date(2026, 8, 12)
@@ -160,23 +165,58 @@ class RainfallHistoryServiceTests(unittest.TestCase):
             return history_payload(start, end, omit=omit)
 
         service = self.service(config, fetcher)
-        first = service.refresh()
-        first_cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
-        second = service.refresh()
-        third = service.refresh()
+        snapshot = service.refresh()
 
-        self.assertFalse(first["complete"])
-        self.assertIsNone(first["total_in"])
-        self.assertIn(missing_day.isoformat(), first["unavailable_dates"])
-        self.assertNotIn(missing_day.isoformat(), first_cache["stations"]["IABC123"]["days"])
-        self.assertEqual(len(first_cache["stations"]["IABC123"]["days"]), 5)
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[1]["startDate"], "20260812")
         self.assertEqual(calls[1]["endDate"], "20260812")
+        self.assertEqual(snapshot["retried_dates"], 1)
+        self.assertTrue(snapshot["complete"])
+        self.assertTrue(snapshot["coverage_complete"])
+        self.assertEqual(snapshot["missing_days"], 0)
+        self.assertAlmostEqual(snapshot["total_in"], 0.8)
+        cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(cache["stations"]["IABC123"]["days"]), 6)
+        self.assertEqual(cache["stations"]["IABC123"].get("gaps", {}), {})
+
+    def test_confirmed_no_data_day_keeps_ready_minimum_total_and_is_not_refetched(self):
+        config = rainfall_config("last_7_days")
+        calls = []
+        missing_day = date(2026, 8, 12)
+
+        def fetcher(url, params, timeout):
+            calls.append(dict(params))
+            start_text = params["startDate"]
+            end_text = params["endDate"]
+            start = date(int(start_text[:4]), int(start_text[4:6]), int(start_text[6:]))
+            end = date(int(end_text[:4]), int(end_text[4:6]), int(end_text[6:]))
+            return history_payload(start, end, amount=0.1, omit=missing_day)
+
+        service = self.service(config, fetcher)
+        first = service.refresh()
+        first_call_count = len(calls)
+        second = service.refresh()
+
+        self.assertEqual(first_call_count, 2)
+        self.assertEqual(first["status"], "ready")
+        self.assertTrue(first["complete"])
+        self.assertFalse(first["coverage_complete"])
+        self.assertEqual(first["missing_days"], 1)
+        self.assertEqual(first["missing_dates"], [missing_day.isoformat()])
+        self.assertEqual(first["pending_days"], 0)
+        self.assertAlmostEqual(first["total_in"], 0.7)
+        self.assertEqual(len(calls), first_call_count)
         self.assertTrue(second["complete"])
-        self.assertAlmostEqual(second["total_in"], 0.8)
-        self.assertTrue(third["complete"])
-        self.assertEqual(third["fetched_ranges"], 0)
+        self.assertFalse(second["coverage_complete"])
+        self.assertEqual(second["fetched_ranges"], 0)
+        self.assertEqual(second["retried_dates"], 0)
+        self.assertAlmostEqual(second["total_in"], 0.7)
+
+        cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
+        station = cache["stations"]["IABC123"]
+        self.assertNotIn(missing_day.isoformat(), station["days"])
+        self.assertEqual(station["gaps"][missing_day.isoformat()], CONFIRMED_GAP)
+        self.assertNotIn(None, station["days"].values())
 
     def test_legacy_null_cache_marker_is_retried_and_replaced(self):
         config = rainfall_config("last_7_days")
@@ -200,6 +240,7 @@ class RainfallHistoryServiceTests(unittest.TestCase):
         snapshot = service.refresh()
 
         self.assertTrue(snapshot["complete"])
+        self.assertTrue(snapshot["coverage_complete"])
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["startDate"], "20260812")
         self.assertEqual(calls[0]["endDate"], "20260812")
@@ -222,6 +263,7 @@ class RainfallHistoryServiceTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(snapshot["status"], "ready")
         self.assertTrue(snapshot["complete"])
+        self.assertTrue(snapshot["coverage_complete"])
         self.assertEqual(snapshot["total_in"], 0.37)
 
     def test_provider_failure_is_supplemental_and_redacts_api_key(self):

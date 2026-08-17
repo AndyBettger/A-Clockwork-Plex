@@ -7,6 +7,7 @@ from pathlib import Path
 PRESENTER = Path("app/static/js/settings-weather-observations.js")
 RUNNER = Path("app/runner.py")
 SETTINGS = Path("app/settings_weather_rainfall.py")
+WEATHER_TEMPLATE = Path("app/templates/weather.html")
 
 
 class SettingsWeatherRainfallControlsTests(unittest.TestCase):
@@ -59,6 +60,22 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
         self.assertGreaterEqual(presenter.count("await refreshRainfallStatus(true);"), 3)
         self.assertIn("renderStatus(payload);", presenter)
         self.assertNotIn("renderRainfallStatus(snapshot.status?.weather_rainfall", presenter)
+
+    def test_successful_station_gaps_stay_ready_and_explain_minimum_recorded_total(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn("ready: 'History ready'", presenter)
+        self.assertNotIn("History incomplete", presenter)
+        self.assertIn("had no station data. Total shown is the minimum recorded.", presenter)
+        self.assertIn("A date omitted from a range is retried once on its own", presenter)
+        self.assertIn("confirmed station gaps are counted", presenter)
+
+    def test_rainy_day_fund_can_show_missing-day_coverage_note(self) -> None:
+        template = WEATHER_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("{% if gauge.note %}", template)
+        self.assertIn('class="rain-coverage-note"', template)
+        self.assertIn("{{ gauge.note }}", template)
 
     def test_history_period_exposes_exact_four_choices(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")

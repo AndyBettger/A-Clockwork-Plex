@@ -69,7 +69,7 @@
             <option value="current_month">Current month</option>
             <option value="current_year">Current year</option>
           </select>
-          <small>Valid completed daily totals are cached locally. Missing dates are retried later; an incomplete period never shows a partial total.</small>
+          <small>Valid daily totals are cached locally. A date omitted from a range is retried once on its own; confirmed station gaps are counted and the displayed total remains the minimum recorded.</small>
         </label>
         <div class="setting-field">
           <span>History source</span>
@@ -228,23 +228,27 @@
     if (!rainfallChip || !rainfallMessage) return;
     const state = String(status.status || 'pending');
     const complete = status.complete === true;
+    const missingDays = Number(status.missing_days || 0);
+    const pendingDays = Number(status.pending_days || 0);
     const labels = {
-      ready: complete ? 'History ready' : 'History incomplete',
+      ready: 'History ready',
       pending: 'Waiting',
       configuration_required: 'Station required',
       credentials_required: 'Credentials required',
       error: 'History error',
     };
     rainfallChip.textContent = labels[state] || state || 'Checking…';
-    rainfallChip.classList.toggle('is-warning', state !== 'ready' || !complete);
+    rainfallChip.classList.toggle('is-warning', state !== 'ready');
     if (status.last_error) {
       rainfallMessage.textContent = status.last_error;
     } else if (complete && status.period === 'today') {
       rainfallMessage.textContent = 'Today uses the current live station rainfall total; no historical API request is needed.';
-    } else if (complete) {
-      rainfallMessage.textContent = `${status.available_days || 0} day${status.available_days === 1 ? '' : 's'} available · ${status.cached_days || 0} completed day${status.cached_days === 1 ? '' : 's'} cached.`;
-    } else if (Array.isArray(status.unavailable_dates) && status.unavailable_dates.length) {
-      rainfallMessage.textContent = `${status.unavailable_dates.length} required day${status.unavailable_dates.length === 1 ? '' : 's'} unavailable; no partial rainfall total will be shown.`;
+    } else if (state === 'ready' && missingDays > 0) {
+      rainfallMessage.textContent = `${status.available_days || 0} of ${status.required_days || 0} days recorded · ${missingDays} day${missingDays === 1 ? '' : 's'} had no station data. Total shown is the minimum recorded.`;
+    } else if (state === 'ready' && pendingDays > 0) {
+      rainfallMessage.textContent = `${pendingDays} day${pendingDays === 1 ? '' : 's'} still waiting for a usable reading; recorded days remain available.`;
+    } else if (state === 'ready' && complete) {
+      rainfallMessage.textContent = `${status.available_days || 0} day${status.available_days === 1 ? '' : 's'} recorded · ${status.cached_days || 0} completed day${status.cached_days === 1 ? '' : 's'} cached.`;
     } else {
       rainfallMessage.textContent = 'Historical rainfall will fill from cached daily Weather Underground totals.';
     }

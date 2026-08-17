@@ -24,6 +24,7 @@ PERIOD_LABELS = {
 DEFAULT_TIMEOUT_SECONDS = 8
 DEFAULT_REFRESH_SECONDS = 900
 MAX_RANGE_DAYS = 31
+CONFIRMED_GAP = "no_station_data"
 
 
 def normalise_rainfall_period(value: Any) -> str:
@@ -160,6 +161,10 @@ def _valid_cached_total(value: Any) -> bool:
     return math.isfinite(total) and total >= 0
 
 
+def _confirmed_gap(value: Any) -> bool:
+    return value == CONFIRMED_GAP
+
+
 class WeatherRainfallHistoryService:
     def __init__(
         self,
@@ -189,6 +194,7 @@ class WeatherRainfallHistoryService:
             "last_refresh_at": None,
             "last_success_at": None,
             "fetched_ranges": 0,
+            "retried_dates": 0,
         }
 
     def _provider_config(self) -> tuple[str, str, int]:
@@ -200,20 +206,47 @@ class WeatherRainfallHistoryService:
         timeout = int(wu.get("request_timeout_seconds") or DEFAULT_TIMEOUT_SECONDS)
         return station_id, str(self._environment(env_name) or "").strip(), max(2, min(60, timeout))
 
-    def _station_days(self, cache: dict[str, Any], station_id: str) -> dict[str, Any]:
+    def _station_record(self, cache: dict[str, Any], station_id: str) -> dict[str, Any]:
         stations = cache.setdefault("stations", {})
-        station = stations.setdefault(station_id, {"days": {}})
+        station = stations.setdefault(station_id, {"days": {}, "gaps": {}})
+        if not isinstance(station, dict):
+            station = {"days": {}, "gaps": {}}
+            stations[station_id] = station
+        return station
+
+    def _station_days(self, cache: dict[str, Any], station_id: str) -> dict[str, Any]:
+        station = self._station_record(cache, station_id)
         days = station.setdefault("days", {})
         if not isinstance(days, dict):
             days = {}
             station["days"] = days
         return days
 
+    def _station_gaps(self, cache: dict[str, Any], station_id: str) -> dict[str, Any]:
+        station = self._station_record(cache, station_id)
+        gaps = station.setdefault("gaps", {})
+        if not isinstance(gaps, dict):
+            gaps = {}
+            station["gaps"] = gaps
+        return gaps
+
+    @staticmethod
+    def _request_params(station_id: str, api_key: str, start: date, end: date) -> dict[str, Any]:
+        return {
+            "stationId": station_id,
+            "format": "json",
+            "units": "e",
+            "numericPrecision": "decimal",
+            "startDate": start.strftime("%Y%m%d"),
+            "endDate": end.strftime("%Y%m%d"),
+            "apiKey": api_key,
+        }
+
     def wake(self) -> None:
         self._wake.set()
 
     def refresh(self, force: bool = False) -> dict[str, Any]:
-        del force  # Valid completed-day totals are immutable; missing/invalid dates remain retryable.
+        del force  # Confirmed no-data days are stable; unconfirmed/invalid days are fetched.
         config = self._load_config()
         period = public_rainfall_config(config)["period"]
         today = self._today()
@@ -231,48 +264,88 @@ class WeatherRainfallHistoryService:
                     last_refresh_at=now_text,
                     last_success_at=now_text,
                     fetched_ranges=0,
+                    retried_dates=0,
                 )
             return self.snapshot()
 
         if not station_id:
             with self._lock:
-                self._status.update(status="configuration_required", last_error="Weather Underground station ID is required for historical rainfall.", last_refresh_at=now_text)
+                self._status.update(
+                    status="configuration_required",
+                    last_error="Weather Underground station ID is required for historical rainfall.",
+                    last_refresh_at=now_text,
+                    fetched_ranges=0,
+                    retried_dates=0,
+                )
             return self.snapshot()
         if not api_key:
             with self._lock:
-                self._status.update(status="credentials_required", last_error="Weather Underground API key is required for historical rainfall.", last_refresh_at=now_text)
+                self._status.update(
+                    status="credentials_required",
+                    last_error="Weather Underground API key is required for historical rainfall.",
+                    last_refresh_at=now_text,
+                    fetched_ranges=0,
+                    retried_dates=0,
+                )
             return self.snapshot()
 
         cache = _load_cache(self._cache_path)
         days = self._station_days(cache, station_id)
+        gaps = self._station_gaps(cache, station_id)
         required_past = [day for day in period_dates(period, today) if day < today]
-        missing = [day for day in required_past if not _valid_cached_total(days.get(day.isoformat()))]
+        missing = [
+            day
+            for day in required_past
+            if not _valid_cached_total(days.get(day.isoformat()))
+            and not _confirmed_gap(gaps.get(day.isoformat()))
+        ]
         fetched_ranges = 0
+        retried_dates = 0
         try:
             for start, end in contiguous_ranges(missing):
-                params = {
-                    "stationId": station_id,
-                    "format": "json",
-                    "units": "e",
-                    "numericPrecision": "decimal",
-                    "startDate": start.strftime("%Y%m%d"),
-                    "endDate": end.strftime("%Y%m%d"),
-                    "apiKey": api_key,
-                }
-                payload = self._fetcher(WEATHER_UNDERGROUND_DAILY_HISTORY_URL, params, timeout)
+                payload = self._fetcher(
+                    WEATHER_UNDERGROUND_DAILY_HISTORY_URL,
+                    self._request_params(station_id, api_key, start, end),
+                    timeout,
+                )
                 totals = daily_precip_totals(payload)
+                omitted: list[date] = []
                 cursor = start
                 while cursor <= end:
                     key = cursor.isoformat()
                     if cursor in totals:
                         days[key] = totals[cursor]
+                        gaps.pop(key, None)
                     else:
-                        # Never turn a transient provider omission into a permanent
-                        # cache miss. The aggregate remains incomplete for this
-                        # evaluation and the date is retried on a later refresh.
                         days.pop(key, None)
+                        omitted.append(cursor)
                     cursor += timedelta(days=1)
                 fetched_ranges += 1
+
+                # A successful multi-day response may legitimately omit dates for
+                # which the PWS has no observation. Retry each omitted date once as
+                # a single-day request before classifying it as a station-data gap.
+                if start == end:
+                    for omitted_day in omitted:
+                        gaps[omitted_day.isoformat()] = CONFIRMED_GAP
+                    continue
+
+                for omitted_day in omitted:
+                    retry_payload = self._fetcher(
+                        WEATHER_UNDERGROUND_DAILY_HISTORY_URL,
+                        self._request_params(station_id, api_key, omitted_day, omitted_day),
+                        timeout,
+                    )
+                    retried_dates += 1
+                    retry_totals = daily_precip_totals(retry_payload)
+                    key = omitted_day.isoformat()
+                    if omitted_day in retry_totals:
+                        days[key] = retry_totals[omitted_day]
+                        gaps.pop(key, None)
+                    else:
+                        days.pop(key, None)
+                        gaps[key] = CONFIRMED_GAP
+
             if missing:
                 _save_cache(self._cache_path, cache)
             with self._lock:
@@ -282,11 +355,18 @@ class WeatherRainfallHistoryService:
                     last_refresh_at=now_text,
                     last_success_at=now_text,
                     fetched_ranges=fetched_ranges,
+                    retried_dates=retried_dates,
                 )
         except Exception as exc:  # Supplemental history must never take current observations down.
             message = str(exc).replace(api_key, "[redacted]") if api_key else str(exc)
             with self._lock:
-                self._status.update(status="error", last_error=message, last_refresh_at=now_text, fetched_ranges=fetched_ranges)
+                self._status.update(
+                    status="error",
+                    last_error=message,
+                    last_refresh_at=now_text,
+                    fetched_ranges=fetched_ranges,
+                    retried_dates=retried_dates,
+                )
         return self.snapshot()
 
     def calculation(self, weather: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -297,32 +377,50 @@ class WeatherRainfallHistoryService:
         station_id, _api_key, _timeout = self._provider_config()
         cache = _load_cache(self._cache_path)
         days = self._station_days(cache, station_id) if station_id else {}
+        gaps = self._station_gaps(cache, station_id) if station_id else {}
         live_weather = weather if isinstance(weather, dict) else self._current_weather()
         required = period_dates(period, today)
         values: list[float] = []
-        unavailable: list[str] = []
+        missing_dates: list[str] = []
+        pending_dates: list[str] = []
+
         for day in required:
+            key = day.isoformat()
             if day == today:
                 try:
                     value = float(live_weather.get("dailyrainin"))
                 except (TypeError, ValueError):
                     value = math.nan
             else:
-                raw = days.get(day.isoformat())
+                raw = days.get(key)
                 try:
                     value = float(raw)
                 except (TypeError, ValueError):
                     value = math.nan
+
             if math.isfinite(value) and value >= 0:
                 values.append(value)
+            elif day < today and _confirmed_gap(gaps.get(key)):
+                missing_dates.append(key)
             else:
-                unavailable.append(day.isoformat())
+                pending_dates.append(key)
+
+        unavailable = [*missing_dates, *pending_dates]
+        total = round(sum(values), 4) if values else None
         return {
             "period": period,
             "label": label,
-            "total_in": round(sum(values), 4) if not unavailable else None,
-            "complete": not unavailable,
+            "total_in": total,
+            # A calculation is complete when every required day is either
+            # recorded or has been confirmed by a successful single-day query as
+            # having no station data. Coverage completeness is reported separately.
+            "complete": not pending_dates,
+            "coverage_complete": not unavailable,
             "unavailable_dates": unavailable,
+            "missing_dates": missing_dates,
+            "pending_dates": pending_dates,
+            "missing_days": len(missing_dates),
+            "pending_days": len(pending_dates),
             "required_days": len(required),
             "available_days": len(values),
         }
@@ -332,10 +430,15 @@ class WeatherRainfallHistoryService:
         station_id, _api_key, _timeout = self._provider_config()
         cache = _load_cache(self._cache_path)
         days = self._station_days(cache, station_id) if station_id else {}
+        gaps = self._station_gaps(cache, station_id) if station_id else {}
         with self._lock:
             status = dict(self._status)
         status.update(calculation)
         status["cached_days"] = sum(1 for value in days.values() if _valid_cached_total(value))
+        status["gap_days"] = sum(1 for value in gaps.values() if _confirmed_gap(value))
+        if status.get("status") in {"error", "configuration_required", "credentials_required"}:
+            status["complete"] = False
+            status["total_in"] = None
         return status
 
     def start(self) -> None:
@@ -373,12 +476,18 @@ def register_weather_rainfall(app: Any, dashboard: Any, service: WeatherRainfall
             state: dict[str, Any],
         ) -> dict[str, Any]:
             detail = base_weather_detail(config, weather, state)
+            snapshot = service.snapshot()
             calculation = service.calculation(weather)
             total_in = calculation.get("total_in")
-            if calculation.get("period") != "today" and isinstance(total_in, (int, float)):
+            if (
+                snapshot.get("status") == "ready"
+                and calculation.get("period") != "today"
+                and isinstance(total_in, (int, float))
+            ):
                 amount_mm = float(total_in) * 25.4
                 max_mm = dashboard.dynamic_rain_max_mm(amount_mm)
                 value = dashboard.format_rain_mm(amount_mm, config)
+                missing_days = int(calculation.get("missing_days") or 0)
                 gauge = {
                     "label": calculation["label"],
                     "value": value,
@@ -387,6 +496,11 @@ def register_weather_rainfall(app: Any, dashboard: Any, service: WeatherRainfall
                         1,
                     ),
                     "max_label": dashboard.format_rain_mm(max_mm, config),
+                    "note": (
+                        f"{missing_days} day{'s' if missing_days != 1 else ''} not recorded"
+                        if missing_days
+                        else None
+                    ),
                 }
                 detail["rain_longer_gauges"] = [
                     gauge,

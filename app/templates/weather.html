@@ -168,6 +168,9 @@
                       <span>{{ gauge.label }}</span>
                       <strong>{{ gauge.value }}</strong>
                       <small>Scale {{ gauge.max_label }}</small>
+                      {% if gauge.note %}
+                        <small class="rain-coverage-note">{{ gauge.note }}</small>
+                      {% endif %}
                     </div>
                   </div>
                 {% endfor %}
