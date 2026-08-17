@@ -50,6 +50,16 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
         self.assertIn('[data-wu-commissioning] {', presenter)
         self.assertIn('margin-top: clamp(18px, 2.8vmin, 22px);', presenter)
 
+    def test_history_badge_refreshes_directly_after_credential_actions(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn("async function refreshRainfallStatus(force = false)", presenter)
+        self.assertIn("'/api/weather/rainfall'", presenter)
+        self.assertIn("force ? { method: 'POST', body: '{}' } : {}", presenter)
+        self.assertGreaterEqual(presenter.count("await refreshRainfallStatus(true);"), 3)
+        self.assertIn("renderStatus(payload);", presenter)
+        self.assertNotIn("renderRainfallStatus(snapshot.status?.weather_rainfall", presenter)
+
     def test_history_period_exposes_exact_four_choices(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
 
@@ -75,6 +85,7 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
 
         self.assertIn("WeatherRainfallHistoryService", runner)
         self.assertIn("register_weather_rainfall(app, dashboard, weather_rainfall)", runner)
+        self.assertIn("rainfall_wake=weather_rainfall.wake", runner)
         self.assertIn("weather_rainfall.start()", runner)
         self.assertIn("weather_rainfall.shutdown()", runner)
         self.assertIn("rainfall=weather_rainfall", runner)
