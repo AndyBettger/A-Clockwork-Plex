@@ -32,7 +32,7 @@ A later Weather physical check was a **partial PASS** and exposed three follow-u
 | Item | Accepted value |
 |---|---|
 | Fresh alarm-safe Direct route | `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` |
-| EQ split-bus route | `1bc69f106768d438d1fdb597ee8c83339c5fa89187935636f9c08bd9` |
+| EQ split-bus route | `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` |
 | CamillaDSP executable | `4.1.3` aarch64, SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa` |
 | CamillaDSP official archive | SHA-256 `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a` |
 | Plexamp Headless | `4.13.2`, SHA-256 `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041` |
@@ -336,7 +336,7 @@ bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/36-eq-audio-verify.txt"
 ```
 
-Require all PASS and route SHA `1bc69f106768d438d1fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
+Require all PASS and route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
 
 ---
 
