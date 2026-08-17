@@ -1,4 +1,4 @@
-# Post-reboot EQ runtime failure — 2026-08-17
+# Post-reboot Settings/runtime failure — 2026-08-17
 
 Target: spare SD card on `plexamp-test`. The accepted production SD card remained removed and untouched.
 
@@ -22,28 +22,39 @@ Evidence paths:
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/42-audio-after-reboot.txt`
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/43-eq-route-after-reboot.sha256`
 
-## Physical runtime failure
+## First physical symptom
 
 The reboot checkpoint is **not accepted** despite the green static verifiers.
 
-After Plexamp playback was started successfully, the Audio page initially reported **EQ Active**. When the physical EQ controls were adjusted, error text appeared on the Audio surface. Opening Settings afterwards returned **Internal Server Error**. Plexamp itself continued playing, but dashboard control was no longer usable to stop playback; the operator rebooted the Pi to recover/stop playback.
+After Plexamp playback was started successfully, the Audio surface initially reported **EQ Active**. During the first post-reboot attempt to adjust EQ, error text was seen on the Audio surface. Opening Settings afterwards returned **Internal Server Error**. Plexamp itself continued playing, but dashboard control was no longer usable to stop playback; the operator rebooted the Pi to recover/stop playback.
 
-Because the failure occurred before the remaining reboot smoke checks, the following were deliberately not run:
+Because the failure occurred before the remaining reboot smoke checks, NFC playback and Music Master `0%` plus real scheduled-alarm isolation were deliberately not run.
 
-- NFC playback after reboot;
-- Music Master `0%` plus real scheduled-alarm isolation after reboot.
+## Second boot narrows the fault
 
-The repeat whole-appliance installer gate is blocked until this post-boot runtime failure is understood and repaired.
+The previous boot could not be recovered because this image currently has no persistent journald store: `journalctl -b -1` reported `Specifying boot ID or boot offset has no effect, no persistent journal was found.`
+
+On the next boot, the operator repeated Plexamp playback and live EQ adjustment before diagnosis commands were issued. This time the EQ mutation worked normally. The resulting health evidence was:
+
+- `GET /api/audio/eq`: HTTP-success JSON with `available:true`, `backend_state:"split-bus-active"`, no error, Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB`;
+- restricted helper `sudo -n /usr/local/bin/a-clockwork-plex-audio-eq status`: the same healthy EQ state;
+- `a-clockwork-plex-camilladsp.service`: `MainPID=954`, `ActiveState=active`, `SubState=running`, `NRestarts=0`;
+- route state remained `mode:"split-bus-selected"` with the canonical split-bus ALSA SHA;
+- EQ state/config/route files retained expected root ownership and modes (`0600`, `0644`, `0644`).
+
+Most importantly, the fault is independently reproducible without an EQ mutation:
+
+- `GET /api/settings` returns HTTP `200`;
+- `GET /settings` returns HTTP `500`.
+
+This separates the currently reproducible failure from the unified Settings data API and from the healthy CamillaDSP process. The first observed EQ error may have coincided with, or been secondary to, the Settings/render failure; there is not yet evidence that CamillaDSP reload itself caused the HTTP 500.
 
 ## Current diagnosis boundary
 
-The failure is narrower than a boot-time EQ construction failure:
+Section 12 reboot acceptance remains **BLOCKED**. Section 13 repeat whole-appliance installation must not run yet.
 
-- the managed CamillaDSP unit was active/enabled;
-- the canonical split-bus route and installed marker were intact;
-- all three independent verifiers passed before live EQ mutation;
-- failure appeared only when the running post-boot EQ backend was mutated and was followed by an HTTP 500 on Settings.
+The next diagnostic step is to trigger `GET /settings` on the **current boot** and immediately capture `a-clockwork-plex.service` journal output so the Flask/Jinja traceback for the reproducible HTTP 500 is preserved before another reboot. Because journald is volatile on this image, current-boot evidence must be copied into the Phase 7 evidence directory before rebooting.
 
-The next diagnostic step is read-only recovery of the **previous boot** dashboard/Camilla/route/failback journals plus a current-boot EQ/API health snapshot. Do not repeat NFC/alarm/repeat-install acceptance until that evidence is reviewed.
+Do not repeat NFC/alarm/repeat-install acceptance until `/settings` is restored to HTTP 200 and the reboot smoke is rerun.
 
 PR #2 remains Draft, open and unmerged until explicit owner approval.
