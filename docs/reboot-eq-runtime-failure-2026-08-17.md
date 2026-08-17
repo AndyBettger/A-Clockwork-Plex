@@ -1,4 +1,4 @@
-# Post-reboot Settings/runtime failure — 2026-08-17
+# Post-reboot host filesystem failure — 2026-08-17
 
 Target: spare SD card on `plexamp-test`. The accepted production SD card remained removed and untouched.
 
@@ -30,31 +30,46 @@ After Plexamp playback was started successfully, the Audio surface initially rep
 
 Because the failure occurred before the remaining reboot smoke checks, NFC playback and Music Master `0%` plus real scheduled-alarm isolation were deliberately not run.
 
-## Second boot narrows the fault
+## Second boot narrowed the fault
 
 The previous boot could not be recovered because this image currently has no persistent journald store: `journalctl -b -1` reported `Specifying boot ID or boot offset has no effect, no persistent journal was found.`
 
-On the next boot, the operator repeated Plexamp playback and live EQ adjustment before diagnosis commands were issued. This time the EQ mutation worked normally. The resulting health evidence was:
+On the next boot, the operator repeated Plexamp playback and live EQ adjustment before diagnosis commands were issued. This time the EQ mutation worked normally. Health evidence showed:
 
-- `GET /api/audio/eq`: HTTP-success JSON with `available:true`, `backend_state:"split-bus-active"`, no error, Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB`;
-- restricted helper `sudo -n /usr/local/bin/a-clockwork-plex-audio-eq status`: the same healthy EQ state;
+- `GET /api/audio/eq`: healthy `split-bus-active` state, no error, Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB`;
+- the restricted EQ helper reported the same healthy state;
 - `a-clockwork-plex-camilladsp.service`: `MainPID=954`, `ActiveState=active`, `SubState=running`, `NRestarts=0`;
 - route state remained `mode:"split-bus-selected"` with the canonical split-bus ALSA SHA;
 - EQ state/config/route files retained expected root ownership and modes (`0600`, `0644`, `0644`).
 
-Most importantly, the fault is independently reproducible without an EQ mutation:
+The Settings data API remained healthy (`GET /api/settings` -> HTTP 200), while `GET /settings` reproducibly returned HTTP 500.
 
-- `GET /api/settings` returns HTTP `200`;
-- `GET /settings` returns HTTP `500`.
+## Root cause boundary discovered from the current journal
 
-This separates the currently reproducible failure from the unified Settings data API and from the healthy CamillaDSP process. The first observed EQ error may have coincided with, or been secondary to, the Settings/render failure; there is not yet evidence that CamillaDSP reload itself caused the HTTP 500.
+The current-boot journal proves the HTTP 500 is **not a template/Jinja failure and not evidence of a CamillaDSP reload failure**. The host root filesystem is read-only.
+
+The exact `/settings` traceback is:
+
+- `dashboard_core.settings()` calls `set_mode("settings")`;
+- `set_mode()` calls `save_json(STATE_PATH, state)`;
+- `save_json()` attempts to open `/home/andy/A-Clockwork-Plex/state.json.tmp` for writing;
+- the kernel/filesystem returns `OSError: [Errno 30] Read-only file system`;
+- Flask therefore returns HTTP 500 for `/settings`.
+
+Independent corroboration exists in the same boot:
+
+- repeated Ecowitt POSTs fail at the same `save_json()` write with `Errno 30` and return HTTP 500;
+- an attempt to save the diagnostic journal into the Phase 7 evidence directory fails with `Read-only file system`, so `47-current-settings-500-journal.txt` is never created;
+- read-only APIs and already-running audio services continue working, explaining why EQ status and Plexamp playback can appear healthy while state-changing dashboard operations fail.
+
+This reclassifies the observed failure as a **host/storage/filesystem durability failure on the spare SD appliance**, not an A Clockwork Plex EQ or Settings application regression at the current evidence boundary.
 
 ## Current diagnosis boundary
 
-Section 12 reboot acceptance remains **BLOCKED**. Section 13 repeat whole-appliance installation must not run yet.
+Section 12 reboot acceptance remains **BLOCKED**, now on host filesystem health. Section 13 repeat whole-appliance installation must not run while `/` is read-only.
 
-The next diagnostic step is to trigger `GET /settings` on the **current boot** and immediately capture `a-clockwork-plex.service` journal output so the Flask/Jinja traceback for the reproducible HTTP 500 is preserved before another reboot. Because journald is volatile on this image, current-boot evidence must be copied into the Phase 7 evidence directory before rebooting.
+Do not attempt an in-place `mount -o remount,rw /` or run a repairing filesystem check against the mounted root merely to continue acceptance. First capture current mount flags and kernel/MMC/EXT4 diagnostics to determine whether the read-only transition was caused by filesystem corruption, SD-card I/O failure, power/undervoltage, or another host-level fault. Preserve the accepted production SD card untouched.
 
-Do not repeat NFC/alarm/repeat-install acceptance until `/settings` is restored to HTTP 200 and the reboot smoke is rerun.
+After the spare-card filesystem/storage issue is repaired or the spare card is replaced, rerun the reboot checkpoint from a writable root and confirm `/settings`, Ecowitt state writes, NFC and Music Master/alarm isolation before proceeding to repeat-install acceptance.
 
 PR #2 remains Draft, open and unmerged until explicit owner approval.
