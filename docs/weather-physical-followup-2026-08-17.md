@@ -9,7 +9,7 @@
 **Rainy Day Fund projection/source head:** `6316a63fbc109967ccd517a631796be01b859ba2`  
 **Lifetime rain + forecast-style scrollbar implementation head:** `bbdcc74dde455269def9b5bcb72c3601e295c6b2`  
 **Physical lifetime/custom-scroll head loaded on Pi:** `f0ea56557ba3d2fd09b624c9162ceea6c30de6f9`  
-**Status:** presentation, WU commissioning, live/history independence, status synchronization, Ecowitt credential preservation, selected-period station-gap semantics, expanded Rainy Day Fund, forecast-style custom scrolling and WU-backed Rain lifetime physically PASS. Final cache-structure/request-quiet/live-Ecowitt checks remain before closing the Weather follow-up.
+**Status:** focused Weather acceptance is physically **PASS**: presentation, WU commissioning, live/history independence, status synchronization, Ecowitt credential preservation, selected-period station-gap semantics, expanded Rainy Day Fund, forecast-style custom scrolling, WU-backed Rain lifetime, settled request-quiet archive, cache structure and live-Ecowitt independence are all accepted.
 
 ## Display acceptance envelope
 
@@ -218,13 +218,65 @@ The 11 missing days are the accepted gaps from the recent comparison window (3 i
 
 This proves the lifetime gauge is based on discovered WU history rather than relabelling a two-year sum. The discovered first-record date is governed by the documented acceptance heuristic above; if independent station history ever establishes an older pre-30/12/2023 record separated by a multi-year outage, configure `lifetime_start_date` and rerun discovery rather than silently overstating completeness.
 
-## Final Weather checks still open
+## Final Weather closure — physical PASS
 
-Before closing the focused Weather follow-up:
+The final three checks all passed on the real spare-SD appliance:
 
-1. Force one more `POST /api/weather/rainfall/lifetime` after the ready state and require `fetched_ranges: 0` / `retried_dates: 0`, proving the settled lifetime archive is request-quiet on the real Pi.
-2. Inspect both `weather-rainfall-history.json` and `weather-rainfall-lifetime.json` structurally: version 1, finite non-negative numeric `days`, no `null` day markers, only recognized `no_station_data` gap markers, and no secret fields.
-3. Confirm `GET /api/weather/observations` still reports `provider: ecowitt_push`, `status: push`, with the observation worker healthy.
-4. A genuine provider/API failure remains covered by source tests; do not sabotage the real credential/provider merely to manufacture one.
+1. A forced `POST /api/weather/rainfall/lifetime` after the archive had reached ready returned:
+   - `status: ready`
+   - `discovery_complete: true`
+   - `coverage_complete: true`
+   - `first_record_date: 2023-12-30`
+   - `available_days: 368`
+   - `fetched_ranges: 0`
+   - `retried_dates: 0`
+   - `last_error: null`
+   - older-archive `total_in: 46.5` inches.
+
+   This physically proves the settled lifetime archive is request-quiet.
+
+2. Structural inspection of both cache files passed without printing station IDs, rainfall values or credentials:
+
+   ```text
+   weather-rainfall-history.json
+   CACHE_VERSION=1
+   CACHED_DAY_COUNT=582
+   CONFIRMED_GAP_COUNT=11
+   FORBIDDEN_SECRET_KEYS=0
+   NULL_DAY_VALUES=0
+   INVALID_DAY_VALUES=0
+   INVALID_GAP_VALUES=0
+   CACHE_STRUCTURE=PASS
+
+   weather-rainfall-lifetime.json
+   CACHE_VERSION=1
+   CACHED_DAY_COUNT=368
+   CONFIRMED_GAP_COUNT=0
+   FORBIDDEN_SECRET_KEYS=0
+   NULL_DAY_VALUES=0
+   INVALID_DAY_VALUES=0
+   INVALID_GAP_VALUES=0
+   CACHE_STRUCTURE=PASS
+
+   ALL_RAINFALL_CACHES=PASS
+   ```
+
+   Therefore both caches are version 1, numeric/non-negative under `days`, free of `null` day debris and secret keys, and use only recognized `no_station_data` gap markers.
+
+3. `GET /api/weather/observations` still returned:
+   - `configured: true`
+   - `provider: ecowitt_push`
+   - `status: push`
+   - `ok: true`
+   - `last_error: null`
+   - observation worker `running: true` / name `weather-observations`.
+
+   This closes the live/history independence gate: the full WU historical/lifetime workflow did not disturb Ecowitt as the live source.
+
+A genuine provider/API failure remains covered by source regression tests; the real credential/provider was deliberately not sabotaged merely to manufacture a failure.
+
+## Focused Weather acceptance conclusion
+
+**PASS.** The Weather follow-up is physically complete on `plexamp-test`. The accepted behavior now includes dual-resolution Settings presentation, write-only WU commissioning, Ecowitt-live/WU-history independence, preserved credentials, station-gap/minimum-recorded semantics, cached current/previous calendar summaries, forecast-style Rainy Day Fund scrolling, genuine discovered WU-backed Rain lifetime, request-quiet settled caches and secret-free structural validation.
 
 PR #2 remains Draft/open/unmerged until explicit owner approval.
