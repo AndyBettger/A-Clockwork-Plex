@@ -12,12 +12,12 @@ The current physically validated target is:
 
 - Raspberry Pi 4B;
 - 64-bit Raspberry Pi OS with Desktop;
+- Raspberry Pi Touch Display 2 (720×1280 native, used in 1280×720 landscape orientation on the validated appliance);
 - Raspberry Pi DAC Pro, expected by ALSA as `CARD=Pro`;
 - PN532 NFC hardware configured for I2C, expected on bus 1 at address `0x24`;
-- a local touchscreen/display suitable for the Chromium dashboard kiosk;
 - network access for package installation and the pinned Plexamp/Node/CamillaDSP downloads.
 
-Connect HATs and internal hardware with the Pi powered off. Do not update Pi EEPROM/bootloader, HAT EEPROM or other hardware firmware as part of an A Clockwork Plex installation.
+Connect HATs and internal hardware with the Pi powered off. Do not run `rpi-update`, change Pi bootloader release channels, write HAT EEPROMs or perform other experimental/pre-release firmware updates as part of an A Clockwork Plex installation.
 
 ## 2. Install Raspberry Pi OS
 
@@ -33,13 +33,64 @@ In Imager's OS customisation, set the normal appliance values before writing the
 
 Write the image and allow Raspberry Pi Imager to verify it.
 
-On first boot, let Raspberry Pi OS finish its first-boot setup and reach the desktop. The dashboard kiosk starts inside the logged-in desktop session, so enable **desktop auto-login** for the appliance user if the OS image has not already done so. Use Raspberry Pi Configuration or `raspi-config` for that OS setting.
+On first boot, let Raspberry Pi OS finish its first-boot setup and reach the desktop. The dashboard kiosk starts inside the logged-in desktop session, so enable **desktop auto-login** for the appliance user if the OS image has not already done so. Use Raspberry Pi Configuration / Control Centre or `raspi-config` for that OS setting.
 
-If the attached display needs rotation or a different supported resolution, set that through Raspberry Pi OS display settings before installing the appliance. Do not manually install Plexamp, Node, Shairport Sync, CamillaDSP, NFC Python libraries, ALSA routes, DAC overlays or A Clockwork Plex services; those belong to the installer.
+### Update the fresh OS before installing A Clockwork Plex
+
+A Clockwork Plex deliberately does **not** perform a blanket Raspberry Pi OS upgrade. It installs the packages it owns, but routine operating-system maintenance stays under the operator's control.
+
+On a newly imaged Pi, apply the normal supported Raspberry Pi OS updates before installing the appliance:
+
+```bash
+sudo apt update
+sudo apt full-upgrade
+sudo reboot
+```
+
+Do not use `rpi-update` for this. Normal APT updates are the supported Raspberry Pi OS maintenance path; `rpi-update` is intended for experimental/pre-release firmware and specific engineering cases.
+
+### Raspberry Pi Touch Display 2 setup
+
+For the validated 720×1280 Raspberry Pi Touch Display 2, configure the desktop before installing the kiosk:
+
+- set the display to the desired **landscape 1280×720** orientation;
+- in **Control Centre → Appearance**, use the **Medium** desktop/default size;
+- set **screen scaling to 1.5×**;
+- use the **Dark** theme if you want the same validated desktop appearance;
+- use **Multitouch** touchscreen behaviour rather than mouse emulation.
+
+These values make normal desktop applications and commissioning screens usable on the small panel while preserving the proportions used during A Clockwork Plex physical validation. Kiosk mode subsequently occupies the dashboard display itself.
+
+### Enable VNC for easier commissioning
+
+Enabling VNC is strongly recommended during initial setup, especially for entering Plex credentials and other text that is awkward on the small touchscreen.
+
+In Raspberry Pi OS:
+
+1. open **Preferences → Control Centre**;
+2. open **Interfaces**;
+3. enable **VNC**;
+4. connect from another computer with a compatible VNC client when you need a full keyboard/mouse during commissioning.
+
+VNC is an administration convenience; A Clockwork Plex does not require it for normal bedside operation.
+
+### Chromium commissioning tweak
+
+Before kiosk installation, it is useful to give Chromium a little more usable space on the Touch Display 2:
+
+1. open Chromium;
+2. open **Settings → Appearance**;
+3. turn **Use system title bar and borders** **off**.
+
+The dashboard kiosk launch overrides the normal browser chrome anyway, but disabling the system title bar/borders makes ordinary Chromium windows roomier while you are claiming Plexamp or commissioning the appliance.
+
+If the attached display needs a different supported rotation or resolution, set that through Raspberry Pi OS display settings before installing the appliance.
+
+Do not manually install Plexamp, Node, Shairport Sync, CamillaDSP, NFC Python libraries, ALSA routes, DAC overlays or A Clockwork Plex services; those belong to the installer.
 
 ## 3. Obtain A Clockwork Plex
 
-Open a terminal on the Pi or connect over SSH.
+Open a terminal on the Pi or connect over SSH/VNC.
 
 The source tree must exist before its installer can own the rest of the package baseline. Raspberry Pi OS with Desktop normally provides the required download tools; if `git` or `curl` is missing, install only those bootstrap tools first:
 
@@ -123,6 +174,8 @@ PLEXAMP_RUNTIME=CLAIM-REQUIRED
 ```
 
 The installer prints a `CLAIM_COMMAND`. Run that command locally on the Pi. When Plexamp asks for a claim code, obtain a fresh code from `https://plex.tv/claim`, enter it directly into Plexamp, then give the player its desired name. Wait for Plexamp to confirm successful startup, press `Ctrl-C`, return to `~/A-Clockwork-Plex`, and rerun the same appliance install command.
+
+VNC is particularly useful for this commissioning step because it provides a full keyboard without consuming most of the Touch Display 2 with the on-screen keyboard.
 
 Do not put a Plex claim code into installer arguments, shell scripts, logs or repository files.
 
