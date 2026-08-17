@@ -162,6 +162,20 @@ Evidence:
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/35-eq-appliance-verify.txt`
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/36-eq-audio-verify.txt`
 
-This closes the persistent EQ installer + split-bus identity gate. The next acceptance action is the focused post-EQ regression: controls/bypass, AirPlay through the installed split bus, Music Master/alarm isolation and Maximum Alarm Volume, Snooze/Dismiss, and NFC playback/display/debounce.
+## Focused post-EQ physical regression — PASS
+
+After persistent EQ promotion, the deliberately focused Section 11 regression was completed on the same spare appliance with no issues found.
+
+Physical results:
+
+- Plexamp remained clean through the installed split-bus EQ; audible EQ changes worked and bypass removed/restored the EQ effect as expected;
+- AirPlay takeover and playback remained healthy through the installed EQ path, and EQ/bypass audibly affected AirPlay as intended;
+- with **Music Master at 0%**, music was silenced while a real scheduled alarm remained audible on its independent alarm lane;
+- **Maximum Alarm Volume** continued to act as an independent alarm ceiling;
+- Snooze, subsequent ringing and Dismiss all worked normally;
+- NFC playback and dashboard handoff still worked after EQ promotion;
+- an immediate repeat scan of the same tag was successfully debounced rather than retriggering playback.
+
+No functional issue was found in the post-EQ regression. This closes the substantive feature/playback acceptance gate for persistent EQ. The remaining Phase 7 work is durability/idempotence only: reboot persistence, then one repeat whole-appliance install and final evidence closure.
 
 PR #2 remains Draft, open and unmerged until explicit approval.
