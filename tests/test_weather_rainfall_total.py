@@ -53,6 +53,93 @@ class CalculatedRainTotalTests(unittest.TestCase):
         self.assertEqual(total["note"], "Last year + this year · 11 days not recorded")
         self.assertAlmostEqual(total["percent"], 95.2, places=1)
 
+    def test_promotes_total_to_first_wu_record_lifetime_when_archive_is_ready(self) -> None:
+        def base_detail(_config, _weather, _state):
+            return {
+                "rain_longer_gauges": [
+                    {"label": "Rain this year", "value": "127.0 mm", "percent": 50, "max_label": "250 mm"},
+                    {"label": "Rain last year", "value": "254.0 mm", "percent": 50, "max_label": "500 mm"},
+                    {"label": "Total rain", "value": "0.0 mm", "percent": 0, "max_label": "5 mm"},
+                ]
+            }
+
+        core = SimpleNamespace(
+            weather_detail_data=base_detail,
+            dynamic_rain_max_mm=lambda amount: amount + 19.0,
+            format_rain_mm=lambda amount, _config: f"{amount:.1f} mm",
+        )
+        dashboard = SimpleNamespace(core=core, weather_detail_data=base_detail)
+        service = SimpleNamespace(
+            dashboard_calculations=lambda _weather: [
+                {
+                    "period": "previous_year",
+                    "total_in": 10.0,
+                    "complete": True,
+                    "missing_days": 8,
+                },
+                {
+                    "period": "current_year",
+                    "total_in": 5.0,
+                    "complete": True,
+                    "missing_days": 3,
+                },
+            ]
+        )
+        lifetime = SimpleNamespace(
+            snapshot=lambda: {
+                "status": "ready",
+                "total_in": 20.0,
+                "missing_days": 4,
+                "first_record_date": "2023-04-05",
+                "discovery_complete": True,
+                "coverage_complete": True,
+            }
+        )
+
+        register_calculated_rain_total(dashboard, service, lifetime)
+        detail = core.weather_detail_data({}, {}, {})
+
+        total = detail["rain_longer_gauges"][-1]
+        self.assertEqual(total["label"], "Rain lifetime")
+        self.assertEqual(total["value"], "889.0 mm")
+        self.assertEqual(total["note"], "Since first WU record 05/04/2023 · 15 days not recorded")
+        self.assertNotIn("Total rain", [gauge["label"] for gauge in detail["rain_longer_gauges"]])
+
+    def test_lifetime_gauge_says_when_older_archive_is_still_backfilling(self) -> None:
+        def base_detail(_config, _weather, _state):
+            return {"rain_longer_gauges": [{"label": "Total rain", "value": "0.0 mm"}]}
+
+        core = SimpleNamespace(
+            weather_detail_data=base_detail,
+            dynamic_rain_max_mm=lambda amount: amount + 1.0,
+            format_rain_mm=lambda amount, _config: f"{amount:.1f} mm",
+        )
+        dashboard = SimpleNamespace(core=core, weather_detail_data=base_detail)
+        service = SimpleNamespace(
+            dashboard_calculations=lambda _weather: [
+                {"period": "previous_year", "total_in": 1.0, "complete": True, "missing_days": 0},
+                {"period": "current_year", "total_in": 2.0, "complete": True, "missing_days": 0},
+            ]
+        )
+        lifetime = SimpleNamespace(
+            snapshot=lambda: {
+                "status": "backfilling",
+                "total_in": 4.0,
+                "missing_days": 0,
+                "first_record_date": "2024-01-01",
+                "discovery_complete": False,
+                "coverage_complete": False,
+            }
+        )
+
+        register_calculated_rain_total(dashboard, service, lifetime)
+        detail = core.weather_detail_data({}, {}, {})
+
+        total = detail["rain_longer_gauges"][-1]
+        self.assertEqual(total["label"], "Rain lifetime")
+        self.assertEqual(total["value"], "177.8 mm")
+        self.assertEqual(total["note"], "Backfilling earlier WU history")
+
     def test_suppresses_calculated_total_until_both_year_windows_are_complete(self) -> None:
         def base_detail(_config, _weather, _state):
             return {
