@@ -48,7 +48,8 @@
   font-size: 0.68rem;
 }
 
-.acp-eq-health {
+.acp-eq-health,
+#acp-eq-settings-health {
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   padding: 0.2rem 0.52rem;
@@ -58,7 +59,8 @@
   text-transform: uppercase;
 }
 
-.acp-eq-health.is-ready {
+.acp-eq-health.is-ready,
+#acp-eq-settings-health.is-ready {
   color: #aaf5ff;
   border-color: rgba(101, 225, 255, 0.42);
   box-shadow: 0 0 0.8rem rgba(64, 188, 255, 0.15);
