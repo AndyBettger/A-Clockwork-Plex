@@ -46,8 +46,14 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 - Live observation source and WU history source are independent; Ecowitt Push may remain live while WU supplies history.
 - Commission current source and WU history under **Settings → Weather → Observation source**. The accepted physical presentation uses a bordered live-source badge at the top-right of the Observation source card and a separate bordered history badge at the top-right of the Historical rainfall card.
 - Weather Settings cards and source grids use deliberate touch-friendly separation on both supported landscape targets, including 1024×600.
-- Rainy Day Fund historical summaries are independent of the single configurable history period and expose **This week / Last week / This month / Last month / This year / Last year**. The station-lifetime **Total rain** gauge is retained only when Ecowitt actually supplies it.
-- Rainy Day Fund may scroll horizontally by touch so the six/seven gauges remain readable without crushing the 1280×720 or 1024×600 layouts. Coverage notes use concise copy such as `3 days not recorded`.
+- Rainy Day Fund historical summaries are independent of the single configurable history period and expose **This week / Last week / This month / Last month / This year / Last year**.
+- The final Rainy Day Fund total is **Rain lifetime**, not merely Last year + This year and not an unverified live Ecowitt counter. It is calculated from WU daily history from the first discovered WU record through today.
+- Older lifetime history is isolated in station-scoped, secret-free `weather-rainfall-lifetime.json`; it never races the selected-period / Rainy Day Fund comparison cache. Discovery and coverage use WU ranges of at most 31 days and preserve the same confirmed-gap semantics.
+- Because documented WU PWS metadata exposes no station-inception field, lifetime discovery walks backwards and treats 24 consecutive empty 31-day probes as the automatic pre-station boundary, with `weather.historical_rainfall.lifetime_start_date` available as an explicit override for unusual multi-year mid-life outages. The hard automatic discovery floor is 1995.
+- Once lifetime discovery and coverage are both complete, later lifetime refreshes are cache-only and issue zero WU requests.
+- During one-time lifetime backfill, the gauge must say **Backfilling earlier WU history**; once ready it identifies the first WU record date and any real missing-day coverage.
+- Rainy Day Fund uses the **same custom rounded rail/thumb control as the forecast strips**. Chromium's native rain scrollbar, including its arrow buttons, stays hidden. Touch strip scrolling, thumb drag, rail clicks and keyboard navigation remain supported.
+- Coverage notes use concise copy such as `3 days not recorded`.
 - WU API key is write-only commissioning data: never returned to the browser, stored in `config.json`/browser storage, placed in argv or logged.
 - Persistent secret storage is root-owned `/etc/default/a-clockwork-plex-weather`, mode `0600`; the restricted helper receives key material on stdin.
 - Selecting/reconverging **Ecowitt Push for live observations must preserve the exact existing managed WU credential file** because WU may still supply supplemental rainfall history. If that managed file was absent, Ecowitt convergence must keep it absent; it must never invent, rewrite or reveal a credential.
@@ -76,7 +82,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: physical Direct construction/verification and core WU history acceptance complete; Rainy Day Fund retest, hands-on Direct behaviour, EQ/reboot and repeat-install acceptance remain**
+### Phase 7 — full appliance installer integration — **In progress: physical Direct construction/verification and core WU history acceptance complete; Rainy Day Fund lifetime/scroll physical retest, hands-on Direct behaviour, EQ/reboot and repeat-install acceptance remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -88,7 +94,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Ecowitt-live weather convergence preserves an existing commissioned WU history credential byte-for-byte and preserves prior absence when none exists.
 - [x] **Physical:** real WU credential commissioned locally without key disclosure; write-only status/config boundaries verified; WU supplemental history stayed healthy with Ecowitt Push live; later Ecowitt reconvergence preserved the exact managed WU credential and root `0600` metadata. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
 
-#### Historical rainfall + Weather source workspace — core physical PASS; Rainy Day Fund source/CI PASS, physical retest pending
+#### Historical rainfall + Weather source workspace — core physical PASS; Rainy Day Fund lifetime/custom-scroll source/CI PASS, physical retest pending
 
 - [x] Observation Source is its own Weather subpage; Station owns dashboard labels/refresh.
 - [x] Explicit current-source and history status badges remain card-local and truthful (`Ecowitt Push`, `WU Ready`, `History ready`, setup/degraded states).
@@ -97,12 +103,15 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] <=31-day missing-range batching and single-day retry of dates omitted from successful range responses.
 - [x] Confirmed successful-query station gaps are cached separately from numeric totals and do not cause repeated fetches.
 - [x] Minimum-recorded totals remain visible with explicit missing-day coverage; actual API/config/credential failures remain distinct and supplemental to live observations.
-- [x] Rainy Day Fund source projection now receives six independent calendar summaries (This/Last week, month and year), retaining station-lifetime Total only when supplied by Ecowitt.
-- [x] Rainy Day Fund uses a touch-friendly horizontal strip for the expanded gauge set.
+- [x] Rainy Day Fund source projection receives six independent calendar summaries (This/Last week, month and year).
+- [x] Calculated final gauge is now WU-backed **Rain lifetime**, combining the older discovered archive with previous/current year rather than relabelling a two-year sum or trusting an unrelated station counter.
+- [x] Older archive uses separate `weather-rainfall-lifetime.json`, backward discovery, bounded coverage fill, confirmed gaps and request-quiet settled state.
+- [x] Rainy Day Fund now uses the same custom forecast rail/thumb mechanism rather than Chromium's native scrollbar.
 - [x] Physical Settings presentation, WU commissioning, Ecowitt/WU independence, credential preservation, Today, Last 7 days, Current month and Current year selected-period behavior are accepted.
 - [x] Physical Current-year gap case: 226/229 days recorded, confirmed gaps on `2026-03-03`, `2026-03-05`, `2026-03-07`, `status: ready`, `complete: true`, `coverage_complete: false`, `total_in: 21.38`; two consecutive forced refreshes both reported `fetched_ranges: 0` / `retried_dates: 0`.
 - [x] Rainy Day Fund blank-gauge root cause identified: the rainfall wrapper patched the `app.main` facade while Flask's context processor resolved `dashboard_core.weather_detail_data`. Source head `6316a63fbc109967ccd517a631796be01b859ba2` patches the real core projection and passed Tests #3485 / run `31991516804`.
-- [ ] **Physical:** load the corrected Rainy Day Fund projection, allow one-time previous-year backfill, require the second refresh to show both `fetched_ranges: 0` and `gauge_fetched_ranges: 0`, confirm all six calendar gauges plus optional lifetime Total, horizontal touch scrolling, and concise missing-day notes; then perform the structural cache inspection.
+- [x] Lifetime archive settles without continued WU traffic; current green source/CI head `22455624917ce456087e3a11041937b3c0526623` passed Tests #3523 / run `31994639762`, including both rainfall-service lifecycle/wake ownership and custom-scroll regressions.
+- [ ] **Physical:** load the current green Rainy Day Fund projection, confirm forecast-style custom scrolling with no native arrow buttons, allow the separate lifetime archive to reach `status: ready` / discovery+coverage complete, require a subsequent lifetime refresh to show `fetched_ranges: 0` / `retried_dates: 0`, confirm all six calendar gauges plus final Rain lifetime/first-record note, and perform both cache structural inspections.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
@@ -131,7 +140,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 #### Spare-SD physical acceptance handoff
 
 - [x] Runbook uses a spare SD while production card remains untouched.
-- [x] Runbook covers fresh baseline/evidence, Direct, exits `75`/`76`, independent verifiers, NFC/AirPlay/alarm, guarded Camilla fetch, EQ, reboot, repeat install and WU Settings/history.
+- [x] Runbook covers fresh baseline/evidence, Direct, exits `75`/`76`, independent verifiers, NFC/AirPlay/alarm, guarded Camilla fetcher, EQ, reboot, repeat install and WU Settings/history.
 - [x] First Trixie apply exposed inherited-system NFC `pip check` noise; checkpoint #26 repair is green.
 - [x] Subsequent attempts physically proved paired venvs, PN532 `0x24`, `CARD=Pro`, pinned Node/Plexamp claim/resume, NFC, full preflight, dashboard/kiosk, Direct route, restricted helpers and AirPlay. Detailed evidence is in `docs/fresh-bootstrap-physical-progress-2026-08-15.md`.
 - [x] Protected `/etc/sudoers.d` verification was repaired at both helper-owner and final-verifier boundaries.
@@ -139,7 +148,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Checkpoint #28 source repair supports transactional EQ → Direct convergence; regression coverage proves success and forced rollback.
 - [x] **Physical fresh Direct installation and verification:** 17 August guarded convergence completed from the existing EQ state with root installer exit `0`, `ROOT_INSTALL=COMMITTED`, `APPLICATION_VERIFY=PASS`, `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, canonical Direct SHA and clean EQ/loopback residue. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 - [x] **Weather physical follow-up core:** Settings presentation, WU commissioning, live/history independence, Ecowitt credential preservation and selected-period gap semantics passed physically; evidence is recorded in `docs/weather-physical-followup-2026-08-17.md`.
-- [ ] **Weather Rainy Day Fund follow-up:** physically retest corrected core projection, six historical calendar gauges, optional lifetime Total and horizontal touch scroll after one-time previous-year backfill.
+- [ ] **Weather Rainy Day Fund follow-up:** physically retest six historical calendar gauges, forecast-style custom scrollbar, separate lifetime archive to ready, cache-only settled refresh and final Rain lifetime/first-record presentation.
 - [ ] Physical PN532/NFC playback + dashboard-switch/debounce acceptance.
 - [ ] Physical AirPlay/PlaybackCoordinator completion notes.
 - [ ] Physical Music Master = 0% versus real scheduled-alarm isolation acceptance.
@@ -149,7 +158,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [ ] Repeat whole-appliance install with no ownership drift or renewed claim/reboot checkpoint.
 - [ ] Commit/finalize the dated physical result/evidence documents; only then close Phase 7.
 
-**Phase 7 exit condition:** the spare-SD appliance passes Direct → physical feature checks → EQ → reboot → repeat-install, with real WU commissioning/core history and Rainy Day Fund presentation accepted and `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable; dated evidence is committed. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** the spare-SD appliance passes Direct → physical feature checks → EQ → reboot → repeat-install, with real WU commissioning/core history and Rainy Day Fund calendar/lifetime presentation accepted and `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable; dated evidence is committed. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
@@ -179,6 +188,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **Post-#28 physical Direct convergence — PASS.** Commit `ec86c76bc0a6c9aec53bc51394bc06a15028cda8` records the 17 August spare-SD root install exit `0`, both independent Direct verifiers PASS, canonical Direct route identity and clean post-EQ residue. Hands-on Direct feature checks remain open.
 - **#29 — retryable WU rainfall gaps + Weather card spacing follow-up — PASS (source/CI), semantics later superseded.** Commit `967e684ca51b07ad25731d78401a195cde024081` introduced retryable omitted/invalid dates and responsive card spacing; Tests run `31981475409` / #3445 passed. Its all-or-nothing total rule is superseded by the confirmed station-gap/minimum-recorded model physically accepted below.
 - **#30 — Weather physical-follow-up convergence — PASS (source/CI), presentation evolved during physical acceptance.** Commit `bd3124e0bbb8682d8faf0f3cc44725fc7da9fc8c` added credential preservation and strengthened source-card spacing. Physical acceptance subsequently settled on card-local live/history status badges rather than the transient global-heading placement. Tests run `31984835861` / #3451 passed.
-- **#31 — confirmed station gaps + Rainy Day Fund projection — core physical PASS / gauge source-CI PASS.** On `plexamp-test`, Current year physically returned 226/229 days, three confirmed March station gaps, `status: ready`, `complete: true`, `total_in: 21.38`, and two repeated refreshes at zero fetch/retry cost. Settings showed **History ready** with explicit minimum-recorded coverage. The blank Rainy Day Fund then exposed a `main` facade versus `dashboard_core` context-projection bug. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the real Flask projection, adds This/Last week/month/year summaries plus optional lifetime Total, one-time prior-year backfill and horizontal touch scrolling; Tests #3485 / run `31991516804` passed. Physical gauge retest remains open.
+- **#31 — confirmed station gaps + Rainy Day Fund projection — core physical PASS / gauge source-CI PASS.** On `plexamp-test`, Current year physically returned 226/229 days, three confirmed March station gaps, `status: ready`, `complete: true`, `total_in: 21.38`, and two repeated refreshes at zero fetch/retry cost. Settings showed **History ready** with explicit minimum-recorded coverage. The blank Rainy Day Fund then exposed a `main` facade versus `dashboard_core` context-projection bug. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the real Flask projection, adds This/Last week/month/year summaries plus prior-year backfill; Tests #3485 / run `31991516804` passed. Physical gauge retest remains open.
+- **#32 — forecast-style Rainy Day Fund scroll + genuine WU Rain lifetime — PASS (source/CI), physical pending.** The rain strip now hides Chromium's native arrow-button scrollbar and reuses the forecast rail/thumb mechanism. `WeatherRainfallLifetimeService` independently discovers/backfills older WU daily history, combines it with previous/current year into **Rain lifetime**, exposes sanitized `/api/weather/rainfall/lifetime` status and becomes request-quiet after discovery+coverage settle. Implementation head `bbdcc74dde455269def9b5bcb72c3601e295c6b2`; lifecycle regression synchronization head `22455624917ce456087e3a11041937b3c0526623`; full Tests #3523 / run `31994639762` PASS. Physical custom-scroll and lifetime-archive acceptance remain open.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS does not substitute for remaining physical acceptance.
