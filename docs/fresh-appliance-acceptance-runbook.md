@@ -12,6 +12,8 @@ The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry P
 
 **Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 have completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Continue at **Section 8** for the remaining hands-on Direct checks; do not rerun Direct construction merely to regain context.
 
+A later Weather physical check was a **partial PASS** and exposed three follow-up items: put the live-source chip in the Weather detail heading/top-right, increase Observation source card/grid separation on the real 1024×600 display, and preserve an already-commissioned WU history credential when Ecowitt is selected/reconverged as the live provider. Checkpoint #30 repairs all three in source/CI. Its focused visual and credential-preservation retest may be performed on the current Direct spare card before resuming the rest of Section 8; this does not invalidate or require repeating Sections 6–7.
+
 ---
 
 # 0. Stop rules and accepted identities
@@ -30,7 +32,7 @@ The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry P
 | Item | Accepted value |
 |---|---|
 | Fresh alarm-safe Direct route | `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9` |
-| EQ split-bus route | `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` |
+| EQ split-bus route | `1bc69f106768d438d1fdb597ee8c83339c5fa89187935636f9c08bd9` |
 | CamillaDSP executable | `4.1.3` aarch64, SHA-256 `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa` |
 | CamillaDSP official archive | SHA-256 `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a` |
 | Plexamp Headless | `4.13.2`, SHA-256 `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041` |
@@ -334,7 +336,7 @@ bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/36-eq-audio-verify.txt"
 ```
 
-Require all PASS and route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
+Require all PASS and route SHA `1bc69f106768d438d1fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
 
 ---
 
@@ -374,7 +376,7 @@ Require all three to pass, then recheck kiosk, brief Plexamp playback, one NFC t
 
 # 13. Repeat the whole fresh-bootstrap install
 
-Do this **before switching current observations to WU**. Historical WU rainfall may later coexist with Ecowitt Push as the live source.
+Do this **before switching current observations to WU**. Historical WU rainfall may later coexist with Ecowitt Push as the live source. This repeat-install gate proves ordinary appliance idempotence; Section 14.5 separately proves that a subsequently commissioned WU history credential survives Ecowitt weather reconvergence.
 
 ```bash
 set -o pipefail
@@ -403,17 +405,19 @@ Require normal commit markers, no renewed reboot/claim checkpoint, no ownership 
 
 Do this locally after the repeat installer gate. WU credentials are write-only commissioning data, not fresh-install CLI material.
 
+For the focused checkpoint #30 retest on the current Direct spare card, it is safe to perform the **14.1 visual checks** and **14.5 Ecowitt credential-preservation check** now, then return to Section 8. There is no need to rerun the already-passed Direct construction simply to see the updated Weather UI.
+
 Open **Settings → Weather → Observation source**.
 
 ## 14.1 Current observation source and write-only credential commissioning
 
 1. Confirm **Observation source** is a distinct Weather subpage rather than being mixed into Station settings.
-2. Confirm the live-source chip remains in the source card heading/top-right and truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state.
-3. Confirm Weather cards have clear touch-friendly vertical separation and are no longer visually stacked with the old near-zero gap.
+2. Confirm the live-source chip is in the **Weather detail heading/top-right** and truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state; it should no longer consume space in the Observation source card heading.
+3. Confirm Observation source cards and their internal grids have clear touch-friendly separation at 1024×600 and are no longer visually crowded/stacked.
 4. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
 5. Enter the real WU Station ID and save ordinary Weather settings.
 6. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
-7. Press **Test connection** and require a sanitized success result.
+7. If Weather Underground is selected as the **live** provider, press **Test connection** and require a sanitized success result. If Ecowitt remains live, do not switch providers merely to satisfy this button: prove the same commissioned WU credential through successful supplemental historical-rainfall requests in Sections 14.2–14.3.
 8. After submission, only configured/not-configured status may be returned; never the stored key.
 
 Check secret-file metadata without printing its contents:
@@ -494,11 +498,57 @@ Do not corrupt the real provider or credential merely to manufacture an omission
 
 If historical rainfall is naturally unavailable, require current Ecowitt/WU observations and the normal Weather page to remain operational, no credential material in error output, and incomplete history to remain visibly incomplete. Do not corrupt the real API key merely to manufacture a failure already covered by source tests.
 
+## 14.5 Ecowitt reconvergence must preserve the commissioned WU history credential
+
+This is the checkpoint #30 installer follow-up. It deliberately exercises only the guarded Weather configuration owner, so it does **not** touch Direct/EQ routing, mixers, alarm behavior or playback services and it does not restart the dashboard.
+
+With the WU key already commissioned and **Ecowitt Push** selected for live observations, compare the managed secret before/after without ever printing its contents or digest:
+
+```bash
+cd ~/A-Clockwork-Plex
+EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
+
+test -f /etc/default/a-clockwork-plex-weather
+WU_SECRET_BEFORE="$(sudo sha256sum /etc/default/a-clockwork-plex-weather | awk '{print $1}')"
+
+sudo bash scripts/install-weather-config.sh \
+  --activate \
+  --confirm INSTALL-WEATHER-CONFIG \
+  --provider ecowitt-push \
+  | tee "$EVIDENCE/66-ecowitt-weather-reconvergence.txt"
+
+WU_SECRET_AFTER="$(sudo sha256sum /etc/default/a-clockwork-plex-weather | awk '{print $1}')"
+if [[ -n "$WU_SECRET_BEFORE" && "$WU_SECRET_BEFORE" == "$WU_SECRET_AFTER" ]]; then
+  echo 'WU_HISTORY_CREDENTIAL_PRESERVED=PASS' \
+    | tee "$EVIDENCE/67-wu-credential-preservation.txt"
+else
+  echo 'WU_HISTORY_CREDENTIAL_PRESERVED=FAIL' \
+    | tee "$EVIDENCE/67-wu-credential-preservation.txt"
+  unset WU_SECRET_BEFORE WU_SECRET_AFTER
+  false
+fi
+unset WU_SECRET_BEFORE WU_SECRET_AFTER
+
+sudo stat -c '%a %U:%G %n' /etc/default/a-clockwork-plex-weather \
+  | tee -a "$EVIDENCE/67-wu-credential-preservation.txt"
+```
+
+Require:
+
+```text
+WEATHER_PROVIDER=ecowitt_push
+WEATHER_FORECAST=OPEN-METEO-PRESERVED
+WEATHER_SECRET_POLICY=ENV-FILE-ONLY
+WU_HISTORY_CREDENTIAL_PRESERVED=PASS
+```
+
+The final `stat` must still report root ownership and mode `600`. The command output/evidence must contain no key material and no key digest. Source regression coverage separately proves that if no managed WU credential exists, Ecowitt activation preserves that absence rather than creating a file.
+
 ---
 
 # 15. Final acceptance record
 
-Commit a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings/Test Connection result, and all four historical-rainfall/cache results plus any deviations. If a natural WU history gap occurs, include its incomplete/retry/recovery evidence without exposing credentials.
+Commit a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings/live-or-history commissioning result, all four historical-rainfall/cache results, checkpoint #30 Weather heading/spacing retest, Ecowitt credential-preservation result, and all deviations. If a natural WU history gap occurs, include its incomplete/retry/recovery evidence without exposing credentials.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
