@@ -67,7 +67,7 @@
             <option value="current_month">Current month</option>
             <option value="current_year">Current year</option>
           </select>
-          <small>Past daily totals are cached locally. Only missing completed dates are requested again.</small>
+          <small>Valid completed daily totals are cached locally. Missing dates are retried later; an incomplete period never shows a partial total.</small>
         </label>
         <div class="setting-field">
           <span>History source</span>
@@ -97,7 +97,7 @@
     style.textContent = `
       [data-settings-section="weather"] .settings-subpage { gap: clamp(12px, 2vmin, 18px); }
       [data-settings-section="weather"] .settings-card { padding: clamp(12px, 2vmin, 18px); }
-      [data-settings-section="weather"] .settings-card + .settings-card { margin-top: 2px; }
+      [data-settings-section="weather"] .settings-card + .settings-card { margin-top: clamp(10px, 1.6vmin, 14px); }
     `;
     document.head.appendChild(style);
 

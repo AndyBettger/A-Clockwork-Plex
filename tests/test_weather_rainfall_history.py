@@ -145,7 +145,7 @@ class RainfallHistoryServiceTests(unittest.TestCase):
         self.assertNotIn(self.today.isoformat(), cache["stations"]["IABC123"]["days"])
         self.assertNotIn("secret-key", self.cache_path.read_text(encoding="utf-8"))
 
-    def test_successful_missing_provider_day_is_cached_as_unavailable_without_partial_total(self):
+    def test_missing_provider_day_stays_incomplete_then_retries_only_that_day(self):
         config = rainfall_config("last_7_days")
         calls = []
         missing_day = date(2026, 8, 12)
@@ -156,18 +156,56 @@ class RainfallHistoryServiceTests(unittest.TestCase):
             end_text = params["endDate"]
             start = date(int(start_text[:4]), int(start_text[4:6]), int(start_text[6:]))
             end = date(int(end_text[:4]), int(end_text[4:6]), int(end_text[6:]))
-            return history_payload(start, end, omit=missing_day)
+            omit = missing_day if len(calls) == 1 else None
+            return history_payload(start, end, omit=omit)
 
         service = self.service(config, fetcher)
         first = service.refresh()
-        service.refresh()
+        first_cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
+        second = service.refresh()
+        third = service.refresh()
 
         self.assertFalse(first["complete"])
         self.assertIsNone(first["total_in"])
         self.assertIn(missing_day.isoformat(), first["unavailable_dates"])
+        self.assertNotIn(missing_day.isoformat(), first_cache["stations"]["IABC123"]["days"])
+        self.assertEqual(len(first_cache["stations"]["IABC123"]["days"]), 5)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1]["startDate"], "20260812")
+        self.assertEqual(calls[1]["endDate"], "20260812")
+        self.assertTrue(second["complete"])
+        self.assertAlmostEqual(second["total_in"], 0.8)
+        self.assertTrue(third["complete"])
+        self.assertEqual(third["fetched_ranges"], 0)
+
+    def test_legacy_null_cache_marker_is_retried_and_replaced(self):
+        config = rainfall_config("last_7_days")
+        missing_day = date(2026, 8, 12)
+        cached_days = {
+            (self.today - timedelta(days=offset)).isoformat(): 0.1
+            for offset in range(1, 7)
+        }
+        cached_days[missing_day.isoformat()] = None
+        self.cache_path.write_text(
+            json.dumps({"version": 1, "stations": {"IABC123": {"days": cached_days}}}),
+            encoding="utf-8",
+        )
+        calls = []
+
+        def fetcher(url, params, timeout):
+            calls.append(dict(params))
+            return history_payload(missing_day, missing_day, amount=0.3)
+
+        service = self.service(config, fetcher)
+        snapshot = service.refresh()
+
+        self.assertTrue(snapshot["complete"])
         self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["startDate"], "20260812")
+        self.assertEqual(calls[0]["endDate"], "20260812")
         cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
-        self.assertIsNone(cache["stations"]["IABC123"]["days"][missing_day.isoformat()])
+        self.assertEqual(cache["stations"]["IABC123"]["days"][missing_day.isoformat()], 0.3)
+        self.assertEqual(snapshot["cached_days"], 6)
 
     def test_today_uses_live_reading_without_wu_configuration_or_fetch(self):
         config = {"weather": {"historical_rainfall": {"period": "today"}}}

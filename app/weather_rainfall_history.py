@@ -152,6 +152,14 @@ def _save_cache(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _valid_cached_total(value: Any) -> bool:
+    try:
+        total = float(value)
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(total) and total >= 0
+
+
 class WeatherRainfallHistoryService:
     def __init__(
         self,
@@ -205,7 +213,7 @@ class WeatherRainfallHistoryService:
         self._wake.set()
 
     def refresh(self, force: bool = False) -> dict[str, Any]:
-        del force  # Cache-missing dates are always the authority; cached completed days are immutable.
+        del force  # Valid completed-day totals are immutable; missing/invalid dates remain retryable.
         config = self._load_config()
         period = public_rainfall_config(config)["period"]
         today = self._today()
@@ -238,7 +246,7 @@ class WeatherRainfallHistoryService:
         cache = _load_cache(self._cache_path)
         days = self._station_days(cache, station_id)
         required_past = [day for day in period_dates(period, today) if day < today]
-        missing = [day for day in required_past if day.isoformat() not in days]
+        missing = [day for day in required_past if not _valid_cached_total(days.get(day.isoformat()))]
         fetched_ranges = 0
         try:
             for start, end in contiguous_ranges(missing):
@@ -255,7 +263,14 @@ class WeatherRainfallHistoryService:
                 totals = daily_precip_totals(payload)
                 cursor = start
                 while cursor <= end:
-                    days[cursor.isoformat()] = totals.get(cursor)
+                    key = cursor.isoformat()
+                    if cursor in totals:
+                        days[key] = totals[cursor]
+                    else:
+                        # Never turn a transient provider omission into a permanent
+                        # cache miss. The aggregate remains incomplete for this
+                        # evaluation and the date is retried on a later refresh.
+                        days.pop(key, None)
                     cursor += timedelta(days=1)
                 fetched_ranges += 1
             if missing:
@@ -320,7 +335,7 @@ class WeatherRainfallHistoryService:
         with self._lock:
             status = dict(self._status)
         status.update(calculation)
-        status["cached_days"] = len(days)
+        status["cached_days"] = sum(1 for value in days.values() if _valid_cached_total(value))
         return status
 
     def start(self) -> None:
