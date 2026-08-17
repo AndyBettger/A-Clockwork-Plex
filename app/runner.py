@@ -31,6 +31,10 @@ try:
     )
     from .weather_observations import WeatherObservationService, register_weather_observation_api
     from .weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
+    from .weather_rainfall_lifetime import (
+        WeatherRainfallLifetimeService,
+        register_weather_rainfall_lifetime,
+    )
     from .weather_rainfall_total import register_calculated_rain_total
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
@@ -63,6 +67,10 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     )
     from weather_observations import WeatherObservationService, register_weather_observation_api
     from weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
+    from weather_rainfall_lifetime import (
+        WeatherRainfallLifetimeService,
+        register_weather_rainfall_lifetime,
+    )
     from weather_rainfall_total import register_calculated_rain_total
 
 
@@ -104,11 +112,18 @@ weather_rainfall = WeatherRainfallHistoryService(
     dashboard_history=True,
 )
 register_weather_rainfall(app, dashboard, weather_rainfall)
-register_calculated_rain_total(dashboard, weather_rainfall)
+weather_rainfall_lifetime = WeatherRainfallLifetimeService(
+    dashboard.load_config,
+    dashboard.BASE_DIR / "weather-rainfall-lifetime.json",
+    recent_cache_path=dashboard.BASE_DIR / "weather-rainfall-history.json",
+    current_weather=lambda: dashboard.load_state(dashboard.load_config()).get("weather", {}),
+)
+register_weather_rainfall_lifetime(app, weather_rainfall_lifetime)
+register_calculated_rain_total(dashboard, weather_rainfall, weather_rainfall_lifetime)
 weather_credentials = WeatherUndergroundCredentialManager(
     load_config=dashboard.load_config,
     observations=weather_observations,
-    rainfall_wake=weather_rainfall.wake,
+    rainfall_wake=lambda: (weather_rainfall.wake(), weather_rainfall_lifetime.wake()),
 )
 register_weather_underground_credentials_api(app, weather_credentials)
 weather_forecast = WeatherForecastService(
@@ -148,6 +163,7 @@ if __name__ == "__main__":
     weather_observations.start()
     weather_forecast.start()
     weather_rainfall.start()
+    weather_rainfall_lifetime.start()
     if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
         input_activity_monitor.start()
     if isinstance(playback_coordinator, PlaybackCoordinator):
@@ -164,6 +180,7 @@ if __name__ == "__main__":
             playback_coordinator.shutdown()
         if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
             input_activity_monitor.shutdown()
+        weather_rainfall_lifetime.shutdown()
         weather_rainfall.shutdown()
         weather_forecast.shutdown()
         weather_observations.shutdown()
