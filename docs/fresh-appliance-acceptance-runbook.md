@@ -10,9 +10,9 @@ Prove that A Clockwork Plex can be built and reconverged on the real bedroom Pi/
 
 The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry Pi DAC Pro, pinned Plexamp Headless/Node, NFC, dashboard/kiosk, AirPlay, alarm-safe Direct audio, guarded EQ promotion, reboot/repeat-install, Weather Underground commissioning and historical rainfall.
 
-**Current resumed spare-SD position (17 August 2026):** Sections 6 through 10 are complete on `plexamp-test`. Guarded EQ → Direct convergence committed and independently verified, the focused Direct pre-EQ smoke passed, the accepted CamillaDSP 4.1.3 artifact was independently verified, and the guarded fresh-bootstrap EQ promotion then committed with root installer exit `0`, `APPLICATION_TRANSACTION=COMMITTED`, `APPLICATION_VERIFY=PASS`, `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, standalone audio verification PASS, the canonical EQ split-bus SHA and installed marker. The managed CamillaDSP unit is `a-clockwork-plex-camilladsp.service` and is physically active/enabled/running. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. **Continue at Section 11**; do not repeat the established Direct suite merely to regain context.
+**Current resumed spare-SD position (17 August 2026):** Sections 6 through 11 are complete on `plexamp-test`. Guarded EQ → Direct convergence committed and independently verified, the focused Direct pre-EQ smoke passed, the accepted CamillaDSP 4.1.3 artifact was independently verified, the guarded fresh-bootstrap EQ promotion committed with all independent verifiers green and the canonical managed CamillaDSP service active/enabled/running, and the focused post-EQ regression then passed with no issues: Plexamp/AirPlay through EQ, EQ/bypass, Music Master/alarm isolation, Maximum Alarm Volume, Snooze/re-ring/Dismiss and NFC playback/dashboard/debounce all worked. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. **Continue at Section 12**; functional feature acceptance is complete unless reboot/reconvergence exposes a regression.
 
-The focused Weather work on this spare card is **physically complete** and does not invalidate Sections 6–10. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context.
+The focused Weather work on this spare card is **physically complete** and does not invalidate Sections 6–11. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context.
 
 ---
 
@@ -371,9 +371,15 @@ This is the substantive playback regression gate. Require clean Plexamp/AirPlay 
 
 Phase 6 already physically proved controlled Camilla failure/failback; do not manufacture another failure merely for this fresh-construction run.
 
+**Current physical result:** PASS with no issues found. Plexamp and AirPlay remained healthy through EQ; audible EQ changes and bypass worked; Music Master at 0% silenced music while a real scheduled alarm remained audible; Maximum Alarm Volume remained independent; Snooze, re-ring and Dismiss worked; NFC playback/dashboard handoff and immediate repeat-tag debounce both passed. Functional feature testing is therefore complete unless a later durability gate exposes a regression.
+
+Continue to Section 12.
+
 ---
 
 # 12. Reboot acceptance
+
+This is a persistence/start-order gate, not a repeat of Section 11. It proves the installed split-bus route and enabled services reconstruct themselves correctly from boot.
 
 ```bash
 sudo reboot
@@ -382,6 +388,9 @@ sudo reboot
 After reconnecting, recover the source/evidence path and run:
 
 ```bash
+cd ~/A-Clockwork-Plex
+EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
+
 bash scripts/verify-fresh-bootstrap.sh \
   --project-user "$USER" --project-dir "$PWD" \
   | tee "$EVIDENCE/40-bootstrap-after-reboot.txt"
@@ -393,9 +402,23 @@ bash scripts/verify-appliance.sh \
 
 bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/42-audio-after-reboot.txt"
+
+sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
+  | tee "$EVIDENCE/43-eq-route-after-reboot.sha256"
+
+test -e /var/lib/a-clockwork-plex/split-bus/installed \
+  && echo EQ_MARKER_AFTER_REBOOT=PASS \
+  | tee "$EVIDENCE/44-eq-runtime-after-reboot.txt"
+
+systemctl is-active a-clockwork-plex-camilladsp.service \
+  | tee -a "$EVIDENCE/44-eq-runtime-after-reboot.txt"
+systemctl is-enabled a-clockwork-plex-camilladsp.service \
+  | tee -a "$EVIDENCE/44-eq-runtime-after-reboot.txt"
 ```
 
-Require all three to pass, then recheck kiosk, brief Plexamp playback, one NFC tag and one real alarm/Music Master isolation test.
+Require all three verifiers to pass, the route SHA to remain `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, the EQ marker to remain present, and the managed CamillaDSP service to be active and enabled.
+
+Then perform only a **minimal boot smoke**: kiosk/dashboard comes back automatically, brief Plexamp playback is audible, one known-good NFC tag starts playback, and one real alarm remains audible with Music Master at 0%. Do not repeat the full EQ/AirPlay/Snooze/Dismiss suite unless one of these boot checks fails.
 
 ---
 
@@ -644,7 +667,7 @@ Inspect `weather-rainfall-lifetime.json` with the same structural rules as the r
 
 Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, focused Direct smoke, EQ result, post-EQ NFC/AirPlay/alarm regression, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + Rain lifetime result, custom horizontal-scroll result, Ecowitt credential-preservation result, both cache structural/secret checks and all deviations.
 
-The focused Weather evidence, Direct pre-EQ smoke, Camilla artifact and persistent EQ installer/identity gate are complete. The remaining Phase 7 chain is **post-EQ physical regression → reboot → repeat-install**.
+The focused Weather evidence, Direct pre-EQ smoke, Camilla artifact, persistent EQ installer/identity gate and substantive post-EQ physical regression are complete. The remaining Phase 7 chain is **reboot persistence → repeat-install idempotence → final evidence closure**.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
