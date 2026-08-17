@@ -71,6 +71,21 @@ Route evidence:
 
 `/home/andy/acp-phase7-spare-sd-20260815-171112/23-direct-route.sha256`
 
-This closes the installer/convergence portion of Direct physical acceptance on the reused spare SD. Remaining acceptance is hands-on appliance behaviour: dashboard/kiosk presentation, Plexamp/NFC playback, AirPlay handoff, Direct music/alarm isolation, alarm Snooze/Dismiss behaviour, Direct-mode EQ presentation, Weather Settings/history behaviour, and final notes.
+## Focused Direct smoke before EQ promotion — PASS
+
+After the Weather follow-up was fully accepted, the spare card remained in the verified Direct state and received a deliberately small pre-EQ smoke test rather than repeating the already-established AirPlay/alarm/handoff suite.
+
+Physical results:
+
+- ordinary Plexamp playback was healthy;
+- a known-good NFC album tag was read successfully and triggered local Plexamp playback;
+- the NFC path requested the dashboard switch to `/plexamp`, and the user observed the intended Plexamp dashboard behavior;
+- the NFC service log contained `Playback triggered!` and `Dashboard switched to Plexamp mode` with no playback failure;
+- the log also noted `xdotool is not installed; mode state was updated but browser was not navigated`; because the intended dashboard state was observed, this is recorded as a non-blocking diagnostic note rather than a Direct/EQ installer failure;
+- both the Audio surface and **Settings → Audio → Master equaliser** truthfully reported **Install required** while Direct was installed.
+
+The immediate repeat-scan debounce was not freshly re-exercised during this focused smoke and is not a blocker for EQ promotion. Likewise, AirPlay/PlaybackCoordinator handoff, Music Master/alarm isolation and Snooze/Dismiss are not being redundantly re-run in Direct immediately before EQ. Those behaviors have prior physical evidence and the meaningful release regression is the **post-EQ** pass, where the new audio route can actually affect them.
+
+This closes the Direct pre-EQ gate. The next acceptance action is Section 9 of `docs/fresh-appliance-acceptance-runbook.md`: acquire/verify the exact accepted CamillaDSP 4.1.3 artifact, then promote this same spare appliance to EQ and run the EQ verifiers/physical regression.
 
 PR #2 remains Draft, open and unmerged until explicit approval.
