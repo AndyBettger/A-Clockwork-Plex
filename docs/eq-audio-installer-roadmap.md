@@ -21,6 +21,7 @@ Detailed history through Phase 7 checkpoint #6 is preserved in `docs/eq-audio-in
 - An already-installed EQ appliance is now a **supported convergent source state** when the whole-appliance installer is asked for Direct. Do not require a manual EQ uninstall.
 - EQ → Direct convergence must remain inside the outer application transaction: specialist teardown retains the pre-EQ backup, rollback restores that backup and the pre-transition live `snd_aloop` state before captured EQ services are reactivated, and retained backup cleanup occurs only after successful outer commit.
 - Once guarded Direct construction/verifiers and a focused playback/NFC/EQ-status smoke have passed, do **not** require a redundant full Direct AirPlay/alarm/handoff replay before EQ promotion. The meaningful final regression is post-EQ, where the changed route can affect those behaviors.
+- The canonical managed CamillaDSP unit is `a-clockwork-plex-camilladsp.service`; acceptance and diagnostics must not use the unrelated generic name `camilladsp.service`.
 
 | Identity | Accepted value |
 |---|---|
@@ -84,7 +85,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: Direct construction/verification + focused pre-EQ smoke and focused Weather acceptance complete; EQ promotion/reboot/repeat-install remain**
+### Phase 7 — full appliance installer integration — **In progress: Direct + Weather + persistent EQ installer/identity complete; post-EQ regression/reboot/repeat-install remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -133,11 +134,12 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Local interactive claim checkpoint with no claim-token CLI/env/log path.
 - [x] `plexamp.service` uses pinned Node and exposes local port `32500` after claim.
 
-#### EQ artifact acquisition — source/CI complete
+#### EQ artifact acquisition — source/CI + physical complete
 
 - [x] Guarded `scripts/fetch-camilladsp-4.1.3.sh`.
 - [x] Official archive and accepted executable hashes both pinned/verified.
 - [x] Independent temporary probe confirmed archive `d9a170...aca5` extracts executable `e04c7a...edfa`; temporary probe workflow removed afterwards.
+- [x] Physical spare-card check returned `CAMILLA_ARTIFACT=PASS-EXISTING`; independent version/SHA verification matched the accepted 4.1.3 executable exactly.
 
 #### Spare-SD physical acceptance handoff
 
@@ -152,7 +154,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] **Focused Weather physical acceptance:** Settings presentation, WU commissioning, live/history independence, Ecowitt credential preservation, selected-period gap semantics, six comparison gauges, custom forecast-style rain scrolling, genuine WU Rain lifetime, settled request-quiet behavior, both cache structural checks and continued live Ecowitt operation all passed physically. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
 - [x] **Focused Direct pre-EQ smoke:** Plexamp playback healthy; known NFC tag triggered local playback and requested Plexamp dashboard state; Audio and Settings Master equaliser truthfully reported **Install required**. Full Direct handoff/alarm replay is intentionally not a promotion blocker; evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 - [x] Runtime lifetime cache is ignored by Git; generated `weather-rainfall-lifetime.json` no longer dirties the checkout.
-- [ ] Physical EQ installation and split-bus identity verification.
+- [x] **Physical persistent EQ installation and split-bus identity verification:** guarded fresh-bootstrap EQ apply exited `0` with `ROOT_INSTALL=COMMITTED`, `APPLICATION_TRANSACTION=COMMITTED`, `APPLICATION_VERIFY=PASS`, independent fresh-bootstrap/appliance/audio verifiers all PASS, canonical split-bus SHA `1bc69f...08bd9`, installed marker present, Plexamp audible and EQ controls effective. Canonical `a-clockwork-plex-camilladsp.service` is active/enabled/running; the generic `camilladsp.service` name is not the managed unit. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 - [ ] Post-EQ physical regression: Plexamp/AirPlay, Bass/Mid/Treble, bypass, Music Master = 0% with real scheduled alarm still audible, Maximum Alarm Volume, Snooze/Dismiss, NFC playback/dashboard handoff and immediate repeat-tag debounce.
 - [ ] Reboot acceptance with bootstrap/application/audio verifiers green.
 - [ ] Repeat whole-appliance install with no ownership drift or renewed claim/reboot checkpoint.
@@ -191,5 +193,6 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#31 — confirmed station gaps + Rainy Day Fund projection — PASS (core physical + source/CI; final presentation closed under #32).** On `plexamp-test`, Current year physically returned 226/229 days, three confirmed March station gaps, `status: ready`, `complete: true`, `total_in: 21.38`, and two repeated refreshes at zero fetch/retry cost. Settings showed **History ready** with explicit minimum-recorded coverage. The blank Rainy Day Fund then exposed a `main` facade versus `dashboard_core` context-projection bug. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the real Flask projection and adds This/Last week/month/year summaries plus prior-year backfill; Tests #3485 / run `31991516804` passed. The corrected gauges were subsequently physically accepted under #32.
 - **#32 — forecast-style Rainy Day Fund scroll + genuine WU Rain lifetime — PASS (source/CI + physical).** The rain strip hides Chromium's native arrow-button scrollbar and reuses the forecast rail/thumb mechanism. `WeatherRainfallLifetimeService` independently discovers/backfills older WU daily history, combines it with previous/current year into **Rain lifetime**, exposes sanitized `/api/weather/rainfall/lifetime` status and becomes request-quiet after discovery+coverage settle. Implementation head `bbdcc74dde455269def9b5bcb72c3601e295c6b2`; lifecycle regression synchronization head `22455624917ce456087e3a11041937b3c0526623`; full Tests #3523 / run `31994639762` PASS. Physical head `f0ea56557ba3d2fd09b624c9162ceea6c30de6f9` displayed the accepted custom scrollbar and **Rain lifetime 2634.0 mm since first WU record 30/12/2023 · 11 days not recorded**. Settled lifetime POST returned `fetched_ranges: 0` / `retried_dates: 0`; `weather-rainfall-history.json` validated with 582 numeric days / 11 recognized gaps and `weather-rainfall-lifetime.json` with 368 numeric days / zero gaps, both free of secrets/null/invalid values; Ecowitt remained `status: push` with its observation worker running. Focused Weather acceptance is physically complete.
 - **#33 — focused Direct pre-EQ smoke + UI/runtime hygiene — PASS (physical/source).** On the verified Direct spare card, Plexamp playback remained healthy, a known NFC tag triggered local playback and the Plexamp dashboard state, and both EQ surfaces truthfully showed **Install required**. The Master equaliser status is now styled with the same explicit bordered pill treatment, and `weather-rainfall-lifetime.json` is ignored as runtime state. Full Direct AirPlay/alarm replay is intentionally deferred to the post-EQ regression where it can validate the new route.
+- **#34 — guarded persistent EQ promotion — PASS (physical).** On `plexamp-test`, the fresh-bootstrap EQ apply committed cleanly from the physically accepted alarm-safe Direct state. Root/application transactions and all three independent verifiers passed; the active route matched the canonical split-bus SHA, the installed marker and loopback identity were correct, Plexamp audio/EQ were physically working, and `a-clockwork-plex-camilladsp.service` was active/enabled/running. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS does not substitute for remaining physical acceptance.
