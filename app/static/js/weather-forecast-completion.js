@@ -1,6 +1,13 @@
 (() => {
   if (String(document.body?.dataset?.activePage || '').toLowerCase() !== 'weather') return;
 
+  if (!document.querySelector('script[data-rain-history-scroll-loader]')) {
+    const rainScrollScript = document.createElement('script');
+    rainScrollScript.src = '/static/js/weather-rain-history-scroll.js?v=20260817-forecast-style-scroll-v1';
+    rainScrollScript.dataset.rainHistoryScrollLoader = '';
+    document.head.appendChild(rainScrollScript);
+  }
+
   const toneIcons = {
     clear: '☀',
     'mostly-clear': '◐',
