@@ -83,7 +83,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Sanitized provider test path and source tests.
 - [ ] **Physical:** enter real station ID/key locally, Test connection, verify live health and prove secret absence from Settings/config/log output.
 
-#### Historical rainfall + Weather source workspace — source implementation complete; latest retry/spacing follow-up awaiting CI result
+#### Historical rainfall + Weather source workspace — source/CI complete
 
 - [x] Observation Source is its own Weather subpage; Station owns dashboard labels/refresh.
 - [x] Explicit current-source status (`Ecowitt Push`, `WU Ready`, setup/degraded states).
@@ -94,7 +94,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Incomplete-total suppression and live/history source independence.
 - [x] Weather Rainy Day Fund receives the selected completed historical aggregate without disturbing Rain Today/current observations.
 - [x] Weather Settings Observation source workspace keeps the provider-status chip and now uses visibly separated cards.
-- [x] Checkpoint #27 original full CI green; follow-up implementation commit `967e684ca51b07ad25731d78401a195cde024081` is under CI.
+- [x] Checkpoint #27 original full CI green; checkpoint #29 retry/spacing follow-up full CI green.
 - [ ] **Physical:** commission WU history, exercise all four periods, prove a completed Current-year refresh fetches zero additional ranges, verify cache has no secret fields or `null` gap markers and confirm history failure leaves live observations healthy.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
@@ -170,7 +170,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **Post-#27 documentation incident — repaired.** `7479d6308417561983bbde87e3a9a788686388a1` failed only because the test-pinned Weather heading was changed; the exact `# 14. Commission Weather Underground through Settings` heading was restored and remains contract-pinned.
 - **#28 — installed EQ → requested Direct convergence — PASS (source/CI).** Physical Attempt 6 reached application transition after package/venv, PN532 `0x24`, `CARD=Pro`, claimed Plexamp, NFC and full preflight passed, then the old hard guard rejected the already-EQ spare SD with exit `2`; evidence `/home/andy/acp-phase7-spare-sd-20260815-171112/20-direct-install-20260816-222614.txt`. Commit `4bfd9d0ed83927473d0ae70f5947761de6fad817` replaces that rejection with specialist EQ teardown under the outer application transaction, retained pre-EQ backup/tombstone handling and pre-service `snd_aloop` rollback restoration; Tests #3421 / run `31975846667` passed. Commit `b4e64fcf279843a7f928c5da41252adb11aae00a` adds focused success/forced-rollback/retained-backup/order regression coverage; Tests #3423 / run `31976778069` passed.
 - **Post-#28 physical Direct convergence — PASS.** Commit `ec86c76bc0a6c9aec53bc51394bc06a15028cda8` records the 17 August spare-SD root install exit `0`, both independent Direct verifiers PASS, canonical Direct route identity and clean post-EQ residue. Hands-on Direct feature checks remain open.
-- **#29 — retryable WU rainfall gaps + Weather card spacing follow-up — IMPLEMENTED; CI pending.** Commit `967e684ca51b07ad25731d78401a195cde024081` caches only valid completed-day totals, retries omitted/invalid completed dates (including legacy `null` markers), retains no-partial-total semantics, adds focused recovery regression coverage and increases Weather card separation from 2 px to a responsive 10–14 px. Tests workflow run `31981475409` / run #3445 was queued when this roadmap update was prepared; do not mark this checkpoint PASS until that exact state is green.
+- **#29 — retryable WU rainfall gaps + Weather card spacing follow-up — PASS (source/CI).** Commit `967e684ca51b07ad25731d78401a195cde024081` caches only valid completed-day totals, retries omitted/invalid completed dates (including legacy `null` markers), retains no-partial-total semantics, adds focused recovery regression coverage and increases Weather card separation from 2 px to a responsive 10–14 px. Tests workflow run `31981475409` / run #3445 passed. Documentation synchronization commit `34a461ceab33b658599f158c26fb45482c7755e1` also passed full Tests workflow run `31981576491` / run #3447.
 
 No checkpoint is recorded as PASS until its exact tested state has passed full CI. Source/CI PASS does not substitute for remaining physical gates.
 
