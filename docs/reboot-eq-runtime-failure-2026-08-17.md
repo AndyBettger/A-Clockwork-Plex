@@ -103,14 +103,28 @@ The card is a **brand-new SanDisk Extreme A2**, so ordinary age/wear of an old s
 
 This reclassifies the observed failure as a **host/storage/filesystem durability failure on the acceptance SD appliance**, not an A Clockwork Plex EQ or Settings application regression at the current evidence boundary.
 
+## Reimage and storage sanity recovery
+
+The raw Phase 7 evidence directory and `config.json` were copied off the acceptance card, then the same SanDisk Extreme A2 card was fully wiped and reimaged with fresh Raspberry Pi OS.
+
+On the fresh image:
+
+- root mounted normally as `rw,noatime`, with no `emergency_ro` flag;
+- `vcgencmd get_throttled` returned `throttled=0x0`;
+- the first-boot journal contained the expected transient read-only/read-write remounts while Raspberry Pi OS expanded the root filesystem, but no `mmc0: error`, block-device write I/O error, ext4 journal abort or ext4 filesystem error occurred;
+- a deliberate 1 GiB synchronous write using `dd ... conv=fsync` completed successfully at about 84.7 MB/s;
+- `sync` completed, root remained `rw,noatime`, and the kernel search still showed no MMC/I/O/ext4 failure;
+- the test file was removed and flushed successfully;
+- after a further reboot, root again mounted `rw,noatime`, power telemetry remained `throttled=0x0`, and a focused kernel search returned no `mmc0: error`, `I/O error`, `EXT4-fs error`, aborted-journal or `emergency_ro` evidence.
+
+This is sufficient to resume acceptance on the reimaged card. It does not retroactively explain the earlier MMC failures, but it establishes a clean writable baseline before the final blank-OS installer construction run. The prior application/feature passes remain valid; the next run is an installer/reconstruction acceptance rather than a full feature retest.
+
 ## Current diagnosis boundary
 
-Section 12 reboot acceptance remains **BLOCKED**, now on host filesystem/storage health. Section 13 repeat whole-appliance installation must not run while ext4 is in emergency read-only state.
+The earlier Section 12 reboot attempt remains historically failed because of the host/storage event, but the reimaged card has now passed the pre-install storage sanity gate and is suitable for a fresh construction attempt.
 
-Do not attempt an in-place `mount -o remount,rw /` or run a repairing filesystem check against the mounted root merely to continue acceptance. Preserve the current card state and diagnose/repair the filesystem offline, then verify the media/SD path before trusting the card for the remaining durability tests.
+Do not treat the clean reimage as proof that the underlying card/host path can never fail again; continue to stop immediately on any renewed MMC, block-I/O, ext4-journal or emergency-read-only evidence.
 
-Because this card was already intended to be wiped for a clean full-installer test, the preferred continuation is to preserve any remaining raw evidence, retire this runtime instance, and run the final blank-Raspberry-Pi-OS installer acceptance on trustworthy writable media. The already-passed feature regressions do not need to be repeated in full; the fresh construction run should focus on installer checkpoints, one reboot durability smoke, and one convergent repeat install.
-
-After the acceptance-card filesystem/storage issue is repaired or the card is replaced, rerun the reboot checkpoint from a writable root and confirm `/settings`, Ecowitt state writes, NFC and Music Master/alarm isolation before proceeding to repeat-install acceptance.
+Proceed with the final blank-Raspberry-Pi-OS installer acceptance: fresh source checkout, new evidence directory, fresh Direct staged bootstrap including controlled reboot/claim checkpoints, guarded EQ promotion, one compact post-install/reboot smoke, then one convergent repeat whole-appliance install. Previously accepted broad feature tests do not need to be replayed in full.
 
 PR #2 remains Draft, open and unmerged until explicit owner approval.
