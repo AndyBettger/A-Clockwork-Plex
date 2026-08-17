@@ -80,7 +80,7 @@ class LifetimeRainfallTests(unittest.TestCase):
         self.assertEqual(second["retried_dates"], 0)
         self.assertEqual(len(calls), call_count)
 
-    def test_omitted_day_inside_lifetime_becomes_confirmed_gap_after_single_day_retry(self) -> None:
+    def test_omitted_day_inside_lifetime_becomes_confirmed_gap_after_single_day_follow_up(self) -> None:
         today = date(2026, 1, 15)
         first_record = date(2024, 12, 1)
         missing_day = date(2024, 12, 12)
@@ -112,9 +112,12 @@ class LifetimeRainfallTests(unittest.TestCase):
             cached = json.loads(archive.read_text(encoding="utf-8"))
 
         station = cached["stations"]["IABC123"]
+        missing_text = missing_day.strftime("%Y%m%d")
         self.assertEqual(result["status"], "ready")
         self.assertEqual(result["missing_days"], 1)
-        self.assertGreaterEqual(result["retried_dates"], 1)
+        self.assertTrue(
+            any(call["startDate"] == missing_text and call["endDate"] == missing_text for call in calls)
+        )
         self.assertEqual(station["gaps"][missing_day.isoformat()], "no_station_data")
         self.assertNotIn(missing_day.isoformat(), station["days"])
 
