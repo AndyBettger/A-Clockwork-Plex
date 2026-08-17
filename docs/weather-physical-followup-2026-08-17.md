@@ -7,7 +7,9 @@
 **Physical retest/evidence head loaded on Pi:** `9dbf18ef8a09e9cb56ec845fe66f50809700f3a4`  
 **Station-gap semantics source/CI head:** `a408cdd7e5359660194022cc5fd0b95427285f2d`  
 **Rainy Day Fund projection/source head:** `6316a63fbc109967ccd517a631796be01b859ba2`  
-**Status:** presentation, WU commissioning, live/history independence, status synchronization, Ecowitt credential preservation and Current-year station-gap semantics physically PASS; expanded Rainy Day Fund projection remains to be physically retested.
+**Lifetime rain + forecast-style scrollbar implementation head:** `bbdcc74dde455269def9b5bcb72c3601e295c6b2`  
+**Latest green source/CI head:** `22455624917ce456087e3a11041937b3c0526623` — Tests #3523 / run `31994639762` PASS.  
+**Status:** presentation, WU commissioning, live/history independence, status synchronization, Ecowitt credential preservation and Current-year station-gap semantics physically PASS; forecast-style Rainy Day Fund scrollbar and genuine WU-backed lifetime rainfall remain to be physically retested.
 
 ## Display acceptance envelope
 
@@ -157,9 +159,9 @@ and the Historical rainfall badge showed **History ready**.
 
 This is a physical PASS for the revised station-gap semantics and proves confirmed gaps are not re-fetched on every refresh.
 
-## Rainy Day Fund projection gap discovered
+## Rainy Day Fund projection repair — source/CI PASS
 
-Although the history API and Settings state were correct, the physical **Rainy Day Fund** still showed no historical rainfall data.
+Although the history API and Settings state were correct, the physical **Rainy Day Fund** initially showed no historical rainfall data.
 
 Root cause found in source:
 
@@ -168,35 +170,63 @@ Root cause found in source:
 - Flask's global template context processor is defined inside `dashboard_core` and resolves `dashboard_core.weather_detail_data` at render time;
 - therefore the API service was healthy but the Weather template continued receiving the unwrapped core projection.
 
-Source head `6316a63fbc109967ccd517a631796be01b859ba2` fixes that integration and expands the Rainy Day Fund as requested:
+Source head `6316a63fbc109967ccd517a631796be01b859ba2` fixed that integration and expanded the Rainy Day Fund:
 
 1. The rainfall registration patches the actual `dashboard_core` projection used by Flask as well as the `main` facade.
 2. Rainy Day Fund history is independent of whichever single period is selected in Settings.
-3. It calculates six calendar summaries:
-   - **Rain this week** — current Monday through today;
-   - **Rain last week** — previous Monday through Sunday;
-   - **Rain this month**;
-   - **Rain last month**;
-   - **Rain this year**;
-   - **Rain last year**.
+3. It calculates six calendar summaries: **Rain this week**, **Rain last week**, **Rain this month**, **Rain last month**, **Rain this year** and **Rain last year**.
 4. The previous calendar year is backfilled once through the same maximum-31-day WU range requests and then reused from cache.
-5. Confirmed station gaps remain acceptable and add the concise `N days not recorded` gauge note.
-6. If Ecowitt provides its station-lifetime **Total rain** counter, that seventh gauge is retained; no artificial lifetime total is invented if the station does not provide one.
-7. The Rainy Day Fund gauge row is a touch-friendly horizontal strip so six/seven gauges do not crush the 1280×720 or 1024×600 layouts.
-8. Supplemental previous-year gauge backfill has its own `gauge_status`, `gauge_fetched_ranges` and `gauge_retried_dates` diagnostics so failure to fetch an older comparison period does not falsely turn an otherwise valid selected-period calculation into **History incomplete**.
+5. Confirmed station gaps remain acceptable and add concise `N days not recorded` gauge notes.
+6. Supplemental prior-year gauge backfill has its own diagnostics so older comparison data cannot falsely turn a valid selected-period calculation into **History incomplete**.
 
 Full Tests workflow **#3485 / run `31991516804`** passed compile, JavaScript/page/shell validation and all unit tests for exact source head `6316a63fbc109967ccd517a631796be01b859ba2`.
 
+## Forecast-style Rainy Day Fund scrolling — source/CI PASS, physical pending
+
+The first expanded Rainy Day Fund used the browser's native horizontal scrollbar. Physical screenshots showed that this did not match the two forecast strips: Chromium added native arrow buttons and used different thumb/track geometry.
+
+The current source replaces that browser control rather than trying to cosmetically approximate it:
+
+- the native rain scrollbar is hidden;
+- `app/static/js/weather-rain-history-scroll.js` creates the same `weather-forecast-scrollbar` rail and `weather-forecast-scrollbar-thumb` used by the forecast presentation;
+- rail clicks, thumb drag, strip touch scrolling and keyboard Left/Right/Home/End remain supported;
+- the control tracks the real `.rain-history-scroll` scroll position and hides itself when the strip does not overflow;
+- the Rainy Day Fund gauges remain full-height within the panel.
+
+Focused source regression `test_weather_rain_history_scrollbar.py` verifies that the native scrollbar is suppressed and the forecast-style custom control is loaded. The complete branch passed Tests **#3523 / run `31994639762`** at green head `22455624917ce456087e3a11041937b3c0526623`.
+
+## Genuine WU-backed Rain lifetime — source/CI PASS, physical pending
+
+The earlier calculated **Rain total** was only previous calendar year + current calendar year. That is no longer considered a lifetime total.
+
+The current source introduces `WeatherRainfallLifetimeService` and a separate station-scoped, secret-free cache `weather-rainfall-lifetime.json` so older archive work cannot race or corrupt the already accepted selected-period / Rainy Day Fund cache.
+
+The lifetime contract is:
+
+1. The existing rainfall-history service remains authoritative for current year and previous year.
+2. The lifetime service starts immediately before that comparison window — for the 2026 acceptance run, older archive coverage ends at **31 December 2024**.
+3. WU history is discovered backwards in documented maximum-31-day blocks. The automatic discovery floor is 1995.
+4. Because the documented PWS metadata does not expose a station-inception date, automatic discovery stops after 24 consecutive empty 31-day probe ranges (roughly two years) before the oldest discovered record. A configured `weather.historical_rainfall.lifetime_start_date` can override that heuristic for an unusual station with a multi-year mid-life outage.
+5. After the oldest record is known, missing older dates are filled in bounded batches. Dates omitted from a successful range are retried once individually before becoming confirmed station-data gaps, matching the accepted recent-history semantics.
+6. Once both `discovery_complete` and `coverage_complete` are true, later refreshes return from cache with **zero WU requests**.
+7. The dashboard **Rain lifetime** gauge is calculated as older archive + previous year + current year. Genuine gaps across all three portions remain explicit in the `N days not recorded` note.
+8. While one-time archive work is still running, the gauge is explicitly labelled **Backfilling earlier WU history** rather than pretending the partial total is final.
+9. Once ready, the note becomes **Since first WU record DD/MM/YYYY** (or the equivalent all-history copy if no start date can be displayed).
+
+A dedicated `GET/POST /api/weather/rainfall/lifetime` endpoint exposes only sanitized archive status/calculation fields; it never exposes the WU key.
+
+The implementation was settled at `bbdcc74dde455269def9b5bcb72c3601e295c6b2` so a completed archive becomes request-quiet. CI then caught one stale runner-contract assertion left over from the single rainfall service; `22455624917ce456087e3a11041937b3c0526623` updated that regression to require both rainfall services and their shared credential wake path. Full Tests **#3523 / run `31994639762`** passed compile, JavaScript/page/shell validation and unit tests.
+
 ## Still to prove physically
 
-- Fast-forward `plexamp-test` to the current branch head containing `6316a63f...`, restart only `a-clockwork-plex.service`, and confirm the Weather page is serving the corrected core projection.
-- Force one rainfall refresh. Existing 2026 data should remain cached; the first run may show non-zero `gauge_fetched_ranges` while the previous calendar year is backfilled in 31-day-or-smaller requests.
-- Force a second rainfall refresh and require `fetched_ranges: 0` and `gauge_fetched_ranges: 0` once all returned/gap-classified days are cached.
-- Physically confirm the Rainy Day Fund shows This week / Last week / This month / Last month / This year / Last year, plus Total rain only if Ecowitt supplies the lifetime counter.
-- Confirm the Rainy Day Fund strip scrolls horizontally by touch and remains usable on the physical display.
-- Confirm Current-year still shows the 21.38 minimum-recorded total and a `3 days not recorded` note where applicable.
-- Inspect `weather-rainfall-history.json` structurally: numeric/non-negative `days`, no `null` day markers, only recognized station-gap markers, and no secret fields.
-- Confirm live observations remain **Ecowitt Push** after the history exercise.
-- A genuine selected-period provider/API failure remains covered by source tests; do not sabotage the real credential/provider merely to manufacture one.
+1. Fast-forward `plexamp-test` to exact green head `22455624917ce456087e3a11041937b3c0526623`, confirm a clean tree, and restart only `a-clockwork-plex.service`.
+2. Confirm the Rainy Day Fund now displays the forecast-style rounded custom rail/thumb with **no Chromium arrow buttons** and that touch/drag scrolling moves the full-height gauges correctly.
+3. Confirm the six calendar gauges remain present and the current-year gauge still carries the accepted `3 days not recorded` coverage note where applicable.
+4. Inspect `GET /api/weather/rainfall/lifetime`. Allow the separate older archive to backfill; force additional POST refreshes only as needed until `status: ready`, `discovery_complete: true` and `coverage_complete: true`.
+5. After lifetime reaches ready, force one more lifetime refresh and require `fetched_ranges: 0` and `retried_dates: 0`.
+6. Physically confirm the final seventh gauge is labelled **Rain lifetime**, its note identifies the first WU record date, and it no longer says `Last year + this year`.
+7. Inspect `weather-rainfall-lifetime.json` structurally: station-scoped numeric/non-negative `days`, recognized `no_station_data` gap markers only, no `null` day markers and no secret fields.
+8. Confirm `weather-rainfall-history.json` still satisfies its already accepted structural contract and that live observations remain **Ecowitt Push** throughout.
+9. A genuine provider/API failure remains covered by source tests; do not sabotage the real credential/provider merely to manufacture one.
 
 PR #2 remains Draft/open/unmerged until explicit owner approval.
