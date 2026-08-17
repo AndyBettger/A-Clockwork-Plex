@@ -99,6 +99,7 @@ weather_rainfall = WeatherRainfallHistoryService(
     dashboard.load_config,
     dashboard.BASE_DIR / "weather-rainfall-history.json",
     current_weather=lambda: dashboard.load_state(dashboard.load_config()).get("weather", {}),
+    dashboard_history=True,
 )
 register_weather_rainfall(app, dashboard, weather_rainfall)
 weather_credentials = WeatherUndergroundCredentialManager(

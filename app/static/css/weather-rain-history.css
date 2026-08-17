@@ -1,0 +1,35 @@
+/* Rainy Day Fund history strip. Keep the weather panel compact while allowing
+   six calendar summaries plus the station lifetime total when available. */
+.rain-history-scroll {
+  display: flex;
+  gap: clamp(7px, 1.2vmin, 10px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px 2px 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rain-history-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.rain-history-scroll .rain-gauge-card {
+  flex: 0 0 clamp(150px, 46%, 190px);
+  scroll-snap-align: start;
+}
+
+.rain-history-scroll .rain-coverage-note {
+  margin-top: 4px;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+@media (max-width: 720px) {
+  .rain-history-scroll .rain-gauge-card {
+    flex-basis: clamp(150px, 54%, 190px);
+  }
+}

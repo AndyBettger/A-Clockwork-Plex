@@ -4,6 +4,7 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-console.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/weather-rain-history.css') }}">
 {% endblock %}
 {% block content %}
 <section class="hero weather-detail-hero">
@@ -158,7 +159,7 @@
           <section class="rain-subpanel">
             <h3>Rainy Day Fund</h3>
             {% if weather_detail.rain_longer_gauges %}
-              <div class="rain-gauge-row">
+              <div class="rain-gauge-row rain-history-scroll" aria-label="Rainfall history summaries">
                 {% for gauge in weather_detail.rain_longer_gauges %}
                   <div class="rain-gauge-card">
                     <div class="rain-gauge" aria-hidden="true">
