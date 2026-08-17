@@ -104,6 +104,25 @@ Evidence:
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/30-camilladsp-plan.txt`
 - `/home/andy/acp-phase7-spare-sd-20260815-171112/31-camilladsp-fetch.txt`
 
-The next acceptance action is Section 10: promote this same verified Direct appliance to guarded EQ, then run the bootstrap, appliance and audio verifiers before the substantive post-EQ physical regression.
+## Guarded EQ promotion plan — PASS
+
+The Section 10 `install.sh --fresh-bootstrap --audio eq` read-only plan was run on the same verified spare appliance with the accepted CamillaDSP binary supplied explicitly.
+
+The plan was reviewed before activation and confirmed:
+
+- `Audio profile: eq`, `Fresh bootstrap: true` and `Weather observations: ecowitt-push`;
+- the exact accepted CamillaDSP 4.1.3 executable identity is required;
+- EQ explicitly selects `--baseline alarm-safe-direct`, validating the physically accepted fresh Direct route before capture;
+- the top-level installer delegates audio mutation to `scripts/audio/install-eq.sh` rather than duplicating or bypassing the specialist lifecycle;
+- package, hardware, Plexamp and NFC bootstrap stages remain guarded and idempotent ahead of application mutation;
+- application mutation is delegated to `scripts/install-appliance-application.sh` under one rollback transaction;
+- `scripts/verify-appliance.sh --audio eq` is the commit gate inside that transaction;
+- the plan reported that no production file, package, service, route, mixer, PCM or configuration was changed.
+
+Evidence:
+
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/32-eq-plan.txt`
+
+This closes the pre-activation review. The next action is the guarded Section 10 EQ apply on this same spare appliance, followed immediately by the bootstrap, appliance and audio verifiers before any post-EQ listening/regression acceptance.
 
 PR #2 remains Draft, open and unmerged until explicit approval.
