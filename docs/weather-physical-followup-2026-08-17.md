@@ -4,9 +4,10 @@
 **Branch:** `feature/alarm-engine`  
 **Presentation fix physically accepted:** `7c163227b0faf5c8c727f72900d47f10bc5cac35`  
 **Status-sync repair source/CI head:** `2d9d5bdcdaa75db9c12b461da4a2131d10497a04`  
-**Physical retest/evidence head loaded on Pi:** `f2087750b94a5aa92ce6c533b071c6da1528a1be`  
+**Physical retest/evidence head loaded on Pi:** `9dbf18ef8a09e9cb56ec845fe66f50809700f3a4`  
 **Station-gap semantics source/CI head:** `a408cdd7e5359660194022cc5fd0b95427285f2d`  
-**Status:** presentation, WU commissioning, live/history independence, status synchronization, Ecowitt credential preservation, Today and Current-month history PASS; physical Current-year station-gap retest remains open.
+**Rainy Day Fund projection/source head:** `6316a63fbc109967ccd517a631796be01b859ba2`  
+**Status:** presentation, WU commissioning, live/history independence, status synchronization, Ecowitt credential preservation and Current-year station-gap semantics physically PASS; expanded Rainy Day Fund projection remains to be physically retested.
 
 ## Display acceptance envelope
 
@@ -64,7 +65,7 @@ Repair at source/CI head `2d9d5bdcdaa75db9c12b461da4a2131d10497a04`:
 
 Full Tests workflow **#3473 / run `31988059169`** passed compile, JavaScript/page/shell validation and unit tests. Evidence synchronization head `f2087750b94a5aa92ce6c533b071c6da1528a1be` also passed full Tests workflow **#3475 / run `31988158528`**.
 
-After fast-forwarding the Pi to `f2087750b94a5aa92ce6c533b071c6da1528a1be` and restarting only `a-clockwork-plex.service`, the physical Settings page showed all three states correctly and simultaneously:
+After fast-forwarding the Pi and restarting only `a-clockwork-plex.service`, the physical Settings page showed all three states correctly and simultaneously:
 
 - Observation source: **Ecowitt Push**
 - Historical rainfall: **History ready**
@@ -105,7 +106,7 @@ Physical API result:
 - `total_in: 0.0`
 - no unavailable dates or last error.
 
-This confirms Today remains a live-station calculation and does not require a WU history fetch.
+This confirms Today remains a live-station calculation and does not require WU history for the selected-period total.
 
 ### Current month — PASS
 
@@ -121,7 +122,7 @@ On 17 August the physical result returned:
 - `total_in: 0.0`
 - no unavailable dates or last error.
 
-### Current year — provider coverage gap discovered; semantics revised
+### Current year — station gaps physically accepted
 
 The first physical Current-year request under the earlier all-or-nothing model successfully returned **226 of 229 required days** and cached 225 completed days, but Weather Underground supplied no daily record for:
 
@@ -129,35 +130,73 @@ The first physical Current-year request under the earlier all-or-nothing model s
 - `2026-03-05`
 - `2026-03-07`
 
-The response itself was successful (`status: ready`, no API error) and the other 225 historical dates were returned/cached. This is therefore not evidence that a missing date invalidates or empties a 31-day range; it is direct physical evidence that a successful range response may contain useful data while omitting individual station-offline dates.
+The response itself was successful and the other historical dates were returned/cached. The earlier implementation reported `complete: false`, `total_in: null` and **History incomplete**. That user experience was rejected: occasional station-offline days are coverage gaps, not provider failures, and the useful recorded total should remain visible as a minimum recorded rainfall.
 
-The earlier implementation reported `complete: false`, `total_in: null` and **History incomplete**. Physical review rejected that user experience: occasional genuine station-offline days should be treated as coverage gaps, not provider failures, and the useful recorded total should remain visible as a **minimum recorded rainfall**.
+After loading `9dbf18ef8a09e9cb56ec845fe66f50809700f3a4` and restarting the dashboard, two forced Current-year refreshes both returned:
 
-## Revised station-gap semantics — source/CI PASS, physical retest pending
+- `status: ready`
+- `complete: true`
+- `coverage_complete: false`
+- `required_days: 229`
+- `available_days: 226`
+- `cached_days: 225`
+- `missing_days: 3`
+- `gap_days: 3`
+- `pending_days: 0`
+- `fetched_ranges: 0`
+- `retried_dates: 0`
+- `total_in: 21.38`
+- `last_error: null`
+- the same three March dates under `missing_dates` / `unavailable_dates`.
 
-Source head `a408cdd7e5359660194022cc5fd0b95427285f2d` changes the model as follows:
+Settings → Weather → Observation source physically showed:
 
-1. Missing completed dates are still fetched in contiguous WU daily-history requests of at most 31 days.
-2. If a successful multi-day response omits a requested date, that date is retried once with its own single-day daily-history request.
-3. If that successful single-day request still contains no usable record, the date is classified as a confirmed **station-data gap**, not an API error.
-4. Confirmed station gaps are stored separately from numeric daily totals and are not repeatedly refetched on every refresh.
-5. A successful history with confirmed station gaps remains **History ready** and displays the sum of recorded days as the **minimum recorded** total.
-6. Coverage is reported independently through `missing_days`, `missing_dates` and `coverage_complete`.
-7. The Rainy Day Fund historical gauge may show a concise note such as **3 days not recorded**.
-8. Actual API/configuration/credential failures still use an error state and suppress the historical aggregate.
-9. The numeric `days` cache remains free of `null` gap markers and secret material.
+> 226 of 229 days recorded. 3 days had no station data. Total shown is the minimum recorded.
 
-Full Tests workflow **#3481 / run `31990132651`** passed compile, JavaScript/page/shell validation and all unit tests for exact head `a408cdd7e5359660194022cc5fd0b95427285f2d`.
+and the Historical rainfall badge showed **History ready**.
+
+This is a physical PASS for the revised station-gap semantics and proves confirmed gaps are not re-fetched on every refresh.
+
+## Rainy Day Fund projection gap discovered
+
+Although the history API and Settings state were correct, the physical **Rainy Day Fund** still showed no historical rainfall data.
+
+Root cause found in source:
+
+- `app/main.py` re-exports helpers from `dashboard_core`;
+- the rainfall registration wrapped `main.weather_detail_data`;
+- Flask's global template context processor is defined inside `dashboard_core` and resolves `dashboard_core.weather_detail_data` at render time;
+- therefore the API service was healthy but the Weather template continued receiving the unwrapped core projection.
+
+Source head `6316a63fbc109967ccd517a631796be01b859ba2` fixes that integration and expands the Rainy Day Fund as requested:
+
+1. The rainfall registration patches the actual `dashboard_core` projection used by Flask as well as the `main` facade.
+2. Rainy Day Fund history is independent of whichever single period is selected in Settings.
+3. It calculates six calendar summaries:
+   - **Rain this week** — current Monday through today;
+   - **Rain last week** — previous Monday through Sunday;
+   - **Rain this month**;
+   - **Rain last month**;
+   - **Rain this year**;
+   - **Rain last year**.
+4. The previous calendar year is backfilled once through the same maximum-31-day WU range requests and then reused from cache.
+5. Confirmed station gaps remain acceptable and add the concise `N days not recorded` gauge note.
+6. If Ecowitt provides its station-lifetime **Total rain** counter, that seventh gauge is retained; no artificial lifetime total is invented if the station does not provide one.
+7. The Rainy Day Fund gauge row is a touch-friendly horizontal strip so six/seven gauges do not crush the 1280×720 or 1024×600 layouts.
+8. Supplemental previous-year gauge backfill has its own `gauge_status`, `gauge_fetched_ranges` and `gauge_retried_dates` diagnostics so failure to fetch an older comparison period does not falsely turn an otherwise valid selected-period calculation into **History incomplete**.
+
+Full Tests workflow **#3485 / run `31991516804`** passed compile, JavaScript/page/shell validation and all unit tests for exact source head `6316a63fbc109967ccd517a631796be01b859ba2`.
 
 ## Still to prove physically
 
-- Fast-forward the Pi to the station-gap semantics head and force Current-year refresh.
-- Confirm the three March dates are either recovered by their targeted single-day requests or classified as confirmed station-data gaps without making history an error.
-- Confirm Current year remains **History ready**, returns a numeric minimum-recorded total and reports the missing-day count when genuine gaps remain.
-- Confirm the Rainy Day Fund historical gauge displays the numeric total and a concise missing-day note when applicable.
-- Repeat Current-year refresh and require no further fetches for numeric cached days or confirmed station gaps (`fetched_ranges: 0`).
+- Fast-forward `plexamp-test` to the current branch head containing `6316a63f...`, restart only `a-clockwork-plex.service`, and confirm the Weather page is serving the corrected core projection.
+- Force one rainfall refresh. Existing 2026 data should remain cached; the first run may show non-zero `gauge_fetched_ranges` while the previous calendar year is backfilled in 31-day-or-smaller requests.
+- Force a second rainfall refresh and require `fetched_ranges: 0` and `gauge_fetched_ranges: 0` once all returned/gap-classified days are cached.
+- Physically confirm the Rainy Day Fund shows This week / Last week / This month / Last month / This year / Last year, plus Total rain only if Ecowitt supplies the lifetime counter.
+- Confirm the Rainy Day Fund strip scrolls horizontally by touch and remains usable on the physical display.
+- Confirm Current-year still shows the 21.38 minimum-recorded total and a `3 days not recorded` note where applicable.
 - Inspect `weather-rainfall-history.json` structurally: numeric/non-negative `days`, no `null` day markers, only recognized station-gap markers, and no secret fields.
-- Confirm live observations remain Ecowitt Push after the history exercise.
-- A genuine provider/API failure remains covered by source tests; do not sabotage the real credential/provider merely to manufacture one.
+- Confirm live observations remain **Ecowitt Push** after the history exercise.
+- A genuine selected-period provider/API failure remains covered by source tests; do not sabotage the real credential/provider merely to manufacture one.
 
 PR #2 remains Draft/open/unmerged until explicit owner approval.
