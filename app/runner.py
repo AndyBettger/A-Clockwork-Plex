@@ -31,6 +31,7 @@ try:
     )
     from .weather_observations import WeatherObservationService, register_weather_observation_api
     from .weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
+    from .weather_rainfall_total import register_calculated_rain_total
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from alarm_audio_preview import register_alarm_audio_preview_api
@@ -62,6 +63,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     )
     from weather_observations import WeatherObservationService, register_weather_observation_api
     from weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
+    from weather_rainfall_total import register_calculated_rain_total
 
 
 app = dashboard.app
@@ -102,6 +104,7 @@ weather_rainfall = WeatherRainfallHistoryService(
     dashboard_history=True,
 )
 register_weather_rainfall(app, dashboard, weather_rainfall)
+register_calculated_rain_total(dashboard, weather_rainfall)
 weather_credentials = WeatherUndergroundCredentialManager(
     load_config=dashboard.load_config,
     observations=weather_observations,
