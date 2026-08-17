@@ -102,8 +102,18 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
 
         self.assertIn("WeatherRainfallHistoryService", runner)
         self.assertIn("register_weather_rainfall(app, dashboard, weather_rainfall)", runner)
-        self.assertIn("rainfall_wake=weather_rainfall.wake", runner)
+        self.assertIn("WeatherRainfallLifetimeService", runner)
+        self.assertIn(
+            "register_weather_rainfall_lifetime(app, weather_rainfall_lifetime)",
+            runner,
+        )
+        self.assertIn(
+            "rainfall_wake=lambda: (weather_rainfall.wake(), weather_rainfall_lifetime.wake())",
+            runner,
+        )
         self.assertIn("weather_rainfall.start()", runner)
+        self.assertIn("weather_rainfall_lifetime.start()", runner)
+        self.assertIn("weather_rainfall_lifetime.shutdown()", runner)
         self.assertIn("weather_rainfall.shutdown()", runner)
         self.assertIn("rainfall=weather_rainfall", runner)
         self.assertIn('"historical_rainfall"', settings)
