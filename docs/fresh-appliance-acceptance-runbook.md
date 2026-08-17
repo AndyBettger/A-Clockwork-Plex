@@ -2,13 +2,15 @@
 
 **Status:** Phase 7 spare-SD physical acceptance procedure  
 **Branch under test:** `feature/alarm-engine`  
-**Updated:** 16 August 2026
+**Updated:** 17 August 2026
 
 ## Purpose
 
 Prove that A Clockwork Plex can be built and reconverged on the real bedroom Pi/HAT/display hardware using a **spare SD card** while the **accepted production SD card** remains removed and untouched.
 
 The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry Pi DAC Pro, pinned Plexamp Headless/Node, NFC, dashboard/kiosk, AirPlay, alarm-safe Direct audio, guarded EQ promotion, reboot/repeat-install, Weather Underground commissioning and historical rainfall.
+
+**Current resumed spare-SD position (17 August 2026):** Sections 6 and 7 have completed successfully on `plexamp-test`. Guarded installed-EQ → requested-Direct convergence committed with root installer exit `0`; `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, the canonical Direct route SHA and clean EQ/loopback residue were independently verified. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Continue at **Section 8** for the remaining hands-on Direct checks; do not rerun Direct construction merely to regain context.
 
 ---
 
@@ -247,6 +249,8 @@ aplay -l
 
 Require PN532 `0x24` and `CARD=Pro`.
 
+**Current 17 August spare-SD result:** this section has passed and is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. Resume at Section 8 unless a later change specifically invalidates the Direct construction/verifier evidence.
+
 ---
 
 # 8. Physical Direct acceptance
@@ -403,12 +407,14 @@ Open **Settings → Weather → Observation source**.
 
 ## 14.1 Current observation source and write-only credential commissioning
 
-1. Confirm the live-source chip truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state.
-2. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
-3. Enter the real WU Station ID and save ordinary Weather settings.
-4. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
-5. Press **Test connection** and require a sanitized success result.
-6. After submission, only configured/not-configured status may be returned; never the stored key.
+1. Confirm **Observation source** is a distinct Weather subpage rather than being mixed into Station settings.
+2. Confirm the live-source chip remains in the source card heading/top-right and truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state.
+3. Confirm Weather cards have clear touch-friendly vertical separation and are no longer visually stacked with the old near-zero gap.
+4. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
+5. Enter the real WU Station ID and save ordinary Weather settings.
+6. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
+7. Press **Test connection** and require a sanitized success result.
+8. After submission, only configured/not-configured status may be returned; never the stored key.
 
 Check secret-file metadata without printing its contents:
 
@@ -456,7 +462,7 @@ curl -fsS http://localhost:8088/api/weather/rainfall \
 
 Only a `complete: true` history may be presented as a completed aggregate. Incomplete history must not masquerade as a partial total. Rain Today/current observations must remain live.
 
-## 14.3 Cache reuse and secret absence
+## 14.3 Cache reuse, retryable gaps and secret absence
 
 With Current year complete, refresh twice:
 
@@ -470,7 +476,19 @@ curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
   | tee "$EVIDENCE/65-rainfall-refresh-second.json"
 ```
 
-The second completed refresh must report `"fetched_ranges": 0`. Inspect `weather-rainfall-history.json` structurally and require cache version 1, at least one cached station/day after fill, and no keys named `api_key`, `apikey`, `password`, `secret` or `token`.
+Once the selected completed history is fully cached, the next completed refresh must report `"fetched_ranges": 0`.
+
+Inspect `weather-rainfall-history.json` structurally and require cache version 1, at least one cached station/day after fill, and no keys named `api_key`, `apikey`, `password`, `secret` or `token`. Cached day values must be valid non-negative numeric totals; a provider omission/invalid completed day must **not** be persisted as a `null` unavailable marker.
+
+Retry semantics are deliberate:
+
+- if WU omits a required completed date on an otherwise successful response, that evaluation must remain `complete: false` with `total_in: null`;
+- already-valid completed days remain cached and are not refetched;
+- the omitted/invalid date remains missing and is retried on a later refresh;
+- if WU later supplies that date, the aggregate may recover to `complete: true` without clearing the cache manually;
+- legacy `null` markers written by the earlier implementation are treated as missing and should be replaced when valid data is returned.
+
+Do not corrupt the real provider or credential merely to manufacture an omission. Source regression tests cover the synthetic missing-day/recovery path; if a natural gap occurs during physical acceptance, capture the before/retry/recovery evidence.
 
 ## 14.4 Supplemental failure behaviour
 
@@ -480,7 +498,7 @@ If historical rainfall is naturally unavailable, require current Ecowitt/WU obse
 
 # 15. Final acceptance record
 
-Commit a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings/Test Connection result, and all four historical-rainfall/cache results plus any deviations.
+Commit a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, NFC/AirPlay/alarm result, EQ result, reboot result, repeat-install result, WU Settings/Test Connection result, and all four historical-rainfall/cache results plus any deviations. If a natural WU history gap occurs, include its incomplete/retry/recovery evidence without exposing credentials.
 
 **Phase 7 does not close until that physical result is committed and reviewed.**
 PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
