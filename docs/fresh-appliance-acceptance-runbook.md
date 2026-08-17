@@ -417,7 +417,7 @@ Open **Settings → Weather → Observation source**.
 4. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
 5. Enter the real WU Station ID and save ordinary Weather settings.
 6. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
-7. If Weather Underground is selected as the **live** provider, press **Test connection** and require a sanitized success result. If Ecowitt remains live, do not switch providers merely to satisfy this button: prove the same commissioned WU credential through successful supplemental historical-rainfall requests in Sections 14.2–14.3.
+7. If Weather Underground is selected as the **live** provider, press **Test connection** and require a sanitized success result. Weather Underground remains the selected provider through that live-source Test connection check. If Ecowitt remains live, do not switch providers merely to satisfy this button: prove the same commissioned WU credential through successful supplemental historical-rainfall requests in Sections 14.2–14.3.
 8. After submission, only configured/not-configured status may be returned; never the stored key.
 
 Check secret-file metadata without printing its contents:
