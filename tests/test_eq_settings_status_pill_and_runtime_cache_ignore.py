@@ -8,11 +8,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EqSettingsStatusPillAndRuntimeCacheIgnoreTests(unittest.TestCase):
-    def test_master_equaliser_health_uses_pill_styling(self) -> None:
+    def test_master_equaliser_health_uses_pill_styling_and_top_right_layout(self) -> None:
         css = (ROOT / "app" / "static" / "css" / "audio-eq.css").read_text(encoding="utf-8")
 
+        self.assertIn(".acp-eq-settings > .settings-card-heading {", css)
+        self.assertIn("display: flex", css)
+        self.assertIn("align-items: flex-start", css)
+        self.assertIn("justify-content: space-between", css)
         self.assertIn(".acp-eq-health,\n#acp-eq-settings-health {", css)
         self.assertIn("border-radius: 999px", css)
+        self.assertIn("#acp-eq-settings-health {", css)
+        self.assertIn("flex: 0 0 auto", css)
+        self.assertIn("align-self: flex-start", css)
+        self.assertIn("white-space: nowrap", css)
         self.assertIn("#acp-eq-settings-health.is-ready", css)
         self.assertIn("#acp-eq-settings-health.is-warning", css)
 
