@@ -64,12 +64,14 @@ class WeatherUndergroundCredentialManager:
         runner: CommandRunner = _default_runner,
         environment: MutableMapping[str, str] = os.environ,
         helper: str = HELPER,
+        rainfall_wake: Callable[[], None] | None = None,
     ) -> None:
         self._load_config = load_config
         self._observations = observations
         self._runner = runner
         self._environment = environment
         self._helper = helper
+        self._rainfall_wake = rainfall_wake
 
     def _api_key_env(self) -> str:
         settings = normalise_observation_config(self._load_config())
@@ -83,6 +85,11 @@ class WeatherUndergroundCredentialManager:
                 "Settings commissioning requires the standard WEATHER_UNDERGROUND_API_KEY environment reference."
             )
         return env_name
+
+    def _wake_weather_consumers(self) -> None:
+        self._observations.wake()
+        if self._rainfall_wake is not None:
+            self._rainfall_wake()
 
     def status(self) -> dict[str, Any]:
         env_name = self._api_key_env()
@@ -117,7 +124,7 @@ class WeatherUndergroundCredentialManager:
                 )
             )
         self._environment[env_name] = secret
-        self._observations.wake()
+        self._wake_weather_consumers()
         return {"ok": True, "configured": True, "message": "Weather Underground API key saved."}
 
     def remove_secret(self) -> dict[str, Any]:
@@ -127,7 +134,7 @@ class WeatherUndergroundCredentialManager:
         if result.returncode != 0:
             raise OSError(_safe_error(result, "Could not remove Weather Underground credential."))
         self._environment.pop(env_name, None)
-        self._observations.wake()
+        self._wake_weather_consumers()
         return {"ok": True, "configured": False, "message": "Weather Underground API key removed."}
 
     def test_connection(self) -> dict[str, Any]:
