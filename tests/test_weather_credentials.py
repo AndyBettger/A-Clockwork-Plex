@@ -58,7 +58,14 @@ def wu_config(provider: str = "weather_underground") -> dict:
 
 
 class WeatherCredentialManagerTests(unittest.TestCase):
-    def make_manager(self, *, environment=None, runner=None, provider="weather_underground"):
+    def make_manager(
+        self,
+        *,
+        environment=None,
+        runner=None,
+        provider="weather_underground",
+        rainfall_wake=None,
+    ):
         observations = FakeObservations()
         calls = []
 
@@ -71,6 +78,7 @@ class WeatherCredentialManagerTests(unittest.TestCase):
             observations=observations,
             environment=environment if environment is not None else {},
             runner=runner or recording_runner,
+            rainfall_wake=rainfall_wake,
         )
         return manager, observations, calls
 
@@ -88,19 +96,41 @@ class WeatherCredentialManagerTests(unittest.TestCase):
         self.assertNotIn(SECRET, " ".join(calls[0][0]))
         self.assertNotIn(SECRET, str(result))
 
-    def test_failed_helper_does_not_mutate_live_environment_or_echo_secret(self) -> None:
+    def test_successful_credential_changes_wake_rainfall_history_too(self) -> None:
         environment = {}
+        rainfall_wakes: list[str] = []
+        manager, observations, _calls = self.make_manager(
+            environment=environment,
+            rainfall_wake=lambda: rainfall_wakes.append("wake"),
+        )
+
+        manager.set_secret(SECRET)
+        self.assertEqual(observations.wake_count, 1)
+        self.assertEqual(rainfall_wakes, ["wake"])
+
+        manager.remove_secret()
+        self.assertEqual(observations.wake_count, 2)
+        self.assertEqual(rainfall_wakes, ["wake", "wake"])
+
+    def test_failed_helper_does_not_mutate_live_environment_or_wake_consumers_or_echo_secret(self) -> None:
+        environment = {}
+        rainfall_wakes: list[str] = []
 
         def failed(command, stdin):
             self.assertEqual(stdin, SECRET)
             return subprocess.CompletedProcess(command, 1, "", "write failed")
 
-        manager, observations, _calls = self.make_manager(environment=environment, runner=failed)
+        manager, observations, _calls = self.make_manager(
+            environment=environment,
+            runner=failed,
+            rainfall_wake=lambda: rainfall_wakes.append("wake"),
+        )
         with self.assertRaises(OSError) as raised:
             manager.set_secret(SECRET)
 
         self.assertNotIn("WEATHER_UNDERGROUND_API_KEY", environment)
         self.assertEqual(observations.wake_count, 0)
+        self.assertEqual(rainfall_wakes, [])
         self.assertNotIn(SECRET, str(raised.exception))
 
     def test_remove_secret_uses_restricted_command_and_clears_environment(self) -> None:
