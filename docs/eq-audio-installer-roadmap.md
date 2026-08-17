@@ -20,6 +20,7 @@ Detailed history through Phase 7 checkpoint #6 is preserved in `docs/eq-audio-in
 - Do not use the old bare `scripts/install-master-eq.sh` production path.
 - An already-installed EQ appliance is now a **supported convergent source state** when the whole-appliance installer is asked for Direct. Do not require a manual EQ uninstall.
 - EQ → Direct convergence must remain inside the outer application transaction: specialist teardown retains the pre-EQ backup, rollback restores that backup and the pre-transition live `snd_aloop` state before captured EQ services are reactivated, and retained backup cleanup occurs only after successful outer commit.
+- Once guarded Direct construction/verifiers and a focused playback/NFC/EQ-status smoke have passed, do **not** require a redundant full Direct AirPlay/alarm/handoff replay before EQ promotion. The meaningful final regression is post-EQ, where the changed route can affect those behaviors.
 
 | Identity | Accepted value |
 |---|---|
@@ -57,6 +58,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 - WU API key is write-only commissioning data: never returned to the browser, stored in `config.json`/browser storage, placed in argv or logged.
 - Persistent secret storage is root-owned `/etc/default/a-clockwork-plex-weather`, mode `0600`; the restricted helper receives key material on stdin.
 - Selecting/reconverging **Ecowitt Push for live observations must preserve the exact existing managed WU credential file** because WU may still supply supplemental rainfall history. If that managed file was absent, Ecowitt convergence must keep it absent; it must never invent, rewrite or reveal a credential.
+- Both rainfall cache files are runtime state and must stay ignored by Git; generating `weather-rainfall-lifetime.json` must not dirty the checkout.
 
 ### Player/runtime
 
@@ -82,7 +84,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: physical Direct construction/verification and focused Weather acceptance complete; hands-on Direct behaviour, EQ/reboot and repeat-install acceptance remain**
+### Phase 7 — full appliance installer integration — **In progress: Direct construction/verification + focused pre-EQ smoke and focused Weather acceptance complete; EQ promotion/reboot/repeat-install remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -140,7 +142,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 #### Spare-SD physical acceptance handoff
 
 - [x] Runbook uses a spare SD while production card remains untouched.
-- [x] Runbook covers fresh baseline/evidence, Direct, exits `75`/`76`, independent verifiers, NFC/AirPlay/alarm, guarded Camilla fetcher, EQ, reboot, repeat install and WU Settings/history.
+- [x] Runbook covers fresh baseline/evidence, Direct, exits `75`/`76`, independent verifiers, guarded Camilla fetcher, EQ, post-EQ NFC/AirPlay/alarm regression, reboot, repeat install and WU Settings/history.
 - [x] First Trixie apply exposed inherited-system NFC `pip check` noise; checkpoint #26 repair is green.
 - [x] Subsequent attempts physically proved paired venvs, PN532 `0x24`, `CARD=Pro`, pinned Node/Plexamp claim/resume, NFC, full preflight, dashboard/kiosk, Direct route, restricted helpers and AirPlay. Detailed evidence is in `docs/fresh-bootstrap-physical-progress-2026-08-15.md`.
 - [x] Protected `/etc/sudoers.d` verification was repaired at both helper-owner and final-verifier boundaries.
@@ -148,16 +150,15 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Checkpoint #28 source repair supports transactional EQ → Direct convergence; regression coverage proves success and forced rollback.
 - [x] **Physical fresh Direct installation and verification:** 17 August guarded convergence completed from the existing EQ state with root installer exit `0`, `ROOT_INSTALL=COMMITTED`, `APPLICATION_VERIFY=PASS`, `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, canonical Direct SHA and clean EQ/loopback residue. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 - [x] **Focused Weather physical acceptance:** Settings presentation, WU commissioning, live/history independence, Ecowitt credential preservation, selected-period gap semantics, six comparison gauges, custom forecast-style rain scrolling, genuine WU Rain lifetime, settled request-quiet behavior, both cache structural checks and continued live Ecowitt operation all passed physically. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
-- [ ] Physical PN532/NFC playback + dashboard-switch/debounce acceptance.
-- [ ] Physical AirPlay/PlaybackCoordinator completion notes.
-- [ ] Physical Music Master = 0% versus real scheduled-alarm isolation acceptance.
-- [ ] Physical Direct-mode truthful **Install required** EQ UI acceptance.
-- [ ] Physical EQ installation, split-bus identity and audible Bass/Mid/Treble/bypass acceptance.
+- [x] **Focused Direct pre-EQ smoke:** Plexamp playback healthy; known NFC tag triggered local playback and requested Plexamp dashboard state; Audio and Settings Master equaliser truthfully reported **Install required**. Full Direct handoff/alarm replay is intentionally not a promotion blocker; evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
+- [x] Runtime lifetime cache is ignored by Git; generated `weather-rainfall-lifetime.json` no longer dirties the checkout.
+- [ ] Physical EQ installation and split-bus identity verification.
+- [ ] Post-EQ physical regression: Plexamp/AirPlay, Bass/Mid/Treble, bypass, Music Master = 0% with real scheduled alarm still audible, Maximum Alarm Volume, Snooze/Dismiss, NFC playback/dashboard handoff and immediate repeat-tag debounce.
 - [ ] Reboot acceptance with bootstrap/application/audio verifiers green.
 - [ ] Repeat whole-appliance install with no ownership drift or renewed claim/reboot checkpoint.
-- [ ] Commit/finalize the remaining Direct/EQ physical result/evidence documents; only then close Phase 7.
+- [ ] Commit/finalize the EQ/reboot/repeat physical result/evidence documents; only then close Phase 7.
 
-**Phase 7 exit condition:** the spare-SD appliance passes Direct → physical feature checks → EQ → reboot → repeat-install, with focused Weather acceptance already complete and `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable; dated evidence is committed. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** the spare-SD appliance passes Direct construction + focused smoke → EQ → post-EQ physical regression → reboot → repeat-install, with focused Weather acceptance already complete and `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable; dated evidence is committed. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
@@ -184,10 +185,11 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#27 — cached historical rainfall + Weather Observation Source workspace — PASS (source/CI).** Commit `28baf6fd91b4169813fbdbbe99d7b613fde8d151`; Tests #3411 / run `31972466589`. Its original unavailable-marker cache policy is superseded by the later confirmed-gap model.
 - **Post-#27 documentation incident — repaired.** `7479d6308417561983bbde87e3a9a788686388a1` failed only because the test-pinned Weather heading was changed; the exact `# 14. Commission Weather Underground through Settings` heading was restored and remains contract-pinned.
 - **#28 — installed EQ → requested Direct convergence — PASS (source/CI).** Physical Attempt 6 reached application transition after package/venv, PN532 `0x24`, `CARD=Pro`, claimed Plexamp, NFC and full preflight passed, then the old hard guard rejected the already-EQ spare SD with exit `2`; evidence `/home/andy/acp-phase7-spare-sd-20260815-171112/20-direct-install-20260816-222614.txt`. Commit `4bfd9d0ed83927473d0ae70f5947761de6fad817` replaces that rejection with specialist EQ teardown under the outer application transaction, retained pre-EQ backup/tombstone handling and pre-service `snd_aloop` rollback restoration; Tests #3421 / run `31975846667` passed. Commit `b4e64fcf279843a7f928c5da41252adb11aae00a` adds focused success/forced-rollback/retained-backup/order regression coverage; Tests #3423 / run `31976778069` passed.
-- **Post-#28 physical Direct convergence — PASS.** Commit `ec86c76bc0a6c9aec53bc51394bc06a15028cda8` records the 17 August spare-SD root install exit `0`, both independent Direct verifiers PASS, canonical Direct route identity and clean post-EQ residue. Hands-on Direct feature checks remain open.
+- **Post-#28 physical Direct convergence — PASS.** Commit `ec86c76bc0a6c9aec53bc51394bc06a15028cda8` records the 17 August spare-SD root install exit `0`, both independent Direct verifiers PASS, canonical Direct route identity and clean post-EQ residue.
 - **#29 — retryable WU rainfall gaps + Weather card spacing follow-up — PASS (source/CI), semantics later superseded.** Commit `967e684ca51b07ad25731d78401a195cde024081` introduced retryable omitted/invalid dates and responsive card spacing; Tests run `31981475409` / #3445 passed. Its all-or-nothing total rule is superseded by the confirmed station-gap/minimum-recorded model physically accepted below.
 - **#30 — Weather physical-follow-up convergence — PASS (source/CI), presentation evolved during physical acceptance.** Commit `bd3124e0bbb8682d8faf0f3cc44725fc7da9fc8c` added credential preservation and strengthened source-card spacing. Physical acceptance subsequently settled on card-local live/history status badges rather than the transient global-heading placement. Tests run `31984835861` / #3451 passed.
 - **#31 — confirmed station gaps + Rainy Day Fund projection — PASS (core physical + source/CI; final presentation closed under #32).** On `plexamp-test`, Current year physically returned 226/229 days, three confirmed March station gaps, `status: ready`, `complete: true`, `total_in: 21.38`, and two repeated refreshes at zero fetch/retry cost. Settings showed **History ready** with explicit minimum-recorded coverage. The blank Rainy Day Fund then exposed a `main` facade versus `dashboard_core` context-projection bug. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the real Flask projection and adds This/Last week/month/year summaries plus prior-year backfill; Tests #3485 / run `31991516804` passed. The corrected gauges were subsequently physically accepted under #32.
 - **#32 — forecast-style Rainy Day Fund scroll + genuine WU Rain lifetime — PASS (source/CI + physical).** The rain strip hides Chromium's native arrow-button scrollbar and reuses the forecast rail/thumb mechanism. `WeatherRainfallLifetimeService` independently discovers/backfills older WU daily history, combines it with previous/current year into **Rain lifetime**, exposes sanitized `/api/weather/rainfall/lifetime` status and becomes request-quiet after discovery+coverage settle. Implementation head `bbdcc74dde455269def9b5bcb72c3601e295c6b2`; lifecycle regression synchronization head `22455624917ce456087e3a11041937b3c0526623`; full Tests #3523 / run `31994639762` PASS. Physical head `f0ea56557ba3d2fd09b624c9162ceea6c30de6f9` displayed the accepted custom scrollbar and **Rain lifetime 2634.0 mm since first WU record 30/12/2023 · 11 days not recorded**. Settled lifetime POST returned `fetched_ranges: 0` / `retried_dates: 0`; `weather-rainfall-history.json` validated with 582 numeric days / 11 recognized gaps and `weather-rainfall-lifetime.json` with 368 numeric days / zero gaps, both free of secrets/null/invalid values; Ecowitt remained `status: push` with its observation worker running. Focused Weather acceptance is physically complete.
+- **#33 — focused Direct pre-EQ smoke + UI/runtime hygiene — PASS (physical/source).** On the verified Direct spare card, Plexamp playback remained healthy, a known NFC tag triggered local playback and the Plexamp dashboard state, and both EQ surfaces truthfully showed **Install required**. The Master equaliser status is now styled with the same explicit bordered pill treatment, and `weather-rainfall-lifetime.json` is ignored as runtime state. Full Direct AirPlay/alarm replay is intentionally deferred to the post-EQ regression where it can validate the new route.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS does not substitute for remaining physical acceptance.
