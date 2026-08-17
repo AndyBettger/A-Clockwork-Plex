@@ -12,7 +12,7 @@ The current physically validated target is:
 
 - Raspberry Pi 4B;
 - 64-bit Raspberry Pi OS with Desktop;
-- Raspberry Pi Touch Display 2 (720×1280 native, used in 1280×720 landscape orientation on the validated appliance);
+- Raspberry Pi Touch Display 2 (720×1280 native, rotated left for landscape use on the validated appliance);
 - Raspberry Pi DAC Pro, expected by ALSA as `CARD=Pro`;
 - PN532 NFC hardware configured for I2C, expected on bus 1 at address `0x24`;
 - network access for package installation and the pinned Plexamp/Node/CamillaDSP downloads.
@@ -51,15 +51,46 @@ Do not use `rpi-update` for this. Normal APT updates are the supported Raspberry
 
 ### Raspberry Pi Touch Display 2 setup
 
-For the validated 720×1280 Raspberry Pi Touch Display 2, configure the desktop before installing the kiosk:
+The validated 7-inch Raspberry Pi Touch Display 2 is a **720×1280 native portrait panel**. A Clockwork Plex uses it physically in landscape, so configure the desktop before installing the kiosk.
 
-- set the display to the desired **landscape 1280×720** orientation;
-- in **Control Centre → Appearance**, use the **Medium** desktop/default size;
-- set **screen scaling to 1.5×**;
-- use the **Dark** theme if you want the same validated desktop appearance;
-- use **Multitouch** touchscreen behaviour rather than mouse emulation.
+#### 1. Rotate the display to landscape
 
-These values make normal desktop applications and commissioning screens usable on the small panel while preserving the proportions used during A Clockwork Plex physical validation. Kiosk mode subsequently occupies the dashboard display itself.
+1. Open **Preferences → Control Centre → Screens**.
+2. In the screen layout, right-click the rectangle representing the Touch Display 2 (normally `DSI-1`).
+3. Choose **Orientation → Left**.
+4. Select **Apply**, then **OK** to keep the change.
+
+If deciding which way is "Left" starts turning into a matrix transformation in your head, the approved low-computation method is to tip the actual device onto its left side first and see whether the picture ends up the right way round. Bonus internet points are available for avoiding unnecessary linear algebra. 😁
+
+Do not change the panel to a made-up 1280×720 resolution: its native mode remains **720×1280**; the orientation setting is what makes it landscape on the desk.
+
+#### 2. Set screen scaling to 1.5×
+
+1. Stay in **Preferences → Control Centre → Screens**.
+2. Right-click the Touch Display 2 / `DSI-1` rectangle again.
+3. Choose **Scaling → 1.5**.
+4. Select **Apply**, then **OK** to keep the change.
+
+This is the scaling used for the physically validated dashboard and makes Raspberry Pi OS commissioning screens much more usable on the small panel.
+
+#### 3. Set touchscreen mode to Multitouch — required
+
+**This setting is required for A Clockwork Plex to work correctly as a touchscreen appliance.** Mouse-emulation mode can register taps, but it does not provide the native touch-and-drag behaviour required for scrolling the Weather page and the Plexamp interface.
+
+1. Stay in **Preferences → Control Centre → Screens**.
+2. Right-click the Touch Display 2 / `DSI-1` rectangle.
+3. Choose **Touchscreen → Mode → Multitouch**.
+4. Select **Apply**, then **OK** if prompted.
+
+Do not leave the Touch Display 2 in mouse-emulation mode for normal A Clockwork Plex use.
+
+#### 4. Set the desktop size and appearance
+
+1. Open **Preferences → Control Centre → Appearance**.
+2. Under **Defaults**, choose **Medium** rather than Small or Large.
+3. Select the **Dark** appearance/theme if you want the same desktop appearance used during physical validation.
+
+The dashboard kiosk itself controls its own presentation, but these settings make the Raspberry Pi desktop, Chromium and commissioning dialogs comfortable to use before and outside kiosk mode.
 
 ### Enable VNC for easier commissioning
 
