@@ -31,6 +31,12 @@
     const stationDescription = stationRow.querySelector('small');
     if (stationDescription) stationDescription.textContent = 'Dashboard labels and refresh';
 
+    const weatherHeader = document.querySelector('[data-settings-section="weather"] > .settings-detail-header');
+    if (weatherHeader && statusChip) {
+      statusChip.classList.add('weather-source-status-chip');
+      weatherHeader.appendChild(statusChip);
+    }
+
     const sourceRow = document.createElement('button');
     sourceRow.className = 'settings-subpage-row';
     sourceRow.type = 'button';
@@ -95,9 +101,12 @@
 
     const style = document.createElement('style');
     style.textContent = `
-      [data-settings-section="weather"] .settings-subpage { gap: clamp(12px, 2vmin, 18px); }
+      [data-settings-section="weather"] .settings-subpage { gap: clamp(14px, 2.3vmin, 20px); }
       [data-settings-section="weather"] .settings-card { padding: clamp(12px, 2vmin, 18px); }
-      [data-settings-section="weather"] .settings-card + .settings-card { margin-top: clamp(10px, 1.6vmin, 14px); }
+      [data-settings-section="weather"] .weather-settings-source { gap: clamp(16px, 2.7vmin, 22px); }
+      [data-settings-section="weather"] .weather-settings-source .settings-grid { gap: clamp(12px, 2vmin, 16px); }
+      [data-settings-section="weather"] .weather-settings-source .settings-card { margin-top: 0; }
+      [data-settings-section="weather"] .weather-source-status-chip { flex: 0 0 auto; margin-top: 2px; }
     `;
     document.head.appendChild(style);
 

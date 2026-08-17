@@ -113,15 +113,17 @@ class WeatherConfigInstallerTests(unittest.TestCase):
             self.assertNotIn("legacy-inline-secret", config.read_text(encoding="utf-8"))
             self.assertNotIn('abc\\def"ghi', result.stdout + result.stderr)
 
-    def test_ecowitt_activation_removes_managed_wu_secret_without_touching_forecast(self) -> None:
+    def test_ecowitt_activation_preserves_managed_wu_history_secret_without_touching_forecast(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root, config, env_file = self.make_root(Path(tmp))
             payload = self.base_config()
             payload["weather"]["provider"] = "weather_underground"
             config.write_text(json.dumps(payload, indent=2), encoding="utf-8")
             env_file.parent.mkdir(parents=True)
-            env_file.write_text('WEATHER_UNDERGROUND_API_KEY="old-secret"\n', encoding="utf-8")
+            original_env = b'WEATHER_UNDERGROUND_API_KEY="old-secret"\n'
+            env_file.write_bytes(original_env)
             os.chmod(env_file, 0o600)
+            original_mode = stat.S_IMODE(env_file.stat().st_mode)
 
             result = self.run_installer(
                 "--root", str(root),
@@ -134,6 +136,23 @@ class WeatherConfigInstallerTests(unittest.TestCase):
             self.assertEqual(installed["weather"]["provider"], "ecowitt_push")
             self.assertEqual(installed["weather"]["forecast"], payload["weather"]["forecast"])
             self.assertNotIn("api_key", installed["weather"]["weather_underground"])
+            self.assertEqual(env_file.read_bytes(), original_env)
+            self.assertEqual(stat.S_IMODE(env_file.stat().st_mode), original_mode)
+            self.assertIn("preserved for supplemental rainfall history", result.stdout)
+
+    def test_ecowitt_activation_preserves_wu_secret_absence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, config, env_file = self.make_root(Path(tmp))
+            config.write_text(json.dumps(self.base_config(), indent=2), encoding="utf-8")
+            self.assertFalse(env_file.exists())
+
+            result = self.run_installer(
+                "--root", str(root),
+                "--activate", "--confirm", "INSTALL-WEATHER-CONFIG",
+                "--provider", "ecowitt-push",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(env_file.exists())
 
     def test_injected_failure_after_config_restores_exact_bytes_and_secret(self) -> None:

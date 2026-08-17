@@ -34,6 +34,8 @@ Secrets:
   are never written to config.json. Production storage is:
     /etc/default/a-clockwork-plex-weather
   exported as $WEATHER_ENV_NAME with mode 0600.
+  Selecting Ecowitt for live observations preserves any existing managed Weather
+  Underground credential so supplemental rainfall history remains commissioned.
 
 Rollback:
   config.json and the managed weather environment file are restored to their exact
@@ -284,7 +286,7 @@ if [[ "$PROVIDER" == weather-underground ]]; then
         echo 'Weather Underground secret: required for activation; no value supplied in prepare-only mode'
     fi
 else
-    echo 'Weather Underground secret: managed file will be absent after successful activation'
+    echo 'Weather Underground secret: existing managed file is preserved for supplemental rainfall history; absence remains absent'
 fi
 
 if [[ "$MODE" == prepare-only ]]; then
@@ -334,7 +336,10 @@ if [[ "$PROVIDER" == weather-underground ]]; then
     fi
     mv -f -- "$WEATHER_ENV_FILE.new" "$WEATHER_ENV_FILE"
 else
-    rm -f -- "$WEATHER_ENV_FILE"
+    # Ecowitt owns only the live-observation choice. The managed WU credential
+    # may still be required by historical rainfall, so leave its exact pre-state
+    # untouched rather than deleting or rewriting it.
+    :
 fi
 
 if [[ "$ROOT" != / && "${ACP_WEATHER_TEST_FAIL_AFTER_SECRET:-0}" == 1 ]]; then
@@ -370,9 +375,6 @@ if provider == "weather_underground":
         raise SystemExit("managed Weather Underground secret file is unavailable")
     if stat.S_IMODE(os.stat(env_path).st_mode) != 0o600:
         raise SystemExit("managed Weather Underground secret file mode is not 0600")
-else:
-    if os.path.exists(env_path) or os.path.islink(env_path):
-        raise SystemExit("managed Weather Underground secret survived Ecowitt activation")
 PY
 
 SUCCESS=true

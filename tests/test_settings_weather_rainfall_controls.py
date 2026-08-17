@@ -19,6 +19,36 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
         self.assertIn("Dashboard labels and refresh", presenter)
         self.assertIn("weather-settings-source", presenter)
 
+    def test_observation_status_uses_requested_source_labels(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn("push: 'Ecowitt Push'", presenter)
+        self.assertIn("ready: 'WU Ready'", presenter)
+        self.assertIn("data-observation-status", presenter)
+
+    def test_observation_status_chip_is_promoted_to_weather_heading(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "document.querySelector('[data-settings-section=\"weather\"] > .settings-detail-header')",
+            presenter,
+        )
+        self.assertIn("weatherHeader.appendChild(statusChip)", presenter)
+        self.assertIn("weather-source-status-chip", presenter)
+
+    def test_weather_source_workspace_has_touch_friendly_card_and_grid_spacing(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '.weather-settings-source { gap: clamp(16px, 2.7vmin, 22px); }',
+            presenter,
+        )
+        self.assertIn(
+            '.weather-settings-source .settings-grid { gap: clamp(12px, 2vmin, 16px); }',
+            presenter,
+        )
+        self.assertIn('.weather-settings-source .settings-card { margin-top: 0; }', presenter)
+
     def test_history_period_exposes_exact_four_choices(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
 
@@ -30,13 +60,6 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
             ("current_year", "Current year"),
         ):
             self.assertIn(f'<option value="{value}">{label}</option>', presenter)
-
-    def test_observation_status_uses_requested_source_labels(self) -> None:
-        presenter = PRESENTER.read_text(encoding="utf-8")
-
-        self.assertIn("push: 'Ecowitt Push'", presenter)
-        self.assertIn("ready: 'WU Ready'", presenter)
-        self.assertIn("data-observation-status", presenter)
 
     def test_wu_history_configuration_remains_available_with_ecowitt_live_source(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
