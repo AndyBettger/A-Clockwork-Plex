@@ -31,11 +31,7 @@
     const stationDescription = stationRow.querySelector('small');
     if (stationDescription) stationDescription.textContent = 'Dashboard labels and refresh';
 
-    const weatherHeader = document.querySelector('[data-settings-section="weather"] > .settings-detail-header');
-    if (weatherHeader && statusChip) {
-      statusChip.classList.add('weather-source-status-chip');
-      weatherHeader.appendChild(statusChip);
-    }
+    sourceCard.classList.add('weather-observation-source-card');
 
     const sourceRow = document.createElement('button');
     sourceRow.className = 'settings-subpage-row';
@@ -54,7 +50,7 @@
     sourcePage.appendChild(sourceCard);
 
     const rainfallCard = document.createElement('section');
-    rainfallCard.className = 'settings-card';
+    rainfallCard.className = 'settings-card weather-rainfall-card';
     rainfallCard.dataset.rainfallSettings = 'true';
     rainfallCard.innerHTML = `
       <div class="settings-card-heading">
@@ -101,12 +97,65 @@
 
     const style = document.createElement('style');
     style.textContent = `
-      [data-settings-section="weather"] .settings-subpage { gap: clamp(14px, 2.3vmin, 20px); }
+      [data-settings-section="weather"] .settings-subpage { gap: clamp(16px, 2.6vmin, 20px); }
       [data-settings-section="weather"] .settings-card { padding: clamp(12px, 2vmin, 18px); }
-      [data-settings-section="weather"] .weather-settings-source { gap: clamp(16px, 2.7vmin, 22px); }
-      [data-settings-section="weather"] .weather-settings-source .settings-grid { gap: clamp(12px, 2vmin, 16px); }
+      [data-settings-section="weather"] .weather-settings-source { gap: clamp(20px, 3.2vmin, 24px); }
       [data-settings-section="weather"] .weather-settings-source .settings-card { margin-top: 0; }
-      [data-settings-section="weather"] .weather-source-status-chip { flex: 0 0 auto; margin-top: 2px; }
+      [data-settings-section="weather"] .weather-settings-source .settings-card-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 10px clamp(14px, 2.4vmin, 18px);
+        margin-bottom: clamp(14px, 2.4vmin, 18px);
+      }
+      [data-settings-section="weather"] .weather-settings-source .settings-card-heading > div { min-width: 0; }
+      [data-settings-section="weather"] .weather-settings-source .settings-card-heading h3 { margin-bottom: 8px; }
+      [data-settings-section="weather"] .weather-settings-source .settings-card-heading p { margin: 0; }
+      [data-settings-section="weather"] .weather-settings-source .settings-chip {
+        display: grid;
+        place-items: center;
+        align-self: start;
+        justify-self: end;
+        min-height: 38px;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 8px 13px;
+        border: 1px solid rgba(143, 211, 255, 0.22);
+        border-radius: 11px;
+        color: var(--text);
+        background: rgba(143, 211, 255, 0.085);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        font-family: var(--display-font);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.025em;
+        line-height: 1.1;
+        white-space: nowrap;
+      }
+      [data-settings-section="weather"] .weather-settings-source .settings-chip.is-warning {
+        border-color: rgba(255, 233, 156, 0.3);
+        background: rgba(255, 233, 156, 0.09);
+      }
+      [data-settings-section="weather"] .weather-settings-source .settings-grid {
+        column-gap: clamp(14px, 2.4vmin, 18px);
+        row-gap: clamp(18px, 2.8vmin, 22px);
+      }
+      [data-settings-section="weather"] .weather-settings-source [data-observation-message],
+      [data-settings-section="weather"] .weather-settings-source [data-rainfall-message] {
+        display: block;
+        margin: clamp(16px, 2.5vmin, 20px) 0 0;
+        line-height: 1.4;
+      }
+      [data-settings-section="weather"] .weather-settings-source [data-wu-history-note] {
+        margin: 0 0 clamp(16px, 2.5vmin, 20px);
+        line-height: 1.4;
+      }
+      [data-settings-section="weather"] .weather-settings-source [data-wu-commissioning] {
+        margin-top: clamp(18px, 2.8vmin, 22px);
+      }
+      [data-settings-section="weather"] .weather-settings-source [data-wu-commissioning] .settings-action-row {
+        margin-top: clamp(16px, 2.5vmin, 20px);
+      }
     `;
     document.head.appendChild(style);
 

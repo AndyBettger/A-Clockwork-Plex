@@ -26,28 +26,29 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
         self.assertIn("ready: 'WU Ready'", presenter)
         self.assertIn("data-observation-status", presenter)
 
-    def test_observation_status_chip_is_promoted_to_weather_heading(self) -> None:
+    def test_observation_and_rainfall_status_badges_stay_inside_their_card_headings(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn("weather-observation-source-card", presenter)
+        self.assertIn("weather-rainfall-card", presenter)
+        self.assertNotIn("weatherHeader.appendChild(statusChip)", presenter)
+        self.assertIn('.weather-settings-source .settings-card-heading {', presenter)
+        self.assertIn('grid-template-columns: minmax(0, 1fr) auto;', presenter)
+        self.assertIn('.weather-settings-source .settings-chip {', presenter)
+        self.assertIn('border-radius: 11px;', presenter)
+
+    def test_weather_source_workspace_spacing_supports_1280x720_and_1024x600(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
 
         self.assertIn(
-            "document.querySelector('[data-settings-section=\"weather\"] > .settings-detail-header')",
+            '.weather-settings-source { gap: clamp(20px, 3.2vmin, 24px); }',
             presenter,
         )
-        self.assertIn("weatherHeader.appendChild(statusChip)", presenter)
-        self.assertIn("weather-source-status-chip", presenter)
-
-    def test_weather_source_workspace_has_touch_friendly_card_and_grid_spacing(self) -> None:
-        presenter = PRESENTER.read_text(encoding="utf-8")
-
-        self.assertIn(
-            '.weather-settings-source { gap: clamp(16px, 2.7vmin, 22px); }',
-            presenter,
-        )
-        self.assertIn(
-            '.weather-settings-source .settings-grid { gap: clamp(12px, 2vmin, 16px); }',
-            presenter,
-        )
-        self.assertIn('.weather-settings-source .settings-card { margin-top: 0; }', presenter)
+        self.assertIn('column-gap: clamp(14px, 2.4vmin, 18px);', presenter)
+        self.assertIn('row-gap: clamp(18px, 2.8vmin, 22px);', presenter)
+        self.assertIn('margin: clamp(16px, 2.5vmin, 20px) 0 0;', presenter)
+        self.assertIn('[data-wu-commissioning] {', presenter)
+        self.assertIn('margin-top: clamp(18px, 2.8vmin, 22px);', presenter)
 
     def test_history_period_exposes_exact_four_choices(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
