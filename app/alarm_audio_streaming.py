@@ -27,17 +27,16 @@ def effective_scheduled_volume(
 ) -> tuple[int, int, int]:
     """Return effective start, target and fade for a scheduled alarm ring cycle.
 
-    Historical alarm configs stored a hidden ``start_percent`` value (normally 60).
-    Once Maximum Alarm Volume was lower than or equal to that hidden start, both
-    ends of the ramp became identical and the configured fade disappeared.  A
-    fade is now defined in the operator-facing way: fade from silence to the
-    selected target, with Maximum Alarm Volume acting only as a ceiling.  With
-    fade disabled, playback starts immediately at the effective target.
+    ``start_percent`` is a deliberate operator setting rather than the old hidden
+    60% value. Maximum Alarm Volume caps the target, and the effective fade start
+    can never exceed that capped target. With fade disabled, playback starts
+    immediately at the effective target regardless of the configured fade start.
     """
     cap = max(1, min(100, _core._integer(volume_cap_percent, 100)))
     target_percent = min(cap, max(0, _core._integer(volume.get("target_percent"), 85)))
     fade_seconds = max(0, min(300, _core._integer(volume.get("fade_seconds"), 10)))
-    start_percent = 0 if fade_seconds > 0 else target_percent
+    requested_start = max(0, min(100, _core._integer(volume.get("start_percent"), 10)))
+    start_percent = min(requested_start, target_percent) if fade_seconds > 0 else target_percent
     return start_percent, target_percent, fade_seconds
 
 
