@@ -117,7 +117,7 @@
   function alarmIndicatorState(status, nowMilliseconds = Date.now()) {
     const mode = normaliseAlarmIndicatorMode(status?.config?.dashboard?.alarm_indicator_mode);
     const nextOccurrence = status?.alarm_scheduler?.next_occurrence;
-    const nextWhen = String(nextOccurrence?.when || '');
+    const nextWhen = String(nextOccurrence?.scheduled_for || nextOccurrence?.when || '');
     const nextMilliseconds = Date.parse(nextWhen);
     const millisecondsUntil = nextMilliseconds - nowMilliseconds;
     const hasFutureOccurrence = Number.isFinite(nextMilliseconds) && millisecondsUntil >= 0;
