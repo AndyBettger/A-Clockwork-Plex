@@ -397,11 +397,31 @@
       model.defaults.tone_id = tone.value;
       markDirty();
     });
+    const defaultStartLabel = node('label', 'alarm-tone-volume');
+    defaultStartLabel.appendChild(node('span', '', 'Default fade start volume'));
+    const defaultStart = document.createElement('input');
+    defaultStart.type = 'range';
+    defaultStart.min = '0';
+    defaultStart.max = '100';
+    defaultStart.step = '1';
+    defaultStart.value = String(clamp(model.defaults.start_percent, 10, 0, 100));
+    const defaultStartOutput = node('strong', '', `${defaultStart.value}%`);
+    defaultStart.addEventListener('input', () => {
+      model.defaults.start_percent = Number(defaultStart.value);
+      defaultStartOutput.textContent = `${defaultStart.value}%`;
+      markDirty();
+    });
+    defaultStartLabel.append(
+      defaultStart,
+      defaultStartOutput,
+      node('small', '', 'Inherited by newly-created alarms. Existing alarms keep their own fade start volume.'),
+    );
     grid.append(
       field('Default snooze', snooze, '1–60 minutes.'),
       field('Continuous ring cycle', ring, 'Before the automatic quiet interval.'),
       field('Occurrence expiry', expiry, 'How long a snoozed occurrence remains eligible.'),
       field('Default local tone', tone, 'Used when creating another alarm.'),
+      defaultStartLabel,
     );
     card.appendChild(grid);
     defaultsMount.appendChild(card);
@@ -534,6 +554,14 @@
     soundGrid.appendChild(field('Local alarm tone', tone));
     soundGrid.appendChild(toneDescription);
 
+    alarm.volume.target_percent = clamp(alarm.volume.target_percent, 85, 0, 100);
+    alarm.volume.start_percent = Math.min(
+      clamp(alarm.volume.start_percent, model.defaults.start_percent ?? 10, 0, 100),
+      alarm.volume.target_percent,
+    );
+
+    let startVolume = null;
+    let startVolumeOutput = null;
     const volumeLabel = node('label', 'alarm-tone-volume');
     volumeLabel.appendChild(node('span', '', 'Scheduled alarm target volume'));
     const volume = document.createElement('input');
@@ -546,6 +574,14 @@
     volume.addEventListener('input', () => {
       alarm.volume.target_percent = Number(volume.value);
       volumeOutput.textContent = `${volume.value}%`;
+      if (startVolume) {
+        startVolume.max = volume.value;
+        if (Number(startVolume.value) > alarm.volume.target_percent) {
+          startVolume.value = volume.value;
+          alarm.volume.start_percent = alarm.volume.target_percent;
+          startVolumeOutput.textContent = `${startVolume.value}%`;
+        }
+      }
       markDirty();
     });
     volumeLabel.append(
@@ -554,6 +590,27 @@
       node('small', '', 'Used by the real scheduled alarm after audio takeover. It never changes preview loudness.'),
     );
     soundGrid.appendChild(volumeLabel);
+
+    const startVolumeLabel = node('label', 'alarm-tone-volume');
+    startVolumeLabel.appendChild(node('span', '', 'Fade start volume'));
+    startVolume = document.createElement('input');
+    startVolume.type = 'range';
+    startVolume.min = '0';
+    startVolume.max = String(alarm.volume.target_percent);
+    startVolume.step = '1';
+    startVolume.value = String(alarm.volume.start_percent);
+    startVolumeOutput = node('strong', '', `${startVolume.value}%`);
+    startVolume.addEventListener('input', () => {
+      alarm.volume.start_percent = Number(startVolume.value);
+      startVolumeOutput.textContent = `${startVolume.value}%`;
+      markDirty();
+    });
+    startVolumeLabel.append(
+      startVolume,
+      startVolumeOutput,
+      node('small', '', 'The first audible level when Fade in is enabled. Maximum Alarm Volume still caps the final result.'),
+    );
+    soundGrid.appendChild(startVolumeLabel);
 
     const savedFade = clamp(alarm.volume.fade_seconds, 10, 0, 300);
     const fadeValues = FADE_PRESETS.includes(savedFade)
@@ -567,13 +624,12 @@
     });
     fade.addEventListener('change', () => {
       alarm.volume.fade_seconds = Number(fade.value);
-      alarm.volume.start_percent = 0;
       markDirty();
     });
     soundGrid.appendChild(field(
       'Fade in',
       fade,
-      'Starts from silence and reaches the scheduled target over this time. Snooze/re-ring starts a fresh fade.',
+      'Ramps from Fade start volume to the scheduled target over this time. Snooze/re-ring starts a fresh fade.',
     ));
 
     const preview = node('div', 'alarm-preview-row');
@@ -690,7 +746,11 @@
           tone_id: model.defaults.tone_id,
           fallback_tone_id: model.defaults.fallback_tone_id,
         },
-        volume: { start_percent: 0, target_percent: 85, fade_seconds: 10 },
+        volume: {
+          start_percent: clamp(model.defaults.start_percent, 10, 0, 100),
+          target_percent: 85,
+          fade_seconds: 10,
+        },
       };
       model.alarms.push(alarm);
       expandedAlarmIds.add(alarm.id);
@@ -705,6 +765,7 @@
 
   function validatedModel() {
     const ids = new Set();
+    model.defaults.start_percent = clamp(model.defaults.start_percent, 10, 0, 100);
     model.alarms.forEach((alarm) => {
       alarm.label = String(alarm.label || '').trim();
       if (!alarm.label) throw new Error('Every alarm needs a label.');
@@ -713,7 +774,11 @@
       if (ids.has(alarm.id)) throw new Error(`Duplicate alarm ID: ${alarm.id}.`);
       ids.add(alarm.id);
       if (!toneById(alarm.source.tone_id)) throw new Error(`${alarm.label} has an unknown tone.`);
-      alarm.volume.start_percent = 0;
+      alarm.volume.target_percent = clamp(alarm.volume.target_percent, 85, 0, 100);
+      alarm.volume.start_percent = Math.min(
+        clamp(alarm.volume.start_percent, model.defaults.start_percent, 0, 100),
+        alarm.volume.target_percent,
+      );
     });
     return clone(model);
   }
