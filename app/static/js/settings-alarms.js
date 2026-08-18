@@ -9,6 +9,7 @@
   const SNOOZE_PRESETS = [5, 8, 10, 15, 20, 25, 30];
   const RING_PRESETS = [1, 2, 3, 5, 10];
   const EXPIRY_PRESETS = [30, 60, 120, 180, 240, 360];
+  const FADE_PRESETS = [0, 5, 10, 20, 30, 60];
   const SAFE_PREVIEW_VOLUME_PERCENT = 15;
   const SAFE_PREVIEW_GAIN = SAFE_PREVIEW_VOLUME_PERCENT / 100;
 
@@ -554,6 +555,27 @@
     );
     soundGrid.appendChild(volumeLabel);
 
+    const savedFade = clamp(alarm.volume.fade_seconds, 10, 0, 300);
+    const fadeValues = FADE_PRESETS.includes(savedFade)
+      ? FADE_PRESETS
+      : [...FADE_PRESETS, savedFade].sort((left, right) => left - right);
+    const fade = select(fadeValues, savedFade, (value) => {
+      const seconds = Number(value);
+      if (seconds === 0) return 'Off — start at target';
+      if (seconds === 60) return '1 minute';
+      return `${seconds} seconds`;
+    });
+    fade.addEventListener('change', () => {
+      alarm.volume.fade_seconds = Number(fade.value);
+      alarm.volume.start_percent = 0;
+      markDirty();
+    });
+    soundGrid.appendChild(field(
+      'Fade in',
+      fade,
+      'Starts from silence and reaches the scheduled target over this time. Snooze/re-ring starts a fresh fade.',
+    ));
+
     const preview = node('div', 'alarm-preview-row');
     const previewCopy = node('div');
     previewCopy.append(
@@ -668,7 +690,7 @@
           tone_id: model.defaults.tone_id,
           fallback_tone_id: model.defaults.fallback_tone_id,
         },
-        volume: { start_percent: 60, target_percent: 85, fade_seconds: 10 },
+        volume: { start_percent: 0, target_percent: 85, fade_seconds: 10 },
       };
       model.alarms.push(alarm);
       expandedAlarmIds.add(alarm.id);
@@ -691,6 +713,7 @@
       if (ids.has(alarm.id)) throw new Error(`Duplicate alarm ID: ${alarm.id}.`);
       ids.add(alarm.id);
       if (!toneById(alarm.source.tone_id)) throw new Error(`${alarm.label} has an unknown tone.`);
+      alarm.volume.start_percent = 0;
     });
     return clone(model);
   }
