@@ -126,10 +126,10 @@ def augment_derived_rain(
     """Add WU-compatible Hourly/Event rain while retaining a small persisted state.
 
     WU provides rain rate and the station's running daily total but not Ecowitt's
-    Hourly Rain or Event Rain fields.  Successive daily totals provide rainfall
-    increments.  Hourly Rain is the trailing 60-minute sum.  Event Rain follows
-    Ecowitt's reset semantics: reset only when the trailing hour is dry and the
-    preceding 24 hours contain less than 1 mm of rain.
+    Hourly Rain or Event Rain fields. Successive daily totals provide rainfall
+    increments. Hourly Rain is the trailing 60-minute sum. Event Rain follows
+    Ecowitt's reset semantics: reset only when the trailing hour is dry, current
+    rain rate is zero and the preceding 24 hours contain less than 1 mm of rain.
 
     Native ``hourlyrainin``/``eventrainin`` values are never replaced.
     """
@@ -150,11 +150,12 @@ def augment_derived_rain(
     previous_date = str(model.get("last_date") or "")
     today = now.date().isoformat()
     event_total = _number(model.get("event_total_in")) or 0.0
+    current_rate = _number(result.get("rainratein")) or 0.0
 
     baseline_amount = _number(model.get("baseline_amount_in")) or 0.0
     baseline_at = _parse_time(model.get("baseline_at"))
     if previous_daily is None:
-        # First observation cannot reveal when today's earlier rain fell.  Keep
+        # First observation cannot reveal when today's earlier rain fell. Keep
         # it as an event/24h baseline without pretending it all fell this hour.
         baseline_amount = daily
         baseline_at = now if daily > RAIN_EPSILON_IN else None
@@ -194,7 +195,11 @@ def augment_derived_rain(
         baseline_amount = 0.0
         baseline_at = None
 
-    if hourly <= RAIN_EPSILON_IN and rolling_24h < RAIN_EVENT_RESET_IN:
+    if (
+        current_rate <= RAIN_EPSILON_IN
+        and hourly <= RAIN_EPSILON_IN
+        and rolling_24h < RAIN_EVENT_RESET_IN
+    ):
         event_total = 0.0
 
     state["weather_rain_derived"] = {
