@@ -39,15 +39,17 @@
             </thead>
             <tbody>
               {% for row in weather_detail.condition_rows %}
-                <tr>
-                  <th scope="row">{{ row.location }}</th>
-                  <td>{{ row.temperature.current }}</td>
-                  <td>{{ row.temperature.min }}</td>
-                  <td>{{ row.temperature.max }}</td>
-                  <td>{{ row.humidity.current }}</td>
-                  <td>{{ row.humidity.min }}</td>
-                  <td>{{ row.humidity.max }}</td>
-                </tr>
+                {% if row.location != 'Indoor' or row.temperature.current != '—' or row.humidity.current != '—' %}
+                  <tr>
+                    <th scope="row">{{ row.location }}</th>
+                    <td>{{ row.temperature.current }}</td>
+                    <td>{{ row.temperature.min }}</td>
+                    <td>{{ row.temperature.max }}</td>
+                    <td>{{ row.humidity.current }}</td>
+                    <td>{{ row.humidity.min }}</td>
+                    <td>{{ row.humidity.max }}</td>
+                  </tr>
+                {% endif %}
               {% endfor %}
             </tbody>
           </table>
@@ -135,10 +137,10 @@
 
       <article class="detail-panel rain-panel">
         <h2>Rain</h2>
-        <div class="rain-sections">
-          <section class="rain-subpanel">
-            <h3>Mostly Moist Today</h3>
-            {% if weather_detail.rain_today_gauges %}
+        <div class="rain-overview-scroll" aria-label="Current and historical rainfall summaries">
+          {% if weather_detail.rain_today_gauges %}
+            <section class="rain-subpanel rain-current-subpanel">
+              <h3>Mostly Moist Today</h3>
               <div class="rain-gauge-row compact-gauges">
                 {% for gauge in weather_detail.rain_today_gauges %}
                   <div class="rain-gauge-card">
@@ -153,13 +155,13 @@
                   </div>
                 {% endfor %}
               </div>
-            {% endif %}
-          </section>
+            </section>
+          {% endif %}
 
-          <section class="rain-subpanel">
-            <h3>Rainy Day Fund</h3>
-            {% if weather_detail.rain_longer_gauges %}
-              <div class="rain-gauge-row rain-history-scroll" aria-label="Rainfall history summaries">
+          {% if weather_detail.rain_longer_gauges %}
+            <section class="rain-subpanel rain-history-subpanel">
+              <h3>Rainy Day Fund</h3>
+              <div class="rain-gauge-row">
                 {% for gauge in weather_detail.rain_longer_gauges %}
                   <div class="rain-gauge-card">
                     <div class="rain-gauge" aria-hidden="true">
@@ -176,8 +178,8 @@
                   </div>
                 {% endfor %}
               </div>
-            {% endif %}
-          </section>
+            </section>
+          {% endif %}
         </div>
       </article>
 
