@@ -38,6 +38,8 @@ jobs:
             app/shairport_session.py \
             app/shairport_name.py \
             app/settings_unified.py \
+            app/settings_unified_scheduled.py \
+            app/settings_weather_rainfall.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
             app/alarm_runtime.py \
@@ -60,6 +62,7 @@ jobs:
           node --check app/static/js/settings-keyboard.js
           node --check app/static/js/settings-about.js
           node --check app/static/js/settings-clock-cards.js
+          node --check app/static/js/clock-dashboard.js
           node --check app/static/js/dashboard-preferences-bootstrap.js
           node --check app/static/js/audio-polish.js
           node --check app/static/js/audio-eq.js
