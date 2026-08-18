@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
+from pathlib import Path
 
 from flask import Flask
 
@@ -8,6 +11,9 @@ from app.weather_observation_store import (
     configured_observation_provider,
     promote_ecowitt_observation_store,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class _FakeDashboard:
@@ -50,6 +56,21 @@ class _FakeDashboard:
 
 
 class WeatherObservationSourceAuthorityTests(unittest.TestCase):
+    def test_direct_script_import_path_matches_systemd_runner(self) -> None:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.path.insert(0, 'app'); import weather_observation_store",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_provider_defaults_to_ecowitt_for_legacy_config(self) -> None:
         self.assertEqual(configured_observation_provider({}), "ecowitt_push")
         self.assertEqual(configured_observation_provider({"weather": {}}), "ecowitt_push")
