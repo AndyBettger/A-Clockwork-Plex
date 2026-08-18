@@ -43,6 +43,7 @@ _base.normalise_audio_settings = normalise_audio_settings
 _TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 _NIGHT_STYLES = {"classic", "astronomy"}
 _NIGHT_ACTIVE_STYLES = {"same", *_NIGHT_STYLES}
+_ALARM_INDICATOR_MODES = {"within_12h", "any_future"}
 _MAX_CLOCK_CARD_SLOTS = 8
 _CLOCK_CARD_SLOT_GROUPS = {
     "outdoor_temp": "temperature_summary",
@@ -69,6 +70,11 @@ def _night_style(value: Any, fallback: str, *, active: bool = False) -> str:
     allowed = _NIGHT_ACTIVE_STYLES if active else _NIGHT_STYLES
     candidate = str(value if value is not None else fallback).strip().lower()
     return candidate if candidate in allowed else fallback
+
+
+def _alarm_indicator_mode(value: Any, fallback: str = "within_12h") -> str:
+    candidate = str(value if value is not None else fallback).strip().lower()
+    return candidate if candidate in _ALARM_INDICATOR_MODES else fallback
 
 
 def _clock_card_slot_count(values: Any) -> int:
@@ -111,6 +117,9 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
         display = settings.setdefault("display", {})
         display.update(
             {
+                "alarm_indicator_mode": _alarm_indicator_mode(
+                    dashboard.get("alarm_indicator_mode"), "within_12h"
+                ),
                 "night_dim_enabled": _base._boolean(
                     dashboard.get("night_dim_enabled"), False
                 ),
@@ -161,6 +170,12 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
         dashboard = config.setdefault("dashboard", {})
         dashboard.update(
             {
+                "alarm_indicator_mode": _alarm_indicator_mode(
+                    source.get("alarm_indicator_mode"),
+                    _alarm_indicator_mode(
+                        dashboard.get("alarm_indicator_mode"), "within_12h"
+                    ),
+                ),
                 "night_dim_enabled": _base._boolean(
                     source.get("night_dim_enabled"),
                     _base._boolean(dashboard.get("night_dim_enabled"), False),
