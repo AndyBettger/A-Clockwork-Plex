@@ -26,6 +26,7 @@ DEFAULT_ALARM_DEFAULTS: dict[str, Any] = {
     "tone_id": "classic-klaxon",
     "fallback_tone_id": "emergency-buzzer",
     "source_type": "tone",
+    "start_percent": 10,
 }
 
 
@@ -142,6 +143,7 @@ def _normalise_defaults(raw: Any, manifest: dict[str, Any]) -> dict[str, Any]:
         "tone_id": default_tone,
         "fallback_tone_id": fallback_tone,
         "source_type": "tone",
+        "start_percent": _clamp_int(source.get("start_percent"), 10, 0, 100),
     }
 
 
@@ -187,6 +189,11 @@ def _normalise_alarm(
         fallback_tone_id = defaults["fallback_tone_id"]
 
     volume = source.get("volume") if isinstance(source.get("volume"), dict) else {}
+    target_percent = _clamp_int(volume.get("target_percent"), 85, 0, 100)
+    start_percent = min(
+        target_percent,
+        _clamp_int(volume.get("start_percent"), defaults["start_percent"], 0, 100),
+    )
     return {
         "id": alarm_id,
         "enabled": bool(source.get("enabled", False)),
@@ -204,8 +211,8 @@ def _normalise_alarm(
             "fallback_tone_id": fallback_tone_id,
         },
         "volume": {
-            "start_percent": _clamp_int(volume.get("start_percent"), 0, 0, 100),
-            "target_percent": _clamp_int(volume.get("target_percent"), 85, 0, 100),
+            "start_percent": start_percent,
+            "target_percent": target_percent,
             "fade_seconds": _clamp_int(volume.get("fade_seconds"), 10, 0, 300),
         },
     }
@@ -237,7 +244,11 @@ def normalise_alarm_config(raw: Any, manifest: dict[str, Any], *, prefer_legacy:
                     "tone_id": defaults["tone_id"],
                     "fallback_tone_id": defaults["fallback_tone_id"],
                 },
-                "volume": {"start_percent": 0, "target_percent": 85, "fade_seconds": 10},
+                "volume": {
+                    "start_percent": defaults["start_percent"],
+                    "target_percent": 85,
+                    "fade_seconds": 10,
+                },
             }
         ]
 
