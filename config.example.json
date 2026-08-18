@@ -6,6 +6,7 @@
     "startup_mode": "clock",
     "idle_return_mode": "clock",
     "clock_format": "24h",
+    "alarm_indicator_mode": "within_12h",
     "idle_timeout_seconds": 180,
     "transition_style": "grow-fade",
     "transition_duration_ms": 300,
@@ -99,7 +100,8 @@
       "occurrence_expiry_minutes": 120,
       "tone_id": "classic-klaxon",
       "fallback_tone_id": "emergency-buzzer",
-      "source_type": "tone"
+      "source_type": "tone",
+      "start_percent": 10
     },
     "alarms": [
       {
@@ -125,7 +127,7 @@
           "fallback_tone_id": "emergency-buzzer"
         },
         "volume": {
-          "start_percent": 60,
+          "start_percent": 10,
           "target_percent": 85,
           "fade_seconds": 10
         }
