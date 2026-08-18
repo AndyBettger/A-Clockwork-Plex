@@ -28,7 +28,7 @@ class FakeDashboard:
         self.saved = None
 
     def load_config(self):
-        return {"weather": {"provider": "weather_underground"}}
+        return {"weather": {"provider": "ecowitt_push"}}
 
     def load_state(self, config):
         return dict(self.state)
