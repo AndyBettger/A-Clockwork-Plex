@@ -3,7 +3,7 @@
     return;
   }
 
-  const strip = document.querySelector('.rain-history-scroll');
+  const strip = document.querySelector('.rain-overview-scroll');
   if (!strip || document.querySelector('[data-rain-history-scrollbar]')) {
     return;
   }
@@ -12,14 +12,14 @@
   const trackInset = 1;
 
   if (!strip.id) {
-    strip.id = 'rain-history-scroll';
+    strip.id = 'rain-overview-scroll';
   }
 
   const rail = document.createElement('div');
   rail.className = 'weather-forecast-scrollbar rain-history-scrollbar';
   rail.dataset.rainHistoryScrollbar = '';
   rail.setAttribute('role', 'scrollbar');
-  rail.setAttribute('aria-label', 'Rainy Day Fund horizontal scroll');
+  rail.setAttribute('aria-label', 'Rainfall summaries horizontal scroll');
   rail.setAttribute('aria-controls', strip.id);
   rail.setAttribute('aria-orientation', 'horizontal');
   rail.tabIndex = 0;
