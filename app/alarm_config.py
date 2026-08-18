@@ -204,7 +204,7 @@ def _normalise_alarm(
             "fallback_tone_id": fallback_tone_id,
         },
         "volume": {
-            "start_percent": _clamp_int(volume.get("start_percent"), 60, 0, 100),
+            "start_percent": _clamp_int(volume.get("start_percent"), 0, 0, 100),
             "target_percent": _clamp_int(volume.get("target_percent"), 85, 0, 100),
             "fade_seconds": _clamp_int(volume.get("fade_seconds"), 10, 0, 300),
         },
@@ -237,7 +237,7 @@ def normalise_alarm_config(raw: Any, manifest: dict[str, Any], *, prefer_legacy:
                     "tone_id": defaults["tone_id"],
                     "fallback_tone_id": defaults["fallback_tone_id"],
                 },
-                "volume": {"start_percent": 60, "target_percent": 85, "fade_seconds": 10},
+                "volume": {"start_percent": 0, "target_percent": 85, "fade_seconds": 10},
             }
         ]
 
