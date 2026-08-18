@@ -78,10 +78,15 @@ class WeatherObservationSourceAuthorityTests(unittest.TestCase):
         body = response.get_json()
         self.assertTrue(body["ok"])
         self.assertFalse(body["stored"])
+        self.assertTrue(body["supplemental_indoor_stored"])
         self.assertIn("weather_underground", body["message"])
-        self.assertEqual(dashboard.normalise_calls, 0)
-        self.assertEqual(dashboard.save_calls, 0)
-        self.assertEqual(dashboard.state["weather"], {"tempf": 61.0, "humidity": 70})
+        self.assertEqual(dashboard.normalise_calls, 1)
+        self.assertEqual(dashboard.save_calls, 1)
+        self.assertEqual(
+            dashboard.state["weather"],
+            {"tempf": 61.0, "humidity": 70, "tempinf": "71.0"},
+        )
+        self.assertIn("last_weather_indoor_update", dashboard.state)
 
     def test_ecowitt_selected_still_promotes_station_push(self) -> None:
         dashboard = _FakeDashboard("ecowitt_push")
