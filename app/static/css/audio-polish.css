@@ -1,5 +1,14 @@
 /* Motion and viewport constraints for the live Audio drawer. */
 
+/* Audio is injected as a native <button>, unlike the anchor-based navigation
+   entries. Restore the shared .button typography after nav.css's historical
+   font shorthand so Audio matches Clock/Weather/Plexamp/AirPlay/Settings. */
+.nav-audio-button {
+  font-family: inherit;
+  font-size: clamp(0.88rem, 2.05vmin, 1.05rem);
+  font-weight: 700;
+}
+
 .nav-drawer {
   transition:
     transform 260ms cubic-bezier(.2, .78, .2, 1),
