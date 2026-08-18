@@ -49,16 +49,23 @@ class AlarmAudioTests(unittest.TestCase):
         self.assertEqual(settings["test_volume_cap_percent"], 25)
         self.assertEqual(settings["alsa_device"], "hw:1,0")
 
-    def test_scheduled_fade_starts_from_silence_even_with_legacy_start(self):
+    def test_scheduled_fade_uses_configured_start_and_capped_target(self):
         start, target, fade = effective_scheduled_volume(
-            {"start_percent": 60, "target_percent": 85, "fade_seconds": 10},
+            {"start_percent": 10, "target_percent": 85, "fade_seconds": 10},
             70,
         )
-        self.assertEqual((start, target, fade), (0, 70, 10))
+        self.assertEqual((start, target, fade), (10, 70, 10))
+
+    def test_scheduled_start_is_clamped_to_effective_target(self):
+        start, target, fade = effective_scheduled_volume(
+            {"start_percent": 60, "target_percent": 85, "fade_seconds": 10},
+            40,
+        )
+        self.assertEqual((start, target, fade), (40, 40, 10))
 
     def test_scheduled_alarm_without_fade_starts_at_capped_target(self):
         start, target, fade = effective_scheduled_volume(
-            {"start_percent": 60, "target_percent": 85, "fade_seconds": 0},
+            {"start_percent": 10, "target_percent": 85, "fade_seconds": 0},
             70,
         )
         self.assertEqual((start, target, fade), (70, 70, 0))
