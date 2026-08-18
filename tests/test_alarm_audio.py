@@ -7,6 +7,7 @@ import wave
 from pathlib import Path
 
 from app.alarm_audio import AlarmAudioManager, normalise_audio_settings, render_tone_wav
+from app.alarm_audio_streaming import effective_scheduled_volume
 
 
 class StubbornProcess:
@@ -47,6 +48,20 @@ class AlarmAudioTests(unittest.TestCase):
         self.assertEqual(settings["test_duration_seconds"], 30)
         self.assertEqual(settings["test_volume_cap_percent"], 25)
         self.assertEqual(settings["alsa_device"], "hw:1,0")
+
+    def test_scheduled_fade_starts_from_silence_even_with_legacy_start(self):
+        start, target, fade = effective_scheduled_volume(
+            {"start_percent": 60, "target_percent": 85, "fade_seconds": 10},
+            70,
+        )
+        self.assertEqual((start, target, fade), (0, 70, 10))
+
+    def test_scheduled_alarm_without_fade_starts_at_capped_target(self):
+        start, target, fade = effective_scheduled_volume(
+            {"start_percent": 60, "target_percent": 85, "fade_seconds": 0},
+            70,
+        )
+        self.assertEqual((start, target, fade), (70, 70, 0))
 
     def test_renderer_creates_valid_stereo_wave_file(self):
         tone = {
