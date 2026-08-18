@@ -62,6 +62,7 @@ class AlarmConfigTests(unittest.TestCase):
         self.assertTrue(model["alarms"][0]["enabled"])
         self.assertEqual(model["alarms"][0]["time"], "07:45")
         self.assertEqual(model["alarms"][0]["snooze_minutes"], 8)
+        self.assertEqual(model["alarms"][0]["volume"]["start_percent"], 0)
 
     def test_explicit_empty_alarm_list_stays_empty(self):
         model = normalise_alarm_config({"defaults": {}, "alarms": []}, MANIFEST)
@@ -86,6 +87,11 @@ class AlarmConfigTests(unittest.TestCase):
         model = validate_submitted_alarm_config(payload, MANIFEST)
         self.assertEqual([alarm["id"] for alarm in model["alarms"]], ["weekday-alarm", "weekend-alarm"])
         self.assertEqual(model["alarms"][1]["source"]["tone_id"], "gentle-chime")
+
+    def test_missing_start_volume_defaults_to_silence(self):
+        payload = alarm_payload(volume={"target_percent": 85, "fade_seconds": 10})
+        alarm = validate_submitted_alarm_config(payload, MANIFEST)["alarms"][0]
+        self.assertEqual(alarm["volume"]["start_percent"], 0)
 
     def test_duplicate_ids_are_rejected(self):
         payload = alarm_payload()
