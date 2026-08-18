@@ -1,4 +1,49 @@
 (() => {
+  function installAlarmIndicatorControl() {
+    const clockFormat = document.getElementById('clock-format-setting');
+    const grid = clockFormat?.closest('.settings-grid');
+    if (!grid || grid.querySelector('[data-setting-path="display.alarm_indicator_mode"]')) {
+      return;
+    }
+
+    const field = document.createElement('label');
+    field.className = 'setting-field';
+
+    const label = document.createElement('span');
+    label.textContent = 'Alarm indicator';
+
+    const select = document.createElement('select');
+    select.dataset.settingPath = 'display.alarm_indicator_mode';
+    select.innerHTML = [
+      '<option value="within_12h">Next alarm within 12 hours</option>',
+      '<option value="any_future">Any future alarm</option>',
+    ].join('');
+
+    const help = document.createElement('small');
+    help.textContent = 'Controls when the LCD-style bell on the Clock is illuminated.';
+
+    field.append(label, select, help);
+    grid.appendChild(field);
+
+    const applyValue = (value) => {
+      if (value === 'any_future' || value === 'within_12h') {
+        select.value = value;
+      }
+    };
+
+    const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
+    applyValue(snapshot?.settings?.display?.alarm_indicator_mode);
+
+    if (!snapshot) {
+      fetch('/api/settings', { cache: 'no-store' })
+        .then((response) => response.ok ? response.json() : null)
+        .then((payload) => applyValue(payload?.settings?.display?.alarm_indicator_mode))
+        .catch(() => {});
+    }
+  }
+
+  installAlarmIndicatorControl();
+
   const root = document.querySelector('[data-clock-card-settings]');
   if (!root) {
     return;
