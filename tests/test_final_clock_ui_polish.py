@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
 import unittest
@@ -23,6 +24,43 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertIn("'0': ['a', 'b', 'c', 'd', 'e', 'f', 'i', 'j']", source)
         self.assertIn("W: ['b', 'c', 'e', 'f', 'j', 'k']", source)
         self.assertNotIn("W: ['b', 'c', 'd', 'e', 'f', 'j', 'k']", source)
+
+    def test_clock_alarm_annunciator_uses_scheduler_next_occurrence(self) -> None:
+        template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
+        client = (ROOT / "app/static/js/clock-dashboard.js").read_text(encoding="utf-8")
+        style = (ROOT / "app/static/css/clock-dashboard.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="clock-alarm-annunciator"', template)
+        self.assertIn('<svg viewBox="0 0 64 64"', template)
+        self.assertIn("ALARM_INDICATOR_WITHIN_MS = 12 * 60 * 60 * 1000", client)
+        self.assertIn("status?.alarm_scheduler?.next_occurrence", client)
+        self.assertIn("mode === 'any_future'", client)
+        self.assertIn("'within_12h'", client)
+        self.assertIn("bell.classList.toggle('is-active', state.active)", client)
+        self.assertIn(".clock-alarm-annunciator.is-active", style)
+        self.assertIn("color: var(--segment-on);", style)
+        self.assertIn("rgba(247, 249, 255, 0.055)", style)
+        self.assertIn("pointer-events: none;", style)
+
+    def test_clock_alarm_indicator_mode_is_a_unified_setting(self) -> None:
+        settings_client = (ROOT / "app/static/js/settings-clock-cards.js").read_text(
+            encoding="utf-8"
+        )
+        settings_backend = (ROOT / "app/settings_unified_scheduled.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("display.alarm_indicator_mode", settings_client)
+        self.assertIn("Next alarm within 12 hours", settings_client)
+        self.assertIn("Any future alarm", settings_client)
+        self.assertIn('_ALARM_INDICATOR_MODES = {"within_12h", "any_future"}', settings_backend)
+        self.assertIn('"alarm_indicator_mode": _alarm_indicator_mode(', settings_backend)
+
+    def test_fresh_config_uses_twelve_hour_indicator_and_ten_percent_alarm_start(self) -> None:
+        config = json.loads((ROOT / "config.example.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["dashboard"]["alarm_indicator_mode"], "within_12h")
+        self.assertEqual(config["alarm"]["defaults"]["start_percent"], 10)
+        self.assertEqual(config["alarm"]["alarms"][0]["volume"]["start_percent"], 10)
 
 
 if __name__ == "__main__":
