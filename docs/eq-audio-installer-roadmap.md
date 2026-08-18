@@ -93,7 +93,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: functional reboot + lower-level repeat install now pass; final weather/alarm polish, final public clean-room install, verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional reboot + lower-level repeat install now pass; final weather/alarm + Clock/UI polish, final public clean-room install, verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -133,6 +133,16 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [ ] Repair alarm fade semantics so the selected target/Maximum Alarm Volume cannot collapse the fade to a constant level; add deterministic source tests and physically confirm one fade + snooze/re-ring cycle.
 - [ ] Update `INSTALL.md`/README weather guidance with the single Ecowitt custom destination limitation and the WU multi-appliance trade-off.
 - [ ] Close the current stale weather-source-authority test failure and return the full branch CI to green.
+
+#### Final Clock/navigation polish — after current Weather/alarm acceptance
+
+- [x] **Source:** make the injected Audio navigation button use the same application font size/weight as Clock, Weather, Plexamp, AirPlay and Settings; regression coverage added.
+- [x] **Source:** correct the 14-segment glyph map so numeric `0` lights the bottom-left → top-right slash diagonals while capital `O` remains unslashed, and remove the bottom horizontal segment from `W`; regression coverage added.
+- [ ] **Physical:** confirm the corrected Audio button typography and `0`/`W` segment shapes on the bedside display after the current Weather/alarm source batch is pulled.
+- [ ] Add an LCD-style **alarm set** indicator to the Clock page, positioned in a top corner and visually integrated with the 14-segment display rather than looking like a generic web icon.
+- [ ] Alarm indicator presentation: use a simple bell SVG derived from the supplied visual reference, treat it like an LCD annunciator with a faint unlit state and a restrained lit glow/brightness rather than full clock-white, and size it at roughly 60% of the large Clock seconds height subject to physical visual tuning.
+- [ ] Add a user-facing alarm-indicator mode with at least **Any future scheduled occurrence** and **Next occurrence within 12 hours** behaviours; the indicator must follow the scheduler's actual next-occurrence authority rather than merely checking whether an alarm definition exists.
+- [ ] Ensure the annunciator respects Classic/Astronomy night treatment, dimming/burn-in presentation and 1024×600/1280-class Clock layouts without colliding with the main time/date/weather cards.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
@@ -180,7 +190,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] **Fresh-install scheduled-alarm functional acceptance:** with Plexamp playing, a real scheduled alarm paused/took over Plexamp, Snooze worked, the alarm re-rang, and Dismiss completed cleanly. Per-alarm target and Maximum Alarm Volume cap were observed; fade behaviour exposed the remaining hidden-start-level issue tracked above.
 - [x] **Lower-level repeat-install acceptance:** rerunning `install.sh` against the already-installed appliance without pulling new source completed without warnings/errors, requested no reboot and left dashboard/EQ behaviour unchanged.
 - [ ] Run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
-- [ ] After Weather/alarm polish and installer/docs settle, wipe the spare SD once more and perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through claim, Plexamp GUI commissioning, WU configuration, playback/EQ/AirPlay/NFC/alarm and reboot.
+- [ ] After Weather/alarm/Clock UI polish and installer/docs settle, wipe the spare SD once more and perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through claim, Plexamp GUI commissioning, WU configuration, playback/EQ/AirPlay/NFC/alarm and reboot.
 - [ ] Rerun the final public `setup.sh` on that installed card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
 - [ ] Commit/finalize the final clean-room/reboot/repeat physical result/evidence documents; only then close Phase 7.
 
@@ -194,7 +204,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [ ] Run a final tracked-file/install-dependency audit so every file required by `setup.sh`/`install.sh` is present after cleanup and no retained file exists merely because it was used by an obsolete physical experiment.
 - [ ] Get the complete validation suite green after cleanup; PR #2 remains Draft until all release-hygiene and final physical gates are complete and owner approval is explicit.
 
-**Phase 7 exit condition:** the spare-SD appliance passes Direct construction + focused smoke → EQ → post-EQ physical regression → functional/formal reboot → final public `setup.sh` clean-room install and repeat-install, with final Weather/alarm polish accepted, `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable, release hygiene/README complete and dated evidence committed. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** the spare-SD appliance passes Direct construction + focused smoke → EQ → post-EQ physical regression → functional/formal reboot → final public `setup.sh` clean-room install and repeat-install, with final Weather/alarm/Clock UI polish accepted, `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable, release hygiene/README complete and dated evidence committed. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
@@ -229,6 +239,6 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#33 — focused Direct pre-EQ smoke + UI/runtime hygiene — PASS (physical/source).** On the verified Direct spare card, Plexamp playback remained healthy, a known NFC tag triggered local playback and the Plexamp dashboard state, and both EQ surfaces truthfully showed **Install required**. The Master equaliser status is now styled with the same explicit bordered pill treatment, and `weather-rainfall-lifetime.json` is ignored as runtime state. Full Direct AirPlay/alarm replay is intentionally deferred to the post-EQ regression where it can validate the new route.
 - **#34 — guarded persistent EQ promotion — PASS (physical).** On `plexamp-test`, the fresh-bootstrap EQ apply committed cleanly from the physically accepted alarm-safe Direct state. Root/application transactions and all three independent verifiers passed; the active route matched the canonical split-bus SHA, the installed marker and loopback identity were correct, Plexamp audio/EQ were physically working, and `a-clockwork-plex-camilladsp.service` was active/enabled/running. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
 - **#35 — focused post-EQ regression — PASS (physical).** Plexamp and AirPlay both passed through the installed EQ path with working EQ/bypass; Music Master 0% silenced music without silencing a real alarm; Maximum Alarm Volume remained independent; Snooze/re-ring/Dismiss and NFC playback/dashboard/debounce all passed with no issues found. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- **#36 — first complete operator INSTALL walkthrough + functional reboot/repeat-install/alarm closure — PARTIAL PASS (physical, 18 August).** A freshly prepared spare SD completed the then-current `INSTALL.md` path and produced a working dashboard with WU observations, Plexamp through EQ, AirPlay through EQ and NFC. A full reboot preserved normal behaviour. A real scheduled alarm paused Plexamp, took audio ownership, Snoozed/re-rang and Dismissed successfully. A same-source `install.sh` rerun completed without warnings/errors or reboot request and left dashboard/EQ unchanged. Remaining from this checkpoint: fix the discovered alarm-fade semantics and WU rain/optional-indoor presentation, capture formal post-reboot verifiers, then perform one final wiped-SD run of the **new** public `setup.sh` path (including integrated CamillaDSP acquisition and automatic Plexamp claim launch) plus a repeat `setup.sh` idempotence pass.
+- **#36 — first complete operator INSTALL walkthrough + functional reboot/repeat-install/alarm closure — PARTIAL PASS (physical, 18 August).** A freshly prepared spare SD completed the then-current `INSTALL.md` path and produced a working dashboard with WU observations, Plexamp through EQ, AirPlay through EQ and NFC. A full reboot preserved normal behaviour. A real scheduled alarm paused Plexamp, took audio ownership, Snoozed/re-rang and Dismissed successfully. A same-source `install.sh` rerun completed without warnings/errors or reboot request and left dashboard/EQ unchanged. Remaining from this checkpoint: fix the discovered alarm-fade semantics and WU rain/optional-indoor presentation, complete the final Clock/navigation polish, capture formal post-reboot verifiers, then perform one final wiped-SD run of the **new** public `setup.sh` path (including integrated CamillaDSP acquisition and automatic Plexamp claim launch) plus a repeat `setup.sh` idempotence pass.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS does not substitute for remaining physical acceptance.
