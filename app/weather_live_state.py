@@ -98,6 +98,53 @@ def weather_underground_station_id(config: dict[str, Any] | Any) -> str:
     return str(wunderground.get("station_id") or "").strip().upper()
 
 
+def augment_daily_max_gust(
+    state: dict[str, Any],
+    weather: dict[str, Any],
+    now: datetime,
+    *,
+    station_id: str = "",
+) -> dict[str, Any]:
+    """Add a WU-compatible daily maximum gust from successive current gusts.
+
+    Ecowitt may provide ``maxdailygust`` directly, while WU current observations
+    expose only ``windgustmph``. The locally derived value is scoped to the WU
+    station and local calendar day, survives dashboard restarts, and never
+    replaces a native provider value.
+    """
+
+    result = dict(weather)
+    native_max = _number(result.get("maxdailygust"))
+    current_gust = _number(result.get("windgustmph"))
+    if native_max is not None:
+        return result
+    if current_gust is None:
+        return result
+
+    requested_station = str(station_id or "").strip().upper()
+    today = now.date().isoformat()
+    raw_state = state.get("weather_daily_max_gust")
+    model = dict(raw_state) if isinstance(raw_state, dict) else {}
+    previous_station = str(model.get("station_id") or "").strip().upper()
+    previous_date = str(model.get("date") or "")
+    previous_max = _number(model.get("max_gust_mph"))
+
+    if previous_date != today or (
+        previous_station and requested_station and previous_station != requested_station
+    ):
+        previous_max = None
+
+    maximum = current_gust if previous_max is None else max(previous_max, current_gust)
+    state["weather_daily_max_gust"] = {
+        "station_id": requested_station,
+        "date": today,
+        "max_gust_mph": round(maximum, 3),
+        "updated_at": _iso(now),
+    }
+    result["maxdailygust"] = round(maximum, 3)
+    return result
+
+
 def _clean_increments(raw: Any, now: datetime) -> list[dict[str, Any]]:
     cutoff = now - timedelta(hours=24)
     increments: list[dict[str, Any]] = []
