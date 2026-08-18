@@ -48,6 +48,15 @@
 {%- endmacro %}
 
 <section class="hero clock-hero">
+  <div class="clock-alarm-annunciator" id="clock-alarm-annunciator" role="img" aria-label="Alarm indicator inactive" data-active="false" data-mode="within_12h">
+    <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <g class="clock-alarm-annunciator-glyph" transform="rotate(-10 32 32)">
+        <path class="clock-alarm-annunciator-rays" d="M15 16 10 11 M11 29 5 29 M49 17 55 13" />
+        <path class="clock-alarm-annunciator-bell" d="M32 10c-1.9 0-3.4 1.3-3.7 3.2-7 1.6-11.7 7.6-11.7 15.2v5.1c0 4.8-1.6 8.5-5 11.7-1.3 1.2-.4 3.4 1.4 3.4h38c1.8 0 2.7-2.2 1.4-3.4-3.4-3.2-5-6.9-5-11.7v-5.1c0-7.6-4.7-13.6-11.7-15.2C35.4 11.3 33.9 10 32 10Z" />
+        <path class="clock-alarm-annunciator-bell" d="M25.2 51.2c1.2 4 3.6 6 6.8 6s5.6-2 6.8-6H25.2Z" />
+      </g>
+    </svg>
+  </div>
   <div class="time is-alpha-clock" id="clock-time" aria-label="Current time" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}">
     <span class="digital-group" id="clock-hours"></span>
     <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
