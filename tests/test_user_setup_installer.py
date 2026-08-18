@@ -40,12 +40,15 @@ class UserSetupInstallerTests(unittest.TestCase):
         self.assertNotIn("PLEX_CLAIM_TOKEN", text)
         self.assertNotIn("PLEX_CLAIM_CODE", text)
 
-    def test_install_guide_will_use_user_setup_entrypoint(self) -> None:
-        # This contract becomes fully active with the paired INSTALL.md update.
-        # Keeping it here prevents the guide from drifting back to a hand-built
-        # Camilla/session-variable flow once that update lands.
+    def test_install_guide_uses_one_command_setup_and_commissioning_contract(self) -> None:
         text = INSTALL_GUIDE.read_text(encoding="utf-8")
-        self.assertIn("A Clockwork Plex", text)
+        self.assertIn("bash setup.sh", text)
+        self.assertNotIn('CAMILLA_BINARY="$HOME/', text)
+        self.assertIn("automatically launches the installed Plexamp Headless process", text)
+        self.assertIn("A Clockwork Plex - Plexamp", text)
+        self.assertIn("Follows system output", text)
+        self.assertIn("password manager", text)
+        self.assertIn("station ID and API key", text)
 
 
 if __name__ == "__main__":
