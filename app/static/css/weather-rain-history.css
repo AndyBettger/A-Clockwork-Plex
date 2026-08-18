@@ -1,17 +1,11 @@
-/* Rainy Day Fund history strip. Keep the weather panel compact while allowing
-   current/previous calendar summaries plus the calculated recorded total. */
-.rain-sections > .rain-subpanel:last-child {
+/* Current rain + Rainy Day Fund share one horizontally scrollable surface.
+   The two subpanels remain visually distinct, while one forecast-style custom
+   rail moves the whole rain row together. */
+.rain-overview-scroll {
   display: flex;
-  min-height: 0;
-  flex-direction: column;
-}
-
-.rain-history-scroll {
-  display: flex;
-  flex: 1 1 auto;
   align-items: stretch;
-  gap: clamp(7px, 1.2vmin, 10px);
-  min-height: 0;
+  gap: clamp(8px, 1.4vmin, 14px);
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 1px 2px;
@@ -25,10 +19,41 @@
 /* Chromium's native horizontal scrollbar has arrow buttons and different
    geometry from the forecast controls. Hide it and use the same custom
    rail/thumb treatment as the forecast strips instead. */
-.rain-history-scroll::-webkit-scrollbar {
+.rain-overview-scroll::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
+}
+
+.rain-overview-scroll .rain-subpanel {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  flex-direction: column;
+  scroll-snap-align: start;
+}
+
+.rain-overview-scroll .rain-subpanel h3 {
+  flex: 0 0 auto;
+}
+
+.rain-overview-scroll .rain-gauge-row {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  width: max-content;
+  gap: clamp(7px, 1.2vmin, 10px);
+}
+
+.rain-overview-scroll .rain-gauge-card {
+  flex: 0 0 clamp(150px, 21vw, 190px);
+  align-self: stretch;
+  min-height: clamp(104px, 18vmin, 138px);
+}
+
+.rain-overview-scroll .rain-gauge {
+  height: 100%;
+  min-height: clamp(88px, 15vmin, 118px);
 }
 
 .weather-forecast-scrollbar.rain-history-scrollbar {
@@ -36,18 +61,7 @@
   margin-top: clamp(4px, 0.7vmin, 6px);
 }
 
-.rain-history-scroll .rain-gauge-card {
-  flex: 0 0 clamp(150px, 46%, 190px);
-  align-self: stretch;
-  min-height: 0;
-  scroll-snap-align: start;
-}
-
-.rain-history-scroll .rain-gauge {
-  min-height: 100%;
-}
-
-.rain-history-scroll .rain-coverage-note {
+.rain-overview-scroll .rain-coverage-note {
   margin-top: 4px;
   color: var(--accent);
   letter-spacing: 0.01em;
@@ -55,7 +69,7 @@
 }
 
 @media (max-width: 720px) {
-  .rain-history-scroll .rain-gauge-card {
-    flex-basis: clamp(150px, 54%, 190px);
+  .rain-overview-scroll .rain-gauge-card {
+    flex-basis: clamp(145px, 42vw, 180px);
   }
 }
