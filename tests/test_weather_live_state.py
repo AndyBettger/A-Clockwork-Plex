@@ -4,6 +4,7 @@ import unittest
 from datetime import datetime, timedelta
 
 from app.weather_live_state import (
+    augment_daily_max_gust,
     augment_derived_rain,
     fresh_supplemental_indoor,
     update_supplemental_indoor_state,
@@ -28,6 +29,68 @@ class WeatherLiveStateTests(unittest.TestCase):
             fresh_supplemental_indoor(state, now + timedelta(seconds=181), fresh_seconds=180),
             {},
         )
+
+    def test_wu_daily_max_gust_tracks_highest_current_gust(self):
+        state = {}
+        start = datetime(2026, 8, 18, 12, 0, 0)
+
+        first = augment_daily_max_gust(
+            state,
+            {"windgustmph": 7.2},
+            start,
+            station_id="ITEST1",
+        )
+        self.assertEqual(first["maxdailygust"], 7.2)
+
+        peak = augment_daily_max_gust(
+            state,
+            {"windgustmph": 14.8},
+            start + timedelta(minutes=10),
+            station_id="ITEST1",
+        )
+        self.assertEqual(peak["maxdailygust"], 14.8)
+
+        later = augment_daily_max_gust(
+            state,
+            {"windgustmph": 9.0},
+            start + timedelta(minutes=20),
+            station_id="ITEST1",
+        )
+        self.assertEqual(later["maxdailygust"], 14.8)
+        self.assertEqual(state["weather_daily_max_gust"]["max_gust_mph"], 14.8)
+
+    def test_wu_daily_max_gust_resets_for_new_day_or_station(self):
+        state = {}
+        start = datetime(2026, 8, 18, 23, 55, 0)
+        augment_daily_max_gust(state, {"windgustmph": 18.0}, start, station_id="OLD")
+
+        next_day = augment_daily_max_gust(
+            state,
+            {"windgustmph": 4.0},
+            datetime(2026, 8, 19, 0, 5, 0),
+            station_id="OLD",
+        )
+        self.assertEqual(next_day["maxdailygust"], 4.0)
+
+        changed_station = augment_daily_max_gust(
+            state,
+            {"windgustmph": 3.0},
+            datetime(2026, 8, 19, 0, 10, 0),
+            station_id="NEW",
+        )
+        self.assertEqual(changed_station["maxdailygust"], 3.0)
+        self.assertEqual(state["weather_daily_max_gust"]["station_id"], "NEW")
+
+    def test_native_daily_max_gust_is_not_replaced(self):
+        state = {}
+        weather = augment_daily_max_gust(
+            state,
+            {"windgustmph": 9.0, "maxdailygust": 21.5},
+            datetime(2026, 8, 18, 12, 0, 0),
+            station_id="ITEST1",
+        )
+        self.assertEqual(weather["maxdailygust"], 21.5)
+        self.assertNotIn("weather_daily_max_gust", state)
 
     def test_hourly_and_event_rain_are_derived_from_successive_daily_totals(self):
         state = {}
