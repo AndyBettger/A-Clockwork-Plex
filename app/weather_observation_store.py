@@ -7,6 +7,7 @@ from flask import jsonify
 
 try:
     from .weather_live_state import (
+        augment_daily_max_gust,
         augment_derived_rain,
         extract_indoor_observation,
         fresh_supplemental_indoor,
@@ -16,6 +17,7 @@ try:
     )
 except ImportError:  # Supports direct execution through app/runner.py.
     from weather_live_state import (
+        augment_daily_max_gust,
         augment_derived_rain,
         extract_indoor_observation,
         fresh_supplemental_indoor,
@@ -79,7 +81,9 @@ def store_dashboard_observation(
 
     With WU selected, its observation remains authoritative for outdoor/current
     fields. Fresh Ecowitt indoor readings are merged only as supplementary data,
-    and locally derived Hourly/Event rain fills the two fields WU does not supply.
+    locally derived Hourly/Event rain fills the two rain fields WU does not
+    supply, and successive current gusts provide a station/day-scoped maximum
+    when WU has no native ``maxdailygust`` value.
     """
 
     clean = sanitise_weather_observation(payload)
@@ -89,11 +93,18 @@ def store_dashboard_observation(
     provider = configured_observation_provider(config)
 
     if provider == "weather_underground":
+        station_id = weather_underground_station_id(config)
         clean = augment_derived_rain(
             state,
             clean,
             now,
-            station_id=weather_underground_station_id(config),
+            station_id=station_id,
+        )
+        clean = augment_daily_max_gust(
+            state,
+            clean,
+            now,
+            station_id=station_id,
         )
         clean.update(
             fresh_supplemental_indoor(
