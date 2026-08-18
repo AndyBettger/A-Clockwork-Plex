@@ -37,11 +37,8 @@
 
 .clock-alarm-annunciator.is-active {
   color: var(--segment-on);
-  opacity: 0.96;
-  filter:
-    drop-shadow(0 0 4px currentColor)
-    drop-shadow(0 0 11px currentColor)
-    drop-shadow(0 0 20px currentColor);
+  opacity: 0.60;
+  filter: drop-shadow(0 0 2.8px currentColor);
 }
 
 .weather-grid {
