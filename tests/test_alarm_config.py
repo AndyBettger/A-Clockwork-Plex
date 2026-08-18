@@ -33,7 +33,7 @@ def alarm_payload(**overrides):
             "tone_id": "classic-klaxon",
             "fallback_tone_id": "emergency-buzzer",
         },
-        "volume": {"start_percent": 60, "target_percent": 85, "fade_seconds": 10},
+        "volume": {"start_percent": 10, "target_percent": 85, "fade_seconds": 10},
     }
     alarm.update(overrides)
     return {
@@ -45,6 +45,7 @@ def alarm_payload(**overrides):
             "tone_id": "classic-klaxon",
             "fallback_tone_id": "emergency-buzzer",
             "source_type": "tone",
+            "start_percent": 10,
         },
         "alarms": [alarm],
     }
@@ -62,12 +63,14 @@ class AlarmConfigTests(unittest.TestCase):
         self.assertTrue(model["alarms"][0]["enabled"])
         self.assertEqual(model["alarms"][0]["time"], "07:45")
         self.assertEqual(model["alarms"][0]["snooze_minutes"], 8)
-        self.assertEqual(model["alarms"][0]["volume"]["start_percent"], 0)
+        self.assertEqual(model["defaults"]["start_percent"], 10)
+        self.assertEqual(model["alarms"][0]["volume"]["start_percent"], 10)
 
     def test_explicit_empty_alarm_list_stays_empty(self):
         model = normalise_alarm_config({"defaults": {}, "alarms": []}, MANIFEST)
         self.assertEqual(model["alarms"], [])
         self.assertFalse(model["enabled"])
+        self.assertEqual(model["defaults"]["start_percent"], 10)
 
     def test_valid_multiple_alarm_payload_is_preserved(self):
         payload = alarm_payload()
@@ -88,10 +91,15 @@ class AlarmConfigTests(unittest.TestCase):
         self.assertEqual([alarm["id"] for alarm in model["alarms"]], ["weekday-alarm", "weekend-alarm"])
         self.assertEqual(model["alarms"][1]["source"]["tone_id"], "gentle-chime")
 
-    def test_missing_start_volume_defaults_to_silence(self):
+    def test_missing_start_volume_uses_configured_default(self):
         payload = alarm_payload(volume={"target_percent": 85, "fade_seconds": 10})
         alarm = validate_submitted_alarm_config(payload, MANIFEST)["alarms"][0]
-        self.assertEqual(alarm["volume"]["start_percent"], 0)
+        self.assertEqual(alarm["volume"]["start_percent"], 10)
+
+    def test_start_volume_cannot_exceed_target(self):
+        payload = alarm_payload(volume={"start_percent": 80, "target_percent": 30, "fade_seconds": 10})
+        alarm = validate_submitted_alarm_config(payload, MANIFEST)["alarms"][0]
+        self.assertEqual(alarm["volume"], {"start_percent": 30, "target_percent": 30, "fade_seconds": 10})
 
     def test_duplicate_ids_are_rejected(self):
         payload = alarm_payload()
