@@ -234,6 +234,8 @@ Use **Settings** in the dashboard for ordinary appliance configuration rather th
 
 For Ecowitt Push, point the station's custom-upload destination at the appliance's `/ecowitt` endpoint using the Pi's LAN address/hostname.
 
+On the validated Ecowitt setup, the station provides one custom-upload destination at a time. That makes direct Ecowitt Push ideal for the A Clockwork Plex appliance where local-only readings such as indoor temperature/humidity matter most, but it is not a practical way to feed several A Clockwork Plex appliances from the same station simultaneously. For multiple appliances, Weather Underground is the better shared live-observation source because each appliance can poll the same cloud-hosted PWS independently. An appliance that is also the Ecowitt custom-upload destination may additionally use fresh indoor readings when that feature is available.
+
 Weather Underground can be selected and commissioned from **Settings → Weather**. Its API key remains write-only managed secret material and should be entered through the Settings credential controls, never into `config.json`, shell history or repository files. VNC is very convenient here too: copy/paste the station ID and API key rather than retyping them.
 
 The same rule applies to other long commissioning values: use VNC/copy-paste where practical, but keep secrets in the UI or other intended secret-entry path rather than placing them in scripts or logs.
