@@ -5,14 +5,24 @@ from typing import Any, Callable
 
 from flask import jsonify
 
-from .weather_live_state import (
-    augment_derived_rain,
-    extract_indoor_observation,
-    fresh_supplemental_indoor,
-    indoor_fresh_seconds,
-    update_supplemental_indoor_state,
-    weather_underground_station_id,
-)
+try:
+    from .weather_live_state import (
+        augment_derived_rain,
+        extract_indoor_observation,
+        fresh_supplemental_indoor,
+        indoor_fresh_seconds,
+        update_supplemental_indoor_state,
+        weather_underground_station_id,
+    )
+except ImportError:  # Supports direct execution through app/runner.py.
+    from weather_live_state import (
+        augment_derived_rain,
+        extract_indoor_observation,
+        fresh_supplemental_indoor,
+        indoor_fresh_seconds,
+        update_supplemental_indoor_state,
+        weather_underground_station_id,
+    )
 
 
 SENSITIVE_WEATHER_KEYS = {"passkey", "password", "secret", "token", "api_key", "apikey"}
