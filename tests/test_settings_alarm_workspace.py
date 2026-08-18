@@ -136,15 +136,18 @@ class SettingsAlarmWorkspaceTests(unittest.TestCase):
         self.assertIn("Scheduled alarm target volume", text)
         self.assertIn("It never changes preview loudness", text)
 
-    def test_scheduled_fade_is_visible_and_starts_from_silence(self):
+    def test_scheduled_fade_exposes_default_and_per_alarm_start_volume(self):
         text = ALARM_EDITOR.read_text(encoding="utf-8")
         self.assertIn("const FADE_PRESETS = [0, 5, 10, 20, 30, 60]", text)
+        self.assertIn("Default fade start volume", text)
+        self.assertIn("Fade start volume", text)
         self.assertIn("'Fade in'", text)
         self.assertIn("Off — start at target", text)
-        self.assertIn("Starts from silence and reaches the scheduled target over this time", text)
+        self.assertIn("Ramps from Fade start volume to the scheduled target over this time", text)
         self.assertIn("Snooze/re-ring starts a fresh fade", text)
-        self.assertIn("volume: { start_percent: 0, target_percent: 85, fade_seconds: 10 }", text)
-        self.assertIn("alarm.volume.start_percent = 0", text)
+        self.assertIn("start_percent: clamp(model.defaults.start_percent, 10, 0, 100)", text)
+        self.assertIn("alarm.volume.start_percent = Math.min", text)
+        self.assertNotIn("alarm.volume.start_percent = 0", text)
 
     def test_preview_volume_is_fixed_and_separate_from_alarm_target(self):
         editor = ALARM_EDITOR.read_text(encoding="utf-8")
