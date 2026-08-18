@@ -28,6 +28,23 @@ def sanitise_weather_observation(payload: dict[str, Any]) -> dict[str, Any]:
     return clean
 
 
+def configured_observation_provider(config: dict[str, Any] | Any) -> str:
+    """Return the configured live-observation authority.
+
+    Ecowitt remains the compatibility default for older configuration files.
+    Supplemental providers such as Weather Underground history do not change
+    this value; only weather.provider owns the live observation projection.
+    """
+
+    if not isinstance(config, dict):
+        return "ecowitt_push"
+    weather = config.get("weather")
+    if not isinstance(weather, dict):
+        return "ecowitt_push"
+    provider = str(weather.get("provider") or "ecowitt_push").strip().lower()
+    return provider or "ecowitt_push"
+
+
 def store_dashboard_observation(
     dashboard: Any,
     payload: dict[str, Any],
@@ -36,10 +53,10 @@ def store_dashboard_observation(
 ) -> dict[str, Any]:
     """Persist one observation through the dashboard's established state model.
 
-    This is the single storage contract for remote polling and direct station
-    pushes. It owns current observation replacement, issue time, daily extremes
-    and pressure-history updates; provider code only maps upstream payloads into
-    the dashboard weather-key vocabulary.
+    This is the single storage contract for the selected remote poller or direct
+    station push. It owns current observation replacement, issue time, daily
+    extremes and pressure-history updates; provider code only maps upstream
+    payloads into the dashboard weather-key vocabulary.
     """
 
     clean = sanitise_weather_observation(payload)
@@ -58,8 +75,10 @@ def promote_ecowitt_observation_store(app: Any, dashboard: Any) -> None:
 
     dashboard_core owns the historical route declaration for compatibility, but
     app/runner.py is the production composition root. Replacing that endpoint's
-    view function here keeps its URL and response contract while ensuring both
-    Ecowitt push and Weather Underground polling reach the same state writer.
+    view function here keeps its URL and response contract while ensuring an
+    Ecowitt push can update current weather only while Ecowitt is the configured
+    live-observation authority. When Weather Underground is selected, station
+    pushes are still acknowledged with HTTP 200 but cannot overwrite WU state.
     """
 
     if "api_weather_ecowitt" not in app.view_functions:
@@ -68,6 +87,23 @@ def promote_ecowitt_observation_store(app: Any, dashboard: Any) -> None:
     def api_weather_ecowitt_shared():
         config = dashboard.load_config()
         state = dashboard.load_state(config)
+        provider = configured_observation_provider(config)
+
+        if provider != "ecowitt_push":
+            return jsonify(
+                {
+                    "ok": True,
+                    "stored": False,
+                    "received_fields": 0,
+                    "message": (
+                        "Ecowitt push acknowledged but not promoted because "
+                        f"the selected live weather provider is {provider}."
+                    ),
+                    "cached_fields": len(state.get("weather", {})),
+                    "last_weather_update": state.get("last_weather_update"),
+                }
+            )
+
         payload = dashboard.normalise_weather_payload()
         if payload:
             state = store_dashboard_observation(dashboard, payload)
