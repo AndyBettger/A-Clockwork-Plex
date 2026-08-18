@@ -45,8 +45,10 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertIn("bell.classList.toggle('is-active', state.active)", client)
         self.assertIn(".clock-alarm-annunciator.is-active", style)
         self.assertIn("color: var(--segment-on);", style)
-        self.assertIn("opacity: 0.96;", style)
-        self.assertIn("drop-shadow(0 0 4px currentColor)", style)
+        self.assertIn("opacity: 0.60;", style)
+        self.assertIn("drop-shadow(0 0 2.8px currentColor)", style)
+        self.assertNotIn("drop-shadow(0 0 11px currentColor)", style)
+        self.assertNotIn("drop-shadow(0 0 20px currentColor)", style)
         self.assertIn("rgba(247, 249, 255, 0.055)", style)
         self.assertIn("pointer-events: none;", style)
 
