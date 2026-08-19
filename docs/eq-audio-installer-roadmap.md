@@ -89,7 +89,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator work is physically accepted; V3 segment geometry is selected and source-pinned; installer naming is being closed under CI; daytime-theme presentation, final clean-room install, formal verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator work is physically accepted; V3 segment geometry and installer naming are source/CI complete; daytime-theme presentation, final clean-room install, formal verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -161,14 +161,14 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Independent temporary probe confirmed archive → executable identity; temporary probe workflow removed afterwards.
 - [x] Physical spare-card check returned `CAMILLA_ARTIFACT=PASS-EXISTING`; independent version/SHA matched accepted 4.1.3 exactly.
 
-#### Installer naming/release contract — source work complete, exact-head CI pending
+#### Installer naming/release contract — source/CI complete
 
 - [x] Keep the two real roles: human-facing `setup.sh` and guarded lower-level engine.
 - [x] Rename/retain the guarded engine unambiguously as `appliance-installer.sh`; `setup.sh` delegates to this file.
 - [x] Migrate maintained installer plan/apply/preflight/package/component/verifier tests from the old root name.
 - [x] Remove the stale root `install.sh` duplicate rather than shipping three apparent installer entry points.
 - [x] CI explicitly syntax-checks `setup.sh`, `appliance-installer.sh` and `segment-display.js`, verifies `setup.sh` delegates to `appliance-installer.sh`, and verifies `install.sh` is absent.
-- [ ] Record the exact combined head and green GitHub Actions run after this migration settles; do not ask the Pi to become the syntax checker.
+- [x] Exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`; the Pi was not used as the syntax checker.
 
 #### Spare-SD physical acceptance handoff
 
@@ -240,6 +240,6 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#40 — annunciator activation/artwork correction — PASS (source/CI + partial physical).** `15b699724ba6feeda72cfddc0e008587aaea21b1`, Tests #3701; activation/orientation/ticks accepted, brightness then refined.
 - **#41 — annunciator brightness balance — PASS (source/CI + physical).** `f815603b0b27893d495dbf570e928ebbef73afa5`, Tests #3709; final annunciator accepted.
 - **#42 — release-hygiene classification + README modernization — PASS (documentation/source; broad destructive cleanup deferred).** `docs/release-hygiene-audit-2026-08-19.md` classifies production/test/history assets; README reflects the release candidate.
-- **#43 — selected Version 3 segment geometry + unambiguous installer naming — IN PROGRESS (source complete, exact-head CI pending).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is now `appliance-installer.sh`, maintained callers/tests have been migrated, stale `install.sh` removed, and CI explicitly checks both release installer entry points plus `segment-display.js`. Close this checkpoint only after the exact combined head is green; then move directly into the daytime-theme presentation phase rather than another segment-geometry redesign.
+- **#43 — selected Version 3 segment geometry + unambiguous installer naming — PASS (source/CI).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is `appliance-installer.sh`, maintained callers/tests were migrated, stale `install.sh` was removed, and CI explicitly checks both release installer entry points plus `segment-display.js`. Exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`. The remaining bedside V3 visual check belongs to the next presentation acceptance pass rather than installer naming.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS never substitutes for a remaining bedside or clean-room acceptance gate.
