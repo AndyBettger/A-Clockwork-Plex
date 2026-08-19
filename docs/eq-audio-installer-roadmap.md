@@ -69,6 +69,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 ### Fresh-Pi hardware/bootstrap
 
 - The real bedroom Pi/HAT/display is the physical target, but the accepted production SD remains protected. A separate spare SD is the disposable acceptance target.
+- The current spare/test SD has developed intermittent read-only behaviour; reboot temporarily recovers it and a replacement is pending. Treat that as removable-media failure, not as valid final clean-room evidence. All source changes remain committed to GitHub so the appliance can be reconstructed after media replacement.
 - No global OS upgrade, `rpi-update`, Pi EEPROM/bootloader update, HAT EEPROM write or external hardware firmware update belongs to appliance bootstrap.
 - PN532: I2C bus `1`, address `0x24`; project user groups `i2c`, `gpio`, `spi`.
 - Accepted DAC: Raspberry Pi DAC Pro, ALSA `CARD=Pro`.
@@ -80,7 +81,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 - The shared runtime source is `app/static/js/segment-display.js`; individual pages must not carry competing private segment geometry.
 - Numeric `0` uses the accepted slash diagonals; capital `O` remains unslashed; `W` has no bottom horizontal segment.
-- **Version 3 segment geometry is the selected release-candidate geometry.** The runtime paths, editable `docs/airplay-segment-cell.svg` companion and `20260819-segment-v3` cache identity are regression-pinned together.
+- **Version 3 segment geometry is the selected and physically accepted release-candidate geometry.** The runtime paths, editable `docs/airplay-segment-cell.svg` companion and `20260819-segment-v3` cache identity are regression-pinned together.
 - The geometry should not be casually reworked during release cleanup. Any future art change must update the shared runtime source, editable companion and regression identity together.
 
 ## Phase status
@@ -89,7 +90,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator work is physically accepted; V3 segment geometry, installer naming and daytime-theme source/CI are complete; daytime-theme/V3 bedside presentation acceptance, final clean-room install, formal verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator/V3 and the first six daytime palettes are physically accepted; Crimson/accent/AirPlay long-form source/CI is complete; final presentation follow-up, replacement-SD clean-room install, formal verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -118,25 +119,41 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Configurable alarm Fade start/Fade duration, target/cap semantics, Plexamp takeover, Snooze/re-ring and Dismiss physically accepted.
 - [x] WU max gust physically present on Clock and Weather.
 
-#### Final Clock/navigation polish — annunciator physical PASS; V3 geometry selected
+#### Final Clock/navigation polish — annunciator + V3 physical PASS
 
 - [x] Audio navigation typography matches neighbouring navigation buttons.
 - [x] Numeric `0` slash semantics, unslashed capital `O`, and `W` without the bottom segment are regression-pinned.
 - [x] LCD-style alarm-set annunciator uses scheduler `scheduled_for`, supports **Next alarm within 12 hours** / **Any future alarm**, is passive/non-clickable and inherits Clock theme/dimming.
 - [x] +20° bell orientation/four ticks and balanced active brightness are physically accepted in daytime, Classic night and Astronomy night.
-- [x] **Version 3 segment artwork selection:** the selected V3 path geometry is now the shared runtime source, the editable SVG identifies it as the selected geometry, the base template is cache-busted with `20260819-segment-v3`, and regression coverage pins all three together. Head `fb62ad16fbfd706a252d399eb99f2edbf01b8c84` added the final source contract. Treat V3 as selected rather than an open geometry-design task.
+- [x] **Version 3 segment artwork:** selected V3 path geometry is the shared runtime source, editable SVG identifies it as the selected geometry, base template is cache-busted with `20260819-segment-v3`, and regression coverage pins all three together. Head `fb62ad16fbfd706a252d399eb99f2edbf01b8c84` added the final source contract.
+- [x] **Physical V3 acceptance, 19 August:** the real Touch Display shows the revised 14-segment font much cleaner than the previous geometry. Treat the V3 design itself as closed unless a later unrelated presentation change exposes a specific defect.
 
-#### Daytime theme — **source/CI PASS; bedside visual acceptance pending**
+#### Daytime theme — original six physical PASS; Crimson/accent follow-up source/CI PASS
 
-- [x] Implement a persisted `dashboard.daytime_theme` with six curated presets: **Classic Dark**, **Midnight Blue**, **Amber Terminal**, **Green Phosphor**, **Aubergine** and **Steel Cyan**.
-- [x] Keep the phase presentation-only: it does not alter scheduler behaviour, alarm/audio ownership, Weather authority, playback handoff, installer behaviour or other accepted functional contracts.
+- [x] Persist `dashboard.daytime_theme` through unified Settings with first-paint bootstrap and live Save/Discard preview.
+- [x] Original six presets: **Classic Dark**, **Midnight Blue**, **Amber Terminal**, **Green Phosphor**, **Aubergine** and **Steel Cyan**.
+- [x] Keep the phase presentation-only: scheduler behaviour, alarm/audio ownership, Weather authority, playback handoff and installer behaviour are unchanged.
 - [x] **Classic Dark** leaves the previously accepted palette untouched. Non-Classic themes recolour native dashboard surfaces only.
 - [x] **Classic night** remains the established black overlay and therefore darkens whichever daytime palette is selected; **Astronomy** retains the existing grayscale/brightness + red-multiply override.
 - [x] The active Plexamp surface is explicitly excluded from daytime palette rules so Plexamp keeps ownership of its appearance.
-- [x] The selected V3 segment geometry remains unchanged; theme rules alter only its lit/unlit/glow presentation.
-- [x] Settings → Display → Theme now provides the six-choice selector with live preview, unified Save/Discard persistence, and first-paint bootstrap of the saved palette before the dashboard becomes visible.
-- [x] Focused theme regressions are green. Exact source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`.
-- [ ] **Physical:** pull/reboot and judge all six palettes on Clock, Weather, Audio, AirPlay, Settings/navigation; confirm the saved selection persists, Classic night darkens that palette, Astronomy overrides it red, Plexamp remains visually Plexamp-owned, and V3 geometry looks correct on the real display. Tune presentation CSS only if the bedside screen proves it necessary.
+- [x] Selected V3 geometry remains unchanged; theme rules alter only lit/unlit/glow presentation.
+- [x] Original six-theme source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`.
+- [x] **Physical original-six acceptance, 19 August:** all six palettes were checked on the real appliance and accepted; Midnight Blue was particularly well received as a classy option. V3 remained clean under the palette layer.
+- [x] Add seventh long-wavelength preset **Crimson Glow**, deliberately a full-colour daytime crimson palette rather than a duplicate of monochrome Astronomy night mode.
+- [x] Audit known AirPlay-era cyan constants under non-Classic themes: mini-date segments, pulse/ring/glow treatments, progress glow, artwork/route-logo glow, volume glow, separator, paused/live dot, skip-button glow and play-button contrast now follow theme variables instead of leaking the old light-blue accent.
+- [x] Expanded seven-theme source is green at `e3782c8c91533a4c64c8a60602c45051c25176f4`, Tests #3827 / run `32295754785`.
+- [ ] **Physical follow-up:** judge Crimson Glow and revisit AirPlay/Settings/other native surfaces under non-blue themes for any remaining stray cyan highlight. If a specific leak remains, capture a screenshot and fix that selector rather than broad-brush recolouring neutral whites/greys.
+
+#### AirPlay long-form presentation — source/CI PASS; physical follow-up pending
+
+- [x] Replace the metadata-active episode/title two-line clamp with a measured single-line marquee, matching the calm scrolling behaviour already used for long source/book/album text. Idle receiver-name presentation remains unchanged.
+- [x] Extract long-form media classification into testable `airplay-media-kind.js` rather than burying it inside transport-button presentation.
+- [x] Fix the generic `Music`-label veto: an item at least one hour long may classify as long-form spoken audio when the source is only generic/unknown, while explicitly named music apps such as Plexamp/Apple Music/Spotify/Tidal/Qobuz/Deezer remain strong track-navigation evidence unless spoken metadata overrides them.
+- [x] Retain the existing 30/40-minute scoring and spoken-app/metadata hints for shorter ambiguous material; `pod` is now also a useful spoken-media hint.
+- [x] Regression includes the observed ~1h22m `Mobile and Piracy — 339: Billionaires Versus Everyone` / `Brad & Will Made a Tech Pod.` case behind a generic `Music` source label and requires spoken presentation.
+- [x] Transport truth boundary is explicit: Shairport Sync does not expose a precise MPRIS relative-seek operation on this route. The spoken ±15 artwork continues to send supported Previous/Next remote semantics, and the source podcast/audiobook app remains authority for the actual configured skip interval. Do not pretend the Pi itself performs an exact 15-second seek.
+- [x] Exact source head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785` including JavaScript syntax and long-form regressions.
+- [ ] **Physical:** replay a long podcast/audiobook over AirPlay; confirm the episode title scrolls on one line, spoken skip artwork is selected, and the source app responds to backward/forward remote skips as expected. A normal music track should still show Previous/Next track artwork.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
@@ -185,9 +202,10 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Real scheduled alarm on the fresh install passed takeover, Snooze/re-ring and Dismiss; later fade refinements were separately physically accepted.
 - [x] Historical lower-level idempotence pass: the then-current engine was rerun under its old `install.sh` filename without warnings/errors or reboot request. The engine is now named `appliance-installer.sh`; the final public repeat proof is `setup.sh`, not this historical command.
 - [x] Dashboard direct-script import regression found after a Weather update was repaired and physically reboot-verified.
-- [ ] After the daytime-theme phase is visually accepted, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
-- [ ] Wipe the spare SD once more and perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through reboot checkpoint if required, integrated Camilla fetch, Plexamp claim/resume, Plexamp GUI commissioning, WU configuration, playback/EQ, AirPlay, NFC, alarm/fade and reboot.
-- [ ] Rerun final public `setup.sh` on that installed card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
+- [ ] Current test SD is intermittently read-only and is being replaced. Do not use it for final release evidence; temporary checks may continue only because all source is recoverable from GitHub.
+- [ ] After Crimson/AirPlay presentation follow-up is visually accepted on usable media, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
+- [ ] On the replacement spare SD, perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through reboot checkpoint if required, integrated Camilla fetch, Plexamp claim/resume, Plexamp GUI commissioning, WU configuration, playback/EQ, AirPlay, NFC, alarm/fade and reboot.
+- [ ] Rerun final public `setup.sh` on that installed replacement card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
 - [ ] Confirm normal operation does not dirty tracked files (`git status --porcelain`).
 - [ ] Commit/finalize the final clean-room/reboot/repeat evidence documents; only then close Phase 7.
 
@@ -204,7 +222,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [ ] Run a final tracked-file/install-dependency audit so every file required by `setup.sh`/`appliance-installer.sh` is present after cleanup and no retained file survives merely because it was used by an obsolete experiment.
 - [ ] Run the complete validation suite after cleanup. PR #2 remains Draft until release hygiene, final physical gates and explicit owner approval are complete.
 
-**Phase 7 exit condition:** daytime presentation is accepted; the spare-SD appliance passes functional/formal reboot plus the final public `setup.sh` clean-room install and repeat-install; `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` are green where applicable; the repository is clean and documented; and explicit owner approval is given. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** final V3/theme/AirPlay presentation is accepted; the replacement spare-SD appliance passes functional/formal reboot plus the final public `setup.sh` clean-room install and repeat-install; `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` are green where applicable; the repository is clean and documented; and explicit owner approval is given. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
@@ -244,7 +262,8 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#40 — annunciator activation/artwork correction — PASS (source/CI + partial physical).** `15b699724ba6feeda72cfddc0e008587aaea21b1`, Tests #3701; activation/orientation/ticks accepted, brightness then refined.
 - **#41 — annunciator brightness balance — PASS (source/CI + physical).** `f815603b0b27893d495dbf570e928ebbef73afa5`, Tests #3709; final annunciator accepted.
 - **#42 — release-hygiene classification + README modernization — PASS (documentation/source; broad destructive cleanup deferred).** `docs/release-hygiene-audit-2026-08-19.md` classifies production/test/history assets; README reflects the release candidate.
-- **#43 — selected Version 3 segment geometry + unambiguous installer naming — PASS (source/CI).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is `appliance-installer.sh`, maintained callers/tests were migrated, stale `install.sh` was removed, and CI explicitly checks both release installer entry points plus `segment-display.js`. Exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`. The remaining bedside V3 visual check belongs to the next presentation acceptance pass rather than installer naming.
-- **#44 — curated daytime themes — PASS (source/CI; bedside visual acceptance pending).** Six persisted presets (Classic Dark, Midnight Blue, Amber Terminal, Green Phosphor, Aubergine, Steel Cyan) use unified Settings plus first-paint presentation authority. Classic Dark preserves the accepted baseline; Classic night dims the selected palette; Astronomy overrides it red; Plexamp is excluded; and V3 geometry is untouched. Exact source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`.
+- **#43 — selected Version 3 segment geometry + unambiguous installer naming — PASS (source/CI + V3 physical).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is `appliance-installer.sh`, maintained callers/tests were migrated, stale `install.sh` was removed, and exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`. V3 was subsequently accepted on the real Touch Display on 19 August as materially cleaner than the previous geometry.
+- **#44 — curated daytime themes — PASS (source/CI + initial physical).** Original six persisted presets use unified Settings plus first-paint presentation authority; Classic night dims the selected palette, Astronomy overrides it red, Plexamp is excluded, and V3 geometry is untouched. Source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`; the six themes were then physically accepted, with Midnight Blue especially well received.
+- **#45 — Crimson Glow + theme accent cleanup + AirPlay long-form polish — PASS (source/CI; physical follow-up pending).** Adds the seventh crimson daytime palette, removes known non-Classic AirPlay cyan leaks, gives long episode titles a single-line marquee, and fixes generic-`Music` long-form classification without pretending Shairport provides precise MPRIS seek. Exact head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785`; regression includes the observed 1h22m podcast case.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS never substitutes for a remaining bedside or clean-room acceptance gate.
