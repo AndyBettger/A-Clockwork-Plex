@@ -8,9 +8,9 @@ boundary in alarm_audio_scheduled, so the unified Settings transaction must use
 the promoted normaliser as well or every save would clear scheduled_enabled.
 
 This module also extends the established transaction with the dashboard-wide
-night-dimming model and the promoted weather-observation provider contract.
-Keeping those models here lets the browser use the same revisioned Settings
-authority without disturbing the already validated base transaction.
+display theme/night-dimming model and the promoted weather-observation provider
+contract. Keeping those models here lets the browser use the same revisioned
+Settings authority without disturbing the already validated base transaction.
 """
 
 import re
@@ -41,6 +41,14 @@ except ImportError:  # Supports direct execution imports.
 _base.normalise_audio_settings = normalise_audio_settings
 
 _TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+_DAYTIME_THEMES = {
+    "classic_dark",
+    "midnight_blue",
+    "amber_terminal",
+    "green_phosphor",
+    "aubergine",
+    "steel_cyan",
+}
 _NIGHT_STYLES = {"classic", "astronomy"}
 _NIGHT_ACTIVE_STYLES = {"same", *_NIGHT_STYLES}
 _ALARM_INDICATOR_MODES = {"within_12h", "any_future"}
@@ -64,6 +72,11 @@ def _clock_time(value: Any, fallback: str, label: str) -> str:
     if not _TIME_RE.fullmatch(candidate):
         raise ValueError(f"{label} must use 24-hour HH:MM format.")
     return candidate
+
+
+def _daytime_theme(value: Any, fallback: str = "classic_dark") -> str:
+    candidate = str(value if value is not None else fallback).strip().lower()
+    return candidate if candidate in _DAYTIME_THEMES else fallback
 
 
 def _night_style(value: Any, fallback: str, *, active: bool = False) -> str:
@@ -90,7 +103,7 @@ def _clock_card_slot_count(values: Any) -> int:
 
 
 class UnifiedSettingsService(_base.UnifiedSettingsService):
-    """Production Settings with scheduled display and observation providers."""
+    """Production Settings with display themes and observation providers."""
 
     def __init__(
         self,
@@ -117,6 +130,9 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
         display = settings.setdefault("display", {})
         display.update(
             {
+                "daytime_theme": _daytime_theme(
+                    dashboard.get("daytime_theme"), "classic_dark"
+                ),
                 "alarm_indicator_mode": _alarm_indicator_mode(
                     dashboard.get("alarm_indicator_mode"), "within_12h"
                 ),
@@ -170,6 +186,10 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
         dashboard = config.setdefault("dashboard", {})
         dashboard.update(
             {
+                "daytime_theme": _daytime_theme(
+                    source.get("daytime_theme"),
+                    _daytime_theme(dashboard.get("daytime_theme"), "classic_dark"),
+                ),
                 "alarm_indicator_mode": _alarm_indicator_mode(
                     source.get("alarm_indicator_mode"),
                     _alarm_indicator_mode(
