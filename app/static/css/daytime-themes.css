@@ -137,6 +137,33 @@ html[data-daytime-theme="steel_cyan"] body:not([data-active-page="plexamp"]) {
   --acp-theme-contrast: #061214;
 }
 
+/* A warm long-wavelength daytime palette, deliberately distinct from the
+   monochrome Astronomy night override. */
+html[data-daytime-theme="crimson_glow"] body:not([data-active-page="plexamp"]) {
+  --bg: #160708;
+  --panel: rgba(242, 91, 106, 0.085);
+  --panel-border: rgba(247, 103, 117, 0.24);
+  --text: #fff3f4;
+  --muted: #c7a3a7;
+  --accent: #f26b78;
+  --accent-strong: #ffb4bc;
+  --segment-on: #ffd9dd;
+  --segment-off: rgba(242, 107, 120, 0.044);
+  --acp-theme-bg-start: #5a1f29;
+  --acp-theme-bg-mid: #160708;
+  --acp-theme-bg-end: #060203;
+  --acp-theme-airplay-start: #702936;
+  --acp-theme-surface: rgba(31, 8, 11, 0.95);
+  --acp-theme-surface-raised: rgba(50, 13, 18, 0.95);
+  --acp-theme-control: rgba(66, 18, 24, 0.84);
+  --acp-theme-control-border: rgba(242, 107, 120, 0.34);
+  --acp-theme-display: #ffd9dd;
+  --acp-theme-display-glow: rgba(242, 107, 120, 0.58);
+  --acp-theme-soft: rgba(242, 107, 120, 0.10);
+  --acp-theme-glow: rgba(242, 107, 120, 0.40);
+  --acp-theme-contrast: #180608;
+}
+
 /* Common non-Classic presentation layer. Classic Dark remains exactly the
    existing accepted style.css/nav/page-specific presentation. */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
@@ -256,7 +283,8 @@ body[data-active-page="settings"] :is(select, input, textarea, .settings-back) {
 }
 
 /* AirPlay is part of the appliance dashboard (unlike Plexamp), so its signal
-   accents inherit the curated palette. */
+   accents inherit the curated palette. This block deliberately catches older
+   page-specific cyan glows that pre-date the shared theme layer. */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body[data-active-page="airplay"] :is(.airplay-ring, .airplay-progress-fill) {
   border-color: var(--accent);
@@ -265,5 +293,93 @@ body[data-active-page="airplay"] :is(.airplay-ring, .airplay-progress-fill) {
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body[data-active-page="airplay"] :is(.airplay-live-dot, .airplay-progress-fill) {
   background: var(--accent);
-  box-shadow: 0 0 14px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-info-card.is-clock {
+  --segment-date-on: var(--accent);
+  --segment-date-off: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-mini-date .alpha-segment.is-on {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 1.15px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-outside-value + .airplay-outside-value {
+  border-inline-start-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-screen {
+  box-shadow:
+    0 0 32px var(--acp-theme-glow),
+    inset 0 0 30px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-pulse {
+  border-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"].airplay-has-artwork .airplay-artwork {
+  box-shadow:
+    0 28px 100px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 56px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-progress-track span {
+  box-shadow: 0 0 18px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-volume-icon svg {
+  filter: drop-shadow(0 0 10px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-route-logo {
+  filter:
+    drop-shadow(0 24px 55px rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 32px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-skip-button {
+  border-color: var(--acp-theme-control-border);
+  box-shadow:
+    inset 0 0 0 1px rgba(247, 249, 255, 0.08),
+    inset 0 -10px 26px rgba(0, 0, 0, 0.18),
+    0 12px 34px rgba(0, 0, 0, 0.24),
+    0 0 24px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"].airplay-remote-paused .airplay-live-dot {
+  box-shadow: 0 0 0 4px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] #airplay-play-pause-icon::before {
+  color: var(--acp-theme-contrast);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"].airplay-session-active .airplay-live-dot {
+  animation-name: airplay-live-dot-themed;
+}
+
+@keyframes airplay-live-dot-themed {
+  0% {
+    box-shadow: 0 0 0 0 var(--acp-theme-glow);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
 }
