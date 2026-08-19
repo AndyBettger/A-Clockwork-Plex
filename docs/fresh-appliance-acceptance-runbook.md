@@ -1,18 +1,32 @@
 # Fresh appliance physical acceptance runbook
 
-**Status:** Phase 7 spare-SD physical acceptance procedure  
+**Status:** final Phase 7 release-candidate clean-room procedure  
 **Branch under test:** `feature/alarm-engine`  
-**Updated:** 17 August 2026
+**Updated:** 19 August 2026
 
 ## Purpose
 
-Prove that A Clockwork Plex can be built and reconverged on the real bedroom Pi/HAT/display hardware using a **spare SD card** while the **accepted production SD card** remains removed and untouched.
+Prove that a completely fresh **spare SD card** can become a working A Clockwork Plex appliance by following the public installation path in `docs/INSTALL.md` and running **`bash setup.sh`**, without reconstructing the appliance from engineering-only component commands.
 
-The acceptance route covers fresh package/venv ownership, I2C/PN532, Raspberry Pi DAC Pro, pinned Plexamp Headless/Node, NFC, dashboard/kiosk, AirPlay, alarm-safe Direct audio, guarded EQ promotion, reboot/repeat-install, Weather Underground commissioning and historical rainfall.
+Earlier staged Direct/EQ acceptance, temporary lower-level installer commands and physical experiments are preserved in `docs/fresh-bootstrap-physical-progress-2026-08-15.md`, `docs/eq-to-direct-physical-verification-2026-08-17.md` and `docs/weather-physical-followup-2026-08-17.md`. They are evidence, not the final clean-room procedure.
 
-**Current resumed spare-SD position (17 August 2026):** Sections 6 through 11 are complete on `plexamp-test`. Guarded EQ → Direct convergence committed and independently verified, the focused Direct pre-EQ smoke passed, the accepted CamillaDSP 4.1.3 artifact was independently verified, the guarded fresh-bootstrap EQ promotion committed with all independent verifiers green and the canonical managed CamillaDSP service active/enabled/running, and the focused post-EQ regression then passed with no issues: Plexamp/AirPlay through EQ, EQ/bypass, Music Master/alarm isolation, Maximum Alarm Volume, Snooze/re-ring/Dismiss and NFC playback/dashboard/debounce all worked. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`. **Continue at Section 12**; functional feature acceptance is complete unless reboot/reconvergence exposes a regression.
+This runbook deliberately tests the release-candidate contract that a new owner should actually use:
 
-The focused Weather work on this spare card is **physically complete** and does not invalidate Sections 6–11. Accepted evidence covers dual-resolution Settings presentation, WU write-only commissioning, Ecowitt/WU live-history independence, Ecowitt credential preservation, Today / Last 7 days / Current month / Current year selected-period behavior, confirmed station gaps with minimum-recorded totals, six current/previous calendar Rainy Day Fund gauges, forecast-style custom rain scrolling, a genuine WU-backed **Rain lifetime** from the first discovered WU record, request-quiet settled caches, structural cache validation and continued live Ecowitt operation. Evidence is maintained in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun Section 14 merely to regain context.
+```text
+fresh Raspberry Pi OS
+  -> clone repository
+  -> bash setup.sh
+  -> operator-controlled reboot only if requested
+  -> integrated CamillaDSP acquisition
+  -> integrated Plexamp claim launch/resume
+  -> Plexamp GUI commissioning
+  -> Settings commissioning
+  -> playback/Weather/NFC/alarm checks
+  -> reboot + formal verifiers
+  -> repeat bash setup.sh
+```
+
+`setup.sh` is the public human-facing installer. It delegates guarded mutation to `appliance-installer.sh`. The obsolete root `install.sh` name is not part of this procedure and must not exist in the release candidate.
 
 ---
 
@@ -21,11 +35,12 @@ The focused Weather work on this spare card is **physically complete** and does 
 **Stop on the first unexplained failure.** Preserve evidence and diagnose the failed owner; do not fix forward blindly.
 
 - Power down before reseating hardware or SD cards.
-- Remove the accepted production SD card before the spare card is inserted.
+- Remove the **accepted production SD card** before the spare card is inserted.
 - **Label/store that card safely. Do not reformat it for this test.**
+- Use a **test hostname** distinct from production, for example `plexamp-test`.
+- Run `setup.sh` as the normal appliance user, never with `sudo`.
 - Do not update Pi EEPROM/bootloader, HAT EEPROM, audio-HAT firmware or other hardware firmware.
-- Run installers as the normal appliance user, never as root.
-- Never place a Weather Underground API key or Plex claim code in chat, evidence, `config.json`, installer argv or logs.
+- Never put a Weather Underground API key, Plex claim code or account password in chat, evidence, `config.json`, command-line arguments or shell history.
 - Do not substitute unverified Plexamp, Node or CamillaDSP artifacts.
 - PR #2 remains Draft/open/unmerged throughout this procedure.
 
@@ -41,31 +56,24 @@ The focused Weather work on this spare card is **physically complete** and does 
 | PN532 | I2C bus `1`, address `0x24` |
 | DAC | Raspberry Pi DAC Pro, ALSA `CARD=Pro` |
 | DAC fallback overlay | `rpi-dacpro` only when commissioning requires it |
-| Root activation token | `APPLY-A-CLOCKWORK-PLEX` |
+| Guarded engine confirmation | `APPLY-A-CLOCKWORK-PLEX` — owned internally by `setup.sh`; not a normal-user command |
 
-The historical Phase 6 Direct rollback `08d00093...` is historical evidence, not the fresh Direct target.
+The historical Phase 6 Direct rollback `08d00093...` remains evidence only, not the fresh Direct target.
 
 ---
 
-# 1. Protect production state and prepare the appliance
+# 1. Prepare a genuinely fresh spare SD
 
 1. Shut the working appliance down normally and disconnect power.
-2. Remove the accepted production SD card.
-3. Label/store that card safely; do not reformat it for this test.
-4. Complete any intended cable/standoff tidy-up while unpowered.
-5. Insert only the spare acceptance card.
-
-The production card is the recovery boundary for this experiment.
-
----
-
-# 2. Fresh Raspberry Pi OS baseline
-
-For a genuinely fresh run, use current 64-bit Raspberry Pi OS with Desktop. In Raspberry Pi Imager configure the normal appliance username, network/locale/timezone, SSH if wanted, and a **test hostname** distinct from production such as `plexamp-test`.
+2. Remove the accepted production SD card and store it safely.
+3. Write current 64-bit Raspberry Pi OS with Desktop to the spare card.
+4. In Raspberry Pi Imager configure the intended normal appliance username, network, locale/timezone and SSH if wanted.
+5. Use a non-production test hostname.
+6. Boot the fresh card with the normal A Clockwork Plex hardware attached.
 
 Do not manually preinstall Plexamp, NFC libraries, Shairport routing, CamillaDSP or A Clockwork Plex services.
 
-Record:
+Record the fresh baseline:
 
 ```bash
 hostname -s
@@ -74,11 +82,11 @@ uname -m
 cat /etc/os-release
 ```
 
-Require 64-bit/aarch64 Raspberry Pi OS.
+Require Raspberry Pi OS on `aarch64`.
 
 ---
 
-# 3. Obtain and verify the source tree
+# 2. Clone the exact release-candidate source
 
 ```bash
 cd ~
@@ -89,140 +97,213 @@ git rev-parse HEAD
 git status --short
 ```
 
-If `git` is unavailable on a genuinely fresh image, copy the exact branch tree from a trusted machine only for this source-bootstrap boundary. Require `feature/alarm-engine`, the latest green head selected for acceptance, and a clean tree.
+Require:
 
-On the current reused spare card, fast-forward the existing checkout rather than cloning again.
+- branch `feature/alarm-engine`;
+- the exact green head selected for the clean-room run;
+- a clean checkout;
+- `setup.sh` and `appliance-installer.sh` present;
+- no root `install.sh`.
+
+Record the tested SHA somewhere outside the repository, for example:
+
+```bash
+EVIDENCE="$HOME/acp-phase7-final-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$EVIDENCE"
+git rev-parse HEAD > "$EVIDENCE/00-tested-head.txt"
+printf '%s\n' "$EVIDENCE" > "$HOME/.acp-phase7-final-evidence-path"
+```
+
+Do **not** pipe the interactive claim portion of setup through a general transcript that could capture secrets typed at a prompt.
 
 ---
 
-# 4. Create or recover the acceptance evidence directory
+# 3. Follow the public installation guide
 
-For a new fresh-card experiment only:
+Read `docs/INSTALL.md` from top to bottom and perform its Raspberry Pi OS/display preparation exactly as written. The runbook is an acceptance checklist; `INSTALL.md` remains the operator installation authority.
+
+The public installation command is:
 
 ```bash
 cd ~/A-Clockwork-Plex
-EVIDENCE="$HOME/acp-phase7-spare-sd-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$EVIDENCE"
-printf '%s\n' "$EVIDENCE" > "$HOME/.acp-phase7-evidence-path"
+bash setup.sh
 ```
 
-For every resumed attempt, including the current EQ → Direct retry, **reuse the existing evidence directory**:
+Do not replace this with direct component installers merely because they exist in the repository.
 
-```bash
-EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
-printf 'EVIDENCE=%s\n' "$EVIDENCE"
-test -d "$EVIDENCE" && echo EVIDENCE_OK || echo EVIDENCE_MISSING
-```
+### Controlled reboot checkpoint
 
-Do not silently create a replacement directory if the saved path is missing.
-
----
-
-# 5. Read-only fresh Direct plan
-
-```bash
-bash install.sh \
-  --fresh-bootstrap \
-  --audio direct \
-  --weather-observations ecowitt-push \
-  --project-user "$USER" \
-  --non-interactive \
-  | tee "$EVIDENCE/10-direct-plan.txt"
-```
-
-Require the plan order to include package/artifact check, **fresh stage-zero preflight**, paired main/NFC venv bootstrap, hardware commissioning, player-pending gate, pinned Plexamp runtime, pinned NFC listener, full host preflight and application transaction/verifier. The plan must not mutate production state.
-
----
-
-# 6. Fresh Direct apply — controlled resume loop
-
-Use a new timestamped log on every attempt so prior failures remain evidence:
-
-```bash
-set -o pipefail
-DIRECT_CMD=(
-  bash install.sh
-  --fresh-bootstrap
-  --audio direct
-  --weather-observations ecowitt-push
-  --project-user "$USER"
-  --non-interactive
-  --apply
-  --confirm APPLY-A-CLOCKWORK-PLEX
-)
-
-DIRECT_LOG="$EVIDENCE/20-direct-install-$(date +%Y%m%d-%H%M%S).txt"
-"${DIRECT_CMD[@]}" 2>&1 | tee "$DIRECT_LOG"
-rc=${PIPESTATUS[0]}
-echo "installer exit=$rc"
-echo "direct log=$DIRECT_LOG"
-```
-
-### Reused spare-SD EQ → Direct convergence
-
-The spare card may already contain an accepted EQ appliance from an earlier Phase 7 attempt. That is now a **supported convergent source state** for a requested Direct install.
-
-- Do **not** manually uninstall EQ before this run.
-- The application transaction owns specialist EQ teardown, retained-backup handling, live loopback rollback state and canonical Direct installation.
-- A failed transition must restore the prior EQ application state rather than requiring manual fix-forward.
-- Preserve the timestamped log on any nonzero exit.
-
-There are three controlled root-installer outcomes:
-
-## A. Exit `75` — reboot required
-
-Require:
+If hardware commissioning requires a reboot, setup may surface:
 
 ```text
 ROOT_INSTALL=REBOOT-REQUIRED
 REBOOT_POLICY=OPERATOR-CONTROLLED
 ```
 
-This is a controlled hardware checkpoint. Reboot manually, recover `$HOME/.acp-phase7-evidence-path`, and rerun the same command with a new timestamped log.
-
-## B. Exit `76` — Plexamp claim required
-
-Run the pinned player locally:
+This corresponds to the guarded engine's `--fresh-bootstrap` **fresh stage-zero preflight** and exit `75` reboot-required contract. Reboot manually; the installer never reboots the Pi itself. After login, return to the repository and run:
 
 ```bash
-cd ~/plexamp
-/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js
+bash setup.sh
 ```
 
-Obtain a fresh code from `https://plex.tv/claim`, enter it only into the local Plexamp prompt, enter the player name, wait for successful sign-in, then `Ctrl-C`. Do not save the claim code. Return to the repository and rerun the same installer command.
+again.
 
-## C. Exit `0` — committed
-
-Require:
-
-```text
-ROOT_INSTALL=COMMITTED
-INSTALL_ROUTE=fresh-bootstrap
-PACKAGE_VENV_BASELINE=RETAINED
-APPLICATION_VERIFY=PASS
-```
-
-For the current reused spare-SD retry, exit `0` is the expected success result after the source/CI-tested EQ → Direct convergence repair. Any other unexplained nonzero exit is an acceptance failure: stop, preserve the log, and do not manually fix forward.
+Any unexplained nonzero exit is a failure: stop and preserve the visible output before changing anything.
 
 ---
 
-# 7. Verify the completed Direct appliance
+# 4. Verify integrated artifact acquisition and Plexamp claim handoff
+
+The final public setup path must acquire/verify the pinned CamillaDSP 4.1.3 artifact itself. The operator must **not** have to run `scripts/fetch-camilladsp-4.1.3.sh`, supply `--camilladsp-binary`, or calculate a path by hand.
+
+A new unclaimed player may make the lower-level guarded engine report its internal exit `76` / `PLEXAMP_RUNTIME=CLAIM-REQUIRED` state, but `setup.sh` owns the public response: it automatically launches the installed Plexamp Headless process and allows the claim code to be entered directly into Plexamp. The operator must **not** have to run:
+
+```text
+/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js
+```
+
+manually.
+
+Obtain a fresh claim code from `https://plex.tv/claim` only when Plexamp asks for it. Enter it directly into the local Plexamp prompt. Do not save the code in the evidence directory.
+
+After claim completes, `setup.sh` must resume/converge the guarded install rather than asking the operator to reconstruct the remaining stages.
+
+For later identity evidence, once setup has completed:
+
+```bash
+CAMILLA="$HOME/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp"
+"$CAMILLA" --version | tee "$EVIDENCE/10-camilladsp-version.txt"
+sha256sum "$CAMILLA" | tee "$EVIDENCE/11-camilladsp-sha.txt"
+```
+
+Require CamillaDSP 4.1.3 and executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`.
+
+---
+
+# 5. Commission Plexamp through its browser UI
+
+After the installer has completed:
+
+1. open the Plexamp Headless browser interface;
+2. sign into the Plex account if required;
+3. choose the intended music library;
+4. choose **`A Clockwork Plex - Plexamp`** as the audio output;
+5. do **not** leave Plexamp on **Follows system output**.
+
+VNC is recommended for account/password-manager use and long Settings values.
+
+Record only non-secret commissioning outcomes, not credentials.
+
+---
+
+# 6. Commission Weather Underground through Settings
+
+Use **Settings → Weather**. Do not put the API key on a command line.
+
+1. Select Weather Underground PWS as the observation source.
+2. Enter the station ID.
+3. Use **Set API key** for first commissioning; use **Replace API key** only when deliberately changing an existing credential.
+4. Use **Test connection**.
+5. Save/allow unified Settings autosave as normal.
+6. Confirm the dashboard/Weather page fills with WU current observations.
+
+The browser must never receive the secret back. Persistent managed storage is:
+
+```text
+/etc/default/a-clockwork-plex-weather
+```
+
+with root ownership/mode `0600`. Sanitized diagnostic/config output must continue to report:
+
+```text
+WU_CONFIG_SECRET_FIELDS=NONE
+```
+
+If this appliance also receives the Ecowitt custom push, confirm only fresh indoor temperature/humidity supplement the WU display and WU remains outdoor authority. Do not redirect the one working Ecowitt custom destination merely to manufacture a WU-only test; source expiry coverage already protects the no-supplement path and another appliance can confirm it later.
+
+---
+
+# 7. Functional appliance acceptance
+
+Confirm the complete appliance, not just service status.
+
+### Clock / presentation
+
+- selected Version 3 fourteen-segment geometry is visible and stable;
+- numeric `0`, capital `O` and `W` match the accepted mappings;
+- alarm annunciator behaves according to the configured 12-hour/any-future rule;
+- final accepted daytime theme is present;
+- Classic/Astronomy night behavior remains correct;
+- touch-to-wake/dimming and navigation remain usable.
+
+### Weather
+
+- WU current values appear;
+- Clock rain summary appears;
+- Weather current rain shows Rain rate, Hourly rain, Rain today and Event rain when applicable;
+- Rainy Day Fund/current rain share the accepted horizontal scroll behavior;
+- max gust today appears when data has accumulated;
+- no secret is exposed in Settings/API output.
+
+### Plexamp / EQ
+
+- Plexamp plays stable stereo audio through `A Clockwork Plex - Plexamp`;
+- Music Master changes Plexamp loudness;
+- Bass/Mid/Treble adjustments are audible;
+- EQ bypass works;
+- canonical Camilla service is active.
+
+### AirPlay
+
+- the configured receiver appears on the iPhone;
+- AirPlay takes over correctly and produces audio through the EQ path;
+- normal handoff does not restart the audio services.
+
+### NFC
+
+- one known-good NFC album tag starts Plexamp playback;
+- dashboard changes to the Plexamp surface;
+- immediate repeat-tag debounce remains correct.
+
+### Real scheduled alarm
+
+With Plexamp playing:
+
+1. allow a real scheduled alarm to fire;
+2. confirm it pauses/takes audio ownership from Plexamp;
+3. confirm the configured Fade start → target ramp is audible and Maximum Alarm Volume remains the ceiling;
+4. Snooze it;
+5. allow the re-ring and confirm it starts a fresh fade cycle;
+6. Dismiss it.
+
+Music Master must not silence the alarm lane.
+
+Stop on any unexplained regression.
+
+---
+
+# 8. Reboot and run the formal verifiers
+
+Perform one deliberate full reboot after functional commissioning. Confirm the kiosk returns normally, then:
 
 ```bash
 cd ~/A-Clockwork-Plex
-EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
+EVIDENCE="$(cat "$HOME/.acp-phase7-final-evidence-path")"
 
 bash scripts/verify-fresh-bootstrap.sh \
   --project-user "$USER" \
   --project-dir "$PWD" \
-  | tee "$EVIDENCE/21-fresh-bootstrap-verify.txt"
+  | tee "$EVIDENCE/20-post-reboot-bootstrap-verifier.txt"
 
 bash scripts/verify-appliance.sh \
-  --audio direct \
-  --weather-observations ecowitt-push \
+  --audio eq \
+  --weather-observations weather-underground \
   --project-user "$USER" \
   --project-dir "$PWD" \
-  | tee "$EVIDENCE/22-direct-appliance-verify.txt"
+  | tee "$EVIDENCE/21-post-reboot-appliance-verifier.txt"
+
+bash scripts/audio/verify-audio.sh \
+  | tee "$EVIDENCE/22-post-reboot-audio-verifier.txt"
 ```
 
 Require:
@@ -232,448 +313,93 @@ FRESH_BOOTSTRAP_VERIFY=PASS
 APPLIANCE_VERIFY=PASS
 ```
 
-Check the Direct route and absence of the EQ marker:
+and an audio verifier PASS.
 
-```bash
-sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
-  | tee "$EVIDENCE/23-direct-route.sha256"
-test ! -e /var/lib/a-clockwork-plex/split-bus/installed
-```
-
-Expected SHA: `654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9`.
-
-Spot-check hardware/runtime:
-
-```bash
-systemctl --no-pager --full status plexamp.service nfc-listener.service || true
-i2cdetect -y 1
-aplay -l
-```
-
-Require PN532 `0x24` and `CARD=Pro`.
-
-**Current 17 August spare-SD result:** this section has passed and is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-
----
-
-# 8. Focused Direct smoke before EQ promotion
-
-This is deliberately a **small promotion gate**, not another replay of the already-established appliance handoff/alarm test suite. Its job is to prove the verified Direct appliance is still basically alive immediately before the EQ installer changes the route.
-
-Require:
-
-- Dashboard/Settings remain usable.
-- Plexamp produces normal stable stereo playback.
-- One known-good NFC tag starts local Plexamp playback and requests the Plexamp dashboard state.
-- Audio and **Settings → Audio → Master equaliser** truthfully report **Install required** while Direct is installed.
-
-Do **not** block EQ promotion on repeating AirPlay/PlaybackCoordinator takeover, Music Master/alarm isolation, Snooze/Dismiss or the entire NFC debounce suite in Direct. Those behaviors have prior physical evidence; the meaningful release regression is Section 11 **after EQ is installed**, where a routing/EQ integration defect could actually affect them.
-
-**Current physical result:** PASS. Plexamp playback was healthy, a known NFC tag triggered playback and the Plexamp dashboard state, and both EQ surfaces reported **Install required**. The NFC log also noted that `xdotool` is absent while mode state was updated; because the intended dashboard behavior was observed, this is retained as a non-blocking diagnostic note. Immediate repeat-scan debounce was not freshly re-exercised and is not a promotion blocker.
-
-Continue directly to Section 9.
-
----
-
-# 9. Acquire the exact accepted CamillaDSP artifact
-
-```bash
-bash scripts/fetch-camilladsp-4.1.3.sh \
-  | tee "$EVIDENCE/30-camilladsp-plan.txt"
-
-bash scripts/fetch-camilladsp-4.1.3.sh \
-  --activate \
-  --confirm FETCH-CAMILLADSP-4.1.3 \
-  | tee "$EVIDENCE/31-camilladsp-fetch.txt"
-
-CAMILLA="$HOME/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp"
-"$CAMILLA" --version
-sha256sum "$CAMILLA"
-```
-
-Require CamillaDSP 4.1.3 and executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`.
-
-**Current physical result:** PASS. The existing cached artifact matched version 4.1.3 and the accepted executable SHA exactly.
-
----
-
-# 10. Promote the same appliance to EQ
-
-Plan and apply using the guarded fresh-bootstrap owner:
-
-```bash
-bash install.sh \
-  --fresh-bootstrap \
-  --audio eq \
-  --weather-observations ecowitt-push \
-  --project-user "$USER" \
-  --camilladsp-binary "$CAMILLA" \
-  --non-interactive \
-  | tee "$EVIDENCE/32-eq-plan.txt"
-
-set -o pipefail
-EQ_CMD=(
-  bash install.sh
-  --fresh-bootstrap
-  --audio eq
-  --weather-observations ecowitt-push
-  --project-user "$USER"
-  --camilladsp-binary "$CAMILLA"
-  --non-interactive
-  --apply
-  --confirm APPLY-A-CLOCKWORK-PLEX
-)
-"${EQ_CMD[@]}" 2>&1 | tee "$EVIDENCE/33-eq-install.txt"
-rc=${PIPESTATUS[0]}
-test "$rc" -eq 0
-```
-
-Then run all three verifiers:
-
-```bash
-bash scripts/verify-fresh-bootstrap.sh \
-  --project-user "$USER" --project-dir "$PWD" \
-  | tee "$EVIDENCE/34-eq-bootstrap-verify.txt"
-
-bash scripts/verify-appliance.sh \
-  --audio eq --weather-observations ecowitt-push \
-  --project-user "$USER" --project-dir "$PWD" \
-  | tee "$EVIDENCE/35-eq-appliance-verify.txt"
-
-bash scripts/audio/verify-audio.sh \
-  | tee "$EVIDENCE/36-eq-audio-verify.txt"
-```
-
-Require all PASS and route SHA `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` with `/var/lib/a-clockwork-plex/split-bus/installed` present.
-
-Verify the **canonical managed CamillaDSP unit** — do not use the unrelated generic `camilladsp.service` name:
+Confirm the canonical managed service, not a generic Camilla unit:
 
 ```bash
 systemctl is-active a-clockwork-plex-camilladsp.service
 systemctl is-enabled a-clockwork-plex-camilladsp.service
-systemctl show a-clockwork-plex-camilladsp.service \
-  -p ActiveState \
-  -p SubState \
-  -p MainPID
+sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf
 ```
 
-Require `active`, `enabled`, `ActiveState=active`, `SubState=running` and a non-zero `MainPID`.
+Expected EQ route SHA:
 
-**Current physical result:** PASS. The guarded EQ apply exited `0` with `ROOT_INSTALL=COMMITTED`, `APPLICATION_TRANSACTION=COMMITTED` and `APPLICATION_VERIFY=PASS`; all three independent verifiers passed; the canonical split-bus route SHA and installed marker matched; Plexamp produced normal audio and EQ was audibly effective. `a-clockwork-plex-camilladsp.service` was active/enabled/running with non-zero MainPID. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-
-Continue directly to Section 11.
+```text
+1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9
+```
 
 ---
 
-# 11. Physical EQ acceptance
+# 9. Repeat the public setup command — final idempotence proof
 
-This is the substantive playback regression gate. Require clean Plexamp/AirPlay through EQ, plausible Bass/Mid/Treble changes, working bypass, Music Master = 0% music isolation with alarm still audible, independent **Maximum Alarm Volume**, working Snooze/Dismiss, and NFC playback/display handoff after EQ promotion. Recheck immediate repeat-tag debounce here as part of the final NFC regression.
-
-Phase 6 already physically proved controlled Camilla failure/failback; do not manufacture another failure merely for this fresh-construction run.
-
-**Current physical result:** PASS with no issues found. Plexamp and AirPlay remained healthy through EQ; audible EQ changes and bypass worked; Music Master at 0% silenced music while a real scheduled alarm remained audible; Maximum Alarm Volume remained independent; Snooze, re-ring and Dismiss worked; NFC playback/dashboard handoff and immediate repeat-tag debounce both passed. Functional feature testing is therefore complete unless a later durability gate exposes a regression.
-
-Continue to Section 12.
-
----
-
-# 12. Reboot acceptance
-
-This is a persistence/start-order gate, not a repeat of Section 11. It proves the installed split-bus route and enabled services reconstruct themselves correctly from boot.
-
-```bash
-sudo reboot
-```
-
-After reconnecting, recover the source/evidence path and run:
+Do **not** rerun an engineering component or the guarded engine directly. From the already-installed, claimed and configured appliance run exactly:
 
 ```bash
 cd ~/A-Clockwork-Plex
-EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
-
-bash scripts/verify-fresh-bootstrap.sh \
-  --project-user "$USER" --project-dir "$PWD" \
-  | tee "$EVIDENCE/40-bootstrap-after-reboot.txt"
-
-bash scripts/verify-appliance.sh \
-  --audio eq --weather-observations ecowitt-push \
-  --project-user "$USER" --project-dir "$PWD" \
-  | tee "$EVIDENCE/41-appliance-after-reboot.txt"
-
-bash scripts/audio/verify-audio.sh \
-  | tee "$EVIDENCE/42-audio-after-reboot.txt"
-
-sha256sum /etc/alsa/conf.d/99-a-clockwork-plex-shared.conf \
-  | tee "$EVIDENCE/43-eq-route-after-reboot.sha256"
-
-test -e /var/lib/a-clockwork-plex/split-bus/installed \
-  && echo EQ_MARKER_AFTER_REBOOT=PASS \
-  | tee "$EVIDENCE/44-eq-runtime-after-reboot.txt"
-
-systemctl is-active a-clockwork-plex-camilladsp.service \
-  | tee -a "$EVIDENCE/44-eq-runtime-after-reboot.txt"
-systemctl is-enabled a-clockwork-plex-camilladsp.service \
-  | tee -a "$EVIDENCE/44-eq-runtime-after-reboot.txt"
-```
-
-Require all three verifiers to pass, the route SHA to remain `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`, the EQ marker to remain present, and the managed CamillaDSP service to be active and enabled.
-
-Then perform only a **minimal boot smoke**: kiosk/dashboard comes back automatically, brief Plexamp playback is audible, one known-good NFC tag starts playback, and one real alarm remains audible with Music Master at 0%. Do not repeat the full EQ/AirPlay/Snooze/Dismiss suite unless one of these boot checks fails.
-
----
-
-# 13. Repeat the whole fresh-bootstrap install
-
-Do this **before switching current observations to WU**. Historical WU rainfall may later coexist with Ecowitt Push as the live source. This repeat-install gate proves ordinary appliance idempotence; Section 14.5 separately proves that a subsequently commissioned WU history credential survives Ecowitt weather reconvergence.
-
-```bash
-set -o pipefail
-"${EQ_CMD[@]}" 2>&1 | tee "$EVIDENCE/50-repeat-install.txt"
-rc=${PIPESTATUS[0]}
-test "$rc" -eq 0
-
-bash scripts/verify-fresh-bootstrap.sh \
-  --project-user "$USER" --project-dir "$PWD" \
-  | tee "$EVIDENCE/51-repeat-bootstrap-verifier.txt"
-
-bash scripts/verify-appliance.sh \
-  --audio eq --weather-observations ecowitt-push \
-  --project-user "$USER" --project-dir "$PWD" \
-  | tee "$EVIDENCE/52-repeat-appliance-verifier.txt"
-
-bash scripts/audio/verify-audio.sh \
-  | tee "$EVIDENCE/53-repeat-audio-verifier.txt"
-```
-
-Require normal commit markers, no renewed reboot/claim checkpoint, no ownership drift and PASS from all three verifiers.
-
----
-
-# 14. Commission Weather Underground through Settings
-
-Do this locally after the repeat installer gate for a full fresh-card run. WU credentials are write-only commissioning data, not fresh-install CLI material.
-
-For the current focused Weather retest on the already-accepted Direct spare card, **Sections 14.1 through 14.6 have all physically passed** and are recorded in `docs/weather-physical-followup-2026-08-17.md`. Do not rerun them merely to regain context.
-
-Open **Settings → Weather → Observation source**.
-
-## 14.1 Current observation source and write-only credential commissioning
-
-1. Confirm **Observation source** is a distinct Weather subpage rather than being mixed into Station settings.
-2. Confirm the live-source state is a proper bordered badge at the **top-right of the Observation source card** and truthfully reports Ecowitt Push, WU Ready or an appropriate setup/degraded state.
-3. Confirm Historical rainfall has its own bordered status badge at the **top-right of the Historical rainfall card**.
-4. Confirm Observation source cards and their internal grids have clear touch-friendly separation on both supported landscape targets, including 1024×600.
-5. Ecowitt may remain the current-observation provider while WU supplies historical rainfall.
-6. Enter the real WU Station ID and save ordinary Weather settings.
-7. Use **Set API key** / **Replace API key** and type the key only into the local Settings control.
-8. If Weather Underground is selected as the **live** provider, press **Test connection** and require a sanitized success result. If Ecowitt remains live, do not switch providers merely to satisfy this button: prove the same commissioned WU credential through successful supplemental historical-rainfall requests.
-9. After submission, only configured/not-configured status may be returned; never the stored key.
-
-Check secret-file metadata without printing its contents:
-
-```bash
-sudo stat -c '%a %U:%G %n' /etc/default/a-clockwork-plex-weather \
-  | tee "$EVIDENCE/60-wu-secret-metadata.txt"
-```
-
-Require root ownership and mode `600`.
-
-Confirm `config.json` contains no literal WU secret field:
-
-```bash
-python3 - <<'PY' | tee "$EVIDENCE/61-wu-config-secret-check.txt"
-import json
-from pathlib import Path
-cfg = json.loads(Path('config.json').read_text(encoding='utf-8'))
-weather = cfg.get('weather') if isinstance(cfg.get('weather'), dict) else {}
-wu = weather.get('weather_underground') if isinstance(weather.get('weather_underground'), dict) else {}
-forbidden = {'api_key', 'apikey', 'password', 'secret', 'token'}
-found = sorted(str(k) for k in wu if str(k).lower() in forbidden)
-print('WU_CONFIG_SECRET_FIELDS=' + (','.join(found) if found else 'NONE'))
-raise SystemExit(1 if found else 0)
-PY
-```
-
-Require `WU_CONFIG_SECRET_FIELDS=NONE`.
-
-**Current physical result:** PASS. The real credential is commissioned write-only, Ecowitt Push remains live, History ready is healthy, config contains no WU secret field, and the managed secret remains root-owned mode `600`.
-
-## 14.2 Historical rainfall periods
-
-Exercise and save all four supported configurable periods:
-
-- **Today** — live station `dailyrainin`; no WU historical request required for this selected total.
-- **Last 7 days** — completed days plus today live.
-- **Current month** — completed month dates plus today live.
-- **Current year** — completed year dates plus today live.
-
-After each selection:
-
-```bash
-curl -fsS http://localhost:8088/api/weather/rainfall \
-  | python3 -m json.tool \
-  | tee -a "$EVIDENCE/63-rainfall-history-health.json"
-```
-
-Interpretation is deliberately split between **calculation completeness** and **station coverage**:
-
-- `complete: true` means every required completed date is either recorded or has been confirmed, by a successful targeted WU request, as having no station data.
-- `coverage_complete: true` means every date actually has a recorded total.
-- `complete: true` with `coverage_complete: false` is valid when confirmed station-offline dates exist. `total_in` remains numeric and is the **minimum recorded** rainfall; the UI must state how many days were not recorded.
-- `pending_days > 0` means unresolved dates remain and the calculation is not complete.
-- An actual provider/configuration/credential failure is a separate error state and must not take current observations down.
-
-**Current physical result:** Today, Last 7 days, Current month and Current year are accepted. Current year physically returned 226 of 229 days with three confirmed station gaps (`2026-03-03`, `2026-03-05`, `2026-03-07`), `status: ready`, `complete: true`, `coverage_complete: false`, `pending_days: 0` and `total_in: 21.38`. Settings showed **History ready** and the explicit minimum-recorded coverage message.
-
-## 14.3 Cache reuse, confirmed gaps and secret absence
-
-For the selected Current-year calculation, refresh twice:
-
-```bash
-curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
-  | python3 -m json.tool \
-  | tee "$EVIDENCE/64-rainfall-refresh-first.json"
-
-curl -fsS -X POST http://localhost:8088/api/weather/rainfall \
-  | python3 -m json.tool \
-  | tee "$EVIDENCE/65-rainfall-refresh-second.json"
-```
-
-Once selected-period days are cached or confirmed as station gaps, repeated refreshes must report `"fetched_ranges": 0` and `"retried_dates": 0` unless a genuinely new completed day has appeared since the prior refresh.
-
-The production service also prepares Rainy Day Fund comparison periods. On the **first refresh after enabling the expanded gauge history**, `gauge_fetched_ranges` may be nonzero while the previous calendar year is backfilled in ranges of at most 31 days. After that backfill has either recorded or gap-classified all returned dates, a second refresh must report `"gauge_fetched_ranges": 0` and `"gauge_retried_dates": 0`.
-
-Inspect `weather-rainfall-history.json` structurally and require:
-
-- cache version `1`;
-- at least one cached station/day after fill;
-- no keys named `api_key`, `apikey`, `password`, `secret` or `token`;
-- every value under `days` is a finite non-negative numeric total;
-- no `null` day markers;
-- any accepted value under `gaps` is exactly `no_station_data`.
-
-Retry/gap semantics are deliberate:
-
-- a date omitted from a successful multi-day response is retried once as a single-day WU request;
-- if that successful single-day request still has no usable daily record, the date becomes a confirmed station-data gap;
-- confirmed gaps are retained separately from numeric totals and are not repeatedly fetched;
-- they reduce coverage but do not turn an otherwise successful history calculation into an API error;
-- if an old cache contains a legacy `null` day marker, it remains retryable and may be replaced by valid data;
-- actual WU request/configuration/credential failures remain errors and are never silently relabelled as station gaps.
-
-Do not corrupt the real provider or credential merely to manufacture an omission/failure. Source regression tests cover synthetic gap/recovery and provider-error paths.
-
-**Current physical result:** PASS. Two Current-year POSTs both returned `fetched_ranges: 0`, `retried_dates: 0`, three stable confirmed gaps and the same numeric minimum-recorded total. Final structural inspection found 582 numeric cached days, 11 recognized confirmed gaps, no secret keys, no null/invalid days and no invalid gap markers.
-
-## 14.4 Supplemental failure behaviour
-
-If a WU history request is naturally unavailable, require current Ecowitt/WU observations and the normal Weather page to remain operational, no credential material in error output, and the appropriate selected-period/gauge diagnostic to report the failure. Do not corrupt the real API key merely to manufacture a failure already covered by source tests.
-
-The expanded Rainy Day Fund/lifetime backfill uses separate diagnostics so failure to fetch an older comparison/archive period does not falsely turn an otherwise valid selected-period calculation into **History incomplete**.
-
-## 14.5 Ecowitt reconvergence must preserve the commissioned WU history credential
-
-This checkpoint deliberately exercises only the guarded Weather configuration owner, so it does **not** touch Direct/EQ routing, mixers, alarm behavior or playback services and it does not restart the dashboard.
-
-With the WU key already commissioned and **Ecowitt Push** selected for live observations, compare the managed secret before/after without ever printing its contents or digest:
-
-```bash
-cd ~/A-Clockwork-Plex
-EVIDENCE="$(cat "$HOME/.acp-phase7-evidence-path")"
-
-test -f /etc/default/a-clockwork-plex-weather
-WU_SECRET_BEFORE="$(sudo sha256sum /etc/default/a-clockwork-plex-weather | awk '{print $1}')"
-
-sudo bash scripts/install-weather-config.sh \
-  --activate \
-  --confirm INSTALL-WEATHER-CONFIG \
-  --provider ecowitt-push \
-  | tee "$EVIDENCE/66-ecowitt-weather-reconvergence.txt"
-
-WU_SECRET_AFTER="$(sudo sha256sum /etc/default/a-clockwork-plex-weather | awk '{print $1}')"
-if [[ -n "$WU_SECRET_BEFORE" && "$WU_SECRET_BEFORE" == "$WU_SECRET_AFTER" ]]; then
-  echo 'WU_HISTORY_CREDENTIAL_PRESERVED=PASS' \
-    | tee "$EVIDENCE/67-wu-credential-preservation.txt"
-else
-  echo 'WU_HISTORY_CREDENTIAL_PRESERVED=FAIL' \
-    | tee "$EVIDENCE/67-wu-credential-preservation.txt"
-  unset WU_SECRET_BEFORE WU_SECRET_AFTER
-  false
-fi
-unset WU_SECRET_BEFORE WU_SECRET_AFTER
-
-sudo stat -c '%a %U:%G %n' /etc/default/a-clockwork-plex-weather \
-  | tee -a "$EVIDENCE/67-wu-credential-preservation.txt"
+bash setup.sh
 ```
 
 Require:
 
-```text
-WEATHER_PROVIDER=ecowitt_push
-WEATHER_FORECAST=OPEN-METEO-PRESERVED
-WEATHER_SECRET_POLICY=ENV-FILE-ONLY
-WU_HISTORY_CREDENTIAL_PRESERVED=PASS
-```
+- no renewed Plexamp claim requirement;
+- no unnecessary reboot checkpoint;
+- no loss of WU configuration or managed credential;
+- no route/EQ ownership drift;
+- no duplicate services/helpers/autostart entries;
+- dashboard, Plexamp, AirPlay, NFC and EQ remain functional afterwards.
 
-The final `stat` must still report root ownership and mode `600`. The command output/evidence must contain no key material and no key digest. Source regression coverage separately proves that if no managed WU credential exists, Ecowitt activation preserves that absence rather than creating a file.
-
-**Current physical result:** PASS and recorded in `docs/weather-physical-followup-2026-08-17.md`.
-
-## 14.6 Rainy Day Fund historical gauges and Rain lifetime — physical PASS
-
-The detailed Weather page presents historical summaries independently of whichever single period is selected in Settings:
-
-- **Rain this week** — Monday through today;
-- **Rain last week** — previous Monday through Sunday;
-- **Rain this month**;
-- **Rain last month**;
-- **Rain this year**;
-- **Rain last year**;
-- **Rain lifetime** — calculated from WU daily history from the first discovered WU record through today.
-
-The previous calendar year and older lifetime archive are prepared in bounded WU requests of at most 31 days. The older archive is isolated in `weather-rainfall-lifetime.json`, and its sanitized endpoint is:
+Then rerun the formal verifiers and save their non-secret output:
 
 ```bash
-curl -fsS http://localhost:8088/api/weather/rainfall/lifetime \
-  | python3 -m json.tool
+EVIDENCE="$(cat "$HOME/.acp-phase7-final-evidence-path")"
+
+bash scripts/verify-fresh-bootstrap.sh \
+  --project-user "$USER" --project-dir "$PWD" \
+  | tee "$EVIDENCE/30-repeat-bootstrap-verifier.txt"
+
+bash scripts/verify-appliance.sh \
+  --audio eq --weather-observations weather-underground \
+  --project-user "$USER" --project-dir "$PWD" \
+  | tee "$EVIDENCE/31-repeat-appliance-verifier.txt"
+
+bash scripts/audio/verify-audio.sh \
+  | tee "$EVIDENCE/32-repeat-audio-verifier.txt"
 ```
-
-After `status: ready`, force one more refresh:
-
-```bash
-curl -fsS -X POST http://localhost:8088/api/weather/rainfall/lifetime \
-  | python3 -m json.tool
-```
-
-Require `discovery_complete: true`, `coverage_complete: true`, and a settled refresh with `fetched_ranges: 0` / `retried_dates: 0`.
-
-On the physical display require:
-
-1. all six current/previous calendar gauges above are present once resolved;
-2. the final gauge is **Rain lifetime**, not an unverified Ecowitt lifetime counter and not merely Last year + This year;
-3. the Rainy Day Fund uses the same rounded custom rail/thumb scrollbar as the forecast strips, with no native Chromium arrow buttons;
-4. touch/drag horizontal scrolling works and gauges use the full panel height at both 1280×720 and 1024×600 acceptance targets;
-5. confirmed gaps add concise per-gauge copy such as **3 days not recorded** rather than suppressing the numeric gauge;
-6. the lifetime note identifies the first discovered WU record date and aggregate missing-day coverage;
-7. Ecowitt live observation remains healthy throughout.
-
-Inspect `weather-rainfall-lifetime.json` with the same structural rules as the recent-history cache: cache version 1, finite non-negative numeric `days`, no secret fields, no `null` day markers and only recognized `no_station_data` gap markers.
-
-**Current physical result:** PASS. The accepted physical projection showed **Rain this year 543.1 mm / 3 days not recorded**, **Rain last year 909.8 mm / 8 days not recorded**, and **Rain lifetime 2634.0 mm / Since first WU record 30/12/2023 · 11 days not recorded**. The lifetime endpoint settled at `status: ready`, `discovery_complete: true`, `coverage_complete: true`, `first_record_date: 2023-12-30`, 368 older numeric days and zero older gaps. A subsequent forced POST returned `fetched_ranges: 0` / `retried_dates: 0`. Structural inspection of the lifetime cache passed with 368 numeric days, zero gaps, zero secret keys, zero null/invalid days and zero invalid gap markers. The custom rain scrollbar physically matches the forecast controls, and `GET /api/weather/observations` still reported `provider: ecowitt_push`, `status: push`, `configured: true`, `ok: true`, worker `running: true`.
 
 ---
 
-# 15. Final acceptance record
+# 10. Confirm normal operation leaves the checkout clean
 
-Commit/finalize a dated result document under `docs/` containing the spare-SD OS/test hostname, exact branch SHA, hardware/DAC result, Plexamp claim result, Direct result, focused Direct smoke, EQ result, post-EQ NFC/AirPlay/alarm regression, reboot result, repeat-install result, WU Settings commissioning result, all four selected historical-rainfall results, natural station gaps and minimum-recorded coverage, Rainy Day Fund current/previous week/month/year + Rain lifetime result, custom horizontal-scroll result, Ecowitt credential-preservation result, both cache structural/secret checks and all deviations.
+After Weather updates, playback, alarm use, reboot and repeat setup:
 
-The focused Weather evidence, Direct pre-EQ smoke, Camilla artifact, persistent EQ installer/identity gate and substantive post-EQ physical regression are complete. The remaining Phase 7 chain is **reboot persistence → repeat-install idempotence → final evidence closure**.
+```bash
+cd ~/A-Clockwork-Plex
+git status --porcelain | tee "$EVIDENCE/40-git-status.txt"
+```
 
-**Phase 7 does not close until that physical result is committed and reviewed.**
-PR #2 remains Draft/open/unmerged until the owner separately approves release/merge.
+Expected result: no tracked modifications caused by normal runtime/generated state.
+
+If legitimate runtime state dirties the checkout, fix its storage/ignore contract before release rather than accepting a permanently dirty install.
 
 ---
 
-## Recovery after the spare-SD experiment
+# 11. Commit the final physical result
 
-If the test card fails catastrophically: power down, remove the spare card, reinsert the untouched accepted production SD card, power up, and verify the accepted production appliance. This acceptance route does not update Pi EEPROM/bootloader or HAT firmware, so the SD card remains the software recovery boundary.
+Create/update final dated evidence in the repository containing only non-secret facts:
+
+- exact tested Git commit;
+- Raspberry Pi OS/architecture/hardware identities;
+- whether a hardware reboot checkpoint occurred;
+- integrated Camilla acquisition result;
+- integrated Plexamp claim/resume result;
+- Plexamp GUI/output commissioning result;
+- WU Settings commissioning result without key material;
+- Clock/daytime/night presentation result;
+- Plexamp/EQ, AirPlay, NFC and real scheduled-alarm results;
+- post-reboot verifier results;
+- repeat `setup.sh` idempotence result;
+- clean-checkout result;
+- any remaining explicitly deferred non-blocking check.
+
+**Phase 7 does not close until that physical result is committed and the active roadmap is updated.** PR #2 remains Draft/open/unmerged until release hygiene is complete and the owner explicitly approves making it ready/merging it.
