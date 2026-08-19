@@ -73,7 +73,8 @@ class UserSetupInstallerTests(unittest.TestCase):
             "--non-interactive",
         ):
             self.assertIn(option, guide)
-        self.assertIn("Controlled hardware reboot checkpoint", guide)
+        self.assertIn("### Reboot checkpoint", guide)
+        self.assertIn("ROOT_INSTALL=REBOOT-REQUIRED", guide)
         self.assertIn("Plexamp claim checkpoint", guide)
         self.assertIn("Transaction and rollback policy", guide)
         self.assertNotIn("bash install.sh", guide)
