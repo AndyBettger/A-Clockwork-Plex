@@ -40,6 +40,8 @@ bash setup.sh
 
 `setup.sh` is the human-facing entry point. It acquires and verifies the pinned CamillaDSP artifact, invokes the guarded transactional installer and launches the Plexamp Headless claim flow automatically when a new player needs claiming.
 
+Advanced planning, profile and recovery controls for the lower-level engine are documented separately in **[`docs/appliance-installer.md`](docs/appliance-installer.md)**. Normal installations should continue to use `setup.sh` rather than calling that engine directly.
+
 If hardware commissioning asks for a reboot, reboot and run `bash setup.sh` again. Completed idempotent stages are detected and reused.
 
 After a successful install, reboot once into the appliance and finish Plexamp commissioning in its browser interface:
