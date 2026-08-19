@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT = ROOT / "scripts" / "preflight-appliance.sh"
-INSTALLER = ROOT / "install.sh"
+INSTALLER = ROOT / "appliance-installer.sh"
 PREREQS = ROOT / "installer" / "lib" / "prerequisites.sh"
 
 
