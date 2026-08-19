@@ -8,13 +8,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INSTALLER = ROOT / "install.sh"
+INSTALLER = ROOT / "appliance-installer.sh"
 CONFIRMATION = "APPLY-A-CLOCKWORK-PLEX"
 
 
 class RootInstallerApplyGateTests(unittest.TestCase):
     def make_fixture(self, root: Path) -> Path:
-        installer = root / "install.sh"
+        installer = root / "appliance-installer.sh"
         installer.write_text(INSTALLER.read_text(encoding="utf-8"), encoding="utf-8")
 
         required = (
