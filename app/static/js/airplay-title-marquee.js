@@ -7,6 +7,8 @@
 
   let frameOne = null;
   let frameTwo = null;
+  let lastMeasuredText = null;
+  let lastMeasuredWidth = null;
 
   function clearFrames() {
     if (frameOne !== null) cancelAnimationFrame(frameOne);
@@ -21,7 +23,21 @@
     title.style.removeProperty('--airplay-title-scroll-duration');
   }
 
-  function measure() {
+  function measure({ force = false } = {}) {
+    const text = String(title.textContent || '').trim();
+    const width = title.clientWidth;
+
+    /* airplay-live refreshes status every two seconds. Some metadata providers
+       repaint an identical title during those refreshes, which raises a DOM
+       mutation even though nothing visible changed. Do not reset the CSS
+       animation for that no-op repaint: otherwise the marquee spends its life
+       repeatedly moving a few pixels and snapping back to the beginning. */
+    if (!force && text === lastMeasuredText && width === lastMeasuredWidth) {
+      return;
+    }
+
+    lastMeasuredText = text;
+    lastMeasuredWidth = width;
     clearFrames();
     reset();
 
@@ -32,20 +48,19 @@
         const overflow = Math.max(0, Math.ceil(title.scrollWidth - title.clientWidth));
         if (overflow <= 8) return;
 
-        const textLength = String(title.textContent || '').trim().length;
         title.style.setProperty('--airplay-title-overflow', `${overflow + 10}px`);
         title.style.setProperty(
           '--airplay-title-scroll-duration',
-          `${Math.max(16, Math.min(38, Math.ceil(textLength / 2.7)))}s`,
+          `${Math.max(16, Math.min(38, Math.ceil(text.length / 2.7)))}s`,
         );
         title.classList.add('is-overflowing');
       });
     });
   }
 
-  const observer = new MutationObserver(measure);
+  const observer = new MutationObserver(() => measure());
   observer.observe(title, { childList: true, characterData: true, subtree: true });
-  window.addEventListener('resize', measure);
-  window.addEventListener('pageshow', measure);
-  measure();
+  window.addEventListener('resize', () => measure({ force: true }));
+  window.addEventListener('pageshow', () => measure({ force: true }));
+  measure({ force: true });
 })();
