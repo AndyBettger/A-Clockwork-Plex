@@ -48,6 +48,7 @@ _DAYTIME_THEMES = {
     "green_phosphor",
     "aubergine",
     "steel_cyan",
+    "crimson_glow",
 }
 _NIGHT_STYLES = {"classic", "astronomy"}
 _NIGHT_ACTIVE_STYLES = {"same", *_NIGHT_STYLES}
