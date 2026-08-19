@@ -22,8 +22,31 @@ class FinalClockUiPolishTests(unittest.TestCase):
     def test_zero_uses_slash_and_w_has_no_bottom_segment(self) -> None:
         source = (ROOT / "app/static/js/segment-display.js").read_text(encoding="utf-8")
         self.assertIn("'0': ['a', 'b', 'c', 'd', 'e', 'f', 'i', 'j']", source)
+        self.assertIn("O: ['a', 'b', 'c', 'd', 'e', 'f']", source)
         self.assertIn("W: ['b', 'c', 'e', 'f', 'j', 'k']", source)
         self.assertNotIn("W: ['b', 'c', 'd', 'e', 'f', 'j', 'k']", source)
+
+    def test_selected_version_three_segment_geometry_is_the_shared_runtime_source(self) -> None:
+        source = (ROOT / "app/static/js/segment-display.js").read_text(encoding="utf-8")
+        template = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+        editable = (ROOT / "docs/airplay-segment-cell.svg").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "m 17.001147,1.9000002 -1.240955,-1.40000004 -11.5231512,-4e-8",
+            source,
+        )
+        self.assertIn(
+            "M 9.8,16.000001 7.3,14.5 H 3.7 L 2.2,16.000001",
+            source,
+        )
+        self.assertIn(
+            "M 8.5,27.400001 10.000662,28.888992 11.5,27.400001",
+            source,
+        )
+        self.assertIn("20260819-segment-v3", template)
+        self.assertIn("selected Version 3 geometry", editable)
+        self.assertIn("app/static/js/segment-display.js", editable)
+        self.assertNotIn("app/static/js/airplay-mini-clock.js", editable)
 
     def test_clock_alarm_annunciator_uses_scheduler_next_occurrence(self) -> None:
         template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
