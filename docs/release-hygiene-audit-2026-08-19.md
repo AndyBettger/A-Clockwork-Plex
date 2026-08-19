@@ -1,14 +1,15 @@
 # Final release hygiene audit — 19 August 2026
 
-This document is the classification pass for the final Phase 7 repository cleanup. It deliberately makes **no deletions**. Deletion/archival comes only after the final clean-room `setup.sh` installation has passed and after a tracked-file dependency audit proves that the candidate is not required by installation, rollback, diagnostics or maintained regression coverage.
+This document is the classification pass for the final Phase 7 repository cleanup. It deliberately makes **no broad historical deletions**. Deletion/archival comes only after the final clean-room `setup.sh` installation has passed and after a tracked-file dependency audit proves that a candidate is not required by installation, rollback, diagnostics or maintained regression coverage.
 
 ## Principles
 
 1. A file does **not** need to execute on the bedside Pi to deserve a place in the repository. Maintained tests, CI, architecture notes and useful diagnostics are development/release assets.
 2. A file that was created for one temporary physical experiment, one old stage, or one roadmap rewrite should not survive indefinitely merely because it once helped acceptance.
-3. `setup.sh` and `install.sh` are intentionally separate and should remain unless the final dependency audit disproves their distinct roles:
+3. The finished installer has two intentionally separate roles with unambiguous names:
    - `setup.sh` is the human-facing one-command entry point, including CamillaDSP acquisition and the interactive Plexamp claim handoff;
-   - `install.sh` is the guarded lower-level transactional installer/recovery engine.
+   - `appliance-installer.sh` is the guarded lower-level transactional installer/recovery engine.
+   The old root `install.sh` name duplicated that guarded engine and is removed during the final naming cleanup; it is not a third supported entry point.
 4. Do not delete historical evidence until the final release README/INSTALL and final acceptance evidence contain enough durable information to understand the released appliance and its safety decisions.
 5. Run the full validation suite after every cleanup batch and repeat the installer dependency audit before merge.
 
@@ -16,7 +17,7 @@ This document is the classification pass for the final Phase 7 repository cleanu
 
 The following classes are part of the finished appliance or its supported installation/recovery path and should remain:
 
-- root `setup.sh` and `install.sh`;
+- root `setup.sh` and `appliance-installer.sh`;
 - `app/` production application code, templates and static assets;
 - `installer/` transaction libraries, profiles and templates;
 - `systemd/` managed service definitions;
@@ -66,28 +67,17 @@ The final repository should retain enough evidence to show what was physically v
 
 ### Segment-display design assets
 
-`docs/airplay-segment-cell.svg` and any replacement/refined segment artwork must be reviewed after the current 14-segment SVG tidy-up is integrated. Do **not** delete the artwork merely because it lives under `docs/`: determine whether it is the editable source-of-truth for generated/runtime segment geometry or only an obsolete design scratch file.
+`docs/airplay-segment-cell.svg` is now the editable companion to the selected Version 3 runtime geometry in `app/static/js/segment-display.js`. Keep it through final visual acceptance; if later cleanup changes its status, preserve enough provenance to reconstruct or adjust the runtime geometry rather than treating it as an unexplained scratch asset.
 
 ## Documentation work still required
 
 ### README.md
 
-The current README substantially predates the finished appliance. It still describes production EQ as future work and presents the older Weather model. Rewrite it for the released appliance with:
-
-- what A Clockwork Plex is;
-- validated hardware;
-- the normal `bash setup.sh` installation path;
-- Plexamp claim plus first GUI sign-in/library/output commissioning;
-- Plexamp, AirPlay, NFC and alarm behaviour;
-- split-bus EQ/Music Master/Maximum Alarm Volume behaviour;
-- Ecowitt versus Weather Underground, including the one-custom-destination limitation and supplementary indoor readings;
-- Clock/Weather display features and alarm annunciator;
-- updating and supported diagnostics;
-- a link to `docs/INSTALL.md` for full commissioning instructions.
+The release-candidate README has been rewritten for the actual appliance. After the final wiped-SD run, perform one last proofread against the observed installation and update experience rather than redesigning it from assumptions.
 
 ### INSTALL.md
 
-Keep `docs/INSTALL.md` as the operator authority. After the final wiped-SD run, edit only what the actual clean-room experience proves needs changing. Avoid duplicating the full engineering runbook into README.
+Keep `docs/INSTALL.md` as the operator authority. The public command remains `bash setup.sh`; `appliance-installer.sh` is the guarded lower-level engine invoked by setup and is not a second normal-user installation procedure. After the final wiped-SD run, edit only what the actual clean-room experience proves needs changing. Avoid duplicating the full engineering runbook into README.
 
 ### PR #2 description
 
@@ -106,9 +96,9 @@ After the final clean-room install, run `git status --porcelain` on the installe
 
 ## Final deletion gate
 
-Before deleting any candidate:
+Before deleting any remaining candidate:
 
-1. search `setup.sh`, `install.sh`, `installer/`, `scripts/`, systemd units, tests and docs for references;
+1. search `setup.sh`, `appliance-installer.sh`, `installer/`, `scripts/`, systemd units, tests and docs for references;
 2. confirm it is not copied/installed indirectly by a directory-level operation;
 3. confirm no maintained test relies on it as a fixture or contract;
 4. delete in small logical batches;
@@ -118,4 +108,4 @@ Before deleting any candidate:
 
 ## Initial classification result
 
-The repository does need a cleanup, but the correct target is **historical development residue**, not the core test suite or the two root installer entry points. The final wiped-SD `setup.sh` run should happen before destructive cleanup; the clean-room evidence then tells us exactly which installer/runtime files are indispensable. Cleanup follows that acceptance, and a final dependency/CI pass proves that the tidied tree still represents a buildable appliance.
+The repository does need a cleanup, but the correct target is **historical development residue**, not the core test suite or the two intentional installer roles. The first naming cleanup removes the stale root `install.sh` duplicate after migrating maintained callers to `appliance-installer.sh`. The final wiped-SD `setup.sh` run should happen before broad destructive cleanup; the clean-room evidence then tells us exactly which installer/runtime files are indispensable. Cleanup follows that acceptance, and a final dependency/CI pass proves that the tidied tree still represents a buildable appliance.
