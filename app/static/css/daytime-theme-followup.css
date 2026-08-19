@@ -1,0 +1,235 @@
+/*
+ * Focused physical-follow-up for the curated daytime themes.
+ *
+ * This layer deliberately loads after the original component styles and the
+ * first component-theme pass. Classic Dark remains untouched. Non-Classic
+ * themes own presentation chrome; semantic warnings/errors keep their own
+ * meaning.
+ */
+
+/* -------------------------------------------------------------------------
+   Kiosk-safe external-link dialog
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .kiosk-link-modal-card {
+  border-color: var(--acp-theme-control-border);
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 48%),
+    var(--acp-theme-surface-raised);
+  box-shadow:
+    0 30px 100px rgba(0, 0, 0, 0.7),
+    0 0 28px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(
+  .kiosk-link-modal-kicker,
+  .kiosk-link-modal-url,
+  .kiosk-link-modal-status
+) {
+  color: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .kiosk-link-modal-url {
+  border: 1px solid var(--acp-theme-control-border);
+  background: var(--acp-theme-bg-end);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.kiosk-link-modal-close, .kiosk-link-modal-actions .button) {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-control);
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------------
+   AirPlay route-ready rings
+
+   airplay-layout-v3.css intentionally pins its geometry with !important, and
+   unfortunately pinned the old cyan paint at the same time. Match that
+   specificity here so geometry stays fixed while colour belongs to the theme.
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-glyph .airplay-pulse {
+  border-color: var(--accent-strong) !important;
+  box-shadow: 0 0 28px var(--acp-theme-glow) !important;
+}
+
+/* -------------------------------------------------------------------------
+   Settings card headings and status pills
+   ------------------------------------------------------------------------- */
+body[data-active-page="settings"] .settings-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+body[data-active-page="settings"] .settings-card-heading > div {
+  min-width: 0;
+}
+
+body[data-active-page="settings"] .settings-card-heading > .settings-chip {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin: 0;
+  white-space: nowrap;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-chip:not(.is-error):not(.is-warning) {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+  color: var(--accent-strong);
+  box-shadow: 0 0 14px var(--acp-theme-soft);
+}
+
+/* -------------------------------------------------------------------------
+   Settings checkboxes
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: 2px solid var(--acp-theme-control-border);
+  border-radius: 4px;
+  background: var(--acp-theme-control);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-toggle input[type="checkbox"]::before {
+  content: "";
+  width: 11px;
+  height: 6px;
+  border-left: 3px solid var(--acp-theme-contrast);
+  border-bottom: 3px solid var(--acp-theme-contrast);
+  transform: translateY(-1px) rotate(-45deg) scale(0);
+  transform-origin: center;
+  transition: transform 90ms ease;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-toggle input[type="checkbox"]:checked {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  box-shadow: 0 0 12px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-toggle input[type="checkbox"]:checked::before {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* -------------------------------------------------------------------------
+   Settings range controls, excluding the already-specialised calibrated
+   vertical faders. settings-range-theme.js supplies --acp-range-percent.
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader) {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader)::-webkit-slider-runnable-track {
+  height: 8px;
+  border: 1px solid var(--acp-theme-control-border);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent-strong) 0,
+    var(--accent-strong) var(--acp-range-percent, 50%),
+    var(--acp-theme-control) var(--acp-range-percent, 50%),
+    var(--acp-theme-control) 100%
+  );
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader)::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border: 1px solid var(--acp-theme-control-border);
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow:
+    0 2px 7px rgba(0, 0, 0, 0.34),
+    0 0 12px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader)::-moz-range-track {
+  height: 8px;
+  border: 1px solid var(--acp-theme-control-border);
+  border-radius: 999px;
+  background: var(--acp-theme-control);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader)::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader)::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--acp-theme-control-border);
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 0 12px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader):focus-visible {
+  outline: none;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader):focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px var(--acp-theme-soft),
+    0 0 14px var(--acp-theme-glow);
+}
+
+/* -------------------------------------------------------------------------
+   Alarm day selection
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-day-button {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-control);
+  color: var(--muted);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-day-button.is-selected {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--acp-theme-contrast);
+  box-shadow: 0 0 16px var(--acp-theme-soft);
+}
