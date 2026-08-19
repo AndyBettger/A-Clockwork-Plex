@@ -15,18 +15,20 @@ ALARM_RUNTIME = ROOT / "app" / "alarm_runtime.py"
 class CurrentProjectDocumentationTests(unittest.TestCase):
     def test_readme_describes_completed_scheduled_alarm_audio(self):
         text = README.read_text(encoding="utf-8")
-        self.assertIn("real clock-triggered alarm playback", text)
-        self.assertIn("Plexamp and AirPlay pause during alarm priority", text)
+        self.assertIn("real clock-triggered playback", text)
+        self.assertIn("automatic takeover from Plexamp/AirPlay while the alarm owns priority", text)
+        self.assertIn("scheduled alarms **bypass Music Master and music EQ**", text)
         self.assertNotIn("Ordinary scheduled alarm audio is still locked", text)
         self.assertNotIn("Ordinary scheduled alarm playback remains locked", text)
 
-    def test_weather_is_completed_as_final_development_stage(self):
+    def test_readme_describes_current_weather_stack_without_stale_stage_claims(self):
         text = README.read_text(encoding="utf-8")
-        self.assertIn("Weather-provider work was the **final development stage**", text)
-        self.assertIn("built and physically validated", text)
-        self.assertIn("cached Open-Meteo forecasts", text)
-        self.assertIn("up to 16 forecast days", text)
-        self.assertIn("renders every daily item", text)
+        self.assertIn("**Open-Meteo** supplies cached forecast data", text)
+        self.assertIn("**Ecowitt Push** or **Weather Underground PWS**", text)
+        self.assertIn("cached historical rainfall and Rainy Day Fund totals", text)
+        self.assertIn("fresh supplementary indoor temperature/humidity", text)
+        self.assertIn("rolling Hourly rain, Event rain", text)
+        self.assertNotIn("Weather-provider work was the **final development stage**", text)
 
     def test_post_weather_settings_redesign_is_implemented(self):
         text = SETTINGS_REDESIGN.read_text(encoding="utf-8")
@@ -44,15 +46,15 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("16-day response produces 16", text)
         self.assertIn("Advanced Audio is diagnostic", text)
 
-    def test_readme_records_validated_appliance_and_eq_next(self):
+    def test_readme_records_current_settings_and_managed_eq(self):
         text = README.read_text(encoding="utf-8")
-        self.assertIn("unified iPad-style Settings", text)
-        self.assertIn("configurable AirPlay receiver name", text)
-        self.assertIn("Settings-hosted EQ controls", text)
-        self.assertIn("scheduled display dimming", text)
-        self.assertIn("one dashboard-wide clock-format", text)
-        self.assertIn("Do not run: sudo bash scripts/install-master-eq.sh", text)
-        self.assertIn("guarded production-EQ", text)
+        self.assertIn("The touchscreen Settings workspace covers", text)
+        self.assertIn("AirPlay receiver naming", text)
+        self.assertIn("Music Master, source trims, Maximum Alarm Volume and EQ", text)
+        self.assertIn("scheduled night dimming", text)
+        self.assertIn("CamillaDSP is pinned to the accepted 4.1.3 build", text)
+        self.assertIn("a-clockwork-plex-camilladsp.service", text)
+        self.assertIn("old bare `scripts/install-master-eq.sh` production path remains intentionally blocked", text)
 
     def test_alarm_guide_documents_real_scheduled_takeover(self):
         text = ALARM_GUIDE.read_text(encoding="utf-8")
