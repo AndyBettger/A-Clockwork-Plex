@@ -89,7 +89,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator work is physically accepted; V3 segment geometry and installer naming are source/CI complete; daytime-theme presentation, final clean-room install, formal verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator work is physically accepted; V3 segment geometry, installer naming and daytime-theme source/CI are complete; daytime-theme/V3 bedside presentation acceptance, final clean-room install, formal verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -126,14 +126,17 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] +20° bell orientation/four ticks and balanced active brightness are physically accepted in daytime, Classic night and Astronomy night.
 - [x] **Version 3 segment artwork selection:** the selected V3 path geometry is now the shared runtime source, the editable SVG identifies it as the selected geometry, the base template is cache-busted with `20260819-segment-v3`, and regression coverage pins all three together. Head `fb62ad16fbfd706a252d399eb99f2edbf01b8c84` added the final source contract. Treat V3 as selected rather than an open geometry-design task.
 
-#### Daytime theme — **planned next, before the final wiped-SD release run**
+#### Daytime theme — **source/CI PASS; bedside visual acceptance pending**
 
-- [ ] Perform the separately requested daytime-theme presentation phase now that the segment geometry is stable.
-- [ ] Keep this phase presentation-only: it must not alter scheduler behavior, alarm/audio ownership, Weather authority, playback handoff, installer behavior or other accepted functional contracts.
-- [ ] Preserve the already accepted Classic/Astronomy night behavior unless the owner explicitly asks for a night-mode change while reviewing the daytime work.
-- [ ] Keep the selected V3 segment geometry as the display-art baseline rather than combining theme work with another geometry redesign.
-- [ ] Add focused source/regression coverage for whatever daytime-theme authority is introduced and obtain bedside visual acceptance before the final clean-room wipe.
-- [ ] The detailed colour/art direction remains owner-led; do not invent a final palette or appearance merely to tick this roadmap item off.
+- [x] Implement a persisted `dashboard.daytime_theme` with six curated presets: **Classic Dark**, **Midnight Blue**, **Amber Terminal**, **Green Phosphor**, **Aubergine** and **Steel Cyan**.
+- [x] Keep the phase presentation-only: it does not alter scheduler behaviour, alarm/audio ownership, Weather authority, playback handoff, installer behaviour or other accepted functional contracts.
+- [x] **Classic Dark** leaves the previously accepted palette untouched. Non-Classic themes recolour native dashboard surfaces only.
+- [x] **Classic night** remains the established black overlay and therefore darkens whichever daytime palette is selected; **Astronomy** retains the existing grayscale/brightness + red-multiply override.
+- [x] The active Plexamp surface is explicitly excluded from daytime palette rules so Plexamp keeps ownership of its appearance.
+- [x] The selected V3 segment geometry remains unchanged; theme rules alter only its lit/unlit/glow presentation.
+- [x] Settings → Display → Theme now provides the six-choice selector with live preview, unified Save/Discard persistence, and first-paint bootstrap of the saved palette before the dashboard becomes visible.
+- [x] Focused theme regressions are green. Exact source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`.
+- [ ] **Physical:** pull/reboot and judge all six palettes on Clock, Weather, Audio, AirPlay, Settings/navigation; confirm the saved selection persists, Classic night darkens that palette, Astronomy overrides it red, Plexamp remains visually Plexamp-owned, and V3 geometry looks correct on the real display. Tune presentation CSS only if the bedside screen proves it necessary.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
@@ -169,6 +172,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Remove the stale root `install.sh` duplicate rather than shipping three apparent installer entry points.
 - [x] CI explicitly syntax-checks `setup.sh`, `appliance-installer.sh` and `segment-display.js`, verifies `setup.sh` delegates to `appliance-installer.sh`, and verifies `install.sh` is absent.
 - [x] Exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`; the Pi was not used as the syntax checker.
+- [x] `docs/appliance-installer.md` documents the real advanced plan/profile/apply/reboot/claim/rollback controls while keeping `setup.sh` prominent as the normal user path. Documentation head `19bdee6d9d51a667f6336928980fdb13247d1f10` passed Tests #3779 / run `32217286497`.
 
 #### Spare-SD physical acceptance handoff
 
@@ -241,5 +245,6 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#41 — annunciator brightness balance — PASS (source/CI + physical).** `f815603b0b27893d495dbf570e928ebbef73afa5`, Tests #3709; final annunciator accepted.
 - **#42 — release-hygiene classification + README modernization — PASS (documentation/source; broad destructive cleanup deferred).** `docs/release-hygiene-audit-2026-08-19.md` classifies production/test/history assets; README reflects the release candidate.
 - **#43 — selected Version 3 segment geometry + unambiguous installer naming — PASS (source/CI).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is `appliance-installer.sh`, maintained callers/tests were migrated, stale `install.sh` was removed, and CI explicitly checks both release installer entry points plus `segment-display.js`. Exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`. The remaining bedside V3 visual check belongs to the next presentation acceptance pass rather than installer naming.
+- **#44 — curated daytime themes — PASS (source/CI; bedside visual acceptance pending).** Six persisted presets (Classic Dark, Midnight Blue, Amber Terminal, Green Phosphor, Aubergine, Steel Cyan) use unified Settings plus first-paint presentation authority. Classic Dark preserves the accepted baseline; Classic night dims the selected palette; Astronomy overrides it red; Plexamp is excluded; and V3 geometry is untouched. Exact source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS never substitutes for a remaining bedside or clean-room acceptance gate.
