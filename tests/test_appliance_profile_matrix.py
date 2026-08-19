@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INSTALLER = ROOT / "install.sh"
+INSTALLER = ROOT / "appliance-installer.sh"
 PREFLIGHT = ROOT / "scripts/preflight-appliance.sh"
 PACKAGE_CHECK = ROOT / "scripts/check-appliance-packages.sh"
 VERIFY = ROOT / "scripts/verify-appliance.sh"
