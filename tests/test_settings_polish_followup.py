@@ -63,6 +63,7 @@ class SettingsPolishFollowupTests(unittest.TestCase):
             "Green Phosphor",
             "Aubergine",
             "Steel Cyan",
+            "Crimson Glow",
         ):
             self.assertIn(label, client)
         self.assertIn("Plexamp keeps its own appearance", client)
