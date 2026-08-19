@@ -1,68 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="280mm"
-   height="400mm"
-   viewBox="-4 -4 28 40"
-   version="1.1"
-   id="a-clockwork-plex-segment-cell"
-   sodipodi:docname="airplay-segment-cell.svg"
-   xml:space="preserve"
-   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
-     id="namedview21"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:document-units="mm"
-     showguides="true"
-     inkscape:zoom="0.74943229"
-     inkscape:cx="253.52524"
-     inkscape:cy="714.54087"
-     inkscape:window-width="2560"
-     inkscape:window-height="1351"
-     inkscape:window-x="2551"
-     inkscape:window-y="-9"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="a-clockwork-plex-segment-cell"><sodipodi:guide
-       position="5.9929392,32.197705"
-       orientation="1,0"
-       id="guide22"
-       inkscape:locked="false" /><sodipodi:guide
-       position="7.6169463,33.901147"
-       orientation="0,-1"
-       id="guide23"
-       inkscape:locked="false" /><sodipodi:guide
-       position="8.4730805,20"
-       orientation="0,-1"
-       id="guide24"
-       inkscape:locked="false" /><sodipodi:guide
-       position="13.980583,21.606355"
-       orientation="1,0"
-       id="guide25"
-       inkscape:locked="false" /><sodipodi:guide
-       position="11.421006,6.0988525"
-       orientation="0,-1"
-       id="guide26"
-       inkscape:locked="false" /><sodipodi:guide
-       position="22.001324,7.255075"
-       orientation="1,0"
-       id="guide27"
-       inkscape:locked="false" /></sodipodi:namedview><title
-     id="title1">A Clockwork Plex AirPlay alphanumeric segment cell</title><desc
-     id="desc1">
-    Editable source cell for the AirPlay 14/16-segment display.
-    Edit the polygon points in Inkscape, then copy each segment's path d value
-    back into app/static/js/airplay-mini-clock.js.
-  </desc><defs
-     id="defs1"><style
-       id="style1"><![CDATA[
+  width="280mm"
+  height="400mm"
+  viewBox="-4 -4 28 40"
+  version="1.1"
+  id="a-clockwork-plex-segment-cell"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape">
+  <title>A Clockwork Plex shared 14-segment display cell</title>
+  <desc>
+    Editable source cell for the shared A Clockwork Plex 14-segment display.
+    This is the selected Version 3 geometry. Edit the segment paths in Inkscape,
+    then copy each segment path (and any transform) into SEGMENT_PATHS in
+    app/static/js/segment-display.js. The runtime renderer is shared by the
+    Clock, AirPlay and other dashboard segment readouts.
+  </desc>
+  <defs>
+    <style><![CDATA[
       .guide {
         fill: none;
         stroke: #8fd3ff;
@@ -74,202 +28,64 @@
         stroke: rgba(247, 249, 255, 0.35);
         stroke-width: 0.05;
       }
-      .sample-on {
-        fill: #8fd3ff;
-        filter: drop-shadow(0 0 0.5px rgba(143, 211, 255, 0.55));
-      }
       .label {
         fill: #8fd3ff;
         font-family: DejaVu Sans, Arial, sans-serif;
         font-size: 1.1px;
         font-weight: 700;
       }
-    ]]></style></defs><g
-     id="guides"
-     inkscape:label="Guides"
-     sodipodi:insensitive="true"
-     style="display:inline"><rect
-       id="cell-bounds"
-       class="guide"
-       x="0"
-       y="0"
-       width="20"
-       height="32"
-       rx="0.40000001" /><line
-       id="vertical-centre"
-       class="guide"
-       x1="10"
-       y1="0"
-       x2="10"
-       y2="32" /><line
-       id="horizontal-centre"
-       class="guide"
-       x1="0"
-       y1="16"
-       x2="20"
-       y2="16" /></g><g
-     id="segment-cell"
-     inkscape:label="Segment cell - edit these paths"
-     style="display:inline"><path
-       id="segment-a"
-       style="display:inline;stroke-width:0.05"
-       class="segment segment-a"
-       inkscape:label="segment-a"
-       transform="matrix(1.1281637,0,0,1,-1.2800763,0)"
-       d="M 16.961276,1.9065286 16.048949,0.5792982 4.0119027,0.56681617 3.1383003,1.8940466 4.6757439,3.739281 15.462556,3.7517631 Z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-b"
-       class="segment segment-b"
-       style="stroke-width:0.05"
-       d="M 16.373201,14.053358 18.327194,15.5961 19.494667,14.511214 19.464533,3.7344232 18.193471,2.3327149 16.379442,4.1900172 Z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-c"
-       class="segment segment-c"
-       style="stroke-width:0.05"
-       d="m 16.355396,27.745659 1.884424,1.938512 1.235573,-1.580296 0.0088,-12.943672 -3.136134,3.095201 z"
-       sodipodi:nodetypes="cccccc" /><path
-       id="segment-d"
-       class="segment segment-d"
-       style="stroke-width:0.05"
-       d="m 16.992268,31.278305 0.960954,-1.272392 -2.020089,-2.013786 -11.919223,0.0088 -1.8170874,1.969656 1.5169991,1.316523 z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-e"
-       class="segment segment-e"
-       style="stroke-width:0.05"
-       d="M 0.63052074,28.580485 1.8940865,29.717961 3.6872198,27.733177 3.8813945,17.622692 0.59506866,14.4201 Z"
-       sodipodi:nodetypes="cccccc" /><path
-       id="segment-f"
-       class="segment segment-f"
-       style="stroke-width:0.05"
-       d="M 0.6228415,13.767158 2.4992811,15.549569 3.7141732,14.466152 3.6642451,4.0339918 1.9625539,2.2515817 0.63532353,3.7718693 Z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-g1"
-       class="segment segment-g1"
-       style="stroke-width:0.05"
-       d="m 8.3066108,17.590132 1.508173,-1.61661 -1.9759577,-1.669568 -3.2452132,-0.03013 -1.8104028,1.670194 1.6572224,1.654945 z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-g2"
-       class="segment segment-g2"
-       style="stroke-width:0.05"
-       d="m 16.362745,17.634263 1.711174,-1.68722 -1.99361,-1.607784 -4.051527,-0.02648 -1.764131,1.678394 1.702348,1.634264 z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-h"
-       class="segment segment-h"
-       style="stroke-width:0.05"
-       d="M 7.8406443,14.002515 7.8324816,9.6530167 4.1869428,4.1867271 4.1778378,8.723679 Z"
-       sodipodi:nodetypes="ccccc" /><path
-       id="segment-i"
-       class="segment segment-i"
-       style="stroke-width:0.05"
-       d="m 11.837572,9.9401588 0.01287,4.1153132 4.088818,-5.822374 0.0048,-4.0005737 z"
-       sodipodi:nodetypes="ccccc" /><path
-       id="segment-j"
-       class="segment segment-j"
-       style="stroke-width:0.05"
-       d="m 7.8270345,22.465843 -0.00253,-4.653923 -3.6313731,5.416588 -0.031265,4.424228 z"
-       sodipodi:nodetypes="ccccc" /><path
-       id="segment-k"
-       class="segment segment-k"
-       style="stroke-width:0.05"
-       d="m 11.815136,18.015137 0.01361,4.591924 4.168252,5.08098 0.01287,-4.521316 z"
-       sodipodi:nodetypes="ccccc" /><path
-       id="segment-m"
-       class="segment segment-m"
-       style="stroke-width:0.05"
-       d="M 8.2509973,14.194872 10,15.632436 11.41361,14.291959 V 5.4642189 L 9.9911739,3.9736981 8.2774757,5.4642189 Z"
-       sodipodi:nodetypes="ccccccc" /><path
-       id="segment-n"
-       class="segment segment-n"
-       style="stroke-width:0.0502331"
-       d="m 8.295128,25.758019 1.740177,2.021151 1.334174,-1.459908 10e-7,-8.642989 L 10,16.341085 8.3127802,18.14843 Z"
-       sodipodi:nodetypes="ccccccc" /></g><g
-     id="sample-eight"
-     inkscape:label="Sample 8 overlay"
-     opacity="0.95"
-     sodipodi:insensitive="true"
-     style="display:none"><use
-       href="#segment-a"
-       class="sample-on"
-       id="use1" /><use
-       href="#segment-b"
-       class="sample-on"
-       id="use2" /><use
-       href="#segment-c"
-       class="sample-on"
-       id="use3" /><use
-       href="#segment-d"
-       class="sample-on"
-       id="use4" /><use
-       href="#segment-e"
-       class="sample-on"
-       id="use5" /><use
-       href="#segment-f"
-       class="sample-on"
-       id="use6" /><use
-       href="#segment-g1"
-       class="sample-on"
-       id="use7" /><use
-       href="#segment-g2"
-       class="sample-on"
-       id="use8" /></g><g
-     id="segment-labels"
-     inkscape:label="Segment labels"
-     opacity="0.65"
-     sodipodi:insensitive="true"
-     style="display:inline"><text
-       class="label"
-       x="9.3999996"
-       y="1.2"
-       id="text8">a</text><text
-       class="label"
-       x="18.700001"
-       y="9.8000002"
-       id="text9">b</text><text
-       class="label"
-       x="18.700001"
-       y="23.4"
-       id="text10">c</text><text
-       class="label"
-       x="9.3999996"
-       y="32.799999"
-       id="text11">d</text><text
-       class="label"
-       x="-1.2"
-       y="23.4"
-       id="text12">e</text><text
-       class="label"
-       x="-1.2"
-       y="9.8000002"
-       id="text13">f</text><text
-       class="label"
-       x="5.5"
-       y="15.2"
-       id="text14">g1</text><text
-       class="label"
-       x="12"
-       y="15.2"
-       id="text15">g2</text><text
-       class="label"
-       x="6.4000001"
-       y="7.8000002"
-       id="text16">h</text><text
-       class="label"
-       x="13"
-       y="7.8000002"
-       id="text17">i</text><text
-       class="label"
-       x="6.4000001"
-       y="24.799999"
-       id="text18">j</text><text
-       class="label"
-       x="13"
-       y="24.799999"
-       id="text19">k</text><text
-       class="label"
-       x="10.7"
-       y="9.6000004"
-       id="text20">m</text><text
-       class="label"
-       x="10.7"
-       y="23.4"
-       id="text21">n</text></g></svg>
+    ]]></style>
+  </defs>
+  <g id="guides" inkscape:label="Guides">
+    <rect id="cell-bounds" class="guide" x="0" y="0" width="20" height="32" rx="0.4" />
+    <line id="vertical-centre" class="guide" x1="10" y1="0" x2="10" y2="32" />
+    <line id="horizontal-centre" class="guide" x1="0" y1="16" x2="20" y2="16" />
+  </g>
+  <g id="segment-cell" inkscape:label="Segment cell - selected Version 3 geometry">
+    <path id="segment-a" class="segment segment-a" inkscape:label="segment-a"
+      transform="matrix(1.1281637,0,0,1,-1.2800763,0)"
+      d="m 17.001147,1.9000002 -1.240955,-1.40000004 -11.5231512,-4e-8 -1.240954,1.40000018 1.4182339,1.5999999 4.9638186,0 0.6204773,-0.7 0.6204774,0.7 4.963819,0 z" />
+    <path id="segment-b" class="segment segment-b"
+      d="m 16.5,14.3 1.6,1.600001 h 1.4 V 3.5000017 l -1.4,-1.4000015 -1.6,1.6 z" />
+    <path id="segment-c" class="segment segment-c"
+      d="m 16.5,28.300001 1.6,1.6 1.401324,-1.4 L 19.5,16.09 18.1,16.1 16.5,17.7 Z" />
+    <path id="segment-d" class="segment segment-d"
+      d="m 16.5,31.500001 1.401324,-1.4 -1.601324,-1.6 h -5.6 l -0.7,0.7 -0.7,-0.7 H 3.7 l -1.6,1.6 1.4000001,1.4 z" />
+    <path id="segment-e" class="segment segment-e"
+      d="m 0.5,28.500001 1.4,1.4 1.6000001,-1.6 v -10.6 L 1.9,16.100001 H 0.5 Z" />
+    <path id="segment-f" class="segment segment-f"
+      d="M 0.5,15.900001 H 1.9 L 3.5000001,14.3 3.5,3.7000002 l -1.6,-1.6 -1.4,1.4000012 z" />
+    <path id="segment-g1" class="segment segment-g1"
+      d="M 9.8,16.000001 7.3,14.5 H 3.7 L 2.2,16.000001 3.6923826,17.500002 7.3,17.500001 Z" />
+    <path id="segment-g2" class="segment segment-g2"
+      d="m 16.3,17.500001 1.5,-1.5 L 16.3,14.5 H 12.7 L 10.199888,16 12.7,17.500001 Z" />
+    <path id="segment-h" class="segment segment-h"
+      d="M 7.5,14.3 9.8,15.800001 8.3,10.6 4.5,3.7000002 H 3.7 v 3.9000001 z" />
+    <path id="segment-i" class="segment segment-i"
+      d="M 11.7,10.6 10.2,15.800001 12.5,14.3 16.3,7.6000003 V 3.7000002 h -0.8 z" />
+    <path id="segment-j" class="segment segment-j"
+      d="m 8.3,21.600001 1.5,-5.4 -2.2761393,1.5 -3.8238607,6.7 v 3.9 h 0.8 z" />
+    <path id="segment-k" class="segment segment-k"
+      d="m 10.2,16.200001 1.5,5.4 3.8,6.7 h 0.800001 l -1e-6,-3.9 -3.8,-6.7 z" />
+    <path id="segment-m" class="segment segment-m"
+      d="M 8.5,10.4 10,15.800001 11.5,10.4 V 4.6000002 l -1.5,-1.5 -1.5,1.5 z" />
+    <path id="segment-n" class="segment segment-n"
+      d="M 8.5,27.400001 10.000662,28.888992 11.5,27.400001 v -5.6 l -1.5,-5.6 -1.5,5.6 z" />
+  </g>
+  <g id="segment-labels" inkscape:label="Segment labels" opacity="0.65">
+    <text class="label" x="9.4" y="1.2">a</text>
+    <text class="label" x="18.7" y="9.8">b</text>
+    <text class="label" x="18.7" y="23.4">c</text>
+    <text class="label" x="9.4" y="32.8">d</text>
+    <text class="label" x="-1.2" y="23.4">e</text>
+    <text class="label" x="-1.2" y="9.8">f</text>
+    <text class="label" x="5.5" y="15.2">g1</text>
+    <text class="label" x="12" y="15.2">g2</text>
+    <text class="label" x="6.4" y="7.8">h</text>
+    <text class="label" x="13" y="7.8">i</text>
+    <text class="label" x="6.4" y="24.8">j</text>
+    <text class="label" x="13" y="24.8">k</text>
+    <text class="label" x="10.7" y="9.6">m</text>
+    <text class="label" x="10.7" y="23.4">n</text>
+  </g>
+</svg>
