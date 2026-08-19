@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -26,6 +27,18 @@ THEME_VALUES = (
 
 
 class DaytimeThemeTests(unittest.TestCase):
+    def test_theme_javascript_has_valid_syntax(self) -> None:
+        for path in (BOOTSTRAP, DISPLAY_SETTINGS):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    ["node", "--check", str(path)],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_server_normaliser_accepts_curated_themes_and_falls_back_to_classic(self) -> None:
         self.assertEqual(settings_unified_scheduled._DAYTIME_THEMES, set(THEME_VALUES))
         for theme in THEME_VALUES:
