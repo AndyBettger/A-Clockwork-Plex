@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-width-fixes.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-glance-tuning.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-layout-v3.css', v='20260731-metadata-pending-glyph') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-title-marquee.css', v='20260819-longform-title-v2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-title-marquee.css', v='20260819-longform-title-v3') }}">
 {% endblock %}
 {% block content %}
 <section class="airplay-page" aria-label="AirPlay active screen" data-configured-receiver-name="{{ configured_airplay_name }}" data-receiver-name="{{ receiver_airplay_name }}">
@@ -70,7 +70,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/airplay-live.js') }}"></script>
-<script src="{{ url_for('static', filename='js/airplay-title-marquee.js', v='20260819-longform-title-v2') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-title-marquee.js', v='20260819-longform-title-v3') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-playback-state.js', v='20260726-authority-paint') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-outside-card.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-receiver-name.js') }}"></script>
