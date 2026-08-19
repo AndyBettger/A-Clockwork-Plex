@@ -5,6 +5,14 @@
 
   const RETRY_MS = 80;
   const MAX_ATTEMPTS = 100;
+  const DAYTIME_THEME_OPTIONS = [
+    ['classic_dark', 'Classic Dark'],
+    ['midnight_blue', 'Midnight Blue'],
+    ['amber_terminal', 'Amber Terminal'],
+    ['green_phosphor', 'Green Phosphor'],
+    ['aubergine', 'Aubergine'],
+    ['steel_cyan', 'Steel Cyan'],
+  ];
   const TRANSITION_OPTIONS = [
     ['grow-fade', 'Grow and fade'],
     ['crossfade', 'Crossfade'],
@@ -97,13 +105,20 @@
     card.innerHTML = `
       <h3>Theme</h3>
       <div class="settings-grid two-col">
+        <label class="setting-field wide">
+          <span>Daytime theme</span>
+          <select data-setting-path="display.daytime_theme" data-daytime-theme-setting>
+            ${DAYTIME_THEME_OPTIONS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+          </select>
+          <small>The palette used by Clock, Weather, AirPlay, Settings and dashboard controls. Plexamp keeps its own appearance.</small>
+        </label>
         <label class="setting-field">
           <span>Night idle appearance</span>
           <select data-setting-path="display.night_dim_style" data-night-dim-style-setting>
             <option value="classic">Classic dim</option>
             <option value="astronomy">Astronomy red</option>
           </select>
-          <small>The appearance used while the scheduled night display is resting.</small>
+          <small>Classic dim darkens the selected daytime palette; Astronomy red overrides its colours.</small>
         </label>
         <label class="setting-field">
           <span>Night interaction appearance</span>
@@ -114,13 +129,37 @@
           </select>
           <small>The night-safe appearance retained while touching Settings, Weather or Plexamp.</small>
         </label>
-        <div class="setting-field wide">
-          <span>Daytime theme</span>
-          <strong>Classic dark</strong>
-          <small>Additional daytime and accent themes are deliberately deferred until after the guarded production-EQ phase.</small>
-        </div>
       </div>`;
     return card;
+  }
+
+  function applyDaytimeTheme(select) {
+    window.ACPDashboardPreferences?.write?.({ daytimeTheme: select.value });
+  }
+
+  function populateDaytimeTheme(select, attempts = 80) {
+    const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
+    const display = snapshot?.settings?.display;
+    if (display) {
+      const value = String(display.daytime_theme || 'classic_dark');
+      select.value = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
+        ? value
+        : 'classic_dark';
+      applyDaytimeTheme(select);
+      return;
+    }
+    if (attempts > 0) window.setTimeout(() => populateDaytimeTheme(select, attempts - 1), 100);
+  }
+
+  function restoreDaytimeThemeFromSnapshot(select) {
+    window.setTimeout(() => {
+      const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
+      const value = String(snapshot?.settings?.display?.daytime_theme || 'classic_dark');
+      select.value = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
+        ? value
+        : 'classic_dark';
+      applyDaytimeTheme(select);
+    }, 0);
   }
 
   function applyNightStyles(idleSelect, activeSelect) {
@@ -171,7 +210,7 @@
     const rows = [
       row('display:clock', 'Clock', '12/24-hour presentation'),
       row('display:night', 'Night dimming', 'Idle and interaction brightness'),
-      row('display:theme', 'Theme', 'Idle and interaction night appearance'),
+      row('display:theme', 'Theme', 'Daytime palette and night appearance'),
       row('display:motion', 'Motion', 'Transition style and duration'),
     ];
     overview.append(...rows);
@@ -192,6 +231,16 @@
     pages.forEach((page) => {
       page.querySelector('[data-settings-back="display"]')?.addEventListener('click', () => closeSubpage(panel, overview));
     });
+
+    const themeSelect = panel.querySelector('[data-daytime-theme-setting]');
+    const previewTheme = () => applyDaytimeTheme(themeSelect);
+    themeSelect?.addEventListener('input', previewTheme);
+    themeSelect?.addEventListener('change', previewTheme);
+    if (themeSelect) {
+      populateDaytimeTheme(themeSelect);
+      document.querySelector('[data-action="discard-settings"]')
+        ?.addEventListener('click', () => restoreDaytimeThemeFromSnapshot(themeSelect));
+    }
 
     const idleSelect = panel.querySelector('[data-night-dim-style-setting]');
     const activeSelect = panel.querySelector('[data-night-dim-active-style-setting]');
