@@ -23,6 +23,7 @@ THEME_VALUES = (
     "green_phosphor",
     "aubergine",
     "steel_cyan",
+    "crimson_glow",
 )
 
 
@@ -61,7 +62,7 @@ class DaytimeThemeTests(unittest.TestCase):
         bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
         self.assertIn('data-server-daytime-theme="{{ config.dashboard.daytime_theme', base)
         self.assertIn("daytime-themes.css", base)
-        self.assertIn("20260819-curated-themes-v1", base)
+        self.assertIn("20260819-curated-themes-v2", base)
         self.assertIn("const daytimeThemes = new Set", bootstrap)
         self.assertIn("normaliseDaytimeTheme", bootstrap)
         self.assertIn("root.dataset.daytimeTheme", bootstrap)
@@ -69,7 +70,7 @@ class DaytimeThemeTests(unittest.TestCase):
         for theme in THEME_VALUES:
             self.assertIn(f"'{theme}'", bootstrap)
 
-    def test_settings_replaces_placeholder_with_six_choice_live_preview(self) -> None:
+    def test_settings_offers_seven_choice_live_preview(self) -> None:
         source = DISPLAY_SETTINGS.read_text(encoding="utf-8")
         self.assertIn('data-setting-path="display.daytime_theme"', source)
         self.assertIn("data-daytime-theme-setting", source)
@@ -82,6 +83,7 @@ class DaytimeThemeTests(unittest.TestCase):
             ("green_phosphor", "Green Phosphor"),
             ("aubergine", "Aubergine"),
             ("steel_cyan", "Steel Cyan"),
+            ("crimson_glow", "Crimson Glow"),
         ):
             self.assertIn(f"['{theme}', '{label}']", source)
         self.assertNotIn("deliberately deferred until after the guarded production-EQ phase", source)
@@ -94,6 +96,27 @@ class DaytimeThemeTests(unittest.TestCase):
         self.assertNotIn('html[data-daytime-theme="classic_dark"] body', css)
         self.assertIn("selected V3 14-segment geometry stays untouched", css)
         self.assertNotIn(".persistent-plexamp-frame", css)
+
+    def test_crimson_glow_is_daytime_red_not_astronomy_override(self) -> None:
+        css = THEMES.read_text(encoding="utf-8")
+        self.assertIn('html[data-daytime-theme="crimson_glow"]', css)
+        self.assertIn("--accent: #f26b78;", css)
+        self.assertIn("--acp-theme-bg-start: #5a1f29;", css)
+        self.assertIn("distinct from the\n   monochrome Astronomy night override", css)
+
+    def test_non_classic_airplay_accents_follow_selected_palette(self) -> None:
+        css = THEMES.read_text(encoding="utf-8")
+        self.assertIn("--segment-date-on: var(--accent);", css)
+        self.assertIn(".airplay-mini-date .alpha-segment.is-on", css)
+        self.assertIn("fill: var(--accent);", css)
+        self.assertIn(".airplay-outside-value + .airplay-outside-value", css)
+        self.assertIn("border-inline-start-color: var(--acp-theme-control-border);", css)
+        self.assertIn(".airplay-route-logo", css)
+        self.assertIn("drop-shadow(0 0 32px var(--acp-theme-glow))", css)
+        self.assertIn(".airplay-progress-track span", css)
+        self.assertIn("box-shadow: 0 0 18px var(--acp-theme-glow);", css)
+        self.assertIn(".airplay-skip-button", css)
+        self.assertIn("airplay-live-dot-themed", css)
 
     def test_night_modes_compose_over_the_selected_daytime_palette(self) -> None:
         theme_css = THEMES.read_text(encoding="utf-8")
