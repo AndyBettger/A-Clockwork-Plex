@@ -5,10 +5,22 @@
   const title = document.getElementById('airplay-title');
   if (!title) return;
 
+  /* The source/book/album line already has a physically proven marquee based on
+     a clipped container plus translateX on the moving child. Give the episode
+     title the same geometry instead of maintaining a separate text-indent
+     animation. airplay-live may continue writing title.textContent normally. */
+  let shell = title.parentElement;
+  if (!shell?.classList.contains('airplay-title-scroll-shell')) {
+    shell = document.createElement('div');
+    shell.className = 'airplay-title-scroll-shell';
+    title.parentNode?.insertBefore(shell, title);
+    shell.appendChild(title);
+  }
+
   let frameOne = null;
   let frameTwo = null;
-  let lastMeasuredText = null;
-  let lastMeasuredWidth = null;
+  let lastText = null;
+  let lastWidth = null;
 
   function clearFrames() {
     if (frameOne !== null) cancelAnimationFrame(frameOne);
@@ -18,42 +30,41 @@
   }
 
   function reset() {
-    title.classList.remove('is-overflowing');
-    title.style.removeProperty('--airplay-title-overflow');
-    title.style.removeProperty('--airplay-title-scroll-duration');
+    shell.classList.remove('is-overflowing');
+    shell.style.removeProperty('--airplay-source-overflow');
+    shell.style.removeProperty('--airplay-scroll-duration');
   }
 
   function measure({ force = false } = {}) {
     const text = String(title.textContent || '').trim();
-    const width = title.clientWidth;
+    const width = shell.clientWidth;
 
-    /* airplay-live refreshes status every two seconds. Some metadata providers
-       repaint an identical title during those refreshes, which raises a DOM
-       mutation even though nothing visible changed. Do not reset the CSS
-       animation for that no-op repaint: otherwise the marquee spends its life
-       repeatedly moving a few pixels and snapping back to the beginning. */
-    if (!force && text === lastMeasuredText && width === lastMeasuredWidth) {
-      return;
-    }
+    /* /api/status repaints can write the same text every two seconds. The
+       working secondary-title marquee leaves identical text alone, so do the
+       same here: no DOM reset means no animation restart. */
+    if (!force && text === lastText && width === lastWidth) return;
 
-    lastMeasuredText = text;
-    lastMeasuredWidth = width;
+    lastText = text;
+    lastWidth = width;
     clearFrames();
     reset();
 
-    if (!document.body.classList.contains('airplay-metadata-active')) return;
+    if (!text || !document.body.classList.contains('airplay-metadata-active')) return;
 
     frameOne = requestAnimationFrame(() => {
       frameTwo = requestAnimationFrame(() => {
-        const overflow = Math.max(0, Math.ceil(title.scrollWidth - title.clientWidth));
-        if (overflow <= 8) return;
+        const measuredOverflow = Math.max(0, title.scrollWidth - shell.clientWidth);
+        const estimatedOverflow = Math.max(0, Math.ceil(text.length * 24) - shell.clientWidth);
+        const overflow = Math.max(measuredOverflow, estimatedOverflow);
 
-        title.style.setProperty('--airplay-title-overflow', `${overflow + 10}px`);
-        title.style.setProperty(
-          '--airplay-title-scroll-duration',
-          `${Math.max(16, Math.min(38, Math.ceil(text.length / 2.7)))}s`,
-        );
-        title.classList.add('is-overflowing');
+        if (overflow > 8 || text.length > 34) {
+          shell.style.setProperty('--airplay-source-overflow', `${Math.max(overflow, 72)}px`);
+          shell.style.setProperty(
+            '--airplay-scroll-duration',
+            `${Math.max(18, Math.min(38, Math.ceil(text.length / 2.7)))}s`,
+          );
+          shell.classList.add('is-overflowing');
+        }
       });
     });
   }
