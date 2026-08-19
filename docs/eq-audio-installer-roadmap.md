@@ -90,7 +90,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator/V3 and the first six daytime palettes are physically accepted; Crimson/accent/AirPlay long-form source/CI is complete; final presentation follow-up, replacement-SD clean-room install, formal verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator/V3, the original six daytime palettes and Crimson Glow itself are physically accepted; cross-component theme cleanup and AirPlay marquee stability are source/CI complete; final presentation follow-up, replacement-SD clean-room install, formal verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -128,7 +128,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] **Version 3 segment artwork:** selected V3 path geometry is the shared runtime source, editable SVG identifies it as the selected geometry, base template is cache-busted with `20260819-segment-v3`, and regression coverage pins all three together. Head `fb62ad16fbfd706a252d399eb99f2edbf01b8c84` added the final source contract.
 - [x] **Physical V3 acceptance, 19 August:** the real Touch Display shows the revised 14-segment font much cleaner than the previous geometry. Treat the V3 design itself as closed unless a later unrelated presentation change exposes a specific defect.
 
-#### Daytime theme — original six physical PASS; Crimson/accent follow-up source/CI PASS
+#### Daytime theme — Crimson physical PASS; cross-component accent cleanup source/CI PASS
 
 - [x] Persist `dashboard.daytime_theme` through unified Settings with first-paint bootstrap and live Save/Discard preview.
 - [x] Original six presets: **Classic Dark**, **Midnight Blue**, **Amber Terminal**, **Green Phosphor**, **Aubergine** and **Steel Cyan**.
@@ -140,20 +140,25 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Original six-theme source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`.
 - [x] **Physical original-six acceptance, 19 August:** all six palettes were checked on the real appliance and accepted; Midnight Blue was particularly well received as a classy option. V3 remained clean under the palette layer.
 - [x] Add seventh long-wavelength preset **Crimson Glow**, deliberately a full-colour daytime crimson palette rather than a duplicate of monochrome Astronomy night mode.
-- [x] Audit known AirPlay-era cyan constants under non-Classic themes: mini-date segments, pulse/ring/glow treatments, progress glow, artwork/route-logo glow, volume glow, separator, paused/live dot, skip-button glow and play-button contrast now follow theme variables instead of leaking the old light-blue accent.
-- [x] Expanded seven-theme source is green at `e3782c8c91533a4c64c8a60602c45051c25176f4`, Tests #3827 / run `32295754785`.
-- [ ] **Physical follow-up:** judge Crimson Glow and revisit AirPlay/Settings/other native surfaces under non-blue themes for any remaining stray cyan highlight. If a specific leak remains, capture a screenshot and fix that selector rather than broad-brush recolouring neutral whites/greys.
+- [x] **Physical Crimson acceptance, 19 August:** Crimson Glow was enthusiastically accepted on the real display. The same pass exposed remaining legacy cyan component paint rather than a problem with the Crimson palette itself.
+- [x] First AirPlay-era accent cleanup covered mini-date segments, progress/artwork/route/volume/live-dot presentation; source head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785`.
+- [x] Screenshot-driven cross-component audit then identified legacy cyan on Weather scroll rails/rain gauges/barometer gradients, AirPlay route-ready pulse rings, Audio EQ/knobs/faders, and Settings dropdowns/ranges/status controls/Alarm Enabled/About links and 42 mark.
+- [x] `daytime-theme-components.css` is now the late presentation authority for those legacy components. It uses shared palette variables, keeps Classic Dark untouched, excludes Plexamp, and leaves semantic warning/error colours component-owned.
+- [x] Exact cross-component source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922`, including compile, JavaScript/page/shell checks and the full unit suite.
+- [ ] **Physical follow-up:** under Green/Amber/Aubergine/Crimson, confirm all three Weather rails, rain gauges and barometer tint; AirPlay route-ready rings; Audio EQ/knobs/faders; Settings select menus/ranges/status pills/Enabled state/output faders/EQ sliders/About mark/project links now follow the selected palette. Capture any remaining isolated leak rather than broad-brush recolouring neutral whites/greys.
 
-#### AirPlay long-form presentation — source/CI PASS; physical follow-up pending
+#### AirPlay long-form presentation — classifier physical PASS; stable marquee source/CI PASS
 
 - [x] Replace the metadata-active episode/title two-line clamp with a measured single-line marquee, matching the calm scrolling behaviour already used for long source/book/album text. Idle receiver-name presentation remains unchanged.
 - [x] Extract long-form media classification into testable `airplay-media-kind.js` rather than burying it inside transport-button presentation.
 - [x] Fix the generic `Music`-label veto: an item at least one hour long may classify as long-form spoken audio when the source is only generic/unknown, while explicitly named music apps such as Plexamp/Apple Music/Spotify/Tidal/Qobuz/Deezer remain strong track-navigation evidence unless spoken metadata overrides them.
 - [x] Retain the existing 30/40-minute scoring and spoken-app/metadata hints for shorter ambiguous material; `pod` is now also a useful spoken-media hint.
 - [x] Regression includes the observed ~1h22m `Mobile and Piracy — 339: Billionaires Versus Everyone` / `Brad & Will Made a Tech Pod.` case behind a generic `Music` source label and requires spoken presentation.
-- [x] Transport truth boundary is explicit: Shairport Sync does not expose a precise MPRIS relative-seek operation on this route. The spoken ±15 artwork continues to send supported Previous/Next remote semantics, and the source podcast/audiobook app remains authority for the actual configured skip interval. Do not pretend the Pi itself performs an exact 15-second seek.
-- [x] Exact source head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785` including JavaScript syntax and long-form regressions.
-- [ ] **Physical:** replay a long podcast/audiobook over AirPlay; confirm the episode title scrolls on one line, spoken skip artwork is selected, and the source app responds to backward/forward remote skips as expected. A normal music track should still show Previous/Next track artwork.
+- [x] **Transport contract:** A Clockwork Plex sends the same supported AirPlay remote previous/next command in both presentation modes. The source app owns its meaning: music apps such as Apple Music/Plexamp treat it as previous/next track, while long-form apps such as Apple Podcasts/Prologue treat it as backward/forward within the current item using that app's skip interval. The dashboard classifier changes the artwork, not the transport command.
+- [x] **Physical classifier acceptance, 19 August:** the long-form test again displayed the circular `15` controls, confirming the corrected classifier now selects spoken presentation for the observed podcast case.
+- [x] The first marquee physically exposed a two-second status-refresh interaction: identical title repaint mutations repeatedly reset the CSS animation after its 1.2-second delay, producing only a few-pixel twitch. The marquee now caches measured text/width and ignores identical metadata repaints while still remeasuring real title changes, resizes and page restores.
+- [x] Exact stable-marquee/component source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922` including JavaScript syntax and dedicated marquee regression.
+- [ ] **Physical marquee:** replay a long podcast/audiobook and confirm the episode title now travels smoothly across the single line instead of twitching. A normal music track should still retain ordinary Previous/Next track artwork.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
@@ -203,7 +208,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Historical lower-level idempotence pass: the then-current engine was rerun under its old `install.sh` filename without warnings/errors or reboot request. The engine is now named `appliance-installer.sh`; the final public repeat proof is `setup.sh`, not this historical command.
 - [x] Dashboard direct-script import regression found after a Weather update was repaired and physically reboot-verified.
 - [ ] Current test SD is intermittently read-only and is being replaced. Do not use it for final release evidence; temporary checks may continue only because all source is recoverable from GitHub.
-- [ ] After Crimson/AirPlay presentation follow-up is visually accepted on usable media, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
+- [ ] After the themed-component/AirPlay marquee presentation follow-up is visually accepted on usable media, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
 - [ ] On the replacement spare SD, perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through reboot checkpoint if required, integrated Camilla fetch, Plexamp claim/resume, Plexamp GUI commissioning, WU configuration, playback/EQ, AirPlay, NFC, alarm/fade and reboot.
 - [ ] Rerun final public `setup.sh` on that installed replacement card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
 - [ ] Confirm normal operation does not dirty tracked files (`git status --porcelain`).
@@ -264,6 +269,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#42 — release-hygiene classification + README modernization — PASS (documentation/source; broad destructive cleanup deferred).** `docs/release-hygiene-audit-2026-08-19.md` classifies production/test/history assets; README reflects the release candidate.
 - **#43 — selected Version 3 segment geometry + unambiguous installer naming — PASS (source/CI + V3 physical).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is `appliance-installer.sh`, maintained callers/tests were migrated, stale `install.sh` was removed, and exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`. V3 was subsequently accepted on the real Touch Display on 19 August as materially cleaner than the previous geometry.
 - **#44 — curated daytime themes — PASS (source/CI + initial physical).** Original six persisted presets use unified Settings plus first-paint presentation authority; Classic night dims the selected palette, Astronomy overrides it red, Plexamp is excluded, and V3 geometry is untouched. Source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`; the six themes were then physically accepted, with Midnight Blue especially well received.
-- **#45 — Crimson Glow + theme accent cleanup + AirPlay long-form polish — PASS (source/CI; physical follow-up pending).** Adds the seventh crimson daytime palette, removes known non-Classic AirPlay cyan leaks, gives long episode titles a single-line marquee, and fixes generic-`Music` long-form classification without pretending Shairport provides precise MPRIS seek. Exact head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785`; regression includes the observed 1h22m podcast case.
+- **#45 — Crimson Glow + initial AirPlay long-form/theme polish — PASS (source/CI + partial physical).** Adds the seventh crimson daytime palette, first-pass AirPlay accent cleanup and corrected generic-`Music` long-form classification. Exact source head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785`. Physical follow-up accepted Crimson Glow and the spoken `15` artwork, while exposing wider legacy component cyan and the title-animation reset.
+- **#46 — cross-component theme ownership + stable AirPlay marquee — PASS (source/CI; focused physical follow-up pending).** A final non-Classic presentation layer now themes Weather rails/gauges/barometer, AirPlay ready pulses, Audio EQ/knobs/faders and Settings controls/Enabled/About without altering Classic Dark, Plexamp or semantic error/warning colours. The title marquee ignores identical two-second metadata repaints instead of restarting. Exact source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922`.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS never substitutes for a remaining bedside or clean-room acceptance gate.
