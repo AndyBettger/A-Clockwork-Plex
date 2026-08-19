@@ -10,6 +10,14 @@
   const EXPLICIT_NAVIGATION_KEY = 'a-clockwork-plex.explicit-navigation';
   const LEGACY_CLOCK_FORMAT_KEY = 'a-clockwork-plex.clock-format';
   const modes = new Set(['clock', 'weather', 'airplay', 'plexamp']);
+  const daytimeThemes = new Set([
+    'classic_dark',
+    'midnight_blue',
+    'amber_terminal',
+    'green_phosphor',
+    'aubergine',
+    'steel_cyan',
+  ]);
   const transitionStyles = new Set([
     'none',
     'grow-fade',
@@ -24,6 +32,11 @@
   function normaliseMode(value, fallback = 'clock') {
     const mode = String(value || '').trim().toLowerCase();
     return modes.has(mode) ? mode : fallback;
+  }
+
+  function normaliseDaytimeTheme(value) {
+    const theme = String(value || '').trim().toLowerCase();
+    return daytimeThemes.has(theme) ? theme : 'classic_dark';
   }
 
   function normaliseStyle(value) {
@@ -44,6 +57,9 @@
     return {
       startupMode: normaliseMode(root.dataset.serverStartupMode, legacy),
       idleReturnMode: normaliseMode(root.dataset.serverIdleReturnMode, legacy),
+      daytimeTheme: normaliseDaytimeTheme(
+        root.dataset.daytimeTheme || root.dataset.serverDaytimeTheme || 'classic_dark'
+      ),
       transitionStyle: normaliseStyle(root.dataset.serverTransitionStyle || 'grow-fade'),
       transitionDurationMs: normaliseDuration(root.dataset.serverTransitionDurationMs || 300),
       clockFormat: String(root.dataset.serverClockFormat || '24h').toLowerCase() === '12h' ? '12h' : '24h',
@@ -65,6 +81,7 @@
 
     root.dataset.startupMode = normaliseMode(preferences.startupMode);
     root.dataset.idleReturnMode = normaliseMode(preferences.idleReturnMode);
+    root.dataset.daytimeTheme = normaliseDaytimeTheme(preferences.daytimeTheme);
     root.dataset.transitionStyle = normaliseStyle(preferences.transitionStyle);
     root.dataset.transitionDurationMs = String(duration);
     root.dataset.clockFormat = preferences.clockFormat === '12h' ? '12h' : '24h';
@@ -75,6 +92,7 @@
     return {
       startupMode: root.dataset.startupMode,
       idleReturnMode: root.dataset.idleReturnMode,
+      daytimeTheme: root.dataset.daytimeTheme,
       transitionStyle: root.dataset.transitionStyle,
       transitionDurationMs: duration,
       clockFormat: root.dataset.clockFormat,
@@ -86,6 +104,7 @@
     const next = apply({
       startupMode: normaliseMode(partial.startupMode ?? current.startupMode),
       idleReturnMode: normaliseMode(partial.idleReturnMode ?? current.idleReturnMode),
+      daytimeTheme: normaliseDaytimeTheme(partial.daytimeTheme ?? current.daytimeTheme),
       transitionStyle: normaliseStyle(partial.transitionStyle ?? current.transitionStyle),
       transitionDurationMs: normaliseDuration(partial.transitionDurationMs ?? current.transitionDurationMs),
       clockFormat: String(partial.clockFormat ?? current.clockFormat).toLowerCase() === '12h' ? '12h' : '24h',
@@ -113,6 +132,7 @@
     write,
     apply,
     normaliseMode,
+    normaliseDaytimeTheme,
     normaliseStyle,
     normaliseDuration,
   };
