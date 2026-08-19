@@ -8,7 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "airplay-navigation-state.js"
-CLASSIFIER = ROOT / "app" / "static" / "js" / "airplay-extra-controls.js"
+CLASSIFIER = ROOT / "app" / "static" / "js" / "airplay-media-kind.js"
+PRESENTER = ROOT / "app" / "static" / "js" / "airplay-extra-controls.js"
 TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 
 
@@ -29,6 +30,10 @@ class AirPlayNavigationUiTests(unittest.TestCase):
         template = TEMPLATE.read_text(encoding="utf-8")
         client = CLIENT.read_text(encoding="utf-8")
         self.assertLess(
+            template.index("airplay-media-kind.js"),
+            template.index("airplay-extra-controls.js"),
+        )
+        self.assertLess(
             template.index("airplay-extra-controls.js"),
             template.index("airplay-navigation-state.js"),
         )
@@ -47,17 +52,22 @@ class AirPlayNavigationUiTests(unittest.TestCase):
         self.assertNotIn("/api/airplay/control", client)
         self.assertNotIn("play_pause", client)
 
-    def test_existing_spoken_audio_classifier_is_preserved_as_presentation_only(self):
+    def test_spoken_audio_classifier_is_separate_from_navigation_presentation(self):
         classifier = CLASSIFIER.read_text(encoding="utf-8")
+        presenter = PRESENTER.read_text(encoding="utf-8")
         client = CLIENT.read_text(encoding="utf-8")
         self.assertIn("spokenAppPattern", classifier)
-        self.assertIn("explicitMusicApp", classifier)
+        self.assertIn("strongMusicAppPattern", classifier)
         self.assertIn("LONG_SPOKEN_SECONDS", classifier)
         self.assertIn("VERY_LONG_SPOKEN_SECONDS", classifier)
-        self.assertIn("setButtonMode", classifier)
+        self.assertIn("LONGFORM_OVERRIDE_SECONDS", classifier)
+        self.assertIn("ACPAirPlayMediaKind", classifier)
+        self.assertIn("ACPAirPlayMediaKind?.classify", presenter)
+        self.assertIn("setButtonMode", presenter)
         self.assertIn("copyPresentation", client)
         self.assertIn("data-airplay-skip-mode", client)
         self.assertNotIn("spokenAppPattern", client)
+        self.assertNotIn("LONGFORM_OVERRIDE_SECONDS", client)
 
     def test_navigation_disables_when_coordinator_has_no_connected_sender(self):
         client = CLIENT.read_text(encoding="utf-8")
