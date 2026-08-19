@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "scripts" / "check-appliance-components.sh"
-INSTALLER = ROOT / "install.sh"
+INSTALLER = ROOT / "appliance-installer.sh"
 LIBRARY = ROOT / "installer" / "lib" / "components.sh"
 
 
