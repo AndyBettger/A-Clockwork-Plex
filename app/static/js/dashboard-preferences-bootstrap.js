@@ -17,6 +17,7 @@
     'green_phosphor',
     'aubergine',
     'steel_cyan',
+    'crimson_glow',
   ]);
   const transitionStyles = new Set([
     'none',
