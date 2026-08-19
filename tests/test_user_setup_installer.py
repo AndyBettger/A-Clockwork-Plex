@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SETUP = ROOT / "setup.sh"
+APPLIANCE_INSTALLER = ROOT / "appliance-installer.sh"
+LEGACY_INSTALLER = ROOT / "install.sh"
 INSTALL_GUIDE = ROOT / "docs" / "INSTALL.md"
 
 
@@ -27,12 +29,17 @@ class UserSetupInstallerTests(unittest.TestCase):
         text = SETUP.read_text(encoding="utf-8")
         self.assertIn("scripts/fetch-camilladsp-4.1.3.sh", text)
         self.assertIn("FETCH-CAMILLADSP-4.1.3", text)
-        self.assertIn('bash "$REPO_ROOT/install.sh"', text)
+        self.assertIn('bash "$REPO_ROOT/appliance-installer.sh"', text)
+        self.assertNotIn('bash "$REPO_ROOT/install.sh"', text)
         self.assertIn("--fresh-bootstrap", text)
         self.assertIn("APPLY-A-CLOCKWORK-PLEX", text)
         self.assertIn("ACP_PLEXAMP_CLAIM_EXIT", text)
         self.assertIn('"$NODE_BIN" js/index.js', text)
         self.assertIn("claim code is entered directly into Plexamp", text)
+
+    def test_guarded_engine_has_unambiguous_release_name(self) -> None:
+        self.assertTrue(APPLIANCE_INSTALLER.is_file())
+        self.assertFalse(LEGACY_INSTALLER.exists())
 
     def test_setup_does_not_accept_plex_claim_material(self) -> None:
         text = SETUP.read_text(encoding="utf-8")
