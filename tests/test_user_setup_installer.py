@@ -10,6 +10,8 @@ SETUP = ROOT / "setup.sh"
 APPLIANCE_INSTALLER = ROOT / "appliance-installer.sh"
 LEGACY_INSTALLER = ROOT / "install.sh"
 INSTALL_GUIDE = ROOT / "docs" / "INSTALL.md"
+ADVANCED_GUIDE = ROOT / "docs" / "appliance-installer.md"
+README = ROOT / "README.md"
 
 
 class UserSetupInstallerTests(unittest.TestCase):
@@ -50,6 +52,31 @@ class UserSetupInstallerTests(unittest.TestCase):
     def test_guarded_engine_has_unambiguous_release_name(self) -> None:
         self.assertTrue(APPLIANCE_INSTALLER.is_file())
         self.assertFalse(LEGACY_INSTALLER.exists())
+
+    def test_advanced_engine_guide_is_discoverable_and_matches_real_controls(self) -> None:
+        guide = ADVANCED_GUIDE.read_text(encoding="utf-8")
+        readme = README.read_text(encoding="utf-8")
+        self.assertIn("docs/appliance-installer.md", readme)
+        self.assertIn("use [`docs/INSTALL.md`](INSTALL.md) and run `bash setup.sh`", guide)
+        self.assertIn("`appliance-installer.sh` is the lower-level guarded", guide)
+        for option in (
+            "--plan",
+            "--apply",
+            "APPLY-A-CLOCKWORK-PLEX",
+            "--fresh-bootstrap",
+            "--audio PROFILE",
+            "--weather-observations PROVIDER",
+            "--camilladsp-binary PATH",
+            "--wu-station-id ID",
+            "--wu-api-key-file PATH",
+            "--dashboard-url URL",
+            "--non-interactive",
+        ):
+            self.assertIn(option, guide)
+        self.assertIn("Controlled hardware reboot checkpoint", guide)
+        self.assertIn("Plexamp claim checkpoint", guide)
+        self.assertIn("Transaction and rollback policy", guide)
+        self.assertNotIn("bash install.sh", guide)
 
     def test_setup_does_not_accept_plex_claim_material(self) -> None:
         text = SETUP.read_text(encoding="utf-8")
