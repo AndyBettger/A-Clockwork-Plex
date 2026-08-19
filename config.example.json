@@ -10,6 +10,7 @@
     "idle_timeout_seconds": 180,
     "transition_style": "grow-fade",
     "transition_duration_ms": 300,
+    "daytime_theme": "classic_dark",
     "night_dim_enabled": false,
     "night_dim_start": "22:00",
     "night_dim_end": "07:00",
