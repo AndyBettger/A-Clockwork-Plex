@@ -9,6 +9,7 @@ from pathlib import Path
 
 DIRECT_ROUTE_SHA256 = "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9"
 LEGACY_DIRECT_SHA256 = "08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9"
+INSTALLER = "appliance-installer.sh"
 
 
 class DirectAudioProfileTests(unittest.TestCase):
@@ -66,7 +67,7 @@ class DirectAudioProfileTests(unittest.TestCase):
 
     def test_top_level_direct_plan_reports_alarm_safe_boundary_without_mutation(self):
         result = subprocess.run(
-            ["bash", "install.sh", "--audio", "direct", "--weather-observations", "ecowitt-push"],
+            ["bash", INSTALLER, "--audio", "direct", "--weather-observations", "ecowitt-push"],
             check=False,
             capture_output=True,
             text=True,
@@ -80,7 +81,7 @@ class DirectAudioProfileTests(unittest.TestCase):
 
     def test_top_level_eq_plan_uses_explicit_alarm_safe_first_install_baseline(self):
         result = subprocess.run(
-            ["bash", "install.sh", "--audio", "eq", "--non-interactive"],
+            ["bash", INSTALLER, "--audio", "eq", "--non-interactive"],
             check=False,
             capture_output=True,
             text=True,
