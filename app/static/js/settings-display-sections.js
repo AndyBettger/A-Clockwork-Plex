@@ -12,6 +12,7 @@
     ['green_phosphor', 'Green Phosphor'],
     ['aubergine', 'Aubergine'],
     ['steel_cyan', 'Steel Cyan'],
+    ['crimson_glow', 'Crimson Glow'],
   ];
   const TRANSITION_OPTIONS = [
     ['grow-fade', 'Grow and fade'],
