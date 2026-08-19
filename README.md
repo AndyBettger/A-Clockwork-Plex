@@ -154,7 +154,13 @@ git pull --ff-only
 
 If `git status` shows unexpected tracked modifications, investigate them before pulling rather than forcing the checkout.
 
-Follow the release/update instructions for the installed version after pulling. Do not rebuild the Python environments, ALSA graph or managed services component by component unless performing a documented repair procedure.
+After pulling a release-candidate update, use the same public convergent entry point rather than rebuilding components by hand:
+
+```bash
+bash setup.sh
+```
+
+Completed stages are detected and reused; follow any explicit reboot or local Plexamp-commissioning checkpoint that `setup.sh` reports. Do not rebuild the Python environments, ALSA graph or managed services component by component unless performing a documented repair procedure.
 
 ## Useful diagnostics
 
