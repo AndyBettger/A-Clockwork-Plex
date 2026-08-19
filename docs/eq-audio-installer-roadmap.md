@@ -6,7 +6,9 @@
 
 ## Historical evidence
 
-Detailed history through Phase 7 checkpoint #6 is preserved in `docs/eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md`. Detailed real spare-SD bootstrap attempts after checkpoint #26 are recorded in `docs/fresh-bootstrap-physical-progress-2026-08-15.md`. This file is the active implementation/acceptance authority and must be updated as physical acceptance progresses.
+Detailed history through Phase 7 checkpoint #6 is preserved in `docs/eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md`. Detailed spare-SD bootstrap attempts after checkpoint #26 are recorded in `docs/fresh-bootstrap-physical-progress-2026-08-15.md`. Focused EQ/Direct evidence is in `docs/eq-to-direct-physical-verification-2026-08-17.md`, and focused Weather acceptance is in `docs/weather-physical-followup-2026-08-17.md`.
+
+This file is the **active implementation and acceptance authority**. Completed engineering history stays available, but the roadmap should describe the repository and release candidate that actually exist now rather than preserving stale intermediate names or future-work statements.
 
 ## Settled invariants
 
@@ -15,13 +17,12 @@ Detailed history through Phase 7 checkpoint #6 is preserved in `docs/eq-audio-in
 - Scheduled alarms **bypass Music Master**; UI copy must never imply otherwise.
 - EQ music: Plexamp/AirPlay → source trims → Music Master → fixed `-6.5 dB` reserve → Bass/Mid/Treble → final limiter → DAC.
 - Alarm: per-alarm start/target/fade → **Maximum Alarm Volume** → joins after music reserve/EQ → final limiter → DAC.
-- Alarm fade must be perceptible and unambiguous: the configured target is the destination, Maximum Alarm Volume is a ceiling, and the start level is an explicit operator setting rather than a hidden constant. The default fade start for newly-created alarms is 10%, each alarm may override it, start is constrained not to exceed target, Fade Off starts immediately at target, and Snooze/re-ring starts a new ring cycle and therefore a new fade-in.
-- Fresh Direct keeps Plexamp/AirPlay under Music Master while alarm joins the DAC-facing mix independently.
+- Alarm fade is explicit and audible: the configured target is the destination; Maximum Alarm Volume is the ceiling; Fade start is a per-alarm value, default 10% for new alarms; start is constrained not to exceed target; Fade Off starts immediately at target; Snooze/re-ring starts a fresh fade cycle.
+- Fresh Direct keeps Plexamp/AirPlay under Music Master while the alarm joins the DAC-facing mix independently.
 - `scripts/audio/preflight-eq.sh` remains the historical read-only bedroom-Pi validation gate.
 - Do not use the old bare `scripts/install-master-eq.sh` production path.
-- An already-installed EQ appliance is now a **supported convergent source state** when the whole-appliance installer is asked for Direct. Do not require a manual EQ uninstall.
-- EQ → Direct convergence must remain inside the outer application transaction: specialist teardown retains the pre-EQ backup, rollback restores that backup and the pre-transition live `snd_aloop` state before captured EQ services are reactivated, and retained backup cleanup occurs only after successful outer commit.
-- Once guarded Direct construction/verifiers and a focused playback/NFC/EQ-status smoke have passed, do **not** require a redundant full Direct AirPlay/alarm/handoff replay before EQ promotion. The meaningful final regression is post-EQ, where the changed route can affect those behaviors.
+- An already-installed EQ appliance is a supported convergent source state when the whole-appliance installer is asked for Direct. Do not require manual EQ uninstall.
+- EQ → Direct convergence remains inside the outer application transaction: specialist teardown retains the pre-EQ backup, rollback restores that backup and pre-transition `snd_aloop` state before captured EQ services are reactivated, and retained backup cleanup occurs only after successful outer commit.
 - The canonical managed CamillaDSP unit is `a-clockwork-plex-camilladsp.service`; acceptance and diagnostics must not use the unrelated generic name `camilladsp.service`.
 
 | Identity | Accepted value |
@@ -40,53 +41,47 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 - Open-Meteo remains the forecast provider.
 - Current outdoor observations may be Ecowitt custom push or Weather Underground PWS.
 - The selected live provider remains authoritative for outdoor/current weather. If WU is selected, an Ecowitt push may supply **supplementary indoor temperature/humidity only**; it must never overwrite WU outdoor observations.
-- Supplementary Ecowitt indoor readings must carry their own freshness timestamp. When no recent indoor push exists, Clock indoor cards are omitted and the Weather Main conditions **Indoor** row is omitted rather than displaying stale values or `—` placeholders.
-- Ecowitt custom upload is a single-destination path on the physically used station setup. Documentation must explain that one station cannot directly push the same custom feed to several A Clockwork Plex appliances; WU's cloud PWS source is the practical shared live source for multiple appliances, with a directly-fed appliance optionally gaining indoor readings.
-- The configurable historical-rainfall periods remain exactly **Today**, **Last 7 days**, **Current month** and **Current year**; default is Last 7 days.
+- Supplementary Ecowitt indoor readings carry their own freshness timestamp. When no recent indoor push exists, Clock indoor cards and the Weather Main **Indoor** row are omitted rather than displaying stale values or placeholders.
+- The physically used Ecowitt setup provides one custom-upload destination. For several A Clockwork Plex appliances, WU is the practical shared live source; the directly-fed appliance may additionally gain fresh indoor readings.
+- Historical-rainfall periods remain exactly **Today**, **Last 7 days**, **Current month** and **Current year**; default is Last 7 days.
 - Today uses live `dailyrainin`; completed historical days use WU daily `precipTotal`.
-- When the live provider lacks native Hourly rain/Event rain (notably WU), A Clockwork Plex may derive them locally from persisted successive daily-rain observations. Native provider values take precedence when present.
-- Derived Hourly rain is a rolling preceding-60-minute accumulation. Derived Event rain is persistent across refresh/reboot and follows one documented reset rule; deterministic/synthetic tests are sufficient for source acceptance when physical rainfall is unavailable, with a later real wet-weather observation allowed as non-blocking follow-up.
-- When WU lacks native `maxdailygust`, A Clockwork Plex tracks the highest successive current gust for the selected station/calendar day and persists it across dashboard restarts. Native Ecowitt `maxdailygust` retains precedence. On the first calendar day after enabling/installing this derivation, the value is necessarily the maximum **since tracking began that day**; from the next midnight onward it represents the complete tracked day.
-- The Weather rain panel retains two visual groups — current/today rain and **Rainy Day Fund** — but both groups participate in one horizontal scrolling surface with one forecast-style custom rail/thumb. Current-rain cards use the available panel height rather than remaining a short fixed row.
-- `weather-rainfall-history.json` is a station-scoped, secret-free supplemental cache. Numeric daily totals live under `days`; confirmed successful-query station-offline dates live separately as `no_station_data` gap markers. `null` day markers are not an accepted final cache state.
-- Missing/invalid completed dates are fetched in contiguous WU requests of at most 31 days. If a successful range omits a date, that date is retried once as a single-day request before it may be classified as a confirmed station-data gap.
-- Confirmed station-data gaps are not repeatedly re-fetched. They do **not** make otherwise successful history an API failure: the sum of recorded days remains visible as a **minimum recorded** total with explicit coverage information.
-- Legacy `null` unavailable markers from the earlier implementation are treated as missing and retried.
-- An actual provider/configuration/credential failure remains an error for the selected historical aggregate and must never take current observations down.
-- Live observation source and WU history source are independent; Ecowitt Push may remain live while WU supplies history.
-- Commission current source and WU history under **Settings → Weather → Observation source**. The accepted physical presentation uses a bordered live-source badge at the top-right of the Observation source card and a separate bordered history badge at the top-right of the Historical rainfall card.
-- Weather Settings cards and source grids use deliberate touch-friendly separation on both supported landscape targets, including 1024×600.
-- Rainy Day Fund historical summaries are independent of the single configurable history period and expose **This week / Last week / This month / Last month / This year / Last year**.
-- The final Rainy Day Fund total is **Rain lifetime**, not merely Last year + This year and not an unverified live Ecowitt counter. It is calculated from WU daily history from the first discovered WU record through today.
-- Older lifetime history is isolated in station-scoped, secret-free `weather-rainfall-lifetime.json`; it never races the selected-period / Rainy Day Fund comparison cache. Discovery and coverage use WU ranges of at most 31 days and preserve the same confirmed-gap semantics.
-- Because documented WU PWS metadata exposes no station-inception field, lifetime discovery walks backwards and treats 24 consecutive empty 31-day probes as the automatic pre-station boundary, with `weather.historical_rainfall.lifetime_start_date` available as an explicit override for unusual multi-year mid-life outages. The hard automatic discovery floor is 1995.
-- Once lifetime discovery and coverage are both complete, later lifetime refreshes are cache-only and issue zero WU requests.
-- During one-time lifetime backfill, the gauge must say **Backfilling earlier WU history**; once ready it identifies the first WU record date and any real missing-day coverage.
-- Rain presentation uses the **same custom rounded rail/thumb control as the forecast strips**. Chromium's native rain scrollbar, including its arrow buttons, stays hidden. Touch strip scrolling, thumb drag, rail clicks and keyboard navigation remain supported.
-- Coverage notes use concise copy such as `3 days not recorded`.
-- WU API key is write-only commissioning data: never returned to the browser, stored in `config.json`/browser storage, placed in argv or logged.
-- Persistent secret storage is root-owned `/etc/default/a-clockwork-plex-weather`, mode `0600`; the restricted helper receives key material on stdin.
-- Selecting/reconverging **Ecowitt Push for live observations must preserve the exact existing managed WU credential file** because WU may still supply supplemental rainfall history. If that managed file was absent, Ecowitt convergence must keep it absent; it must never invent, rewrite or reveal a credential.
-- Both rainfall cache files are runtime state and must stay ignored by Git; generating `weather-rainfall-lifetime.json` must not dirty the checkout.
+- When a provider lacks native Hourly rain/Event rain, A Clockwork Plex may derive them locally from persisted successive daily-rain observations. Native provider values take precedence.
+- Derived Hourly rain is the rolling preceding-60-minute accumulation. Derived Event rain persists across refresh/reboot and follows the tested documented dry-reset rule.
+- When WU lacks native `maxdailygust`, A Clockwork Plex tracks the highest successive current gust for the selected station/calendar day and persists it across dashboard restarts; native provider max retains precedence.
+- Current/today rain and **Rainy Day Fund** participate in one horizontal scroll surface using the forecast-style custom rail/thumb.
+- `weather-rainfall-history.json` and `weather-rainfall-lifetime.json` are station-scoped, secret-free runtime caches and remain ignored by Git.
+- Confirmed station gaps are distinguished from provider/configuration failures and are not repeatedly re-fetched.
+- Rain lifetime is calculated from WU daily history from the first discovered station record through today; settled lifetime refreshes are request-quiet.
+- WU API keys are write-only commissioning data. Persistent secret storage is root-owned `/etc/default/a-clockwork-plex-weather`, mode `0600`, and key material is never returned to the browser, placed in argv or logged.
+- Selecting/reconverging Ecowitt Push preserves an existing managed WU credential exactly because WU may continue supplying rainfall history.
 
-### Player/runtime
+### Player/runtime and installer names
 
-- **Plexamp Headless remains the player for this release.** Caldera migration is out of Phase 7 scope.
+- **Plexamp Headless remains the player for this release.** Caldera migration is outside Phase 7.
 - Plexamp Headless: `4.13.2`, official archive SHA `86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041`.
 - Node: `20.20.2` linux-arm64, SHA `73093db209e4e9e09dd7d15a47aeaab1b74833830df03efa5f942a1122c5fa71`, installed beneath `/opt/a-clockwork-plex` without replacing distribution Node.
 - Fresh account/player setup is an explicit local interactive checkpoint; claim material is never a normal installer/evidence field.
-- `setup.sh` is the normal human-facing first-install entry point and owns CamillaDSP artifact acquisition plus interactive Plexamp claim handoff. `install.sh --fresh-bootstrap` remains the guarded lower-level appliance installation engine; both files have distinct final-release roles and are not duplicates to be merged merely for repository tidiness.
-- An unclaimed fresh runtime exits `76` with `PLEXAMP_RUNTIME=CLAIM-REQUIRED`; interactive `setup.sh` launches the installed Plexamp claim process and resumes after the saved claim state exists.
+- `setup.sh` is the normal human-facing first-install entry point and owns CamillaDSP artifact acquisition plus the interactive Plexamp claim handoff.
+- `appliance-installer.sh` is the guarded lower-level transactional appliance installer/recovery engine. `setup.sh` delegates to it.
+- The stale root `install.sh` duplicate has been removed from the release candidate after maintained callers/tests were migrated. Historical evidence that says `install.sh` remains truthful for the command used at that earlier checkpoint, but it is **not** a current supported entry point.
+- An unclaimed fresh runtime exits `76` with `PLEXAMP_RUNTIME=CLAIM-REQUIRED`; interactive `setup.sh` launches installed Plexamp Headless for claim and resumes after claim state exists.
 
 ### Fresh-Pi hardware/bootstrap
 
-- The real bedroom Pi/HAT/display is the physical target, but the accepted production SD card remains removed and untouched. A separate spare SD is the disposable acceptance target.
+- The real bedroom Pi/HAT/display is the physical target, but the accepted production SD remains protected. A separate spare SD is the disposable acceptance target.
 - No global OS upgrade, `rpi-update`, Pi EEPROM/bootloader update, HAT EEPROM write or external hardware firmware update belongs to appliance bootstrap.
 - PN532: I2C bus `1`, address `0x24`; project user groups `i2c`, `gpio`, `spi`.
 - Accepted DAC: Raspberry Pi DAC Pro, ALSA `CARD=Pro`.
 - Already-working `CARD=Pro` is accepted without boot mutation; managed fallback is `rpi-dacpro` only when required. A different identified HAT fails closed.
 - Any I2C/DAC boot mutation exits `75` and requires an operator-controlled reboot; the installer never reboots automatically.
-- `install.sh --fresh-bootstrap` owns staged package → hardware → player → NFC → full-preflight → application construction.
+- `appliance-installer.sh --fresh-bootstrap` owns staged package → hardware → player → NFC → full-preflight → application construction.
+
+### Clock segment display
+
+- The shared runtime source is `app/static/js/segment-display.js`; individual pages must not carry competing private segment geometry.
+- Numeric `0` uses the accepted slash diagonals; capital `O` remains unslashed; `W` has no bottom horizontal segment.
+- **Version 3 segment geometry is the selected release-candidate geometry.** The runtime paths, editable `docs/airplay-segment-cell.svg` companion and `20260819-segment-v3` cache identity are regression-pinned together.
+- The geometry should not be casually reworked during release cleanup. Any future art change must update the shared runtime source, editable companion and regression identity together.
 
 ## Phase status
 
@@ -94,76 +89,56 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: final Weather/alarm/Clock annunciator physical polish is accepted on the current Pi except the deferred WU-only indoor-expiry check; 14-segment SVG artwork refinement is in progress; final public clean-room install, formal verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator work is physically accepted; V3 segment geometry is selected and source-pinned; installer naming is being closed under CI; daytime-theme presentation, final clean-room install, formal verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
-- [x] Dedicated write-only credential manager/API outside the revisioned Settings transaction.
-- [x] Restricted stdin-only secret helper and root-owned `0600` environment file.
-- [x] Set/Replace/Remove key, credential status and Test connection controls.
-- [x] Running-process environment update without dashboard restart.
-- [x] Sanitized provider test path and source tests.
-- [x] Ecowitt-live weather convergence preserves an existing commissioned WU history credential byte-for-byte and preserves prior absence when none exists.
-- [x] **Physical:** real WU credential commissioned locally without key disclosure; write-only status/config boundaries verified; WU supplemental history stayed healthy with Ecowitt Push live; later Ecowitt reconvergence preserved the exact managed WU credential and root `0600` metadata. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
+- [x] Write-only credential manager/API, restricted stdin-only secret helper and root-owned `0600` environment file.
+- [x] Set/Replace/Remove/Test controls and running-process environment update without dashboard restart.
+- [x] Ecowitt-live convergence preserves an existing commissioned WU history credential byte-for-byte and preserves prior absence.
+- [x] **Physical:** real WU credential commissioned locally without disclosure; live/history independence and credential preservation verified. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
 
 #### Historical rainfall + Weather source workspace — physical PASS
 
-- [x] Observation Source is its own Weather subpage; Station owns dashboard labels/refresh.
-- [x] Explicit current-source and history status badges remain card-local and truthful (`Ecowitt Push`, `WU Ready`, `History ready`, setup/degraded states).
-- [x] Exact configurable Today / Last 7 days / Current month / Current year model.
-- [x] Live Today semantics and station-scoped secret-free WU daily cache.
-- [x] <=31-day missing-range batching and single-day retry of dates omitted from successful range responses.
-- [x] Confirmed successful-query station gaps are cached separately from numeric totals and do not cause repeated fetches.
-- [x] Minimum-recorded totals remain visible with explicit missing-day coverage; actual API/config/credential failures remain distinct and supplemental to live observations.
-- [x] Rainy Day Fund source projection receives six independent calendar summaries (This/Last week, month and year).
-- [x] Calculated final gauge is WU-backed **Rain lifetime**, combining the older discovered archive with previous/current year rather than relabelling a two-year sum or trusting an unrelated station counter.
-- [x] Older archive uses separate `weather-rainfall-lifetime.json`, backward discovery, bounded coverage fill, confirmed gaps and request-quiet settled state.
-- [x] Rainy Day Fund uses the same custom forecast rail/thumb mechanism rather than Chromium's native scrollbar.
-- [x] Physical Settings presentation, WU commissioning, Ecowitt/WU independence, credential preservation, Today, Last 7 days, Current month and Current year selected-period behavior are accepted.
-- [x] Physical Current-year gap case: 226/229 days recorded, confirmed gaps on `2026-03-03`, `2026-03-05`, `2026-03-07`, `status: ready`, `complete: true`, `coverage_complete: false`, `total_in: 21.38`; two consecutive forced refreshes both reported `fetched_ranges: 0` / `retried_dates: 0`.
-- [x] Rainy Day Fund blank-gauge root cause identified: the rainfall wrapper patched the `app.main` facade while Flask's context processor resolved `dashboard_core.weather_detail_data`. Source head `6316a63fbc109967ccd517a631796be01b859ba2` patches the real Flask projection and adds This/Last week/month/year summaries plus prior-year backfill; Tests #3485 / run `31991516804` passed. The corrected gauges were subsequently physically accepted under #32.
-- [x] Lifetime archive settles without continued WU traffic; source/CI head `22455624917ce456087e3a11041937b3c0526623` passed Tests #3523 / run `31994639762`, including both rainfall-service lifecycle/wake ownership and custom-scroll regressions.
-- [x] **Physical Rainy Day Fund/lifetime closure:** forecast-style custom scrolling physically matches the forecast strips with no native arrow buttons; the gauge set includes This/Last week/month/year plus **Rain lifetime**; lifetime settled at `status: ready`, `discovery_complete: true`, `coverage_complete: true`, first WU record `2023-12-30`, 368 older numeric days and zero older gaps; dashboard displayed **2634.0 mm** with **11 days not recorded**; a subsequent forced lifetime refresh returned `fetched_ranges: 0` / `retried_dates: 0`; recent/lifetime cache structural checks both passed with no secrets/null/invalid values; live observations remained `provider: ecowitt_push`, `status: push` with its observation worker running. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
+- [x] Observation Source workspace, independent live/history badges and exact Today / Last 7 days / Current month / Current year model.
+- [x] <=31-day WU batching, omitted-day single retry, confirmed-gap caching and minimum-recorded totals.
+- [x] Six Rainy Day Fund calendar summaries plus genuine WU-backed Rain lifetime.
+- [x] Separate lifetime cache, bounded backward discovery, confirmed gaps and request-quiet settled state.
+- [x] Shared forecast-style rain scrollbar with no native Chromium arrow-button scrollbar.
+- [x] Physical WU commissioning, selected-period behavior, gap semantics, lifetime backfill/settling, cache structure and Ecowitt/WU independence accepted. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
 
-#### Final Weather + alarm polish — source/CI PASS; current-Pi physical PASS, WU-only indoor expiry deferred
+#### Final Weather + alarm polish — source/CI + current-Pi physical PASS; one WU-only check deferred
 
-- [x] **Source/CI:** WU remains outdoor authority while a direct Ecowitt push may store only fresh supplementary indoor temperature/humidity; stale/absent supplementary data is omitted from Clock and Weather presentation rather than replacing WU or leaving placeholder rows.
-- [x] **Source/CI:** WU Hourly rain and Event rain are derived from persisted successive rain observations, while native Ecowitt Hourly/Event values retain precedence. Synthetic coverage includes rolling-hour accumulation, event reset, midnight rollover, station changes and active rain between gauge increments.
-- [x] **Source/CI:** WU `precipTotal` maps to `dailyrainin`; the Clock rain composite renders whenever either Rain today or Event rain is available, so Event rain absence alone cannot hide a valid Rain today value.
-- [x] **Source/CI:** current/today rain and Rainy Day Fund participate in one horizontally scrolling surface with one forecast-style custom scrollbar and full-height current-rain cards.
-- [x] **Source/CI:** scheduled alarm start volume is now explicit and configurable rather than hidden: default 10% for newly-created alarms, per-alarm override, start constrained to target, Maximum Alarm Volume remains the ceiling, Fade Off starts at target, and Snooze/re-ring starts a fresh fade. Fade duration retains Off/5/10/20/30/60-second choices and unusual saved durations.
-- [x] **Source/CI:** when WU provides current gust but no native daily maximum, persist a station/day-scoped `maxdailygust` derived from the highest observed current gust; native provider max retains precedence. Tests cover accumulation, day/station reset and native precedence.
-- [x] `INSTALL.md` documents the Ecowitt one-custom-destination limitation and recommends WU as the shared live source for several appliances; the release-candidate README now carries the same guidance.
-- [x] Dashboard direct-script compatibility regression fixed after physical reboot exposed the new Weather helper's package-relative import; `fb041f6` passed **Tests #3651 / run `32096732219`** and the Pi subsequently restarted/rebooted with `a-clockwork-plex.service` active and the kiosk restored.
-- [x] The combined WU max-gust + configurable fade-start implementation passed **Tests #3669 / run `32098942796`**.
-- [x] **Physical:** with WU selected, Clock Rain today/Event rain are present; Weather shows Rain rate / Hourly rain / Rain today / Event rain; the current-rain and Rainy Day Fund groups scroll horizontally together with one shared control and the four current gauges render correctly in dry conditions.
-- [x] **Physical — supplemented case:** with WU selected and Ecowitt custom push reaching this Pi, indoor temperature/humidity are visible on both Clock and Weather without replacing WU outdoor data.
-- [ ] **Physical — WU-only case (deferred/non-blocking on current Pi):** on an appliance receiving no fresh Ecowitt custom push, confirm the Clock indoor readings and Weather Indoor row disappear cleanly after the freshness window. Source expiry coverage is already green; perform this naturally on a later WU-only appliance rather than disrupting the working single Ecowitt destination solely to manufacture the condition.
-- [x] **Physical — zero-start implementation:** a real scheduled alarm during Plexamp playback audibly faded from silence, took audio ownership correctly, Snoozed/re-rang and Dismissed. This proved the fade engine but prompted the configurable non-zero start refinement above.
-- [x] **Physical — configurable start:** the updated per-alarm Fade start and Fade duration were exercised on the Pi and the fade is now audibly working and understandable, with the configured non-zero start removing the confusing silence at the beginning.
-- [x] **Physical — WU max gust:** Max gust today has returned on the Clock and the same value is present on the Weather page under WU. Persisted/increasing full-day semantics remain covered by source tests, with the first enabled day correctly treated as max-since-tracking-start.
+- [x] WU outdoor authority with fresh Ecowitt indoor supplement only.
+- [x] WU-derived Hourly/Event rain with persistence/reset synthetic coverage; native values retain precedence.
+- [x] WU-derived/persisted daily max gust with native precedence.
+- [x] Four current rain gauges and one shared rain scroll surface physically accepted.
+- [x] Supplemented WU+Ecowitt indoor readings physically accepted without outdoor authority leakage.
+- [ ] **Physical — WU-only deferred/non-blocking:** on a later appliance receiving no fresh Ecowitt custom push, confirm Clock indoor cards and Weather Indoor row disappear after freshness expiry. Source expiry tests are already green; do not disrupt the working single direct Ecowitt destination solely to manufacture this case.
+- [x] Configurable alarm Fade start/Fade duration, target/cap semantics, Plexamp takeover, Snooze/re-ring and Dismiss physically accepted.
+- [x] WU max gust physically present on Clock and Weather.
 
-#### Final Clock/navigation polish — alarm annunciator physical PASS; 14-segment artwork refinement in progress
+#### Final Clock/navigation polish — annunciator physical PASS; V3 geometry selected
 
-- [x] **Source/CI:** make the injected Audio navigation button use the same application font size/weight as Clock, Weather, Plexamp, AirPlay and Settings; regression coverage added.
-- [x] **Source/CI:** correct the 14-segment glyph map so numeric `0` lights the bottom-left → top-right slash diagonals while capital `O` remains unslashed, and remove the bottom horizontal segment from `W`; regression coverage added.
-- [x] **Physical:** Audio navigation typography now matches its neighbours; current numeric `0` and `W` mappings look materially better on the bedside display.
-- [ ] **14-segment artwork refinement — in progress:** revisit the underlying SVG segment path geometry/shape artwork while preserving the accepted mapping semantics (numeric `0` slashed, capital `O` unslashed, `W` without bottom segment). The owner is currently tidying the editable SVG; integrate and re-run visual/regression checks before the final wiped-SD acceptance.
-- [x] **Source/CI:** add an LCD-style **alarm set** indicator to the Clock page, positioned in the top-right of the Clock hero and visually integrated with the segment display rather than behaving like a generic web control.
-- [x] **Source/CI:** the bell is an inline SVG derived from the supplied visual direction, remains faintly visible in its unlit state and uses a restrained segment-colour glow when lit; it is intentionally passive/non-clickable.
-- [x] **Source/CI:** user-facing alarm-indicator mode supports **Next alarm within 12 hours** (default) and **Any future alarm** under Settings → Display → Clock. Illumination is driven by `alarm_scheduler.next_occurrence`, not by merely finding an enabled alarm definition.
-- [x] **Source/CI:** annunciator lives inside the Clock hero, so existing Classic/Astronomy night treatment and burn-in movement apply to it; responsive sizing covers the 1024×600/1280-class layouts without adding a separate display authority.
-- [x] **Validation hardening:** the production promoted Settings modules, `clock-dashboard.js` and `settings-clock-cards.js` are now explicitly included in CI compile/syntax checks. Annunciator implementation and hardened validation head `e687d14de733161645a9a37dde6936ba4e478fe0` passed **Tests #3687 / run `32182835949`**.
-- [x] **Physical — first pass:** the bell appeared in the intended top-right location and its size was acceptable, but the supplied-icon direction called for roughly 30° more clockwise rotation and a fourth ring tick (two on each side). More importantly, two enabled morning alarms were already within the default 12-hour window but the bell still looked unlit.
-- [x] **Source/CI activation/artwork follow-up:** scheduler occurrences publish `scheduled_for`, while the first Clock client read nonexistent `when`. The client now consumes `scheduled_for` with `when` retained only as a compatibility fallback; regression coverage explicitly pins the scheduler producer field to the Clock consumer. The glyph moved from -10° to +20° (about 30° clockwise), gained the missing fourth tick, and the active state was deliberately made strong for physical comparison. Head `15b699724ba6feeda72cfddc0e008587aaea21b1` passed **Tests #3701 / run `32192606982`**.
-- [x] **Physical — second pass:** +20° orientation and four-tick artwork are accepted; the current within-12-hours alarms now illuminate the bell correctly, proving the activation contract fix. The inactive/no-alarms appearance is also accepted. The 0.96-opacity, multi-shadow active treatment was far too bright and visibly outshone the Clock LCD glow, so only active-state intensity remained open.
-- [x] **Source/CI brightness balance:** active opacity is reduced to **0.60** and the three large glow shadows are replaced by a single **2.8 px `currentColor` drop-shadow**, intentionally matching the main Clock alpha-segment glow scale while retaining Classic/Astronomy colour authority. The Clock stylesheet is cache-busted for the physical recheck. Head `f815603b0b27893d495dbf570e928ebbef73afa5` passed **Tests #3709 / run `32193848389`**.
-- [x] **Physical — final annunciator acceptance:** the balanced active state is now clearly visible without outshining the main Clock LCD; the +20° orientation/four ticks remain accepted. Night-dimming and Astronomy mode both look correct, and the inactive LCD ghost remains appropriately visible under inactive dimming. Alarm-annunciator display work is closed unless later segment-artwork geometry creates an unrelated placement issue.
+- [x] Audio navigation typography matches neighbouring navigation buttons.
+- [x] Numeric `0` slash semantics, unslashed capital `O`, and `W` without the bottom segment are regression-pinned.
+- [x] LCD-style alarm-set annunciator uses scheduler `scheduled_for`, supports **Next alarm within 12 hours** / **Any future alarm**, is passive/non-clickable and inherits Clock theme/dimming.
+- [x] +20° bell orientation/four ticks and balanced active brightness are physically accepted in daytime, Classic night and Astronomy night.
+- [x] **Version 3 segment artwork selection:** the selected V3 path geometry is now the shared runtime source, the editable SVG identifies it as the selected geometry, the base template is cache-busted with `20260819-segment-v3`, and regression coverage pins all three together. Head `fb62ad16fbfd706a252d399eb99f2edbf01b8c84` added the final source contract. Treat V3 as selected rather than an open geometry-design task.
+
+#### Daytime theme — **planned next, before the final wiped-SD release run**
+
+- [ ] Perform the separately requested daytime-theme presentation phase now that the segment geometry is stable.
+- [ ] Keep this phase presentation-only: it must not alter scheduler behavior, alarm/audio ownership, Weather authority, playback handoff, installer behavior or other accepted functional contracts.
+- [ ] Preserve the already accepted Classic/Astronomy night behavior unless the owner explicitly asks for a night-mode change while reviewing the daytime work.
+- [ ] Keep the selected V3 segment geometry as the display-art baseline rather than combining theme work with another geometry redesign.
+- [ ] Add focused source/regression coverage for whatever daytime-theme authority is introduced and obtain bedside visual acceptance before the final clean-room wipe.
+- [ ] The detailed colour/art direction remains owner-led; do not invent a final palette or appearance merely to tick this roadmap item off.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
 - [x] Additive fresh prerequisites including `i2c-tools`, `python3-lgpio`, `raspi-config` without global upgrade.
-- [x] Paired app/NFC venv transaction; NFC exposes Debian `lgpio` via `--system-site-packages` while dependency authority is scoped to the recursive listener graph.
+- [x] Paired app/NFC venv transaction; NFC exposes Debian `lgpio` via `--system-site-packages` while dependency authority is scoped to the listener graph.
 - [x] Guarded I2C/groups/PN532 owner and live `0x24` probe.
 - [x] Deterministic Raspberry Pi DAC Pro commissioning and reboot contract.
 - [x] Exact vendored NFC Listener source at upstream `8f5f04213b22cfb5affc6931cb2db91fd07de537`.
@@ -177,54 +152,55 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Staged runtime/service transaction with exact rollback and idempotent claimed rerun.
 - [x] Local interactive claim checkpoint with no claim-token CLI/env/log path.
 - [x] `plexamp.service` uses pinned Node and exposes local port `32500` after claim.
-- [x] Public `setup.sh` now owns the CamillaDSP fetch/verification and automatically launches Plexamp Headless at the claim checkpoint; no CamillaDSP session variable or separate Plexamp launch command is part of the normal operator path.
+- [x] Public `setup.sh` owns CamillaDSP fetch/verification and automatically launches Plexamp at the claim checkpoint.
 
 #### EQ artifact acquisition — source/CI + physical complete
 
 - [x] Guarded `scripts/fetch-camilladsp-4.1.3.sh`.
 - [x] Official archive and accepted executable hashes both pinned/verified.
-- [x] Independent temporary probe confirmed archive `d9a170...aca5` extracts executable `e04c7a...edfa`; temporary probe workflow removed afterwards.
-- [x] Physical spare-card check returned `CAMILLA_ARTIFACT=PASS-EXISTING`; independent version/SHA verification matched the accepted 4.1.3 executable exactly.
+- [x] Independent temporary probe confirmed archive → executable identity; temporary probe workflow removed afterwards.
+- [x] Physical spare-card check returned `CAMILLA_ARTIFACT=PASS-EXISTING`; independent version/SHA matched accepted 4.1.3 exactly.
+
+#### Installer naming/release contract — source work complete, exact-head CI pending
+
+- [x] Keep the two real roles: human-facing `setup.sh` and guarded lower-level engine.
+- [x] Rename/retain the guarded engine unambiguously as `appliance-installer.sh`; `setup.sh` delegates to this file.
+- [x] Migrate maintained installer plan/apply/preflight/package/component/verifier tests from the old root name.
+- [x] Remove the stale root `install.sh` duplicate rather than shipping three apparent installer entry points.
+- [x] CI explicitly syntax-checks `setup.sh`, `appliance-installer.sh` and `segment-display.js`, verifies `setup.sh` delegates to `appliance-installer.sh`, and verifies `install.sh` is absent.
+- [ ] Record the exact combined head and green GitHub Actions run after this migration settles; do not ask the Pi to become the syntax checker.
 
 #### Spare-SD physical acceptance handoff
 
-- [x] Runbook uses a spare SD while production card remains untouched.
-- [x] Runbook covers fresh baseline/evidence, Direct, exits `75`/`76`, independent verifiers, guarded Camilla fetcher, EQ, post-EQ NFC/AirPlay/alarm regression, reboot, repeat install and WU Settings/history.
-- [x] First Trixie apply exposed inherited-system NFC `pip check` noise; checkpoint #26 repair is green.
-- [x] Subsequent attempts physically proved paired venvs, PN532 `0x24`, `CARD=Pro`, pinned Node/Plexamp claim/resume, NFC, full preflight, dashboard/kiosk, Direct route, restricted helpers and AirPlay. Detailed evidence is in `docs/fresh-bootstrap-physical-progress-2026-08-15.md`.
-- [x] Protected `/etc/sudoers.d` verification was repaired at both helper-owner and final-verifier boundaries.
-- [x] 16 August retry proved the complete prerequisite substrate again and then exposed the installed-EQ → requested-Direct convergence gap; evidence `/home/andy/acp-phase7-spare-sd-20260815-171112/20-direct-install-20260816-222614.txt`, exit `2`.
-- [x] Checkpoint #28 source repair supports transactional EQ → Direct convergence; regression coverage proves success and forced rollback.
-- [x] **Physical fresh Direct installation and verification:** 17 August guarded convergence completed from the existing EQ state with root installer exit `0`, `ROOT_INSTALL=COMMITTED`, `APPLICATION_VERIFY=PASS`, `FRESH_BOOTSTRAP_VERIFY=PASS`, `APPLIANCE_VERIFY=PASS`, canonical Direct SHA and clean EQ/loopback residue. Evidence is recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- [x] **Focused Weather physical acceptance:** Settings presentation, WU commissioning, live/history independence, Ecowitt credential preservation, selected-period gap semantics, six comparison gauges, custom forecast-style rain scrolling, genuine WU Rain lifetime, settled request-quiet behavior, both cache structural checks and continued live Ecowitt operation all passed physically. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
-- [x] **Focused Direct pre-EQ smoke:** Plexamp playback healthy; known NFC tag triggered local playback and requested Plexamp dashboard state; Audio and Settings Master equaliser truthfully reported **Install required**. Full Direct handoff/alarm replay is intentionally not a promotion blocker; evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- [x] Runtime lifetime cache is ignored by Git; generated `weather-rainfall-lifetime.json` no longer dirties the checkout.
-- [x] **Physical persistent EQ installation and split-bus identity verification:** guarded fresh-bootstrap EQ apply exited `0` with `ROOT_INSTALL=COMMITTED`, `APPLICATION_TRANSACTION=COMMITTED`, `APPLICATION_VERIFY=PASS`, independent fresh-bootstrap/appliance/audio verifiers all PASS, canonical split-bus SHA `1bc69f...08bd9`, installed marker present, Plexamp audible and EQ controls effective. Canonical `a-clockwork-plex-camilladsp.service` is active/enabled/running; the generic `camilladsp.service` name is not the managed unit. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- [x] **Post-EQ physical regression:** Plexamp and AirPlay both remained healthy through EQ; audible EQ changes and bypass worked; Music Master at 0% silenced music while a real scheduled alarm remained audible; Maximum Alarm Volume capped the alarm independently; Snooze/re-ring/Dismiss passed; NFC playback/dashboard handoff and immediate repeat-tag debounce passed. No issue found. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- [x] **Operator `INSTALL.md` walkthrough on a fresh spare SD:** the appliance reached a working dashboard with WU weather populated, Plexamp through EQ, AirPlay through EQ and NFC working. This walkthrough pre-dates the final `setup.sh` CamillaDSP/claim UX simplification, so it does not replace the final clean-room public-entry-point run.
-- [x] **Functional reboot acceptance:** after configuration the Pi was fully restarted and returned with dashboard, WU weather, Plexamp/EQ, AirPlay/EQ and NFC behaving normally. Formal post-reboot bootstrap/application/audio verifier evidence remains to be captured.
-- [x] **Fresh-install scheduled-alarm functional acceptance:** with Plexamp playing, a real scheduled alarm paused/took over Plexamp, Snooze worked, the alarm re-rang, and Dismiss completed cleanly. Per-alarm target and Maximum Alarm Volume cap were observed; the originally hidden fade-start defect was subsequently repaired and then refined into an explicit configurable start level.
-- [x] **Lower-level repeat-install acceptance:** rerunning `install.sh` against the already-installed appliance without pulling new source completed without warnings/errors, requested no reboot and left dashboard/EQ behaviour unchanged.
-- [x] **Post-update dashboard startup regression/recovery:** pulling the first final-Weather batch and rebooting exposed that `weather_observation_store.py` used a package-relative import incompatible with the installed systemd direct `app/runner.py` execution path. Plexamp/NFC/Shairport/CamillaDSP stayed healthy while the dashboard alone failed. The import fallback repair passed Tests #3651; after pulling it, `a-clockwork-plex.service` became active and a full Pi reboot restored the kiosk normally.
-- [ ] Run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
-- [ ] After the 14-segment artwork refinement is integrated and visually accepted, wipe the spare SD once more and perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through claim, Plexamp GUI commissioning, WU configuration, playback/EQ/AirPlay/NFC/alarm and reboot.
-- [ ] Rerun the final public `setup.sh` on that installed card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
-- [ ] Commit/finalize the final clean-room/reboot/repeat physical result/evidence documents; only then close Phase 7.
+- [x] Spare SD used while production card remains untouched.
+- [x] Complete prerequisite substrate physically proved: paired venvs, PN532 `0x24`, `CARD=Pro`, pinned Node/Plexamp claim/resume, NFC, dashboard/kiosk, Direct route, restricted helpers and AirPlay.
+- [x] Installed EQ → requested Direct convergence physically proved, then persistent EQ promotion and post-EQ regression physically passed. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
+- [x] Focused Weather physical acceptance passed. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
+- [x] First complete operator `INSTALL.md` walkthrough on a fresh spare SD reached working WU weather, Plexamp/EQ, AirPlay/EQ and NFC. This preceded the final `setup.sh` CamillaDSP/claim simplification and therefore does not replace the release-candidate clean-room run.
+- [x] Functional reboot returned dashboard, WU, Plexamp/EQ, AirPlay/EQ and NFC normally.
+- [x] Real scheduled alarm on the fresh install passed takeover, Snooze/re-ring and Dismiss; later fade refinements were separately physically accepted.
+- [x] Historical lower-level idempotence pass: the then-current engine was rerun under its old `install.sh` filename without warnings/errors or reboot request. The engine is now named `appliance-installer.sh`; the final public repeat proof is `setup.sh`, not this historical command.
+- [x] Dashboard direct-script import regression found after a Weather update was repaired and physically reboot-verified.
+- [ ] After the daytime-theme phase is visually accepted, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
+- [ ] Wipe the spare SD once more and perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through reboot checkpoint if required, integrated Camilla fetch, Plexamp claim/resume, Plexamp GUI commissioning, WU configuration, playback/EQ, AirPlay, NFC, alarm/fade and reboot.
+- [ ] Rerun final public `setup.sh` on that installed card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
+- [ ] Confirm normal operation does not dirty tracked files (`git status --porcelain`).
+- [ ] Commit/finalize the final clean-room/reboot/repeat evidence documents; only then close Phase 7.
 
-#### Final repository/release hygiene — classification started; destructive cleanup required before merge
+#### Final repository/release hygiene — classification started; broad destructive cleanup waits for clean-room proof
 
-- [x] **Initial classification audit:** `docs/release-hygiene-audit-2026-08-19.md` records the keep/review/delete gates. It explicitly protects maintained regression tests and the distinct `setup.sh`/`install.sh` roles while identifying one-off lab/rehearsal/stage-development material as the main cleanup target. No destructive cleanup has been performed yet.
-- [ ] Inventory the complete PR/repository file set and remove obsolete one-off test scaffolding, temporary probe assets, generated files and superseded installer/testing leftovers that are not required for a fresh installation, maintained development tests, diagnostics, rollback or useful historical evidence.
-- [ ] Review the large `docs/` history deliberately: retain the active installation/operation documentation and evidence worth preserving; archive/consolidate superseded phase documents where appropriate rather than blindly deleting useful provenance.
-- [x] Keep `setup.sh` and `install.sh` unless the final dependency audit disproves their distinct roles: `setup.sh` is the simple operator entry point; `install.sh` is the guarded lower-level installer/recovery engine.
-- [x] **README release-candidate rewrite:** `README.md` now describes the actual appliance, one-command setup, Plexamp commissioning, split-bus EQ/alarm semantics, AirPlay/NFC, WU/Ecowitt behaviour and current release gates. Perform one final proofread after the wiped-SD run before merge.
-- [ ] Ensure `.gitignore` covers all runtime/generated weather/evidence state that must not dirty a normal checkout and confirm a fresh installed appliance does not create tracked-file changes.
-- [ ] Refresh the stale PR #2 description before it leaves Draft; it still describes persistent EQ as future work and no longer represents the branch.
+- [x] Initial classification audit in `docs/release-hygiene-audit-2026-08-19.md`.
+- [x] README rewritten for the actual release candidate; one final proofread remains after the clean-room run.
+- [x] Installer naming audit resolved the ambiguity: retain `setup.sh` + `appliance-installer.sh`; remove stale `install.sh`.
+- [ ] Inventory the complete repository/PR file set and remove obsolete one-off test scaffolding, temporary probes, generated files and superseded installer/testing leftovers not required for fresh installation, maintained tests, diagnostics, rollback or useful historical evidence.
+- [ ] Review the large `docs/` history deliberately: preserve active operator/architecture/evidence authority; archive/consolidate truly superseded stage documents rather than blindly deleting provenance.
+- [ ] Ensure `.gitignore` covers all runtime/generated state and confirm a normally operating fresh appliance leaves the checkout clean.
+- [ ] Refresh stale PR #2 description before it leaves Draft; its current body still describes persistent EQ as future work.
 - [ ] Remove temporary development branches/refs created during final testing and leave only intentional long-lived/release branches before merge.
-- [ ] Run a final tracked-file/install-dependency audit so every file required by `setup.sh`/`install.sh` is present after cleanup and no retained file exists merely because it was used by an obsolete physical experiment.
-- [ ] Get the complete validation suite green after cleanup; PR #2 remains Draft until all release-hygiene and final physical gates are complete and owner approval is explicit.
+- [ ] Run a final tracked-file/install-dependency audit so every file required by `setup.sh`/`appliance-installer.sh` is present after cleanup and no retained file survives merely because it was used by an obsolete experiment.
+- [ ] Run the complete validation suite after cleanup. PR #2 remains Draft until release hygiene, final physical gates and explicit owner approval are complete.
 
-**Phase 7 exit condition:** the spare-SD appliance passes Direct construction + focused smoke → EQ → post-EQ physical regression → functional/formal reboot → final public `setup.sh` clean-room install and repeat-install, with final Weather/alarm/Clock UI polish accepted, `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` green where applicable, release hygiene/README complete and dated evidence committed. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** daytime presentation is accepted; the spare-SD appliance passes functional/formal reboot plus the final public `setup.sh` clean-room install and repeat-install; `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` are green where applicable; the repository is clean and documented; and explicit owner approval is given. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
@@ -247,24 +223,23 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#23 — pinned NFC runtime, paired venv and guarded NFC service owner — PASS.** Tests #3263 / run `31664707020`, `63fa8825e4949d8805e43db5beb346c2a3c6b9b6`.
 - **#24 — staged fresh-bootstrap preflight/root route with fail-closed player boundary — PASS.** Tests #3285 / run `31691861309`, `bf701e4ba256c45c0fd295f88026bfbe5a54ffc9`.
 - **#25 — test-ready spare-SD appliance: Plexamp/Node, DAC Pro, verifier, Camilla fetcher/runbook — PASS.** Tests #3339 / run `31848016743`, `a3f05ebee67565cfaa5a6f7a605fc770a7b4fbd8`.
-- **#26 — Trixie first apply dependency-boundary repair — PASS (source/CI).** Tests #3353 / run `31895570826`, `85db50016af086454208c2e0216f479d8b451790`. Later physical evidence supersedes #26 as the Pi source target.
-- **#27 — cached historical rainfall + Weather Observation Source workspace — PASS (source/CI).** Commit `28baf6fd91b4169813fbdbbe99d7b613fde8d151`; Tests #3411 / run `31972466589`. Its original unavailable-marker cache policy is superseded by the later confirmed-gap model.
-- **Post-#27 documentation incident — repaired.** `7479d6308417561983bbde87e3a9a788686388a1` failed only because the test-pinned Weather heading was changed; the exact `# 14. Commission Weather Underground through Settings` heading was restored and remains contract-pinned.
-- **#28 — installed EQ → requested Direct convergence — PASS (source/CI).** Physical Attempt 6 reached application transition after package/venv, PN532 `0x24`, `CARD=Pro`, claimed Plexamp, NFC and full preflight passed, then the old hard guard rejected the already-EQ spare SD with exit `2`; evidence `/home/andy/acp-phase7-spare-sd-20260815-171112/20-direct-install-20260816-222614.txt`. Commit `4bfd9d0ed83927473d0ae70f5947761de6fad817` replaces that rejection with specialist EQ teardown under the outer application transaction, retained pre-EQ backup/tombstone handling and pre-service `snd_aloop` rollback restoration; Tests #3421 / run `31975846667` passed. Commit `b4e64fcf279843a7f928c5da41252adb11aae00a` adds focused success/forced-rollback/retained-backup/order regression coverage; Tests #3423 / run `31976778069` passed.
-- **Post-#28 physical Direct convergence — PASS.** Commit `ec86c76bc0a6c9aec53bc51394bc06a15028cda8` records the 17 August spare-SD root install exit `0`, both independent Direct verifiers PASS, canonical Direct route identity and clean post-EQ residue.
-- **#29 — retryable WU rainfall gaps + Weather card spacing follow-up — PASS (source/CI), semantics later superseded.** Commit `967e684ca51b07ad25731d78401a195cde024081` introduced retryable omitted/invalid dates and responsive card spacing; Tests run `31981475409` / #3445 passed. Its all-or-nothing total rule is superseded by the confirmed station-gap/minimum-recorded model physically accepted below.
-- **#30 — Weather physical-follow-up convergence — PASS (source/CI), presentation evolved during physical acceptance.** Commit `bd3124e0bbb8682d8faf0f3cc44725fc7da9fc8c` added credential preservation and strengthened source-card spacing. Physical acceptance subsequently settled on card-local live/history status badges rather than the transient global-heading placement. Tests run `31984835861` / #3451 passed.
-- **#31 — confirmed station gaps + Rainy Day Fund projection — PASS (core physical + source/CI; final presentation closed under #32).** On `plexamp-test`, Current year physically returned 226/229 days, three confirmed March station gaps, `status: ready`, `complete: true`, `coverage_complete: false`, `total_in: 21.38`, and two repeated refreshes at zero fetch/retry cost. Settings showed **History ready** with explicit minimum-recorded coverage. The blank Rainy Day Fund then exposed a `main` facade versus `dashboard_core` context-projection bug. Source commit `6316a63fbc109967ccd517a631796be01b859ba2` patches the real Flask projection and adds This/Last week/month/year summaries plus prior-year backfill; Tests #3485 / run `31991516804` passed. The corrected gauges were subsequently physically accepted under #32.
-- **#32 — forecast-style Rainy Day Fund scroll + genuine WU Rain lifetime — PASS (source/CI + physical).** The rain strip hides Chromium's native arrow-button scrollbar and reuses the forecast rail/thumb mechanism. `WeatherRainfallLifetimeService` independently discovers/backfills older WU daily history, combines it with previous/current year into **Rain lifetime**, exposes sanitized `/api/weather/rainfall/lifetime` status and becomes request-quiet after discovery+coverage settle. Implementation head `bbdcc74dde455269def9b5bcb72c3601e295c6b2`; lifecycle regression synchronization head `22455624917ce456087e3a11041937b3c0526623`; full Tests #3523 / run `31994639762` PASS. Physical head `f0ea56557ba3d2fd09b624c9162ceea6c30de6f9` displayed the accepted custom scrollbar and **Rain lifetime 2634.0 mm since first WU record 30/12/2023 · 11 days not recorded**. Settled lifetime POST returned `fetched_ranges: 0` / `retried_dates: 0`; `weather-rainfall-history.json` validated with 582 numeric days / 11 recognized gaps and `weather-rainfall-lifetime.json` with 368 numeric days / zero gaps, both free of secrets/null/invalid values; Ecowitt remained `status: push` with its observation worker running. Focused Weather acceptance is physically complete.
-- **#33 — focused Direct pre-EQ smoke + UI/runtime hygiene — PASS (physical/source).** On the verified Direct spare card, Plexamp playback remained healthy, a known NFC tag triggered local playback and the Plexamp dashboard state, and both EQ surfaces truthfully showed **Install required**. The Master equaliser status is now styled with the same explicit bordered pill treatment, and `weather-rainfall-lifetime.json` is ignored as runtime state. Full Direct AirPlay/alarm replay is intentionally deferred to the post-EQ regression where it can validate the new route.
-- **#34 — guarded persistent EQ promotion — PASS (physical).** On `plexamp-test`, the fresh-bootstrap EQ apply committed cleanly from the physically accepted alarm-safe Direct state. Root/application transactions and all three independent verifiers passed; the active route matched the canonical split-bus SHA, the installed marker and loopback identity were correct, Plexamp audio/EQ were physically working, and `a-clockwork-plex-camilladsp.service` was active/enabled/running. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- **#35 — focused post-EQ regression — PASS (physical).** Plexamp and AirPlay both passed through the installed EQ path with working EQ/bypass; Music Master 0% silenced music without silencing a real alarm; Maximum Alarm Volume remained independent; Snooze/re-ring/Dismiss and NFC playback/dashboard/debounce all passed with no issues found. Evidence: `docs/eq-to-direct-physical-verification-2026-08-17.md`.
-- **#36 — first complete operator INSTALL walkthrough + functional reboot/repeat-install/alarm closure — PARTIAL PASS (physical, 18 August).** A freshly prepared spare SD completed the then-current `INSTALL.md` path and produced a working dashboard with WU observations, Plexamp through EQ, AirPlay through EQ and NFC. A full reboot preserved normal behaviour. A real scheduled alarm paused Plexamp, took audio ownership, Snoozed/re-rang and Dismissed successfully. A same-source `install.sh` rerun completed without warnings/errors or reboot request and left dashboard/EQ unchanged. Remaining from this checkpoint: integrate/accept the final 14-segment artwork refinement, capture formal post-reboot verifiers, then perform one final wiped-SD run of the **new** public `setup.sh` path (including integrated CamillaDSP acquisition and automatic Plexamp claim launch) plus a repeat `setup.sh` idempotence pass.
-- **#37 — final WU supplementary indoor/derived rain + initial fade + nav/segment source closure — PASS (source/CI + substantial physical).** WU outdoor authority admits only separately fresh Ecowitt indoor supplementation; WU Hourly/Event rain is locally derived with persisted event state and Ecowitt-native values retain priority; current and historical rain groups share one scroll surface; Audio nav typography and numeric `0`/`W` mappings are corrected. Tests #3643 passed. Physical acceptance then confirmed Rain today/Event rain on Clock, all four current rain gauges/shared scroll, supplementary Ecowitt indoor values under WU, Audio typography, improved `0`/`W`, and an audible zero-start fade/Snooze cycle. The WU-only no-Ecowitt indoor expiry remains a later multi-appliance confirmation rather than a blocker on the directly-fed Pi.
-- **#38 — dashboard direct-import recovery + WU Max gust + configurable alarm fade start — PASS (source/CI + physical).** The first #37 pull exposed a dashboard-only reboot failure because the new Weather helper was imported relatively while systemd executes `app/runner.py` directly. `fb041f6` added the direct-import fallback/regression and passed Tests #3651; the Pi physically recovered through service restart and a subsequent reboot/kiosk start. Follow-up source derives/persists WU daily maximum gust and exposes a 10% default/per-alarm Fade start volume while preserving target/cap/Fade Off/Snooze semantics; combined head `19b1edfb8d40a4ae9e27a29d19fd9988e19194fd` passed **Tests #3669 / run `32098942796`**. Physical acceptance now confirms Max gust today on both Clock and Weather and confirms the configurable fade is audible and understandable.
-- **#39 — LCD-style Clock alarm annunciator — PASS (source/CI; first physical pass exposed follow-up).** Clock gained a passive top-right bell annunciator, settings for **Next alarm within 12 hours** / **Any future alarm**, and hardened Clock/Settings CI coverage; head `e687d14de733161645a9a37dde6936ba4e478fe0` passed Tests #3687. Physical display acceptance found the location/size broadly right but requested about 30° more clockwise rotation, a missing fourth ring tick and stronger lit-state differentiation. It also exposed that the bell was not actually activating despite two morning alarms inside 12 hours.
-- **#40 — alarm annunciator activation/artwork correction — PASS (source/CI + partial physical).** Scheduler occurrences authoritatively publish `scheduled_for`; the first Clock client incorrectly consumed `when`, leaving the bell inactive. The corrected client consumes `scheduled_for` (with compatibility fallback only), the producer/consumer contract is regression-pinned, and the glyph is +20° with four ring ticks. Head `15b699724ba6feeda72cfddc0e008587aaea21b1` passed **Tests #3701 / run `32192606982`**. Physical recheck accepted the orientation/four-tick artwork, proved the within-12-hours activation now works, and accepted the inactive state; its deliberately strong 0.96/multi-shadow active styling was rejected as far too bright.
-- **#41 — alarm annunciator brightness balance — PASS (source/CI + physical).** Active opacity is 0.60 and the oversized three-shadow halo is replaced by a single 2.8 px theme-aware `currentColor` drop-shadow, matching the main Clock alpha-segment glow scale. Head `f815603b0b27893d495dbf570e928ebbef73afa5` passed **Tests #3709 / run `32193848389`**. Physical acceptance confirms the balanced daytime appearance, correct Classic/Astronomy night treatment and continued faint visibility of the inactive LCD ghost.
-- **#42 — release-hygiene classification + README modernization — PASS (documentation/source; destructive cleanup deferred).** `docs/release-hygiene-audit-2026-08-19.md` classifies production/runtime, maintained test/CI and historical one-off material without deleting anything; the first obvious deletion candidates are phase-specific roadmap/lab/stage-development artefacts, not the maintained regression suite or the two installer entry points. `README.md` has been rewritten for the actual production candidate, including `setup.sh`, Plexamp commissioning, split-bus EQ/alarm semantics, AirPlay/NFC, WU/Ecowitt rules and the remaining release gates. Final proofread and destructive cleanup remain behind the final wiped-SD acceptance.
+- **#26 — Trixie first-apply dependency-boundary repair — PASS (source/CI).** Tests #3353 / run `31895570826`, `85db50016af086454208c2e0216f479d8b451790`.
+- **#27 — cached historical rainfall + Weather Observation Source workspace — PASS (source/CI).** `28baf6fd91b4169813fbdbbe99d7b613fde8d151`; Tests #3411 / run `31972466589`. Later confirmed-gap semantics supersede its initial unavailable-marker policy.
+- **#28 — installed EQ → requested Direct convergence — PASS (source/CI + later physical).** `4bfd9d0ed83927473d0ae70f5947761de6fad817` plus focused regression `b4e64fcf279843a7f928c5da41252adb11aae00a`; Tests #3421/#3423. Physical Direct convergence was later recorded in `docs/eq-to-direct-physical-verification-2026-08-17.md`.
+- **#29 — retryable WU rainfall gaps + Weather spacing — PASS (source/CI), semantics later superseded.** `967e684ca51b07ad25731d78401a195cde024081`; Tests #3445.
+- **#30 — Weather physical-follow-up convergence — PASS (source/CI), presentation evolved during acceptance.** `bd3124e0bbb8682d8faf0f3cc44725fc7da9fc8c`; Tests #3451.
+- **#31 — confirmed station gaps + Rainy Day Fund projection — PASS.** Current-year physical gap case and corrected projection accepted; `6316a63fbc109967ccd517a631796be01b859ba2`, Tests #3485.
+- **#32 — forecast-style Rainy Day Fund scroll + genuine WU Rain lifetime — PASS (source/CI + physical).** Settled lifetime behavior and cache integrity physically accepted; source/lifecycle head through `22455624917ce456087e3a11041937b3c0526623`, Tests #3523.
+- **#33 — focused Direct pre-EQ smoke + UI/runtime hygiene — PASS (physical/source).** Plexamp/NFC healthy and EQ surfaces truthfully reported Install required.
+- **#34 — guarded persistent EQ promotion — PASS (physical).** Canonical split-bus route, service identity and independent verifiers passed.
+- **#35 — focused post-EQ regression — PASS (physical).** Plexamp/AirPlay/EQ, Music Master isolation, alarm cap/Snooze/re-ring/Dismiss and NFC all passed.
+- **#36 — first complete operator INSTALL walkthrough + functional reboot/repeat-engine/alarm closure — PARTIAL PASS (physical, 18 August).** Working fresh appliance and historical lower-level rerun proved; final public `setup.sh` clean-room/repeat proof remains.
+- **#37 — WU supplementary indoor/derived rain + initial fade + nav/segment mapping closure — PASS (source/CI + substantial physical).** Tests #3643; physical rain/indoor/nav/fade acceptance followed.
+- **#38 — dashboard direct-import recovery + WU max gust + configurable alarm fade start — PASS (source/CI + physical).** `fb041f6` recovery Tests #3651; combined fade/max-gust head `19b1edfb8d40a4ae9e27a29d19fd9988e19194fd`, Tests #3669; physical accepted.
+- **#39 — LCD-style Clock alarm annunciator — PASS (source/CI; physical follow-up exposed activation/artwork refinements).** `e687d14de733161645a9a37dde6936ba4e478fe0`, Tests #3687.
+- **#40 — annunciator activation/artwork correction — PASS (source/CI + partial physical).** `15b699724ba6feeda72cfddc0e008587aaea21b1`, Tests #3701; activation/orientation/ticks accepted, brightness then refined.
+- **#41 — annunciator brightness balance — PASS (source/CI + physical).** `f815603b0b27893d495dbf570e928ebbef73afa5`, Tests #3709; final annunciator accepted.
+- **#42 — release-hygiene classification + README modernization — PASS (documentation/source; broad destructive cleanup deferred).** `docs/release-hygiene-audit-2026-08-19.md` classifies production/test/history assets; README reflects the release candidate.
+- **#43 — selected Version 3 segment geometry + unambiguous installer naming — IN PROGRESS (source complete, exact-head CI pending).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is now `appliance-installer.sh`, maintained callers/tests have been migrated, stale `install.sh` removed, and CI explicitly checks both release installer entry points plus `segment-display.js`. Close this checkpoint only after the exact combined head is green; then move directly into the daytime-theme presentation phase rather than another segment-geometry redesign.
 
-No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS does not substitute for remaining physical acceptance.
+No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS never substitutes for a remaining bedside or clean-room acceptance gate.
