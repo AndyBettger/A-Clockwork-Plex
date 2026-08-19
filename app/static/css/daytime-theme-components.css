@@ -1,0 +1,612 @@
+/*
+ * Final component-accent layer for non-Classic daytime themes.
+ *
+ * Older dashboard components pre-date the theme system and therefore still
+ * contain literal cyan/blue paint. Keep those accepted Classic Dark styles as
+ * their baseline, but let every non-Classic palette own ordinary presentation
+ * accents through the shared theme variables. Semantic warning/error colours
+ * remain component-owned, and the embedded Plexamp surface is excluded.
+ */
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) {
+  --acp-eq-cyan: var(--accent);
+  --acp-eq-blue: var(--accent-strong);
+  --acp-eq-panel: var(--acp-theme-surface);
+  --acp-eq-border: var(--acp-theme-control-border);
+}
+
+/* -------------------------------------------------------------------------
+   Weather console, forecast/rain rails and gauges
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-panel,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .detail-panel {
+  border-color: var(--panel-border);
+  background:
+    linear-gradient(120deg, var(--acp-theme-soft), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] :is(.weather-forecast-panel, .detail-panel)::before {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] :is(
+  .conditions-table-wrap,
+  .station-table-wrap,
+  .rain-subpanel,
+  .mini-reading,
+  .rain-gauge-card,
+  .barometer-reading-card,
+  .weather-forecast-card
+) {
+  border-color: var(--acp-theme-control-border);
+  background: linear-gradient(135deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.035));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] :is(
+  .conditions-table thead th,
+  .station-table th,
+  .mini-reading > span,
+  .rain-gauge-text > span,
+  .rain-gauge-text > small,
+  .barometer-reading-card > span,
+  .weather-forecast-group h3,
+  .weather-forecast-time
+) {
+  color: var(--muted);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-detail-title-mode,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-status {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+  box-shadow: inset 0 0 16px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-surface);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 0 8px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--acp-theme-control-border),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar-thumb {
+  border-color: var(--acp-theme-control-border);
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 0 8px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar-thumb:hover,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar.is-dragging .weather-forecast-scrollbar-thumb {
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-card.is-today {
+  border-color: var(--acp-theme-control-border);
+  background: linear-gradient(145deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.045));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-icon {
+  text-shadow: 0 0 14px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .rain-gauge-card {
+  background: linear-gradient(135deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.035));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .rain-gauge {
+  border-color: var(--acp-theme-control-border);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .rain-gauge span {
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  box-shadow: 0 0 12px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .compass {
+  border-color: var(--acp-theme-control-border);
+  background:
+    repeating-radial-gradient(circle, transparent 0 19%, var(--acp-theme-soft) 20% 20.7%, transparent 21% 39%),
+    radial-gradient(circle, var(--acp-theme-soft), rgba(255, 255, 255, 0.025));
+  box-shadow:
+    inset 0 0 34px rgba(0, 0, 0, 0.32),
+    0 0 28px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .compass-ring {
+  border-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .compass-arrow {
+  background: var(--accent-strong);
+  box-shadow: 0 0 18px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .wind-direction-word .alpha-segment {
+  fill: var(--segment-off);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .wind-direction-word .alpha-segment.is-on {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 1.35px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .barometer-reading-card::after {
+  border-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .barometer-reading-card.is-relative {
+  background: linear-gradient(135deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.035));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .barometer-forecast-card {
+  border-color: var(--acp-theme-control-border);
+  background:
+    linear-gradient(90deg, var(--acp-theme-soft), transparent 42%),
+    rgba(255, 255, 255, 0.04);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .barometer-forecast-graphic {
+  border-color: var(--acp-theme-control-border);
+  background: radial-gradient(circle, var(--acp-theme-soft), rgba(255, 255, 255, 0.025));
+  box-shadow:
+    inset 0 0 24px rgba(0, 0, 0, 0.24),
+    0 0 22px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] :is(.tone-falling, .tone-low, .tone-settled, .tone-rising) .barometer-forecast-graphic {
+  background: radial-gradient(circle, var(--acp-theme-soft), rgba(255, 255, 255, 0.025));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .trend-pill {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-surface);
+}
+
+/* -------------------------------------------------------------------------
+   AirPlay route-ready signal animation
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-pulse {
+  border-color: var(--accent);
+  box-shadow: 0 0 22px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-screen {
+  border-color: var(--accent);
+  box-shadow: 0 0 32px var(--acp-theme-glow), inset 0 0 30px var(--acp-theme-soft);
+}
+
+/* -------------------------------------------------------------------------
+   Shared Audio drawer: mixer knobs and calibrated faders
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-knob {
+  border-color: var(--acp-theme-control-border);
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.13), transparent 25%),
+    radial-gradient(circle at 50% 50%, var(--acp-theme-surface-raised) 0 48%, var(--acp-theme-control) 50% 66%, var(--acp-theme-bg-end) 68% 100%);
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 255, 255, 0.025),
+    0 7px 16px rgba(0, 0, 0, 0.34),
+    0 0 14px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-control.is-master-knob .nav-trim-knob {
+  box-shadow:
+    inset 0 0 0 8px rgba(255, 255, 255, 0.028),
+    0 13px 28px rgba(0, 0, 0, 0.42),
+    0 0 24px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-knob::before {
+  background: conic-gradient(
+    from 225deg,
+    var(--accent) 0deg,
+    var(--accent) 270deg,
+    transparent 270deg,
+    transparent 360deg
+  );
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-knob > span::before {
+  background: var(--accent-strong);
+  box-shadow: 0 0 8px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-control.is-master-knob .nav-trim-knob > span::before {
+  box-shadow: 0 0 13px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-knob:focus-visible,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-knob.is-dragging {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 255, 255, 0.035),
+    0 7px 16px rgba(0, 0, 0, 0.34),
+    0 0 18px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-control.is-master-knob output {
+  color: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.nav-live-fader, .audio-mixer-control-row)::before,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.nav-live-fader, .audio-mixer-control-row)::after {
+  opacity: 0.82;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-live-fader input[type="range"] {
+  accent-color: var(--accent) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.nav-fader-scale-label, .audio-fader-scale-label) {
+  color: var(--muted);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) input.acp-calibrated-fader::-webkit-slider-runnable-track {
+  border-color: var(--acp-theme-control-border);
+  background: linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) var(--acp-fader-percent, 0%),
+    var(--acp-theme-control) var(--acp-fader-percent, 0%),
+    var(--acp-theme-control) 100%
+  );
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) input.acp-calibrated-fader::-webkit-slider-thumb {
+  border-color: var(--acp-theme-control-border);
+  background:
+    linear-gradient(
+      to right,
+      transparent 0 41%,
+      var(--acp-theme-surface) 41% 45%,
+      var(--accent-strong) 45% 55%,
+      var(--acp-theme-surface) 55% 59%,
+      transparent 59% 100%
+    ),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.11) 0 2px, transparent 2px 8px),
+    linear-gradient(to bottom, var(--acp-theme-control) 0%, var(--acp-theme-surface-raised) 48%, var(--acp-theme-surface) 100%);
+  box-shadow:
+    inset 2px 0 2px rgba(255, 255, 255, 0.12),
+    inset -2px 0 3px rgba(0, 0, 0, 0.42),
+    0 4px 12px rgba(0, 0, 0, 0.48),
+    0 0 13px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) input.acp-calibrated-fader::-moz-range-track {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-control);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) input.acp-calibrated-fader::-moz-range-progress {
+  background: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) input.acp-calibrated-fader::-moz-range-thumb {
+  border-color: var(--acp-theme-control-border);
+  background:
+    linear-gradient(
+      to right,
+      transparent 0 41%,
+      var(--acp-theme-surface) 41% 45%,
+      var(--accent-strong) 45% 55%,
+      var(--acp-theme-surface) 55% 59%,
+      transparent 59% 100%
+    ),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.11) 0 2px, transparent 2px 8px),
+    linear-gradient(to bottom, var(--acp-theme-control) 0%, var(--acp-theme-surface-raised) 48%, var(--acp-theme-surface) 100%);
+}
+
+/* EQ drawer + Settings EQ. Preserve control geometry, only hand paint ownership
+   to the active palette. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-strip {
+  border-color: var(--acp-theme-control-border);
+  background:
+    linear-gradient(180deg, var(--acp-theme-soft), rgba(0, 0, 0, 0.18)),
+    var(--acp-theme-surface);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.acp-eq-health.is-ready, #acp-eq-settings-health.is-ready) {
+  color: var(--accent-strong);
+  border-color: var(--acp-theme-control-border);
+  box-shadow: 0 0 0.8rem var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-control > strong {
+  color: var(--text);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-knob {
+  border-color: var(--acp-theme-control-border);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.11), transparent 22%),
+    radial-gradient(circle, var(--acp-theme-surface-raised) 0 46%, var(--acp-theme-surface) 48% 64%, var(--acp-theme-control) 66% 70%, var(--acp-theme-bg-end) 72%);
+  box-shadow:
+    0 0.28rem 0.65rem rgba(0, 0, 0, 0.48),
+    inset 0 0 0.25rem var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-knob::before {
+  background: conic-gradient(
+    from -136deg,
+    var(--acp-theme-soft) 0 24%,
+    transparent 24% 49.2%,
+    var(--accent) 49.2% 50.8%,
+    transparent 50.8% 76%,
+    var(--acp-theme-soft) 76% 100%
+  );
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-knob > span {
+  background: var(--accent-strong);
+  box-shadow: 0 0 0.4rem var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.acp-eq-knob:focus-visible, .acp-eq-knob.is-dragging) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.18rem var(--acp-theme-soft), 0 0 1rem var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-button {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-control);
+  color: var(--text);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-settings-band {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-settings-band input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* -------------------------------------------------------------------------
+   Settings: split view, dropdowns, pills, ranges, alarm selected state, About
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-ipad-shell {
+  border-color: var(--panel-border);
+  background: var(--acp-theme-surface);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-sidebar {
+  border-right-color: var(--panel-border);
+  background: linear-gradient(180deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.02));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-sidebar-title {
+  border-bottom-color: var(--panel-border);
+  background: var(--acp-theme-surface);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] [data-settings-sidebar-state] {
+  color: var(--accent-strong) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .settings-sidebar-row:hover,
+  .settings-sidebar-row:focus-visible,
+  .settings-sidebar-row[aria-current="page"],
+  .settings-subpage-row:hover,
+  .settings-subpage-row:focus-visible
+) {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.settings-back, .settings-unit-presets button, .settings-pill) {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.settings-unit-presets button.is-selected, .settings-pill.is-selected) {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--acp-theme-contrast);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(input[type="range"], input[type="checkbox"]) {
+  accent-color: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.settings-chip, .alarm-count-summary, .settings-night-dimming-card output) {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+  color: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-autosave-indicator:not(.is-error) {
+  border-color: var(--acp-theme-control-border);
+  color: var(--accent-strong);
+  background: var(--acp-theme-surface);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-trigger:focus-visible,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-trigger.is-open {
+  outline-color: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-menu {
+  border-color: var(--acp-theme-control-border);
+  color: var(--text);
+  background: var(--acp-theme-surface-raised);
+  scrollbar-color: var(--accent) var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-menu::-webkit-scrollbar-track {
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-menu::-webkit-scrollbar-thumb {
+  border-color: var(--acp-theme-surface-raised);
+  background: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-group {
+  color: var(--muted);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-option {
+  color: var(--text);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.acp-settings-select-option:hover, .acp-settings-select-option:focus-visible) {
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-option.is-selected {
+  color: var(--acp-theme-contrast);
+  background: var(--accent-strong);
+}
+
+/* Enabled is a selected-state affordance, not a health/success indicator, so it
+   follows the active theme. Off remains the established neutral state. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-enabled-toggle:not(.is-off) {
+  color: var(--acp-theme-contrast);
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  box-shadow: 0 0 18px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .alarm-model-status:not(.is-success):not(.is-error),
+  .alarm-editor-card,
+  .alarm-editor-summary:active,
+  .alarm-editor-summary:focus-visible,
+  .alarm-editor-chevron,
+  .alarm-time-select,
+  .alarm-day-button,
+  .alarm-tone-description
+) {
+  border-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .alarm-model-status:not(.is-success):not(.is-error),
+  .alarm-editor-summary:active,
+  .alarm-editor-summary:focus-visible,
+  .alarm-editor-chevron,
+  .alarm-time-select,
+  .alarm-day-button,
+  .alarm-tone-description
+) {
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] [data-settings-subpage="audio:trims"] .settings-live-trim header output {
+  border-color: var(--acp-theme-control-border);
+  color: var(--accent-strong);
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] [data-settings-section="about"] .settings-about-mark {
+  border-color: var(--acp-theme-control-border);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.18), transparent 36%),
+    var(--acp-theme-surface-raised);
+  color: var(--accent-strong);
+  box-shadow: 0 0 20px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] [data-settings-section="about"] .settings-link-card {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-link-card > strong {
+  color: var(--accent-strong);
+}
