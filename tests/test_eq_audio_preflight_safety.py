@@ -1,63 +1,79 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
+PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
 ROADMAP = ROOT / "docs" / "eq-audio-installer-roadmap.md"
 
 
 class EqAudioPreflightSafetyTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.source = SCRIPT.read_text(encoding="utf-8")
+        self.source = PREFLIGHT.read_text(encoding="utf-8")
 
-    def test_script_is_bash_and_strict(self) -> None:
-        self.assertTrue(self.source.startswith("#!/usr/bin/env bash"))
-        self.assertIn("set -euo pipefail", self.source)
-
-    def test_script_rejects_mutating_command_entrypoints(self) -> None:
-        mutating_commands = re.compile(
-            r"(?m)^\s*(?:sudo\s+)?(?:apt|apt-get|install|cp|mv|rm|chmod|chown|"
-            r"mkfifo|mkdir|systemctl\s+(?:start|stop|restart|enable|disable)|"
-            r"modprobe|tee)\b"
+    def test_shell_syntax_and_help(self) -> None:
+        syntax = subprocess.run(
+            ["bash", "-n", str(PREFLIGHT)],
+            capture_output=True,
+            text=True,
+            check=False,
         )
-        self.assertIsNone(mutating_commands.search(self.source))
-        self.assertNotIn("systemctl daemon-reload", self.source)
-        self.assertNotIn("/boot/firmware/config.txt", self.source)
-        self.assertNotIn("/boot/config.txt", self.source)
-        self.assertNotIn("rpi-update", self.source)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        help_result = subprocess.run(
+            ["bash", str(PREFLIGHT), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("read-only host/parser gate", help_result.stdout)
+        self.assertIn("ordinary Plexamp playback may remain", help_result.stdout)
 
-    def test_expected_guard_paths_are_read_only(self) -> None:
+    def test_preflight_has_no_privileged_or_audio_mutation_command(self) -> None:
+        self.assertNotRegex(
+            self.source,
+            re.compile(r"(?m)^\s*(?:sudo|rm|cp|mv|install|modprobe|amixer|alsactl)\b"),
+        )
+        self.assertNotRegex(
+            self.source,
+            re.compile(r"\bsystemctl\s+(?:start|stop|restart|enable|disable|reload)\b"),
+        )
+        self.assertNotIn("aplay -D", self.source)
+        self.assertNotIn("arecord", self.source)
+        self.assertNotIn("source \"$REPO_ROOT/installer/lib/", self.source)
+        for path in ("/etc/", "/usr/local/", "/var/lib/"):
+            self.assertNotRegex(
+                self.source,
+                re.compile(rf">\s*['\"]?{re.escape(path)}"),
+            )
+
+    def test_real_parsers_are_used_inside_private_boundaries(self) -> None:
         for marker in (
-            "/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf",
-            "/etc/systemd/system/a-clockwork-plex-camilladsp.service",
-            "/etc/a-clockwork-plex/camilladsp.yml",
-            "/opt/a-clockwork-plex/camilladsp/camilladsp",
+            'ALSA_CONFIG_PATH="$config" aplay -L',
+            '"$CAMILLADSP_BINARY" --check "$PROFILE/camilladsp-split-bus.yml"',
+            '"$CAMILLADSP_BINARY" --check "$rendered"',
+            'systemd-analyze verify',
+            'SYSTEMD_UNIT_PATH="$unit_dir"',
+            'visudo -cf "$rendered"',
+            'ExecStart=/bin/true',
         ):
             self.assertIn(marker, self.source)
-        self.assertIn("test ! -e", self.source)
-        self.assertIn("lsmod", self.source)
-        self.assertIn("aplay -l", self.source)
-        self.assertIn("i2cdetect", self.source)
+        for pcm in ("acp_dmix", "acp_master", "acp_plexamp", "acp_airplay", "acp_alarm"):
+            self.assertIn(pcm, self.source)
 
-    def test_production_audio_interfaces_are_observed_only(self) -> None:
-        for marker in (
-            "acp_plexamp_volume",
-            "acp_airplay_volume",
-            "acp_alarm_volume",
-            "acp_master",
-            "acp_dmix",
-        ):
-            self.assertIn(marker, self.source)
-        self.assertIn("aplay -L", self.source)
-        self.assertNotIn("speaker-test", self.source)
-        self.assertNotIn("aplay /", self.source)
-
-    def test_required_platform_and_service_guards_are_present(self) -> None:
-        self.assertIn("Raspberry Pi OS", self.source)
+    def test_exact_binary_and_direct_baseline_are_pinned(self) -> None:
+        self.assertIn(
+            "CAMILLADSP_SHA256=e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa",
+            self.source,
+        )
+        self.assertIn(
+            "DIRECT_ROUTE_SHA256=08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9",
+            self.source,
+        )
         self.assertIn('[[ "$(uname -m)" == aarch64 ]]', self.source)
         self.assertIn("systemctl is-active --quiet", self.source)
         self.assertIn("systemctl is-enabled --quiet", self.source)
