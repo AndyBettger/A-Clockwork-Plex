@@ -186,7 +186,7 @@ EOF
 
 run_guarded_installer() {
     local args=(
-        bash "$REPO_ROOT/install.sh"
+        bash "$REPO_ROOT/appliance-installer.sh"
         --fresh-bootstrap
         --audio "$AUDIO_PROFILE"
         --weather-observations "$WEATHER_OBSERVATIONS"
