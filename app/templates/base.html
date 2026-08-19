@@ -26,7 +26,7 @@
     html.acp-document-booting, html.acp-document-booting body { background: #02040a; }
     html.acp-document-booting body { visibility: hidden !important; }
   </style>
-  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20260819-daytime-themes') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20260819-daytime-themes-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/acp-time.js', v='20260802-global-clock-format-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/display-dimming.js', v='20260802-night-navigation-state') }}"></script>
   <script src="{{ url_for('static', filename='js/kiosk-safe-links.js', v='20260802-kiosk-address-panel') }}"></script>
@@ -51,7 +51,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/fader-calibration.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css', v='20260730-atomic-plexamp-underlay-handoff') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/daytime-themes.css', v='20260819-curated-themes-v1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/daytime-themes.css', v='20260819-curated-themes-v2') }}">
 </head>
 <body class="mode-{{ state.mode }} acp-page-booting"
   data-active-page="{{ active_page | default(state.mode) }}"
@@ -102,7 +102,7 @@
   {% if active_page | default(state.mode) == 'settings' %}
   <script src="{{ url_for('static', filename='js/settings-physical-followup.js', v='20260802-physical-followup-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-completion.js', v='20260802-settings-freeze-fix') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-display-sections.js', v='20260819-daytime-themes') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-display-sections.js', v='20260819-daytime-themes-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-night-interaction.js', v='20260802-short-night-duration') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-pass-a.js', v='20260803-final-visual-cleanup') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-selects.js', v='20260803-night-safe-selects-v2') }}"></script>
