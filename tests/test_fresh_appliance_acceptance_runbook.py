@@ -31,40 +31,41 @@ class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
             "rpi-dacpro",
             "0x24",
             "APPLY-A-CLOCKWORK-PLEX",
-            "Install required",
         ):
             self.assertIn(identity, text)
 
-    def test_runbook_uses_fresh_bootstrap_reboot_and_claim_resume_contracts(self) -> None:
+    def test_runbook_uses_public_setup_and_unambiguous_guarded_engine(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("bash setup.sh", text)
+        self.assertIn("appliance-installer.sh", text)
+        self.assertIn("no root `install.sh`", text)
+        self.assertNotIn("bash install.sh", text)
         self.assertIn("--fresh-bootstrap", text)
         self.assertIn("fresh stage-zero preflight", text)
-        self.assertIn("Exit `75` — reboot required", text)
+        self.assertIn("exit `75` reboot-required contract", text)
         self.assertIn("ROOT_INSTALL=REBOOT-REQUIRED", text)
-        self.assertIn("Exit `76` — Plexamp claim required", text)
-        self.assertIn("/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js", text)
+
+    def test_runbook_requires_integrated_camilla_and_claim_handoff(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("integrated CamillaDSP acquisition", text)
+        self.assertIn("integrated Plexamp claim launch/resume", text)
+        self.assertIn("automatically launches the installed Plexamp Headless process", text)
+        self.assertIn("PLEXAMP_RUNTIME=CLAIM-REQUIRED", text)
         self.assertIn("https://plex.tv/claim", text)
-        self.assertIn("ROOT_INSTALL=COMMITTED", text)
-        self.assertIn("$HOME/.acp-phase7-evidence-path", text)
+        self.assertIn("must **not** have to run `scripts/fetch-camilladsp-4.1.3.sh`", text)
+        self.assertIn("must **not** have to run:", text)
+        self.assertIn("/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js", text)
+        self.assertNotIn("--camilladsp-binary \"$CAMILLA\"", text)
 
-    def test_runbook_requires_bootstrap_application_and_audio_verifiers(self) -> None:
+    def test_runbook_requires_plexamp_gui_output_commissioning(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("scripts/verify-fresh-bootstrap.sh", text)
-        self.assertIn("FRESH_BOOTSTRAP_VERIFY=PASS", text)
-        self.assertIn("scripts/verify-appliance.sh", text)
-        self.assertIn("APPLIANCE_VERIFY=PASS", text)
-        self.assertIn("scripts/audio/verify-audio.sh", text)
-
-    def test_runbook_uses_guarded_camilla_fetcher_before_eq(self) -> None:
-        text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("scripts/fetch-camilladsp-4.1.3.sh", text)
-        self.assertIn("FETCH-CAMILLADSP-4.1.3", text)
-        self.assertIn("$HOME/.cache/a-clockwork-plex/artifacts/camilladsp-4.1.3/camilladsp", text)
-        self.assertIn("--camilladsp-binary \"$CAMILLA\"", text)
+        self.assertIn("A Clockwork Plex - Plexamp", text)
+        self.assertIn("Follows system output", text)
+        self.assertIn("password-manager", text)
 
     def test_wu_acceptance_is_settings_based_and_never_puts_secret_on_cli(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("# 14. Commission Weather Underground through Settings", text)
+        self.assertIn("# 6. Commission Weather Underground through Settings", text)
         self.assertIn("Set API key", text)
         self.assertIn("Replace API key", text)
         self.assertIn("Test connection", text)
@@ -73,14 +74,32 @@ class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
         self.assertNotIn("--wu-api-key-file", text)
         self.assertNotIn("--weather-api-key-file", text)
 
-    def test_repeat_install_precedes_wu_and_result_evidence_are_required(self) -> None:
+    def test_runbook_requires_functional_alarm_and_selected_v3_presentation(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
-        repeat = text.index("# 13. Repeat the whole fresh-bootstrap install")
-        wu = text.index("# 14. Commission Weather Underground through Settings")
-        self.assertLess(repeat, wu)
-        self.assertIn("50-repeat-install.txt", text)
-        self.assertIn("51-repeat-bootstrap-verifier.txt", text)
-        self.assertIn("52-repeat-appliance-verifier.txt", text)
+        self.assertIn("selected Version 3 fourteen-segment geometry", text)
+        self.assertIn("final accepted daytime theme", text)
+        self.assertIn("Classic/Astronomy night behavior", text)
+        self.assertIn("Snooze", text)
+        self.assertIn("fresh fade cycle", text)
+        self.assertIn("Music Master must not silence the alarm lane", text)
+
+    def test_runbook_requires_bootstrap_application_and_audio_verifiers(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("scripts/verify-fresh-bootstrap.sh", text)
+        self.assertIn("FRESH_BOOTSTRAP_VERIFY=PASS", text)
+        self.assertIn("scripts/verify-appliance.sh", text)
+        self.assertIn("APPLIANCE_VERIFY=PASS", text)
+        self.assertIn("scripts/audio/verify-audio.sh", text)
+        self.assertIn("a-clockwork-plex-camilladsp.service", text)
+
+    def test_repeat_setup_and_clean_checkout_are_release_gates(self) -> None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+        repeat = text.index("# 9. Repeat the public setup command")
+        clean = text.index("# 10. Confirm normal operation leaves the checkout clean")
+        self.assertLess(repeat, clean)
+        self.assertIn("no renewed Plexamp claim requirement", text)
+        self.assertIn("no unnecessary reboot checkpoint", text)
+        self.assertIn("git status --porcelain", text)
         self.assertIn("Phase 7 does not close until that physical result is committed", text)
         self.assertIn("PR #2 remains Draft/open/unmerged", text)
 
