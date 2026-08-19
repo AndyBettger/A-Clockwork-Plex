@@ -55,8 +55,20 @@ class SettingsPolishFollowupTests(unittest.TestCase):
         self.assertIn('data-setting-path="display.night_dim_style"', client)
         self.assertIn('data-setting-path="display.night_dim_active_style"', client)
         self.assertIn("Same as idle", client)
-        self.assertIn("Additional daytime and accent themes are deliberately deferred", client)
+        self.assertIn('data-setting-path="display.daytime_theme"', client)
+        for label in (
+            "Classic Dark",
+            "Midnight Blue",
+            "Amber Terminal",
+            "Green Phosphor",
+            "Aubergine",
+            "Steel Cyan",
+        ):
+            self.assertIn(label, client)
+        self.assertIn("Plexamp keeps its own appearance", client)
+        self.assertIn("Classic dim darkens the selected daytime palette", client)
         self.assertIn("settings-display-sections.js", base)
+        self.assertIn("daytime-themes.css", base)
         self.assertIn("settings-night-interaction.js", base)
 
     def test_alarm_page_uses_global_clock_format_without_24_hour_override(self):
