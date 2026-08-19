@@ -25,6 +25,16 @@ class UserSetupInstallerTests(unittest.TestCase):
         self.assertIn("pinned CamillaDSP artifact", result.stdout)
         self.assertIn("Plexamp claim", result.stdout)
 
+    def test_release_installer_shell_syntax_is_valid(self) -> None:
+        result = subprocess.run(
+            ["bash", "-n", str(SETUP), str(APPLIANCE_INSTALLER)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_setup_delegates_to_existing_guarded_owners(self) -> None:
         text = SETUP.read_text(encoding="utf-8")
         self.assertIn("scripts/fetch-camilladsp-4.1.3.sh", text)
