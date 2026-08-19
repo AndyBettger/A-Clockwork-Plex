@@ -5,10 +5,13 @@ import unittest
 from pathlib import Path
 
 
+INSTALLER = Path("appliance-installer.sh")
+
+
 class FullInstallerPlanTests(unittest.TestCase):
     def run_installer(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            ["bash", "install.sh", *arguments],
+            ["bash", str(INSTALLER), *arguments],
             check=False,
             capture_output=True,
             text=True,
@@ -60,7 +63,7 @@ class FullInstallerPlanTests(unittest.TestCase):
         self.assertIn("unsupported weather observation provider", weather.stderr)
 
     def test_plan_does_not_embed_legacy_audio_install_as_authority(self):
-        source = Path("install.sh").read_text(encoding="utf-8")
+        source = INSTALLER.read_text(encoding="utf-8")
 
         self.assertIn("legacy install-shared-audio.sh", source)
         self.assertNotIn("bash scripts/install-shared-audio.sh", source)
