@@ -24,7 +24,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
-        self.assertIn("20260820-theme-followup-v5", base)
+        self.assertIn("20260820-theme-followup-v7", base)
         self.assertLess(base.index("daytime-themes.css"), base.index("daytime-theme-components.css"))
         self.assertLess(base.index("daytime-theme-components.css"), base.index("daytime-theme-followup.css"))
 
@@ -117,12 +117,15 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
             ".alarm-add-button",
             ".settings-hardware-maintenance-note",
             ".acp-eq-strip .acp-eq-heading > div > span",
+            '.acp-eq-button:is(.is-active, [aria-pressed="true"])',
+            ".acp-setting-section > h3",
         ):
             self.assertIn(token, css)
         self.assertIn("background: var(--accent-strong) !important;", css)
         self.assertIn("color: var(--acp-theme-contrast) !important;", css)
+        self.assertIn("border-bottom-color: var(--acp-theme-control-border) !important;", css)
         self.assertIn("display: none;", css)
-        self.assertIn("20260820-theme-followup-v5", BASE.read_text(encoding="utf-8"))
+        self.assertIn("20260820-theme-followup-v7", BASE.read_text(encoding="utf-8"))
 
     def test_alarm_basics_and_time_menu_follow_selected_theme(self) -> None:
         css = FOLLOWUP.read_text(encoding="utf-8")
