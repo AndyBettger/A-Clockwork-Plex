@@ -24,7 +24,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
-        self.assertIn("20260820-theme-followup-v3", base)
+        self.assertIn("20260820-theme-followup-v4", base)
         self.assertLess(base.index("css/daytime-themes.css"), base.index("css/daytime-theme-components.css"))
         self.assertLess(base.index("css/daytime-theme-components.css"), base.index("css/daytime-theme-followup.css"))
 
@@ -92,7 +92,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         css = FOLLOWUP.read_text(encoding="utf-8")
         for token in (
             ".acp-settings-select-trigger",
-            ".button:not(.settings-save):not(.alarm-remove-button)",
+            ".settings-page .button:not(.settings-save):not(.alarm-remove-button)",
             ".alarm-enabled-toggle.is-off",
             ".audio-mixer-step",
             ".audio-mixer-card.is-vertical-console .audio-mixer-channel",
@@ -103,6 +103,26 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
             self.assertIn(token, css)
         self.assertIn("border-color: var(--acp-theme-control-border) !important;", css)
         self.assertIn("background: var(--acp-theme-control) !important;", css)
+        self.assertNotIn('body[data-active-page="settings"] .button:not(', css)
+
+    def test_alarm_hardware_nav_and_eq_copy_use_final_theme_contract(self) -> None:
+        css = FOLLOWUP.read_text(encoding="utf-8")
+        for token in (
+            ".nav-drawer .nav-button",
+            ".nav-drawer .nav-button.is-active",
+            ".alarm-editor-card",
+            ".alarm-editor-panel",
+            ".alarm-time-picker",
+            ".alarm-preview-row",
+            ".alarm-add-button",
+            ".settings-hardware-maintenance-note",
+            ".acp-eq-strip .acp-eq-heading > div > span",
+        ):
+            self.assertIn(token, css)
+        self.assertIn("background: var(--accent-strong) !important;", css)
+        self.assertIn("color: var(--acp-theme-contrast) !important;", css)
+        self.assertIn("display: none;", css)
+        self.assertIn("20260820-theme-followup-v4", BASE.read_text(encoding="utf-8"))
 
     def test_settings_range_presenter_tracks_dynamic_controls(self) -> None:
         script = RANGE_THEME.read_text(encoding="utf-8")
