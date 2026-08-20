@@ -25,8 +25,8 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
         self.assertIn("20260820-theme-followup-v4", base)
-        self.assertLess(base.index("css/daytime-themes.css"), base.index("css/daytime-theme-components.css"))
-        self.assertLess(base.index("css/daytime-theme-components.css"), base.index("css/daytime-theme-followup.css"))
+        self.assertLess(base.index("daytime-themes.css"), base.index("daytime-theme-components.css"))
+        self.assertLess(base.index("daytime-theme-components.css"), base.index("daytime-theme-followup.css"))
 
     def test_component_layer_is_non_classic_and_plexamp_safe(self) -> None:
         css = COMPONENTS.read_text(encoding="utf-8")
