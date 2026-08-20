@@ -417,3 +417,64 @@ body[data-active-page="settings"] .alarm-day-grid .alarm-day-button:is(.is-selec
     0 0 16px var(--acp-theme-glow),
     inset 0 0 0 1px var(--accent-strong) !important;
 }
+
+/* -------------------------------------------------------------------------
+   Alarm basics cards and bespoke hour/minute menus
+
+   Alarm name/time wrappers and the touch-first time picker pre-date the
+   general Settings dropdown component, so their source CSS still carries
+   Classic-Dark cyan/navy paint. Keep Classic Dark unchanged, but make these
+   presentation-only surfaces inherit the selected daytime palette everywhere
+   else.
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-basics-grid > :is(.setting-field, .alarm-time-field) {
+  border-color: var(--acp-theme-control-border) !important;
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 58%),
+    rgba(255, 255, 255, 0.03) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-menu {
+  border-color: var(--acp-theme-control-border) !important;
+  color: var(--text) !important;
+  background: var(--acp-theme-surface-raised) !important;
+  scrollbar-color: var(--accent) var(--acp-theme-soft) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-option {
+  color: var(--text) !important;
+  background: transparent !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-option:is(:hover, :focus-visible) {
+  background: var(--acp-theme-soft) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-option.is-selected {
+  color: var(--acp-theme-contrast) !important;
+  background: var(--accent-strong) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-menu::-webkit-scrollbar-track {
+  background: var(--acp-theme-soft) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-menu::-webkit-scrollbar-thumb {
+  border-color: var(--acp-theme-surface-raised) !important;
+  background: var(--accent) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-select:focus-visible,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-time-choice.is-open .alarm-time-select {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--acp-theme-soft) !important;
+}
