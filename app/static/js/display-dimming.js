@@ -24,6 +24,7 @@
   let refreshInterval = null;
   let activityInterval = null;
   let interactionTimer = null;
+  let previewTimer = null;
   let bootTransitionTimer = null;
   let activityRequestInFlight = false;
   let lastInputSequence = null;
@@ -224,6 +225,33 @@
     }, remaining + 20);
   }
 
+  function clearPreviewTimer() {
+    if (!previewTimer) return;
+    window.clearTimeout(previewTimer);
+    previewTimer = null;
+  }
+
+  function schedulePreviewExpiry() {
+    clearPreviewTimer();
+    const remaining = previewUntil - Date.now();
+    if (remaining <= 0) {
+      previewUntil = 0;
+      return;
+    }
+
+    previewTimer = window.setTimeout(() => {
+      previewTimer = null;
+      previewUntil = 0;
+      interactionUntil = 0;
+      clearStoredInteraction();
+      scheduleInteractionExpiry();
+      refresh();
+      window.dispatchEvent(new CustomEvent('acp:display-night-preview-ended', {
+        detail: status(),
+      }));
+    }, remaining);
+  }
+
   function restoreStoredInteraction() {
     const stored = readStoredInteractionUntil();
     interactionUntil = stored > Date.now() ? stored : 0;
@@ -311,8 +339,16 @@
   function interact(seconds = settings.wakeSeconds, source = 'browser-interaction') {
     if (!dimRequired() || alarmVisible()) return status();
     const duration = number(seconds, settings.wakeSeconds, 5, MAX_INTERACTION_SECONDS);
-    interactionUntil = Date.now() + (duration * 1000);
-    storeInteractionUntil(interactionUntil);
+    const requestedUntil = Date.now() + (duration * 1000);
+    const previewActive = previewing();
+
+    interactionUntil = previewActive
+      ? Math.min(previewUntil, requestedUntil)
+      : requestedUntil;
+
+    if (previewActive) clearStoredInteraction();
+    else storeInteractionUntil(interactionUntil);
+
     scheduleInteractionExpiry();
     refresh();
     window.dispatchEvent(new CustomEvent('acp:display-night-interaction', {
@@ -332,6 +368,7 @@
     interactionUntil = 0;
     clearStoredInteraction();
     scheduleInteractionExpiry();
+    schedulePreviewExpiry();
     refresh();
     return status();
   }
@@ -402,6 +439,10 @@
       }
       if (sequence > lastInputSequence) {
         lastInputSequence = sequence;
+        // The OS input stream reports the same physical tap that launched a
+        // Settings preview. Browser-local input remains authoritative during
+        // preview so that tap is not replayed one second later as an activation.
+        if (previewing()) return;
         interact(settings.wakeSeconds, 'linux-input-monitor');
       }
     } catch (_error) {
@@ -459,6 +500,7 @@
     if (refreshInterval) window.clearInterval(refreshInterval);
     if (activityInterval) window.clearInterval(activityInterval);
     if (interactionTimer) window.clearTimeout(interactionTimer);
+    clearPreviewTimer();
     if (bootTransitionTimer) window.clearTimeout(bootTransitionTimer);
   }, { once: true });
 })();
