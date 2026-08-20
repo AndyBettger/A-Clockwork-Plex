@@ -107,7 +107,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] <=31-day WU batching, omitted-day single retry, confirmed-gap caching and minimum-recorded totals.
 - [x] Six Rainy Day Fund calendar summaries plus genuine WU-backed Rain lifetime.
 - [x] Separate lifetime cache, bounded backward discovery, confirmed gaps and request-quiet settled state.
-- [x] Shared forecast-style Rainy Day Fund scroll + genuine WU Rain lifetime.
+- [x] Shared forecast-style rain scrollbar with no native Chromium arrow-button scrollbar.
 - [x] Physical WU commissioning, selected-period behavior, gap semantics, lifetime backfill/settling, cache structure and Ecowitt/WU independence accepted. Evidence: `docs/weather-physical-followup-2026-08-17.md`.
 
 #### Final Weather + alarm polish — source/CI + current-Pi physical PASS; one WU-only check deferred
