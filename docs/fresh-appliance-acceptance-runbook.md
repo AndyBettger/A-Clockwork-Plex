@@ -2,7 +2,7 @@
 
 **Status:** final Phase 7 release-candidate clean-room procedure  
 **Branch under test:** `feature/alarm-engine`  
-**Updated:** 19 August 2026
+**Updated:** 20 August 2026
 
 ## Purpose
 
@@ -305,6 +305,8 @@ bash scripts/verify-appliance.sh \
 bash scripts/audio/verify-audio.sh \
   | tee "$EVIDENCE/22-post-reboot-audio-verifier.txt"
 ```
+
+The appliance verifier checks the commissioned WU credential through the restricted root-owned helper's presence-only `status` action. It must not be given `--weather-api-key-file`, a secret-bearing environment override or any other copy of the API key for this clean-room proof; only `WEATHER_SECRET_CONFIGURED=0|1` is exposed by that helper.
 
 Require:
 
