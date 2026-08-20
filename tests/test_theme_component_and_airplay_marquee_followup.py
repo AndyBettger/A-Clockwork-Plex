@@ -24,7 +24,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
-        self.assertIn("20260820-theme-followup-v2", base)
+        self.assertIn("20260820-theme-followup-v3", base)
         self.assertLess(base.index("css/daytime-themes.css"), base.index("css/daytime-theme-components.css"))
         self.assertLess(base.index("css/daytime-theme-components.css"), base.index("css/daytime-theme-followup.css"))
 
@@ -80,13 +80,29 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
             ".settings-card-heading > .settings-chip",
             '.setting-toggle input[type="checkbox"]',
             'input[type="range"]:not(.acp-calibrated-fader)::-webkit-slider-runnable-track',
-            '.alarm-day-button:is(.is-selected, [aria-pressed="true"])',
+            '.alarm-day-grid .alarm-day-button:is(.is-selected, [aria-pressed="true"])',
         ):
             self.assertIn(token, css)
-        self.assertIn("display: inline-flex;", css)
-        self.assertIn("border-radius: 999px;", css)
-        self.assertIn("background: var(--accent);", css)
-        self.assertIn("color: var(--acp-theme-contrast);", css)
+        self.assertIn("display: inline-flex !important;", css)
+        self.assertIn("border-radius: 999px !important;", css)
+        self.assertIn("background: var(--accent-strong) !important;", css)
+        self.assertIn("color: var(--acp-theme-contrast) !important;", css)
+
+    def test_settings_late_runtime_controls_are_theme_owned(self) -> None:
+        css = FOLLOWUP.read_text(encoding="utf-8")
+        for token in (
+            ".acp-settings-select-trigger",
+            ".button:not(.settings-save):not(.alarm-remove-button)",
+            ".alarm-enabled-toggle.is-off",
+            ".audio-mixer-step",
+            ".audio-mixer-card.is-vertical-console .audio-mixer-channel",
+            ".audio-mixer-banner",
+            ".alarm-audio-test-panel",
+            ".audio-mixer-channel-heading output",
+        ):
+            self.assertIn(token, css)
+        self.assertIn("border-color: var(--acp-theme-control-border) !important;", css)
+        self.assertIn("background: var(--acp-theme-control) !important;", css)
 
     def test_settings_range_presenter_tracks_dynamic_controls(self) -> None:
         script = RANGE_THEME.read_text(encoding="utf-8")
@@ -109,9 +125,13 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("Math.min(previewUntil, requestedUntil)", dimming)
         self.assertIn("if (previewing()) return;", dimming)
         self.assertIn("20260820-preview-timing-v1", base)
-        self.assertIn("now.getSeconds() % 2 === 1", colon)
-        self.assertIn("1000 - (Date.now() % 1000)", colon)
-        self.assertIn("20260820-clock-colon-sync-v1", clock)
+        self.assertIn("function displayedSecond()", colon)
+        self.assertIn("MutationObserver", colon)
+        self.assertIn("attributeName === 'aria-label'", colon)
+        self.assertIn("second % 2 === 1", colon)
+        self.assertNotIn("setTimeout", colon)
+        self.assertIn("var(--acp-theme-display, var(--segment-on))", clock)
+        self.assertIn("20260820-clock-colon-sync-v2", clock)
 
     def test_title_marquee_reuses_physically_proven_source_scroll_pattern(self) -> None:
         marquee = MARQUEE.read_text(encoding="utf-8")
