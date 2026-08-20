@@ -29,13 +29,16 @@ def public_observation_config(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _integer(value: Any, fallback: int, label: str) -> int:
+def _integer(value: Any, label: str, minimum: int, maximum: int) -> int:
     if isinstance(value, (dict, list, tuple, set, bool)):
         raise ValueError(f"{label} must be a whole number.")
     try:
-        return int(value)
+        parsed = int(value)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{label} must be a whole number.") from exc
+    if not minimum <= parsed <= maximum:
+        raise ValueError(f"{label} must be from {minimum} to {maximum} seconds.")
+    return parsed
 
 
 def _reject_secret_fields(payload: dict[str, Any]) -> None:
@@ -80,8 +83,9 @@ def submitted_observation_config(
         if "fresh_seconds" in ecowitt_payload:
             ecowitt["fresh_seconds"] = _integer(
                 ecowitt_payload["fresh_seconds"],
-                current["ecowitt_push"]["fresh_seconds"],
                 "Ecowitt freshness",
+                30,
+                3600,
             )
         weather["ecowitt_push"] = ecowitt
 
@@ -100,17 +104,18 @@ def submitted_observation_config(
                 wunderground_payload.get("api_key_env") or ""
             ).strip()
         integer_fields = {
-            "refresh_seconds": "Weather Underground refresh interval",
-            "stale_seconds": "Weather Underground stale interval",
-            "request_timeout_seconds": "Weather Underground request timeout",
-            "pressure_history_hours": "Weather Underground pressure-history hours",
+            "refresh_seconds": ("Weather Underground refresh interval", 30, 3600),
+            "stale_seconds": ("Weather Underground stale interval", 60, 21600),
+            "request_timeout_seconds": ("Weather Underground request timeout", 2, 60),
+            "pressure_history_hours": ("Weather Underground pressure-history hours", 3, 24),
         }
-        for key, label in integer_fields.items():
+        for key, (label, minimum, maximum) in integer_fields.items():
             if key in wunderground_payload:
                 wunderground[key] = _integer(
                     wunderground_payload[key],
-                    current["weather_underground"][key],
                     label,
+                    minimum,
+                    maximum,
                 )
         weather["weather_underground"] = wunderground
 
