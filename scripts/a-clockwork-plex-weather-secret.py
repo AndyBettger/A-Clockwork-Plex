@@ -75,6 +75,66 @@ def _atomic_write(path: Path, content: str) -> None:
             temporary.unlink()
 
 
+def _status_file_exists_and_is_safe(path: Path) -> bool:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError("Managed weather environment path is not a regular file.")
+    if stat.S_IMODE(metadata.st_mode) != 0o600:
+        raise RuntimeError("Managed weather environment file mode verification failed.")
+    if path == PRODUCTION_PATH and (metadata.st_uid != 0 or metadata.st_gid != 0):
+        raise RuntimeError("Managed weather environment ownership verification failed.")
+    return True
+
+
+def _decoded_managed_secret(line: str) -> str | None:
+    candidate = line.lstrip().rstrip("\r\n")
+    prefix = f"{ENV_NAME}="
+    if not candidate.startswith(prefix):
+        return None
+    encoded = candidate[len(prefix) :]
+    if len(encoded) < 2 or encoded[0] != '"' or encoded[-1] != '"':
+        return None
+
+    payload = encoded[1:-1]
+    decoded: list[str] = []
+    escaped = False
+    for character in payload:
+        if escaped:
+            if character not in {'"', "\\"}:
+                return None
+            decoded.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == '"':
+            return None
+        else:
+            decoded.append(character)
+    if escaped:
+        return None
+
+    secret = "".join(decoded)
+    try:
+        return _validated_secret(secret.encode("utf-8"))
+    except ValueError:
+        return None
+
+
+def credential_configured(path: Path) -> bool:
+    """Return only whether one structurally valid managed credential exists."""
+    if not _status_file_exists_and_is_safe(path):
+        return False
+    lines = _existing_lines(path)
+    prefix = f"{ENV_NAME}="
+    assignments = [line for line in lines if line.lstrip().startswith(prefix)]
+    if len(assignments) != 1:
+        return False
+    return _decoded_managed_secret(assignments[0]) is not None
+
+
 def set_secret(path: Path, raw: bytes) -> None:
     secret = _validated_secret(raw)
     lines = _without_secret(_existing_lines(path))
@@ -93,11 +153,15 @@ def remove_secret(path: Path) -> None:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[1] not in {"set", "remove"}:
-        print("Usage: a-clockwork-plex-weather-secret set|remove", file=sys.stderr)
+    if len(argv) != 2 or argv[1] not in {"set", "remove", "status"}:
+        print("Usage: a-clockwork-plex-weather-secret set|remove|status", file=sys.stderr)
         return 64
     try:
         path = _target_path()
+        if argv[1] == "status":
+            configured = credential_configured(path)
+            print(f"WEATHER_SECRET_CONFIGURED={1 if configured else 0}")
+            return 0
         if argv[1] == "set":
             set_secret(path, sys.stdin.buffer.read(MAX_SECRET_BYTES + 1))
             print("Weather Underground credential stored.")

@@ -35,8 +35,8 @@ Usage: bash scripts/install-appliance-helpers.sh [options]
 
 Guarded installer for the restricted appliance helpers used by the alarm engine,
 managed Shairport receiver-name Settings, write-only Weather Underground
-credential commissioning, and persistent shared-audio mixer controls. Prepare-only
-is the default and does not change production state.
+credential commissioning/status, and persistent shared-audio mixer controls.
+Prepare-only is the default and does not change production state.
 
 Options:
   --prepare-only
@@ -84,7 +84,7 @@ done
 
 ALARM_POLICY="# Managed by A Clockwork Plex. The helper validates every action and argument.\n$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release\n$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET restore *\n"
 NAME_POLICY="$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET set *\n"
-WEATHER_POLICY="# Managed by A Clockwork Plex. Secret value is supplied on stdin, never argv.\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove\n"
+WEATHER_POLICY="# Managed by A Clockwork Plex. Secret value is supplied on stdin, never argv; status returns presence only.\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove\n"
 MIXER_POLICY="# Managed by A Clockwork Plex. The helper validates channel names and 0-100 levels.\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET set *\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET live *\n"
 MIXER_DEFAULTS_TEXT="# Managed by A Clockwork Plex.\nALSA_CARD=Pro\nALSA_DEVICE=0\nSAMPLE_RATE=44100\nCHANNELS=2\n"
 
@@ -282,6 +282,7 @@ activate() {
     verify_mode "$MIXER_DEFAULTS" 644 || return 1
     verify_contains "$ALARM_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release" || return 1
     verify_contains "$NAME_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status" || return 1
+    verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET status" || return 1
     verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set" || return 1
     verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove" || return 1
     verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET status" || return 1

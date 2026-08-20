@@ -16,6 +16,7 @@ FAILURES=0
 WARNINGS=0
 DIRECT_SHA256=654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
 MIXER_HELPER=/usr/local/bin/a-clockwork-plex-audio-mixer
+WEATHER_SECRET_HELPER="${WEATHER_SECRET_HELPER:-/usr/local/bin/a-clockwork-plex-weather-secret}"
 
 usage() {
     cat <<'EOF'
@@ -29,8 +30,9 @@ Options:
   --audio direct|eq
   --weather-observations ecowitt-push|weather-underground
   --weather-api-key-file PATH
-                          WU credential file for production verification;
-                          value is validated but never displayed
+                          Optional WU credential-file override for verification;
+                          normal commissioned appliances use the restricted
+                          managed-credential status helper instead
   --project-user USER
   --project-dir PATH     logical installed repository path
   --config PATH          logical config.json path
@@ -109,6 +111,7 @@ fi
 [[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || { echo "Invalid project user: $PROJECT_USER" >&2; exit 64; }
 [[ "$PROJECT_DIR" == /* || -z "$PROJECT_DIR" ]] || { echo '--project-dir must be absolute.' >&2; exit 64; }
 [[ "$CONFIG_PATH" == /* || -z "$CONFIG_PATH" ]] || { echo '--config must be absolute.' >&2; exit 64; }
+[[ "$WEATHER_SECRET_HELPER" == /* ]] || { echo 'WEATHER_SECRET_HELPER must be an absolute path.' >&2; exit 64; }
 
 if [[ "$ROOT" != / ]]; then
     ROOT="${ROOT%/}"
@@ -191,6 +194,14 @@ raise SystemExit(0 if value.strip() else 1)
 PY
 }
 
+managed_wu_credential_configured() {
+    local output
+    if ! output="$(sudo -n "$WEATHER_SECRET_HELPER" status 2>/dev/null)"; then
+        return 1
+    fi
+    [[ "$output" == 'WEATHER_SECRET_CONFIGURED=1' ]]
+}
+
 validate_mixer_payload() {
     local source="$1"
     python3 - "$source" <<'PY'
@@ -246,6 +257,8 @@ require_file alarm-helper '/usr/local/bin/a-clockwork-plex-alarm-audio'
 require_protected_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
 require_file shairport-name-helper '/usr/local/bin/a-clockwork-plex-shairport-name'
 require_protected_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'
+require_file weather-secret-helper "$WEATHER_SECRET_HELPER"
+require_protected_file weather-secret-sudoers '/etc/sudoers.d/a-clockwork-plex-weather-secret'
 require_file mixer-helper "$MIXER_HELPER"
 require_protected_file mixer-sudoers '/etc/sudoers.d/a-clockwork-plex-audio-mixer'
 require_file mixer-defaults '/etc/default/a-clockwork-plex-audio'
@@ -355,11 +368,13 @@ PY
         fi
         if [[ "$ROOT" == / ]]; then
             if [[ -n "$WU_KEY_FILE" ]] && valid_wu_key_file "$WU_KEY_FILE"; then
-                pass wu-credential 'credential file is readable and structurally valid (value hidden)'
+                pass wu-credential 'credential file override is readable and structurally valid (value hidden)'
             elif [[ -n "${!wu_key_env:-}" ]]; then
-                pass wu-credential "$wu_key_env is set (value hidden)"
+                pass wu-credential "$wu_key_env is set in verifier environment (value hidden)"
+            elif managed_wu_credential_configured; then
+                pass wu-credential 'managed root-owned credential is configured (value hidden)'
             else
-                fail_check wu-credential "provide --weather-api-key-file PATH or set $wu_key_env"
+                fail_check wu-credential 'managed Weather Underground credential is not configured or its restricted status helper is unavailable'
             fi
         fi
     else
