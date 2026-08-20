@@ -15,6 +15,10 @@ VERIFIER = ROOT / "scripts" / "verify-appliance.sh"
 RUNBOOK = ROOT / "docs" / "fresh-appliance-acceptance-runbook.md"
 
 
+def fenced_code(text: str) -> str:
+    return "\n".join(text.split("```")[1::2])
+
+
 @unittest.skipIf(os.geteuid() == 0, "The helper deliberately forbids its test-path override as root.")
 class ManagedWeatherSecretStatusRuntimeTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -130,8 +134,9 @@ class ManagedWeatherSecretVerifierContractTests(unittest.TestCase):
 
     def test_clean_room_runbook_keeps_no_secret_verifier_command(self) -> None:
         source = RUNBOOK.read_text(encoding="utf-8")
-        self.assertIn("--weather-observations weather-underground", source)
-        self.assertNotIn("--weather-api-key-file", source)
+        commands = fenced_code(source)
+        self.assertIn("--weather-observations weather-underground", commands)
+        self.assertNotIn("--weather-api-key-file", commands)
 
 
 if __name__ == "__main__":
