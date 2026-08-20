@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -51,8 +52,13 @@ class ReleaseHygieneContractTests(unittest.TestCase):
             "weather-rainfall-history.json",
             "weather-rainfall-lifetime.json",
         )
-        present = [name for name in runtime_outputs if (REPO_ROOT / name).exists()]
-        self.assertEqual([], present)
+        tracked = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "ls-files", "--", *runtime_outputs],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        self.assertEqual([], tracked)
 
     def test_obsolete_phase2_roadmap_mutators_stay_removed(self) -> None:
         obsolete = (
