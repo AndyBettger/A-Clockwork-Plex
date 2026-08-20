@@ -57,6 +57,42 @@ body[data-active-page="airplay"] .airplay-glyph .airplay-pulse {
 }
 
 /* -------------------------------------------------------------------------
+   Bottom navigation
+
+   Navigation lives outside the Settings page after nav-layer.js moves the
+   drawer to <body>. Keep its ordinary buttons on the palette's neutral control
+   paint and reserve the saturated fill for the current page and the open Audio
+   drawer. This also prevents Settings-only button rules from flattening the
+   Settings/Audio active states.
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button {
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-control) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button.is-active {
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  color: var(--acp-theme-contrast) !important;
+  box-shadow: 0 0 18px var(--acp-theme-glow) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button.is-active:is(:hover, :active) {
+  background: var(--accent-strong) !important;
+}
+
+/* The compact EQ drawer no longer needs to restate which music sources feed it;
+   the controls and surrounding mixer already make that boundary clear. */
+.acp-eq-strip .acp-eq-heading > div > span {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------
    Settings card headings and status pills
 
    Some Settings workspaces are assembled after first paint and historically
@@ -269,7 +305,7 @@ body[data-active-page="settings"] .acp-settings-select-trigger.is-open {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="settings"] .button:not(.settings-save):not(.alarm-remove-button),
+body[data-active-page="settings"] .settings-page .button:not(.settings-save):not(.alarm-remove-button),
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body[data-active-page="settings"] .alarm-enabled-toggle.is-off,
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
@@ -315,6 +351,46 @@ body[data-active-page="settings"] :is(
   .audio-mixer-banner strong
 ) {
   color: var(--accent-strong) !important;
+}
+
+/* -------------------------------------------------------------------------
+   Alarm editor and Hardware-status residual chrome
+
+   The alarm editor and the read-only Hardware maintenance note still carried
+   literal legacy cyan in their own source styles. They are ordinary
+   presentation surfaces rather than semantic health states, so hand their
+   border/fill ownership to the active palette as well.
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .alarm-editor-card,
+  .alarm-editor-panel,
+  .alarm-time-picker,
+  .alarm-preview-row,
+  .alarm-empty-state,
+  .settings-hardware-maintenance-note
+) {
+  border-color: var(--acp-theme-control-border) !important;
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 58%),
+    rgba(255, 255, 255, 0.03) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-editor-body {
+  border-top-color: var(--acp-theme-control-border) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-add-button {
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-soft) !important;
+  color: var(--accent-strong) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-add-button:active {
+  background: var(--acp-theme-control) !important;
 }
 
 /* -------------------------------------------------------------------------
