@@ -20,8 +20,23 @@ except ImportError:  # Supports direct execution imports.
     )
 
 
+MIN_AIRPLAY_PAUSE_HOLD_SECONDS = 30
+MAX_AIRPLAY_PAUSE_HOLD_SECONDS = 420
+
+
+def _bounded_airplay_pause_hold_seconds(value: Any) -> int:
+    try:
+        seconds = int(str(value).strip())
+    except (TypeError, ValueError):
+        seconds = MAX_AIRPLAY_PAUSE_HOLD_SECONDS
+    return max(
+        MIN_AIRPLAY_PAUSE_HOLD_SECONDS,
+        min(MAX_AIRPLAY_PAUSE_HOLD_SECONDS, seconds),
+    )
+
+
 class UnifiedSettingsService(_base.UnifiedSettingsService):
-    """Production Settings extended with the supplemental rainfall-history model."""
+    """Production Settings extended with rainfall history and final appliance bounds."""
 
     def __init__(
         self,
@@ -45,6 +60,10 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
             receiver_status=receiver_status,
         )
         settings.setdefault("weather", {})["historical_rainfall"] = public_rainfall_config(config)
+        airplay = settings.setdefault("airplay", {})
+        airplay["pause_hold_seconds"] = _bounded_airplay_pause_hold_seconds(
+            airplay.get("pause_hold_seconds")
+        )
         return settings
 
     def snapshot(self) -> dict[str, Any]:
@@ -62,6 +81,13 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
         updated = submitted_rainfall_config(config, rainfall_payload)
         config.clear()
         config.update(updated)
+
+    def _normalise_airplay(self, config: dict[str, Any], payload: Any) -> None:
+        super()._normalise_airplay(config, payload)
+        airplay = config.setdefault("airplay", {})
+        airplay["pause_hold_seconds"] = _bounded_airplay_pause_hold_seconds(
+            airplay.get("pause_hold_seconds")
+        )
 
     def apply(self, payload: Any) -> dict[str, Any]:
         before = public_rainfall_config(self._load_config())
