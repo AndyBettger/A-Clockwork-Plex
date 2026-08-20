@@ -70,11 +70,25 @@ body[data-active-page="settings"] .settings-card-heading > div {
   min-width: 0;
 }
 
+body[data-active-page="settings"] .settings-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0.28rem 0.68rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 body[data-active-page="settings"] .settings-card-heading > .settings-chip {
   flex: 0 0 auto;
   align-self: flex-start;
   margin: 0;
-  white-space: nowrap;
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
@@ -227,9 +241,11 @@ body[data-active-page="settings"] .alarm-day-button {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="settings"] .alarm-day-button.is-selected {
+body[data-active-page="settings"] .alarm-day-button:is(.is-selected, [aria-pressed="true"]) {
   border-color: var(--accent-strong);
-  background: var(--accent-strong);
+  background: var(--accent);
   color: var(--acp-theme-contrast);
-  box-shadow: 0 0 16px var(--acp-theme-soft);
+  box-shadow:
+    0 0 16px var(--acp-theme-glow),
+    inset 0 0 0 1px var(--accent-strong);
 }
