@@ -8,6 +8,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNBOOK = ROOT / "docs" / "fresh-appliance-acceptance-runbook.md"
 
 
+def fenced_code(text: str) -> str:
+    """Return fenced code only so explanatory prose may name forbidden options."""
+    return "\n".join(text.split("```")[1::2])
+
+
 class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
     def test_runbook_protects_production_with_spare_sd_boundary(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
@@ -65,14 +70,15 @@ class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
 
     def test_wu_acceptance_is_settings_based_and_never_puts_secret_on_cli(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
+        commands = fenced_code(text)
         self.assertIn("# 6. Commission Weather Underground through Settings", text)
         self.assertIn("Set API key", text)
         self.assertIn("Replace API key", text)
         self.assertIn("Test connection", text)
         self.assertIn("WU_CONFIG_SECRET_FIELDS=NONE", text)
         self.assertIn("/etc/default/a-clockwork-plex-weather", text)
-        self.assertNotIn("--wu-api-key-file", text)
-        self.assertNotIn("--weather-api-key-file", text)
+        self.assertNotIn("--wu-api-key-file", commands)
+        self.assertNotIn("--weather-api-key-file", commands)
 
     def test_runbook_requires_functional_alarm_and_selected_v3_presentation(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
