@@ -25,7 +25,11 @@ class AirPlayHoldPolicyTests(unittest.TestCase):
         self.assertEqual(configured_airplay_hold_seconds({"airplay": {"pause_hold_seconds": 7}}), 15)
         self.assertEqual(
             configured_airplay_hold_seconds({"airplay": {"pause_hold_seconds": 100000}}),
-            86400,
+            420,
+        )
+        self.assertEqual(
+            configured_airplay_hold_seconds({"airplay": {"pause_hold_seconds": 421}}),
+            420,
         )
 
 
