@@ -1,6 +1,6 @@
 # EQ-capable Audio + Full Appliance Installer Roadmap
 
-**Last updated:** 19 August 2026  
+**Last updated:** 20 August 2026  
 **Branch:** `feature/alarm-engine`  
 **PR:** #2 — must remain Draft/open/unmerged until explicit owner approval.
 
@@ -90,7 +90,7 @@ The historical `08d00093...` route is physical Phase 6 rollback evidence only; i
 
 Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/read-only validation, bedroom-Pi EQ installation, interface acceptance and real reboot/failure/uninstall/reinstall acceptance are complete. Phase 6 physically proved install → reboot → controlled Camilla failure → alarm-safe failback → repair → uninstall → Direct reboot → reinstall.
 
-### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator/V3, the original six daytime palettes and Crimson Glow itself are physically accepted; cross-component theme cleanup and AirPlay marquee stability are source/CI complete; final presentation follow-up, replacement-SD clean-room install, formal verifiers and release hygiene remain**
+### Phase 7 — full appliance installer integration — **In progress: functional/audio/Weather/annunciator/V3, daytime palettes and the AirPlay long-form marquee are physically accepted; final Settings/Clock/night-preview presentation closure, replacement-SD clean-room install, formal verifiers and release hygiene remain**
 
 #### WU Settings commissioning — physical PASS
 
@@ -128,7 +128,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] **Version 3 segment artwork:** selected V3 path geometry is the shared runtime source, editable SVG identifies it as the selected geometry, base template is cache-busted with `20260819-segment-v3`, and regression coverage pins all three together. Head `fb62ad16fbfd706a252d399eb99f2edbf01b8c84` added the final source contract.
 - [x] **Physical V3 acceptance, 19 August:** the real Touch Display shows the revised 14-segment font much cleaner than the previous geometry. Treat the V3 design itself as closed unless a later unrelated presentation change exposes a specific defect.
 
-#### Daytime theme — Crimson physical PASS; cross-component accent cleanup source/CI PASS
+#### Daytime theme — physical PASS with final control-state follow-up in progress
 
 - [x] Persist `dashboard.daytime_theme` through unified Settings with first-paint bootstrap and live Save/Discard preview.
 - [x] Original six presets: **Classic Dark**, **Midnight Blue**, **Amber Terminal**, **Green Phosphor**, **Aubergine** and **Steel Cyan**.
@@ -145,9 +145,10 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Screenshot-driven cross-component audit then identified legacy cyan on Weather scroll rails/rain gauges/barometer gradients, AirPlay route-ready pulse rings, Audio EQ/knobs/faders, and Settings dropdowns/ranges/status controls/Alarm Enabled/About links and 42 mark.
 - [x] `daytime-theme-components.css` is now the late presentation authority for those legacy components. It uses shared palette variables, keeps Classic Dark untouched, excludes Plexamp, and leaves semantic warning/error colours component-owned.
 - [x] Exact cross-component source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922`, including compile, JavaScript/page/shell checks and the full unit suite.
-- [ ] **Physical follow-up:** under Green/Amber/Aubergine/Crimson, confirm all three Weather rails, rain gauges and barometer tint; AirPlay route-ready rings; Audio EQ/knobs/faders; Settings select menus/ranges/status pills/Enabled state/output faders/EQ sliders/About mark/project links now follow the selected palette. Capture any remaining isolated leak rather than broad-brush recolouring neutral whites/greys.
+- [x] **Physical follow-up, 20 August:** the kiosk-safe external-link dialog, AirPlay Ready pulse rings and unchecked checkbox borders now follow the selected palette and were accepted on the real appliance.
+- [ ] **Focused physical control-state closure:** confirm saved horizontal slider fills meet their thumbs before any drag; selected Alarm weekdays have a clear filled state; and `Forecast ready` / `Running` render as complete top-right pills rather than bare text.
 
-#### AirPlay long-form presentation — classifier physical PASS; stable marquee source/CI PASS
+#### AirPlay long-form presentation — physical PASS
 
 - [x] Replace the metadata-active episode/title two-line clamp with a measured single-line marquee, matching the calm scrolling behaviour already used for long source/book/album text. Idle receiver-name presentation remains unchanged.
 - [x] Extract long-form media classification into testable `airplay-media-kind.js` rather than burying it inside transport-button presentation.
@@ -158,7 +159,22 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] **Physical classifier acceptance, 19 August:** the long-form test again displayed the circular `15` controls, confirming the corrected classifier now selects spoken presentation for the observed podcast case.
 - [x] The first marquee physically exposed a two-second status-refresh interaction: identical title repaint mutations repeatedly reset the CSS animation after its 1.2-second delay, producing only a few-pixel twitch. The marquee now caches measured text/width and ignores identical metadata repaints while still remeasuring real title changes, resizes and page restores.
 - [x] Exact stable-marquee/component source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922` including JavaScript syntax and dedicated marquee regression.
-- [ ] **Physical marquee:** replay a long podcast/audiobook and confirm the episode title now travels smoothly across the single line instead of twitching. A normal music track should still retain ordinary Previous/Next track artwork.
+- [x] **Physical marquee acceptance, 20 August:** the long episode title now scrolls smoothly across its single line instead of twitching/restarting on the two-second metadata refresh.
+
+#### Final presentation closure — source/CI complete; focused physical pending
+
+- [x] Horizontal Settings ranges repaint from their real saved `.value` after programmatic hydration rather than leaving the custom fill at its 50% fallback until first drag.
+- [x] Selected Alarm weekday presentation accepts both `.is-selected` and `aria-pressed="true"` and uses the saturated theme accent for a clear filled state.
+- [x] Shared `.settings-chip` now owns actual pill geometry as well as theme colour, restoring the box around `Forecast ready` and `Running`.
+- [x] Main Clock colons use `--segment-on` / `--segment-off` and toggle from wall-clock second parity; the same Clock DOM therefore carries the cadence into inactive night dimming without touching V3 geometry.
+- [x] Night preview has an explicit expiry timer rather than depending on the 15-second refresh loop. Interaction during preview is capped to the preview deadline, and the delayed Linux-input replay of the tap that launched preview is suppressed while preview is active.
+- [x] Exact source/test head `1d7f80594eef24d8d8c2748c7821b4b4b3d7e7a0` passed Tests #3877 / run `32318673930`: compile PASS, JavaScript/page/shell PASS, **1,728/1,728 unit tests PASS**.
+- [ ] **Physical:** after a reboot, before touching any slider, confirm Display and Audio horizontal fills end at their thumbs.
+- [ ] **Physical:** confirm selected Alarm weekdays are visibly filled.
+- [ ] **Physical:** confirm `Forecast ready` and `Running` are complete themed pills at the top-right of their cards.
+- [ ] **Physical:** confirm the main Clock colons match the digit colour and switch on/off at the actual second cadence, including the inactive night Clock.
+- [ ] **Physical:** with scheduled dimming disabled, `Preview for 8 seconds` lasts about eight seconds total; a later touch may show active-night presentation but must not extend the preview.
+- [ ] **Physical:** with scheduled dimming enabled, the initiating preview tap must not immediately replay as active-night interaction; preview remains bounded to about eight seconds and returns to the actual scheduled/day state afterward.
 
 #### Fresh package/hardware/NFC bootstrap — source/CI complete
 
@@ -208,7 +224,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [x] Historical lower-level idempotence pass: the then-current engine was rerun under its old `install.sh` filename without warnings/errors or reboot request. The engine is now named `appliance-installer.sh`; the final public repeat proof is `setup.sh`, not this historical command.
 - [x] Dashboard direct-script import regression found after a Weather update was repaired and physically reboot-verified.
 - [ ] Current test SD is intermittently read-only and is being replaced. Do not use it for final release evidence; temporary checks may continue only because all source is recoverable from GitHub.
-- [ ] After the themed-component/AirPlay marquee presentation follow-up is visually accepted on usable media, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
+- [ ] After the final Settings/Clock/night-preview presentation follow-up is visually accepted on usable media, run bootstrap/application/audio verifiers after a representative final reboot and commit the evidence.
 - [ ] On the replacement spare SD, perform the final `INSTALL.md` clean-room run using **`setup.sh`** from the first public command through reboot checkpoint if required, integrated Camilla fetch, Plexamp claim/resume, Plexamp GUI commissioning, WU configuration, playback/EQ, AirPlay, NFC, alarm/fade and reboot.
 - [ ] Rerun final public `setup.sh` on that installed replacement card to prove idempotence with no renewed claim/reboot checkpoint or ownership drift.
 - [ ] Confirm normal operation does not dirty tracked files (`git status --porcelain`).
@@ -227,7 +243,7 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [ ] Run a final tracked-file/install-dependency audit so every file required by `setup.sh`/`appliance-installer.sh` is present after cleanup and no retained file survives merely because it was used by an obsolete experiment.
 - [ ] Run the complete validation suite after cleanup. PR #2 remains Draft until release hygiene, final physical gates and explicit owner approval are complete.
 
-**Phase 7 exit condition:** final V3/theme/AirPlay presentation is accepted; the replacement spare-SD appliance passes functional/formal reboot plus the final public `setup.sh` clean-room install and repeat-install; `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` are green where applicable; the repository is clean and documented; and explicit owner approval is given. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** final V3/theme/AirPlay/Settings presentation is accepted; the replacement spare-SD appliance passes functional/formal reboot plus the final public `setup.sh` clean-room install and repeat-install; `verify-fresh-bootstrap.sh`, `verify-appliance.sh` and `scripts/audio/verify-audio.sh` are green where applicable; the repository is clean and documented; and explicit owner approval is given. PR #2 remains Draft throughout.
 
 ## Phase 7 checkpoint record
 
@@ -270,7 +286,8 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - **#43 — selected Version 3 segment geometry + unambiguous installer naming — PASS (source/CI + V3 physical).** V3 runtime/editable/cache contract is pinned by `fb62ad16fbfd706a252d399eb99f2edbf01b8c84`. The guarded engine is `appliance-installer.sh`, maintained callers/tests were migrated, stale `install.sh` was removed, and exact combined head `3a55c556ccbd61e81a6aa7f758894cdd98aa7446` passed Tests #3769 / run `32216799590`. V3 was subsequently accepted on the real Touch Display on 19 August as materially cleaner than the previous geometry.
 - **#44 — curated daytime themes — PASS (source/CI + initial physical).** Original six persisted presets use unified Settings plus first-paint presentation authority; Classic night dims the selected palette, Astronomy overrides it red, Plexamp is excluded, and V3 geometry is untouched. Source head `b5da2c532b18632a4e0dc2cb9aaee4aab5424d96` passed Tests #3797 / run `32218321681`; the six themes were then physically accepted, with Midnight Blue especially well received.
 - **#45 — Crimson Glow + initial AirPlay long-form/theme polish — PASS (source/CI + partial physical).** Adds the seventh crimson daytime palette, first-pass AirPlay accent cleanup and corrected generic-`Music` long-form classification. Exact source head `e3782c8c91533a4c64c8a60602c45051c25176f4` passed Tests #3827 / run `32295754785`. Physical follow-up accepted Crimson Glow and the spoken `15` artwork, while exposing wider legacy component cyan and the title-animation reset.
-- **#46 — cross-component theme ownership + stable AirPlay marquee — PASS (source/CI; focused physical follow-up pending).** A final non-Classic presentation layer now themes Weather rails/gauges/barometer, AirPlay ready pulses, Audio EQ/knobs/faders and Settings controls/Enabled/About without altering Classic Dark, Plexamp or semantic error/warning colours. The title marquee ignores identical two-second metadata repaints instead of restarting. Exact source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922`.
-- **#47 — focused final presentation corrections — PASS (source/CI; physical follow-up pending).** Presentation-only finishing pass themes the kiosk external-link dialog, forces AirPlay Ready pulse rings onto the selected palette, gives unchecked checkbox borders and custom range/slider chrome theme ownership, themes selected Alarm weekday fills, restores `Forecast ready` and `Running` as shared top-right status pills, and moves the episode-title marquee onto the same clipped-shell/translated-child mechanism as the already-working source/book/album line. Runtime Weather/audio/alarm behaviour is unchanged. Exact source/test head `d1e773fd7090bb9a319c95af931e2aac1742a14b` passed Tests #3859 / run `32311327428`: compile PASS, JavaScript/page/shell PASS, **1,723/1,723 unit tests PASS**. Focused bedside presentation acceptance is still required before this checkpoint is physically complete.
+- **#46 — cross-component theme ownership + stable AirPlay marquee — PASS (source/CI; focused physical follow-up superseded by #47/#48).** A final non-Classic presentation layer themes Weather rails/gauges/barometer, AirPlay ready pulses, Audio EQ/knobs/faders and Settings controls/Enabled/About without altering Classic Dark, Plexamp or semantic error/warning colours. The title marquee ignores identical two-second metadata repaints instead of restarting. Exact source head `5995b4f4b56cc6d0d186804af8438f27d2b69d68` passed Tests #3839 / run `32304449922`.
+- **#47 — focused final presentation corrections — PARTIAL PHYSICAL PASS.** Exact source/test head `d1e773fd7090bb9a319c95af931e2aac1742a14b` passed Tests #3859 / run `32311327428`: compile PASS, JavaScript/page/shell PASS, **1,723/1,723 unit tests PASS**. Physical follow-up on 20 August accepted the themed external-link dialog, themed AirPlay Ready pulse, smooth AirPlay episode-title marquee and themed unchecked checkboxes. It exposed four narrower issues: range fill hydration before first drag, selected weekday contrast, and missing visible pill geometry around `Forecast ready` / `Running`; those are superseded by checkpoint #48.
+- **#48 — Settings hydration/pills/day selection + Clock colon cadence + deterministic night preview — PASS (source/CI; focused physical pending).** Saved horizontal range values now repaint their custom fills after Settings hydration; selected Alarm days use the saturated theme accent; shared status chips own complete pill geometry; main Clock colons inherit segment colour and wall-clock second parity; and night preview now owns an exact deadline while suppressing delayed replay of the launch tap and capping later interaction to the preview deadline. Exact source/test head `1d7f80594eef24d8d8c2748c7821b4b4b3d7e7a0` passed Tests #3877 / run `32318673930`: compile PASS, JavaScript/page/shell PASS, **1,728/1,728 unit tests PASS**. The six focused bedside checks listed above remain before physical closure.
 
 No checkpoint is recorded as fully physically complete until its exact physical gates pass. Source/CI PASS never substitutes for a remaining bedside or clean-room acceptance gate.
