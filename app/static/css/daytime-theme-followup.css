@@ -58,6 +58,11 @@ body[data-active-page="airplay"] .airplay-glyph .airplay-pulse {
 
 /* -------------------------------------------------------------------------
    Settings card headings and status pills
+
+   Some Settings workspaces are assembled after first paint and historically
+   supplied their own cyan status-box paint. Geometry and normal health-state
+   paint are intentionally important here so every Settings status chip uses
+   the same pill contract, even when a late runtime style is appended.
    ------------------------------------------------------------------------- */
 body[data-active-page="settings"] .settings-card-heading {
   display: flex;
@@ -71,18 +76,29 @@ body[data-active-page="settings"] .settings-card-heading > div {
 }
 
 body[data-active-page="settings"] .settings-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  padding: 0.28rem 0.68rem;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 30px !important;
+  padding: 0.28rem 0.68rem !important;
   border: 1px solid var(--panel-border);
-  border-radius: 999px;
+  border-radius: 999px !important;
   background: var(--panel);
   color: var(--text);
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: 800 !important;
+  letter-spacing: normal !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  white-space: nowrap !important;
+}
+
+body[data-active-page="settings"] .settings-chip:not(.is-error):not(.is-warning) {
+  border-color: var(--panel-border) !important;
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
 }
 
 body[data-active-page="settings"] .settings-card-heading > .settings-chip {
@@ -93,10 +109,10 @@ body[data-active-page="settings"] .settings-card-heading > .settings-chip {
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body[data-active-page="settings"] .settings-chip:not(.is-error):not(.is-warning) {
-  border-color: var(--acp-theme-control-border);
-  background: var(--acp-theme-soft);
-  color: var(--accent-strong);
-  box-shadow: 0 0 14px var(--acp-theme-soft);
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-soft) !important;
+  color: var(--accent-strong) !important;
+  box-shadow: 0 0 14px var(--acp-theme-soft) !important;
 }
 
 /* -------------------------------------------------------------------------
@@ -231,21 +247,97 @@ body[data-active-page="settings"] input[type="range"]:not(.acp-calibrated-fader)
 }
 
 /* -------------------------------------------------------------------------
-   Alarm day selection
+   Settings dropdowns, ordinary action buttons and late audio workspace chrome
+
+   Several of these controls are created by runtime Settings helpers whose
+   legacy styles arrive after this stylesheet. The final theme paint therefore
+   uses !important selectively for colour only; layout and behaviour remain
+   owned by the original components.
    ------------------------------------------------------------------------- */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="settings"] .alarm-day-button {
-  border-color: var(--acp-theme-control-border);
-  background: var(--acp-theme-control);
-  color: var(--muted);
+body[data-active-page="settings"] .acp-settings-select-trigger {
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-control) !important;
+  color: var(--text) !important;
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="settings"] .alarm-day-button:is(.is-selected, [aria-pressed="true"]) {
-  border-color: var(--accent-strong);
-  background: var(--accent);
-  color: var(--acp-theme-contrast);
+body[data-active-page="settings"] .acp-settings-select-trigger:focus-visible,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-settings-select-trigger.is-open {
+  outline-color: var(--accent) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .button:not(.settings-save):not(.alarm-remove-button),
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-enabled-toggle.is-off,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .audio-mixer-step {
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-control) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .alarm-tone-preview-button.is-playing,
+  #acp-eq-settings-bypass[aria-pressed="true"]
+) {
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  color: var(--acp-theme-contrast) !important;
+  box-shadow: 0 0 14px var(--acp-theme-glow) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  #settings-panel-audio .settings-card.is-intro,
+  .audio-mixer-card,
+  .audio-mixer-card.is-vertical-console .audio-mixer-channel,
+  .audio-mixer-card.is-vertical-console .audio-mixer-channel:first-child,
+  .audio-mixer-banner,
+  .audio-airplay-default-card,
+  .alarm-audio-test-panel,
+  .alarm-audio-reading
+) {
+  border-color: var(--acp-theme-control-border) !important;
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 52%),
+    var(--panel) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .audio-mixer-channel-heading output,
+  .audio-default-volume-row output,
+  .audio-mixer-banner strong
+) {
+  color: var(--accent-strong) !important;
+}
+
+/* -------------------------------------------------------------------------
+   Alarm day selection
+
+   The first component pass groups Alarm selectors through :is(), whose most
+   specific member used to beat the selected-day rule for background paint.
+   Pin the selected state here so the glow is retained and the button receives
+   the same solid theme-colour treatment as Classic Dark.
+   ------------------------------------------------------------------------- */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-day-grid .alarm-day-button {
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-control) !important;
+  color: var(--muted) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-day-grid .alarm-day-button:is(.is-selected, [aria-pressed="true"]) {
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  color: var(--acp-theme-contrast) !important;
   box-shadow:
     0 0 16px var(--acp-theme-glow),
-    inset 0 0 0 1px var(--accent-strong);
+    inset 0 0 0 1px var(--accent-strong) !important;
 }
