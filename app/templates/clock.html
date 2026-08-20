@@ -11,6 +11,23 @@
     --alpha-display-h: clamp(31px, 8.25vmin, 63px);
   }
 
+  .time.is-alpha-clock .digital-colon {
+    animation: none;
+    opacity: 1;
+  }
+
+  .time.is-alpha-clock .digital-colon span {
+    background: var(--segment-on);
+    box-shadow:
+      0 0 6px var(--acp-theme-display-glow, rgba(255, 255, 255, 0.34)),
+      0 0 14px var(--acp-theme-soft, rgba(255, 255, 255, 0.13));
+  }
+
+  .time.is-alpha-clock.is-colon-off .digital-colon span {
+    background: var(--segment-off);
+    box-shadow: none;
+  }
+
   @media (max-height: 520px), (max-width: 860px) {
     .time.is-alpha-clock {
       --alpha-display-h: clamp(92px, 33vw, 168px);
@@ -148,5 +165,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/clock-dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/clock-colon-sync.js', v='20260820-clock-colon-sync-v1') }}"></script>
 <script src="{{ url_for('static', filename='js/clock-hydration.js') }}"></script>
 {% endblock %}
