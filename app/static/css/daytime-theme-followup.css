@@ -504,3 +504,19 @@ body:not([data-active-page="plexamp"]) .acp-eq-strip.is-bypassed .acp-eq-health 
   border-color: var(--acp-theme-control-border) !important;
   box-shadow: 0 0 0.8rem var(--acp-theme-soft) !important;
 }
+
+/* -------------------------------------------------------------------------
+   Settings section headings
+
+   A small number of legacy Settings sections still render through the older
+   .acp-setting-section wrapper. Keep their hierarchy unchanged, but move the
+   old cyan heading accent onto the selected daytime palette. The legacy class
+   selector is retained alongside the live data-theme selector because both
+   surfaces are still part of the supported Settings contract.
+   ------------------------------------------------------------------------- */
+.acp-daytime-theme #settingsPage .acp-setting-section > h3,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .acp-setting-section > h3 {
+  color: var(--accent-strong) !important;
+  border-bottom-color: var(--acp-theme-control-border) !important;
+}
