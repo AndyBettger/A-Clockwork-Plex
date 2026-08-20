@@ -36,17 +36,22 @@ class SettingsNumericControlTests(unittest.TestCase):
         }
         self.assertEqual(number_paths, expected)
         for path in expected - {"display.transition_duration_ms"}:
-            self.assertIn(f"'{path}'", numeric)
+            self.assertIn(f"['{path}', [", numeric)
         self.assertIn("duration.type = 'range'", display)
-        self.assertIn("input.type = 'number'", numeric)
+        self.assertNotIn("input.type = 'number'", numeric)
 
-    def test_human_facing_timeouts_use_touch_dropdowns_and_keep_420_second_hold(self) -> None:
+    def test_human_facing_timings_use_touch_dropdowns_and_keep_420_second_hold(self) -> None:
         source = NUMERIC_JS.read_text(encoding="utf-8")
-        for path in (
+        dropdown_paths = (
             "dashboard.idle_timeout_seconds",
+            "weather.observations.ecowitt_push.fresh_seconds",
+            "weather.observations.weather_underground.refresh_seconds",
+            "weather.observations.weather_underground.stale_seconds",
+            "weather.observations.weather_underground.request_timeout_seconds",
             "weather.auto_refresh_seconds",
             "airplay.pause_hold_seconds",
-        ):
+        )
+        for path in dropdown_paths:
             self.assertIn(f"['{path}', [", source)
         self.assertIn("document.createElement('select')", source)
         self.assertIn("input.replaceWith(select)", source)
@@ -59,6 +64,29 @@ class SettingsNumericControlTests(unittest.TestCase):
         for forbidden in ("600", "900", "1800", "3600"):
             self.assertNotIn(f"['{forbidden}'", airplay_block)
 
+    def test_weather_provider_dropdowns_cover_runtime_boundaries_and_current_defaults(self) -> None:
+        source = NUMERIC_JS.read_text(encoding="utf-8")
+
+        ecowitt = source.split("['weather.observations.ecowitt_push.fresh_seconds', [", 1)[1].split("    ]],", 1)[0]
+        self.assertIn("['30', '30 seconds']", ecowitt)
+        self.assertIn("['300', '5 minutes']", ecowitt)
+        self.assertIn("['3600', '1 hour']", ecowitt)
+
+        refresh = source.split("['weather.observations.weather_underground.refresh_seconds', [", 1)[1].split("    ]],", 1)[0]
+        self.assertIn("['30', '30 seconds']", refresh)
+        self.assertIn("['60', '1 minute']", refresh)
+        self.assertIn("['3600', '1 hour']", refresh)
+
+        stale = source.split("['weather.observations.weather_underground.stale_seconds', [", 1)[1].split("    ]],", 1)[0]
+        self.assertIn("['60', '1 minute']", stale)
+        self.assertIn("['300', '5 minutes']", stale)
+        self.assertIn("['21600', '6 hours']", stale)
+
+        timeout = source.split("['weather.observations.weather_underground.request_timeout_seconds', [", 1)[1].split("    ]],", 1)[0]
+        self.assertIn("['2', '2 seconds']", timeout)
+        self.assertIn("['8', '8 seconds']", timeout)
+        self.assertIn("['60', '60 seconds']", timeout)
+
     def test_airplay_hold_backend_boundary_matches_touch_choices(self) -> None:
         self.assertEqual(_bounded_airplay_pause_hold_seconds(30), 30)
         self.assertEqual(_bounded_airplay_pause_hold_seconds(120), 120)
@@ -68,7 +96,7 @@ class SettingsNumericControlTests(unittest.TestCase):
         self.assertEqual(_bounded_airplay_pause_hold_seconds(1), 30)
         self.assertEqual(_bounded_airplay_pause_hold_seconds("not-a-number"), 420)
 
-    def test_precise_forecast_coordinates_remain_numeric_and_bounded(self) -> None:
+    def test_precise_forecast_coordinates_remain_exact_entry_without_native_spinners(self) -> None:
         source = NUMERIC_JS.read_text(encoding="utf-8")
         self.assertIn(
             "['weather.forecast.latitude', { min: -90, max: 90, step: 0.000001, decimal: true }]",
@@ -78,11 +106,15 @@ class SettingsNumericControlTests(unittest.TestCase):
             "['weather.forecast.longitude', { min: -180, max: 180, step: 0.000001, decimal: true }]",
             source,
         )
+        self.assertIn("input.type = 'text'", source)
+        self.assertIn("input.dataset.numericMin", source)
+        self.assertIn("input.dataset.numericMax", source)
+        self.assertNotIn("input.type = 'number'", source)
 
     def test_assets_load_in_the_intended_final_order(self) -> None:
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("20260820-settings-theme-closure-v1", base)
-        self.assertIn("20260820-numeric-controls-v2", base)
+        self.assertIn("20260820-numeric-controls-v3", base)
         self.assertLess(
             base.index("daytime-theme-followup.css"),
             base.index("settings-theme-closure.css"),
