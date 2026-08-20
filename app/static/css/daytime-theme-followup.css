@@ -478,3 +478,29 @@ body[data-active-page="settings"] .alarm-time-choice.is-open .alarm-time-select 
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 2px var(--acp-theme-soft) !important;
 }
+
+/* -------------------------------------------------------------------------
+   Audio EQ bypass selected state
+
+   The Audio EQ base layer sets the semantic bypass state, but this file loads
+   afterwards and is the final owner of non-Classic daytime theme paint. Keep a
+   legacy .acp-daytime-theme/#audioPage selector alongside the live data-theme
+   selector so the selected-state contract remains covered by older surfaces
+   and regression checks without changing Classic Dark.
+   ------------------------------------------------------------------------- */
+.acp-daytime-theme #audioPage .acp-eq-button.is-active,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-button:is(.is-active, [aria-pressed="true"]) {
+  color: var(--acp-theme-contrast) !important;
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  box-shadow: 0 0 14px var(--acp-theme-glow) !important;
+}
+
+.acp-daytime-theme #audioPage .acp-eq-strip.is-bypassed .acp-eq-health,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-strip.is-bypassed .acp-eq-health {
+  color: var(--accent-strong) !important;
+  border-color: var(--acp-theme-control-border) !important;
+  box-shadow: 0 0 0.8rem var(--acp-theme-soft) !important;
+}
