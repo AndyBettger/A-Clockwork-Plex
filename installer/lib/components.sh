@@ -7,6 +7,8 @@ if [[ -z "${ACP_REPO_ROOT:-}" ]]; then
     ACP_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 fi
 
+ACP_INSTALL_DEPENDENCY_MANIFEST="$ACP_REPO_ROOT/installer/repository-dependencies.txt"
+
 ACP_COMPONENT_IDS=(
     dashboard-service
     dashboard-kiosk
@@ -67,6 +69,38 @@ acp_component_record() {
     esac
 }
 
+acp_repository_dependency_files() {
+    local relative
+    [[ -f "$ACP_INSTALL_DEPENDENCY_MANIFEST" && ! -L "$ACP_INSTALL_DEPENDENCY_MANIFEST" ]] || {
+        printf '[A Clockwork Plex] ERROR: Fresh-install dependency manifest is unavailable: %s\n' \
+            "$ACP_INSTALL_DEPENDENCY_MANIFEST" >&2
+        return 1
+    }
+
+    while IFS= read -r relative || [[ -n "$relative" ]]; do
+        case "$relative" in
+            ''|'#'*) continue ;;
+        esac
+        [[ "$relative" != /* && "$relative" != *'..'* ]] || {
+            printf '[A Clockwork Plex] ERROR: Unsafe repository dependency path: %s\n' "$relative" >&2
+            return 1
+        }
+        printf '%s\n' "$ACP_REPO_ROOT/$relative"
+    done <"$ACP_INSTALL_DEPENDENCY_MANIFEST"
+}
+
+acp_verify_repository_dependencies() {
+    local source failures=0
+    while IFS= read -r source; do
+        [[ -f "$source" && ! -L "$source" ]] || {
+            printf '[A Clockwork Plex] ERROR: Required fresh-install repository dependency is unavailable: %s\n' \
+                "$source" >&2
+            failures=$((failures + 1))
+        }
+    done < <(acp_repository_dependency_files) || return 1
+    [[ "$failures" -eq 0 ]]
+}
+
 acp_component_source_files() {
     local id kind source check apply
     for id in "${ACP_COMPONENT_IDS[@]}"; do
@@ -86,6 +120,7 @@ EOF
 
 acp_verify_component_sources() {
     local source failures=0
+    acp_verify_repository_dependencies || return 1
     while IFS= read -r source; do
         [[ -f "$source" && ! -L "$source" ]] || {
             printf '[A Clockwork Plex] ERROR: Required appliance component source is unavailable: %s\n' "$source" >&2
