@@ -259,6 +259,14 @@ Roadmap/baseline, artifact inventory, standalone EQ lifecycle, non-production/re
 - [ ] Confirm normal operation does not dirty tracked files (`git status --porcelain`).
 - [ ] Commit/finalize the final clean-room/reboot/repeat evidence documents; only then close Phase 7.
 
+#### Remaining Phase 7 execution sequence — authoritative order
+
+1. [ ] **Finish tracked runtime/generated-state + `.gitignore` audit.** Confirm all normal runtime/cache/log/build/editor artefacts are ignored, no generated appliance state is tracked, and record/remediate any gaps. Obsolete completed-stage automation may be removed when its lack of release/runtime ownership is proven.
+2. [ ] **Audit and pin fresh-install repository dependencies.** Trace every repository file required by `setup.sh` and `appliance-installer.sh` (including delegated scripts/templates/configuration), ensure cleanup cannot remove a required dependency, and add/retain regression coverage for that contract where practical.
+3. [ ] **Refresh PR #2 description without changing its Draft/open state.** Replace the stale Stage-C/future-EQ narrative and obsolete test count with the actual release-candidate scope and remaining physical/release gates. Do not mark ready or merge without explicit owner approval.
+4. [ ] **Continue safe repository hygiene, but preserve uncertain provenance until clean-room proof.** Remove only clearly obsolete probes/scaffolding/generated leftovers now; deliberately defer broad historical-doc/archive deletion or any file whose release value is uncertain until the replacement-SD run proves the final dependency/evidence boundary. Remove temporary development refs before merge.
+5. [ ] **Run the replacement-SD release gate end-to-end.** Perform the public `setup.sh` clean-room install and commissioning, representative reboot, all three formal verifiers, repeat `setup.sh` idempotence proof, repeat verifiers, clean `git status --porcelain`, final evidence/documentation, final full validation and explicit owner approval before PR #2 can leave Draft or merge.
+
 #### Final repository/release hygiene — classification started; broad destructive cleanup waits for clean-room proof
 
 - [x] Initial classification audit in `docs/release-hygiene-audit-2026-08-19.md`.
