@@ -24,7 +24,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
-        self.assertIn("20260820-theme-followup-v4", base)
+        self.assertIn("20260820-theme-followup-v5", base)
         self.assertLess(base.index("daytime-themes.css"), base.index("daytime-theme-components.css"))
         self.assertLess(base.index("daytime-theme-components.css"), base.index("daytime-theme-followup.css"))
 
@@ -122,7 +122,24 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("background: var(--accent-strong) !important;", css)
         self.assertIn("color: var(--acp-theme-contrast) !important;", css)
         self.assertIn("display: none;", css)
-        self.assertIn("20260820-theme-followup-v4", BASE.read_text(encoding="utf-8"))
+        self.assertIn("20260820-theme-followup-v5", BASE.read_text(encoding="utf-8"))
+
+    def test_alarm_basics_and_time_menu_follow_selected_theme(self) -> None:
+        css = FOLLOWUP.read_text(encoding="utf-8")
+        for token in (
+            ".alarm-basics-grid > :is(.setting-field, .alarm-time-field)",
+            ".alarm-time-menu",
+            ".alarm-time-option.is-selected",
+            ".alarm-time-menu::-webkit-scrollbar-track",
+            ".alarm-time-menu::-webkit-scrollbar-thumb",
+            ".alarm-time-choice.is-open .alarm-time-select",
+        ):
+            self.assertIn(token, css)
+        self.assertIn("background: var(--acp-theme-surface-raised) !important;", css)
+        self.assertIn("scrollbar-color: var(--accent) var(--acp-theme-soft) !important;", css)
+        self.assertIn("border-color: var(--acp-theme-control-border) !important;", css)
+        self.assertIn("background: var(--accent-strong) !important;", css)
+        self.assertIn("color: var(--acp-theme-contrast) !important;", css)
 
     def test_settings_range_presenter_tracks_dynamic_controls(self) -> None:
         script = RANGE_THEME.read_text(encoding="utf-8")
