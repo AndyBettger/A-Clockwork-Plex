@@ -4,6 +4,7 @@ import re
 import unittest
 from pathlib import Path
 
+from app.settings_weather_rainfall import _bounded_airplay_pause_hold_seconds
 from app.weather_observation_settings import submitted_observation_config
 
 
@@ -39,7 +40,7 @@ class SettingsNumericControlTests(unittest.TestCase):
         self.assertIn("duration.type = 'range'", display)
         self.assertIn("input.type = 'number'", numeric)
 
-    def test_human_facing_timeouts_use_bounded_presets_and_keep_420_second_hold(self) -> None:
+    def test_human_facing_timeouts_use_touch_dropdowns_and_keep_420_second_hold(self) -> None:
         source = NUMERIC_JS.read_text(encoding="utf-8")
         for path in (
             "dashboard.idle_timeout_seconds",
@@ -47,9 +48,25 @@ class SettingsNumericControlTests(unittest.TestCase):
             "airplay.pause_hold_seconds",
         ):
             self.assertIn(f"['{path}', [", source)
+        self.assertIn("document.createElement('select')", source)
+        self.assertIn("input.replaceWith(select)", source)
         self.assertIn("['420', '7 minutes']", source)
+        self.assertIn("Math.min(420, parsed)", source)
         self.assertIn("Current custom value", source)
         self.assertIn("addCustomOption(select, value)", source)
+
+        airplay_block = source.split("['airplay.pause_hold_seconds', [", 1)[1].split("    ]],", 1)[0]
+        for forbidden in ("600", "900", "1800", "3600"):
+            self.assertNotIn(f"['{forbidden}'", airplay_block)
+
+    def test_airplay_hold_backend_boundary_matches_touch_choices(self) -> None:
+        self.assertEqual(_bounded_airplay_pause_hold_seconds(30), 30)
+        self.assertEqual(_bounded_airplay_pause_hold_seconds(120), 120)
+        self.assertEqual(_bounded_airplay_pause_hold_seconds(420), 420)
+        self.assertEqual(_bounded_airplay_pause_hold_seconds(421), 420)
+        self.assertEqual(_bounded_airplay_pause_hold_seconds(3600), 420)
+        self.assertEqual(_bounded_airplay_pause_hold_seconds(1), 30)
+        self.assertEqual(_bounded_airplay_pause_hold_seconds("not-a-number"), 420)
 
     def test_precise_forecast_coordinates_remain_numeric_and_bounded(self) -> None:
         source = NUMERIC_JS.read_text(encoding="utf-8")
@@ -65,7 +82,7 @@ class SettingsNumericControlTests(unittest.TestCase):
     def test_assets_load_in_the_intended_final_order(self) -> None:
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("20260820-settings-theme-closure-v1", base)
-        self.assertIn("20260820-numeric-controls-v1", base)
+        self.assertIn("20260820-numeric-controls-v2", base)
         self.assertLess(
             base.index("daytime-theme-followup.css"),
             base.index("settings-theme-closure.css"),
