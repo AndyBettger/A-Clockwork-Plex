@@ -2,6 +2,29 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DEPENDENCY_MANIFEST="$REPO_ROOT/installer/repository-dependencies.txt"
+
+if [[ ! -f "$INSTALL_DEPENDENCY_MANIFEST" || -L "$INSTALL_DEPENDENCY_MANIFEST" ]]; then
+    printf '[A Clockwork Plex] setup: fresh-install dependency manifest is unavailable: %s\n' \
+        "$INSTALL_DEPENDENCY_MANIFEST" >&2
+    exit 2
+fi
+while IFS= read -r relative || [[ -n "$relative" ]]; do
+    case "$relative" in
+        ''|'#'*) continue ;;
+    esac
+    if [[ "$relative" == /* || "$relative" == *'..'* ]]; then
+        printf '[A Clockwork Plex] setup: unsafe repository dependency path: %s\n' "$relative" >&2
+        exit 2
+    fi
+    source_path="$REPO_ROOT/$relative"
+    if [[ ! -f "$source_path" || -L "$source_path" ]]; then
+        printf '[A Clockwork Plex] setup: required fresh-install repository dependency is unavailable: %s\n' \
+            "$relative" >&2
+        exit 2
+    fi
+done <"$INSTALL_DEPENDENCY_MANIFEST"
+
 # shellcheck source=installer/lib/plexamp_runtime.sh
 source "$REPO_ROOT/installer/lib/plexamp_runtime.sh"
 
