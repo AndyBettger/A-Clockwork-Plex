@@ -113,31 +113,34 @@ class FinalClockUiPolishTests(unittest.TestCase):
 
         chip = re.search(r"body\[data-active-page=\"settings\"\] \.settings-chip\s*\{(?P<body>[^}]*)\}", css, re.S)
         self.assertIsNotNone(chip)
-        self.assertIn("display: inline-flex;", chip.group("body"))
-        self.assertIn("border-radius: 999px;", chip.group("body"))
+        self.assertIn("display: inline-flex !important;", chip.group("body"))
+        self.assertIn("border-radius: 999px !important;", chip.group("body"))
         self.assertIn("border: 1px solid var(--panel-border);", chip.group("body"))
 
         self.assertIn(
-            '.alarm-day-button:is(.is-selected, [aria-pressed="true"])',
+            '.alarm-day-grid .alarm-day-button:is(.is-selected, [aria-pressed="true"])',
             css,
         )
-        self.assertIn("background: var(--accent);", css)
-        self.assertIn("color: var(--acp-theme-contrast);", css)
-        self.assertIn("20260820-theme-followup-v2", template)
+        self.assertIn("background: var(--accent-strong) !important;", css)
+        self.assertIn("color: var(--acp-theme-contrast) !important;", css)
+        self.assertIn("20260820-theme-followup-v3", template)
 
-    def test_clock_colons_share_segment_colour_and_wall_clock_second_cadence(self) -> None:
+    def test_clock_colons_share_theme_display_colour_and_rendered_second_cadence(self) -> None:
         template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
         client = (ROOT / "app/static/js/clock-colon-sync.js").read_text(encoding="utf-8")
 
         self.assertIn(".time.is-alpha-clock .digital-colon span", template)
-        self.assertIn("background: var(--segment-on);", template)
+        self.assertIn("background: var(--acp-theme-display, var(--segment-on));", template)
         self.assertIn(".time.is-alpha-clock.is-colon-off .digital-colon span", template)
         self.assertIn("background: var(--segment-off);", template)
         self.assertIn("animation: none;", template)
-        self.assertIn("now.getSeconds() % 2 === 1", client)
+        self.assertIn("function displayedSecond()", client)
+        self.assertIn("MutationObserver", client)
+        self.assertIn("attributeName === 'aria-label'", client)
+        self.assertIn("second % 2 === 1", client)
         self.assertIn("classList.toggle('is-colon-off'", client)
-        self.assertIn("1000 - (Date.now() % 1000)", client)
-        self.assertIn("20260820-clock-colon-sync-v1", template)
+        self.assertNotIn("setTimeout", client)
+        self.assertIn("20260820-clock-colon-sync-v2", template)
 
     def test_night_preview_has_its_own_deadline_and_does_not_replay_launcher_tap(self) -> None:
         client = (ROOT / "app/static/js/display-dimming.js").read_text(encoding="utf-8")
