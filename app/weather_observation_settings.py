@@ -37,7 +37,7 @@ def _integer(value: Any, label: str, minimum: int, maximum: int) -> int:
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{label} must be a whole number.") from exc
     if not minimum <= parsed <= maximum:
-        raise ValueError(f"{label} must be from {minimum} to {maximum} seconds.")
+        raise ValueError(f"{label} must be from {minimum} to {maximum}.")
     return parsed
 
 
