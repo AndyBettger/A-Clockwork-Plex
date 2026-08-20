@@ -21,20 +21,46 @@
     root.querySelectorAll?.('input[type="range"]:not(.acp-calibrated-fader)').forEach(paint);
   }
 
+  let refreshQueued = false;
+  function queuePaintAll() {
+    if (refreshQueued) return;
+    refreshQueued = true;
+    window.requestAnimationFrame(() => {
+      refreshQueued = false;
+      paintAll();
+    });
+  }
+
   document.addEventListener('input', (event) => paint(event.target), true);
   document.addEventListener('change', (event) => paint(event.target), true);
 
   const observer = new MutationObserver((mutations) => {
+    let refreshAll = false;
     mutations.forEach((mutation) => {
+      if (mutation.type !== 'childList') return;
+      refreshAll = true;
       mutation.addedNodes.forEach((node) => {
         if (!(node instanceof Element)) return;
         if (node.matches?.('input[type="range"]:not(.acp-calibrated-fader)')) paint(node);
         paintAll(node);
       });
     });
+
+    // Settings hydration changes input.value properties rather than attributes,
+    // but also refreshes their visible output text. That child-list mutation is
+    // our deterministic signal to repaint every custom range from its real value.
+    if (refreshAll) queuePaintAll();
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('pageshow', queuePaintAll);
   window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+
+  window.ACPSettingsRangeTheme = {
+    paint,
+    refresh: paintAll,
+  };
+
   paintAll();
+  queuePaintAll();
 })();
