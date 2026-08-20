@@ -90,14 +90,16 @@ acp_repository_dependency_files() {
 }
 
 acp_verify_repository_dependencies() {
-    local source failures=0
+    local source dependencies failures=0
+    dependencies="$(acp_repository_dependency_files)" || return 1
     while IFS= read -r source; do
+        [[ -n "$source" ]] || continue
         [[ -f "$source" && ! -L "$source" ]] || {
             printf '[A Clockwork Plex] ERROR: Required fresh-install repository dependency is unavailable: %s\n' \
                 "$source" >&2
             failures=$((failures + 1))
         }
-    done < <(acp_repository_dependency_files) || return 1
+    done <<<"$dependencies"
     [[ "$failures" -eq 0 ]]
 }
 
@@ -163,8 +165,8 @@ lifecycle wrappers, metadata service/FIFO and Shairport integration are jointly
 owned by scripts/install-airplay-integration.sh. Alarm-audio and Shairport-name
 helper runtime implementations remain specialist sources, while their packaging
 and restricted sudo policy are jointly owned by scripts/install-appliance-helpers.sh.
-Root install.sh does not call these specialist activate entrypoints directly;
-its guarded apply delegates the complete mutation sequence to
+Root appliance-installer.sh does not call these specialist activate entrypoints
+directly; its guarded apply delegates the complete mutation sequence to
 scripts/install-appliance-application.sh under one application transaction.
 EOF
 }
