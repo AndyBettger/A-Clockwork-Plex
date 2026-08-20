@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 MIN_SECONDS = 15
-MAX_SECONDS = 86400
+MAX_SECONDS = 420
 DEFAULT_SECONDS = 420
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.json"
