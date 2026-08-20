@@ -1,0 +1,96 @@
+/* Final Settings-only palette closure after the broader daytime theme layers.
+ *
+ * Classic Dark remains the baseline and is deliberately excluded. Ordinary
+ * Settings chrome follows the selected daytime palette; semantic warning,
+ * error and success states keep their component-owned colours.
+ */
+
+/* Text/password/URL/precise-number fields were the last obvious cyan focus
+ * leak: settings.css still supplied the original rgba(143, 211, 255, ...)
+ * outline. Give both their resting and focused states explicit palette
+ * ownership in non-Classic themes. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-field :is(
+  input:not([type="range"]):not([type="checkbox"]),
+  textarea
+) {
+  border-color: var(--acp-theme-control-border) !important;
+  background: var(--acp-theme-control) !important;
+  color: var(--text) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .setting-field :is(
+  input:not([type="range"]):not([type="checkbox"]),
+  textarea
+):focus {
+  border-color: var(--accent-strong) !important;
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 2px var(--acp-theme-soft),
+    0 0 14px var(--acp-theme-glow) !important;
+}
+
+/* Read-only diagnostic text and the confirmation dialog still carried fixed
+ * Classic-Dark navy/light-cyan paint. They are presentation surfaces, not
+ * semantic states. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-json-status {
+  color: var(--accent-strong) !important;
+  background: var(--acp-theme-bg-end) !important;
+  box-shadow: inset 0 0 0 1px var(--acp-theme-control-border) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .settings-confirmation-card {
+  border-color: var(--acp-theme-control-border) !important;
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 52%),
+    var(--acp-theme-surface-raised) !important;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.55),
+    0 0 24px var(--acp-theme-soft) !important;
+}
+
+/* The late physical-layout sheets legitimately own geometry, but several of
+ * their card fills were still hard-coded cyan. Repaint only the ordinary
+ * surfaces here; warning/error/success paint is intentionally not grouped. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .settings-live-trim,
+  [data-settings-subpage="audio:eq"] > .settings-card,
+  .alarm-workspace-save-card,
+  .alarm-scheduler-lockout,
+  .alarm-design-chip,
+  .alarm-audio-shared-toggle,
+  .alarm-model-status:not(.is-success):not(.is-error)
+) {
+  border-color: var(--acp-theme-control-border) !important;
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 58%),
+    var(--panel) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(
+  .alarm-editor-chevron,
+  .alarm-time-select
+) {
+  color: var(--accent-strong) !important;
+  background: var(--acp-theme-control) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] .alarm-tone-description {
+  border-left-color: var(--accent-strong) !important;
+  background: var(--acp-theme-soft) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] [data-settings-subpage="audio:eq"] :is(
+  .acp-eq-settings-band > span,
+  .acp-eq-settings-band output
+) {
+  color: var(--accent-strong) !important;
+}
