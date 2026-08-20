@@ -201,6 +201,25 @@
   background: rgba(78, 48, 11, 0.75);
 }
 
+/* Classic Dark keeps the established amber bypass treatment above. The
+   curated daytime themes use their own accent for the same selected state.
+   These state declarations are important because the later theme layer owns
+   the ordinary neutral EQ button paint. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-button:is(.is-active, [aria-pressed="true"]) {
+  color: var(--acp-theme-contrast) !important;
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  box-shadow: 0 0 14px var(--acp-theme-glow) !important;
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .acp-eq-strip.is-bypassed .acp-eq-health {
+  color: var(--accent-strong) !important;
+  border-color: var(--acp-theme-control-border) !important;
+  box-shadow: 0 0 0.8rem var(--acp-theme-soft) !important;
+}
+
 .acp-eq-button:disabled,
 .acp-eq-settings button:disabled {
   opacity: 0.42;
