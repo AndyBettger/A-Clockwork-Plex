@@ -30,8 +30,9 @@ Options:
   --audio direct|eq
   --weather-observations ecowitt-push|weather-underground
   --weather-api-key-file PATH
-                          Optional WU credential-file override for verification;
-                          normal commissioned appliances use the restricted
+                          Optional WU credential-file override; the secret
+                          value is validated but never displayed. Normal
+                          commissioned appliances use the restricted
                           managed-credential status helper instead
   --project-user USER
   --project-dir PATH     logical installed repository path
@@ -257,8 +258,19 @@ require_file alarm-helper '/usr/local/bin/a-clockwork-plex-alarm-audio'
 require_protected_file alarm-sudoers '/etc/sudoers.d/a-clockwork-plex-alarm-audio'
 require_file shairport-name-helper '/usr/local/bin/a-clockwork-plex-shairport-name'
 require_protected_file shairport-name-sudoers '/etc/sudoers.d/a-clockwork-plex-shairport-name'
-require_file weather-secret-helper "$WEATHER_SECRET_HELPER"
-require_protected_file weather-secret-sudoers '/etc/sudoers.d/a-clockwork-plex-weather-secret'
+if [[ "$ROOT" == / ]]; then
+    require_file weather-secret-helper "$WEATHER_SECRET_HELPER"
+    require_protected_file weather-secret-sudoers '/etc/sudoers.d/a-clockwork-plex-weather-secret'
+else
+    weather_helper_fixture="$(root_path "$WEATHER_SECRET_HELPER")"
+    weather_sudoers_fixture="$(root_path '/etc/sudoers.d/a-clockwork-plex-weather-secret')"
+    if [[ -e "$weather_helper_fixture" || -L "$weather_helper_fixture" || -e "$weather_sudoers_fixture" || -L "$weather_sudoers_fixture" ]]; then
+        require_file weather-secret-helper "$WEATHER_SECRET_HELPER"
+        require_protected_file weather-secret-sudoers '/etc/sudoers.d/a-clockwork-plex-weather-secret'
+    else
+        warn_check weather-secret-helper 'managed credential helper not staged in alternate-root application fixture'
+    fi
+fi
 require_file mixer-helper "$MIXER_HELPER"
 require_protected_file mixer-sudoers '/etc/sudoers.d/a-clockwork-plex-audio-mixer'
 require_file mixer-defaults '/etc/default/a-clockwork-plex-audio'
@@ -368,7 +380,7 @@ PY
         fi
         if [[ "$ROOT" == / ]]; then
             if [[ -n "$WU_KEY_FILE" ]] && valid_wu_key_file "$WU_KEY_FILE"; then
-                pass wu-credential 'credential file override is readable and structurally valid (value hidden)'
+                pass wu-credential 'credential file is readable and structurally valid (value hidden)'
             elif [[ -n "${!wu_key_env:-}" ]]; then
                 pass wu-credential "$wu_key_env is set in verifier environment (value hidden)"
             elif managed_wu_credential_configured; then
