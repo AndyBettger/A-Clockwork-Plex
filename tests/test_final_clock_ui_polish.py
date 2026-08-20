@@ -123,7 +123,7 @@ class FinalClockUiPolishTests(unittest.TestCase):
         )
         self.assertIn("background: var(--accent-strong) !important;", css)
         self.assertIn("color: var(--acp-theme-contrast) !important;", css)
-        self.assertIn("20260820-theme-followup-v3", template)
+        self.assertIn("20260820-theme-followup-v7", template)
 
     def test_clock_colons_share_theme_display_colour_and_rendered_second_cadence(self) -> None:
         template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
