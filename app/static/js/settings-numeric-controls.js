@@ -24,6 +24,53 @@
       ['43200', '12 hours'],
       ['86400', '24 hours'],
     ]],
+    ['weather.observations.ecowitt_push.fresh_seconds', [
+      ['30', '30 seconds'],
+      ['60', '1 minute'],
+      ['120', '2 minutes'],
+      ['180', '3 minutes'],
+      ['300', '5 minutes'],
+      ['600', '10 minutes'],
+      ['900', '15 minutes'],
+      ['1800', '30 minutes'],
+      ['3600', '1 hour'],
+    ]],
+    ['weather.observations.weather_underground.refresh_seconds', [
+      ['30', '30 seconds'],
+      ['60', '1 minute'],
+      ['120', '2 minutes'],
+      ['180', '3 minutes'],
+      ['300', '5 minutes'],
+      ['600', '10 minutes'],
+      ['900', '15 minutes'],
+      ['1800', '30 minutes'],
+      ['3600', '1 hour'],
+    ]],
+    ['weather.observations.weather_underground.stale_seconds', [
+      ['60', '1 minute'],
+      ['120', '2 minutes'],
+      ['180', '3 minutes'],
+      ['300', '5 minutes'],
+      ['600', '10 minutes'],
+      ['900', '15 minutes'],
+      ['1800', '30 minutes'],
+      ['3600', '1 hour'],
+      ['7200', '2 hours'],
+      ['10800', '3 hours'],
+      ['21600', '6 hours'],
+    ]],
+    ['weather.observations.weather_underground.request_timeout_seconds', [
+      ['2', '2 seconds'],
+      ['3', '3 seconds'],
+      ['5', '5 seconds'],
+      ['8', '8 seconds'],
+      ['10', '10 seconds'],
+      ['15', '15 seconds'],
+      ['20', '20 seconds'],
+      ['30', '30 seconds'],
+      ['45', '45 seconds'],
+      ['60', '60 seconds'],
+    ]],
     ['weather.auto_refresh_seconds', [
       ['0', 'Off'],
       ['15', '15 seconds'],
@@ -46,15 +93,11 @@
     ]],
   ]);
 
-  /* Provider timing values are deliberately flexible rather than a short
-   consumer-facing choice list. Keep exact entry available, but make them true
-   bounded number controls so arbitrary text cannot be stored. The server
-   independently validates these values. */
-  const boundedNumberFields = new Map([
-    ['weather.observations.ecowitt_push.fresh_seconds', { min: 30, max: 3600, step: 30 }],
-    ['weather.observations.weather_underground.refresh_seconds', { min: 30, max: 3600, step: 30 }],
-    ['weather.observations.weather_underground.stale_seconds', { min: 60, max: 21600, step: 60 }],
-    ['weather.observations.weather_underground.request_timeout_seconds', { min: 2, max: 60, step: 1 }],
+  /* Forecast coordinates genuinely require arbitrary precise entry. Keep them
+     as ordinary text fields driven by the custom decimal keyboard so Chromium
+     never paints native number-spinner arrows. The server independently
+     validates their exact numeric ranges before persistence. */
+  const exactNumericFields = new Map([
     ['weather.forecast.latitude', { min: -90, max: 90, step: 0.000001, decimal: true }],
     ['weather.forecast.longitude', { min: -180, max: 180, step: 0.000001, decimal: true }],
   ]);
@@ -118,13 +161,13 @@
     presetControls.set(path, select);
   }
 
-  function hardenNumberInput(input, limits) {
-    input.type = 'number';
-    input.min = String(limits.min);
-    input.max = String(limits.max);
-    input.step = String(limits.step);
+  function hardenExactNumericInput(input, limits) {
+    input.type = 'text';
     input.setAttribute('inputmode', 'none');
     input.dataset.keyboard = limits.decimal ? 'decimal' : 'number';
+    input.dataset.numericMin = String(limits.min);
+    input.dataset.numericMax = String(limits.max);
+    input.dataset.numericStep = String(limits.step);
   }
 
   function syncPresetValuesFromSnapshot() {
@@ -148,9 +191,9 @@
       if (input) replaceWithPresetSelect(input, path, options);
     });
 
-    boundedNumberFields.forEach((limits, path) => {
+    exactNumericFields.forEach((limits, path) => {
       const input = form.querySelector(`input[data-setting-path="${path}"]`);
-      if (input) hardenNumberInput(input, limits);
+      if (input) hardenExactNumericInput(input, limits);
     });
 
     /* Motion owns transition_duration_ms and promotes it to a 0–2000 ms range
