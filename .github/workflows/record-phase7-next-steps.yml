@@ -1,11 +1,6 @@
 name: Record Phase 7 execution sequence
 
 on:
-  push:
-    branches:
-      - feature/alarm-engine
-    paths:
-      - .github/workflows/record-phase7-next-steps.yml
   pull_request:
     branches:
       - main
@@ -17,7 +12,6 @@ permissions:
 
 jobs:
   record:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,12 +27,6 @@ jobs:
 
           path = Path('docs/eq-audio-installer-roadmap.md')
           text = path.read_text(encoding='utf-8')
-
-          old_date = '**Last updated:** 20 August 2026  '
-          new_date = '**Last updated:** 21 August 2026  '
-          if text.count(old_date) != 1:
-              raise SystemExit(f'Expected one roadmap date marker; found {text.count(old_date)}')
-          text = text.replace(old_date, new_date, 1)
 
           anchor = '#### Final repository/release hygiene — classification started; broad destructive cleanup waits for clean-room proof\n'
           if text.count(anchor) != 1:
