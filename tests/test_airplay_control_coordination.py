@@ -70,10 +70,10 @@ class AirPlayControlCoordinationTests(unittest.TestCase):
         application_text = APPLICATION_STATE.read_text(encoding="utf-8")
         helper_text = HOLD_HELPER.read_text(encoding="utf-8")
         self.assertIn("MIN_AIRPLAY_HOLD_SECONDS = 15", application_text)
-        self.assertIn("MAX_AIRPLAY_HOLD_SECONDS = 86400", application_text)
+        self.assertIn("MAX_AIRPLAY_HOLD_SECONDS = 420", application_text)
         self.assertIn("DEFAULT_AIRPLAY_HOLD_SECONDS = 420", application_text)
         self.assertIn("MIN_SECONDS = 15", helper_text)
-        self.assertIn("MAX_SECONDS = 86400", helper_text)
+        self.assertIn("MAX_SECONDS = 420", helper_text)
         self.assertIn("DEFAULT_SECONDS = 420", helper_text)
         self.assertIn("pause_hold_seconds", helper_text)
 
