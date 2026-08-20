@@ -9,11 +9,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 AIRPLAY_TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
+CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
 COMPONENTS = ROOT / "app" / "static" / "css" / "daytime-theme-components.css"
 FOLLOWUP = ROOT / "app" / "static" / "css" / "daytime-theme-followup.css"
 MARQUEE_CSS = ROOT / "app" / "static" / "css" / "airplay-title-marquee.css"
 MARQUEE = ROOT / "app" / "static" / "js" / "airplay-title-marquee.js"
 RANGE_THEME = ROOT / "app" / "static" / "js" / "settings-range-theme.js"
+DISPLAY_DIMMING = ROOT / "app" / "static" / "js" / "display-dimming.js"
+CLOCK_COLON = ROOT / "app" / "static" / "js" / "clock-colon-sync.js"
 
 
 class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
@@ -21,7 +24,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
-        self.assertIn("20260819-theme-followup-v1", base)
+        self.assertIn("20260820-theme-followup-v2", base)
         self.assertLess(base.index("css/daytime-themes.css"), base.index("css/daytime-theme-components.css"))
         self.assertLess(base.index("css/daytime-theme-components.css"), base.index("css/daytime-theme-followup.css"))
 
@@ -77,10 +80,12 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
             ".settings-card-heading > .settings-chip",
             '.setting-toggle input[type="checkbox"]',
             'input[type="range"]:not(.acp-calibrated-fader)::-webkit-slider-runnable-track',
-            ".alarm-day-button.is-selected",
+            '.alarm-day-button:is(.is-selected, [aria-pressed="true"])',
         ):
             self.assertIn(token, css)
-        self.assertIn("background: var(--accent-strong);", css)
+        self.assertIn("display: inline-flex;", css)
+        self.assertIn("border-radius: 999px;", css)
+        self.assertIn("background: var(--accent);", css)
         self.assertIn("color: var(--acp-theme-contrast);", css)
 
     def test_settings_range_presenter_tracks_dynamic_controls(self) -> None:
@@ -88,9 +93,25 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("--acp-range-percent", script)
         self.assertIn("MutationObserver", script)
+        self.assertIn("function queuePaintAll()", script)
+        self.assertIn("if (refreshAll) queuePaintAll();", script)
         self.assertIn("acp-calibrated-fader", script)
         self.assertIn("settings-range-theme.js", base)
-        self.assertIn("20260819-theme-range-v1", base)
+        self.assertIn("20260820-theme-range-v2", base)
+
+    def test_night_preview_and_clock_colons_use_final_followup_clients(self) -> None:
+        dimming = DISPLAY_DIMMING.read_text(encoding="utf-8")
+        colon = CLOCK_COLON.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        clock = CLOCK_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("function schedulePreviewExpiry()", dimming)
+        self.assertIn("Math.min(previewUntil, requestedUntil)", dimming)
+        self.assertIn("if (previewing()) return;", dimming)
+        self.assertIn("20260820-preview-timing-v1", base)
+        self.assertIn("now.getSeconds() % 2 === 1", colon)
+        self.assertIn("1000 - (Date.now() % 1000)", colon)
+        self.assertIn("20260820-clock-colon-sync-v1", clock)
 
     def test_title_marquee_reuses_physically_proven_source_scroll_pattern(self) -> None:
         marquee = MARQUEE.read_text(encoding="utf-8")
@@ -109,7 +130,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for script in (MARQUEE, RANGE_THEME):
+        for script in (MARQUEE, RANGE_THEME, DISPLAY_DIMMING, CLOCK_COLON):
             with self.subTest(script=script.name):
                 result = subprocess.run(
                     [node, "--check", str(script)],
