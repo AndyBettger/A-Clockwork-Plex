@@ -6,9 +6,9 @@
  */
 
 /* Text/password/URL/precise-number fields were the last obvious cyan focus
- * leak: settings.css still supplied the original rgba(143, 211, 255, ...)
- * outline. Give both their resting and focused states explicit palette
- * ownership in non-Classic themes. */
+ * leak: settings.css still supplied the original fixed cyan focus outline.
+ * Give both their resting and focused states explicit palette ownership in
+ * non-Classic themes. */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body[data-active-page="settings"] .setting-field :is(
   input:not([type="range"]):not([type="checkbox"]),
