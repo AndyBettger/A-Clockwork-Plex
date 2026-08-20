@@ -95,6 +95,64 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertEqual(config["alarm"]["defaults"]["start_percent"], 10)
         self.assertEqual(config["alarm"]["alarms"][0]["volume"]["start_percent"], 10)
 
+    def test_settings_ranges_repaint_after_saved_value_hydration(self) -> None:
+        client = (ROOT / "app/static/js/settings-range-theme.js").read_text(encoding="utf-8")
+        template = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("let refreshQueued = false;", client)
+        self.assertIn("function queuePaintAll()", client)
+        self.assertIn("refreshAll = true;", client)
+        self.assertIn("if (refreshAll) queuePaintAll();", client)
+        self.assertIn("window.addEventListener('pageshow', queuePaintAll);", client)
+        self.assertIn("window.ACPSettingsRangeTheme", client)
+        self.assertIn("20260820-theme-range-v2", template)
+
+    def test_settings_status_chips_and_selected_alarm_days_have_real_theme_geometry(self) -> None:
+        css = (ROOT / "app/static/css/daytime-theme-followup.css").read_text(encoding="utf-8")
+        template = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+
+        chip = re.search(r"body\[data-active-page=\"settings\"\] \.settings-chip\s*\{(?P<body>[^}]*)\}", css, re.S)
+        self.assertIsNotNone(chip)
+        self.assertIn("display: inline-flex;", chip.group("body"))
+        self.assertIn("border-radius: 999px;", chip.group("body"))
+        self.assertIn("border: 1px solid var(--panel-border);", chip.group("body"))
+
+        self.assertIn(
+            '.alarm-day-button:is(.is-selected, [aria-pressed="true"])',
+            css,
+        )
+        self.assertIn("background: var(--accent);", css)
+        self.assertIn("color: var(--acp-theme-contrast);", css)
+        self.assertIn("20260820-theme-followup-v2", template)
+
+    def test_clock_colons_share_segment_colour_and_wall_clock_second_cadence(self) -> None:
+        template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
+        client = (ROOT / "app/static/js/clock-colon-sync.js").read_text(encoding="utf-8")
+
+        self.assertIn(".time.is-alpha-clock .digital-colon span", template)
+        self.assertIn("background: var(--segment-on);", template)
+        self.assertIn(".time.is-alpha-clock.is-colon-off .digital-colon span", template)
+        self.assertIn("background: var(--segment-off);", template)
+        self.assertIn("animation: none;", template)
+        self.assertIn("now.getSeconds() % 2 === 1", client)
+        self.assertIn("classList.toggle('is-colon-off'", client)
+        self.assertIn("1000 - (Date.now() % 1000)", client)
+        self.assertIn("20260820-clock-colon-sync-v1", template)
+
+    def test_night_preview_has_its_own_deadline_and_does_not_replay_launcher_tap(self) -> None:
+        client = (ROOT / "app/static/js/display-dimming.js").read_text(encoding="utf-8")
+        template = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("let previewTimer = null;", client)
+        self.assertIn("function schedulePreviewExpiry()", client)
+        self.assertIn("schedulePreviewExpiry();", client)
+        self.assertIn("Math.min(previewUntil, requestedUntil)", client)
+        self.assertIn("if (previewActive) clearStoredInteraction();", client)
+        self.assertIn("if (previewing()) return;", client)
+        self.assertIn("acp:display-night-preview-ended", client)
+        self.assertIn("clearPreviewTimer();", client)
+        self.assertIn("20260820-preview-timing-v1", template)
+
 
 if __name__ == "__main__":
     unittest.main()
