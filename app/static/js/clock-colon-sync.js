@@ -1,25 +1,29 @@
 (() => {
-  if (window.__aClockworkPlexClockColonSyncLoaded) return;
-  window.__aClockworkPlexClockColonSyncLoaded = true;
-
   const clock = document.getElementById('clock-time');
   if (!clock) return;
 
-  let timer = null;
-
-  function update() {
-    const now = new Date();
-    clock.classList.toggle('is-colon-off', now.getSeconds() % 2 === 1);
-
-    // Re-align every tick to the next wall-clock second boundary rather than
-    // allowing a free-running interval to drift away from the displayed time.
-    const delay = Math.max(20, 1000 - (Date.now() % 1000) + 8);
-    timer = window.setTimeout(update, delay);
+  function displayedSecond() {
+    const label = String(clock.getAttribute('aria-label') || '');
+    const match = label.match(/:(\d{2})(?:\s+(?:AM|PM))?$/i);
+    if (!match) return null;
+    const second = Number(match[1]);
+    return Number.isInteger(second) && second >= 0 && second <= 59 ? second : null;
   }
 
-  update();
+  function paint() {
+    const second = displayedSecond();
+    if (second === null) return;
+    clock.classList.toggle('is-colon-off', second % 2 === 1);
+  }
 
-  window.addEventListener('pagehide', () => {
-    if (timer) window.clearTimeout(timer);
-  }, { once: true });
+  const observer = new MutationObserver((mutations) => {
+    if (mutations.some((mutation) => mutation.type === 'attributes' && mutation.attributeName === 'aria-label')) {
+      paint();
+    }
+  });
+
+  observer.observe(clock, { attributes: true, attributeFilter: ['aria-label'] });
+  paint();
+
+  window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
 })();
