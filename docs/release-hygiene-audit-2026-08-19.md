@@ -85,7 +85,7 @@ Keep `docs/INSTALL.md` as the operator authority. The public command remains `ba
 
 ### PR #2 description — completed 21 August
 
-The stale Stage-C/future-EQ body has been replaced with the current integrated appliance scope, the supported `setup.sh`/`appliance-installer.sh` path, the current 1,762-test baseline and the remaining replacement-SD/release gates. The metadata update did **not** change review readiness: GitHub confirmed PR #2 remains Draft, open and unmerged.
+The stale Stage-C/future-EQ body has been replaced with the current integrated appliance scope, the supported `setup.sh`/`appliance-installer.sh` path, the current 1,762-test baseline and the remaining replacement-SD/release gates. After the subsequent active-path wording cleanup, the PR evidence was advanced to source head `05d0f3ecbbfec509f59fda87d6fefa74a7af9d2c` and Tests #4023 / run `32432395417`. The metadata updates did **not** change review readiness: GitHub confirmed PR #2 remains Draft, open and unmerged.
 
 ## `.gitignore` and runtime-state review
 
@@ -108,6 +108,24 @@ Both the public `setup.sh` route and direct lower-level engine route validate th
 
 This does not remove the need for a **final post-cleanup dependency audit**. Any later safe deletion batch must be followed by the same closure check, and the replacement-SD clean-room run remains the physical proof that the retained source set is sufficient.
 
+## Active-path wording cleanup — completed pre-clean-room
+
+The supported installer/operator paths were searched for stale `install.sh` and unfinished-Phase-7 wording. Current `setup.sh`, `docs/INSTALL.md`, `docs/appliance-installer.md` and README references are either current commands or explicit historical context. Three stale comments/help strings in `appliance-installer.sh` still described fresh-bootstrap ownership as being completed or blockers as unpinned; those were corrected without changing execution order, gates, profiles, tokens or mutation behaviour.
+
+Exact source head `05d0f3ecbbfec509f59fda87d6fefa74a7af9d2c` passed Tests #4023 / run `32432395417`: Python compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **1,762/1,762 unit tests PASS** (`Ran 1762 tests in 41.856s`, `OK`). No further stale occurrences of the removed phrases were found in repository search.
+
+## Branch/ref classification — pre-clean-room pass
+
+The branch inventory on 21 August contains:
+
+- `main` — long-lived release base; keep.
+- `feature/alarm-engine` — active PR #2 head; keep.
+- `feature/typography-weather-bridge` — **preserve for now**; it diverges from the active branch and has 63 commits not reachable from `feature/alarm-engine`.
+- `stage-c-terminal-install-20260806` — **preserve for now** as historical/provenance material; it diverges and has 23 commits not reachable from the active branch.
+- `tmp-noop-annunciator-do-not-use` and `tmp-noop-annunciator-do-not-use-2` — both point to the same old commit `3dddbb24b9eb5b7f91efc7e6caf1b249dfba2123`, have no matching PR, and that commit is already an ancestor of `feature/alarm-engine`; the active branch is 177 commits ahead and 0 behind from that point. They contain no unique work and are safe final ref-deletion candidates.
+
+The available repository connector in this session does not expose branch-ref deletion, so the two no-op refs are recorded rather than falsely claimed as removed. Delete them during the final ref-hygiene step using an authorised Git interface, then re-list branches before merge.
+
 ## Final deletion gate
 
 Before deleting any remaining candidate:
@@ -122,6 +140,8 @@ Before deleting any remaining candidate:
 
 ## Current classification result
 
-The repository still needs a deliberate final cleanup, but the correct target is **historical development residue**, not the core test suite or the two intentional installer roles. The unambiguous installer naming cleanup, known runtime/generated-state audit, initial fresh-install dependency closure and PR-description refresh are complete.
+The repository still needs a deliberate final post-clean-room consolidation, but the correct target is **historical development residue**, not the core test suite or the two intentional installer roles. The unambiguous installer naming cleanup, known runtime/generated-state audit, initial fresh-install dependency closure, PR-description refresh and safe active-path wording cleanup are complete.
 
-Broad destructive cleanup remains deliberately deferred until the replacement-SD `setup.sh` run proves the final appliance from a clean checkout. Safe cleanup before that proof should be limited to items whose obsolete status is already certain; uncertain Stage-C/provenance files stay put. After clean-room acceptance, finish historical consolidation/ref cleanup, repeat the dependency audit and full CI, and only then consider PR #2 ready for owner review.
+No additional file deletion is justified before the replacement-SD proof merely for the sake of producing cleanup activity. The remaining Stage-C/laboratory/provenance material is either still intertwined with maintained regression/evidence or has not yet been proven disposable. The two no-op branch refs are proven safe ref-deletion candidates; the other non-main historical branches retain unique commits and stay preserved.
+
+Broad destructive cleanup remains deliberately deferred until the replacement-SD `setup.sh` run proves the final appliance from a clean checkout. After clean-room acceptance, finish historical consolidation/ref cleanup, repeat the dependency audit and full CI, and only then consider PR #2 ready for owner review.
