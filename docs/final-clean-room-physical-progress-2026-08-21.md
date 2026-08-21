@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline plus Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce, real scheduled-alarm functional/safety path and representative post-commissioning reboot/formal verifier pass are complete; repeat `setup.sh`, repeat verifiers, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline plus Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce, real scheduled-alarm functional/safety path, representative post-commissioning reboot/formal verifier pass, and repeat public `setup.sh` plus repeat-verifier idempotence proof are complete; clean-checkout proof, final release hygiene and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -278,13 +278,115 @@ The three non-secret outputs were preserved in the clean-room evidence directory
 
 This closes the representative commissioned reboot and first formal-verifier gate.
 
+## Repeat public setup / commissioned-Weather idempotence — PASS
+
+The first physical repeat-install attempt exposed a genuine idempotence regression: plain public `setup.sh` still carried the fresh-install Ecowitt default into the lower installer and could therefore replace an already-commissioned Weather Underground observation profile. That failed attempt was not accepted as a release gate.
+
+Checkpoint #63 corrected the contract at source. When `config.json` already exists and the operator supplies no explicit Weather provider option, the public/lower installer chain now resolves the commissioned provider from the live configuration and uses an internal **preserve-commissioned-profile** path. For a preserved WU profile the guarded preflight checks only boolean managed-credential presence through the restricted root-owned helper; the application transaction skips Weather mutation but still runs the normal whole-appliance verifier. Explicit Weather selections continue to converge deliberately as before. Dedicated regression coverage is in `tests/test_weather_repeat_preservation.py`.
+
+The replacement appliance was then cleanly fast-forwarded from its previously exercised `dcb4433...` source to exact checkpoint source head:
+
+```text
+git status --short
+# no output
+
+git pull --ff-only
+Updating dcb4433..215bced
+Fast-forward
+...
+
+git rev-parse HEAD
+215bcedb43369844b5968ae24a7169e49636ef99
+```
+
+After the source update the dashboard service was deliberately restarted and returned `active` before the repeat installer was invoked.
+
+The exact public repeat command was then run as the normal appliance user with no Weather override:
+
+```bash
+bash setup.sh
+```
+
+The repeat plan correctly reported:
+
+```text
+Audio profile:        eq
+Weather observations: weather-underground
+Weather mutation:     preserve-commissioned-profile
+Forecast provider:    open-meteo (retained)
+```
+
+The staged preflight checks repeatedly confirmed the managed WU credential was present and that the commissioned profile would be preserved. Hardware remained accepted (`PN532_I2C=PASS`, `DAC_PRO=PASS`), the pinned Plexamp/Node runtime remained valid, and no fresh claim checkpoint was requested.
+
+Inside the guarded whole-appliance transaction, the decisive preservation evidence was:
+
+```text
+Weather observations: weather-underground
+Weather mutation:     preserve-commissioned-profile
+...
+[A Clockwork Plex] Preserving commissioned Weather configuration and managed credential.
+```
+
+The already-installed EQ path converged through its guarded repair/verification lifecycle, restricted helpers and AirPlay integration were revalidated/reinstalled through their normal owners, and the final appliance verifier reported:
+
+```text
+Failures: 0
+Warnings: 0
+APPLIANCE_VERIFY=PASS
+```
+
+The enclosing transaction and root installer then committed successfully:
+
+```text
+APPLICATION_TRANSACTION=COMMITTED
+ROOT_INSTALL=COMMITTED
+INSTALL_ROUTE=fresh-bootstrap
+APPLICATION_VERIFY=PASS
+
+[A Clockwork Plex] Setup completed successfully.
+```
+
+There was no `PLEXAMP_RUNTIME=CLAIM-REQUIRED`, no exit-76 claim stop and no exit-75 `REBOOT-REQUIRED` checkpoint. The success footer still prints the generic first-install advisory `Reboot once to enter the installed appliance and confirm dashboard kiosk startup.`; this was not a guarded reboot-required stop, and the repeat verifier set was run immediately afterwards without reboot.
+
+The post-repeat formal evidence was preserved as:
+
+```text
+33-repeat-bootstrap-verifier.txt
+34-repeat-appliance-verifier.txt
+35-repeat-audio-verifier.txt
+```
+
+The fresh-bootstrap verifier again passed the pinned Plexamp/Node identities, persistent claim state, pinned NFC source/venv/unit, live I2C/PN532, DAC Pro, Plexamp/NFC services and APIs with:
+
+```text
+Failures: 0
+Warnings: 0
+FRESH_BOOTSTRAP_VERIFY=PASS
+```
+
+The repeat appliance verifier explicitly targeted the commissioned production profile and confirmed `weather-provider weather-underground`, Open-Meteo forecasts, no secret in `config.json`, station `ILIPHO12`, presence-only managed WU credential status, active/enabled runtime services, EQ, mixer and dashboard/weather APIs with:
+
+```text
+Failures: 0
+Warnings: 0
+APPLIANCE_VERIFY=PASS
+```
+
+The dedicated repeat audio verifier finished with:
+
+```text
+[A Clockwork Plex] EQ-capable audio verification passed.
+```
+
+Physical sanity after the repeat matched the formal evidence: Plexamp audio remained audible, the managed EQ remained active, and Weather Underground was still the selected observation source. This closes checkpoint #63 and proves the public repeat-install path preserves commissioned WU state rather than reverting to the fresh-install Ecowitt default.
+
 ## Remaining clean-room gates
 
-All major functional clean-room slices plus the representative reboot/formal-verifier gate are now physically complete. The remaining release-candidate proof is:
+All major functional clean-room slices, the representative reboot/first verifier set, and the public repeat-install/second verifier set are now physically complete. The remaining release-candidate proof is:
 
-- rerun the public `bash setup.sh` to prove idempotence and retention of commissioned state;
-- rerun `verify-fresh-bootstrap.sh`, `verify-appliance.sh --audio eq --weather-observations weather-underground` and `scripts/audio/verify-audio.sh` after the repeat setup;
-- confirm normal operation leaves `git status --porcelain` clean;
-- update the active roadmap/final evidence and complete release hygiene only after those gates pass.
+- confirm normal operation leaves `git status --porcelain` clean and preserve that output as final clean-checkout evidence;
+- update/finalize the active roadmap and clean-room evidence around that result;
+- complete deliberate release/repository hygiene and the final validation pass;
+- obtain explicit owner approval before PR #2 may leave Draft or merge.
 
-No final Phase 7 acceptance is claimed by this partial progress record.
+No final Phase 7 acceptance is claimed by this progress record until the remaining clean-checkout/release-hygiene gates and explicit owner approval are complete.
