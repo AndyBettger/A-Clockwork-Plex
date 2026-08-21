@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline plus Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce, real scheduled-alarm functional/safety path, representative post-commissioning reboot/formal verifier pass, and repeat public `setup.sh` plus repeat-verifier idempotence proof are complete; clean-checkout proof, final release hygiene and final acceptance remain pending.  
+**Status:** replacement-SD physical clean-room acceptance complete through checkpoint #64 — initial installation/identity, Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce, real scheduled-alarm functional/safety path, representative post-commissioning reboot/formal verifier pass, repeat public `setup.sh` plus repeat-verifier idempotence proof, and final clean-checkout proof have all passed; deliberate repository/release hygiene, final validation and explicit owner approval remain.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -380,13 +380,31 @@ The dedicated repeat audio verifier finished with:
 
 Physical sanity after the repeat matched the formal evidence: Plexamp audio remained audible, the managed EQ remained active, and Weather Underground was still the selected observation source. This closes checkpoint #63 and proves the public repeat-install path preserves commissioned WU state rather than reverting to the fresh-install Ecowitt default.
 
-## Remaining clean-room gates
+## Final clean-checkout proof — PASS
 
-All major functional clean-room slices, the representative reboot/first verifier set, and the public repeat-install/second verifier set are now physically complete. The remaining release-candidate proof is:
+After the successful repeat public setup, repeat verifier set and normal post-install operation, the checkout was deliberately left on the exact physically tested runtime/source head `215bcedb43369844b5968ae24a7169e49636ef99`; the later roadmap/evidence commits had not yet been pulled onto the appliance. The final tracked-state proof was then run from `~/A-Clockwork-Plex`:
 
-- confirm normal operation leaves `git status --porcelain` clean and preserve that output as final clean-checkout evidence;
-- update/finalize the active roadmap and clean-room evidence around that result;
-- complete deliberate release/repository hygiene and the final validation pass;
-- obtain explicit owner approval before PR #2 may leave Draft or merge.
+```bash
+EVIDENCE="$(cat "$HOME/.acp-phase7-final-evidence-path")"
 
-No final Phase 7 acceptance is claimed by this progress record until the remaining clean-checkout/release-hygiene gates and explicit owner approval are complete.
+git status --porcelain \
+  | tee "$EVIDENCE/40-git-status.txt"
+```
+
+The command produced **no output**. The evidence file `40-git-status.txt` is therefore intentionally empty.
+
+This is the required PASS result: the complete commissioned appliance, including Weather runtime/cache activity, Plexamp/NFC operation, managed EQ/audio state, installer rerun and both formal verifier sets, did not dirty any tracked repository file. Runtime/generated state remained outside the tracked source boundary exactly as intended.
+
+This closes checkpoint #64 and the final physical replacement-SD clean-room gate.
+
+## Remaining release gates
+
+The replacement-SD **physical clean-room acceptance is complete**. No further bedside/physical release gate is currently outstanding. Remaining Phase 7 work is repository/release closure:
+
+- complete the deliberate repository inventory and safe removal/consolidation of obsolete scaffolding or truly superseded material while preserving useful provenance;
+- review/finalize operator and historical documentation after that cleanup;
+- remove temporary development refs that are not intended to survive the release process;
+- rerun the final tracked-file/install-dependency audit and the complete validation suite after cleanup;
+- keep PR #2 Draft/open/unmerged until explicit owner approval is given.
+
+No final Phase 7 closure or PR readiness/merge is claimed by this record until release hygiene, final validation and explicit owner approval are complete.
