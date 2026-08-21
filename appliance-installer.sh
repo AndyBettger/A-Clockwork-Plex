@@ -3,7 +3,14 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUDIO_PROFILE="${ACP_AUDIO_PROFILE:-eq}"
-WEATHER_OBSERVATIONS="${ACP_WEATHER_OBSERVATIONS:-ecowitt-push}"
+if [[ -n "${ACP_WEATHER_OBSERVATIONS:-}" ]]; then
+    WEATHER_OBSERVATIONS="$ACP_WEATHER_OBSERVATIONS"
+    WEATHER_OBSERVATIONS_EXPLICIT=true
+else
+    WEATHER_OBSERVATIONS=ecowitt-push
+    WEATHER_OBSERVATIONS_EXPLICIT=false
+fi
+PRESERVE_WEATHER_OBSERVATIONS="${ACP_PRESERVE_WEATHER_OBSERVATIONS:-false}"
 PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
 CAMILLA_BINARY="${ACP_CAMILLA_BINARY:-}"
 WU_STATION_ID="${ACP_WU_STATION_ID:-}"
@@ -48,6 +55,8 @@ Modes:
 Profile options:
   --audio PROFILE                  direct or eq (default: eq)
   --weather-observations PROVIDER  ecowitt-push or weather-underground
+  --preserve-weather-observations  preserve the commissioned provider/credential;
+                                   intended for repeat setup orchestration
   --project-user USER              normal appliance account (default: invoking user)
   --camilladsp-binary PATH         verified CamillaDSP 4.1.3 binary for EQ --apply
   --wu-station-id ID               Weather Underground PWS station ID
@@ -87,7 +96,12 @@ while [[ $# -gt 0 ]]; do
         --weather-observations)
             [[ $# -ge 2 ]] || fail "--weather-observations requires a provider"
             WEATHER_OBSERVATIONS="$2"
+            WEATHER_OBSERVATIONS_EXPLICIT=true
             shift 2
+            ;;
+        --preserve-weather-observations)
+            PRESERVE_WEATHER_OBSERVATIONS=true
+            shift
             ;;
         --project-user)
             [[ $# -ge 2 ]] || fail "--project-user requires a user"
@@ -150,6 +164,38 @@ case "$AUDIO_PROFILE" in
     *) fail "unsupported audio profile '$AUDIO_PROFILE' (use direct or eq)" ;;
 esac
 
+case "$PRESERVE_WEATHER_OBSERVATIONS" in
+    true|false) ;;
+    *) fail "ACP_PRESERVE_WEATHER_OBSERVATIONS must be true or false" ;;
+esac
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+    [[ "$WEATHER_OBSERVATIONS_EXPLICIT" == false ]] || fail "--preserve-weather-observations cannot be combined with an explicit weather provider"
+    [[ -z "$WU_STATION_ID" && -z "$WU_API_KEY_FILE" ]] || fail "Weather Underground station/key options cannot be combined with commissioned Weather preservation"
+    CONFIG_FILE="$REPO_ROOT/config.json"
+    [[ -f "$CONFIG_FILE" && ! -L "$CONFIG_FILE" ]] || fail "commissioned Weather preservation requires a safe existing config.json"
+    command -v python3 >/dev/null 2>&1 || fail "commissioned Weather preservation requires python3"
+    configured_weather_provider="$(python3 - "$CONFIG_FILE" <<'PYCFG'
+import json
+import sys
+from pathlib import Path
+
+try:
+    data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+except (OSError, UnicodeError, json.JSONDecodeError):
+    raise SystemExit(1)
+provider = data.get("weather", {}).get("provider")
+if provider not in {"ecowitt_push", "weather_underground"}:
+    raise SystemExit(1)
+print(provider)
+PYCFG
+    )" || fail "could not resolve the commissioned Weather provider from config.json"
+    case "$configured_weather_provider" in
+        ecowitt_push) WEATHER_OBSERVATIONS=ecowitt-push ;;
+        weather_underground) WEATHER_OBSERVATIONS=weather-underground ;;
+    esac
+fi
+export ACP_PRESERVE_WEATHER_OBSERVATIONS="$PRESERVE_WEATHER_OBSERVATIONS"
+
 case "$WEATHER_OBSERVATIONS" in
     ecowitt-push|weather-underground) ;;
     *)
@@ -160,7 +206,7 @@ esac
 [[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || fail "invalid project user '$PROJECT_USER'"
 [[ "$DASHBOARD_URL" =~ ^https?://[^[:space:]\"\'\`\\]+$ ]] || fail "invalid dashboard URL '$DASHBOARD_URL'"
 
-if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" != true && "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
     if [[ -n "$WU_STATION_ID" ]]; then
         [[ "$WU_STATION_ID" =~ ^[A-Za-z0-9_-]+$ ]] || fail "invalid Weather Underground station ID"
     fi
@@ -178,7 +224,7 @@ if [[ "$MODE" == apply ]]; then
     if [[ "$AUDIO_PROFILE" == eq && -z "$CAMILLA_BINARY" ]]; then
         fail "EQ --apply requires --camilladsp-binary PATH (or ACP_CAMILLA_BINARY)"
     fi
-    if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+    if [[ "$PRESERVE_WEATHER_OBSERVATIONS" != true && "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
         [[ -n "$WU_STATION_ID" ]] || fail "Weather Underground --apply requires --wu-station-id ID"
         [[ -n "$WU_API_KEY_FILE" ]] || fail "Weather Underground --apply requires --wu-api-key-file PATH"
         [[ -f "$WU_API_KEY_FILE" && ! -L "$WU_API_KEY_FILE" && -r "$WU_API_KEY_FILE" ]] || {
@@ -262,6 +308,7 @@ Mode:                 $DISPLAY_MODE
 Repository:           $REPO_ROOT
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_OBSERVATIONS
+Weather mutation:     $(if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then echo preserve-commissioned-profile; else echo converge-selected-profile; fi)
 Forecast provider:    open-meteo (retained)
 Project user:         $PROJECT_USER
 Fresh bootstrap:      $FRESH_BOOTSTRAP
@@ -337,7 +384,15 @@ else
     acp_direct_audio_plan
 fi
 
-if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+    cat <<EOF
+
+Weather component:
+  Repeat-run preservation is active. The commissioned $WEATHER_OBSERVATIONS provider
+  and its managed credential/configuration are verified but are not rewritten.
+  Open-Meteo remains the forecast provider.
+EOF
+elif [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
     cat <<'EOF'
 
 Weather component:
@@ -428,7 +483,7 @@ preflight_args=(
 if [[ "$AUDIO_PROFILE" == eq ]]; then
     preflight_args+=(--binary "$CAMILLA_BINARY")
 fi
-if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+if [[ "$WEATHER_OBSERVATIONS" == weather-underground && "$PRESERVE_WEATHER_OBSERVATIONS" != true ]]; then
     preflight_args+=(--weather-api-key-file "$WU_API_KEY_FILE")
 fi
 
@@ -473,15 +528,19 @@ echo 'Package/venv baseline established. Running guarded Pi hardware commissioni
             --apply
             --confirm "$APPLY_CONFIRMATION_TOKEN"
             --audio "$AUDIO_PROFILE"
-            --weather-observations "$WEATHER_OBSERVATIONS"
             --project-user "$PROJECT_USER"
             --dashboard-url "$DASHBOARD_URL"
         )
+        if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+            resume_args+=(--preserve-weather-observations)
+        else
+            resume_args+=(--weather-observations "$WEATHER_OBSERVATIONS")
+        fi
         [[ "$NON_INTERACTIVE" == true ]] && resume_args+=(--non-interactive)
         if [[ "$AUDIO_PROFILE" == eq ]]; then
             resume_args+=(--camilladsp-binary "$CAMILLA_BINARY")
         fi
-        if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+        if [[ "$WEATHER_OBSERVATIONS" == weather-underground && "$PRESERVE_WEATHER_OBSERVATIONS" != true ]]; then
             resume_args+=(--wu-station-id "$WU_STATION_ID" --wu-api-key-file "$WU_API_KEY_FILE")
         fi
         echo
@@ -517,7 +576,6 @@ echo 'Hardware gate passed. Running guarded Plexamp compatibility-runtime owner.
         echo "PLEXAMP_RUNTIME_EXIT=$plexamp_rc"
         exit "$plexamp_rc"
     fi
-
     echo
 echo 'Plexamp runtime passed. Installing guarded NFC listener service.'
     bash "$REPO_ROOT/scripts/install-nfc-listener.sh" \
@@ -549,7 +607,7 @@ application_args=(
 if [[ "$AUDIO_PROFILE" == eq ]]; then
     application_args+=(--camilladsp-binary "$CAMILLA_BINARY")
 fi
-if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+if [[ "$WEATHER_OBSERVATIONS" == weather-underground && "$PRESERVE_WEATHER_OBSERVATIONS" != true ]]; then
     application_args+=(
         --wu-station-id "$WU_STATION_ID"
         --wu-api-key-file "$WU_API_KEY_FILE"
