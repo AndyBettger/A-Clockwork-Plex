@@ -226,6 +226,7 @@ class WeatherRainfallHistoryService:
         self._refresh_seconds = max(60, int(refresh_seconds))
         self._dashboard_history = bool(dashboard_history)
         self._lock = threading.RLock()
+        self._refresh_lock = threading.Lock()
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -352,6 +353,10 @@ class WeatherRainfallHistoryService:
         self._wake.set()
 
     def refresh(self, force: bool = False) -> dict[str, Any]:
+        with self._refresh_lock:
+            return self._refresh_once(force=force)
+
+    def _refresh_once(self, force: bool = False) -> dict[str, Any]:
         del force
         config = self._load_config()
         period = public_rainfall_config(config)["period"]
