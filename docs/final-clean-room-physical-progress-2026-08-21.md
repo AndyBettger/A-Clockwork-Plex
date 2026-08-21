@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline, Plexamp/EQ functional path, focused WU rainfall-history race retest, AirPlay handoff/EQ path and NFC functional/debounce path PASS; alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline plus Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce and real scheduled-alarm functional paths PASS; representative reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -171,11 +171,55 @@ An earlier boundary presentation also demonstrated the listener's malformed/trun
 
 This closes the NFC functional/debounce slice of the final replacement-SD clean-room run.
 
+## Scheduled alarm / fade / safety functional PASS
+
+A real enabled scheduled alarm named **Clean-room test** was exercised while Plexamp was already playing. The configured alarm used a 10% fade start, approximately 51% per-alarm target, 20-second fade and one-minute Snooze. The persistent **Maximum Alarm Volume** output ceiling was set to 25% before the occurrence.
+
+Physical behaviour passed the release-candidate checks:
+
+- the real scheduled occurrence paused Plexamp and activated the full-screen alarm surface;
+- the alarm began quietly and audibly increased over the configured 20-second fade;
+- Snooze stopped the alarm and did not automatically resume Plexamp;
+- exactly one minute later the occurrence re-rang, starting quietly again and performing a fresh fade rather than resuming at the prior high level;
+- Dismiss stopped the re-ring and again did not automatically restart Plexamp;
+- Plexamp could then be manually resumed successfully.
+
+The dashboard, Plexamp and canonical CamillaDSP services remained active with zero restart counters after the alarm sequence:
+
+```text
+Id=a-clockwork-plex.service
+MainPID=982356
+NRestarts=0
+ActiveState=active
+
+Id=plexamp.service
+MainPID=1909
+NRestarts=0
+ActiveState=active
+
+Id=a-clockwork-plex-camilladsp.service
+MainPID=944
+NRestarts=0
+ActiveState=active
+```
+
+Scheduler/API evidence matched the physical sequence: the alarm activated at 21:53:00 local time, Snooze returned HTTP 200 at 21:53:24, the alarm surface returned at 21:54:24, and Dismiss returned HTTP 200 at 21:54:42.
+
+The scheduled stream's own runtime history recorded `start_percent=10`, `target_percent=51`, `fade_seconds=20`, `volume_cap_percent=100` for both ring cycles. That `volume_cap_percent` is the separate internal scheduled-stream cap, not the Settings **Maximum Alarm Volume** control. The latter is the downstream shared ALSA `alarm` mixer stage. Journal evidence showed it being set to 25% before the alarm, and a final mixer status check confirmed:
+
+```text
+master: 66%  -3.6 dB
+alarm: 25%  -12.2 dB
+```
+
+Music Master independence was then physically proved with another scheduled occurrence: setting the shared `master` channel to 0% silenced Plexamp, but the scheduled alarm remained audible. The original Music Master value of 66% was restored afterwards. This proves the final alarm route remains independent of Music Master while retaining the dedicated downstream Maximum Alarm Volume ceiling.
+
+This closes the real scheduled-alarm functional/safety slice of the replacement-SD clean-room run.
+
 ## Remaining clean-room gates
 
-The remaining release-candidate physical proof is:
+All major functional clean-room slices are now physically complete. The remaining release-candidate proof is:
 
-- run a real scheduled alarm through Plexamp takeover, audible fade, Maximum Alarm Volume cap, Music Master independence, Snooze/re-ring with a fresh fade and Dismiss;
 - perform the representative post-commissioning reboot;
 - run `verify-fresh-bootstrap.sh`, `verify-appliance.sh --audio eq --weather-observations weather-underground` and `scripts/audio/verify-audio.sh` and preserve non-secret outputs;
 - rerun the public `bash setup.sh` to prove idempotence, then rerun all three formal verifiers;
