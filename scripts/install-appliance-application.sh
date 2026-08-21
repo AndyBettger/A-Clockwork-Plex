@@ -22,6 +22,7 @@ CAMILLA_BINARY="${ACP_CAMILLA_BINARY:-}"
 WU_STATION_ID="${ACP_WU_STATION_ID:-}"
 WU_API_KEY_FILE="${ACP_WU_API_KEY_FILE:-}"
 DASHBOARD_URL="${ACP_DASHBOARD_URL:-http://localhost:8088}"
+PRESERVE_WEATHER_OBSERVATIONS="${ACP_PRESERVE_WEATHER_OBSERVATIONS:-false}"
 
 usage() {
     cat <<EOF
@@ -89,6 +90,7 @@ done
 
 case "$AUDIO_PROFILE" in direct|eq) ;; *) error "Unsupported audio profile: $AUDIO_PROFILE"; exit 64 ;; esac
 case "$WEATHER_PROVIDER" in ecowitt-push|weather-underground) ;; *) error "Unsupported weather provider: $WEATHER_PROVIDER"; exit 64 ;; esac
+case "$PRESERVE_WEATHER_OBSERVATIONS" in true|false) ;; *) error 'ACP_PRESERVE_WEATHER_OBSERVATIONS must be true or false.'; exit 64 ;; esac
 [[ "$PROJECT_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || { error "Invalid project user: $PROJECT_USER"; exit 64; }
 ROOT="$(acp_normalise_root "$ROOT")" || exit 1
 [[ -d "$ROOT" ]] || { error "Filesystem root does not exist: $ROOT"; exit 1; }
@@ -115,7 +117,12 @@ elif [[ -n "$CAMILLA_BINARY" ]]; then
     exit 64
 fi
 
-if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+    if [[ -n "$WU_STATION_ID" || -n "$WU_API_KEY_FILE" ]]; then
+        error 'Weather Underground station/key options cannot be combined with commissioned Weather preservation.'
+        exit 64
+    fi
+elif [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
     [[ "$WU_STATION_ID" =~ ^[A-Za-z0-9_-]+$ ]] || {
         error 'Weather Underground requires --wu-station-id.'
         exit 64
@@ -161,13 +168,14 @@ Project user:         $PROJECT_USER
 Project directory:    $PROJECT_DIR
 Audio profile:        $AUDIO_PROFILE
 Weather observations: $WEATHER_PROVIDER
+Weather mutation:     $(if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then echo preserve-commissioned-profile; else echo converge-selected-profile; fi)
 Package/venv baseline: already established before this transaction
 EQ already installed: $EQ_PREEXISTED
 EQ -> Direct migrate: $EQ_TO_DIRECT
 
 Activation order:
   1. capture the complete application-managed pre-state;
-  2. configure weather observations and managed secret reference;
+  2. preserve commissioned Weather state or configure the explicitly selected observations profile;
   3. install dashboard service + kiosk integration;
   4. transactionally unwind pre-existing EQ when Direct is requested;
   5. establish alarm-safe Direct audio when required;
@@ -319,18 +327,22 @@ fail_transaction() {
     exit 1
 }
 
-weather_args=(
-    --activate --confirm INSTALL-WEATHER-CONFIG
-    --provider "$WEATHER_PROVIDER"
-    --root "$ROOT"
-)
-if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
-    weather_args+=(--wu-station-id "$WU_STATION_ID" --wu-api-key-file "$WU_API_KEY_FILE")
-fi
-if acp_is_production_root; then
-    sudo -- bash "$REPO_ROOT/scripts/install-weather-config.sh" "${weather_args[@]}" || fail_transaction weather
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+    echo '[A Clockwork Plex] Preserving commissioned Weather configuration and managed credential.'
 else
-    bash "$REPO_ROOT/scripts/install-weather-config.sh" "${weather_args[@]}" || fail_transaction weather
+    weather_args=(
+        --activate --confirm INSTALL-WEATHER-CONFIG
+        --provider "$WEATHER_PROVIDER"
+        --root "$ROOT"
+    )
+    if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
+        weather_args+=(--wu-station-id "$WU_STATION_ID" --wu-api-key-file "$WU_API_KEY_FILE")
+    fi
+    if acp_is_production_root; then
+        sudo -- bash "$REPO_ROOT/scripts/install-weather-config.sh" "${weather_args[@]}" || fail_transaction weather
+    else
+        bash "$REPO_ROOT/scripts/install-weather-config.sh" "${weather_args[@]}" || fail_transaction weather
+    fi
 fi
 inject_failure weather || fail_transaction weather-injection
 
@@ -395,7 +407,7 @@ verify_args=(
     --config "$PROJECT_DIR/config.json"
     --dashboard-url "$DASHBOARD_URL"
 )
-if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
+if [[ "$WEATHER_PROVIDER" == weather-underground && "$PRESERVE_WEATHER_OBSERVATIONS" != true ]]; then
     verify_args+=(--weather-api-key-file "$WU_API_KEY_FILE")
 fi
 bash "$REPO_ROOT/scripts/verify-appliance.sh" "${verify_args[@]}" || fail_transaction verifier
