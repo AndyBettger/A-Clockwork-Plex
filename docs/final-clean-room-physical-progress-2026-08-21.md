@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation and identity baseline PASS; functional commissioning, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline and Plexamp/EQ functional path PASS; Weather, AirPlay, NFC, alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -63,17 +63,25 @@ e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa
 
 This exactly matches the accepted CamillaDSP 4.1.3 executable identity.
 
-### Plexamp commissioning progress
+### Plexamp commissioning and EQ functional PASS
 
-Plexamp has been opened, the Plex account sign-in completed, the intended music library selected, and **`A Clockwork Plex - Plexamp`** selected as the Plexamp audio output rather than `Follows system output`.
+Plexamp was opened, the Plex account sign-in completed, the intended music library selected, and **`A Clockwork Plex - Plexamp`** selected as the Plexamp audio output rather than `Follows system output`.
 
-The dashboard Audio page reports the Master EQ as active. Actual playback/EQ behaviour has not yet been exercised on this replacement-SD run, so this is not yet recorded as the functional audio PASS.
+Physical playback acceptance on the replacement SD then passed all focused checks:
+
+- Plexamp played stable audio through the managed output;
+- Music Master audibly controlled Plexamp loudness;
+- Bass, Mid and Treble each produced the expected audible tonal change;
+- EQ bypass removed the EQ tonal effect while retaining Music Master control;
+- Return to normal restored the EQ effect;
+- `systemctl is-active a-clockwork-plex-camilladsp.service` returned `active`.
+
+This closes the Plexamp/EQ functional slice of the final clean-room run.
 
 ## Remaining clean-room gates
 
-The remaining release-candidate physical proof is deliberately unchanged:
+The remaining release-candidate physical proof is:
 
-- play Plexamp through the managed output and verify Music Master, Bass/Mid/Treble and EQ bypass behaviour;
 - commission Weather Underground in Settings and verify live/current/history behaviour without exposing the secret;
 - verify AirPlay handoff/audio through the EQ route;
 - verify one known-good NFC album tag;
