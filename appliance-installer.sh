@@ -22,8 +22,8 @@ APPLY_CONFIRMATION_TOKEN=APPLY-A-CLOCKWORK-PLEX
 # Application mutation is delegated to one guarded transaction owner, which
 # contains the final appliance verifier inside its commit boundary.
 #
-# --fresh-bootstrap is a separate staged route while Phase 7 bootstrap ownership
-# is being completed. The existing compatibility --apply route is not weakened.
+# --fresh-bootstrap is the supported staged fresh-appliance route. The existing
+# compatibility --apply route remains available and is not weakened.
 
 usage() {
     cat <<EOF
@@ -40,8 +40,8 @@ Modes:
   --fresh-bootstrap                opt into staged fresh-Raspberry-Pi bootstrap:
                                    package/venv -> hardware -> player -> NFC ->
                                    full preflight -> application transaction.
-                                   This route fails closed at any unpinned Phase 7
-                                   hardware/player boundary and never guesses it.
+                                   This route fails closed at any unready or
+                                   unvalidated hardware/player boundary.
   --confirm TOKEN                  required with --apply; expected token:
                                    $APPLY_CONFIRMATION_TOKEN
 
@@ -282,9 +282,9 @@ Fresh-bootstrap orchestration target:
   8. one guarded whole-application transaction;
   9. final read-only appliance verifier inside the application commit boundary.
 
-The staged route is allowed to stop at explicit Phase 7 blockers. It never treats
-an unpinned DAC overlay or Plexamp artifact as success and never falls through to
-application mutation after a blocked bootstrap owner.
+The staged route is allowed to stop at explicit bootstrap blockers. It never treats
+an unexpected DAC identity or unverified Plexamp artifact as success and never falls
+through to application mutation after a blocked bootstrap owner.
 EOF
 else
     cat <<'EOF'
