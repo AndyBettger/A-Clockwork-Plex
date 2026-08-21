@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline, Plexamp/EQ functional path, focused WU rainfall-history race retest and AirPlay handoff/EQ path PASS; NFC, alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline, Plexamp/EQ functional path, focused WU rainfall-history race retest, AirPlay handoff/EQ path and NFC functional/debounce path PASS; alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -148,12 +148,34 @@ ActiveState=active
 
 The unchanged `MainPID` values and `NRestarts=0` prove the normal AirPlay takeover/disconnect path did not restart Plexamp, Shairport Sync or CamillaDSP. This closes the AirPlay functional slice of the final replacement-SD clean-room run.
 
+## NFC album-tag / debounce functional PASS
+
+A known-good NFC album tag was exercised against the replacement-SD appliance. The first valid presentation switched the dashboard into Plexamp mode and started the expected album through the local Plexamp Headless playback endpoint. The NFC listener remained continuously healthy before and after the test:
+
+```text
+MainPID=1910
+NRestarts=0
+ActiveState=active
+```
+
+The listener's five-second same-UID debounce was then tested explicitly. A repeat presentation within roughly two seconds did not restart playback and produced no second `Tag UID`/playback entry, proving the repeat was discarded at the UID debounce gate. After the debounce window expired, presenting the same tag again restarted playback as expected. Representative journal evidence included a valid trigger followed by the next eligible trigger only after the debounce interval:
+
+```text
+21:43:40 Tag UID: 0x4 0x7d 0x12 0x1c 0x7f 0x61 0x80
+21:43:41 Playback triggered!
+21:43:47 Tag UID: 0x4 0x7d 0x12 0x1c 0x7f 0x61 0x80
+21:43:48 Playback triggered!
+```
+
+An earlier boundary presentation also demonstrated the listener's malformed/truncated NDEF guard: an incomplete read was safely rejected rather than sent to Plexamp. The optional `xdotool` browser-navigation path is not installed on this clean appliance, but the dashboard mode API path visibly switched the UI correctly, so no NFC navigation failure is inferred from that informational message.
+
+This closes the NFC functional/debounce slice of the final replacement-SD clean-room run.
+
 ## Remaining clean-room gates
 
 The remaining release-candidate physical proof is:
 
-- verify one known-good NFC album tag, including immediate repeat-tag debounce;
-- run a real scheduled alarm through takeover, fade, Snooze/re-ring and Dismiss;
+- run a real scheduled alarm through Plexamp takeover, audible fade, Maximum Alarm Volume cap, Music Master independence, Snooze/re-ring with a fresh fade and Dismiss;
 - perform the representative post-commissioning reboot;
 - run `verify-fresh-bootstrap.sh`, `verify-appliance.sh --audio eq --weather-observations weather-underground` and `scripts/audio/verify-audio.sh` and preserve non-secret outputs;
 - rerun the public `bash setup.sh` to prove idempotence, then rerun all three formal verifiers;
