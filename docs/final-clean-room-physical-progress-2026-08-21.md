@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline plus Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce and real scheduled-alarm functional paths PASS; representative reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline plus Plexamp/EQ, focused WU rainfall-history race retest, AirPlay handoff/EQ, NFC functional/debounce, real scheduled-alarm functional/safety path and representative post-commissioning reboot/formal verifier pass are complete; repeat `setup.sh`, repeat verifiers, clean-checkout proof and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -216,13 +216,74 @@ Music Master independence was then physically proved with another scheduled occu
 
 This closes the real scheduled-alarm functional/safety slice of the replacement-SD clean-room run.
 
+## Representative reboot + formal verifier PASS
+
+After all major functional slices passed, the fully commissioned replacement-SD appliance was deliberately rebooted. The tested checkout remained exactly:
+
+```text
+dcb4433e8c72350f4c11de2f643f83a4ffa6a1a9
+```
+
+After boot, every release-critical managed service checked was both active and enabled:
+
+```text
+a-clockwork-plex.service                 active / enabled
+plexamp.service                          active / enabled
+nfc-listener.service                     active / enabled
+shairport-sync.service                   active / enabled
+a-clockwork-plex-camilladsp.service      active / enabled
+```
+
+Real Plexamp playback was then started successfully, providing a physical post-reboot audio sanity check in addition to service state.
+
+The formal fresh-bootstrap verifier then passed the pinned player/runtime, NFC runtime, live PN532 I2C address `0x24`, DAC `CARD=Pro`, active/enabled Plexamp and NFC services, Plexamp API and NFC import checks with:
+
+```text
+Failures: 0
+Warnings: 0
+FRESH_BOOTSTRAP_VERIFY=PASS
+```
+
+The formal appliance verifier was run with the selected production profiles:
+
+```bash
+bash scripts/verify-appliance.sh \
+  --audio eq \
+  --weather-observations weather-underground \
+  --project-user "$USER" \
+  --project-dir "$PWD"
+```
+
+It passed dashboard/system integration, AirPlay helpers/metadata service, alarm/weather/mixer restricted helpers and sudoers, persistent mixer defaults, kiosk launcher, standalone EQ verification, WU/Open-Meteo configuration, presence-only managed WU credential verification, active/enabled Plexamp/Shairport/dashboard/metadata services, mixer/dashboard/weather/EQ APIs and the four-channel mixer contract with:
+
+```text
+Failures: 0
+Warnings: 0
+APPLIANCE_VERIFY=PASS
+```
+
+Finally, the dedicated audio verifier returned:
+
+```text
+[A Clockwork Plex] EQ-capable audio verification passed.
+```
+
+The three non-secret outputs were preserved in the clean-room evidence directory as:
+
+```text
+20-post-reboot-bootstrap-verifier.txt
+21-post-reboot-appliance-verifier.txt
+22-post-reboot-audio-verifier.txt
+```
+
+This closes the representative commissioned reboot and first formal-verifier gate.
+
 ## Remaining clean-room gates
 
-All major functional clean-room slices are now physically complete. The remaining release-candidate proof is:
+All major functional clean-room slices plus the representative reboot/formal-verifier gate are now physically complete. The remaining release-candidate proof is:
 
-- perform the representative post-commissioning reboot;
-- run `verify-fresh-bootstrap.sh`, `verify-appliance.sh --audio eq --weather-observations weather-underground` and `scripts/audio/verify-audio.sh` and preserve non-secret outputs;
-- rerun the public `bash setup.sh` to prove idempotence, then rerun all three formal verifiers;
+- rerun the public `bash setup.sh` to prove idempotence and retention of commissioned state;
+- rerun `verify-fresh-bootstrap.sh`, `verify-appliance.sh --audio eq --weather-observations weather-underground` and `scripts/audio/verify-audio.sh` after the repeat setup;
 - confirm normal operation leaves `git status --porcelain` clean;
 - update the active roadmap/final evidence and complete release hygiene only after those gates pass.
 
