@@ -22,6 +22,8 @@ PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
 CAMILLA_BINARY=
 WU_KEY_ENV=WEATHER_UNDERGROUND_API_KEY
 WU_KEY_FILE=
+PRESERVE_WEATHER_OBSERVATIONS="${ACP_PRESERVE_WEATHER_OBSERVATIONS:-false}"
+WEATHER_SECRET_HELPER="${ACP_WEATHER_SECRET_HELPER:-/usr/local/bin/a-clockwork-plex-weather-secret}"
 FAILURES=0
 WARNINGS=0
 
@@ -169,6 +171,14 @@ esac
     error "Invalid Weather Underground API-key environment name: $WU_KEY_ENV"
     exit 64
 }
+case "$PRESERVE_WEATHER_OBSERVATIONS" in
+    true|false) ;;
+    *) error 'ACP_PRESERVE_WEATHER_OBSERVATIONS must be true or false.'; exit 64 ;;
+esac
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true && -n "$WU_KEY_FILE" ]]; then
+    error '--weather-api-key-file cannot be combined with commissioned Weather preservation.'
+    exit 64
+fi
 if [[ "$WEATHER_PROVIDER" != weather-underground && -n "$WU_KEY_FILE" ]]; then
     error '--weather-api-key-file is only valid with --weather-observations weather-underground.'
     exit 64
@@ -237,7 +247,6 @@ if [[ "$(uname -s)" == Linux ]]; then
 else
     fail_check host-os "expected Linux; found $(uname -s)"
 fi
-
 if [[ "$(uname -m)" == aarch64 ]]; then
     pass architecture 'aarch64'
 else
@@ -382,7 +391,16 @@ else
 fi
 
 if [[ "$WEATHER_PROVIDER" == weather-underground ]]; then
-    if [[ -n "$WU_KEY_FILE" ]]; then
+    if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+        if [[ ! -x "$WEATHER_SECRET_HELPER" || -L "$WEATHER_SECRET_HELPER" ]]; then
+            fail_check weather-credential "managed Weather credential helper is unavailable or unsafe: $WEATHER_SECRET_HELPER"
+        elif managed_weather_status="$(sudo -n -- "$WEATHER_SECRET_HELPER" status 2>/dev/null)" && \
+            [[ "$managed_weather_status" == 'WEATHER_SECRET_CONFIGURED=1' ]]; then
+            pass weather-credential 'managed WU credential is present; commissioned profile will be preserved'
+        else
+            fail_check weather-credential 'managed WU credential is unavailable or invalid for commissioned profile preservation'
+        fi
+    elif [[ -n "$WU_KEY_FILE" ]]; then
         if [[ ! -f "$WU_KEY_FILE" || -L "$WU_KEY_FILE" || ! -r "$WU_KEY_FILE" ]]; then
             fail_check weather-credential 'candidate API-key file must be a readable regular file, not a symlink'
         elif command -v python3 >/dev/null 2>&1; then
