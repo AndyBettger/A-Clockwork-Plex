@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline, Plexamp/EQ functional path and focused WU rainfall-history race retest PASS; AirPlay, NFC, alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline, Plexamp/EQ functional path, focused WU rainfall-history race retest and AirPlay handoff/EQ path PASS; NFC, alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -114,12 +114,45 @@ GET /api/weather/rainfall HTTP/1.1 200
 
 There was no rainfall-history traceback, exception, atomic rename error or other matching error output. This closes the physical half of checkpoint #58 and allows the replacement-SD clean-room sequence to continue.
 
+## AirPlay handoff / EQ functional PASS
+
+The replacement-SD clean-room run then exercised AirPlay from a real sender while Plexamp was already playing.
+
+Physical behaviour passed all focused checks:
+
+- selecting the A Clockwork Plex AirPlay receiver paused Plexamp and transferred the dashboard to the AirPlay surface;
+- AirPlay audio was clean and stable through the managed output;
+- changing the managed EQ produced an audible tonal change on AirPlay audio;
+- **Bypass EQ** removed the tonal EQ effect and **Return to normal** restored it;
+- disconnecting AirPlay returned the dashboard to the Clock page rather than spuriously restarting/resuming another source;
+- Plexamp could then be manually played successfully again.
+
+Service identity was captured before and after the ordinary AirPlay handoff. The values were identical at both points:
+
+```text
+plexamp.service
+MainPID=1909
+NRestarts=0
+ActiveState=active
+
+shairport-sync.service
+MainPID=5082
+NRestarts=0
+ActiveState=active
+
+a-clockwork-plex-camilladsp.service
+MainPID=944
+NRestarts=0
+ActiveState=active
+```
+
+The unchanged `MainPID` values and `NRestarts=0` prove the normal AirPlay takeover/disconnect path did not restart Plexamp, Shairport Sync or CamillaDSP. This closes the AirPlay functional slice of the final replacement-SD clean-room run.
+
 ## Remaining clean-room gates
 
 The remaining release-candidate physical proof is:
 
-- verify AirPlay handoff/audio through the EQ route;
-- verify one known-good NFC album tag;
+- verify one known-good NFC album tag, including immediate repeat-tag debounce;
 - run a real scheduled alarm through takeover, fade, Snooze/re-ring and Dismiss;
 - perform the representative post-commissioning reboot;
 - run `verify-fresh-bootstrap.sh`, `verify-appliance.sh --audio eq --weather-observations weather-underground` and `scripts/audio/verify-audio.sh` and preserve non-secret outputs;
