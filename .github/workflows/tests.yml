@@ -40,6 +40,7 @@ jobs:
             app/settings_unified.py \
             app/settings_unified_scheduled.py \
             app/settings_weather_rainfall.py \
+            app/weather_rainfall_history.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
             app/alarm_runtime.py \
