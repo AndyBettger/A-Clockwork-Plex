@@ -1,6 +1,6 @@
 # Final clean-room physical progress — 21 August 2026
 
-**Status:** in progress — initial replacement-SD clean-room installation/identity baseline and Plexamp/EQ functional path PASS; Weather, AirPlay, NFC, alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
+**Status:** in progress — initial replacement-SD clean-room installation/identity baseline, Plexamp/EQ functional path and focused WU rainfall-history race retest PASS; AirPlay, NFC, alarm, reboot/verifiers, repeat `setup.sh`, clean-checkout proof and final acceptance remain pending.  
 **Branch under test:** `feature/alarm-engine`  
 **PR:** #2 remains Draft/open/unmerged pending explicit owner approval.
 
@@ -27,7 +27,7 @@ GIT-STATUS-BEGIN
 GIT-STATUS-END
 ```
 
-So the clean-room appliance is running the exact selected green source head and the repository checkout was clean immediately after installation.
+So the clean-room appliance was initially installed from the exact selected green source head and the repository checkout was clean immediately after installation.
 
 The OS userspace reported:
 
@@ -78,11 +78,46 @@ Physical playback acceptance on the replacement SD then passed all focused check
 
 This closes the Plexamp/EQ functional slice of the final clean-room run.
 
+## Weather commissioning / rainfall-history race follow-up — PASS
+
+During initial Weather Underground commissioning on the replacement card, concurrent rainfall-history refresh owners exposed a collision on the shared atomic `weather-rainfall-history.json.tmp` cache path. Source checkpoint #58 introduced a dedicated refresh mutex around the complete cache read/fetch/merge/write transaction and added deterministic overlapping-refresh regression coverage.
+
+The replacement appliance was then updated from `097d11a6...` to the documentation/current branch head with a clean fast-forward:
+
+```text
+git status --short
+# no output
+
+Updating 097d11a..dcb4433
+Fast-forward
+...
+
+git rev-parse HEAD
+dcb4433e8c72350f4c11de2f643f83a4ffa6a1a9
+```
+
+The dashboard service was restarted only for the source update and returned:
+
+```text
+systemctl is-active a-clockwork-plex.service
+active
+```
+
+The focused physical retest then exercised the previously failing path: **Current year**, **Test Connection**, period switching to **Last 7 days**, switching back to **Current year**, and revisiting/reloading the Weather Settings surface. The operations completed normally and the historical-rainfall status remained healthy; the previous atomic-cache rename failure did not recur.
+
+A focused journal check after the retest showed only successful rainfall API requests, including:
+
+```text
+POST /api/weather/rainfall HTTP/1.1 200
+GET /api/weather/rainfall HTTP/1.1 200
+```
+
+There was no rainfall-history traceback, exception, atomic rename error or other matching error output. This closes the physical half of checkpoint #58 and allows the replacement-SD clean-room sequence to continue.
+
 ## Remaining clean-room gates
 
 The remaining release-candidate physical proof is:
 
-- commission Weather Underground in Settings and verify live/current/history behaviour without exposing the secret;
 - verify AirPlay handoff/audio through the EQ route;
 - verify one known-good NFC album tag;
 - run a real scheduled alarm through takeover, fade, Snooze/re-ring and Dismiss;
