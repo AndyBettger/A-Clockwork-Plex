@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import threading
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -127,6 +128,76 @@ class RainfallHistoryServiceTests(unittest.TestCase):
             end = date.fromisoformat(f"{params['endDate'][:4]}-{params['endDate'][4:6]}-{params['endDate'][6:]}")
             self.assertLessEqual((end - start).days + 1, 31)
             self.assertNotIn("20260816", (params["startDate"], params["endDate"]))
+
+    def test_overlapping_refreshes_are_serialized_before_cache_update(self):
+        config = rainfall_config("last_7_days")
+        first_fetch_entered = threading.Event()
+        release_first_fetch = threading.Event()
+        second_refresh_started = threading.Event()
+        concurrent_fetch_entered = threading.Event()
+        call_lock = threading.Lock()
+        calls = []
+        results = []
+        errors = []
+
+        def fetcher(url, params, timeout):
+            with call_lock:
+                calls.append((url, dict(params), timeout))
+                call_number = len(calls)
+            if call_number == 1:
+                first_fetch_entered.set()
+                if not release_first_fetch.wait(timeout=2):
+                    raise TimeoutError("test did not release the first rainfall fetch")
+            else:
+                concurrent_fetch_entered.set()
+            start_text = params["startDate"]
+            end_text = params["endDate"]
+            start = date(int(start_text[:4]), int(start_text[4:6]), int(start_text[6:]))
+            end = date(int(end_text[:4]), int(end_text[4:6]), int(end_text[6:]))
+            return history_payload(start, end)
+
+        service = self.service(config, fetcher)
+
+        def run_refresh(*, signal_started: bool = False) -> None:
+            try:
+                if signal_started:
+                    second_refresh_started.set()
+                results.append(service.refresh())
+            except Exception as exc:  # pragma: no cover - asserted below for useful thread diagnostics
+                errors.append(exc)
+
+        first_thread = threading.Thread(target=run_refresh, name="rainfall-refresh-first")
+        second_thread = threading.Thread(
+            target=run_refresh,
+            kwargs={"signal_started": True},
+            name="rainfall-refresh-second",
+        )
+        first_thread.start()
+        self.assertTrue(first_fetch_entered.wait(timeout=1), "first rainfall refresh never reached the fetcher")
+        second_thread.start()
+        self.assertTrue(second_refresh_started.wait(timeout=1), "second rainfall refresh never started")
+        try:
+            self.assertFalse(
+                concurrent_fetch_entered.wait(timeout=0.2),
+                "second rainfall refresh entered the fetcher while the first refresh still owned the transaction",
+            )
+        finally:
+            release_first_fetch.set()
+
+        first_thread.join(timeout=2)
+        second_thread.join(timeout=2)
+
+        self.assertFalse(first_thread.is_alive())
+        self.assertFalse(second_thread.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(len(results), 2)
+        for snapshot in results:
+            self.assertEqual(snapshot["status"], "ready")
+            self.assertTrue(snapshot["complete"])
+            self.assertTrue(snapshot["coverage_complete"])
+        cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(cache["stations"]["IABC123"]["days"]), 6)
 
     def test_last_7_days_total_combines_six_cached_days_with_live_today(self):
         config = rainfall_config("last_7_days")
