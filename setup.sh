@@ -29,7 +29,14 @@ done <"$INSTALL_DEPENDENCY_MANIFEST"
 source "$REPO_ROOT/installer/lib/plexamp_runtime.sh"
 
 AUDIO_PROFILE="${ACP_AUDIO_PROFILE:-eq}"
-WEATHER_OBSERVATIONS="${ACP_WEATHER_OBSERVATIONS:-ecowitt-push}"
+if [[ -n "${ACP_WEATHER_OBSERVATIONS:-}" ]]; then
+    WEATHER_OBSERVATIONS="$ACP_WEATHER_OBSERVATIONS"
+    WEATHER_OBSERVATIONS_EXPLICIT=true
+else
+    WEATHER_OBSERVATIONS=ecowitt-push
+    WEATHER_OBSERVATIONS_EXPLICIT=false
+fi
+PRESERVE_WEATHER_OBSERVATIONS=false
 PROJECT_USER="${ACP_PROJECT_USER:-${USER:-andy}}"
 CAMILLA_BINARY="${ACP_CAMILLA_BINARY:-}"
 WU_STATION_ID="${ACP_WU_STATION_ID:-}"
@@ -60,9 +67,10 @@ Options:
   --non-interactive
   -h, --help
 
-For the normal installation, leave Weather on ecowitt-push here and commission
-Weather Underground later from Settings. This keeps WU API-key material out of
-shell history and installer arguments.
+On a fresh installation, Weather defaults to ecowitt-push and Weather Underground
+can be commissioned later from Settings. On a repeat run, omitting
+--weather-observations preserves the already commissioned provider and managed
+credential. This keeps WU API-key material out of shell history and installer arguments.
 USAGE
 }
 
@@ -81,6 +89,7 @@ while [[ $# -gt 0 ]]; do
         --weather-observations)
             [[ $# -ge 2 ]] || fail '--weather-observations requires ecowitt-push or weather-underground'
             WEATHER_OBSERVATIONS="$2"
+            WEATHER_OBSERVATIONS_EXPLICIT=true
             shift 2
             ;;
         --project-user)
@@ -138,7 +147,14 @@ esac
 PROJECT_HOME="$(getent passwd "$PROJECT_USER" | cut -d: -f6)"
 [[ -n "$PROJECT_HOME" && -d "$PROJECT_HOME" && ! -L "$PROJECT_HOME" ]] || fail "could not resolve a safe home directory for $PROJECT_USER"
 
-if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
+if [[ "$WEATHER_OBSERVATIONS_EXPLICIT" == false && -f "$REPO_ROOT/config.json" && ! -L "$REPO_ROOT/config.json" ]]; then
+    PRESERVE_WEATHER_OBSERVATIONS=true
+fi
+
+if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+    [[ -z "$WU_STATION_ID" && -z "$WU_API_KEY_FILE" ]] || \
+        fail 'Weather Underground station/key options on a repeat setup require an explicit --weather-observations choice'
+elif [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
     [[ "$WU_STATION_ID" =~ ^[A-Za-z0-9_-]+$ ]] || fail 'Weather Underground requires --wu-station-id'
     [[ -n "$WU_API_KEY_FILE" && -f "$WU_API_KEY_FILE" && ! -L "$WU_API_KEY_FILE" && -r "$WU_API_KEY_FILE" ]] || \
         fail 'Weather Underground requires a readable --wu-api-key-file'
@@ -212,7 +228,6 @@ run_guarded_installer() {
         bash "$REPO_ROOT/appliance-installer.sh"
         --fresh-bootstrap
         --audio "$AUDIO_PROFILE"
-        --weather-observations "$WEATHER_OBSERVATIONS"
         --project-user "$PROJECT_USER"
         --dashboard-url "$DASHBOARD_URL"
         --apply
@@ -220,6 +235,12 @@ run_guarded_installer() {
     )
     [[ "$NON_INTERACTIVE" == true ]] && args+=(--non-interactive)
     [[ "$AUDIO_PROFILE" == eq ]] && args+=(--camilladsp-binary "$CAMILLA_BINARY")
+    if [[ "$PRESERVE_WEATHER_OBSERVATIONS" == true ]]; then
+        args+=(--preserve-weather-observations)
+        "${args[@]}"
+        return
+    fi
+    args+=(--weather-observations "$WEATHER_OBSERVATIONS")
     if [[ "$WEATHER_OBSERVATIONS" == weather-underground ]]; then
         args+=(--wu-station-id "$WU_STATION_ID" --wu-api-key-file "$WU_API_KEY_FILE")
     fi
