@@ -15,7 +15,7 @@ This file is the **active implementation and acceptance authority**. Completed e
 - focused Weather physical evidence: `docs/weather-physical-followup-2026-08-17.md`;
 - final replacement-SD clean-room evidence: `docs/final-clean-room-physical-progress-2026-08-21.md`.
 
-The checkpoint-#64 archive is the exact pre-consolidation roadmap blob, not a rewritten summary. Use it when detailed chronology before the current release-hygiene pass is needed.
+The checkpoint-#64 archive is the exact pre-consolidation roadmap blob, not a rewritten summary. Use it when detailed chronology before the current release-hygiene pass is needed. The consolidated active roadmap retained its current safety contracts and passed Tests #4083 / run `32544561709` with **972/972 unit tests PASS** after CI caught and forced restoration of the exact preflight/production-SD wording.
 
 ## Settled release invariants
 
@@ -29,6 +29,7 @@ The checkpoint-#64 archive is the exact pre-consolidation roadmap blob, not a re
 - EQ → Direct convergence remains inside the outer application transaction with rollback restoring the pre-EQ backup and prior `snd_aloop` state before captured EQ services are reactivated.
 - Canonical CamillaDSP unit: `a-clockwork-plex-camilladsp.service`; do not use the unrelated generic `camilladsp.service` identity for acceptance.
 - Accepted CamillaDSP: `4.1.3`; executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`; official aarch64 archive SHA `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a`.
+- The laboratory-era bare `scripts/install-master-eq.sh` path and pre-production ALSA/CamillaDSP rehearsal scripts are retired. The supported audio lifecycle is `scripts/audio/preflight-eq.sh`, `install-direct.sh`, `install-eq.sh`, `repair-audio.sh`, `uninstall-eq.sh` and `verify-audio.sh`.
 
 ### Weather
 
@@ -80,7 +81,10 @@ Standalone EQ lifecycle, guarded transactions, bedroom-Pi physical audio accepta
 
 The replacement-SD clean-room sequence is complete through checkpoint #64: fresh installer/bootstrap, Plexamp GUI/output commissioning, EQ, WU/rainfall-history retest, AirPlay, NFC, real scheduled-alarm fade/safety, representative reboot, both formal verifier sets, repeat public `setup.sh` with commissioned WU preserved, and final empty `git status --porcelain` proof all passed.
 
-Checkpoint #65 has now completed the first deliberate obsolete-subsystem retirement: the historical Stage-C validation harness, fixtures and its positive regression suite are removed, while current tests explicitly guard against reintroducing Stage-C authority/scaffolding.
+Release hygiene has now completed two deliberate subsystem-retirement batches:
+
+- checkpoint #65 retired the historical Stage-C executable validation subsystem and its dedicated positive test suite;
+- checkpoint #66 retired the obsolete pre-production audio laboratory/rehearsal layer and moved CI shell-syntax coverage onto the six supported `scripts/audio/` lifecycle scripts.
 
 No additional replacement-SD physical clean-room gate is currently outstanding.
 
@@ -95,26 +99,28 @@ No additional replacement-SD physical clean-room gate is currently outstanding.
 2. [x] **Fresh-install repository dependency closure.** `installer/repository-dependencies.txt` is enforced by both supported installer entry paths.
 3. [x] **PR #2 release-candidate description refresh.** PR remains Draft/open/unmerged.
 4. [x] **Replacement-SD physical release gate.** Complete through checkpoint #64; no additional clean-room physical gate is outstanding.
-5. [x] **Retire obsolete Stage-C validation subsystem.** Implementation/harness/fixtures plus the dedicated positive `test_stage_c*.py` suite are removed; `tests/test_retired_stage_c_guard.py` pins the retirement. Checkpoint #65 / Tests #4075 passed.
-6. [ ] **Continue complete repository/PR inventory.** Remove only clearly obsolete one-off scaffolding, temporary probes, generated leftovers and superseded testing/install artifacts that are not required for fresh installation, maintained tests, diagnostics, rollback or useful evidence.
-7. [ ] **Complete deliberate `docs/` history review.** This roadmap consolidation preserves the exact through-#64 snapshot; continue classifying/archive-consolidating genuinely superseded stage documents without deleting useful provenance, then proofread active operator/architecture docs.
-8. [ ] **Remove temporary development branches/refs** created during final testing, leaving only intentional long-lived/release refs before merge.
-9. [ ] **Rerun final tracked-file/install-dependency audit after cleanup** so every file required by `setup.sh` / `appliance-installer.sh` is present and no retained file survives solely because an obsolete experiment once used it.
-10. [ ] **Run the complete validation suite after all cleanup** and pin the final count/status.
-11. [ ] **Obtain explicit owner approval** before PR #2 leaves Draft or merges.
+5. [x] **Retire obsolete Stage-C validation subsystem.** Checkpoint #65 / Tests #4075 passed.
+6. [x] **Retire obsolete pre-production audio laboratory/rehearsal subsystem.** Fourteen laboratory/rehearsal scripts and thirteen dedicated historical safety-test modules were removed; `tests/test_retired_audio_lab_guard.py` pins their absence and the retained production lifecycle. Checkpoint #66 / Tests #4085 passed.
+7. [ ] **Continue complete repository/PR inventory beyond the retired Stage-C/audio-lab subsystems.** Remove only clearly obsolete one-off scaffolding, temporary probes, generated leftovers and superseded testing/install artifacts that are not required for fresh installation, maintained tests, diagnostics, rollback or useful evidence.
+8. [ ] **Complete deliberate `docs/` history review.** The exact through-#64 roadmap snapshot is preserved; continue classifying/archive-consolidating genuinely superseded stage documents without deleting useful provenance, then proofread active operator/architecture docs.
+9. [ ] **Remove temporary development branches/refs** created during final testing, leaving only intentional long-lived/release refs before merge.
+10. [ ] **Rerun final tracked-file/install-dependency audit after cleanup** so every file required by `setup.sh` / `appliance-installer.sh` is present and no retained file survives solely because an obsolete experiment once used it.
+11. [ ] **Run the complete validation suite after all cleanup** and pin the final count/status.
+12. [ ] **Obtain explicit owner approval** before PR #2 leaves Draft or merges.
 
 ## Final repository/release hygiene checklist
 
 - [x] Initial classification audit: `docs/release-hygiene-audit-2026-08-19.md`.
-- [x] README rewritten for the actual release candidate.
+- [x] README rewritten/proofread for the actual release candidate and completed physical clean-room state.
 - [x] Installer naming reduced to `setup.sh` + `appliance-installer.sh`; stale root `install.sh` removed.
 - [x] Runtime/generated-state and `.gitignore` coverage audited/regression-protected.
 - [x] Fresh-install dependency closure pinned/enforced.
 - [x] PR #2 description refreshed while retaining Draft/open/unmerged state.
 - [x] Replacement-SD exact runtime checkout proved clean at checkpoint #64.
 - [x] Obsolete Stage-C implementation/harness/fixtures/positive tests retired and guarded at checkpoint #65.
-- [x] Oversized active roadmap history through checkpoint #64 preserved byte-for-byte in `docs/eq-audio-installer-roadmap-history-through-checkpoint64.md`; this file now carries current authority and remaining work.
-- [ ] Complete the remaining repository/PR inventory beyond Stage C.
+- [x] Obsolete pre-production audio laboratory/rehearsal scripts and their dedicated historical tests retired and guarded at checkpoint #66.
+- [x] Oversized active roadmap history through checkpoint #64 preserved byte-for-byte in `docs/eq-audio-installer-roadmap-history-through-checkpoint64.md`; this file carries current authority and remaining work.
+- [ ] Complete the remaining repository/PR inventory beyond the two retired historical subsystems.
 - [ ] Finish deliberate historical-doc classification/archive/consolidation and active-doc proofreading.
 - [ ] Remove temporary development refs.
 - [ ] Rerun final dependency/tracked-file audit after cleanup.
@@ -129,13 +135,14 @@ Detailed checkpoints #7–#55 are preserved in `docs/eq-audio-installer-roadmap-
 
 - **#56 — release-hygiene runtime-state audit + fresh-install dependency closure — PASS (source/CI).** `installer/repository-dependencies.txt` pins the supported source closure and both installer paths fail closed early on an incomplete payload. Code head `ae2497450b5b9d106c2eb4d86301bd1bc32c455b`; Tests #4012 / run `32430838605`: compile/JavaScript/page/shell PASS, **1,762/1,762 unit tests PASS**.
 - **#57 — PR #2 release-candidate description refresh — PASS (metadata; Draft preserved).** Stale historical/future-work narrative was replaced with the integrated release candidate. PR remained open, Draft and unmerged.
-- **#58 — WU rainfall-history refresh serialization — PASS (source/CI + replacement-SD physical).** The complete cache refresh transaction is mutex-serialized. Code/CI through `0723da83a4a08a332e7eb42bf2016b564c2e72d5`; Tests #4035 / run `32520278486`, **1,763/1,763** PASS. Replacement-SD Current year/Test Connection/Last 7 days/Current year retest reproduced no atomic `.tmp` rename collision.
+- **#58 — WU rainfall-history refresh serialization — PASS (source/CI + replacement-SD physical).** The complete cache refresh transaction is mutex-serialized. Code/CI through `0723da83a4a08a332e7eb42bf2016b564c2e72d5`; Tests #4035 / run `32520278486`, **1,763/1,763 PASS**. Replacement-SD Current year/Test Connection/Last 7 days/Current year retest reproduced no atomic `.tmp` rename collision.
 - **#59 — replacement-SD AirPlay handoff/EQ proof — PASS (physical).** AirPlay takeover, EQ/bypass/return and disconnect behavior passed without Plexamp/Shairport/CamillaDSP restarts.
 - **#60 — replacement-SD NFC album-tag/debounce proof — PASS (physical).** Correct album playback, debounce behavior and malformed-read rejection passed with NFC service stable.
 - **#61 — replacement-SD real scheduled-alarm fade/safety proof — PASS (physical).** Takeover, fade, Snooze/re-ring, Dismiss and Music-Master-independent alarm lane all passed while retaining the dedicated alarm ceiling.
 - **#62 — replacement-SD representative reboot + first formal verifiers — PASS (physical).** Dashboard/Plexamp/NFC/Shairport/CamillaDSP recovered; bootstrap verifier, WU appliance verifier and audio verifier all passed with zero structured warnings/failures.
-- **#63 — repeat public setup commissioned-Weather idempotence — PASS (source/CI + replacement-SD physical).** The first repeat exposed WU→Ecowitt provider drift while preserving the managed WU credential. Source head `215bcedb43369844b5968ae24a7169e49636ef99` added preserve-commissioned-profile behavior and restricted-helper verification. Tests #4063 passed; the physical retest then preserved `weather-underground`, required no renewed claim/reboot checkpoint, and all repeat verifiers plus real Plexamp/EQ operation passed.
+- **#63 — repeat public setup commissioned-Weather idempotence — PASS (source/CI + replacement-SD physical).** Source head `215bcedb43369844b5968ae24a7169e49636ef99` added preserve-commissioned-profile behavior after the first repeat exposed WU→Ecowitt provider drift. Tests #4063 passed; the physical retest preserved `weather-underground`, required no renewed claim/reboot checkpoint, and all repeat verifiers plus real Plexamp/EQ operation passed.
 - **#64 — replacement-SD final clean-checkout proof — PASS (physical).** Exact physically tested runtime/source head `215bcedb43369844b5968ae24a7169e49636ef99` produced no `git status --porcelain` output after repeat setup/verifiers/normal operation. Physical clean-room acceptance is complete.
-- **#65 — obsolete Stage-C validation subsystem retirement — PASS (source/CI).** Initial cleanup commit `da58f1586ca03827399f915af0301b9a104bf7e2` removed the obsolete Stage-C implementation, executable harness and fixtures. Tests #4073 correctly exposed an incomplete retirement boundary: **77 dedicated positive `tests/test_stage_c*.py` modules** still imported the intentionally deleted Stage-C package. That was historical test coupling, not a surviving production-runtime dependency. Follow-up commit `ea043030086fe4afb92e8ed682c62eb254c98ae3` removed those 77 positive Stage-C tests and added `tests/test_retired_stage_c_guard.py`, which requires the retired executable namespaces and positive suite to stay absent. Current non-Stage-C regressions that assert there are no Stage-C authority fields were retained. **Tests #4075 / run `32541368986` PASS:** compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **972/972 unit tests PASS**.
+- **#65 — obsolete Stage-C validation subsystem retirement — PASS (source/CI).** `da58f1586ca03827399f915af0301b9a104bf7e2` removed the Stage-C implementation/harness/fixtures; Tests #4073 then correctly exposed 77 still-coupled positive `tests/test_stage_c*.py` modules. Follow-up `ea043030086fe4afb92e8ed682c62eb254c98ae3` removed those historical tests and added `tests/test_retired_stage_c_guard.py`. **Tests #4075 / run `32541368986` PASS:** compile, JavaScript/page wiring, shell syntax and **972/972 unit tests PASS**.
+- **#66 — obsolete pre-production audio laboratory/rehearsal retirement — PASS (source/CI).** Exact cleanup commit `5fbc0a43f86b93132c3e132a9cd1cf0adad4b4f7` removed 14 laboratory/rehearsal scripts — including the disabled bare `scripts/install-master-eq.sh` path, ALSA/CamillaDSP lab scripts and historical physical rehearsals — plus 13 dedicated safety-test modules whose only subject was that retired machinery. `tests/test_retired_audio_lab_guard.py` now pins all 27 retired paths absent, requires the six supported `scripts/audio/` lifecycle files to remain present, and requires CI to syntax-check those supported paths instead of the retired labs. `scripts/prepare-plexamp-upgrade-rehearsal.sh` was deliberately retained because it remains a separate read-only maintenance diagnostic with current safety coverage. **Tests #4085 / run `32544751465` PASS:** compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **900/900 unit tests PASS**.
 
-No checkpoint is recorded as fully physically complete until its required physical gates pass. Source/CI PASS does not substitute for a remaining bedside/clean-room acceptance gate; checkpoint #65 is intentionally a source/CI release-hygiene checkpoint and does not reopen the already-complete physical gate.
+No checkpoint is recorded as fully physically complete until its required physical gates pass. Source/CI PASS does not substitute for a remaining bedside/clean-room acceptance gate; checkpoints #65/#66 are intentionally source/CI release-hygiene checkpoints and do not reopen the already-complete physical gate.

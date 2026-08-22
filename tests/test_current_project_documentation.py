@@ -54,7 +54,8 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("scheduled night dimming", text)
         self.assertIn("CamillaDSP is pinned to the accepted 4.1.3 build", text)
         self.assertIn("a-clockwork-plex-camilladsp.service", text)
-        self.assertIn("old bare `scripts/install-master-eq.sh` production path remains intentionally blocked", text)
+        self.assertIn("obsolete bare `scripts/install-master-eq.sh` laboratory-era path", text)
+        self.assertIn("pre-production audio rehearsal harnesses have been retired", text)
 
     def test_alarm_guide_documents_real_scheduled_takeover(self):
         text = ALARM_GUIDE.read_text(encoding="utf-8")

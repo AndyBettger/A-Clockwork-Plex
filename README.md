@@ -4,7 +4,7 @@ A Clockwork Plex turns a Raspberry Pi into a bedside touchscreen music appliance
 
 The project is designed as one appliance rather than a collection of manually installed components: the installer owns Plexamp, Node, NFC, AirPlay, dashboard/kiosk integration, alarm-safe audio routing and the EQ path.
 
-> **Current release candidate:** development is finishing on `feature/alarm-engine` in draft PR #2. The PR remains Draft/open/unmerged until final physical acceptance, repository cleanup and explicit owner approval are complete.
+> **Current release candidate:** development is finishing on `feature/alarm-engine` in draft PR #2. The replacement-SD physical release gate is complete; the PR remains Draft/open/unmerged while deliberate repository/documentation/ref hygiene, final validation and explicit owner approval remain.
 
 For the full fresh-install procedure, use **[`docs/INSTALL.md`](docs/INSTALL.md)**.
 
@@ -127,7 +127,7 @@ Important consequences:
 - all output still passes through the final safety limiter before the DAC;
 - CamillaDSP is pinned to the accepted 4.1.3 build and managed by `a-clockwork-plex-camilladsp.service`.
 
-The supported audio lifecycle tools live under `scripts/audio/`, including verification and repair. The old bare `scripts/install-master-eq.sh` production path remains intentionally blocked and is not the normal installer.
+The supported audio lifecycle tools live under `scripts/audio/`, including verification and repair. The obsolete bare `scripts/install-master-eq.sh` laboratory-era path and its pre-production audio rehearsal harnesses have been retired; normal installation remains owned by `setup.sh` and `appliance-installer.sh`.
 
 ## Settings
 
@@ -197,12 +197,14 @@ python3 -m compileall .
 python3 -m unittest discover -s tests -v
 ```
 
-GitHub Actions additionally performs production-module compilation, JavaScript syntax/page wiring checks and shell syntax checks.
+GitHub Actions additionally performs production-module compilation, JavaScript syntax/page wiring checks and shell syntax checks, including the supported `scripts/audio/` lifecycle.
 
 Historical engineering evidence and the active Phase 7 roadmap live under `docs/`. The final release-hygiene classification is recorded in [`docs/release-hygiene-audit-2026-08-19.md`](docs/release-hygiene-audit-2026-08-19.md).
 
 ## Release status
 
-The appliance has physically passed the major dashboard, Weather, Plexamp, NFC, AirPlay, scheduled-alarm and persistent split-bus EQ paths on the spare-SD target. Remaining release gates are tracked in [`docs/eq-audio-installer-roadmap.md`](docs/eq-audio-installer-roadmap.md), including the final wiped-SD `setup.sh` clean-room run, formal post-reboot verifiers, repeat-setup idempotence and final repository/documentation hygiene.
+The replacement spare SD has completed the physical release-candidate gate through checkpoint #64: fresh public installation/commissioning, real Plexamp/EQ, Weather, AirPlay, NFC and scheduled-alarm operation, representative reboot, both formal verifier sets, repeat public `setup.sh` with commissioned Weather preserved, and a final clean `git status --porcelain` proof all passed.
+
+Repository hygiene has subsequently retired the obsolete Stage-C validation subsystem at checkpoint #65 and the pre-production audio laboratory/rehearsal layer at checkpoint #66. The remaining gates in [`docs/eq-audio-installer-roadmap.md`](docs/eq-audio-installer-roadmap.md) are deliberate remaining repository/documentation/ref cleanup, the final tracked-file/install-dependency audit, complete post-cleanup validation and explicit owner approval.
 
 PR #2 remains Draft and must not be merged until those gates are complete and explicit owner approval is given.

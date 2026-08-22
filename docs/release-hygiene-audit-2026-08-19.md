@@ -1,147 +1,145 @@
 # Final release hygiene audit — 19 August 2026
 
-**Status refreshed:** 21 August 2026
+**Status refreshed:** 22 August 2026
 
-This document is the classification pass for the final Phase 7 repository cleanup. It deliberately makes **no broad historical deletions**. Deletion/archival comes only after the final clean-room `setup.sh` installation has passed and after a tracked-file dependency audit proves that a candidate is not required by installation, rollback, diagnostics or maintained regression coverage.
+This document is the classification record for the final Phase 7 repository cleanup. The replacement-SD physical clean-room gate is complete through checkpoint #64, so deliberate post-clean-room cleanup is now active. Deletion remains evidence-driven: a file is removed only after repository/dependency/reference review proves that it is not required by installation, rollback, supported diagnostics, maintained regression coverage or useful release provenance.
 
 ## Principles
 
-1. A file does **not** need to execute on the bedside Pi to deserve a place in the repository. Maintained tests, CI, architecture notes and useful diagnostics are development/release assets.
-2. A file that was created for one temporary physical experiment, one old stage, or one roadmap rewrite should not survive indefinitely merely because it once helped acceptance.
-3. The finished installer has two intentionally separate roles with unambiguous names:
-   - `setup.sh` is the human-facing one-command entry point, including CamillaDSP acquisition and the interactive Plexamp claim handoff;
-   - `appliance-installer.sh` is the guarded lower-level transactional installer/recovery engine.
-   The old root `install.sh` name duplicated that guarded engine and has been removed; it is not a third supported entry point.
-4. Do not delete historical evidence until the final release README/INSTALL and final acceptance evidence contain enough durable information to understand the released appliance and its safety decisions.
-5. Run the full validation suite after every cleanup batch and repeat the installer dependency audit before merge.
+1. A file does **not** need to execute on the bedside Pi to deserve a place in the repository. Maintained tests, CI, architecture notes and supported diagnostics are release assets.
+2. A file created solely for one temporary experiment, retired subsystem or historical rehearsal should not survive indefinitely merely because it once helped development.
+3. The finished installer has two intentional roles: `setup.sh` is the human-facing one-command entry point; `appliance-installer.sh` is the guarded lower-level transactional engine.
+4. Preserve useful historical evidence, but move completed chronology out of active authority when it obscures the current release state.
+5. Cleanup happens in small logical batches, with full CI after each batch and a final dependency/tracked-file audit before owner approval.
 
 ## Keep — production/install/runtime authority
 
-The following classes are part of the finished appliance or its supported installation/recovery path and should remain:
+Retain:
 
 - root `setup.sh` and `appliance-installer.sh`;
-- `app/` production application code, templates and static assets;
-- `installer/` transaction libraries, profiles and templates;
+- `app/` production application code/templates/static assets;
+- `installer/` transaction libraries, profiles, templates and `repository-dependencies.txt`;
 - `systemd/` managed service definitions;
-- `vendor/` pinned vendored runtime material used by installation;
-- `config.example.json`, `requirements.txt`, `LICENSE` and `.gitignore`;
-- production audio lifecycle under `scripts/audio/`, including Direct/EQ install, repair, uninstall, preflight and verification;
-- helper/install/verifier scripts reached by the guarded installer or required for supported diagnostics/recovery;
-- Weather secret management and sanitized payload-inspection tooling where it remains the supported diagnostic path.
+- `vendor/` pinned runtime material used by installation;
+- `config.example.json`, requirements, licence and ignore contracts;
+- the supported audio lifecycle under `scripts/audio/`: `preflight-eq.sh`, `install-direct.sh`, `install-eq.sh`, `repair-audio.sh`, `uninstall-eq.sh`, `verify-audio.sh`;
+- helper/install/verifier scripts reached by the guarded installer or still required for supported diagnostics/recovery;
+- Weather secret management and sanitized WU inspection tooling.
 
-The fresh-install source closure is now additionally pinned in `installer/repository-dependencies.txt`. Both `setup.sh` and the lower-level appliance engine fail closed early when that supported repository payload is incomplete. This dependency manifest is a release-safety contract, not generated inventory.
+`scripts/audio/preflight-eq.sh` remains the historical read-only bedroom-Pi validation gate and is deliberately retained as a diagnostic/acceptance tool, not a production installation path.
 
 ## Keep — maintained development/release safety net
 
-These are not normal runtime inputs, but they should remain in the source repository:
+Retain:
 
 - `.github/workflows/tests.yml`;
-- maintained regression tests under `tests/`;
-- tests specifically covering real production launch/import paths, installer convergence, rollback, secret boundaries, alarm ownership, Weather source authority and Clock/UI contracts;
-- durable architecture/contract documents that explain invariants which are not obvious from user documentation.
+- maintained regression tests under `tests/` that protect current production/runtime/install contracts;
+- current installer convergence, rollback, secret-boundary, playback ownership, Weather authority and UI regressions;
+- durable architecture/safety documents that explain non-obvious release invariants;
+- `scripts/prepare-plexamp-upgrade-rehearsal.sh`, which remains a separate read-only maintenance diagnostic with current safety coverage.
 
-The fact that a fresh Git clone contains `tests/` is not, by itself, repository clutter. They are not run by normal `setup.sh`, and deleting useful tests merely to make the appliance checkout visually smaller would weaken the project for negligible benefit.
+The fact that a fresh clone contains tests is not repository clutter. Cleanup targets historical coupling, not useful regression coverage.
 
-## Review carefully — likely historical/archive candidates
+## Completed cleanup batches
 
-These need a reference/dependency check before any removal, but are the main cleanup targets:
+### Checkpoint #64 — clean tracked checkout — physical PASS
 
-### One-off development helpers
+The exact physically tested runtime/source head `215bcedb43369844b5968ae24a7169e49636ef99` produced no `git status --porcelain` output after repeat public setup, the second formal verifier set and normal commissioned operation. This closes the physical clean-checkout gate; legitimate Weather/cache/audio/NFC runtime state does not dirty tracked source.
 
-- `scripts/dev/finalize_eq_phase2_roadmap.py` has already been removed. Maintained release-hygiene regression explicitly requires the obsolete Phase-2 roadmap mutator to stay absent.
-- old `inspect-stage-c*` evidence-identity helpers whose only purpose was a completed Stage C checkpoint remain review candidates; do not remove them until their test/evidence references and clean-room relevance are proved unnecessary.
+### Checkpoint #65 — Stage-C validation subsystem — PASS
 
-### Laboratory/rehearsal scripts
+- `da58f1586ca03827399f915af0301b9a104bf7e2` removed the obsolete Stage-C implementation, executable harness and fixtures.
+- Tests #4073 correctly exposed 77 dedicated positive `tests/test_stage_c*.py` modules that still imported the intentionally deleted subsystem.
+- `ea043030086fe4afb92e8ed682c62eb254c98ae3` removed those historical positive tests and added `tests/test_retired_stage_c_guard.py`.
+- Tests #4075 / run `32541368986` passed compile, JavaScript/page wiring, shell syntax and **972/972 unit tests**.
 
-Review the old `test-*-lab.sh`, CamillaDSP laboratory and physical-rehearsal scripts. Some may still be useful engineering diagnostics, while others were temporary stepping stones superseded by `scripts/audio/install-eq.sh`, `repair-audio.sh`, `uninstall-eq.sh` and `verify-audio.sh`. Keep only those that still have a deliberate supported purpose.
+Current regressions that assert Stage-C authority fields do not return were retained.
 
-### Superseded EQ/Stage-C documentation
+### Checkpoint #66 — pre-production audio laboratory/rehearsal layer — PASS
 
-The `docs/` directory contains many dated design/result documents from the journey to the accepted split-bus architecture, including Stage C design/result files and early DSP laboratory evidence. The final cleanup should decide between:
+Repository-dependency and operator-path review proved that the laboratory-era scripts were not part of `installer/repository-dependencies.txt`, the public installer path or current supported diagnostics. Their dedicated test modules inspected only those historical scripts rather than current production behavior.
 
-- retaining a small number of durable architecture/safety documents;
-- consolidating historical evidence into one archive/history document; or
-- deleting documents whose only useful facts are already preserved in the active roadmap and final acceptance record.
+Cleanup commit `5fbc0a43f86b93132c3e132a9cd1cf0adad4b4f7` removed:
 
-Do not leave dozens of stage-numbered documents in the finished project simply because the branch accumulated them during development. Equally, do not perform broad deletion before the final replacement-SD clean-room proof establishes the finished evidence/dependency boundary.
+- the disabled bare `scripts/install-master-eq.sh` laboratory-era path;
+- 13 additional ALSA/CamillaDSP/headroom/split-bus/physical-rehearsal scripts;
+- 13 dedicated historical safety-test modules coupled only to that retired machinery.
 
-### Intermediate physical-acceptance records
+`tests/test_retired_audio_lab_guard.py` now:
 
-The final repository should retain enough evidence to show what was physically validated, but it does not necessarily need every intermediate failed-attempt narrative as a first-class top-level document. Once the final wiped-SD acceptance is complete, consolidate where sensible and retain the final authoritative evidence plus any failure record that documents an important safety invariant.
+- pins all 14 retired script paths absent;
+- pins all 13 dedicated historical test paths absent;
+- requires the six supported `scripts/audio/` lifecycle files to remain present;
+- requires CI to syntax-check the supported lifecycle instead of the retired labs.
 
-### Segment-display design assets
-
-`docs/airplay-segment-cell.svg` is now the editable companion to the selected Version 3 runtime geometry in `app/static/js/segment-display.js`. Keep it through final visual acceptance; if later cleanup changes its status, preserve enough provenance to reconstruct or adjust the runtime geometry rather than treating it as an unexplained scratch asset.
+Tests #4085 / run `32544751465` passed compile, JavaScript/page wiring, shell syntax and **900/900 unit tests**. The lower test count is expected: the retired 13 historical modules contained 72 tests, while the new guard contributes four current retirement checks.
 
 ## Documentation status
 
-### README.md
+### Active roadmap
 
-The release-candidate README has been rewritten for the actual appliance. After the final wiped-SD run, perform one last proofread against the observed installation and update experience rather than redesigning it from assumptions.
+The oversized active roadmap through checkpoint #64 is preserved byte-for-byte as `docs/eq-audio-installer-roadmap-history-through-checkpoint64.md`. `docs/eq-audio-installer-roadmap.md` is again the concise current acceptance/release authority. The consolidation itself passed Tests #4083 after CI forced restoration of the exact retained preflight and protected-production-SD contracts.
 
-### INSTALL.md
+### README
 
-Keep `docs/INSTALL.md` as the operator authority. The public command remains `bash setup.sh`; `appliance-installer.sh` is the guarded lower-level engine invoked by setup and is not a second normal-user installation procedure. After the final wiped-SD run, edit only what the actual clean-room experience proves needs changing. Avoid duplicating the full engineering runbook into README.
+README has now been proofread against the completed replacement-SD acceptance sequence. It describes the physical gate as complete and no longer presents the retired `scripts/install-master-eq.sh` laboratory-era path as a still-present blocked installer.
 
-### PR #2 description — completed 21 August
+### INSTALL / advanced installer guide
 
-The stale Stage-C/future-EQ body has been replaced with the current integrated appliance scope, the supported `setup.sh`/`appliance-installer.sh` path, the current 1,762-test baseline and the remaining replacement-SD/release gates. After the subsequent active-path wording cleanup, the PR evidence was advanced to source head `05d0f3ecbbfec509f59fda87d6fefa74a7af9d2c` and Tests #4023 / run `32432395417`. The metadata updates did **not** change review readiness: GitHub confirmed PR #2 remains Draft, open and unmerged.
+Keep `docs/INSTALL.md` as the normal operator authority and `docs/appliance-installer.md` as the advanced lower-level engine guide. The public command remains `bash setup.sh`.
 
-## `.gitignore` and runtime-state review
+### Physical evidence
 
-The source-side runtime/generated-state audit is complete for the known state classes. The ignore file covers the important local/runtime state classes, including:
+`docs/final-clean-room-physical-progress-2026-08-21.md` remains the final replacement-SD evidence record. Earlier focused physical documents remain useful provenance unless a later evidence consolidation proves them redundant.
 
-- `config.json` and runtime JSON state, including atomic-save `*.json.tmp` leftovers;
-- forecast/rainfall caches;
-- generated static runtime assets;
-- Python/test/cache/build/editor outputs.
+## Fresh-install dependency audit
 
-Maintained release-hygiene regression checks Git's tracked-file contract rather than treating a legitimate ignored runtime file created by another test as committed source. This source/CI closure passed at code head `ae2497450b5b9d106c2eb4d86301bd1bc32c455b` in Tests #4012 / run `32430838605`.
+`installer/repository-dependencies.txt` remains the supported repository source closure. Both public and lower-level installer paths fail closed before installation if a required source file is missing or unsafe.
 
-The **physical clean-checkout proof remains pending**. After the final replacement-SD clean-room install, run `git status --porcelain` after normal operation, Weather refreshes, alarm use and reboot. Any legitimate runtime file that still dirties the checkout should be ignored or moved to the proper runtime-state location rather than committed.
+Checkpoint #66 deliberately removed only files outside that manifest and outside the supported operator/runtime path. A **final post-cleanup dependency/tracked-file audit** is still required after all remaining cleanup is complete.
 
-## Fresh-install dependency audit — completed initial closure
+## Branch/ref classification
 
-The previously shallow top-level source check has been expanded into an explicit supported repository closure in `installer/repository-dependencies.txt`. It protects direct and transitive fresh-install inputs including installer libraries, EQ repair/profile/template assets, NFC requirements/checker/runtime, `config.example.json` and the dashboard unit source.
+Intentional refs to preserve:
 
-Both the public `setup.sh` route and direct lower-level engine route validate the manifest and fail closed before installation if a required source is missing or unsafe. Dedicated regression pins the exact closure and validates each entry as a regular repository file. Tests #4012 / run `32430838605` passed Python compile, JavaScript/page wiring, shell syntax and **1,762/1,762 unit tests**.
+- `main` — release base;
+- `feature/alarm-engine` — active Draft PR #2 head;
+- `feature/typography-weather-bridge` — preserve for now because it contains unique divergent history;
+- `stage-c-terminal-install-20260806` — preserve for now as historical/provenance material because it contains unique commits not reachable from the active branch.
 
-This does not remove the need for a **final post-cleanup dependency audit**. Any later safe deletion batch must be followed by the same closure check, and the replacement-SD clean-room run remains the physical proof that the retained source set is sufficient.
+Known safe temporary-ref deletion candidates:
 
-## Active-path wording cleanup — completed pre-clean-room
+- `tmp-noop-annunciator-do-not-use`;
+- `tmp-noop-annunciator-do-not-use-2`.
 
-The supported installer/operator paths were searched for stale `install.sh` and unfinished-Phase-7 wording. Current `setup.sh`, `docs/INSTALL.md`, `docs/appliance-installer.md` and README references are either current commands or explicit historical context. Three stale comments/help strings in `appliance-installer.sh` still described fresh-bootstrap ownership as being completed or blockers as unpinned; those were corrected without changing execution order, gates, profiles, tokens or mutation behaviour.
+Both temporary refs were re-confirmed present on 22 August. Prior comparison established that they point at already-ancestral no-op history with no unique work. The available connector still exposes branch update but not branch-ref deletion, so they remain recorded rather than falsely claimed removed. Delete them with an authorised Git interface during the final ref-hygiene step, then re-list branches.
 
-Exact source head `05d0f3ecbbfec509f59fda87d6fefa74a7af9d2c` passed Tests #4023 / run `32432395417`: Python compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **1,762/1,762 unit tests PASS** (`Ran 1762 tests in 41.856s`, `OK`). No further stale occurrences of the removed phrases were found in repository search.
+## Remaining review targets
 
-## Branch/ref classification — pre-clean-room pass
+The next cleanup work is deliberately narrower than the completed Stage-C/audio-lab retirements:
 
-The branch inventory on 21 August contains:
-
-- `main` — long-lived release base; keep.
-- `feature/alarm-engine` — active PR #2 head; keep.
-- `feature/typography-weather-bridge` — **preserve for now**; it diverges from the active branch and has 63 commits not reachable from `feature/alarm-engine`.
-- `stage-c-terminal-install-20260806` — **preserve for now** as historical/provenance material; it diverges and has 23 commits not reachable from the active branch.
-- `tmp-noop-annunciator-do-not-use` and `tmp-noop-annunciator-do-not-use-2` — both point to the same old commit `3dddbb24b9eb5b7f91efc7e6caf1b249dfba2123`, have no matching PR, and that commit is already an ancestor of `feature/alarm-engine`; the active branch is 177 commits ahead and 0 behind from that point. They contain no unique work and are safe final ref-deletion candidates.
-
-The available repository connector in this session does not expose branch-ref deletion, so the two no-op refs are recorded rather than falsely claimed as removed. Delete them during the final ref-hygiene step using an authorised Git interface, then re-list branches before merge.
+- inventory remaining one-off scripts/helpers not in the installer manifest and distinguish supported diagnostics from historical probes;
+- classify the large `docs/` history, preserving architecture/safety/final evidence while archive-consolidating genuinely superseded stage documents where useful;
+- proofread active operator/architecture documentation after each consolidation;
+- remove the two proven temporary refs;
+- rerun final tracked-file/install-dependency audit;
+- run the complete validation suite on the final cleaned tree;
+- obtain explicit owner approval before PR #2 leaves Draft or merges.
 
 ## Final deletion gate
 
-Before deleting any remaining candidate:
+Before another candidate is removed:
 
-1. search `setup.sh`, `appliance-installer.sh`, `installer/`, `scripts/`, systemd units, tests and docs for references;
-2. confirm it is not copied/installed indirectly by a directory-level operation;
-3. confirm no maintained test relies on it as a fixture or contract;
-4. delete in small logical batches;
-5. run compile/syntax checks and the complete unit suite;
-6. run the final installer dependency audit again;
-7. keep PR #2 Draft until the cleaned repository and final physical install are both accepted.
+1. search current installer/runtime/operator paths and maintained tests for references;
+2. confirm it is not copied or installed indirectly;
+3. confirm it is not a current diagnostic, fixture or architecture contract;
+4. preserve useful historical facts elsewhere before deleting evidence-only material;
+5. delete in one small logical batch;
+6. run compile/syntax checks and the complete unit suite;
+7. update this audit and the active roadmap only after CI proves the batch.
 
 ## Current classification result
 
-The repository still needs a deliberate final post-clean-room consolidation, but the correct target is **historical development residue**, not the core test suite or the two intentional installer roles. The unambiguous installer naming cleanup, known runtime/generated-state audit, initial fresh-install dependency closure, PR-description refresh and safe active-path wording cleanup are complete.
+The broad physical/release boundary is now proven, and two large historical subsystems have been safely retired without touching accepted runtime behavior. The remaining target is **residual historical development/documentation/ref residue**, not the production application, supported audio lifecycle, installer payload or maintained regression suite.
 
-No additional file deletion is justified before the replacement-SD proof merely for the sake of producing cleanup activity. The remaining Stage-C/laboratory/provenance material is either still intertwined with maintained regression/evidence or has not yet been proven disposable. The two no-op branch refs are proven safe ref-deletion candidates; the other non-main historical branches retain unique commits and stay preserved.
-
-Broad destructive cleanup remains deliberately deferred until the replacement-SD `setup.sh` run proves the final appliance from a clean checkout. After clean-room acceptance, finish historical consolidation/ref cleanup, repeat the dependency audit and full CI, and only then consider PR #2 ready for owner review.
+PR #2 remains Draft/open/unmerged. Release hygiene is not complete until the remaining inventory/docs/ref work, final dependency audit, final full validation and explicit owner approval are complete.
