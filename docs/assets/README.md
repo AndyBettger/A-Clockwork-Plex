@@ -8,6 +8,8 @@ Current release screenshots live in [`screenshots/`](screenshots/).
 
 The screenshot set is intended to demonstrate real appliance behaviour: Clock day/night presentation, scheduled alarms, Weather, Plexamp, AirPlay and Settings. Keep screenshots at the validated 1280×720 landscape presentation where practical.
 
+Some Now Playing screenshots naturally include third-party album/book artwork and metadata because they document the player UI in normal use. That material is shown only as contextual content inside the appliance screenshot; copyright and other rights in that media remain with their respective rights holders.
+
 Before adding or replacing screenshots:
 
 - do not expose API keys, passwords, tokens or other secrets;
