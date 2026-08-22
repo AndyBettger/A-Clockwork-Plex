@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
-ROADMAP = ROOT / "docs" / "eq-audio-installer-roadmap.md"
+ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
 
 
 class EqAudioPreflightSafetyTests(unittest.TestCase):
@@ -97,7 +97,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.assertIn("scripts/audio/preflight-eq.sh", roadmap)
         self.assertIn("read-only bedroom-Pi validation gate", roadmap)
         self.assertIn("accepted production SD remains protected", roadmap)
-        self.assertIn("separate spare SD is the disposable acceptance target", roadmap)
+        self.assertIn("a separate spare SD is the disposable acceptance target", roadmap)
 
 
 if __name__ == "__main__":

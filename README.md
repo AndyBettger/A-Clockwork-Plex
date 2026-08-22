@@ -16,7 +16,7 @@ bash setup.sh
 
 Run it as the normal appliance user, **not** with `sudo`. `setup.sh` acquires and verifies the pinned CamillaDSP artifact, runs the guarded appliance installer and handles the first Plexamp claim hand-off when required.
 
-There is a much larger engineering history in the repository, but you do not need to read it before breakfast. The friendly documentation map is **[`docs/README.md`](docs/README.md)**; historical design archaeology has its own `docs/archive/` home.
+There is a much larger engineering history in the repository, but you do not need to read it before breakfast. The friendly documentation map is **[`docs/README.md`](docs/README.md)**; development material and historical archaeology have their own homes underneath `docs/`.
 
 ## Validated hardware
 
@@ -68,7 +68,7 @@ The NFC listener uses the validated PN532 reader. Compatible album tags can star
 
 Shairport Sync provides AirPlay through the same appliance-managed music path as Plexamp. PlaybackCoordinator handles Plexamp/AirPlay ownership and hand-off without routinely stopping and restarting the audio services.
 
-The receiver name is configurable from Settings and applied through a restricted helper with validation and rollback. Current integration and troubleshooting details live in [`docs/airplay-metadata.md`](docs/airplay-metadata.md).
+The receiver name is configurable from Settings and applied through a restricted helper with validation and rollback. Current integration and troubleshooting details live in [`docs/development/architecture/airplay-metadata.md`](docs/development/architecture/airplay-metadata.md).
 
 ### Scheduled alarms
 
@@ -163,9 +163,9 @@ The normal local validation path is:
 bash scripts/run-tests.sh
 ```
 
-That runner discovers current Python, shell and dashboard JavaScript sources, performs syntax/compile checks and runs the complete unit suite. See [`docs/testing.md`](docs/testing.md) for the local/CI relationship and [`docs/appliance-installer.md`](docs/appliance-installer.md) for the lower-level guarded installer interface.
+That runner discovers current Python, shell and dashboard JavaScript sources, performs syntax/compile checks and runs the complete unit suite. See [`docs/development/testing/testing.md`](docs/development/testing/testing.md) for the local/CI relationship and [`docs/appliance-installer.md`](docs/appliance-installer.md) for the lower-level guarded installer interface.
 
-For contributors and future debugging, [`docs/README.md`](docs/README.md) separates maintained guides from release evidence and the archived engineering history.
+For contributors and future debugging, [`docs/README.md`](docs/README.md) separates normal-user documentation, the live roadmap, current engineering material and archived history.
 
 ## Release status
 

@@ -6,8 +6,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
-ALARM_GUIDE = ROOT / "docs" / "alarm-audio-testing.md"
-ARCHITECTURE = ROOT / "docs" / "application-state-architecture.md"
+ALARM_GUIDE = ROOT / "docs" / "development" / "testing" / "alarm-audio-testing.md"
+ARCHITECTURE = ROOT / "docs" / "development" / "architecture" / "application-state-architecture.md"
 SETTINGS_REDESIGN = (
     ROOT
     / "docs"

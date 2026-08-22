@@ -7,41 +7,78 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 CATALOG = DOCS / "README.md"
+DEVELOPMENT = DOCS / "development"
+ROADMAP_DIR = DOCS / "roadmap"
 ARCHIVE = DOCS / "archive"
 SNAPSHOT = ARCHIVE / "pre-release-engineering-snapshot-2026-08-22"
 
-TOP_LEVEL_FILES = {
-    "README.md",
-    "INSTALL.md",
-    "appliance-installer.md",
-    "eq-audio-installer-roadmap.md",
-    "eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md",
-    "eq-audio-installer-roadmap-history-through-checkpoint64.md",
-    "release-hygiene-audit-2026-08-19.md",
-    "fresh-appliance-acceptance-runbook.md",
+TOP_LEVEL_FILES = {"README.md", "INSTALL.md", "appliance-installer.md"}
+TOP_LEVEL_DIRS = {"archive", "development", "roadmap"}
+
+DEVELOPMENT_ARCHITECTURE = {
     "application-state-architecture.md",
     "airplay-metadata.md",
-    "alarm-audio-testing.md",
-    "testing.md",
-    "final-clean-room-physical-progress-2026-08-21.md",
-    "fresh-bootstrap-physical-progress-2026-08-15.md",
-    "eq-to-direct-physical-verification-2026-08-17.md",
-    "direct-independent-verification-2026-08-17.md",
-    "eq-to-direct-desktop-audio-blocker-2026-08-17.md",
-    "reboot-eq-runtime-failure-2026-08-17.md",
-    "weather-physical-followup-2026-08-17.md",
+    "airplay-segment-cell.svg",
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
-    "airplay-segment-cell.svg",
+}
+DEVELOPMENT_TESTING = {
+    "testing.md",
+    "alarm-audio-testing.md",
+    "fresh-appliance-acceptance-runbook.md",
+}
+DEVELOPMENT_EVIDENCE = {
+    "direct-independent-verification-2026-08-17.md",
+    "eq-to-direct-desktop-audio-blocker-2026-08-17.md",
+    "eq-to-direct-physical-verification-2026-08-17.md",
+    "final-clean-room-physical-progress-2026-08-21.md",
+    "fresh-bootstrap-physical-progress-2026-08-15.md",
+    "reboot-eq-runtime-failure-2026-08-17.md",
+    "release-hygiene-audit-2026-08-19.md",
+    "weather-physical-followup-2026-08-17.md",
+}
+ROADMAP_FILES = {
+    "README.md",
+    "ROADMAP.md",
+    "history-through-phase7-checkpoint6.md",
+    "history-through-checkpoint64.md",
 }
 
 
 class DocsCatalogTests(unittest.TestCase):
-    def test_top_level_docs_are_deliberately_small_and_classified(self):
+    def test_top_level_docs_are_normal_user_focused(self):
         files = {path.name for path in DOCS.iterdir() if path.is_file()}
         dirs = {path.name for path in DOCS.iterdir() if path.is_dir()}
         self.assertEqual(TOP_LEVEL_FILES, files)
-        self.assertEqual({"archive"}, dirs)
+        self.assertEqual(TOP_LEVEL_DIRS, dirs)
+
+    def test_development_tree_is_deliberately_classified(self):
+        self.assertTrue((DEVELOPMENT / "README.md").is_file())
+        self.assertEqual(
+            DEVELOPMENT_ARCHITECTURE,
+            {path.name for path in (DEVELOPMENT / "architecture").iterdir() if path.is_file()},
+        )
+        self.assertEqual(
+            DEVELOPMENT_TESTING,
+            {path.name for path in (DEVELOPMENT / "testing").iterdir() if path.is_file()},
+        )
+        self.assertEqual(
+            DEVELOPMENT_EVIDENCE,
+            {path.name for path in (DEVELOPMENT / "evidence").iterdir() if path.is_file()},
+        )
+
+    def test_roadmap_has_one_live_authority_and_preserved_history(self):
+        self.assertEqual(
+            ROADMAP_FILES,
+            {path.name for path in ROADMAP_DIR.iterdir() if path.is_file()},
+        )
+        roadmap = (ROADMAP_DIR / "ROADMAP.md").read_text(encoding="utf-8")
+        self.assertIn("# A Clockwork Plex Roadmap", roadmap)
+        self.assertIn("Future product backlog", roadmap)
+        self.assertIn("Friendly forecast-location entry", roadmap)
+        self.assertIn("Configuration backup/export", roadmap)
+        self.assertIn("Plexamp search keyboard/bridge", roadmap)
+        self.assertNotIn("# EQ-capable Audio + Full Appliance Installer Roadmap", roadmap)
 
     def test_archive_preserves_the_pre_reorganisation_engineering_tree(self):
         self.assertTrue((ARCHIVE / "README.md").is_file())
@@ -56,18 +93,19 @@ class DocsCatalogTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue((SNAPSHOT / name).is_file())
 
-    def test_catalog_points_normal_users_to_install_and_history_to_archive(self):
+    def test_catalog_points_normal_users_away_from_engineering_clutter(self):
         text = CATALOG.read_text(encoding="utf-8")
         self.assertIn("Start with **[`INSTALL.md`](INSTALL.md)**", text)
-        self.assertIn("You do not need the roadmap", text)
+        self.assertIn("development/", text)
+        self.assertIn("roadmap/ROADMAP.md", text)
         self.assertIn("archive/pre-release-engineering-snapshot-2026-08-22/", text)
         self.assertIn("The archive is allowed to be old", text)
 
     def test_repaired_current_guides_do_not_reintroduce_retired_instructions(self):
-        airplay = (DOCS / "airplay-metadata.md").read_text(encoding="utf-8")
-        alarm = (DOCS / "alarm-audio-testing.md").read_text(encoding="utf-8")
-        architecture = (DOCS / "application-state-architecture.md").read_text(encoding="utf-8")
-        testing = (DOCS / "testing.md").read_text(encoding="utf-8")
+        airplay = (DEVELOPMENT / "architecture" / "airplay-metadata.md").read_text(encoding="utf-8")
+        alarm = (DEVELOPMENT / "testing" / "alarm-audio-testing.md").read_text(encoding="utf-8")
+        architecture = (DEVELOPMENT / "architecture" / "application-state-architecture.md").read_text(encoding="utf-8")
+        testing = (DEVELOPMENT / "testing" / "testing.md").read_text(encoding="utf-8")
 
         self.assertNotIn("install-airplay-metadata-listener.sh", airplay)
         self.assertNotIn("install-shared-audio.sh", alarm)
@@ -78,8 +116,8 @@ class DocsCatalogTests(unittest.TestCase):
         self.assertNotIn("when Node.js is available", testing)
 
     def test_current_audio_docs_pin_alarm_bypass_and_fixed_reserve(self):
-        alarm = (DOCS / "alarm-audio-testing.md").read_text(encoding="utf-8")
-        architecture = (DOCS / "application-state-architecture.md").read_text(encoding="utf-8")
+        alarm = (DEVELOPMENT / "testing" / "alarm-audio-testing.md").read_text(encoding="utf-8")
+        architecture = (DEVELOPMENT / "architecture" / "application-state-architecture.md").read_text(encoding="utf-8")
         for text in (alarm, architecture):
             self.assertIn("fixed -6.5 dB", text)
             self.assertIn("bypass", text.lower())
