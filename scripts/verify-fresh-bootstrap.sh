@@ -10,7 +10,7 @@ source "$REPO_ROOT/installer/lib/platform_hardware.sh"
 source "$REPO_ROOT/installer/lib/plexamp_runtime.sh"
 
 ROOT=/
-PROJECT_USER="${SUDO_USER:-${USER:-andy}}"
+PROJECT_USER="${SUDO_USER:-${USER:-$(id -un)}}"
 PROJECT_DIR=
 FAILURES=0
 WARNINGS=0

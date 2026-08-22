@@ -15,7 +15,7 @@ source "$REPO_ROOT/installer/lib/plexamp_runtime.sh"
 MODE=prepare-only
 CONFIRM=
 ROOT="${ACP_ROOT:-/}"
-PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
+PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
 NODE_ARCHIVE_INPUT=
 PLEXAMP_ARCHIVE_INPUT=
 

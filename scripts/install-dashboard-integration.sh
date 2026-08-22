@@ -13,7 +13,7 @@ source "$REPO_ROOT/installer/lib/transaction.sh"
 MODE=prepare-only
 CONFIRM=
 ROOT="${ACP_ROOT:-/}"
-PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
+PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
 PROJECT_DIR="${ACP_PROJECT_DIR:-}"
 DASHBOARD_URL="${DASHBOARD_URL:-http://localhost:8088}"
 SERVICE_NAME=a-clockwork-plex.service

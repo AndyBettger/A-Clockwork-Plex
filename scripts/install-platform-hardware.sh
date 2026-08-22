@@ -14,7 +14,7 @@ source "$REPO_ROOT/installer/lib/platform_hardware.sh"
 
 MODE=prepare-only
 CONFIRM=
-PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
+PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
 USERMOD_BIN=/usr/sbin/usermod
 
 usage() {

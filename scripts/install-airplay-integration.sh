@@ -13,7 +13,7 @@ source "$REPO_ROOT/installer/lib/transaction.sh"
 MODE=prepare-only
 CONFIRM=
 ROOT="${ACP_ROOT:-/}"
-PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
+PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
 DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
 
 SHAIRPORT_CONFIG=/etc/shairport-sync.conf

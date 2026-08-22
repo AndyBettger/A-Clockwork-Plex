@@ -142,7 +142,7 @@ acp_verify_component_sources() {
 }
 
 acp_component_plan() {
-    local project_user="${1:-${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}}"
+    local project_user="${1:-${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-$(id -un)}}}}"
     local id kind source check apply
     echo 'Specialist component ownership:'
     for id in "${ACP_COMPONENT_IDS[@]}"; do

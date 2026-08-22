@@ -13,7 +13,7 @@ source "$REPO_ROOT/installer/lib/transaction.sh"
 MODE=prepare-only
 CONFIRM=
 ROOT="${ACP_ROOT:-/}"
-PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-andy}}}"
+PROJECT_USER="${ACP_PROJECT_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
 
 ALARM_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-alarm-audio-helper.sh"
 ALARM_TARGET=/usr/local/bin/a-clockwork-plex-alarm-audio
