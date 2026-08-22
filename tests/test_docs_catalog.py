@@ -7,14 +7,30 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 CATALOG = DOCS / "README.md"
+ASSETS = DOCS / "assets"
+SCREENSHOTS = ASSETS / "screenshots"
 DEVELOPMENT = DOCS / "development"
 ROADMAP_DIR = DOCS / "roadmap"
 ARCHIVE = DOCS / "archive"
 SNAPSHOT = ARCHIVE / "pre-release-engineering-snapshot-2026-08-22"
 
 TOP_LEVEL_FILES = {"README.md", "INSTALL.md", "appliance-installer.md"}
-TOP_LEVEL_DIRS = {"archive", "development", "roadmap"}
+TOP_LEVEL_DIRS = {"archive", "assets", "development", "roadmap"}
 
+SCREENSHOT_FILES = {
+    "airplay-now-playing.png",
+    "airplay-ready.png",
+    "alarm-ringing.png",
+    "clock-day.png",
+    "clock-night.png",
+    "plexamp-now-playing.png",
+    "settings-alarms.png",
+    "settings-audio.png",
+    "settings-weather.png",
+    "weather-1.png",
+    "weather-2.png",
+    "weather-3.png",
+}
 DEVELOPMENT_ARCHITECTURE = {
     "application-state-architecture.md",
     "airplay-metadata.md",
@@ -51,6 +67,15 @@ class DocsCatalogTests(unittest.TestCase):
         dirs = {path.name for path in DOCS.iterdir() if path.is_dir()}
         self.assertEqual(TOP_LEVEL_FILES, files)
         self.assertEqual(TOP_LEVEL_DIRS, dirs)
+
+    def test_documentation_assets_are_curated_and_out_of_root(self):
+        self.assertTrue((ASSETS / "README.md").is_file())
+        self.assertTrue(SCREENSHOTS.is_dir())
+        self.assertEqual(
+            SCREENSHOT_FILES,
+            {path.name for path in SCREENSHOTS.iterdir() if path.is_file()},
+        )
+        self.assertFalse(any(path.suffix.lower() == ".png" for path in DOCS.iterdir() if path.is_file()))
 
     def test_development_tree_is_deliberately_classified(self):
         self.assertTrue((DEVELOPMENT / "README.md").is_file())
@@ -96,6 +121,7 @@ class DocsCatalogTests(unittest.TestCase):
     def test_catalog_points_normal_users_away_from_engineering_clutter(self):
         text = CATALOG.read_text(encoding="utf-8")
         self.assertIn("Start with **[`INSTALL.md`](INSTALL.md)**", text)
+        self.assertIn("assets/", text)
         self.assertIn("development/", text)
         self.assertIn("roadmap/ROADMAP.md", text)
         self.assertIn("archive/pre-release-engineering-snapshot-2026-08-22/", text)
