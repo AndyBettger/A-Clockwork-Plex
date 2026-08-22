@@ -4,7 +4,7 @@ A Clockwork Plex turns a Raspberry Pi into a bedside touchscreen music appliance
 
 The project is designed as one appliance rather than a collection of manually installed components: the installer owns Plexamp, Node, NFC, AirPlay, dashboard/kiosk integration, alarm-safe audio routing and the EQ path.
 
-> **Current release candidate:** development is finishing on `feature/alarm-engine` in draft PR #2. The replacement-SD physical release gate is complete; the PR remains Draft/open/unmerged while deliberate repository/documentation/ref hygiene, final validation and explicit owner approval remain.
+> **Current release candidate:** development is finishing on `feature/alarm-engine` in draft PR #2. The replacement-SD physical release gate, repository/ref hygiene, dependency audit and final post-cleanup validation are complete. PR #2 remains Draft/open/unmerged solely pending explicit owner approval.
 
 For the full fresh-install procedure, use **[`docs/INSTALL.md`](docs/INSTALL.md)**. For the map that distinguishes current documentation from historical engineering evidence, see **[`docs/README.md`](docs/README.md)**.
 
@@ -208,6 +208,8 @@ The replacement spare SD completed the physical release-candidate gate through c
 
 Repository hygiene subsequently retired the obsolete Stage-C validation subsystem (#65), pre-production audio laboratory/rehearsal layer (#66), superseded standalone helper installers (#67) and legacy AirPlay source-tree callbacks/installers (#68). Checkpoint #69 classified/documented every retained script and converged the local validation runner; checkpoint #70 classified the documentation tree, preserved historical provenance in place and repaired the current AirPlay/alarm/architecture/testing guides.
 
-The remaining gates in [`docs/eq-audio-installer-roadmap.md`](docs/eq-audio-installer-roadmap.md) are temporary-ref cleanup, the final tracked-file/install-dependency audit, complete post-cleanup validation and explicit owner approval.
+Checkpoint #71 removed the two proven temporary no-op refs and completed the final tracked-file/install-dependency audit. Checkpoint #72 completed final post-cleanup validation on release-hygiene head `da26e00f41117e0c1c5449a629ba451496fd5367`: compile, JavaScript/page wiring and shell syntax all passed, with **915/915 unit tests PASS** in Tests #4103 / run `32546649704`.
 
-PR #2 remains Draft and must not be merged until those gates are complete and explicit owner approval is given.
+All technical, physical-acceptance and release-hygiene gates are complete. The only remaining gate in [`docs/eq-audio-installer-roadmap.md`](docs/eq-audio-installer-roadmap.md) is **explicit owner approval**.
+
+PR #2 remains Draft and must not be marked ready or merged until that explicit approval is given.
