@@ -1,118 +1,56 @@
-# AirPlay metadata setup
+# AirPlay metadata and integration
 
-A Clockwork Plex can show metadata from Shairport Sync on the AirPlay screen. This is a separate layer from the AirPlay start/stop handoff hooks:
+A Clockwork Plex receives AirPlay metadata from Shairport Sync and presents it on the AirPlay dashboard surface. Metadata collection is deliberately separate from playback ownership: **PlaybackCoordinator** owns Plexamp/AirPlay handoff, while the metadata listener only observes and publishes sender information.
+
+## Current ownership
 
 ```text
-AirPlay session hooks
-  → decide whether AirPlay is active
-  → stop/start Plexamp
-  → switch the dashboard screen
+Shairport start/end callbacks
+  → publish lifecycle intent to PlaybackCoordinator
+  → never stop/start Plexamp or Shairport Sync
 
-AirPlay metadata listener
-  → reads Shairport Sync metadata pipe
-  → stores title/artist/album/volume/artwork for /api/status
-  → lets the AirPlay screen update live
+Shairport metadata FIFO
+  → a-clockwork-plex-airplay-metadata.service
+  → airplay-metadata-listener.py
+  → sanitised AirPlay metadata/state for the dashboard
+
+PlaybackCoordinator
+  → decides Plexamp ↔ AirPlay takeover
+  → owns paused-sender hold and transport commands
 ```
 
-## 1. Check Shairport Sync was built with metadata support
+The callback scripts installed on the appliance are rendered from `scripts/a-clockwork-plex-airplay-wrappers.py`. The guarded owner for the callbacks, Shairport configuration, FIFO and metadata-listener service is `scripts/install-airplay-integration.sh`.
 
-```bash
-shairport-sync -V
-```
+The old static callbacks that directly managed `plexamp.service`, the old `display-mode.sh` fallback and the standalone metadata-listener installer are retired and regression-pinned absent.
 
-Look for metadata support in the version string. The pipe listener also needs Shairport Sync's metadata pipe feature. Most Raspberry Pi packages that include metadata support should be fine, but this is the bit to check first if no metadata appears.
+## Normal installation
 
-## 2. Install the A Clockwork Plex metadata listener
+Do not install the metadata listener separately on a normal appliance. AirPlay integration is part of the supported appliance convergence:
 
 ```bash
 cd ~/A-Clockwork-Plex
-git pull
-chmod +x scripts/*.sh
-./scripts/install-airplay-metadata-listener.sh
+bash setup.sh
 ```
 
-The helper creates:
-
-```text
-/tmp/shairport-sync-metadata
-/etc/systemd/system/a-clockwork-plex-airplay-metadata.service
-```
-
-It then starts and enables the listener service.
-
-## 3. Add metadata settings to Shairport Sync
-
-Edit the config:
+For deliberate component-level diagnosis, the guarded integration owner is prepare-only by default:
 
 ```bash
-sudo nano /etc/shairport-sync.conf
+bash scripts/install-airplay-integration.sh --prepare-only
 ```
 
-Add or update this top-level block:
-
-```conf
-metadata =
-{
-    enabled = "yes";
-    include_cover_art = "yes";
-    pipe_name = "/tmp/shairport-sync-metadata";
-    pipe_timeout = 5000;
-};
-```
-
-Then validate and restart:
+A direct component activation is an advanced recovery/development action and requires the explicit guard:
 
 ```bash
-shairport-sync -t
-sudo systemctl restart shairport-sync
+bash scripts/install-airplay-integration.sh \
+  --activate \
+  --confirm INSTALL-AIRPLAY-INTEGRATION
 ```
 
-## 4. Watch the logs
+Prefer the full `setup.sh` path unless there is a specific reason to operate on the AirPlay component alone.
 
-Metadata listener logs:
+## Managed metadata contract
 
-```bash
-journalctl -u a-clockwork-plex-airplay-metadata.service -f
-```
-
-AirPlay handoff logs:
-
-```bash
-journalctl -t shairport-plexamp -f
-```
-
-Dashboard status:
-
-```bash
-curl -s http://localhost:8088/api/status | python -m json.tool
-```
-
-When metadata arrives, look under:
-
-```text
-state.airplay.metadata
-```
-
-## Metadata pipe format
-
-Shairport Sync sends metadata to the pipe in a line-oriented XML-style format, not as raw binary frames. Each item starts with a header line like this:
-
-```text
-73736e63`70626567`0
-636f7265`6d696e6d`11
-```
-
-The first value is the 4-byte metadata type as hex, the second is the 4-byte code as hex, and the third is the decoded payload length. Payloads, including artwork, are base64 encoded after a blank separator line.
-
-The A Clockwork Plex listener decodes that stream directly. If you see lots of old log lines like this, the listener is too old and should be updated:
-
-```text
-Skipping suspicious metadata frame ... length=...
-```
-
-## What should appear
-
-Depending on the sending app, Shairport Sync may provide:
+The integration owner configures Shairport Sync to publish metadata to the managed FIFO used by the listener service. The listener decodes the Shairport line-oriented metadata stream and exposes sanitised values used by the dashboard, including fields such as:
 
 ```text
 title
@@ -123,49 +61,73 @@ source_name
 source_model
 volume
 client_ip
-artwork_url
+artwork
 ```
 
-Not every iPhone app sends all fields. Apple Music usually behaves well; podcast and radio apps can be more coy, because apparently even metadata has commitment issues.
+Availability varies by sending application. Missing fields are normal and do not give the metadata layer permission to infer playback ownership or manufacture transport state.
 
-## Troubleshooting
+## Check Shairport metadata support
 
-### AirPlay switches screens but no title/artist appears
+```bash
+shairport-sync -V
+```
 
-Check the metadata service:
+The installed Shairport Sync build must support metadata. If the AirPlay destination works but no metadata ever arrives, this is one of the first host-level checks.
+
+## Read-only diagnostics
+
+Service state:
 
 ```bash
 systemctl status a-clockwork-plex-airplay-metadata.service --no-pager
-journalctl -u a-clockwork-plex-airplay-metadata.service -n 80 --no-pager
+systemctl status shairport-sync.service --no-pager
 ```
 
-Check the FIFO exists:
+Recent listener logs:
 
 ```bash
-ls -l /tmp/shairport-sync-metadata
+journalctl -u a-clockwork-plex-airplay-metadata.service -n 100 --no-pager
 ```
 
-It should be a pipe, shown with a leading `p`, for example:
+Dashboard state:
 
-```text
-prw-rw-rw- 1 root root ... /tmp/shairport-sync-metadata
+```bash
+curl -s http://localhost:8088/api/status | python -m json.tool
+curl -s http://localhost:8088/api/playback/state | python -m json.tool
 ```
 
-### Shairport fails to start after config edit
+Raw Shairport MPRIS observation can be watched with the retained diagnostic:
 
-Run:
+```bash
+bash scripts/dump-airplay-mpris-metadata.sh
+```
+
+That command is read-only and is useful for distinguishing “the sender did not publish it” from “the dashboard failed to present it.”
+
+For the complete playback/handoff decision snapshot:
+
+```bash
+bash scripts/inspect-playback-coordinator.sh
+```
+
+## Metadata FIFO troubleshooting
+
+The metadata path must be a FIFO, not an ordinary file. The appliance verifier and guarded installer own the exact managed path and mode. If integration verification reports the FIFO missing or wrong, do not recreate it ad hoc while services are running; use the guarded integration owner so exact rollback and candidate validation remain available.
+
+## Shairport configuration troubleshooting
+
+If Shairport configuration is suspected, validate the installed configuration before restarting anything:
 
 ```bash
 shairport-sync -t
 ```
 
-The config block must be top-level, not nested inside `general`, `sessioncontrol` or `alsa`.
+The guarded integration owner renders the required metadata and session-control blocks without replacing the configured receiver name. A failed candidate validation is read-only and must not replace the live configuration.
 
-### Artwork does not appear
+## Artwork
 
-Some apps send text metadata but no artwork. The dashboard still shows title/artist/album when available. Generated artwork is stored at:
+Some sending applications provide artwork and some do not. The dashboard must continue to present available text metadata when artwork is absent. Generated runtime artwork belongs to ignored runtime state rather than tracked repository source.
 
-```text
-app/static/generated/airplay-cover.jpg
-app/static/generated/airplay-cover.png
-```
+## Handoff troubleshooting rule
+
+Metadata is evidence, not authority. If a sender appears stuck, inspect PlaybackCoordinator and Shairport observations rather than editing callback scripts or restarting audio services from a browser hook. The accepted handoff implementation intentionally keeps Plexamp, Shairport Sync and CamillaDSP service ownership outside the metadata listener.

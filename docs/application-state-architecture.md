@@ -2,22 +2,20 @@
 
 ## Purpose
 
-A Clockwork Plex uses explicit authorities instead of asking browser scripts,
-shell hooks and individual pages to negotiate ownership among themselves.
+A Clockwork Plex assigns each state transition and command to one explicit owner instead of asking browser scripts, shell callbacks and individual pages to negotiate among themselves.
 
 The central rule is:
 
-> Observe broadly, but assign each state transition and command to one owner.
+> Observe broadly, but assign each transition and command to one authority.
 
-The current composition is built in `app/runner.py`:
+The current composition is assembled in `app/runner.py` around these production authorities:
 
 ```text
-Dashboard core and specialist runtimes
+Runtime specialists
   ├── ActiveAlarmScheduler
   ├── ScheduledAlarmAudioManager
-  ├── shared audio mixer
-  ├── Open-Meteo forecast cache
-  └── source observers
+  ├── Weather observation/forecast/rainfall services
+  └── audio EQ/mixer/route helpers
 
 ApplicationStateHub
   ├── RetainedBidirectionalHandoffCoordinator
@@ -34,48 +32,21 @@ Configuration authorities
 Presentation authorities
   ├── ACPTime
   └── ACPDisplayDimming
-
-Browser clients
-  ├── autosave configuration through one revisioned transaction
-  ├── request explicit runtime actions
-  └── render server state
 ```
 
-The known-good direct shared ALSA mixer remains the production audio graph. The
-old bare master-EQ installer remains blocked. Production EQ is the next separate
-guarded rollout around that validated graph.
-
-## Composition order
-
-Order matters because later authorities consume promoted specialist truth:
-
-```python
-app = dashboard.app
-promote_server_time_formatting(dashboard)
-scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
-register_scheduled_alarm_status_api(dashboard)
-application_state_hub = build_default_application_state_hub(dashboard)
-playback_coordinator = promote_playback_authority(application_state_hub, dashboard)
-screen_projection = register_activity_screen_projection(...)
-register_application_state_api(...)
-register_playback_command_api(...)
-master_equalizer = register_audio_eq(app)
-weather_forecast = WeatherForecastService(...)
-shairport_name = ShairportNameManager()
-unified_settings = UnifiedSettingsService(...)
-register_unified_settings_api(app, unified_settings)
-```
-
-Scheduled alarm audio and its public status projection are registered before the
-state hub. The final playback authority therefore observes the promoted alarm
-policy rather than the timing scheduler's internal no-player flag.
-
-The unified Settings service is registered after specialist owners so it can
-validate and commit configuration without duplicating their runtime logic.
+The accepted release supports both managed Direct and CamillaDSP EQ audio profiles. The EQ profile is physically accepted and uses the canonical `a-clockwork-plex-camilladsp.service`; the obsolete bare master-EQ/laboratory paths are retired.
 
 ## ApplicationStateHub
 
-`ApplicationStateHub` provides a versioned, failure-isolated snapshot.
+`ApplicationStateHub` provides versioned, failure-isolated snapshots for browser clients and diagnostics. Important properties include:
+
+- unchanged domain state keeps the same revision;
+- generated timestamps do not manufacture state revisions;
+- a failing specialist provider is isolated rather than suppressing other domains;
+- compact shared state does not replace specialist diagnostics;
+- browser clients render authority state rather than inventing transport/audio truth.
+
+Primary state/command surfaces include:
 
 ```text
 GET  /api/state
@@ -83,35 +54,26 @@ GET  /api/playback/state
 GET  /api/playback/events
 POST /api/playback/events
 POST /api/playback/command
+GET  /api/audio/state
+GET  /api/screen/state
 ```
-
-Important properties:
-
-- repeated reads of unchanged domain state retain the same revision;
-- `generated_at` changes on each response without incrementing the revision;
-- one failing provider is reported under `components` and cannot suppress other
-  domains;
-- full specialist histories remain on specialist endpoints;
-- the playback snapshot contains compact evidence, policy and command history.
 
 ## Final playback authority
 
-The production playback service is a
-`RetainedBidirectionalHandoffCoordinator`, promoted exactly once by
-`playback_authority.py`.
+The production playback authority is `RetainedBidirectionalHandoffCoordinator`, promoted exactly once through the playback-authority layer.
 
 It owns:
 
 - explicit AirPlay transport commands;
-- previous/next navigation when supported;
-- the persisted AirPlay pause hold;
-- AirPlay-to-Plexamp and Plexamp-to-AirPlay takeover;
-- retained ceded AirPlay sessions;
-- rapid iPhone resume detection from Shairport metadata;
+- previous/next navigation when the sender supports it;
+- persisted paused-AirPlay hold state;
+- AirPlay → Plexamp and Plexamp → AirPlay takeover;
+- retained/ceded AirPlay sessions;
+- rapid sender-resume evidence;
 - alarm priority over both music sources;
 - command diagnostics and independent-observation confirmation.
 
-It never restarts Plexamp or Shairport Sync and does not edit the ALSA graph.
+It does **not** stop/start Plexamp or Shairport Sync as a handoff mechanism and does not edit the ALSA/CamillaDSP graph.
 
 ### Source priority
 
@@ -122,33 +84,28 @@ real sounding alarm
   > idle policy
 ```
 
-Screen ownership is separate from audio ownership. A manual Settings or Clock
-lease can remain visible while background music continues, but a ringing alarm
-always interrupts the lease.
+Screen ownership remains separate from audio ownership. A manual Settings/Clock/Weather lease can remain visible while background music continues, but a ringing alarm always interrupts the lease.
 
-## AirPlay lifecycle and bidirectional handoff
+## AirPlay lifecycle and handoff
 
-A paused but connected AirPlay sender remains retained for the configured hold
-period. The coordinator persists the hold start, deadline, phase, reason and last
-error, so a dashboard restart reloads the original deadline.
+Shairport start/end callbacks publish lifecycle intent to PlaybackCoordinator. They are rendered from the current wrapper renderer and never directly manage Plexamp services.
 
-When AirPlay starts while Plexamp is playing, Plexamp receives one Pause command.
-When genuine Plexamp playback starts while AirPlay owns audio, AirPlay receives
-one Pause command and the sender remains retained until its existing deadline.
-Fresh iPhone resume evidence from the Shairport metadata FIFO becomes newer user
-intent and pauses Plexamp again. Browsing either surface does not manufacture a
-handoff.
+A paused but connected AirPlay sender may remain retained for the configured hold period. The coordinator persists its hold phase/deadline so a dashboard restart does not silently restart the timer.
+
+When AirPlay starts while Plexamp is playing, Plexamp receives one Pause command from the playback authority. When genuine Plexamp playback starts while AirPlay owns audio, the AirPlay sender receives one Pause command and may remain retained until its existing deadline. Fresh sender-resume evidence can become newer user intent and reclaim AirPlay. Merely browsing a surface does not manufacture a handoff.
+
+Metadata observation is separate from command ownership; see `docs/airplay-metadata.md`.
 
 ## Alarm authority
 
-Alarm responsibility is deliberately divided:
+Alarm responsibility is intentionally divided:
 
 ```text
 ActiveAlarmScheduler
   clock, recurrence, DST, recovery, occurrence queue, Snooze, Dismiss
 
 ScheduledAlarmAudioManager
-  local tone rendering through acp_alarm
+  tone rendering through acp_alarm and scheduled-audio safety policy
 
 PlaybackCoordinator
   pause Plexamp/AirPlay and hold alarm audio priority
@@ -157,204 +114,147 @@ ScreenProjectionController
   immediate Alarm surface
 ```
 
-A real sounding scheduled alarm is recognised only when an active non-test
-occurrence is ringing and `scheduled_playback_enabled` is true. Releasing alarm
-priority never automatically resumes music; the resume policy is explicitly
-`manual`.
+A real scheduled alarm is sounding only when an active non-test occurrence is ringing and scheduled playback is enabled. Public alarm payloads project the promoted audio manager and identify the playback owner as `scheduled-alarm-audio-manager`.
 
-The scheduler intentionally contains no audio player. Its internal
-`playback_enabled` field remains false as an ownership boundary. Public alarm
-payloads are projected from the promoted audio manager and identify:
+Releasing alarm priority never automatically resumes music; the resume policy remains **manual**.
+
+## Audio ownership
+
+### MixerController
+
+`MixerController` owns live source/master/alarm volume state and compact audio APIs.
+
+- Plexamp live volume uses the Plexamp player adapter.
+- AirPlay live volume uses the sender adapter/confirmation model.
+- Persistent trims use the restricted mixer helper.
+- Latest-value-wins handling prevents stale confirmations from replacing newer requests.
+- Browser faders render controller truth rather than assuming a write has succeeded.
+
+### Managed EQ profile
+
+The accepted EQ music lane is:
 
 ```text
-playback_owner:  scheduled-alarm-audio-manager
-playback_policy: two-key-safety-gate
+Plexamp/AirPlay
+  → source trims
+  → Music Master
+  → fixed -6.5 dB music reserve
+  → Bass/Mid/Treble tone stage
+  → music/alarm combine
+  → final limiter
+  → DAC
 ```
 
-Logs and diagnostics therefore describe audio as **delegated**, not disabled.
+The alarm lane is:
 
-## Mixer authority
+```text
+per-alarm start/target/fade
+  → Maximum Alarm Volume
+  → join after Music Master/reserve/EQ
+  → final limiter
+  → DAC
+```
 
-`MixerController` owns compact live and trim APIs.
+Consequences:
 
-- Plexamp live volume uses Plexamp's player endpoint.
-- AirPlay live volume uses the sender adapter and confirmation model.
-- Master and Alarm live controls write ALSA without persistence.
-- Persistent trims use the restricted mixer helper.
-- Latest-value-wins queues prevent stale sender responses overwriting newer
-  requests.
+- scheduled alarms bypass Music Master and music EQ;
+- the fixed `-6.5 dB` reserve remains present when the EQ tone stage is bypassed;
+- EQ bypass changes the tone stage, not alarm level or the fixed music reserve;
+- the final limiter remains after music/alarm combination.
 
-Browser faders display controller state; they do not invent confirmed volume.
+`MasterEqualizer` owns persisted Bass/Mid/Treble/bypass state through the restricted CamillaDSP-backed helper. The canonical service is `a-clockwork-plex-camilladsp.service`.
+
+### Direct profile
+
+The supported Direct profile preserves the same public source PCM contract and keeps alarm outside Music Master without CamillaDSP. It is also the validated failback/rollback destination where the audio lifecycle requires it.
+
+Route installation/repair/removal belongs to the guarded audio lifecycle under `scripts/audio/`, not Settings or browser code.
 
 ## Screen projection authority
 
-`ScreenProjectionController` owns the recommended visible surface. It considers
-current playback source/generation, manual navigation leases, configured startup
-and idle destinations, Linux touchscreen activity, alarm priority and the actual
-visible browser surface.
+`ScreenProjectionController` owns the recommended visible surface using playback state, playback generation, manual navigation leases, configured startup/idle policy, Linux input activity and alarm priority.
 
 Important rules:
 
 - Alarm interrupts every manual lease immediately.
-- A new playback generation may interrupt a background/manual page.
-- Ordinary track progression within the same Plexamp queue does not.
-- Manual pages remain visible until their inactivity lease expires unless a
-  higher-priority event occurs.
-- The browser acknowledges manual navigation before performing a transition so
-  stale projection responses cannot undo the user's action.
+- A genuine new playback generation may interrupt a background/manual page.
+- Ordinary track progression within one Plexamp queue does not.
+- Manual pages remain visible until their inactivity lease expires unless a higher-priority event occurs.
+- Browser navigation is acknowledged before transition so stale projection responses cannot undo the user's action.
 
-The guarded kiosk launcher waits for `/api/state`, uses an isolated Chromium
-profile and opens the dashboard rather than Plexamp directly. A real reboot has
-physically validated startup into the Clock.
+The kiosk launcher waits for the dashboard, uses its dedicated Chromium profile and opens the dashboard shell rather than making the browser a playback authority.
 
 ## Unified Settings authority
 
-`UnifiedSettingsService` owns appliance configuration through:
+`UnifiedSettingsService` owns revisioned appliance configuration through:
 
 ```text
 GET  /api/settings
 POST /api/settings
 ```
 
-A snapshot includes one revision, all editable domains, capabilities and compact
-Shairport, EQ and forecast health.
+The browser uses one autosave transaction owner. The backend validates specialist domains, rejects stale revisions, performs guarded specialist changes, writes `config.json` once, and refreshes affected runtime owners.
 
-An autosave transaction:
-
-1. rejects a stale revision;
-2. validates every submitted domain;
-3. uses specialist normalisers for alarms, alarm audio, forecasts and display
-   dimming;
-4. requires confirmation before restarting Shairport Sync;
-5. applies receiver name and EQ through their owners;
-6. writes `config.json` once;
-7. rolls back applied system values if the write fails;
-8. wakes or refreshes scheduler, forecast and screen owners;
-9. returns a fully normalised snapshot.
-
-The browser has one autosave owner. Dirty indicators identify the affected
-category, subpage and field. The obsolete sticky Save bar was hidden after
-physical testing showed it obscured controls and the touch keyboard.
-
-Runtime actions remain separate and immediate: mixer movement, alarm tests and
-stop, forecast refresh-now, scheduler recalculation and diagnostic refreshes.
+Runtime actions remain separate from configuration: mixer movement, alarm tests/stop, forecast refresh, scheduler recalculation and diagnostics are immediate actions rather than fake settings.
 
 ## Display presentation authorities
 
 ### ACPTime
 
-`ACPTime` is the dashboard-wide 12/24-hour client authority. It formats the Clock,
-AirPlay mini clock, Alarm current-time display, Weather/forecast times, Advanced
-diagnostics and marked status timestamps. The server's existing timestamp hook
-is promoted to the same setting so server-rendered values agree.
-
-Alarm configuration remains stored as 24-hour `HH:MM`; this is data entry rather
-than a presentation clock.
+`ACPTime` owns dashboard-wide 12/24-hour presentation for Clock, AirPlay, Alarm, Weather/forecast and marked diagnostic timestamps. Alarm schedule values remain stored as unambiguous 24-hour `HH:MM` configuration data.
 
 ### ACPDisplayDimming
 
-`ACPDisplayDimming` owns scheduled visual dimming. Its model includes enablement,
-start/end times, visual brightness, touch-to-wake duration, optional dark Clock
-mode and burn-in shifting.
-
-It is deliberately browser-only:
-
-- no root privileges;
-- no `xrandr` or backlight driver calls;
-- no system service changes;
-- no audio-graph changes.
-
-The first interaction while dimmed is consumed to wake the display without
-activating the underlying control. The Alarm page always bypasses dimming. The
-overlay clears automatically outside the schedule.
+`ACPDisplayDimming` owns scheduled visual night treatment, preview and touch-wake behavior. It is browser presentation logic, not a root/backlight/audio authority. The Alarm surface always escapes dimming.
 
 ## Weather authority
 
-Ecowitt remains authoritative for live observations. `WeatherForecastService`
-owns Open-Meteo access, normalisation, caching, stale fallback and provider
-health.
+Open-Meteo supplies cached forecast data. Live observations may be owned by **Ecowitt Push** or **Weather Underground PWS**, according to the selected provider.
 
-Open-Meteo supports up to 16 configured days. The Weather foundation renderer
-retains the first established seven cards, while a completion renderer appends
-all remaining daily objects returned by the local cache endpoint. The browser
-never calls Open-Meteo directly.
+When Weather Underground is the selected outdoor source, a fresh Ecowitt push may supplement indoor temperature/humidity only. It may not overwrite WU outdoor state, and stale supplementary indoor values expire.
+
+Weather Underground credentials remain outside public `config.json` in the managed root-owned environment file. Retaining a WU credential while Ecowitt is selected is valid because WU can continue to supply historical-rainfall data.
+
+Rainfall-history refresh is serialized so background refresh, Settings actions and connection tests cannot concurrently corrupt the cache transaction.
 
 ## Managed Shairport receiver name
 
-`ShairportNameManager` is an unprivileged client for the fixed root-owned helper:
-
-```text
-/usr/local/bin/a-clockwork-plex-shairport-name
-```
-
-The helper may only read the fixed configuration, change `general.name`, validate
-a candidate on an isolated identity/port, replace atomically, restart and verify
-Shairport Sync, and restore the original configuration on failure.
-
-The Flask process receives no general root privileges. Rename, iPhone discovery,
-connection, screen takeover and audio have all been physically validated.
-
-## Audio diagnostics boundary
-
-Everyday Audio contains real controls or configuration. Advanced Audio is
-read-only diagnostics plus deliberate finite tests.
-
-The stale shared-mixer checkbox, Physical DAC text field and Alarm PCM form field
-are removed from Advanced. The configured route and mixer health remain visible,
-but changing the production output route requires a guarded maintenance
-procedure with exact-state backup and rollback.
-
-Advanced diagnostics poll only while visible and at a slower passive cadence to
-reduce journal noise.
-
-## Equaliser authority
-
-The unified Settings transaction uses `MasterEqualizer` for enabled/bypass, Bass,
-Mid, Treble, persistent values and health. The Settings controls remain visible
-while the backend is unavailable, but changed EQ values cannot be committed until
-the production authority reports ready.
-
-The old bare production installer remains blocked. The guarded CamillaDSP rollout
-must preserve the shared mixer, capture exact state and provide automatic
-rollback.
+`ShairportNameManager` is an unprivileged client of the fixed root-owned Shairport-name helper. The helper is restricted to the managed configuration/validation/restart boundary and rolls back a failed rename. An active AirPlay session requires explicit confirmation before a receiver-name change.
 
 ## Browser boundary
 
-Browser clients may autosave a normalised configuration model, request explicit
-actions, report genuine input activity, acknowledge the displayed surface and
-render server state.
+Browser clients may:
 
-They must not restart services directly, edit system configuration directly,
-infer transport truth from an icon, arbitrate Plexamp versus AirPlay, create an
-AirPlay hold timer or decide that alarm audio may play.
+- autosave normalized configuration through the unified transaction;
+- request explicit runtime actions;
+- report genuine interaction activity;
+- acknowledge visible surfaces;
+- render server state.
 
-The active Settings page no longer loads the old horizontal-tab,
-`settings-tabs.js`, old autosave, alarm-workspace or scheduled-audio injector
-clients.
+They must not:
 
-## Runtime persistence
+- restart audio services directly;
+- edit system configuration directly;
+- infer transport truth from an icon;
+- arbitrate Plexamp versus AirPlay;
+- own the AirPlay hold timer;
+- decide whether scheduled alarm audio may sound;
+- rewrite the audio route.
 
-Small atomic JSON stores preserve alarm runtime, alarm-audio diagnostics,
-playback hold/ceded state, cached forecast and dashboard/application state. Writes
-use a temporary file followed by replacement.
+## Current acceptance state
 
-## Current physical validation
+The replacement-SD clean-room release candidate has physically validated:
 
-The bedroom Raspberry Pi has validated:
-
-- kiosk reboot into the dashboard Clock;
+- dashboard/kiosk reboot and commissioned startup;
 - Plexamp and NFC playback;
 - bidirectional Plexamp/AirPlay handoff;
-- managed AirPlay receiver naming and discovery;
-- real scheduled alarm audio, Snooze and Dismiss;
-- no automatic music resume after an alarm;
-- shared ALSA mixer and output trims;
-- Ecowitt observations and cached Open-Meteo forecast presentation;
-- unified iPad Settings autosave and touch keyboard;
-- read-only audio route presentation.
+- managed AirPlay receiver naming and metadata presentation;
+- EQ and bypass behavior through the accepted CamillaDSP service;
+- real scheduled alarm fade, takeover, Snooze and Dismiss while bypassing Music Master;
+- Ecowitt/WU observation behavior and WU rainfall-history workflows;
+- unified touchscreen Settings and accepted theme/presentation closure;
+- repeat public `setup.sh`, formal verifiers and final clean tracked checkout.
 
-The current completion pass awaits focused physical validation of display
-dimming, global 12/24-hour presentation, 16-day rendering, cleaned Advanced Audio
-and updated About. Production EQ follows as a separate guarded phase.
+No additional physical release gate is outstanding. Remaining Phase 7 work is repository/document/ref hygiene, the final dependency/tracked-file audit, final complete CI validation and explicit owner approval.
 
-PR #2 remains draft and must not be merged without explicit approval.
+PR #2 remains draft, open and unmerged until that explicit approval.
