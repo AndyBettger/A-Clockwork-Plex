@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNBOOK = ROOT / "docs" / "fresh-appliance-acceptance-runbook.md"
+RUNBOOK = ROOT / "docs" / "development" / "testing" / "fresh-appliance-acceptance-runbook.md"
 
 
 def fenced_code(text: str) -> str:
