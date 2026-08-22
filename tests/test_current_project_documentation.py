@@ -23,7 +23,7 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         text = README.read_text(encoding="utf-8")
         self.assertIn("real clock-triggered playback", text)
         self.assertIn("automatic takeover from Plexamp/AirPlay while the alarm owns priority", text)
-        self.assertIn("scheduled alarms **bypass Music Master and music EQ**", text)
+        self.assertIn("Scheduled alarms **bypass Music Master and music EQ**", text)
         self.assertNotIn("Ordinary scheduled alarm audio is still locked", text)
         self.assertNotIn("Ordinary scheduled alarm playback remains locked", text)
 
