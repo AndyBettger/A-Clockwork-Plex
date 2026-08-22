@@ -29,7 +29,9 @@ class FinalClockUiPolishTests(unittest.TestCase):
     def test_selected_version_three_segment_geometry_is_the_shared_runtime_source(self) -> None:
         source = (ROOT / "app/static/js/segment-display.js").read_text(encoding="utf-8")
         template = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
-        editable = (ROOT / "docs/airplay-segment-cell.svg").read_text(encoding="utf-8")
+        editable = (
+            ROOT / "docs/development/architecture/airplay-segment-cell.svg"
+        ).read_text(encoding="utf-8")
 
         self.assertIn(
             "m 17.001147,1.9000002 -1.240955,-1.40000004 -11.5231512,-4e-8",
