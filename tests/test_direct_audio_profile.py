@@ -39,19 +39,13 @@ class DirectAudioProfileTests(unittest.TestCase):
         self.assertIn('slave.pcm "acp_dmix"', alarm.group(1))
         self.assertNotIn('slave.pcm "acp_master"', alarm.group(1))
 
-    def test_legacy_shared_audio_is_not_the_final_direct_profile(self):
-        legacy = Path("scripts/install-shared-audio.sh").read_text(encoding="utf-8")
-        match = re.search(
-            r"pcm\.acp_alarm_volume \{(.*?)\n\}\n\npcm\.acp_alarm",
-            legacy,
-            re.S,
-        )
-
-        self.assertIsNotNone(match)
-        self.assertIn('slave.pcm "acp_master"', match.group(1))
+    def test_legacy_shared_audio_installer_remains_retired(self):
+        self.assertFalse(Path("scripts/install-shared-audio.sh").exists())
         direct_library = Path("installer/lib/direct_audio.sh").read_text(encoding="utf-8")
         self.assertIn(DIRECT_ROUTE_SHA256, direct_library)
         self.assertIn(LEGACY_DIRECT_SHA256, direct_library)
+        self.assertIn("scripts/install-shared-audio.sh is intentionally absent", direct_library)
+        self.assertIn("historical rollback/evidence identity only", direct_library)
         self.assertIn("not the final Direct-audio profile", direct_library)
 
     def test_direct_component_library_is_read_only(self):
@@ -76,7 +70,7 @@ class DirectAudioProfileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(DIRECT_ROUTE_SHA256, result.stdout)
         self.assertIn("bypasses Music Master", result.stdout)
-        self.assertIn("install-shared-audio.sh is not an appliance-installer authority", result.stdout)
+        self.assertIn("scripts/install-shared-audio.sh is intentionally absent", result.stdout)
         self.assertIn("No production file", result.stdout)
 
     def test_top_level_eq_plan_uses_explicit_alarm_safe_first_install_baseline(self):

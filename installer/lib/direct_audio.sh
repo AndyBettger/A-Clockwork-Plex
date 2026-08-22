@@ -54,9 +54,11 @@ Direct audio component boundary:
   common integration:  mixer helper, Plexamp default PCM, Shairport acp_airplay output
   guarded apply owner: scripts/audio/install-direct.sh
 
-The older scripts/install-shared-audio.sh is not an appliance-installer authority.
-Its historical route SHA $ACP_LEGACY_EQ_INSTALL_BASELINE_SHA256 puts acp_alarm
-under Music Master and is therefore not the final Direct-audio profile.
+Retired legacy shared-audio installer:
+  scripts/install-shared-audio.sh is intentionally absent.
+  Historical route SHA $ACP_LEGACY_EQ_INSTALL_BASELINE_SHA256 put acp_alarm
+  under Music Master and remains historical rollback/evidence identity only;
+  it is not the final Direct-audio profile.
 
 Fresh-EQ integration:
   scripts/audio/install-eq.sh keeps phase6-direct as its standalone default but
