@@ -90,8 +90,9 @@ class EqAudioRuntimeSafetyTests(unittest.TestCase):
 
     def test_camilladsp_service_uses_unprivileged_audio_identity(self) -> None:
         unit = CAMILLA_UNIT.read_text(encoding='utf-8')
-        self.assertIn('User=andy', unit)
+        self.assertIn('User=ACP_PROJECT_USER', unit)
         self.assertIn('Group=audio', unit)
+        self.assertNotIn('User=andy', unit)
         self.assertNotIn('User=root', unit)
 
 
