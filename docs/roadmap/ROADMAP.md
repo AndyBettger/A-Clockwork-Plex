@@ -75,11 +75,13 @@ The exact physically tested runtime/source head remains `215bcedb43369844b5968ae
 - #71 completed temporary-ref and tracked-file/install-dependency cleanup.
 - #72 completed the post-cleanup validation suite: Tests #4103, **915/915 PASS**; closing synchronization Tests #4105 also **915/915 PASS**.
 
-### Final polish after documentation review — IN PROGRESS
+### Final polish after documentation review — COMPLETE through checkpoint #75
 
-- **#73 documentation usability:** reduce `docs/` root to normal-user material plus clearly separated `development/`, `roadmap/` and `archive/` areas; rename the live project roadmap away from its obsolete EQ-installer-era title; preserve roadmap/history evidence rather than deleting it.
-- **#74 installer identity portability:** remove live `/home/andy`/default-to-`andy` assumptions from supported installer/runtime tooling while preserving genuine historical evidence paths in the archive; add regression coverage so another appliance user does not unexpectedly become Andy by shell expansion. 😄
-- Re-run the complete validation suite after #73/#74 and refresh PR #2 metadata while keeping it Draft/open/unmerged.
+- **#73 documentation usability — COMPLETE:** `docs/` now contains only the normal-user files `README.md`, `INSTALL.md` and `appliance-installer.md` plus the deliberately separated `development/`, `roadmap/` and `archive/` trees. `docs/README.md` points normal owners straight to installation, the live roadmap is now `docs/roadmap/ROADMAP.md`, and `tests/test_docs_catalog.py` prevents development-paper creep back into the root.
+- **#74 installer identity portability — COMPLETE:** supported installer/runtime sources no longer contain live `/home/andy`, `${USER:-andy}`, `User=andy` or `Group=andy` assumptions. The remaining CamillaDSP service exception caught by the first portability run was converted to the generic `User=ACP_PROJECT_USER` source template and is rendered by the EQ installer to the selected project user while retaining `Group=audio`. Historical evidence is intentionally untouched.
+- **#75 final post-polish validation — COMPLETE:** implementation head `0698ebb6ac786812740312f96cf8b09cb221e41d`; Tests #4127 / run `32554699819`: compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **922/922 unit tests PASS** (`Ran 922 tests in 44.797s`, `OK`). The only workflow notice was GitHub Actions' hosted-runner Node-runtime deprecation warning for current action versions; it is not an appliance/runtime/test failure.
+
+The roadmap/PR status synchronization after #75 is documentation/metadata only and does not alter the physically accepted appliance runtime.
 
 ## Future product backlog — non-blocking
 
@@ -126,9 +128,9 @@ Keeping completed work off the future list matters. Otherwise the roadmap eventu
 
 1. [x] Physical replacement-SD clean-room acceptance through #64.
 2. [x] Stage-C/audio-lab/helper/AirPlay retirement and repository hygiene through #72.
-3. [ ] Finish #73 documentation layout/roadmap rename and validate references/catalogue tests.
-4. [ ] Finish #74 live `andy` portability sweep and regression coverage.
-5. [ ] Re-run the complete final validation suite on the resulting branch head and pin the exact result here and in PR #2.
+3. [x] Finish #73 documentation layout/roadmap rename and validate references/catalogue tests.
+4. [x] Finish #74 live `andy` portability sweep and regression coverage.
+5. [x] Re-run the complete final validation suite and pin the exact result here and in PR #2.
 6. [ ] Resolve/retire the two remaining historical development branches after their unique work is proved already integrated or obsolete.
 7. [ ] **Explicit owner approval.** Only then may PR #2 leave Draft or merge.
 
