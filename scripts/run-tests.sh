@@ -35,57 +35,52 @@ EOF
   exit 1
 fi
 
-echo "Using Python: $PYTHON"
-"$PYTHON" -m py_compile \
-  app/main.py \
-  app/runner.py \
-  app/dashboard_core.py \
-  app/application_state.py \
-  app/input_activity.py \
-  app/playback_coordinator.py \
-  app/playback_transport.py \
-  app/playback_navigation.py \
-  app/playback_handoff.py \
-  app/playback_handoff_retention.py \
-  app/playback_authority.py \
-  app/screen_projection.py \
-  app/mixer_controller.py \
-  app/shairport_session.py \
-  app/alarm_config.py \
-  app/alarm_scheduler.py \
-  app/alarm_runtime.py \
-  app/alarm_audio.py \
-  app/alarm_audio_core.py \
-  scripts/set-airplay-hold-seconds.py
+if ! command -v node >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+Node.js is required for the JavaScript syntax pass.
+Install Node.js, then rerun:
+  bash scripts/run-tests.sh
+EOF
+  exit 1
+fi
 
+PYCACHE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-pycache.XXXXXX")"
+cleanup() {
+  rm -rf "$PYCACHE_ROOT"
+}
+trap cleanup EXIT
+export PYTHONPYCACHEPREFIX="$PYCACHE_ROOT"
+
+echo "Using Python: $PYTHON"
+echo "Using Node:   $(command -v node)"
+
+echo
+echo "== Python syntax: app/ + scripts/ =="
+while IFS= read -r -d '' file; do
+  "$PYTHON" -m py_compile "$file"
+done < <(find app scripts -type f -name '*.py' -print0 | sort -z)
+
+echo
+echo "== Shell syntax: repository installer + scripts/ =="
+bash -n setup.sh
+bash -n appliance-installer.sh
+while IFS= read -r -d '' file; do
+  bash -n "$file"
+done < <(find scripts -type f -name '*.sh' -print0 | sort -z)
+
+echo
+echo "== JavaScript syntax: app/static/js/ =="
+while IFS= read -r -d '' file; do
+  node --check "$file"
+done < <(find app/static/js -type f -name '*.js' -print0 | sort -z)
+
+echo
+echo "== Unit tests =="
 if [[ -n "${CI:-}" ]]; then
   "$PYTHON" -m unittest discover -s tests
 else
   "$PYTHON" -m unittest discover -s tests -v
 fi
 
-if command -v node >/dev/null 2>&1; then
-  node --check app/static/js/settings-alarms.js
-  node --check app/static/js/settings-alarm-scheduler.js
-  node --check app/static/js/settings-alarm-audio.js
-  node --check app/static/js/settings-keyboard.js
-  node --check app/static/js/settings-tabs.js
-  node --check app/static/js/settings-about.js
-  node --check app/static/js/mode-watch.js
-  node --check app/static/js/screen-projection.js
-  node --check app/static/js/alarm-active.js
-  node --check app/static/js/airplay-playback-state.js
-  node --check app/static/js/airplay-navigation-state.js
-  node --check app/static/js/airplay-volume-v2.js
-  node --check app/static/js/plexamp-persistent.js
-else
-  echo "Node.js not found; skipping JavaScript syntax checks."
-fi
-
-bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
-bash -n scripts/install-alarm-audio-helper.sh
-bash -n scripts/install-dashboard-service.sh
-bash -n scripts/install-airplay-hooks.sh
-bash -n scripts/inspect-application-state.sh
-bash -n scripts/inspect-playback-coordinator.sh
-bash -n scripts/inspect-mixer-controller.sh
+echo
+echo "PASS: Python, shell and JavaScript syntax plus the complete unit suite are green."
