@@ -85,6 +85,14 @@ acp_write_installed_marker
             self.assertIn('testuser ALL=(root)', sudoers)
             self.assertNotIn('@PROJECT_USER@', sudoers)
 
+            camilla_unit = (
+                root / 'etc/systemd/system/a-clockwork-plex-camilladsp.service'
+            ).read_text(encoding='utf-8')
+            self.assertIn('User=testuser', camilla_unit)
+            self.assertIn('Group=audio', camilla_unit)
+            self.assertNotIn('ACP_PROJECT_USER', camilla_unit)
+            self.assertNotIn('User=andy', camilla_unit)
+
             state = json.loads(
                 (root / 'var/lib/a-clockwork-plex/split-bus/master-eq.json').read_text(
                     encoding='utf-8'
