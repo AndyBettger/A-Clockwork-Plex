@@ -44,6 +44,17 @@ The main bedside screen provides:
 - **Next alarm within 12 hours** or **Any future alarm** annunciator modes;
 - scheduled night dimming, Classic and Astronomy night presentation, touch-to-wake and burn-in shifting.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshots/clock-day.png" alt="A Clockwork Plex daytime Clock screen"></td>
+<td width="50%"><img src="docs/assets/screenshots/clock-night.png" alt="A Clockwork Plex Classic night Clock screen"></td>
+</tr>
+<tr>
+<td align="center"><sub>Daytime Clock with live weather cards</sub></td>
+<td align="center"><sub>Classic night presentation</sub></td>
+</tr>
+</table>
+
 ### Weather
 
 Forecast and live observations are deliberately separate:
@@ -58,17 +69,41 @@ Where WU does not directly provide the same rain fields, A Clockwork Plex derive
 
 WU API keys are managed as write-only secret material outside public configuration. Enter them through **Settings → Weather** rather than putting them into `config.json`, shell history or a sticky note attached to the Pi. The Pi cannot keep a secret if we write it on its forehead. 😄
 
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshots/weather-1.png" alt="A Clockwork Plex Weather forecast outlook"></td>
+<td width="50%"><img src="docs/assets/screenshots/weather-2.png" alt="A Clockwork Plex current indoor and outdoor weather conditions"></td>
+</tr>
+<tr>
+<td align="center"><sub>Open-Meteo forecast outlook</sub></td>
+<td align="center"><sub>Live indoor and outdoor observations</sub></td>
+</tr>
+</table>
+
 ### Plexamp and NFC
 
 Plexamp Headless remains the music player for this release. The installer pins and manages its compatible Node runtime without replacing Raspberry Pi OS's own Node installation.
 
 The NFC listener uses the validated PN532 reader. Compatible album tags can start Plexamp playback and bring the Plexamp surface to the front, which is considerably more satisfying than navigating a music library before your eyes have properly opened.
 
+![Plexamp Now Playing on A Clockwork Plex](docs/assets/screenshots/plexamp-now-playing.png)
+
 ### AirPlay
 
 Shairport Sync provides AirPlay through the same appliance-managed music path as Plexamp. PlaybackCoordinator handles Plexamp/AirPlay ownership and hand-off without routinely stopping and restarting the audio services.
 
 The receiver name is configurable from Settings and applied through a restricted helper with validation and rollback. Current integration and troubleshooting details live in [`docs/development/architecture/airplay-metadata.md`](docs/development/architecture/airplay-metadata.md).
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshots/airplay-ready.png" alt="A Clockwork Plex AirPlay Ready screen"></td>
+<td width="50%"><img src="docs/assets/screenshots/airplay-now-playing.png" alt="A Clockwork Plex AirPlay Now Playing screen"></td>
+</tr>
+<tr>
+<td align="center"><sub>AirPlay route ready</sub></td>
+<td align="center"><sub>AirPlay Now Playing</sub></td>
+</tr>
+</table>
 
 ### Scheduled alarms
 
@@ -82,6 +117,8 @@ A Clockwork Plex supports multiple recurring alarms with:
 - a separate **Maximum Alarm Volume** safety ceiling.
 
 Scheduled alarms **bypass Music Master and music EQ**. That means turning the music down at bedtime does not silently turn tomorrow morning's alarm down with it, while Maximum Alarm Volume still prevents the alarm lane from attempting to introduce itself to the neighbours.
+
+![A Clockwork Plex scheduled alarm sounding with Snooze and slide-to-dismiss controls](docs/assets/screenshots/alarm-ringing.png)
 
 ## Audio and equaliser
 
