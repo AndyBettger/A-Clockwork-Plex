@@ -8,7 +8,7 @@ ConditionPathExists=/var/lib/a-clockwork-plex/split-bus/installed
 
 [Service]
 Type=simple
-User=andy
+User=ACP_PROJECT_USER
 Group=audio
 ExecStart=/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp /etc/a-clockwork-plex/camilladsp-split-bus.yml
 Restart=on-success
