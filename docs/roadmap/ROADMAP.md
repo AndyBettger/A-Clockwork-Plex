@@ -85,6 +85,16 @@ The exact physically tested runtime/source head remains `215bcedb43369844b5968ae
 
 The roadmap/PR status synchronization after #75 is documentation/metadata only and does not alter the physically accepted appliance runtime.
 
+### Final release-preparation polish — OPEN
+
+These items were deliberately identified before owner approval so they are finished on the feature branch rather than discovered after merge:
+
+- [ ] **Maintainer test-suite catalogue.** Extend the existing testing guide with a maintained catalogue of regression-test modules, their purpose, targeted run command and expected pass/failure meaning. Prefer module-level documentation plus mechanically discoverable individual test names over a hand-maintained 922-row list that would immediately drift out of date.
+- [ ] **Settings → About/version metadata refresh.** The About page already consumes `app/static/app-version.json`, but that metadata is stale (`0.4.0-dev`, `feature/alarm-engine`, and the obsolete phase `Production EQ guarded rollout next`). Refresh the release identity and make version/build maintenance explicit and regression-covered so About remains trustworthy as development and releases continue.
+- [ ] **Release-ready README and INSTALL wording.** Remove production-candidate/feature-branch wording at the correct point in the merge/release sequence and document `main` as the normal supported install/update channel while tags/releases remain immutable version snapshots.
+- [ ] **Release screenshots / visual first-use guide.** Add a compact curated set of current appliance screenshots without exposing private station IDs, credentials or other personal values and without turning the README into a development diary.
+- [ ] **Final post-polish validation.** Re-run the maintained full compile/syntax/unit-test gate after the test catalogue, About/version and release-documentation changes; pin the exact green result before owner approval.
+
 ## Future product backlog — non-blocking
 
 These are ideas that were discussed during development, remain useful, and are **not required for the accepted release candidate**.
@@ -105,11 +115,6 @@ These Settings-management ideas were discussed early in the project but are not 
 ### Touchscreen Plexamp text entry
 
 - [ ] **Plexamp search keyboard/bridge.** The A Clockwork Plex Settings screen has its own touchscreen keyboard, but the embedded Plexamp UI is a separate surface. Earlier kiosk requirements explicitly called for Plexamp search to remain usable without attaching a physical keyboard or mouse. Investigate a safe touchscreen text-entry bridge that does not depend on the desktop OS on-screen keyboard.
-
-### Documentation polish
-
-- [ ] **Release screenshots / visual first-use guide.** Add a compact set of current screenshots to the public documentation once the final branch is merged, without turning the README back into a development diary.
-- [ ] **Maintainer test-suite catalogue.** Extend the existing testing guide with a maintained catalogue of the regression-test modules, their purpose, targeted run command and expected pass/failure meaning. Prefer module-level documentation plus mechanically discoverable individual test names over a hand-maintained 922-row list that would immediately drift out of date.
 
 ## Deliberately not on the future list
 
@@ -136,6 +141,11 @@ Keeping completed work off the future list matters. Otherwise the roadmap eventu
 5. [x] Re-run the complete final validation suite and pin the exact result here and in PR #2.
 6. [x] Prove the two remaining historical development branches contain no unmerged product work (#76).
 7. [x] Delete and verify the obsolete refs `feature/typography-weather-bridge` and `stage-c-terminal-install-20260806` (#77).
-8. [ ] **Explicit owner approval.** Only then may PR #2 leave Draft or merge.
+8. [ ] Complete the maintainer test-suite catalogue and its drift protection.
+9. [ ] Refresh Settings → About/version metadata and make its maintenance/release contract explicit.
+10. [ ] Finish release-ready README/INSTALL wording and the curated screenshot/visual first-use material.
+11. [ ] Run and pin the final full validation suite after all release-preparation polish.
+12. [ ] **Explicit owner approval.** Only then may PR #2 leave Draft or merge.
+13. [ ] After merge, verify the exact `main` result/CI and create the GitHub release/tag from that accepted `main` commit.
 
 **PR #2 must remain Draft/open/unmerged until that explicit approval is given.**
