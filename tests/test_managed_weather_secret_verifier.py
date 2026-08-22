@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "scripts" / "a-clockwork-plex-weather-secret.py"
 HELPER_INSTALLER = ROOT / "scripts" / "install-appliance-helpers.sh"
 VERIFIER = ROOT / "scripts" / "verify-appliance.sh"
-RUNBOOK = ROOT / "docs" / "fresh-appliance-acceptance-runbook.md"
+RUNBOOK = ROOT / "docs" / "development" / "testing" / "fresh-appliance-acceptance-runbook.md"
 
 
 def fenced_code(text: str) -> str:
