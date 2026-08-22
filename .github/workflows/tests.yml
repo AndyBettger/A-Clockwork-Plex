@@ -123,46 +123,6 @@ jobs:
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
           grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
           grep -q "app/runner.py" systemd/a-clockwork-plex.service
-          grep -q "Production EQ installation is disabled" scripts/install-master-eq.sh
-          grep -q -- "--experimental-lab" scripts/install-master-eq.sh
-          grep -q -- "--rollback" scripts/install-master-eq.sh
-          grep -q "test-master-eq-lab.sh" scripts/install-master-eq.sh
-          ! grep -q "apt-get install" scripts/install-master-eq.sh
-          ! grep -q 'cat > "$EQ_CONFIG"' scripts/install-master-eq.sh
-          grep -q "RUN_TESTS=false" scripts/test-master-eq-lab.sh
-          grep -q "ALSA_CONFIG_PATH" scripts/test-master-eq-lab.sh
-          grep -q "acp_lab_a" scripts/test-master-eq-lab.sh
-          grep -q "acp_lab_d" scripts/test-master-eq-lab.sh
-          grep -q "concurrency" scripts/test-master-eq-lab.sh
-          ! grep -q "systemctl restart" scripts/test-master-eq-lab.sh
-          ! grep -q "shairport-sync.conf" scripts/test-master-eq-lab.sh
-          grep -q "ACP_Loopback" scripts/test-dsp-loopback-lab.sh
-          grep -q "physical-dac-unchanged" scripts/test-dsp-loopback-lab.sh
-          ! grep -q "systemctl restart" scripts/test-dsp-loopback-lab.sh
-          ! grep -q "/etc/alsa/conf.d" scripts/test-dsp-loopback-lab.sh
-          grep -q 'CAMILLADSP_VERSION="4.1.3"' scripts/test-camilladsp-loopback-lab.sh
-          grep -q "asset_digest#sha256:" scripts/test-camilladsp-loopback-lab.sh
-          grep -q "dsp-gain" scripts/test-camilladsp-loopback-lab.sh
-          grep -q "physical-dac-unchanged" scripts/test-camilladsp-loopback-lab.sh
-          ! grep -q "sudo " scripts/test-camilladsp-loopback-lab.sh
-          ! grep -q "modprobe " scripts/test-camilladsp-loopback-lab.sh
-          ! grep -q "systemctl " scripts/test-camilladsp-loopback-lab.sh
-          grep -q 'CAMILLADSP_VERSION="4.1.3"' scripts/test-camilladsp-live-headroom-lab.sh
-          grep -q 'kill -HUP "$DSP_PID"' scripts/test-camilladsp-live-headroom-lab.sh
-          grep -q 'clip_limit: $LIMIT_DB' scripts/test-camilladsp-live-headroom-lab.sh
-          grep -q "single-process-survival" scripts/test-camilladsp-live-headroom-lab.sh
-          grep -q "physical-dac-unchanged" scripts/test-camilladsp-live-headroom-lab.sh
-          ! grep -q "sudo " scripts/test-camilladsp-live-headroom-lab.sh
-          ! grep -q "modprobe " scripts/test-camilladsp-live-headroom-lab.sh
-          ! grep -q "systemctl " scripts/test-camilladsp-live-headroom-lab.sh
-          grep -q 'REQUIRED_CONFIRMATION="STAGE-SEVEN-REAL-DAC"' scripts/test-camilladsp-physical-rehearsal.sh
-          grep -q 'enable_rate_adjust: true' scripts/test-camilladsp-physical-rehearsal.sh
-          grep -q 'REHEARSAL_IPC_KEY=1094932536' scripts/test-camilladsp-physical-rehearsal.sh
-          grep -q 'rollback-alsa-config' scripts/test-camilladsp-physical-rehearsal.sh
-          grep -q 'There is no keep-active mode' scripts/test-camilladsp-physical-rehearsal.sh
-          ! grep -q 'systemctl enable' scripts/test-camilladsp-physical-rehearsal.sh
-          ! grep -q 'modprobe snd_aloop' scripts/test-camilladsp-physical-rehearsal.sh
-          ! grep -q '/etc/shairport-sync.conf' scripts/test-camilladsp-physical-rehearsal.sh
           grep -q "GENERAL_BLOCK_RE" scripts/a-clockwork-plex-shairport-name.py
           grep -q "rollback" scripts/a-clockwork-plex-shairport-name.py
           grep -q "visudo -cf" scripts/install-shairport-name-helper.sh
@@ -175,14 +135,12 @@ jobs:
           bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
           bash -n scripts/install-alarm-audio-helper.sh
           bash -n scripts/install-shared-audio.sh
-          bash -n scripts/install-master-eq.sh
-          bash -n scripts/test-master-eq-lab.sh
-          bash -n scripts/test-master-eq-lab-stage2.sh
-          bash -n scripts/test-dsp-loopback-lab.sh
-          bash -n scripts/test-camilladsp-loopback-lab.sh
-          bash -n scripts/test-camilladsp-eq-curves-lab.sh
-          bash -n scripts/test-camilladsp-live-headroom-lab.sh
-          bash -n scripts/test-camilladsp-physical-rehearsal.sh
+          bash -n scripts/audio/preflight-eq.sh
+          bash -n scripts/audio/install-direct.sh
+          bash -n scripts/audio/install-eq.sh
+          bash -n scripts/audio/repair-audio.sh
+          bash -n scripts/audio/uninstall-eq.sh
+          bash -n scripts/audio/verify-audio.sh
           bash -n scripts/install-airplay-hooks.sh
           bash -n scripts/install-shairport-name-helper.sh
 
