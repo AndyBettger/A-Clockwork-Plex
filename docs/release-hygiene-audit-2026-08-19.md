@@ -74,6 +74,41 @@ Cleanup commit `5fbc0a43f86b93132c3e132a9cd1cf0adad4b4f7` removed:
 
 Tests #4085 / run `32544751465` passed compile, JavaScript/page wiring, shell syntax and **900/900 unit tests**. The lower test count is expected: the retired 13 historical modules contained 72 tests, while the new guard contributes four current retirement checks.
 
+### Checkpoint #67 — superseded standalone helper installers — PASS
+
+Commit `82896ccaa88de52eced2a309e730256878f236b8` retired three standalone wrappers that duplicated or contradicted the guarded appliance helper path:
+
+- `scripts/install-shared-audio.sh`;
+- `scripts/install-alarm-audio-helper.sh`;
+- `scripts/install-shairport-name-helper.sh`.
+
+The real runtime helper sources were retained, and `scripts/install-appliance-helpers.sh` remains the transactional owner for their installation and protected policies. The old shared-audio route is now pinned absent rather than retained merely so a test can demonstrate that its alarm routing is wrong; accepted/historical route hashes remain preserved in the Direct-audio contract. `tests/test_retired_legacy_helper_installers_guard.py` protects that boundary.
+
+Tests #4089 / run `32545282737` passed compile, JavaScript/page wiring, shell syntax and **903/903 unit tests**.
+
+### Checkpoint #68 — legacy AirPlay source-tree artifacts — PASS
+
+Commit `9b4edfa41a0cb037bd9ce041ca097e9502be03a8` retired four superseded AirPlay artifacts:
+
+- `scripts/shairport-airplay-start.sh` and `scripts/shairport-airplay-end.sh`, whose historical callbacks directly stopped/started `plexamp.service`;
+- their old `scripts/display-mode.sh` browser fallback;
+- the unguarded standalone `scripts/install-airplay-metadata-listener.sh` installer.
+
+The supported boundary is now unambiguous: `scripts/a-clockwork-plex-airplay-wrappers.py` renders callbacks that publish lifecycle intent to PlaybackCoordinator without managing Plexamp, and `scripts/install-airplay-integration.sh` owns Shairport/FIFO/metadata-listener installation transactionally. `tests/test_retired_legacy_airplay_scripts_guard.py` pins the retired paths absent and the current owner present.
+
+Tests #4091 / run `32545747002` passed compile, JavaScript/page wiring, shell syntax and **907/907 unit tests**.
+
+### Checkpoint #69 — retained-script catalogue and local validation runner — PASS
+
+The residual script/helper inventory is now classified rather than merely reviewed:
+
+- `scripts/README.md` documents every retained regular file in `scripts/`, `scripts/audio/` and `scripts/audio_eq_camilladsp/` by purpose, safety class and intended use;
+- normal operators are directed to `bash setup.sh`, `docs/INSTALL.md` and `docs/appliance-installer.md` rather than encouraged to cherry-pick component installers;
+- retained diagnostics and maintenance tools are explicitly distinguished from runtime/helper sources and mutating owners;
+- `tests/test_script_catalog.py` dynamically enumerates the documented script directories and fails if a retained script appears without a catalogue entry;
+- `scripts/run-tests.sh` was converged at `49e38695b4b138fe0b903f3b051cbc6a2d8b676d` to discover current Python, shell and dashboard JavaScript syntax targets instead of carrying stale filenames, then run the complete unit suite;
+- final catalogue/test head `39cee18c51a9958eba2da53e7310b43105d0f2a9` passed Tests #4095 / run `32546030629`: compile, JavaScript/page wiring, shell syntax and **911/911 unit tests PASS**.
+
 ## Documentation status
 
 ### Active roadmap
@@ -88,6 +123,10 @@ README has now been proofread against the completed replacement-SD acceptance se
 
 Keep `docs/INSTALL.md` as the normal operator authority and `docs/appliance-installer.md` as the advanced lower-level engine guide. The public command remains `bash setup.sh`.
 
+### Scripts catalogue
+
+`scripts/README.md` is the current purpose/safety/use catalogue for retained script files. `tests/test_script_catalog.py` makes catalogue completeness a maintained regression rather than a one-time documentation exercise.
+
 ### Physical evidence
 
 `docs/final-clean-room-physical-progress-2026-08-21.md` remains the final replacement-SD evidence record. Earlier focused physical documents remain useful provenance unless a later evidence consolidation proves them redundant.
@@ -96,7 +135,7 @@ Keep `docs/INSTALL.md` as the normal operator authority and `docs/appliance-inst
 
 `installer/repository-dependencies.txt` remains the supported repository source closure. Both public and lower-level installer paths fail closed before installation if a required source file is missing or unsafe.
 
-Checkpoint #66 deliberately removed only files outside that manifest and outside the supported operator/runtime path. A **final post-cleanup dependency/tracked-file audit** is still required after all remaining cleanup is complete.
+Checkpoints #67–#69 deliberately tightened only paths outside or subordinate to the supported installer/runtime ownership model; the retained-script catalogue now makes intentional non-manifest diagnostics/maintenance tools explicit. A **final post-cleanup dependency/tracked-file audit** is still required after documentation/ref cleanup is complete.
 
 ## Branch/ref classification
 
@@ -116,9 +155,8 @@ Both temporary refs were re-confirmed present on 22 August. Prior comparison est
 
 ## Remaining review targets
 
-The next cleanup work is deliberately narrower than the completed Stage-C/audio-lab retirements:
+The script/helper inventory is complete through checkpoint #69. Remaining release-hygiene work is now narrower:
 
-- inventory remaining one-off scripts/helpers not in the installer manifest and distinguish supported diagnostics from historical probes;
 - classify the large `docs/` history, preserving architecture/safety/final evidence while archive-consolidating genuinely superseded stage documents where useful;
 - proofread active operator/architecture documentation after each consolidation;
 - remove the two proven temporary refs;
@@ -140,6 +178,6 @@ Before another candidate is removed:
 
 ## Current classification result
 
-The broad physical/release boundary is now proven, and two large historical subsystems have been safely retired without touching accepted runtime behavior. The remaining target is **residual historical development/documentation/ref residue**, not the production application, supported audio lifecycle, installer payload or maintained regression suite.
+The physical/release boundary is proven, four historical/superseded executable layers have been safely retired through checkpoint #68, and every surviving script is now purpose/safety/use documented and regression-enforced through checkpoint #69. The remaining target is **documentation-history and temporary-ref residue plus the final dependency/validation pass**, not the production application, supported audio lifecycle, installer payload, retained diagnostics/maintenance tools or maintained regression suite.
 
-PR #2 remains Draft/open/unmerged. Release hygiene is not complete until the remaining inventory/docs/ref work, final dependency audit, final full validation and explicit owner approval are complete.
+PR #2 remains Draft/open/unmerged. Release hygiene is not complete until the remaining docs/ref work, final dependency audit, final full validation and explicit owner approval are complete.
