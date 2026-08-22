@@ -16,6 +16,12 @@ For advanced installer controls and recovery, see [`appliance-installer.md`](app
 
 That is deliberately almost everything a normal owner needs to see in this directory. You should not have to read an audio-verification report from 17 August just because you wanted to find out where the Weather Underground key goes. 😁
 
+## I want to see what it looks like
+
+Current documentation images live under **[`assets/`](assets/)**, with release screenshots kept in [`assets/screenshots/`](assets/screenshots/).
+
+Those assets support the README and visual first-use documentation; they are deliberately kept out of the root of `docs/` so normal-user documents remain easy to find.
+
 ## I am developing or debugging it
 
 Current architecture, testing, release-validation and physical-evidence material lives under **[`development/`](development/)**.
@@ -53,6 +59,7 @@ The root of `docs/` is intentionally boring and small:
 - `README.md`
 - `INSTALL.md`
 - `appliance-installer.md`
+- `assets/`
 - `development/`
 - `roadmap/`
 - `archive/`
