@@ -81,13 +81,14 @@ Standalone EQ lifecycle, guarded transactions, bedroom-Pi physical audio accepta
 
 The replacement-SD clean-room sequence is complete through checkpoint #64: fresh installer/bootstrap, Plexamp GUI/output commissioning, EQ, WU/rainfall-history retest, AirPlay, NFC, real scheduled-alarm fade/safety, representative reboot, both formal verifier sets, repeat public `setup.sh` with commissioned WU preserved, and final empty `git status --porcelain` proof all passed.
 
-Release hygiene has now completed four deliberate executable-retirement batches plus retained-script documentation closure:
+Release hygiene has now completed four deliberate executable-retirement batches plus retained-script and documentation classification closure:
 
 - checkpoint #65 retired the historical Stage-C executable validation subsystem and its dedicated positive test suite;
 - checkpoint #66 retired the obsolete pre-production audio laboratory/rehearsal layer and moved CI shell-syntax coverage onto the six supported `scripts/audio/` lifecycle scripts;
 - checkpoint #67 retired superseded standalone helper installers while retaining their transactional owner and runtime helpers;
 - checkpoint #68 retired legacy AirPlay source-tree callbacks/installers that predated the PlaybackCoordinator/guarded integration ownership;
-- checkpoint #69 classified every surviving script by purpose/safety/use, regression-enforced that catalogue, and converged the local test runner onto discovered current source.
+- checkpoint #69 classified every surviving script by purpose/safety/use, regression-enforced that catalogue, and converged the local test runner onto discovered current source;
+- checkpoint #70 classified every top-level documentation artefact, preserved historical provenance in place, and repaired stale current-looking AirPlay/alarm/architecture/testing guides.
 
 No additional replacement-SD physical clean-room gate is currently outstanding.
 
@@ -105,7 +106,7 @@ No additional replacement-SD physical clean-room gate is currently outstanding.
 5. [x] **Retire obsolete Stage-C validation subsystem.** Checkpoint #65 / Tests #4075 passed.
 6. [x] **Retire obsolete pre-production audio laboratory/rehearsal subsystem.** Fourteen laboratory/rehearsal scripts and thirteen dedicated historical safety-test modules were removed; `tests/test_retired_audio_lab_guard.py` pins their absence and the retained production lifecycle. Checkpoint #66 / Tests #4085 passed.
 7. [x] **Complete retained script/helper inventory and documentation.** Superseded standalone helper installers and legacy AirPlay artifacts were retired at checkpoints #67/#68. `scripts/README.md` now documents every surviving file in the retained script directories by purpose, safety and intended use; `tests/test_script_catalog.py` dynamically enforces coverage and the local `scripts/run-tests.sh` discovers current source instead of pinning stale paths. Checkpoint #69 / Tests #4095 passed.
-8. [ ] **Complete deliberate `docs/` history review.** The exact through-#64 roadmap snapshot is preserved; continue classifying/archive-consolidating genuinely superseded stage documents without deleting useful provenance, then proofread active operator/architecture docs.
+8. [x] **Complete deliberate `docs/` history review.** `docs/README.md` classifies current authorities, evidence, durable design, archives and historical Stage-C/laboratory records without deleting provenance. Stale current-looking AirPlay, alarm-audio, application-state and testing guides were repaired, and `tests/test_docs_catalog.py` dynamically enforces top-level docs classification. Checkpoint #70 / Tests #4101 passed.
 9. [ ] **Remove temporary development branches/refs** created during final testing, leaving only intentional long-lived/release refs before merge.
 10. [ ] **Rerun final tracked-file/install-dependency audit after cleanup** so every file required by `setup.sh` / `appliance-installer.sh` is present and no retained file survives solely because an obsolete experiment once used it.
 11. [ ] **Run the complete validation suite after all cleanup** and pin the final count/status.
@@ -125,15 +126,16 @@ No additional replacement-SD physical clean-room gate is currently outstanding.
 - [x] Superseded standalone helper installers retired and guarded at checkpoint #67.
 - [x] Legacy AirPlay callbacks/display fallback/unguarded metadata-listener installer retired and guarded at checkpoint #68.
 - [x] Every retained script classified/documented in `scripts/README.md`, catalogue completeness regression-protected, and the local validation runner converged at checkpoint #69.
+- [x] Every top-level docs artefact classified in `docs/README.md`, historical provenance preserved, stale current guides repaired and classification regression-protected at checkpoint #70.
 - [x] Oversized active roadmap history through checkpoint #64 preserved byte-for-byte in `docs/eq-audio-installer-roadmap-history-through-checkpoint64.md`; this file carries current authority and remaining work.
 - [x] Complete retained script/helper inventory beyond the two large historical subsystems.
-- [ ] Finish deliberate historical-doc classification/archive/consolidation and active-doc proofreading.
+- [x] Finish deliberate historical-doc classification/archive/consolidation and active-doc proofreading.
 - [ ] Remove temporary development refs.
 - [ ] Rerun final dependency/tracked-file audit after cleanup.
 - [ ] Run complete post-cleanup validation.
 - [ ] Owner approval; only then may PR #2 leave Draft or merge.
 
-**Phase 7 exit condition:** the accepted physical release candidate remains unchanged; deliberate repository/docs/ref cleanup and final validation must complete, then explicit owner approval is required. PR #2 remains Draft throughout.
+**Phase 7 exit condition:** the accepted physical release candidate remains unchanged; deliberate repository/ref cleanup and final validation must complete, then explicit owner approval is required. PR #2 remains Draft throughout.
 
 ## Recent Phase 7 checkpoint record
 
@@ -153,5 +155,6 @@ Detailed checkpoints #7–#55 are preserved in `docs/eq-audio-installer-roadmap-
 - **#67 — superseded standalone helper-installer retirement — PASS (source/CI).** Commit `82896ccaa88de52eced2a309e730256878f236b8` removed `scripts/install-shared-audio.sh`, `scripts/install-alarm-audio-helper.sh` and `scripts/install-shairport-name-helper.sh` while retaining the real runtime helpers and guarded transactional `scripts/install-appliance-helpers.sh` owner. `tests/test_retired_legacy_helper_installers_guard.py` pins that boundary and the old wrong shared-audio installer now stays absent rather than surviving as a negative fixture. **Tests #4089 / run `32545282737` PASS:** compile, JavaScript/page wiring, shell syntax and **903/903 unit tests PASS**.
 - **#68 — legacy AirPlay source-tree artifact retirement — PASS (source/CI).** Commit `9b4edfa41a0cb037bd9ce041ca097e9502be03a8` removed static `shairport-airplay-start.sh`/`shairport-airplay-end.sh` callbacks that directly stopped/started Plexamp, their old `display-mode.sh` fallback and the unguarded standalone `install-airplay-metadata-listener.sh`. The current renderer publishes lifecycle intent to PlaybackCoordinator and `install-airplay-integration.sh` remains the guarded transactional owner. `tests/test_retired_legacy_airplay_scripts_guard.py` pins those retired paths absent. **Tests #4091 / run `32545747002` PASS:** compile, JavaScript/page wiring, shell syntax and **907/907 unit tests PASS**.
 - **#69 — retained-script catalogue + local validation-runner convergence — PASS (source/CI).** `scripts/run-tests.sh` was converged at `49e38695b4b138fe0b903f3b051cbc6a2d8b676d` to discover all current Python under `app/` + `scripts/`, all shell under `scripts/`, and all dashboard JavaScript before running the complete unit suite. Final head `39cee18c51a9958eba2da53e7310b43105d0f2a9` added `scripts/README.md`, documenting every retained regular script file by purpose/safety/intended use, plus `tests/test_script_catalog.py` to dynamically enforce catalogue completeness. **Tests #4095 / run `32546030629` PASS:** compile, JavaScript/page wiring, shell syntax and **911/911 unit tests PASS**.
+- **#70 — documentation-history classification + current-guide repair — PASS (source/CI).** Commit `c100dfd8acb9a15a866efbd5305ea241958efe60` added `docs/README.md`, which classifies every current authority/evidence/design/archive/historical family while retaining historical Stage-C and EQ/DSP records in place. Current `airplay-metadata.md`, `alarm-audio-testing.md`, `application-state-architecture.md` and `testing.md` were repaired to the accepted PlaybackCoordinator, fixed `-6.5 dB` reserve, alarm-bypass, Weather and validation contracts. `tests/test_docs_catalog.py` dynamically classifies every regular top-level docs artefact and rejects retired instructions in current guides. **Tests #4101 / run `32546425637` PASS:** compile, JavaScript/page wiring, shell syntax and **915/915 unit tests PASS**.
 
-No checkpoint is recorded as fully physically complete until its required physical gates pass. Source/CI PASS does not substitute for a remaining bedside/clean-room acceptance gate; checkpoints #65–#69 are intentionally source/CI release-hygiene checkpoints and do not reopen the already-complete physical gate.
+No checkpoint is recorded as fully physically complete until its required physical gates pass. Source/CI PASS does not substitute for a remaining bedside/clean-room acceptance gate; checkpoints #65–#70 are intentionally source/CI release-hygiene checkpoints and do not reopen the already-complete physical gate.

@@ -109,6 +109,17 @@ The residual script/helper inventory is now classified rather than merely review
 - `scripts/run-tests.sh` was converged at `49e38695b4b138fe0b903f3b051cbc6a2d8b676d` to discover current Python, shell and dashboard JavaScript syntax targets instead of carrying stale filenames, then run the complete unit suite;
 - final catalogue/test head `39cee18c51a9958eba2da53e7310b43105d0f2a9` passed Tests #4095 / run `32546030629`: compile, JavaScript/page wiring, shell syntax and **911/911 unit tests PASS**.
 
+### Checkpoint #70 — documentation classification and current-guide repair — PASS
+
+Commit `c100dfd8acb9a15a866efbd5305ea241958efe60` completed the deliberate top-level `docs/` review without deleting or rewriting historical provenance:
+
+- `docs/README.md` now classifies current operator/release authorities, current architecture/testing guides, physical evidence, durable design rationale, roadmap archives and historical development/laboratory families;
+- all Stage-C and pre-production EQ/DSP history remains in place as provenance, but the catalogue explicitly says those records must not override current release documentation;
+- stale active-looking `docs/airplay-metadata.md`, `docs/alarm-audio-testing.md`, `docs/application-state-architecture.md` and `docs/testing.md` were repaired to the accepted PlaybackCoordinator, fixed `-6.5 dB` reserve, alarm-bypass, current Weather and current validation contracts;
+- `tests/test_docs_catalog.py` dynamically classifies every regular top-level `docs/` artefact and guards against reintroducing retired instructions or leaving new documents ambiguous.
+
+Tests #4101 / run `32546425637` passed compile, JavaScript/page wiring, shell syntax and **915/915 unit tests**. The root README is synchronized with the docs/script catalogues in the checkpoint-closing metadata commit immediately following this green source/docs batch.
+
 ## Documentation status
 
 ### Active roadmap
@@ -117,7 +128,7 @@ The oversized active roadmap through checkpoint #64 is preserved byte-for-byte a
 
 ### README
 
-README has now been proofread against the completed replacement-SD acceptance sequence. It describes the physical gate as complete and no longer presents the retired `scripts/install-master-eq.sh` laboratory-era path as a still-present blocked installer.
+README is proofread against the completed replacement-SD acceptance sequence and the release-hygiene state through checkpoint #70. It points normal operators to `docs/INSTALL.md`, readers to the current-vs-historical documentation map, and contributors to the maintained `scripts/run-tests.sh` path.
 
 ### INSTALL / advanced installer guide
 
@@ -127,15 +138,19 @@ Keep `docs/INSTALL.md` as the normal operator authority and `docs/appliance-inst
 
 `scripts/README.md` is the current purpose/safety/use catalogue for retained script files. `tests/test_script_catalog.py` makes catalogue completeness a maintained regression rather than a one-time documentation exercise.
 
+### Documentation catalogue
+
+`docs/README.md` is the current documentation map. `tests/test_docs_catalog.py` requires every top-level docs artefact to be classified and prevents historical records from silently becoming current instructions.
+
 ### Physical evidence
 
-`docs/final-clean-room-physical-progress-2026-08-21.md` remains the final replacement-SD evidence record. Earlier focused physical documents remain useful provenance unless a later evidence consolidation proves them redundant.
+`docs/final-clean-room-physical-progress-2026-08-21.md` remains the final replacement-SD evidence record. Earlier focused physical documents remain useful provenance and are classified as evidence rather than current operator procedure.
 
 ## Fresh-install dependency audit
 
 `installer/repository-dependencies.txt` remains the supported repository source closure. Both public and lower-level installer paths fail closed before installation if a required source file is missing or unsafe.
 
-Checkpoints #67–#69 deliberately tightened only paths outside or subordinate to the supported installer/runtime ownership model; the retained-script catalogue now makes intentional non-manifest diagnostics/maintenance tools explicit. A **final post-cleanup dependency/tracked-file audit** is still required after documentation/ref cleanup is complete.
+Checkpoints #67–#70 deliberately tightened only paths outside or subordinate to the supported installer/runtime ownership model; the retained-script and docs catalogues now make intentional non-manifest diagnostics, maintenance tooling and historical evidence explicit. A **final post-cleanup dependency/tracked-file audit** is still required after temporary-ref cleanup.
 
 ## Branch/ref classification
 
@@ -151,16 +166,14 @@ Known safe temporary-ref deletion candidates:
 - `tmp-noop-annunciator-do-not-use`;
 - `tmp-noop-annunciator-do-not-use-2`.
 
-Both temporary refs were re-confirmed present on 22 August. Prior comparison established that they point at already-ancestral no-op history with no unique work. The available connector still exposes branch update but not branch-ref deletion, so they remain recorded rather than falsely claimed removed. Delete them with an authorised Git interface during the final ref-hygiene step, then re-list branches.
+Both temporary refs were re-confirmed present on 22 August. Prior comparison established that they point at already-ancestral no-op history with no unique work. The available connector exposes branch update but not branch-ref deletion, so they remain recorded rather than falsely claimed removed. Delete them with an authorised Git interface during the final ref-hygiene step, then re-list branches.
 
 ## Remaining review targets
 
-The script/helper inventory is complete through checkpoint #69. Remaining release-hygiene work is now narrower:
+The script/helper inventory and deliberate documentation-history review are complete through checkpoint #70. Remaining release-hygiene work is now narrow:
 
-- classify the large `docs/` history, preserving architecture/safety/final evidence while archive-consolidating genuinely superseded stage documents where useful;
-- proofread active operator/architecture documentation after each consolidation;
 - remove the two proven temporary refs;
-- rerun final tracked-file/install-dependency audit;
+- rerun the final tracked-file/install-dependency audit;
 - run the complete validation suite on the final cleaned tree;
 - obtain explicit owner approval before PR #2 leaves Draft or merges.
 
@@ -178,6 +191,6 @@ Before another candidate is removed:
 
 ## Current classification result
 
-The physical/release boundary is proven, four historical/superseded executable layers have been safely retired through checkpoint #68, and every surviving script is now purpose/safety/use documented and regression-enforced through checkpoint #69. The remaining target is **documentation-history and temporary-ref residue plus the final dependency/validation pass**, not the production application, supported audio lifecycle, installer payload, retained diagnostics/maintenance tools or maintained regression suite.
+The physical/release boundary is proven, four historical/superseded executable layers have been safely retired through checkpoint #68, every surviving script is purpose/safety/use documented and regression-enforced through #69, and every top-level documentation artefact is now classified with current-looking guides repaired through #70. The remaining target is **temporary-ref cleanup plus the final dependency/tracked-file audit and complete validation**, not the production application, supported audio lifecycle, installer payload, retained diagnostics/maintenance tools, historical evidence or maintained regression suite.
 
-PR #2 remains Draft/open/unmerged. Release hygiene is not complete until the remaining docs/ref work, final dependency audit, final full validation and explicit owner approval are complete.
+PR #2 remains Draft/open/unmerged. Release hygiene is not complete until the remaining ref work, final dependency audit, final full validation and explicit owner approval are complete.
