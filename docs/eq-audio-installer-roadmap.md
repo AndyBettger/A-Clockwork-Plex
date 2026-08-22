@@ -25,7 +25,7 @@ The checkpoint-#64 archive is the exact pre-consolidation roadmap blob, not a re
 - EQ music: Plexamp/AirPlay → source trims → Music Master → fixed `-6.5 dB` reserve → Bass/Mid/Treble → final limiter → DAC.
 - Alarm: per-alarm start/target/fade → **Maximum Alarm Volume** → joins after music reserve/EQ → final limiter → DAC.
 - Fresh Direct keeps Plexamp/AirPlay under Music Master while the alarm joins the DAC-facing mix independently.
-- `scripts/audio/preflight-eq.sh` remains the historical read-only bedroom-Pi EQ validation gate; it is retained as a diagnostic/acceptance tool, not a production installation path.
+- `scripts/audio/preflight-eq.sh` remains the historical read-only bedroom-Pi validation gate; it is retained as a diagnostic/acceptance tool, not a production installation path.
 - EQ → Direct convergence remains inside the outer application transaction with rollback restoring the pre-EQ backup and prior `snd_aloop` state before captured EQ services are reactivated.
 - Canonical CamillaDSP unit: `a-clockwork-plex-camilladsp.service`; do not use the unrelated generic `camilladsp.service` identity for acceptance.
 - Accepted CamillaDSP: `4.1.3`; executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa`; official aarch64 archive SHA `d9a17092923ebfe5d20a770c6b6a7eb2268f9700f999bf604b9db09f518aca5a`.
