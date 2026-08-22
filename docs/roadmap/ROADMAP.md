@@ -75,14 +75,13 @@ The exact physically tested runtime/source head remains `215bcedb43369844b5968ae
 - #71 completed temporary-ref and tracked-file/install-dependency cleanup.
 - #72 completed the post-cleanup validation suite: Tests #4103, **915/915 PASS**; closing synchronization Tests #4105 also **915/915 PASS**.
 
-### Final polish after documentation review — COMPLETE through checkpoint #76
+### Final polish after documentation review — COMPLETE through checkpoint #77
 
 - **#73 documentation usability — COMPLETE:** `docs/` now contains only the normal-user files `README.md`, `INSTALL.md` and `appliance-installer.md` plus the deliberately separated `development/`, `roadmap/` and `archive/` trees. `docs/README.md` points normal owners straight to installation, the live roadmap is now `docs/roadmap/ROADMAP.md`, and `tests/test_docs_catalog.py` prevents development-paper creep back into the root.
 - **#74 installer identity portability — COMPLETE:** supported installer/runtime sources no longer contain live `/home/andy`, `${USER:-andy}`, `User=andy` or `Group=andy` assumptions. The remaining CamillaDSP service exception caught by the first portability run was converted to the generic `User=ACP_PROJECT_USER` source template and is rendered by the EQ installer to the selected project user while retaining `Group=audio`. Historical evidence is intentionally untouched.
 - **#75 final post-polish validation — COMPLETE:** implementation head `0698ebb6ac786812740312f96cf8b09cb221e41d`; Tests #4127 / run `32554699819`: compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **922/922 unit tests PASS** (`Ran 922 tests in 44.797s`, `OK`). The only workflow notice was GitHub Actions' hosted-runner Node-runtime deprecation warning for current action versions; it is not an appliance/runtime/test failure.
-- **#76 historical branch provenance — COMPLETE:** `feature/typography-weather-bridge` is the exact 63-commit head of merged PR #1 and its work was squash-merged into `main` as `c69b2ee9f0ceed119d07e6d696e8b4a723abb614`; `stage-c-terminal-install-20260806` has 23 unique commits whose complete 16-file delta is confined to the Stage-C script/implementation/test families deliberately retired at #65 and forbidden by `tests/test_retired_stage_c_guard.py`. Neither branch contains product work that should be merged. Both refs are therefore safe to delete.
-
-The connected GitHub action set does not provide branch/ref deletion. The two proven-obsolete refs therefore remain a tiny manual repository-hygiene action; they must not be “retired” by force-moving them or pretending deletion occurred.
+- **#76 historical branch provenance — COMPLETE:** `feature/typography-weather-bridge` is the exact 63-commit head of merged PR #1 and its work was squash-merged into `main` as `c69b2ee9f0ceed119d07e6d696e8b4a723abb614`; `stage-c-terminal-install-20260806` has 23 unique commits whose complete 16-file delta is confined to the Stage-C script/implementation/test families deliberately retired at #65 and forbidden by `tests/test_retired_stage_c_guard.py`. Neither branch contains product work that should be merged. Both refs were therefore safe to delete.
+- **#77 historical branch deletion — COMPLETE:** the owner deleted both obsolete refs, and a subsequent GitHub branch search on 22 August 2026 returned no match for either `feature/typography-weather-bridge` or `stage-c-terminal-install-20260806`. Repository branch hygiene is therefore closed.
 
 The roadmap/PR status synchronization after #75 is documentation/metadata only and does not alter the physically accepted appliance runtime.
 
@@ -110,6 +109,7 @@ These Settings-management ideas were discussed early in the project but are not 
 ### Documentation polish
 
 - [ ] **Release screenshots / visual first-use guide.** Add a compact set of current screenshots to the public documentation once the final branch is merged, without turning the README back into a development diary.
+- [ ] **Maintainer test-suite catalogue.** Extend the existing testing guide with a maintained catalogue of the regression-test modules, their purpose, targeted run command and expected pass/failure meaning. Prefer module-level documentation plus mechanically discoverable individual test names over a hand-maintained 922-row list that would immediately drift out of date.
 
 ## Deliberately not on the future list
 
@@ -135,7 +135,7 @@ Keeping completed work off the future list matters. Otherwise the roadmap eventu
 4. [x] Finish #74 live `andy` portability sweep and regression coverage.
 5. [x] Re-run the complete final validation suite and pin the exact result here and in PR #2.
 6. [x] Prove the two remaining historical development branches contain no unmerged product work (#76).
-7. [ ] Delete obsolete refs `feature/typography-weather-bridge` and `stage-c-terminal-install-20260806` using GitHub's branch-delete UI or another authenticated Git client/API.
+7. [x] Delete and verify the obsolete refs `feature/typography-weather-bridge` and `stage-c-terminal-install-20260806` (#77).
 8. [ ] **Explicit owner approval.** Only then may PR #2 leave Draft or merge.
 
 **PR #2 must remain Draft/open/unmerged until that explicit approval is given.**
