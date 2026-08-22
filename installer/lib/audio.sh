@@ -95,6 +95,16 @@ acp_render_sudoers() {
     sed "s/@PROJECT_USER@/$project_user/g" "$template"
 }
 
+acp_render_camilladsp_service() {
+    local project_user="$1"
+    [[ "$project_user" =~ ^[A-Za-z0-9_.@-]+$ ]] || {
+        acp_error "Invalid project user: $project_user"
+        return 1
+    }
+    sed "s/^User=ACP_PROJECT_USER$/User=$project_user/" \
+        "$ACP_AUDIO_PROFILE/systemd/a-clockwork-plex-camilladsp.service"
+}
+
 acp_validate_sudoers_templates() {
     local project_user="$1" template temporary failures=0
     acp_require_command visudo || return 1
@@ -126,7 +136,7 @@ acp_install_sudoers() {
 }
 
 acp_install_audio_files() {
-    local binary="$1" project_user="$2" module
+    local binary="$1" project_user="$2" module rendered
     acp_verify_audio_sources || return 1
 
     acp_install_file "$ACP_AUDIO_PROFILE/split-bus.conf" \
@@ -155,13 +165,17 @@ acp_install_audio_files() {
         '/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp' 0755 || return 1
     acp_install_sudoers "$project_user" || return 1
 
-    for module in \
-        a-clockwork-plex-audio-route.service \
-        a-clockwork-plex-camilladsp.service \
-        a-clockwork-plex-audio-failback.service; do
-        acp_install_file "$ACP_AUDIO_PROFILE/systemd/$module" \
-            "/etc/systemd/system/$module" 0644 || return 1
-    done
+    acp_install_file "$ACP_AUDIO_PROFILE/systemd/a-clockwork-plex-audio-route.service" \
+        '/etc/systemd/system/a-clockwork-plex-audio-route.service' 0644 || return 1
+    rendered="$(acp_render_camilladsp_service "$project_user")" || return 1
+    printf '%s\n' "$rendered" | grep -Fxq "User=$project_user" || {
+        acp_error 'Rendered CamillaDSP service did not contain the selected project user.'
+        return 1
+    }
+    acp_install_text "$rendered\n" \
+        '/etc/systemd/system/a-clockwork-plex-camilladsp.service' 0644 || return 1
+    acp_install_file "$ACP_AUDIO_PROFILE/systemd/a-clockwork-plex-audio-failback.service" \
+        '/etc/systemd/system/a-clockwork-plex-audio-failback.service' 0644 || return 1
 
     acp_make_directory '/var/lib/a-clockwork-plex/split-bus' 0755 || return 1
     if [[ ! -f "$(acp_path '/var/lib/a-clockwork-plex/split-bus/master-eq.json')" ]]; then
