@@ -56,7 +56,7 @@ The checkpoint-#64 archive is the exact pre-consolidation roadmap blob, not a re
 
 ### Fresh-Pi hardware/bootstrap
 
-- Final physical acceptance used a disposable replacement spare SD; the production card remained protected.
+- The accepted production SD remains protected; a separate spare SD is the disposable acceptance target, and the final physical acceptance used the replacement spare card.
 - PN532: I2C bus `1`, address `0x24`; project user groups `i2c`, `gpio`, `spi`.
 - Accepted DAC: Raspberry Pi DAC Pro, ALSA `CARD=Pro`.
 - Already-working `CARD=Pro` is accepted without boot mutation; managed fallback is `rpi-dacpro` only when required.
