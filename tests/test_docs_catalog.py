@@ -7,21 +7,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 CATALOG = DOCS / "README.md"
+ARCHIVE = DOCS / "archive"
+SNAPSHOT = ARCHIVE / "pre-release-engineering-snapshot-2026-08-22"
 
-CURRENT = {
+TOP_LEVEL_FILES = {
     "README.md",
     "INSTALL.md",
     "appliance-installer.md",
     "eq-audio-installer-roadmap.md",
+    "eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md",
+    "eq-audio-installer-roadmap-history-through-checkpoint64.md",
     "release-hygiene-audit-2026-08-19.md",
     "fresh-appliance-acceptance-runbook.md",
     "application-state-architecture.md",
     "airplay-metadata.md",
     "alarm-audio-testing.md",
     "testing.md",
-}
-
-EVIDENCE = {
     "final-clean-room-physical-progress-2026-08-21.md",
     "fresh-bootstrap-physical-progress-2026-08-15.md",
     "eq-to-direct-physical-verification-2026-08-17.md",
@@ -29,71 +30,38 @@ EVIDENCE = {
     "eq-to-direct-desktop-audio-blocker-2026-08-17.md",
     "reboot-eq-runtime-failure-2026-08-17.md",
     "weather-physical-followup-2026-08-17.md",
-}
-
-DURABLE_DESIGN = {
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
     "airplay-segment-cell.svg",
 }
 
-ROADMAP_ARCHIVES = {
-    "eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md",
-    "eq-audio-installer-roadmap-history-through-checkpoint64.md",
-}
-
-HISTORICAL_EXACT = {
-    "production-eq-stage-c-install-design.md",
-    "bedroom-dsp-laboratory-results.md",
-    "post-mix-dsp-laboratory.md",
-    "master-eq-testing.md",
-    "production-eq-split-bus-design.md",
-    "eq-audio-installation-manifest.md",
-    "camilladsp-eq-helper-contract.md",
-    "eq-audio-route-helper-contract.md",
-    "direct-alarm-bypass-failback-result-2026-08-05.md",
-    "airplay-control-plane-review-2026-07-26.md",
-    "plexamp-4.12.4-restart-investigation.md",
-    "post-weather-settings-redesign.md",
-}
-
-
-def classification(name: str) -> str | None:
-    if name in CURRENT:
-        return "current"
-    if name in EVIDENCE:
-        return "evidence"
-    if name in DURABLE_DESIGN:
-        return "design"
-    if name in ROADMAP_ARCHIVES:
-        return "archive"
-    if name in HISTORICAL_EXACT:
-        return "historical"
-    if name.startswith("stage-c") and name.endswith(".md"):
-        return "historical"
-    if name.startswith("split-bus-") and name.endswith(".md"):
-        return "historical"
-    if name.startswith("stage-seven-") and name.endswith(".md"):
-        return "historical"
-    return None
-
 
 class DocsCatalogTests(unittest.TestCase):
-    def test_every_top_level_docs_artifact_is_classified(self):
-        unclassified: list[str] = []
-        for path in sorted(DOCS.iterdir()):
-            if path.is_file() and classification(path.name) is None:
-                unclassified.append(path.name)
-        self.assertEqual([], unclassified, f"unclassified docs artifacts: {unclassified}")
+    def test_top_level_docs_are_deliberately_small_and_classified(self):
+        files = {path.name for path in DOCS.iterdir() if path.is_file()}
+        dirs = {path.name for path in DOCS.iterdir() if path.is_dir()}
+        self.assertEqual(TOP_LEVEL_FILES, files)
+        self.assertEqual({"archive"}, dirs)
 
-    def test_catalog_names_current_authorities_and_warns_about_history(self):
-        text = CATALOG.read_text(encoding="utf-8")
-        for name in CURRENT - {"README.md"}:
+    def test_archive_preserves_the_pre_reorganisation_engineering_tree(self):
+        self.assertTrue((ARCHIVE / "README.md").is_file())
+        self.assertTrue(SNAPSHOT.is_dir())
+        for name in (
+            "stage-c21-production-approval-writer-design.md",
+            "production-eq-stage-c-install-design.md",
+            "bedroom-dsp-laboratory-results.md",
+            "post-weather-settings-redesign.md",
+            "eq-audio-installer-roadmap-history-through-checkpoint64.md",
+        ):
             with self.subTest(name=name):
-                self.assertIn(f"`docs/{name}`", text)
-        self.assertIn("must not be treated as current instructions", text)
-        self.assertIn("Every `docs/stage-c*.md` file", text)
-        self.assertIn("fixed `-6.5 dB` music reserve", text)
+                self.assertTrue((SNAPSHOT / name).is_file())
+
+    def test_catalog_points_normal_users_to_install_and_history_to_archive(self):
+        text = CATALOG.read_text(encoding="utf-8")
+        self.assertIn("Start with **[`INSTALL.md`](INSTALL.md)**", text)
+        self.assertIn("You do not need the roadmap", text)
+        self.assertIn("archive/pre-release-engineering-snapshot-2026-08-22/", text)
+        self.assertIn("The archive is allowed to be old", text)
 
     def test_repaired_current_guides_do_not_reintroduce_retired_instructions(self):
         airplay = (DOCS / "airplay-metadata.md").read_text(encoding="utf-8")

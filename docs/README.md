@@ -1,106 +1,66 @@
-# Documentation map
+# A Clockwork Plex documentation
 
-This directory contains both **current release documentation** and the detailed engineering history that led to the accepted A Clockwork Plex appliance. Historical files are intentionally retained as provenance, but they are not automatically current instructions.
+There is quite a lot of engineering behind a bedside clock that mainly wants to tell the time and play something nice. 😄 This page is the signpost so you do **not** need to read all of it.
 
-If two documents disagree, use the category order below: current operator/release authority first, then current architecture/testing guides. Historical designs/results explain how decisions were reached; they do not override the implemented release.
+## I want to install it
 
-## Current operator and release authority
+Start with **[`INSTALL.md`](INSTALL.md)**.
 
-| Document | Purpose |
-| --- | --- |
-| `docs/INSTALL.md` | Normal fresh/repeat appliance installation and commissioning guide. Start here for a real appliance. |
-| `docs/appliance-installer.md` | Advanced guide to the guarded lower-level `appliance-installer.sh` engine. |
-| `docs/eq-audio-installer-roadmap.md` | Active Phase 7 implementation/acceptance/release-hygiene authority. |
-| `docs/release-hygiene-audit-2026-08-19.md` | Current repository-cleanup classification and release-hygiene record. |
-| `docs/fresh-appliance-acceptance-runbook.md` | Formal clean-room/replacement-SD acceptance procedure and pinned release identities. |
-
-For normal installation, the human-facing command remains:
+That is the normal end-to-end guide for a fresh Raspberry Pi. The normal appliance command is simply:
 
 ```bash
 bash setup.sh
 ```
 
-## Current architecture, operation and testing guides
+You do not need the roadmap, acceptance records or archived engineering notes to install the appliance. They are here for development, verification and the inevitable future occasion when somebody asks, “Why on earth did we do it *that* way?”
+
+For advanced installer controls and recovery, see [`appliance-installer.md`](appliance-installer.md).
+
+## I want to understand how it works
+
+These are the maintained technical guides:
+
+| Document | What it explains |
+| --- | --- |
+| [`application-state-architecture.md`](application-state-architecture.md) | Playback, screen, Settings, Weather and audio ownership. |
+| [`airplay-metadata.md`](airplay-metadata.md) | Shairport/AirPlay metadata, integration ownership and read-only troubleshooting. |
+| [`alarm-audio-testing.md`](alarm-audio-testing.md) | Scheduled-alarm audio topology, safety limits and regression checks. |
+| [`testing.md`](testing.md) | Local validation and GitHub Actions CI. |
+| [`fresh-pi-bootstrap-ownership-design.md`](fresh-pi-bootstrap-ownership-design.md) | Why hardware/bootstrap ownership and reboot boundaries are deliberately constrained. |
+| [`full-appliance-installer-design.md`](full-appliance-installer-design.md) | Design rationale for the guarded staged installer and rollback model. |
+
+The editable/reference segment-display design asset is [`airplay-segment-cell.svg`](airplay-segment-cell.svg).
+
+## I am validating a release or debugging something awkward
+
+These documents are maintained release/evidence material rather than first-time setup instructions:
 
 | Document | Purpose |
 | --- | --- |
-| `docs/application-state-architecture.md` | Current authority/ownership architecture for playback, screen, Settings, Weather and audio. |
-| `docs/airplay-metadata.md` | Current Shairport metadata/integration ownership and read-only troubleshooting. |
-| `docs/alarm-audio-testing.md` | Current scheduled-alarm audio topology, safety model and regression procedure. |
-| `docs/testing.md` | Current local validation runner and CI relationship. |
+| [`fresh-appliance-acceptance-runbook.md`](fresh-appliance-acceptance-runbook.md) | Formal clean-room acceptance procedure and pinned identities. |
+| [`final-clean-room-physical-progress-2026-08-21.md`](final-clean-room-physical-progress-2026-08-21.md) | Final replacement-SD physical evidence. |
+| [`fresh-bootstrap-physical-progress-2026-08-15.md`](fresh-bootstrap-physical-progress-2026-08-15.md) | Earlier fresh-bootstrap physical evidence. |
+| [`eq-to-direct-physical-verification-2026-08-17.md`](eq-to-direct-physical-verification-2026-08-17.md) | Focused EQ → Direct transition verification. |
+| [`direct-independent-verification-2026-08-17.md`](direct-independent-verification-2026-08-17.md) | Independent Direct-route verification. |
+| [`eq-to-direct-desktop-audio-blocker-2026-08-17.md`](eq-to-direct-desktop-audio-blocker-2026-08-17.md) | Focused EQ → Direct blocker/diagnostic evidence. |
+| [`reboot-eq-runtime-failure-2026-08-17.md`](reboot-eq-runtime-failure-2026-08-17.md) | Reboot/runtime failure evidence and correction record. |
+| [`weather-physical-followup-2026-08-17.md`](weather-physical-followup-2026-08-17.md) | Focused Weather/rainfall-history physical follow-up. |
 
-These documents describe implemented behavior. They are maintained alongside regression tests that pin critical wording/ownership boundaries.
+The active engineering/release authority is [`eq-audio-installer-roadmap.md`](eq-audio-installer-roadmap.md), with the repository-cleanup record in [`release-hygiene-audit-2026-08-19.md`](release-hygiene-audit-2026-08-19.md). Those are contributor/release documents; normal users can cheerfully ignore them.
 
-## Final and focused physical evidence
+The two preserved roadmap-history snapshots remain alongside the active roadmap because it links to them directly:
 
-These files are evidence records. They remain valuable because they capture what was physically observed on a specific acceptance run; they are not general installation instructions.
+- [`eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md`](eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md)
+- [`eq-audio-installer-roadmap-history-through-checkpoint64.md`](eq-audio-installer-roadmap-history-through-checkpoint64.md)
 
-| Document | Evidence role |
-| --- | --- |
-| `docs/final-clean-room-physical-progress-2026-08-21.md` | Final replacement-SD clean-room evidence through the empty tracked-checkout proof. |
-| `docs/fresh-bootstrap-physical-progress-2026-08-15.md` | Earlier fresh-bootstrap physical evidence. |
-| `docs/eq-to-direct-physical-verification-2026-08-17.md` | Focused EQ → Direct transition verification. |
-| `docs/direct-independent-verification-2026-08-17.md` | Independent Direct-route verification. |
-| `docs/eq-to-direct-desktop-audio-blocker-2026-08-17.md` | Focused blocker/diagnostic evidence from EQ → Direct validation. |
-| `docs/reboot-eq-runtime-failure-2026-08-17.md` | Reboot/runtime failure evidence and correction record. |
-| `docs/weather-physical-followup-2026-08-17.md` | Focused Weather/rainfall-history physical follow-up. |
+## I have brought a shovel and would like some archaeology
 
-## Durable design/rationale records
+Excellent. The old engineering material now lives under **[`archive/`](archive/)** instead of filling the main documentation directory with dozens of historical Stage-C and laboratory files.
 
-These remain useful for explaining design ownership, but the running implementation, current operator docs and active roadmap win when an old design detail has since changed.
+[`archive/pre-release-engineering-snapshot-2026-08-22/`](archive/pre-release-engineering-snapshot-2026-08-22/) is an exact snapshot of the former `docs/` tree. It preserves the complete Stage-C trail, pre-production audio/DSP work, superseded implementation notes and historical copies of the other documents.
 
-| Document | Rationale role |
-| --- | --- |
-| `docs/fresh-pi-bootstrap-ownership-design.md` | Why fresh-Pi hardware/bootstrap ownership and reboot boundaries are constrained. |
-| `docs/full-appliance-installer-design.md` | Design rationale for staged guarded appliance installation and rollback. |
-| `docs/airplay-segment-cell.svg` | Editable/reference visual design asset used during accepted AirPlay/segment presentation work. |
+Nothing in the archive is deleted history, but nothing in it outranks the maintained documentation above either. If an archived command and a current guide disagree, trust the current guide. The archive is allowed to be old; that is rather the point. 🏺
 
-## Roadmap archives
+## Maintenance rule
 
-These are deliberately preserved snapshots of former active-roadmap content:
-
-| Document | Archive role |
-| --- | --- |
-| `docs/eq-audio-installer-roadmap-history-through-phase7-checkpoint6.md` | Detailed earlier roadmap chronology through Phase 7 checkpoint 6. |
-| `docs/eq-audio-installer-roadmap-history-through-checkpoint64.md` | Exact pre-consolidation active-roadmap snapshot through physical checkpoint #64. |
-
-Do not edit these archives to make them sound current; their value is preserving the historical record.
-
-## Historical development and laboratory records
-
-The following families are intentionally retained as engineering provenance. Their status lines, commands, service ownership and “next step” wording may describe an earlier phase and **must not be treated as current instructions**.
-
-### Retired Stage-C transaction/deployment history
-
-Every `docs/stage-c*.md` file and `docs/production-eq-stage-c-install-design.md` belongs to the retired Stage-C validation/deployment lineage. The executable Stage-C subsystem and its dedicated positive tests were retired at checkpoint #65; the Markdown history remains so the design/rehearsal trail is not erased.
-
-### Pre-production EQ/DSP laboratory and rehearsal history
-
-The historical EQ/audio development family includes:
-
-- `docs/bedroom-dsp-laboratory-results.md`;
-- `docs/post-mix-dsp-laboratory.md`;
-- `docs/master-eq-testing.md`;
-- `docs/production-eq-split-bus-design.md`;
-- `docs/eq-audio-installation-manifest.md`;
-- `docs/camilladsp-eq-helper-contract.md`;
-- `docs/eq-audio-route-helper-contract.md`;
-- `docs/direct-alarm-bypass-failback-result-2026-08-05.md`;
-- every `docs/split-bus-*.md` file;
-- every `docs/stage-seven-*.md` file.
-
-These records contain valuable measurements and design reasoning, but some describe now-retired scripts, Stage-C as future work, or the earlier boost-dependent headroom model. The accepted release instead uses the current `scripts/audio/` lifecycle and fixed `-6.5 dB` music reserve recorded in the active roadmap/architecture.
-
-### Other superseded implementation snapshots
-
-| Document | Historical role |
-| --- | --- |
-| `docs/airplay-control-plane-review-2026-07-26.md` | Earlier AirPlay control-plane review before the final PlaybackCoordinator ownership model. |
-| `docs/plexamp-4.12.4-restart-investigation.md` | Investigation tied to the older Plexamp 4.12.4 runtime; release runtime is 4.13.2. |
-| `docs/post-weather-settings-redesign.md` | Implemented Settings-redesign checkpoint record. Useful regression provenance, but its “EQ next/physical validation remaining” status text predates the completed release-candidate acceptance. |
-
-## Classification rule
-
-`tests/test_docs_catalog.py` enforces this map. Every regular top-level artefact under `docs/` must match one of the explicit current/evidence/design/archive entries or one of the deliberately historical filename families above.
-
-When adding a new document, classify it here at the same time. When an active guide becomes stale, either update it to current behavior or deliberately reclassify it as historical; do not leave ambiguous “current-looking” instructions beside the release authority.
+`tests/test_docs_catalog.py` keeps the main `docs/` directory deliberately small and checks that the archive snapshot remains present. New maintained documents should have a clear purpose here; development archaeology belongs in `archive/` rather than slowly rebuilding the paper mountain we have just tidied away.

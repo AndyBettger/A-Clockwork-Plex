@@ -8,7 +8,13 @@ ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 ALARM_GUIDE = ROOT / "docs" / "alarm-audio-testing.md"
 ARCHITECTURE = ROOT / "docs" / "application-state-architecture.md"
-SETTINGS_REDESIGN = ROOT / "docs" / "post-weather-settings-redesign.md"
+SETTINGS_REDESIGN = (
+    ROOT
+    / "docs"
+    / "archive"
+    / "pre-release-engineering-snapshot-2026-08-22"
+    / "post-weather-settings-redesign.md"
+)
 ALARM_RUNTIME = ROOT / "app" / "alarm_runtime.py"
 
 
@@ -30,7 +36,7 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("rolling Hourly rain, Event rain", text)
         self.assertNotIn("Weather-provider work was the **final development stage**", text)
 
-    def test_post_weather_settings_redesign_is_implemented(self):
+    def test_archived_settings_redesign_record_is_preserved(self):
         text = SETTINGS_REDESIGN.read_text(encoding="utf-8")
         self.assertIn("iPad-style split view", text)
         self.assertIn("GET  /api/settings", text)
@@ -46,7 +52,7 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("16-day response produces 16", text)
         self.assertIn("Advanced Audio is diagnostic", text)
 
-    def test_readme_records_current_settings_and_managed_eq(self):
+    def test_readme_records_current_settings_and_managed_eq_without_release_archaeology(self):
         text = README.read_text(encoding="utf-8")
         self.assertIn("The touchscreen Settings workspace covers", text)
         self.assertIn("AirPlay receiver naming", text)
@@ -54,8 +60,9 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("scheduled night dimming", text)
         self.assertIn("CamillaDSP is pinned to the accepted 4.1.3 build", text)
         self.assertIn("a-clockwork-plex-camilladsp.service", text)
-        self.assertIn("obsolete bare `scripts/install-master-eq.sh` laboratory-era path", text)
-        self.assertIn("pre-production audio rehearsal harnesses have been retired", text)
+        self.assertIn("The supported audio lifecycle lives under `scripts/audio/`", text)
+        self.assertNotIn("obsolete bare `scripts/install-master-eq.sh`", text)
+        self.assertNotIn("pre-production audio rehearsal harnesses have been retired", text)
 
     def test_alarm_guide_documents_real_scheduled_takeover(self):
         text = ALARM_GUIDE.read_text(encoding="utf-8")

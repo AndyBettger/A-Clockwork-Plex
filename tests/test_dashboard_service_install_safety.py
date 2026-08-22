@@ -17,6 +17,15 @@ class DashboardServiceInstallSafetyTests(unittest.TestCase):
         self.assertIn("app/runner.py", text)
         self.assertNotIn("app/main.py", text)
 
+    def test_repository_unit_is_a_portable_template(self):
+        text = UNIT.read_text(encoding="utf-8")
+        self.assertIn("User=ACP_PROJECT_USER", text)
+        self.assertIn("Group=ACP_PROJECT_USER", text)
+        self.assertIn("WorkingDirectory=/ACP_PROJECT_DIR", text)
+        self.assertNotIn("/home/andy", text)
+        self.assertNotIn("User=andy", text)
+        self.assertNotIn("Group=andy", text)
+
     def test_installer_defaults_to_check_only(self):
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('MODE="check"', text)
