@@ -11,6 +11,23 @@
     --alpha-display-h: clamp(31px, 8.25vmin, 63px);
   }
 
+  .time.is-alpha-clock .digital-colon {
+    animation: none;
+    opacity: 1;
+  }
+
+  .time.is-alpha-clock .digital-colon span {
+    background: var(--acp-theme-display, var(--segment-on));
+    box-shadow:
+      0 0 6px var(--acp-theme-display-glow, rgba(255, 255, 255, 0.34)),
+      0 0 14px var(--acp-theme-soft, rgba(255, 255, 255, 0.13));
+  }
+
+  .time.is-alpha-clock.is-colon-off .digital-colon span {
+    background: var(--segment-off);
+    box-shadow: none;
+  }
+
   @media (max-height: 520px), (max-width: 860px) {
     .time.is-alpha-clock {
       --alpha-display-h: clamp(92px, 33vw, 168px);
@@ -21,10 +38,42 @@
     }
   }
 </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/clock-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clock-dashboard.css', v='20260818-alarm-annunciator-balanced') }}">
 {% endblock %}
 {% block content %}
+{% macro composite_card(card_id, label, columns) -%}
+  {% set available = namespace(count=0) %}
+  {% for column in columns %}
+    {% if column.value %}{% set available.count = available.count + 1 %}{% endif %}
+  {% endfor %}
+  {% if available.count %}
+    <div class="weather-card is-composite" data-card-id="{{ card_id }}" aria-label="{{ label }}">
+      <div class="weather-composite-headings">
+        {% for column in columns %}
+          {% if column.value %}<span class="weather-composite-heading">{{ column.heading }}</span>{% endif %}
+        {% endfor %}
+      </div>
+      <div class="weather-subgrid">
+        {% for column in columns %}
+          {% if column.value %}
+            <div class="weather-subreading"><span class="weather-subvalue">{{ column.value }}</span></div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{%- endmacro %}
+
 <section class="hero clock-hero">
+  <div class="clock-alarm-annunciator" id="clock-alarm-annunciator" role="img" aria-label="Alarm indicator inactive" data-active="false" data-mode="within_12h">
+    <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <g class="clock-alarm-annunciator-glyph" transform="rotate(20 32 32)">
+        <path class="clock-alarm-annunciator-rays" d="M15 16 10 11 M11 29 5 29 M49 17 55 13 M53 30 59 30" />
+        <path class="clock-alarm-annunciator-bell" d="M32 10c-1.9 0-3.4 1.3-3.7 3.2-7 1.6-11.7 7.6-11.7 15.2v5.1c0 4.8-1.6 8.5-5 11.7-1.3 1.2-.4 3.4 1.4 3.4h38c1.8 0 2.7-2.2 1.4-3.4-3.4-3.2-5-6.9-5-11.7v-5.1c0-7.6-4.7-13.6-11.7-15.2C35.4 11.3 33.9 10 32 10Z" />
+        <path class="clock-alarm-annunciator-bell" d="M25.2 51.2c1.2 4 3.6 6 6.8 6s5.6-2 6.8-6H25.2Z" />
+      </g>
+    </svg>
+  </div>
   <div class="time is-alpha-clock" id="clock-time" aria-label="Current time" data-clock-format="{{ config.dashboard.clock_format | default('24h') }}">
     <span class="digital-group" id="clock-hours"></span>
     <span class="digital-colon" aria-hidden="true"><span></span><span></span></span>
@@ -39,12 +88,68 @@
   <h1 id="clock-weather-title">{{ config.weather.station_name }}</h1>
   <div id="clock-weather-content">
     {% if picked_weather %}
+      {% set configured_clock_cards = config.get('weather', {}).get('clock_cards', []) or ['outdoor_temp', 'humidity', 'wind_speed', 'wind_gust', 'daily_rain', 'pressure'] %}
+      {% set simple_labels = {
+        'max_daily_gust': 'Max gust today',
+        'hourly_rain': 'Hourly rain',
+        'pressure': 'Pressure',
+        'barometer': 'Barometer'
+      } %}
+      {% set rendered = namespace(ids=[]) %}
       <div class="weather-grid" id="clock-weather-grid">
-        {% for label, value in picked_weather.items() %}
-          <div class="weather-card">
-            <span class="weather-label">{{ label }}</span>
-            <span class="weather-value">{{ value }}</span>
-          </div>
+        {% for field_id in configured_clock_cards %}
+          {% if field_id in ['outdoor_temp', 'indoor_temp'] %}
+            {% set virtual_id = 'temperature_summary' %}
+          {% elif field_id in ['humidity', 'indoor_humidity'] %}
+            {% set virtual_id = 'humidity_summary' %}
+          {% elif field_id in ['wind_speed', 'wind_gust'] %}
+            {% set virtual_id = 'wind_summary' %}
+          {% elif field_id in ['solar', 'uv'] %}
+            {% set virtual_id = 'solar_uv_summary' %}
+          {% elif field_id in ['daily_rain', 'event_rain'] %}
+            {% set virtual_id = 'rain_summary' %}
+          {% else %}
+            {% set virtual_id = field_id %}
+          {% endif %}
+
+          {% if virtual_id not in rendered.ids %}
+            {% set rendered.ids = rendered.ids + [virtual_id] %}
+            {% if virtual_id == 'temperature_summary' %}
+              {{ composite_card('temperature_summary', 'Temperature', [
+                {'heading': 'Outdoor temp', 'value': picked_weather.get('Outdoor temp')},
+                {'heading': 'Indoor', 'value': picked_weather.get('Indoor temp')}
+              ]) }}
+            {% elif virtual_id == 'humidity_summary' %}
+              {{ composite_card('humidity_summary', 'Humidity', [
+                {'heading': 'Outdoor humidity', 'value': picked_weather.get('Humidity')},
+                {'heading': 'Indoor', 'value': picked_weather.get('Indoor humidity')}
+              ]) }}
+            {% elif virtual_id == 'wind_summary' %}
+              {{ composite_card('wind_summary', 'Wind', [
+                {'heading': 'Wind speed', 'value': picked_weather.get('Wind')},
+                {'heading': 'Gust', 'value': picked_weather.get('Gust')}
+              ]) }}
+            {% elif virtual_id == 'solar_uv_summary' %}
+              {{ composite_card('solar_uv_summary', 'Solar and UV', [
+                {'heading': 'Solar', 'value': picked_weather.get('Solar')},
+                {'heading': 'UV', 'value': picked_weather.get('UV')}
+              ]) }}
+            {% elif virtual_id == 'rain_summary' %}
+              {{ composite_card('rain_summary', 'Rain', [
+                {'heading': 'Rain today', 'value': picked_weather.get('Rain today')},
+                {'heading': 'Event rain', 'value': picked_weather.get('Event rain')}
+              ]) }}
+            {% else %}
+              {% set label = simple_labels.get(field_id) %}
+              {% set value = picked_weather.get(label) if label else none %}
+              {% if value %}
+                <div class="weather-card" data-card-id="{{ field_id }}">
+                  <span class="weather-label">{{ label }}</span>
+                  <span class="weather-value">{{ value.split('·')[0].strip() if field_id == 'barometer' else value }}</span>
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endif %}
         {% endfor %}
       </div>
     {% else %}
@@ -60,4 +165,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/clock-dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/clock-colon-sync.js', v='20260820-clock-colon-sync-v2') }}"></script>
+<script src="{{ url_for('static', filename='js/clock-hydration.js') }}"></script>
 {% endblock %}

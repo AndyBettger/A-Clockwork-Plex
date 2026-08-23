@@ -1,0 +1,25 @@
+.acp-transition-duration-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.acp-transition-duration-row input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.acp-transition-duration-row output {
+  min-width: 74px;
+  padding: 8px 10px;
+  border: 1px solid rgba(131, 216, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  color: #bdeaff;
+  font-family: var(--display-font);
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}

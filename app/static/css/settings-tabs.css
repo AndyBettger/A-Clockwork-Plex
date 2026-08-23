@@ -1,0 +1,272 @@
+/* Touchscreen settings navigation and About presentation. */
+
+.settings-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: clamp(6px, 1vmin, 10px);
+  margin: 0 0 clamp(10px, 1.6vmin, 15px);
+  padding: 7px;
+  overflow-x: auto;
+  border: 1px solid rgba(143, 211, 255, 0.16);
+  border-radius: 18px;
+  background: rgba(4, 10, 19, 0.9);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.26);
+  scrollbar-width: none;
+  backdrop-filter: blur(16px);
+}
+
+.settings-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab {
+  flex: 1 0 auto;
+  min-width: max-content;
+  min-height: 44px;
+  padding: 9px clamp(12px, 1.9vmin, 18px);
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: clamp(0.72rem, 1.75vmin, 0.88rem);
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settings-tab[aria-selected="true"] {
+  color: #07101d;
+  background: var(--text);
+  border-color: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 0 20px rgba(143, 211, 255, 0.13);
+}
+
+.settings-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settings-tab-panel {
+  display: grid;
+  gap: clamp(9px, 1.6vmin, 15px);
+}
+
+.settings-tab-panel[hidden] {
+  display: none !important;
+}
+
+.settings-card.is-intro {
+  background:
+    linear-gradient(135deg, rgba(143, 211, 255, 0.12), rgba(255, 255, 255, 0.045)),
+    var(--panel);
+}
+
+.settings-card.is-placeholder {
+  border-style: dashed;
+  border-color: rgba(143, 211, 255, 0.25);
+}
+
+.settings-card-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: clamp(8px, 1.4vmin, 12px);
+}
+
+.settings-card-heading h2,
+.settings-card-heading p {
+  margin: 0;
+}
+
+.settings-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(143, 211, 255, 0.22);
+  border-radius: 999px;
+  color: var(--accent);
+  background: rgba(143, 211, 255, 0.08);
+  font-family: var(--display-font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settings-about-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(14px, 2.4vmin, 24px);
+  align-items: center;
+}
+
+.settings-about-mark {
+  display: grid;
+  place-items: center;
+  width: clamp(74px, 12vmin, 108px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(143, 211, 255, 0.24);
+  border-radius: 50%;
+  color: var(--accent);
+  background: radial-gradient(circle, rgba(143, 211, 255, 0.16), rgba(143, 211, 255, 0.035));
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.2);
+  font-family: var(--display-font);
+  font-size: clamp(1.4rem, 4vmin, 2.1rem);
+  font-weight: 700;
+}
+
+.settings-about-copy h2 {
+  margin-bottom: 4px;
+  font-size: clamp(1.45rem, 4vmin, 2rem);
+}
+
+.settings-about-copy p {
+  margin: 0;
+}
+
+.settings-about-message {
+  margin-top: clamp(10px, 1.6vmin, 15px) !important;
+  padding: clamp(10px, 1.5vmin, 14px);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 12px 12px 0;
+  color: var(--text);
+  background: rgba(143, 211, 255, 0.07);
+  font-size: clamp(0.96rem, 2.35vmin, 1.16rem);
+  line-height: 1.35;
+}
+
+.settings-about-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.56fr) minmax(0, 0.72fr);
+  gap: clamp(8px, 1.4vmin, 13px);
+}
+
+.settings-about-reading {
+  min-width: 0;
+  padding: clamp(10px, 1.6vmin, 14px);
+  border: 1px solid rgba(143, 211, 255, 0.11);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.settings-about-reading span,
+.settings-about-reading strong {
+  display: block;
+}
+
+.settings-about-reading span {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: clamp(0.68rem, 1.65vmin, 0.82rem);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settings-about-reading strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: clamp(0.94rem, 2.35vmin, 1.12rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#about-release {
+  overflow: visible;
+  line-height: 1.24;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.settings-link-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 1.4vmin, 13px);
+}
+
+.settings-link-card {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: clamp(11px, 1.7vmin, 15px);
+  border: 1px solid rgba(143, 211, 255, 0.16);
+  border-radius: 15px;
+  color: var(--text);
+  background: rgba(143, 211, 255, 0.07);
+  text-decoration: none;
+}
+
+.settings-link-card strong {
+  font-family: var(--display-font);
+  font-weight: 600;
+}
+
+.settings-link-card span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-link-card:active,
+.settings-tab:active {
+  transform: scale(0.98);
+}
+
+.settings-advanced-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-advanced-list li {
+  padding: 9px 11px;
+  border-radius: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .settings-tabs {
+    top: -1px;
+    padding: 5px;
+    border-radius: 14px;
+  }
+
+  .settings-tab {
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 0.66rem;
+  }
+
+  .settings-about-grid {
+    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.56fr) minmax(0, 0.72fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .settings-about-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-about-mark {
+    width: 76px;
+  }
+
+  .settings-about-grid,
+  .settings-link-grid {
+    grid-template-columns: 1fr;
+  }
+}

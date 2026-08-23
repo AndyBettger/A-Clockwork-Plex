@@ -1,0 +1,514 @@
+body.mode-settings .screen {
+  padding: clamp(8px, 1.4vmin, 14px);
+}
+
+.settings-ipad-page {
+  width: min(100%, 1180px);
+  height: 100%;
+  padding-bottom: 70px;
+  overflow: hidden;
+}
+
+.settings-ipad-hero {
+  min-height: 54px;
+  margin-bottom: 8px;
+}
+
+.settings-ipad-hero .icon {
+  font-size: clamp(1.65rem, 4.5vmin, 2.4rem);
+}
+
+.settings-ipad-hero h1 {
+  font-size: clamp(1.5rem, 4vmin, 2.2rem);
+}
+
+.settings-ipad-hero p {
+  font-size: clamp(.72rem, 1.7vmin, .9rem);
+}
+
+.settings-unified-form {
+  height: calc(100% - 62px);
+  min-height: 0;
+}
+
+.settings-ipad-shell {
+  display: grid;
+  grid-template-columns: clamp(210px, 27vw, 286px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: clamp(17px, 2.5vmin, 24px);
+  background: rgba(3, 8, 16, .74);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .32);
+}
+
+.settings-sidebar {
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-right: 1px solid rgba(255, 255, 255, .1);
+  background: linear-gradient(180deg, rgba(143, 211, 255, .08), rgba(255, 255, 255, .025));
+  scrollbar-width: none;
+}
+
+.settings-sidebar::-webkit-scrollbar,
+.settings-detail::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-sidebar-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 13px 14px 10px;
+  background: rgba(4, 10, 20, .94);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  backdrop-filter: blur(14px);
+}
+
+.settings-sidebar-title strong {
+  font-family: var(--display-font);
+  letter-spacing: .04em;
+}
+
+.settings-sidebar-title span {
+  color: var(--muted);
+  font-size: .7rem;
+}
+
+.settings-sidebar-list {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+}
+
+.settings-sidebar-row,
+.settings-subpage-row {
+  width: 100%;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.settings-sidebar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border-radius: 13px;
+  background: transparent;
+}
+
+.settings-sidebar-row:hover,
+.settings-sidebar-row:focus-visible,
+.settings-sidebar-row[aria-current="page"] {
+  background: rgba(143, 211, 255, .14);
+  outline: none;
+}
+
+.settings-sidebar-row[aria-current="page"] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.settings-sidebar-row > span:first-child,
+.settings-subpage-row > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-sidebar-row strong,
+.settings-subpage-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-sidebar-row small,
+.settings-subpage-row small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffe99c;
+  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+}
+
+.settings-chevron {
+  color: var(--muted);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.settings-detail {
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(10px, 1.7vmin, 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.settings-detail-panel {
+  display: grid;
+  gap: clamp(8px, 1.35vmin, 13px);
+  min-width: 0;
+  padding-bottom: 14px;
+}
+
+.settings-detail-panel[hidden],
+.settings-subpage[hidden],
+.settings-subpage-overview[hidden] {
+  display: none !important;
+}
+
+.settings-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 2px 4px;
+}
+
+.settings-detail-header h2 {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(1.3rem, 3.4vmin, 1.85rem);
+  letter-spacing: .035em;
+}
+
+.settings-detail-header p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: clamp(.72rem, 1.7vmin, .88rem);
+  line-height: 1.3;
+}
+
+.settings-card h3 {
+  margin: 0 0 9px;
+  font-family: var(--display-font);
+  font-size: clamp(1rem, 2.5vmin, 1.28rem);
+  letter-spacing: .025em;
+}
+
+.settings-subpage-overview {
+  display: grid;
+  gap: 7px;
+}
+
+.settings-subpage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 13px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .055);
+}
+
+.settings-subpage-row:hover,
+.settings-subpage-row:focus-visible {
+  background: rgba(143, 211, 255, .1);
+  border-color: rgba(143, 211, 255, .25);
+  outline: none;
+}
+
+.settings-subpage-row > span:last-child {
+  color: var(--muted);
+  font-size: 1.6rem;
+}
+
+.settings-subpage {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-back {
+  justify-self: start;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(143, 211, 255, .1);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 800;
+}
+
+.settings-unit-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.settings-unit-presets button {
+  min-height: 36px;
+  border: 1px solid rgba(143, 211, 255, .16);
+  border-radius: 999px;
+  background: rgba(143, 211, 255, .07);
+  color: var(--text);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 800;
+}
+
+.settings-unit-presets button.is-selected {
+  background: rgba(247, 249, 255, .92);
+  border-color: transparent;
+  color: #07101d;
+}
+
+.settings-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.settings-live-trims,
+.settings-eq-grid,
+.settings-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-live-trim {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .055);
+}
+
+.settings-live-trim header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-live-trim input[type="range"],
+.settings-eq-grid input[type="range"] {
+  width: 100%;
+}
+
+.settings-status-reading {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .055);
+}
+
+.settings-status-reading span {
+  color: var(--muted);
+  font-size: .68rem;
+  text-transform: uppercase;
+}
+
+.settings-status-reading strong,
+.settings-status-reading small {
+  overflow-wrap: anywhere;
+}
+
+.settings-json-status {
+  max-height: 270px;
+  margin: 0 0 10px;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 13px;
+  background: rgba(0, 0, 0, .3);
+  color: #cfe9fb;
+  font-size: .68rem;
+  white-space: pre-wrap;
+}
+
+.settings-save-bar {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(calc(100vw - 24px), 760px);
+  padding: 9px 11px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 18px;
+  background: rgba(4, 10, 20, .94);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(18px);
+}
+
+.settings-save-bar > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-save-bar strong,
+.settings-save-bar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-save-bar span {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.settings-save-actions {
+  display: flex;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.settings-save-bar.is-dirty {
+  border-color: rgba(255, 233, 156, .34);
+}
+
+.settings-save-bar.is-error {
+  border-color: rgba(255, 120, 120, .55);
+}
+
+body.keyboard-open .settings-save-bar {
+  bottom: clamp(245px, 44vh, 330px);
+}
+
+.settings-confirmation {
+  position: fixed;
+  z-index: 220;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, .72);
+  backdrop-filter: blur(10px);
+}
+
+.settings-confirmation[hidden] {
+  display: none;
+}
+
+.settings-confirmation-card {
+  width: min(100%, 470px);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 22px;
+  background: #0b1423;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
+}
+
+.settings-confirmation-card h2 {
+  margin-top: 0;
+}
+
+.settings-confirmation-card > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  body.mode-settings .screen {
+    padding: 5px;
+  }
+
+  .settings-ipad-page {
+    padding-bottom: 56px;
+  }
+
+  .settings-ipad-hero {
+    min-height: 43px;
+    margin-bottom: 4px;
+  }
+
+  .settings-ipad-hero p {
+    display: none;
+  }
+
+  .settings-unified-form {
+    height: calc(100% - 47px);
+  }
+
+  .settings-ipad-shell {
+    grid-template-columns: 205px minmax(0, 1fr);
+    border-radius: 15px;
+  }
+
+  .settings-sidebar-row {
+    min-height: 43px;
+    padding: 6px 8px;
+  }
+
+  .settings-sidebar-row small {
+    font-size: .61rem;
+  }
+
+  .settings-detail {
+    padding: 8px;
+  }
+
+  .settings-card {
+    padding: 8px;
+  }
+
+  .settings-save-bar {
+    bottom: 31px;
+    padding: 6px 8px;
+    border-radius: 14px;
+  }
+
+  .settings-save-bar span {
+    max-width: 300px;
+  }
+
+  .settings-save-bar .button {
+    min-height: 32px;
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 690px) {
+  .settings-ipad-shell {
+    grid-template-columns: 178px minmax(0, 1fr);
+  }
+
+  .settings-live-trims,
+  .settings-eq-grid,
+  .settings-status-grid,
+  .settings-unit-presets {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-save-bar > div:first-child {
+    display: none;
+  }
+
+  .settings-save-bar {
+    justify-content: flex-end;
+  }
+}

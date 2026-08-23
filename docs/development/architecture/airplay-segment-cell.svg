@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+  width="280mm"
+  height="400mm"
+  viewBox="-4 -4 28 40"
+  version="1.1"
+  id="a-clockwork-plex-segment-cell"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape">
+  <title>A Clockwork Plex shared 14-segment display cell</title>
+  <desc>
+    Editable source cell for the shared A Clockwork Plex 14-segment display.
+    This is the selected Version 3 geometry. Edit the segment paths in Inkscape,
+    then copy each segment path (and any transform) into SEGMENT_PATHS in
+    app/static/js/segment-display.js. The runtime renderer is shared by the
+    Clock, AirPlay and other dashboard segment readouts.
+  </desc>
+  <defs>
+    <style><![CDATA[
+      .guide {
+        fill: none;
+        stroke: #8fd3ff;
+        stroke-opacity: 0.18;
+        stroke-width: 0.18;
+      }
+      .segment {
+        fill: rgba(143, 211, 255, 0.16);
+        stroke: rgba(247, 249, 255, 0.35);
+        stroke-width: 0.05;
+      }
+      .label {
+        fill: #8fd3ff;
+        font-family: DejaVu Sans, Arial, sans-serif;
+        font-size: 1.1px;
+        font-weight: 700;
+      }
+    ]]></style>
+  </defs>
+  <g id="guides" inkscape:label="Guides">
+    <rect id="cell-bounds" class="guide" x="0" y="0" width="20" height="32" rx="0.4" />
+    <line id="vertical-centre" class="guide" x1="10" y1="0" x2="10" y2="32" />
+    <line id="horizontal-centre" class="guide" x1="0" y1="16" x2="20" y2="16" />
+  </g>
+  <g id="segment-cell" inkscape:label="Segment cell - selected Version 3 geometry">
+    <path id="segment-a" class="segment segment-a" inkscape:label="segment-a"
+      transform="matrix(1.1281637,0,0,1,-1.2800763,0)"
+      d="m 17.001147,1.9000002 -1.240955,-1.40000004 -11.5231512,-4e-8 -1.240954,1.40000018 1.4182339,1.5999999 4.9638186,0 0.6204773,-0.7 0.6204774,0.7 4.963819,0 z" />
+    <path id="segment-b" class="segment segment-b"
+      d="m 16.5,14.3 1.6,1.600001 h 1.4 V 3.5000017 l -1.4,-1.4000015 -1.6,1.6 z" />
+    <path id="segment-c" class="segment segment-c"
+      d="m 16.5,28.300001 1.6,1.6 1.401324,-1.4 L 19.5,16.09 18.1,16.1 16.5,17.7 Z" />
+    <path id="segment-d" class="segment segment-d"
+      d="m 16.5,31.500001 1.401324,-1.4 -1.601324,-1.6 h -5.6 l -0.7,0.7 -0.7,-0.7 H 3.7 l -1.6,1.6 1.4000001,1.4 z" />
+    <path id="segment-e" class="segment segment-e"
+      d="m 0.5,28.500001 1.4,1.4 1.6000001,-1.6 v -10.6 L 1.9,16.100001 H 0.5 Z" />
+    <path id="segment-f" class="segment segment-f"
+      d="M 0.5,15.900001 H 1.9 L 3.5000001,14.3 3.5,3.7000002 l -1.6,-1.6 -1.4,1.4000012 z" />
+    <path id="segment-g1" class="segment segment-g1"
+      d="M 9.8,16.000001 7.3,14.5 H 3.7 L 2.2,16.000001 3.6923826,17.500002 7.3,17.500001 Z" />
+    <path id="segment-g2" class="segment segment-g2"
+      d="m 16.3,17.500001 1.5,-1.5 L 16.3,14.5 H 12.7 L 10.199888,16 12.7,17.500001 Z" />
+    <path id="segment-h" class="segment segment-h"
+      d="M 7.5,14.3 9.8,15.800001 8.3,10.6 4.5,3.7000002 H 3.7 v 3.9000001 z" />
+    <path id="segment-i" class="segment segment-i"
+      d="M 11.7,10.6 10.2,15.800001 12.5,14.3 16.3,7.6000003 V 3.7000002 h -0.8 z" />
+    <path id="segment-j" class="segment segment-j"
+      d="m 8.3,21.600001 1.5,-5.4 -2.2761393,1.5 -3.8238607,6.7 v 3.9 h 0.8 z" />
+    <path id="segment-k" class="segment segment-k"
+      d="m 10.2,16.200001 1.5,5.4 3.8,6.7 h 0.800001 l -1e-6,-3.9 -3.8,-6.7 z" />
+    <path id="segment-m" class="segment segment-m"
+      d="M 8.5,10.4 10,15.800001 11.5,10.4 V 4.6000002 l -1.5,-1.5 -1.5,1.5 z" />
+    <path id="segment-n" class="segment segment-n"
+      d="M 8.5,27.400001 10.000662,28.888992 11.5,27.400001 v -5.6 l -1.5,-5.6 -1.5,5.6 z" />
+  </g>
+  <g id="segment-labels" inkscape:label="Segment labels" opacity="0.65">
+    <text class="label" x="9.4" y="1.2">a</text>
+    <text class="label" x="18.7" y="9.8">b</text>
+    <text class="label" x="18.7" y="23.4">c</text>
+    <text class="label" x="9.4" y="32.8">d</text>
+    <text class="label" x="-1.2" y="23.4">e</text>
+    <text class="label" x="-1.2" y="9.8">f</text>
+    <text class="label" x="5.5" y="15.2">g1</text>
+    <text class="label" x="12" y="15.2">g2</text>
+    <text class="label" x="6.4" y="7.8">h</text>
+    <text class="label" x="13" y="7.8">i</text>
+    <text class="label" x="6.4" y="24.8">j</text>
+    <text class="label" x="13" y="24.8">k</text>
+    <text class="label" x="10.7" y="9.6">m</text>
+    <text class="label" x="10.7" y="23.4">n</text>
+  </g>
+</svg>

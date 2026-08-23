@@ -1,4 +1,45 @@
-/* Clock dashboard weather-card layout and segmented sensor readouts. */
+/* Clock dashboard weather-card layout, segmented sensor readouts and LCD annunciators. */
+
+.clock-hero {
+  position: relative;
+}
+
+.clock-alarm-annunciator {
+  position: absolute;
+  z-index: 1;
+  top: clamp(2px, 0.7vmin, 8px);
+  right: clamp(8px, 1.8vw, 24px);
+  width: clamp(58px, 11vmin, 92px);
+  height: clamp(58px, 11vmin, 92px);
+  color: rgba(247, 249, 255, 0.055);
+  opacity: 0.95;
+  pointer-events: none;
+  transition: color 160ms linear, filter 160ms linear, opacity 160ms linear;
+}
+
+.clock-alarm-annunciator svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.clock-alarm-annunciator-bell {
+  fill: currentColor;
+}
+
+.clock-alarm-annunciator-rays {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.clock-alarm-annunciator.is-active {
+  color: var(--segment-on);
+  opacity: 0.60;
+  filter: drop-shadow(0 0 2.8px currentColor);
+}
 
 .weather-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -16,6 +57,18 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
+}
+
+/* Solar can reach four significant figures plus W/m², while UV is normally one
+   or two digits. Give the pair a deliberate 70/30 split so the Solar unit never
+   crosses the divider into UV. */
+.weather-card[data-card-id="solar_uv_summary"] .weather-composite-headings,
+.weather-card[data-card-id="solar_uv_summary"] .weather-subgrid {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+}
+
+.weather-card[data-card-id="solar_uv_summary"] .weather-subreading:first-child {
+  padding-inline-end: clamp(5px, 0.75vmin, 9px);
 }
 
 .weather-composite-headings {
@@ -79,6 +132,13 @@
 }
 
 @media (max-height: 520px), (max-width: 860px) {
+  .clock-alarm-annunciator {
+    top: 2px;
+    right: clamp(6px, 1.5vw, 14px);
+    width: clamp(48px, 9vw, 58px);
+    height: clamp(48px, 9vw, 58px);
+  }
+
   .weather-composite-heading {
     font-size: 0.54rem;
   }

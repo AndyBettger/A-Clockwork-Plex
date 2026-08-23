@@ -7,32 +7,19 @@
   }
 
   const configuredName = String(page.dataset.configuredReceiverName || '').trim();
-  const receiverName = String(page.dataset.receiverName || configuredName)
-    .replace(/\s+Plexamp$/i, '')
-    .trim() || configuredName || 'A Clockwork Plex';
-
-  let normalising = false;
-
-  function normaliseReadyCopy() {
-    if (normalising) {
-      return;
-    }
-    normalising = true;
-
-    if (configuredName && title.textContent.trim() === configuredName) {
-      title.textContent = receiverName;
-    }
-
-    const detailText = detail.textContent;
-    if (configuredName && detailText.includes(configuredName)) {
-      detail.textContent = detailText.split(configuredName).join(receiverName);
-    }
-
-    normalising = false;
+  const renderedName = String(page.dataset.receiverName || '').trim();
+  if (!configuredName) {
+    return;
   }
 
-  const observer = new MutationObserver(normaliseReadyCopy);
-  observer.observe(title, { childList: true, characterData: true, subtree: true });
-  observer.observe(detail, { childList: true, characterData: true, subtree: true });
-  normaliseReadyCopy();
+  // This is a one-time compatibility repair for the server-rendered ready copy.
+  // airplay-live.js remains the sole ongoing owner of title and detail text.
+  const currentTitle = title.textContent.trim();
+  if (!renderedName || currentTitle === renderedName || currentTitle === configuredName) {
+    title.textContent = configuredName;
+  }
+
+  if (renderedName && renderedName !== configuredName && detail.textContent.includes(renderedName)) {
+    detail.textContent = detail.textContent.split(renderedName).join(configuredName);
+  }
 })();

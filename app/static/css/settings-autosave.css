@@ -1,0 +1,50 @@
+/* Progressive enhancement: the original Save/Reload controls remain available
+   until JavaScript confirms that autosave is running. */
+
+body.settings-autosave-enabled .settings-actions {
+  display: none !important;
+}
+
+.settings-autosave-indicator {
+  position: fixed;
+  z-index: 70;
+  top: 78px;
+  right: max(16px, env(safe-area-inset-right));
+  min-width: 76px;
+  padding: 7px 11px;
+  border: 1px solid rgba(131, 216, 255, 0.24);
+  border-radius: 999px;
+  color: #bdeaff;
+  background: rgba(5, 12, 22, 0.9);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
+  font-family: var(--display-font);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 170ms ease;
+  backdrop-filter: blur(12px);
+}
+
+.settings-autosave-indicator.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.settings-autosave-indicator.is-error {
+  color: #ffd0d0;
+  border-color: rgba(255, 123, 123, 0.35);
+}
+
+@media (max-height: 600px) {
+  .settings-autosave-indicator {
+    top: 58px;
+    right: 10px;
+    padding: 5px 9px;
+    font-size: 0.64rem;
+  }
+}

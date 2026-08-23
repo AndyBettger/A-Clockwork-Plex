@@ -1,0 +1,54 @@
+/*
+ * Long AirPlay episode/chapter titles use the same clipped-container +
+ * translateX pattern as the physically proven source/book/album marquee.
+ * airplay-title-marquee.js inserts the shell at runtime so airplay-live keeps
+ * owning #airplay-title exactly as before.
+ */
+
+.airplay-title-scroll-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+body.airplay-metadata-active .airplay-title-scroll-shell {
+  margin: clamp(4px, 0.7vmin, 8px) 0 clamp(9px, 1.3vmin, 15px);
+}
+
+body.airplay-metadata-active .airplay-title-scroll-shell h1 {
+  display: inline-block;
+  min-width: max-content;
+  max-width: none;
+  margin: 0;
+  padding-bottom: 0.16em;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  will-change: transform;
+}
+
+body.airplay-metadata-active .airplay-title-scroll-shell.is-overflowing h1 {
+  animation: airplay-source-scroll var(--airplay-scroll-duration, 20s) linear 1.2s infinite alternate;
+}
+
+body.airplay-session-idle .airplay-title-scroll-shell {
+  overflow: visible;
+}
+
+body.airplay-session-idle .airplay-title-scroll-shell h1 {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.airplay-metadata-active .airplay-title-scroll-shell.is-overflowing h1 {
+    max-width: 100%;
+    overflow: hidden;
+    animation: none;
+    text-overflow: ellipsis;
+  }
+}

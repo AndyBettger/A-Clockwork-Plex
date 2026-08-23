@@ -1,0 +1,84 @@
+.alarm-workspace-save-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  position: sticky;
+  bottom: 12px;
+  z-index: 8;
+  border-color: rgba(130, 216, 255, 0.28);
+  background: rgba(6, 15, 27, 0.96);
+  backdrop-filter: blur(16px);
+}
+
+.alarm-workspace-save-card h2 {
+  margin-bottom: 5px;
+}
+
+.alarm-workspace-save-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: min(100%, 360px);
+}
+
+#alarm-workspace-save-message {
+  text-align: right;
+}
+
+#alarm-workspace-save-message.is-dirty {
+  color: #ffe19a;
+}
+
+#alarm-workspace-save-message.is-error {
+  color: #ffc0c0;
+}
+
+/* The touch keyboard already reserves its own lower viewport. Keeping the alarm
+   save card sticky at the same time creates a second floating shelf over the
+   field being edited, so let it return to normal document flow while typing. */
+body.keyboard-open .alarm-workspace-save-card {
+  position: static;
+  bottom: auto;
+  z-index: auto;
+  backdrop-filter: none;
+}
+
+.alarm-advanced-workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.alarm-audio-advanced-card .alarm-audio-advanced-grid {
+  margin-top: 14px;
+}
+
+#settings-panel-alarms #alarm-audio-card .alarm-audio-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#settings-panel-advanced .alarm-scheduler-status-card,
+#settings-panel-advanced .alarm-audio-advanced-card {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .alarm-workspace-save-card,
+  .alarm-workspace-save-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alarm-workspace-save-actions {
+    min-width: 0;
+  }
+
+  #alarm-workspace-save-message {
+    text-align: left;
+  }
+
+  #settings-panel-alarms #alarm-audio-card .alarm-audio-grid {
+    grid-template-columns: 1fr;
+  }
+}

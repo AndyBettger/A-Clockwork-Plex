@@ -1,0 +1,161 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - feature/alarm-engine
+  pull_request:
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Compile application modules
+        run: |
+          python -m py_compile \
+            app/main.py \
+            app/runner.py \
+            app/dashboard_core.py \
+            app/application_state.py \
+            app/playback_coordinator.py \
+            app/playback_transport.py \
+            app/playback_navigation.py \
+            app/playback_handoff.py \
+            app/mixer_controller.py \
+            app/shairport_session.py \
+            app/shairport_name.py \
+            app/settings_unified.py \
+            app/settings_unified_scheduled.py \
+            app/settings_weather_rainfall.py \
+            app/weather_rainfall_history.py \
+            app/alarm_config.py \
+            app/alarm_scheduler.py \
+            app/alarm_runtime.py \
+            app/alarm_audio.py \
+            app/alarm_audio_core.py \
+            app/audio_mixer.py \
+            app/audio_eq.py \
+            app/weather_forecast.py \
+            app/weather_forecast_settings.py \
+            scripts/a-clockwork-plex-audio-mixer.py \
+            scripts/a-clockwork-plex-audio-eq.py \
+            scripts/a-clockwork-plex-shairport-name.py
+
+      - name: Check JavaScript, page wiring and shell syntax
+        run: |
+          set -euxo pipefail
+          node --check app/static/js/settings-ipad.js
+          node --check app/static/js/settings-advanced.js
+          node --check app/static/js/settings-alarms.js
+          node --check app/static/js/settings-keyboard.js
+          node --check app/static/js/settings-about.js
+          node --check app/static/js/settings-clock-cards.js
+          node --check app/static/js/clock-dashboard.js
+          node --check app/static/js/segment-display.js
+          node --check app/static/js/dashboard-preferences-bootstrap.js
+          node --check app/static/js/audio-polish.js
+          node --check app/static/js/audio-eq.js
+          node --check app/static/js/audio-eq-drawer-layout.js
+          node --check app/static/js/audio-state-isolation.js
+          node --check app/static/js/airplay-start-commit.js
+          node --check app/static/js/airplay-playback-state.js
+          node --check app/static/js/airplay-navigation-state.js
+          node --check app/static/js/fader-calibration.js
+          node --check app/static/js/airplay-layout-v3.js
+          node --check app/static/js/airplay-hydration.js
+          node --check app/static/js/clock-hydration.js
+          node --check app/static/js/nav-layer.js
+          node --check app/static/js/nav-drawer-lifecycle.js
+          node --check app/static/js/plexamp-persistent.js
+          node --check app/static/js/idle-return.js
+          node --check app/static/js/page-transitions.js
+          node --check app/static/js/airplay-volume-hold.js
+          node --check app/static/js/airplay-volume-v2.js
+          node --check app/static/js/mode-watch.js
+          node --check app/static/js/alarm-active.js
+          node --check app/static/js/nav-drawer.js
+          grep -q "airplay-layout-v3.css" app/templates/airplay.html
+          grep -q "airplay-layout-v3.js" app/templates/airplay.html
+          grep -q "airplay-hydration.js" app/templates/airplay.html
+          grep -q "clock-hydration.js" app/templates/clock.html
+          grep -q "nav-layer.js" app/templates/base.html
+          grep -q "nav-drawer-lifecycle.js" app/templates/base.html
+          grep -q "audio-eq.css" app/templates/base.html
+          grep -q "audio-eq.js" app/templates/base.html
+          grep -q "audio-eq-drawer-layout.css" app/templates/base.html
+          grep -q "audio-eq-drawer-layout.js" app/templates/base.html
+          grep -q "masterConsole.insertAdjacentElement" app/static/js/audio-eq-drawer-layout.js
+          grep -q "is-alarm-knob')?.remove" app/static/js/audio-eq-drawer-layout.js
+          grep -q "is-master-only" app/static/css/audio-eq-drawer-layout.css
+          grep -q "dashboard-preferences-bootstrap.js" app/templates/base.html
+          grep -q "data-server-startup-mode" app/templates/base.html
+          grep -q "data-server-idle-return-mode" app/templates/base.html
+          grep -q "settings-ipad.js" app/templates/settings.html
+          grep -q "settings-advanced.js" app/templates/settings.html
+          grep -q "settings-ipad.css" app/templates/settings.html
+          grep -q "('audio', 'Audio'" app/templates/settings.html
+          grep -Fq 'airplay.receiver_name' app/templates/settings.html
+          grep -Fq 'data-eq-range="{{ band }}"' app/templates/settings.html
+          ! grep -Fq 'data-setting-path="audio.eq.enabled"' app/templates/settings.html
+          ! grep -Fq 'data-setting-path="audio.eq.bands.{{ band }}"' app/templates/settings.html
+          grep -q "Save Changes" app/templates/settings.html
+          ! grep -q "settings-tabs.js" app/templates/settings.html
+          ! grep -q "settings-autosave.js" app/templates/base.html
+          ! grep -q "settings-dashboard-preferences.js" app/templates/base.html
+          ! grep -q "settings-alarm-workspace.js" app/templates/base.html
+          ! grep -q "settings-alarm-scheduled.js" app/templates/base.html
+          ! grep -q "settings-alarm-scheduler.js" app/templates/base.html
+          grep -q "register_unified_settings_api" app/runner.py
+          grep -q "ShairportNameManager" app/runner.py
+          grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
+          grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
+          grep -q "app/runner.py" systemd/a-clockwork-plex.service
+          grep -q "GENERAL_BLOCK_RE" scripts/a-clockwork-plex-shairport-name.py
+          grep -q "rollback" scripts/a-clockwork-plex-shairport-name.py
+          ! grep -q "@view-transition" app/static/css/page-transitions.css
+          node -e "const raw=Math.round(100*(1+(20*Math.log10(.5))/30)); const ui=Math.round(100*Math.pow(10,(-30*(1-raw/100))/20)); if(Math.abs(ui-50)>1) throw new Error('AirPlay scale is not reversible at 50%');"
+          bash -n setup.sh
+          bash -n appliance-installer.sh
+          test ! -e install.sh
+          grep -Fq 'bash "$REPO_ROOT/appliance-installer.sh"' setup.sh
+          bash -n scripts/a-clockwork-plex-alarm-audio-helper.sh
+          bash -n scripts/install-appliance-helpers.sh
+          bash -n scripts/audio/preflight-eq.sh
+          bash -n scripts/audio/install-direct.sh
+          bash -n scripts/audio/install-eq.sh
+          bash -n scripts/audio/repair-audio.sh
+          bash -n scripts/audio/uninstall-eq.sh
+          bash -n scripts/audio/verify-audio.sh
+          bash -n scripts/install-airplay-hooks.sh
+
+      - name: Run unit tests
+        id: unit_tests
+        shell: bash
+        run: |
+          set +e
+          python -m unittest discover -s tests -v > unit-test-output.txt 2>&1
+          status=$?
+          cat unit-test-output.txt
+          exit $status
+
+      - name: Upload unit-test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-output
+          path: unit-test-output.txt
+          if-no-files-found: error
+          retention-days: 7

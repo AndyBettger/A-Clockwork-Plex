@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "default_tone_id": "classic-klaxon",
+  "fallback_tone_id": "emergency-buzzer",
+  "preview_seconds": 10,
+  "tones": [
+    {
+      "id": "classic-klaxon",
+      "label": "Classic Klaxon",
+      "description": "A strong alternating alert with no interest in subtlety.",
+      "character": "Urgent",
+      "pattern": [
+        {"frequency": 640, "duration_ms": 360, "gap_ms": 55, "wave": "square", "gain": 0.22},
+        {"frequency": 470, "duration_ms": 360, "gap_ms": 110, "wave": "square", "gain": 0.22}
+      ]
+    },
+    {
+      "id": "mechanical-bell",
+      "label": "Mechanical Bell",
+      "description": "A brisk twin-bell pattern inspired by traditional alarm clocks.",
+      "character": "Traditional",
+      "pattern": [
+        {"frequency": 1180, "duration_ms": 105, "gap_ms": 35, "wave": "triangle", "gain": 0.2},
+        {"frequency": 1520, "duration_ms": 105, "gap_ms": 70, "wave": "triangle", "gain": 0.18},
+        {"frequency": 1180, "duration_ms": 105, "gap_ms": 35, "wave": "triangle", "gain": 0.2},
+        {"frequency": 1520, "duration_ms": 105, "gap_ms": 180, "wave": "triangle", "gain": 0.18}
+      ]
+    },
+    {
+      "id": "electronic-buzzer",
+      "label": "Electronic Buzzer",
+      "description": "A compact bedside-clock buzz that gets directly to the point.",
+      "character": "Direct",
+      "pattern": [
+        {"frequency": 880, "duration_ms": 210, "gap_ms": 85, "wave": "square", "gain": 0.19},
+        {"frequency": 880, "duration_ms": 210, "gap_ms": 210, "wave": "square", "gain": 0.19}
+      ]
+    },
+    {
+      "id": "radar-pulse",
+      "label": "Radar Pulse",
+      "description": "Measured electronic pings for a slightly more spaceship-like morning.",
+      "character": "Technical",
+      "pattern": [
+        {"frequency": 760, "end_frequency": 1120, "duration_ms": 180, "gap_ms": 170, "wave": "sine", "gain": 0.2},
+        {"frequency": 760, "end_frequency": 1120, "duration_ms": 180, "gap_ms": 430, "wave": "sine", "gain": 0.2}
+      ]
+    },
+    {
+      "id": "ascending-alert",
+      "label": "Ascending Alert",
+      "description": "A repeating four-step rise that becomes difficult to negotiate with.",
+      "character": "Escalating",
+      "pattern": [
+        {"frequency": 440, "duration_ms": 180, "gap_ms": 40, "wave": "sawtooth", "gain": 0.17},
+        {"frequency": 554, "duration_ms": 180, "gap_ms": 40, "wave": "sawtooth", "gain": 0.17},
+        {"frequency": 659, "duration_ms": 180, "gap_ms": 40, "wave": "sawtooth", "gain": 0.17},
+        {"frequency": 880, "duration_ms": 250, "gap_ms": 280, "wave": "sawtooth", "gain": 0.17}
+      ]
+    },
+    {
+      "id": "gentle-chime",
+      "label": "Gentle Chime",
+      "description": "A softer three-note option for mornings requiring diplomacy.",
+      "character": "Gentle",
+      "pattern": [
+        {"frequency": 523.25, "duration_ms": 420, "gap_ms": 80, "wave": "sine", "gain": 0.15},
+        {"frequency": 659.25, "duration_ms": 420, "gap_ms": 80, "wave": "sine", "gain": 0.15},
+        {"frequency": 783.99, "duration_ms": 650, "gap_ms": 520, "wave": "sine", "gain": 0.14}
+      ]
+    },
+    {
+      "id": "emergency-buzzer",
+      "label": "Emergency Buzzer",
+      "description": "The built-in last resort when every preferred source has failed.",
+      "character": "Failsafe",
+      "is_fallback": true,
+      "pattern": [
+        {"frequency": 980, "duration_ms": 280, "gap_ms": 70, "wave": "square", "gain": 0.24},
+        {"frequency": 720, "duration_ms": 280, "gap_ms": 70, "wave": "square", "gain": 0.24},
+        {"frequency": 980, "duration_ms": 280, "gap_ms": 260, "wave": "square", "gain": 0.24}
+      ]
+    }
+  ]
+}

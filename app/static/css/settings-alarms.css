@@ -1,0 +1,156 @@
+/* Alarm settings workspace. */
+@import url("settings-alarm-tones.css");
+@import url("settings-alarm-model.css");
+@import url("settings-alarm-scheduler.css");
+
+/* When the list is empty, the first alarm is less "another" and more a conscious
+   decision to place sleep in jeopardy. Once an alarm exists, the normal button
+   wording from the editor returns automatically. */
+.alarm-list:has(.alarm-empty-state) + .alarm-add-button {
+  font-size: 0;
+}
+
+.alarm-list:has(.alarm-empty-state) + .alarm-add-button::after {
+  content: "＋ Click here to ruin your sleep";
+  font-size: clamp(0.84rem, 2vmin, 1rem);
+}
+
+/* Pass B touchscreen follow-up. */
+.alarm-schedule-heading {
+  margin-bottom: clamp(13px, 2vmin, 18px);
+}
+
+/* Alarm name and Alarm time are two matching control cards. Stretching the
+   grid row makes their shared outer treatment visually align even though the
+   time side also carries a short storage-format explanation. */
+.alarm-basics-grid {
+  align-items: stretch;
+}
+
+.alarm-basics-grid > .setting-field,
+.alarm-time-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 100%;
+  padding: 10px;
+  border: 1px solid rgba(143, 211, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.alarm-basics-grid > .setting-field input {
+  width: 100%;
+}
+
+/* Hour and minute use an in-document listbox rather than Chromium's native
+   select popup. Native popups live outside the page compositor and therefore
+   escape the appliance night overlay; this menu remains under that authority. */
+.alarm-time-choice {
+  position: relative;
+  min-width: 0;
+}
+
+.alarm-time-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.alarm-time-select-value {
+  min-width: 0;
+  text-align: center;
+}
+
+.alarm-time-select-arrow {
+  color: var(--muted);
+  font-family: var(--app-font);
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.alarm-time-choice.is-open {
+  z-index: 80;
+}
+
+.alarm-time-choice.is-open .alarm-time-select {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.alarm-time-choice.is-open .alarm-time-select-arrow {
+  transform: rotate(180deg);
+}
+
+.alarm-time-menu {
+  position: absolute;
+  z-index: 90;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  display: grid;
+  gap: 3px;
+  min-width: 100%;
+  padding: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(143, 211, 255, 0.28);
+  border-radius: 13px;
+  color: #f4f8ff;
+  background: #172333;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.58);
+  scrollbar-color: rgba(244, 248, 255, 0.62) rgba(0, 0, 0, 0.18);
+  scrollbar-width: thin;
+}
+
+.alarm-time-menu.opens-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.alarm-time-menu[hidden] {
+  display: none;
+}
+
+.alarm-time-option {
+  width: 100%;
+  min-height: 45px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 9px;
+  color: #f4f8ff;
+  background: transparent;
+  font-family: var(--display-font);
+  font-size: clamp(1.05rem, 2.8vmin, 1.42rem);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.alarm-time-option:active,
+.alarm-time-option:focus-visible {
+  background: rgba(143, 211, 255, 0.16);
+  outline: none;
+}
+
+.alarm-time-option.is-selected {
+  color: #ffffff;
+  background: #2d79b8;
+}
+
+/* Temporarily release the rounded-card clipping while a time list is open.
+   The Settings detail pane remains the final viewport/scroll owner. */
+.alarm-schedule-card:has(.alarm-time-choice.is-open),
+.alarm-list:has(.alarm-time-choice.is-open),
+.alarm-editor-card:has(.alarm-time-choice.is-open),
+.alarm-editor-body:has(.alarm-time-choice.is-open),
+.alarm-editor-panel:has(.alarm-time-choice.is-open),
+.alarm-basics-grid:has(.alarm-time-choice.is-open),
+.alarm-time-field:has(.alarm-time-choice.is-open) {
+  overflow: visible;
+}

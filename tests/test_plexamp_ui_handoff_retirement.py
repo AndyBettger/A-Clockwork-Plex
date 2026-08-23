@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+AUDIO_MIXER = ROOT / "app" / "audio_mixer.py"
+PERSISTENT_PLEXAMP = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
+PERSISTENT_PLEXAMP_CSS = ROOT / "app" / "static" / "css" / "plexamp-persistent.css"
+PLAYBACK_AUTHORITY = ROOT / "app" / "playback_authority.py"
+PLAYBACK_HANDOFF = ROOT / "app" / "playback_handoff.py"
+RUNNER = ROOT / "app" / "runner.py"
+SCREEN_PROJECTION = ROOT / "app" / "screen_projection.py"
+SCREEN_PROJECTION_ACTIVITY = ROOT / "app" / "screen_projection_activity.py"
+
+
+class PlexampUiHandoffRetirementTests(unittest.TestCase):
+    def test_persistent_plexamp_never_controls_airplay_transport(self):
+        text = PERSISTENT_PLEXAMP.read_text(encoding="utf-8")
+
+        self.assertNotIn("/api/airplay/control", text)
+        self.assertNotIn("pauseAirplayWhenPlexampWins", text)
+        self.assertNotIn("handoffPauseInFlight", text)
+        self.assertNotIn("handoffCooldownUntil", text)
+        self.assertNotIn("acp:live-audio-status", text)
+
+    def test_persistent_plexamp_is_presentation_only(self):
+        text = PERSISTENT_PLEXAMP.read_text(encoding="utf-8")
+
+        self.assertIn("function show(options = {})", text)
+        self.assertIn("function hide(options = {})", text)
+        self.assertIn("function prepareNavigation()", text)
+        self.assertIn("window.ACPPlexamp =", text)
+        self.assertNotIn("updateServerMode", text)
+        self.assertNotIn("/api/mode/", text)
+        self.assertNotIn("acp:manual-screen-open", text)
+        self.assertNotIn("document.addEventListener('click'", text)
+        self.assertNotIn("ACPLiveAudioSnapshot", text)
+
+    def test_underlay_reveal_cannot_start_a_second_shell_fade(self):
+        script = PERSISTENT_PLEXAMP.read_text(encoding="utf-8")
+        css = PERSISTENT_PLEXAMP_CSS.read_text(encoding="utf-8")
+
+        self.assertIn("shell.classList.add('is-handoff-hidden')", script)
+        self.assertIn("shell.classList.remove('is-handoff-hidden'", script)
+        self.assertIn(".persistent-plexamp.is-handoff-hidden", css)
+        handoff_rule = css.split(".persistent-plexamp.is-handoff-hidden", 1)[1].split("}", 1)[0]
+        self.assertIn("transition: none !important", handoff_rule)
+        self.assertIn("visibility: hidden !important", handoff_rule)
+        self.assertIn("opacity: 0 !important", handoff_rule)
+
+    def test_legacy_server_workers_and_route_wrapper_are_removed(self):
+        mixer = AUDIO_MIXER.read_text(encoding="utf-8")
+
+        self.assertNotIn("_arm_plexamp_handoff", mixer)
+        self.assertNotIn("_plexamp_handoff_runtime", mixer)
+        self.assertNotIn("_plexamp_handoff_generation", mixer)
+        self.assertNotIn("plexamp-airplay-handoff", mixer)
+        self.assertNotIn("_acp_airplay_handoff_wrapped", mixer)
+        self.assertNotIn('"plexamp_handoff"', mixer)
+        self.assertNotIn("_schedule_airplay_default", mixer)
+        self.assertNotIn("airplay-default-volume", mixer)
+        self.assertIn("bind_mixer_controller", mixer)
+        self.assertIn("mixer_controller.start_airplay_session", mixer)
+        self.assertIn("_acp_audio_defaults_wrapped", mixer)
+
+    def test_reverse_handoff_is_owned_by_final_production_authority(self):
+        authority = PLAYBACK_AUTHORITY.read_text(encoding="utf-8")
+        handoff = PLAYBACK_HANDOFF.read_text(encoding="utf-8")
+        runner = RUNNER.read_text(encoding="utf-8")
+
+        self.assertIn("RetainedBidirectionalHandoffCoordinator", authority)
+        self.assertIn("PlexampTimelineObserver", authority)
+        self.assertIn("class BidirectionalHandoffPlaybackCoordinator", handoff)
+        self.assertIn('"plexamp_to_airplay_handoff": True', handoff)
+        self.assertIn("promote_playback_authority(application_state_hub, dashboard)", runner)
+        self.assertNotIn("promote_bidirectional_handoff(application_state_hub)", runner)
+        self.assertNotIn("/api/airplay/control", PERSISTENT_PLEXAMP.read_text(encoding="utf-8"))
+
+    def test_screen_projection_is_separate_from_playback_handoff(self):
+        projection = SCREEN_PROJECTION.read_text(encoding="utf-8")
+        promoted = SCREEN_PROJECTION_ACTIVITY.read_text(encoding="utf-8")
+        runner = RUNNER.read_text(encoding="utf-8")
+
+        self.assertIn("class ScreenProjectionController", projection)
+        self.assertIn("class ActivityAwareScreenProjectionController", promoted)
+        self.assertIn('authority = "screen-projection-owner"', promoted)
+        self.assertIn("register_activity_screen_projection(app, application_state_hub, dashboard)", runner)
+        self.assertNotIn("/api/airplay/control", projection)
+        self.assertNotIn("/api/airplay/control", promoted)
+
+
+if __name__ == "__main__":
+    unittest.main()

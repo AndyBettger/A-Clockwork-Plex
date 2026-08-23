@@ -1,35 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DASHBOARD_BASE="${DASHBOARD_BASE:-http://localhost:8088}"
-PLEXAMP_URL="${PLEXAMP_URL:-http://localhost:32500}"
-PLEXAMP_SERVICE="${PLEXAMP_SERVICE:-plexamp.service}"
-SHAIRPORT_USER="${SHAIRPORT_USER:-shairport-sync}"
 START_WRAPPER="${START_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-start}"
 END_WRAPPER="${END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-end}"
-SUDOERS_FILE="${SUDOERS_FILE:-/etc/sudoers.d/a-clockwork-plex-airplay}"
-
-validate_simple_name() {
-    local name="$1"
-    local value="$2"
-
-    if [[ ! "$value" =~ ^[A-Za-z0-9_.@-]+$ ]]; then
-        echo "Invalid $name: $value" >&2
-        echo "$name may only contain letters, numbers, '.', '_', '@' and '-'" >&2
-        exit 1
-    fi
-}
-
-validate_url_value() {
-    local name="$1"
-    local value="$2"
-
-    if [[ "$value" =~ [[:space:]\"\'\`\\] ]]; then
-        echo "Invalid $name: $value" >&2
-        echo "$name must not contain spaces, quotes, backticks or backslashes." >&2
-        exit 1
-    fi
-}
+LEGACY_SESSION_END_WRAPPER="${LEGACY_SESSION_END_WRAPPER:-/usr/local/bin/a-clockwork-plex-airplay-session-end}"
+LEGACY_SUDOERS_FILE="${LEGACY_SUDOERS_FILE:-/etc/sudoers.d/a-clockwork-plex-airplay}"
+WRAPPER_RENDERER="$SCRIPT_DIR/a-clockwork-plex-airplay-wrappers.py"
 
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -38,225 +16,51 @@ require_command() {
     fi
 }
 
-validate_simple_name "PLEXAMP_SERVICE" "$PLEXAMP_SERVICE"
-validate_simple_name "SHAIRPORT_USER" "$SHAIRPORT_USER"
-validate_url_value "DASHBOARD_BASE" "$DASHBOARD_BASE"
-validate_url_value "PLEXAMP_URL" "$PLEXAMP_URL"
-
+require_command python3
 require_command sudo
-require_command tee
 require_command install
-require_command visudo
-
-# Install self-contained wrappers outside /home so Shairport can execute them
-# even when the shairport-sync user cannot traverse /home/andy.
-cat <<START_WRAPPER_EOF | sudo tee "$START_WRAPPER" >/dev/null
-#!/bin/bash
-set -euo pipefail
-
-DASHBOARD_BASE="$DASHBOARD_BASE"
-PLEXAMP_URL="$PLEXAMP_URL"
-PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - switching display to AirPlay"
-/usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/start" >/dev/null || true
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - pausing Plexamp playback"
-/usr/bin/curl -s "\$PLEXAMP_URL/player/playback/pause" >/dev/null 2>&1 || true
-
-sleep 1
-
-/usr/bin/logger -t shairport-plexamp "AirPlay starting - stopping Plexamp service"
-/usr/bin/sudo /usr/bin/systemctl stop "\$PLEXAMP_SERVICE"
-
-sleep 2
-
-/usr/bin/logger -t shairport-plexamp "Plexamp service stopped - DAC should be free"
-START_WRAPPER_EOF
-
-cat <<END_WRAPPER_EOF | sudo tee "$END_WRAPPER" >/dev/null
-#!/bin/bash
-set -euo pipefail
-
-DASHBOARD_BASE="$DASHBOARD_BASE"
-PLEXAMP_SERVICE="$PLEXAMP_SERVICE"
-WATCHDOG_SECONDS="\${AIRPLAY_DASHBOARD_PAUSE_WATCHDOG_SECONDS:-600}"
-WATCHDOG_INTERVAL_SECONDS="\${AIRPLAY_DASHBOARD_PAUSE_WATCHDOG_INTERVAL_SECONDS:-5}"
-
-remote_available_status() {
-    if command -v /usr/bin/busctl >/dev/null 2>&1; then
-        /usr/bin/busctl --system get-property \\
-            org.gnome.ShairportSync \\
-            /org/gnome/ShairportSync \\
-            org.gnome.ShairportSync.RemoteControl \\
-            Available 2>/dev/null || printf 'unknown'
-    else
-        printf 'unknown'
-    fi
+[[ -f "$WRAPPER_RENDERER" && ! -L "$WRAPPER_RENDERER" ]] || {
+    echo "Could not find AirPlay wrapper renderer: $WRAPPER_RENDERER" >&2
+    exit 1
 }
 
-remote_player_state() {
-    if command -v /usr/bin/busctl >/dev/null 2>&1; then
-        /usr/bin/busctl --system get-property \\
-            org.gnome.ShairportSync \\
-            /org/gnome/ShairportSync \\
-            org.gnome.ShairportSync.RemoteControl \\
-            PlayerState 2>/dev/null || printf 'unknown'
-    else
-        printf 'unknown'
-    fi
+CANDIDATE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/a-clockwork-plex-airplay-hooks.XXXXXX")"
+cleanup() {
+    rm -rf "$CANDIDATE_DIR"
 }
+trap cleanup EXIT
 
-dashboard_mode() {
-    /usr/bin/curl -fsS -m 4 "\$DASHBOARD_BASE/api/status" 2>/dev/null | /usr/bin/python3 -c '
-import json
-import sys
+python3 "$WRAPPER_RENDERER" \
+    --output-dir "$CANDIDATE_DIR" \
+    --dashboard-base "$DASHBOARD_BASE"
 
-try:
-    payload = json.load(sys.stdin)
-except Exception:
-    print("unknown")
-    raise SystemExit(1)
+sudo install -D -m 0755 \
+    "$CANDIDATE_DIR/a-clockwork-plex-airplay-start" \
+    "$START_WRAPPER"
+sudo install -D -m 0755 \
+    "$CANDIDATE_DIR/a-clockwork-plex-airplay-end" \
+    "$END_WRAPPER"
 
-print(str((payload.get("state") or {}).get("mode") or "unknown"))
-' 2>/dev/null || printf 'unknown'
-}
-
-restore_plexamp_and_clock() {
-    local reason="\$1"
-    /usr/bin/logger -t shairport-plexamp "\$reason - starting Plexamp service"
-    /usr/bin/sudo /usr/bin/systemctl start "\$PLEXAMP_SERVICE"
-    /usr/bin/logger -t shairport-plexamp "Plexamp service start requested"
-
-    sleep 5
-
-    /usr/bin/logger -t shairport-plexamp "\$reason - switching display to clock"
-    /usr/bin/curl -fsS "\$DASHBOARD_BASE/api/airplay/end" >/dev/null || true
-}
-
-arm_dashboard_pause_watchdog() {
-    (
-        /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog armed for \${WATCHDOG_SECONDS}s"
-
-        local elapsed=0
-        local unavailable_logged=0
-        while [ "\$elapsed" -lt "\$WATCHDOG_SECONDS" ]; do
-            sleep "\$WATCHDOG_INTERVAL_SECONDS"
-            elapsed=\$((elapsed + WATCHDOG_INTERVAL_SECONDS))
-
-            local mode
-            mode="\$(dashboard_mode)"
-            if [ "\$mode" != "airplay" ]; then
-                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog exiting because dashboard mode is \$mode"
-                exit 0
-            fi
-
-            local player_state
-            player_state="\$(remote_player_state)"
-            if [ "\$player_state" = 's "Playing"' ]; then
-                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog exiting because playback resumed"
-                exit 0
-            fi
-
-            local available
-            available="\$(remote_available_status)"
-            if [ "\$available" = "b false" ] && [ "\$unavailable_logged" -eq 0 ]; then
-                /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog saw remote unavailable after \${elapsed}s; continuing hold until playback resumes or timeout"
-                unavailable_logged=1
-            fi
-        done
-
-        /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause watchdog timed out after \${WATCHDOG_SECONDS}s"
-        restore_plexamp_and_clock "AirPlay dashboard pause watchdog timeout"
-    ) >/dev/null 2>&1 &
-}
-
-STATUS_FILE="\$(/usr/bin/mktemp /tmp/a-clockwork-airplay-status.XXXXXX)"
-trap '/usr/bin/rm -f "\$STATUS_FILE"' EXIT
-
-CURL_OUTPUT="\$(/usr/bin/curl -sS -m 4 -o "\$STATUS_FILE" -w '%{http_code}' "\$DASHBOARD_BASE/api/status" 2>&1 || true)"
-HTTP_CODE="\$(printf '%s' "\$CURL_OUTPUT" | /usr/bin/tail -c 3)"
-
-if [ "\$HTTP_CODE" != "200" ]; then
-    HOLD_STATUS="curl=\$CURL_OUTPUT"
-    HOLD_EXIT=1
-else
-    set +e
-    HOLD_STATUS="\$(/usr/bin/python3 - "\$STATUS_FILE" <<'PY'
-import json
-import sys
-from datetime import datetime
-
-path = sys.argv[1]
-try:
-    with open(path, "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-except Exception as exc:
-    print(f"invalid-status-json:{exc}")
-    sys.exit(1)
-
-state = payload.get("state") or {}
-airplay = state.get("airplay") or {}
-metadata = airplay.get("metadata") or {}
-last_change = str(state.get("last_mode_change") or "").strip()
-mode = str(state.get("mode") or "").strip()
-last_event = str(metadata.get("last_event") or "").strip()
-
-if mode != "airplay" or not last_change:
-    print(f"mode={mode or '-'} last_change={last_change or '-'} last_event={last_event or '-'} age=-")
-    sys.exit(1)
-
-try:
-    parsed = datetime.fromisoformat(last_change.replace("Z", "+00:00"))
-except ValueError:
-    print(f"mode={mode} last_change=invalid last_event={last_event or '-'} age=-")
-    sys.exit(1)
-
-now = datetime.now(parsed.tzinfo) if parsed.tzinfo else datetime.now()
-age = (now - parsed).total_seconds()
-print(f"mode={mode} last_change={last_change} last_event={last_event or '-'} age={age:.1f}")
-
-# The AirPlay page sends rapid heartbeats only after the dashboard pause button is pressed.
-# A fresh heartbeat means the user probably wants a loo-break pause, not a full handoff back to Plexamp.
-sys.exit(0 if 0 <= age <= 20 else 1)
-PY
-)"
-    HOLD_EXIT=\$?
-    set -e
+# Remove the experimental play-end callback. On the bedroom Shairport build it
+# fires for an ordinary pause and therefore must never publish a disconnect.
+if [[ -e "$LEGACY_SESSION_END_WRAPPER" ]]; then
+    sudo rm -f "$LEGACY_SESSION_END_WRAPPER"
 fi
 
-REMOTE_AVAILABLE="\$(remote_available_status)"
-
-if [ "\$HOLD_EXIT" -eq 0 ]; then
-    if [ "\$REMOTE_AVAILABLE" = "b false" ]; then
-        /usr/bin/logger -t shairport-plexamp "AirPlay dashboard pause hold ignored because AirPlay remote is disconnected (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
-    else
-        /usr/bin/logger -t shairport-plexamp "AirPlay ended after dashboard pause - staying on AirPlay screen (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
-        arm_dashboard_pause_watchdog
-        exit 0
-    fi
+# Shared mixing means the hooks never need permission to stop/start Plexamp.
+if [[ -e "$LEGACY_SUDOERS_FILE" ]]; then
+    sudo rm -f "$LEGACY_SUDOERS_FILE"
 fi
 
-/usr/bin/logger -t shairport-plexamp "AirPlay end hook did not see dashboard pause hold (\$HOLD_STATUS remote_available=\$REMOTE_AVAILABLE)"
-restore_plexamp_and_clock "AirPlay ended"
-END_WRAPPER_EOF
-
-sudo chmod 755 "$START_WRAPPER" "$END_WRAPPER"
-
-cat <<SUDOERS_EOF | sudo tee "$SUDOERS_FILE" >/dev/null
-# Allow Shairport Sync to release and restore the DAC for A Clockwork Plex AirPlay handoff.
-$SHAIRPORT_USER ALL=(root) NOPASSWD: /usr/bin/systemctl stop $PLEXAMP_SERVICE, /usr/bin/systemctl start $PLEXAMP_SERVICE
-SUDOERS_EOF
-
-sudo chmod 440 "$SUDOERS_FILE"
-sudo visudo -cf "$SUDOERS_FILE" >/dev/null
-
-echo "Installed self-contained AirPlay hook wrappers:"
+echo "Installed coordinator-event AirPlay hook wrappers:"
 echo "  $START_WRAPPER"
 echo "  $END_WRAPPER"
 echo
-echo "Installed sudoers rule:"
-echo "  $SUDOERS_FILE"
+echo "The wrappers publish lifecycle intent only; they do not call Plexamp or choose a screen."
+echo "PlaybackCoordinator owns AirPlay-to-Plexamp pause, paused-session timing, sender polling and idle return."
+echo "An explicitly open Plexamp surface is preserved when AirPlay starts or pauses."
+echo "The retired play-end wrapper was removed because Shairport fires it for ordinary pauses."
+echo "The wrappers contain no detached watchdog, token file or browser heartbeat."
 echo
 echo "Use this in /etc/shairport-sync.conf:"
 echo "sessioncontrol ="
@@ -266,6 +70,8 @@ echo "    run_this_after_exiting_active_state = \"$END_WRAPPER\";"
 echo "    active_state_timeout = 10;"
 echo "    wait_for_completion = \"yes\";"
 echo "};"
+echo
+echo "Remove any run_this_after_play_ends or session_timeout lines added during the previous rehearsal."
 echo
 echo "Then run:"
 echo "  sudo systemctl restart shairport-sync.service"

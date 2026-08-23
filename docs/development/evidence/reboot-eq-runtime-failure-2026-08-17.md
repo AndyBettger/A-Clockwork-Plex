@@ -1,0 +1,130 @@
+# Post-reboot host filesystem failure — 2026-08-17
+
+Target: brand-new SanDisk Extreme A2 acceptance SD card on `plexamp-test`. The accepted production SD card remained removed and untouched.
+
+## Reboot verification before the failure
+
+The first real reboot after persistent EQ promotion reconstructed the appliance sufficiently for all static/read-only verification gates to pass:
+
+- source checkout remained clean at `79094daac4e71358ccda900b63fa7245ed369ee8`;
+- `FRESH_BOOTSTRAP_VERIFY=PASS` with zero failures/warnings;
+- `APPLIANCE_VERIFY=PASS` with zero failures/warnings;
+- `scripts/audio/verify-audio.sh` reported EQ-capable audio verification passed;
+- active ALSA route SHA-256 remained `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9`;
+- `/var/lib/a-clockwork-plex/split-bus/installed` remained present;
+- `a-clockwork-plex-camilladsp.service` reported `active` and `enabled`;
+- the kiosk/dashboard returned automatically after reboot.
+
+Evidence paths:
+
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/40-bootstrap-after-reboot.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/41-appliance-after-reboot.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/42-audio-after-reboot.txt`
+- `/home/andy/acp-phase7-spare-sd-20260815-171112/43-eq-route-after-reboot.sha256`
+
+## First physical symptom
+
+The reboot checkpoint is **not accepted** despite the green static verifiers.
+
+After Plexamp playback was started successfully, the Audio surface initially reported **EQ Active**. During the first post-reboot attempt to adjust EQ, error text was seen on the Audio surface. Opening Settings afterwards returned **Internal Server Error**. Plexamp itself continued playing, but dashboard control was no longer usable to stop playback; the operator rebooted the Pi to recover/stop playback.
+
+Because the failure occurred before the remaining reboot smoke checks, NFC playback and Music Master `0%` plus real scheduled-alarm isolation were deliberately not run.
+
+## Second boot narrowed the fault
+
+The previous boot could not be recovered because this image currently has no persistent journald store: `journalctl -b -1` reported `Specifying boot ID or boot offset has no effect, no persistent journal was found.`
+
+On the next boot, the operator repeated Plexamp playback and live EQ adjustment before diagnosis commands were issued. This time the EQ mutation worked normally. Health evidence showed:
+
+- `GET /api/audio/eq`: healthy `split-bus-active` state, no error, Bass `+2.0 dB`, Mid `0.0 dB`, Treble `+2.0 dB`;
+- the restricted EQ helper reported the same healthy state;
+- `a-clockwork-plex-camilladsp.service`: `MainPID=954`, `ActiveState=active`, `SubState=running`, `NRestarts=0`;
+- route state remained `mode:"split-bus-selected"` with the canonical split-bus ALSA SHA;
+- EQ state/config/route files retained expected root ownership and modes (`0600`, `0644`, `0644`).
+
+The Settings data API remained healthy (`GET /api/settings` -> HTTP 200), while `GET /settings` reproducibly returned HTTP 500.
+
+## Root cause boundary discovered from the current journal
+
+The current-boot journal proves the HTTP 500 is **not a template/Jinja failure and not evidence of a CamillaDSP reload failure**. The host root filesystem has entered ext4 emergency read-only state after a real SD-card write failure.
+
+The exact `/settings` failure chain is:
+
+- `dashboard_core.settings()` calls `set_mode("settings")`;
+- `set_mode()` calls `save_json(STATE_PATH, state)`;
+- `save_json()` attempts to open `/home/andy/A-Clockwork-Plex/state.json.tmp` for writing;
+- the filesystem returns `OSError: [Errno 30] Read-only file system`;
+- Flask therefore returns HTTP 500 for `/settings`.
+
+Independent corroboration exists in the same boot:
+
+- repeated Ecowitt POSTs fail at the same `save_json()` write with `Errno 30` and return HTTP 500;
+- an attempt to save the diagnostic journal into the Phase 7 evidence directory fails with `Read-only file system`, so `47-current-settings-500-journal.txt` is never created;
+- read-only APIs and already-running audio services continue working, explaining why EQ status and Plexamp playback can appear healthy while state-changing dashboard operations fail.
+
+## Kernel/MMC evidence
+
+The second boot began normally. The kernel discovered the 128 GB SD card as `mmcblk0` / `SM128`, negotiated UHS-I SDR104, initially mounted the ext4 root read-only for recovery, then remounted it read/write normally.
+
+At `2026-08-17 22:00:42` the storage path then failed during a write flush:
+
+```text
+mmc0: error -84 writing Cache Flush bit
+I/O error, dev mmcblk0, sector 9846696 op 0x1:(WRITE)
+Aborting journal on device mmcblk0p2-8.
+EXT4-fs error (device mmcblk0p2): ext4_journal_check_start:87: ... Detected aborted journal
+EXT4-fs (mmcblk0p2): Remounting filesystem read-only
+```
+
+After that point application writes repeatedly fail with `Errno 30`.
+
+`findmnt` and `/proc/mounts` expose the ext4 mount as `rw,noatime,emergency_ro`; this is consistent with ext4 emergency-read-only handling rather than proof that normal writes are allowed. The write failures and kernel journal-abort evidence are authoritative for the acceptance result.
+
+Power telemetry on this boot returned `vcgencmd get_throttled` -> `throttled=0x0`, and the searched journal showed no undervoltage messages. There is therefore no current evidence that an undervoltage event caused this specific failure.
+
+## Reproduction after another clean power cycle
+
+A further shutdown/power-on reproduced the storage failure independently and much faster.
+
+At `2026-08-17 22:46:06` ext4 again mounted the root read-only for orphan cleanup and systemd remounted it read/write. Only 27 seconds later, at `22:46:33`, the kernel reported:
+
+```text
+I/O error, dev mmcblk0, sector 9802861 op 0x1:(WRITE) flags 0x9800 phys_seg 1 prio class 2
+Aborting journal on device mmcblk0p2-8.
+EXT4-fs error (device mmcblk0p2): ext4_journal_check_start:87: ... Detected aborted journal
+EXT4-fs (mmcblk0p2): Remounting filesystem read-only
+```
+
+This second independent failure occurred on a different sector from the earlier write failure and was followed immediately by both application and Plexamp state writes failing with `EROFS`. `vcgencmd get_throttled` again returned `throttled=0x0`, with no searched undervoltage indication.
+
+This reproduction materially strengthens the host/storage diagnosis: the failure is not merely residual ext4 damage from the earlier incident. A freshly booted writable filesystem repeatedly encounters a real `mmcblk0` write I/O error and then correctly protects itself by aborting the ext4 journal and entering emergency read-only state.
+
+The card is a **brand-new SanDisk Extreme A2**, so ordinary age/wear of an old spare is not a credible explanation. Remaining host-level candidates include a defective card/controller, counterfeit or faulty media, SD socket/contact/signal-integrity problems, or another MMC/host interaction. This evidence does not yet distinguish among them.
+
+This reclassifies the observed failure as a **host/storage/filesystem durability failure on the acceptance SD appliance**, not an A Clockwork Plex EQ or Settings application regression at the current evidence boundary.
+
+## Reimage and storage sanity recovery
+
+The raw Phase 7 evidence directory and `config.json` were copied off the acceptance card, then the same SanDisk Extreme A2 card was fully wiped and reimaged with fresh Raspberry Pi OS.
+
+On the fresh image:
+
+- root mounted normally as `rw,noatime`, with no `emergency_ro` flag;
+- `vcgencmd get_throttled` returned `throttled=0x0`;
+- the first-boot journal contained the expected transient read-only/read-write remounts while Raspberry Pi OS expanded the root filesystem, but no `mmc0: error`, block-device write I/O error, ext4 journal abort or ext4 filesystem error occurred;
+- a deliberate 1 GiB synchronous write using `dd ... conv=fsync` completed successfully at about 84.7 MB/s;
+- `sync` completed, root remained `rw,noatime`, and the kernel search still showed no MMC/I/O/ext4 failure;
+- the test file was removed and flushed successfully;
+- after a further reboot, root again mounted `rw,noatime`, power telemetry remained `throttled=0x0`, and a focused kernel search returned no `mmc0: error`, `I/O error`, `EXT4-fs error`, aborted-journal or `emergency_ro` evidence.
+
+This is sufficient to resume acceptance on the reimaged card. It does not retroactively explain the earlier MMC failures, but it establishes a clean writable baseline before the final blank-OS installer construction run. The prior application/feature passes remain valid; the next run is an installer/reconstruction acceptance rather than a full feature retest.
+
+## Current diagnosis boundary
+
+The earlier Section 12 reboot attempt remains historically failed because of the host/storage event, but the reimaged card has now passed the pre-install storage sanity gate and is suitable for a fresh construction attempt.
+
+Do not treat the clean reimage as proof that the underlying card/host path can never fail again; continue to stop immediately on any renewed MMC, block-I/O, ext4-journal or emergency-read-only evidence.
+
+Proceed with the final blank-Raspberry-Pi-OS installer acceptance: fresh source checkout, new evidence directory, fresh Direct staged bootstrap including controlled reboot/claim checkpoints, guarded EQ promotion, one compact post-install/reboot smoke, then one convergent repeat whole-appliance install. Previously accepted broad feature tests do not need to be replayed in full.
+
+PR #2 remains Draft, open and unmerged until explicit owner approval.

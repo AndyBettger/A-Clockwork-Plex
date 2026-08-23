@@ -1,5 +1,6 @@
 (() => {
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
+  const ALARM_INDICATOR_WITHIN_MS = 12 * 60 * 60 * 1000;
   const segmentDisplay = window.AClockworkSegments;
 
   const WEATHER_LABELS_BY_ID = {
@@ -107,6 +108,57 @@
       `${displayHours}:${minutes}:${seconds}${format === '12h' ? ` ${suffix}` : ''}`,
     );
     document.getElementById('clock-date')?.setAttribute('aria-label', date);
+  }
+
+  function normaliseAlarmIndicatorMode(value) {
+    return String(value || '').toLowerCase() === 'any_future' ? 'any_future' : 'within_12h';
+  }
+
+  function alarmIndicatorState(status, nowMilliseconds = Date.now()) {
+    const mode = normaliseAlarmIndicatorMode(status?.config?.dashboard?.alarm_indicator_mode);
+    const nextOccurrence = status?.alarm_scheduler?.next_occurrence;
+    const nextWhen = String(nextOccurrence?.scheduled_for || nextOccurrence?.when || '');
+    const nextMilliseconds = Date.parse(nextWhen);
+    const millisecondsUntil = nextMilliseconds - nowMilliseconds;
+    const hasFutureOccurrence = Number.isFinite(nextMilliseconds) && millisecondsUntil >= 0;
+    const active = hasFutureOccurrence && (
+      mode === 'any_future' || millisecondsUntil <= ALARM_INDICATOR_WITHIN_MS
+    );
+    return { active, mode, nextWhen, nextOccurrence };
+  }
+
+  function updateAlarmAnnunciator(status) {
+    const bell = document.getElementById('clock-alarm-annunciator');
+    if (!bell) {
+      return;
+    }
+
+    const state = alarmIndicatorState(status);
+    bell.classList.toggle('is-active', state.active);
+    bell.dataset.active = state.active ? 'true' : 'false';
+    bell.dataset.mode = state.mode;
+
+    if (state.nextWhen) {
+      bell.dataset.nextOccurrence = state.nextWhen;
+    } else {
+      delete bell.dataset.nextOccurrence;
+    }
+
+    if (!state.active) {
+      bell.setAttribute('aria-label', 'Alarm indicator inactive');
+      return;
+    }
+
+    const label = String(state.nextOccurrence?.label || 'Alarm');
+    const when = new Date(state.nextWhen);
+    const readable = Number.isFinite(when.getTime())
+      ? when.toLocaleString('en-GB', {
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      : '';
+    bell.setAttribute('aria-label', readable ? `${label} set for ${readable}` : `${label} set`);
   }
 
   function makeWeatherCard(cardData) {
@@ -279,6 +331,8 @@
       }
 
       const status = await response.json();
+      updateAlarmAnnunciator(status);
+
       const title = status?.config?.weather?.station_name;
       if (title) {
         document.getElementById('clock-weather-title').textContent = title;
@@ -288,7 +342,7 @@
         weatherCardsFromStatus(status).filter((card) => card.label && (card.value || card.columns?.length)),
       );
     } catch (error) {
-      // Leave the last good readings on screen if a transient update fails.
+      // Leave the last good readings and annunciator state on screen if a transient update fails.
     }
   }
 

@@ -1,0 +1,385 @@
+/*
+ * Curated daytime palettes for A Clockwork Plex.
+ *
+ * Classic Dark deliberately has no override block: selecting it leaves the
+ * physically accepted existing CSS untouched. Non-classic palettes are applied
+ * only while a native dashboard surface is active. The Plexamp surface is
+ * intentionally excluded so its presentation remains Plexamp's responsibility.
+ *
+ * Scheduled Classic night dimming is a black overlay in display-dimming.css,
+ * so it naturally darkens whichever daytime palette is underneath. Astronomy
+ * continues to apply its grayscale/red conversion over this layer and therefore
+ * remains a complete night-time colour override.
+ */
+
+html[data-daytime-theme="midnight_blue"] body:not([data-active-page="plexamp"]) {
+  --bg: #06101f;
+  --panel: rgba(116, 180, 235, 0.09);
+  --panel-border: rgba(126, 191, 247, 0.24);
+  --text: #eef7ff;
+  --muted: #9eb7cf;
+  --accent: #78bfff;
+  --accent-strong: #b9e0ff;
+  --segment-on: #dcefff;
+  --segment-off: rgba(126, 184, 235, 0.045);
+  --acp-theme-bg-start: #16385f;
+  --acp-theme-bg-mid: #06101f;
+  --acp-theme-bg-end: #020711;
+  --acp-theme-airplay-start: #1e4d79;
+  --acp-theme-surface: rgba(8, 23, 42, 0.94);
+  --acp-theme-surface-raised: rgba(14, 35, 59, 0.94);
+  --acp-theme-control: rgba(20, 49, 77, 0.82);
+  --acp-theme-control-border: rgba(126, 191, 247, 0.34);
+  --acp-theme-display: #dcefff;
+  --acp-theme-display-glow: rgba(157, 211, 255, 0.62);
+  --acp-theme-soft: rgba(120, 191, 255, 0.10);
+  --acp-theme-glow: rgba(120, 191, 255, 0.42);
+  --acp-theme-contrast: #06101c;
+}
+
+html[data-daytime-theme="amber_terminal"] body:not([data-active-page="plexamp"]) {
+  --bg: #140d04;
+  --panel: rgba(255, 187, 73, 0.085);
+  --panel-border: rgba(255, 190, 82, 0.24);
+  --text: #fff4d8;
+  --muted: #c9ad7b;
+  --accent: #ffbc4d;
+  --accent-strong: #ffd98f;
+  --segment-on: #ffd06f;
+  --segment-off: rgba(255, 188, 77, 0.045);
+  --acp-theme-bg-start: #513610;
+  --acp-theme-bg-mid: #140d04;
+  --acp-theme-bg-end: #050301;
+  --acp-theme-airplay-start: #684512;
+  --acp-theme-surface: rgba(27, 17, 5, 0.95);
+  --acp-theme-surface-raised: rgba(45, 29, 8, 0.95);
+  --acp-theme-control: rgba(61, 39, 10, 0.84);
+  --acp-theme-control-border: rgba(255, 190, 82, 0.34);
+  --acp-theme-display: #ffd06f;
+  --acp-theme-display-glow: rgba(255, 190, 73, 0.60);
+  --acp-theme-soft: rgba(255, 188, 77, 0.10);
+  --acp-theme-glow: rgba(255, 188, 77, 0.40);
+  --acp-theme-contrast: #1a1003;
+}
+
+html[data-daytime-theme="green_phosphor"] body:not([data-active-page="plexamp"]) {
+  --bg: #06130b;
+  --panel: rgba(104, 235, 145, 0.08);
+  --panel-border: rgba(112, 237, 154, 0.23);
+  --text: #edfff3;
+  --muted: #92bda0;
+  --accent: #70ed9a;
+  --accent-strong: #b2ffc9;
+  --segment-on: #9dffb7;
+  --segment-off: rgba(112, 237, 154, 0.042);
+  --acp-theme-bg-start: #173f28;
+  --acp-theme-bg-mid: #06130b;
+  --acp-theme-bg-end: #020704;
+  --acp-theme-airplay-start: #205535;
+  --acp-theme-surface: rgba(7, 27, 14, 0.95);
+  --acp-theme-surface-raised: rgba(12, 43, 22, 0.95);
+  --acp-theme-control: rgba(16, 57, 29, 0.84);
+  --acp-theme-control-border: rgba(112, 237, 154, 0.32);
+  --acp-theme-display: #9dffb7;
+  --acp-theme-display-glow: rgba(112, 237, 154, 0.60);
+  --acp-theme-soft: rgba(112, 237, 154, 0.095);
+  --acp-theme-glow: rgba(112, 237, 154, 0.38);
+  --acp-theme-contrast: #041108;
+}
+
+html[data-daytime-theme="aubergine"] body:not([data-active-page="plexamp"]) {
+  --bg: #16091c;
+  --panel: rgba(199, 146, 255, 0.085);
+  --panel-border: rgba(203, 151, 255, 0.24);
+  --text: #fbf3ff;
+  --muted: #bda8c8;
+  --accent: #c792ff;
+  --accent-strong: #e4c4ff;
+  --segment-on: #ead9ff;
+  --segment-off: rgba(199, 146, 255, 0.044);
+  --acp-theme-bg-start: #4a215f;
+  --acp-theme-bg-mid: #16091c;
+  --acp-theme-bg-end: #07020a;
+  --acp-theme-airplay-start: #5b2b70;
+  --acp-theme-surface: rgba(28, 11, 35, 0.95);
+  --acp-theme-surface-raised: rgba(46, 18, 57, 0.95);
+  --acp-theme-control: rgba(61, 25, 75, 0.84);
+  --acp-theme-control-border: rgba(203, 151, 255, 0.34);
+  --acp-theme-display: #ead9ff;
+  --acp-theme-display-glow: rgba(199, 146, 255, 0.58);
+  --acp-theme-soft: rgba(199, 146, 255, 0.10);
+  --acp-theme-glow: rgba(199, 146, 255, 0.40);
+  --acp-theme-contrast: #16091c;
+}
+
+html[data-daytime-theme="steel_cyan"] body:not([data-active-page="plexamp"]) {
+  --bg: #081214;
+  --panel: rgba(113, 226, 232, 0.08);
+  --panel-border: rgba(113, 226, 232, 0.23);
+  --text: #efffff;
+  --muted: #9dbabd;
+  --accent: #71e2e8;
+  --accent-strong: #b3f8fa;
+  --segment-on: #d5fcff;
+  --segment-off: rgba(113, 226, 232, 0.043);
+  --acp-theme-bg-start: #29464e;
+  --acp-theme-bg-mid: #081214;
+  --acp-theme-bg-end: #020607;
+  --acp-theme-airplay-start: #315861;
+  --acp-theme-surface: rgba(9, 25, 28, 0.95);
+  --acp-theme-surface-raised: rgba(15, 39, 43, 0.95);
+  --acp-theme-control: rgba(20, 52, 57, 0.84);
+  --acp-theme-control-border: rgba(113, 226, 232, 0.33);
+  --acp-theme-display: #d5fcff;
+  --acp-theme-display-glow: rgba(113, 226, 232, 0.58);
+  --acp-theme-soft: rgba(113, 226, 232, 0.095);
+  --acp-theme-glow: rgba(113, 226, 232, 0.40);
+  --acp-theme-contrast: #061214;
+}
+
+/* A warm long-wavelength daytime palette, deliberately distinct from the
+   monochrome Astronomy night override. */
+html[data-daytime-theme="crimson_glow"] body:not([data-active-page="plexamp"]) {
+  --bg: #160708;
+  --panel: rgba(242, 91, 106, 0.085);
+  --panel-border: rgba(247, 103, 117, 0.24);
+  --text: #fff3f4;
+  --muted: #c7a3a7;
+  --accent: #f26b78;
+  --accent-strong: #ffb4bc;
+  --segment-on: #ffd9dd;
+  --segment-off: rgba(242, 107, 120, 0.044);
+  --acp-theme-bg-start: #5a1f29;
+  --acp-theme-bg-mid: #160708;
+  --acp-theme-bg-end: #060203;
+  --acp-theme-airplay-start: #702936;
+  --acp-theme-surface: rgba(31, 8, 11, 0.95);
+  --acp-theme-surface-raised: rgba(50, 13, 18, 0.95);
+  --acp-theme-control: rgba(66, 18, 24, 0.84);
+  --acp-theme-control-border: rgba(242, 107, 120, 0.34);
+  --acp-theme-display: #ffd9dd;
+  --acp-theme-display-glow: rgba(242, 107, 120, 0.58);
+  --acp-theme-soft: rgba(242, 107, 120, 0.10);
+  --acp-theme-glow: rgba(242, 107, 120, 0.40);
+  --acp-theme-contrast: #180608;
+}
+
+/* Common non-Classic presentation layer. Classic Dark remains exactly the
+   existing accepted style.css/nav/page-specific presentation. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) {
+  background: radial-gradient(
+    circle at top left,
+    var(--acp-theme-bg-start) 0,
+    var(--acp-theme-bg-mid) 45%,
+    var(--acp-theme-bg-end) 100%
+  );
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body.mode-airplay:not([data-active-page="plexamp"]) {
+  background: radial-gradient(
+    circle at top,
+    var(--acp-theme-airplay-start) 0,
+    var(--acp-theme-bg-mid) 50%,
+    var(--acp-theme-bg-end) 100%
+  );
+}
+
+/* The selected V3 14-segment geometry stays untouched; themes only colour the
+   existing lit/unlit paths. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"])
+.time.is-alpha-clock .alpha-segment.is-on {
+  fill: var(--acp-theme-display);
+  filter: drop-shadow(0 0 2.8px var(--acp-theme-display-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"])
+.time.is-alpha-clock .alpha-segment:not(.is-on) {
+  fill: var(--segment-off);
+}
+
+/* Native dashboard surfaces. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.panel, .weather-card, .settings-card) {
+  border-color: var(--panel-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer {
+  border-color: var(--acp-theme-control-border);
+  background: var(--acp-theme-surface);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) :is(.nav-live-mixer, .nav-live-channel) {
+  border-color: var(--acp-theme-control-border);
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 48%),
+    rgba(255, 255, 255, 0.025);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-live-health-dot.is-ready {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 13px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-live-channel-heading output {
+  color: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-button.is-active {
+  color: var(--acp-theme-contrast);
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 18px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-button.is-active:hover,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-button.is-active:active {
+  background: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-trim-knob {
+  border-color: var(--acp-theme-control-border);
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 255, 255, 0.025),
+    0 7px 16px rgba(0, 0, 0, 0.34),
+    0 0 14px var(--acp-theme-soft);
+}
+
+/* Settings is a native dashboard surface, so its dark glass takes on the
+   selected palette while retaining the established layout and contrast. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.settings-shell, .settings-sidebar, .settings-detail) {
+  border-color: var(--panel-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.settings-sidebar, .settings-save-bar) {
+  background: var(--acp-theme-surface);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(.settings-card, .settings-subpage-row) {
+  border-color: var(--panel-border);
+  background:
+    linear-gradient(135deg, var(--acp-theme-soft), transparent 52%),
+    rgba(255, 255, 255, 0.035);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="settings"] :is(select, input, textarea, .settings-back) {
+  border-color: var(--acp-theme-control-border);
+}
+
+/* AirPlay is part of the appliance dashboard (unlike Plexamp), so its signal
+   accents inherit the curated palette. This block deliberately catches older
+   page-specific cyan glows that pre-date the shared theme layer. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] :is(.airplay-ring, .airplay-progress-fill) {
+  border-color: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] :is(.airplay-live-dot, .airplay-progress-fill) {
+  background: var(--accent);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-info-card.is-clock {
+  --segment-date-on: var(--accent);
+  --segment-date-off: var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-mini-date .alpha-segment.is-on {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 1.15px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-outside-value + .airplay-outside-value {
+  border-inline-start-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-screen {
+  box-shadow:
+    0 0 32px var(--acp-theme-glow),
+    inset 0 0 30px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-pulse {
+  border-color: var(--acp-theme-control-border);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"].airplay-has-artwork .airplay-artwork {
+  box-shadow:
+    0 28px 100px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 56px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-progress-track span {
+  box-shadow: 0 0 18px var(--acp-theme-glow);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-volume-icon svg {
+  filter: drop-shadow(0 0 10px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-route-logo {
+  filter:
+    drop-shadow(0 24px 55px rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 32px var(--acp-theme-glow));
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] .airplay-skip-button {
+  border-color: var(--acp-theme-control-border);
+  box-shadow:
+    inset 0 0 0 1px rgba(247, 249, 255, 0.08),
+    inset 0 -10px 26px rgba(0, 0, 0, 0.18),
+    0 12px 34px rgba(0, 0, 0, 0.24),
+    0 0 24px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"].airplay-remote-paused .airplay-live-dot {
+  box-shadow: 0 0 0 4px var(--acp-theme-soft);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"] #airplay-play-pause-icon::before {
+  color: var(--acp-theme-contrast);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="airplay"].airplay-session-active .airplay-live-dot {
+  animation-name: airplay-live-dot-themed;
+}
+
+@keyframes airplay-live-dot-themed {
+  0% {
+    box-shadow: 0 0 0 0 var(--acp-theme-glow);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}

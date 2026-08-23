@@ -1,0 +1,271 @@
+/* Dedicated Audio settings workspace and long-throw persistent trim console. */
+
+#settings-panel-audio {
+  padding-bottom: clamp(110px, 16vh, 150px);
+}
+
+#settings-panel-audio .settings-card.is-intro {
+  background:
+    linear-gradient(135deg, rgba(117, 210, 255, 0.12), transparent 52%),
+    var(--panel);
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: row;
+  gap: clamp(8px, 1.2vmin, 12px);
+  align-items: stretch;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel,
+.audio-mixer-card.is-vertical-console .audio-mixer-channel:first-child {
+  grid-column: auto;
+  display: grid;
+  grid-template-rows: auto minmax(390px, 58vh);
+  min-width: 0;
+  padding: clamp(9px, 1.3vmin, 13px);
+  border: 1px solid rgba(143, 211, 255, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(143, 211, 255, 0.055), transparent 42%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel:first-child {
+  border-color: rgba(143, 211, 255, 0.25);
+  background:
+    linear-gradient(180deg, rgba(143, 211, 255, 0.085), transparent 42%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel-heading {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel-heading strong,
+.audio-mixer-card.is-vertical-console .audio-mixer-channel-heading small {
+  display: block;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel-heading strong {
+  font-family: var(--display-font);
+  font-size: clamp(0.86rem, 1.7vmin, 1.04rem);
+  letter-spacing: 0.02em;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel-heading small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: clamp(0.7rem, 1.3vmin, 0.82rem);
+  line-height: 1.18;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-channel-heading output {
+  min-width: 54px;
+  color: #bdeaff;
+  font-family: var(--display-font);
+  font-size: clamp(1rem, 2.2vmin, 1.28rem);
+  font-weight: 700;
+  text-align: right;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row {
+  --settings-step-row-height: 50px;
+  --settings-track-top: 8px;
+  --settings-track-bottom: calc(var(--settings-step-row-height) + 12px);
+  position: relative;
+  width: 100%;
+  min-height: 390px;
+  padding-bottom: var(--settings-step-row-height);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::before,
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: calc(var(--settings-track-top) + 14px);
+  bottom: calc(var(--settings-track-bottom) - 14px);
+  left: 50%;
+  border-radius: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::before {
+  width: 26px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.22) 0 1px,
+    transparent 1px 10%
+  );
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-control-row::after {
+  width: 42px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(190, 234, 255, 0.46) 0 2px,
+    transparent 2px 20%
+  );
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-step {
+  position: absolute;
+  z-index: 3;
+  bottom: 0;
+  width: 54px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 13px;
+  font-size: 1.45rem;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-step[data-mixer-step="-5"] {
+  right: calc(50% + 5px);
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-step[data-mixer-step="5"] {
+  left: calc(50% + 5px);
+}
+
+.audio-mixer-card.is-vertical-console input[type="range"][data-mixer-slider] {
+  position: absolute;
+  z-index: 2;
+  top: var(--settings-track-top);
+  bottom: var(--settings-track-bottom);
+  left: 50%;
+  width: 44px;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  accent-color: #83d8ff;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.audio-fader-scale-label {
+  position: absolute;
+  z-index: 1;
+  left: calc(50% + 32px);
+  color: rgba(190, 234, 255, 0.7);
+  font-family: var(--display-font);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.audio-fader-scale-label.is-top {
+  top: calc(var(--settings-track-top) + 8px);
+}
+
+.audio-fader-scale-label.is-bottom {
+  bottom: calc(var(--settings-track-bottom) + 4px);
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-pcm {
+  display: none !important;
+}
+
+.audio-mixer-card.is-vertical-console .audio-mixer-footer {
+  margin-top: 2px;
+}
+
+.audio-airplay-default-card {
+  display: grid;
+  gap: clamp(12px, 1.7vmin, 18px);
+}
+
+.audio-default-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+  gap: clamp(10px, 1.6vmin, 16px);
+  align-items: stretch;
+}
+
+.audio-default-volume-field,
+.audio-default-layout .setting-toggle {
+  min-height: 100%;
+}
+
+.audio-default-volume-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px;
+  gap: 14px;
+  align-items: center;
+}
+
+.audio-default-volume-row input[type="range"] {
+  width: 100%;
+  accent-color: #83d8ff;
+  touch-action: pan-x;
+}
+
+.audio-default-volume-row output {
+  color: #bdeaff;
+  font-family: var(--display-font);
+  font-size: clamp(1rem, 2.2vmin, 1.25rem);
+  font-weight: 700;
+  text-align: right;
+}
+
+.audio-default-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-height: 700px) {
+  .audio-mixer-card.is-vertical-console .audio-mixer-channel,
+  .audio-mixer-card.is-vertical-console .audio-mixer-channel:first-child {
+    grid-template-rows: auto minmax(310px, 52vh);
+  }
+
+  .audio-mixer-card.is-vertical-console .audio-mixer-control-row {
+    min-height: 310px;
+  }
+}
+
+/* Keep all four console strips together on the Pi. Only very narrow phones
+   collapse the layout; ordinary touchscreen/VNC widths scroll rather than wrap. */
+@media (max-width: 480px) {
+  .audio-mixer-card.is-vertical-console .audio-mixer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audio-default-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .audio-mixer-card.is-vertical-console .audio-mixer-grid {
+    grid-template-columns: 1fr;
+  }
+}

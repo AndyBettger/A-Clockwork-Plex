@@ -1,0 +1,10 @@
+[Unit]
+Description=A Clockwork Plex direct alarm-safe audio failback
+After=sound.target
+Wants=sound.target
+ConditionPathExists=/var/lib/a-clockwork-plex/split-bus/installed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/a-clockwork-plex-audio-route activate-direct-failback
+TimeoutStartSec=30

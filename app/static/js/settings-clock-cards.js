@@ -1,4 +1,49 @@
 (() => {
+  function installAlarmIndicatorControl() {
+    const clockFormat = document.getElementById('clock-format-setting');
+    const grid = clockFormat?.closest('.settings-grid');
+    if (!grid || grid.querySelector('[data-setting-path="display.alarm_indicator_mode"]')) {
+      return;
+    }
+
+    const field = document.createElement('label');
+    field.className = 'setting-field';
+
+    const label = document.createElement('span');
+    label.textContent = 'Alarm indicator';
+
+    const select = document.createElement('select');
+    select.dataset.settingPath = 'display.alarm_indicator_mode';
+    select.innerHTML = [
+      '<option value="within_12h">Next alarm within 12 hours</option>',
+      '<option value="any_future">Any future alarm</option>',
+    ].join('');
+
+    const help = document.createElement('small');
+    help.textContent = 'Controls when the LCD-style bell on the Clock is illuminated.';
+
+    field.append(label, select, help);
+    grid.appendChild(field);
+
+    const applyValue = (value) => {
+      if (value === 'any_future' || value === 'within_12h') {
+        select.value = value;
+      }
+    };
+
+    const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
+    applyValue(snapshot?.settings?.display?.alarm_indicator_mode);
+
+    if (!snapshot) {
+      fetch('/api/settings', { cache: 'no-store' })
+        .then((response) => response.ok ? response.json() : null)
+        .then((payload) => applyValue(payload?.settings?.display?.alarm_indicator_mode))
+        .catch(() => {});
+    }
+  }
+
+  installAlarmIndicatorControl();
+
   const root = document.querySelector('[data-clock-card-settings]');
   if (!root) {
     return;
@@ -49,13 +94,24 @@
 
   function collapseIds(ids) {
     const collapsed = [];
-    ids.forEach((id) => {
+    (Array.isArray(ids) ? ids : []).forEach((id) => {
       const displayId = memberToVirtual[id] || id;
       if (!collapsed.includes(displayId)) {
         collapsed.push(displayId);
       }
     });
     return collapsed;
+  }
+
+  function expandIds(ids) {
+    const expanded = [];
+    (Array.isArray(ids) ? ids : []).forEach((id) => {
+      const storedIds = VIRTUAL_CARDS[id]?.members || [id];
+      storedIds.forEach((storedId) => {
+        if (!expanded.includes(storedId)) expanded.push(storedId);
+      });
+    });
+    return expanded;
   }
 
   const options = [];
@@ -73,6 +129,13 @@
   const allowedIds = new Set(options.map((option) => option.id));
   const labels = Object.fromEntries(options.map((option) => [option.id, option.label]));
   let selected = collapseIds(rawSelected).filter((id) => allowedIds.has(id));
+
+  function notifyChanged() {
+    root.dispatchEvent(new CustomEvent('acp:clock-cards-changed', {
+      bubbles: true,
+      detail: { clockCards: expandIds(selected) },
+    }));
+  }
 
   function createPaletteButton(option) {
     const button = document.createElement('button');
@@ -92,6 +155,7 @@
         selected = [...selected, option.id];
       }
       render();
+      notifyChanged();
     });
 
     return button;
@@ -160,6 +224,7 @@
       remove.addEventListener('click', () => {
         selected = selected.filter((cardId) => cardId !== id);
         render();
+        notifyChanged();
       });
 
       row.append(position, label, up, down, remove);
@@ -182,7 +247,22 @@
     [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
     selected = next;
     render();
+    notifyChanged();
   }
+
+  function applyStoredIds(ids) {
+    selected = collapseIds(ids).filter((id) => allowedIds.has(id));
+    render();
+  }
+
+  function storedIds() {
+    return expandIds(selected);
+  }
+
+  window.ACPClockCards = {
+    applyStoredIds,
+    storedIds,
+  };
 
   render();
 })();

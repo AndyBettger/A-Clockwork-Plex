@@ -1,0 +1,337 @@
+html,
+body.alarm-active-page {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 139, 76, 0.18), transparent 42%),
+    linear-gradient(180deg, #171112 0%, #08090b 72%);
+  color: #fff4eb;
+}
+
+body.alarm-active-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: stretch;
+}
+
+.alarm-active-shell {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  gap: clamp(8px, 1.35vmin, 14px);
+  padding: clamp(14px, 2.5vmin, 26px);
+}
+
+.alarm-active-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.alarm-active-chip,
+.alarm-audio-lock {
+  border-radius: 999px;
+  padding: 0.5em 0.9em;
+  font-family: var(--display-font, system-ui, sans-serif);
+  font-size: clamp(0.7rem, 1.8vmin, 0.95rem);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.alarm-active-chip {
+  background: rgba(255, 111, 56, 0.2);
+  border: 1px solid rgba(255, 137, 92, 0.45);
+  color: #ffd2bc;
+}
+
+.alarm-audio-lock {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: rgba(255, 244, 235, 0.72);
+}
+
+.alarm-active-identity {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+.alarm-current-time {
+  display: block;
+  font-family: var(--display-font, system-ui, sans-serif);
+  font-size: clamp(5rem, 22vmin, 12rem);
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.055em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 42px rgba(255, 113, 52, 0.28);
+}
+
+.alarm-current-date {
+  margin: clamp(8px, 1.5vmin, 14px) 0 0;
+  color: rgba(255, 244, 235, 0.66);
+  font-family: var(--display-font, system-ui, sans-serif);
+  font-size: clamp(0.85rem, 2.2vmin, 1.25rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.alarm-active-identity h1 {
+  max-width: min(92vw, 1000px);
+  margin: clamp(10px, 2vmin, 18px) 0 0;
+  overflow-wrap: anywhere;
+  font-family: var(--display-font, system-ui, sans-serif);
+  font-size: clamp(1.65rem, 5.2vmin, 3.2rem);
+  line-height: 1.05;
+}
+
+.alarm-active-source {
+  margin: 6px 0 0;
+  color: rgba(255, 244, 235, 0.7);
+  font-size: clamp(0.85rem, 2vmin, 1.15rem);
+}
+
+.alarm-active-status {
+  justify-self: center;
+  max-width: min(90vw, 820px);
+  padding: 0.65em 1em;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 244, 235, 0.72);
+  text-align: center;
+  font-size: clamp(0.78rem, 1.8vmin, 1rem);
+}
+
+.alarm-snooze-button {
+  width: min(94vw, 1040px);
+  min-height: clamp(92px, 18vh, 165px);
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  border: 1px solid rgba(255, 171, 107, 0.62);
+  border-radius: clamp(24px, 4vmin, 42px);
+  background:
+    linear-gradient(180deg, rgba(255, 145, 74, 0.3), rgba(171, 53, 20, 0.28)),
+    rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 18px 50px rgba(0, 0, 0, 0.28);
+  color: #fff8f2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.alarm-snooze-button:active,
+.alarm-snooze-button.is-busy {
+  transform: translateY(2px) scale(0.995);
+  background:
+    linear-gradient(180deg, rgba(255, 145, 74, 0.23), rgba(132, 39, 16, 0.35)),
+    rgba(255, 255, 255, 0.045);
+}
+
+.alarm-snooze-button span {
+  font-family: var(--display-font, system-ui, sans-serif);
+  font-size: clamp(1.35rem, 4.2vmin, 2.6rem);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.alarm-snooze-button strong {
+  font-size: clamp(1rem, 2.8vmin, 1.6rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.alarm-dismiss-section {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  color: rgba(255, 244, 235, 0.58);
+  text-align: center;
+}
+
+.alarm-dismiss-section p,
+.alarm-dismiss-section small {
+  margin: 0;
+}
+
+.alarm-dismiss-section p {
+  font-size: clamp(0.72rem, 1.55vmin, 0.9rem);
+}
+
+.alarm-dismiss-section small {
+  font-size: clamp(0.66rem, 1.4vmin, 0.82rem);
+}
+
+.alarm-dismiss-track {
+  --dismiss-progress: 0;
+  position: relative;
+  width: min(56vw, 620px);
+  min-width: 330px;
+  height: clamp(58px, 9.5vmin, 78px);
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(255, 117, 59, calc(var(--dismiss-progress) * 0.22)), transparent 72%),
+    rgba(255, 255, 255, 0.055);
+}
+
+.alarm-dismiss-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.24);
+}
+
+.alarm-dismiss-copy {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-left: clamp(62px, 10vmin, 86px);
+  color: rgba(255, 244, 235, 0.68);
+  font-family: var(--display-font, system-ui, sans-serif);
+  font-size: clamp(0.78rem, 1.8vmin, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.alarm-dismiss-handle {
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  left: 5px;
+  width: calc(clamp(58px, 9.5vmin, 78px) - 10px);
+  height: calc(clamp(58px, 9.5vmin, 78px) - 10px);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ff9c62, #c8491f);
+  color: white;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.38);
+  cursor: grab;
+  touch-action: none;
+  transform: translateX(0);
+  transition: transform 180ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.alarm-dismiss-handle.is-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.alarm-dismiss-handle.is-holding {
+  animation: alarm-dismiss-hold 1.5s linear forwards;
+}
+
+.alarm-dismiss-handle span {
+  font-size: clamp(1.3rem, 3.4vmin, 2rem);
+  line-height: 1;
+}
+
+.alarm-dismiss-track.is-complete {
+  border-color: rgba(141, 255, 182, 0.55);
+  background: rgba(62, 180, 104, 0.18);
+}
+
+.alarm-dismiss-track.is-complete .alarm-dismiss-copy {
+  color: #caffd9;
+}
+
+.alarm-active-footer {
+  margin: 0;
+  color: rgba(255, 244, 235, 0.42);
+  text-align: center;
+  font-size: clamp(0.66rem, 1.45vmin, 0.82rem);
+}
+
+@keyframes alarm-dismiss-hold {
+  from {
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.38), 0 0 0 0 rgba(255, 155, 98, 0.45);
+  }
+  to {
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.38), 0 0 0 18px rgba(255, 155, 98, 0);
+  }
+}
+
+@media (max-height: 560px) {
+  .alarm-active-shell {
+    grid-template-columns: minmax(0, 1fr) minmax(310px, 0.85fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .alarm-active-header {
+    grid-column: 1 / -1;
+  }
+
+  .alarm-active-identity {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .alarm-active-status {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .alarm-snooze-button {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    height: 100%;
+  }
+
+  .alarm-dismiss-section {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .alarm-active-footer {
+    display: none;
+  }
+
+  .alarm-dismiss-track {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .alarm-active-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alarm-active-chip,
+  .alarm-audio-lock {
+    text-align: center;
+  }
+
+  .alarm-dismiss-track {
+    width: 92vw;
+    min-width: 0;
+  }
+}

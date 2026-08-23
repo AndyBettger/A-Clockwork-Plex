@@ -4,11 +4,15 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+# Template values below are replaced by the guarded dashboard installer before
+# this unit is installed. They are deliberately generic: the repository is not
+# tied to any particular Raspberry Pi username or home directory.
 Type=simple
-User=andy
-Group=andy
-WorkingDirectory=/home/andy/A-Clockwork-Plex
-ExecStart=/home/andy/A-Clockwork-Plex/venv/bin/python /home/andy/A-Clockwork-Plex/app/main.py
+User=ACP_PROJECT_USER
+Group=ACP_PROJECT_USER
+WorkingDirectory=/ACP_PROJECT_DIR
+EnvironmentFile=-/etc/default/a-clockwork-plex-weather
+ExecStart=/ACP_PROJECT_DIR/venv/bin/python /ACP_PROJECT_DIR/app/runner.py
 Restart=on-failure
 RestartSec=5
 

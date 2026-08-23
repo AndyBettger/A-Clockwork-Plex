@@ -27,7 +27,7 @@
         inset 0 0 0 1px rgba(247, 249, 255, 0.08),
         inset 0 -10px 26px rgba(0, 0, 0, 0.18),
         0 12px 34px rgba(0, 0, 0, 0.24),
-        0 0 24px rgba(143, 211, 255, 0.1);
+        0 0 24px var(--acp-theme-soft, rgba(143, 211, 255, 0.1));
       cursor: pointer;
       touch-action: manipulation;
       user-select: none;
@@ -147,13 +147,6 @@
   `;
   document.head.appendChild(style);
 
-  const spokenAppPattern = /\b(prologue|podcasts?|apple podcasts|overcast|pocket casts?|audible|audiobooks?|bookplayer|castro|downcast|libby|borrowbox)\b/i;
-  const musicAppPattern = /\b(plexamp|apple music|music|spotify|tidal|qobuz|deezer)\b/i;
-  const spokenTextPattern = /\b(podcast|audiobook|audio book|spoken word|chapter|episode|part\s+\d+|book\s+\d+|narrated by|unabridged)\b/i;
-  const explicitSpokenPattern = /\b(podcast|audiobook|audio book|spoken word|prologue|audible|overcast|pocket casts?)\b/i;
-  const LONG_SPOKEN_SECONDS = 30 * 60;
-  const VERY_LONG_SPOKEN_SECONDS = 40 * 60;
-
   let skipMode = 'track';
 
   function trackIconMarkup(direction) {
@@ -217,75 +210,6 @@
   wrap.insertBefore(backButton, playButton);
   wrap.appendChild(forwardButton);
 
-  function textFromValues(values) {
-    return values
-      .map((value) => String(value || '').trim())
-      .filter(Boolean)
-      .join(' · ');
-  }
-
-  function secondsFromProgress(progress) {
-    const value = Number(progress?.duration_seconds);
-    return Number.isFinite(value) && value > 0 ? value : null;
-  }
-
-  function looksLikeSpokenAudio(payload) {
-    const state = payload?.state || {};
-    const airplay = state.airplay || {};
-    const metadata = airplay.metadata || {};
-    const appText = textFromValues([
-      metadata.source_name,
-      metadata.player_name,
-      metadata.source_model,
-      metadata.source_user_agent,
-    ]);
-    const mediaText = textFromValues([
-      metadata.genre,
-      metadata.format,
-      metadata.album,
-      metadata.title,
-      metadata.artist,
-      metadata.album_artist,
-      metadata.composer,
-    ]);
-    const duration = secondsFromProgress(metadata.progress);
-    const explicitMusicApp = musicAppPattern.test(appText);
-
-    if (explicitSpokenPattern.test(appText)) {
-      return true;
-    }
-
-    if (explicitMusicApp && !explicitSpokenPattern.test(mediaText)) {
-      return false;
-    }
-
-    let score = 0;
-
-    if (spokenAppPattern.test(appText)) {
-      score += 5;
-    }
-    if (explicitSpokenPattern.test(mediaText)) {
-      score += 4;
-    }
-    if (spokenTextPattern.test(mediaText)) {
-      score += 2;
-    }
-    if (duration !== null && duration >= LONG_SPOKEN_SECONDS && !explicitMusicApp) {
-      score += 3;
-    }
-    if (duration !== null && duration >= VERY_LONG_SPOKEN_SECONDS && !explicitMusicApp) {
-      score += 1;
-    }
-    if (duration !== null && duration >= 20 * 60 && spokenTextPattern.test(mediaText)) {
-      score += 2;
-    }
-    if (duration !== null && duration >= 35 * 60 && !metadata.artist) {
-      score += 1;
-    }
-
-    return score >= 3;
-  }
-
   function setButtonMode(mode) {
     const nextMode = mode === 'spoken' ? 'spoken' : 'track';
     if (skipMode === nextMode && backButton.dataset.airplaySkipMode === nextMode) {
@@ -300,8 +224,12 @@
       button.innerHTML = buttonMarkup(direction, nextMode);
     }
 
-    backButton.setAttribute('aria-label', nextMode === 'spoken' ? 'Rewind AirPlay 15 seconds' : 'Previous AirPlay item');
-    forwardButton.setAttribute('aria-label', nextMode === 'spoken' ? 'Skip AirPlay forward 15 seconds' : 'Next AirPlay item');
+    // Shairport Sync exposes Previous/Next remote commands but not a precise
+    // MPRIS relative-seek method. Spoken-audio apps commonly map those remote
+    // commands to their configured rewind/forward intervals; the source app
+    // therefore remains the authority for the exact skip distance.
+    backButton.setAttribute('aria-label', nextMode === 'spoken' ? 'Rewind spoken AirPlay (source skip)' : 'Previous AirPlay item');
+    forwardButton.setAttribute('aria-label', nextMode === 'spoken' ? 'Advance spoken AirPlay (source skip)' : 'Next AirPlay item');
   }
 
   async function sendControl(action) {
@@ -337,7 +265,8 @@
         return;
       }
       const payload = await response.json();
-      setButtonMode(looksLikeSpokenAudio(payload) ? 'spoken' : 'track');
+      const mode = window.ACPAirPlayMediaKind?.classify?.(payload) || 'track';
+      setButtonMode(mode);
     } catch (error) {
     } finally {
       syncDisabledState();

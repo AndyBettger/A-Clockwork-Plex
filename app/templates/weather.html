@@ -4,6 +4,7 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-console.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/weather-rain-history.css') }}">
 {% endblock %}
 {% block content %}
 <section class="hero weather-detail-hero">
@@ -38,15 +39,17 @@
             </thead>
             <tbody>
               {% for row in weather_detail.condition_rows %}
-                <tr>
-                  <th scope="row">{{ row.location }}</th>
-                  <td>{{ row.temperature.current }}</td>
-                  <td>{{ row.temperature.min }}</td>
-                  <td>{{ row.temperature.max }}</td>
-                  <td>{{ row.humidity.current }}</td>
-                  <td>{{ row.humidity.min }}</td>
-                  <td>{{ row.humidity.max }}</td>
-                </tr>
+                {% if row.location != 'Indoor' or row.temperature.current != '—' or row.humidity.current != '—' %}
+                  <tr>
+                    <th scope="row">{{ row.location }}</th>
+                    <td>{{ row.temperature.current }}</td>
+                    <td>{{ row.temperature.min }}</td>
+                    <td>{{ row.temperature.max }}</td>
+                    <td>{{ row.humidity.current }}</td>
+                    <td>{{ row.humidity.min }}</td>
+                    <td>{{ row.humidity.max }}</td>
+                  </tr>
+                {% endif %}
               {% endfor %}
             </tbody>
           </table>
@@ -134,10 +137,10 @@
 
       <article class="detail-panel rain-panel">
         <h2>Rain</h2>
-        <div class="rain-sections">
-          <section class="rain-subpanel">
-            <h3>Mostly Moist Today</h3>
-            {% if weather_detail.rain_today_gauges %}
+        <div class="rain-overview-scroll" aria-label="Current and historical rainfall summaries">
+          {% if weather_detail.rain_today_gauges %}
+            <section class="rain-subpanel rain-current-subpanel">
+              <h3>Mostly Moist Today</h3>
               <div class="rain-gauge-row compact-gauges">
                 {% for gauge in weather_detail.rain_today_gauges %}
                   <div class="rain-gauge-card">
@@ -152,12 +155,12 @@
                   </div>
                 {% endfor %}
               </div>
-            {% endif %}
-          </section>
+            </section>
+          {% endif %}
 
-          <section class="rain-subpanel">
-            <h3>Rainy Day Fund</h3>
-            {% if weather_detail.rain_longer_gauges %}
+          {% if weather_detail.rain_longer_gauges %}
+            <section class="rain-subpanel rain-history-subpanel">
+              <h3>Rainy Day Fund</h3>
               <div class="rain-gauge-row">
                 {% for gauge in weather_detail.rain_longer_gauges %}
                   <div class="rain-gauge-card">
@@ -168,12 +171,15 @@
                       <span>{{ gauge.label }}</span>
                       <strong>{{ gauge.value }}</strong>
                       <small>Scale {{ gauge.max_label }}</small>
+                      {% if gauge.note %}
+                        <small class="rain-coverage-note">{{ gauge.note }}</small>
+                      {% endif %}
                     </div>
                   </div>
                 {% endfor %}
               </div>
-            {% endif %}
-          </section>
+            </section>
+          {% endif %}
         </div>
       </article>
 
@@ -246,9 +252,34 @@
   }
 
   const refreshMilliseconds = Math.max(15, refreshSeconds) * 1000;
-  setTimeout(() => {
-    window.location.reload();
-  }, refreshMilliseconds);
+  let refreshTimer = null;
+
+  async function refreshOnlyWhenWeatherOwnsTheVisibleSurface() {
+    try {
+      const response = await fetch('/api/screen/state', { cache: 'no-store' });
+      const payload = response.ok ? await response.json() : null;
+      const screen = payload?.screen || {};
+      const overlayOpen = window.ACPPlexamp?.isVisiblyOpen?.() === true;
+      const weatherOwnsSurface = screen.current_screen === 'weather'
+        && screen.recommended_screen === 'weather';
+
+      if (!document.hidden && !overlayOpen && weatherOwnsSurface) {
+        window.location.reload();
+        return;
+      }
+    } catch (error) {
+    }
+    refreshTimer = window.setTimeout(
+      refreshOnlyWhenWeatherOwnsTheVisibleSurface,
+      refreshMilliseconds,
+    );
+  }
+
+  refreshTimer = window.setTimeout(
+    refreshOnlyWhenWeatherOwnsTheVisibleSurface,
+    refreshMilliseconds,
+  );
+  window.addEventListener('pagehide', () => window.clearTimeout(refreshTimer));
 })();
 </script>
 {% endblock %}

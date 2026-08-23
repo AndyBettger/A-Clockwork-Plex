@@ -1,27 +1,119 @@
 <!doctype html>
-<html lang="en-GB">
+<html lang="en-GB" class="acp-document-booting"
+  data-legacy-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
+  data-server-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-server-idle-return-mode="{{ config.dashboard.idle_return_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-server-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
+  data-server-daytime-theme="{{ config.dashboard.daytime_theme | default('classic_dark') }}"
+  data-server-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
+  data-server-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
+  data-night-dim-enabled="{{ 'true' if config.dashboard.night_dim_enabled | default(false) else 'false' }}"
+  data-night-dim-start="{{ config.dashboard.night_dim_start | default('22:00') }}"
+  data-night-dim-end="{{ config.dashboard.night_dim_end | default('07:00') }}"
+  data-night-dim-level-percent="{{ config.dashboard.night_dim_level_percent | default(18) }}"
+  data-night-dim-active-level-percent="{{ config.dashboard.night_dim_active_level_percent | default(35) }}"
+  data-night-dim-wake-seconds="{{ config.dashboard.night_dim_wake_seconds | default(30) }}"
+  data-night-clock-mode="{{ 'true' if config.dashboard.night_clock_mode | default(true) else 'false' }}"
+  data-night-burn-in-shift="{{ 'true' if config.dashboard.night_burn_in_shift | default(true) else 'false' }}"
+  data-night-dim-style="{{ config.dashboard.night_dim_style | default('classic') }}"
+  data-night-dim-active-style="{{ config.dashboard.night_dim_active_style | default('same') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}A Clockwork Plex{% endblock %}</title>
+  <style id="acp-critical-first-paint">
+    html { background: #02040a; color-scheme: dark; }
+    html.acp-document-booting, html.acp-document-booting body { background: #02040a; }
+    html.acp-document-booting body { visibility: hidden !important; }
+  </style>
+  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20260819-daytime-themes-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/acp-time.js', v='20260802-global-clock-format-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/display-dimming.js', v='20260820-preview-timing-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/kiosk-safe-links.js', v='20260802-kiosk-address-panel') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/display-dimming.css', v='20260802-night-navigation-state') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-safe-links.css', v='20260803-night-treated-kiosk-dialog') }}">
   {% block head %}{% endblock %}
+  {% if active_page | default(state.mode) == 'settings' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-physical-followup.css', v='20260802-physical-followup-v2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-completion.css', v='20260802-settings-completion-v3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-pass-a.css', v='20260809-audio-fader-alignment-v2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-selects.css', v='20260803-night-safe-selects') }}">
+  {% endif %}
+  {% if active_page | default(state.mode) == 'weather' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/weather-forecast.css', v='20260802-custom-forecast-scrollbar') }}">
+  {% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-polish.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq.css', v='20260820-eq-bypass-theme-v1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq-drawer-layout.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fader-calibration.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css', v='20260730-atomic-plexamp-underlay-handoff') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/daytime-themes.css', v='20260819-curated-themes-v2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/daytime-theme-components.css', v='20260819-theme-components-v1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/daytime-theme-followup.css', v='20260820-theme-followup-v7') }}">
+  {% if active_page | default(state.mode) == 'settings' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-theme-closure.css', v='20260820-settings-theme-closure-v1') }}">
+  {% endif %}
 </head>
-<body class="mode-{{ state.mode }}" data-active-page="{{ active_page | default(state.mode) }}">
-  <main class="screen">
-    {% block content %}{% endblock %}
-  </main>
+<body class="mode-{{ state.mode }} acp-page-booting"
+  data-active-page="{{ active_page | default(state.mode) }}"
+  data-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
+  data-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-idle-return-mode="{{ config.dashboard.idle_return_mode | default(config.dashboard.default_mode) | default('clock') }}"
+  data-idle-timeout-seconds="{{ config.dashboard.idle_timeout_seconds | default(180) }}"
+  data-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
+  data-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
+  data-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}">
+  <div id="acp-night-dim-overlay" aria-hidden="true"></div>
+  <main class="screen">{% block content %}{% endblock %}</main>
+
+  <section class="persistent-plexamp" id="persistent-plexamp" aria-label="Plexamp embedded player" aria-hidden="true">
+    <div class="persistent-plexamp-loading" aria-hidden="true">Preparing Plexamp</div>
+    <iframe class="persistent-plexamp-frame" id="persistent-plexamp-frame"
+      src="{{ config.plexamp.url | default('http://localhost:32500') }}" title="Plexamp" allow="autoplay"></iframe>
+  </section>
+
   <footer class="status-bar">
     <span>A Clockwork Plex</span>
     <span>Mode: {{ state.mode }}</span>
-    <span>{% if state.last_weather_update %}Weather: {{ state.last_weather_update }}{% else %}Weather: waiting{% endif %}</span>
+    <span>{% if state.last_weather_update %}Weather: <span data-acp-datetime="{{ state.last_weather_update }}">{{ state.last_weather_update }}</span>{% else %}Weather: waiting{% endif %}</span>
   </footer>
-  <script src="{{ url_for('static', filename='js/segment-display.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/segment-display.js', v='20260819-segment-v3') }}"></script>
   <script src="{{ url_for('static', filename='js/segment-readouts.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/nav-layer.js') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/mode-watch.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/nav-drawer-lifecycle.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/audio-eq.js', v='20260810-single-eq-presenter') }}"></script>
+  <script src="{{ url_for('static', filename='js/audio-eq-drawer-layout.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/audio-polish.js', v='20260729-airplay-scale-authority') }}"></script>
+  <script src="{{ url_for('static', filename='js/audio-state-isolation.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/airplay-start-commit.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/plexamp-persistent.js', v='20260730-atomic-plexamp-underlay-handoff') }}"></script>
+  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20260730-playback-generation-transition-serialization-20260802-night-navigation-state') }}"></script>
+  <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260730-stale-projection-navigation-epoch') }}"></script>
+  <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
+  {% if active_page | default(state.mode) == 'weather' %}
+  <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20260802-kiosk-safe-attribution') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather-forecast-completion.js', v='20260802-full-forecast-range-v2') }}"></script>
+  {% endif %}
+  {% if active_page | default(state.mode) == 'settings' %}
+  <script src="{{ url_for('static', filename='js/settings-transaction-guard.js', v='20260802-single-transaction') }}"></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
+  {% if active_page | default(state.mode) == 'settings' %}
+  <script src="{{ url_for('static', filename='js/settings-weather-lifetime-status.js', v='20260823-lifetime-status-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-physical-followup.js', v='20260802-physical-followup-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-completion.js', v='20260823-about-release-metadata-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-display-sections.js', v='20260819-daytime-themes-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-night-interaction.js', v='20260802-short-night-duration') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-pass-a.js', v='20260803-final-visual-cleanup') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-numeric-controls.js', v='20260820-numeric-controls-v3') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-selects.js', v='20260803-night-safe-selects-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-range-theme.js', v='20260820-theme-range-v2') }}"></script>
+  {% endif %}
 </body>
 </html>

@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import unittest
+from datetime import datetime
+from pathlib import Path
+
+from flask import Flask, jsonify, request
+
+from app.weather_observation_store import (
+    promote_ecowitt_observation_store,
+    sanitise_weather_observation,
+    store_dashboard_observation,
+)
+
+
+class FakeDashboard:
+    STATE_PATH = Path("/tmp/not-written-state.json")
+
+    def __init__(self) -> None:
+        self.provider = "ecowitt_push"
+        self.state = {
+            "weather": {"old": "reading"},
+            "weather_extremes": {"date": "2026-08-10", "fields": {}},
+            "pressure_history": [],
+            "last_weather_update": None,
+        }
+        self.extremes_payload = None
+        self.pressure_payload = None
+        self.saved = None
+
+    def load_config(self):
+        return {
+            "weather": {
+                "provider": self.provider,
+                "ecowitt_push": {"fresh_seconds": 180},
+                "weather_underground": {"station_id": "ITEST1"},
+            }
+        }
+
+    def load_state(self, config):
+        return dict(self.state)
+
+    def update_weather_extremes(self, state, payload):
+        self.extremes_payload = dict(payload)
+        state["weather_extremes"]["touched"] = True
+
+    def update_pressure_history(self, state, payload):
+        self.pressure_payload = dict(payload)
+        state["pressure_history"].append({"time": "test", "hpa": 1015.2})
+
+    def save_json(self, path, state):
+        self.saved = (path, state)
+        self.state = dict(state)
+
+    def normalise_weather_payload(self):
+        return dict(request.get_json(silent=True) or {})
+
+    def pick_weather_fields(self, config, weather, state):
+        return {"fields": len(weather)}
+
+    def weather_detail_data(self, config, weather, state):
+        return {"weather": dict(weather)}
+
+
+class WeatherObservationStoreTests(unittest.TestCase):
+    def test_sanitiser_drops_empty_and_sensitive_fields(self):
+        clean = sanitise_weather_observation(
+            {
+                "tempf": 64.4,
+                "humidity": "",
+                "api_key": "must-not-persist",
+                "PASSKEY": "must-not-persist-either",
+                "dateutc": "2026-08-10T02:00:00Z",
+            }
+        )
+
+        self.assertEqual(
+            clean,
+            {"tempf": 64.4, "dateutc": "2026-08-10T02:00:00Z"},
+        )
+
+    def test_empty_observation_is_rejected_without_replacing_state(self):
+        with self.assertRaisesRegex(ValueError, "no usable fields"):
+            sanitise_weather_observation({"api_key": "secret", "humidity": ""})
+
+    def test_store_owns_current_extremes_pressure_history_and_issue_time(self):
+        dashboard = FakeDashboard()
+        now = datetime(2026, 8, 10, 3, 15, 20)
+
+        state = store_dashboard_observation(
+            dashboard,
+            {
+                "tempf": 64.4,
+                "baromrelin": 29.98,
+                "api_key": "must-not-persist",
+            },
+            now_provider=lambda: now,
+        )
+
+        self.assertEqual(state["weather"], {"tempf": 64.4, "baromrelin": 29.98})
+        self.assertEqual(state["last_weather_update"], "2026-08-10T03:15:20")
+        self.assertEqual(dashboard.extremes_payload, state["weather"])
+        self.assertEqual(dashboard.pressure_payload, state["weather"])
+        self.assertEqual(state["pressure_history"], [{"time": "test", "hpa": 1015.2}])
+        self.assertEqual(dashboard.saved[0], dashboard.STATE_PATH)
+        self.assertIs(dashboard.saved[1], state)
+        self.assertNotIn("api_key", str(dashboard.saved))
+
+    def test_promoted_ecowitt_endpoint_uses_shared_store_and_filters_secrets(self):
+        app = Flask(__name__)
+        dashboard = FakeDashboard()
+
+        @app.route("/api/weather/ecowitt", methods=["GET", "POST"])
+        def api_weather_ecowitt():
+            return jsonify({"legacy": True})
+
+        promote_ecowitt_observation_store(app, dashboard)
+        response = app.test_client().post(
+            "/api/weather/ecowitt",
+            json={"tempf": 63.1, "baromrelin": 30.01, "api_key": "secret"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["stored"])
+        self.assertEqual(response.get_json()["received_fields"], 2)
+        self.assertEqual(dashboard.saved[1]["weather"], {"tempf": 63.1, "baromrelin": 30.01})
+        self.assertEqual(dashboard.extremes_payload, dashboard.saved[1]["weather"])
+        self.assertEqual(dashboard.pressure_payload, dashboard.saved[1]["weather"])
+        self.assertNotIn("secret", str(dashboard.saved))
+
+    def test_wu_selected_ecowitt_push_stores_only_supplemental_indoor(self):
+        app = Flask(__name__)
+        dashboard = FakeDashboard()
+        dashboard.provider = "weather_underground"
+        dashboard.state["weather"] = {"tempf": 91.0, "humidity": 40, "dailyrainin": 0.0}
+        dashboard.state["last_weather_update"] = "2026-08-18T12:00:00"
+
+        @app.route("/api/weather/ecowitt", methods=["GET", "POST"])
+        def api_weather_ecowitt():
+            return jsonify({"legacy": True})
+
+        promote_ecowitt_observation_store(app, dashboard)
+        response = app.test_client().post(
+            "/api/weather/ecowitt",
+            json={
+                "tempf": 70.0,
+                "humidity": 99,
+                "tempinf": 75.2,
+                "humidityin": 58,
+                "baromrelin": 29.50,
+            },
+        )
+        payload = response.get_json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(payload["stored"])
+        self.assertTrue(payload["supplemental_indoor_stored"])
+        self.assertEqual(payload["received_fields"], 2)
+        stored_weather = dashboard.saved[1]["weather"]
+        self.assertEqual(stored_weather["tempf"], 91.0)
+        self.assertEqual(stored_weather["humidity"], 40)
+        self.assertEqual(stored_weather["tempinf"], 75.2)
+        self.assertEqual(stored_weather["humidityin"], 58)
+        self.assertNotIn("baromrelin", stored_weather)
+        self.assertEqual(dashboard.saved[1]["weather_indoor"], {"tempinf": 75.2, "humidityin": 58})
+
+    def test_wu_store_merges_recent_supplemental_indoor_and_derives_rain(self):
+        dashboard = FakeDashboard()
+        dashboard.provider = "weather_underground"
+        dashboard.state["weather_indoor"] = {"tempinf": 72.0, "humidityin": 50}
+        dashboard.state["last_weather_indoor_update"] = "2026-08-18T12:00:00"
+        now = datetime(2026, 8, 18, 12, 1, 0)
+
+        state = store_dashboard_observation(
+            dashboard,
+            {"tempf": 90.0, "humidity": 42, "dailyrainin": 0.0, "rainratein": 0.0},
+            now_provider=lambda: now,
+        )
+
+        self.assertEqual(state["weather"]["tempinf"], 72.0)
+        self.assertEqual(state["weather"]["humidityin"], 50)
+        self.assertEqual(state["weather"]["hourlyrainin"], 0.0)
+        self.assertEqual(state["weather"]["eventrainin"], 0.0)
+
+    def test_runner_owns_remote_observation_service_lifecycle(self):
+        source = Path("app/runner.py").read_text(encoding="utf-8")
+
+        self.assertIn("WeatherObservationService", source)
+        self.assertIn("register_weather_observation_api", source)
+        self.assertIn("promote_ecowitt_observation_store(app, dashboard)", source)
+        self.assertIn("store_dashboard_observation", source)
+        self.assertIn("weather_observations.start()", source)
+        self.assertIn("weather_observations.shutdown()", source)
+
+
+if __name__ == "__main__":
+    unittest.main()
