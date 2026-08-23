@@ -2,7 +2,7 @@
 
 **Last updated:** 23 August 2026  
 **Branch:** `feature/alarm-engine`  
-**PR:** #2 — **must remain Draft, open and unmerged until explicit owner approval.**
+**PR:** #2 — explicit owner approval for merge received on 23 August 2026.
 
 > This roadmap began as the EQ/audio-installer plan. Then the installer acquired the rest of the appliance, the alarm clock acquired an audio engine, Weather acquired history, AirPlay acquired an arbitration layer, and the phrase “small follow-up” lost all legal meaning. 😁 This is now the project-wide roadmap.
 
@@ -91,7 +91,7 @@ The exact original physically tested runtime/source head remains `215bcedb433698
 - [x] **#80 release-ready public documentation and visual first-use — COMPLETE:** README/INSTALL describe **`main` as the normal supported install/update channel** and published tags/releases as immutable snapshots. The old public “production candidate” / `feature/alarm-engine` install path is regression-forbidden. `docs/INSTALL.md` contains the compact visual first-use tour. Exact implementation head `bef278f64845255f86e5c1be654f84b0b2744e98`.
 - [x] **#81 final post-polish validation — COMPLETE:** Tests #4177 / run `32614635007` against `bef278f64845255f86e5c1be654f84b0b2744e98`: Python compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **925/925 unit tests PASS** (`Ran 925 tests in 45.380s`, `OK`).
 
-### Final blank-Pi release follow-up — IN PROGRESS at checkpoint #82
+### Final blank-Pi release follow-up — COMPLETE at checkpoint #82
 
 A final wipe-and-install release-candidate run was deliberately performed before owner approval. The blank appliance successfully reached normal operation and the owner confirmed Weather commissioning, managed EQ, Plexamp and AirPlay were working normally. Settings → About physically displayed the prepared **0.4.0 / Unified Bedside Appliance / v0.4.0** identity and the resulting `settings-about.png` was added to the curated documentation set.
 
@@ -102,14 +102,15 @@ The run found two small pre-release issues rather than an installer/runtime fail
 
 `settings-about.png` is now part of the guarded screenshot catalogue and the visual first-use guide.
 
-Exact follow-up implementation/docs head: `5ad1eec5bf36c5c40ea793c21c75ccd0597ac668`. Tests #4193 / run `32622918557`: Python compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **927/927 unit tests PASS** (`Ran 927 tests in 30.881s`, `OK`). The increase from 925 to 927 is the two new full-station-history Settings regression tests.
+Exact follow-up implementation/docs head: `5ad1eec5bf36c5c40ea793c21c75ccd0597ac668`. Tests #4193 / run `32622918557`: Python compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **927/927 unit tests PASS** (`Ran 927 tests in 30.881s`, `OK`). The increase from 925 to 927 is the two new full-station-history Settings regression tests. Roadmap contract synchronization head `c9e0846cdf0c7becc7a61fb10a0172c5618949d6`; Tests #4197 also passed the complete maintained gate.
 
-Remaining #82 physical gate:
+Final #82 physical evidence on 23 August 2026:
 
-- [ ] Pull the current candidate onto the same freshly commissioned Pi and confirm **Settings → Weather → Observation source** shows both the selected-period rainfall result and the separate **Full station history** status cleanly at 1280×720. Changing Selected period must not reset or hide the lifetime status.
-- [ ] Complete any still-unchecked items from the final blank-card smoke run, particularly one NFC playback and one real scheduled-alarm cycle, if they were not already exercised during this wipe/install.
+- [x] On the freshly commissioned Pi, **Settings → Weather → Observation source** showed the selected-period rainfall result and the separate **Full station history** status cleanly at 1280×720. Changing Current year → Last 7 days → Current month → Current year updated the selected-period result correctly and did not reset or hide the lifetime status. The full archive reported **Full history ready**.
+- [x] NFC playback was physically tested successfully on the fresh installation.
+- [x] A real scheduled alarm was physically tested successfully through ring → Snooze → re-ring → Dismiss.
 
-No further SD wipe is required for #82: the post-run runtime change is a read-only Settings presenter over an already-running, already-tested lifetime service.
+The owner explicitly approved PR #2 for merge after those checks on **23 August 2026**.
 
 ## Future product backlog — non-blocking
 
@@ -145,8 +146,6 @@ Keeping completed work off the future list matters. Otherwise the roadmap eventu
 5. [x] Settings → About/version contract (#79).
 6. [x] Release-ready README/INSTALL and visual first-use material (#80).
 7. [x] Pre-approval validation (#81).
-8. [ ] Finish the limited final blank-Pi follow-up/spot-check described at #82.
-9. [ ] **Explicit owner approval.** Only then may PR #2 leave Draft or merge.
-10. [ ] After merge, verify the exact `main` result/CI and create GitHub release/tag `v0.4.0` from that accepted `main` commit.
-
-**PR #2 must remain Draft/open/unmerged until explicit owner approval is given.**
+8. [x] Final blank-Pi follow-up/spot-check (#82).
+9. [x] **Explicit owner approval for PR #2 merge — received 23 August 2026.**
+10. [ ] Merge PR #2 to `main`, verify the exact resulting `main` commit/CI, then create GitHub release/tag `v0.4.0` from that accepted `main` commit.
