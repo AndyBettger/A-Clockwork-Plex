@@ -36,6 +36,7 @@ DEVELOPMENT_ARCHITECTURE = {
     "application-state-architecture.md",
     "airplay-metadata.md",
     "airplay-segment-cell.svg",
+    "configuration-backup-ownership.md",
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
 }
