@@ -4,7 +4,7 @@ This is the normal end-to-end installation path for a new A Clockwork Plex appli
 
 The engineering acceptance runbooks under `docs/` contain deeper verification and rollback evidence. **A normal installation does not require running those acceptance tests or plan-only passes.** If setup reports an unexplained failure, stop at that failed stage rather than continuing with unrelated manual fixes.
 
-> **Current production candidate:** until PR #2 is explicitly approved and merged, install from the `feature/alarm-engine` branch. After release, the normal installation target will move to the released/default branch.
+The normal supported source channel is the repository's default **`main`** branch. Published GitHub release tags are immutable source snapshots; for this release, **`v0.4.0`** identifies A Clockwork Plex 0.4.0. Use `main` for the normal supported install/update path, or deliberately select a published tag when you need an exact reproducible release snapshot.
 
 ## 1. Hardware used by the validated appliance
 
@@ -25,7 +25,7 @@ Use Raspberry Pi Imager and select the current **64-bit Raspberry Pi OS with Des
 
 In Imager's OS customisation, set the normal appliance values before writing the card:
 
-- hostname, for example `a-clockwork-plex` (a test appliance may use `plexamp-test`);
+- hostname, for example `a-clockwork-plex`;
 - username and password;
 - Wi-Fi SSID/password and Wi-Fi country if Wi-Fi is used, or use wired Ethernet;
 - locale, keyboard and timezone;
@@ -115,14 +115,23 @@ sudo apt update
 sudo apt install -y git curl
 ```
 
-Clone the current production-candidate branch:
+Clone the normal supported `main` channel:
 
 ```bash
 cd ~
-git clone --branch feature/alarm-engine \
-  https://github.com/AndyBettger/A-Clockwork-Plex.git
+git clone https://github.com/AndyBettger/A-Clockwork-Plex.git
 cd A-Clockwork-Plex
+git switch main
 ```
+
+For an exact published release snapshot instead, fetch the published tags and explicitly select the required one, for example:
+
+```bash
+git fetch --tags
+git switch --detach v0.4.0
+```
+
+A tag checkout is intentionally detached and immutable; that is useful for reproducibility, but it is not the normal moving update channel.
 
 Do not create a Python virtual environment or install `requirements.txt` manually. Appliance setup owns the verified application and NFC environments.
 
@@ -240,20 +249,96 @@ Weather Underground can be selected and commissioned from **Settings → Weather
 
 The same rule applies to other long commissioning values: use VNC/copy-paste where practical, but keep secrets in the UI or other intended secret-entry path rather than placing them in scripts or logs.
 
-## 8. NFC albums
+## 8. Visual first-use tour
+
+The screenshots below are from the validated 1280×720 appliance UI. They are not extra setup steps; they are landmarks so you can tell when you are in the right place.
+
+### Weather source and forecast
+
+Start in **Settings → Weather** to choose the live observation source, configure forecast/location details and, when using Weather Underground, enter the station ID and write-only API key through the intended credential controls.
+
+![A Clockwork Plex Weather Settings](assets/screenshots/settings-weather.png)
+
+A healthy Weather page then combines cached Open-Meteo forecast data with the configured live observation source:
+
+<table>
+<tr>
+<td width="50%"><img src="assets/screenshots/weather-1.png" alt="A Clockwork Plex forecast view"></td>
+<td width="50%"><img src="assets/screenshots/weather-2.png" alt="A Clockwork Plex live current conditions view"></td>
+</tr>
+<tr>
+<td align="center"><sub>Forecast outlook</sub></td>
+<td align="center"><sub>Current indoor/outdoor observations</sub></td>
+</tr>
+</table>
+
+### Music level and EQ
+
+Use **Settings → Audio** for Music Master, source trims, Maximum Alarm Volume and the managed three-band EQ. Remember that the alarm ceiling is deliberately separate from Music Master and music EQ.
+
+![A Clockwork Plex Audio Settings](assets/screenshots/settings-audio.png)
+
+### Your first alarm
+
+Use **Settings → Alarms** to add or edit recurring alarms, select weekdays, tone, target/fade values and the scheduled-audio safety controls.
+
+![A Clockwork Plex Alarm Settings](assets/screenshots/settings-alarms.png)
+
+When a real scheduled alarm owns the appliance, the full alarm screen provides Snooze and deliberate slide-to-dismiss controls:
+
+![A Clockwork Plex scheduled alarm screen](assets/screenshots/alarm-ringing.png)
+
+### Normal bedside views
+
+The Clock has distinct daytime and night presentations; night mode is scheduled and touch-to-wake remains available without changing the underlying daytime theme.
+
+<table>
+<tr>
+<td width="50%"><img src="assets/screenshots/clock-day.png" alt="A Clockwork Plex daytime Clock"></td>
+<td width="50%"><img src="assets/screenshots/clock-night.png" alt="A Clockwork Plex night Clock"></td>
+</tr>
+<tr>
+<td align="center"><sub>Daytime Clock</sub></td>
+<td align="center"><sub>Classic night presentation</sub></td>
+</tr>
+</table>
+
+Plexamp and AirPlay are both normal music sources through the managed music lane. AirPlay shows a ready state before a sender connects and a Now Playing state while audio is active; Plexamp keeps its own familiar player surface inside the appliance kiosk.
+
+<table>
+<tr>
+<td width="50%"><img src="assets/screenshots/airplay-ready.png" alt="A Clockwork Plex AirPlay ready screen"></td>
+<td width="50%"><img src="assets/screenshots/plexamp-now-playing.png" alt="Plexamp Now Playing inside A Clockwork Plex"></td>
+</tr>
+<tr>
+<td align="center"><sub>AirPlay ready</sub></td>
+<td align="center"><sub>Plexamp Now Playing</sub></td>
+</tr>
+</table>
+
+A separate refreshed Settings → About screenshot may be added to the documentation later; it is not required to commission or operate the appliance.
+
+## 9. NFC albums
 
 The installed NFC listener expects the validated PN532 I2C reader on bus 1 at `0x24`. Existing compatible album tags can then trigger Plexamp playback. Tag creation/library workflow is documented separately by the Plexamp NFC project.
 
-## 9. Updating an installed appliance
+## 10. Updating an installed appliance
 
-For a later source update on the same branch/release:
+For the normal `main` update channel:
 
 ```bash
 cd ~/A-Clockwork-Plex
+git status
+git switch main
 git pull --ff-only
+bash setup.sh
 ```
 
-Follow the release/update instructions for the installed version after pulling. Do not manually rebuild Python environments, audio routes or services component by component.
+If `git status` shows unexpected tracked changes, investigate them before pulling rather than forcing the checkout. `setup.sh` rechecks and converges the appliance-owned components after the source update.
+
+If the appliance was intentionally installed from an immutable release tag, do not treat that tag as a branch and blindly pull it. To move to another published release, fetch tags, explicitly select the newer release/tag and follow that release's notes before running setup.
+
+Do not manually rebuild Python environments, audio routes or services component by component.
 
 ## Development install
 

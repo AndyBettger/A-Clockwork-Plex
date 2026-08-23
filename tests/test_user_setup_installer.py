@@ -95,6 +95,27 @@ class UserSetupInstallerTests(unittest.TestCase):
         self.assertIn("password manager", text)
         self.assertIn("station ID and API key", text)
 
+        self.assertIn("normal supported source channel", text)
+        self.assertIn("git clone https://github.com/AndyBettger/A-Clockwork-Plex.git", text)
+        self.assertIn("git switch main", text)
+        self.assertIn("v0.4.0", text)
+        self.assertNotIn("feature/alarm-engine", text)
+        self.assertNotIn("production candidate", text.lower())
+
+        self.assertIn("## 8. Visual first-use tour", text)
+        for screenshot in (
+            "assets/screenshots/settings-weather.png",
+            "assets/screenshots/settings-audio.png",
+            "assets/screenshots/settings-alarms.png",
+            "assets/screenshots/alarm-ringing.png",
+            "assets/screenshots/clock-day.png",
+            "assets/screenshots/clock-night.png",
+            "assets/screenshots/airplay-ready.png",
+            "assets/screenshots/plexamp-now-playing.png",
+        ):
+            with self.subTest(screenshot=screenshot):
+                self.assertIn(screenshot, text)
+
 
 if __name__ == "__main__":
     unittest.main()

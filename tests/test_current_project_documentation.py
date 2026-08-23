@@ -61,6 +61,10 @@ class CurrentProjectDocumentationTests(unittest.TestCase):
         self.assertIn("CamillaDSP is pinned to the accepted 4.1.3 build", text)
         self.assertIn("a-clockwork-plex-camilladsp.service", text)
         self.assertIn("The supported audio lifecycle lives under `scripts/audio/`", text)
+        self.assertIn("normal supported install/update channel", text)
+        self.assertIn("v0.4.0", text)
+        self.assertNotIn("feature/alarm-engine", text)
+        self.assertNotIn("production candidate", text.lower())
         self.assertNotIn("obsolete bare `scripts/install-master-eq.sh`", text)
         self.assertNotIn("pre-production audio rehearsal harnesses have been retired", text)
 

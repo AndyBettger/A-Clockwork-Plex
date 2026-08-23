@@ -122,6 +122,9 @@ class DocsCatalogTests(unittest.TestCase):
     def test_catalog_points_normal_users_away_from_engineering_clutter(self):
         text = CATALOG.read_text(encoding="utf-8")
         self.assertIn("Start with **[`INSTALL.md`](INSTALL.md)**", text)
+        self.assertIn("visual first-use tour", text)
+        self.assertIn("normal supported source channel is `main`", text)
+        self.assertIn("v0.4.0", text)
         self.assertIn("assets/", text)
         self.assertIn("development/", text)
         self.assertIn("roadmap/ROADMAP.md", text)

@@ -4,17 +4,20 @@
 
 The project is built as **one appliance**. The installer owns the pieces and their relationships — Plexamp, Node, NFC, AirPlay, dashboard/kiosk integration, alarm-safe audio routing and EQ — so a fresh installation is not a scavenger hunt through fifteen unrelated shell scripts.
 
-> **Current production candidate:** until Draft PR #2 is explicitly approved and merged, install from `feature/alarm-engine`. The accepted release candidate has completed its physical clean-room and automated validation; the PR remains Draft pending owner approval.
-
 ## Quick start
 
-For a fresh Raspberry Pi, follow **[`docs/INSTALL.md`](docs/INSTALL.md)**. In short, after preparing Raspberry Pi OS and cloning the production-candidate branch, the normal installation command is:
+For a fresh Raspberry Pi, follow **[`docs/INSTALL.md`](docs/INSTALL.md)**. The normal supported source channel is the repository's default **`main`** branch, and the normal appliance installation command is:
 
 ```bash
+cd ~
+git clone https://github.com/AndyBettger/A-Clockwork-Plex.git
+cd A-Clockwork-Plex
 bash setup.sh
 ```
 
-Run it as the normal appliance user, **not** with `sudo`. `setup.sh` acquires and verifies the pinned CamillaDSP artifact, runs the guarded appliance installer and handles the first Plexamp claim hand-off when required.
+Run setup as the normal appliance user, **not** with `sudo`. `setup.sh` acquires and verifies the pinned CamillaDSP artifact, runs the guarded appliance installer and handles the first Plexamp claim hand-off when required.
+
+Published GitHub release tags are immutable source snapshots. For example, release **`v0.4.0`** identifies the source corresponding to A Clockwork Plex 0.4.0; use a release tag when you need a reproducible historical build rather than the moving `main` channel.
 
 There is a much larger engineering history in the repository, but you do not need to read it before breakfast. The friendly documentation map is **[`docs/README.md`](docs/README.md)**; development material and historical archaeology have their own homes underneath `docs/`.
 
@@ -157,18 +160,23 @@ So:
 
 Ordinary configuration belongs in Settings rather than hand-editing `config.json`. It is both easier and much less likely to create a 2 a.m. debugging hobby.
 
+The installation guide includes a compact **[visual first-use tour](docs/INSTALL.md#8-visual-first-use-tour)** showing the Weather, Audio and Alarm Settings surfaces and the normal day/night operating views.
+
 ## Updating an installed appliance
 
-For a source update on the same branch/release:
+The normal supported update channel is `main`:
 
 ```bash
 cd ~/A-Clockwork-Plex
 git status
+git switch main
 git pull --ff-only
 bash setup.sh
 ```
 
 If `git status` shows unexpected tracked changes, investigate them before pulling rather than forcing the checkout. `setup.sh` is convergent: completed stages are checked and reused, while any required reboot or local Plexamp commissioning checkpoint is reported explicitly.
+
+A checkout intentionally pinned to a release tag is an immutable snapshot and should not be treated like a moving branch. To move a tag-pinned appliance to another release, explicitly choose that newer published release/tag and follow its update notes rather than blindly pulling through history.
 
 ## Useful diagnostics
 
@@ -204,8 +212,8 @@ That runner discovers current Python, shell and dashboard JavaScript sources, pe
 
 For contributors and future debugging, [`docs/README.md`](docs/README.md) separates normal-user documentation, the live roadmap, current engineering material and archived history.
 
-## Release status
+## Release identity
 
-The replacement spare SD has completed the full clean-room release-candidate sequence: fresh installation and commissioning, real Plexamp/EQ playback, Weather, AirPlay, NFC, scheduled alarm operation, reboot recovery, formal verifiers, repeat `setup.sh`, and a clean tracked checkout.
+A Clockwork Plex 0.4.0 uses the release identity **`v0.4.0` — Unified Bedside Appliance**. Settings → About reads the same maintained identity from `app/static/app-version.json`.
 
-Repository cleanup and the final automated validation are also complete. PR #2 remains **Draft/open/unmerged** until explicit owner approval is given; it will not be marked ready or merged by implication.
+`main` is the normal supported install/update channel. Published GitHub tags/releases provide immutable version snapshots, while development state, release evidence and future work remain in [`docs/roadmap/ROADMAP.md`](docs/roadmap/ROADMAP.md) rather than leaking into the user-facing appliance version.

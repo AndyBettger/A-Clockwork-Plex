@@ -6,11 +6,15 @@ There is quite a lot of engineering behind a bedside clock that mainly wants to 
 
 Start with **[`INSTALL.md`](INSTALL.md)**.
 
-That is the normal end-to-end guide for a fresh Raspberry Pi. The normal appliance command is simply:
+That is the normal end-to-end guide for a fresh Raspberry Pi. The normal supported source channel is `main`, and the normal appliance command is simply:
 
 ```bash
 bash setup.sh
 ```
+
+The same guide includes the compact **[visual first-use tour](INSTALL.md#8-visual-first-use-tour)** showing Weather, Audio and Alarm Settings plus the normal Clock, AirPlay and Plexamp surfaces.
+
+Published release tags, such as `v0.4.0`, are immutable source snapshots for reproducible installs. `main` remains the normal moving install/update channel.
 
 For advanced installer controls and recovery, see [`appliance-installer.md`](appliance-installer.md).
 
@@ -20,7 +24,7 @@ That is deliberately almost everything a normal owner needs to see in this direc
 
 Current documentation images live under **[`assets/`](assets/)**, with release screenshots kept in [`assets/screenshots/`](assets/screenshots/).
 
-Those assets support the README and visual first-use documentation; they are deliberately kept out of the root of `docs/` so normal-user documents remain easy to find.
+Those assets support the root README and the visual first-use section in `INSTALL.md`; they are deliberately kept out of the root of `docs/` so normal-user documents remain easy to find.
 
 ## I am developing or debugging it
 
