@@ -1,9 +1,10 @@
 # A Clockwork Plex Roadmap
 
 **Last updated:** 23 August 2026  
-**Branch:** `main`  
-**PR:** #2 — merged into `main` on 23 August 2026.  
-**Release:** **`v0.4.0` — Unified Bedside Appliance — PUBLISHED 23 August 2026.**
+**Active development branch:** `develop`  
+**Stable branch:** `main`  
+**PR #2:** merged into `main` on 23 August 2026.  
+**Current release:** **`v0.4.0` — Unified Bedside Appliance — PUBLISHED 23 August 2026.**
 
 > This roadmap began as the EQ/audio-installer plan. Then the installer acquired the rest of the appliance, the alarm clock acquired an audio engine, Weather acquired history, AirPlay acquired an arbitration layer, and the phrase “small follow-up” lost all legal meaning. 😁 This is now the project-wide roadmap.
 
@@ -21,6 +22,23 @@ Detailed earlier chronology is preserved separately so completed engineering doe
 
 Normal appliance owners do not need any of those files to install the clock. That job belongs to [`../INSTALL.md`](../INSTALL.md).
 
+## Branch and release model
+
+- `main` is the current supported stable appliance and the normal installation/update channel.
+- `develop` is the integration branch for the next release cycle.
+- substantial isolated work may use short-lived `feature/<name>` branches created from `develop` and merged back to `develop` once validated.
+- published `vX.Y.Z` tags/releases are immutable accepted snapshots.
+- the next release version is intentionally **not assigned yet**; choose it when the actual next-release scope is clear rather than guessing from the first backlog item.
+- `feature/alarm-engine` is retired after the v0.4.0 merge and may be deleted once `develop` is confirmed healthy; no product history depends on retaining that branch ref.
+
+### Development-cycle bootstrap — checkpoint #84
+
+- [x] Created `develop` from post-release `main` head `a2ccc85cbd1d264e7ebedcf50b82084a4289c09a`.
+- [x] Switched GitHub Actions push validation from `feature/alarm-engine` to `develop`; `main` remains covered.
+- [x] Established `v0.4.0` as the released baseline for all new work.
+- [x] Added the first post-release product ideas — Events calendar, BBC News and Astronomy — to the live roadmap.
+- [ ] Retire/delete the old `feature/alarm-engine` branch ref after owner confirmation.
+
 ## Current supported release
 
 **A Clockwork Plex `v0.4.0` — Unified Bedside Appliance** is the current published release.
@@ -29,7 +47,7 @@ Normal appliance owners do not need any of those files to install the clock. Tha
 - GitHub Actions **Tests #4200** passed on that exact merged `main` commit.
 - The published `v0.4.0` tag was verified against the merge commit with GitHub's commit comparison: **identical**, `ahead_by=0`, `behind_by=0`, no changed files.
 - `main` is the normal supported installation/update channel.
-- `v0.4.0` is an immutable accepted-release snapshot. This roadmap update is intentionally a later `main` commit and is not part of the tagged release.
+- `v0.4.0` is an immutable accepted-release snapshot. Later `main`/`develop` bookkeeping and development commits are not part of the tagged release.
 
 ## Settled release invariants
 
@@ -130,11 +148,38 @@ The owner explicitly approved PR #2 for merge after those checks on **23 August 
 - [x] GitHub release/tag **`v0.4.0` — Unified Bedside Appliance** was published on 23 August 2026.
 - [x] GitHub comparison confirmed `v0.4.0` and `d5481b4d52627cbf57a2aa32f974d619fb38ee75` are identical.
 
-**v0.4.0 is released.** Future development starts from `main` on new development branches; the released tag remains immutable.
+**v0.4.0 is released.** New development now integrates on `develop`; the released tag remains immutable.
 
-## Future product backlog — non-blocking
+## Future product backlog — next development cycle
 
-These are useful ideas that are **not required for the accepted release**.
+These are post-v0.4.0 ideas. They are not commitments to one release and should be designed/tested independently before promotion to `main`.
+
+### Astronomy — major new application area
+
+The Astronomy feature should be treated as a **multi-screen section with its own touch navigation**, closer in interaction model to Settings than to a single Clock/Weather dashboard page. The aim is a bedside astronomy reference in the spirit of Peter Duffett-Smith's *Astronomy with your Pocket Calculator / Spreadsheet / Personal Computer*: useful numerical astronomy rather than a decorative horoscope page. 🔭
+
+- [ ] **Astronomy technical spike and calculation authority.** Prefer deterministic local/offline calculations for the core ephemeris rather than making the appliance dependent on a live astronomy API. Evaluate an appropriate maintained astronomy library/ephemeris source versus compact well-tested Duffett-Smith/Meeus-style calculations. Define accuracy tolerances and reference fixtures before implementation.
+- [ ] **Observer/location model.** Reuse the appliance's existing latitude/longitude/timezone where sensible, while allowing Astronomy-specific confirmation/override if needed. All rise/set/transit calculations must clearly use the configured observer and local date/time.
+- [ ] **Astronomy overview / Tonight screen.** Provide a concise observing summary and navigation into the detailed screens. Candidate data includes Julian Date, local/Greenwich sidereal time, Sun/Moon headline state and notable rise/set events for the current night.
+- [ ] **Sun screen.** Candidate values: sunrise, solar transit/noon, sunset, civil/nautical/astronomical twilight, day length, right ascension/declination and current altitude/azimuth. Equinox/solstice/seasonal information may be added where it remains genuinely useful on a bedside display.
+- [ ] **Moon screen.** Candidate values: moonrise/transit/moonset, phase name, age, illuminated fraction, next principal phases, distance, angular diameter, right ascension/declination and current altitude/azimuth.
+- [ ] **Planets screen(s).** Mercury through Neptune with rise/transit/set times and useful current positional data such as RA/Dec and altitude/azimuth. Investigate adding magnitude, elongation, distance and constellation where the chosen calculation source supports them reliably.
+- [ ] **Astronomy navigation/presentation.** Design a touch-first sub-navigation that works at 1280×720 without cramming all data onto one screen. The normal global drawer must remain reachable. Night-theme presentation should be considered from the start rather than bolted on later.
+- [ ] **Astronomy validation suite.** Regression-test mathematical outputs against known reference dates/locations with explicit tolerances, including difficult edge cases such as circumpolar objects, no-rise/no-set days and DST/local-date boundaries.
+
+### News
+
+- [ ] **BBC News headlines page.** Build a lightweight News surface from BBC RSS/Atom feeds (assuming the feeds remain publicly available at implementation time) rather than scraping BBC HTML. Begin with top headlines and allow additional sections such as UK, World, Science/Technology if the feed catalogue supports them cleanly.
+- [ ] **Cached/background feed handling.** Fetch outside the page-render path, cache the last successful feed, show source/update time and fail gracefully to stale-but-labelled headlines when the network is unavailable. News failure must never affect the rest of the appliance.
+- [ ] **Safe headline presentation.** Sanitise feed-provided markup, preserve BBC attribution and decide how article opening should work in kiosk mode without trapping the user outside A Clockwork Plex.
+- [ ] **Touch layout.** Favour a readable headline list/cards with clear age/source information rather than a dense newspaper layout; scrolling must work naturally on the Touch Display 2.
+
+### Events calendar
+
+- [ ] **Events calendar design spike.** Add a touch-friendly calendar/upcoming-events surface. Define the first supported data model before coding: local-first event storage and/or read-only standards-based calendar input such as iCalendar/ICS/CalDAV are preferable starting points; optional cloud-provider integration can remain separate.
+- [ ] **Useful bedside views.** Candidate views are Today, upcoming events and a compact month/date browser, with clear all-day versus timed events.
+- [ ] **Calendar Settings/ownership.** Keep credentials or remote calendar secrets out of browser-visible configuration, follow the same managed-secret principles used by Weather, and make offline/stale state explicit.
+- [ ] **Reminders are a separate decision.** Do not silently convert calendar events into alarm-clock alarms. If event reminders are later added, they need an explicit user-controlled policy and clear priority/audio behaviour.
 
 ### Weather
 
@@ -157,7 +202,7 @@ These older wish-list items were subsequently implemented and accepted: schedule
 
 Keeping completed work off the future list matters. Otherwise the roadmap eventually starts requesting features the appliance already has, which is an impressively inefficient form of time travel. 🕰️
 
-## Release exit sequence
+## v0.4.0 release exit sequence
 
 1. [x] Physical replacement-SD clean-room acceptance through #64.
 2. [x] Repository/release hygiene through #72.
