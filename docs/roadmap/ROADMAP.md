@@ -29,15 +29,27 @@ Normal appliance owners do not need any of those files to install the clock. Tha
 - substantial isolated work may use short-lived `feature/<name>` branches created from `develop` and merged back to `develop` once validated.
 - published `vX.Y.Z` tags/releases are immutable accepted snapshots.
 - the next release version is intentionally **not assigned yet**; choose it when the actual next-release scope is clear rather than guessing from the first backlog item.
-- `feature/alarm-engine` is retired after the v0.4.0 merge and may be deleted once `develop` is confirmed healthy; no product history depends on retaining that branch ref.
+- the old `feature/alarm-engine` branch was retired after the v0.4.0 merge and deleted on 23 August 2026; its product history remains preserved by `main`, PR #2 and the immutable `v0.4.0` tag.
 
-### Development-cycle bootstrap — checkpoint #84
+### Development-cycle bootstrap — COMPLETE at checkpoint #84
 
 - [x] Created `develop` from post-release `main` head `a2ccc85cbd1d264e7ebedcf50b82084a4289c09a`.
 - [x] Switched GitHub Actions push validation from `feature/alarm-engine` to `develop`; `main` remains covered.
 - [x] Established `v0.4.0` as the released baseline for all new work.
 - [x] Added the first post-release product ideas — Events calendar, BBC News and Astronomy — to the live roadmap.
-- [ ] Retire/delete the old `feature/alarm-engine` branch ref after owner confirmation.
+- [x] Retired/deleted the old `feature/alarm-engine` branch ref after owner confirmation; GitHub branch discovery subsequently verified it absent.
+
+### High-resolution audio feasibility audit — COMPLETE at checkpoint #85; implementation OPEN
+
+The post-v0.4.0 audio review confirmed that hi-res Plexamp playback is a genuine appliance audio-path feature rather than merely a Plexamp preference change.
+
+- [x] The current managed EQ split-bus profile hard-codes the shared music bus and CamillaDSP capture/playback to **`S16_LE` / `44100` Hz**.
+- [x] The current Direct/fallback profile also hard-codes its shared `dmix` path to **`S16_LE` / `44100` Hz**, so disabling/bypassing the managed EQ does not currently provide a native hi-res Plexamp path.
+- [x] The Raspberry Pi DAC Pro hardware is capable of substantially higher resolution/sample rates than the present appliance bus, and Plexamp Headless on Linux can output higher-rate material. The exact accepted appliance formats/rates must still be proved against this Pi, DAC and Plexamp build before changing the production profile.
+- [x] AirPlay is not the primary hi-res source requirement. Its own protocol/receiver format limits are lower than 96/192 kHz-class Plex material; the requirement is to keep AirPlay handoff and playback compatible with whatever higher-resolution internal music bus is selected without making false hi-res claims for the source.
+- [x] The existing alarm authority remains non-negotiable: scheduled alarms must continue to bypass Music Master/music EQ, retain Maximum Alarm Volume authority and take over reliably regardless of the Plexamp source format.
+
+The implementation work is tracked below under **High-resolution Plexamp audio / mixer-EQ path**. No production audio format has been changed by this audit.
 
 ## Current supported release
 
@@ -153,6 +165,21 @@ The owner explicitly approved PR #2 for merge after those checks on **23 August 
 ## Future product backlog — next development cycle
 
 These are post-v0.4.0 ideas. They are not commitments to one release and should be designed/tested independently before promotion to `main`.
+
+### High-resolution Plexamp audio / mixer-EQ path
+
+The current v0.4.0 audio profiles intentionally use a fixed **16-bit / 44.1 kHz** shared bus. The next-cycle goal is to let high-resolution Plex material retain materially higher resolution through the appliance **with managed EQ active or bypassed**, while preserving the alarm, mixer, limiter and handoff contracts that make the appliance reliable.
+
+- [ ] **Physical capability audit on the development Pi.** Use known 16/44.1, 24/48, 24/96 and 24/192 Plex files. Record Plexamp's selected output mode/rate, `aplay --dump-hw-params` for the DAC Pro and the live ALSA `/proc/asound/.../hw_params` state. Confirm the exact formats/rates accepted by this hardware/software combination before selecting a production bus.
+- [ ] **Choose the managed high-resolution bus.** Compare at least 24/96 and 24/192-class operation (using the appropriate ALSA container format such as `S32_LE` where required) for CPU load, stability, latency and CamillaDSP behaviour. Do not select 192 kHz merely because the DAC advertises it if 96 kHz is the better appliance engineering trade-off.
+- [ ] **Remove the 16/44.1 bottleneck from the managed EQ split bus.** Preserve the existing source trims → Music Master → fixed `-6.5 dB` reserve → Bass/Mid/Treble → limiter contract and the post-EQ scheduled-alarm join.
+- [ ] **Hi-res with EQ active and EQ bypassed.** EQ bypass must mean the music signal avoids the tone filters while remaining on the accepted high-resolution managed path; document that this is not automatically the same thing as source-rate-native/bit-perfect playback.
+- [ ] **Investigate a source-rate-native Direct Plexamp path.** Determine whether Plexamp can hand 44.1/48/88.2/96/176.4/192 kHz material directly to the DAC with reliable sample-rate matching. Only adopt a native Direct mode if alarm takeover, Maximum Alarm Volume authority, source handoff and recovery remain deterministic; appliance reliability outranks a bit-perfect badge.
+- [ ] **Define resampling policy.** If the managed mixer/EQ uses one fixed high-resolution rate, use a deliberate high-quality conversion policy for lower/different-rate Plexamp material and for AirPlay rather than relying on accidental/default conversions hidden in an ALSA `plug` chain.
+- [ ] **Preserve AirPlay compatibility.** Treat AirPlay according to the format actually delivered by Shairport Sync; do not advertise 96/192 kHz AirPlay simply because the internal bus can run at that rate. Prove AirPlay → Plexamp and Plexamp → AirPlay handoff after high-rate playback.
+- [ ] **Expose truthful audio diagnostics.** Make it possible to inspect/report source format/rate, internal processing format/rate and final DAC format/rate so future troubleshooting can distinguish “24/96 source” from “24/96 actually reaching the DAC”.
+- [ ] **Automated regression coverage.** Protect accepted format/rate configuration, route rendering, safe fallback, EQ active/bypass behaviour and alarm authority. Never allow a hi-res change to weaken the tested scheduled-alarm bypass contract.
+- [ ] **Physical acceptance matrix.** Exercise 16/44.1, 24/48, 24/96 and 24/192 Plex material through EQ active and EQ bypass; test a real scheduled alarm during high-rate Plexamp playback; then test AirPlay takeover and return. Only describe a path as native/bit-perfect when measured ALSA/DAC parameters prove it.
 
 ### Astronomy — major new application area
 
