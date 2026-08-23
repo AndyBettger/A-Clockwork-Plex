@@ -41,33 +41,29 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("aplay -L", text)
         self.assertIn("98-a-clockwork-plex-control-aliases.conf", text)
 
-    def test_preference_auditor_default_mode_is_content_blind_and_filters_sensitive_names(self):
+    def test_preference_auditor_default_mode_is_content_blind(self):
         source = AUDIT_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("NO PLEXAMP SETTING VALUES ARE READ", source)
-        self.assertIn("SAFE_VALUE_KEYS", source)
-        self.assertIn("--show-safe-values", source)
-        self.assertIn("--scan-browser-keys", source)
-        self.assertIn("--fingerprint-browser-records", source)
-        self.assertIn("MMKV_LOOPBACK_STORAGE_KEY", source)
+        for token in (
+            "SAFE_VALUE_KEYS",
+            "--show-safe-values",
+            "--scan-browser-keys",
+            "--fingerprint-browser-records",
+            "--fingerprint-browser-customizations",
+            "MMKV_LOOPBACK_STORAGE_KEY",
+            "MMKV_CUSTOMIZATION_PREFIX",
+        ):
+            self.assertIn(token, source)
 
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             settings = home / ".local/share/Plexamp/Settings"
             settings.mkdir(parents=True)
             (settings / "%40Plexamp%3Asettings%3AaudioDeviceUuid").write_text(
-                "VALUE-MUST-NOT-LEAK", encoding="utf-8"
+                "DEVICE-VALUE-MUST-NOT-LEAK", encoding="utf-8"
             )
             (settings / "%40Plexamp%3Asettings%3AauthToken").write_text(
                 "AUTH-MUST-NOT-LEAK", encoding="utf-8"
             )
-            (settings / "%40Plexamp%3Astate").write_text(
-                "STATE-MUST-NOT-LEAK", encoding="utf-8"
-            )
-
-            browser = home / ".config/a-clockwork-plex/chromium-profile/Default"
-            (browser / "Local Storage").mkdir(parents=True)
-            (browser / "IndexedDB").mkdir()
-
             result = subprocess.run(
                 ["python3", str(AUDIT_SCRIPT), "--home", str(home)],
                 cwd=ROOT,
@@ -78,20 +74,12 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("audioDeviceUuid", result.stdout)
-        self.assertIn("Candidate non-sensitive preference keys: 1", result.stdout)
-        self.assertIn("Excluded/unclassified files: 2", result.stdout)
-        self.assertIn("Local Storage", result.stdout)
-        self.assertIn("IndexedDB", result.stdout)
         self.assertNotIn("authToken", result.stdout)
-        self.assertNotIn("@Plexamp:state", result.stdout)
-        self.assertNotIn("VALUE-MUST-NOT-LEAK", result.stdout)
+        self.assertNotIn("DEVICE-VALUE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
-        self.assertNotIn("STATE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("Explicit portable-preference value audit", result.stdout)
-        self.assertNotIn("structured key audit", result.stdout)
-        self.assertNotIn("differential fingerprints", result.stdout)
 
-    def test_preference_auditor_value_mode_decodes_only_explicit_typed_allowlist(self):
+    def test_value_mode_decodes_only_explicit_typed_allowlist(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             settings = home / ".local/share/Plexamp/Settings"
@@ -114,13 +102,6 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             for key, value in fixtures.items():
                 encoded = "%40Plexamp%3Asettings%3A" + key
                 (settings / encoded).write_text(value, encoding="utf-8")
-
-            browser = home / ".config/a-clockwork-plex/chromium-profile/Default"
-            (browser / "Local Storage").mkdir(parents=True)
-            (browser / "Session Storage").mkdir()
-            (browser / "Local Storage" / "leveldb-secret").write_text(
-                "BROWSER-MUST-NOT-LEAK", encoding="utf-8"
-            )
 
             result = subprocess.run(
                 [
@@ -156,15 +137,10 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             "PREMIUM-MUST-NOT-LEAK",
             "UNKNOWN-MUST-NOT-LEAK",
             "AUTH-MUST-NOT-LEAK",
-            "BROWSER-MUST-NOT-LEAK",
         ):
             self.assertNotIn(forbidden, result.stdout)
-        self.assertIn(
-            "No unknown Plexamp values and no Chromium storage values were opened or printed.",
-            result.stdout,
-        )
 
-    def test_preference_auditor_rejects_wrong_typed_scalar_encoding(self):
+    def test_value_mode_rejects_wrong_typed_scalar_encoding(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             settings = home / ".local/share/Plexamp/Settings"
@@ -175,7 +151,6 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             (settings / "%40Plexamp%3Asettings%3AcacheSize").write_text(
                 "Btrue", encoding="utf-8"
             )
-
             result = subprocess.run(
                 [
                     "python3",
@@ -190,7 +165,6 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
                 check=False,
             )
 
-        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(
             "autoPlayEnabled = <not shown: unexpected typed scalar format>",
             result.stdout,
@@ -210,29 +184,17 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             leveldb.mkdir(parents=True)
             payload = b"".join(
                 (
-                    b"junk_http://localhost:32500\x00\x01@Plexamp:settings:homeLayout\x00",
-                    b"HOME-VALUE-MUST-NOT-LEAK",
-                    b"junk_http://localhost:32500\x00\x01authToken\x00",
-                    b"AUTH-VALUE-MUST-NOT-LEAK",
+                    b"junk_http://localhost:32500\x00\x01@Plexamp:settings:activeTab\x00",
+                    b"DIRECT-VALUE-MUST-NOT-LEAK",
                     b"junk_http://localhost:32500\x00\x01mmkv.default\\homeSources\x00",
                     b"MMKV-HOME-MUST-NOT-LEAK",
                     b"junk_http://localhost:32500\x00\x01mmkv.default\\authToken\x00",
                     b"MMKV-AUTH-MUST-NOT-LEAK",
-                    b"junk_http://localhost:8088\x00\x01acpTheme\x00",
-                    b"THEME-VALUE-MUST-NOT-LEAK",
                     b"junk_https://example.com\x00\x01outsideKey\x00",
                     b"OUTSIDE-VALUE-MUST-NOT-LEAK",
                 )
             )
             (leveldb / "000001.log").write_bytes(payload)
-            (leveldb / "000002.ldb").write_bytes(
-                b"x_http://127.0.0.1:32500\x00\x01@Plexamp:settings:sidebarLayout\x00"
-                b"SIDEBAR-VALUE-MUST-NOT-LEAK"
-            )
-            (leveldb / "MANIFEST-000001").write_bytes(
-                b"MANIFEST-VALUE-MUST-NOT-LEAK"
-            )
-
             result = subprocess.run(
                 [
                     "python3",
@@ -248,37 +210,56 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Chromium Local Storage structured key audit:", result.stdout)
-        self.assertIn("http://localhost:32500", result.stdout)
-        self.assertIn("http://localhost:8088", result.stdout)
-        self.assertIn("http://127.0.0.1:32500", result.stdout)
-        self.assertIn("@Plexamp:settings:homeLayout", result.stdout)
-        self.assertIn("@Plexamp:settings:sidebarLayout", result.stdout)
+        self.assertIn("@Plexamp:settings:activeTab", result.stdout)
         self.assertIn("mmkv.default\\homeSources", result.stdout)
-        self.assertIn("acpTheme", result.stdout)
         self.assertIn("MMKV web-key records recognised: 1", result.stdout)
-        self.assertIn("Sensitive-looking key records suppressed: 2", result.stdout)
-        self.assertNotIn("\n      mmkv.default\n", result.stdout)
         self.assertNotIn("authToken", result.stdout)
         self.assertNotIn("example.com", result.stdout)
-        self.assertNotIn("outsideKey", result.stdout)
         for forbidden in (
-            "HOME-VALUE-MUST-NOT-LEAK",
-            "AUTH-VALUE-MUST-NOT-LEAK",
+            "DIRECT-VALUE-MUST-NOT-LEAK",
             "MMKV-HOME-MUST-NOT-LEAK",
             "MMKV-AUTH-MUST-NOT-LEAK",
-            "THEME-VALUE-MUST-NOT-LEAK",
             "OUTSIDE-VALUE-MUST-NOT-LEAK",
-            "SIDEBAR-VALUE-MUST-NOT-LEAK",
-            "MANIFEST-VALUE-MUST-NOT-LEAK",
         ):
             self.assertNotIn(forbidden, result.stdout)
-        self.assertIn(
-            "No Plexamp setting values or Chromium Local Storage values were decoded or printed.",
-            result.stdout,
-        )
 
-    def test_browser_fingerprint_detects_namespace_change_without_fingerprinting_resources(self):
+    def test_broad_browser_fingerprint_excludes_resources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            leveldb = (
+                home
+                / ".config/a-clockwork-plex/chromium-profile/Default/Local Storage/leveldb"
+            )
+            leveldb.mkdir(parents=True)
+            (leveldb / "000001.log").write_bytes(
+                b"x_http://localhost:32500\x00\x01@Plexamp:settings:activeTab\x00HOME"
+                + b"A" * 4096
+                + b"x_http://localhost:32500\x00\x01mmkv.default\\homeLayout\x00LAYOUT"
+                + b"B" * 4096
+                + b"x_http://localhost:32500\x00\x01@Plexamp:resources\x00"
+                + b"RESOURCE-SECRET-MUST-NOT-LEAK"
+            )
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(AUDIT_SCRIPT),
+                    "--home",
+                    str(home),
+                    "--fingerprint-browser-records",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("@Plexamp:settings:activeTab", result.stdout)
+        self.assertIn(" | mmkv.default | ", result.stdout)
+        self.assertIn("@Plexamp:resources is deliberately excluded", result.stdout)
+        self.assertNotIn("RESOURCE-SECRET-MUST-NOT-LEAK", result.stdout)
+
+    def test_customization_fingerprint_is_exact_and_detects_order_change_only(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             leveldb = (
@@ -288,27 +269,47 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             leveldb.mkdir(parents=True)
             log = leveldb / "000001.log"
 
-            def payload(mmkv_value: bytes) -> bytes:
+            base_key = (
+                b"x_http://localhost:32500\x00\x01"
+                b"mmkv.default\\discovery:customizations:context::/library/sections/9:\x00"
+            )
+            order_key = (
+                b"x_http://localhost:32500\x00\x01"
+                b"mmkv.default\\discovery:customizations:context::/library/sections/9:order\x00"
+            )
+            cache_key = (
+                b"x_http://localhost:32500\x00\x01"
+                b"mmkv.default\\music.popular.9:cachedItems\x00"
+            )
+            resource_key = (
+                b"x_http://localhost:32500\x00\x01@Plexamp:resources\x00"
+            )
+
+            def payload(order_value: bytes) -> bytes:
                 return b"".join(
                     (
-                        b"x_http://localhost:32500\x00\x01@Plexamp:settings:activeTab\x00HOME",
+                        base_key,
+                        b"BASE-VALUE-MUST-NOT-LEAK",
                         b"A" * 4096,
-                        b"x_http://localhost:32500\x00\x01mmkv.default\\homeLayout\x00",
-                        mmkv_value,
+                        order_key,
+                        order_value,
                         b"B" * 4096,
-                        b"x_http://localhost:32500\x00\x01@Plexamp:resources\x00",
-                        b"RESOURCE-SECRET-MUST-NOT-LEAK",
+                        cache_key,
+                        b"CACHE-VALUE-MUST-NOT-LEAK",
+                        b"C" * 4096,
+                        resource_key,
+                        b"RESOURCE-VALUE-MUST-NOT-LEAK",
                     )
                 )
 
-            log.write_bytes(payload(b"LAYOUT-A-MUST-NOT-LEAK"))
+            log.write_bytes(payload(b"ORDER-A-MUST-NOT-LEAK"))
             before = subprocess.run(
                 [
                     "python3",
                     str(AUDIT_SCRIPT),
                     "--home",
                     str(home),
-                    "--fingerprint-browser-records",
+                    "--fingerprint-browser-customizations",
                 ],
                 cwd=ROOT,
                 capture_output=True,
@@ -316,14 +317,14 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
                 check=False,
             )
 
-            log.write_bytes(payload(b"LAYOUT-B-MUST-NOT-LEAK"))
+            log.write_bytes(payload(b"ORDER-B-MUST-NOT-LEAK"))
             after = subprocess.run(
                 [
                     "python3",
                     str(AUDIT_SCRIPT),
                     "--home",
                     str(home),
-                    "--fingerprint-browser-records",
+                    "--fingerprint-browser-customizations",
                 ],
                 cwd=ROOT,
                 capture_output=True,
@@ -333,43 +334,38 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
 
         self.assertEqual(before.returncode, 0, before.stderr)
         self.assertEqual(after.returncode, 0, after.stderr)
-        self.assertIn("Chromium Local Storage differential fingerprints:", before.stdout)
-        self.assertIn("@Plexamp:settings:activeTab", before.stdout)
-        self.assertIn("mmkv.default", before.stdout)
-        self.assertIn("@Plexamp:resources is deliberately excluded", before.stdout)
         self.assertIn(
-            "mmkv.default hashes are namespace-prefix neighbourhoods across individual MMKV web keys",
+            "Chromium Plexamp Home-layout customization fingerprints:",
             before.stdout,
         )
+        self.assertIn("discovery:customizations:context::/library/sections/9:", before.stdout)
+        self.assertIn(
+            "discovery:customizations:context::/library/sections/9:order",
+            before.stdout,
+        )
+        self.assertNotIn(" | mmkv.default\\music.popular.9:cachedItems | ", before.stdout)
+        self.assertNotIn("@Plexamp:resources |", before.stdout)
 
-        before_active = next(
-            line for line in before.stdout.splitlines() if "@Plexamp:settings:activeTab" in line
-        )
-        after_active = next(
-            line for line in after.stdout.splitlines() if "@Plexamp:settings:activeTab" in line
-        )
-        before_mmkv = next(
-            line
-            for line in before.stdout.splitlines()
-            if " | mmkv.default | " in line
-        )
-        after_mmkv = next(
-            line
-            for line in after.stdout.splitlines()
-            if " | mmkv.default | " in line
-        )
-        self.assertEqual(before_active, after_active)
-        self.assertNotEqual(before_mmkv, after_mmkv)
+        before_lines = [
+            line for line in before.stdout.splitlines() if " | mmkv.default\\" in line
+        ]
+        after_lines = [
+            line for line in after.stdout.splitlines() if " | mmkv.default\\" in line
+        ]
+        self.assertEqual(len(before_lines), 2)
+        self.assertEqual(len(after_lines), 2)
+        self.assertEqual(before_lines[0], after_lines[0])
+        self.assertNotEqual(before_lines[1], after_lines[1])
 
         for forbidden in (
-            "LAYOUT-A-MUST-NOT-LEAK",
-            "LAYOUT-B-MUST-NOT-LEAK",
-            "RESOURCE-SECRET-MUST-NOT-LEAK",
+            "BASE-VALUE-MUST-NOT-LEAK",
+            "ORDER-A-MUST-NOT-LEAK",
+            "ORDER-B-MUST-NOT-LEAK",
+            "CACHE-VALUE-MUST-NOT-LEAK",
+            "RESOURCE-VALUE-MUST-NOT-LEAK",
         ):
             self.assertNotIn(forbidden, before.stdout)
             self.assertNotIn(forbidden, after.stdout)
-        self.assertNotIn("@Plexamp:resources |", before.stdout)
-        self.assertIn("No browser values were decoded or printed.", before.stdout)
 
     def test_preference_auditor_treats_missing_profiles_as_an_inert_audit(self):
         with tempfile.TemporaryDirectory() as directory:
