@@ -256,6 +256,7 @@
 
   function dailyCard(item, index) {
     const card = element('article', `weather-forecast-card${index === 0 ? ' is-today' : ''}`);
+    card.dataset.forecastDate = String(item.date || '');
     card.append(
       element('span', 'weather-forecast-time', dayLabel(item.date, index)),
       element('span', 'weather-forecast-icon', iconFor(item)),
