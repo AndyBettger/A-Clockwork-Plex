@@ -39,7 +39,7 @@ A backup is **not** intended to be a disk image or a forensic copy of the Pi.
 | Audio routes, CamillaDSP configuration/binary, systemd units, sudoers and hardware bindings | guarded installer/audio lifecycle | **Exclude** | Recreate from the installed release and hardware commissioning, not from user backup |
 | Plexamp Headless runtime | `~/plexamp`, installed from pinned release archive | **Exclude** | Reinstall through the guarded Plexamp runtime owner |
 | Plexamp Headless persistent Settings store | `~/.local/share/Plexamp/Settings` | **Selective allow-list only; never copy directory wholesale** | Restore only known non-auth preference keys, version-aware and best-effort |
-| A Clockwork Plex kiosk Chromium profile | `~/.config/a-clockwork-plex/chromium-profile` | **Never copy profile wholesale** | Export/restore only explicit allow-listed current Plexamp UI values through a live browser-side authority |
+| A Clockwork Plex kiosk Chromium profile | `~/.config/a-clockwork-plex/chromium-profile` | **Never copy profile wholesale**; export only validated logical Plexamp Home state through the scoped live browser bridge | Restore only explicit logical Home choices after fresh Plexamp claim/library commissioning; never restore the Chromium profile |
 | WU selected-period/full-station rainfall caches | `weather-rainfall-history.json`, `weather-rainfall-lifetime.json` | **Exclude** | Rebuild/backfill from the commissioned Weather source |
 | Forecast cache | `weather-forecast-cache.json` | **Exclude** | Re-fetch from Open-Meteo |
 | Dashboard/weather live state and pressure/extreme history | `state.json` | **Exclude** | Rebuild from live observations |
@@ -125,7 +125,7 @@ The useful ownership findings are:
 
 - `@Plexamp:resources` — **exclude**; server/resource identity;
 - `@Plexamp:settings:activeTab` — transient navigation state, exclude from ordinary backup;
-- `@Plexamp:settings:radioIncludeExternal` — ordinary browser preference candidate;
+- `@Plexamp:settings:radioIncludeExternal` — ordinary browser preference candidate, not currently in the Home-layout bridge allow-list;
 - `mmkv.default\...:cachedItems` — generated cache content, exclude;
 - `mmkv.default\discovery:customizations:<context>::/library/sections/<id>:order` — physically proven Home-item ordering authority;
 - `mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:hidden` — physically proven per-item hidden/shown customization state;
@@ -133,9 +133,21 @@ The useful ownership findings are:
 
 A physical differential test moved one Home item and only the contextual `:order` record acquired new state. A separate real hide action created the complete per-hub `:hidden` key and transient `:editing` records for the affected Home hub.
 
-The raw Chromium LevelDB files are **discovery evidence only, not the production backup authority**. Chromium compacted the database between snapshots, changing which historical records were visible. Production Home-layout export must therefore execute against the live Plexamp browser origin and read only the allow-listed current `order` / `hidden` preference families. It must never scrape/copy the LevelDB files.
+The raw Chromium LevelDB files are **discovery evidence only, not the production backup authority**. Chromium compacted the database between snapshots, changing which historical records were visible. Production Home-layout export therefore executes against the live Plexamp browser origin and never scrapes/copies the LevelDB files.
 
-The source customization key also contains account/library context. Restore must not write the source key literally to a replacement appliance. After Plexamp has been freshly claimed and the target library selected, the restore path must discover the target's live customization context and translate the saved logical ordering/hidden choices into that context.
+The #89 live bridge is deliberately narrow:
+
+- `browser/plexamp-bridge/` is an unpacked Manifest V3 content extension loaded only by the dedicated kiosk launcher;
+- the manifest requests no Chrome permissions, has no background/service worker and matches only Plexamp loopback origins on port `32500`;
+- the kiosk does **not** expose a remote-debugging port;
+- inside Plexamp, the bridge reads only the live Local Storage key families already physically classified as Home `order` / per-hub `hidden` state;
+- `editing`, caches, resources, auth/session state and unrelated browser preferences are not emitted;
+- the bridge responds only to the A Clockwork Plex dashboard parent origins on port `8088` and uses a request nonce;
+- the dashboard parent validates origin, frame source, schema, status, item counts and conservative hub-ID syntax before accepting the snapshot;
+- the accepted browser snapshot is merged into the already secret-free server backup **in browser memory**; it is not POSTed to the dashboard service or written to a temporary server-side file;
+- if the extension is unavailable or an observed Plexamp value uses an unsupported format, export fails closed for this optional section and records an omission/warning instead of broadening the read boundary.
+
+The source customization key contains account/library context. The exported logical browser section deliberately discards that source context and retains only order/hidden choices. Restore must not write a source key literally to a replacement appliance. After Plexamp has been freshly claimed and the target library selected, the future restore path must discover the target's live customization context and translate the saved logical ordering/hidden choices into it.
 
 ## Audio preferences
 
@@ -178,7 +190,7 @@ The first supported format is JSON and explicitly versioned:
 ```json
 {
   "schema_version": 1,
-  "created_at": "2026-08-23T23:59:00+01:00",
+  "created_at": "2026-08-24T00:35:02+01:00",
   "source": {
     "application": "A Clockwork Plex",
     "app_version": "0.4.0",
@@ -194,7 +206,14 @@ The first supported format is JSON and explicitly versioned:
   },
   "plexamp": {
     "source_version": "4.13.2",
-    "headless_preferences": {}
+    "headless_preferences": {},
+    "browser_preferences": {
+      "schema_version": 1,
+      "home": {
+        "order": [],
+        "hidden": []
+      }
+    }
   },
   "export_report": {
     "warnings": [],
@@ -203,9 +222,11 @@ The first supported format is JSON and explicitly versioned:
 }
 ```
 
+`plexamp.browser_preferences` is optional. It is present only when the live browser bridge returns a validated `ready`/`empty` snapshot; otherwise the export report keeps the browser section explicitly omitted and may include a safe bridge-status warning.
+
 Release/version metadata is derived from `app/static/app-version.json`, not hard-coded into the exporter. Plexamp runtime version is read from non-sensitive local runtime package metadata when available.
 
-Sections may be omitted when their owner/backend is unavailable. Export reports what was deliberately skipped. Browser Home preferences are intentionally reported as omitted until the live browser-side allow-listed bridge is implemented.
+Sections may be omitted when their owner/backend is unavailable. Export reports what was deliberately skipped.
 
 ## Restore contract
 
@@ -236,14 +257,15 @@ The commissioned Pi physically proved the Headless allow-list and browser key fa
 
 ## #89 backup/export status — IN PROGRESS
 
-The first export slice is implemented on `develop`:
+The first export slice is implemented and physically accepted on the commissioned Pi:
 
 - `app/configuration_backup.py` builds schema-version-1 JSON from the existing normalised Settings authority;
 - portable field selection excludes installer/hardware values instead of serialising the whole public Settings snapshot;
 - Weather observation export omits both the WU secret and target-owned `api_key_env` implementation detail;
 - the exact eight typed Plexamp Headless preferences are read through a strict allow-list;
 - EQ is exported as logical state and available shared-mixer levels as four percentages;
-- browser Home preferences remain explicitly omitted pending the live browser-side bridge;
-- `GET /api/settings/backup` is read-only, `Cache-Control: no-store`, and returns an attachment filename;
+- `GET /api/settings/backup` is read-only, `Cache-Control: no-store`, and returns an attachment filename in the appliance/source timezone;
 - Settings exposes **Advanced → Backup & restore → Download backup** without making backup part of the staged Save Changes transaction;
-- restore/import is intentionally not enabled by this slice.
+- the first physical download contained schema `1`, the expected five ACP settings domains, EQ + mixer, all eight approved Headless preferences, zero warnings and no forbidden credential/machine-state key paths;
+- the scoped live Plexamp content bridge and client-side merge path are now implemented for logical Home order/hidden preferences, but still require physical acceptance after kiosk Chromium restarts with the extension loaded;
+- restore/import is intentionally not enabled by #89.
