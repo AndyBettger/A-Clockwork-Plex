@@ -12,7 +12,8 @@ This directory contains the engineering material that is useful when changing, v
 
 ## Testing and acceptance
 
-- [`testing/testing.md`](testing/testing.md) — local validation and GitHub Actions CI.
+- [`testing/testing.md`](testing/testing.md) — local validation, targeted-test guidance and GitHub Actions CI.
+- [`testing/test-catalogue.md`](testing/test-catalogue.md) — maintained module-by-module catalogue of the automated regression suite, with purpose, run commands and expected-result contract.
 - [`testing/alarm-audio-testing.md`](testing/alarm-audio-testing.md) — scheduled-alarm topology, safety limits and regression checks.
 - [`testing/fresh-appliance-acceptance-runbook.md`](testing/fresh-appliance-acceptance-runbook.md) — formal clean-room/replacement-SD acceptance procedure.
 
