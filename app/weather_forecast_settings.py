@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
+import urllib.error
 from copy import deepcopy
 from typing import Any, Callable
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 from flask import Flask, jsonify, request
@@ -27,7 +29,12 @@ ConfigSaver = Callable[[dict[str, Any]], None]
 LocationSearch = Callable[[str], list[dict[str, Any]]]
 
 _GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search"
+_POSTCODES_IO_ENDPOINT = "https://api.postcodes.io/postcodes"
 _GEOCODING_USER_AGENT = "A-Clockwork-Plex/forecast-location"
+_UK_POSTCODE_RE = re.compile(
+    r"^(?:GIR\s?0AA|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})$",
+    re.IGNORECASE,
+)
 
 
 def public_forecast_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -66,52 +73,11 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def search_forecast_locations(
-    query: str,
-    *,
-    opener=None,
-    timeout_seconds: int = 5,
-    count: int = 8,
-) -> list[dict[str, Any]]:
-    """Return a small, sanitised Open-Meteo geocoding result set.
+def _looks_like_uk_postcode(query: str) -> bool:
+    return bool(_UK_POSTCODE_RE.fullmatch(query.strip().upper()))
 
-    This is deliberately read-only. Selecting a result in Settings only stages
-    the existing latitude/longitude/timezone controls; normal Settings save
-    remains the sole persistence path.
-    """
 
-    clean_query = _location_query(query)
-    result_count = max(1, min(10, int(count)))
-    timeout = max(1, min(15, int(timeout_seconds)))
-    params = urlencode(
-        {
-            "name": clean_query,
-            "count": result_count,
-            "language": "en",
-            "format": "json",
-        }
-    )
-    request_object = Request(
-        f"{_GEOCODING_ENDPOINT}?{params}",
-        headers={
-            "Accept": "application/json",
-            "User-Agent": _GEOCODING_USER_AGENT,
-        },
-    )
-    open_url = opener or urlopen
-
-    try:
-        with open_url(request_object, timeout=timeout) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise OSError("Forecast location service is unavailable.") from exc
-
-    if not isinstance(payload, dict):
-        raise OSError("Forecast location service returned invalid data.")
-    if payload.get("error"):
-        reason = _text(payload.get("reason")) or "Forecast location search failed."
-        raise OSError(reason)
-
+def _sanitise_open_meteo_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
     raw_results = payload.get("results") or []
     if not isinstance(raw_results, list):
         raise OSError("Forecast location service returned invalid results.")
@@ -158,6 +124,116 @@ def search_forecast_locations(
         )
 
     return results
+
+
+def _lookup_uk_postcode(
+    query: str,
+    *,
+    opener,
+    timeout: int,
+) -> list[dict[str, Any]]:
+    compact = re.sub(r"\s+", "", query).upper()
+    request_object = Request(
+        f"{_POSTCODES_IO_ENDPOINT}/{quote(compact, safe='')}",
+        headers={
+            "Accept": "application/json",
+            "User-Agent": _GEOCODING_USER_AGENT,
+        },
+    )
+
+    try:
+        with opener(request_object, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return []
+        raise OSError("UK postcode service is unavailable.") from exc
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise OSError("UK postcode service is unavailable.") from exc
+
+    if not isinstance(payload, dict):
+        raise OSError("UK postcode service returned invalid data.")
+    item = payload.get("result")
+    if not isinstance(item, dict):
+        return []
+
+    try:
+        latitude = float(item["latitude"])
+        longitude = float(item["longitude"])
+    except (KeyError, TypeError, ValueError):
+        return []
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return []
+
+    postcode = _text(item.get("postcode")) or query.upper()
+    home_country = _text(item.get("country"))
+    return [
+        {
+            "name": postcode,
+            "latitude": latitude,
+            "longitude": longitude,
+            "timezone": "Europe/London",
+            "country": "United Kingdom",
+            "country_code": "GB",
+            "admin1": home_country,
+            "admin2": _text(item.get("admin_district")) or _text(item.get("region")),
+            "postcodes": [postcode],
+        }
+    ]
+
+
+def search_forecast_locations(
+    query: str,
+    *,
+    opener=None,
+    timeout_seconds: int = 5,
+    count: int = 8,
+) -> list[dict[str, Any]]:
+    """Return a small, sanitised forecast-location result set.
+
+    General place search uses Open-Meteo geocoding. If a full UK postcode has
+    no Open-Meteo match, Postcodes.io is used as a postcode-specific fallback.
+    This remains deliberately read-only: selecting a result in Settings only
+    stages the existing latitude/longitude/timezone controls; normal Settings
+    save remains the sole persistence path.
+    """
+
+    clean_query = _location_query(query)
+    result_count = max(1, min(10, int(count)))
+    timeout = max(1, min(15, int(timeout_seconds)))
+    params = urlencode(
+        {
+            "name": clean_query,
+            "count": result_count,
+            "language": "en",
+            "format": "json",
+        }
+    )
+    request_object = Request(
+        f"{_GEOCODING_ENDPOINT}?{params}",
+        headers={
+            "Accept": "application/json",
+            "User-Agent": _GEOCODING_USER_AGENT,
+        },
+    )
+    open_url = opener or urlopen
+
+    try:
+        with open_url(request_object, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise OSError("Forecast location service is unavailable.") from exc
+
+    if not isinstance(payload, dict):
+        raise OSError("Forecast location service returned invalid data.")
+    if payload.get("error"):
+        reason = _text(payload.get("reason")) or "Forecast location search failed."
+        raise OSError(reason)
+
+    results = _sanitise_open_meteo_results(payload)
+    if results or not _looks_like_uk_postcode(clean_query):
+        return results
+    return _lookup_uk_postcode(clean_query, opener=open_url, timeout=timeout)
 
 
 def submitted_forecast_config(
