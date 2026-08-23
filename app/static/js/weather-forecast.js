@@ -235,6 +235,13 @@
     return (future.length ? future : items).slice(0, 8);
   }
 
+  function usableDaily(items) {
+    return items
+      .slice(0, 7)
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => condition(item).tone !== 'unknown');
+  }
+
   function hourlyCard(item) {
     const card = element('article', 'weather-forecast-card');
     card.append(
@@ -294,7 +301,7 @@
 
     const forecast = payload.forecast;
     const hourly = Array.isArray(forecast.hourly) ? futureHourly(forecast.hourly) : [];
-    const daily = Array.isArray(forecast.daily) ? forecast.daily.slice(0, 7) : [];
+    const daily = Array.isArray(forecast.daily) ? usableDaily(forecast.daily) : [];
     if (!hourly.length && !daily.length) {
       return;
     }
@@ -332,7 +339,12 @@
       panel.appendChild(group('Next hours', '', hourly, hourlyCard));
     }
     if (daily.length) {
-      panel.appendChild(group('Daily outlook', 'is-daily', daily, dailyCard));
+      panel.appendChild(group(
+        'Daily outlook',
+        'is-daily',
+        daily,
+        ({ item, index }) => dailyCard(item, index),
+      ));
     }
 
     const foot = element('footer', 'weather-forecast-foot');
