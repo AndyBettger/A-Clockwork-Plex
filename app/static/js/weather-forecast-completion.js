@@ -115,11 +115,21 @@
 
     const daily = Array.isArray(forecast.daily) ? forecast.daily : [];
     if (dailyStrip && daily.length) {
-      const existing = dailyStrip.querySelectorAll('.weather-forecast-card').length;
-      for (let index = existing; index < daily.length; index += 1) {
-        dailyStrip.appendChild(dailyCard(daily[index], index, forecast.units || {}));
-      }
-      dailyStrip.dataset.forecastDaysRendered = String(daily.length);
+      const existingDates = new Set(
+        [...dailyStrip.querySelectorAll('[data-forecast-date]')]
+          .map((card) => String(card.dataset.forecastDate || '').trim())
+          .filter(Boolean),
+      );
+      let renderedDays = existingDates.size;
+      daily.forEach((item, index) => {
+        if (condition(item).tone === 'unknown') return;
+        const forecastDate = String(item?.date || '').trim();
+        if (forecastDate && existingDates.has(forecastDate)) return;
+        dailyStrip.appendChild(dailyCard(item, index, forecast.units || {}));
+        if (forecastDate) existingDates.add(forecastDate);
+        renderedDays += 1;
+      });
+      dailyStrip.dataset.forecastDaysRendered = String(renderedDays);
       dailyStrip.dispatchEvent(new Event('scroll'));
       window.dispatchEvent(new Event('resize'));
     }
