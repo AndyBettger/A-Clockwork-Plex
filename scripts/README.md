@@ -81,7 +81,7 @@ The accepted audio lifecycle lives only in `scripts/audio/`. Normal appliance in
 
 ## Read-only diagnostics
 
-These are intentionally outside the fresh-install dependency closure because an appliance does not need them to install, but they are useful when diagnosing a commissioned system.
+These are intentionally outside the fresh-install dependency closure because an appliance does not need them to install, but they are useful when diagnosing or auditing a commissioned system.
 
 | File | Purpose | Invocation |
 | --- | --- | --- |
@@ -90,6 +90,7 @@ These are intentionally outside the fresh-install dependency closure because an 
 | `scripts/inspect-mixer-controller.sh` | Dumps mixer authority, AirPlay sender-volume command state and raw Shairport volume observation. | `bash scripts/inspect-mixer-controller.sh` — **read-only**. |
 | `scripts/dump-airplay-mpris-metadata.sh` | Watches raw Shairport MPRIS metadata/playback/volume properties to diagnose sender behaviour. | `bash scripts/dump-airplay-mpris-metadata.sh [interval-seconds]` — **read-only**; Ctrl+C to stop. |
 | `scripts/inspect-weather-underground-payloads.py` | Secret-safe diagnostic comparing supported WU current/history payloads with the existing mapper contract; does not write dashboard state. | `python3 scripts/inspect-weather-underground-payloads.py --help` first — **read-only**. |
+| `scripts/audit-plexamp-preferences.py` | Inventories only safe-looking `@Plexamp:settings:*` key filenames/sizes and reports Chromium storage-area presence without opening Plexamp/Chromium storage values. | `python3 scripts/audit-plexamp-preferences.py` — **read-only**; intended for backup-ownership discovery, not routine operation. |
 
 ## Guarded maintenance and migration tools
 
