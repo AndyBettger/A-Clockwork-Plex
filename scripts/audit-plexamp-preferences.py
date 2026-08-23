@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Read-only inventory of Plexamp preference storage names.
+"""Read-only inventory of Plexamp preference storage names and approved values.
 
-This helper is intentionally conservative. It never opens Plexamp or Chromium
-storage files and never prints non-preference filenames. It exists only to help
-classify which non-authentication preferences may be safe to support in the
-A Clockwork Plex backup/restore feature.
+Default mode is intentionally content-blind: it never opens Plexamp or Chromium
+storage files. ``--show-safe-values`` opens only an explicit allow-list of
+ordinary Plexamp preference files whose names were first observed by the
+content-blind audit. Unknown, identity, capability, authentication and browser
+storage remain unread.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
 from urllib.parse import unquote
@@ -17,6 +19,7 @@ from urllib.parse import unquote
 
 PLEXAMP_SETTINGS_PREFIX = "@Plexamp:settings:"
 SAFE_KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
+SAFE_SCALAR = re.compile(r"^[A-Za-z0-9_.+ -]{1,48}$")
 SENSITIVE_KEY_TERMS = {
     "account",
     "auth",
@@ -37,6 +40,29 @@ BROWSER_STORAGE_AREAS = (
     "Session Storage",
 )
 
+# These keys were observed on the commissioned Plexamp 4.13.2 development Pi
+# and are ordinary preference candidates. Value mode may open only these files.
+SAFE_VALUE_KEYS = frozenset(
+    {
+        "audioConversionBitrate",
+        "autoPlayEnabled",
+        "cacheSize",
+        "cachingWiFi",
+        "loudnessLeveling",
+        "precacheNetworkSpeed",
+        "sampleRateConversionQuality",
+        "sampleRateMatching",
+    }
+)
+
+# These names are useful to classify, but their values are deliberately never
+# opened by this helper.
+KNOWN_NON_PORTABLE_KEYS = {
+    "audioDeviceUuid": "device-specific output binding; recommission on the target",
+    "playerName": "device label/identity; keep outside the ordinary portable preference bundle",
+    "premium": "derived account/capability state; do not restore",
+}
+
 
 def candidate_key(filename: str) -> str | None:
     """Return a safe preference-key suffix, never a file value."""
@@ -53,16 +79,51 @@ def candidate_key(filename: str) -> str | None:
     return key
 
 
-def audit(home: Path) -> int:
+def _safe_scalar(path: Path) -> str:
+    """Read one explicitly allow-listed small scalar and return safe display text."""
+
+    try:
+        if path.stat().st_size > 64:
+            return "<not shown: value exceeds 64-byte audit limit>"
+        raw = path.read_bytes()
+    except OSError:
+        return "<not shown: unreadable>"
+
+    try:
+        text = raw.decode("utf-8", errors="strict").strip()
+    except UnicodeDecodeError:
+        return "<not shown: non-UTF-8 value>"
+
+    # Prefer JSON primitive interpretation when Plexamp stores JSON-ish values.
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        parsed = text
+
+    if isinstance(parsed, bool):
+        return "true" if parsed else "false"
+    if isinstance(parsed, int) and not isinstance(parsed, bool):
+        return str(parsed)
+    if isinstance(parsed, float):
+        return repr(parsed)
+    if isinstance(parsed, str) and SAFE_SCALAR.fullmatch(parsed):
+        return json.dumps(parsed)
+    return "<not shown: unexpected scalar format>"
+
+
+def audit(home: Path, *, show_safe_values: bool = False) -> int:
     settings_dir = home / ".local" / "share" / "Plexamp" / "Settings"
     browser_default = home / ".config" / "a-clockwork-plex" / "chromium-profile" / "Default"
 
     print("A Clockwork Plex — Plexamp preference inventory")
-    print("READ-ONLY AUDIT: NO FILE CONTENTS ARE READ")
+    if show_safe_values:
+        print("READ-ONLY AUDIT: ONLY EXPLICITLY ALLOW-LISTED ORDINARY PREFERENCE VALUES ARE READ")
+    else:
+        print("READ-ONLY AUDIT: NO FILE CONTENTS ARE READ")
     print(f"Plexamp Settings path: {settings_dir}")
 
     total_files = 0
-    safe_candidates: list[tuple[str, int]] = []
+    safe_candidates: list[tuple[str, int, Path]] = []
     excluded = 0
 
     if settings_dir.is_dir():
@@ -79,7 +140,7 @@ def audit(home: Path) -> int:
             except OSError:
                 excluded += 1
                 continue
-            safe_candidates.append((key, size))
+            safe_candidates.append((key, size, entry))
 
         safe_candidates.sort(key=lambda item: item[0].casefold())
         print(f"Plexamp Settings files: {total_files}")
@@ -87,10 +148,31 @@ def audit(home: Path) -> int:
         print(f"Excluded/unclassified files: {excluded}")
         if safe_candidates:
             print("Candidate keys (name and file size only):")
-            for key, size in safe_candidates:
+            for key, size, _path in safe_candidates:
                 print(f"  {key}\t{size} bytes")
         else:
             print("Candidate keys: none")
+
+        if show_safe_values:
+            by_key = {key: path for key, _size, path in safe_candidates}
+            print("Explicit portable-preference value audit:")
+            found_safe = False
+            for key in sorted(SAFE_VALUE_KEYS, key=str.casefold):
+                path = by_key.get(key)
+                if path is None:
+                    continue
+                found_safe = True
+                print(f"  {key} = {_safe_scalar(path)}")
+            if not found_safe:
+                print("  none of the explicit allow-listed keys are present")
+
+            present_non_portable = [
+                key for key in KNOWN_NON_PORTABLE_KEYS if key in by_key
+            ]
+            if present_non_portable:
+                print("Known non-portable/ separately-owned keys (values NOT read):")
+                for key in sorted(present_non_portable, key=str.casefold):
+                    print(f"  {key}: {KNOWN_NON_PORTABLE_KEYS[key]}")
     else:
         print("Plexamp Settings: NOT FOUND")
 
@@ -107,13 +189,16 @@ def audit(home: Path) -> int:
     else:
         print("Chromium profile: NOT FOUND")
 
-    print("No Plexamp/Chromium storage values were opened or printed.")
+    if show_safe_values:
+        print("No unknown Plexamp values and no Chromium storage values were opened or printed.")
+    else:
+        print("No Plexamp/Chromium storage values were opened or printed.")
     return 0
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="List safe Plexamp preference-key filenames without reading their contents."
+        description="Inventory Plexamp preference keys; optionally show only explicit safe scalar values."
     )
     parser.add_argument(
         "--home",
@@ -121,12 +206,17 @@ def parse_args() -> argparse.Namespace:
         default=Path.home(),
         help="Home directory to inspect (default: current user's home).",
     )
+    parser.add_argument(
+        "--show-safe-values",
+        action="store_true",
+        help="Read/show only the explicit ordinary preference allow-list; never unknown/identity/browser values.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    return audit(args.home.expanduser())
+    return audit(args.home.expanduser(), show_safe_values=args.show_safe_values)
 
 
 if __name__ == "__main__":
