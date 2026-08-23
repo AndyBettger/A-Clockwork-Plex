@@ -1,0 +1,154 @@
+(() => {
+  'use strict';
+
+  const REQUEST_TYPE = 'acp-plexamp-browser-preferences-request-v1';
+  const RESPONSE_TYPE = 'acp-plexamp-browser-preferences-response-v1';
+  const DASHBOARD_ORIGINS = new Set([
+    'http://localhost:8088',
+    'http://127.0.0.1:8088',
+  ]);
+  const MMKV_PREFIX = 'mmkv.default\\';
+  const CUSTOM_PREFIX = 'discovery:customizations:';
+  const SAFE_HUB_ID = /^[A-Za-z0-9_.-]{1,220}$/;
+  const ORDER_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):order$/;
+  const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.-]{1,220}):hidden$/;
+  const MAX_STORAGE_KEYS = 2048;
+  const MAX_ORDER_BYTES = 16384;
+  const MAX_ORDER_ITEMS = 128;
+
+  function readEntries(storage) {
+    const entries = [];
+    const length = Math.min(Number(storage?.length || 0), MAX_STORAGE_KEYS);
+    for (let index = 0; index < length; index += 1) {
+      const key = storage.key(index);
+      if (typeof key !== 'string') continue;
+      const value = storage.getItem(key);
+      if (typeof value !== 'string') continue;
+      entries.push([key, value]);
+    }
+    return entries;
+  }
+
+  function parseOrder(raw) {
+    if (typeof raw !== 'string' || raw.length > MAX_ORDER_BYTES) return null;
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+    if (!Array.isArray(parsed) || parsed.length > MAX_ORDER_ITEMS) return null;
+    const order = [];
+    for (const item of parsed) {
+      if (typeof item !== 'string' || !SAFE_HUB_ID.test(item)) return null;
+      order.push(item);
+    }
+    return order;
+  }
+
+  function scopeId(context, section) {
+    return `${context}\u0000${section}`;
+  }
+
+  function buildSnapshot(storage) {
+    const scopes = new Map();
+
+    for (const [key, value] of readEntries(storage)) {
+      if (!key.startsWith(MMKV_PREFIX)) continue;
+      const suffix = key.slice(MMKV_PREFIX.length);
+      if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
+
+      const orderMatch = suffix.match(ORDER_RE);
+      if (orderMatch) {
+        const id = scopeId(orderMatch[1], orderMatch[2]);
+        const scope = scopes.get(id) || { orderRaw: null, hidden: new Set(), invalidHidden: false };
+        scope.orderRaw = value;
+        scopes.set(id, scope);
+        continue;
+      }
+
+      const hiddenMatch = suffix.match(HIDDEN_RE);
+      if (hiddenMatch) {
+        const id = scopeId(hiddenMatch[1], hiddenMatch[2]);
+        const scope = scopes.get(id) || { orderRaw: null, hidden: new Set(), invalidHidden: false };
+        if (value === 'true') {
+          scope.hidden.add(hiddenMatch[3]);
+        } else if (value !== 'false') {
+          scope.invalidHidden = true;
+        }
+        scopes.set(id, scope);
+      }
+    }
+
+    if (scopes.size === 0) {
+      return {
+        schema_version: 1,
+        status: 'empty',
+        home: { order: null, hidden: [] },
+      };
+    }
+    if (scopes.size !== 1) {
+      return {
+        schema_version: 1,
+        status: 'ambiguous-context',
+        context_count: scopes.size,
+      };
+    }
+
+    const scope = Array.from(scopes.values())[0];
+    if (scope.invalidHidden) {
+      return { schema_version: 1, status: 'unsupported-hidden-format' };
+    }
+
+    let order = null;
+    if (scope.orderRaw !== null) {
+      order = parseOrder(scope.orderRaw);
+      if (order === null) {
+        return { schema_version: 1, status: 'unsupported-order-format' };
+      }
+    }
+
+    return {
+      schema_version: 1,
+      status: 'ready',
+      home: {
+        order,
+        hidden: Array.from(scope.hidden).sort((a, b) => a.localeCompare(b)),
+      },
+    };
+  }
+
+  function install(win, storage) {
+    if (!win?.addEventListener || !storage) return;
+    win.addEventListener('message', (event) => {
+      if (event.source !== win.parent) return;
+      if (!DASHBOARD_ORIGINS.has(event.origin)) return;
+      const request = event.data;
+      if (!request || request.type !== REQUEST_TYPE) return;
+      if (typeof request.nonce !== 'string' || request.nonce.length < 8 || request.nonce.length > 128) return;
+
+      let snapshot;
+      try {
+        snapshot = buildSnapshot(storage);
+      } catch (_error) {
+        snapshot = { schema_version: 1, status: 'unavailable' };
+      }
+      win.parent.postMessage(
+        {
+          type: RESPONSE_TYPE,
+          nonce: request.nonce,
+          snapshot,
+        },
+        event.origin,
+      );
+    });
+  }
+
+  const api = { buildSnapshot, parseOrder };
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    install(window, localStorage);
+  }
+})();
