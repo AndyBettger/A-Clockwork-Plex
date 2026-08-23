@@ -206,6 +206,62 @@ class WeatherForecastSettingsTests(unittest.TestCase):
         self.assertNotIn("population", results[0])
         self.assertNotIn("secret_provider_field", results[0])
 
+    def test_full_uk_postcode_falls_back_to_postcodes_io_when_open_meteo_has_no_match(self):
+        calls: list[str] = []
+
+        def opener(request, timeout):
+            host = urlsplit(request.full_url).netloc
+            calls.append(host)
+            self.assertEqual(timeout, 5)
+            if host == "geocoding-api.open-meteo.com":
+                return FakeHttpResponse({"results": []})
+            if host == "api.postcodes.io":
+                self.assertTrue(request.full_url.endswith("/GU307JS"))
+                return FakeHttpResponse(
+                    {
+                        "status": 200,
+                        "result": {
+                            "postcode": "GU30 7JS",
+                            "latitude": 51.03117,
+                            "longitude": -0.80376,
+                            "country": "England",
+                            "region": "South East",
+                            "admin_district": "Chichester",
+                            "parliamentary_constituency": "Chichester",
+                            "quality": 1,
+                        },
+                    }
+                )
+            raise AssertionError(f"Unexpected host: {host}")
+
+        results = search_forecast_locations("GU30 7JS", opener=opener)
+
+        self.assertEqual(calls, ["geocoding-api.open-meteo.com", "api.postcodes.io"])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["name"], "GU30 7JS")
+        self.assertEqual(results[0]["latitude"], 51.03117)
+        self.assertEqual(results[0]["longitude"], -0.80376)
+        self.assertEqual(results[0]["timezone"], "Europe/London")
+        self.assertEqual(results[0]["country"], "United Kingdom")
+        self.assertEqual(results[0]["country_code"], "GB")
+        self.assertEqual(results[0]["admin1"], "England")
+        self.assertEqual(results[0]["admin2"], "Chichester")
+        self.assertEqual(results[0]["postcodes"], ["GU30 7JS"])
+        self.assertNotIn("parliamentary_constituency", results[0])
+        self.assertNotIn("quality", results[0])
+
+    def test_non_postcode_empty_open_meteo_search_does_not_call_postcode_fallback(self):
+        calls: list[str] = []
+
+        def opener(request, timeout):
+            calls.append(urlsplit(request.full_url).netloc)
+            return FakeHttpResponse({"results": []})
+
+        results = search_forecast_locations("Nowhere Village", opener=opener)
+
+        self.assertEqual(results, [])
+        self.assertEqual(calls, ["geocoding-api.open-meteo.com"])
+
     def test_location_search_requires_a_useful_query(self):
         with self.assertRaisesRegex(ValueError, "at least 2 characters"):
             search_forecast_locations(" x ", opener=lambda *_args, **_kwargs: None)
