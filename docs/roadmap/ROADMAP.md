@@ -83,6 +83,25 @@ The remaining Weather follow-up was a physical proof of the already-tested fresh
 
 **Weather priority #1 for the post-v0.4.0 cycle is complete. The next active priority is Settings and appliance ownership.**
 
+### Configuration ownership and backup-format audit — IN PROGRESS at checkpoint #88
+
+The Settings/appliance-ownership cycle begins by classifying persistent data before any backup or restore mutation is implemented. The governing rule is: **back up logical user choices through their owning authority; do not copy implementation directories wholesale.**
+
+- [x] Added [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) and linked it from the development index. It defines the ownership matrix, portable/non-portable boundary, proposed versioned JSON envelope, restore transaction model and relationship to reset-to-defaults.
+- [x] Classified ordinary A Clockwork Plex user configuration as a **normalised portable Settings model**, not raw `config.json` bytes. Alarm schedules, display/night choices, Weather non-secret configuration and logical AirPlay preferences are candidates; installer/hardware plumbing remains target-owned.
+- [x] Established hard exclusions for managed secrets and identity: the WU API key, Plex account/authentication/claim material, browser cookies/session data, machine/player identity, private keys, caches and volatile runtime state must never enter an ordinary backup.
+- [x] Classified specialist audio preferences by owner: Bass/Mid/Treble/bypass are exported as logical EQ values and later restored through `MasterEqualizer`; persistent mixer state is exported as the four user-facing percentages and later restored through the restricted mixer helper rather than copying ALSA state.
+- [x] Classified `state.json`, alarm/audio/playback runtime files, forecast/rainfall caches, install markers/rollback payloads and generated caches/logs as **regenerable runtime state** and excluded them from ordinary backup.
+- [x] Defined the Plexamp boundary: `~/.local/share/Plexamp/Settings` is persistent across runtime repair but must not be copied wholesale because preferences coexist with state/resources/identity/authentication material. The kiosk Chromium profile at `~/.config/a-clockwork-plex/chromium-profile` likewise must never be archived wholesale because Plexamp UI preferences may coexist with browser login/session data.
+- [x] Added `scripts/audit-plexamp-preferences.py`, a deliberately read-only/content-blind inventory helper. It lists only safe-looking `@Plexamp:settings:*` key suffixes and file sizes, filters sensitive/unclassified names without printing them, and reports only the presence of fixed Chromium storage-area directories. It never opens Plexamp or Chromium storage values.
+- [x] Added regression coverage to the existing Plexamp safety test module and catalogued the new script. The test fixture includes secret-looking Plexamp values and proves they are not emitted by the helper. Local compile/fixture execution of the helper passed before requesting a physical inventory.
+- [ ] Run the read-only helper on the commissioned development Pi and capture only its safe output so the actual Plexamp 4.13.2 preference-key set can be classified.
+- [ ] From that inventory, establish an exact Headless preference allow-list and decide whether browser-side Home/layout preferences can be extracted narrowly enough to support safely. If not, leave those browser-side settings as an explicit manual-reconfiguration item rather than weakening the authentication boundary.
+
+No backup/export, import/restore or reset mutation has been enabled by #88 yet. The audit deliberately defines ownership first.
+
+Repository-side #88 audit/documentation began at `cea4e1abec1a57e058f82ab47f8001ef32cff43c`; safe live-inventory helper/test/catalogue head before roadmap synchronization: `2d61858a4ca4fa52ce5dce3f57188b129b170c46`.
+
 ## Current supported release
 
 **A Clockwork Plex `v0.4.0` — Unified Bedside Appliance** is the current published release.
@@ -203,7 +222,7 @@ These are post-v0.4.0 ideas. They are not commitments to one release and should 
 Unless the owner deliberately reprioritises the cycle, implementation should proceed in this order:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership**, including investigation of safe non-authentication Plexamp preference backup/restore
+2. **Settings and appliance ownership** — IN PROGRESS at #88, including safe non-authentication Plexamp preference backup/restore investigation
 3. **Touchscreen Plexamp text entry**
 4. **BBC News**
 5. **Events calendar**
@@ -263,8 +282,8 @@ The Astronomy feature should be treated as a **multi-screen section with its own
 
 ### Settings and appliance ownership
 
-- [ ] **Configuration backup/export.** Provide a supported way to export ordinary appliance Settings without leaking managed secrets or volatile runtime/cache state.
-- [ ] **Plexamp preference backup feasibility.** Investigate an allow-listed backup of useful non-authentication Plexamp preferences rather than copying the whole Plexamp profile. Headless/server-side preferences under the Plexamp Settings store and browser-side experience preferences must be treated separately. Candidate restore data may include device/audio preferences and user experience/home-layout choices where their storage and semantics are understood. Explicitly exclude Plex authentication/account tokens, claim material, browser session cookies, machine identity, caches and logs. The backup format must be versioned and restore must preserve correct ownership/permissions and tolerate Plexamp-version changes safely.
+- [ ] **Configuration backup/export — design/ownership audit in progress at #88.** Export ordinary appliance preferences as a versioned normalised model rather than raw config/runtime files, excluding managed secrets and machine-specific implementation state.
+- [ ] **Plexamp preference backup feasibility — live inventory pending at #88.** Investigate an allow-listed backup of useful non-authentication Plexamp preferences rather than copying the whole Plexamp profile. Headless/server-side preferences under the Plexamp Settings store and browser-side experience preferences must be treated separately. Candidate restore data may include device/audio preferences and user experience/home-layout choices where their storage and semantics are understood. Explicitly exclude Plex authentication/account tokens, claim material, browser session cookies, machine identity, caches and logs. The backup format must be versioned and restore must preserve correct ownership/permissions and tolerate Plexamp-version changes safely.
 - [ ] **Configuration import/restore.** Validate an exported configuration before applying it transactionally; do not blindly overwrite installer-owned, secret or Plexamp-owned material. Any supported Plexamp preference restore should be allow-listed and best-effort/version-aware rather than a raw profile replacement.
 - [ ] **Reset-to-defaults workflow.** Add an intentional, confirmation-gated Settings reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual deletion of JSON files.
 
