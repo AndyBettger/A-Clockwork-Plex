@@ -95,6 +95,9 @@ class UserSetupInstallerTests(unittest.TestCase):
         self.assertIn("password manager", text)
         self.assertIn("station ID and API key", text)
 
+        self.assertIn("Preferences → Control Centre → General", text)
+        self.assertNotIn("Preferences → Control Centre → Appearance", text)
+
         self.assertIn("normal supported source channel", text)
         self.assertIn("git clone https://github.com/AndyBettger/A-Clockwork-Plex.git", text)
         self.assertIn("git switch main", text)
@@ -102,11 +105,15 @@ class UserSetupInstallerTests(unittest.TestCase):
         self.assertNotIn("feature/alarm-engine", text)
         self.assertNotIn("production candidate", text.lower())
 
+        self.assertIn("full station history", text.lower())
+        self.assertIn("independently of the selected rainfall period", text.lower())
+
         self.assertIn("## 8. Visual first-use tour", text)
         for screenshot in (
             "assets/screenshots/settings-weather.png",
             "assets/screenshots/settings-audio.png",
             "assets/screenshots/settings-alarms.png",
+            "assets/screenshots/settings-about.png",
             "assets/screenshots/alarm-ringing.png",
             "assets/screenshots/clock-day.png",
             "assets/screenshots/clock-night.png",
