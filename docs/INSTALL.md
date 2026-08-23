@@ -80,7 +80,7 @@ Do not leave the Touch Display 2 in mouse-emulation mode for normal A Clockwork 
 
 #### Set desktop size and appearance
 
-1. Open **Preferences → Control Centre → Appearance**.
+1. Open **Preferences → Control Centre → General**.
 2. Under **Defaults**, choose **Medium** rather than Small or Large.
 3. Select the **Dark** appearance/theme if you want the same desktop appearance used during physical validation.
 
@@ -247,6 +247,8 @@ On the validated Ecowitt setup, the station provides one custom-upload destinati
 
 Weather Underground can be selected and commissioned from **Settings → Weather**. Its API key remains write-only managed secret material and should be entered through the Settings credential controls, never into `config.json`, shell history or repository files. VNC is very convenient here too: copy/paste the station ID and API key rather than retyping them.
 
+The **Historical rainfall → Selected period** control governs the short-period total/status shown for Today, Last 7 days, Current month or Current year. The separate **Full station history** archive is different: once the WU station ID and API key are configured it backfills automatically in the background, independently of the selected rainfall period, so the Weather page can build its full-station Rainy Day Fund/lifetime total. Settings → Weather → Observation source shows that lifetime archive as **Backfilling full history** until the station's first WU record has been found and all available daily coverage has been cached.
+
 The same rule applies to other long commissioning values: use VNC/copy-paste where practical, but keep secrets in the UI or other intended secret-entry path rather than placing them in scripts or logs.
 
 ## 8. Visual first-use tour
@@ -316,7 +318,11 @@ Plexamp and AirPlay are both normal music sources through the managed music lane
 </tr>
 </table>
 
-A separate refreshed Settings → About screenshot may be added to the documentation later; it is not required to commission or operate the appliance.
+### About and release identity
+
+**Settings → About** shows the maintained appliance version, release name and matching Git tag identity. For this release it should report **0.4.0 / Unified Bedside Appliance / v0.4.0**.
+
+![A Clockwork Plex About page](assets/screenshots/settings-about.png)
 
 ## 9. NFC albums
 
