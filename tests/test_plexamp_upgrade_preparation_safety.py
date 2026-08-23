@@ -43,9 +43,10 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
 
     def test_preference_auditor_default_mode_is_content_blind_and_filters_sensitive_names(self):
         source = AUDIT_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("NO FILE CONTENTS ARE READ", source)
+        self.assertIn("NO PLEXAMP SETTING VALUES ARE READ", source)
         self.assertIn("SAFE_VALUE_KEYS", source)
         self.assertIn("--show-safe-values", source)
+        self.assertIn("--scan-browser-keys", source)
 
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -85,21 +86,22 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("STATE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("Explicit portable-preference value audit", result.stdout)
+        self.assertNotIn("structured key audit", result.stdout)
 
-    def test_preference_auditor_value_mode_reads_only_explicit_ordinary_allowlist(self):
+    def test_preference_auditor_value_mode_decodes_only_explicit_typed_allowlist(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             settings = home / ".local/share/Plexamp/Settings"
             settings.mkdir(parents=True)
             fixtures = {
-                "audioConversionBitrate": "320\n",
-                "autoPlayEnabled": "true\n",
-                "cacheSize": "65536\n",
-                "cachingWiFi": "false\n",
-                "loudnessLeveling": "true\n",
-                "precacheNetworkSpeed": "50\n",
-                "sampleRateConversionQuality": "4\n",
-                "sampleRateMatching": "1\n",
+                "audioConversionBitrate": "N256",
+                "autoPlayEnabled": "Bfalse",
+                "cacheSize": "N32768",
+                "cachingWiFi": "N10",
+                "loudnessLeveling": "Bfalse",
+                "precacheNetworkSpeed": "N0",
+                "sampleRateConversionQuality": "N4",
+                "sampleRateMatching": "N2",
                 "audioDeviceUuid": "DEVICE-VALUE-MUST-NOT-LEAK",
                 "playerName": "PLAYER-NAME-MUST-NOT-LEAK",
                 "premium": "PREMIUM-MUST-NOT-LEAK",
@@ -133,14 +135,14 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         for expected in (
-            "audioConversionBitrate = 320",
-            "autoPlayEnabled = true",
-            "cacheSize = 65536",
-            "cachingWiFi = false",
-            "loudnessLeveling = true",
-            "precacheNetworkSpeed = 50",
+            "audioConversionBitrate = 256",
+            "autoPlayEnabled = false",
+            "cacheSize = 32768",
+            "cachingWiFi = 10",
+            "loudnessLeveling = false",
+            "precacheNetworkSpeed = 0",
             "sampleRateConversionQuality = 4",
-            "sampleRateMatching = 1",
+            "sampleRateMatching = 2",
         ):
             self.assertIn(expected, result.stdout)
         for key in ("audioDeviceUuid", "playerName", "premium"):
@@ -156,6 +158,111 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             self.assertNotIn(forbidden, result.stdout)
         self.assertIn(
             "No unknown Plexamp values and no Chromium storage values were opened or printed.",
+            result.stdout,
+        )
+
+    def test_preference_auditor_rejects_wrong_typed_scalar_encoding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            settings = home / ".local/share/Plexamp/Settings"
+            settings.mkdir(parents=True)
+            (settings / "%40Plexamp%3Asettings%3AautoPlayEnabled").write_text(
+                "N1", encoding="utf-8"
+            )
+            (settings / "%40Plexamp%3Asettings%3AcacheSize").write_text(
+                "Btrue", encoding="utf-8"
+            )
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(AUDIT_SCRIPT),
+                    "--home",
+                    str(home),
+                    "--show-safe-values",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "autoPlayEnabled = <not shown: unexpected typed scalar format>",
+            result.stdout,
+        )
+        self.assertIn(
+            "cacheSize = <not shown: unexpected typed scalar format>",
+            result.stdout,
+        )
+
+    def test_browser_key_scan_emits_only_structured_loopback_names_never_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            leveldb = (
+                home
+                / ".config/a-clockwork-plex/chromium-profile/Default/Local Storage/leveldb"
+            )
+            leveldb.mkdir(parents=True)
+            payload = b"".join(
+                (
+                    b"junk_http://localhost:32500\x00\x01@Plexamp:settings:homeLayout\x00",
+                    b"HOME-VALUE-MUST-NOT-LEAK",
+                    b"junk_http://localhost:32500\x00\x01authToken\x00",
+                    b"AUTH-VALUE-MUST-NOT-LEAK",
+                    b"junk_http://localhost:8088\x00\x01acpTheme\x00",
+                    b"THEME-VALUE-MUST-NOT-LEAK",
+                    b"junk_https://example.com\x00\x01outsideKey\x00",
+                    b"OUTSIDE-VALUE-MUST-NOT-LEAK",
+                )
+            )
+            (leveldb / "000001.log").write_bytes(payload)
+            (leveldb / "000002.ldb").write_bytes(
+                b"x_http://127.0.0.1:32500\x00\x01@Plexamp:settings:sidebarLayout\x00"
+                b"SIDEBAR-VALUE-MUST-NOT-LEAK"
+            )
+            (leveldb / "MANIFEST-000001").write_bytes(
+                b"MANIFEST-VALUE-MUST-NOT-LEAK"
+            )
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(AUDIT_SCRIPT),
+                    "--home",
+                    str(home),
+                    "--scan-browser-keys",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Chromium Local Storage structured key audit:", result.stdout)
+        self.assertIn("http://localhost:32500", result.stdout)
+        self.assertIn("http://localhost:8088", result.stdout)
+        self.assertIn("http://127.0.0.1:32500", result.stdout)
+        self.assertIn("@Plexamp:settings:homeLayout", result.stdout)
+        self.assertIn("@Plexamp:settings:sidebarLayout", result.stdout)
+        self.assertIn("acpTheme", result.stdout)
+        self.assertIn("Sensitive-looking key records suppressed: 1", result.stdout)
+        self.assertNotIn("authToken", result.stdout)
+        self.assertNotIn("example.com", result.stdout)
+        self.assertNotIn("outsideKey", result.stdout)
+        for forbidden in (
+            "HOME-VALUE-MUST-NOT-LEAK",
+            "AUTH-VALUE-MUST-NOT-LEAK",
+            "THEME-VALUE-MUST-NOT-LEAK",
+            "OUTSIDE-VALUE-MUST-NOT-LEAK",
+            "SIDEBAR-VALUE-MUST-NOT-LEAK",
+            "MANIFEST-VALUE-MUST-NOT-LEAK",
+        ):
+            self.assertNotIn(forbidden, result.stdout)
+        self.assertIn(
+            "No Plexamp setting values or Chromium Local Storage values were decoded or printed.",
             result.stdout,
         )
 
