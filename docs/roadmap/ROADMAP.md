@@ -51,6 +51,21 @@ The post-v0.4.0 audio review confirmed that hi-res Plexamp playback is a genuine
 
 The implementation work is tracked below under **High-resolution Plexamp audio / mixer-EQ path**. No production audio format has been changed by this audit.
 
+### Friendly forecast-location entry — IN PROGRESS at checkpoint #86
+
+The first implementation item of the post-v0.4.0 `develop` cycle is the Weather forecast-location helper.
+
+- [x] Added a read-only backend `GET /api/weather/forecast/locations?q=...` lookup backed by Open-Meteo's geocoding API. Queries are whitespace-normalised and bounded, provider responses are parsed defensively, and only an allow-listed result shape is returned to the browser: name, coordinates, timezone, country/admin context and postcodes.
+- [x] Added a dedicated Settings presenter, `settings-weather-location.js`, on the existing **Weather → Online forecast** page. It accepts a town, city or postcode using the existing touchscreen keyboard, presents selectable matches, and stages the selected latitude, longitude and timezone into the existing unified Settings controls.
+- [x] Preserved one configuration authority: location lookup never writes configuration, wakes Weather services or refreshes the forecast by itself. The normal **Save Changes** transaction remains the only persistence path.
+- [x] Kept manual coordinates available and relabelled them **Latitude (advanced)** / **Longitude (advanced)** so exact coordinate entry remains a supported fallback.
+- [x] Added regression coverage to the existing Weather forecast test modules without increasing the maintained test-module catalogue: query validation/normalisation, response sanitisation, provider failure handling, read-only API behaviour, Settings field staging/load order and JavaScript syntax. The new presenter is also included in the workflow's explicit JavaScript syntax gate.
+- [x] Local pre-commit syntax checks passed for the changed Python and JavaScript sources.
+- [ ] Confirm the final GitHub Actions push run is green on the implementation head. The connected GitHub tool available in this session cannot discover push-only workflow runs by commit SHA, so this gate must remain explicitly open rather than inferred.
+- [ ] Physical 1280×720 spot-check on the development Pi: search by a UK postcode and/or town, choose a result, confirm coordinates/timezone are staged, Save Changes, verify the Weather forecast follows the selected location, and confirm manual coordinate entry remains usable.
+
+Implementation/CI-wiring head before this roadmap-only synchronization: `fe118fb16ef282d6f55682699c1118e721c60b03`.
+
 ## Current supported release
 
 **A Clockwork Plex `v0.4.0` — Unified Bedside Appliance** is the current published release.
@@ -224,7 +239,7 @@ The Astronomy feature should be treated as a **multi-screen section with its own
 
 ### Weather
 
-- [ ] **Friendly forecast-location entry.** Add place/postcode/location lookup that writes the existing forecast latitude/longitude settings. Keep exact coordinate entry as an advanced/fallback path.
+- [ ] **Friendly forecast-location entry — implementation landed at #86; automated and physical acceptance pending.** Search by town/city/postcode, choose a result to stage the existing forecast coordinates/timezone, then use the normal Save Changes transaction. Exact coordinate entry remains the advanced/fallback path.
 - [ ] **WU-only indoor-expiry physical confirmation.** On an appliance receiving no fresh Ecowitt push, physically confirm that Clock indoor cards and the Weather Indoor row disappear after freshness expiry. Source expiry tests are already green; this is a validation follow-up, not a missing core feature.
 
 ### Settings and appliance ownership
