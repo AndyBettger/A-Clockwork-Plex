@@ -61,10 +61,14 @@ The first implementation item of the post-v0.4.0 `develop` cycle is the Weather 
 - [x] Kept manual coordinates available and relabelled them **Latitude (advanced)** / **Longitude (advanced)** so exact coordinate entry remains a supported fallback.
 - [x] Added regression coverage to the existing Weather forecast test modules without increasing the maintained test-module catalogue: query validation/normalisation, response sanitisation, provider failure handling, read-only API behaviour, Settings field staging/load order and JavaScript syntax. The new presenter is also included in the workflow's explicit JavaScript syntax gate.
 - [x] Local pre-commit syntax checks passed for the changed Python and JavaScript sources.
-- [ ] Confirm the final GitHub Actions push run is green on the implementation head. The connected GitHub tool available in this session cannot discover push-only workflow runs by commit SHA, so this gate must remain explicitly open rather than inferred.
-- [ ] Physical 1280×720 spot-check on the development Pi: search by a UK postcode and/or town, choose a result, confirm coordinates/timezone are staged, Save Changes, verify the Weather forecast follows the selected location, and confirm manual coordinate entry remains usable.
+- [x] The owner confirmed the requested GitHub Actions **Tests** run on the first #86 `develop` implementation/roadmap head `2d1dd0e603da2d77c28fb78596d14ae3b61791db` was green.
+- [x] Physical 1280×720 town-search path passed on the development Pi after switching to `develop`, pulling and running `setup.sh`: searching **Milland** returned a valid match; selecting it staged the latitude/longitude; Save Changes completed normally; and the Weather page displayed the forecast for the selected location. The supplied VNC screenshot also confirms the new location-search card and advanced coordinate controls fit cleanly within the existing Settings layout.
+- [ ] Full UK postcode resolution is **not yet accepted**. Searching the exact postcode `GU30 7JS` returned no results even though town search worked. Because postcode lookup is part of the stated feature contract, this remains an implementation follow-up rather than being waved through as a provider quirk.
+- [x] The same physical Weather-page check exposed a far-future presentation issue: Open-Meteo may return a daily slot whose condition is `unknown`, causing an otherwise empty-looking **Unknown conditions** card. `weather-forecast.js` now omits daily entries whose normalised condition tone is `unknown` while preserving each remaining entry's original forecast index so Today/Tomorrow labels cannot shift. Regression coverage protects the seven-day cap, unknown-day filtering and original-index hand-off.
+- [ ] Confirm the new unknown-day filter passes the final `develop` Actions run and physically verify that the trailing **Unknown conditions** day no longer appears. Hourly forecast behaviour is deliberately unchanged.
 
-Implementation/CI-wiring head before this roadmap-only synchronization: `fe118fb16ef282d6f55682699c1118e721c60b03`.
+Initial location implementation/CI-wiring head: `fe118fb16ef282d6f55682699c1118e721c60b03`.  
+Unknown-daily-card follow-up code/test head: `4340126be8ee8a2203bb1f72f08343c301dc40c8`.
 
 ## Current supported release
 
@@ -239,7 +243,7 @@ The Astronomy feature should be treated as a **multi-screen section with its own
 
 ### Weather
 
-- [ ] **Friendly forecast-location entry — implementation landed at #86; automated and physical acceptance pending.** Search by town/city/postcode, choose a result to stage the existing forecast coordinates/timezone, then use the normal Save Changes transaction. Exact coordinate entry remains the advanced/fallback path.
+- [ ] **Friendly forecast-location entry — #86 in progress.** Town/city lookup is implemented and physically proven end-to-end on the development Pi. Full UK postcode lookup still needs a reliable resolution path because exact `GU30 7JS` returned no Open-Meteo match. The follow-up also hides unusable daily forecast cards whose conditions are unknown; that presentation change still needs its final Actions/physical re-check. Exact coordinate entry remains the advanced/fallback path.
 - [ ] **WU-only indoor-expiry physical confirmation.** On an appliance receiving no fresh Ecowitt push, physically confirm that Clock indoor cards and the Weather Indoor row disappear after freshness expiry. Source expiry tests are already green; this is a validation follow-up, not a missing core feature.
 
 ### Settings and appliance ownership
