@@ -13,10 +13,11 @@ as ``<instance-id>\\<preference-key>``. The scanner recognises the default
 ``mmkv.default\\`` namespace and emits only safe-looking suffix names. It still
 never decodes or prints the corresponding values.
 
-``--fingerprint-browser-records`` hashes only bounded record neighbourhoods for
-an explicit non-sensitive browser-key allow-list. It is retained as a
-differential discovery aid; ``mmkv.default`` hashes are namespace-prefix
-neighbourhoods across individual MMKV web keys, not a single packed value.
+``--fingerprint-browser-records`` retains the earlier broad differential aid.
+``--fingerprint-browser-customizations`` is narrower: it hashes only complete
+``mmkv.default\\discovery:customizations:...`` record neighbourhoods so a
+before/after Plexamp Home-layout experiment can identify the exact customization
+record that changed without decoding or printing any browser value.
 """
 
 from __future__ import annotations
@@ -53,27 +54,19 @@ BROWSER_STORAGE_AREAS = (
 )
 LEVELDB_DATA_SUFFIXES = {".ldb", ".log"}
 
-# Chromium Local Storage LevelDB data keys are stored with the serialised
-# origin followed by a NUL separator and an encoded DOMString key. The
-# optional single-byte marker covers the common 8-bit/16-bit string tag.
 LOOPBACK_STORAGE_KEY = re.compile(
     rb"_(https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?)"
     rb"\x00(?:\x00|\x01)?([A-Za-z@][A-Za-z0-9_.:@/+ -]{0,119})"
 )
 
-# react-native-mmkv's web implementation prefixes every key with
-# "<instance-id>\\"; the default instance is "mmkv.default". The MMKV key
-# itself may not contain a backslash, which gives us a narrow boundary for
-# enumerating names without decoding values.
 MMKV_WEB_PREFIX = "mmkv.default\\"
 MMKV_LOOPBACK_STORAGE_KEY = re.compile(
     rb"_(https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?)"
     rb"\x00(?:\x00|\x01)?mmkv\.default\\"
     rb"([A-Za-z0-9_@][A-Za-z0-9_.:@/+ -]{0,119})"
 )
+MMKV_CUSTOMIZATION_PREFIX = "discovery:customizations:"
 
-# These keys were observed on the commissioned Plexamp 4.13.2 development Pi.
-# Values are typed Plexamp scalars: Btrue/Bfalse or N<number>.
 SAFE_VALUE_SPECS = {
     "audioConversionBitrate": "integer",
     "autoPlayEnabled": "boolean",
@@ -86,17 +79,12 @@ SAFE_VALUE_SPECS = {
 }
 SAFE_VALUE_KEYS = frozenset(SAFE_VALUE_SPECS)
 
-# These names are useful to classify, but their values are deliberately never
-# opened by this helper.
 KNOWN_NON_PORTABLE_KEYS = {
     "audioDeviceUuid": "device-specific output binding; recommission on the target",
     "playerName": "device label/identity; keep outside the ordinary portable preference bundle",
     "premium": "derived account/capability state; do not restore",
 }
 
-# Direct Local Storage candidates observed on the live Plexamp 4.13.2 kiosk.
-# mmkv.default is retained here only as a namespace-level differential marker;
-# it is not interpreted as one packed preference value.
 BROWSER_FINGERPRINT_KEYS = frozenset(
     {
         "@Plexamp:settings:activeTab",
@@ -115,7 +103,6 @@ def _has_sensitive_term(key: str) -> bool:
 
 def candidate_key(filename: str) -> str | None:
     """Return a safe Headless preference-key suffix, never a file value."""
-
     decoded = unquote(filename)
     if not decoded.startswith(PLEXAMP_SETTINGS_PREFIX):
         return None
@@ -129,7 +116,6 @@ def candidate_key(filename: str) -> str | None:
 
 def _decode_plexamp_scalar(text: str, expected: str) -> object:
     """Decode one supported Plexamp typed scalar or raise ValueError."""
-
     text = text.strip()
     if expected == "boolean":
         if text == "Btrue":
@@ -151,7 +137,6 @@ def _decode_plexamp_scalar(text: str, expected: str) -> object:
 
 def _safe_scalar(path: Path, expected: str) -> str:
     """Read one explicitly allow-listed typed scalar and return display text."""
-
     try:
         if path.stat().st_size > 64:
             return "<not shown: value exceeds 64-byte audit limit>"
@@ -220,7 +205,6 @@ def _browser_leveldb_payloads(browser_default: Path) -> list[tuple[Path, bytes]]
 
 def _scan_browser_local_storage(browser_default: Path) -> None:
     """Print only structured loopback Local Storage key names, never values."""
-
     leveldb = browser_default / "Local Storage" / "leveldb"
     print("Chromium Local Storage structured key audit:")
     if not leveldb.is_dir():
@@ -236,8 +220,6 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
     mmkv_keys = 0
 
     for _path, payload in payloads:
-        # Enumerate the upstream-defined MMKV web namespace first. The general
-        # regex below would otherwise truncate these keys at "mmkv.default".
         for match in MMKV_LOOPBACK_STORAGE_KEY.finditer(payload):
             origin = match.group(1).decode("ascii", errors="strict")
             raw_suffix = match.group(2)
@@ -266,11 +248,7 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
                 sensitive_records += 1
                 continue
             key = _safe_browser_key(raw_key)
-            if key is None:
-                continue
-            # A plain "mmkv.default" match is the truncated namespace prefix of
-            # an MMKV web key. Individual safe suffixes are emitted above.
-            if key == "mmkv.default":
+            if key is None or key == "mmkv.default":
                 continue
             origins.add(origin)
             keys_by_origin.setdefault(origin, set()).add(key)
@@ -297,33 +275,18 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
     print("  No browser Local Storage values were decoded or printed.")
 
 
-def _fingerprint_browser_records(browser_default: Path) -> None:
-    """Hash bounded neighbourhoods for explicit browser keys; never decode values."""
+def _record_fingerprint(payload: bytes, start_at: int, end_at: int) -> str:
+    start = max(0, start_at - BROWSER_FINGERPRINT_WINDOW_BEFORE)
+    end = min(len(payload), end_at + BROWSER_FINGERPRINT_WINDOW_AFTER)
+    return hashlib.sha256(payload[start:end]).hexdigest()[:20]
 
-    leveldb = browser_default / "Local Storage" / "leveldb"
-    print("Chromium Local Storage differential fingerprints:")
-    if not leveldb.is_dir():
-        print("  LevelDB directory: NOT FOUND")
-        return
 
-    payloads = _browser_leveldb_payloads(browser_default)
-    records: dict[tuple[str, str], set[str]] = {}
-    occurrences: dict[tuple[str, str], int] = {}
-
-    for _path, payload in payloads:
-        for match in LOOPBACK_STORAGE_KEY.finditer(payload):
-            origin = match.group(1).decode("ascii", errors="strict")
-            key = _safe_browser_key(match.group(2))
-            if key not in BROWSER_FINGERPRINT_KEYS:
-                continue
-
-            start = max(0, match.start() - BROWSER_FINGERPRINT_WINDOW_BEFORE)
-            end = min(len(payload), match.end() + BROWSER_FINGERPRINT_WINDOW_AFTER)
-            digest = hashlib.sha256(payload[start:end]).hexdigest()[:20]
-            identity = (origin, key)
-            occurrences[identity] = occurrences.get(identity, 0) + 1
-            records.setdefault(identity, set()).add(digest)
-
+def _print_fingerprint_records(
+    heading: str,
+    records: dict[tuple[str, str], set[str]],
+    occurrences: dict[tuple[str, str], int],
+) -> None:
+    print(heading)
     if not records:
         print("  Approved candidate records: none detected")
         print("  No browser values were decoded or printed.")
@@ -335,14 +298,81 @@ def _fingerprint_browser_records(browser_default: Path) -> None:
         count = occurrences[(origin, key)]
         print(f"    {origin} | {key} | occurrences={count} | fingerprints={digests}")
 
-    print("  @Plexamp:resources is deliberately excluded from fingerprinting.")
-    if any(key == "mmkv.default" for _origin, key in records):
+
+def _fingerprint_browser_records(browser_default: Path) -> None:
+    """Hash bounded neighbourhoods for broad discovery keys; never decode values."""
+    leveldb = browser_default / "Local Storage" / "leveldb"
+    if not leveldb.is_dir():
+        print("Chromium Local Storage differential fingerprints:")
+        print("  LevelDB directory: NOT FOUND")
+        return
+
+    records: dict[tuple[str, str], set[str]] = {}
+    occurrences: dict[tuple[str, str], int] = {}
+    for _path, payload in _browser_leveldb_payloads(browser_default):
+        for match in LOOPBACK_STORAGE_KEY.finditer(payload):
+            origin = match.group(1).decode("ascii", errors="strict")
+            key = _safe_browser_key(match.group(2))
+            if key not in BROWSER_FINGERPRINT_KEYS:
+                continue
+            identity = (origin, key)
+            occurrences[identity] = occurrences.get(identity, 0) + 1
+            records.setdefault(identity, set()).add(
+                _record_fingerprint(payload, match.start(), match.end())
+            )
+
+    _print_fingerprint_records(
+        "Chromium Local Storage differential fingerprints:", records, occurrences
+    )
+    if records:
+        print("  @Plexamp:resources is deliberately excluded from fingerprinting.")
+        if any(key == "mmkv.default" for _origin, key in records):
+            print(
+                "  mmkv.default hashes are namespace-prefix neighbourhoods across "
+                "individual MMKV web keys, not one packed value."
+            )
         print(
-            "  mmkv.default hashes are namespace-prefix neighbourhoods across "
-            "individual MMKV web keys, not one packed value."
+            "  Hashes cover bounded record neighbourhoods, not decoded preference values."
         )
-    print("  Hashes cover bounded record neighbourhoods, not decoded preference values.")
-    print("  No browser values were decoded or printed.")
+        print("  No browser values were decoded or printed.")
+
+
+def _fingerprint_browser_customizations(browser_default: Path) -> None:
+    """Fingerprint only complete Plexamp MMKV customization keys."""
+    leveldb = browser_default / "Local Storage" / "leveldb"
+    if not leveldb.is_dir():
+        print("Chromium Plexamp Home-layout customization fingerprints:")
+        print("  LevelDB directory: NOT FOUND")
+        return
+
+    records: dict[tuple[str, str], set[str]] = {}
+    occurrences: dict[tuple[str, str], int] = {}
+
+    for _path, payload in _browser_leveldb_payloads(browser_default):
+        for match in MMKV_LOOPBACK_STORAGE_KEY.finditer(payload):
+            origin = match.group(1).decode("ascii", errors="strict")
+            suffix = _safe_mmkv_suffix(match.group(2))
+            if suffix is None or not suffix.startswith(MMKV_CUSTOMIZATION_PREFIX):
+                continue
+            key = f"{MMKV_WEB_PREFIX}{suffix}"
+            identity = (origin, key)
+            occurrences[identity] = occurrences.get(identity, 0) + 1
+            records.setdefault(identity, set()).add(
+                _record_fingerprint(payload, match.start(), match.end())
+            )
+
+    _print_fingerprint_records(
+        "Chromium Plexamp Home-layout customization fingerprints:",
+        records,
+        occurrences,
+    )
+    if records:
+        print("  Only discovery:customizations:* MMKV records are fingerprinted.")
+        print("  cachedItems, @Plexamp:resources and unrelated browser state are excluded.")
+        print(
+            "  Hashes cover bounded record neighbourhoods, not decoded customization values."
+        )
+        print("  No browser values were decoded or printed.")
 
 
 def audit(
@@ -351,6 +381,7 @@ def audit(
     show_safe_values: bool = False,
     scan_browser_keys: bool = False,
     fingerprint_browser_records: bool = False,
+    fingerprint_browser_customizations: bool = False,
 ) -> int:
     settings_dir = home / ".local" / "share" / "Plexamp" / "Settings"
     browser_default = home / ".config" / "a-clockwork-plex" / "chromium-profile" / "Default"
@@ -433,15 +464,22 @@ def audit(
         _scan_browser_local_storage(browser_default)
     if fingerprint_browser_records:
         _fingerprint_browser_records(browser_default)
+    if fingerprint_browser_customizations:
+        _fingerprint_browser_customizations(browser_default)
 
-    if show_safe_values and (scan_browser_keys or fingerprint_browser_records):
+    browser_audit = (
+        scan_browser_keys
+        or fingerprint_browser_records
+        or fingerprint_browser_customizations
+    )
+    if show_safe_values and browser_audit:
         print(
             "Unknown Plexamp values and Chromium values remain excluded; "
             "browser audit emitted names/hashes only."
         )
     elif show_safe_values:
         print("No unknown Plexamp values and no Chromium storage values were opened or printed.")
-    elif scan_browser_keys or fingerprint_browser_records:
+    elif browser_audit:
         print("No Plexamp setting values or Chromium Local Storage values were decoded or printed.")
     else:
         print("No Plexamp/Chromium storage values were opened or printed.")
@@ -477,7 +515,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help=(
             "Hash bounded LevelDB record neighbourhoods for the explicit "
-            "non-sensitive browser candidate keys; never decode values."
+            "non-sensitive broad discovery keys; never decode values."
+        ),
+    )
+    parser.add_argument(
+        "--fingerprint-browser-customizations",
+        action="store_true",
+        help=(
+            "Hash only complete mmkv.default\\discovery:customizations:* "
+            "record neighbourhoods to identify Home-layout changes; never decode values."
         ),
     )
     return parser.parse_args()
@@ -490,6 +536,7 @@ def main() -> int:
         show_safe_values=args.show_safe_values,
         scan_browser_keys=args.scan_browser_keys,
         fingerprint_browser_records=args.fingerprint_browser_records,
+        fingerprint_browser_customizations=args.fingerprint_browser_customizations,
     )
 
 
