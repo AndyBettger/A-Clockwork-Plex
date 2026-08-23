@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 23 August 2026  
+**Last updated:** 24 August 2026  
 **Active development branch:** `develop`  
 **Stable branch:** `main`  
 **PR #2:** merged into `main` on 23 August 2026.  
@@ -103,7 +103,7 @@ The Settings/appliance-ownership cycle began by classifying persistent data befo
 
 ### Configuration backup/export — IN PROGRESS at checkpoint #89
 
-The first secret-safe export slice is now implemented on `develop`.
+The schema-v1 secret-safe export and its first physical commissioned-Pi acceptance are complete. Work now concentrates on the controlled live Plexamp Home bridge.
 
 - [x] Added `app/configuration_backup.py` with **schema version 1** and metadata sourced from `app/static/app-version.json`.
 - [x] Export builds from the existing normalised Unified Settings authority and selects an explicit portable subset instead of serialising the public snapshot wholesale.
@@ -114,13 +114,19 @@ The first secret-safe export slice is now implemented on `develop`.
 - [x] The exact eight #88 Plexamp Headless preferences export through strict name/type parsing. Unknown, malformed, device-identity and account/auth files are not copied.
 - [x] Plexamp runtime version is included from non-sensitive local package metadata when available.
 - [x] `GET /api/settings/backup` returns a pretty JSON attachment named `A-Clockwork-Plex-backup-YYYY-MM-DD_HHMMSS.json` with `Cache-Control: no-store`; it performs no configuration mutation.
-- [x] Settings now exposes **Advanced → Backup & restore → Download backup** and clearly states that credentials/authentication are excluded. Backup is an immediate read-only action and does not participate in staged **Save Changes**.
-- [x] `export_report` records warnings and deliberate omissions. Browser Home preferences are currently reported as omitted until the safe live browser bridge is implemented.
+- [x] Settings exposes **Advanced → Backup & restore → Download backup** and clearly states that credentials/authentication are excluded. Backup is an immediate read-only action and does not participate in staged **Save Changes**.
+- [x] `export_report` records warnings and deliberate omissions. The server-only export continues to report browser Home preferences omitted unless the kiosk browser adds a validated live snapshot.
 - [x] Regression coverage proves representative fake WU secrets, Plex auth/device/account state, hardware device fields and target-specific Plexamp plumbing do not enter the generated backup; endpoint attachment/no-store behaviour is also covered.
-- [x] CI syntax/compile/page-wiring gates include the new backend and download control.
-- [ ] Final #89 Actions run must be green.
-- [ ] Physical commissioned-Pi acceptance: install/pull the exact accepted head, open Advanced → Backup & restore, download a JSON backup and validate it with a secret-safe checker rather than posting household configuration into chat.
-- [ ] Add browser-side Plexamp Home order/hidden preferences only after a live same-origin/controlled bridge is proven safe; **do not** substitute raw Chromium LevelDB scraping.
+- [x] CI syntax/compile/page-wiring gates include the backup backend and download control.
+- [x] The initial commissioned-Pi physical export passed on 24 August 2026: schema `1`; ACP domains `airplay, alarms, dashboard, display, weather`; audio sections `eq, mixer`; all eight approved Headless preferences; **0 warnings**; two deliberate omissions; and the structural forbidden-key checker reported **NONE**.
+- [x] Corrected two CI-only regressions exposed during #89: the new architecture document is now catalogued and backup filenames preserve the source/appliance timezone rather than converting to the GitHub runner timezone.
+- [x] Added `browser/plexamp-bridge/` as a Manifest V3 unpacked content extension with **no permissions, no background worker and no general browser-debug interface**. It is scoped only to Plexamp loopback origins on port `32500`.
+- [x] The kiosk launcher loads that local extension from the repository when present. It does **not** expose a Chrome remote-debugging port; if bridge files are absent, normal kiosk launch remains available and backup fails safely back to the recorded omission.
+- [x] The bridge reads host-page Local Storage only inside Plexamp and recognises only live `discovery:customizations:*:order` and per-hub `*:hidden` records. `editing`, caches, resources, session/auth state and unrelated preferences are not part of its output.
+- [x] Added strict dashboard-side response validation. The Settings download flow fetches the existing server backup, requests the live Home snapshot using `postMessage`, merges only validated logical `order`/`hidden` data **inside the kiosk browser**, then creates the downloaded file locally. Browser preference values are not POSTed to the dashboard service or persisted as a server-side staging file.
+- [x] Added automated bridge safety coverage: loopback-only manifest, no extension permissions/network/cookie authority, no remote-debugging launcher flag, and a Node-backed logical Home snapshot test that excludes editor/cache/auth fixtures.
+- [ ] Physical live-bridge acceptance: restart kiosk Chromium so the new extension is loaded, download a fresh backup and confirm `plexamp.browser_preferences.home` is present with sensible order/hidden counts while the forbidden-key checker remains clean. If Plexamp's live `:order` value uses an unrecognised format, fail closed and inspect only safe shape metadata rather than dumping it.
+- [ ] Final #89 synchronized Actions run must be green after the live-bridge implementation and any physical follow-up.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -128,7 +134,10 @@ Initial #89 implementation sequence:
 - secret-exclusion/API regression coverage: `6757619d3557c7c72d667bc626731010d519af70`;
 - Settings download control: `4f8bc32878dd0dac58526aaa7bc5b719db79c42e`;
 - ownership architecture synchronization: `2cb91d5ea57235ad5373f8f7489efc4f27dc0d04`;
-- CI-gate wiring: `ec190533b8fe81ebf9cda3d062db7d41bcd85210`.
+- CI-gate wiring: `ec190533b8fe81ebf9cda3d062db7d41bcd85210`;
+- CI catalogue/timezone corrections: `9a71c8da0998eb96900e9326e9c09b0c356c790f`, `7612c281531216beff10dfab3c411dadf067d994`;
+- live bridge manifest/content/client/launcher/download integration: `e7c3b6ebe70038c86b23ecdffff937e9cd318abc` through `1f81d4381db6ad6d232452cc98f4a9a68df8c506`;
+- bridge regression/CI gating: `93e8e5cb514af85beb5933758d7f575e9d2ab286`, `f0ca0fac67002d5ae580d793ed809433a8df6bc0`.
 
 Restore/import remains a separate later operation; #89 does not enable restore mutation.
 
@@ -213,14 +222,14 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 ### Settings and appliance ownership
 
-- [ ] **Configuration backup/export — IN PROGRESS at #89.** Schema-v1 secret-free ACP/Plexamp-Headless export and Settings download UI are implemented; final Actions + physical download/validation remain. Browser Home order/hidden export still needs a safe live browser bridge.
+- [ ] **Configuration backup/export — IN PROGRESS at #89.** Schema-v1 secret-free ACP/Plexamp-Headless export is physically accepted on the commissioned Pi. A permission-free loopback-only Chromium bridge now supplies live Plexamp Home order/hidden state to the download entirely client-side; bridge physical acceptance and the final synchronized Actions gate remain.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
 - [ ] **Configuration import/restore.** Parse/validate an exported file first, preview changes, then apply through the same owners transactionally. Never blindly overwrite installer-owned, secret or Plexamp-owned material. Plexamp restore is allow-listed, version-aware and performed only after fresh claim/library commissioning.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
 
-- [ ] **Plexamp search keyboard/bridge.** The ACP Settings screen has its own touchscreen keyboard, but embedded Plexamp is a separate origin/surface. Investigate a safe touchscreen text-entry bridge that does not depend on the desktop OS on-screen keyboard.
+- [ ] **Plexamp search keyboard/bridge.** The ACP Settings screen has its own touchscreen keyboard, but embedded Plexamp is a separate origin/surface. Investigate a safe touchscreen text-entry bridge that does not depend on the desktop OS on-screen keyboard. The permission-free localhost-only content bridge introduced by #89 is the preferred foundation if physical acceptance confirms it behaves reliably.
 
 ### News
 
