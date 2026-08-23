@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from flask import Flask
 
+from app.configuration_backup import (
+    ConfigurationBackupService,
+    register_configuration_backup_api,
+)
 from app.settings_unified import UnifiedSettingsService, register_unified_settings_api
 
 
@@ -343,6 +351,202 @@ class UnifiedSettingsTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.get_json()["confirmation_required"], "airplay_restart")
+
+
+class ConfigurationBackupTests(unittest.TestCase):
+    def build_service(self, root: Path) -> ConfigurationBackupService:
+        version_path = root / "app-version.json"
+        version_path.write_text(
+            json.dumps(
+                {
+                    "name": "A Clockwork Plex",
+                    "version": "0.4.0",
+                    "tag": "v0.4.0",
+                    "release_name": "Unified Bedside Appliance",
+                }
+            ),
+            encoding="utf-8",
+        )
+        plexamp = root / ".local/share/Plexamp/Settings"
+        plexamp.mkdir(parents=True)
+        values = {
+            "audioConversionBitrate": "N256",
+            "autoPlayEnabled": "Bfalse",
+            "cacheSize": "N32768",
+            "cachingWiFi": "N10",
+            "loudnessLeveling": "Bfalse",
+            "precacheNetworkSpeed": "N0",
+            "sampleRateConversionQuality": "N4",
+            "sampleRateMatching": "N2",
+            "audioDeviceUuid": "DEVICE-SECRET-MUST-NOT-LEAK",
+            "premium": "ACCOUNT-STATE-MUST-NOT-LEAK",
+            "authToken": "AUTH-MUST-NOT-LEAK",
+        }
+        for key, value in values.items():
+            encoded = "%40Plexamp%3Asettings%3A" + key
+            (plexamp / encoded).write_text(value, encoding="utf-8")
+        runtime = root / "plexamp"
+        runtime.mkdir()
+        (runtime / "package.json").write_text(
+            json.dumps({"name": "Plexamp", "version": "4.13.2"}),
+            encoding="utf-8",
+        )
+
+        settings = {
+            "dashboard": {
+                "startup_mode": "clock",
+                "idle_return_mode": "weather",
+                "idle_timeout_seconds": 240,
+            },
+            "display": {
+                "clock_format": "24h",
+                "daytime_theme": "astronomy-would-be-invalid-here",
+                "night_dim_enabled": True,
+                "night_dim_start": "22:00",
+                "night_dim_end": "07:00",
+            },
+            "weather": {
+                "station_name": "Weather or Not",
+                "reporting_station_name": "Bedroom Station",
+                "auto_refresh_seconds": 60,
+                "units": {"temperature": "c", "pressure": "hpa", "rain": "mm", "wind": "mph"},
+                "clock_cards": ["outdoor_temp", "pressure"],
+                "forecast": {
+                    "enabled": True,
+                    "provider": "open_meteo",
+                    "latitude": 51.03,
+                    "longitude": -0.80,
+                    "timezone": "Europe/London",
+                    "forecast_days": 16,
+                },
+                "historical_rainfall": {"period": "current_year"},
+                "observations": {
+                    "provider": "weather_underground",
+                    "ecowitt_push": {"path": "/ecowitt", "fresh_seconds": 180},
+                    "weather_underground": {
+                        "station_id": "IEXAMPLE1",
+                        "api_key_env": "SECRET_ENV_REFERENCE_MUST_NOT_EXPORT",
+                        "api_key": "WU-SECRET-MUST-NOT-LEAK",
+                        "refresh_seconds": 60,
+                        "stale_seconds": 300,
+                        "request_timeout_seconds": 8,
+                        "pressure_history_hours": 6,
+                    },
+                },
+            },
+            "alarms": {"enabled": True, "alarms": [{"id": "wake", "time": "07:00"}]},
+            "alarm_audio": {
+                "hardware_device": "hw:CARD=Pro,DEV=0",
+                "alsa_device": "acp_alarm",
+            },
+            "airplay": {
+                "receiver_name": "Bedroom Plexamp",
+                "default_volume_percent": 60,
+                "apply_default_volume_on_start": True,
+                "pause_hold_seconds": 420,
+            },
+            "audio": {
+                "eq": {
+                    "enabled": True,
+                    "bands": {"bass": 1.0, "mid": 0.0, "treble": -0.5},
+                }
+            },
+            "plexamp": {
+                "url": "http://localhost:32500",
+                "pause_url": "http://localhost:32500/player/playback/pause",
+                "service_name": "plexamp.service",
+            },
+        }
+        mixer = {
+            "channels": {
+                "master": {"percent": 80},
+                "plexamp": {"percent": 95},
+                "airplay": {"percent": 90},
+                "alarm": {"percent": 85},
+            }
+        }
+        fixed_now = datetime(
+            2026,
+            8,
+            23,
+            23,
+            59,
+            0,
+            tzinfo=timezone(timedelta(hours=1)),
+        )
+        return ConfigurationBackupService(
+            settings_snapshot=lambda: {"ok": True, "settings": deepcopy(settings)},
+            app_version_path=version_path,
+            home=root,
+            mixer_snapshot=lambda: deepcopy(mixer),
+            now_provider=lambda: fixed_now,
+        )
+
+    def test_export_is_versioned_portable_and_excludes_secret_or_machine_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service = self.build_service(Path(directory))
+            backup = service.build()
+
+        self.assertEqual(backup["schema_version"], 1)
+        self.assertEqual(backup["created_at"], "2026-08-23T23:59:00+01:00")
+        self.assertEqual(backup["source"]["app_version"], "0.4.0")
+        self.assertEqual(backup["plexamp"]["source_version"], "4.13.2")
+        self.assertEqual(
+            backup["plexamp"]["headless_preferences"],
+            {
+                "audioConversionBitrate": 256,
+                "autoPlayEnabled": False,
+                "cacheSize": 32768,
+                "cachingWiFi": 10,
+                "loudnessLeveling": False,
+                "precacheNetworkSpeed": 0,
+                "sampleRateConversionQuality": 4,
+                "sampleRateMatching": 2,
+            },
+        )
+        self.assertEqual(
+            backup["a_clockwork_plex"]["audio"]["mixer"],
+            {"master": 80, "plexamp": 95, "airplay": 90, "alarm": 85},
+        )
+        self.assertEqual(
+            backup["a_clockwork_plex"]["settings"]["weather"]["observations"]
+            ["weather_underground"]["station_id"],
+            "IEXAMPLE1",
+        )
+
+        encoded = json.dumps(backup, sort_keys=True)
+        for forbidden in (
+            "WU-SECRET-MUST-NOT-LEAK",
+            "SECRET_ENV_REFERENCE_MUST_NOT_EXPORT",
+            "DEVICE-SECRET-MUST-NOT-LEAK",
+            "ACCOUNT-STATE-MUST-NOT-LEAK",
+            "AUTH-MUST-NOT-LEAK",
+            "hardware_device",
+            "alsa_device",
+            "pause_url",
+            "service_name",
+            "api_key_env",
+        ):
+            self.assertNotIn(forbidden, encoded)
+        self.assertIn("plexamp.browser_preferences", encoded)
+        self.assertIn("Chromium profile/LevelDB files are never copied", encoded)
+
+    def test_backup_api_is_read_only_download_with_no_store_headers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service = self.build_service(Path(directory))
+            app = Flask(__name__)
+            register_configuration_backup_api(app, service)
+            response = app.test_client().get("/api/settings/backup")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "application/json")
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        self.assertIn(
+            'filename="A-Clockwork-Plex-backup-2026-08-23_235900.json"',
+            response.headers["Content-Disposition"],
+        )
+        payload = json.loads(response.get_data(as_text=True))
+        self.assertEqual(payload["schema_version"], 1)
 
 
 if __name__ == "__main__":
