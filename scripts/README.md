@@ -90,7 +90,7 @@ These are intentionally outside the fresh-install dependency closure because an 
 | `scripts/inspect-mixer-controller.sh` | Dumps mixer authority, AirPlay sender-volume command state and raw Shairport volume observation. | `bash scripts/inspect-mixer-controller.sh` — **read-only**. |
 | `scripts/dump-airplay-mpris-metadata.sh` | Watches raw Shairport MPRIS metadata/playback/volume properties to diagnose sender behaviour. | `bash scripts/dump-airplay-mpris-metadata.sh [interval-seconds]` — **read-only**; Ctrl+C to stop. |
 | `scripts/inspect-weather-underground-payloads.py` | Secret-safe diagnostic comparing supported WU current/history payloads with the existing mapper contract; does not write dashboard state. | `python3 scripts/inspect-weather-underground-payloads.py --help` first — **read-only**. |
-| `scripts/audit-plexamp-preferences.py` | Inventories only safe-looking `@Plexamp:settings:*` key filenames/sizes and reports Chromium storage-area presence without opening Plexamp/Chromium storage values. | `python3 scripts/audit-plexamp-preferences.py` — **read-only**; intended for backup-ownership discovery, not routine operation. |
+| `scripts/audit-plexamp-preferences.py` | Inventories safe-looking `@Plexamp:settings:*` key names/sizes in its default content-blind mode; `--show-safe-values` reads only the explicit ordinary-preference allow-list and never unknown/device-identity/authentication or Chromium storage values. | `python3 scripts/audit-plexamp-preferences.py` or add `--show-safe-values` for the guarded second-stage audit — **read-only**; intended for backup-ownership discovery, not routine operation. |
 
 ## Guarded maintenance and migration tools
 
