@@ -32,7 +32,7 @@ from urllib.parse import unquote
 
 PLEXAMP_SETTINGS_PREFIX = "@Plexamp:settings:"
 SAFE_KEY = re.compile(r"^[A-Za-z0-9_.:@/+ -]{1,120}$")
-SAFE_MMKV_SUFFIX = re.compile(r"^[A-Za-z0-9_.:@/+ -]{1,120}$")
+SAFE_MMKV_SUFFIX = re.compile(r"^[A-Za-z0-9_.:@/+ -]{1,384}$")
 SENSITIVE_KEY_TERMS = {
     "account",
     "auth",
@@ -63,7 +63,7 @@ MMKV_WEB_PREFIX = "mmkv.default\\"
 MMKV_LOOPBACK_STORAGE_KEY = re.compile(
     rb"_(https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?)"
     rb"\x00(?:\x00|\x01)?mmkv\.default\\"
-    rb"([A-Za-z0-9_@][A-Za-z0-9_.:@/+ -]{0,119})"
+    rb"([A-Za-z0-9_@][A-Za-z0-9_.:@/+ -]{0,383})"
 )
 MMKV_CUSTOMIZATION_PREFIX = "discovery:customizations:"
 
