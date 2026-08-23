@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/alarm-engine
+      - develop
   pull_request:
 
 jobs:
