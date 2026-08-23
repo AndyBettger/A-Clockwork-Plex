@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 22 August 2026  
+**Last updated:** 23 August 2026  
 **Branch:** `feature/alarm-engine`  
 **PR:** #2 — **must remain Draft, open and unmerged until explicit owner approval.**
 
@@ -85,15 +85,15 @@ The exact physically tested runtime/source head remains `215bcedb43369844b5968ae
 
 The roadmap/PR status synchronization after #75 is documentation/metadata only and does not alter the physically accepted appliance runtime.
 
-### Final release-preparation polish — OPEN
+### Final release-preparation polish — IN PROGRESS through checkpoint #78
 
 These items were deliberately identified before owner approval so they are finished on the feature branch rather than discovered after merge:
 
-- [ ] **Maintainer test-suite catalogue.** Extend the existing testing guide with a maintained catalogue of regression-test modules, their purpose, targeted run command and expected pass/failure meaning. Prefer module-level documentation plus mechanically discoverable individual test names over a hand-maintained 922-row list that would immediately drift out of date.
+- [x] **#78 maintainer test-suite catalogue — COMPLETE:** [`../development/testing/test-catalogue.md`](../development/testing/test-catalogue.md) now catalogues all **155** live `tests/test_*.py` modules by subsystem and purpose, documents full-suite/module/individual-test invocation and a shared expected-result contract, and deliberately leaves individual `test_*` case enumeration to verbose `unittest` discovery rather than maintaining a second 900+ row list. `tests/test_test_catalog.py` enforces exact two-way agreement between the Markdown catalogue and the live module set and protects the run/result documentation contract. The testing overview and development-doc map both link the catalogue. Exact catalogue head `3850bfbb331bae8db88776cc31f26ce76116edf2`; Tests #4167 / run `32612845331`: Python compile PASS, JavaScript/page wiring PASS, shell syntax PASS and **925/925 unit tests PASS** (`Ran 925 tests in 44.832s`, `OK`). This is the catalogue checkpoint validation, **not** the final release validation, because About/version and final release-document wording still remain to change.
 - [ ] **Settings → About/version metadata refresh.** The About page already consumes `app/static/app-version.json`, but that metadata is stale (`0.4.0-dev`, `feature/alarm-engine`, and the obsolete phase `Production EQ guarded rollout next`). Refresh the release identity and make version/build maintenance explicit and regression-covered so About remains trustworthy as development and releases continue.
 - [ ] **Release-ready README and INSTALL wording.** Remove production-candidate/feature-branch wording at the correct point in the merge/release sequence and document `main` as the normal supported install/update channel while tags/releases remain immutable version snapshots.
 - [ ] **Release screenshots / visual first-use guide.** Twelve privacy-safe 1280×720 release screenshots are committed under `docs/assets/screenshots/`, covering daytime Clock, night Clock, active alarm, Alarm Settings, Master EQ Settings, Weather Settings, forecast/current/wind-rain Weather views, AirPlay Ready/Now Playing and Plexamp Now Playing. The separate Weather station-status frame containing a live station identifier was intentionally not committed. The Now Playing screenshots may include contextual third-party media artwork; rights remain with their respective rights holders. The public root README now uses a curated subset inside **What you get**: paired day/night Clock views, paired forecast/current Weather views, Plexamp Now Playing, paired AirPlay Ready/Now Playing views, and the active scheduled-alarm screen. The deeper Settings frames remain available for the visual first-use material. A refreshed About screenshot should be captured after the About/version work. A physical hardware hero photograph and finished NFC sleeve photograph remain welcome later but are **not release blockers**.
-- [ ] **Final post-polish validation.** Re-run the maintained full compile/syntax/unit-test gate after the test catalogue, About/version and release-documentation changes; pin the exact green result before owner approval.
+- [ ] **Final post-polish validation.** Re-run the maintained full compile/syntax/unit-test gate after the About/version and release-documentation changes; pin the exact green result before owner approval.
 
 ## Future product backlog — non-blocking
 
@@ -141,7 +141,7 @@ Keeping completed work off the future list matters. Otherwise the roadmap eventu
 5. [x] Re-run the complete final validation suite and pin the exact result here and in PR #2.
 6. [x] Prove the two remaining historical development branches contain no unmerged product work (#76).
 7. [x] Delete and verify the obsolete refs `feature/typography-weather-bridge` and `stage-c-terminal-install-20260806` (#77).
-8. [ ] Complete the maintainer test-suite catalogue and its drift protection.
+8. [x] Complete the maintainer test-suite catalogue and its drift protection (#78).
 9. [ ] Refresh Settings → About/version metadata and make its maintenance/release contract explicit.
 10. [ ] Finish release-ready README/INSTALL wording and the curated screenshot/visual first-use material.
 11. [ ] Run and pin the final full validation suite after all release-preparation polish.
