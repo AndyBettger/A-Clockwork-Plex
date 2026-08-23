@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "A Clockwork Plex - Plexamp Bridge",
+  "version": "1.0.0",
+  "description": "Read-only bridge for allow-listed Plexamp Home preferences inside the dedicated appliance kiosk.",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:32500/*",
+        "http://127.0.0.1:32500/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
