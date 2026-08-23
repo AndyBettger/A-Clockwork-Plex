@@ -5,6 +5,9 @@ DASHBOARD_URL="${DASHBOARD_URL:-http://localhost:8088/}"
 DASHBOARD_HEALTH_URL="${DASHBOARD_HEALTH_URL:-http://localhost:8088/api/state}"
 WAIT_SECONDS="${WAIT_SECONDS:-60}"
 PROFILE_DIR="${DASHBOARD_CHROMIUM_PROFILE:-$HOME/.config/a-clockwork-plex/chromium-profile}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BRIDGE_DIR="${DASHBOARD_PLEXAMP_BRIDGE_DIR:-$REPO_ROOT/browser/plexamp-bridge}"
 
 find_browser() {
   if [[ -n "${DASHBOARD_BROWSER:-}" ]]; then
@@ -42,11 +45,20 @@ fi
 
 mkdir -p "$PROFILE_DIR"
 
-exec "$browser" \
-  --kiosk \
-  --noerrdialogs \
-  --disable-infobars \
-  --disable-session-crashed-bubble \
-  --no-first-run \
-  --user-data-dir="$PROFILE_DIR" \
-  "$DASHBOARD_URL"
+browser_args=(
+  --kiosk
+  --noerrdialogs
+  --disable-infobars
+  --disable-session-crashed-bubble
+  --no-first-run
+  --user-data-dir="$PROFILE_DIR"
+)
+
+# The optional bridge is an unpacked, permission-free content extension scoped
+# only to Plexamp's loopback web UI. If the source tree is incomplete, kiosk
+# launch remains available and backup simply reports browser preferences omitted.
+if [[ -f "$BRIDGE_DIR/manifest.json" && -f "$BRIDGE_DIR/content.js" ]]; then
+  browser_args+=(--load-extension="$BRIDGE_DIR")
+fi
+
+exec "$browser" "${browser_args[@]}" "$DASHBOARD_URL"
