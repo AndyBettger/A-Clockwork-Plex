@@ -11,6 +11,11 @@ try:
     )
     from .audio_devices import register_audio_devices_api
     from .audio_eq import register_audio_eq
+    from .audio_mixer import live_audio_status
+    from .configuration_backup import (
+        ConfigurationBackupService,
+        register_configuration_backup_api,
+    )
     from .input_activity import LinuxInputActivityMonitor
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
@@ -47,6 +52,11 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     )
     from audio_devices import register_audio_devices_api
     from audio_eq import register_audio_eq
+    from audio_mixer import live_audio_status
+    from configuration_backup import (
+        ConfigurationBackupService,
+        register_configuration_backup_api,
+    )
     from input_activity import LinuxInputActivityMonitor
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
@@ -153,6 +163,12 @@ unified_settings = UnifiedSettingsService(
     rainfall=weather_rainfall,
 )
 register_unified_settings_api(app, unified_settings)
+configuration_backup = ConfigurationBackupService(
+    settings_snapshot=unified_settings.snapshot,
+    app_version_path=dashboard.BASE_DIR / "app" / "static" / "app-version.json",
+    mixer_snapshot=lambda: live_audio_status().get("mixer", {}),
+)
+register_configuration_backup_api(app, configuration_backup)
 
 
 if __name__ == "__main__":
