@@ -121,7 +121,7 @@
 
     searchButton.disabled = true;
     searchButton.textContent = 'Searching…';
-    message.textContent = 'Searching Open-Meteo locations…';
+    message.textContent = 'Searching forecast locations…';
     try {
       const response = await fetch(`/api/weather/forecast/locations?q=${encodeURIComponent(query)}`, {
         cache: 'no-store',
