@@ -48,6 +48,7 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("--show-safe-values", source)
         self.assertIn("--scan-browser-keys", source)
         self.assertIn("--fingerprint-browser-records", source)
+        self.assertIn("MMKV_LOOPBACK_STORAGE_KEY", source)
 
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -199,7 +200,7 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             result.stdout,
         )
 
-    def test_browser_key_scan_emits_only_structured_loopback_names_never_values(self):
+    def test_browser_key_scan_emits_direct_and_mmkv_names_never_values(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             leveldb = (
@@ -213,6 +214,10 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
                     b"HOME-VALUE-MUST-NOT-LEAK",
                     b"junk_http://localhost:32500\x00\x01authToken\x00",
                     b"AUTH-VALUE-MUST-NOT-LEAK",
+                    b"junk_http://localhost:32500\x00\x01mmkv.default\\homeSources\x00",
+                    b"MMKV-HOME-MUST-NOT-LEAK",
+                    b"junk_http://localhost:32500\x00\x01mmkv.default\\authToken\x00",
+                    b"MMKV-AUTH-MUST-NOT-LEAK",
                     b"junk_http://localhost:8088\x00\x01acpTheme\x00",
                     b"THEME-VALUE-MUST-NOT-LEAK",
                     b"junk_https://example.com\x00\x01outsideKey\x00",
@@ -249,14 +254,19 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("http://127.0.0.1:32500", result.stdout)
         self.assertIn("@Plexamp:settings:homeLayout", result.stdout)
         self.assertIn("@Plexamp:settings:sidebarLayout", result.stdout)
+        self.assertIn("mmkv.default\\homeSources", result.stdout)
         self.assertIn("acpTheme", result.stdout)
-        self.assertIn("Sensitive-looking key records suppressed: 1", result.stdout)
+        self.assertIn("MMKV web-key records recognised: 1", result.stdout)
+        self.assertIn("Sensitive-looking key records suppressed: 2", result.stdout)
+        self.assertNotIn("\n      mmkv.default\n", result.stdout)
         self.assertNotIn("authToken", result.stdout)
         self.assertNotIn("example.com", result.stdout)
         self.assertNotIn("outsideKey", result.stdout)
         for forbidden in (
             "HOME-VALUE-MUST-NOT-LEAK",
             "AUTH-VALUE-MUST-NOT-LEAK",
+            "MMKV-HOME-MUST-NOT-LEAK",
+            "MMKV-AUTH-MUST-NOT-LEAK",
             "THEME-VALUE-MUST-NOT-LEAK",
             "OUTSIDE-VALUE-MUST-NOT-LEAK",
             "SIDEBAR-VALUE-MUST-NOT-LEAK",
@@ -268,7 +278,7 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             result.stdout,
         )
 
-    def test_browser_fingerprint_detects_candidate_change_without_fingerprinting_resources(self):
+    def test_browser_fingerprint_detects_namespace_change_without_fingerprinting_resources(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             leveldb = (
@@ -283,7 +293,7 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
                     (
                         b"x_http://localhost:32500\x00\x01@Plexamp:settings:activeTab\x00HOME",
                         b"A" * 4096,
-                        b"x_http://localhost:32500\x00\x01mmkv.default\x00",
+                        b"x_http://localhost:32500\x00\x01mmkv.default\\homeLayout\x00",
                         mmkv_value,
                         b"B" * 4096,
                         b"x_http://localhost:32500\x00\x01@Plexamp:resources\x00",
@@ -327,6 +337,10 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("@Plexamp:settings:activeTab", before.stdout)
         self.assertIn("mmkv.default", before.stdout)
         self.assertIn("@Plexamp:resources is deliberately excluded", before.stdout)
+        self.assertIn(
+            "mmkv.default hashes are namespace-prefix neighbourhoods across individual MMKV web keys",
+            before.stdout,
+        )
 
         before_active = next(
             line for line in before.stdout.splitlines() if "@Plexamp:settings:activeTab" in line
@@ -335,10 +349,14 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             line for line in after.stdout.splitlines() if "@Plexamp:settings:activeTab" in line
         )
         before_mmkv = next(
-            line for line in before.stdout.splitlines() if "mmkv.default" in line
+            line
+            for line in before.stdout.splitlines()
+            if " | mmkv.default | " in line
         )
         after_mmkv = next(
-            line for line in after.stdout.splitlines() if "mmkv.default" in line
+            line
+            for line in after.stdout.splitlines()
+            if " | mmkv.default | " in line
         )
         self.assertEqual(before_active, after_active)
         self.assertNotEqual(before_mmkv, after_mmkv)
