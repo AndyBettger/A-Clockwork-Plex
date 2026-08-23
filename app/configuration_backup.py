@@ -312,7 +312,7 @@ class ConfigurationBackupService:
         }
 
     def filename(self) -> str:
-        stamp = self._now().astimezone().strftime("%Y-%m-%d_%H%M%S")
+        stamp = self._now().strftime("%Y-%m-%d_%H%M%S")
         return f"A-Clockwork-Plex-backup-{stamp}.json"
 
 
