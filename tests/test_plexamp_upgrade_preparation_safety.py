@@ -47,6 +47,7 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("SAFE_VALUE_KEYS", source)
         self.assertIn("--show-safe-values", source)
         self.assertIn("--scan-browser-keys", source)
+        self.assertIn("--fingerprint-browser-records", source)
 
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -87,6 +88,7 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertNotIn("STATE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("Explicit portable-preference value audit", result.stdout)
         self.assertNotIn("structured key audit", result.stdout)
+        self.assertNotIn("differential fingerprints", result.stdout)
 
     def test_preference_auditor_value_mode_decodes_only_explicit_typed_allowlist(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -265,6 +267,91 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
             "No Plexamp setting values or Chromium Local Storage values were decoded or printed.",
             result.stdout,
         )
+
+    def test_browser_fingerprint_detects_candidate_change_without_fingerprinting_resources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            leveldb = (
+                home
+                / ".config/a-clockwork-plex/chromium-profile/Default/Local Storage/leveldb"
+            )
+            leveldb.mkdir(parents=True)
+            log = leveldb / "000001.log"
+
+            def payload(mmkv_value: bytes) -> bytes:
+                return b"".join(
+                    (
+                        b"x_http://localhost:32500\x00\x01@Plexamp:settings:activeTab\x00HOME",
+                        b"A" * 4096,
+                        b"x_http://localhost:32500\x00\x01mmkv.default\x00",
+                        mmkv_value,
+                        b"B" * 4096,
+                        b"x_http://localhost:32500\x00\x01@Plexamp:resources\x00",
+                        b"RESOURCE-SECRET-MUST-NOT-LEAK",
+                    )
+                )
+
+            log.write_bytes(payload(b"LAYOUT-A-MUST-NOT-LEAK"))
+            before = subprocess.run(
+                [
+                    "python3",
+                    str(AUDIT_SCRIPT),
+                    "--home",
+                    str(home),
+                    "--fingerprint-browser-records",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            log.write_bytes(payload(b"LAYOUT-B-MUST-NOT-LEAK"))
+            after = subprocess.run(
+                [
+                    "python3",
+                    str(AUDIT_SCRIPT),
+                    "--home",
+                    str(home),
+                    "--fingerprint-browser-records",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(before.returncode, 0, before.stderr)
+        self.assertEqual(after.returncode, 0, after.stderr)
+        self.assertIn("Chromium Local Storage differential fingerprints:", before.stdout)
+        self.assertIn("@Plexamp:settings:activeTab", before.stdout)
+        self.assertIn("mmkv.default", before.stdout)
+        self.assertIn("@Plexamp:resources is deliberately excluded", before.stdout)
+
+        before_active = next(
+            line for line in before.stdout.splitlines() if "@Plexamp:settings:activeTab" in line
+        )
+        after_active = next(
+            line for line in after.stdout.splitlines() if "@Plexamp:settings:activeTab" in line
+        )
+        before_mmkv = next(
+            line for line in before.stdout.splitlines() if "mmkv.default" in line
+        )
+        after_mmkv = next(
+            line for line in after.stdout.splitlines() if "mmkv.default" in line
+        )
+        self.assertEqual(before_active, after_active)
+        self.assertNotEqual(before_mmkv, after_mmkv)
+
+        for forbidden in (
+            "LAYOUT-A-MUST-NOT-LEAK",
+            "LAYOUT-B-MUST-NOT-LEAK",
+            "RESOURCE-SECRET-MUST-NOT-LEAK",
+        ):
+            self.assertNotIn(forbidden, before.stdout)
+            self.assertNotIn(forbidden, after.stdout)
+        self.assertNotIn("@Plexamp:resources |", before.stdout)
+        self.assertIn("No browser values were decoded or printed.", before.stdout)
 
     def test_preference_auditor_treats_missing_profiles_as_an_inert_audit(self):
         with tempfile.TemporaryDirectory() as directory:
