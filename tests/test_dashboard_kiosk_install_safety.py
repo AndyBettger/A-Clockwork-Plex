@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -8,6 +9,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-dashboard-kiosk.sh"
 LAUNCHER = ROOT / "scripts" / "launch-dashboard-kiosk.sh"
+BRIDGE_DIR = ROOT / "browser" / "plexamp-bridge"
+BRIDGE_MANIFEST = BRIDGE_DIR / "manifest.json"
+BRIDGE_CONTENT = BRIDGE_DIR / "content.js"
 
 
 class DashboardKioskInstallSafetyTests(unittest.TestCase):
@@ -18,7 +22,48 @@ class DashboardKioskInstallSafetyTests(unittest.TestCase):
         self.assertIn("--kiosk", text)
         self.assertIn("--user-data-dir=", text)
         self.assertIn("a-clockwork-plex/chromium-profile", text)
-        self.assertNotIn("localhost:32500", text)
+        self.assertNotIn('DASHBOARD_URL="${DASHBOARD_URL:-http://localhost:32500', text)
+
+    def test_launcher_loads_only_the_local_repository_bridge_when_present(self):
+        text = LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn("browser/plexamp-bridge", text)
+        self.assertIn("--load-extension=", text)
+        self.assertIn('[[ -f "$BRIDGE_DIR/manifest.json" && -f "$BRIDGE_DIR/content.js" ]]', text)
+        self.assertNotIn("--remote-debugging-port", text)
+        self.assertNotIn("--remote-debugging-address", text)
+
+    def test_plexamp_bridge_manifest_is_permission_free_and_loopback_scoped(self):
+        manifest = json.loads(BRIDGE_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["manifest_version"], 3)
+        self.assertNotIn("permissions", manifest)
+        self.assertNotIn("host_permissions", manifest)
+        self.assertNotIn("background", manifest)
+        scripts = manifest["content_scripts"]
+        self.assertEqual(len(scripts), 1)
+        self.assertEqual(
+            set(scripts[0]["matches"]),
+            {"http://localhost:32500/*", "http://127.0.0.1:32500/*"},
+        )
+        self.assertTrue(scripts[0]["all_frames"])
+        self.assertEqual(scripts[0]["js"], ["content.js"])
+
+    def test_plexamp_bridge_content_has_no_network_or_cookie_authority(self):
+        text = BRIDGE_CONTENT.read_text(encoding="utf-8")
+        self.assertIn("discovery:customizations:", text)
+        self.assertIn(":hidden", text)
+        self.assertIn(":order", text)
+        self.assertIn("postMessage", text)
+        for forbidden in (
+            "fetch(",
+            "XMLHttpRequest",
+            "WebSocket",
+            "document.cookie",
+            "chrome.cookies",
+            "chrome.storage",
+            "@Plexamp:resources",
+            "cachedItems",
+        ):
+            self.assertNotIn(forbidden, text)
 
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
