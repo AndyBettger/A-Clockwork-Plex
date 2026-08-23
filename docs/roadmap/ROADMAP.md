@@ -47,7 +47,7 @@ Normal appliance owners do not need any of those files to install the clock. Tha
 - `setup.sh` is the normal public installer.
 - `appliance-installer.sh` is the guarded lower-level transactional engine.
 - Plexamp Headless `4.13.2`, appliance Node `20.20.2` arm64 and CamillaDSP `4.1.3` remain the accepted pinned runtime identities for this release.
-- The accepted production SD remains protected; a separate spare SD is the disposable clean-room acceptance target.
+- The accepted production SD remains protected; **a separate spare SD is the disposable acceptance target** used for clean-room validation.
 - Validated hardware remains Raspberry Pi Touch Display 2, PN532 on I2C bus 1/address `0x24`, and Raspberry Pi DAC Pro as ALSA `CARD=Pro`.
 - Required boot mutation stops at an explicit reboot checkpoint; the installer never decides that rebooting the bedroom is a fun surprise.
 
