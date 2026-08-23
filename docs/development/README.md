@@ -5,6 +5,7 @@ This directory contains the engineering material that is useful when changing, v
 ## Architecture and design
 
 - [`architecture/application-state-architecture.md`](architecture/application-state-architecture.md) — playback, screen, Settings, Weather and audio ownership.
+- [`architecture/configuration-backup-ownership.md`](architecture/configuration-backup-ownership.md) — portable backup/restore ownership, secret exclusions and Plexamp preference boundaries.
 - [`architecture/airplay-metadata.md`](architecture/airplay-metadata.md) — Shairport/AirPlay metadata and integration ownership.
 - [`architecture/fresh-pi-bootstrap-ownership-design.md`](architecture/fresh-pi-bootstrap-ownership-design.md) — constrained hardware/bootstrap ownership and reboot boundaries.
 - [`architecture/full-appliance-installer-design.md`](architecture/full-appliance-installer-design.md) — guarded staged installer and rollback rationale.
