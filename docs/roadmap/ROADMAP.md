@@ -51,7 +51,7 @@ The post-v0.4.0 audio review confirmed that hi-res Plexamp playback is a genuine
 
 The implementation work is tracked below under **High-resolution Plexamp audio / mixer-EQ path**. No production audio format has been changed by this audit.
 
-### Friendly forecast-location entry — IN PROGRESS at checkpoint #86
+### Friendly forecast-location entry — COMPLETE at checkpoint #86
 
 The first implementation item of the post-v0.4.0 `develop` cycle is the Weather forecast-location helper.
 
@@ -66,10 +66,22 @@ The first implementation item of the post-v0.4.0 `develop` cycle is the Weather 
 - [x] The same physical Weather-page check exposed a far-future presentation issue: the **16-day completion renderer** could append an otherwise empty-looking `Unknown conditions` daily card. Both forecast stages now skip daily entries whose normalised condition tone is `unknown`. Foundation cards carry `data-forecast-date`, and the completion renderer extends the strip by missing forecast date rather than raw card count, preserving original Today/Tomorrow indices and preventing duplicates if an unknown day appears anywhere in the range. Both static assets are cache-busted.
 - [x] Regression coverage now protects the seven-day foundation filter, original-index hand-off, full configured-range extension, date-based deduplication, unknown-day suppression in the completion stage and JavaScript syntax.
 - [x] Final physical #86 re-check passed on 23 August 2026: exact `GU30 7JS` returned a usable postcode result, selecting/saving it populated the forecast coordinates and the Weather page rendered the selected forecast normally; scrolling the configured long-range Daily outlook showed no remaining **Unknown conditions** cards.
-- [ ] Final #86 CI closure: confirm the latest `develop` Actions **Tests** run covering the postcode fallback and full-range unknown-day fix is green. The physical product gate is complete; this is the remaining administrative/automated gate.
+- [x] Final #86 CI closure: the owner confirmed the latest `develop` Actions **Tests** run after the postcode/long-range follow-up and roadmap synchronization head `f901503e9ea4baaf32cc6b9ddcc474456f6745b2` was green.
 
 Initial location implementation/CI-wiring head: `fe118fb16ef282d6f55682699c1118e721c60b03`.  
 Combined postcode-fallback + full-range unknown-day follow-up code/test head: `a7fd2835c6f1bdb7a45591c6bfc1b17732e4f344`.
+
+### WU supplemental indoor expiry — COMPLETE at checkpoint #87
+
+The remaining Weather follow-up was a physical proof of the already-tested freshness contract for Ecowitt indoor supplementation while Weather Underground remains the selected outdoor/current authority.
+
+- [x] The development Pi was left on Weather Underground while fresh Ecowitt indoor temperature/humidity was deliberately withheld long enough to exceed the configured Ecowitt freshness window.
+- [x] The Weather page removed the **Indoor** row entirely after expiry rather than retaining stale indoor values; WU outdoor temperature, humidity and the rest of the selected-provider data remained live.
+- [x] The Clock page retained the existing paired temperature/humidity card layout but replaced the stale indoor halves with **—**, making absence explicit instead of presenting old readings as current.
+- [x] After Ecowitt data was re-enabled, indoor temperature/humidity reappeared automatically on both Clock and Weather without a service restart or manual refresh.
+- [x] Owner-supplied 1280×720 VNC screenshots on 23 August 2026 document both expired states. No runtime change was required; this closes the physical validation follow-up for the existing freshness implementation.
+
+**Weather priority #1 for the post-v0.4.0 cycle is complete. The next active priority is Settings and appliance ownership.**
 
 ## Current supported release
 
@@ -190,7 +202,7 @@ These are post-v0.4.0 ideas. They are not commitments to one release and should 
 
 Unless the owner deliberately reprioritises the cycle, implementation should proceed in this order:
 
-1. **Weather**
+1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership**, including investigation of safe non-authentication Plexamp preference backup/restore
 3. **Touchscreen Plexamp text entry**
 4. **BBC News**
@@ -244,8 +256,10 @@ The Astronomy feature should be treated as a **multi-screen section with its own
 
 ### Weather
 
-- [ ] **Friendly forecast-location entry — #86 physical acceptance complete; final CI confirmation pending.** Town/city and full UK postcode lookup are implemented and physically proven end-to-end on the development Pi. Exact `GU30 7JS` resolves through the postcode fallback when required, Save Changes applies the staged coordinates/timezone, the Weather page follows the selected location, and the long-range renderer no longer shows unusable **Unknown conditions** daily cards. Exact coordinate entry remains the advanced/fallback path.
-- [ ] **WU-only indoor-expiry physical confirmation.** On an appliance receiving no fresh Ecowitt push, physically confirm that Clock indoor cards and the Weather Indoor row disappear after freshness expiry. Source expiry tests are already green; this is a validation follow-up, not a missing core feature.
+- [x] **Friendly forecast-location entry — COMPLETE at #86.** Town/city and full UK postcode lookup are implemented and physically proven end-to-end on the development Pi. Exact `GU30 7JS` resolves through the postcode fallback when required, Save Changes applies the staged coordinates/timezone, the Weather page follows the selected location, and the long-range renderer no longer shows unusable **Unknown conditions** daily cards. Exact coordinate entry remains the advanced/fallback path. Final `develop` Actions confirmation was green.
+- [x] **WU-only indoor-expiry physical confirmation — COMPLETE at #87.** With WU selected and Ecowitt indoor supplementation withheld past freshness expiry, the Weather Indoor row disappeared, the Clock indoor halves showed **—**, WU outdoor/current data remained available, and indoor values returned automatically after Ecowitt pushes resumed.
+
+**Weather is complete for the agreed next-cycle scope.**
 
 ### Settings and appliance ownership
 
