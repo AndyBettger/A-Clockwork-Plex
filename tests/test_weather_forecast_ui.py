@@ -67,13 +67,22 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("Next hours", client)
         self.assertIn("Daily outlook", client)
         self.assertIn("futureHourly", client)
-        self.assertIn("slice(0, 7)", client)
+        self.assertIn("usableDaily", client)
+        self.assertIn(".slice(0, 7)", client)
         self.assertIn("overflow-x: auto", styles)
         self.assertIn("overflow-y: hidden", styles)
         self.assertIn("overscroll-behavior-block: auto", styles)
         self.assertIn("touch-action: pan-x pan-y", styles)
         self.assertIn("scroll-snap-type", styles)
         self.assertIn("body[data-active-page=\"weather\"]", styles)
+
+    def test_unknown_daily_conditions_are_hidden_without_relabelling_later_days(self):
+        client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
+
+        self.assertIn(".map((item, index) => ({ item, index }))", client)
+        self.assertIn(".filter(({ item }) => condition(item).tone !== 'unknown')", client)
+        self.assertIn("({ item, index }) => dailyCard(item, index)", client)
+        self.assertNotIn("condition(item).label === 'Unknown conditions'", client)
 
     def test_native_scrollbar_is_hidden_in_favour_of_custom_control(self):
         styles = Path("app/static/css/weather-forecast.css").read_text(encoding="utf-8")
