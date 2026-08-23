@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from typing import Any, Callable
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from flask import Flask, jsonify, request
 
@@ -21,6 +24,10 @@ except ImportError:  # Supports direct execution imports.
 
 ConfigProvider = Callable[[], dict[str, Any]]
 ConfigSaver = Callable[[dict[str, Any]], None]
+LocationSearch = Callable[[str], list[dict[str, Any]]]
+
+_GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search"
+_GEOCODING_USER_AGENT = "A-Clockwork-Plex/forecast-location"
 
 
 def public_forecast_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -42,6 +49,115 @@ def _boolean(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _location_query(value: Any) -> str:
+    query = " ".join(str(value or "").split())
+    if len(query) < 2:
+        raise ValueError("Enter at least 2 characters of a town, city or postcode.")
+    if len(query) > 120:
+        raise ValueError("Location search must be 120 characters or fewer.")
+    return query
+
+
+def _text(value: Any) -> str:
+    if isinstance(value, (dict, list, tuple, set)):
+        return ""
+    return str(value or "").strip()
+
+
+def search_forecast_locations(
+    query: str,
+    *,
+    opener=None,
+    timeout_seconds: int = 5,
+    count: int = 8,
+) -> list[dict[str, Any]]:
+    """Return a small, sanitised Open-Meteo geocoding result set.
+
+    This is deliberately read-only. Selecting a result in Settings only stages
+    the existing latitude/longitude/timezone controls; normal Settings save
+    remains the sole persistence path.
+    """
+
+    clean_query = _location_query(query)
+    result_count = max(1, min(10, int(count)))
+    timeout = max(1, min(15, int(timeout_seconds)))
+    params = urlencode(
+        {
+            "name": clean_query,
+            "count": result_count,
+            "language": "en",
+            "format": "json",
+        }
+    )
+    request_object = Request(
+        f"{_GEOCODING_ENDPOINT}?{params}",
+        headers={
+            "Accept": "application/json",
+            "User-Agent": _GEOCODING_USER_AGENT,
+        },
+    )
+    open_url = opener or urlopen
+
+    try:
+        with open_url(request_object, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise OSError("Forecast location service is unavailable.") from exc
+
+    if not isinstance(payload, dict):
+        raise OSError("Forecast location service returned invalid data.")
+    if payload.get("error"):
+        reason = _text(payload.get("reason")) or "Forecast location search failed."
+        raise OSError(reason)
+
+    raw_results = payload.get("results") or []
+    if not isinstance(raw_results, list):
+        raise OSError("Forecast location service returned invalid results.")
+
+    results: list[dict[str, Any]] = []
+    for item in raw_results:
+        if not isinstance(item, dict):
+            continue
+        try:
+            latitude = float(item["latitude"])
+            longitude = float(item["longitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            continue
+
+        name = _text(item.get("name"))
+        if not name:
+            continue
+
+        raw_postcodes = item.get("postcodes")
+        if isinstance(raw_postcodes, list):
+            postcodes = [
+                text
+                for text in (_text(value) for value in raw_postcodes[:5])
+                if text
+            ]
+        else:
+            postcode = _text(raw_postcodes)
+            postcodes = [postcode] if postcode else []
+
+        results.append(
+            {
+                "name": name,
+                "latitude": latitude,
+                "longitude": longitude,
+                "timezone": _text(item.get("timezone")),
+                "country": _text(item.get("country")),
+                "country_code": _text(item.get("country_code")).upper(),
+                "admin1": _text(item.get("admin1")),
+                "admin2": _text(item.get("admin2")),
+                "postcodes": postcodes,
+            }
+        )
+
+    return results
 
 
 def submitted_forecast_config(
@@ -110,9 +226,24 @@ def register_weather_forecast_settings_api(
     service: WeatherForecastService,
     load_config: ConfigProvider,
     save_config: ConfigSaver,
+    *,
+    location_search: LocationSearch = search_forecast_locations,
 ) -> None:
     if "api_weather_forecast_config" in app.view_functions:
         return
+
+    @app.route("/api/weather/forecast/locations", methods=["GET"])
+    def api_weather_forecast_locations():
+        query = request.args.get("q", "")
+        try:
+            clean_query = _location_query(query)
+            results = location_search(clean_query)
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        except OSError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 502
+
+        return jsonify({"ok": True, "query": clean_query, "results": results})
 
     @app.route("/api/weather/forecast/config", methods=["GET", "POST"])
     def api_weather_forecast_config():
