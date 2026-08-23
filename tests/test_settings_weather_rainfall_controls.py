@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
 
 PRESENTER = Path("app/static/js/settings-weather-observations.js")
+LIFETIME_PRESENTER = Path("app/static/js/settings-weather-lifetime-status.js")
+BASE = Path("app/templates/base.html")
 RUNNER = Path("app/runner.py")
 SETTINGS = Path("app/settings_weather_rainfall.py")
 WEATHER_TEMPLATE = Path("app/templates/weather.html")
@@ -60,6 +64,42 @@ class SettingsWeatherRainfallControlsTests(unittest.TestCase):
         self.assertGreaterEqual(presenter.count("await refreshRainfallStatus(true);"), 3)
         self.assertIn("renderStatus(payload);", presenter)
         self.assertNotIn("renderRainfallStatus(snapshot.status?.weather_rainfall", presenter)
+
+    def test_full_station_history_status_is_separate_from_selected_period(self) -> None:
+        presenter = LIFETIME_PRESENTER.read_text(encoding="utf-8")
+
+        self.assertIn("Selected period", presenter)
+        self.assertIn("Full station history", presenter)
+        self.assertIn("/api/weather/rainfall/lifetime", presenter)
+        self.assertIn("Backfilling full history", presenter)
+        self.assertIn("Full history ready", presenter)
+        self.assertIn("discovery_complete", presenter)
+        self.assertIn("first_record_date", presenter)
+        self.assertIn("independently of the selected rainfall period", presenter)
+        self.assertNotIn("weather.historical_rainfall.period", presenter)
+
+    def test_full_station_history_presenter_is_loaded_and_syntax_valid(self) -> None:
+        base = BASE.read_text(encoding="utf-8")
+        self.assertIn("settings-weather-lifetime-status.js", base)
+        self.assertGreater(
+            base.index("{% block scripts %}{% endblock %}"),
+            base.index("settings-transaction-guard.js"),
+        )
+        self.assertGreater(
+            base.index("settings-weather-lifetime-status.js"),
+            base.index("{% block scripts %}{% endblock %}"),
+        )
+
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed.")
+        result = subprocess.run(
+            [node, "--check", str(LIFETIME_PRESENTER)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_successful_station_gaps_stay_ready_and_explain_minimum_recorded_total(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
