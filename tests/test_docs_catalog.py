@@ -24,6 +24,7 @@ SCREENSHOT_FILES = {
     "clock-day.png",
     "clock-night.png",
     "plexamp-now-playing.png",
+    "settings-about.png",
     "settings-alarms.png",
     "settings-audio.png",
     "settings-weather.png",
