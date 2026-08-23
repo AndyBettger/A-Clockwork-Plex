@@ -115,6 +115,46 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("touch-action: none", styles)
         self.assertIn("touch-action: pan-x pan-y", styles)
 
+    def test_settings_location_lookup_stages_existing_forecast_fields(self):
+        presenter = Path("app/static/js/settings-weather-location.js").read_text(
+            encoding="utf-8"
+        )
+        keyboard = Path("app/static/js/settings-keyboard.js").read_text(encoding="utf-8")
+        base = Path("app/templates/base.html").read_text(encoding="utf-8")
+
+        self.assertIn("Find forecast location", presenter)
+        self.assertIn("Town, city or postcode", presenter)
+        self.assertIn("/api/weather/forecast/locations?q=", presenter)
+        self.assertIn('data-setting-path="weather.forecast.latitude"', presenter)
+        self.assertIn('data-setting-path="weather.forecast.longitude"', presenter)
+        self.assertIn('data-setting-path="weather.forecast.timezone"', presenter)
+        self.assertIn("Latitude (advanced)", presenter)
+        self.assertIn("Longitude (advanced)", presenter)
+        self.assertIn("Save Changes still controls persistence", presenter)
+        self.assertIn("dispatchEvent(new Event('input', { bubbles: true }))", presenter)
+        self.assertNotIn("method: 'POST'", presenter)
+        self.assertIn("document.addEventListener('focusin'", keyboard)
+        self.assertIn("input[data-keyboard]", keyboard)
+        self.assertIn("js/settings-weather-location.js", base)
+        self.assertGreater(
+            base.index("{% block scripts %}{% endblock %}"),
+            base.index("js/settings-transaction-guard.js"),
+        )
+        self.assertGreater(
+            base.index("js/settings-weather-location.js"),
+            base.index("{% block scripts %}{% endblock %}"),
+        )
+        Environment().parse(base)
+
+    def test_settings_location_lookup_has_valid_javascript_syntax(self):
+        result = subprocess.run(
+            ["node", "--check", "app/static/js/settings-weather-location.js"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_forecast_client_has_valid_javascript_syntax(self):
         result = subprocess.run(
             ["node", "--check", "app/static/js/weather-forecast.js"],
