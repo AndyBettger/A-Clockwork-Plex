@@ -57,6 +57,22 @@ The focused guard can be run with:
 venv/bin/python -m unittest discover -s tests -p 'test_test_catalog.py' -v
 ```
 
+## Settings → About release metadata
+
+`app/static/app-version.json` is the single user-visible release-identity source consumed by **Settings → About**. Keep it deliberately boring and durable: it describes the release that the appliance is running, not the current branch, roadmap phase or whatever engineering problem happened to be exciting when the file was last touched.
+
+The maintained fields are:
+
+- `name` — product name;
+- `version` — plain semantic release version such as `0.4.0`;
+- `tag` — matching Git release tag, exactly `v` plus `version`;
+- `release_name` — short human-facing release name;
+- `repository` and `companion_repository` — project links used by About.
+
+Do **not** put feature-branch names, `-dev` suffixes, “next phase” text, rollout plans or other transient roadmap state into this metadata. Current capability/status copy belongs to the Settings runtime presenter, while future work belongs to the roadmap.
+
+For a release-number change, update `version`, `tag` and `release_name` together. The eventual GitHub release/tag must use the exact `tag` recorded here. `tests/test_settings_completion.py` pins the release identity, version/tag relationship and the absence of transient development wording, so an intentional version bump must update that regression contract in the same change.
+
 ## CI relationship
 
 `.github/workflows/tests.yml` is the release CI authority. It performs the same core compile/syntax/unit-test gate and additionally carries targeted early assertions for critical page wiring and release contracts.

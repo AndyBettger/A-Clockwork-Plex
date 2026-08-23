@@ -276,12 +276,12 @@
     const current = document.createElement('section');
     current.className = 'settings-card';
     current.innerHTML = `
-      <h3>Current appliance</h3>
+      <h3>Appliance capabilities</h3>
       <div class="settings-about-grid" data-about-appliance-status>
         <div class="settings-about-reading"><span>Dashboard</span><strong>Unified kiosk</strong><small>Clock, Weather and source-aware screen projection</small></div>
-        <div class="settings-about-reading"><span>Audio</span><strong>Shared mixer</strong><small>Plexamp, AirPlay and alarms with manual post-alarm resume</small></div>
-        <div class="settings-about-reading"><span>Settings</span><strong>Autosaved</strong><small>Revisioned validation with managed AirPlay naming</small></div>
-        <div class="settings-about-reading"><span>Next phase</span><strong>Production EQ</strong><small>Guarded CamillaDSP rollout; old bare installer remains blocked</small></div>
+        <div class="settings-about-reading"><span>Audio</span><strong>Managed EQ</strong><small>Plexamp and AirPlay use the music lane; alarms remain independent</small></div>
+        <div class="settings-about-reading"><span>Settings</span><strong>Unified controls</strong><small>Revisioned configuration, managed secrets and explicit runtime actions</small></div>
+        <div class="settings-about-reading"><span>Installer</span><strong>Guarded setup</strong><small>Fresh bootstrap, verification and rollback-aware component ownership</small></div>
       </div>`;
     const projectLinks = [...panel.querySelectorAll('.settings-card')]
       .find((card) => card.querySelector('h3')?.textContent.trim() === 'Project links');
@@ -294,10 +294,10 @@
         const readings = current.querySelectorAll('.settings-about-reading');
         const receiver = payload.settings.airplay?.receiver_name;
         const forecast = payload.status?.forecast?.status;
-        const eq = payload.status?.eq?.available === true ? 'Production ready' : 'Guarded rollout pending';
+        const eq = payload.status?.eq?.available === true ? 'Managed EQ available' : 'EQ status unavailable';
         if (readings[0] && receiver) readings[0].querySelector('small').textContent = `Kiosk active · AirPlay receiver ${receiver}`;
-        if (readings[2] && forecast) readings[2].querySelector('small').textContent = `Autosave active · Forecast ${forecast}`;
-        if (readings[3]) readings[3].querySelector('small').textContent = eq;
+        if (readings[1]) readings[1].querySelector('small').textContent = `${eq} · alarm lane remains independent`;
+        if (readings[2] && forecast) readings[2].querySelector('small').textContent = `Unified Settings · Forecast ${forecast}`;
       })
       .catch(() => {});
   }

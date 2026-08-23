@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import unittest
@@ -11,6 +12,7 @@ CLIENT = ROOT / "app" / "static" / "js" / "settings-completion.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-completion.css"
 BASE = ROOT / "app" / "templates" / "base.html"
 ABOUT = ROOT / "app" / "static" / "app-version.json"
+ABOUT_CLIENT = ROOT / "app" / "static" / "js" / "settings-about.js"
 ADVANCED = ROOT / "app" / "static" / "js" / "settings-advanced.js"
 
 
@@ -19,18 +21,20 @@ class SettingsCompletionTests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        result = subprocess.run(
-            [node, "--check", str(CLIENT)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        for path in (CLIENT, ABOUT_CLIENT):
+            result = subprocess.run(
+                [node, "--check", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
 
     def test_completion_assets_are_settings_only(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("settings-completion.css", text)
         self.assertIn("settings-completion.js", text)
+        self.assertIn("20260823-about-release-metadata-v1", text)
         self.assertIn("active_page | default(state.mode) == 'settings'", text)
         self.assertTrue(STYLE.exists())
 
@@ -53,13 +57,43 @@ class SettingsCompletionTests(unittest.TestCase):
         self.assertIn("data-settings-section-target=\"advanced\"", text)
         self.assertIn("dot.hidden = true", text)
 
-    def test_about_metadata_describes_current_release_phase(self):
-        text = ABOUT.read_text(encoding="utf-8")
-        self.assertIn("Unified Dashboard, Weather, Alarms and Managed AirPlay", text)
-        self.assertIn("Production EQ guarded rollout next", text)
+    def test_about_metadata_is_durable_release_identity(self):
+        metadata = json.loads(ABOUT.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(metadata),
+            {
+                "name",
+                "version",
+                "tag",
+                "release_name",
+                "repository",
+                "companion_repository",
+            },
+        )
+        self.assertEqual(metadata["name"], "A Clockwork Plex")
+        self.assertEqual(metadata["version"], "0.4.0")
+        self.assertRegex(metadata["version"], r"^\d+\.\d+\.\d+$")
+        self.assertEqual(metadata["tag"], f"v{metadata['version']}")
+        self.assertEqual(metadata["release_name"], "Unified Bedside Appliance")
+
+        durable_values = " ".join(str(value) for value in metadata.values()).lower()
+        for stale in ("feature/alarm-engine", "-dev", "next phase", "rollout next"):
+            with self.subTest(stale=stale):
+                self.assertNotIn(stale, durable_values)
+
         client = CLIENT.read_text(encoding="utf-8")
-        self.assertIn("Current appliance", client)
-        self.assertIn("old bare installer remains blocked", client)
+        self.assertIn("Appliance capabilities", client)
+        self.assertIn("Managed EQ", client)
+        self.assertIn("Guarded setup", client)
+        self.assertNotIn("Next phase", client)
+        self.assertNotIn("Production EQ", client)
+        self.assertNotIn("old bare installer remains blocked", client)
+
+        about_client = ABOUT_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("metadata.version", about_client)
+        self.assertIn("metadata.release_name", about_client)
+        self.assertIn("metadata.tag", about_client)
+        self.assertNotIn("metadata.phase", about_client)
 
     def test_advanced_alarm_poll_is_slow_and_visibility_scoped(self):
         text = ADVANCED.read_text(encoding="utf-8")
