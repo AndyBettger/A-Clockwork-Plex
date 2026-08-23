@@ -65,6 +65,49 @@ class DashboardKioskInstallSafetyTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, text)
 
+    def test_plexamp_bridge_emits_only_logical_order_and_hidden_state(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const values = new Map([
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify(['music.recent.added.9', 'custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f'])],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:hidden', 'true'],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:editing', 'true'],
+  ['mmkv.default\\music.popular.9:cachedItems', 'CACHE-MUST-NOT-LEAK'],
+  ['mmkv.default\\authToken', 'AUTH-MUST-NOT-LEAK'],
+]);
+const keys = Array.from(values.keys());
+const storage = {
+  get length() { return keys.length; },
+  key(index) { return keys[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+};
+process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "ready")
+        self.assertEqual(
+            payload["home"]["order"],
+            [
+                "music.recent.added.9",
+                "custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f",
+            ],
+        )
+        self.assertEqual(
+            payload["home"]["hidden"],
+            ["custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f"],
+        )
+        self.assertNotIn("editing", result.stdout)
+        self.assertNotIn("CACHE-MUST-NOT-LEAK", result.stdout)
+        self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
+
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('MODE="check"', text)
