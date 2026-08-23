@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Read-only inventory of Plexamp preference storage and safe browser keys.
+"""Read-only inventory of Plexamp preference storage and safe browser metadata.
 
 Default mode is content-blind for Plexamp values. ``--show-safe-values`` opens
 only the explicit typed Headless preference allow-list established from the
 commissioned Plexamp 4.13.2 appliance. ``--scan-browser-keys`` reads only
 Chromium Local Storage LevelDB data files and emits structured loopback-origin
 key names; it never decodes or prints Local Storage values and never opens
-Session Storage values.
+Session Storage values. ``--fingerprint-browser-records`` hashes only bounded
+record neighbourhoods for an explicit non-sensitive browser-key allow-list so
+a before/after UI experiment can identify which store changed without decoding
+or printing any browser value.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import math
 import re
 from pathlib import Path
@@ -70,6 +74,20 @@ KNOWN_NON_PORTABLE_KEYS = {
     "playerName": "device label/identity; keep outside the ordinary portable preference bundle",
     "premium": "derived account/capability state; do not restore",
 }
+
+# The first live Chromium key scan on Plexamp 4.13.2 found these ordinary
+# browser-side candidates at http://localhost:32500. @Plexamp:resources is
+# deliberately absent: resource/server identity must not be fingerprinted as a
+# portable preference candidate. Fingerprinting still never decodes a value.
+BROWSER_FINGERPRINT_KEYS = frozenset(
+    {
+        "@Plexamp:settings:activeTab",
+        "@Plexamp:settings:radioIncludeExternal",
+        "mmkv.default",
+    }
+)
+BROWSER_FINGERPRINT_WINDOW_BEFORE = 32
+BROWSER_FINGERPRINT_WINDOW_AFTER = 2048
 
 
 def _has_sensitive_term(key: str) -> bool:
@@ -154,6 +172,22 @@ def _safe_browser_key(raw_key: bytes) -> str | None:
     return key
 
 
+def _browser_leveldb_payloads(browser_default: Path) -> list[tuple[Path, bytes]]:
+    leveldb = browser_default / "Local Storage" / "leveldb"
+    if not leveldb.is_dir():
+        return []
+
+    payloads: list[tuple[Path, bytes]] = []
+    for path in sorted(leveldb.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in LEVELDB_DATA_SUFFIXES:
+            continue
+        try:
+            payloads.append((path, path.read_bytes()))
+        except OSError:
+            continue
+    return payloads
+
+
 def _scan_browser_local_storage(browser_default: Path) -> None:
     """Print only structured loopback Local Storage key names, never values."""
 
@@ -163,22 +197,14 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
         print("  LevelDB directory: NOT FOUND")
         return
 
-    scanned_files = 0
-    scanned_bytes = 0
+    payloads = _browser_leveldb_payloads(browser_default)
+    scanned_files = len(payloads)
+    scanned_bytes = sum(len(payload) for _path, payload in payloads)
     origins: set[str] = set()
     keys_by_origin: dict[str, set[str]] = {}
     sensitive_records = 0
 
-    for path in sorted(leveldb.iterdir()):
-        if not path.is_file() or path.suffix.lower() not in LEVELDB_DATA_SUFFIXES:
-            continue
-        try:
-            payload = path.read_bytes()
-        except OSError:
-            continue
-        scanned_files += 1
-        scanned_bytes += len(payload)
-
+    for _path, payload in payloads:
         for match in LOOPBACK_STORAGE_KEY.finditer(payload):
             origin = match.group(1).decode("ascii", errors="strict")
             raw_key = match.group(2)
@@ -212,11 +238,55 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
     print("  No browser Local Storage values were decoded or printed.")
 
 
+def _fingerprint_browser_records(browser_default: Path) -> None:
+    """Hash bounded neighbourhoods for explicit browser keys; never decode values."""
+
+    leveldb = browser_default / "Local Storage" / "leveldb"
+    print("Chromium Local Storage differential fingerprints:")
+    if not leveldb.is_dir():
+        print("  LevelDB directory: NOT FOUND")
+        return
+
+    payloads = _browser_leveldb_payloads(browser_default)
+    records: dict[tuple[str, str], set[str]] = {}
+    occurrences: dict[tuple[str, str], int] = {}
+
+    for _path, payload in payloads:
+        for match in LOOPBACK_STORAGE_KEY.finditer(payload):
+            origin = match.group(1).decode("ascii", errors="strict")
+            key = _safe_browser_key(match.group(2))
+            if key not in BROWSER_FINGERPRINT_KEYS:
+                continue
+
+            start = max(0, match.start() - BROWSER_FINGERPRINT_WINDOW_BEFORE)
+            end = min(len(payload), match.end() + BROWSER_FINGERPRINT_WINDOW_AFTER)
+            digest = hashlib.sha256(payload[start:end]).hexdigest()[:20]
+            identity = (origin, key)
+            occurrences[identity] = occurrences.get(identity, 0) + 1
+            records.setdefault(identity, set()).add(digest)
+
+    if not records:
+        print("  Approved candidate records: none detected")
+        print("  No browser values were decoded or printed.")
+        return
+
+    print("  Approved candidate record-neighbourhood hashes:")
+    for origin, key in sorted(records, key=lambda item: (item[0], item[1].casefold())):
+        digests = ", ".join(sorted(records[(origin, key)]))
+        count = occurrences[(origin, key)]
+        print(f"    {origin} | {key} | occurrences={count} | fingerprints={digests}")
+
+    print("  @Plexamp:resources is deliberately excluded from fingerprinting.")
+    print("  Hashes cover bounded record neighbourhoods, not decoded preference values.")
+    print("  No browser values were decoded or printed.")
+
+
 def audit(
     home: Path,
     *,
     show_safe_values: bool = False,
     scan_browser_keys: bool = False,
+    fingerprint_browser_records: bool = False,
 ) -> int:
     settings_dir = home / ".local" / "share" / "Plexamp" / "Settings"
     browser_default = home / ".config" / "a-clockwork-plex" / "chromium-profile" / "Default"
@@ -297,15 +367,17 @@ def audit(
 
     if scan_browser_keys:
         _scan_browser_local_storage(browser_default)
+    if fingerprint_browser_records:
+        _fingerprint_browser_records(browser_default)
 
-    if show_safe_values and scan_browser_keys:
+    if show_safe_values and (scan_browser_keys or fingerprint_browser_records):
         print(
             "Unknown Plexamp values and Chromium values remain excluded; "
-            "browser scan emitted structured key names only."
+            "browser audit emitted names/hashes only."
         )
     elif show_safe_values:
         print("No unknown Plexamp values and no Chromium storage values were opened or printed.")
-    elif scan_browser_keys:
+    elif scan_browser_keys or fingerprint_browser_records:
         print("No Plexamp setting values or Chromium Local Storage values were decoded or printed.")
     else:
         print("No Plexamp/Chromium storage values were opened or printed.")
@@ -314,7 +386,7 @@ def audit(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Inventory Plexamp preference keys; optionally show approved Headless values or safe browser key names."
+        description="Inventory Plexamp preferences; optionally show approved Headless values or safe browser metadata."
     )
     parser.add_argument(
         "--home",
@@ -332,6 +404,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Scan Chromium Local Storage LevelDB data files for structured loopback-origin key names only; never decode values.",
     )
+    parser.add_argument(
+        "--fingerprint-browser-records",
+        action="store_true",
+        help="Hash bounded LevelDB record neighbourhoods for the explicit non-sensitive browser candidate keys; never decode values.",
+    )
     return parser.parse_args()
 
 
@@ -341,6 +418,7 @@ def main() -> int:
         args.home.expanduser(),
         show_safe_values=args.show_safe_values,
         scan_browser_keys=args.scan_browser_keys,
+        fingerprint_browser_records=args.fingerprint_browser_records,
     )
 
 
