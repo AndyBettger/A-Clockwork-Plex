@@ -1,8 +1,9 @@
 # A Clockwork Plex Roadmap
 
 **Last updated:** 23 August 2026  
-**Branch:** `feature/alarm-engine`  
-**PR:** #2 — explicit owner approval for merge received on 23 August 2026.
+**Branch:** `main`  
+**PR:** #2 — merged into `main` on 23 August 2026.  
+**Release:** **`v0.4.0` — Unified Bedside Appliance — PUBLISHED 23 August 2026.**
 
 > This roadmap began as the EQ/audio-installer plan. Then the installer acquired the rest of the appliance, the alarm clock acquired an audio engine, Weather acquired history, AirPlay acquired an arbitration layer, and the phrase “small follow-up” lost all legal meaning. 😁 This is now the project-wide roadmap.
 
@@ -19,6 +20,16 @@ Detailed earlier chronology is preserved separately so completed engineering doe
 - [`../development/evidence/release-hygiene-audit-2026-08-19.md`](../development/evidence/release-hygiene-audit-2026-08-19.md) — repository/release-hygiene record.
 
 Normal appliance owners do not need any of those files to install the clock. That job belongs to [`../INSTALL.md`](../INSTALL.md).
+
+## Current supported release
+
+**A Clockwork Plex `v0.4.0` — Unified Bedside Appliance** is the current published release.
+
+- Accepted and merged `main` commit: `d5481b4d52627cbf57a2aa32f974d619fb38ee75`.
+- GitHub Actions **Tests #4200** passed on that exact merged `main` commit.
+- The published `v0.4.0` tag was verified against the merge commit with GitHub's commit comparison: **identical**, `ahead_by=0`, `behind_by=0`, no changed files.
+- `main` is the normal supported installation/update channel.
+- `v0.4.0` is an immutable accepted-release snapshot. This roadmap update is intentionally a later `main` commit and is not part of the tagged release.
 
 ## Settled release invariants
 
@@ -57,7 +68,7 @@ Normal appliance owners do not need any of those files to install the clock. Tha
 - Touch-to-wake, scheduled night dimming and burn-in shifting are implemented; do **not** resurrect those as stale future-roadmap items.
 - Settings touch controls, alarm weekday presentation/status pills, clock-colon timing, AirPlay marquee/classification, navigation and EQ bypass presentation are accepted.
 
-## Release-candidate status
+## v0.4.0 acceptance and release history
 
 ### Physical clean-room acceptance — COMPLETE through checkpoint #64
 
@@ -112,9 +123,18 @@ Final #82 physical evidence on 23 August 2026:
 
 The owner explicitly approved PR #2 for merge after those checks on **23 August 2026**.
 
+### Release publication — COMPLETE at checkpoint #83
+
+- [x] PR #2 was merged to `main` as `d5481b4d52627cbf57a2aa32f974d619fb38ee75`.
+- [x] The exact post-merge `main` workflow, **Tests #4200**, completed green.
+- [x] GitHub release/tag **`v0.4.0` — Unified Bedside Appliance** was published on 23 August 2026.
+- [x] GitHub comparison confirmed `v0.4.0` and `d5481b4d52627cbf57a2aa32f974d619fb38ee75` are identical.
+
+**v0.4.0 is released.** Future development starts from `main` on new development branches; the released tag remains immutable.
+
 ## Future product backlog — non-blocking
 
-These are useful ideas that are **not required for the accepted release candidate**.
+These are useful ideas that are **not required for the accepted release**.
 
 ### Weather
 
@@ -147,5 +167,7 @@ Keeping completed work off the future list matters. Otherwise the roadmap eventu
 6. [x] Release-ready README/INSTALL and visual first-use material (#80).
 7. [x] Pre-approval validation (#81).
 8. [x] Final blank-Pi follow-up/spot-check (#82).
-9. [x] **Explicit owner approval for PR #2 merge — received 23 August 2026.**
-10. [ ] Merge PR #2 to `main`, verify the exact resulting `main` commit/CI, then create GitHub release/tag `v0.4.0` from that accepted `main` commit.
+9. [x] Explicit owner approval for PR #2 merge — received 23 August 2026.
+10. [x] PR #2 merged to `main`; exact merge commit `d5481b4d52627cbf57a2aa32f974d619fb38ee75` passed Tests #4200; GitHub release/tag `v0.4.0` published and verified identical to that commit (#83).
+
+**All v0.4.0 release gates are complete.**
