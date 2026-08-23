@@ -166,20 +166,34 @@ The owner explicitly approved PR #2 for merge after those checks on **23 August 
 
 These are post-v0.4.0 ideas. They are not commitments to one release and should be designed/tested independently before promotion to `main`.
 
+### Agreed implementation order
+
+Unless the owner deliberately reprioritises the cycle, implementation should proceed in this order:
+
+1. **Weather**
+2. **Settings and appliance ownership**, including investigation of safe non-authentication Plexamp preference backup/restore
+3. **Touchscreen Plexamp text entry**
+4. **BBC News**
+5. **Events calendar**
+6. **High-resolution Plexamp audio / mixer-EQ path**
+7. **Astronomy**
+
+This priority list is authoritative for work order. The detailed sections below remain the technical reference catalogue and do not imply a different implementation priority.
+
 ### High-resolution Plexamp audio / mixer-EQ path
 
-The current v0.4.0 audio profiles intentionally use a fixed **16-bit / 44.1 kHz** shared bus. The next-cycle goal is to let high-resolution Plex material retain materially higher resolution through the appliance **with managed EQ active or bypassed**, while preserving the alarm, mixer, limiter and handoff contracts that make the appliance reliable.
+The current v0.4.0 audio profiles intentionally use a fixed **16-bit / 44.1 kHz** shared bus. The next-cycle goal is to let high-resolution Plex material retain materially higher resolution through the appliance **with managed EQ active**, while providing a measured source-rate-native/bit-perfect path when processing is bypassed and the appliance safety contracts permit it.
 
 - [ ] **Physical capability audit on the development Pi.** Use known 16/44.1, 24/48, 24/96 and 24/192 Plex files. Record Plexamp's selected output mode/rate, `aplay --dump-hw-params` for the DAC Pro and the live ALSA `/proc/asound/.../hw_params` state. Confirm the exact formats/rates accepted by this hardware/software combination before selecting a production bus.
 - [ ] **Choose the managed high-resolution bus.** Compare at least 24/96 and 24/192-class operation (using the appropriate ALSA container format such as `S32_LE` where required) for CPU load, stability, latency and CamillaDSP behaviour. Do not select 192 kHz merely because the DAC advertises it if 96 kHz is the better appliance engineering trade-off.
 - [ ] **Remove the 16/44.1 bottleneck from the managed EQ split bus.** Preserve the existing source trims → Music Master → fixed `-6.5 dB` reserve → Bass/Mid/Treble → limiter contract and the post-EQ scheduled-alarm join.
-- [ ] **Hi-res with EQ active and EQ bypassed.** EQ bypass must mean the music signal avoids the tone filters while remaining on the accepted high-resolution managed path; document that this is not automatically the same thing as source-rate-native/bit-perfect playback.
-- [ ] **Investigate a source-rate-native Direct Plexamp path.** Determine whether Plexamp can hand 44.1/48/88.2/96/176.4/192 kHz material directly to the DAC with reliable sample-rate matching. Only adopt a native Direct mode if alarm takeover, Maximum Alarm Volume authority, source handoff and recovery remain deterministic; appliance reliability outranks a bit-perfect badge.
+- [ ] **EQ-active high-resolution plus native bypass.** The preferred user experience is: EQ active → accepted high-resolution managed DSP path; EQ bypass → source-rate-native Direct path and bit-perfect playback where measured conditions prove it. Because Music Master, source trims, reserve, limiting or resampling would themselves alter samples, the implementation must either bypass those operations too for true native playback or clearly report a managed-bypass state instead of falsely claiming bit-perfect output.
+- [ ] **Investigate a source-rate-native Direct Plexamp path.** Determine whether Plexamp can hand 44.1/48/88.2/96/176.4/192 kHz material directly to the DAC with reliable sample-rate matching. The existing Bypass EQ control may become the route selector if that remains intuitive, but only adopt a native Direct mode if alarm takeover, Maximum Alarm Volume authority, source handoff and recovery remain deterministic; appliance reliability outranks a bit-perfect badge.
 - [ ] **Define resampling policy.** If the managed mixer/EQ uses one fixed high-resolution rate, use a deliberate high-quality conversion policy for lower/different-rate Plexamp material and for AirPlay rather than relying on accidental/default conversions hidden in an ALSA `plug` chain.
 - [ ] **Preserve AirPlay compatibility.** Treat AirPlay according to the format actually delivered by Shairport Sync; do not advertise 96/192 kHz AirPlay simply because the internal bus can run at that rate. Prove AirPlay → Plexamp and Plexamp → AirPlay handoff after high-rate playback.
 - [ ] **Expose truthful audio diagnostics.** Make it possible to inspect/report source format/rate, internal processing format/rate and final DAC format/rate so future troubleshooting can distinguish “24/96 source” from “24/96 actually reaching the DAC”.
 - [ ] **Automated regression coverage.** Protect accepted format/rate configuration, route rendering, safe fallback, EQ active/bypass behaviour and alarm authority. Never allow a hi-res change to weaken the tested scheduled-alarm bypass contract.
-- [ ] **Physical acceptance matrix.** Exercise 16/44.1, 24/48, 24/96 and 24/192 Plex material through EQ active and EQ bypass; test a real scheduled alarm during high-rate Plexamp playback; then test AirPlay takeover and return. Only describe a path as native/bit-perfect when measured ALSA/DAC parameters prove it.
+- [ ] **Physical acceptance matrix.** Exercise 16/44.1, 24/48, 24/96 and 24/192 Plex material through EQ active and native/bypass operation; test a real scheduled alarm during high-rate Plexamp playback; then test AirPlay takeover and return. Only describe a path as native/bit-perfect when measured ALSA/DAC parameters prove it.
 
 ### Astronomy — major new application area
 
@@ -216,7 +230,8 @@ The Astronomy feature should be treated as a **multi-screen section with its own
 ### Settings and appliance ownership
 
 - [ ] **Configuration backup/export.** Provide a supported way to export ordinary appliance Settings without leaking managed secrets or volatile runtime/cache state.
-- [ ] **Configuration import/restore.** Validate an exported configuration before applying it transactionally; do not blindly overwrite installer-owned or secret material.
+- [ ] **Plexamp preference backup feasibility.** Investigate an allow-listed backup of useful non-authentication Plexamp preferences rather than copying the whole Plexamp profile. Headless/server-side preferences under the Plexamp Settings store and browser-side experience preferences must be treated separately. Candidate restore data may include device/audio preferences and user experience/home-layout choices where their storage and semantics are understood. Explicitly exclude Plex authentication/account tokens, claim material, browser session cookies, machine identity, caches and logs. The backup format must be versioned and restore must preserve correct ownership/permissions and tolerate Plexamp-version changes safely.
+- [ ] **Configuration import/restore.** Validate an exported configuration before applying it transactionally; do not blindly overwrite installer-owned, secret or Plexamp-owned material. Any supported Plexamp preference restore should be allow-listed and best-effort/version-aware rather than a raw profile replacement.
 - [ ] **Reset-to-defaults workflow.** Add an intentional, confirmation-gated Settings reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual deletion of JSON files.
 
 ### Touchscreen Plexamp text entry
