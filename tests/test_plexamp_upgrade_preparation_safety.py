@@ -41,12 +41,11 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("aplay -L", text)
         self.assertIn("98-a-clockwork-plex-control-aliases.conf", text)
 
-    def test_preference_auditor_is_content_blind_and_filters_sensitive_names(self):
+    def test_preference_auditor_default_mode_is_content_blind_and_filters_sensitive_names(self):
         source = AUDIT_SCRIPT.read_text(encoding="utf-8")
-        self.assertNotIn("read_text(", source)
-        self.assertNotIn("read_bytes(", source)
-        self.assertNotIn("open(", source)
         self.assertIn("NO FILE CONTENTS ARE READ", source)
+        self.assertIn("SAFE_VALUE_KEYS", source)
+        self.assertIn("--show-safe-values", source)
 
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -85,6 +84,80 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertNotIn("VALUE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("STATE-MUST-NOT-LEAK", result.stdout)
+        self.assertNotIn("Explicit portable-preference value audit", result.stdout)
+
+    def test_preference_auditor_value_mode_reads_only_explicit_ordinary_allowlist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            settings = home / ".local/share/Plexamp/Settings"
+            settings.mkdir(parents=True)
+            fixtures = {
+                "audioConversionBitrate": "320\n",
+                "autoPlayEnabled": "true\n",
+                "cacheSize": "65536\n",
+                "cachingWiFi": "false\n",
+                "loudnessLeveling": "true\n",
+                "precacheNetworkSpeed": "50\n",
+                "sampleRateConversionQuality": "4\n",
+                "sampleRateMatching": "1\n",
+                "audioDeviceUuid": "DEVICE-VALUE-MUST-NOT-LEAK",
+                "playerName": "PLAYER-NAME-MUST-NOT-LEAK",
+                "premium": "PREMIUM-MUST-NOT-LEAK",
+                "futureOrdinaryPreference": "UNKNOWN-MUST-NOT-LEAK",
+                "authToken": "AUTH-MUST-NOT-LEAK",
+            }
+            for key, value in fixtures.items():
+                encoded = "%40Plexamp%3Asettings%3A" + key
+                (settings / encoded).write_text(value, encoding="utf-8")
+
+            browser = home / ".config/a-clockwork-plex/chromium-profile/Default"
+            (browser / "Local Storage").mkdir(parents=True)
+            (browser / "Session Storage").mkdir()
+            (browser / "Local Storage" / "leveldb-secret").write_text(
+                "BROWSER-MUST-NOT-LEAK", encoding="utf-8"
+            )
+
+            result = subprocess.run(
+                [
+                    "python3",
+                    str(AUDIT_SCRIPT),
+                    "--home",
+                    str(home),
+                    "--show-safe-values",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for expected in (
+            "audioConversionBitrate = 320",
+            "autoPlayEnabled = true",
+            "cacheSize = 65536",
+            "cachingWiFi = false",
+            "loudnessLeveling = true",
+            "precacheNetworkSpeed = 50",
+            "sampleRateConversionQuality = 4",
+            "sampleRateMatching = 1",
+        ):
+            self.assertIn(expected, result.stdout)
+        for key in ("audioDeviceUuid", "playerName", "premium"):
+            self.assertIn(f"{key}:", result.stdout)
+        for forbidden in (
+            "DEVICE-VALUE-MUST-NOT-LEAK",
+            "PLAYER-NAME-MUST-NOT-LEAK",
+            "PREMIUM-MUST-NOT-LEAK",
+            "UNKNOWN-MUST-NOT-LEAK",
+            "AUTH-MUST-NOT-LEAK",
+            "BROWSER-MUST-NOT-LEAK",
+        ):
+            self.assertNotIn(forbidden, result.stdout)
+        self.assertIn(
+            "No unknown Plexamp values and no Chromium storage values were opened or printed.",
+            result.stdout,
+        )
 
     def test_preference_auditor_treats_missing_profiles_as_an_inert_audit(self):
         with tempfile.TemporaryDirectory() as directory:
