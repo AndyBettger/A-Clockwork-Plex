@@ -40,6 +40,7 @@ jobs:
             app/settings_unified.py \
             app/settings_unified_scheduled.py \
             app/settings_weather_rainfall.py \
+            app/configuration_backup.py \
             app/weather_rainfall_history.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
@@ -120,7 +121,9 @@ jobs:
           ! grep -q "settings-alarm-scheduled.js" app/templates/base.html
           ! grep -q "settings-alarm-scheduler.js" app/templates/base.html
           grep -q "register_unified_settings_api" app/runner.py
+          grep -q "register_configuration_backup_api" app/runner.py
           grep -q "ShairportNameManager" app/runner.py
+          grep -q "download-configuration-backup" app/static/js/settings-about.js
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
           grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
           grep -q "app/runner.py" systemd/a-clockwork-plex.service
