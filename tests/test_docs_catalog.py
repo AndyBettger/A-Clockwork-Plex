@@ -40,6 +40,7 @@ DEVELOPMENT_ARCHITECTURE = {
 }
 DEVELOPMENT_TESTING = {
     "testing.md",
+    "test-catalogue.md",
     "alarm-audio-testing.md",
     "fresh-appliance-acceptance-runbook.md",
 }
