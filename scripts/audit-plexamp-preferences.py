@@ -6,10 +6,17 @@ only the explicit typed Headless preference allow-list established from the
 commissioned Plexamp 4.13.2 appliance. ``--scan-browser-keys`` reads only
 Chromium Local Storage LevelDB data files and emits structured loopback-origin
 key names; it never decodes or prints Local Storage values and never opens
-Session Storage values. ``--fingerprint-browser-records`` hashes only bounded
-record neighbourhoods for an explicit non-sensitive browser-key allow-list so
-a before/after UI experiment can identify which store changed without decoding
-or printing any browser value.
+Session Storage values.
+
+For React Native MMKV's web implementation, Local Storage keys are namespaced
+as ``<instance-id>\\<preference-key>``. The scanner recognises the default
+``mmkv.default\\`` namespace and emits only safe-looking suffix names. It still
+never decodes or prints the corresponding values.
+
+``--fingerprint-browser-records`` hashes only bounded record neighbourhoods for
+an explicit non-sensitive browser-key allow-list. It is retained as a
+differential discovery aid; ``mmkv.default`` hashes are namespace-prefix
+neighbourhoods across individual MMKV web keys, not a single packed value.
 """
 
 from __future__ import annotations
@@ -24,6 +31,7 @@ from urllib.parse import unquote
 
 PLEXAMP_SETTINGS_PREFIX = "@Plexamp:settings:"
 SAFE_KEY = re.compile(r"^[A-Za-z0-9_.:@/+ -]{1,120}$")
+SAFE_MMKV_SUFFIX = re.compile(r"^[A-Za-z0-9_.:@/+ -]{1,120}$")
 SENSITIVE_KEY_TERMS = {
     "account",
     "auth",
@@ -53,6 +61,17 @@ LOOPBACK_STORAGE_KEY = re.compile(
     rb"\x00(?:\x00|\x01)?([A-Za-z@][A-Za-z0-9_.:@/+ -]{0,119})"
 )
 
+# react-native-mmkv's web implementation prefixes every key with
+# "<instance-id>\\"; the default instance is "mmkv.default". The MMKV key
+# itself may not contain a backslash, which gives us a narrow boundary for
+# enumerating names without decoding values.
+MMKV_WEB_PREFIX = "mmkv.default\\"
+MMKV_LOOPBACK_STORAGE_KEY = re.compile(
+    rb"_(https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?)"
+    rb"\x00(?:\x00|\x01)?mmkv\.default\\"
+    rb"([A-Za-z0-9_@][A-Za-z0-9_.:@/+ -]{0,119})"
+)
+
 # These keys were observed on the commissioned Plexamp 4.13.2 development Pi.
 # Values are typed Plexamp scalars: Btrue/Bfalse or N<number>.
 SAFE_VALUE_SPECS = {
@@ -75,10 +94,9 @@ KNOWN_NON_PORTABLE_KEYS = {
     "premium": "derived account/capability state; do not restore",
 }
 
-# The first live Chromium key scan on Plexamp 4.13.2 found these ordinary
-# browser-side candidates at http://localhost:32500. @Plexamp:resources is
-# deliberately absent: resource/server identity must not be fingerprinted as a
-# portable preference candidate. Fingerprinting still never decodes a value.
+# Direct Local Storage candidates observed on the live Plexamp 4.13.2 kiosk.
+# mmkv.default is retained here only as a namespace-level differential marker;
+# it is not interpreted as one packed preference value.
 BROWSER_FINGERPRINT_KEYS = frozenset(
     {
         "@Plexamp:settings:activeTab",
@@ -96,7 +114,7 @@ def _has_sensitive_term(key: str) -> bool:
 
 
 def candidate_key(filename: str) -> str | None:
-    """Return a safe preference-key suffix, never a file value."""
+    """Return a safe Headless preference-key suffix, never a file value."""
 
     decoded = unquote(filename)
     if not decoded.startswith(PLEXAMP_SETTINGS_PREFIX):
@@ -172,6 +190,18 @@ def _safe_browser_key(raw_key: bytes) -> str | None:
     return key
 
 
+def _safe_mmkv_suffix(raw_suffix: bytes) -> str | None:
+    try:
+        suffix = raw_suffix.decode("ascii", errors="strict").strip()
+    except UnicodeDecodeError:
+        return None
+    if not SAFE_MMKV_SUFFIX.fullmatch(suffix):
+        return None
+    if _has_sensitive_term(suffix):
+        return None
+    return suffix
+
+
 def _browser_leveldb_payloads(browser_default: Path) -> list[tuple[Path, bytes]]:
     leveldb = browser_default / "Local Storage" / "leveldb"
     if not leveldb.is_dir():
@@ -203,8 +233,28 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
     origins: set[str] = set()
     keys_by_origin: dict[str, set[str]] = {}
     sensitive_records = 0
+    mmkv_keys = 0
 
     for _path, payload in payloads:
+        # Enumerate the upstream-defined MMKV web namespace first. The general
+        # regex below would otherwise truncate these keys at "mmkv.default".
+        for match in MMKV_LOOPBACK_STORAGE_KEY.finditer(payload):
+            origin = match.group(1).decode("ascii", errors="strict")
+            raw_suffix = match.group(2)
+            try:
+                decoded_for_filter = raw_suffix.decode("ascii", errors="strict")
+            except UnicodeDecodeError:
+                continue
+            if _has_sensitive_term(decoded_for_filter):
+                sensitive_records += 1
+                continue
+            suffix = _safe_mmkv_suffix(raw_suffix)
+            if suffix is None:
+                continue
+            origins.add(origin)
+            keys_by_origin.setdefault(origin, set()).add(f"{MMKV_WEB_PREFIX}{suffix}")
+            mmkv_keys += 1
+
         for match in LOOPBACK_STORAGE_KEY.finditer(payload):
             origin = match.group(1).decode("ascii", errors="strict")
             raw_key = match.group(2)
@@ -217,6 +267,10 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
                 continue
             key = _safe_browser_key(raw_key)
             if key is None:
+                continue
+            # A plain "mmkv.default" match is the truncated namespace prefix of
+            # an MMKV web key. Individual safe suffixes are emitted above.
+            if key == "mmkv.default":
                 continue
             origins.add(origin)
             keys_by_origin.setdefault(origin, set()).add(key)
@@ -233,6 +287,11 @@ def _scan_browser_local_storage(browser_default: Path) -> None:
         print(f"    {origin}")
         for key in sorted(keys_by_origin.get(origin, ()), key=str.casefold):
             print(f"      {key}")
+    if mmkv_keys:
+        print(
+            f"  MMKV web-key records recognised: {mmkv_keys} "
+            "(mmkv.default\\<key> namespace; values not decoded)"
+        )
     if sensitive_records:
         print(f"  Sensitive-looking key records suppressed: {sensitive_records}")
     print("  No browser Local Storage values were decoded or printed.")
@@ -277,6 +336,11 @@ def _fingerprint_browser_records(browser_default: Path) -> None:
         print(f"    {origin} | {key} | occurrences={count} | fingerprints={digests}")
 
     print("  @Plexamp:resources is deliberately excluded from fingerprinting.")
+    if any(key == "mmkv.default" for _origin, key in records):
+        print(
+            "  mmkv.default hashes are namespace-prefix neighbourhoods across "
+            "individual MMKV web keys, not one packed value."
+        )
     print("  Hashes cover bounded record neighbourhoods, not decoded preference values.")
     print("  No browser values were decoded or printed.")
 
@@ -402,12 +466,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scan-browser-keys",
         action="store_true",
-        help="Scan Chromium Local Storage LevelDB data files for structured loopback-origin key names only; never decode values.",
+        help=(
+            "Scan Chromium Local Storage LevelDB data files for structured "
+            "loopback-origin key names and safe mmkv.default\\<key> suffixes "
+            "only; never decode values."
+        ),
     )
     parser.add_argument(
         "--fingerprint-browser-records",
         action="store_true",
-        help="Hash bounded LevelDB record neighbourhoods for the explicit non-sensitive browser candidate keys; never decode values.",
+        help=(
+            "Hash bounded LevelDB record neighbourhoods for the explicit "
+            "non-sensitive browser candidate keys; never decode values."
+        ),
     )
     return parser.parse_args()
 
