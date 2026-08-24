@@ -143,10 +143,44 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         payload = json.loads(result.stdout)
         self.assertRegex(
             payload["status"],
-            r"^unsupported-hidden-format-btyped5-order-jarr2x[0-9]+$",
+            r"^unsupported-hidden-format-btyped5-order-jarr2sx[0-9]+$",
         )
         self.assertNotIn("Btrue", result.stdout)
         self.assertNotIn("music.recent.played.9", result.stdout)
+
+    def test_plexamp_bridge_reports_wrapper_key_and_nested_shape_without_values(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const hiddenValue = JSON.stringify({ v: true });
+const orderValue = JSON.stringify({ v: ['PRIVATE-HUB-A', 'PRIVATE-HUB-B'] });
+const values = new Map([
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', orderValue],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:public.hub:hidden', hiddenValue],
+]);
+const keys = Array.from(values.keys());
+const storage = {
+  get length() { return keys.length; },
+  key(index) { return keys[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+};
+process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertRegex(
+            payload["status"],
+            r"^unsupported-hidden-format-jobj1-v-jbool-x10-order-jobj1-v-jarr2s-x[0-9]+$",
+        )
+        self.assertNotIn("PRIVATE-HUB-A", result.stdout)
+        self.assertNotIn("PRIVATE-HUB-B", result.stdout)
+        self.assertNotIn('"v":true', result.stdout)
 
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
