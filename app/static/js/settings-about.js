@@ -112,7 +112,7 @@
 
     window.__acpPlexampBridgeClientPromise = new Promise((resolve) => {
       const script = document.createElement('script');
-      script.src = '/static/js/plexamp-browser-bridge.js?v=20260824-home-backup-v1';
+      script.src = '/static/js/plexamp-browser-bridge.js?v=20260824-home-backup-v2';
       script.async = true;
       script.addEventListener('load', () => resolve(Boolean(window.ACPPlexampBrowserPreferences?.snapshot)), { once: true });
       script.addEventListener('error', () => resolve(false), { once: true });
