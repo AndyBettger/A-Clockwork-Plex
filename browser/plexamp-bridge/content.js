@@ -16,15 +16,51 @@
   const MAX_ORDER_BYTES = 16384;
   const MAX_ORDER_ITEMS = 128;
 
+  function shapeToken(raw) {
+    if (typeof raw !== 'string') return 'nonstring';
+    const chars = Math.min(raw.length, 99999);
+    if (raw === 'true' || raw === 'false') return `bplain${chars}`;
+    if (/^B(?:true|false)$/.test(raw)) return `btyped${chars}`;
+    if (/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(raw)) return `num${chars}`;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return `opaque${chars}`;
+    }
+
+    if (parsed === null) return `jnull${chars}`;
+    if (Array.isArray(parsed)) {
+      return `jarr${Math.min(parsed.length, 999)}x${chars}`;
+    }
+    if (typeof parsed === 'object') {
+      return `jobj${Math.min(Object.keys(parsed).length, 999)}x${chars}`;
+    }
+    if (typeof parsed === 'string') {
+      return `jstr${Math.min(parsed.length, 99999)}x${chars}`;
+    }
+    if (typeof parsed === 'boolean') return `jbool${chars}`;
+    if (typeof parsed === 'number') return `jnum${chars}`;
+    return `json${chars}`;
+  }
+
   function readEntries(storage) {
     const entries = [];
     const length = Math.min(Number(storage?.length || 0), MAX_STORAGE_KEYS);
     for (let index = 0; index < length; index += 1) {
       const key = storage.key(index);
-      if (typeof key !== 'string') continue;
+      if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
+      const suffix = key.slice(MMKV_PREFIX.length);
+      if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
+
+      const orderMatch = suffix.match(ORDER_RE);
+      const hiddenMatch = suffix.match(HIDDEN_RE);
+      if (!orderMatch && !hiddenMatch) continue;
+
       const value = storage.getItem(key);
       if (typeof value !== 'string') continue;
-      entries.push([key, value]);
+      entries.push({ orderMatch, hiddenMatch, value });
     }
     return entries;
   }
@@ -53,28 +89,31 @@
   function buildSnapshot(storage) {
     const scopes = new Map();
 
-    for (const [key, value] of readEntries(storage)) {
-      if (!key.startsWith(MMKV_PREFIX)) continue;
-      const suffix = key.slice(MMKV_PREFIX.length);
-      if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
-
-      const orderMatch = suffix.match(ORDER_RE);
+    for (const entry of readEntries(storage)) {
+      const { orderMatch, hiddenMatch, value } = entry;
       if (orderMatch) {
         const id = scopeId(orderMatch[1], orderMatch[2]);
-        const scope = scopes.get(id) || { orderRaw: null, hidden: new Set(), invalidHidden: false };
+        const scope = scopes.get(id) || {
+          orderRaw: null,
+          hidden: new Set(),
+          invalidHiddenShape: null,
+        };
         scope.orderRaw = value;
         scopes.set(id, scope);
         continue;
       }
 
-      const hiddenMatch = suffix.match(HIDDEN_RE);
       if (hiddenMatch) {
         const id = scopeId(hiddenMatch[1], hiddenMatch[2]);
-        const scope = scopes.get(id) || { orderRaw: null, hidden: new Set(), invalidHidden: false };
+        const scope = scopes.get(id) || {
+          orderRaw: null,
+          hidden: new Set(),
+          invalidHiddenShape: null,
+        };
         if (value === 'true') {
           scope.hidden.add(hiddenMatch[3]);
-        } else if (value !== 'false') {
-          scope.invalidHidden = true;
+        } else if (value !== 'false' && scope.invalidHiddenShape === null) {
+          scope.invalidHiddenShape = shapeToken(value);
         }
         scopes.set(id, scope);
       }
@@ -96,15 +135,22 @@
     }
 
     const scope = Array.from(scopes.values())[0];
-    if (scope.invalidHidden) {
-      return { schema_version: 1, status: 'unsupported-hidden-format' };
+    if (scope.invalidHiddenShape !== null) {
+      const orderShape = scope.orderRaw === null ? 'none' : shapeToken(scope.orderRaw);
+      return {
+        schema_version: 1,
+        status: `unsupported-hidden-format-${scope.invalidHiddenShape}-order-${orderShape}`,
+      };
     }
 
     let order = null;
     if (scope.orderRaw !== null) {
       order = parseOrder(scope.orderRaw);
       if (order === null) {
-        return { schema_version: 1, status: 'unsupported-order-format' };
+        return {
+          schema_version: 1,
+          status: `unsupported-order-format-${shapeToken(scope.orderRaw)}`,
+        };
       }
     }
 
@@ -144,7 +190,7 @@
     });
   }
 
-  const api = { buildSnapshot, parseOrder };
+  const api = { buildSnapshot, parseOrder, shapeToken };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }
