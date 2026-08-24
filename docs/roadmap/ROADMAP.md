@@ -125,8 +125,12 @@ The schema-v1 secret-safe export and its first physical commissioned-Pi acceptan
 - [x] The bridge reads host-page Local Storage only inside Plexamp and recognises only live `discovery:customizations:*:order` and per-hub `*:hidden` records. `editing`, caches, resources, session/auth state and unrelated preferences are not part of its output.
 - [x] Added strict dashboard-side response validation. The Settings download flow fetches the existing server backup, requests the live Home snapshot using `postMessage`, merges only validated logical `order`/`hidden` data **inside the kiosk browser**, then creates the downloaded file locally. Browser preference values are not POSTed to the dashboard service or persisted as a server-side staging file.
 - [x] Added automated bridge safety coverage: loopback-only manifest, no extension permissions/network/cookie authority, no remote-debugging launcher flag, and a Node-backed logical Home snapshot test that excludes editor/cache/auth fixtures.
-- [ ] Physical live-bridge acceptance: restart kiosk Chromium so the new extension is loaded, download a fresh backup and confirm `plexamp.browser_preferences.home` is present with sensible order/hidden counts while the forbidden-key checker remains clean. If Plexamp's live `:order` value uses an unrecognised format, fail closed and inspect only safe shape metadata rather than dumping it.
-- [ ] Final #89 synchronized Actions run must be green after the live-bridge implementation and any physical follow-up.
+- [x] First live-bridge physical probe on 24 August 2026 proved the extension/request path is active and fails closed: a fresh backup contained no `plexamp.browser_preferences`, retained the deliberate browser omission, and recorded exactly one warning: `browser bridge unsupported-hidden-format`. No unsupported value was exposed.
+- [x] Hardened the bridge after that physical probe so it now calls `getItem()` **only after** a Local Storage key matches the exact `:order` / `:hidden` allow-list. Editor/cache/resource/auth-adjacent values are no longer merely excluded from output; they are not opened by the bridge at all. Added regression coverage for that read boundary.
+- [x] Added a compact safe shape diagnostic for unrecognised `:hidden` / `:order` encodings. It reports only a format class and length/count token (for example typed-boolean vs JSON-array shape), never the stored value or hub identifier. Bridge revision is now `1.0.1`.
+- [ ] Physical live-bridge format follow-up: restart kiosk Chromium with bridge `1.0.1`, download a fresh backup and capture only the resulting safe `browser bridge ...` warning token. Use that token to teach the parser the exact Plexamp encoding without dumping the Local Storage value.
+- [ ] Physical live-bridge acceptance: after the format parser is narrowed, confirm `plexamp.browser_preferences.home` is present with sensible order/hidden counts while the forbidden-key checker remains clean.
+- [ ] Final #89 synchronized Actions run must be green after the live-bridge implementation and physical follow-up.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -137,7 +141,8 @@ Initial #89 implementation sequence:
 - CI-gate wiring: `ec190533b8fe81ebf9cda3d062db7d41bcd85210`;
 - CI catalogue/timezone corrections: `9a71c8da0998eb96900e9326e9c09b0c356c790f`, `7612c281531216beff10dfab3c411dadf067d994`;
 - live bridge manifest/content/client/launcher/download integration: `e7c3b6ebe70038c86b23ecdffff937e9cd318abc` through `1f81d4381db6ad6d232452cc98f4a9a68df8c506`;
-- bridge regression/CI gating: `93e8e5cb514af85beb5933758d7f575e9d2ab286`, `f0ca0fac67002d5ae580d793ed809433a8df6bc0`.
+- bridge regression/CI gating: `93e8e5cb514af85beb5933758d7f575e9d2ab286`, `f0ca0fac67002d5ae580d793ed809433a8df6bc0`;
+- physical fail-closed hardening/shape diagnostic: `d19235465f91bc7569151626ec758bf556ea232f`, `662e23e9b0e691b58623f798a3f22ec304a02dde`, `9ec2c87a4ab4df746ffa7d04975075e3303a2ee6`.
 
 Restore/import remains a separate later operation; #89 does not enable restore mutation.
 
@@ -222,7 +227,7 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 ### Settings and appliance ownership
 
-- [ ] **Configuration backup/export — IN PROGRESS at #89.** Schema-v1 secret-free ACP/Plexamp-Headless export is physically accepted on the commissioned Pi. A permission-free loopback-only Chromium bridge now supplies live Plexamp Home order/hidden state to the download entirely client-side; bridge physical acceptance and the final synchronized Actions gate remain.
+- [ ] **Configuration backup/export — IN PROGRESS at #89.** Schema-v1 secret-free ACP/Plexamp-Headless export is physically accepted on the commissioned Pi. The live loopback-only browser bridge is also physically reaching Plexamp and failing closed as designed, but Plexamp's `:hidden` value encoding still needs one safe shape-classification pass before Home order/hidden values can be included.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
 - [ ] **Configuration import/restore.** Parse/validate an exported file first, preview changes, then apply through the same owners transactionally. Never blindly overwrite installer-owned, secret or Plexamp-owned material. Plexamp restore is allow-listed, version-aware and performed only after fresh claim/library commissioning.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
