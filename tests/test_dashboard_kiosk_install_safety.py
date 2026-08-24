@@ -176,6 +176,38 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         self.assertNotIn("PRIVATE-HUB-B", result.stdout)
         self.assertNotIn('"a":true', result.stdout)
 
+    def test_plexamp_bridge_reports_only_character_classes_for_rejected_order_ids(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const orderValue = JSON.stringify({'0': ['PRIVATE:HOME/ONE', 'normal.hub.two']});
+const values = new Map([
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', orderValue],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:normal.hub.two:hidden', JSON.stringify({'0': false})],
+]);
+const keys = Array.from(values.keys());
+const storage = {
+  get length() { return keys.length; },
+  key(index) { return keys[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+};
+process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(
+            payload["status"],
+            "unsupported-order-format-items2-max16-empty0-over0-nonstring0-bad2f.3a",
+        )
+        self.assertNotIn("PRIVATE:HOME/ONE", result.stdout)
+        self.assertNotIn("normal.hub.two", result.stdout)
+
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('MODE="check"', text)
