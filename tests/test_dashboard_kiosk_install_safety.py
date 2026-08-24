@@ -69,8 +69,8 @@ class DashboardKioskInstallSafetyTests(unittest.TestCase):
         node = r"""
 const bridge = require(process.argv[1]);
 const values = new Map([
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify(['music.recent.added.9', 'custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f'])],
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:hidden', 'true'],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify({'0': ['music.recent.added.9', 'custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f']})],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:hidden', JSON.stringify({'0': true})],
   ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:editing', 'true'],
   ['mmkv.default\\music.popular.9:cachedItems', 'CACHE-MUST-NOT-LEAK'],
   ['mmkv.default\\authToken', 'AUTH-MUST-NOT-LEAK'],
@@ -117,12 +117,12 @@ process.stdout.write(JSON.stringify({ snapshot: bridge.buildSnapshot(storage), r
         self.assertNotIn("CACHE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
 
-    def test_plexamp_bridge_reports_only_safe_shape_for_unknown_hidden_value(self):
+    def test_plexamp_bridge_keeps_plain_legacy_shapes_compatible(self):
         node = r"""
 const bridge = require(process.argv[1]);
 const values = new Map([
   ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify(['music.recent.added.9', 'music.recent.played.9'])],
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:music.recent.played.9:hidden', 'Btrue'],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:music.recent.played.9:hidden', 'true'],
 ]);
 const keys = Array.from(values.keys());
 const storage = {
@@ -141,18 +141,15 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
-        self.assertRegex(
-            payload["status"],
-            r"^unsupported-hidden-format-btyped5-order-jarr2sx[0-9]+$",
-        )
-        self.assertNotIn("Btrue", result.stdout)
-        self.assertNotIn("music.recent.played.9", result.stdout)
+        self.assertEqual(payload["status"], "ready")
+        self.assertEqual(payload["home"]["hidden"], ["music.recent.played.9"])
+        self.assertEqual(len(payload["home"]["order"]), 2)
 
-    def test_plexamp_bridge_reports_wrapper_key_and_nested_shape_without_values(self):
+    def test_plexamp_bridge_rejects_ambiguous_wrappers_without_values(self):
         node = r"""
 const bridge = require(process.argv[1]);
-const hiddenValue = JSON.stringify({ v: true });
-const orderValue = JSON.stringify({ v: ['PRIVATE-HUB-A', 'PRIVATE-HUB-B'] });
+const hiddenValue = JSON.stringify({ a: true, b: false });
+const orderValue = JSON.stringify({ a: ['PRIVATE-HUB-A'], b: ['PRIVATE-HUB-B'] });
 const values = new Map([
   ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', orderValue],
   ['mmkv.default\\discovery:customizations:context123::/library/sections/9:public.hub:hidden', hiddenValue],
@@ -174,13 +171,10 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
-        self.assertRegex(
-            payload["status"],
-            r"^unsupported-hidden-format-jobj1-v-jbool-x10-order-jobj1-v-jarr2s-x[0-9]+$",
-        )
+        self.assertTrue(payload["status"].startswith("unsupported-hidden-format-jobj2-"))
         self.assertNotIn("PRIVATE-HUB-A", result.stdout)
         self.assertNotIn("PRIVATE-HUB-B", result.stdout)
-        self.assertNotIn('"v":true', result.stdout)
+        self.assertNotIn('"a":true', result.stdout)
 
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
