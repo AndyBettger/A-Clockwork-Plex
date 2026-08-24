@@ -9,11 +9,11 @@
   ]);
   const MMKV_PREFIX = 'mmkv.default\\';
   const CUSTOM_PREFIX = 'discovery:customizations:';
-  const SAFE_HUB_ID = /^[A-Za-z0-9_.-]{1,220}$/;
-  const SAFE_HUB_CHAR = /^[A-Za-z0-9_.-]$/;
+  const SAFE_HUB_ID = /^[A-Za-z0-9_.\/-]{1,220}$/;
+  const SAFE_HUB_CHAR = /^[A-Za-z0-9_.\/-]$/;
   const SAFE_SHAPE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,31}$/;
   const ORDER_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):order$/;
-  const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.-]{1,220}):hidden$/;
+  const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.\/-]{1,220}):hidden$/;
   const MAX_STORAGE_KEYS = 2048;
   const MAX_ORDER_BYTES = 16384;
   const MAX_ORDER_ITEMS = 128;
