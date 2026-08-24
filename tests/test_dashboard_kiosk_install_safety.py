@@ -12,6 +12,7 @@ LAUNCHER = ROOT / "scripts" / "launch-dashboard-kiosk.sh"
 BRIDGE_DIR = ROOT / "browser" / "plexamp-bridge"
 BRIDGE_MANIFEST = BRIDGE_DIR / "manifest.json"
 BRIDGE_CONTENT = BRIDGE_DIR / "content.js"
+DASHBOARD_BRIDGE = ROOT / "app" / "static" / "js" / "plexamp-browser-bridge.js"
 
 
 class DashboardKioskInstallSafetyTests(unittest.TestCase):
@@ -69,9 +70,9 @@ class DashboardKioskInstallSafetyTests(unittest.TestCase):
         node = r"""
 const bridge = require(process.argv[1]);
 const values = new Map([
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify({'0': ['music.recent.added.9', 'custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f']})],
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:hidden', JSON.stringify({'0': true})],
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:editing', 'true'],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify({'0': ['music.recent.added.9', 'custom.hub/library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f']})],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub/library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:hidden', JSON.stringify({'0': true})],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:custom.hub/library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f:editing', 'true'],
   ['mmkv.default\\music.popular.9:cachedItems', 'CACHE-MUST-NOT-LEAK'],
   ['mmkv.default\\authToken', 'AUTH-MUST-NOT-LEAK'],
 ]);
@@ -102,12 +103,12 @@ process.stdout.write(JSON.stringify({ snapshot: bridge.buildSnapshot(storage), r
             snapshot["home"]["order"],
             [
                 "music.recent.added.9",
-                "custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f",
+                "custom.hub/library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f",
             ],
         )
         self.assertEqual(
             snapshot["home"]["hidden"],
-            ["custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f"],
+            ["custom.hub/library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f"],
         )
         self.assertEqual(len(payload["reads"]), 2)
         self.assertTrue(all(key.endswith((":order", ":hidden")) for key in payload["reads"]))
@@ -116,6 +117,42 @@ process.stdout.write(JSON.stringify({ snapshot: bridge.buildSnapshot(storage), r
         self.assertFalse(any("authToken" in key for key in payload["reads"]))
         self.assertNotIn("CACHE-MUST-NOT-LEAK", result.stdout)
         self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
+
+    def test_dashboard_bridge_accepts_slash_bearing_home_identifiers(self):
+        node = r"""
+global.window = {};
+require(process.argv[1]);
+const validate = window.ACPPlexampBrowserPreferences.validateSnapshot;
+const accepted = validate({
+  schema_version: 1,
+  status: 'ready',
+  home: {
+    order: ['music.recent.added.9', 'music/recent/played.9'],
+    hidden: ['music/recent/played.9'],
+  },
+});
+const rejected = validate({
+  schema_version: 1,
+  status: 'ready',
+  home: {
+    order: ['music:recent:played.9'],
+    hidden: [],
+  },
+});
+process.stdout.write(JSON.stringify({ accepted, rejected }));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(DASHBOARD_BRIDGE)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["accepted"]["status"], "ready")
+        self.assertEqual(payload["accepted"]["home"]["hidden"], ["music/recent/played.9"])
+        self.assertIsNone(payload["rejected"])
 
     def test_plexamp_bridge_keeps_plain_legacy_shapes_compatible(self):
         node = r"""
@@ -179,10 +216,10 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
     def test_plexamp_bridge_reports_only_character_classes_for_rejected_order_ids(self):
         node = r"""
 const bridge = require(process.argv[1]);
-const orderValue = JSON.stringify({'0': ['PRIVATE:HOME/ONE', 'normal.hub.two']});
+const orderValue = JSON.stringify({'0': ['PRIVATE:HOME/ONE', 'normal.hub/two']});
 const values = new Map([
   ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', orderValue],
-  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:normal.hub.two:hidden', JSON.stringify({'0': false})],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:normal.hub/two:hidden', JSON.stringify({'0': false})],
 ]);
 const keys = Array.from(values.keys());
 const storage = {
@@ -203,10 +240,10 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         payload = json.loads(result.stdout)
         self.assertEqual(
             payload["status"],
-            "unsupported-order-format-items2-max16-empty0-over0-nonstring0-bad2f.3a",
+            "unsupported-order-format-items2-max16-empty0-over0-nonstring0-bad3a",
         )
         self.assertNotIn("PRIVATE:HOME/ONE", result.stdout)
-        self.assertNotIn("normal.hub.two", result.stdout)
+        self.assertNotIn("normal.hub/two", result.stdout)
 
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
