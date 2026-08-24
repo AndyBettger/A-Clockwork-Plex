@@ -76,6 +76,55 @@ const values = new Map([
   ['mmkv.default\\authToken', 'AUTH-MUST-NOT-LEAK'],
 ]);
 const keys = Array.from(values.keys());
+const reads = [];
+const storage = {
+  get length() { return keys.length; },
+  key(index) { return keys[index] ?? null; },
+  getItem(key) {
+    reads.push(key);
+    return values.has(key) ? values.get(key) : null;
+  },
+};
+process.stdout.write(JSON.stringify({ snapshot: bridge.buildSnapshot(storage), reads }));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        snapshot = payload["snapshot"]
+        self.assertEqual(snapshot["status"], "ready")
+        self.assertEqual(
+            snapshot["home"]["order"],
+            [
+                "music.recent.added.9",
+                "custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f",
+            ],
+        )
+        self.assertEqual(
+            snapshot["home"]["hidden"],
+            ["custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f"],
+        )
+        self.assertEqual(len(payload["reads"]), 2)
+        self.assertTrue(all(key.endswith((":order", ":hidden")) for key in payload["reads"]))
+        self.assertFalse(any(":editing" in key for key in payload["reads"]))
+        self.assertFalse(any("cachedItems" in key for key in payload["reads"]))
+        self.assertFalse(any("authToken" in key for key in payload["reads"]))
+        self.assertNotIn("CACHE-MUST-NOT-LEAK", result.stdout)
+        self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
+
+    def test_plexamp_bridge_reports_only_safe_shape_for_unknown_hidden_value(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const values = new Map([
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:order', JSON.stringify(['music.recent.added.9', 'music.recent.played.9'])],
+  ['mmkv.default\\discovery:customizations:context123::/library/sections/9:music.recent.played.9:hidden', 'Btrue'],
+]);
+const keys = Array.from(values.keys());
 const storage = {
   get length() { return keys.length; },
   key(index) { return keys[index] ?? null; },
@@ -92,21 +141,12 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
-        self.assertEqual(payload["status"], "ready")
-        self.assertEqual(
-            payload["home"]["order"],
-            [
-                "music.recent.added.9",
-                "custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f",
-            ],
+        self.assertRegex(
+            payload["status"],
+            r"^unsupported-hidden-format-btyped5-order-jarr2x[0-9]+$",
         )
-        self.assertEqual(
-            payload["home"]["hidden"],
-            ["custom.hub.library-grid.12066189-245a-4c4c-98ec-4768a4d4d15f"],
-        )
-        self.assertNotIn("editing", result.stdout)
-        self.assertNotIn("CACHE-MUST-NOT-LEAK", result.stdout)
-        self.assertNotIn("AUTH-MUST-NOT-LEAK", result.stdout)
+        self.assertNotIn("Btrue", result.stdout)
+        self.assertNotIn("music.recent.played.9", result.stdout)
 
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
