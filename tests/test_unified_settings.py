@@ -13,6 +13,10 @@ from app.configuration_backup import (
     ConfigurationBackupService,
     register_configuration_backup_api,
 )
+from app.configuration_restore import (
+    ConfigurationRestorePlanner,
+    register_configuration_restore_preview_api,
+)
 from app.settings_unified import UnifiedSettingsService, register_unified_settings_api
 
 
@@ -547,6 +551,95 @@ class ConfigurationBackupTests(unittest.TestCase):
         )
         payload = json.loads(response.get_data(as_text=True))
         self.assertEqual(payload["schema_version"], 1)
+
+    def test_restore_preview_is_read_only_and_reports_paths_not_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service = self.build_service(Path(directory))
+            current = service.build()
+            candidate = deepcopy(current)
+            candidate["a_clockwork_plex"]["settings"]["dashboard"]["idle_timeout_seconds"] = 321
+            candidate["a_clockwork_plex"]["audio"]["mixer"]["master"] = 72
+            candidate["plexamp"]["headless_preferences"]["cacheSize"] = 65536
+            candidate["plexamp"]["browser_preferences"] = {
+                "schema_version": 1,
+                "home": {
+                    "order": ["music/recent.added.9", "custom.hub.library-grid.demo"],
+                    "hidden": ["custom.hub.library-grid.demo"],
+                },
+            }
+            planner = ConfigurationRestorePlanner(current_backup=lambda: deepcopy(current))
+            result = planner.plan(candidate)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["read_only"])
+        self.assertFalse(result["apply_enabled"])
+        self.assertEqual(result["change_count"], 3)
+        self.assertIn(
+            "a_clockwork_plex.settings.dashboard.idle_timeout_seconds",
+            result["changed_paths"],
+        )
+        self.assertIn("a_clockwork_plex.audio.mixer.master", result["changed_paths"])
+        self.assertIn("plexamp.headless_preferences.cacheSize", result["changed_paths"])
+        self.assertTrue(result["plexamp_browser"]["present"])
+        self.assertEqual(result["plexamp_browser"]["order_items"], 2)
+        self.assertEqual(result["plexamp_browser"]["hidden_items"], 1)
+        encoded = json.dumps(result, sort_keys=True)
+        self.assertNotIn("65536", encoded)
+        self.assertNotIn("music/recent.added.9", encoded)
+        self.assertNotIn("custom.hub.library-grid.demo", encoded)
+
+    def test_restore_preview_rejects_tampered_secret_or_machine_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service = self.build_service(Path(directory))
+            current = service.build()
+            candidate = deepcopy(current)
+            candidate["a_clockwork_plex"]["settings"]["weather"]["api_key"] = "SHOULD-NOT-BE-HERE"
+            planner = ConfigurationRestorePlanner(current_backup=lambda: deepcopy(current))
+            with self.assertRaises(ValueError) as context:
+                planner.plan(candidate)
+
+        self.assertIn("non-portable or credential-owned field", str(context.exception))
+        self.assertNotIn("SHOULD-NOT-BE-HERE", str(context.exception))
+
+    def test_restore_preview_rejects_unsupported_browser_identifier(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service = self.build_service(Path(directory))
+            current = service.build()
+            candidate = deepcopy(current)
+            candidate["plexamp"]["browser_preferences"] = {
+                "schema_version": 1,
+                "home": {"order": ["bad:hub"], "hidden": []},
+            }
+            planner = ConfigurationRestorePlanner(current_backup=lambda: deepcopy(current))
+            with self.assertRaises(ValueError):
+                planner.plan(candidate)
+
+    def test_restore_preview_api_is_no_store_and_cannot_apply(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service = self.build_service(Path(directory))
+            current = service.build()
+            calls = []
+
+            def current_backup():
+                calls.append("read")
+                return deepcopy(current)
+
+            app = Flask(__name__)
+            register_configuration_restore_preview_api(
+                app,
+                ConfigurationRestorePlanner(current_backup=current_backup),
+            )
+            response = app.test_client().post(
+                "/api/settings/restore/preview",
+                json=current,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        payload = response.get_json()
+        self.assertTrue(payload["read_only"])
+        self.assertFalse(payload["apply_enabled"])
+        self.assertEqual(calls, ["read"])
 
 
 if __name__ == "__main__":
