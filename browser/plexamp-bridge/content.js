@@ -10,11 +10,36 @@
   const MMKV_PREFIX = 'mmkv.default\\';
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const SAFE_HUB_ID = /^[A-Za-z0-9_.-]{1,220}$/;
+  const SAFE_SHAPE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,31}$/;
   const ORDER_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):order$/;
   const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.-]{1,220}):hidden$/;
   const MAX_STORAGE_KEYS = 2048;
   const MAX_ORDER_BYTES = 16384;
   const MAX_ORDER_ITEMS = 128;
+
+  function nestedShape(value) {
+    if (value === null) return 'jnull';
+    if (Array.isArray(value)) {
+      const count = Math.min(value.length, 999);
+      if (value.every((item) => typeof item === 'string')) return `jarr${count}s`;
+      if (value.every((item) => typeof item === 'boolean')) return `jarr${count}b`;
+      if (value.every((item) => typeof item === 'number')) return `jarr${count}n`;
+      return `jarr${count}m`;
+    }
+    if (typeof value === 'object') {
+      return `jobj${Math.min(Object.keys(value).length, 999)}`;
+    }
+    if (typeof value === 'string') return `jstr${Math.min(value.length, 99999)}`;
+    if (typeof value === 'boolean') return 'jbool';
+    if (typeof value === 'number') return 'jnum';
+    return 'jother';
+  }
+
+  function shapeKey(key) {
+    if (typeof key !== 'string') return 'key';
+    if (SAFE_SHAPE_KEY.test(key)) return key;
+    return `keylen${Math.min(key.length, 999)}`;
+  }
 
   function shapeToken(raw) {
     if (typeof raw !== 'string') return 'nonstring';
@@ -32,10 +57,15 @@
 
     if (parsed === null) return `jnull${chars}`;
     if (Array.isArray(parsed)) {
-      return `jarr${Math.min(parsed.length, 999)}x${chars}`;
+      return `${nestedShape(parsed)}x${chars}`;
     }
     if (typeof parsed === 'object') {
-      return `jobj${Math.min(Object.keys(parsed).length, 999)}x${chars}`;
+      const keys = Object.keys(parsed);
+      const shown = keys.slice(0, 4).map(
+        (key) => `${shapeKey(key)}-${nestedShape(parsed[key])}`,
+      );
+      const suffix = keys.length > shown.length ? '-more' : '';
+      return `jobj${Math.min(keys.length, 999)}-${shown.join('-')}${suffix}-x${chars}`;
     }
     if (typeof parsed === 'string') {
       return `jstr${Math.min(parsed.length, 99999)}x${chars}`;
@@ -51,7 +81,7 @@
     for (let index = 0; index < length; index += 1) {
       const key = storage.key(index);
       if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
-      const suffix = key.slice(MMKV_PREFIX.length);
+      const suffix = key.slice(MMK_PREFIX.length);
       if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
 
       const orderMatch = suffix.match(ORDER_RE);
