@@ -16,6 +16,7 @@
   const MAX_STORAGE_KEYS = 2048;
   const MAX_ORDER_BYTES = 16384;
   const MAX_ORDER_ITEMS = 128;
+  const MAX_HIDDEN_BYTES = 256;
 
   function nestedShape(value) {
     if (value === null) return 'jnull';
@@ -95,6 +96,31 @@
     return entries;
   }
 
+  function unwrapSingleProperty(raw) {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return { ok: false, value: null };
+    }
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+      return { ok: false, value: null };
+    }
+    const keys = Object.keys(parsed);
+    if (keys.length !== 1) return { ok: false, value: null };
+    return { ok: true, value: parsed[keys[0]] };
+  }
+
+  function validateOrderList(value) {
+    if (!Array.isArray(value) || value.length > MAX_ORDER_ITEMS) return null;
+    const order = [];
+    for (const item of value) {
+      if (typeof item !== 'string' || !SAFE_HUB_ID.test(item)) return null;
+      order.push(item);
+    }
+    return order;
+  }
+
   function parseOrder(raw) {
     if (typeof raw !== 'string' || raw.length > MAX_ORDER_BYTES) return null;
     let parsed;
@@ -103,13 +129,33 @@
     } catch (_error) {
       return null;
     }
-    if (!Array.isArray(parsed) || parsed.length > MAX_ORDER_ITEMS) return null;
-    const order = [];
-    for (const item of parsed) {
-      if (typeof item !== 'string' || !SAFE_HUB_ID.test(item)) return null;
-      order.push(item);
+
+    const direct = validateOrderList(parsed);
+    if (direct !== null) return direct;
+
+    if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
+      const keys = Object.keys(parsed);
+      if (keys.length === 1) return validateOrderList(parsed[keys[0]]);
     }
-    return order;
+    return null;
+  }
+
+  function parseHidden(raw) {
+    if (typeof raw !== 'string' || raw.length > MAX_HIDDEN_BYTES) return null;
+    if (raw === 'true' || raw === 'Btrue') return true;
+    if (raw === 'false' || raw === 'Bfalse') return false;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+    if (typeof parsed === 'boolean') return parsed;
+
+    const wrapped = unwrapSingleProperty(raw);
+    if (wrapped.ok && typeof wrapped.value === 'boolean') return wrapped.value;
+    return null;
   }
 
   function scopeId(context, section) {
@@ -140,9 +186,10 @@
           hidden: new Set(),
           invalidHiddenShape: null,
         };
-        if (value === 'true') {
+        const hidden = parseHidden(value);
+        if (hidden === true) {
           scope.hidden.add(hiddenMatch[3]);
-        } else if (value !== 'false' && scope.invalidHiddenShape === null) {
+        } else if (hidden === null && scope.invalidHiddenShape === null) {
           scope.invalidHiddenShape = shapeToken(value);
         }
         scopes.set(id, scope);
@@ -220,7 +267,7 @@
     });
   }
 
-  const api = { buildSnapshot, parseOrder, shapeToken };
+  const api = { buildSnapshot, parseHidden, parseOrder, shapeToken };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }
