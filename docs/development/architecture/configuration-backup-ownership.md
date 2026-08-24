@@ -141,11 +141,14 @@ The #89 live bridge is deliberately narrow:
 - the manifest requests no Chrome permissions, has no background/service worker and matches only Plexamp loopback origins on port `32500`;
 - the kiosk does **not** expose a remote-debugging port;
 - inside Plexamp, the bridge reads only the live Local Storage key families already physically classified as Home `order` / per-hub `hidden` state;
-- `editing`, caches, resources, auth/session state and unrelated browser preferences are not emitted;
+- `editing`, caches, resources, auth/session state and unrelated browser preferences are not emitted and their values are not opened;
 - the bridge responds only to the A Clockwork Plex dashboard parent origins on port `8088` and uses a request nonce;
 - the dashboard parent validates origin, frame source, schema, status, item counts and conservative hub-ID syntax before accepting the snapshot;
+- physical discovery narrowed accepted Home identifiers to **`[A-Za-z0-9_./-]`** with a 220-character bound; `/` was the only additional character observed beyond the original conservative set, while `:` remains rejected;
 - the accepted browser snapshot is merged into the already secret-free server backup **in browser memory**; it is not POSTed to the dashboard service or written to a temporary server-side file;
 - if the extension is unavailable or an observed Plexamp value uses an unsupported format, export fails closed for this optional section and records an omission/warning instead of broadening the read boundary.
+
+The final commissioned-Pi #89 export physically returned browser schema `1`, **15 ordered Home identifiers**, **1 hidden identifier**, no browser omission and **zero warnings**. This establishes the live browser bridge as the supported export authority for Home order/hidden state.
 
 The source customization key contains account/library context. The exported logical browser section deliberately discards that source context and retains only order/hidden choices. Restore must not write a source key literally to a replacement appliance. After Plexamp has been freshly claimed and the target library selected, the future restore path must discover the target's live customization context and translate the saved logical ordering/hidden choices into it.
 
@@ -234,7 +237,7 @@ Restore is a separate operation from export and remains conservative:
 
 1. parse and validate the schema without changing anything;
 2. reject malformed/unsupported required data and bound all values;
-3. present a summary/preview, including enabled alarm count and unavailable optional sections;
+3. present a summary/preview, including unavailable optional sections and confirmation requirements;
 4. establish that the target appliance/runtime/audio owners are installed and healthy;
 5. capture rollback state for every owner that will change;
 6. apply ordinary ACP configuration through its Settings authorities;
@@ -242,6 +245,10 @@ Restore is a separate operation from export and remains conservative:
 8. apply supported Plexamp allow-listed preferences only after Plexamp is installed/claimed and version compatibility is known;
 9. verify the resulting Settings/specialist snapshots;
 10. roll back changed owners if a required restore stage fails.
+
+Checkpoint #90 currently implements **only the read-only planning portion of steps 1–3**. `POST /api/settings/restore/preview` accepts schema-v1 JSON in memory, rejects forbidden credential/machine-owned fields, validates bounded portable structures and compares the candidate to a fresh normalised current backup. Its response contains changed paths/counts rather than old/new values and explicitly returns `read_only: true` and `apply_enabled: false`. The planner has no config saver, EQ/mixer setter, Plexamp writer or browser mutation authority.
+
+Plexamp Home order/hidden data is validated and counted in the server preview but not compared/applied there, because the server does not own the live browser store. That stage remains deferred until Plexamp has been freshly commissioned and a separate live-browser restore authority is designed.
 
 Managed secrets remain a deliberate **post-restore commissioning step**. A successful restore must not claim that WU/Plex authentication was restored when those credentials were intentionally excluded.
 
@@ -255,9 +262,9 @@ Checkpoint #88 is complete. Repository ownership classification, live Plexamp He
 
 The commissioned Pi physically proved the Headless allow-list and browser key families through staged read-only audits and before/after Home reorder/hide experiments. This closes discovery and moves the active Settings/appliance-ownership work to #89.
 
-## #89 backup/export status — IN PROGRESS
+## #89 backup/export status — PHYSICALLY ACCEPTED
 
-The first export slice is implemented and physically accepted on the commissioned Pi:
+The complete schema-v1 export path is physically accepted on the commissioned Pi:
 
 - `app/configuration_backup.py` builds schema-version-1 JSON from the existing normalised Settings authority;
 - portable field selection excludes installer/hardware values instead of serialising the whole public Settings snapshot;
@@ -267,5 +274,20 @@ The first export slice is implemented and physically accepted on the commissione
 - `GET /api/settings/backup` is read-only, `Cache-Control: no-store`, and returns an attachment filename in the appliance/source timezone;
 - Settings exposes **Advanced → Backup & restore → Download backup** without making backup part of the staged Save Changes transaction;
 - the first physical download contained schema `1`, the expected five ACP settings domains, EQ + mixer, all eight approved Headless preferences, zero warnings and no forbidden credential/machine-state key paths;
-- the scoped live Plexamp content bridge and client-side merge path are now implemented for logical Home order/hidden preferences, but still require physical acceptance after kiosk Chromium restarts with the extension loaded;
-- restore/import is intentionally not enabled by #89.
+- the scoped live Plexamp bridge physically added browser schema `1`, 15 Home-order identifiers and 1 hidden identifier; the browser omission was removed and warning count remained zero;
+- the owner-facing success message explicitly states that Plexamp Home layout was included and credentials/authentication were not;
+- the remaining #89 administrative gate is a synchronized green GitHub Actions run on the accepted implementation/documentation head.
+
+## #90 restore preview status — IN PROGRESS
+
+The first restore slice is intentionally non-destructive:
+
+- `app/configuration_restore.py` adds a schema-v1 read-only planner;
+- `POST /api/settings/restore/preview` has no mutation authority and returns `Cache-Control: no-store`;
+- the planner rejects known secret, identity and target-hardware fields, validates bounds/types for mixer, Headless and browser sections, and compares only normalized portable server-owned state;
+- preview output contains changed paths/counts, section counts, version warnings and confirmation requirements, not old/new values;
+- Plexamp Home order/hidden state is validated and summarized but deferred to the future live-browser restore stage;
+- Settings adds a local JSON file selector and **Preview restore** action with an explicit **Preview only** contract and no Apply/Restore button;
+- the selected file is parsed locally and sent in memory as JSON rather than staged as an uploaded server file;
+- automated tests and CI gates protect the preview-only contract;
+- physical preview acceptance remains pending before any transactional restore mutation work begins.
