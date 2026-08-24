@@ -10,6 +10,7 @@
   const MMKV_PREFIX = 'mmkv.default\\';
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const SAFE_HUB_ID = /^[A-Za-z0-9_.-]{1,220}$/;
+  const SAFE_HUB_CHAR = /^[A-Za-z0-9_.-]$/;
   const SAFE_SHAPE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,31}$/;
   const ORDER_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):order$/;
   const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.-]{1,220}):hidden$/;
@@ -111,6 +112,21 @@
     return { ok: true, value: parsed[keys[0]] };
   }
 
+  function extractOrderCandidate(raw) {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object') {
+      const keys = Object.keys(parsed);
+      if (keys.length === 1) return parsed[keys[0]];
+    }
+    return null;
+  }
+
   function validateOrderList(value) {
     if (!Array.isArray(value) || value.length > MAX_ORDER_ITEMS) return null;
     const order = [];
@@ -121,23 +137,45 @@
     return order;
   }
 
+  function orderListDiagnostic(raw) {
+    const candidate = extractOrderCandidate(raw);
+    if (!Array.isArray(candidate)) return shapeToken(raw);
+
+    let maxLength = 0;
+    let empty = 0;
+    let over = 0;
+    let nonString = 0;
+    const badCodes = new Set();
+
+    for (const item of candidate) {
+      if (typeof item !== 'string') {
+        nonString += 1;
+        continue;
+      }
+      maxLength = Math.max(maxLength, item.length);
+      if (item.length === 0) empty += 1;
+      if (item.length > 220) over += 1;
+      for (const char of item) {
+        if (SAFE_HUB_CHAR.test(char)) continue;
+        if (badCodes.size >= 6) continue;
+        badCodes.add(char.codePointAt(0).toString(16));
+      }
+    }
+
+    const bad = Array.from(badCodes).sort().join('.') || 'none';
+    return [
+      `items${Math.min(candidate.length, 999)}`,
+      `max${Math.min(maxLength, 9999)}`,
+      `empty${Math.min(empty, 999)}`,
+      `over${Math.min(over, 999)}`,
+      `nonstring${Math.min(nonString, 999)}`,
+      `bad${bad}`,
+    ].join('-');
+  }
+
   function parseOrder(raw) {
     if (typeof raw !== 'string' || raw.length > MAX_ORDER_BYTES) return null;
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (_error) {
-      return null;
-    }
-
-    const direct = validateOrderList(parsed);
-    if (direct !== null) return direct;
-
-    if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
-      const keys = Object.keys(parsed);
-      if (keys.length === 1) return validateOrderList(parsed[keys[0]]);
-    }
-    return null;
+    return validateOrderList(extractOrderCandidate(raw));
   }
 
   function parseHidden(raw) {
@@ -226,7 +264,7 @@
       if (order === null) {
         return {
           schema_version: 1,
-          status: `unsupported-order-format-${shapeToken(scope.orderRaw)}`,
+          status: `unsupported-order-format-${orderListDiagnostic(scope.orderRaw)}`,
         };
       }
     }
@@ -267,7 +305,13 @@
     });
   }
 
-  const api = { buildSnapshot, parseHidden, parseOrder, shapeToken };
+  const api = {
+    buildSnapshot,
+    orderListDiagnostic,
+    parseHidden,
+    parseOrder,
+    shapeToken,
+  };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }
