@@ -89,12 +89,12 @@
     <section class="settings-card">
       <div class="settings-card-heading">
         <div>
-          <h3>Restore preview</h3>
-          <p class="muted small">Check a backup against this appliance before any restore capability is enabled.</p>
+          <h3>Restore</h3>
+          <p class="muted small">Preview first. Only a fresh, explicitly confirmed preview can restore supported server-owned settings.</p>
         </div>
-        <span class="settings-chip">Preview only</span>
+        <span class="settings-chip">Rollback protected</span>
       </div>
-      <p class="muted small"><strong>Nothing on the appliance is changed by this step.</strong> The selected JSON file is parsed in the browser and checked in memory. The preview reports configuration paths and counts only; it does not display saved values.</p>
+      <p class="muted small"><strong>Preview never changes the appliance.</strong> The selected JSON file is parsed in the browser and checked in memory. The preview reports configuration paths and counts only; it does not display saved values.</p>
       <label class="setting-field">
         <span>Backup file</span>
         <input type="file" accept=".json,application/json" data-configuration-restore-file>
@@ -106,8 +106,8 @@
       </div>
       <div data-configuration-restore-preview hidden>
         <div class="settings-grid two-col">
-          <div class="setting-field"><span>Portable changes</span><strong data-configuration-restore-change-count>0</strong><small>Server-owned fields that differ from the current appliance.</small></div>
-          <div class="setting-field"><span>Plexamp Home layout</span><strong data-configuration-restore-browser-summary>Not present</strong><small>Validated here; comparison/application belongs to the live-browser restore stage.</small></div>
+          <div class="setting-field"><span>Restorable now</span><strong data-configuration-restore-change-count>0</strong><small>ACP Settings, Master EQ and persistent mixer paths that differ from this appliance.</small></div>
+          <div class="setting-field"><span>Plexamp Home layout</span><strong data-configuration-restore-browser-summary>Not present</strong><small>Validated here; comparison/application belongs to the later live-browser restore stage.</small></div>
         </div>
         <div class="settings-grid two-col">
           <div class="setting-field">
@@ -123,7 +123,23 @@
           <summary>Technical changed paths</summary>
           <ul class="muted small" data-configuration-restore-paths></ul>
         </details>
-        <p class="muted small"><strong>Apply remains disabled.</strong> A later restore phase will require a fresh preview, explicit confirmation and transactional owner-by-owner application.</p>
+        <div data-configuration-restore-apply-zone hidden>
+          <p class="muted small"><strong>This phase restores ACP Settings, Master EQ and the four persistent mixer levels only.</strong> Plexamp Headless preferences and Home layout remain deferred and are not written by this button.</p>
+          <div class="settings-action-row">
+            <button class="button" type="button" data-action="apply-configuration-restore">Restore server settings</button>
+            <span class="muted small" data-configuration-restore-apply-message>A fresh preview is required immediately before restore.</span>
+          </div>
+          <div class="setting-field" data-configuration-restore-confirm hidden>
+            <span>Confirm restore</span>
+            <strong data-configuration-restore-confirm-title>Apply the previewed changes?</strong>
+            <small data-configuration-restore-confirm-copy>A rollback snapshot will be captured before the first owner changes.</small>
+            <div class="settings-action-row">
+              <button class="button" type="button" data-action="confirm-configuration-restore">Confirm restore</button>
+              <button class="button settings-secondary" type="button" data-action="cancel-configuration-restore">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <p class="muted small"><strong>Credentials are never restored.</strong> WU/Plex authentication stays a separate commissioning step, and Plexamp preference/layout restore remains disabled until its own owner-specific stages are implemented.</p>
       </div>
     </section>
   `;
@@ -215,8 +231,34 @@
     });
   }
 
+  function settingsHaveUnsavedChanges() {
+    const saveButton = document.querySelector('#settings-unified-form button[type="submit"]');
+    return Boolean(saveButton && !saveButton.disabled);
+  }
+
+  let selectedBackup = null;
+  let lastPlan = null;
+  let restoreInFlight = false;
+
+  function resetApplyState() {
+    const applyZone = page.querySelector('[data-configuration-restore-apply-zone]');
+    const confirmation = page.querySelector('[data-configuration-restore-confirm]');
+    const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
+    if (applyZone) applyZone.hidden = true;
+    if (confirmation) confirmation.hidden = true;
+    if (applyMessage) applyMessage.textContent = 'A fresh preview is required immediately before restore.';
+    lastPlan = null;
+  }
+
   function renderRestorePreview(plan) {
-    if (!plan || plan.ok !== true || plan.read_only !== true || plan.apply_enabled !== false) {
+    if (
+      !plan
+      || plan.ok !== true
+      || plan.read_only !== true
+      || typeof plan.apply_enabled !== 'boolean'
+      || typeof plan.preview_token !== 'string'
+      || !/^[a-f0-9]{32}$/.test(plan.preview_token)
+    ) {
       throw new Error('Restore preview returned an invalid safety contract.');
     }
 
@@ -226,8 +268,11 @@
     const sectionsList = page.querySelector('[data-configuration-restore-sections]');
     const warningsList = page.querySelector('[data-configuration-restore-warnings]');
     const pathsList = page.querySelector('[data-configuration-restore-paths]');
+    const applyZone = page.querySelector('[data-configuration-restore-apply-zone]');
+    const confirmation = page.querySelector('[data-configuration-restore-confirm]');
+    const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
 
-    if (changeCount) changeCount.textContent = String(Number(plan.change_count || 0));
+    if (changeCount) changeCount.textContent = String(Number(plan.apply_change_count || 0));
 
     const browser = plan.plexamp_browser && typeof plan.plexamp_browser === 'object'
       ? plan.plexamp_browser
@@ -243,12 +288,12 @@
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([name, count]) => `${name}: ${Number(count || 0)}`)
       : [];
-    replaceList(sectionsList, sections, 'No server-owned portable changes detected.');
+    replaceList(sectionsList, sections, 'No portable changes detected.');
 
     const warnings = Array.isArray(plan.warnings) ? Array.from(plan.warnings) : [];
     if (Array.isArray(plan.confirmations_required)) {
-      plan.confirmations_required.forEach((confirmation) => {
-        warnings.push(`Confirmation required later: ${String(confirmation)}`);
+      plan.confirmations_required.forEach((confirmationName) => {
+        warnings.push(`Restore confirmation required: ${String(confirmationName)}`);
       });
     }
     replaceList(warningsList, warnings, 'No restore warnings or confirmations.');
@@ -256,8 +301,16 @@
     const paths = Array.isArray(plan.changed_paths) ? plan.changed_paths : [];
     const pathLines = paths.map((path) => String(path));
     if (plan.changed_paths_truncated) pathLines.push('…additional changed paths omitted from preview');
-    replaceList(pathsList, pathLines, 'No changed server-owned paths.');
+    replaceList(pathsList, pathLines, 'No changed portable paths.');
 
+    lastPlan = plan;
+    if (applyZone) applyZone.hidden = plan.apply_enabled !== true || Number(plan.apply_change_count || 0) === 0;
+    if (confirmation) confirmation.hidden = true;
+    if (applyMessage) {
+      applyMessage.textContent = plan.apply_enabled
+        ? 'Preview is current. Restore still requires explicit confirmation.'
+        : 'No currently supported server-owned changes need restoring.';
+    }
     if (container) container.hidden = false;
   }
 
@@ -314,8 +367,16 @@
   const restoreMessage = page.querySelector('[data-configuration-restore-message]');
   const restoreButton = page.querySelector('[data-action="preview-configuration-restore"]');
   const restorePreview = page.querySelector('[data-configuration-restore-preview]');
+  const applyButton = page.querySelector('[data-action="apply-configuration-restore"]');
+  const confirmButton = page.querySelector('[data-action="confirm-configuration-restore"]');
+  const cancelButton = page.querySelector('[data-action="cancel-configuration-restore"]');
+  const confirmation = page.querySelector('[data-configuration-restore-confirm]');
+  const confirmCopy = page.querySelector('[data-configuration-restore-confirm-copy]');
+  const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
 
   restoreFile?.addEventListener('change', () => {
+    selectedBackup = null;
+    resetApplyState();
     if (restorePreview) restorePreview.hidden = true;
     const file = restoreFile.files?.[0] || null;
     if (!file) {
@@ -337,8 +398,10 @@
 
   restoreButton?.addEventListener('click', async () => {
     const file = restoreFile?.files?.[0] || null;
-    if (!file) return;
+    if (!file || restoreInFlight) return;
     restoreButton.disabled = true;
+    selectedBackup = null;
+    resetApplyState();
     if (restorePreview) restorePreview.hidden = true;
     if (restoreMessage) restoreMessage.textContent = 'Validating backup and comparing portable settings…';
     try {
@@ -366,16 +429,108 @@
       if (!response.ok) {
         throw new Error(plan.error || `Restore preview returned HTTP ${response.status}.`);
       }
+      selectedBackup = backup;
       renderRestorePreview(plan);
+      const applyCount = Number(plan.apply_change_count || 0);
+      const deferredCount = Number(plan.deferred_change_count || 0);
       if (restoreMessage) {
-        restoreMessage.textContent = Number(plan.change_count || 0) === 0
-          ? 'Backup is valid. No server-owned portable settings differ from this appliance.'
-          : `Backup is valid. ${Number(plan.change_count || 0)} server-owned portable setting path${Number(plan.change_count || 0) === 1 ? '' : 's'} would change.`;
+        if (applyCount === 0 && deferredCount === 0) {
+          restoreMessage.textContent = 'Backup is valid. No supported server-owned portable settings differ from this appliance.';
+        } else if (applyCount > 0) {
+          restoreMessage.textContent = `Backup is valid. ${applyCount} server-owned setting path${applyCount === 1 ? '' : 's'} can be restored now.`;
+        } else {
+          restoreMessage.textContent = 'Backup is valid. Only deferred Plexamp preference changes remain.';
+        }
       }
     } catch (error) {
+      selectedBackup = null;
+      resetApplyState();
       if (restoreMessage) restoreMessage.textContent = error.message || 'Could not preview this backup.';
     } finally {
       restoreButton.disabled = false;
+    }
+  });
+
+  applyButton?.addEventListener('click', () => {
+    if (!selectedBackup || !lastPlan || lastPlan.apply_enabled !== true || restoreInFlight) return;
+    if (settingsHaveUnsavedChanges()) {
+      if (applyMessage) applyMessage.textContent = 'Save or discard the staged Settings changes before restoring a backup.';
+      return;
+    }
+    const confirmations = Array.isArray(lastPlan.confirmations_required)
+      ? lastPlan.confirmations_required
+      : [];
+    if (confirmCopy) {
+      confirmCopy.textContent = confirmations.includes('airplay_restart')
+        ? 'A rollback snapshot will be captured first. This restore also changes the AirPlay receiver name, so Shairport Sync will briefly restart.'
+        : 'A rollback snapshot will be captured before Settings, EQ or mixer state is changed.';
+    }
+    if (confirmation) confirmation.hidden = false;
+    if (applyMessage) applyMessage.textContent = 'Review the confirmation below. Nothing has changed yet.';
+  });
+
+  cancelButton?.addEventListener('click', () => {
+    if (confirmation) confirmation.hidden = true;
+    if (applyMessage) applyMessage.textContent = 'Restore cancelled. The preview remains available.';
+  });
+
+  confirmButton?.addEventListener('click', async () => {
+    if (!selectedBackup || !lastPlan || restoreInFlight) return;
+    if (settingsHaveUnsavedChanges()) {
+      if (confirmation) confirmation.hidden = true;
+      if (applyMessage) applyMessage.textContent = 'Save or discard the staged Settings changes before restoring a backup.';
+      return;
+    }
+
+    restoreInFlight = true;
+    if (confirmation) confirmation.hidden = true;
+    if (applyButton) applyButton.disabled = true;
+    if (confirmButton) confirmButton.disabled = true;
+    if (restoreButton) restoreButton.disabled = true;
+    if (restoreFile) restoreFile.disabled = true;
+    if (applyMessage) applyMessage.textContent = 'Capturing rollback state and restoring supported server-owned settings…';
+
+    try {
+      const response = await fetch('/api/settings/restore/apply', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          backup: selectedBackup,
+          preview_token: lastPlan.preview_token,
+          confirm_restore: true,
+          confirmations: Array.isArray(lastPlan.confirmations_required)
+            ? lastPlan.confirmations_required
+            : [],
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.ok === false) {
+        const rollbackText = result.rolled_back === true
+          ? ' Previous server-owned state was rolled back.'
+          : '';
+        throw new Error(`${result.error || `Restore returned HTTP ${response.status}.`}${rollbackText}`);
+      }
+      selectedBackup = null;
+      lastPlan = null;
+      if (applyMessage) {
+        const count = Number(result.applied_change_count || 0);
+        applyMessage.textContent = `Restore verified: ${count} server-owned path${count === 1 ? '' : 's'} applied. Reloading Settings…`;
+      }
+      window.setTimeout(() => window.location.reload(), 900);
+    } catch (error) {
+      if (applyMessage) applyMessage.textContent = error.message || 'Restore failed.';
+      resetApplyState();
+      if (restoreMessage) restoreMessage.textContent = 'Run Preview restore again before any retry.';
+    } finally {
+      restoreInFlight = false;
+      if (applyButton) applyButton.disabled = false;
+      if (confirmButton) confirmButton.disabled = false;
+      if (restoreButton) restoreButton.disabled = false;
+      if (restoreFile) restoreFile.disabled = false;
     }
   });
 
