@@ -250,7 +250,7 @@ The #90 preview endpoint implements steps 1–3 without mutation. `POST /api/set
 
 The commissioned Pi physically accepted this preview stage on 24 August 2026 using the just-created schema-v1 backup: **0 server-owned differences**, `read_only: true`, `apply_enabled: false`, browser schema `1`, **15 ordered** Home items and **1 hidden** item. The only warning was the expected notice that Plexamp Home comparison/application remains a live-browser stage. The 1280×720 Settings presentation was also physically checked.
 
-The next #90 slice now implements steps 4–7, 9 and 10 for **server-owned ACP state only**:
+The #90 server-owned phase implements steps 4–7, 9 and 10 for **server-owned ACP state only**:
 
 - `POST /api/settings/restore/apply` is a separate endpoint from Preview and requires an explicit `confirm_restore: true` request;
 - a 32-hex preview fingerprint binds Apply to the exact normalized backup plus current server-owned comparison state; if the appliance or selected backup changes after Preview, Apply returns a conflict and requires a fresh preview before any owner is touched;
@@ -262,6 +262,8 @@ The next #90 slice now implements steps 4–7, 9 and 10 for **server-owned ACP s
 - any required-stage failure rolls touched owners back in reverse order and reports rollback failures explicitly;
 - Settings refuses the UI restore path while ordinary staged Settings changes are unsaved;
 - automated fake-backed regression coverage injects a late mixer failure after Settings and EQ have changed and verifies that mixer, EQ and Settings all return to their original logical state.
+
+The normal successful path is physically accepted on the commissioned Pi. One harmless ordinary Settings value, one `0.5 dB` EQ value and one small persistent mixer value were deliberately changed after taking a baseline backup. Preview reported exactly three supported server-owned differences; **Restore server settings → Confirm restore** returned all three values to the backed-up state; selecting the same backup again then reported **0** restorable server-owned items. The remaining live safety check for this phase is stale-preview refusal, while injected failure/rollback remains covered automatically rather than by intentionally breaking the appliance.
 
 This server-owned phase does **not** write Plexamp Headless preference files or Plexamp Home Local Storage. Headless preferences remain deferred to a later version-aware Plexamp-owner stage; Home order/hidden remains deferred until a target live browser context can be discovered and rolled back safely. Managed secrets likewise remain a deliberate **post-restore commissioning step**.
 
@@ -302,7 +304,7 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Commissioned-Pi preview of the fresh backup returned **0** server-owned changes, `read_only: true`, `apply_enabled: false`, **15 ordered / 1 hidden**, and only the expected deferred-browser warning.
 - [x] The 1280×720 Restore preview presentation was physically accepted.
 
-### Phase 2 — transactional server-owned apply — IMPLEMENTED; PHYSICAL ACCEPTANCE PENDING
+### Phase 2 — transactional server-owned apply — PHYSICALLY ACCEPTED; STALE-PREVIEW CHECK PENDING
 
 - [x] Separate confirmed `POST /api/settings/restore/apply` endpoint implemented.
 - [x] Fresh-preview fingerprint/stale-state refusal implemented.
@@ -310,9 +312,11 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Reverse-order rollback and post-apply verification implemented.
 - [x] EQ step/range and case-insensitive forbidden-key validation tightened before mutation was enabled.
 - [x] Regression coverage includes success, stale-preview refusal and injected late-mixer-failure rollback.
-- [x] CI source/syntax gates updated for the separate apply endpoint and confirmation UI.
-- [ ] Final synchronized Actions result for the current phase-2 head must be green.
-- [ ] Physical harmless-change restore: change a small Settings value, one EQ band by `0.5 dB` and one persistent mixer level, preview the prior backup, explicitly restore, and prove a second preview returns zero supported server-owned differences.
+- [x] CI source/syntax gates cover the separate apply endpoint and confirmation UI.
+- [x] Physical harmless-change restore returned one Settings value, one `0.5 dB` EQ value and one small persistent mixer value to their backed-up state; a second preview of the same backup returned **0** supported server-owned differences.
+- [x] Physical review confirmed the two-step restore interaction at 1280×720 and identified only cosmetic spacing/alignment follow-up, now isolated in scoped backup/restore CSS.
+- [ ] Final synchronized Actions result for the current phase-2/polish head must be green.
+- [ ] Physical visual re-check of the scoped spacing/alignment follow-up.
 - [ ] Physical stale-preview refusal: change/save one supported value after Preview and prove Apply refuses the stale fingerprint without restoring anything.
 
 Plexamp Headless and live-browser Home application remain later #90 phases, not part of phase 2.
