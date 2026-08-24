@@ -151,19 +151,42 @@ Initial #89 implementation sequence:
 
 ### Configuration import/restore — IN PROGRESS at checkpoint #90
 
-Restore starts with a deliberately non-destructive preview phase. There is currently **no restore/apply mutation endpoint**.
+#### Phase 1 — parse / validate / preview — PHYSICALLY ACCEPTED
 
 - [x] Added `app/configuration_restore.py` with `ConfigurationRestorePlanner`, consuming the same schema-v1 portable model as export rather than raw appliance files.
-- [x] Added read-only `POST /api/settings/restore/preview`. The planner has only a current-backup provider; it receives no config saver, EQ/mixer setter, Plexamp writer or browser mutation authority.
-- [x] Preview enforces a 1 MB request limit, schema/version and top-level/domain allow-lists, bounded JSON structure, exact mixer channels/ranges, exact typed Headless allow-list and the physically accepted `[A-Za-z0-9_./-]` Plexamp Home identifier policy.
+- [x] Added read-only `POST /api/settings/restore/preview`; the preview operation itself has no mutation path.
+- [x] Preview enforces a 1 MB request limit, schema/version and domain allow-lists, bounded JSON structure, exact mixer channels/ranges, exact typed Headless allow-list and the physically accepted `[A-Za-z0-9_./-]` Plexamp Home identifier policy.
 - [x] Tampered credential/machine-owned fields such as API/auth/claim tokens, cookies, `audioDeviceUuid`, `playerName`, `premium`, ALSA/hardware fields and Plexamp service/pause plumbing are rejected before comparison.
-- [x] Preview compares only the normalized server-owned portable model against a fresh current backup and returns **changed paths/counts, never old/new values**. AirPlay receiver-name changes are flagged as requiring the later restart confirmation.
+- [x] Preview compares the normalized portable model against a fresh current backup and returns **changed paths/counts, never old/new values**. AirPlay receiver-name changes are flagged as requiring a restart confirmation.
 - [x] Valid Plexamp Home order/hidden data is recognized and counted, but comparison/application is explicitly deferred to the future live-browser restore stage after Plexamp is commissioned.
-- [x] Settings → Advanced → Backup & restore now includes **Restore preview** with a JSON file selector, 1 MB client limit, read-only preview button, changed-section/path counts and warnings/confirmations. The selected file is parsed locally and sent in memory as JSON; there is no uploaded-file staging directory and no Apply/Restore button.
-- [x] Regression coverage proves preview-only safety, changed-path/no-value output, rejection of tampered secret/machine fields and unsupported browser identifiers, plus `Cache-Control: no-store` and `apply_enabled: false`.
-- [x] CI compiles the restore module, syntax-checks the Settings UI, verifies runner registration and guards the preview-only UI contract.
-- [ ] Physical #90 preview acceptance: select the just-accepted backup on the commissioned Pi, confirm the preview remains read-only, reports sensible server-owned differences and recognizes the 15-order/1-hidden browser payload without exposing values.
-- [ ] Only after preview acceptance: design transactional owner-by-owner application, rollback capture, explicit confirmation and the live Plexamp restore bridge. No mutation work is accepted merely because preview succeeds.
+- [x] Settings → Advanced → Backup & restore provides a JSON file selector and **Preview restore**. The selected file is parsed locally and sent in memory as JSON; there is no uploaded-file staging directory.
+- [x] The preview API contract permanently keeps `read_only: true` and `apply_enabled: false`; a separate `server_restore_available` flag is used for the distinct confirmed server-restore phase so Preview never changes meaning.
+- [x] Regression coverage protects read-only preview safety, changed-path/no-value output, rejection of tampered secret/machine fields and unsupported browser identifiers, plus `Cache-Control: no-store`.
+- [x] Physical commissioned-Pi acceptance passed on 24 August 2026 with the just-created backup: **0 supported server-owned changes**, `read_only: true`, `apply_enabled: false`, Plexamp browser payload present with **15 ordered / 1 hidden**, and only the expected deferred-browser warning.
+- [x] The Restore preview screen was physically checked at 1280×720 and remained readable/useful.
+
+#### Phase 2 — transactional server-owned restore — IMPLEMENTED; PHYSICAL ACCEPTANCE PENDING
+
+This phase deliberately restores only owners already controlled transactionally by the dashboard. Plexamp state is still deferred.
+
+- [x] Added separate confirmed `POST /api/settings/restore/apply`; Preview itself remains non-mutating.
+- [x] A 32-hex preview fingerprint binds Apply to the exact normalized backup and current server-owned comparison state. A stale preview refuses before owner mutation and requires a fresh Preview.
+- [x] Apply requires explicit second confirmation. AirPlay receiver-name changes carry the existing restart confirmation forward.
+- [x] Preflight refuses before mutation if a required Master EQ or persistent mixer authority is unavailable.
+- [x] Rollback state is captured from the same normalised authorities before the first owner changes.
+- [x] Application order is **Unified Settings → Master EQ → persistent four-channel mixer**; no raw config/EQ/ALSA state file is overwritten directly.
+- [x] Post-apply verification re-runs the normalized comparison and requires all currently supported server-owned paths to match the requested backup.
+- [x] Any required-stage failure rolls touched owners back in reverse order and reports rollback failures explicitly.
+- [x] Restore rejects unsaved ordinary Settings changes in the UI before confirmation.
+- [x] EQ restore validation is restricted to the production `-6…+6 dB` range in `0.5 dB` steps, and forbidden-key detection is case-insensitive.
+- [x] Fake-backed regression coverage proves successful Settings/EQ/mixer restore, stale-preview refusal without mutation and an injected late mixer failure restoring mixer, EQ and Settings to their original logical state.
+- [x] CI compile/JavaScript/source-contract gates now require the separate apply registration/endpoint, immutable read-only Preview flag, `server_restore_available` and explicit confirmation control.
+- [ ] Final synchronized Actions run for the current phase-2 head must be green before physical mutation testing.
+- [ ] Physical harmless-change restore: make one small ordinary Settings change, one `0.5 dB` EQ change and one small persistent mixer-level change, preview the accepted earlier backup, explicitly restore it, and prove a second preview reports **0** supported server-owned changes.
+- [ ] Physical stale-preview refusal: Preview a backup, save one supported change elsewhere, then prove the old preview token is rejected without restore mutation.
+- [ ] Later phase: version-aware allow-listed Plexamp Headless preference application after Plexamp is installed/claimed.
+- [ ] Later phase: target-context-aware Plexamp Home order/hidden application through the live browser owner with rollback; never transplant the source account/library Local Storage key literally.
+- [ ] Final #90 closure requires synchronized CI plus full physical restore/rollback acceptance across all implemented owners.
 
 Initial #90 implementation sequence:
 - read-only planner/API: `95b557c1254921f706d0f7f9c9e7faebb549c08e`;
@@ -171,7 +194,14 @@ Initial #90 implementation sequence:
 - preview regression coverage: `4726dda3507b52218771c6956db51746280753e3`;
 - compile/runner CI gate: `3a1143f27a338ebed71b68dec9dc95decebccab8`;
 - Settings preview UI: `a99444333a56de1e577e7b8f330b9821957e57db`;
-- preview-only UI contract gate: `bdff63df97b59e98027ab3aaab778636528cb1c0`.
+- preview-only UI contract gate: `bdff63df97b59e98027ab3aaab778636528cb1c0`;
+- preview acceptance/restore contract documentation: `f0aafcf50519fc52cd6bbd3aff6331239fb199be`;
+- transactional backend: `2c3f13234b30d1910748e466614962e5063ab593`;
+- real Settings/EQ/mixer owner binding: `7067cdb28756117ef8aecbe62ce6795d3810ec0d`;
+- confirmed restore UI: `4ffe8016570c675c80fb9c8a75ae41b4fd3f351f`;
+- immutable Preview/separate restore-availability contract: `6445c93709b383bfd4a0087176ee3d7f1372299d`, `6136853e64c5dde279363c2fcc5314940cdbf781`;
+- transactional regression coverage in the existing Settings test module: `15192d4f5949b47b1b20d5d1554f7929dad8b9ab`;
+- phase-2 CI safety gates: `8007e20b60c5d88172cd0e85fd122161ee384037`.
 
 ## Current supported release
 
@@ -256,7 +286,7 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 - [ ] **Configuration backup/export — PHYSICALLY ACCEPTED at #89; final synchronized CI confirmation pending.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
-- [ ] **Configuration import/restore — IN PROGRESS at #90.** The first slice is deliberately preview-only: schema/security validation, comparison and value-free change planning are implemented in backend and Settings UI. Actual restore remains disabled until this preview is physically accepted and transactional owner-by-owner application/rollback is designed.
+- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview is physically accepted. The transactional server-owned phase for Unified Settings, Master EQ and persistent mixer is implemented with stale-preview protection, explicit confirmation, verification and rollback; synchronized CI and harmless physical restore acceptance are pending before Plexamp Headless/Home application begins.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
