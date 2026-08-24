@@ -129,6 +129,10 @@ jobs:
           grep -q "register_configuration_restore_preview_api" app/runner.py
           grep -q "ShairportNameManager" app/runner.py
           grep -q "download-configuration-backup" app/static/js/settings-about.js
+          grep -q "preview-configuration-restore" app/static/js/settings-about.js
+          grep -q "/api/settings/restore/preview" app/static/js/settings-about.js
+          grep -q "Apply remains disabled" app/static/js/settings-about.js
+          ! grep -q 'data-action="apply-configuration-restore"' app/static/js/settings-about.js
           grep -q "includeBrowserPreferences" app/static/js/settings-about.js
           grep -q "ACPPlexampBrowserPreferences" app/static/js/plexamp-browser-bridge.js
           grep -q -- "--load-extension=" scripts/launch-dashboard-kiosk.sh
