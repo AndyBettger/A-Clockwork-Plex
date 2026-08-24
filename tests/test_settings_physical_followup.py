@@ -26,6 +26,7 @@ class SettingsPhysicalFollowupTests(unittest.TestCase):
         self.audio_mixer = Path("app/audio_mixer.py").read_text(encoding="utf-8")
         self.css = Path("app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
         self.pass_a_css = Path("app/static/css/settings-pass-a.css").read_text(encoding="utf-8")
+        self.restore_css = Path("app/static/css/settings-backup-restore.css").read_text(encoding="utf-8")
 
     def test_promoted_unified_settings_preserves_scheduled_alarm_switch(self):
         fixture = unified_fixtures.UnifiedSettingsTests()
@@ -101,6 +102,16 @@ default
         self.assertIn("grid-template-rows: 32px minmax(234px, 1fr) 52px", self.pass_a_css)
         self.assertIn("heading is vertically centred on the pill", self.pass_a_css)
         self.assertIn("equal-length calibrated faders", self.pass_a_css)
+
+    def test_backup_restore_polish_centres_actions_and_spaces_blocks(self):
+        self.assertIn("settings-backup-restore.css", self.base)
+        self.assertIn("20260824-restore-polish-v1", self.base)
+        self.assertIn('[data-settings-subpage="advanced:backup"] .settings-action-row', self.restore_css)
+        self.assertIn("align-items: center", self.restore_css)
+        self.assertIn('[data-configuration-restore-preview]:not([hidden])', self.restore_css)
+        self.assertIn('[data-configuration-restore-apply-zone]:not([hidden])', self.restore_css)
+        self.assertIn("gap: 14px", self.restore_css)
+        self.assertIn("min-height: 39px", self.restore_css)
 
     def test_audio_output_copy_distinguishes_source_trims_from_alarm_ceiling(self):
         self.assertIn("Levels and equaliser", self.settings_template)
