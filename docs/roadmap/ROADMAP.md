@@ -101,9 +101,9 @@ The Settings/appliance-ownership cycle began by classifying persistent data befo
 
 #88 is closed. No raw Plexamp profile or Chromium profile is a supported backup unit.
 
-### Configuration backup/export — IN PROGRESS at checkpoint #89
+### Configuration backup/export — PHYSICALLY ACCEPTED at checkpoint #89
 
-The schema-v1 secret-safe export and its first physical commissioned-Pi acceptance are complete. Work now concentrates on the controlled live Plexamp Home bridge.
+The schema-v1 secret-safe export, Headless preference export and live Plexamp Home-layout bridge have all passed on the commissioned Pi. Only the final synchronized GitHub Actions confirmation remains before #89 is administratively closed.
 
 - [x] Added `app/configuration_backup.py` with **schema version 1** and metadata sourced from `app/static/app-version.json`.
 - [x] Export builds from the existing normalised Unified Settings authority and selects an explicit portable subset instead of serialising the public snapshot wholesale.
@@ -128,11 +128,11 @@ The schema-v1 secret-safe export and its first physical commissioned-Pi acceptan
 - [x] First live-bridge physical probe on 24 August 2026 proved the extension/request path is active and fails closed: a fresh backup contained no `plexamp.browser_preferences`, retained the deliberate browser omission, and recorded exactly one warning: `browser bridge unsupported-hidden-format`. No unsupported value was exposed.
 - [x] Hardened the bridge after that physical probe so it now calls `getItem()` **only after** a Local Storage key matches the exact `:order` / `:hidden` allow-list. Editor/cache/resource/auth-adjacent values are no longer merely excluded from output; they are not opened by the bridge at all. Added regression coverage for that read boundary.
 - [x] Physical safe-shape probes established that both live values use one-property JSON wrappers: the hidden record wraps a boolean, while the order record wraps an array of **15 strings**. The opaque one-character wrapper key is intentionally not treated as part of ACP's compatibility contract.
-- [x] Bridge `1.0.3` added strict singleton-wrapper parsing. The physical follow-up proved hidden state now parses successfully; the remaining fail-closed warning is `unsupported-order-format-jobj1-keylen1-jarr15s-x502`, showing that at least one real order string violates the deliberately narrow initial hub-ID character/length policy.
-- [x] Bridge `1.0.4` adds a value-free rejected-order diagnostic: item count, maximum length, empty/over-length/non-string counts and only the hexadecimal codes of characters outside the current `[A-Za-z0-9_.-]` set. Regression coverage proves a synthetic `:` / `/` case reports only `bad2f.3a`, never the identifiers themselves.
-- [ ] Physical live-bridge identifier follow-up: restart kiosk Chromium with bridge `1.0.4`, download a fresh backup and capture only the resulting `unsupported-order-format-items...` warning token. Widen the identifier validator only to the physically observed safe character/length requirements; do not accept arbitrary strings merely to make export pass.
-- [ ] Physical live-bridge acceptance: after the identifier validator is narrowed correctly, confirm `plexamp.browser_preferences.home` is present with sensible order/hidden counts while the forbidden-key checker remains clean.
-- [ ] Final #89 synchronized Actions run must be green after the live-bridge implementation and physical follow-up.
+- [x] Bridge `1.0.3` added strict singleton-wrapper parsing. The physical follow-up proved hidden state parses successfully.
+- [x] Bridge `1.0.4` added a value-free rejected-order diagnostic. The commissioned Pi reported `items15-max77-empty0-over0-nonstring0-bad2f`: all 15 identifiers are bounded strings, and `/` (`0x2f`) was the only character required beyond the initial `[A-Za-z0-9_.-]` policy.
+- [x] Bridge `1.0.5` and the dashboard-side validator therefore widened **only** to `[A-Za-z0-9_./-]`; `:` and other unobserved punctuation remain rejected. Slash-bearing per-hub `:hidden` keys are also supported, and the parent bridge asset was cache-busted.
+- [x] Final live-layout physical export passed on 24 August 2026. Settings reported **“Backup downloaded, including Plexamp Home layout. Credentials and authentication were not included.”** Structural verification reported: browser preferences present; browser schema `1`; Home order captured with **15 items**; **1 hidden item**; browser omission **false**; warning count **0**.
+- [ ] Final #89 synchronized Actions run must be green on the accepted implementation/roadmap head before administrative closure.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -146,9 +146,32 @@ Initial #89 implementation sequence:
 - bridge regression/CI gating: `93e8e5cb514af85beb5933758d7f575e9d2ab286`, `f0ca0fac67002d5ae580d793ed809433a8df6bc0`;
 - fail-closed/read-boundary/shape diagnostics: `d19235465f91bc7569151626ec758bf556ea232f` through `4c2505ea3cee3f471395eb09f6a362bbbecff588`;
 - singleton-wrapper parser: `b035d6d604823d2d2c476ccebac3b9c5b21a494e`, `014962eb02f0e3180643bdd5e1d4dac77c798cb3`, `f7858e306a671102fdd1caacb479c2ce0a30fee3`;
-- rejected-order identifier diagnostic: `3a31ecf6d79586402aa3f73f4c14dd3cb41f9734`, `8057b7a3eb7e66d5f1ba7f28d0757d5dda633e66`, `d802ea734902ab1c0c221fc1775d024357a9397d`.
+- rejected-order identifier diagnostic: `3a31ecf6d79586402aa3f73f4c14dd3cb41f9734`, `8057b7a3eb7e66d5f1ba7f28d0757d5dda633e66`, `d802ea734902ab1c0c221fc1775d024357a9397d`;
+- final `/` identifier support/client validation/cache refresh: `99c0ede324ab5356a6d16b419e8cd50e5b5a7f05`, `8b37229cbdd579af69269586c7309298bdc7684f`, `9fe7c8350daf211fbd7a393ab72e9317ec996fcb`, `2657e86f937fd42669d1513ab2da65becf10bf01`, `a02592b25baa178cb10f775d461d1c44f7e21586`.
 
-Restore/import remains a separate later operation; #89 does not enable restore mutation.
+### Configuration import/restore — IN PROGRESS at checkpoint #90
+
+Restore starts with a deliberately non-destructive preview phase. There is currently **no restore/apply mutation endpoint**.
+
+- [x] Added `app/configuration_restore.py` with `ConfigurationRestorePlanner`, consuming the same schema-v1 portable model as export rather than raw appliance files.
+- [x] Added read-only `POST /api/settings/restore/preview`. The planner has only a current-backup provider; it receives no config saver, EQ/mixer setter, Plexamp writer or browser mutation authority.
+- [x] Preview enforces a 1 MB request limit, schema/version and top-level/domain allow-lists, bounded JSON structure, exact mixer channels/ranges, exact typed Headless allow-list and the physically accepted `[A-Za-z0-9_./-]` Plexamp Home identifier policy.
+- [x] Tampered credential/machine-owned fields such as API/auth/claim tokens, cookies, `audioDeviceUuid`, `playerName`, `premium`, ALSA/hardware fields and Plexamp service/pause plumbing are rejected before comparison.
+- [x] Preview compares only the normalized server-owned portable model against a fresh current backup and returns **changed paths/counts, never old/new values**. AirPlay receiver-name changes are flagged as requiring the later restart confirmation.
+- [x] Valid Plexamp Home order/hidden data is recognized and counted, but comparison/application is explicitly deferred to the future live-browser restore stage after Plexamp is commissioned.
+- [x] Settings → Advanced → Backup & restore now includes **Restore preview** with a JSON file selector, 1 MB client limit, read-only preview button, changed-section/path counts and warnings/confirmations. The selected file is parsed locally and sent in memory as JSON; there is no uploaded-file staging directory and no Apply/Restore button.
+- [x] Regression coverage proves preview-only safety, changed-path/no-value output, rejection of tampered secret/machine fields and unsupported browser identifiers, plus `Cache-Control: no-store` and `apply_enabled: false`.
+- [x] CI compiles the restore module, syntax-checks the Settings UI, verifies runner registration and guards the preview-only UI contract.
+- [ ] Physical #90 preview acceptance: select the just-accepted backup on the commissioned Pi, confirm the preview remains read-only, reports sensible server-owned differences and recognizes the 15-order/1-hidden browser payload without exposing values.
+- [ ] Only after preview acceptance: design transactional owner-by-owner application, rollback capture, explicit confirmation and the live Plexamp restore bridge. No mutation work is accepted merely because preview succeeds.
+
+Initial #90 implementation sequence:
+- read-only planner/API: `95b557c1254921f706d0f7f9c9e7faebb549c08e`;
+- runner registration: `0e67950b5dfc53c9123e836371030dcec245a5cd`;
+- preview regression coverage: `4726dda3507b52218771c6956db51746280753e3`;
+- compile/runner CI gate: `3a1143f27a338ebed71b68dec9dc95decebccab8`;
+- Settings preview UI: `a99444333a56de1e577e7b8f330b9821957e57db`;
+- preview-only UI contract gate: `bdff63df97b59e98027ab3aaab778636528cb1c0`.
 
 ## Current supported release
 
@@ -220,7 +243,7 @@ These are post-v0.4.0 ideas, not commitments to one release. Design/test indepen
 Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — IN PROGRESS at #89; #88 ownership/Plexamp discovery COMPLETE
+2. **Settings and appliance ownership** — IN PROGRESS at #90; #88 ownership COMPLETE, #89 export physically accepted
 3. **Touchscreen Plexamp text entry**
 4. **BBC News**
 5. **Events calendar**
@@ -231,9 +254,9 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 ### Settings and appliance ownership
 
-- [ ] **Configuration backup/export — IN PROGRESS at #89.** Schema-v1 secret-free ACP/Plexamp-Headless export is physically accepted. The live browser bridge reaches Plexamp, singleton `hidden`/`order` wrappers are mapped, and hidden parsing now succeeds; the remaining physical gate is to classify the character/length requirements of the 15 live order identifiers before widening the strict validator.
+- [ ] **Configuration backup/export — PHYSICALLY ACCEPTED at #89; final synchronized CI confirmation pending.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
-- [ ] **Configuration import/restore.** Parse/validate an exported file first, preview changes, then apply through the same owners transactionally. Never blindly overwrite installer-owned, secret or Plexamp-owned material. Plexamp restore is allow-listed, version-aware and performed only after fresh claim/library commissioning.
+- [ ] **Configuration import/restore — IN PROGRESS at #90.** The first slice is deliberately preview-only: schema/security validation, comparison and value-free change planning are implemented in backend and Settings UI. Actual restore remains disabled until this preview is physically accepted and transactional owner-by-owner application/rollback is designed.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
