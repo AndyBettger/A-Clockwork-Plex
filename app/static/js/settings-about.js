@@ -255,7 +255,8 @@
       !plan
       || plan.ok !== true
       || plan.read_only !== true
-      || typeof plan.apply_enabled !== 'boolean'
+      || plan.apply_enabled !== false
+      || typeof plan.server_restore_available !== 'boolean'
       || typeof plan.preview_token !== 'string'
       || !/^[a-f0-9]{32}$/.test(plan.preview_token)
     ) {
@@ -304,10 +305,10 @@
     replaceList(pathsList, pathLines, 'No changed portable paths.');
 
     lastPlan = plan;
-    if (applyZone) applyZone.hidden = plan.apply_enabled !== true || Number(plan.apply_change_count || 0) === 0;
+    if (applyZone) applyZone.hidden = plan.server_restore_available !== true || Number(plan.apply_change_count || 0) === 0;
     if (confirmation) confirmation.hidden = true;
     if (applyMessage) {
-      applyMessage.textContent = plan.apply_enabled
+      applyMessage.textContent = plan.server_restore_available
         ? 'Preview is current. Restore still requires explicit confirmation.'
         : 'No currently supported server-owned changes need restoring.';
     }
@@ -452,7 +453,7 @@
   });
 
   applyButton?.addEventListener('click', () => {
-    if (!selectedBackup || !lastPlan || lastPlan.apply_enabled !== true || restoreInFlight) return;
+    if (!selectedBackup || !lastPlan || lastPlan.server_restore_available !== true || restoreInFlight) return;
     if (settingsHaveUnsavedChanges()) {
       if (applyMessage) applyMessage.textContent = 'Save or discard the staged Settings changes before restoring a backup.';
       return;
