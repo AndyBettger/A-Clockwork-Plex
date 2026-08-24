@@ -16,6 +16,10 @@ try:
         ConfigurationBackupService,
         register_configuration_backup_api,
     )
+    from .configuration_restore import (
+        ConfigurationRestorePlanner,
+        register_configuration_restore_preview_api,
+    )
     from .input_activity import LinuxInputActivityMonitor
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
@@ -56,6 +60,10 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from configuration_backup import (
         ConfigurationBackupService,
         register_configuration_backup_api,
+    )
+    from configuration_restore import (
+        ConfigurationRestorePlanner,
+        register_configuration_restore_preview_api,
     )
     from input_activity import LinuxInputActivityMonitor
     from playback_authority import promote_playback_authority
@@ -169,6 +177,10 @@ configuration_backup = ConfigurationBackupService(
     mixer_snapshot=lambda: live_audio_status().get("mixer", {}),
 )
 register_configuration_backup_api(app, configuration_backup)
+configuration_restore = ConfigurationRestorePlanner(
+    current_backup=configuration_backup.build,
+)
+register_configuration_restore_preview_api(app, configuration_restore)
 
 
 if __name__ == "__main__":
