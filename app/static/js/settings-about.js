@@ -57,6 +57,8 @@
   const overview = advanced?.querySelector('[data-settings-overview="advanced"]');
   if (!advanced || !overview || advanced.querySelector('[data-settings-subpage="advanced:backup"]')) return;
 
+  const MAX_RESTORE_FILE_BYTES = 1_000_000;
+
   const row = document.createElement('button');
   row.className = 'settings-subpage-row';
   row.type = 'button';
@@ -81,7 +83,47 @@
       <p class="muted small">The backup includes ordinary Settings, alarms, EQ and available mixer levels plus an allow-listed set of non-authentication Plexamp preferences. When the local Plexamp browser bridge is available, Home ordering and hidden-item choices are included too. Weather Underground API keys, Plex authentication, browser sessions, hardware bindings, caches and runtime state are deliberately excluded.</p>
       <div class="settings-action-row">
         <button class="button" type="button" data-action="download-configuration-backup">Download backup</button>
-        <span class="muted small" data-configuration-backup-message>Restore/import is not enabled yet.</span>
+        <span class="muted small" data-configuration-backup-message>Ready to create a portable backup.</span>
+      </div>
+    </section>
+    <section class="settings-card">
+      <div class="settings-card-heading">
+        <div>
+          <h3>Restore preview</h3>
+          <p class="muted small">Check a backup against this appliance before any restore capability is enabled.</p>
+        </div>
+        <span class="settings-chip">Preview only</span>
+      </div>
+      <p class="muted small"><strong>Nothing on the appliance is changed by this step.</strong> The selected JSON file is parsed in the browser and checked in memory. The preview reports configuration paths and counts only; it does not display saved values.</p>
+      <label class="setting-field">
+        <span>Backup file</span>
+        <input type="file" accept=".json,application/json" data-configuration-restore-file>
+        <small data-configuration-restore-file-status>Select an A Clockwork Plex JSON backup, up to 1 MB.</small>
+      </label>
+      <div class="settings-action-row">
+        <button class="button settings-secondary" type="button" data-action="preview-configuration-restore" disabled>Preview restore</button>
+        <span class="muted small" data-configuration-restore-message>No file selected.</span>
+      </div>
+      <div data-configuration-restore-preview hidden>
+        <div class="settings-grid two-col">
+          <div class="setting-field"><span>Portable changes</span><strong data-configuration-restore-change-count>0</strong><small>Server-owned fields that differ from the current appliance.</small></div>
+          <div class="setting-field"><span>Plexamp Home layout</span><strong data-configuration-restore-browser-summary>Not present</strong><small>Validated here; comparison/application belongs to the live-browser restore stage.</small></div>
+        </div>
+        <div class="settings-grid two-col">
+          <div class="setting-field">
+            <span>Changed sections</span>
+            <ul class="muted small" data-configuration-restore-sections></ul>
+          </div>
+          <div class="setting-field">
+            <span>Warnings and confirmations</span>
+            <ul class="muted small" data-configuration-restore-warnings></ul>
+          </div>
+        </div>
+        <details>
+          <summary>Technical changed paths</summary>
+          <ul class="muted small" data-configuration-restore-paths></ul>
+        </details>
+        <p class="muted small"><strong>Apply remains disabled.</strong> A later restore phase will require a fresh preview, explicit confirmation and transactional owner-by-owner application.</p>
       </div>
     </section>
   `;
@@ -156,11 +198,74 @@
     report.warnings.push(`Plexamp Home preferences were not included: browser bridge ${safeStatus}.`);
   }
 
-  const message = page.querySelector('[data-configuration-backup-message]');
-  const button = page.querySelector('[data-action="download-configuration-backup"]');
-  button?.addEventListener('click', async () => {
-    button.disabled = true;
-    if (message) message.textContent = 'Building portable backup…';
+  function replaceList(list, items, emptyText) {
+    if (!list) return;
+    list.replaceChildren();
+    const values = Array.isArray(items) ? items : [];
+    if (values.length === 0) {
+      const item = document.createElement('li');
+      item.textContent = emptyText;
+      list.append(item);
+      return;
+    }
+    values.forEach((value) => {
+      const item = document.createElement('li');
+      item.textContent = String(value);
+      list.append(item);
+    });
+  }
+
+  function renderRestorePreview(plan) {
+    if (!plan || plan.ok !== true || plan.read_only !== true || plan.apply_enabled !== false) {
+      throw new Error('Restore preview returned an invalid safety contract.');
+    }
+
+    const container = page.querySelector('[data-configuration-restore-preview]');
+    const changeCount = page.querySelector('[data-configuration-restore-change-count]');
+    const browserSummary = page.querySelector('[data-configuration-restore-browser-summary]');
+    const sectionsList = page.querySelector('[data-configuration-restore-sections]');
+    const warningsList = page.querySelector('[data-configuration-restore-warnings]');
+    const pathsList = page.querySelector('[data-configuration-restore-paths]');
+
+    if (changeCount) changeCount.textContent = String(Number(plan.change_count || 0));
+
+    const browser = plan.plexamp_browser && typeof plan.plexamp_browser === 'object'
+      ? plan.plexamp_browser
+      : {};
+    if (browserSummary) {
+      browserSummary.textContent = browser.present
+        ? `${Number(browser.order_items || 0)} ordered · ${Number(browser.hidden_items || 0)} hidden`
+        : 'Not present';
+    }
+
+    const sections = plan.sections && typeof plan.sections === 'object'
+      ? Object.entries(plan.sections)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([name, count]) => `${name}: ${Number(count || 0)}`)
+      : [];
+    replaceList(sectionsList, sections, 'No server-owned portable changes detected.');
+
+    const warnings = Array.isArray(plan.warnings) ? Array.from(plan.warnings) : [];
+    if (Array.isArray(plan.confirmations_required)) {
+      plan.confirmations_required.forEach((confirmation) => {
+        warnings.push(`Confirmation required later: ${String(confirmation)}`);
+      });
+    }
+    replaceList(warningsList, warnings, 'No restore warnings or confirmations.');
+
+    const paths = Array.isArray(plan.changed_paths) ? plan.changed_paths : [];
+    const pathLines = paths.map((path) => String(path));
+    if (plan.changed_paths_truncated) pathLines.push('…additional changed paths omitted from preview');
+    replaceList(pathsList, pathLines, 'No changed server-owned paths.');
+
+    if (container) container.hidden = false;
+  }
+
+  const backupMessage = page.querySelector('[data-configuration-backup-message]');
+  const backupButton = page.querySelector('[data-action="download-configuration-backup"]');
+  backupButton?.addEventListener('click', async () => {
+    backupButton.disabled = true;
+    if (backupMessage) backupMessage.textContent = 'Building portable backup…';
     try {
       const response = await fetch('/api/settings/backup', { cache: 'no-store' });
       if (!response.ok) {
@@ -192,15 +297,85 @@
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      if (message) {
-        message.textContent = browserIncluded
+      if (backupMessage) {
+        backupMessage.textContent = browserIncluded
           ? 'Backup downloaded, including Plexamp Home layout. Credentials and authentication were not included.'
           : 'Backup downloaded. Credentials were excluded; Plexamp Home layout was not available and is recorded as omitted.';
       }
     } catch (error) {
-      if (message) message.textContent = error.message || 'Could not create the backup.';
+      if (backupMessage) backupMessage.textContent = error.message || 'Could not create the backup.';
     } finally {
-      button.disabled = false;
+      backupButton.disabled = false;
+    }
+  });
+
+  const restoreFile = page.querySelector('[data-configuration-restore-file]');
+  const restoreFileStatus = page.querySelector('[data-configuration-restore-file-status]');
+  const restoreMessage = page.querySelector('[data-configuration-restore-message]');
+  const restoreButton = page.querySelector('[data-action="preview-configuration-restore"]');
+  const restorePreview = page.querySelector('[data-configuration-restore-preview]');
+
+  restoreFile?.addEventListener('change', () => {
+    if (restorePreview) restorePreview.hidden = true;
+    const file = restoreFile.files?.[0] || null;
+    if (!file) {
+      if (restoreFileStatus) restoreFileStatus.textContent = 'Select an A Clockwork Plex JSON backup, up to 1 MB.';
+      if (restoreMessage) restoreMessage.textContent = 'No file selected.';
+      if (restoreButton) restoreButton.disabled = true;
+      return;
+    }
+    if (file.size > MAX_RESTORE_FILE_BYTES) {
+      if (restoreFileStatus) restoreFileStatus.textContent = `${file.name} is larger than the 1 MB preview limit.`;
+      if (restoreMessage) restoreMessage.textContent = 'Choose a smaller backup file.';
+      if (restoreButton) restoreButton.disabled = true;
+      return;
+    }
+    if (restoreFileStatus) restoreFileStatus.textContent = `${file.name} · ${file.size.toLocaleString()} bytes`;
+    if (restoreMessage) restoreMessage.textContent = 'Ready for a read-only preview.';
+    if (restoreButton) restoreButton.disabled = false;
+  });
+
+  restoreButton?.addEventListener('click', async () => {
+    const file = restoreFile?.files?.[0] || null;
+    if (!file) return;
+    restoreButton.disabled = true;
+    if (restorePreview) restorePreview.hidden = true;
+    if (restoreMessage) restoreMessage.textContent = 'Validating backup and comparing portable settings…';
+    try {
+      if (file.size > MAX_RESTORE_FILE_BYTES) {
+        throw new Error('Backup file is larger than the 1 MB preview limit.');
+      }
+      const text = await file.text();
+      let backup;
+      try {
+        backup = JSON.parse(text);
+      } catch (_error) {
+        throw new Error('The selected file is not valid JSON.');
+      }
+
+      const response = await fetch('/api/settings/restore/preview', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backup),
+      });
+      const plan = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(plan.error || `Restore preview returned HTTP ${response.status}.`);
+      }
+      renderRestorePreview(plan);
+      if (restoreMessage) {
+        restoreMessage.textContent = Number(plan.change_count || 0) === 0
+          ? 'Backup is valid. No server-owned portable settings differ from this appliance.'
+          : `Backup is valid. ${Number(plan.change_count || 0)} server-owned portable setting path${Number(plan.change_count || 0) === 1 ? '' : 's'} would change.`;
+      }
+    } catch (error) {
+      if (restoreMessage) restoreMessage.textContent = error.message || 'Could not preview this backup.';
+    } finally {
+      restoreButton.disabled = false;
     }
   });
 
