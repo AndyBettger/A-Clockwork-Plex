@@ -11,13 +11,15 @@ try:
     )
     from .audio_devices import register_audio_devices_api
     from .audio_eq import register_audio_eq
-    from .audio_mixer import live_audio_status
+    from .audio_mixer import live_audio_status, shared_audio_mixer
     from .configuration_backup import (
         ConfigurationBackupService,
         register_configuration_backup_api,
     )
     from .configuration_restore import (
+        ConfigurationRestoreExecutor,
         ConfigurationRestorePlanner,
+        register_configuration_restore_apply_api,
         register_configuration_restore_preview_api,
     )
     from .input_activity import LinuxInputActivityMonitor
@@ -56,13 +58,15 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     )
     from audio_devices import register_audio_devices_api
     from audio_eq import register_audio_eq
-    from audio_mixer import live_audio_status
+    from audio_mixer import live_audio_status, shared_audio_mixer
     from configuration_backup import (
         ConfigurationBackupService,
         register_configuration_backup_api,
     )
     from configuration_restore import (
+        ConfigurationRestoreExecutor,
         ConfigurationRestorePlanner,
+        register_configuration_restore_apply_api,
         register_configuration_restore_preview_api,
     )
     from input_activity import LinuxInputActivityMonitor
@@ -181,6 +185,18 @@ configuration_restore = ConfigurationRestorePlanner(
     current_backup=configuration_backup.build,
 )
 register_configuration_restore_preview_api(app, configuration_restore)
+configuration_restore_executor = ConfigurationRestoreExecutor(
+    planner=configuration_restore,
+    current_backup=configuration_backup.build,
+    settings_snapshot=unified_settings.snapshot,
+    settings_apply=unified_settings.apply,
+    eq_status=master_equalizer.status,
+    eq_set_band=lambda band, value: master_equalizer.set_band(band, value, persist=True),
+    eq_set_bypass=master_equalizer.set_bypass,
+    mixer_status=shared_audio_mixer.status,
+    mixer_set_volumes=lambda values: shared_audio_mixer.set_volumes(values, persist=True),
+)
+register_configuration_restore_apply_api(app, configuration_restore_executor)
 
 
 if __name__ == "__main__":
