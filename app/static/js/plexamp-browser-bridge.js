@@ -10,7 +10,7 @@
     'http://localhost:32500',
     'http://127.0.0.1:32500',
   ]);
-  const SAFE_HUB_ID = /^[A-Za-z0-9_.-]{1,220}$/;
+  const SAFE_HUB_ID = /^[A-Za-z0-9_.\/-]{1,220}$/;
   const MAX_ORDER_ITEMS = 128;
   const MAX_HIDDEN_ITEMS = 128;
 
