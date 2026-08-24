@@ -41,6 +41,7 @@ jobs:
             app/settings_unified_scheduled.py \
             app/settings_weather_rainfall.py \
             app/configuration_backup.py \
+            app/configuration_restore.py \
             app/weather_rainfall_history.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
@@ -125,6 +126,7 @@ jobs:
           ! grep -q "settings-alarm-scheduler.js" app/templates/base.html
           grep -q "register_unified_settings_api" app/runner.py
           grep -q "register_configuration_backup_api" app/runner.py
+          grep -q "register_configuration_restore_preview_api" app/runner.py
           grep -q "ShairportNameManager" app/runner.py
           grep -q "download-configuration-backup" app/static/js/settings-about.js
           grep -q "includeBrowserPreferences" app/static/js/settings-about.js
