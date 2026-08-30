@@ -284,6 +284,68 @@ class RestoreHarness:
         return backup
 
 
+class PlexampRestoreHarness(RestoreHarness):
+    def __init__(self) -> None:
+        super().__init__()
+        self.state["plexamp"]["headless_preferences"] = {
+            "audioConversionBitrate": 256,
+            "autoPlayEnabled": False,
+            "cacheSize": 32768,
+            "cachingWiFi": 10,
+            "loudnessLeveling": False,
+            "precacheNetworkSpeed": 0,
+            "sampleRateConversionQuality": 4,
+            "sampleRateMatching": 2,
+        }
+        self.plexamp_version = "4.13.2"
+        self.plexamp_ready = True
+        self.fail_headless_once = False
+        self.planner = ConfigurationRestorePlanner(
+            current_backup=self.current_backup,
+            plexamp_preference_status=self.plexamp_status,
+        )
+        self.executor = ConfigurationRestoreExecutor(
+            planner=self.planner,
+            current_backup=self.current_backup,
+            settings_snapshot=self.settings_snapshot,
+            settings_apply=self.settings_apply,
+            eq_status=self.eq_status,
+            eq_set_band=self.eq_set_band,
+            eq_set_bypass=self.eq_set_bypass,
+            mixer_status=self.mixer_status,
+            mixer_set_volumes=self.mixer_set_volumes,
+            plexamp_preference_status=self.plexamp_status,
+            plexamp_preference_apply=self.plexamp_apply,
+        )
+
+    def plexamp_status(self):
+        return {
+            "available": self.plexamp_ready,
+            "restore_ready": self.plexamp_ready,
+            "installed_version": self.plexamp_version,
+        }
+
+    def plexamp_apply(self, values, *, source_version):
+        self.calls.append(("plexamp", str(source_version), deepcopy(values)))
+        if str(source_version) != self.plexamp_version:
+            raise RuntimeError("Plexamp version mismatch")
+        if self.fail_headless_once:
+            self.fail_headless_once = False
+            raise RuntimeError("injected Plexamp preference failure")
+        self.state["plexamp"]["headless_preferences"].update(deepcopy(values))
+        return {
+            "ok": True,
+            "verified": True,
+            "installed_version": self.plexamp_version,
+            "changed_count": len(values),
+        }
+
+    def headless_candidate(self):
+        backup = self.current_backup()
+        backup["plexamp"]["headless_preferences"]["autoPlayEnabled"] = True
+        return backup
+
+
 class ConfigurationRestoreTransactionTests(unittest.TestCase):
     def test_preview_remains_read_only_while_separate_restore_is_available(self):
         harness = RestoreHarness()
@@ -291,6 +353,7 @@ class ConfigurationRestoreTransactionTests(unittest.TestCase):
 
         self.assertTrue(plan["read_only"])
         self.assertFalse(plan["apply_enabled"])
+        self.assertTrue(plan["restore_available"])
         self.assertTrue(plan["server_restore_available"])
         self.assertEqual(plan["apply_change_count"], 3)
         self.assertRegex(plan["preview_token"], r"^[a-f0-9]{32}$")
@@ -324,6 +387,7 @@ class ConfigurationRestoreTransactionTests(unittest.TestCase):
         )
         after = harness.planner.plan(candidate)
         self.assertEqual(after["apply_change_count"], 0)
+        self.assertFalse(after["restore_available"])
         self.assertFalse(after["server_restore_available"])
 
     def test_executor_rejects_stale_preview_without_new_mutation(self):
@@ -378,6 +442,119 @@ class ConfigurationRestoreTransactionTests(unittest.TestCase):
             2,
         )
 
+    def test_exact_version_headless_preview_and_apply_are_first_class(self):
+        harness = PlexampRestoreHarness()
+        candidate = harness.headless_candidate()
+        plan = harness.planner.plan(candidate)
+
+        self.assertTrue(plan["restore_available"])
+        self.assertFalse(plan["server_restore_available"])
+        self.assertTrue(plan["plexamp_headless_restore_available"])
+        self.assertEqual(plan["apply_change_count"], 1)
+        self.assertEqual(plan["plexamp_headless_change_count"], 1)
+        self.assertEqual(plan["plexamp_headless"]["restorable_items"], 1)
+        self.assertEqual(plan["plexamp_headless"]["deferred_items"], 0)
+
+        result = harness.executor.apply(
+            candidate,
+            preview_token=plan["preview_token"],
+            confirm_restore=True,
+            confirmations=[],
+        )
+
+        self.assertTrue(result["restored"])
+        self.assertEqual(result["server_applied_change_count"], 0)
+        self.assertEqual(result["plexamp_headless_applied_change_count"], 1)
+        self.assertTrue(harness.state["plexamp"]["headless_preferences"]["autoPlayEnabled"])
+        self.assertEqual(
+            [call for call in harness.calls if call[0] == "plexamp"],
+            [("plexamp", "4.13.2", {"autoPlayEnabled": True})],
+        )
+        self.assertFalse(harness.planner.plan(candidate)["restore_available"])
+
+    def test_headless_version_mismatch_is_deferred_without_owner_call(self):
+        harness = PlexampRestoreHarness()
+        candidate = harness.headless_candidate()
+        candidate["plexamp"]["source_version"] = "4.14.0"
+
+        plan = harness.planner.plan(candidate)
+
+        self.assertFalse(plan["restore_available"])
+        self.assertFalse(plan["plexamp_headless_restore_available"])
+        self.assertEqual(plan["plexamp_headless_detected_change_count"], 1)
+        self.assertEqual(plan["plexamp_headless_change_count"], 0)
+        self.assertEqual(plan["deferred_change_count"], 1)
+        self.assertIn("not an exact known match", " ".join(plan["warnings"]))
+        self.assertEqual(harness.calls, [])
+
+    def test_sample_rate_preferences_defer_across_application_audio_generation(self):
+        harness = PlexampRestoreHarness()
+        candidate = harness.headless_candidate()
+        candidate["source"]["app_version"] = "0.5.0"
+        candidate["plexamp"]["headless_preferences"]["sampleRateMatching"] = 1
+
+        plan = harness.planner.plan(candidate)
+
+        self.assertTrue(plan["restore_available"])
+        self.assertEqual(plan["plexamp_headless_detected_change_count"], 2)
+        self.assertEqual(plan["plexamp_headless_change_count"], 1)
+        self.assertEqual(plan["deferred_change_count"], 1)
+        self.assertIn(
+            "plexamp.headless_preferences.sampleRateMatching",
+            plan["deferred_changed_paths"],
+        )
+        self.assertIn("audio generation differs", " ".join(plan["warnings"]))
+
+        result = harness.executor.apply(
+            candidate,
+            preview_token=plan["preview_token"],
+            confirm_restore=True,
+            confirmations=[],
+        )
+        self.assertEqual(result["plexamp_headless_applied_change_count"], 1)
+        self.assertEqual(result["deferred_change_count"], 1)
+        self.assertTrue(harness.state["plexamp"]["headless_preferences"]["autoPlayEnabled"])
+        self.assertEqual(harness.state["plexamp"]["headless_preferences"]["sampleRateMatching"], 2)
+
+    def test_changed_headless_capability_invalidates_preview_before_mutation(self):
+        harness = PlexampRestoreHarness()
+        candidate = harness.headless_candidate()
+        plan = harness.planner.plan(candidate)
+        harness.plexamp_version = "4.13.3"
+
+        with self.assertRaises(RestoreConflict):
+            harness.executor.apply(
+                candidate,
+                preview_token=plan["preview_token"],
+                confirm_restore=True,
+                confirmations=[],
+            )
+
+        self.assertEqual(harness.calls, [])
+        self.assertFalse(harness.state["plexamp"]["headless_preferences"]["autoPlayEnabled"])
+
+    def test_headless_owner_failure_rolls_back_earlier_server_owners(self):
+        harness = PlexampRestoreHarness()
+        before = harness.current_backup()
+        candidate = harness.candidate()
+        candidate["plexamp"]["headless_preferences"]["autoPlayEnabled"] = True
+        plan = harness.planner.plan(candidate)
+        harness.fail_headless_once = True
+
+        with self.assertRaises(RestoreExecutionError) as context:
+            harness.executor.apply(
+                candidate,
+                preview_token=plan["preview_token"],
+                confirm_restore=True,
+                confirmations=[],
+            )
+
+        self.assertEqual(context.exception.stage, "Plexamp Headless preferences")
+        self.assertEqual(context.exception.rollback_failures, [])
+        self.assertEqual(harness.state["a_clockwork_plex"], before["a_clockwork_plex"])
+        self.assertEqual(harness.state["plexamp"], before["plexamp"])
+        self.assertGreaterEqual(sum(1 for call in harness.calls if call[0] == "settings"), 2)
+
     def test_eq_validation_rejects_values_outside_half_db_steps(self):
         harness = RestoreHarness()
         candidate = harness.candidate()
@@ -400,17 +577,25 @@ class ConfigurationRestoreTransactionTests(unittest.TestCase):
         self.assertIn("credential-owned field", str(context.exception))
         self.assertNotIn("not-a-real-secret", str(context.exception))
 
-    def test_restore_ui_requires_preview_token_and_explicit_confirmation(self):
+    def test_restore_ui_requires_preview_token_explicit_confirmation_and_owner_split(self):
         client = Path("app/static/js/settings-about.js").read_text(encoding="utf-8")
         runner = Path("app/runner.py").read_text(encoding="utf-8")
 
+        self.assertIn("restore_available", client)
         self.assertIn("server_restore_available", client)
+        self.assertIn("plexamp_headless_restore_available", client)
         self.assertIn("plan.apply_enabled !== false", client)
+        self.assertIn("data-configuration-restore-server-count", client)
+        self.assertIn("data-configuration-restore-headless-summary", client)
         self.assertIn("/api/settings/restore/apply", client)
         self.assertIn("preview_token: lastPlan.preview_token", client)
         self.assertIn("confirm_restore: true", client)
         self.assertIn("confirm-configuration-restore", client)
-        self.assertIn("Plexamp Headless preferences and Home layout remain deferred", client)
+        self.assertIn("Compatible Plexamp Headless preferences", client)
+        self.assertNotIn("Plexamp Headless preferences and Home layout remain deferred", client)
+        self.assertIn("PlexampPreferenceManager", runner)
+        self.assertIn("plexamp_preference_status=plexamp_preferences.status", runner)
+        self.assertIn("plexamp_preference_apply=plexamp_preferences.apply", runner)
         self.assertIn("register_configuration_restore_apply_api", runner)
 
 
