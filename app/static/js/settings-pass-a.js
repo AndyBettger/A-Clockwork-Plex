@@ -194,7 +194,26 @@
       confirmButton.title = 'Apply the freshly previewed server-owned settings.';
     }
 
-    const clearConflict = () => restoreMessage?.classList.remove('is-conflict');
+    let restoreConflictDetail = '';
+    const enforceConflictMessage = () => {
+      if (!restoreMessage || !restoreConflictDetail) return;
+      const expected = `Restore blocked — no settings were changed. ${restoreConflictDetail}`;
+      if (restoreMessage.textContent !== expected) restoreMessage.textContent = expected;
+      restoreMessage.classList.add('is-conflict');
+    };
+    const clearConflict = () => {
+      restoreConflictDetail = '';
+      restoreMessage?.classList.remove('is-conflict');
+    };
+
+    const conflictObserver = restoreMessage
+      ? new MutationObserver(() => {
+          if (restoreConflictDetail) enforceConflictMessage();
+        })
+      : null;
+    conflictObserver?.observe(restoreMessage, { childList: true, characterData: true, subtree: true });
+    window.addEventListener('pagehide', () => conflictObserver?.disconnect(), { once: true });
+
     previewButton?.addEventListener('click', clearConflict, true);
     restoreFile?.addEventListener('change', clearConflict, true);
 
@@ -218,13 +237,10 @@
       if (pathname === '/api/settings/restore/apply' && response.status === 409) {
         const payload = await response.clone().json().catch(() => ({}));
         if (payload?.fresh_preview_required === true) {
-          const detail = String(payload.error || 'The restore preview is no longer current.').trim();
-          window.setTimeout(() => {
-            const liveMessage = document.querySelector('[data-configuration-restore-message]');
-            if (!liveMessage) return;
-            liveMessage.textContent = `Restore blocked — no settings were changed. ${detail}`;
-            liveMessage.classList.add('is-conflict');
-          }, 0);
+          restoreConflictDetail = String(
+            payload.error || 'The restore preview is no longer current. Run Preview restore again.',
+          ).trim();
+          enforceConflictMessage();
         }
       }
       return response;
