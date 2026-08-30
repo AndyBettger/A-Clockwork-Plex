@@ -112,7 +112,7 @@ The schema-v1 secret-safe export, Headless preference export and live Plexamp Ho
 - [x] Installer/hardware fields such as alarm ALSA/hardware device names and Plexamp localhost/pause/service plumbing are deliberately omitted.
 - [x] EQ exports as the logical enabled/band model. Available shared mixer state exports as the four user-facing percentages (`master`, `plexamp`, `airplay`, `alarm`) rather than ALSA state files.
 - [x] The exact eight #88 Plexamp Headless preferences export through strict name/type parsing. Unknown, malformed, device-identity and account/auth files are not copied.
-- [x] Plexamp runtime version is included from non-sensitive local package metadata when available.
+- [x] Plexamp runtime version is taken from the ACP-owned `~/plexamp/.a-clockwork-plex-runtime` identity written/verified by the guarded Plexamp runtime installer; optional Plexamp `package.json` metadata is not a compatibility authority.
 - [x] `GET /api/settings/backup` returns a pretty JSON attachment named `A-Clockwork-Plex-backup-YYYY-MM-DD_HHMMSS.json` with `Cache-Control: no-store`; it performs no configuration mutation.
 - [x] Settings exposes **Advanced → Backup & restore → Download backup** and clearly states that credentials/authentication are excluded. Backup is an immediate read-only action and does not participate in staged **Save Changes**.
 - [x] `export_report` records warnings and deliberate omissions. The server-only export continues to report browser Home preferences omitted unless the kiosk browser adds a validated live snapshot.
@@ -132,7 +132,7 @@ The schema-v1 secret-safe export, Headless preference export and live Plexamp Ho
 - [x] Bridge `1.0.4` added a value-free rejected-order diagnostic. The commissioned Pi reported `items15-max77-empty0-over0-nonstring0-bad2f`: all 15 identifiers are bounded strings, and `/` (`0x2f`) was the only character required beyond the initial `[A-Za-z0-9_.-]` policy.
 - [x] Bridge `1.0.5` and the dashboard-side validator therefore widened **only** to `[A-Za-z0-9_./-]`; `:` and other unobserved punctuation remain rejected. Slash-bearing per-hub `:hidden` keys are also supported, and the parent bridge asset was cache-busted.
 - [x] Final live-layout physical export passed on 24 August 2026. Settings reported **“Backup downloaded, including Plexamp Home layout. Credentials and authentication were not included.”** Structural verification reported: browser preferences present; browser schema `1`; Home order captured with **15 items**; **1 hidden item**; browser omission **false**; warning count **0**.
-- [x] Synchronized `develop` Actions remains green through **Tests #4323** on 30 August 2026, covering the accepted export stack and subsequent restore work.
+- [x] Synchronized `develop` Actions remains green through **Tests #4343: 978 tests, `OK`** on 30 August 2026, including the corrected installed-runtime identity fixtures.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -196,7 +196,7 @@ Phase 3 is the first Plexamp-owned mutation stage. It remains deliberately narro
 
 - [x] Restore eligibility is limited to the exact eight typed Headless allow-listed preferences established at #88/#89; unknown files, auth/session state, `audioDeviceUuid`, `playerName` and `premium` remain untouched.
 - [x] A dedicated root-side owner `/usr/local/bin/a-clockwork-plex-plexamp-preferences` and unprivileged `PlexampPreferenceManager` are implemented. Preference values cross the privileged boundary as bounded JSON on stdin, never argv.
-- [x] The backup, current runtime and helper-reported installed Plexamp versions must be an exact known match before Headless paths become restorable; target Settings completeness and active `plexamp.service` are also preflight requirements.
+- [x] Backup/export and restore share the guarded installer's ACP-owned `~/plexamp/.a-clockwork-plex-runtime` manifest as the runtime-version authority. The backup, current runtime and helper-reported installed Plexamp versions must be an exact known match before Headless paths become restorable; `package.json` is not used as a fallback.
 - [x] `sampleRateConversionQuality` and `sampleRateMatching` are additionally appliance-audio-generation aware and remain deferred when a backup comes from a different application/audio generation.
 - [x] Each changed preference captures exact bytes, mode, ownership and timestamps; writes use atomic replacement/fsync, typed verification and post-restart verification. A late failure restores the original snapshots and service state.
 - [x] Runtime coordination is narrowly scoped to the Plexamp preference owner: only `status` and `apply` are delegated, and the helper itself owns the required `plexamp.service` stop/restart plus loopback-port readiness check. The dashboard receives no broad `systemctl` authority.
@@ -204,8 +204,9 @@ Phase 3 is the first Plexamp-owned mutation stage. It remains deliberately narro
 - [x] The combined transaction order is **Unified Settings → Master EQ → persistent mixer → Plexamp Headless**. If the Headless owner fails, earlier touched ACP owners are rolled back in reverse order.
 - [x] Preview/Settings now distinguishes **ACP/server**, **Plexamp Headless**, and **Plexamp Home layout** counts/availability without exposing preference values. Confirmation explicitly warns when Plexamp will briefly restart.
 - [x] Fake/alternate-root regression coverage proves exact-version success, incompatible-version deferral, sample-rate audio-generation deferral, stale capability refusal, injected late-restart rollback and outer-transaction rollback.
-- [x] CI explicitly compiles/gates the helper, manager, runner wiring and Headless-aware Restore UI. Synchronized **develop Tests #4337 passed all 976 tests with `OK` on 30 August 2026**.
-- [ ] Commissioned-Pi physical acceptance remains: prove read-only owner status, a deliberately incompatible-version Preview with zero mutation, then one harmless exact-version Headless preference restore round-trip. The destructive late-restart rollback path is already covered by controlled automated fault injection and will not be deliberately induced on the commissioned appliance.
+- [x] Initial commissioned-Pi read-only status on 30 August physically proved the Settings directory, active `plexamp.service` and all **8/8** allow-listed typed preferences, but failed closed with `installed_version: null` / `restore_ready: false`. Read-only inspection then proved there is no installed `~/plexamp/package.json`; the verified 4.13.2 identity is the installer-owned `.a-clockwork-plex-runtime` manifest. No Plexamp preference was mutated during discovery.
+- [x] Corrected backup/restore runtime identity and real-layout regression fixtures: `0240473a6f9f7c4ef45b0acfbc07f109c4fd4e37`, `a85c68e4d8818382d044110a9cf704821201af56`, `ebbbecdf0b831d21c1fb76eea2075a61775aee1d`, `84f3e256979dc429c4dbf3622f2bae98e197d116`. **Tests #4343 passed all 978 tests with `OK` on 30 August 2026.**
+- [ ] Commissioned-Pi physical acceptance remains: reinstall the corrected restricted helper and require read-only status `installed_version: 4.13.2` / `restore_ready: true`; then prove an incompatible-version Preview is deferred with zero mutation; then perform one harmless exact-version Headless preference restore round-trip. The destructive late-restart rollback path is already covered by controlled automated fault injection and will not be deliberately induced on the commissioned appliance.
 
 - [ ] Later phase: target-context-aware Plexamp Home order/hidden application through the live browser owner with rollback; never transplant the source account/library Local Storage key literally.
 - [ ] Final #90 closure requires synchronized CI plus full physical restore/rollback acceptance across all implemented owners.
@@ -232,7 +233,9 @@ Initial #90 implementation sequence:
 - Phase-3 helper packaging and transactional restore integration: `bb3d0f2cdd1028fefb001f409b35becb05246846`, `d6cd5f9a68021e2f4bc0d09e9b94eeac143641b5`, `f611337b5b729d36b61322123d4a833971837c8b`;
 - helper catalogue/dependency closure and injected restart-failure coverage: `d3d23a2ae2e932ce9b0fcc3a5b68611d76c978f8`, `3467ec947c5e6fd67441d308ba5420f27768de79`, `e37d07d176fd1daad93a21b952568c927b1186c5`, `ac7020b14829c6d0e9892c139c974ebcc821c295`;
 - Headless-aware Restore UI, transaction regressions and CI gates: `95c4b483c18fcc6c1ad142aeff862259032354a5`, `0d43cb47122df8242e153a435ce11604d32a3c7d`, `2fad5cebbf4e2e365b71b5b07573d124b7c9405`, `56c3624f416888249c74013f8097ab13b99af963`;
-- Phase-3 ownership synchronization: `8eef583c690a9b3e6525305e65d5934a8e0cbcd8`.
+- Phase-3 ownership synchronization: `8eef583c690a9b3e6525305e65d5934a8e0cbcd8`;
+- commissioned-runtime identity correction/coverage: `0240473a6f9f7c4ef45b0acfbc07f109c4fd4e37`, `a85c68e4d8818382d044110a9cf704821201af56`, `ebbbecdf0b831d21c1fb76eea2075a61775aee1d`, `84f3e256979dc429c4dbf3622f2bae98e197d116`;
+- physical-finding ownership synchronization: `1fd58f5ff0f3508793db302285a068b44034b850`.
 
 ## Current supported release
 
@@ -317,7 +320,7 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 - [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
-- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview and transactional ACP/server Phase 2 are physically accepted. Version-aware allow-listed Plexamp Headless Phase 3 is implemented and CI-accepted through Tests #4337; its commissioned-Pi acceptance is next. Target-context-aware Home application follows after that.
+- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview and transactional ACP/server Phase 2 are physically accepted. Version-aware allow-listed Plexamp Headless Phase 3 is implemented and CI-accepted through Tests #4343 after the commissioned-Pi read-only probe corrected runtime-version ownership; corrected physical status/Preview/round-trip acceptance is next. Target-context-aware Home application follows after that.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
