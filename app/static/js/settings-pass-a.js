@@ -174,11 +174,69 @@
     }, { once: true });
   }
 
+  function installRestoreUxClarity() {
+    const page = document.querySelector('[data-settings-subpage="advanced:backup"]');
+    if (!page || page.dataset.restoreUxClarityReady === 'true') return;
+    page.dataset.restoreUxClarityReady = 'true';
+
+    const reviewButton = page.querySelector('[data-action="apply-configuration-restore"]');
+    const confirmButton = page.querySelector('[data-action="confirm-configuration-restore"]');
+    const previewButton = page.querySelector('[data-action="preview-configuration-restore"]');
+    const restoreFile = page.querySelector('[data-configuration-restore-file]');
+    const restoreMessage = page.querySelector('[data-configuration-restore-message]');
+
+    if (reviewButton) {
+      reviewButton.textContent = 'Review restore';
+      reviewButton.title = 'Open the final confirmation. No settings change at this step.';
+    }
+    if (confirmButton) {
+      confirmButton.textContent = 'Confirm & restore';
+      confirmButton.title = 'Apply the freshly previewed server-owned settings.';
+    }
+
+    const clearConflict = () => restoreMessage?.classList.remove('is-conflict');
+    previewButton?.addEventListener('click', clearConflict, true);
+    restoreFile?.addEventListener('change', clearConflict, true);
+
+    if (window.__acpRestoreConflictFetchWrapped === true) return;
+    window.__acpRestoreConflictFetchWrapped = true;
+    const nativeFetch = window.fetch.bind(window);
+
+    window.fetch = async (...args) => {
+      const response = await nativeFetch(...args);
+      const requestTarget = args[0];
+      const requestUrl = typeof requestTarget === 'string'
+        ? requestTarget
+        : String(requestTarget?.url || '');
+      let pathname = '';
+      try {
+        pathname = new URL(requestUrl, window.location.href).pathname;
+      } catch (_error) {
+        pathname = requestUrl;
+      }
+
+      if (pathname === '/api/settings/restore/apply' && response.status === 409) {
+        const payload = await response.clone().json().catch(() => ({}));
+        if (payload?.fresh_preview_required === true) {
+          const detail = String(payload.error || 'The restore preview is no longer current.').trim();
+          window.setTimeout(() => {
+            const liveMessage = document.querySelector('[data-configuration-restore-message]');
+            if (!liveMessage) return;
+            liveMessage.textContent = `Restore blocked — no settings were changed. ${detail}`;
+            liveMessage.classList.add('is-conflict');
+          }, 0);
+        }
+      }
+      return response;
+    };
+  }
+
   function initialise() {
     installStatusBadgeCleanup();
     installServiceStatusRefresh();
     installClockCardLimit();
     installKeyboardVisibility();
+    installRestoreUxClarity();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialise, { once: true });
