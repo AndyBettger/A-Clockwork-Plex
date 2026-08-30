@@ -378,6 +378,7 @@
   restoreFile?.addEventListener('change', () => {
     selectedBackup = null;
     resetApplyState();
+    if (restoreMessage) restoreMessage.classList.remove('is-conflict');
     if (restorePreview) restorePreview.hidden = true;
     const file = restoreFile.files?.[0] || null;
     if (!file) {
@@ -403,6 +404,7 @@
     restoreButton.disabled = true;
     selectedBackup = null;
     resetApplyState();
+    if (restoreMessage) restoreMessage.classList.remove('is-conflict');
     if (restorePreview) restorePreview.hidden = true;
     if (restoreMessage) restoreMessage.textContent = 'Validating backup and comparing portable settings…';
     try {
@@ -491,6 +493,8 @@
     if (restoreFile) restoreFile.disabled = true;
     if (applyMessage) applyMessage.textContent = 'Capturing rollback state and restoring supported server-owned settings…';
 
+    let restoreRetryMessage = 'Restore failed. Run Preview restore again before any retry.';
+    let restoreWasBlocked = false;
     try {
       const response = await fetch('/api/settings/restore/apply', {
         method: 'POST',
@@ -510,10 +514,19 @@
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result.ok === false) {
+        const restoreDetail = String(
+          result.error || `Restore returned HTTP ${response.status}.`,
+        ).trim();
         const rollbackText = result.rolled_back === true
           ? ' Previous server-owned state was rolled back.'
           : '';
-        throw new Error(`${result.error || `Restore returned HTTP ${response.status}.`}${rollbackText}`);
+        if (response.status === 409 && result.fresh_preview_required === true) {
+          restoreWasBlocked = true;
+          restoreRetryMessage = `Restore blocked — no settings were changed. ${restoreDetail}`;
+        } else if (result.fresh_preview_required === true) {
+          restoreRetryMessage = `Restore failed. ${restoreDetail} Run Preview restore again before any retry.`;
+        }
+        throw new Error(`${restoreDetail}${rollbackText}`);
       }
       selectedBackup = null;
       lastPlan = null;
@@ -525,7 +538,10 @@
     } catch (error) {
       if (applyMessage) applyMessage.textContent = error.message || 'Restore failed.';
       resetApplyState();
-      if (restoreMessage) restoreMessage.textContent = 'Run Preview restore again before any retry.';
+      if (restoreMessage) {
+        restoreMessage.textContent = restoreRetryMessage;
+        restoreMessage.classList.toggle('is-conflict', restoreWasBlocked);
+      }
     } finally {
       restoreInFlight = false;
       if (applyButton) applyButton.disabled = false;
