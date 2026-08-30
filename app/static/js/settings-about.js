@@ -90,7 +90,7 @@
       <div class="settings-card-heading">
         <div>
           <h3>Restore</h3>
-          <p class="muted small">Preview first. Only a fresh, explicitly confirmed preview can restore supported server-owned settings.</p>
+          <p class="muted small">Preview first. Only a fresh, explicitly confirmed preview can restore supported configuration.</p>
         </div>
         <span class="settings-chip">Rollback protected</span>
       </div>
@@ -106,7 +106,9 @@
       </div>
       <div data-configuration-restore-preview hidden>
         <div class="settings-grid two-col">
-          <div class="setting-field"><span>Restorable now</span><strong data-configuration-restore-change-count>0</strong><small>ACP Settings, Master EQ and persistent mixer paths that differ from this appliance.</small></div>
+          <div class="setting-field"><span>Restorable now</span><strong data-configuration-restore-change-count>0</strong><small>Total supported paths that can be applied by this fresh preview.</small></div>
+          <div class="setting-field"><span>ACP / server</span><strong data-configuration-restore-server-count>0</strong><small>Settings, Master EQ and persistent mixer paths that differ from this appliance.</small></div>
+          <div class="setting-field"><span>Plexamp Headless</span><strong data-configuration-restore-headless-summary>No changes</strong><small>Only the eight typed allow-listed preferences can be restored, and only when the installed Plexamp version is an exact match.</small></div>
           <div class="setting-field"><span>Plexamp Home layout</span><strong data-configuration-restore-browser-summary>Not present</strong><small>Validated here; comparison/application belongs to the later live-browser restore stage.</small></div>
         </div>
         <div class="settings-grid two-col">
@@ -124,9 +126,9 @@
           <ul class="muted small" data-configuration-restore-paths></ul>
         </details>
         <div data-configuration-restore-apply-zone hidden>
-          <p class="muted small"><strong>This phase restores ACP Settings, Master EQ and the four persistent mixer levels only.</strong> Plexamp Headless preferences and Home layout remain deferred and are not written by this button.</p>
+          <p class="muted small"><strong>This restore applies only the owners marked restorable in the preview.</strong> ACP Settings/EQ/mixer use their existing transaction owners. Compatible Plexamp Headless preferences use the narrow version-aware preference owner and briefly restart Plexamp. Plexamp Home layout remains deferred.</p>
           <div class="settings-action-row">
-            <button class="button" type="button" data-action="apply-configuration-restore">Restore server settings</button>
+            <button class="button" type="button" data-action="apply-configuration-restore">Restore supported settings</button>
             <span class="muted small" data-configuration-restore-apply-message>A fresh preview is required immediately before restore.</span>
           </div>
           <div class="setting-field" data-configuration-restore-confirm hidden>
@@ -139,7 +141,7 @@
             </div>
           </div>
         </div>
-        <p class="muted small"><strong>Credentials are never restored.</strong> WU/Plex authentication stays a separate commissioning step, and Plexamp preference/layout restore remains disabled until its own owner-specific stages are implemented.</p>
+        <p class="muted small"><strong>Credentials are never restored.</strong> WU/Plex authentication stays a separate commissioning step. Plexamp Headless restore is exact-version and allow-list gated; Plexamp Home layout remains deferred to its later target-context-aware browser phase.</p>
       </div>
     </section>
   `;
@@ -256,7 +258,9 @@
       || plan.ok !== true
       || plan.read_only !== true
       || plan.apply_enabled !== false
+      || typeof plan.restore_available !== 'boolean'
       || typeof plan.server_restore_available !== 'boolean'
+      || typeof plan.plexamp_headless_restore_available !== 'boolean'
       || typeof plan.preview_token !== 'string'
       || !/^[a-f0-9]{32}$/.test(plan.preview_token)
     ) {
@@ -265,6 +269,8 @@
 
     const container = page.querySelector('[data-configuration-restore-preview]');
     const changeCount = page.querySelector('[data-configuration-restore-change-count]');
+    const serverCount = page.querySelector('[data-configuration-restore-server-count]');
+    const headlessSummary = page.querySelector('[data-configuration-restore-headless-summary]');
     const browserSummary = page.querySelector('[data-configuration-restore-browser-summary]');
     const sectionsList = page.querySelector('[data-configuration-restore-sections]');
     const warningsList = page.querySelector('[data-configuration-restore-warnings]');
@@ -274,6 +280,20 @@
     const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
 
     if (changeCount) changeCount.textContent = String(Number(plan.apply_change_count || 0));
+    if (serverCount) serverCount.textContent = String(Number(plan.server_change_count || 0));
+
+    const headless = plan.plexamp_headless && typeof plan.plexamp_headless === 'object'
+      ? plan.plexamp_headless
+      : {};
+    if (headlessSummary) {
+      const detected = Number(plan.plexamp_headless_detected_change_count || 0);
+      const restorable = Number(headless.restorable_items || 0);
+      const deferred = Number(headless.deferred_items || 0);
+      if (detected === 0) headlessSummary.textContent = 'No changes';
+      else if (restorable > 0 && deferred > 0) headlessSummary.textContent = `${restorable} restorable · ${deferred} deferred`;
+      else if (restorable > 0) headlessSummary.textContent = `${restorable} restorable`;
+      else headlessSummary.textContent = `${deferred || detected} deferred`;
+    }
 
     const browser = plan.plexamp_browser && typeof plan.plexamp_browser === 'object'
       ? plan.plexamp_browser
@@ -305,12 +325,12 @@
     replaceList(pathsList, pathLines, 'No changed portable paths.');
 
     lastPlan = plan;
-    if (applyZone) applyZone.hidden = plan.server_restore_available !== true || Number(plan.apply_change_count || 0) === 0;
+    if (applyZone) applyZone.hidden = plan.restore_available !== true || Number(plan.apply_change_count || 0) === 0;
     if (confirmation) confirmation.hidden = true;
     if (applyMessage) {
-      applyMessage.textContent = plan.server_restore_available
+      applyMessage.textContent = plan.restore_available
         ? 'Preview is current. Restore still requires explicit confirmation.'
-        : 'No currently supported server-owned changes need restoring.';
+        : 'No currently supported changes need restoring.';
     }
     if (container) container.hidden = false;
   }
@@ -436,13 +456,15 @@
       renderRestorePreview(plan);
       const applyCount = Number(plan.apply_change_count || 0);
       const deferredCount = Number(plan.deferred_change_count || 0);
+      const serverCount = Number(plan.server_change_count || 0);
+      const headlessCount = Number(plan.plexamp_headless_change_count || 0);
       if (restoreMessage) {
         if (applyCount === 0 && deferredCount === 0) {
-          restoreMessage.textContent = 'Backup is valid. No supported server-owned portable settings differ from this appliance.';
+          restoreMessage.textContent = 'Backup is valid. No supported portable settings differ from this appliance.';
         } else if (applyCount > 0) {
-          restoreMessage.textContent = `Backup is valid. ${applyCount} server-owned setting path${applyCount === 1 ? '' : 's'} can be restored now.`;
+          restoreMessage.textContent = `Backup is valid. ${applyCount} supported path${applyCount === 1 ? '' : 's'} can be restored now (${serverCount} ACP/server, ${headlessCount} Plexamp Headless).`;
         } else {
-          restoreMessage.textContent = 'Backup is valid. Only deferred Plexamp preference changes remain.';
+          restoreMessage.textContent = 'Backup is valid. Only deferred Plexamp changes remain.';
         }
       }
     } catch (error) {
@@ -455,7 +477,7 @@
   });
 
   applyButton?.addEventListener('click', () => {
-    if (!selectedBackup || !lastPlan || lastPlan.server_restore_available !== true || restoreInFlight) return;
+    if (!selectedBackup || !lastPlan || lastPlan.restore_available !== true || restoreInFlight) return;
     if (settingsHaveUnsavedChanges()) {
       if (applyMessage) applyMessage.textContent = 'Save or discard the staged Settings changes before restoring a backup.';
       return;
@@ -463,10 +485,17 @@
     const confirmations = Array.isArray(lastPlan.confirmations_required)
       ? lastPlan.confirmations_required
       : [];
+    const headlessCount = Number(lastPlan.plexamp_headless_change_count || 0);
     if (confirmCopy) {
-      confirmCopy.textContent = confirmations.includes('airplay_restart')
-        ? 'A rollback snapshot will be captured first. This restore also changes the AirPlay receiver name, so Shairport Sync will briefly restart.'
-        : 'A rollback snapshot will be captured before Settings, EQ or mixer state is changed.';
+      if (confirmations.includes('airplay_restart')) {
+        confirmCopy.textContent = headlessCount > 0
+          ? 'A rollback snapshot will be captured first. Shairport Sync and Plexamp will each briefly restart while their explicitly previewed settings are applied.'
+          : 'A rollback snapshot will be captured first. This restore also changes the AirPlay receiver name, so Shairport Sync will briefly restart.';
+      } else if (headlessCount > 0) {
+        confirmCopy.textContent = 'A rollback snapshot will be captured first. Compatible Plexamp Headless preferences will be applied through the narrow owner, so Plexamp will briefly restart.';
+      } else {
+        confirmCopy.textContent = 'A rollback snapshot will be captured before Settings, EQ or mixer state is changed.';
+      }
     }
     if (confirmation) confirmation.hidden = false;
     if (applyMessage) applyMessage.textContent = 'Review the confirmation below. Nothing has changed yet.';
@@ -491,7 +520,7 @@
     if (confirmButton) confirmButton.disabled = true;
     if (restoreButton) restoreButton.disabled = true;
     if (restoreFile) restoreFile.disabled = true;
-    if (applyMessage) applyMessage.textContent = 'Capturing rollback state and restoring supported server-owned settings…';
+    if (applyMessage) applyMessage.textContent = 'Capturing rollback state and restoring supported configuration…';
 
     let restoreRetryMessage = 'Restore failed. Run Preview restore again before any retry.';
     let restoreWasBlocked = false;
@@ -518,7 +547,7 @@
           result.error || `Restore returned HTTP ${response.status}.`,
         ).trim();
         const rollbackText = result.rolled_back === true
-          ? ' Previous server-owned state was rolled back.'
+          ? ' Previous supported state was rolled back.'
           : '';
         if (response.status === 409 && result.fresh_preview_required === true) {
           restoreWasBlocked = true;
@@ -532,7 +561,9 @@
       lastPlan = null;
       if (applyMessage) {
         const count = Number(result.applied_change_count || 0);
-        applyMessage.textContent = `Restore verified: ${count} server-owned path${count === 1 ? '' : 's'} applied. Reloading Settings…`;
+        const serverApplied = Number(result.server_applied_change_count || 0);
+        const headlessApplied = Number(result.plexamp_headless_applied_change_count || 0);
+        applyMessage.textContent = `Restore verified: ${count} path${count === 1 ? '' : 's'} applied (${serverApplied} ACP/server, ${headlessApplied} Plexamp Headless). Reloading Settings…`;
       }
       window.setTimeout(() => window.location.reload(), 900);
     } catch (error) {
