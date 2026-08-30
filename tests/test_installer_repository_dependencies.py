@@ -72,6 +72,7 @@ EXPECTED_DEPENDENCIES = {
     "scripts/a-clockwork-plex-audio-mixer.py",
     "scripts/a-clockwork-plex-audio-route.py",
     "scripts/a-clockwork-plex-audio-eq.py",
+    "scripts/a-clockwork-plex-plexamp-preferences.py",
     "scripts/audio_eq_camilladsp/__init__.py",
     "scripts/audio_eq_camilladsp/model.py",
     "scripts/audio_eq_camilladsp/runtime.py",
@@ -153,6 +154,7 @@ class InstallerRepositoryDependencyTests(unittest.TestCase):
             "installer/lib/verification.sh",
             "installer/templates/a-clockwork-plex-audio-route.sudoers.in",
             "installer/templates/a-clockwork-plex-audio-eq.sudoers.in",
+            "scripts/a-clockwork-plex-plexamp-preferences.py",
         }
         self.assertTrue(high_risk_transitive <= entries, sorted(high_risk_transitive - entries))
 
