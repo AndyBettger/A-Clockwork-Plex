@@ -132,7 +132,7 @@ The schema-v1 secret-safe export, Headless preference export and live Plexamp Ho
 - [x] Bridge `1.0.4` added a value-free rejected-order diagnostic. The commissioned Pi reported `items15-max77-empty0-over0-nonstring0-bad2f`: all 15 identifiers are bounded strings, and `/` (`0x2f`) was the only character required beyond the initial `[A-Za-z0-9_.-]` policy.
 - [x] Bridge `1.0.5` and the dashboard-side validator therefore widened **only** to `[A-Za-z0-9_./-]`; `:` and other unobserved punctuation remain rejected. Slash-bearing per-hub `:hidden` keys are also supported, and the parent bridge asset was cache-busted.
 - [x] Final live-layout physical export passed on 24 August 2026. Settings reported **“Backup downloaded, including Plexamp Home layout. Credentials and authentication were not included.”** Structural verification reported: browser preferences present; browser schema `1`; Home order captured with **15 items**; **1 hidden item**; browser omission **false**; warning count **0**.
-- [x] Synchronized `develop` Actions remains green through **Tests #4321** on 30 August 2026, covering the accepted export stack and subsequent restore work.
+- [x] Synchronized `develop` Actions remains green through **Tests #4323** on 30 August 2026, covering the accepted export stack and subsequent restore work.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -206,7 +206,7 @@ The next #90 phase is the first Plexamp-owned mutation stage. It must remain nar
 - [ ] Final #90 closure requires synchronized CI plus full physical restore/rollback acceptance across all implemented owners.
 
 Initial #90 implementation sequence:
-- read-only planner/API: `95b557c1254921f706d6f55682699c1118e721c60b03`;
+- read-only planner/API: `95b557c1254921f706d0f7f9c9e7faebb549c08e`;
 - runner registration: `0e67950b5dfc53c9123e836371030dcec245a5cd`;
 - preview regression coverage: `4726dda3507b52218771c6956db51746280753e3`;
 - compile/runner CI gate: `3a1143f27a338ebed71b68dec9dc95decebccab8`;
@@ -221,7 +221,8 @@ Initial #90 implementation sequence:
 - phase-2 CI safety gates: `8007e20b60c5d88172cd0e85fd122161ee384037`;
 - backup/restore visual polish: `ab9dc33400364f30c48c54cd63a96cf01761bf10`, `ac03f29584c8b4ea59d3efcf175548caed10db3f`, `da7035cfb60ba556b02eae07205180fec2ff2765`, `a2ee1372675bdb3dfb3afdc558c1f8d8d911aa7e`;
 - stale-preview warning/control clarity follow-up: `4cd812843f0be7f8389e0cb8f35056cd6a1ba894`, `0710e30b2ad059b38ac1cb8a6acbb6e0a0ddfa85`;
-- owning stale-warning source/cache/test fix: `2cb67e6ed34d67197871059eb7d2e9189b030544`, `fea3cfee3881279f70f5a77c670ebd688e7a14ab`, `196d7d0fae9182fc374d81d3476b5a1d382637c3`.
+- owning stale-warning source/cache/test fix: `2cb67e6ed34d67197871059eb7d2e9189b030544`, `fea3cfee3881279f70f5a77c670ebd688e7a14ab`, `196d7d0fae9182fc374d81d3476b5a1d382637c3`;
+- Phase-2 physical acceptance / Phase-3 queue documentation: `68256ca355e42a101086072f1e35f65764af28ab`, `f173447a39aa1da56f13b63ad168ac839fa5fe0f`.
 
 ## Current supported release
 
