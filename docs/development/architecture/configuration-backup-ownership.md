@@ -267,9 +267,23 @@ The normal successful path is physically accepted on the commissioned Pi. One ha
 
 The stale-preview path is also physically accepted. After a Preview reported one Settings difference, a further `0.5 dB` Bass change was saved before Apply. The old preview was refused before mutation, both changed values remained changed, and a fresh Preview then reported both differences. This physically confirms the preview fingerprint is an optimistic-concurrency safety boundary rather than merely a UI hint.
 
-For owner clarity, the two server-restore controls are deliberately separate: **Review restore** only reveals the final confirmation and changes nothing; **Confirm & restore** is the control that sends the mutating request. A refused `409 fresh_preview_required` response is presented as a conspicuous **Restore blocked — no settings were changed** warning while preserving the backend reason. The logic/CSS changes passed synchronized `develop` **Tests #4311/#4312**; one final physical wording/appearance re-check remains.
+For owner clarity, the two server-restore controls are deliberately separate: **Review restore** only reveals the final confirmation and changes nothing; **Confirm & restore** is the control that sends the mutating request. A refused `409 fresh_preview_required` response is presented as a conspicuous **Restore blocked — no settings were changed** warning while preserving the backend reason. The first warning/control logic and CSS changes passed synchronized `develop` **Tests #4311/#4312**; the owning restore-client fix and cache/source gates passed **Tests #4320/#4321**. The final commissioned-Pi re-check on 30 August confirmed the corrected full blocked wording and accepted the two-stage mutation boundary.
 
-This server-owned phase does **not** write Plexamp Headless preference files or Plexamp Home Local Storage. Headless preferences remain deferred to a later version-aware Plexamp-owner stage; Home order/hidden remains deferred until a target live browser context can be discovered and rolled back safely. Managed secrets likewise remain a deliberate **post-restore commissioning step**.
+This server-owned phase does **not** write Plexamp Headless preference files or Plexamp Home Local Storage. Headless preferences now move to the next version-aware Plexamp-owner stage; Home order/hidden remains deferred until a target live browser context can be discovered and rolled back safely. Managed secrets likewise remain a deliberate **post-restore commissioning step**.
+
+### Planned Plexamp Headless restore boundary
+
+The next #90 phase will add a dedicated Headless preference owner rather than extending generic file-copy behaviour:
+
+- only the eight previously classified typed preferences are eligible;
+- the current Plexamp runtime must be present, claimed/commissioned enough to own Settings, and version compatibility must be established before mutation;
+- `audioDeviceUuid`, `playerName`, `premium`, auth/session/resource state and all unknown files remain untouched;
+- `sampleRateConversionQuality` and `sampleRateMatching` are additionally audio-policy-aware so a backup cannot silently reintroduce an incompatible sample-rate policy after a future audio-generation change;
+- each changed allow-listed key needs rollback by exact prior presence/value, typed post-write verification and fail-closed behaviour;
+- runtime coordination must prevent a live `plexamp.service` from racing or overwriting restored values. If service stop/restart is required, it must be exposed by a narrowly-scoped owner/helper rather than broad unrestricted `systemctl` authority;
+- Preview should distinguish server-owned, Headless and live-browser Home work without returning old/new preference values.
+
+A physical commissioned-Pi mutation test comes only after alternate-root/fake-backed tests prove successful round-trip and rollback behaviour.
 
 ## Reset-to-defaults relationship
 
@@ -295,7 +309,7 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - the first physical download contained schema `1`, the expected five ACP settings domains, EQ + mixer, all eight approved Headless preferences, zero warnings and no forbidden credential/machine-state key paths;
 - the scoped live Plexamp bridge physically added browser schema `1`, 15 Home-order identifiers and 1 hidden identifier; the browser omission was removed and warning count remained zero;
 - the owner-facing success message explicitly states that Plexamp Home layout was included and credentials/authentication were not;
-- synchronized `develop` validation remains green through **Tests #4312** on 30 August 2026.
+- synchronized `develop` validation remains green through **Tests #4321** on 30 August 2026.
 
 ## #90 configuration restore status — IN PROGRESS
 
@@ -308,7 +322,7 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Commissioned-Pi preview of the fresh backup returned **0** server-owned changes, `read_only: true`, `apply_enabled: false`, **15 ordered / 1 hidden**, and only the expected deferred-browser warning.
 - [x] The 1280×720 Restore preview presentation was physically accepted.
 
-### Phase 2 — transactional server-owned apply — PHYSICALLY ACCEPTED; UX CLARITY RE-CHECK PENDING
+### Phase 2 — transactional server-owned apply — PHYSICALLY ACCEPTED
 
 - [x] Separate confirmed `POST /api/settings/restore/apply` endpoint implemented.
 - [x] Fresh-preview fingerprint/stale-state refusal implemented and physically accepted without mutation.
@@ -321,6 +335,16 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Physical stale-preview refusal retained both post-preview changes and a subsequent fresh Preview correctly found both differences.
 - [x] Scoped spacing/alignment polish was physically re-checked at 1280×720; the Preview/results and confirmation blocks are now clearly separated.
 - [x] Tests #4311/#4312 passed the clearer blocked-warning/control-label logic and warning CSS.
-- [ ] Final physical re-check of the **Review restore → Confirm & restore** labels and conspicuous blocked-restore warning.
+- [x] The owning restore client now preserves the full stale-preview backend reason instead of overwriting it with a generic retry line; Tests #4320/#4321 passed the source/cache/syntax gates.
+- [x] Final physical re-check accepted the **Review restore → Confirm & restore** labels and the conspicuous full blocked-restore warning.
 
-Plexamp Headless and live-browser Home application remain later #90 phases, not part of phase 2.
+### Phase 3 — version-aware Plexamp Headless apply — NEXT
+
+- [ ] Add a dedicated exact-allow-list typed preference owner with per-key snapshot/write/verify/rollback behaviour.
+- [ ] Establish commissioned-target and Plexamp-version compatibility preflight before any preference write.
+- [ ] Define narrow service/runtime coordination so live Plexamp cannot race restored files.
+- [ ] Extend Preview/UI to show Headless change count/availability separately from server-owned and Home-layout work, without exposing values.
+- [ ] Add automated round-trip, incompatible-version, stale-state and injected-failure rollback tests before physical mutation.
+- [ ] Perform a harmless commissioned-Pi Headless preference restore round-trip and rollback acceptance.
+
+Plexamp live-browser Home application remains a later #90 phase after Headless preference restore.
