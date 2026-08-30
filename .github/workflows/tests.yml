@@ -42,6 +42,7 @@ jobs:
             app/settings_weather_rainfall.py \
             app/configuration_backup.py \
             app/configuration_restore.py \
+            app/plexamp_preferences.py \
             app/weather_rainfall_history.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
@@ -54,7 +55,8 @@ jobs:
             app/weather_forecast_settings.py \
             scripts/a-clockwork-plex-audio-mixer.py \
             scripts/a-clockwork-plex-audio-eq.py \
-            scripts/a-clockwork-plex-shairport-name.py
+            scripts/a-clockwork-plex-shairport-name.py \
+            scripts/a-clockwork-plex-plexamp-preferences.py
 
       - name: Check JavaScript, page wiring and shell syntax
         run: |
@@ -128,16 +130,24 @@ jobs:
           grep -q "register_configuration_backup_api" app/runner.py
           grep -q "register_configuration_restore_preview_api" app/runner.py
           grep -q "register_configuration_restore_apply_api" app/runner.py
+          grep -q "PlexampPreferenceManager" app/runner.py
+          grep -q "plexamp_preference_status=plexamp_preferences.status" app/runner.py
+          grep -q "plexamp_preference_apply=plexamp_preferences.apply" app/runner.py
           grep -q "ShairportNameManager" app/runner.py
           grep -q "download-configuration-backup" app/static/js/settings-about.js
           grep -q "preview-configuration-restore" app/static/js/settings-about.js
           grep -q "/api/settings/restore/preview" app/static/js/settings-about.js
           grep -q "/api/settings/restore/apply" app/static/js/settings-about.js
+          grep -q "restore_available" app/static/js/settings-about.js
           grep -q "server_restore_available" app/static/js/settings-about.js
+          grep -q "plexamp_headless_restore_available" app/static/js/settings-about.js
+          grep -q "data-configuration-restore-headless-summary" app/static/js/settings-about.js
           grep -q "plan.apply_enabled !== false" app/static/js/settings-about.js
           grep -q "confirm-configuration-restore" app/static/js/settings-about.js
           grep -q "includeBrowserPreferences" app/static/js/settings-about.js
           grep -q "ACPPlexampBrowserPreferences" app/static/js/plexamp-browser-bridge.js
+          grep -q "a-clockwork-plex-plexamp-preferences.py" scripts/install-appliance-helpers.sh
+          grep -q "PLEXAMP_PREF_TARGET=/usr/local/bin/a-clockwork-plex-plexamp-preferences" scripts/install-appliance-helpers.sh
           grep -q -- "--load-extension=" scripts/launch-dashboard-kiosk.sh
           grep -q "acp-document-booting" app/static/js/dashboard-preferences-bootstrap.js
           grep -q "prepareNavigation" app/static/js/plexamp-persistent.js
