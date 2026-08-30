@@ -26,6 +26,7 @@ try:
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
+    from .plexamp_preferences import PlexampPreferenceManager
     from .screen_projection_activity import register_activity_screen_projection
     from .settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
@@ -73,6 +74,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
+    from plexamp_preferences import PlexampPreferenceManager
     from screen_projection_activity import register_activity_screen_projection
     from settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
@@ -181,8 +183,10 @@ configuration_backup = ConfigurationBackupService(
     mixer_snapshot=lambda: live_audio_status().get("mixer", {}),
 )
 register_configuration_backup_api(app, configuration_backup)
+plexamp_preferences = PlexampPreferenceManager()
 configuration_restore = ConfigurationRestorePlanner(
     current_backup=configuration_backup.build,
+    plexamp_preference_status=plexamp_preferences.status,
 )
 register_configuration_restore_preview_api(app, configuration_restore)
 configuration_restore_executor = ConfigurationRestoreExecutor(
@@ -195,6 +199,8 @@ configuration_restore_executor = ConfigurationRestoreExecutor(
     eq_set_bypass=master_equalizer.set_bypass,
     mixer_status=shared_audio_mixer.status,
     mixer_set_volumes=lambda values: shared_audio_mixer.set_volumes(values, persist=True),
+    plexamp_preference_status=plexamp_preferences.status,
+    plexamp_preference_apply=plexamp_preferences.apply,
 )
 register_configuration_restore_apply_api(app, configuration_restore_executor)
 
