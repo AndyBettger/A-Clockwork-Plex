@@ -191,7 +191,7 @@
     }
     if (confirmButton) {
       confirmButton.textContent = 'Confirm & restore';
-      confirmButton.title = 'Apply the freshly previewed server-owned settings.';
+      confirmButton.title = 'Apply the freshly previewed supported configuration.';
     }
 
     let restoreConflictDetail = '';
