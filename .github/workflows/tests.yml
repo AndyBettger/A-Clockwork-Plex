@@ -57,6 +57,7 @@ jobs:
             scripts/a-clockwork-plex-audio-eq.py \
             scripts/a-clockwork-plex-shairport-name.py \
             scripts/a-clockwork-plex-plexamp-preferences.py
+          PYTHONPATH=app python -c "import plexamp_preferences; print('Plexamp preference direct-import smoke test OK')"
 
       - name: Check JavaScript, page wiring and shell syntax
         run: |
