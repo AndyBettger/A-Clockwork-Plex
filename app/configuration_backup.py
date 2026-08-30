@@ -13,6 +13,9 @@ from flask import Flask, Response
 
 BACKUP_SCHEMA_VERSION = 1
 PLEXAMP_SETTINGS_PREFIX = "@Plexamp:settings:"
+PLEXAMP_RUNTIME_MANIFEST = ".a-clockwork-plex-runtime"
+PLEXAMP_RUNTIME_MANIFEST_MAX_BYTES = 4096
+PLEXAMP_RUNTIME_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 PLEXAMP_HEADLESS_SPECS = {
     "audioConversionBitrate": "integer",
     "autoPlayEnabled": "boolean",
@@ -97,18 +100,39 @@ def read_plexamp_headless_preferences(home: Path) -> tuple[dict[str, Any], list[
 
 
 def read_plexamp_version(home: Path) -> str | None:
-    """Read non-sensitive runtime package metadata when available."""
-    package_path = home / "plexamp" / "package.json"
+    """Read the version from the ACP-owned verified Plexamp runtime manifest."""
+    runtime_root = home / "plexamp"
+    manifest_path = runtime_root / PLEXAMP_RUNTIME_MANIFEST
     try:
-        if not package_path.is_file() or package_path.stat().st_size > 1_000_000:
+        if (
+            not runtime_root.is_dir()
+            or runtime_root.is_symlink()
+            or not manifest_path.is_file()
+            or manifest_path.is_symlink()
+            or manifest_path.stat().st_size > PLEXAMP_RUNTIME_MANIFEST_MAX_BYTES
+        ):
             return None
-        payload = json.loads(package_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        text = manifest_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
         return None
-    if not isinstance(payload, dict):
+
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line or "=" not in line:
+            return None
+        key, value = line.split("=", 1)
+        if not key or key in values:
+            return None
+        values[key] = value
+
+    if values.get("kind") != "plexamp":
         return None
-    value = str(payload.get("version") or "").strip()
-    return value[:80] or None
+    if not PLEXAMP_RUNTIME_SHA256_RE.fullmatch(values.get("archive_sha256", "")):
+        return None
+    version = values.get("version", "").strip()
+    if not version or len(version) > 80:
+        return None
+    return version
 
 
 def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
