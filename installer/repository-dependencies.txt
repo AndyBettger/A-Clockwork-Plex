@@ -74,6 +74,7 @@ scripts/a-clockwork-plex-weather-secret.py
 scripts/a-clockwork-plex-audio-mixer.py
 scripts/a-clockwork-plex-audio-route.py
 scripts/a-clockwork-plex-audio-eq.py
+scripts/a-clockwork-plex-plexamp-preferences.py
 scripts/audio_eq_camilladsp/__init__.py
 scripts/audio_eq_camilladsp/model.py
 scripts/audio_eq_camilladsp/runtime.py
