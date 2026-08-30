@@ -28,6 +28,10 @@ MIXER_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-audio-mixer.py"
 MIXER_TARGET=/usr/local/bin/a-clockwork-plex-audio-mixer
 MIXER_SUDOERS=/etc/sudoers.d/a-clockwork-plex-audio-mixer
 MIXER_DEFAULTS=/etc/default/a-clockwork-plex-audio
+PLEXAMP_PREF_SOURCE="$REPO_ROOT/scripts/a-clockwork-plex-plexamp-preferences.py"
+PLEXAMP_PREF_TARGET=/usr/local/bin/a-clockwork-plex-plexamp-preferences
+PLEXAMP_PREF_SUDOERS=/etc/sudoers.d/a-clockwork-plex-plexamp-preferences
+PLEXAMP_PREF_DEFAULTS=/etc/default/a-clockwork-plex-plexamp-preferences
 
 usage() {
     cat <<'EOF'
@@ -35,7 +39,8 @@ Usage: bash scripts/install-appliance-helpers.sh [options]
 
 Guarded installer for the restricted appliance helpers used by the alarm engine,
 managed Shairport receiver-name Settings, write-only Weather Underground
-credential commissioning/status, and persistent shared-audio mixer controls.
+credential commissioning/status, persistent shared-audio mixer controls and the
+allow-listed transactional Plexamp Headless preference restore owner.
 Prepare-only is the default and does not change production state.
 
 Options:
@@ -75,7 +80,18 @@ if [[ "$ROOT" != / ]]; then
 fi
 export ACP_ROOT="$ROOT"
 
-for source in "$ALARM_SOURCE" "$NAME_SOURCE" "$WEATHER_SOURCE" "$MIXER_SOURCE"; do
+if acp_is_production_root; then
+    command -v getent >/dev/null 2>&1 || { echo 'getent is required to resolve the project home.' >&2; exit 1; }
+    PROJECT_HOME="$(getent passwd "$PROJECT_USER" | cut -d: -f6)"
+    [[ "$PROJECT_HOME" == /* && "$PROJECT_HOME" != / ]] || {
+        echo "Could not resolve a safe home for project user $PROJECT_USER." >&2
+        exit 1
+    }
+else
+    PROJECT_HOME="/home/$PROJECT_USER"
+fi
+
+for source in "$ALARM_SOURCE" "$NAME_SOURCE" "$WEATHER_SOURCE" "$MIXER_SOURCE" "$PLEXAMP_PREF_SOURCE"; do
     [[ -f "$source" && ! -L "$source" ]] || {
         echo "Required helper source is unavailable: $source" >&2
         exit 1
@@ -87,6 +103,8 @@ NAME_POLICY="$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status\n$PROJECT_US
 WEATHER_POLICY="# Managed by A Clockwork Plex. Secret value is supplied on stdin, never argv; status returns presence only.\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET set\n$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET remove\n"
 MIXER_POLICY="# Managed by A Clockwork Plex. The helper validates channel names and 0-100 levels.\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET set *\n$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET live *\n"
 MIXER_DEFAULTS_TEXT="# Managed by A Clockwork Plex.\nALSA_CARD=Pro\nALSA_DEVICE=0\nSAMPLE_RATE=44100\nCHANNELS=2\n"
+PLEXAMP_PREF_POLICY="# Managed by A Clockwork Plex. Restore values are accepted as bounded JSON on stdin, never argv.\n$PROJECT_USER ALL=(root) NOPASSWD: $PLEXAMP_PREF_TARGET status\n$PROJECT_USER ALL=(root) NOPASSWD: $PLEXAMP_PREF_TARGET apply\n"
+PLEXAMP_PREF_DEFAULTS_TEXT="# Managed by A Clockwork Plex. No authentication material belongs here.\nPROJECT_USER=$PROJECT_USER\nPROJECT_HOME=$PROJECT_HOME\nPLEXAMP_SERVICE=plexamp.service\nPLEXAMP_PORT=32500\n"
 
 validate_policy() {
     local text="$1" temporary
@@ -108,6 +126,7 @@ validate_policy "$ALARM_POLICY"
 validate_policy "$NAME_POLICY"
 validate_policy "$WEATHER_POLICY"
 validate_policy "$MIXER_POLICY"
+validate_policy "$PLEXAMP_PREF_POLICY"
 
 cat <<EOF
 A Clockwork Plex restricted helper installation plan
@@ -115,6 +134,7 @@ A Clockwork Plex restricted helper installation plan
 Mode:             $MODE
 Filesystem root:  $ROOT
 Project user:     $PROJECT_USER
+Project home:     $PROJECT_HOME
 
 Managed targets:
   $ALARM_TARGET
@@ -126,10 +146,15 @@ Managed targets:
   $MIXER_TARGET
   $MIXER_SUDOERS
   $MIXER_DEFAULTS
+  $PLEXAMP_PREF_TARGET
+  $PLEXAMP_PREF_SUDOERS
+  $PLEXAMP_PREF_DEFAULTS
 
 The runtime helper implementations remain in their existing specialist source
-files. This installer owns guarded packaging, restricted sudo policy and the
-fixed shared-audio helper defaults. On production activation it opens each named
+files. This installer owns guarded packaging, restricted sudo policy and fixed
+helper defaults. Plexamp preference restore receives values only on stdin and is
+restricted to status/apply; broad systemctl privilege is not granted to the
+dashboard user. On production activation the mixer installer opens each named
 A Clockwork Plex PCM with silence so ALSA creates the softvol controls before the
 read-only appliance verifier and dashboard API inspect them.
 It captures every target before activation and restores exact prior presence,
@@ -165,7 +190,8 @@ for target in \
     "$ALARM_TARGET" "$ALARM_SUDOERS" \
     "$NAME_TARGET" "$NAME_SUDOERS" \
     "$WEATHER_TARGET" "$WEATHER_SUDOERS" \
-    "$MIXER_TARGET" "$MIXER_SUDOERS" "$MIXER_DEFAULTS"; do
+    "$MIXER_TARGET" "$MIXER_SUDOERS" "$MIXER_DEFAULTS" \
+    "$PLEXAMP_PREF_TARGET" "$PLEXAMP_PREF_SUDOERS" "$PLEXAMP_PREF_DEFAULTS"; do
     acp_transaction_capture_path "$TRANSACTION" "$target"
 done
 
@@ -258,6 +284,9 @@ activate() {
     acp_install_file "$MIXER_SOURCE" "$MIXER_TARGET" 0755 || return 1
     acp_install_text "$MIXER_POLICY" "$MIXER_SUDOERS" 0440 || return 1
     acp_install_text "$MIXER_DEFAULTS_TEXT" "$MIXER_DEFAULTS" 0644 || return 1
+    acp_install_file "$PLEXAMP_PREF_SOURCE" "$PLEXAMP_PREF_TARGET" 0755 || return 1
+    acp_install_text "$PLEXAMP_PREF_POLICY" "$PLEXAMP_PREF_SUDOERS" 0440 || return 1
+    acp_install_text "$PLEXAMP_PREF_DEFAULTS_TEXT" "$PLEXAMP_PREF_DEFAULTS" 0644 || return 1
 
     if [[ "$ROOT" != / && "${ACP_HELPERS_TEST_FAIL_AFTER_INSTALL:-0}" == 1 ]]; then
         echo 'Injected non-production failure after restricted helper install.' >&2
@@ -268,18 +297,22 @@ activate() {
         "$ALARM_TARGET" "$ALARM_SUDOERS" \
         "$NAME_TARGET" "$NAME_SUDOERS" \
         "$WEATHER_TARGET" "$WEATHER_SUDOERS" \
-        "$MIXER_TARGET" "$MIXER_SUDOERS" "$MIXER_DEFAULTS"; do
+        "$MIXER_TARGET" "$MIXER_SUDOERS" "$MIXER_DEFAULTS" \
+        "$PLEXAMP_PREF_TARGET" "$PLEXAMP_PREF_SUDOERS" "$PLEXAMP_PREF_DEFAULTS"; do
         verify_regular_file "$installed" || return 1
     done
     verify_mode "$ALARM_TARGET" 755 || return 1
     verify_mode "$NAME_TARGET" 755 || return 1
     verify_mode "$WEATHER_TARGET" 755 || return 1
     verify_mode "$MIXER_TARGET" 755 || return 1
+    verify_mode "$PLEXAMP_PREF_TARGET" 755 || return 1
     verify_mode "$ALARM_SUDOERS" 440 || return 1
     verify_mode "$NAME_SUDOERS" 440 || return 1
     verify_mode "$WEATHER_SUDOERS" 440 || return 1
     verify_mode "$MIXER_SUDOERS" 440 || return 1
+    verify_mode "$PLEXAMP_PREF_SUDOERS" 440 || return 1
     verify_mode "$MIXER_DEFAULTS" 644 || return 1
+    verify_mode "$PLEXAMP_PREF_DEFAULTS" 644 || return 1
     verify_contains "$ALARM_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $ALARM_TARGET release" || return 1
     verify_contains "$NAME_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $NAME_TARGET status" || return 1
     verify_contains "$WEATHER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $WEATHER_TARGET status" || return 1
@@ -288,6 +321,12 @@ activate() {
     verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET status" || return 1
     verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET set *" || return 1
     verify_contains "$MIXER_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $MIXER_TARGET live *" || return 1
+    verify_contains "$PLEXAMP_PREF_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $PLEXAMP_PREF_TARGET status" || return 1
+    verify_contains "$PLEXAMP_PREF_SUDOERS" "$PROJECT_USER ALL=(root) NOPASSWD: $PLEXAMP_PREF_TARGET apply" || return 1
+    verify_contains "$PLEXAMP_PREF_DEFAULTS" "PROJECT_USER=$PROJECT_USER" || return 1
+    verify_contains "$PLEXAMP_PREF_DEFAULTS" "PROJECT_HOME=$PROJECT_HOME" || return 1
+    verify_contains "$PLEXAMP_PREF_DEFAULTS" 'PLEXAMP_SERVICE=plexamp.service' || return 1
+    verify_contains "$PLEXAMP_PREF_DEFAULTS" 'PLEXAMP_PORT=32500' || return 1
     verify_contains "$MIXER_DEFAULTS" 'ALSA_CARD=Pro' || return 1
     verify_contains "$MIXER_DEFAULTS" 'ALSA_DEVICE=0' || return 1
     verify_contains "$MIXER_DEFAULTS" 'SAMPLE_RATE=44100' || return 1
