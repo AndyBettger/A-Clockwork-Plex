@@ -11,7 +11,9 @@ from app.settings_unified_scheduled import _clock_card_slot_count
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
+SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
 CLIENT = ROOT / "app" / "static" / "js" / "settings-pass-a.js"
+RESTORE_CLIENT = ROOT / "app" / "static" / "js" / "settings-about.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-pass-a.css"
 SAFE_LINKS = ROOT / "app" / "static" / "js" / "kiosk-safe-links.js"
 SAFE_LINK_STYLE = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
@@ -24,7 +26,7 @@ class SettingsPassATests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for path in (CLIENT, SAFE_LINKS):
+        for path in (CLIENT, RESTORE_CLIENT, SAFE_LINKS):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 capture_output=True,
@@ -107,8 +109,11 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("box-sizing: border-box", style)
         self.assertIn("align-content: start", style)
 
-    def test_stale_restore_warning_survives_generic_message_overwrite(self):
+    def test_stale_restore_warning_is_owned_by_restore_client_and_guarded(self):
         client = CLIENT.read_text(encoding="utf-8")
+        restore_client = RESTORE_CLIENT.read_text(encoding="utf-8")
+        settings_template = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
+
         self.assertIn("let restoreConflictDetail = ''", client)
         self.assertIn("const enforceConflictMessage = () =>", client)
         self.assertIn(
@@ -118,9 +123,19 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("new MutationObserver(() =>", client)
         self.assertIn("if (restoreConflictDetail) enforceConflictMessage()", client)
         self.assertIn("payload?.fresh_preview_required === true", client)
-        self.assertIn("restoreConflictDetail = String(", client)
-        self.assertIn("previewButton?.addEventListener('click', clearConflict, true)", client)
-        self.assertIn("restoreFile?.addEventListener('change', clearConflict, true)", client)
+
+        self.assertIn("result.fresh_preview_required === true", restore_client)
+        self.assertIn("response.status === 409", restore_client)
+        self.assertIn(
+            "Restore blocked — no settings were changed. ${restoreDetail}",
+            restore_client,
+        )
+        self.assertIn("restoreMessage.classList.toggle('is-conflict', restoreWasBlocked)", restore_client)
+        self.assertNotIn(
+            "restoreMessage.textContent = 'Run Preview restore again before any retry.'",
+            restore_client,
+        )
+        self.assertIn("20260830-stale-restore-owner-v1", settings_template)
 
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
         modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
