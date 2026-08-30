@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 24 August 2026  
+**Last updated:** 30 August 2026  
 **Active development branch:** `develop`  
 **Stable branch:** `main`  
 **PR #2:** merged into `main` on 23 August 2026.  
@@ -101,9 +101,9 @@ The Settings/appliance-ownership cycle began by classifying persistent data befo
 
 #88 is closed. No raw Plexamp profile or Chromium profile is a supported backup unit.
 
-### Configuration backup/export — PHYSICALLY ACCEPTED at checkpoint #89
+### Configuration backup/export — COMPLETE at checkpoint #89
 
-The schema-v1 secret-safe export, Headless preference export and live Plexamp Home-layout bridge have all passed on the commissioned Pi. Only the final synchronized GitHub Actions confirmation remains before #89 is administratively closed.
+The schema-v1 secret-safe export, Headless preference export and live Plexamp Home-layout bridge are physically accepted on the commissioned Pi and covered by synchronized green `develop` Actions validation.
 
 - [x] Added `app/configuration_backup.py` with **schema version 1** and metadata sourced from `app/static/app-version.json`.
 - [x] Export builds from the existing normalised Unified Settings authority and selects an explicit portable subset instead of serialising the public snapshot wholesale.
@@ -132,7 +132,7 @@ The schema-v1 secret-safe export, Headless preference export and live Plexamp Ho
 - [x] Bridge `1.0.4` added a value-free rejected-order diagnostic. The commissioned Pi reported `items15-max77-empty0-over0-nonstring0-bad2f`: all 15 identifiers are bounded strings, and `/` (`0x2f`) was the only character required beyond the initial `[A-Za-z0-9_.-]` policy.
 - [x] Bridge `1.0.5` and the dashboard-side validator therefore widened **only** to `[A-Za-z0-9_./-]`; `:` and other unobserved punctuation remain rejected. Slash-bearing per-hub `:hidden` keys are also supported, and the parent bridge asset was cache-busted.
 - [x] Final live-layout physical export passed on 24 August 2026. Settings reported **“Backup downloaded, including Plexamp Home layout. Credentials and authentication were not included.”** Structural verification reported: browser preferences present; browser schema `1`; Home order captured with **15 items**; **1 hidden item**; browser omission **false**; warning count **0**.
-- [ ] Final #89 synchronized Actions run must be green on the accepted implementation/roadmap head before administrative closure.
+- [x] Synchronized `develop` Actions remains green through **Tests #4312** on 30 August 2026, covering the accepted export stack and subsequent restore work.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -165,9 +165,9 @@ Initial #89 implementation sequence:
 - [x] Physical commissioned-Pi acceptance passed on 24 August 2026 with the just-created backup: **0 supported server-owned changes**, `read_only: true`, `apply_enabled: false`, Plexamp browser payload present with **15 ordered / 1 hidden**, and only the expected deferred-browser warning.
 - [x] The Restore preview screen was physically checked at 1280×720 and remained readable/useful.
 
-#### Phase 2 — transactional server-owned restore — PHYSICALLY ACCEPTED; STALE-PREVIEW CHECK PENDING
+#### Phase 2 — transactional server-owned restore — PHYSICALLY ACCEPTED; UX CLARITY RE-CHECK PENDING
 
-This phase deliberately restores only owners already controlled transactionally by the dashboard. The normal successful restore path is now physically accepted on the commissioned Pi; Plexamp state is still deferred.
+This phase deliberately restores only owners already controlled transactionally by the dashboard. Both the normal successful restore and stale-preview refusal paths are physically accepted on the commissioned Pi; Plexamp state is still deferred.
 
 - [x] Added separate confirmed `POST /api/settings/restore/apply`; Preview itself remains non-mutating.
 - [x] A 32-hex preview fingerprint binds Apply to the exact normalized backup and current server-owned comparison state. A stale preview refuses before owner mutation and requires a fresh Preview.
@@ -182,11 +182,11 @@ This phase deliberately restores only owners already controlled transactionally 
 - [x] Fake-backed regression coverage proves successful Settings/EQ/mixer restore, stale-preview refusal without mutation and an injected late mixer failure restoring mixer, EQ and Settings to their original logical state.
 - [x] CI compile/JavaScript/source-contract gates require the separate apply registration/endpoint, immutable read-only Preview flag, `server_restore_available` and explicit confirmation control.
 - [x] Physical harmless-change restore passed on 24 August 2026: one ordinary Settings value, one `0.5 dB` EQ value and one small persistent mixer value were deliberately changed; Preview reported exactly **3** restorable server-owned paths in `settings.dashboard`, `audio.eq` and `audio.mixer`; explicit two-step restore returned all three values to the backup state; re-selecting the same backup then reported **0** restorable items.
-- [x] The successful physical restore also confirmed the separate **Restore server settings → Confirm restore** interaction and owner-facing rollback/credential/Plexamp-deferred copy at 1280×720.
-- [x] Physical review identified two cosmetic issues only: restore result/confirmation blocks were too tightly stacked, and helper text beside Download/Preview buttons was top-aligned. Scoped `settings-backup-restore.css` now provides 14px restore-block spacing and vertically centred action-row copy without changing other Settings action rows.
-- [ ] Physical visual re-check of the scoped backup/restore spacing/alignment polish.
-- [ ] Final synchronized Actions run for the current phase-2/polish head must be green.
-- [ ] Physical stale-preview refusal: Preview a backup, save one supported change elsewhere, then prove the old preview token is rejected without restore mutation.
+- [x] The successful physical restore confirmed rollback capture/verification and credential/Plexamp-deferred copy at 1280×720.
+- [x] Scoped restore presentation polish now separates the Preview action from its result cards, spaces the result/confirmation blocks by 14px and vertically centres helper text beside Download/Preview actions. The 30 August screenshots confirmed the revised result/confirmation spacing is readable at 1280×720.
+- [x] Physical stale-preview refusal passed on 30 August 2026: after Preview reported one Settings difference, Bass was changed by a further `0.5 dB`; the old preview was then rejected before mutation, both changed values remained changed, and a fresh Preview correctly reported **2** restorable paths (`settings.dashboard` and `audio.eq`).
+- [x] Synchronized `develop` Actions **Tests #4311** and **#4312** passed the stale-warning UX logic and scoped warning CSS respectively.
+- [ ] Final physical presentation re-check of the clearer blocked-restore warning and renamed two-stage controls: **Review restore** opens the confirmation only; **Confirm & restore** performs the mutating request.
 - [ ] Later phase: version-aware allow-listed Plexamp Headless preference application after Plexamp is installed/claimed.
 - [ ] Later phase: target-context-aware Plexamp Home order/hidden application through the live browser owner with rollback; never transplant the source account/library Local Storage key literally.
 - [ ] Final #90 closure requires synchronized CI plus full physical restore/rollback acceptance across all implemented owners.
@@ -205,7 +205,8 @@ Initial #90 implementation sequence:
 - immutable Preview/separate restore-availability contract: `6445c93709b383bfd4a0087176ee3d7f1372299d`, `6136853e64c5dde279363c2fcc5314940cdbf781`;
 - transactional regression coverage in the existing Settings test module: `15192d4f5949b47b1b20d5d1554f7929dad8b9ab`;
 - phase-2 CI safety gates: `8007e20b60c5d88172cd0e85fd122161ee384037`;
-- backup/restore visual polish: `ab9dc33400364f30c48c54cd63a96cf01761bf10`, `ac03f29584c8b4ea59d3efcf175548caed10db3f`, `da7035cfb60ba556b02eae07205180fec2ff2765`.
+- backup/restore visual polish: `ab9dc33400364f30c48c54cd63a96cf01761bf10`, `ac03f29584c8b4ea59d3efcf175548caed10db3f`, `da7035cfb60ba556b02eae07205180fec2ff2765`, `a2ee1372675bdb3dfb3afdc558c1f8d8d911aa7e`;
+- stale-preview warning/control clarity follow-up: `4cd812843f0be7f8389e0cb8f35056cd6a1ba894`, `0710e30b2ad059b38ac1cb8a6acbb6e0a0ddfa85`.
 
 ## Current supported release
 
@@ -277,7 +278,7 @@ These are post-v0.4.0 ideas, not commitments to one release. Design/test indepen
 Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — IN PROGRESS at #90; #88 ownership COMPLETE, #89 export physically accepted
+2. **Settings and appliance ownership** — IN PROGRESS at #90; #88 ownership COMPLETE, #89 export COMPLETE
 3. **Touchscreen Plexamp text entry**
 4. **BBC News**
 5. **Events calendar**
@@ -288,9 +289,9 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 ### Settings and appliance ownership
 
-- [ ] **Configuration backup/export — PHYSICALLY ACCEPTED at #89; final synchronized CI confirmation pending.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings.
+- [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
-- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview and the normal successful transactional server-owned restore path are physically accepted. Stale-preview refusal still needs its live check; Plexamp Headless/Home application remains deliberately deferred to later owner-specific stages.
+- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview plus normal and stale-protected transactional server-owned restore are physically accepted. One restore-warning wording/control-label visual re-check remains; Plexamp Headless/Home application is deliberately deferred to the next owner-specific restore phases.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
