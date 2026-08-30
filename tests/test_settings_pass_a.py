@@ -107,6 +107,21 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("box-sizing: border-box", style)
         self.assertIn("align-content: start", style)
 
+    def test_stale_restore_warning_survives_generic_message_overwrite(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        self.assertIn("let restoreConflictDetail = ''", client)
+        self.assertIn("const enforceConflictMessage = () =>", client)
+        self.assertIn(
+            "Restore blocked — no settings were changed. ${restoreConflictDetail}",
+            client,
+        )
+        self.assertIn("new MutationObserver(() =>", client)
+        self.assertIn("if (restoreConflictDetail) enforceConflictMessage()", client)
+        self.assertIn("payload?.fresh_preview_required === true", client)
+        self.assertIn("restoreConflictDetail = String(", client)
+        self.assertIn("previewButton?.addEventListener('click', clearConflict, true)", client)
+        self.assertIn("restoreFile?.addEventListener('change', clearConflict, true)", client)
+
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
         modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
         dimming_style = DIMMING_STYLE.read_text(encoding="utf-8")
