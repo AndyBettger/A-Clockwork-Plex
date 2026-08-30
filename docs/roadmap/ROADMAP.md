@@ -132,7 +132,7 @@ The schema-v1 secret-safe export, Headless preference export and live Plexamp Ho
 - [x] Bridge `1.0.4` added a value-free rejected-order diagnostic. The commissioned Pi reported `items15-max77-empty0-over0-nonstring0-bad2f`: all 15 identifiers are bounded strings, and `/` (`0x2f`) was the only character required beyond the initial `[A-Za-z0-9_.-]` policy.
 - [x] Bridge `1.0.5` and the dashboard-side validator therefore widened **only** to `[A-Za-z0-9_./-]`; `:` and other unobserved punctuation remain rejected. Slash-bearing per-hub `:hidden` keys are also supported, and the parent bridge asset was cache-busted.
 - [x] Final live-layout physical export passed on 24 August 2026. Settings reported **“Backup downloaded, including Plexamp Home layout. Credentials and authentication were not included.”** Structural verification reported: browser preferences present; browser schema `1`; Home order captured with **15 items**; **1 hidden item**; browser omission **false**; warning count **0**.
-- [x] Synchronized `develop` Actions remains green through **Tests #4320** on 30 August 2026, covering the accepted export stack and subsequent restore work.
+- [x] Synchronized `develop` Actions remains green through **Tests #4321** on 30 August 2026, covering the accepted export stack and subsequent restore work.
 
 Initial #89 implementation sequence:
 - backup service: `6497fb12c65c873daa866c67cd5ee8142287325f`;
@@ -165,7 +165,7 @@ Initial #89 implementation sequence:
 - [x] Physical commissioned-Pi acceptance passed on 24 August 2026 with the just-created backup: **0 supported server-owned changes**, `read_only: true`, `apply_enabled: false`, Plexamp browser payload present with **15 ordered / 1 hidden**, and only the expected deferred-browser warning.
 - [x] The Restore preview screen was physically checked at 1280×720 and remained readable/useful.
 
-#### Phase 2 — transactional server-owned restore — PHYSICALLY ACCEPTED; UX CLARITY RE-CHECK PENDING
+#### Phase 2 — transactional server-owned restore — PHYSICALLY ACCEPTED
 
 This phase deliberately restores only owners already controlled transactionally by the dashboard. Both the normal successful restore and stale-preview refusal paths are physically accepted on the commissioned Pi; Plexamp state is still deferred.
 
@@ -187,14 +187,26 @@ This phase deliberately restores only owners already controlled transactionally 
 - [x] Physical stale-preview refusal passed on 30 August 2026: after Preview reported one Settings difference, Bass was changed by a further `0.5 dB`; the old preview was then rejected before mutation, both changed values remained changed, and a fresh Preview correctly reported **2** restorable paths (`settings.dashboard` and `audio.eq`).
 - [x] Synchronized `develop` Actions **Tests #4311** and **#4312** passed the stale-warning UX logic and scoped warning CSS respectively.
 - [x] The 30 August wording re-check exposed an ownership bug: the restore client's own catch handler overwrote the detailed stale-preview message with the generic retry line after the server had already returned the correct 409 detail. The owning `settings-about.js` path now renders the exact blocked message from the 409 `fresh_preview_required` response, clears the warning state when a new file/Preview starts, and has its asset URL cache-busted. The `settings-pass-a.js` observer remains defence-in-depth rather than the primary message owner.
-- [x] The owning-client fix, cache refresh and source/syntax regression gate passed synchronized `develop` **Tests #4320**.
-- [ ] Final physical presentation re-check of the clearer blocked-restore warning and renamed two-stage controls: **Review restore** opens the confirmation only; **Confirm & restore** performs the mutating request.
-- [ ] Later phase: version-aware allow-listed Plexamp Headless preference application after Plexamp is installed/claimed.
+- [x] The owning-client fix, cache refresh and source/syntax regression gate passed synchronized `develop` **Tests #4320/#4321**.
+- [x] Final physical presentation re-check passed on 30 August 2026: the conspicuous blocked-restore wording is now correct, and the two-stage **Review restore → Confirm & restore** flow remains the accepted mutation boundary.
+
+#### Phase 3 — version-aware Plexamp Headless preference restore — NEXT
+
+The next #90 phase is the first Plexamp-owned mutation stage. It must remain narrower than ordinary server restore and must not turn the whole Plexamp Settings directory into a backup/restore unit.
+
+- [ ] Restore only the exact eight typed Headless allow-listed preferences already established at #88/#89; never write unknown files, auth/session state, `audioDeviceUuid`, `playerName` or `premium`.
+- [ ] Require a commissioned target Plexamp runtime and make compatibility explicit. The first implementation should fail closed unless the installed runtime version is known and compatible with the backup source version.
+- [ ] Treat the two sample-rate preferences as audio-policy-aware rather than blindly portable across incompatible appliance audio generations.
+- [ ] Capture the exact pre-state of every allow-listed preference that will change, apply atomically through a dedicated Plexamp preference owner, verify typed values after application, and restore the original per-key presence/value if the stage fails.
+- [ ] Define safe Plexamp runtime coordination so a running `plexamp.service` cannot overwrite or race restored values. Any required stop/restart authority must be narrowly scoped rather than granting broad service-control sudo access.
+- [ ] Extend Preview/Settings to distinguish **server-owned changes**, **Headless preference changes**, and later **Home-layout changes** without exposing saved values.
+- [ ] Add fake/alternate-root regression coverage before enabling physical mutation, then perform a harmless commissioned-Pi preference round-trip and stale/failure rollback test.
+
 - [ ] Later phase: target-context-aware Plexamp Home order/hidden application through the live browser owner with rollback; never transplant the source account/library Local Storage key literally.
 - [ ] Final #90 closure requires synchronized CI plus full physical restore/rollback acceptance across all implemented owners.
 
 Initial #90 implementation sequence:
-- read-only planner/API: `95b557c1254921f706d0f7f9c9e7faebb549c08e`;
+- read-only planner/API: `95b557c1254921f706d6f55682699c1118e721c60b03`;
 - runner registration: `0e67950b5dfc53c9123e836371030dcec245a5cd`;
 - preview regression coverage: `4726dda3507b52218771c6956db51746280753e3`;
 - compile/runner CI gate: `3a1143f27a338ebed71b68dec9dc95decebccab8`;
@@ -294,7 +306,7 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 - [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
-- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview plus normal and stale-protected transactional server-owned restore are physically accepted. One restore-warning wording/control-label visual re-check remains; Plexamp Headless/Home application is deliberately deferred to the next owner-specific restore phases.
+- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview and the full transactional server-owned Phase 2 are physically accepted. Version-aware allow-listed Plexamp Headless preference restore is the next implementation phase; target-context-aware Home application follows after that.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
