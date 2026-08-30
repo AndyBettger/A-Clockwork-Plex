@@ -6,7 +6,10 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
-from .configuration_backup import PLEXAMP_HEADLESS_SPECS
+try:
+    from .configuration_backup import PLEXAMP_HEADLESS_SPECS
+except ImportError:  # Supports direct execution imports from app/runner.py.
+    from configuration_backup import PLEXAMP_HEADLESS_SPECS
 
 
 DEFAULT_HELPER_PATH = "/usr/local/bin/a-clockwork-plex-plexamp-preferences"
