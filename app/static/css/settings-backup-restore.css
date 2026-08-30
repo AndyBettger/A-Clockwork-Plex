@@ -26,6 +26,18 @@ body.mode-settings [data-settings-subpage="advanced:backup"] .settings-action-ro
   margin-top: 14px;
 }
 
+/* A refused stale preview is a safety event, not ordinary helper copy. */
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-message].is-conflict {
+  flex: 1 1 100%;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 205, 112, 0.46);
+  border-radius: 12px;
+  background: rgba(255, 205, 112, 0.12);
+  color: #ffe8b4;
+  font-weight: 800;
+}
+
 body.mode-settings [data-configuration-restore-preview]:not([hidden]),
 body.mode-settings [data-configuration-restore-apply-zone]:not([hidden]) {
   display: grid;
