@@ -21,6 +21,11 @@ body.mode-settings [data-settings-subpage="advanced:backup"] .settings-action-ro
   line-height: 1.35;
 }
 
+/* Keep the Preview action visually separate from the result cards it reveals. */
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-action-row + [data-configuration-restore-preview]:not([hidden]) {
+  margin-top: 14px;
+}
+
 body.mode-settings [data-configuration-restore-preview]:not([hidden]),
 body.mode-settings [data-configuration-restore-apply-zone]:not([hidden]) {
   display: grid;
