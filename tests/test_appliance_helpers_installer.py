@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from app.configuration_backup import read_plexamp_version
 from app.plexamp_preferences import PlexampPreferenceManager
 
 
@@ -18,6 +19,11 @@ ALARM_SOURCE = ROOT / "scripts" / "a-clockwork-plex-alarm-audio-helper.sh"
 NAME_SOURCE = ROOT / "scripts" / "a-clockwork-plex-shairport-name.py"
 MIXER_SOURCE = ROOT / "scripts" / "a-clockwork-plex-audio-mixer.py"
 PLEXAMP_PREF_SOURCE = ROOT / "scripts" / "a-clockwork-plex-plexamp-preferences.py"
+PLEXAMP_RUNTIME_MANIFEST = """kind=plexamp
+version=4.13.2
+archive_sha256=86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041
+archive_bytes=14566439
+"""
 
 
 def load_plexamp_preference_helper():
@@ -294,9 +300,12 @@ class PlexampPreferenceHelperTests(unittest.TestCase):
 
     def build_home(self, root: Path):
         home = root / "home" / "clockuser"
-        package = home / "plexamp" / "package.json"
-        package.parent.mkdir(parents=True)
-        package.write_text(json.dumps({"version": "4.13.2"}), encoding="utf-8")
+        runtime = home / "plexamp"
+        runtime.mkdir(parents=True)
+        (runtime / ".a-clockwork-plex-runtime").write_text(
+            PLEXAMP_RUNTIME_MANIFEST,
+            encoding="utf-8",
+        )
         settings = home / ".local" / "share" / "Plexamp" / "Settings"
         settings.mkdir(parents=True)
         values = {
@@ -333,6 +342,38 @@ class PlexampPreferenceHelperTests(unittest.TestCase):
             lock_path=root / "plexamp-preferences.lock",
         )
         return owner, values, paths
+
+    def test_commissioned_runtime_manifest_is_shared_version_authority_without_package_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = FakePlexampServiceRunner()
+            owner, _values, _paths = self.owner(root, runner)
+            home = owner.config.project_home
+
+            self.assertFalse((home / "plexamp" / "package.json").exists())
+            self.assertEqual(read_plexamp_version(home), "4.13.2")
+            status = owner.status()
+            self.assertEqual(status["installed_version"], "4.13.2")
+            self.assertTrue(status["restore_ready"])
+            self.assertTrue(status["available"])
+
+    def test_invalid_runtime_manifest_fails_closed_for_export_and_restore(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = FakePlexampServiceRunner()
+            owner, _values, _paths = self.owner(root, runner)
+            home = owner.config.project_home
+            manifest = home / "plexamp" / ".a-clockwork-plex-runtime"
+            manifest.write_text(
+                "kind=plexamp\nversion=4.13.2\narchive_sha256=not-a-digest\n",
+                encoding="utf-8",
+            )
+
+            self.assertIsNone(read_plexamp_version(home))
+            status = owner.status()
+            self.assertIsNone(status["installed_version"])
+            self.assertFalse(status["restore_ready"])
+            self.assertFalse(status["available"])
 
     def test_helper_restores_only_existing_allowlisted_values_and_restarts_service(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
