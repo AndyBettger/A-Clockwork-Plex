@@ -391,8 +391,11 @@ class ConfigurationBackupTests(unittest.TestCase):
             (plexamp / encoded).write_text(value, encoding="utf-8")
         runtime = root / "plexamp"
         runtime.mkdir()
-        (runtime / "package.json").write_text(
-            json.dumps({"name": "Plexamp", "version": "4.13.2"}),
+        (runtime / ".a-clockwork-plex-runtime").write_text(
+            "kind=plexamp\n"
+            "version=4.13.2\n"
+            "archive_sha256=86e5ede3d852a87099a106f2cc6b83e4ec1350000176d83fbcedb83950c48041\n"
+            "archive_bytes=14566439\n",
             encoding="utf-8",
         )
 
