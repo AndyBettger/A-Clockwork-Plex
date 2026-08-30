@@ -31,12 +31,17 @@ EqStatus = Callable[[], dict[str, Any]]
 EqSetBypass = Callable[[bool], dict[str, Any]]
 MixerStatus = Callable[[], dict[str, Any]]
 MixerSetVolumes = Callable[[dict[str, int]], dict[str, Any]]
+PlexampPreferenceStatus = Callable[[], dict[str, Any]]
+PlexampPreferenceApply = Callable[..., dict[str, Any]]
 
 MAX_BACKUP_BYTES = 1_000_000
 MAX_APPLY_REQUEST_BYTES = 1_100_000
 MAX_PREVIEW_PATHS = 200
 MAX_BROWSER_ITEMS = 128
 SAFE_HUB_ID_RE = re.compile(r"^[A-Za-z0-9_./-]{1,220}$")
+AUDIO_POLICY_HEADLESS_PREFERENCES = frozenset(
+    {"sampleRateConversionQuality", "sampleRateMatching"}
+)
 
 FORBIDDEN_KEYS = {
     "api_key",
@@ -314,11 +319,16 @@ def _section_for_path(path: str) -> str:
     return parts[0] if parts else "unknown"
 
 
-def _preview_token(candidate: dict[str, Any], current: dict[str, Any]) -> str:
+def _preview_token(
+    candidate: dict[str, Any],
+    current: dict[str, Any],
+    capability_context: dict[str, Any] | None = None,
+) -> str:
     encoded = json.dumps(
         {
             "candidate": candidate,
             "current": _comparison_domains(current),
+            "capabilities": capability_context or {},
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -353,8 +363,41 @@ class RestoreExecutionError(RuntimeError):
 class ConfigurationRestorePlanner:
     """Validate and compare portable backups without applying any change."""
 
-    def __init__(self, *, current_backup: CurrentBackupProvider) -> None:
+    def __init__(
+        self,
+        *,
+        current_backup: CurrentBackupProvider,
+        plexamp_preference_status: PlexampPreferenceStatus | None = None,
+    ) -> None:
         self._current_backup = current_backup
+        self._plexamp_preference_status = plexamp_preference_status
+
+    def _plexamp_capability(self) -> dict[str, Any]:
+        if self._plexamp_preference_status is None:
+            return {
+                "restore_ready": False,
+                "installed_version": None,
+                "reason": "helper-unavailable",
+            }
+        try:
+            status = self._plexamp_preference_status()
+        except Exception:
+            return {
+                "restore_ready": False,
+                "installed_version": None,
+                "reason": "helper-status-failed",
+            }
+        if not isinstance(status, dict):
+            return {
+                "restore_ready": False,
+                "installed_version": None,
+                "reason": "helper-status-invalid",
+            }
+        return {
+            "restore_ready": status.get("restore_ready") is True,
+            "installed_version": str(status.get("installed_version") or "").strip() or None,
+            "reason": str(status.get("error") or "").strip()[:160] or None,
+        }
 
     def plan(self, payload: Any) -> dict[str, Any]:
         candidate = _normalise_restore_model(payload)
@@ -367,11 +410,13 @@ class ConfigurationRestorePlanner:
             for path in sorted(candidate_flat)
             if candidate_flat[path] != current_flat.get(path)
         ]
-        apply_paths = [
+        server_paths = [
             path for path in changed_paths if path.startswith("a_clockwork_plex.")
         ]
-        deferred_paths = [
-            path for path in changed_paths if path.startswith("plexamp.")
+        headless_paths = [
+            path
+            for path in changed_paths
+            if path.startswith("plexamp.headless_preferences.")
         ]
 
         sections = Counter(_section_for_path(path) for path in changed_paths)
@@ -389,18 +434,54 @@ class ConfigurationRestorePlanner:
         current_plexamp = current.get("plexamp", {})
         source_plexamp = str(candidate_plexamp.get("source_version") or "").strip()
         current_plexamp_version = str(current_plexamp.get("source_version") or "").strip()
+        capability = self._plexamp_capability()
+        capability_version = str(capability.get("installed_version") or "").strip()
+
+        headless_apply_paths: list[str] = []
+        deferred_paths: list[str] = []
+        if headless_paths:
+            exact_runtime_match = bool(
+                source_plexamp
+                and current_plexamp_version
+                and capability_version
+                and source_plexamp == current_plexamp_version == capability_version
+            )
+            helper_ready = capability.get("restore_ready") is True
+            if not exact_runtime_match:
+                deferred_paths.extend(headless_paths)
+                warnings.append(
+                    "Plexamp Headless preferences differ but are not restorable because the backup and installed Plexamp versions are not an exact known match."
+                )
+            elif not helper_ready:
+                deferred_paths.extend(headless_paths)
+                warnings.append(
+                    "Plexamp Headless preferences differ but the narrow transactional preference owner is not currently ready."
+                )
+            else:
+                for path in headless_paths:
+                    key = path.rsplit(".", 1)[-1]
+                    if (
+                        key in AUDIO_POLICY_HEADLESS_PREFERENCES
+                        and source_version
+                        and current_version
+                        and source_version != current_version
+                    ):
+                        deferred_paths.append(path)
+                    else:
+                        headless_apply_paths.append(path)
+                if len(headless_apply_paths) != len(headless_paths):
+                    warnings.append(
+                        "Plexamp sample-rate preferences remain deferred because the backup application audio generation differs from this appliance."
+                    )
+
         if (
             source_plexamp
             and current_plexamp_version
             and source_plexamp != current_plexamp_version
+            and not headless_paths
         ):
             warnings.append(
-                "Backup Plexamp version differs from the installed Plexamp version; preference restore must remain version-aware."
-            )
-
-        if deferred_paths:
-            warnings.append(
-                "Plexamp Headless preferences differ but remain deferred until the version-aware Plexamp restore stage."
+                "Backup Plexamp version differs from the installed Plexamp version; no Headless preference mutation is planned."
             )
 
         browser = candidate_plexamp.get("browser_preferences")
@@ -428,18 +509,40 @@ class ConfigurationRestorePlanner:
         if "a_clockwork_plex.settings.airplay.receiver_name" in changed_paths:
             confirmations.append("airplay_restart")
 
+        apply_paths = sorted([*server_paths, *headless_apply_paths])
+        capability_context = {
+            "plexamp_headless": {
+                "restore_ready": capability.get("restore_ready") is True,
+                "installed_version": capability.get("installed_version"),
+            }
+        }
+
         return {
             "ok": True,
             "schema_version": BACKUP_SCHEMA_VERSION,
             "read_only": True,
             "apply_enabled": False,
-            "server_restore_available": bool(apply_paths),
-            "preview_token": _preview_token(candidate, current),
+            "restore_available": bool(apply_paths),
+            "server_restore_available": bool(server_paths),
+            "plexamp_headless_restore_available": bool(headless_apply_paths),
+            "preview_token": _preview_token(candidate, current, capability_context),
             "change_count": len(changed_paths),
             "changed_paths": changed_paths[:MAX_PREVIEW_PATHS],
             "changed_paths_truncated": len(changed_paths) > MAX_PREVIEW_PATHS,
             "apply_change_count": len(apply_paths),
             "apply_changed_paths": apply_paths[:MAX_PREVIEW_PATHS],
+            "server_change_count": len(server_paths),
+            "server_changed_paths": server_paths[:MAX_PREVIEW_PATHS],
+            "plexamp_headless_change_count": len(headless_apply_paths),
+            "plexamp_headless_changed_paths": headless_apply_paths[:MAX_PREVIEW_PATHS],
+            "plexamp_headless_detected_change_count": len(headless_paths),
+            "plexamp_headless": {
+                "restore_ready": capability.get("restore_ready") is True,
+                "backup_version": source_plexamp or None,
+                "installed_version": capability.get("installed_version"),
+                "restorable_items": len(headless_apply_paths),
+                "deferred_items": len([path for path in deferred_paths if path.startswith("plexamp.headless_preferences.")]),
+            },
             "deferred_change_count": len(deferred_paths),
             "deferred_changed_paths": deferred_paths[:MAX_PREVIEW_PATHS],
             "sections": dict(sorted(sections.items())),
@@ -454,7 +557,7 @@ class ConfigurationRestorePlanner:
 
 
 class ConfigurationRestoreExecutor:
-    """Apply only ACP Settings/EQ/mixer owners with rollback and verification."""
+    """Apply ACP Settings/EQ/mixer and compatible Plexamp Headless preferences transactionally."""
 
     def __init__(
         self,
@@ -468,6 +571,8 @@ class ConfigurationRestoreExecutor:
         eq_set_bypass: EqSetBypass,
         mixer_status: MixerStatus,
         mixer_set_volumes: MixerSetVolumes,
+        plexamp_preference_status: PlexampPreferenceStatus | None = None,
+        plexamp_preference_apply: PlexampPreferenceApply | None = None,
     ) -> None:
         self._planner = planner
         self._current_backup = current_backup
@@ -478,6 +583,8 @@ class ConfigurationRestoreExecutor:
         self._eq_set_bypass = eq_set_bypass
         self._mixer_status = mixer_status
         self._mixer_set_volumes = mixer_set_volumes
+        self._plexamp_preference_status = plexamp_preference_status
+        self._plexamp_preference_apply = plexamp_preference_apply
 
     @staticmethod
     def _logical_eq(model: dict[str, Any]) -> dict[str, Any]:
@@ -539,7 +646,7 @@ class ConfigurationRestoreExecutor:
 
         apply_paths = list(plan.get("apply_changed_paths") or [])
         if not apply_paths:
-            raise RestoreConflict("No currently supported server-owned changes need restoring.")
+            raise RestoreConflict("No currently supported changes need restoring.")
 
         before_backup = _normalise_restore_model(self._current_backup())
         candidate = _normalise_restore_model(backup)
@@ -554,9 +661,22 @@ class ConfigurationRestoreExecutor:
         mixer_changed = any(
             path.startswith("a_clockwork_plex.audio.mixer") for path in apply_paths
         )
+        headless_paths = list(plan.get("plexamp_headless_changed_paths") or [])
+        headless_changed = bool(headless_paths)
 
         before_eq = self._logical_eq(before_backup)
         before_mixer = self._logical_mixer(before_backup)
+        before_headless = deepcopy(
+            before_backup.get("plexamp", {}).get("headless_preferences", {})
+        )
+        target_headless_all = deepcopy(
+            candidate.get("plexamp", {}).get("headless_preferences", {})
+        )
+        headless_keys = [path.rsplit(".", 1)[-1] for path in headless_paths]
+        target_headless = {key: target_headless_all[key] for key in headless_keys}
+        rollback_headless = {key: before_headless[key] for key in headless_keys if key in before_headless}
+        source_plexamp_version = str(candidate.get("plexamp", {}).get("source_version") or "").strip()
+        before_plexamp_version = str(before_backup.get("plexamp", {}).get("source_version") or "").strip()
 
         if eq_changed and self._eq_status().get("available") is not True:
             raise RestoreConflict("Master EQ is unavailable; no restore changes were applied.")
@@ -566,10 +686,21 @@ class ConfigurationRestoreExecutor:
                 raise RestoreConflict("Persistent audio mixer is unavailable; no restore changes were applied.")
             if not before_mixer:
                 raise RestoreConflict("Persistent mixer rollback state is unavailable.")
+        if headless_changed:
+            if self._plexamp_preference_status is None or self._plexamp_preference_apply is None:
+                raise RestoreConflict("Plexamp Headless preference owner is unavailable; no restore changes were applied.")
+            status = self._plexamp_preference_status()
+            if not isinstance(status, dict) or status.get("restore_ready") is not True:
+                raise RestoreConflict("Plexamp Headless preference owner is not ready; no restore changes were applied.")
+            if str(status.get("installed_version") or "").strip() != source_plexamp_version:
+                raise RestoreConflict("Plexamp version changed after Preview; no restore changes were applied.")
+            if len(rollback_headless) != len(target_headless):
+                raise RestoreConflict("Plexamp Headless rollback state is incomplete; no restore changes were applied.")
 
         settings_applied = False
         eq_touched = False
         mixer_touched = False
+        headless_touched = False
         stage = "preparation"
 
         try:
@@ -607,6 +738,14 @@ class ConfigurationRestoreExecutor:
                 mixer_touched = True
                 self._mixer_set_volumes(target_mixer)
 
+            if headless_changed:
+                stage = "Plexamp Headless preferences"
+                self._plexamp_preference_apply(
+                    target_headless,
+                    source_version=source_plexamp_version,
+                )
+                headless_touched = True
+
             stage = "verification"
             after_plan = self._planner.plan(backup)
             remaining_apply_paths = list(after_plan.get("apply_changed_paths") or [])
@@ -614,6 +753,22 @@ class ConfigurationRestoreExecutor:
                 raise RuntimeError("Restored owners did not verify against the requested backup.")
         except Exception as exc:
             rollback_failures: list[str] = []
+            helper_failures = getattr(exc, "rollback_failures", None)
+            helper_rolled_back = getattr(exc, "rolled_back", None)
+            if helper_rolled_back is False or (isinstance(helper_failures, list) and helper_failures):
+                rollback_failures.extend(
+                    f"Plexamp Headless:{item}" for item in (helper_failures or ["helper rollback"])
+                )
+            if headless_touched:
+                try:
+                    if self._plexamp_preference_apply is None:
+                        raise RuntimeError("Plexamp Headless rollback owner is unavailable.")
+                    self._plexamp_preference_apply(
+                        rollback_headless,
+                        source_version=before_plexamp_version,
+                    )
+                except Exception:
+                    rollback_failures.append("Plexamp Headless preferences")
             if mixer_touched:
                 try:
                     self._mixer_set_volumes(before_mixer)
@@ -654,6 +809,8 @@ class ConfigurationRestoreExecutor:
             "schema_version": BACKUP_SCHEMA_VERSION,
             "applied_change_count": len(apply_paths),
             "applied_sections": sorted({_section_for_path(path) for path in apply_paths}),
+            "server_applied_change_count": int(plan.get("server_change_count") or 0),
+            "plexamp_headless_applied_change_count": int(plan.get("plexamp_headless_change_count") or 0),
             "deferred_change_count": int(plan.get("deferred_change_count") or 0),
             "deferred_changed_paths": list(plan.get("deferred_changed_paths") or []),
             "plexamp_browser": deepcopy(plan.get("plexamp_browser") or {}),
@@ -661,7 +818,7 @@ class ConfigurationRestoreExecutor:
                 "included": False,
                 "restore_policy": "recommission-separately",
             },
-            "message": "Supported server-owned settings were restored and verified.",
+            "message": "Supported server-owned settings and compatible Plexamp Headless preferences were restored and verified.",
         }
 
 
