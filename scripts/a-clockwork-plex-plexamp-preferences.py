@@ -28,6 +28,9 @@ from urllib.parse import unquote
 CONFIG_PATH = Path("/etc/default/a-clockwork-plex-plexamp-preferences")
 LOCK_PATH = Path("/run/lock/a-clockwork-plex-plexamp-preferences.lock")
 PLEXAMP_SETTINGS_PREFIX = "@Plexamp:settings:"
+PLEXAMP_RUNTIME_MANIFEST = ".a-clockwork-plex-runtime"
+PLEXAMP_RUNTIME_MANIFEST_MAX_BYTES = 4096
+PLEXAMP_RUNTIME_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 PLEXAMP_HEADLESS_SPECS = {
     "audioConversionBitrate": "integer",
     "autoPlayEnabled": "boolean",
@@ -120,6 +123,40 @@ def _encode_scalar(key: str, value: Any) -> bytes:
     return f"N{checked}".encode("ascii")
 
 
+def _read_runtime_manifest_version(runtime_root: Path) -> str | None:
+    manifest_path = runtime_root / PLEXAMP_RUNTIME_MANIFEST
+    try:
+        if (
+            not runtime_root.is_dir()
+            or runtime_root.is_symlink()
+            or not manifest_path.is_file()
+            or manifest_path.is_symlink()
+            or manifest_path.stat().st_size > PLEXAMP_RUNTIME_MANIFEST_MAX_BYTES
+        ):
+            return None
+        text = manifest_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line or "=" not in line:
+            return None
+        key, value = line.split("=", 1)
+        if not key or key in values:
+            return None
+        values[key] = value
+
+    if values.get("kind") != "plexamp":
+        return None
+    if not PLEXAMP_RUNTIME_SHA256_RE.fullmatch(values.get("archive_sha256", "")):
+        return None
+    version = values.get("version", "").strip()
+    if not version or len(version) > 80:
+        return None
+    return version
+
+
 def load_config(path: Path = CONFIG_PATH) -> HelperConfig:
     try:
         text = path.read_text(encoding="utf-8")
@@ -179,7 +216,7 @@ class PlexampPreferenceTransaction:
         self.sleeper = sleeper or time.sleep
         self.lock_path = Path(lock_path)
         self.settings_dir = config.project_home / ".local" / "share" / "Plexamp" / "Settings"
-        self.package_path = config.project_home / "plexamp" / "package.json"
+        self.runtime_root = config.project_home / "plexamp"
 
     def _run(self, *arguments: str, timeout: int = 15) -> subprocess.CompletedProcess[str]:
         try:
@@ -224,18 +261,7 @@ class PlexampPreferenceTransaction:
         raise RuntimeError("Plexamp did not become ready on its managed local port.")
 
     def installed_version(self) -> str | None:
-        try:
-            if not self.package_path.is_file() or self.package_path.is_symlink():
-                return None
-            if self.package_path.stat().st_size > 1_000_000:
-                return None
-            payload = json.loads(self.package_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            return None
-        if not isinstance(payload, dict):
-            return None
-        version = str(payload.get("version") or "").strip()
-        return version[:80] or None
+        return _read_runtime_manifest_version(self.runtime_root)
 
     def _preference_paths(self) -> tuple[dict[str, Path], list[str], list[str]]:
         if not self.settings_dir.is_dir() or self.settings_dir.is_symlink():
