@@ -8,6 +8,7 @@ PROFILE_DIR="${DASHBOARD_CHROMIUM_PROFILE:-$HOME/.config/a-clockwork-plex/chromi
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BRIDGE_DIR="${DASHBOARD_PLEXAMP_BRIDGE_DIR:-$REPO_ROOT/browser/plexamp-bridge}"
+SEARCH_BRIDGE_DIR="${DASHBOARD_PLEXAMP_SEARCH_BRIDGE_DIR:-$REPO_ROOT/browser/plexamp-search-bridge}"
 
 find_browser() {
   if [[ -n "${DASHBOARD_BROWSER:-}" ]]; then
@@ -54,11 +55,21 @@ browser_args=(
   --user-data-dir="$PROFILE_DIR"
 )
 
-# The optional bridge is an unpacked, permission-free content extension scoped
-# only to Plexamp's loopback web UI. If the source tree is incomplete, kiosk
-# launch remains available and backup simply reports browser preferences omitted.
+# Both optional bridges are unpacked, permission-free content extensions scoped
+# only to Plexamp's loopback web UI. The Home-preference bridge owns the accepted
+# allow-listed backup/restore path; the separate Search bridge owns only focused
+# Search text editing. If either source tree is incomplete, the other feature and
+# normal kiosk launch remain available. No remote-debugging interface is exposed.
+extension_dirs=()
 if [[ -f "$BRIDGE_DIR/manifest.json" && -f "$BRIDGE_DIR/content.js" ]]; then
-  browser_args+=(--load-extension="$BRIDGE_DIR")
+  extension_dirs+=("$BRIDGE_DIR")
+fi
+if [[ -f "$SEARCH_BRIDGE_DIR/manifest.json" && -f "$SEARCH_BRIDGE_DIR/content.js" ]]; then
+  extension_dirs+=("$SEARCH_BRIDGE_DIR")
+fi
+if (( ${#extension_dirs[@]} > 0 )); then
+  extension_arg="$(IFS=,; printf '%s' "${extension_dirs[*]}")"
+  browser_args+=(--load-extension="$extension_arg")
 fi
 
 exec "$browser" "${browser_args[@]}" "$DASHBOARD_URL"
