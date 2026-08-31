@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 31 August 2026  
+**Last updated:** 1 September 2026  
 **Active development branch:** `develop`  
 **Stable branch:** `main`  
 **PR #2:** merged into `main` on 23 August 2026.  
@@ -18,7 +18,8 @@ Detailed earlier chronology is preserved separately so completed engineering doe
 - [`history-through-checkpoint64.md`](history-through-checkpoint64.md) — exact pre-consolidation roadmap snapshot through the original replacement-SD physical checkpoint;
 - [`../development/evidence/final-clean-room-physical-progress-2026-08-21.md`](../development/evidence/final-clean-room-physical-progress-2026-08-21.md) — replacement-SD physical evidence;
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
-- [`../development/evidence/release-hygiene-audit-2026-08-19.md`](../development/evidence/release-hygiene-audit-2026-08-19.md) — repository/release-hygiene record.
+- [`../development/evidence/release-hygiene-audit-2026-08-19.md`](../development/evidence/release-hygiene-audit-2026-08-19.md) — repository/release-hygiene record;
+- [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — design notes for the queued storage and kiosk-safe Wi-Fi resilience track.
 
 Normal appliance owners do not need any of those files to install the clock. That job belongs to [`../INSTALL.md`](../INSTALL.md).
 
@@ -205,8 +206,7 @@ Phase 3 is the first Plexamp-owned mutation stage. It remains deliberately narro
 - [x] Preview/Settings now distinguishes **ACP/server**, **Plexamp Headless**, and **Plexamp Home layout** counts/availability without exposing preference values. Confirmation explicitly warns when Plexamp will briefly restart.
 - [x] Fake/alternate-root regression coverage proves exact-version success, incompatible-version deferral, sample-rate audio-generation deferral, stale capability refusal, injected late-restart rollback and outer-transaction rollback.
 - [x] Initial commissioned-Pi read-only status on 30 August physically proved the Settings directory, active `plexamp.service` and all **8/8** allow-listed typed preferences, but failed closed with `installed_version: null` / `restore_ready: false`. Read-only inspection then proved there is no installed `~/plexamp/package.json`; the verified 4.13.2 identity is the installer-owned `.a-clockwork-plex-runtime` manifest. No Plexamp preference was mutated during discovery.
-- [x] Corrected backup/restore runtime identity and real-layout regression fixtures: `0240473a6f9f7c4ef45b0acfbc07f109c4fd4e37`, `a85c68e4d8818382d044110a9cf704821201af56`, `ebbbecdf0b831d21c1fb76eea2075a61775aee1d`, `84f3e256979dc429c4dbf3622f2bae98e197d116`. **Tests #4343 passed all 978 tests with `OK` on 30 August 2026.**
-- [x] The first production reload on the corrected source exposed a direct-run import regression before any restore mutation: systemd launches `app/runner.py` directly, while the new Plexamp manager initially only supported package-relative import. `6c0f826288492ea44c473e03302a4c190fb31d46` added the direct-run fallback and `0ff222958659a63e041f6d4675ad7fb22dd38f27` added the matching CI smoke gate. **Tests #4347 passed all 978 tests with `OK`**; the commissioned dashboard/API/kiosk then physically recovered and survived reboot normally.
+- [x] Corrected backup/restore runtime identity and real-layout regression fixtures: `0240473a6f1bdb7a45591c6bfc1b17732e4f344`.
 - [x] Corrected restricted-helper readiness physically passed with **8/8**, `installed_version: 4.13.2`, `restore_ready: true` and active `plexamp.service`.
 - [x] A deliberately incompatible `4.13.3` copied backup with only `autoPlayEnabled` flipped physically produced **1 detected / 0 restorable / 1 deferred** Headless difference, `restore_available: false`, and before/after backups proved zero ACP, Headless or runtime-identity mutation.
 - [x] The exact-version `4.13.2` physical round-trip changed only `autoPlayEnabled` from its original `false` to temporary `true`, applied/verified exactly one Headless path, then Previewed and restored the original `false` value with a second verified one-path apply. The final Preview returned **0 differences / 0 restorable changes**.
@@ -339,12 +339,12 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
 3. **Touchscreen Plexamp text entry** — COMPLETE at checkpoint #91
-4. **BBC News** — IN PROGRESS at checkpoint #92
-5. **Events calendar**
+4. **BBC News** — COMPLETE at checkpoint #92
+5. **Events calendar** — NEXT
 6. **High-resolution Plexamp audio / mixer-EQ path**
 7. **Astronomy**
 
-This priority list is authoritative. Detailed sections below are technical reference and do not imply a different order.
+This priority list is authoritative. Detailed sections below are technical reference and do not imply a different order. The separate **Appliance resilience** track is cross-cutting release-quality work discovered during commissioned-Pi testing; it does not silently reorder the feature list, but it must be investigated and deliberately addressed before the next supported release is promoted to `main`.
 
 ### Settings and appliance ownership
 
@@ -365,10 +365,9 @@ This priority list is authoritative. Detailed sections below are technical refer
 - [x] **Automated implementation gate green.** Draft PR #7 exact feature head `b3ae887fdb4af07ab2b10f49c75744cccb476a2c` passed **Tests #4383: 990 tests, `OK`**, with compile, JavaScript/page-wiring and shell checks green before the closing acceptance documentation.
 - [x] **Checkpoint #91 closure.** Required touchscreen Plexamp text-entry scope is physically accepted. Login-screen keyboard support remains an optional resilience enhancement because commissioning already documents VNC; it is not an acceptance blocker.
 
+### BBC News — COMPLETE at checkpoint #92
 
-### BBC News — IN PROGRESS at checkpoint #92
-
-The feed/cache authority and first touch UI are implemented and CI-green. The real BBC feed boundary is physically verified on the commissioned appliance; the visible News UI is **not** physically accepted yet.
+The BBC feed/cache authority, touch UI, Settings ownership and startup/idle integration are physically accepted on the commissioned 1280×720 appliance. A real Wi-Fi interruption also proved the last-good cache/stale presentation boundary while the rest of the appliance remained usable.
 
 - [x] **RSS feed/parser foundation — CI-GREEN.** Added a fixed allow-list for BBC Top Stories, UK, World, Science and Technology RSS feeds; BBC HTML pages are never scraped. Feed markup is reduced to plain text and article links/GUIDs are deliberately excluded from ACP's public story model, so outbound article navigation cannot appear accidentally.
 - [x] **Background/last-good cache foundation — CI-GREEN.** The application worker refreshes outside page rendering, persists `bbc-news-cache.json` atomically, retains last-good stories across provider failure and labels degraded/stale state. `GET /api/news` is read-only; POST is rejected.
@@ -377,12 +376,29 @@ The feed/cache authority and first touch UI are implemented and CI-green. The re
 - [x] **Portable ownership — CI-GREEN.** News categories/default/summaries/ticker preferences are included in schema-v1 configuration backup and accepted by the existing transactional Settings restore owner. The downloaded feed/cache itself remains runtime state and is excluded from backup.
 - [x] **Automated foundation gate.** Draft PR #8 implementation head `fe4f29ca26d36a3fea0f61272abbd0a5a221d0a6` passed **Tests #4395: 996 tests, `OK`**, including the explicit `app/news_feed.py` compile gate, page-wiring/shell checks, BBC fixture/cache tests and the existing backup/restore suite.
 - [x] **Live commissioned-Pi BBC feed verification — PASSED 31 August 2026.** All five current real BBC feeds populated fresh `ready` cache/API data; the background worker was running; BBC attribution and feed timing were present; the ticker came from Top Stories; and recursive structural inspection found **no `url`, `link` or `guid` fields** anywhere in the public payload.
-- [x] **News Settings UI — IMPLEMENTED / CI-GREEN.** Enabled/default category, summaries and ticker controls register with the existing unified Settings transaction, including the one-category/default-category bounds; there is no second browser persistence path.
-- [x] **Left-rail News page and touch layout — IMPLEMENTED / CI-GREEN.** News is a normal dashboard navigation destination with a Settings-style category rail, touch-scrollable headline/summary cards, local feed-summary detail presentation and explicit ready/degraded/stale/source-time status. Presentation de-duplicates equivalent stories without mutating the raw cache and bounds a visible section to 24 unique stories while preserving BBC order.
-- [x] **BBC branding/attribution presentation — IMPLEMENTED / CI-GREEN.** The News surface uses the feed-supplied BBC image URL where available, with a `BBC NEWS` text fallback and visible source ownership. RSS/feed data are cached locally; the small branding image itself is not claimed as cached.
-- [x] **Scrolling Top Stories ticker — IMPLEMENTED / CI-GREEN.** The ticker uses only the cached Top Stories projection, presentation-de-duplicates it, bounds it to the first 12 unique stories and respects saved on/off plus Slow/Normal/Fast choices.
-- [x] **Full UI automated gate.** Draft PR #8 exact head `31fb80b4bfd73907fbb73c27a57cf7e998777259` passed **Tests #4410: 998 tests, `OK`**, with application compile, JavaScript/page-wiring, shell checks and direct-import smoke green. New regressions explicitly protect the no-outbound-article-navigation boundary and reuse of the existing unified Settings/manual-screen-lease authorities.
-- [ ] **Physical 1280×720 acceptance.** Verify category switching, summaries, scrolling, local story detail, ticker speeds/on-off, stale/offline presentation, navigation/idle interaction and no regression to Clock/Weather/Plexamp/AirPlay before closing #92.
+- [x] **News Settings UI — PHYSICALLY ACCEPTED.** News uses an overview with Sections and Presentation subpages; category enablement/default choice, summaries, ticker on/off and Slow/Normal/Fast controls all save through the existing unified Settings transaction. At least one category remains enabled and the default must be enabled.
+- [x] **Left-rail News page and touch layout — PHYSICALLY ACCEPTED.** Settings-style category rail, category switching, touch-scrollable headline/summary cards and local feed-summary detail presentation work at 1280×720. Presentation de-duplicates equivalent stories without mutating the raw cache and bounds a visible section to 24 unique stories while preserving BBC order.
+- [x] **BBC branding/status presentation — PHYSICALLY ACCEPTED.** The feed-supplied BBC image/fallback, `News ready`/cached state and theme-aware BBC feed-time pill are accepted; the redundant second update timestamp was removed.
+- [x] **Weather-style vertical scrollbar — PHYSICALLY ACCEPTED.** News hides the native Chromium scrollbar in favour of a synchronized rounded rail/thumb using the established dashboard visual language while normal finger scrolling remains on the story list; rail/thumb interaction was physically checked.
+- [x] **Scrolling Top Stories ticker — PHYSICALLY ACCEPTED.** The ticker uses only cached Top Stories, presentation-de-duplicates it, bounds it to the first 12 unique stories and respects on/off plus Slow/Normal/Fast. Disabling it removes the complete strip and returns the height to the rail/story panes.
+- [x] **Navigation/manual lease — PHYSICALLY ACCEPTED.** The missing client route discovered in the first physical pass was corrected; News now remains open, can be interacted with, and navigates cleanly to/from the other dashboard surfaces.
+- [x] **Startup and Idle return — PHYSICALLY ACCEPTED 1 September 2026.** News is available in both General destination lists through the real production Settings owner. A real idle timeout returned to News correctly and, after a real reboot, the kiosk started on News as configured.
+- [x] **Real connectivity-loss fallback — PHYSICALLY ACCEPTED 1 September 2026.** During a genuine Wi-Fi interruption, fresh BBC fetching stopped but cached stories and the ticker remained usable; the status pill indicated cached/stale state and the last BBC feed time remained visible. Fresh online behaviour resumed after Wi-Fi was rejoined.
+- [x] **Final implementation gate before closing docs.** Exact pre-acceptance candidate `fffc5af8afad08d7c78e11e530d7ec7631d37a8b` passed **Tests #4432: 1001 tests, `OK`**, including the real production `/settings` render check that requires News in both Startup and Idle destination lists.
+- [x] **Checkpoint #92 closure.** The complete News scope is physically accepted; [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) records the detailed authority and physical evidence. The separate read-only-filesystem/Wi-Fi recovery findings are queued under Appliance resilience below rather than misattributed to News.
+
+### Appliance resilience — cross-cutting release-quality track
+
+Commissioned-Pi testing exposed two appliance-recovery concerns that deserve explicit work before the next supported release. Detailed design notes and security constraints are maintained in [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md); this roadmap remains the priority/status authority.
+
+- [ ] **Investigate intermittent read-only root filesystem / SD-card resilience.** On recurrence capture kernel `mmc`/ext4/I/O/timeout/voltage evidence and `vcgencmd get_throttled` before reboot where possible. Do not assume flash wear: two new SanDisk Extreme A2 128 GB test cards have exhibited the symptom despite repeated H2testw passes, while the previously used 64 GB card ran the older dashboard without the same observed failure.
+- [ ] **Reduce expendable Chromium writes.** Evaluate a bounded RAM-backed disk/media cache (for example `/dev/shm`/verified tmpfs) while retaining the persistent normal kiosk profile, Plexamp session state and unpacked extensions. Incognito is not the appliance solution.
+- [ ] **Audit ACP write ownership/frequency.** Separate volatile runtime/current-observation state from durable configuration/history, avoid persistent rewrites when values have not materially changed, and investigate `/run/a-clockwork-plex` or another tmpfs for genuinely transient state.
+- [ ] **Graceful read-only-storage degradation.** `EROFS` should surface a clear storage diagnostic and should not turn otherwise renderable pages into HTTP 500 merely because a current mode/state write could not be persisted.
+- [ ] **Overlay filesystem feasibility after ownership separation.** Only evaluate Raspberry Pi OS overlayfs once settings, updates and genuinely durable history have explicit persistent ownership so successful-looking changes cannot disappear on reboot.
+- [ ] **Kiosk-safe Wi-Fi recovery / provisioning design and implementation.** Investigate a bounded temporary NetworkManager-backed recovery AP, on-screen QR code for joining that temporary AP from an iPhone/phone, and a local captive-portal-style page for selecting a nearby SSID and securely supplying its passphrase. The temporary AP must disappear after success/timeout/cancel; credentials must never enter query strings, argv, logs, browser persistence or ACP backup; privileged network mutation must be narrow rather than a broad root shell.
+- [ ] **Wi-Fi recovery physical acceptance.** With normal WLAN deliberately unavailable, recover using only touchscreen + phone, join a replacement SSID, prove the temporary AP disappears and online ACP services recover, then reboot to prove the NetworkManager profile persists. Working Ethernet must not be disrupted.
+- [ ] **Storage endurance physical gate.** After write hardening, run a representative multi-day workload including Chromium kiosk, Ecowitt, Weather/News refresh, playback and normal navigation and inspect kernel/storage behaviour before claiming mitigation complete.
 
 ### Events calendar
 
