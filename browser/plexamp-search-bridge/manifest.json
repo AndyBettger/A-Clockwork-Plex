@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "A Clockwork Plex - Plexamp Search Bridge",
-  "version": "1.0.0",
-  "description": "Permission-free local touchscreen text-entry bridge for Plexamp Search inside the dedicated appliance kiosk.",
+  "name": "A Clockwork Plex - Plexamp Text Entry Bridge",
+  "version": "1.1.0",
+  "description": "Permission-free local touchscreen text-entry bridge for explicitly supported Plexamp fields inside the dedicated appliance kiosk.",
   "content_scripts": [
     {
       "matches": [
