@@ -148,6 +148,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertEqual(self.news_client.count("fetch("), 1)
         self.assertIn("const MAX_VISIBLE_STORIES = 24;", self.news_client)
         self.assertIn("const MAX_TICKER_STORIES = 12;", self.news_client)
+        self.assertIn("return text(story?.title).toLocaleLowerCase('en-GB');", self.news_client)
         self.assertIn("textContent = text(story.title)", self.news_client)
         self.assertIn("textContent = text(story.summary)", self.news_client)
         self.assertNotIn("window.open(", self.news_client)
