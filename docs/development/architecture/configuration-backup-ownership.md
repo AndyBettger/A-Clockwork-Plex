@@ -317,7 +317,7 @@ Commissioned-Pi Phase-3 acceptance completed on 31 August 2026:
 
 The destructive late-restart rollback path remains intentionally covered by controlled automated fault injection rather than being forced on the commissioned appliance. Phase 3 is therefore **physically accepted**.
 
-### Plexamp Home restore boundary — PHYSICALLY ACCEPTED; GUIDED RESTORE UX FOLLOW-UP IN ACCEPTANCE
+### Plexamp Home restore boundary — PHYSICALLY ACCEPTED
 
 Phase 4 adds the separately transactional browser-owned Home restore path without widening the #89 export/read boundary:
 
@@ -350,7 +350,9 @@ Commit `b0065a70ebc9e0a54d180869f15c87eb4627a169` therefore keeps the proven own
 - nearby status boxes own Preview, Review and final success/blocked/failure feedback; the successful server path persists the result across the Settings reload;
 - the UI explicitly avoids promising global atomic rollback across browser Local Storage and a Plexamp service restart.
 
-The guided-flow source, syntax and regression gates passed exact **develop Tests #4363** on `b0065a70ebc9e0a54d180869f15c87eb4627a169`: **985 tests, `OK`** on 31 August 2026. The remaining Phase-4 work is therefore a **1280×720 guided UX physical acceptance**, ideally with one harmless ACP + Plexamp Home difference restored together. The purpose of that pass is to verify clarity, target selection, adjacent Review/final status and the one-confirm orchestration; it is no longer proving that the Home transaction itself works.
+The guided-flow source, syntax and regression gates passed exact **develop Tests #4363** on `b0065a70ebc9e0a54d180869f15c87eb4627a169`: **985 tests, `OK`** on 31 August 2026.
+
+Final guided UX physical acceptance completed on the commissioned 1280×720 appliance on 31 August 2026. Preview presented both **A Clockwork Plex** and **Plexamp** as selected targets with one restorable change each; **Review selected restore** produced the adjacent **Ready to confirm** state; one **Confirm & restore** applied and verified exactly **2 changes (1 ACP/server, 1 Plexamp Home)**. The successful result survived the Settings reload as the durable **Restore complete** status. The physical pass then exposed only a presentation spacing defect around that persisted result; the final correction at `9cd0a36f9337a5a2b918047a44c6ae721350ce2c` increased the result-to-file-card gap and the owner repeated the restore, confirming that the presentation now looks correct. The exact final implementation head passed **develop Tests #4371: 986 tests, `OK`**, including compile, JavaScript/page-wiring, shell and direct-import gates. No restore-engine, browser-owner or transaction boundary changed in that final spacing-only follow-up.
 
 Managed secrets remain a deliberate **post-restore commissioning step** throughout every phase.
 
@@ -381,7 +383,7 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - the owner-facing success message explicitly states that Plexamp Home layout was included and credentials/authentication were not;
 - synchronized `develop` validation remains green through **Tests #4347: 978 tests, `OK`** on 30 August 2026.
 
-## #90 configuration restore status — IN PROGRESS
+## #90 configuration restore status — COMPLETE
 
 ### Phase 1 — parse / validate / preview — PHYSICALLY ACCEPTED
 
@@ -424,7 +426,7 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Incompatible-version Preview physically passed with exactly one detected Headless difference deferred, zero restorable work and before/after proof of zero mutation.
 - [x] Exact-version `autoPlayEnabled` round-trip physically passed: one verified apply to the temporary value, one verified apply back to the original value, final zero-difference Preview, healthy services and normal Plexamp playback.
 
-### Phase 4 — target-context-aware Plexamp Home order/hidden apply — PHYSICALLY ACCEPTED; GUIDED RESTORE UX FOLLOW-UP IN ACCEPTANCE
+### Phase 4 — target-context-aware Plexamp Home order/hidden apply — PHYSICALLY ACCEPTED
 
 - [x] Live localhost-only browser owner implements read-only Home planning and confirmed Home application against the target's current Plexamp customization context.
 - [x] Saved logical Home choices are mapped to target hubs without transplanting source contextual keys; target-only hubs are preserved and unavailable source hubs are skipped/reported.
@@ -436,6 +438,7 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Commissioned-Pi Home round-trip acceptance passed with both two-change (order + hidden) and order-only cases; the backed-up Home layout returned, follow-up Preview converged to zero Home differences, and normal Plexamp browsing/playback remained available.
 - [x] Guided target-selection/single-confirmation follow-up implemented in `b0065a70ebc9e0a54d180869f15c87eb4627a169` without changing the proven backend/browser owner boundaries.
 - [x] **Tests #4363** passed the guided-flow source/syntax/regression gate: **985 tests, `OK`** on 31 August 2026.
-- [ ] Remaining physical gate: at 1280×720 prove ACP/Plexamp/Both target selection, adjacent Review status, one Confirm orchestration and final status visibility using one harmless combined ACP + Plexamp Home restore, then confirm normal Plexamp identity/playback.
+- [x] Final guided physical acceptance passed at 1280×720: both ACP and Plexamp targets were clearly selected together; Review produced the adjacent **Ready to confirm** state; one confirmation restored **1 ACP/server + 1 Plexamp Home** change; the durable **Restore complete** result survived reload; and a second restore after the final spacing correction was visually accepted as looking correct.
+- [x] Final implementation head `9cd0a36f9337a5a2b918047a44c6ae721350ce2c` passed **Tests #4371: 986 tests, `OK`** with all compile/JavaScript/page/shell/direct-import gates green.
 
-Final #90 closure remains gated on synchronized docs-inclusive CI plus that guided UX physical acceptance.
+Checkpoint #90 configuration import/restore is **complete and physically accepted**. Managed credentials and authentication remain intentionally outside backup/restore and continue as separate commissioning steps.
