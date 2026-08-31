@@ -12,6 +12,8 @@
   const page = document.querySelector('.news-page');
   const categoryMount = document.querySelector('[data-news-categories]');
   const storyMount = document.querySelector('[data-news-stories]');
+  const storyScrollbar = document.querySelector('[data-news-story-scrollbar]');
+  const storyScrollbarThumb = document.querySelector('[data-news-story-scrollbar-thumb]');
   const categoryTitle = document.querySelector('[data-news-category-title]');
   const statusPill = document.querySelector('[data-news-status]');
   const sourceTime = document.querySelector('[data-news-source-time]');
@@ -30,9 +32,136 @@
   let activeCategory = null;
   let refreshTimer = null;
   let logoSource = '';
+  let updateStoryScrollbar = () => {};
 
   function text(value) {
     return String(value ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  function clamp(value, minimum, maximum) {
+    return Math.min(maximum, Math.max(minimum, value));
+  }
+
+  function bindStoryScrollbar() {
+    if (!storyMount || !storyScrollbar || !storyScrollbarThumb) return;
+    if (storyScrollbar.dataset.bound === 'true') return;
+    storyScrollbar.dataset.bound = 'true';
+
+    const trackInset = 1;
+    let drag = null;
+
+    function measurements() {
+      storyScrollbar.hidden = false;
+      const maxScroll = Math.max(0, storyMount.scrollHeight - storyMount.clientHeight);
+      const availableHeight = Math.max(0, storyScrollbar.clientHeight - (trackInset * 2));
+      const proportionalHeight = storyMount.scrollHeight > 0
+        ? availableHeight * (storyMount.clientHeight / storyMount.scrollHeight)
+        : availableHeight;
+      const thumbHeight = Math.min(availableHeight, Math.max(42, proportionalHeight));
+      const maxThumbTravel = Math.max(0, availableHeight - thumbHeight);
+      return { maxScroll, availableHeight, thumbHeight, maxThumbTravel };
+    }
+
+    function update() {
+      const metrics = measurements();
+      const scrollable = metrics.maxScroll > 1 && metrics.availableHeight > 0;
+      storyScrollbar.hidden = !scrollable;
+      storyScrollbar.setAttribute('aria-hidden', scrollable ? 'false' : 'true');
+      storyScrollbar.tabIndex = scrollable ? 0 : -1;
+
+      if (!scrollable) {
+        storyScrollbarThumb.style.height = '100%';
+        storyScrollbarThumb.style.transform = 'translate3d(0, 0, 0)';
+        storyScrollbar.setAttribute('aria-valuenow', '0');
+        return;
+      }
+
+      const ratio = clamp(storyMount.scrollTop / metrics.maxScroll, 0, 1);
+      const thumbOffset = ratio * metrics.maxThumbTravel;
+      storyScrollbarThumb.style.height = `${metrics.thumbHeight}px`;
+      storyScrollbarThumb.style.transform = `translate3d(0, ${thumbOffset}px, 0)`;
+      storyScrollbar.setAttribute('aria-valuemin', '0');
+      storyScrollbar.setAttribute('aria-valuemax', String(Math.round(metrics.maxScroll)));
+      storyScrollbar.setAttribute('aria-valuenow', String(Math.round(storyMount.scrollTop)));
+    }
+
+    function setFromRailPointer(clientY) {
+      const metrics = measurements();
+      if (metrics.maxScroll <= 0 || metrics.maxThumbTravel <= 0) return;
+      const rect = storyScrollbar.getBoundingClientRect();
+      const pointer = clientY - rect.top - trackInset;
+      const target = clamp(pointer - (metrics.thumbHeight / 2), 0, metrics.maxThumbTravel);
+      storyMount.scrollTop = (target / metrics.maxThumbTravel) * metrics.maxScroll;
+    }
+
+    storyScrollbar.addEventListener('pointerdown', (event) => {
+      if (event.target === storyScrollbarThumb) return;
+      setFromRailPointer(event.clientY);
+      event.preventDefault();
+    });
+
+    storyScrollbarThumb.addEventListener('pointerdown', (event) => {
+      const metrics = measurements();
+      drag = {
+        pointerId: event.pointerId,
+        startY: event.clientY,
+        startScroll: storyMount.scrollTop,
+        maxScroll: metrics.maxScroll,
+        maxThumbTravel: metrics.maxThumbTravel,
+      };
+      storyScrollbarThumb.setPointerCapture?.(event.pointerId);
+      storyScrollbar.classList.add('is-dragging');
+      event.preventDefault();
+      event.stopPropagation();
+    });
+
+    storyScrollbarThumb.addEventListener('pointermove', (event) => {
+      if (!drag || drag.pointerId !== event.pointerId || drag.maxThumbTravel <= 0) return;
+      const delta = event.clientY - drag.startY;
+      storyMount.scrollTop = drag.startScroll + ((delta / drag.maxThumbTravel) * drag.maxScroll);
+      event.preventDefault();
+    });
+
+    function endDrag(event) {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      storyScrollbarThumb.releasePointerCapture?.(event.pointerId);
+      drag = null;
+      storyScrollbar.classList.remove('is-dragging');
+    }
+
+    storyScrollbarThumb.addEventListener('pointerup', endDrag);
+    storyScrollbarThumb.addEventListener('pointercancel', endDrag);
+
+    storyScrollbar.addEventListener('keydown', (event) => {
+      const pageStep = Math.max(80, storyMount.clientHeight * 0.35);
+      if (event.key === 'ArrowUp') {
+        storyMount.scrollTop -= pageStep;
+      } else if (event.key === 'ArrowDown') {
+        storyMount.scrollTop += pageStep;
+      } else if (event.key === 'PageUp') {
+        storyMount.scrollTop -= storyMount.clientHeight * 0.8;
+      } else if (event.key === 'PageDown') {
+        storyMount.scrollTop += storyMount.clientHeight * 0.8;
+      } else if (event.key === 'Home') {
+        storyMount.scrollTop = 0;
+      } else if (event.key === 'End') {
+        storyMount.scrollTop = storyMount.scrollHeight;
+      } else {
+        return;
+      }
+      event.preventDefault();
+    });
+
+    storyMount.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    if ('ResizeObserver' in window) {
+      const observer = new ResizeObserver(update);
+      observer.observe(storyMount);
+      observer.observe(storyScrollbar);
+    }
+
+    updateStoryScrollbar = update;
+    update();
   }
 
   function categoryLabel(category) {
@@ -194,6 +323,7 @@
       empty.className = 'muted';
       empty.textContent = state.last_error || 'No cached BBC News stories are available for this section yet.';
       storyMount.appendChild(empty);
+      window.requestAnimationFrame(updateStoryScrollbar);
       return;
     }
 
@@ -219,6 +349,7 @@
       card.addEventListener('click', () => openDetail(story));
       storyMount.appendChild(card);
     });
+    window.requestAnimationFrame(updateStoryScrollbar);
   }
 
   function tickerSet(stories) {
@@ -242,6 +373,7 @@
     if (!enabled || !stories.length) {
       ticker.hidden = true;
       page?.classList.add('is-ticker-hidden');
+      window.requestAnimationFrame(updateStoryScrollbar);
       return;
     }
 
@@ -249,6 +381,7 @@
     page?.classList.remove('is-ticker-hidden');
     const first = tickerSet(stories);
     tickerTrack.appendChild(first);
+    window.requestAnimationFrame(updateStoryScrollbar);
 
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     if (reducedMotion) return;
@@ -301,6 +434,7 @@
     }
   }
 
+  bindStoryScrollbar();
   logo?.addEventListener('error', () => {
     logo.hidden = true;
     if (logoFallback) logoFallback.hidden = false;
