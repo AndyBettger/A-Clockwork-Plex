@@ -24,6 +24,7 @@ try:
     )
     from .input_activity import LinuxInputActivityMonitor
     from .news_feed import BBCNewsFeedService, register_news_api
+    from .news_ui import register_news_ui
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
@@ -73,6 +74,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     )
     from input_activity import LinuxInputActivityMonitor
     from news_feed import BBCNewsFeedService, register_news_api
+    from news_ui import register_news_ui
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
@@ -101,6 +103,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
 
 
 app = dashboard.app
+register_news_ui(app, dashboard)
 promote_server_time_formatting(dashboard)
 scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
 register_alarm_audio_preview_api(app, dashboard)
