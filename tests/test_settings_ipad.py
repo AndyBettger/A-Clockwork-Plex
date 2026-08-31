@@ -19,6 +19,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.news_client = Path("app/static/js/news.js").read_text(encoding="utf-8")
         self.news_css = Path("app/static/css/news.css").read_text(encoding="utf-8")
         self.screen_projection = Path("app/static/js/screen-projection.js").read_text(encoding="utf-8")
+        self.dashboard_preferences = Path("app/static/js/dashboard-preferences-bootstrap.js").read_text(encoding="utf-8")
 
     def test_template_uses_persistent_sidebar_and_right_detail_pane(self):
         self.assertIn("settings-ipad-shell", self.template)
@@ -197,7 +198,17 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("'/news'", transitions)
         self.assertIn("news: '/news'", self.screen_projection)
         self.assertIn('MANUAL_LEASE_SCREENS.add("news")', news_ui)
-        self.assertNotIn('IDLE_RETURN_SCREENS.add("news")', news_ui)
+        self.assertIn('IDLE_RETURN_SCREENS.add("news")', news_ui)
+        self.assertIn('_settings_unified.VALID_MODES.add("news")', news_ui)
+        self.assertIn('_install_news_settings_mode_option(dashboard)', news_ui)
+        self.assertIn('{"id": "news", "label": "News"}', news_ui)
+
+    def test_news_is_valid_during_startup_bootstrap(self):
+        self.assertIn(
+            "new Set(['clock', 'weather', 'news', 'airplay', 'plexamp'])",
+            self.dashboard_preferences,
+        )
+        self.assertIn("window.location.replace(`/${preferences.startupMode}`)", self.dashboard_preferences)
 
     def test_new_clients_have_valid_javascript_syntax(self):
         for path in (
