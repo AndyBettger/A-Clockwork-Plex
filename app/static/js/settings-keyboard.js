@@ -1,12 +1,37 @@
 (() => {
-  const keyboard = document.getElementById('touch-keyboard');
+  'use strict';
+
+  if (window.__aClockworkPlexTouchKeyboardLoaded) return;
+  window.__aClockworkPlexTouchKeyboardLoaded = true;
+
+  const PLEXAMP_SEARCH_FOCUS_TYPE = 'acp-plexamp-search-focus-v1';
+  const PLEXAMP_SEARCH_EDIT_TYPE = 'acp-plexamp-search-edit-v1';
+  const PLEXAMP_ORIGINS = new Set([
+    'http://localhost:32500',
+    'http://127.0.0.1:32500',
+  ]);
+  const SAFE_REMOTE_SESSION = /^[A-Za-z0-9-]{16,96}$/;
+  const REMOTE_COMMANDS = new Set(['insert', 'backspace', 'clear', 'submit', 'done']);
+
+  function ensureKeyboardMarkup() {
+    let keyboard = document.getElementById('touch-keyboard');
+    if (!keyboard) {
+      keyboard = document.createElement('div');
+      keyboard.className = 'touch-keyboard';
+      keyboard.id = 'touch-keyboard';
+      keyboard.setAttribute('aria-hidden', 'true');
+      keyboard.innerHTML = '<div class="touch-keyboard-header"><span id="touch-keyboard-label">Keyboard</span><button type="button" class="touch-keyboard-command" data-action="done">Done</button></div><div class="touch-keyboard-quick" id="touch-keyboard-quick"></div><div class="touch-keyboard-keys" id="touch-keyboard-keys"></div>';
+      document.body.append(keyboard);
+    }
+    return keyboard;
+  }
+
+  const keyboard = ensureKeyboardMarkup();
   const keyGrid = document.getElementById('touch-keyboard-keys');
   const quickRow = document.getElementById('touch-keyboard-quick');
   const label = document.getElementById('touch-keyboard-label');
 
-  if (!keyboard || !keyGrid || !quickRow || !label) {
-    return;
-  }
+  if (!keyboard || !keyGrid || !quickRow || !label) return;
 
   const layouts = {
     text: {
@@ -71,9 +96,18 @@
   ];
 
   let target = null;
+  let remoteSession = null;
   let layoutName = 'text';
   let shifted = false;
   let usingNumbers = false;
+
+  function isRemoteSearch() {
+    return remoteSession !== null;
+  }
+
+  function hasTarget() {
+    return Boolean(target || remoteSession);
+  }
 
   function keyLabel(key) {
     const command = {
@@ -83,6 +117,7 @@
       shift: 'Shift',
       numbers: '123',
       letters: 'ABC',
+      submit: 'Search',
     }[key];
     if (command) return command;
     if (shifted && /^[a-z]$/.test(key)) return key.toUpperCase();
@@ -104,6 +139,16 @@
     return button;
   }
 
+  function rowsForCurrentTarget() {
+    const layout = layouts[layoutName] || layouts.text;
+    const sourceRows = usingNumbers && layoutName === 'text' ? numberRows : layout.rows;
+    const rows = sourceRows.map((row) => Array.from(row));
+    if (isRemoteSearch() && rows.length > 0) {
+      rows[rows.length - 1].push('submit');
+    }
+    return rows;
+  }
+
   function renderKeyboard() {
     const layout = layouts[layoutName] || layouts.text;
     label.textContent = '';
@@ -122,8 +167,7 @@
       quickRow.appendChild(button);
     });
 
-    const rows = usingNumbers && layoutName === 'text' ? numberRows : layout.rows;
-    rows.forEach((row) => {
+    rowsForCurrentTarget().forEach((row) => {
       const rowElement = document.createElement('div');
       rowElement.className = 'touch-key-row';
       row.forEach((key) => rowElement.appendChild(buttonForKey(key)));
@@ -131,28 +175,94 @@
     });
   }
 
+  function markOpen(scope) {
+    document.body.classList.add('keyboard-open');
+    document.body.classList.toggle('plexamp-search-keyboard-open', scope === 'plexamp-search');
+    keyboard.dataset.scope = scope;
+    keyboard.setAttribute('aria-hidden', 'false');
+    renderKeyboard();
+  }
+
   function openKeyboard(input) {
     target = input;
+    remoteSession = null;
     layoutName = input.dataset.keyboard || 'text';
     shifted = false;
     usingNumbers = false;
-    document.body.classList.add('keyboard-open');
-    keyboard.setAttribute('aria-hidden', 'false');
-    renderKeyboard();
+    markOpen('local');
     window.setTimeout(() => input.focus({ preventScroll: true }), 0);
   }
 
-  function closeKeyboard() {
-    document.body.classList.remove('keyboard-open');
-    keyboard.setAttribute('aria-hidden', 'true');
-    target = null;
+  function plexampFrame() {
+    return document.getElementById('persistent-plexamp-frame');
   }
 
-  function insertText(text) {
-    if (!target) {
-      return;
+  function plexampTargetOrigin() {
+    const frame = plexampFrame();
+    if (!frame?.contentWindow) return null;
+    try {
+      const origin = new URL(frame.src, window.location.href).origin;
+      return PLEXAMP_ORIGINS.has(origin) ? origin : null;
+    } catch (_error) {
+      return null;
     }
+  }
 
+  function plexampIsVisible() {
+    const shell = document.getElementById('persistent-plexamp');
+    return Boolean(
+      shell
+      && shell.getAttribute('aria-hidden') !== 'true'
+      && (shell.classList.contains('is-open') || document.body.classList.contains('plexamp-overlay-open'))
+    );
+  }
+
+  function postRemote(command, text = undefined, session = remoteSession) {
+    if (!session || !SAFE_REMOTE_SESSION.test(session) || !REMOTE_COMMANDS.has(command)) return false;
+    if (command === 'insert') {
+      if (typeof text !== 'string' || Array.from(text).length !== 1 || /[\u0000-\u001f\u007f]/.test(text)) return false;
+    } else if (text !== undefined) {
+      return false;
+    }
+    const frame = plexampFrame();
+    const origin = plexampTargetOrigin();
+    if (!frame?.contentWindow || !origin) return false;
+    const payload = {
+      type: PLEXAMP_SEARCH_EDIT_TYPE,
+      session_id: session,
+      command,
+    };
+    if (text !== undefined) payload.text = text;
+    frame.contentWindow.postMessage(payload, origin);
+    return true;
+  }
+
+  function openRemoteSearch(sessionId) {
+    if (!SAFE_REMOTE_SESSION.test(sessionId) || !plexampIsVisible()) return;
+    target = null;
+    remoteSession = sessionId;
+    layoutName = 'text';
+    shifted = false;
+    usingNumbers = false;
+    markOpen('plexamp-search');
+  }
+
+  function closeKeyboard(options = {}) {
+    const session = remoteSession;
+    if (session && options.notifyRemote === true) {
+      postRemote('done', undefined, session);
+    }
+    document.body.classList.remove('keyboard-open', 'plexamp-search-keyboard-open');
+    keyboard.setAttribute('aria-hidden', 'true');
+    delete keyboard.dataset.scope;
+    target = null;
+    remoteSession = null;
+    shifted = false;
+    usingNumbers = false;
+  }
+
+  function insertLocalText(text) {
+    if (!target) return;
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? target.value.length;
     const before = target.value.slice(0, start);
@@ -164,10 +274,22 @@
     target.focus({ preventScroll: true });
   }
 
-  function backspace() {
-    if (!target) {
+  function insertText(text) {
+    if (isRemoteSearch()) {
+      for (const character of Array.from(String(text))) {
+        postRemote('insert', character);
+      }
       return;
     }
+    insertLocalText(text);
+  }
+
+  function backspace() {
+    if (isRemoteSearch()) {
+      postRemote('backspace');
+      return;
+    }
+    if (!target) return;
 
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? target.value.length;
@@ -184,10 +306,19 @@
     target.focus({ preventScroll: true });
   }
 
-  function pressKey(key) {
-    if (!target && key !== 'done') {
+  function clearTarget() {
+    if (isRemoteSearch()) {
+      postRemote('clear');
       return;
     }
+    if (!target) return;
+    target.value = '';
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    target.focus({ preventScroll: true });
+  }
+
+  function pressKey(key) {
+    if (!hasTarget() && key !== 'done') return;
 
     if (key === 'backspace') {
       backspace();
@@ -195,9 +326,7 @@
     }
 
     if (key === 'clear') {
-      target.value = '';
-      target.dispatchEvent(new Event('input', { bubbles: true }));
-      target.focus({ preventScroll: true });
+      clearTarget();
       return;
     }
 
@@ -226,6 +355,11 @@
       return;
     }
 
+    if (key === 'submit') {
+      if (isRemoteSearch()) postRemote('submit');
+      return;
+    }
+
     const letterKey = /^[a-z]$/.test(key);
     insertText(shifted && letterKey ? key.toUpperCase() : key);
     if (shifted && letterKey) {
@@ -236,30 +370,59 @@
 
   document.addEventListener('focusin', (event) => {
     const input = event.target.closest?.('input[data-keyboard]');
-    if (input && input !== target) {
-      openKeyboard(input);
-    }
+    if (input && input !== target) openKeyboard(input);
   });
 
   document.addEventListener('pointerdown', (event) => {
     const input = event.target.closest?.('input[data-keyboard]');
-    if (input) {
-      openKeyboard(input);
-    }
+    if (input) openKeyboard(input);
   });
 
   keyboard.addEventListener('pointerdown', (event) => event.preventDefault());
-
   keyboard.addEventListener('click', (event) => {
     const command = event.target.closest('[data-action]');
     if (command?.dataset.action === 'done') {
-      closeKeyboard();
+      closeKeyboard({ notifyRemote: isRemoteSearch() });
     }
   });
 
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && document.body.classList.contains('keyboard-open')) {
-      closeKeyboard();
+  window.addEventListener('message', (event) => {
+    const frame = plexampFrame();
+    const origin = plexampTargetOrigin();
+    if (!frame?.contentWindow || !origin) return;
+    if (event.source !== frame.contentWindow || event.origin !== origin) return;
+    const payload = event.data;
+    if (!payload || payload.type !== PLEXAMP_SEARCH_FOCUS_TYPE) return;
+    if (
+      payload.kind !== 'search'
+      || typeof payload.session_id !== 'string'
+      || !SAFE_REMOTE_SESSION.test(payload.session_id)
+      || !['focused', 'blurred'].includes(payload.state)
+    ) return;
+
+    if (payload.state === 'focused') {
+      openRemoteSearch(payload.session_id);
+    } else if (payload.state === 'blurred' && payload.session_id === remoteSession) {
+      closeKeyboard({ notifyRemote: false });
     }
   });
+
+  const shell = document.getElementById('persistent-plexamp');
+  if (shell && typeof MutationObserver !== 'undefined') {
+    new MutationObserver(() => {
+      if (remoteSession && !plexampIsVisible()) closeKeyboard({ notifyRemote: false });
+    }).observe(shell, { attributes: true, attributeFilter: ['class', 'aria-hidden'] });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && document.body.classList.contains('keyboard-open')) {
+      closeKeyboard({ notifyRemote: isRemoteSearch() });
+    }
+  });
+
+  window.ACPTouchKeyboard = {
+    close: () => closeKeyboard({ notifyRemote: isRemoteSearch() }),
+    isOpen: () => document.body.classList.contains('keyboard-open'),
+    openLocal: openKeyboard,
+  };
 })();
