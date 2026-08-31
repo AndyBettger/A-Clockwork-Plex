@@ -1,6 +1,6 @@
 /* Shared A Clockwork Plex touchscreen keyboard.
-   Settings remains the original consumer; Plexamp Search reuses the same DOM,
-   layouts and theme tokens above the persistent iframe. */
+   Settings remains the original consumer; supported Plexamp text fields reuse
+   the same DOM, layouts and theme tokens above the persistent iframe. */
 
 .touch-keyboard {
   position: fixed;
@@ -22,6 +22,7 @@ body.keyboard-open .touch-keyboard {
   transform: translateY(0);
 }
 
+body.plexamp-text-keyboard-open .touch-keyboard,
 body.plexamp-search-keyboard-open .touch-keyboard {
   z-index: 160;
 }
@@ -96,15 +97,8 @@ body.plexamp-search-keyboard-open .touch-keyboard {
 }
 
 .touch-key.is-command,
-.touch-key[data-key="space"],
-.touch-key[data-key="submit"] {
+.touch-key[data-key="space"] {
   flex-grow: 1.6;
-}
-
-.touch-key[data-key="submit"] {
-  border-color: var(--accent-strong);
-  background: var(--accent-strong);
-  color: var(--acp-theme-contrast, #07101d);
 }
 
 .touch-key:active {
