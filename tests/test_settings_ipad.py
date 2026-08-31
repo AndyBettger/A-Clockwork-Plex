@@ -201,7 +201,29 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn('IDLE_RETURN_SCREENS.add("news")', news_ui)
         self.assertIn('_settings_unified.VALID_MODES.add("news")', news_ui)
         self.assertIn('_install_news_settings_mode_option(dashboard)', news_ui)
+        self.assertIn('core = getattr(dashboard, "core", None)', news_ui)
+        self.assertIn('_wrap_news_settings_mode_option(core)', news_ui)
         self.assertIn('{"id": "news", "label": "News"}', news_ui)
+
+    def test_news_is_rendered_in_both_production_settings_destination_lists(self):
+        script = "\n".join(
+            [
+                "from app import runner",
+                "from app import dashboard_core as core",
+                "core.set_mode = lambda _mode: {}",
+                "response = runner.app.test_client().get('/settings')",
+                "assert response.status_code == 200, response.status_code",
+                "html = response.get_data(as_text=True)",
+                "assert html.count('<option value=\"news\">News</option>') == 2, html.count('<option value=\"news\">News</option>')",
+            ]
+        )
+        result = subprocess.run(
+            ["python", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_news_is_valid_during_startup_bootstrap(self):
         self.assertIn(
