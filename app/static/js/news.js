@@ -41,7 +41,7 @@
   }
 
   function storyKey(story) {
-    return `${text(story?.title).toLocaleLowerCase('en-GB')}|${text(story?.published_at)}`;
+    return text(story?.title).toLocaleLowerCase('en-GB');
   }
 
   function uniqueStories(items, maximum) {
