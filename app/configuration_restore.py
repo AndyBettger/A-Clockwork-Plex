@@ -70,7 +70,7 @@ TOP_LEVEL_KEYS = {
     "export_report",
 }
 ACP_KEYS = {"settings", "audio"}
-SETTINGS_DOMAINS = {"dashboard", "display", "weather", "alarms", "airplay"}
+SETTINGS_DOMAINS = {"dashboard", "display", "weather", "alarms", "airplay", "news"}
 AUDIO_DOMAINS = {"eq", "mixer"}
 EQ_KEYS = {"enabled", "bands"}
 EQ_BANDS = {"bass", "mid", "treble"}
