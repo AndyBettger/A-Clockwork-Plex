@@ -115,6 +115,7 @@ jobs:
           grep -q "settings-ipad.js" app/templates/settings.html
           grep -q "settings-advanced.js" app/templates/settings.html
           grep -q "settings-ipad.css" app/templates/settings.html
+          grep -q "20260831-home-restore-v1" app/templates/settings.html
           grep -q "('audio', 'Audio'" app/templates/settings.html
           grep -Fq 'airplay.receiver_name' app/templates/settings.html
           grep -Fq 'data-eq-range="{{ band }}"' app/templates/settings.html
@@ -155,6 +156,7 @@ jobs:
           grep -q "applyHome" app/static/js/plexamp-browser-bridge.js
           grep -q "PLAN_REQUEST_TYPE" browser/plexamp-bridge/content.js
           grep -q "APPLY_REQUEST_TYPE" browser/plexamp-bridge/content.js
+          grep -Fq "const touched = [];" browser/plexamp-bridge/content.js
           grep -q "a-clockwork-plex-plexamp-preferences.py" scripts/install-appliance-helpers.sh
           grep -q "PLEXAMP_PREF_TARGET=/usr/local/bin/a-clockwork-plex-plexamp-preferences" scripts/install-appliance-helpers.sh
           grep -q -- "--load-extension=" scripts/launch-dashboard-kiosk.sh
