@@ -1,6 +1,6 @@
 # Touchscreen text-entry architecture
 
-**Status:** shared Settings keyboard and Plexamp Search physically accepted; explicit general Plexamp text-field expansion is in progress in the post-v0.4.0 `develop` cycle.  
+**Status:** checkpoint #91 physically accepted on the commissioned 1280×720 appliance on 31 August 2026.  
 **Physical target:** embedded Plexamp on the 1280×720 Raspberry Pi Touch Display 2.
 
 ## Goal
@@ -23,7 +23,7 @@ The existing ACP Settings touchscreen keyboard is the presentation baseline. Ple
 - `app/static/css/touch-keyboard.css` is loaded globally so the same presentation sits above the persistent Plexamp iframe as well as Settings. The older Settings-local declarations remain compatible fallbacks, but the global stylesheet is the cross-surface owner.
 - Physical keyboard input remains native browser input. ACP does not intercept or rewrite Plexamp physical-keyboard events.
 
-The owner physically re-checked the corrected Settings keyboard at 1280×720 on 31 August 2026 and confirmed the revised Shift/presentation behaviour is working better. The later Plexamp Search pass also confirmed the same shared keyboard works very well over the embedded player.
+The owner physically re-checked the corrected Settings keyboard at 1280×720 on 31 August 2026 and confirmed the revised Shift/presentation behaviour is working better. The later Plexamp passes confirmed the same shared keyboard works very well over the embedded player.
 
 ## Plexamp bridge boundary
 
@@ -44,9 +44,11 @@ Implemented boundaries:
 - there is no selector, arbitrary DOM command, script execution, cookie, browser-storage, network or authentication authority in the text-entry contract;
 - authentication/account state and library selection remain outside the required text-entry scope. Login-field keyboard support is optional future resilience because normal commissioning already documents VNC.
 
-## Physically accepted first slice: Plexamp Search
+## Physically accepted Plexamp fields
 
-Search proved the cross-frame interaction end-to-end on 31 August 2026:
+The commissioned appliance proved the cross-frame interaction end-to-end on 31 August 2026.
+
+### Search
 
 1. touching Plexamp Search opens the shared ACP keyboard above Plexamp;
 2. letters, one-shot Shift, symbols, Space, Backspace and Clear edit the live Plexamp Search input;
@@ -56,9 +58,9 @@ Search proved the cross-frame interaction end-to-end on 31 August 2026:
 
 Search remains recognised by `type=search`, `role=searchbox`, explicit Search label/placeholder/name/test markers, or a Search-labelled container.
 
-## General Plexamp text-field expansion
+### Explicit general text fields
 
-The next #91 slice does **not** accept every `<input>`. It classifies a deliberately small set of user-visible fields from their stable semantic clues and surrounding Plexamp UI context:
+The bridge does **not** accept every `<input>`. It classifies only a deliberately small set of user-visible fields from their stable semantic clues and surrounding Plexamp UI context:
 
 - **Home `+Home` section title** — the `Header title… (* required)` field;
 - **Create Smart Playlist → Name** — `Playlist name…`;
@@ -66,16 +68,20 @@ The next #91 slice does **not** accept every `<input>`. It classifies a delibera
 - **Settings → Experience → Home Screen → section Title** — recognised only inside the section editor context containing Title plus Display as and Visible/Subtype controls;
 - **Settings → Experience → Player Name** — recognised from the Player Name field/page context.
 
-Ordinary unrelated text fields and password fields remain ineligible. Login support can be added later as an explicit separate field kind if it proves useful; it is not silently enabled by this expansion.
+The owner physically tested all five field groups at 1280×720 on 31 August 2026 and confirmed they open the ACP keyboard, accept/edit text correctly and dismiss cleanly with Done. Search was re-checked after the generalisation and remained working correctly with live-as-you-type results and Done-only dismissal.
+
+Ordinary unrelated text fields and password fields remain ineligible. Login support can be added later as an explicit separate field kind if it proves useful; it is not silently enabled by this expansion and is not required for checkpoint #91 because commissioning already documents VNC.
 
 All supported Plexamp fields use the ordinary text layout and **Done**. The keyboard does not attempt to press Plexamp's Add/Create/Save controls; those remain normal explicit Plexamp touches after text entry.
 
 ## Acceptance gates
 
 - **Settings keyboard — accepted at 1280×720 on 31 August 2026:** corrected one-shot Shift/presentation behaviour was owner-confirmed working better after the baseline follow-up.
-- **Plexamp Search — accepted at 1280×720 on 31 August 2026:** the owner confirmed the shared keyboard is working very well for live Search entry.
-- **General Plexamp text fields — pending physical pass:** verify Home section Title, Smart Playlist Name/Description, Home Screen section Title and Player Name each open/edit/dismiss correctly with Done.
-- Physical-keyboard behaviour must remain unchanged.
-- Login/library/player authentication state and the accepted Home backup/restore bridge must remain unchanged by text entry.
+- **Plexamp Search — accepted at 1280×720 on 31 August 2026:** the owner confirmed the shared keyboard works very well for live Search entry; the follow-up also confirmed the simplified Done-only Search keyboard.
+- **General Plexamp text fields — accepted at 1280×720 on 31 August 2026:** Home section Title, Smart Playlist Name/Description, Home Screen section Title and Player Name all open/edit/dismiss correctly with Done.
+- Normal Plexamp browsing/playback remains intact and physical-keyboard behaviour remains native.
+- Login/library authentication state and the accepted Home backup/restore bridge remain unchanged by text entry.
+
+**Checkpoint #91 required scope is complete.** Login-field keyboard support remains an optional resilience enhancement rather than an acceptance blocker.
 
 Automated source/syntax/Node bridge tests protect the narrow contract, but they do not replace the physical touchscreen pass.
