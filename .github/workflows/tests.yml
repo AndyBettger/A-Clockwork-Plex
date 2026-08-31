@@ -149,11 +149,17 @@ jobs:
           grep -q "confirm-configuration-restore" app/static/js/settings-about.js
           grep -q "includeBrowserPreferences" app/static/js/settings-about.js
           grep -q "previewBrowserHome" app/static/js/settings-about.js
-          grep -q "apply-plexamp-home-restore" app/static/js/settings-about.js
-          grep -q "confirm-plexamp-home-restore" app/static/js/settings-about.js
+          grep -q "review-selected-restore" app/static/js/settings-about.js
+          grep -q 'data-configuration-restore-target="acp"' app/static/js/settings-about.js
+          grep -q 'data-configuration-restore-target="plexamp"' app/static/js/settings-about.js
+          grep -q "buildSelectedServerBackup" app/static/js/settings-about.js
+          grep -q "Ready to confirm" app/static/js/settings-about.js
+          grep -q "Confirm &amp; restore" app/static/js/settings-about.js
           grep -q "target_fingerprint" app/static/js/settings-about.js
           grep -q "The live Home layout now matches this backup." app/static/js/settings-about.js
-          grep -Fq '[data-configuration-browser-restore-confirm]:not([hidden])' app/static/css/settings-backup-restore.css
+          grep -Fq '.settings-restore-target[aria-pressed="true"]' app/static/css/settings-backup-restore.css
+          grep -q "data-configuration-restore-review-status" app/static/js/settings-about.js
+          grep -q "data-configuration-restore-result-status" app/static/js/settings-about.js
           grep -q "ACPPlexampBrowserPreferences" app/static/js/plexamp-browser-bridge.js
           grep -q "planHome" app/static/js/plexamp-browser-bridge.js
           grep -q "applyHome" app/static/js/plexamp-browser-bridge.js

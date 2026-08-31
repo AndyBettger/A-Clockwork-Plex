@@ -127,16 +127,28 @@ class SettingsPassATests(unittest.TestCase):
 
         self.assertIn("result.fresh_preview_required === true", restore_client)
         self.assertIn("response.status === 409", restore_client)
-        self.assertIn(
-            "Restore blocked — no settings were changed. ${restoreDetail}",
-            restore_client,
-        )
-        self.assertIn("restoreMessage.classList.toggle('is-conflict', restoreWasBlocked)", restore_client)
-        self.assertNotIn(
-            "restoreMessage.textContent = 'Run Preview restore again before any retry.'",
-            restore_client,
-        )
+        self.assertIn("error.restoreBlocked", restore_client)
+        self.assertIn("'Restore blocked'", restore_client)
+        self.assertIn("data-configuration-restore-result-status", restore_client)
         self.assertIn("20260831-home-restore-feedback-v2", settings_template)
+
+    def test_guided_restore_target_selection_and_single_confirmation_are_guarded(self):
+        restore_client = RESTORE_CLIENT.read_text(encoding="utf-8")
+        restore_style = RESTORE_STYLE.read_text(encoding="utf-8")
+
+        self.assertIn('data-configuration-restore-target="acp"', restore_client)
+        self.assertIn('data-configuration-restore-target="plexamp"', restore_client)
+        self.assertIn("buildSelectedServerBackup", restore_client)
+        self.assertIn("review-selected-restore", restore_client)
+        self.assertIn("Review selected restore", restore_client)
+        self.assertIn("Ready to confirm", restore_client)
+        self.assertIn("Confirm &amp; restore", restore_client)
+        self.assertIn("Plexamp Home first, then ACP/Headless", restore_client)
+        self.assertNotIn("Review Plexamp Home restore", restore_client)
+        self.assertNotIn("Confirm Home restore", restore_client)
+        self.assertIn('.settings-restore-target[aria-pressed="true"]', restore_style)
+        self.assertIn("data-configuration-restore-review-status", restore_client)
+        self.assertIn("data-configuration-restore-result-status", restore_client)
 
     def test_home_restore_success_feedback_and_confirmation_spacing_are_guarded(self):
         base = BASE.read_text(encoding="utf-8")
@@ -146,10 +158,8 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("20260831-home-restore-feedback-v2", base)
         self.assertIn("The live Home layout now matches this backup.", restore_client)
         self.assertIn("restoreMessage.classList.remove('is-conflict')", restore_client)
-        self.assertIn(
-            '[data-configuration-browser-restore-confirm]:not([hidden])',
-            restore_style,
-        )
+        self.assertIn("[data-configuration-restore-review-status]:not([hidden])", restore_style)
+        self.assertIn("[data-configuration-restore-result-status]:not([hidden])", restore_style)
         self.assertIn("margin-top: 14px", restore_style)
 
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):

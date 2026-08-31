@@ -1,4 +1,4 @@
-/* Backup/restore-specific spacing and action-row alignment. */
+/* Backup/restore-specific layout and guided restore workflow. */
 
 body.mode-settings [data-settings-subpage="advanced:backup"] {
   gap: 14px;
@@ -21,56 +21,198 @@ body.mode-settings [data-settings-subpage="advanced:backup"] .settings-action-ro
   line-height: 1.35;
 }
 
-/* Keep the Preview action visually separate from the result cards it reveals. */
-body.mode-settings [data-settings-subpage="advanced:backup"] .settings-action-row + [data-configuration-restore-preview]:not([hidden]) {
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-preview]:not([hidden]) {
+  display: grid;
+  gap: 14px;
   margin-top: 14px;
 }
 
-/* A refused stale preview is a safety event, not ordinary helper copy. */
-body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-message].is-conflict {
-  flex: 1 1 100%;
-  min-height: 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 205, 112, 0.46);
-  border-radius: 12px;
-  background: rgba(255, 205, 112, 0.12);
-  color: #ffe8b4;
-  font-weight: 800;
-}
-
-body.mode-settings [data-configuration-restore-preview]:not([hidden]),
-body.mode-settings [data-configuration-restore-apply-zone]:not([hidden]),
-body.mode-settings [data-configuration-browser-restore-zone]:not([hidden]) {
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-apply-zone]:not([hidden]) {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
-body.mode-settings [data-configuration-restore-preview] > .settings-grid,
-body.mode-settings [data-configuration-restore-apply-zone] > p,
-body.mode-settings [data-configuration-browser-restore-zone] > p,
-body.mode-settings [data-configuration-restore-confirm] > .settings-action-row,
-body.mode-settings [data-configuration-browser-restore-confirm] > .settings-action-row {
-  margin-top: 0;
+/* Status belongs next to the action that produced it, rather than in distant helper copy. */
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status:not([hidden]) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, rgba(255, 255, 255, .12));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent) 9%, rgba(255, 255, 255, .04));
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status > span:last-child {
+  min-width: 0;
+  color: var(--muted);
+  font-size: clamp(.72rem, 1.7vmin, .88rem);
+  line-height: 1.35;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status[data-status="success"] {
+  border-color: color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, .16));
+  background: color-mix(in srgb, var(--accent) 14%, rgba(255, 255, 255, .045));
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status[data-status="warning"],
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-message].is-conflict {
+  border-color: rgba(255, 205, 112, .46);
+  background: rgba(255, 205, 112, .12);
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status[data-status="error"] {
+  border-color: rgba(255, 120, 120, .52);
+  background: rgba(255, 120, 120, .11);
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status[data-status="busy"] .settings-chip {
+  animation: acp-restore-status-pulse 1.15s ease-in-out infinite alternate;
+}
+
+@keyframes acp-restore-status-pulse {
+  from { opacity: .62; }
+  to { opacity: 1; }
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-heading h4 {
+  margin: 0;
+  font-family: var(--display-font);
+  font-size: clamp(.95rem, 2.25vmin, 1.18rem);
+  letter-spacing: .025em;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-heading p {
+  margin: 3px 0 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 12px 13px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .05);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, opacity .16s ease;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target:not(:disabled):hover,
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target:not(:disabled):focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 44%, rgba(255, 255, 255, .12));
+  background: color-mix(in srgb, var(--accent) 9%, rgba(255, 255, 255, .05));
+  outline: none;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 72%, white 8%);
+  background: color-mix(in srgb, var(--accent) 17%, rgba(255, 255, 255, .055));
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target:disabled {
+  opacity: .48;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target small {
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-warning {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 205, 112, .34);
+  border-radius: 13px;
+  background: rgba(255, 205, 112, .08);
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-warning > strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-warning ul,
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-detail-grid ul,
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-confirmation ul {
+  margin-top: 6px;
   margin-bottom: 0;
 }
 
-body.mode-settings [data-configuration-restore-apply-zone] > .settings-action-row,
-body.mode-settings [data-configuration-browser-restore-zone] > .settings-action-row {
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-details {
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .025);
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-details > summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-apply-zone] > .settings-action-row {
   margin-top: 0;
 }
 
-body.mode-settings [data-configuration-restore-confirm]:not([hidden]) {
+/* Review status deliberately occupies the space immediately below Review selected restore. */
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-review-status]:not([hidden]) {
+  margin-top: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-confirmation:not([hidden]) {
+  display: grid;
+  gap: 7px;
   margin-top: 2px;
 }
 
-/* The Home confirmation card should not visually collide with its Review row. */
-body.mode-settings [data-configuration-browser-restore-confirm]:not([hidden]) {
-  margin-top: 14px;
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-confirmation > .settings-action-row {
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 
-body.mode-settings [data-configuration-restore-confirm] > .settings-action-row,
-body.mode-settings [data-configuration-browser-restore-confirm] > .settings-action-row {
-  margin-top: 8px;
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-footnote {
+  margin-bottom: 0;
 }
 
 @media (max-width: 720px) {
@@ -78,4 +220,22 @@ body.mode-settings [data-configuration-browser-restore-confirm] > .settings-acti
     flex-basis: 100%;
     min-height: 0;
   }
+
+  body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-target-grid,
+  body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-status:not([hidden]) {
+    grid-template-columns: 1fr;
+  }
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-result-status]:not([hidden]) {
+  margin-top: 14px;
+}
+
+/* Compatibility-only selector for the preceding Phase-4 spacing regression guard. */
+body.mode-settings [data-configuration-browser-restore-confirm]:not([hidden]) {
+  margin-top: 14px;
 }

@@ -58,6 +58,7 @@
   if (!advanced || !overview || advanced.querySelector('[data-settings-subpage="advanced:backup"]')) return;
 
   const MAX_RESTORE_FILE_BYTES = 1_000_000;
+  const RESTORE_RESULT_KEY = 'acp-configuration-restore-result-v1';
 
   const row = document.createElement('button');
   row.className = 'settings-subpage-row';
@@ -90,11 +91,11 @@
       <div class="settings-card-heading">
         <div>
           <h3>Restore</h3>
-          <p class="muted small">Preview first. Only a fresh, explicitly confirmed preview can restore supported configuration.</p>
+          <p class="muted small">Choose a backup, preview it, choose what to restore, review the selected work, then confirm once.</p>
         </div>
         <span class="settings-chip">Rollback protected</span>
       </div>
-      <p class="muted small"><strong>Preview never changes the appliance.</strong> The selected JSON file is parsed in the browser and checked in memory. The preview reports configuration paths and counts only; it does not display saved values.</p>
+      <p class="muted small"><strong>Preview and Review never change the appliance.</strong> Only the final Confirm &amp; restore action can apply supported configuration.</p>
       <label class="setting-field">
         <span>Backup file</span>
         <input type="file" accept=".json,application/json" data-configuration-restore-file>
@@ -102,62 +103,70 @@
       </label>
       <div class="settings-action-row">
         <button class="button settings-secondary" type="button" data-action="preview-configuration-restore" disabled>Preview restore</button>
-        <span class="muted small" data-configuration-restore-message>No file selected.</span>
+      </div>
+      <div class="settings-restore-status" data-configuration-restore-preview-status hidden aria-live="polite">
+        <span class="settings-chip" data-configuration-restore-status-pill>Preview</span>
+        <span data-configuration-restore-message>No file selected.</span>
       </div>
       <div data-configuration-restore-preview hidden>
-        <div class="settings-grid two-col">
-          <div class="setting-field"><span>Restorable now</span><strong data-configuration-restore-change-count>0</strong><small>Total supported paths across the server and live-browser transactions in this fresh preview.</small></div>
-          <div class="setting-field"><span>ACP / server</span><strong data-configuration-restore-server-count>0</strong><small>Settings, Master EQ and persistent mixer paths that differ from this appliance.</small></div>
-          <div class="setting-field"><span>Plexamp Headless</span><strong data-configuration-restore-headless-summary>No changes</strong><small>Only the eight typed allow-listed preferences can be restored, and only when the installed Plexamp version is an exact match.</small></div>
-          <div class="setting-field"><span>Plexamp Home layout</span><strong data-configuration-restore-browser-summary>Not present</strong><small>Compared against the commissioned target library and restored separately through the local browser owner.</small></div>
-        </div>
-        <div class="settings-grid two-col">
-          <div class="setting-field">
-            <span>Changed sections</span>
-            <ul class="muted small" data-configuration-restore-sections></ul>
+        <div class="settings-restore-target-heading">
+          <div>
+            <h4>Choose what to restore</h4>
+            <p class="muted small">Select A Clockwork Plex, Plexamp, or both. Only currently restorable differences are applied.</p>
           </div>
-          <div class="setting-field">
-            <span>Warnings and confirmations</span>
-            <ul class="muted small" data-configuration-restore-warnings></ul>
-          </div>
+          <span class="settings-chip" data-configuration-restore-total-summary>0 restorable</span>
         </div>
-        <details>
-          <summary>Technical changed paths</summary>
-          <ul class="muted small" data-configuration-restore-paths></ul>
+        <div class="settings-restore-target-grid" role="group" aria-label="Restore targets">
+          <button class="settings-restore-target" type="button" data-configuration-restore-target="acp" aria-pressed="false" disabled>
+            <span class="settings-restore-target-title"><strong>A Clockwork Plex</strong><span class="settings-chip" data-configuration-restore-acp-summary data-configuration-restore-server-count>No changes</span></span>
+            <small>Settings, alarms, Master EQ and persistent mixer.</small>
+          </button>
+          <button class="settings-restore-target" type="button" data-configuration-restore-target="plexamp" aria-pressed="false" disabled>
+            <span class="settings-restore-target-title"><strong>Plexamp</strong><span class="settings-chip" data-configuration-restore-plexamp-summary>No changes</span></span>
+            <small>Compatible Plexamp Headless preferences plus logical Home choices. <span data-configuration-restore-headless-summary>Headless: no changes</span> · <span data-configuration-restore-browser-summary>Home: not present</span></small>
+          </button>
+        </div>
+        <div class="settings-restore-warning" data-configuration-restore-warning-box hidden>
+          <strong>Warnings</strong>
+          <ul class="muted small" data-configuration-restore-warnings></ul>
+        </div>
+        <details class="settings-restore-details">
+          <summary>Preview details</summary>
+          <div class="settings-restore-detail-grid">
+            <div>
+              <strong>Changed sections</strong>
+              <ul class="muted small" data-configuration-restore-sections></ul>
+            </div>
+            <div>
+              <strong>Technical changed paths</strong>
+              <ul class="muted small" data-configuration-restore-paths></ul>
+            </div>
+          </div>
         </details>
         <div data-configuration-restore-apply-zone hidden>
-          <p class="muted small"><strong>This transaction applies only the server/Headless owners marked restorable in the preview.</strong> ACP Settings/EQ/mixer use their existing transaction owners. Compatible Plexamp Headless preferences use the narrow version-aware preference owner and briefly restart Plexamp.</p>
           <div class="settings-action-row">
-            <button class="button" type="button" data-action="apply-configuration-restore">Restore supported settings</button>
-            <span class="muted small" data-configuration-restore-apply-message>A fresh preview is required immediately before restore.</span>
+            <button class="button" type="button" data-action="review-selected-restore">Review selected restore</button>
           </div>
-          <div class="setting-field" data-configuration-restore-confirm hidden>
-            <span>Confirm restore</span>
-            <strong data-configuration-restore-confirm-title>Apply the previewed server changes?</strong>
-            <small data-configuration-restore-confirm-copy>A rollback snapshot will be captured before the first owner changes.</small>
+          <div class="settings-restore-status" data-configuration-restore-review-status hidden aria-live="polite">
+            <span class="settings-chip" data-configuration-restore-review-pill>Ready to review</span>
+            <span data-configuration-restore-review-message>Choose what to restore, then review it. Nothing changes at this step.</span>
+          </div>
+          <div class="setting-field settings-restore-confirmation" data-configuration-restore-confirm hidden>
+            <span>Final confirmation</span>
+            <strong data-configuration-restore-confirm-title>Restore the selected configuration?</strong>
+            <small data-configuration-restore-confirm-copy>The selected owners will capture rollback state before changing anything.</small>
+            <ul class="muted small" data-configuration-restore-confirm-summary></ul>
             <div class="settings-action-row">
-              <button class="button" type="button" data-action="confirm-configuration-restore">Confirm restore</button>
+              <button class="button" type="button" data-action="confirm-configuration-restore">Confirm &amp; restore</button>
               <button class="button settings-secondary" type="button" data-action="cancel-configuration-restore">Cancel</button>
             </div>
           </div>
         </div>
-        <div data-configuration-browser-restore-zone hidden>
-          <p class="muted small"><strong>Plexamp Home uses its own live-browser transaction.</strong> The target's current Home context is discovered locally; source account/library keys are never transplanted. Unknown saved hubs are skipped and target-only hubs are retained.</p>
-          <div class="settings-action-row">
-            <button class="button" type="button" data-action="apply-plexamp-home-restore">Review Plexamp Home restore</button>
-            <span class="muted small" data-configuration-browser-restore-message>A fresh live-browser preview is required.</span>
-          </div>
-          <div class="setting-field" data-configuration-browser-restore-confirm hidden>
-            <span>Confirm Plexamp Home restore</span>
-            <strong>Apply the previewed Home layout?</strong>
-            <small>The browser owner captures the exact target Local Storage values it will touch and restores them if write or verification fails.</small>
-            <div class="settings-action-row">
-              <button class="button" type="button" data-action="confirm-plexamp-home-restore">Confirm Home restore</button>
-              <button class="button settings-secondary" type="button" data-action="cancel-plexamp-home-restore">Cancel</button>
-            </div>
-          </div>
-        </div>
-        <p class="muted small"><strong>Credentials are never restored.</strong> WU/Plex authentication stays a separate commissioning step. Plexamp Headless restore is exact-version and allow-list gated; Plexamp Home restore maps only logical order/hidden choices onto the live target context.</p>
+        <p class="muted small settings-restore-footnote"><strong>Credentials are never restored.</strong> WU/Plex authentication stays a separate commissioning step. Plexamp Headless is exact-version/allow-list gated; Plexamp Home maps only logical order/hidden choices onto the live target context.</p>
+      </div>
+      <div class="settings-restore-status" data-configuration-restore-result-status hidden aria-live="polite">
+        <span class="settings-chip" data-configuration-restore-result-pill>Restore status</span>
+        <span data-configuration-restore-result-message></span>
       </div>
     </section>
   `;
@@ -257,6 +266,20 @@
     });
   }
 
+  function setStatus(container, pill, message, label, text, state = 'ready') {
+    if (!container) return;
+    container.hidden = false;
+    container.dataset.status = state;
+    if (pill) pill.textContent = label;
+    if (message) message.textContent = text;
+  }
+
+  function hideStatus(container) {
+    if (!container) return;
+    container.hidden = true;
+    delete container.dataset.status;
+  }
+
   function settingsHaveUnsavedChanges() {
     const saveButton = document.querySelector('#settings-unified-form button[type="submit"]');
     return Boolean(saveButton && !saveButton.disabled);
@@ -283,30 +306,7 @@
     return window.ACPPlexampBrowserPreferences.planHome(home, { timeoutMs: 1800 });
   }
 
-  let selectedBackup = null;
-  let lastPlan = null;
-  let lastBrowserPlan = null;
-  let restoreInFlight = false;
-  let browserRestoreInFlight = false;
-
-  function resetApplyState() {
-    const applyZone = page.querySelector('[data-configuration-restore-apply-zone]');
-    const confirmation = page.querySelector('[data-configuration-restore-confirm]');
-    const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
-    const browserZone = page.querySelector('[data-configuration-browser-restore-zone]');
-    const browserConfirmation = page.querySelector('[data-configuration-browser-restore-confirm]');
-    const browserMessage = page.querySelector('[data-configuration-browser-restore-message]');
-    if (applyZone) applyZone.hidden = true;
-    if (confirmation) confirmation.hidden = true;
-    if (applyMessage) applyMessage.textContent = 'A fresh preview is required immediately before restore.';
-    if (browserZone) browserZone.hidden = true;
-    if (browserConfirmation) browserConfirmation.hidden = true;
-    if (browserMessage) browserMessage.textContent = 'A fresh live-browser preview is required.';
-    lastPlan = null;
-    lastBrowserPlan = null;
-  }
-
-  function renderRestorePreview(plan, browserPlan = null) {
+  function validateRestorePlan(plan) {
     if (
       !plan
       || plan.ok !== true
@@ -320,40 +320,190 @@
     ) {
       throw new Error('Restore preview returned an invalid safety contract.');
     }
+    return plan;
+  }
 
-    const container = page.querySelector('[data-configuration-restore-preview]');
-    const changeCount = page.querySelector('[data-configuration-restore-change-count]');
-    const serverCount = page.querySelector('[data-configuration-restore-server-count]');
-    const headlessSummary = page.querySelector('[data-configuration-restore-headless-summary]');
-    const browserSummary = page.querySelector('[data-configuration-restore-browser-summary]');
-    const sectionsList = page.querySelector('[data-configuration-restore-sections]');
-    const warningsList = page.querySelector('[data-configuration-restore-warnings]');
-    const pathsList = page.querySelector('[data-configuration-restore-paths]');
-    const applyZone = page.querySelector('[data-configuration-restore-apply-zone]');
-    const confirmation = page.querySelector('[data-configuration-restore-confirm]');
-    const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
-    const browserZone = page.querySelector('[data-configuration-browser-restore-zone]');
-    const browserConfirmation = page.querySelector('[data-configuration-browser-restore-confirm]');
-    const browserMessage = page.querySelector('[data-configuration-browser-restore-message]');
+  async function previewServer(backup) {
+    const response = await fetch('/api/settings/restore/preview', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(backup),
+    });
+    const plan = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(plan.error || `Restore preview returned HTTP ${response.status}.`);
+    }
+    return validateRestorePlan(plan);
+  }
 
-    const serverApplyCount = Number(plan.apply_change_count || 0);
-    const browserApplyCount = browserPlan?.status === 'ready' && browserPlan.restore_available === true
+  function cloneJson(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function buildSelectedServerBackup(backup, targets) {
+    const candidate = cloneJson(backup);
+    if (!targets.acp) {
+      candidate.a_clockwork_plex = { settings: {}, audio: {} };
+    }
+
+    const sourcePlexamp = candidate.plexamp && typeof candidate.plexamp === 'object'
+      ? candidate.plexamp
+      : {};
+    const selectedPlexamp = {};
+    if (targets.plexamp) {
+      if (typeof sourcePlexamp.source_version === 'string') {
+        selectedPlexamp.source_version = sourcePlexamp.source_version;
+      }
+      if (sourcePlexamp.headless_preferences && typeof sourcePlexamp.headless_preferences === 'object') {
+        selectedPlexamp.headless_preferences = cloneJson(sourcePlexamp.headless_preferences);
+      }
+    }
+    candidate.plexamp = selectedPlexamp;
+    return candidate;
+  }
+
+  function planCounts(plan, browserPlan = null) {
+    const acp = Number(plan?.server_change_count || 0);
+    const headless = Number(plan?.plexamp_headless_change_count || 0);
+    const headlessDetected = Number(plan?.plexamp_headless_detected_change_count || 0);
+    const headlessDeferred = Number(plan?.plexamp_headless?.deferred_items || 0);
+    const home = browserPlan?.status === 'ready' && browserPlan.restore_available === true
       ? Number(browserPlan.change_count || 0)
       : 0;
-    if (changeCount) changeCount.textContent = String(serverApplyCount + browserApplyCount);
-    if (serverCount) serverCount.textContent = String(Number(plan.server_change_count || 0));
+    return {
+      acp,
+      headless,
+      headlessDetected,
+      headlessDeferred,
+      home,
+      plexamp: headless + home,
+      total: acp + headless + home,
+    };
+  }
 
-    const headless = plan.plexamp_headless && typeof plan.plexamp_headless === 'object'
-      ? plan.plexamp_headless
-      : {};
+  let selectedBackup = null;
+  let fullPlan = null;
+  let fullBrowserPlan = null;
+  let reviewedServerBackup = null;
+  let lastPlan = null;
+  let reviewedBrowserPlan = null;
+  let reviewedTargetSignature = '';
+  let restoreInFlight = false;
+  const selectedTargets = { acp: false, plexamp: false };
+
+  const backupMessage = page.querySelector('[data-configuration-backup-message]');
+  const backupButton = page.querySelector('[data-action="download-configuration-backup"]');
+  const restoreFile = page.querySelector('[data-configuration-restore-file]');
+  const restoreFileStatus = page.querySelector('[data-configuration-restore-file-status]');
+  const restoreButton = page.querySelector('[data-action="preview-configuration-restore"]');
+  const restorePreview = page.querySelector('[data-configuration-restore-preview]');
+  const previewStatus = page.querySelector('[data-configuration-restore-preview-status]');
+  const previewStatusPill = page.querySelector('[data-configuration-restore-status-pill]');
+  const restoreMessage = page.querySelector('[data-configuration-restore-message]');
+  const totalSummary = page.querySelector('[data-configuration-restore-total-summary]');
+  const acpTarget = page.querySelector('[data-configuration-restore-target="acp"]');
+  const plexampTarget = page.querySelector('[data-configuration-restore-target="plexamp"]');
+  const acpSummary = page.querySelector('[data-configuration-restore-acp-summary]');
+  const plexampSummary = page.querySelector('[data-configuration-restore-plexamp-summary]');
+  const headlessSummary = page.querySelector('[data-configuration-restore-headless-summary]');
+  const browserSummary = page.querySelector('[data-configuration-restore-browser-summary]');
+  const warningBox = page.querySelector('[data-configuration-restore-warning-box]');
+  const warningsList = page.querySelector('[data-configuration-restore-warnings]');
+  const sectionsList = page.querySelector('[data-configuration-restore-sections]');
+  const pathsList = page.querySelector('[data-configuration-restore-paths]');
+  const applyZone = page.querySelector('[data-configuration-restore-apply-zone]');
+  const reviewButton = page.querySelector('[data-action="review-selected-restore"]');
+  const reviewStatus = page.querySelector('[data-configuration-restore-review-status]');
+  const reviewPill = page.querySelector('[data-configuration-restore-review-pill]');
+  const reviewMessage = page.querySelector('[data-configuration-restore-review-message]');
+  const confirmation = page.querySelector('[data-configuration-restore-confirm]');
+  const resultStatus = page.querySelector('[data-configuration-restore-result-status]');
+  const resultPill = page.querySelector('[data-configuration-restore-result-pill]');
+  const resultMessage = page.querySelector('[data-configuration-restore-result-message]');
+  const confirmTitle = page.querySelector('[data-configuration-restore-confirm-title]');
+  const confirmCopy = page.querySelector('[data-configuration-restore-confirm-copy]');
+  const confirmSummary = page.querySelector('[data-configuration-restore-confirm-summary]');
+  const confirmButton = page.querySelector('[data-action="confirm-configuration-restore"]');
+  const cancelButton = page.querySelector('[data-action="cancel-configuration-restore"]');
+
+  function currentTargetSignature() {
+    return `${selectedTargets.acp ? 'a' : '-'}${selectedTargets.plexamp ? 'p' : '-'}`;
+  }
+
+  function clearReviewedState({ keepStatus = false } = {}) {
+    reviewedServerBackup = null;
+    lastPlan = null;
+    reviewedBrowserPlan = null;
+    reviewedTargetSignature = '';
+    if (confirmation) confirmation.hidden = true;
+    if (!keepStatus) hideStatus(reviewStatus);
+  }
+
+  function resetRestoreState() {
+    selectedBackup = null;
+    fullPlan = null;
+    fullBrowserPlan = null;
+    selectedTargets.acp = false;
+    selectedTargets.plexamp = false;
+    clearReviewedState();
+    if (restorePreview) restorePreview.hidden = true;
+    if (applyZone) applyZone.hidden = true;
+    hideStatus(resultStatus);
+    [acpTarget, plexampTarget].forEach((button) => {
+      if (!button) return;
+      button.disabled = true;
+      button.setAttribute('aria-pressed', 'false');
+    });
+  }
+
+  function setTarget(button, key, available, selected) {
+    if (!button) return;
+    button.disabled = !available;
+    selectedTargets[key] = available && selected;
+    button.setAttribute('aria-pressed', selectedTargets[key] ? 'true' : 'false');
+  }
+
+  function invalidateReviewForSelectionChange() {
+    clearReviewedState({ keepStatus: true });
+    setStatus(
+      reviewStatus,
+      reviewPill,
+      reviewMessage,
+      'Selection changed',
+      'Review the selected restore again before Confirm & restore becomes available.',
+      'ready',
+    );
+  }
+
+  function renderFullPreview(plan, browserPlan = null, { preserveSelection = false } = {}) {
+    validateRestorePlan(plan);
+    const counts = planCounts(plan, browserPlan);
+    const previous = { ...selectedTargets };
+
+    const acpAvailable = counts.acp > 0;
+    const plexampAvailable = counts.plexamp > 0;
+    setTarget(acpTarget, 'acp', acpAvailable, preserveSelection ? previous.acp : acpAvailable);
+    setTarget(plexampTarget, 'plexamp', plexampAvailable, preserveSelection ? previous.plexamp : plexampAvailable);
+
+    if (totalSummary) {
+      const scope = counts.acp > 0 && counts.plexamp > 0
+        ? (selectedTargets.acp && selectedTargets.plexamp ? 'Both selected' : 'Choose target')
+        : (counts.acp > 0 ? 'ACP only' : (counts.plexamp > 0 ? 'Plexamp only' : 'No changes'));
+      const selectedCount = (selectedTargets.acp ? counts.acp : 0) + (selectedTargets.plexamp ? counts.plexamp : 0);
+      totalSummary.textContent = `${scope} · ${selectedCount} selected`;
+    }
+    if (acpSummary) acpSummary.textContent = counts.acp ? `${counts.acp} restorable` : 'No changes';
+    if (plexampSummary) plexampSummary.textContent = counts.plexamp ? `${counts.plexamp} restorable` : 'No changes';
+
     if (headlessSummary) {
-      const detected = Number(plan.plexamp_headless_detected_change_count || 0);
-      const restorable = Number(headless.restorable_items || 0);
-      const deferred = Number(headless.deferred_items || 0);
-      if (detected === 0) headlessSummary.textContent = 'No changes';
-      else if (restorable > 0 && deferred > 0) headlessSummary.textContent = `${restorable} restorable · ${deferred} deferred`;
-      else if (restorable > 0) headlessSummary.textContent = `${restorable} restorable`;
-      else headlessSummary.textContent = `${deferred || detected} deferred`;
+      if (counts.headlessDetected === 0) headlessSummary.textContent = 'Headless: no changes';
+      else if (counts.headless > 0 && counts.headlessDeferred > 0) headlessSummary.textContent = `Headless: ${counts.headless} restorable, ${counts.headlessDeferred} deferred`;
+      else if (counts.headless > 0) headlessSummary.textContent = `Headless: ${counts.headless} restorable`;
+      else headlessSummary.textContent = `Headless: ${counts.headlessDeferred || counts.headlessDetected} deferred`;
     }
 
     const browser = plan.plexamp_browser && typeof plan.plexamp_browser === 'object'
@@ -361,25 +511,17 @@
       : {};
     if (browserSummary) {
       if (!browser.present) {
-        browserSummary.textContent = 'Not present';
+        browserSummary.textContent = 'Home: not present';
       } else if (!browserPlan || browserPlan.status !== 'ready') {
-        browserSummary.textContent = 'Unavailable';
+        browserSummary.textContent = 'Home: unavailable';
       } else if (browserPlan.restore_available) {
         const missing = Number(browserPlan.missing_item_count || 0);
-        browserSummary.textContent = `${Number(browserPlan.change_count || 0)} restorable${missing ? ` · ${missing} unavailable` : ''}`;
+        browserSummary.textContent = `Home: ${Number(browserPlan.change_count || 0)} restorable${missing ? `, ${missing} unavailable` : ''}`;
       } else {
         const missing = Number(browserPlan.missing_item_count || 0);
-        browserSummary.textContent = missing ? `No changes · ${missing} unavailable` : 'No changes';
+        browserSummary.textContent = missing ? `Home: no changes, ${missing} unavailable` : 'Home: no changes';
       }
     }
-
-    const sections = plan.sections && typeof plan.sections === 'object'
-      ? Object.entries(plan.sections)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([name, count]) => `${name}: ${Number(count || 0)}`)
-      : [];
-    if (browserApplyCount > 0) sections.push(`plexamp.browser_preferences: ${browserApplyCount}`);
-    replaceList(sectionsList, sections, 'No portable changes detected.');
 
     const warnings = Array.isArray(plan.warnings)
       ? plan.warnings.filter((warning) => !String(warning).startsWith('Plexamp Home layout is valid and portable'))
@@ -399,44 +541,58 @@
         warnings.push(`Restore confirmation required: ${String(confirmationName)}`);
       });
     }
-    replaceList(warningsList, warnings, 'No restore warnings or confirmations.');
+    replaceList(warningsList, warnings, 'No restore warnings.');
+    if (warningBox) warningBox.hidden = warnings.length === 0;
 
-    const paths = Array.isArray(plan.changed_paths) ? plan.changed_paths : [];
-    const pathLines = paths.map((path) => String(path));
+    const sections = plan.sections && typeof plan.sections === 'object'
+      ? Object.entries(plan.sections)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([name, count]) => `${name}: ${Number(count || 0)}`)
+      : [];
+    if (counts.home > 0) sections.push(`plexamp.browser_preferences: ${counts.home}`);
+    replaceList(sectionsList, sections, 'No portable changes detected.');
+
+    const paths = Array.isArray(plan.changed_paths) ? plan.changed_paths.map((path) => String(path)) : [];
     if (browserPlan?.status === 'ready') {
-      if (browserPlan.order_changed) pathLines.push('plexamp.browser_preferences.home.order');
-      if (Number(browserPlan.hidden_change_count || 0) > 0) pathLines.push('plexamp.browser_preferences.home.hidden');
+      if (browserPlan.order_changed) paths.push('plexamp.browser_preferences.home.order');
+      if (Number(browserPlan.hidden_change_count || 0) > 0) paths.push('plexamp.browser_preferences.home.hidden');
     }
-    if (plan.changed_paths_truncated) pathLines.push('…additional changed paths omitted from preview');
-    replaceList(pathsList, pathLines, 'No changed portable paths.');
+    if (plan.changed_paths_truncated) paths.push('…additional changed paths omitted from preview');
+    replaceList(pathsList, paths, 'No changed portable paths.');
 
-    lastPlan = plan;
-    lastBrowserPlan = browserPlan;
-    if (applyZone) applyZone.hidden = plan.restore_available !== true || serverApplyCount === 0;
-    if (confirmation) confirmation.hidden = true;
-    if (applyMessage) {
-      applyMessage.textContent = plan.restore_available
-        ? (browserApplyCount > 0
-          ? 'Preview is current. Restore Plexamp Home first, then confirm the server/Headless transaction.'
-          : 'Preview is current. Restore still requires explicit confirmation.')
-        : 'No server/Headless changes need restoring.';
+    fullPlan = plan;
+    fullBrowserPlan = browserPlan;
+    clearReviewedState();
+    if (applyZone) applyZone.hidden = counts.total === 0;
+    if (counts.total > 0) {
+      setStatus(
+        reviewStatus,
+        reviewPill,
+        reviewMessage,
+        'Ready to review',
+        'Choose A Clockwork Plex, Plexamp, or both, then press Review selected restore. Nothing changes at Review.',
+        'ready',
+      );
+    } else {
+      hideStatus(reviewStatus);
     }
-    if (browserZone) browserZone.hidden = !(browserPlan?.status === 'ready' && browserPlan.restore_available === true);
-    if (browserConfirmation) browserConfirmation.hidden = true;
-    if (browserMessage) {
-      if (browserPlan?.status === 'ready' && browserPlan.restore_available === true) {
-        browserMessage.textContent = 'Live target preview is current. Home restore still requires explicit confirmation.';
-      } else if (browser.present && browserPlan?.status === 'ready') {
-        browserMessage.textContent = 'The saved Home layout already matches the restorable target context.';
-      } else {
-        browserMessage.textContent = 'No live-browser Home changes are currently restorable.';
-      }
-    }
-    if (container) container.hidden = false;
+    if (restorePreview) restorePreview.hidden = false;
+    return counts;
   }
 
-  const backupMessage = page.querySelector('[data-configuration-backup-message]');
-  const backupButton = page.querySelector('[data-action="download-configuration-backup"]');
+  function restorePersistedResult() {
+    let stored = null;
+    try {
+      stored = JSON.parse(sessionStorage.getItem(RESTORE_RESULT_KEY) || 'null');
+    } catch (_error) {
+      stored = null;
+    }
+    sessionStorage.removeItem(RESTORE_RESULT_KEY);
+    if (!stored || stored.schema_version !== 1 || typeof stored.message !== 'string') return;
+    if (!Number.isFinite(stored.created_at) || Date.now() - stored.created_at > 5 * 60 * 1000) return;
+    setStatus(resultStatus, resultPill, resultMessage, 'Restore complete', stored.message.slice(0, 500), 'success');
+  }
+
   backupButton?.addEventListener('click', async () => {
     backupButton.disabled = true;
     if (backupMessage) backupMessage.textContent = 'Building portable backup…';
@@ -483,55 +639,35 @@
     }
   });
 
-  const restoreFile = page.querySelector('[data-configuration-restore-file]');
-  const restoreFileStatus = page.querySelector('[data-configuration-restore-file-status]');
-  const restoreMessage = page.querySelector('[data-configuration-restore-message]');
-  const restoreButton = page.querySelector('[data-action="preview-configuration-restore"]');
-  const restorePreview = page.querySelector('[data-configuration-restore-preview]');
-  const applyButton = page.querySelector('[data-action="apply-configuration-restore"]');
-  const confirmButton = page.querySelector('[data-action="confirm-configuration-restore"]');
-  const cancelButton = page.querySelector('[data-action="cancel-configuration-restore"]');
-  const confirmation = page.querySelector('[data-configuration-restore-confirm]');
-  const confirmCopy = page.querySelector('[data-configuration-restore-confirm-copy]');
-  const applyMessage = page.querySelector('[data-configuration-restore-apply-message]');
-  const browserApplyButton = page.querySelector('[data-action="apply-plexamp-home-restore"]');
-  const browserConfirmButton = page.querySelector('[data-action="confirm-plexamp-home-restore"]');
-  const browserCancelButton = page.querySelector('[data-action="cancel-plexamp-home-restore"]');
-  const browserConfirmation = page.querySelector('[data-configuration-browser-restore-confirm]');
-  const browserMessage = page.querySelector('[data-configuration-browser-restore-message]');
-
   restoreFile?.addEventListener('change', () => {
-    selectedBackup = null;
-    resetApplyState();
+    resetRestoreState();
     if (restoreMessage) restoreMessage.classList.remove('is-conflict');
-    if (restorePreview) restorePreview.hidden = true;
+    hideStatus(previewStatus);
+    hideStatus(resultStatus);
     const file = restoreFile.files?.[0] || null;
     if (!file) {
       if (restoreFileStatus) restoreFileStatus.textContent = 'Select an A Clockwork Plex JSON backup, up to 1 MB.';
-      if (restoreMessage) restoreMessage.textContent = 'No file selected.';
       if (restoreButton) restoreButton.disabled = true;
       return;
     }
     if (file.size > MAX_RESTORE_FILE_BYTES) {
       if (restoreFileStatus) restoreFileStatus.textContent = `${file.name} is larger than the 1 MB preview limit.`;
-      if (restoreMessage) restoreMessage.textContent = 'Choose a smaller backup file.';
       if (restoreButton) restoreButton.disabled = true;
+      setStatus(previewStatus, previewStatusPill, restoreMessage, 'File too large', 'Choose a backup no larger than 1 MB.', 'error');
       return;
     }
     if (restoreFileStatus) restoreFileStatus.textContent = `${file.name} · ${file.size.toLocaleString()} bytes`;
-    if (restoreMessage) restoreMessage.textContent = 'Ready for a read-only preview.';
     if (restoreButton) restoreButton.disabled = false;
+    setStatus(previewStatus, previewStatusPill, restoreMessage, 'Ready to preview', 'Press Preview restore. Nothing will be changed.', 'ready');
   });
 
   restoreButton?.addEventListener('click', async () => {
     const file = restoreFile?.files?.[0] || null;
-    if (!file || restoreInFlight || browserRestoreInFlight) return;
+    if (!file || restoreInFlight) return;
     restoreButton.disabled = true;
-    selectedBackup = null;
-    resetApplyState();
+    resetRestoreState();
     if (restoreMessage) restoreMessage.classList.remove('is-conflict');
-    if (restorePreview) restorePreview.hidden = true;
-    if (restoreMessage) restoreMessage.textContent = 'Validating backup and comparing portable settings…';
+    setStatus(previewStatus, previewStatusPill, restoreMessage, 'Previewing…', 'Validating the backup and comparing portable settings.', 'busy');
     try {
       if (file.size > MAX_RESTORE_FILE_BYTES) {
         throw new Error('Backup file is larger than the 1 MB preview limit.');
@@ -544,123 +680,260 @@
         throw new Error('The selected file is not valid JSON.');
       }
 
-      const response = await fetch('/api/settings/restore/preview', {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(backup),
-      });
-      const plan = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(plan.error || `Restore preview returned HTTP ${response.status}.`);
-      }
+      const plan = await previewServer(backup);
       const browserPlan = await previewBrowserHome(backup);
       selectedBackup = backup;
-      renderRestorePreview(plan, browserPlan);
-      const serverApplyCount = Number(plan.apply_change_count || 0);
-      const browserApplyCount = browserPlan?.status === 'ready' && browserPlan.restore_available === true
-        ? Number(browserPlan.change_count || 0)
-        : 0;
-      const totalApplyCount = serverApplyCount + browserApplyCount;
+      const counts = renderFullPreview(plan, browserPlan);
       const deferredCount = Number(plan.deferred_change_count || 0);
-      const serverCount = Number(plan.server_change_count || 0);
-      const headlessCount = Number(plan.plexamp_headless_change_count || 0);
-      if (restoreMessage) {
-        if (totalApplyCount === 0 && deferredCount === 0) {
-          restoreMessage.textContent = 'Backup is valid. No supported portable settings differ from this appliance.';
-        } else if (totalApplyCount > 0) {
-          restoreMessage.textContent = `Backup is valid. ${totalApplyCount} supported path${totalApplyCount === 1 ? '' : 's'} can be restored now (${serverCount} ACP/server, ${headlessCount} Plexamp Headless, ${browserApplyCount} Plexamp Home).`;
-        } else {
-          restoreMessage.textContent = 'Backup is valid. Only deferred Plexamp changes remain.';
-        }
+      if (counts.total === 0 && deferredCount === 0) {
+        setStatus(previewStatus, previewStatusPill, restoreMessage, 'Preview complete', 'Backup is valid. No supported portable settings differ from this appliance.', 'success');
+      } else if (counts.total > 0) {
+        setStatus(
+          previewStatus,
+          previewStatusPill,
+          restoreMessage,
+          'Preview ready',
+          `Backup is valid. ${counts.total} restorable change${counts.total === 1 ? '' : 's'} found. Choose A Clockwork Plex, Plexamp, or both below.`,
+          'success',
+        );
+      } else {
+        setStatus(previewStatus, previewStatusPill, restoreMessage, 'Preview complete', 'Backup is valid. Only deferred Plexamp changes remain.', 'warning');
       }
     } catch (error) {
-      selectedBackup = null;
-      resetApplyState();
-      if (restoreMessage) restoreMessage.textContent = error.message || 'Could not preview this backup.';
+      resetRestoreState();
+      setStatus(previewStatus, previewStatusPill, restoreMessage, 'Preview failed', error.message || 'Could not preview this backup.', 'error');
     } finally {
       restoreButton.disabled = false;
     }
   });
 
-  browserApplyButton?.addEventListener('click', () => {
+  function updateSelectionSummary() {
+    if (!totalSummary || !fullPlan) return;
+    const counts = planCounts(fullPlan, fullBrowserPlan);
+    let scope = 'Choose target';
+    if (selectedTargets.acp && selectedTargets.plexamp) scope = 'Both selected';
+    else if (selectedTargets.acp) scope = 'ACP selected';
+    else if (selectedTargets.plexamp) scope = 'Plexamp selected';
+    const selectedCount = (selectedTargets.acp ? counts.acp : 0) + (selectedTargets.plexamp ? counts.plexamp : 0);
+    totalSummary.textContent = `${scope} · ${selectedCount} selected`;
+  }
+
+  function toggleTarget(key, button) {
+    if (!button || button.disabled || restoreInFlight) return;
+    selectedTargets[key] = !selectedTargets[key];
+    button.setAttribute('aria-pressed', selectedTargets[key] ? 'true' : 'false');
+    updateSelectionSummary();
+    invalidateReviewForSelectionChange();
+  }
+
+  acpTarget?.addEventListener('click', () => toggleTarget('acp', acpTarget));
+  plexampTarget?.addEventListener('click', () => toggleTarget('plexamp', plexampTarget));
+
+  reviewButton?.addEventListener('click', async () => {
+    if (!selectedBackup || !fullPlan || restoreInFlight) return;
+    if (!selectedTargets.acp && !selectedTargets.plexamp) {
+      setStatus(reviewStatus, reviewPill, reviewMessage, 'Choose a target', 'Select A Clockwork Plex, Plexamp, or both before Review.', 'warning');
+      return;
+    }
+    if (settingsHaveUnsavedChanges()) {
+      setStatus(reviewStatus, reviewPill, reviewMessage, 'Unsaved Settings', 'Save or discard staged Settings changes before reviewing a restore.', 'warning');
+      return;
+    }
+
+    reviewButton.disabled = true;
+    clearReviewedState({ keepStatus: true });
+    setStatus(reviewStatus, reviewPill, reviewMessage, 'Reviewing…', 'Refreshing the selected owners and confirmation boundary. Nothing is changing.', 'busy');
+    try {
+      const targets = { ...selectedTargets };
+      const serverBackup = buildSelectedServerBackup(selectedBackup, targets);
+      const plan = await previewServer(serverBackup);
+      const browserPlan = targets.plexamp ? await previewBrowserHome(selectedBackup) : null;
+      const counts = planCounts(plan, browserPlan);
+      if (counts.total === 0) {
+        setStatus(reviewStatus, reviewPill, reviewMessage, 'Nothing to restore', 'The selected targets already match this backup. Run Preview again if the appliance changed.', 'success');
+        return;
+      }
+
+      reviewedServerBackup = serverBackup;
+      lastPlan = plan;
+      reviewedBrowserPlan = browserPlan;
+      reviewedTargetSignature = currentTargetSignature();
+
+      const selectedNames = [];
+      if (targets.acp && counts.acp > 0) selectedNames.push('A Clockwork Plex');
+      if (targets.plexamp && counts.plexamp > 0) selectedNames.push('Plexamp');
+      const title = selectedNames.length === 2
+        ? 'Restore A Clockwork Plex and Plexamp?'
+        : `Restore ${selectedNames[0] || 'the selected configuration'}?`;
+      if (confirmTitle) confirmTitle.textContent = title;
+
+      const protectedSteps = counts.home > 0 && (counts.acp + counts.headless) > 0;
+      const restartNotes = [];
+      if (Array.isArray(plan.confirmations_required) && plan.confirmations_required.includes('airplay_restart')) {
+        restartNotes.push('Shairport Sync will briefly restart for the restored AirPlay receiver name.');
+      }
+      if (counts.headless > 0) {
+        restartNotes.push('Plexamp Headless will briefly restart while its allow-listed preferences are verified.');
+      }
+      if (confirmCopy) {
+        confirmCopy.textContent = protectedSteps
+          ? `One confirmation will run two protected steps: Plexamp Home first, then ACP/Headless. Each step verifies and owns its own rollback. ${restartNotes.join(' ')}`.trim()
+          : `The selected owner will capture rollback state, apply only the reviewed differences and verify the result. ${restartNotes.join(' ')}`.trim();
+      }
+
+      const summary = [];
+      if (targets.acp) summary.push(`A Clockwork Plex: ${counts.acp} path${counts.acp === 1 ? '' : 's'}`);
+      if (targets.plexamp) {
+        summary.push(`Plexamp Headless: ${counts.headless} path${counts.headless === 1 ? '' : 's'}`);
+        summary.push(`Plexamp Home: ${counts.home} logical change${counts.home === 1 ? '' : 's'}`);
+        if (counts.headlessDeferred > 0) summary.push(`Plexamp Headless deferred: ${counts.headlessDeferred}`);
+      }
+      replaceList(confirmSummary, summary, 'No selected differences remain.');
+      if (confirmation) confirmation.hidden = false;
+      setStatus(
+        reviewStatus,
+        reviewPill,
+        reviewMessage,
+        'Ready to confirm',
+        `${counts.total} selected change${counts.total === 1 ? '' : 's'} reviewed. Confirm & restore is now the only mutating step.`,
+        'success',
+      );
+    } catch (error) {
+      clearReviewedState({ keepStatus: true });
+      setStatus(reviewStatus, reviewPill, reviewMessage, 'Review failed', error.message || 'Could not review the selected restore.', 'error');
+    } finally {
+      reviewButton.disabled = false;
+    }
+  });
+
+  cancelButton?.addEventListener('click', () => {
+    clearReviewedState({ keepStatus: true });
+    setStatus(reviewStatus, reviewPill, reviewMessage, 'Review cancelled', 'Nothing changed. Press Review selected restore again when you are ready.', 'ready');
+  });
+
+  async function applyReviewedHome(home, browserPlan) {
+    const bridgeLoaded = await loadPlexampBridgeClient();
+    if (!bridgeLoaded) throw new Error('Plexamp Home bridge is unavailable. Run Preview restore again.');
+    const result = await window.ACPPlexampBrowserPreferences.applyHome(
+      home,
+      browserPlan.target_fingerprint,
+      { timeoutMs: 3000 },
+    );
+    if (result?.status === 'stale-target' || result?.fresh_preview_required === true) {
+      throw new Error('Plexamp Home changed after Review. No Home settings were changed; run Preview restore again.');
+    }
+    if (!result || result.applied !== true || result.status !== 'applied') {
+      if (result?.status === 'apply-failed' && result?.rolled_back === true) {
+        throw new Error('Plexamp Home restore failed verification and the exact target Home state was rolled back. Run Preview restore again.');
+      }
+      if (result?.status === 'apply-failed') {
+        throw new Error('Plexamp Home restore failed and rollback could not be fully verified. Do not retry until the Home layout is checked.');
+      }
+      throw new Error(`Plexamp Home restore was not applied (${String(result?.status || 'unavailable')}).`);
+    }
+
+    const verified = await window.ACPPlexampBrowserPreferences.planHome(home, { timeoutMs: 1800 });
+    if (!verified || verified.status !== 'ready' || verified.restore_available !== false) {
+      throw new Error('Plexamp Home write completed but the follow-up live verification did not converge.');
+    }
+    return Number(result.applied_change_count || 0);
+  }
+
+  async function applyReviewedServer(backup) {
+    const response = await fetch('/api/settings/restore/apply', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        backup,
+        preview_token: lastPlan.preview_token,
+        confirm_restore: true,
+        confirmations: Array.isArray(lastPlan.confirmations_required)
+          ? lastPlan.confirmations_required
+          : [],
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      const restoreDetail = String(result.error || `Restore returned HTTP ${response.status}.`).trim();
+      const error = new Error(restoreDetail);
+      error.restoreBlocked = response.status === 409 && result.fresh_preview_required === true;
+      error.rolledBack = result.rolled_back === true;
+      throw error;
+    }
+    return result;
+  }
+
+  function setControlsDisabled(disabled) {
+    [restoreButton, restoreFile, reviewButton, confirmButton, cancelButton, acpTarget, plexampTarget].forEach((control) => {
+      if (control) control.disabled = disabled || (control === acpTarget && Number(fullPlan?.server_change_count || 0) === 0)
+        || (control === plexampTarget && planCounts(fullPlan, fullBrowserPlan).plexamp === 0);
+    });
+  }
+
+  confirmButton?.addEventListener('click', async () => {
     if (
       !selectedBackup
+      || !reviewedServerBackup
       || !lastPlan
-      || !lastBrowserPlan
-      || lastBrowserPlan.status !== 'ready'
-      || lastBrowserPlan.restore_available !== true
       || restoreInFlight
-      || browserRestoreInFlight
+      || reviewedTargetSignature !== currentTargetSignature()
     ) return;
-    if (browserConfirmation) browserConfirmation.hidden = false;
-    if (browserMessage) browserMessage.textContent = 'Review the Home confirmation below. Nothing has changed yet.';
-  });
+    if (settingsHaveUnsavedChanges()) {
+      clearReviewedState({ keepStatus: true });
+      setStatus(reviewStatus, reviewPill, reviewMessage, 'Unsaved Settings', 'Save or discard staged Settings changes, then Review selected restore again.', 'warning');
+      return;
+    }
 
-  browserCancelButton?.addEventListener('click', () => {
-    if (browserConfirmation) browserConfirmation.hidden = true;
-    if (browserMessage) browserMessage.textContent = 'Plexamp Home restore cancelled. The live preview remains available.';
-  });
+    restoreInFlight = true;
+    if (confirmation) confirmation.hidden = true;
+    setControlsDisabled(true);
+    hideStatus(resultStatus);
+    setStatus(reviewStatus, reviewPill, reviewMessage, 'Restoring…', 'Applying the reviewed owners and verifying each protected step.', 'busy');
 
-  browserConfirmButton?.addEventListener('click', async () => {
-    const home = browserHomeFromBackup(selectedBackup);
-    if (
-      !home
-      || !lastPlan
-      || !lastBrowserPlan
-      || lastBrowserPlan.status !== 'ready'
-      || lastBrowserPlan.restore_available !== true
-      || restoreInFlight
-      || browserRestoreInFlight
-    ) return;
-
-    browserRestoreInFlight = true;
-    if (browserConfirmation) browserConfirmation.hidden = true;
-    if (browserApplyButton) browserApplyButton.disabled = true;
-    if (browserConfirmButton) browserConfirmButton.disabled = true;
-    if (applyButton) applyButton.disabled = true;
-    if (restoreButton) restoreButton.disabled = true;
-    if (restoreFile) restoreFile.disabled = true;
-    if (browserMessage) browserMessage.textContent = 'Capturing target Home rollback state and applying the live-browser transaction…';
-
+    let homeApplied = 0;
+    let serverResult = null;
     try {
-      const bridgeLoaded = await loadPlexampBridgeClient();
-      if (!bridgeLoaded) throw new Error('Plexamp Home bridge is unavailable. Run Preview restore again.');
-      const result = await window.ACPPlexampBrowserPreferences.applyHome(
-        home,
-        lastBrowserPlan.target_fingerprint,
-        { timeoutMs: 3000 },
-      );
-      if (result?.status === 'stale-target' || result?.fresh_preview_required === true) {
-        throw new Error('Plexamp Home changed after Preview. No Home settings were changed; run Preview restore again.');
-      }
-      if (!result || result.applied !== true || result.status !== 'applied') {
-        if (result?.status === 'apply-failed' && result?.rolled_back === true) {
-          throw new Error('Plexamp Home restore failed verification and the exact target Home state was rolled back. Run Preview restore again.');
-        }
-        if (result?.status === 'apply-failed') {
-          throw new Error('Plexamp Home restore failed and rollback could not be fully verified. Do not retry until the Home layout is checked.');
-        }
-        throw new Error(`Plexamp Home restore was not applied (${String(result?.status || 'unavailable')}).`);
+      const home = selectedTargets.plexamp ? browserHomeFromBackup(selectedBackup) : null;
+      if (reviewedBrowserPlan?.status === 'ready' && reviewedBrowserPlan.restore_available === true) {
+        if (!home) throw new Error('The reviewed Plexamp Home payload is no longer available. Run Preview restore again.');
+        homeApplied = await applyReviewedHome(home, reviewedBrowserPlan);
       }
 
-      const verified = await window.ACPPlexampBrowserPreferences.planHome(home, { timeoutMs: 1800 });
-      if (!verified || verified.status !== 'ready' || verified.restore_available !== false) {
-        throw new Error('Plexamp Home write completed but the follow-up live verification did not converge.');
+      if (Number(lastPlan.apply_change_count || 0) > 0) {
+        serverResult = await applyReviewedServer(reviewedServerBackup);
       }
-      renderRestorePreview(lastPlan, verified);
-      const count = Number(result.applied_change_count || 0);
-      const success = `Plexamp Home restore verified: ${count} logical change${count === 1 ? '' : 's'} applied.`;
-      if (browserMessage) {
-        browserMessage.textContent = `${success} Reloading the Plexamp surface…`;
+
+      const acpApplied = Number(serverResult?.server_applied_change_count || 0);
+      const headlessApplied = Number(serverResult?.plexamp_headless_applied_change_count || 0);
+      const totalApplied = acpApplied + headlessApplied + homeApplied;
+      const parts = [];
+      if (acpApplied > 0) parts.push(`${acpApplied} ACP/server`);
+      if (headlessApplied > 0) parts.push(`${headlessApplied} Plexamp Headless`);
+      if (homeApplied > 0) parts.push(`${homeApplied} Plexamp Home`);
+      const success = `Restore verified: ${totalApplied} change${totalApplied === 1 ? '' : 's'} applied${parts.length ? ` (${parts.join(', ')})` : ''}. The live configuration now matches the selected parts of this backup.`;
+
+      if (serverResult) {
+        setStatus(resultStatus, resultPill, resultMessage, 'Restore complete', success, 'success');
+        setStatus(reviewStatus, reviewPill, reviewMessage, 'Restore complete', 'The reviewed restore was applied and verified. Reloading Settings…', 'success');
+        sessionStorage.setItem(RESTORE_RESULT_KEY, JSON.stringify({
+          schema_version: 1,
+          created_at: Date.now(),
+          message: success,
+        }));
+        window.setTimeout(() => window.location.reload(), 650);
+        return;
       }
-      if (restoreMessage) {
-        restoreMessage.classList.remove('is-conflict');
-        restoreMessage.textContent = `${success} The live Home layout now matches this backup.`;
-      }
+
+      const refreshedPlan = await previewServer(selectedBackup);
+      const refreshedBrowserPlan = await previewBrowserHome(selectedBackup);
+      renderFullPreview(refreshedPlan, refreshedBrowserPlan);
+      if (restoreMessage) restoreMessage.classList.remove('is-conflict');
+      setStatus(resultStatus, resultPill, resultMessage, 'Restore complete', `${success} The live Home layout now matches this backup.`, 'success');
+      setStatus(reviewStatus, reviewPill, reviewMessage, 'Restore complete', 'The selected Plexamp restore was applied and verified.', 'success');
       const frame = document.getElementById('persistent-plexamp-frame');
       if (frame?.src) {
         window.setTimeout(() => {
@@ -668,138 +941,40 @@
         }, 350);
       }
     } catch (error) {
-      lastBrowserPlan = null;
-      const browserZone = page.querySelector('[data-configuration-browser-restore-zone]');
-      if (browserZone) browserZone.hidden = true;
-      if (browserMessage) browserMessage.textContent = error.message || 'Plexamp Home restore failed.';
-      if (restoreMessage) restoreMessage.textContent = 'Run Preview restore again before another Plexamp Home restore attempt.';
-    } finally {
-      browserRestoreInFlight = false;
-      if (browserApplyButton) browserApplyButton.disabled = false;
-      if (browserConfirmButton) browserConfirmButton.disabled = false;
-      if (applyButton) applyButton.disabled = false;
-      if (restoreButton) restoreButton.disabled = false;
-      if (restoreFile) restoreFile.disabled = false;
-    }
-  });
-
-  applyButton?.addEventListener('click', () => {
-    if (!selectedBackup || !lastPlan || lastPlan.restore_available !== true || restoreInFlight || browserRestoreInFlight) return;
-    if (lastBrowserPlan?.status === 'ready' && lastBrowserPlan.restore_available === true) {
-      if (applyMessage) applyMessage.textContent = 'Restore the separately previewed Plexamp Home layout first, then confirm the server/Headless transaction.';
-      return;
-    }
-    if (settingsHaveUnsavedChanges()) {
-      if (applyMessage) applyMessage.textContent = 'Save or discard the staged Settings changes before restoring a backup.';
-      return;
-    }
-    const confirmations = Array.isArray(lastPlan.confirmations_required)
-      ? lastPlan.confirmations_required
-      : [];
-    const headlessCount = Number(lastPlan.plexamp_headless_change_count || 0);
-    if (confirmCopy) {
-      if (confirmations.includes('airplay_restart')) {
-        confirmCopy.textContent = headlessCount > 0
-          ? 'A rollback snapshot will be captured first. Shairport Sync and Plexamp will each briefly restart while their explicitly previewed settings are applied.'
-          : 'A rollback snapshot will be captured first. This restore also changes the AirPlay receiver name, so Shairport Sync will briefly restart.';
-      } else if (headlessCount > 0) {
-        confirmCopy.textContent = 'A rollback snapshot will be captured first. Compatible Plexamp Headless preferences will be applied through the narrow owner, so Plexamp will briefly restart.';
-      } else {
-        confirmCopy.textContent = 'A rollback snapshot will be captured before Settings, EQ or mixer state is changed.';
-      }
-    }
-    if (confirmation) confirmation.hidden = false;
-    if (applyMessage) applyMessage.textContent = 'Review the confirmation below. Nothing has changed yet.';
-  });
-
-  cancelButton?.addEventListener('click', () => {
-    if (confirmation) confirmation.hidden = true;
-    if (applyMessage) applyMessage.textContent = 'Restore cancelled. The preview remains available.';
-  });
-
-  confirmButton?.addEventListener('click', async () => {
-    if (!selectedBackup || !lastPlan || restoreInFlight || browserRestoreInFlight) return;
-    if (lastBrowserPlan?.status === 'ready' && lastBrowserPlan.restore_available === true) {
-      if (confirmation) confirmation.hidden = true;
-      if (applyMessage) applyMessage.textContent = 'Restore Plexamp Home first, then review the server/Headless confirmation again.';
-      return;
-    }
-    if (settingsHaveUnsavedChanges()) {
-      if (confirmation) confirmation.hidden = true;
-      if (applyMessage) applyMessage.textContent = 'Save or discard the staged Settings changes before restoring a backup.';
-      return;
-    }
-
-    restoreInFlight = true;
-    if (confirmation) confirmation.hidden = true;
-    if (applyButton) applyButton.disabled = true;
-    if (confirmButton) confirmButton.disabled = true;
-    if (browserApplyButton) browserApplyButton.disabled = true;
-    if (restoreButton) restoreButton.disabled = true;
-    if (restoreFile) restoreFile.disabled = true;
-    if (applyMessage) applyMessage.textContent = 'Capturing rollback state and restoring supported configuration…';
-
-    let restoreRetryMessage = 'Restore failed. Run Preview restore again before any retry.';
-    let restoreWasBlocked = false;
-    try {
-      const response = await fetch('/api/settings/restore/apply', {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          backup: selectedBackup,
-          preview_token: lastPlan.preview_token,
-          confirm_restore: true,
-          confirmations: Array.isArray(lastPlan.confirmations_required)
-            ? lastPlan.confirmations_required
-            : [],
-        }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result.ok === false) {
-        const restoreDetail = String(
-          result.error || `Restore returned HTTP ${response.status}.`,
-        ).trim();
-        const rollbackText = result.rolled_back === true
-          ? ' Previous supported state was rolled back.'
-          : '';
-        if (response.status === 409 && result.fresh_preview_required === true) {
-          restoreWasBlocked = true;
-          restoreRetryMessage = `Restore blocked — no settings were changed. ${restoreDetail}`;
-        } else if (result.fresh_preview_required === true) {
-          restoreRetryMessage = `Restore failed. ${restoreDetail} Run Preview restore again before any retry.`;
-        }
-        throw new Error(`${restoreDetail}${rollbackText}`);
-      }
-      selectedBackup = null;
-      lastPlan = null;
-      lastBrowserPlan = null;
-      if (applyMessage) {
-        const count = Number(result.applied_change_count || 0);
-        const serverApplied = Number(result.server_applied_change_count || 0);
-        const headlessApplied = Number(result.plexamp_headless_applied_change_count || 0);
-        applyMessage.textContent = `Restore verified: ${count} path${count === 1 ? '' : 's'} applied (${serverApplied} ACP/server, ${headlessApplied} Plexamp Headless). Reloading Settings…`;
-      }
-      window.setTimeout(() => window.location.reload(), 900);
-    } catch (error) {
-      if (applyMessage) applyMessage.textContent = error.message || 'Restore failed.';
-      resetApplyState();
+      const homePrefix = homeApplied > 0
+        ? `Plexamp Home was restored (${homeApplied} logical change${homeApplied === 1 ? '' : 's'}), but the later ACP/Headless stage did not complete. `
+        : '';
+      const rollbackSuffix = error.rolledBack === true ? ' The failed server stage was rolled back.' : '';
+      const blocked = error.restoreBlocked === true;
+      clearReviewedState({ keepStatus: true });
+      setStatus(
+        resultStatus,
+        resultPill,
+        resultMessage,
+        blocked ? 'Restore blocked' : 'Restore failed',
+        `${homePrefix}${error.message || 'Restore failed.'}${rollbackSuffix} Run Preview restore again before another attempt.`,
+        blocked ? 'warning' : 'error',
+      );
+      setStatus(
+        reviewStatus,
+        reviewPill,
+        reviewMessage,
+        blocked ? 'Restore blocked' : 'Restore failed',
+        `${homePrefix}${error.message || 'Restore failed.'}${rollbackSuffix} Run Preview restore again before another attempt.`,
+        blocked ? 'warning' : 'error',
+      );
       if (restoreMessage) {
-        restoreMessage.textContent = restoreRetryMessage;
-        restoreMessage.classList.toggle('is-conflict', restoreWasBlocked);
+        restoreMessage.textContent = blocked
+          ? `Restore blocked — no server settings were changed. ${error.message || ''}`.trim()
+          : 'Run Preview restore again before another restore attempt.';
+        restoreMessage.classList.toggle('is-conflict', blocked);
       }
     } finally {
       restoreInFlight = false;
-      if (applyButton) applyButton.disabled = false;
-      if (confirmButton) confirmButton.disabled = false;
-      if (browserApplyButton) browserApplyButton.disabled = false;
-      if (restoreButton) restoreButton.disabled = false;
-      if (restoreFile) restoreFile.disabled = false;
+      setControlsDisabled(false);
     }
   });
 
   if (location.hash === '#advanced/backup') showPage();
+  restorePersistedResult();
 })();
