@@ -20,6 +20,7 @@ playback-runtime.json
 weather-forecast-cache.json
 weather-rainfall-history.json
 weather-rainfall-lifetime.json
+bbc-news-cache.json
 *.json.tmp
 *.log
 
