@@ -159,6 +159,19 @@
   text-align: right;
 }
 
+.news-source-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--panel-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 8%, transparent);
+  white-space: nowrap;
+}
+
 .news-message {
   padding: 9px 12px;
   border: 1px solid rgba(255, 190, 90, 0.45);
@@ -168,16 +181,79 @@
   font-size: clamp(0.8rem, 1.8vmin, 0.95rem);
 }
 
+.news-story-scroll {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8px;
+  gap: clamp(6px, 1vmin, 9px);
+  overflow: hidden;
+}
+
 .news-story-list {
   min-height: 0;
+  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 55%, transparent) rgba(255, 255, 255, 0.06);
-  padding-right: clamp(3px, 0.7vmin, 7px);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   display: grid;
   align-content: start;
   gap: clamp(8px, 1.25vmin, 12px);
+}
+
+.news-story-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.news-story-scrollbar {
+  position: relative;
+  width: 8px;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--panel-border));
+  border-radius: 999px;
+  outline: none;
+  background: color-mix(in srgb, var(--accent) 4%, rgba(0, 0, 0, 0.34));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 0 8px color-mix(in srgb, var(--accent) 7%, transparent);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.news-story-scrollbar[hidden] {
+  display: none;
+}
+
+.news-story-scrollbar:focus-visible {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 34%, transparent),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.news-story-scrollbar-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 4px;
+  min-height: 42px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--panel-border));
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 36%, transparent);
+  cursor: grab;
+  will-change: height, transform;
+}
+
+.news-story-scrollbar-thumb:hover,
+.news-story-scrollbar.is-dragging .news-story-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+}
+
+.news-story-scrollbar.is-dragging .news-story-scrollbar-thumb {
+  cursor: grabbing;
 }
 
 .news-story-card {
