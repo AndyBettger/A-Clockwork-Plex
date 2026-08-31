@@ -167,6 +167,17 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn(".news-ticker[hidden]", self.news_css)
         self.assertIn("display: none;", self.news_css)
 
+    def test_news_feed_time_and_story_scroll_use_dashboard_chrome(self):
+        self.assertIn('class="news-source-time news-source-pill"', self.news_template)
+        self.assertIn("data-news-story-scrollbar", self.news_template)
+        self.assertIn('aria-orientation="vertical"', self.news_template)
+        self.assertIn("bindStoryScrollbar", self.news_client)
+        self.assertIn("storyMount.scrollTop", self.news_client)
+        self.assertIn("storyMount.addEventListener('scroll', update", self.news_client)
+        self.assertIn("scrollbar-width: none", self.news_css)
+        self.assertIn(".news-story-scrollbar-thumb", self.news_css)
+        self.assertIn("linear-gradient(180deg, var(--accent), var(--accent-strong))", self.news_css)
+
     def test_news_settings_and_navigation_reuse_existing_owners(self):
         navigation = Path("app/templates/_nav.html").read_text(encoding="utf-8")
         transitions = Path("app/static/js/page-transitions.js").read_text(encoding="utf-8")
