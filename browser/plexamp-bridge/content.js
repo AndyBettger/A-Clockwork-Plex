@@ -640,9 +640,13 @@
     }
 
     let mutations = [];
+    const touched = [];
     try {
       mutations = buildMutations(plan);
-      for (const mutation of mutations) writeStorage(storage, mutation, false);
+      for (const mutation of mutations) {
+        writeStorage(storage, mutation, false);
+        touched.push(mutation);
+      }
       const verified = buildHomePlan(storage, requestedHome);
       if (verified.public.status !== 'ready' || verified.public.restore_available) {
         throw new Error('verification');
@@ -659,7 +663,7 @@
       };
     } catch (_error) {
       let rollbackFailures = 0;
-      for (const mutation of [...mutations].reverse()) {
+      for (const mutation of [...touched].reverse()) {
         try {
           writeStorage(storage, mutation, true);
         } catch (_rollbackError) {
@@ -667,7 +671,7 @@
         }
       }
       try {
-        if (!verifyRawRollback(storage, mutations)) rollbackFailures += 1;
+        if (!verifyRawRollback(storage, touched)) rollbackFailures += 1;
       } catch (_verificationError) {
         rollbackFailures += 1;
       }
