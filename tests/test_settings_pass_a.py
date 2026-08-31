@@ -187,6 +187,7 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("flex-direction: column", restore_style)
         self.assertIn("order: -2", restore_style)
         self.assertIn("order: -1", restore_style)
+        self.assertIn("margin: 12px 0 14px", restore_style)
 
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
         modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
