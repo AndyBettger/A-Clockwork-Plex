@@ -39,7 +39,7 @@ A backup is **not** intended to be a disk image or a forensic copy of the Pi.
 | Audio routes, CamillaDSP configuration/binary, systemd units, sudoers and hardware bindings | guarded installer/audio lifecycle | **Exclude** | Recreate from the installed release and hardware commissioning, not from user backup |
 | Plexamp Headless runtime | `~/plexamp`, installed from pinned release archive | **Exclude** | Reinstall through the guarded Plexamp runtime owner |
 | Plexamp Headless persistent Settings store | `~/.local/share/Plexamp/Settings` | **Selective allow-list only; never copy directory wholesale** | Restore only the exact known typed non-auth preferences through the dedicated exact-version transactional owner; incompatible/unknown target state is deferred before mutation |
-| A Clockwork Plex kiosk Chromium profile | `~/.config/a-clockwork-plex/chromium-profile` | **Never copy profile wholesale**; export only validated logical Plexamp Home state through the scoped live browser bridge | Restore only explicit logical Home choices after fresh Plexamp claim/library commissioning; never restore the Chromium profile |
+| A Clockwork Plex kiosk Chromium profile | `~/.config/a-clockwork-plex/chromium-profile` | **Never copy profile wholesale**; export only validated logical Plexamp Home state through the scoped live browser bridge | Restore only explicit logical Home choices through the live target-context browser owner after fresh Plexamp claim/library commissioning; never restore the Chromium profile |
 | WU selected-period/full-station rainfall caches | `weather-rainfall-history.json`, `weather-rainfall-lifetime.json` | **Exclude** | Rebuild/backfill from the commissioned Weather source |
 | Forecast cache | `weather-forecast-cache.json` | **Exclude** | Re-fetch from Open-Meteo |
 | Dashboard/weather live state and pressure/extreme history | `state.json` | **Exclude** | Rebuild from live observations |
@@ -150,7 +150,17 @@ The #89 live bridge is deliberately narrow:
 
 The final commissioned-Pi #89 export physically returned browser schema `1`, **15 ordered Home identifiers**, **1 hidden identifier**, no browser omission and **zero warnings**. This establishes the live browser bridge as the supported export authority for Home order/hidden state.
 
-The source customization key contains account/library context. The exported logical browser section deliberately discards that source context and retains only order/hidden choices. Restore must not write a source key literally to a replacement appliance. After Plexamp has been freshly claimed and the target library selected, the future restore path must discover the target's live customization context and translate the saved logical ordering/hidden choices into it.
+The source customization key contains account/library context. The exported logical browser section deliberately discards that source context and retains only order/hidden choices. Phase 4 extends the same live bridge with the supported target-context restore authority rather than ever writing the source key literally:
+
+- `planHome` discovers the live target's current Home customization context and catalogue from already allow-listed `:order` / `:hidden` records only;
+- the saved logical order is mapped onto hubs that exist on the target, target-only hubs are preserved, and saved hubs absent from the target are counted/skipped rather than invented;
+- plan is read-only and returns a target fingerprint binding confirmation to the current target context/raw state;
+- `applyHome` requires explicit confirmation plus that exact fresh fingerprint and refuses a stale target before any Local Storage write;
+- every changed target key is captured as exact raw Local Storage state before mutation; successful writes are tracked, the resulting logical layout is verified, and failures reverse-roll only writes that actually completed back to their exact raw state;
+- `editing`, caches, resources, auth/session and unrelated state remain outside both the read and write boundary;
+- this browser transaction never restarts Plexamp and does not depend on a copied Chromium profile, browser permissions or remote debugging.
+
+The browser owner is intentionally a **separate transactional owner** from the Python/server/Headless restore chain. A Headless restore may restart Plexamp and therefore invalidate a frame-local browser rollback lease; the UI may preview both domains from the same selected backup, but it never promises one atomic transaction across a Plexamp service restart and live Chromium Local Storage mutation.
 
 ## Audio preferences
 
@@ -248,7 +258,7 @@ Restore is a separate operation from export and remains conservative:
 
 The #90 preview endpoint implements steps 1–3 without mutation. `POST /api/settings/restore/preview` accepts schema-v1 JSON in memory, rejects forbidden credential/machine-owned fields case-insensitively, validates bounded portable structures and compares the candidate to a fresh normalised current backup. EQ values are additionally constrained to the production `-6…+6 dB` / `0.5 dB` contract. Its response contains changed paths/counts rather than old/new values and permanently returns `read_only: true` and `apply_enabled: false`. Separate `restore_available`, `server_restore_available` and `plexamp_headless_restore_available` fields describe work available to the distinct confirmed restore endpoint; they never change the read-only meaning of Preview.
 
-The commissioned Pi physically accepted this preview stage on 24 August 2026 using the just-created schema-v1 backup: **0 server-owned differences**, `read_only: true`, `apply_enabled: false`, browser schema `1`, **15 ordered** Home items and **1 hidden** item. The only warning was the expected notice that Plexamp Home comparison/application remains a live-browser stage. The 1280×720 Settings presentation was also physically checked.
+The commissioned Pi physically accepted this preview stage on 24 August 2026 using the just-created schema-v1 backup: **0 server-owned differences**, `read_only: true`, `apply_enabled: false`, browser schema `1`, **15 ordered** Home items and **1 hidden** item. The only warning was the expected notice that Plexamp Home comparison/application remained a future live-browser stage at that checkpoint. The 1280×720 Settings presentation was also physically checked.
 
 The #90 transactional apply endpoint first reached physical acceptance for server-owned ACP state in Phase 2:
 
@@ -269,6 +279,8 @@ The stale-preview path is also physically accepted. After a Preview reported one
 
 For owner clarity, the restore controls are deliberately separate: **Review restore** only reveals the final confirmation and changes nothing; **Confirm & restore** is the control that sends the mutating request. A refused `409 fresh_preview_required` response is presented as a conspicuous **Restore blocked — no settings were changed** warning while preserving the backend reason. The first warning/control logic and CSS changes passed synchronized `develop` **Tests #4311/#4312**; the owning restore-client fix and cache/source gates passed **Tests #4320/#4321**. The final commissioned-Pi re-check on 30 August confirmed the corrected full blocked wording and accepted the two-stage mutation boundary.
 
+Plexamp Home is deliberately not folded into that Python transaction. Settings can use the same selected backup and present the browser Home plan alongside server/Headless work, but confirmed Home mutation is a separate live-browser transaction with its own target fingerprint and exact rollback snapshot. This keeps the rollback claim truthful when the server transaction includes a Headless preference change that briefly restarts Plexamp.
+
 ### Plexamp Headless restore boundary — PHYSICALLY ACCEPTED
 
 Phase 3 extends the same confirmed restore transaction with a dedicated Plexamp-owned stage; it does **not** turn the Plexamp Settings directory into a generic file-copy unit:
@@ -285,7 +297,7 @@ Phase 3 extends the same confirmed restore transaction with a dedicated Plexamp-
 - the outer restore transaction applies **Unified Settings → Master EQ → persistent mixer → Plexamp Headless** and rolls earlier ACP owners back if the Headless stage fails;
 - the Preview fingerprint includes Headless capability/version context, so an installed-version or readiness change between Preview and Apply invalidates the preview before mutation;
 - Settings now presents **ACP/server**, **Plexamp Headless** and **Plexamp Home layout** separately. It reports counts/availability only and never displays old/new preference values;
-- Plexamp Home `order` / `hidden` application is still deferred until the target's live browser customization context can be discovered and rolled back safely.
+- Plexamp Home remains outside the Headless transaction and is owned by the separate Phase-4 live-browser plan/apply boundary, with no Plexamp service restart.
 
 The first commissioned-Pi Phase-3 status probe on 30 August 2026 was intentionally read-only and caught an ownership mismatch before any Plexamp preference mutation. It proved all **8/8** allow-listed preference files valid, the Settings directory present and `plexamp.service` active, while reporting `installed_version: null` / `restore_ready: false`. A second read-only inspection proved why: the commissioned runtime has no `~/plexamp/package.json`; its verified identity is the installer-owned `~/plexamp/.a-clockwork-plex-runtime` manifest with `kind=plexamp`, `version=4.13.2` and the pinned archive SHA-256. The helper correctly failed closed rather than guessing.
 
@@ -301,7 +313,24 @@ Commissioned-Pi Phase-3 acceptance completed on 31 August 2026:
 - the final Preview of the original baseline returned **0 differences / 0 restorable changes**;
 - `a-clockwork-plex.service` and `plexamp.service` remained active, the restricted owner remained `restore_ready: true`, the repository remained clean, and the owner physically confirmed Plexamp still opened and played normally after both controlled restarts.
 
-The destructive late-restart rollback path remains intentionally covered by controlled automated fault injection rather than being forced on the commissioned appliance. Phase 3 is therefore **physically accepted**. The next #90 restore stage is target-context-aware Plexamp Home `order` / `hidden` application through the live browser owner.
+The destructive late-restart rollback path remains intentionally covered by controlled automated fault injection rather than being forced on the commissioned appliance. Phase 3 is therefore **physically accepted**.
+
+### Plexamp Home restore boundary — IMPLEMENTED / CI ACCEPTED; PHYSICAL ACCEPTANCE NEXT
+
+Phase 4 adds the separately transactional browser-owned Home restore path without widening the #89 export/read boundary:
+
+- the existing permission-free localhost-only content bridge now exposes validated `planHome` and `applyHome` requests in addition to export;
+- planning discovers the live target customization context, maps saved logical Home choices to the target catalogue, preserves target-only hubs and safely skips saved hubs that do not exist on the target;
+- plan is read-only and returns counts plus a target fingerprint rather than exposing contextual key names or arbitrary browser values to Settings;
+- Apply is available only after explicit Home confirmation and refuses a stale fingerprint before the first write;
+- the bridge snapshots exact raw state for each changed target-context `order` / `hidden` key, performs only those allow-listed writes, verifies the effective logical layout and reverse-rolls successful writes to exact raw state on failure;
+- rollback bookkeeping tracks a mutation only after its write completes successfully, so an exception on a write is not falsely treated as a completed mutation;
+- auth/session/resource/cache/editor state and unrelated Local Storage remain outside both the read and write boundaries; no extension permissions, background worker, remote-debugging path or server-side browser-state staging was added;
+- Settings keeps Home visually distinct from ACP/server and Plexamp Headless work and uses a separate browser confirmation/apply transaction so a Headless service restart cannot invalidate browser rollback state;
+- Node/browser contract tests cover target-aware mapping, target-only preservation, missing-source-hub skipping, successful write/verification, stale-target refusal before mutation, injected mid-transaction failure with exact raw rollback and strict parent-side response validation;
+- source/wiring CI gates pin the Home controls, bridge methods, target fingerprint, `20260831-home-restore-v1` Settings cache token and completed-write rollback invariant.
+
+The exact final implementation head `f010ae1b8700301bd4898e733ecdafd10bcfd480` passed synchronized **develop Tests #4359: 983 tests, `OK`** on 31 August 2026. Phase 4 therefore advances to commissioned-Pi physical acceptance. The open physical gate is one harmless Home reorder/hide round-trip: prove read-only planning and explicit confirmation, verify the applied logical target state, restore the original Home state, and confirm Plexamp login/library/player identity plus normal playback are unchanged.
 
 Managed secrets remain a deliberate **post-restore commissioning step** throughout every phase.
 
@@ -375,4 +404,16 @@ The complete schema-v1 export path is physically accepted on the commissioned Pi
 - [x] Incompatible-version Preview physically passed with exactly one detected Headless difference deferred, zero restorable work and before/after proof of zero mutation.
 - [x] Exact-version `autoPlayEnabled` round-trip physically passed: one verified apply to the temporary value, one verified apply back to the original value, final zero-difference Preview, healthy services and normal Plexamp playback.
 
-Plexamp live-browser Home application is the next #90 phase after completed Headless preference physical acceptance.
+### Phase 4 — target-context-aware Plexamp Home order/hidden apply — IMPLEMENTED / CI ACCEPTED; PHYSICAL ACCEPTANCE NEXT
+
+- [x] Live localhost-only browser owner implements read-only Home planning and separate confirmed Home application against the target's current Plexamp customization context.
+- [x] Saved logical Home choices are mapped to target hubs without transplanting source contextual keys; target-only hubs are preserved and unavailable source hubs are skipped/reported.
+- [x] Home plan is read-only and target-fingerprinted; stale target state is refused before any write.
+- [x] Home Apply is explicitly confirmed, snapshots exact raw target state, writes only allow-listed target-context `order` / `hidden` records, verifies the logical result and reverse-rolls completed writes exactly on failure.
+- [x] Auth/session/resource/cache/editor and unrelated browser state remain outside the read/write boundary; extension permissions and kiosk debugging authority remain unchanged.
+- [x] Settings keeps browser Home as a separate transaction from server/Headless restore so a Plexamp restart cannot invalidate browser rollback state.
+- [x] Automated target mapping, stale-preview, successful-apply, exact-rollback and client-validation coverage is in the synchronized suite.
+- [x] **Tests #4359** passed on `f010ae1b8700301bd4898e733ecdafd10bcfd480`: **983 tests, `OK`** on 31 August 2026.
+- [ ] Commissioned-Pi physical acceptance remains: harmless Home reorder/hide round-trip, restore original layout, then verify Plexamp login/library/player identity and normal playback remain unchanged.
+
+Final #90 closure remains gated on synchronized docs-inclusive CI plus that Phase-4 physical acceptance.
