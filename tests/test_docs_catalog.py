@@ -36,6 +36,7 @@ DEVELOPMENT_ARCHITECTURE = {
     "application-state-architecture.md",
     "airplay-metadata.md",
     "airplay-segment-cell.svg",
+    "bbc-news.md",
     "configuration-backup-ownership.md",
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
@@ -45,6 +46,7 @@ DEVELOPMENT_TESTING = {
     "testing.md",
     "test-catalogue.md",
     "alarm-audio-testing.md",
+    "bbc-news-testing.md",
     "fresh-appliance-acceptance-runbook.md",
 }
 DEVELOPMENT_EVIDENCE = {
