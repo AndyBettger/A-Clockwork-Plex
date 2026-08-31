@@ -2,7 +2,7 @@
 
 ## Status
 
-Checkpoint #92 is in progress. The feed/cache/API foundation passed automated gates and the commissioned appliance successfully fetched the current real BBC feeds on 31 August 2026. The touchscreen News page and News Settings workspace are implemented on the feature branch but remain subject to physical 1280×720 acceptance before #92 can close.
+Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. The feed/cache/API foundation, touchscreen News page, News Settings workspace, startup/idle integration and stale-cache behaviour have all been exercised on the Raspberry Pi. The final acceptance pass completed across 31 August and 1 September 2026.
 
 ## Feed authority
 
@@ -38,7 +38,7 @@ The touchscreen detail panel shows only the same feed-owned title, category, pub
 
 `app/news_ui.py` registers `/news` as a normal A Clockwork Plex screen and adds `news` to the existing dashboard/screen-projection mode sets. It deliberately reuses the established manual-screen lease authority rather than adding a parallel navigation owner.
 
-News is manually leasable so an active background audio session does not immediately replace the page while the user is reading it. It is deliberately **not** added to the startup/idle-return destination set at checkpoint #92; News is an information surface the user opens, not a new automatic appliance destination.
+News is manually leasable so an active background audio session does not immediately replace the page while the user is reading it. Following the physical follow-up, News is also a supported **Startup screen** and **Idle return screen** destination through the existing dashboard, unified-Settings, startup-bootstrap and screen-projection authorities. The commissioned appliance physically proved idle return to News and a real reboot/startup into News.
 
 The normal main navigation includes News alongside Clock, Weather, Plexamp, AirPlay and Settings.
 
@@ -50,13 +50,16 @@ The normal main navigation includes News alongside Clock, Weather, Plexamp, AirP
 - Top Stories, UK, World, Science and Technology choices filtered by the saved enabled-category model;
 - scrollable headline cards showing category, published time, title and optional feed summary;
 - local feed-detail modal on story tap;
-- explicit ready/degraded/stale/update state;
-- Top Stories ticker fixed to the bottom of the News surface;
+- explicit ready/degraded/stale/source-time state;
+- theme-aware BBC feed-time pill;
+- Weather-style synchronized vertical scroll rail/thumb while normal touch scrolling remains on the story list;
+- Top Stories ticker fixed to the bottom of the News surface when enabled;
+- ticker-off removes the whole strip and returns its height to the category/story area;
 - theme-variable styling and 1280×720-first geometry.
 
 All story title/summary rendering uses DOM `textContent`; RSS markup is already reduced to plain text server-side. The browser performs no BBC article fetches.
 
-Real BBC feeds can contain repeated entries and older/promotional records further down the source order. The raw cached feed is preserved unchanged. Presentation performs semantic de-duplication by normalised title plus published timestamp and preserves the BBC feed order. The main list shows at most the leading 24 unique entries and the ticker at most the leading 12 unique Top Stories; this keeps the touchscreen/ticker focused without rewriting source data.
+Real BBC feeds can contain repeated entries and older/promotional records further down the source order. The raw cached feed is preserved unchanged. Presentation performs semantic de-duplication by normalised title and preserves the BBC feed order. The main list shows at most the leading 24 unique entries and the ticker at most the leading 12 unique Top Stories; this keeps the touchscreen/ticker focused without rewriting source data.
 
 ## BBC branding
 
@@ -68,7 +71,7 @@ The RSS/content cache is stored locally. The small feed-supplied BBC logo image 
 
 The ticker is derived from the same cached Top Stories feed. It has no independent network source and exposes only story id, title, published timestamp and `top` category. Top Stories remains a fetch dependency for the ticker even when the user hides Top Stories from the News category rail.
 
-The ticker is general BBC News, not labelled as a breaking-news wire. Presentation maps the saved speed choices to bounded client-side motion rates and honours the browser reduced-motion preference. Slow/Normal/Fast remain subject to physical tuning on the Touch Display 2.
+The ticker is general BBC News, not labelled as a breaking-news wire. Presentation maps the saved speed choices to bounded client-side motion rates and honours the browser reduced-motion preference. Slow/Normal/Fast were physically checked on the Touch Display 2 and accepted.
 
 ## Settings ownership
 
@@ -90,16 +93,24 @@ News preferences are included in portable configuration backup/restore; download
 
 BBC/network/XML failure must never affect the rest of the appliance. A failed category keeps its previous successful feed when available and records an explicit degraded/stale/error state. The News page labels stale data rather than replacing it with invented content.
 
-## Remaining acceptance
+A real commissioned-appliance connectivity interruption physically proved this boundary: while Wi-Fi was unavailable, the News page retained cached stories and ticker content, exposed the cached/stale state in the lower-left status pill, and retained the last BBC feed time. Normal fresh updates resumed after Wi-Fi reconnected.
 
-The backend/live-feed boundary is proven. Checkpoint #92 still requires physical 1280×720 verification of:
+The same incident also exposed a separate appliance-storage concern: the Pi root filesystem had previously remounted read-only, causing unrelated ACP state writes to fail. That storage-resilience investigation is intentionally tracked as future appliance work rather than attributed to BBC News.
+
+## Physical acceptance
+
+Checkpoint #92 physical acceptance at 1280×720 confirms:
 
 - left-rail layout and category switching;
-- touch scrolling and local detail modal;
-- feed-supplied logo/fallback behaviour;
-- News Settings save/discard and category constraints;
+- touch scrolling, Weather-style custom vertical scrollbar and local detail modal;
+- feed-supplied BBC logo/fallback presentation and source-time/status pills;
+- News Settings overview plus Sections and Presentation subpages;
+- category enablement/default-category constraints;
 - summary visibility;
-- ticker on/off and Slow/Normal/Fast feel;
-- night/dimming/theme treatment;
-- manual screen lease and idle-return behaviour;
-- no regression to Clock, Weather, Plexamp, AirPlay or alarms.
+- ticker on/off, reclaimed layout height and Slow/Normal/Fast speeds;
+- manual News navigation/lease behaviour;
+- News as both Startup and Idle return destination, including a real reboot into News;
+- cached/stale presentation during a real Wi-Fi interruption with stories/ticker retained;
+- navigation back to the other dashboard surfaces without regression.
+
+Checkpoint #92 is complete subject only to the normal closing documentation/CI/integration bookkeeping.
