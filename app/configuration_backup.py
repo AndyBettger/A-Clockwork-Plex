@@ -195,7 +195,7 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
             portable_observations["weather_underground"] = wunderground
         weather["observations"] = portable_observations
 
-    return {
+    result = {
         "dashboard": dashboard,
         "display": display,
         "weather": weather,
@@ -210,6 +210,13 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
             ),
         ),
     }
+    news = _pick(
+        settings.get("news"),
+        ("enabled_categories", "default_category", "show_summaries", "ticker"),
+    )
+    if news:
+        result["news"] = news
+    return result
 
 
 def portable_eq(settings: dict[str, Any]) -> dict[str, Any]:
@@ -238,131 +245,93 @@ def portable_mixer(status: dict[str, Any]) -> dict[str, int]:
     return result
 
 
-class ConfigurationBackupService:
-    """Build a versioned read-only export from existing appliance authorities."""
+def _read_app_version(path: Path) -> str:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "unknown"
+    version = payload.get("version") if isinstance(payload, dict) else None
+    return str(version).strip() or "unknown"
 
+
+class ConfigurationBackupService:
     def __init__(
         self,
         *,
         settings_snapshot: SettingsSnapshot,
         app_version_path: Path,
-        home: Path | None = None,
         mixer_snapshot: MixerSnapshot | None = None,
+        plexamp_home: Path | None = None,
         now_provider: NowProvider | None = None,
     ) -> None:
         self._settings_snapshot = settings_snapshot
         self._app_version_path = Path(app_version_path)
-        self._home = Path.home() if home is None else Path(home)
         self._mixer_snapshot = mixer_snapshot
+        self._plexamp_home = Path(plexamp_home).expanduser() if plexamp_home else Path.home()
         self._now = now_provider or (lambda: datetime.now().astimezone())
-
-    def _version_metadata(self) -> dict[str, Any]:
-        try:
-            payload = json.loads(self._app_version_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"Application version metadata is unavailable: {exc}") from exc
-        if not isinstance(payload, dict):
-            raise RuntimeError("Application version metadata must be a JSON object.")
-        return payload
 
     def build(self) -> dict[str, Any]:
         snapshot = self._settings_snapshot()
-        if not isinstance(snapshot, dict) or not isinstance(snapshot.get("settings"), dict):
-            raise RuntimeError("Unified Settings did not return a valid snapshot.")
-        settings = snapshot["settings"]
-        version = self._version_metadata()
-        now = self._now()
-        if now.tzinfo is None:
-            now = now.astimezone()
-
-        headless, headless_warnings = read_plexamp_headless_preferences(self._home)
-        plexamp: dict[str, Any] = {"headless_preferences": headless}
-        plexamp_version = read_plexamp_version(self._home)
-        if plexamp_version:
-            plexamp["source_version"] = plexamp_version
-
-        audio: dict[str, Any] = {"eq": portable_eq(settings)}
-        omissions: list[dict[str, str]] = [
-            {
-                "section": "plexamp.browser_preferences",
-                "reason": "Home-layout export awaits a live browser-side allow-listed authority; Chromium profile/LevelDB files are never copied.",
-            },
-            {
-                "section": "credentials",
-                "reason": "Managed secrets and authentication are deliberately excluded and must be recommissioned.",
-            },
-        ]
-        if self._mixer_snapshot is not None:
-            try:
-                mixer = portable_mixer(self._mixer_snapshot())
-            except Exception as exc:
-                mixer = {}
-                headless_warnings.append(f"Persistent mixer levels were skipped: {exc}")
-            if mixer:
-                audio["mixer"] = mixer
-            else:
-                omissions.append(
-                    {
-                        "section": "a_clockwork_plex.audio.mixer",
-                        "reason": "Persistent mixer levels were unavailable at export time.",
-                    }
-                )
-        else:
-            omissions.append(
-                {
-                    "section": "a_clockwork_plex.audio.mixer",
-                    "reason": "Persistent mixer provider is unavailable.",
-                }
-            )
-
+        settings = _object(snapshot.get("settings"))
+        plexamp_preferences, warnings = read_plexamp_headless_preferences(self._plexamp_home)
+        plexamp_version = read_plexamp_version(self._plexamp_home)
+        mixer = portable_mixer(self._mixer_snapshot()) if self._mixer_snapshot else {}
         return {
             "schema_version": BACKUP_SCHEMA_VERSION,
-            "created_at": now.isoformat(timespec="seconds"),
+            "created_at": self._now().isoformat(timespec="seconds"),
             "source": {
-                "application": str(version.get("name") or "A Clockwork Plex"),
-                "app_version": str(version.get("version") or ""),
-                "release_tag": str(version.get("tag") or ""),
-                "release_name": str(version.get("release_name") or ""),
+                "application": "A Clockwork Plex",
+                "application_version": _read_app_version(self._app_version_path),
+                "plexamp_version": plexamp_version,
             },
             "a_clockwork_plex": {
                 "settings": portable_settings(settings),
-                "audio": audio,
+                "audio": {
+                    "eq": portable_eq(settings),
+                    "mixer": mixer,
+                },
             },
-            "plexamp": plexamp,
+            "plexamp": {
+                "source_version": plexamp_version,
+                "headless_preferences": plexamp_preferences,
+                "browser_preferences": {
+                    "schema_version": 1,
+                    "home": None,
+                },
+            },
             "export_report": {
-                "warnings": headless_warnings,
-                "omitted": omissions,
+                "included": [
+                    "ACP user-facing settings",
+                    "managed EQ state",
+                    "live mixer volumes when available",
+                    "allow-listed Plexamp Headless preferences",
+                    "Plexamp Home layout is collected separately by the browser bridge",
+                ],
+                "excluded": [
+                    "Weather Underground API key or any other secret",
+                    "Plex/Plexamp authentication or account state",
+                    "machine-specific audio device identity",
+                    "runtime caches, alarm occurrence state and logs",
+                    "raw Plexamp/Chromium profiles and resource databases",
+                ],
+                "warnings": warnings,
             },
         }
 
-    def filename(self) -> str:
-        stamp = self._now().strftime("%Y-%m-%d_%H%M%S")
-        return f"A-Clockwork-Plex-backup-{stamp}.json"
 
-
-def register_configuration_backup_api(
-    app: Flask,
-    service: ConfigurationBackupService,
-) -> None:
-    if "api_configuration_backup" in app.view_functions:
+def register_configuration_backup_api(app: Flask, service: ConfigurationBackupService) -> None:
+    if "api_settings_backup" in app.view_functions:
         return
 
     @app.get("/api/settings/backup")
-    def api_configuration_backup() -> Response:
-        try:
-            backup = service.build()
-        except RuntimeError as exc:
-            return Response(
-                json.dumps({"ok": False, "error": str(exc)}),
-                status=503,
-                mimetype="application/json",
-            )
-        response = Response(
-            json.dumps(backup, indent=2, ensure_ascii=False) + "\n",
-            mimetype="application/json",
-        )
+    def api_settings_backup():
+        payload = service.build()
+        stamp = self_stamp = service._now().strftime("%Y%m%d-%H%M%S")
+        _ = self_stamp
+        body = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        response = Response(body, content_type="application/json; charset=utf-8")
         response.headers["Content-Disposition"] = (
-            f'attachment; filename="{service.filename()}"'
+            f'attachment; filename="a-clockwork-plex-backup-{stamp}.json"'
         )
         response.headers["Cache-Control"] = "no-store"
         return response
