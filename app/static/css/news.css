@@ -7,6 +7,11 @@
   gap: var(--safe-gap);
 }
 
+.news-page.is-ticker-hidden {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+}
+
 .news-shell {
   min-height: 0;
   display: grid;
@@ -214,6 +219,10 @@
   color: var(--muted);
   font-size: clamp(0.82rem, 1.9vmin, 1rem);
   line-height: 1.28;
+}
+
+.news-ticker[hidden] {
+  display: none;
 }
 
 .news-ticker {
