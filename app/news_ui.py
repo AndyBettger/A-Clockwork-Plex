@@ -12,11 +12,11 @@ except ImportError:  # Supports direct execution imports.
     import settings_unified as _settings_unified
 
 
-def _install_news_settings_mode_option(dashboard: Any) -> None:
-    """Add News to the existing Settings destination catalogue once."""
+def _wrap_news_settings_mode_option(owner: Any) -> None:
+    """Add News to one existing Settings destination-context owner once."""
 
-    original = dashboard.settings_page_context
-    if getattr(original, "_acp_news_aware", False):
+    original = getattr(owner, "settings_page_context", None)
+    if not callable(original) or getattr(original, "_acp_news_aware", False):
         return
 
     def settings_page_context(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -39,7 +39,22 @@ def _install_news_settings_mode_option(dashboard: Any) -> None:
         return context
 
     settings_page_context._acp_news_aware = True  # type: ignore[attr-defined]
-    dashboard.settings_page_context = settings_page_context
+    owner.settings_page_context = settings_page_context
+
+
+def _install_news_settings_mode_option(dashboard: Any) -> None:
+    """Extend both the public dashboard copy and canonical Settings owner.
+
+    ``app.main`` re-exports ``dashboard_core.settings_page_context`` by value,
+    while Flask's long-lived ``/settings`` route continues to resolve the
+    original function from ``dashboard_core``. Patch both owners so the live
+    route and compatibility imports see the same destination catalogue.
+    """
+
+    _wrap_news_settings_mode_option(dashboard)
+    core = getattr(dashboard, "core", None)
+    if core is not None and core is not dashboard:
+        _wrap_news_settings_mode_option(core)
 
 
 def register_news_ui(app: Any, dashboard: Any) -> None:
