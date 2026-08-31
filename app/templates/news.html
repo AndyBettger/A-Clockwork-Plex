@@ -2,10 +2,10 @@
 {% set active_page = 'news' %}
 {% block title %}BBC News - A Clockwork Plex{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20260831-news-v1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20260831-news-v2') }}">
 {% endblock %}
 {% block content %}
-<section class="news-page" aria-label="BBC News">
+<section class="news-page is-ticker-hidden" aria-label="BBC News">
   <div class="news-shell">
     <aside class="news-rail" aria-label="BBC News categories">
       <div class="news-brand" aria-label="BBC News">
@@ -15,7 +15,6 @@
       <nav class="news-category-list" data-news-categories aria-label="News sections"></nav>
       <div class="news-rail-status">
         <span class="news-status-pill" data-news-status>Loading</span>
-        <small data-news-updated>Waiting for cached BBC News</small>
       </div>
     </aside>
 
@@ -55,5 +54,5 @@
 {% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/news.js', v='20260831-news-v1') }}"></script>
+<script src="{{ url_for('static', filename='js/news.js', v='20260831-news-v2') }}"></script>
 {% endblock %}
