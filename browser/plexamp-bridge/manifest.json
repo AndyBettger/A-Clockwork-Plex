@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "A Clockwork Plex - Plexamp Bridge",
-  "version": "1.0.5",
-  "description": "Read-only bridge for allow-listed Plexamp Home preferences inside the dedicated appliance kiosk.",
+  "version": "1.1.0",
+  "description": "Local allow-listed backup and transactional restore bridge for Plexamp Home preferences inside the dedicated appliance kiosk.",
   "content_scripts": [
     {
       "matches": [
