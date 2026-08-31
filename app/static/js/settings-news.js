@@ -33,40 +33,57 @@
     <header class="settings-detail-header">
       <div><h2>News</h2><p>Choose the BBC News sections shown on the appliance and how the Top Stories ticker behaves.</p></div>
     </header>
-    <section class="settings-card">
-      <div class="settings-card-heading">
-        <div><h3>BBC News service</h3><p class="muted small">Headlines come from the appliance's cached BBC RSS feeds; article web pages are never opened by the kiosk.</p></div>
-        <span class="settings-chip" data-news-settings-status>Loading…</span>
-      </div>
-      <p class="muted small" data-news-settings-message>Checking cached BBC News status.</p>
+    <div class="settings-subpage-overview" data-settings-overview="news">
+      <section class="settings-card">
+        <div class="settings-card-heading">
+          <div><h3>BBC News service</h3><p class="muted small">Headlines come from the appliance's cached BBC RSS feeds; article web pages are never opened by the kiosk.</p></div>
+          <span class="settings-chip" data-news-settings-status>Loading…</span>
+        </div>
+        <p class="muted small" data-news-settings-message>Checking cached BBC News status.</p>
+      </section>
+      <button class="settings-subpage-row" type="button" data-settings-subpage-target="news:sections">
+        <span><strong>Sections</strong><small>Enabled categories and the default News section</small></span><span>›</span>
+      </button>
+      <button class="settings-subpage-row" type="button" data-settings-subpage-target="news:presentation">
+        <span><strong>Presentation</strong><small>Story summaries and Top Stories ticker</small></span><span>›</span>
+      </button>
+    </div>
+    <section class="settings-subpage" data-settings-subpage="news:sections" hidden>
+      <button class="settings-back" type="button" data-settings-back="news">‹ News</button>
+      <section class="settings-card">
+        <h3>Sections</h3>
+        <p class="muted small">Enabled sections appear in the News page's left-hand menu. At least one section must remain enabled.</p>
+        <div class="settings-grid two-col" data-news-category-controls></div>
+      </section>
+      <section class="settings-card">
+        <h3>Default section</h3>
+        <div class="settings-grid two-col">
+          <label class="setting-field">
+            <span>Section opened first</span>
+            <select data-news-default-category></select>
+            <small>The section selected when the News page is first opened.</small>
+          </label>
+        </div>
+      </section>
     </section>
-    <section class="settings-card">
-      <h3>Sections</h3>
-      <p class="muted small">Enabled sections appear in the News page's left-hand menu. At least one section must remain enabled.</p>
-      <div class="settings-grid two-col" data-news-category-controls></div>
-      <div class="settings-grid two-col">
-        <label class="setting-field">
-          <span>Default section</span>
-          <select data-news-default-category></select>
-          <small>The section selected when the News page is first opened.</small>
-        </label>
-      </div>
-    </section>
-    <section class="settings-card">
-      <h3>Presentation</h3>
-      <div class="settings-grid two-col">
-        <label class="setting-toggle"><input type="checkbox" data-news-show-summaries><span>Show story summaries</span></label>
-        <label class="setting-toggle"><input type="checkbox" data-news-ticker-enabled><span>Show Top Stories ticker</span></label>
-        <label class="setting-field">
-          <span>Ticker speed</span>
-          <select data-news-ticker-speed>
-            <option value="slow">Slow</option>
-            <option value="normal">Normal</option>
-            <option value="fast">Fast</option>
-          </select>
-          <small>The ticker always uses the leading cached Top Stories, independent of the section being viewed.</small>
-        </label>
-      </div>
+    <section class="settings-subpage" data-settings-subpage="news:presentation" hidden>
+      <button class="settings-back" type="button" data-settings-back="news">‹ News</button>
+      <section class="settings-card">
+        <h3>Presentation</h3>
+        <div class="settings-grid two-col">
+          <label class="setting-toggle"><input type="checkbox" data-news-show-summaries><span>Show story summaries</span></label>
+          <label class="setting-toggle"><input type="checkbox" data-news-ticker-enabled><span>Show Top Stories ticker</span></label>
+          <label class="setting-field">
+            <span>Ticker speed</span>
+            <select data-news-ticker-speed>
+              <option value="slow">Slow</option>
+              <option value="normal">Normal</option>
+              <option value="fast">Fast</option>
+            </select>
+            <small>The ticker always uses the leading cached Top Stories, independent of the section being viewed.</small>
+          </label>
+        </div>
+      </section>
     </section>
   `;
 
