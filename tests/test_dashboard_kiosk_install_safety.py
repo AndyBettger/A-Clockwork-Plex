@@ -245,6 +245,236 @@ process.stdout.write(JSON.stringify(bridge.buildSnapshot(storage)));
         self.assertNotIn("PRIVATE:HOME/ONE", result.stdout)
         self.assertNotIn("normal.hub/two", result.stdout)
 
+    def test_home_plan_maps_saved_layout_onto_target_and_preserves_target_only_hubs(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const values = new Map([
+  ['mmkv.default\\discovery:customizations:targetctx::/library/sections/9:order', JSON.stringify({'0': ['hub.a', 'hub.b', 'hub.c']})],
+  ['mmkv.default\\discovery:customizations:targetctx::/library/sections/9:hub.c:hidden', JSON.stringify({'0': true})],
+]);
+const storage = {
+  get length() { return values.size; },
+  key(index) { return Array.from(values.keys())[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+  setItem(key, value) { values.set(key, String(value)); },
+  removeItem(key) { values.delete(key); },
+};
+const plan = bridge.planHome(storage, {
+  order: ['hub.b', 'hub.a', 'hub.missing'],
+  hidden: ['hub.a', 'hub.missing'],
+});
+process.stdout.write(JSON.stringify(plan));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["status"], "ready")
+        self.assertTrue(plan["read_only"])
+        self.assertTrue(plan["restore_available"])
+        self.assertEqual(plan["change_count"], 2)
+        self.assertTrue(plan["order_changed"])
+        self.assertEqual(plan["hidden_change_count"], 1)
+        self.assertEqual(plan["missing_item_count"], 1)
+        self.assertEqual(plan["target_only_item_count"], 1)
+        self.assertEqual(plan["target_known_item_count"], 3)
+        self.assertRegex(plan["target_fingerprint"], r"^[a-f0-9]{8}$")
+
+    def test_home_apply_writes_only_target_context_and_verifies_effective_layout(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const authKey = 'mmkv.default\\authToken';
+const cacheKey = 'mmkv.default\\music.popular.9:cachedItems';
+const values = new Map([
+  ['mmkv.default\\discovery:customizations:targetctx::/library/sections/9:order', JSON.stringify({'0': ['hub.a', 'hub.b', 'hub.c']})],
+  ['mmkv.default\\discovery:customizations:targetctx::/library/sections/9:hub.c:hidden', JSON.stringify({'0': true})],
+  [authKey, 'AUTH-MUST-STAY'],
+  [cacheKey, 'CACHE-MUST-STAY'],
+]);
+const storage = {
+  get length() { return values.size; },
+  key(index) { return Array.from(values.keys())[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+  setItem(key, value) { values.set(key, String(value)); },
+  removeItem(key) { values.delete(key); },
+};
+const desired = {
+  order: ['hub.b', 'hub.a', 'hub.missing'],
+  hidden: ['hub.a', 'hub.missing'],
+};
+const plan = bridge.planHome(storage, desired);
+const applied = bridge.applyHome(storage, desired, plan.target_fingerprint, true);
+const snapshot = bridge.buildSnapshot(storage);
+process.stdout.write(JSON.stringify({
+  applied,
+  snapshot,
+  auth: values.get(authKey),
+  cache: values.get(cacheKey),
+  missingKeyCreated: Array.from(values.keys()).some((key) => key.includes('hub.missing')),
+}));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["applied"]["status"], "applied")
+        self.assertTrue(payload["applied"]["applied"])
+        self.assertEqual(payload["applied"]["applied_change_count"], 2)
+        self.assertEqual(payload["snapshot"]["home"]["order"], ["hub.b", "hub.a", "hub.c"])
+        self.assertEqual(payload["snapshot"]["home"]["hidden"], ["hub.a", "hub.c"])
+        self.assertEqual(payload["auth"], "AUTH-MUST-STAY")
+        self.assertEqual(payload["cache"], "CACHE-MUST-STAY")
+        self.assertFalse(payload["missingKeyCreated"])
+
+    def test_home_apply_refuses_stale_target_before_mutation(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const orderKey = 'mmkv.default\\discovery:customizations:targetctx::/library/sections/9:order';
+const values = new Map([[orderKey, JSON.stringify({'0': ['hub.a', 'hub.b', 'hub.c']})]]);
+const writes = [];
+const storage = {
+  get length() { return values.size; },
+  key(index) { return Array.from(values.keys())[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+  setItem(key, value) { writes.push(['set', key]); values.set(key, String(value)); },
+  removeItem(key) { writes.push(['remove', key]); values.delete(key); },
+};
+const desired = { order: ['hub.b', 'hub.a', 'hub.c'], hidden: [] };
+const plan = bridge.planHome(storage, desired);
+values.set(orderKey, JSON.stringify({'0': ['hub.a', 'hub.c', 'hub.b']}));
+const beforeApply = values.get(orderKey);
+const applied = bridge.applyHome(storage, desired, plan.target_fingerprint, true);
+process.stdout.write(JSON.stringify({ applied, writes, unchanged: values.get(orderKey) === beforeApply }));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["applied"]["status"], "stale-target")
+        self.assertTrue(payload["applied"]["fresh_preview_required"])
+        self.assertFalse(payload["applied"]["applied"])
+        self.assertEqual(payload["writes"], [])
+        self.assertTrue(payload["unchanged"])
+
+    def test_home_apply_rolls_back_exact_raw_state_after_injected_write_failure(self):
+        node = r"""
+const bridge = require(process.argv[1]);
+const orderKey = 'mmkv.default\\discovery:customizations:targetctx::/library/sections/9:order';
+const hiddenC = 'mmkv.default\\discovery:customizations:targetctx::/library/sections/9:hub.c:hidden';
+const values = new Map([
+  [orderKey, JSON.stringify({'0': ['hub.a', 'hub.b', 'hub.c']})],
+  [hiddenC, JSON.stringify({'0': true})],
+]);
+const before = JSON.stringify(Array.from(values.entries()).sort());
+let failOnce = true;
+const storage = {
+  get length() { return values.size; },
+  key(index) { return Array.from(values.keys())[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+  setItem(key, value) {
+    if (key.endsWith(':hub.a:hidden') && failOnce) {
+      failOnce = false;
+      throw new Error('injected');
+    }
+    values.set(key, String(value));
+  },
+  removeItem(key) { values.delete(key); },
+};
+const desired = { order: ['hub.b', 'hub.a', 'hub.c'], hidden: ['hub.a'] };
+const plan = bridge.planHome(storage, desired);
+const applied = bridge.applyHome(storage, desired, plan.target_fingerprint, true);
+const after = JSON.stringify(Array.from(values.entries()).sort());
+process.stdout.write(JSON.stringify({ applied, exact: before === after, snapshot: bridge.buildSnapshot(storage) }));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(BRIDGE_CONTENT)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["applied"]["status"], "apply-failed")
+        self.assertFalse(payload["applied"]["applied"])
+        self.assertTrue(payload["applied"]["rolled_back"])
+        self.assertEqual(payload["applied"]["rollback_failure_count"], 0)
+        self.assertTrue(payload["exact"])
+        self.assertEqual(payload["snapshot"]["home"]["order"], ["hub.a", "hub.b", "hub.c"])
+        self.assertEqual(payload["snapshot"]["home"]["hidden"], ["hub.c"])
+
+    def test_dashboard_home_client_validates_plan_and_apply_contracts(self):
+        node = r"""
+global.window = {};
+require(process.argv[1]);
+const api = window.ACPPlexampBrowserPreferences;
+const goodPlan = api.validatePlan({
+  schema_version: 1,
+  status: 'ready',
+  read_only: true,
+  restore_available: true,
+  change_count: 2,
+  order_changed: true,
+  hidden_change_count: 1,
+  missing_item_count: 1,
+  target_only_item_count: 1,
+  target_known_item_count: 3,
+  target_fingerprint: '1234abcd',
+});
+const badPlan = api.validatePlan({
+  schema_version: 1,
+  status: 'ready',
+  read_only: false,
+  restore_available: true,
+  change_count: 2,
+  order_changed: true,
+  hidden_change_count: 1,
+  missing_item_count: 1,
+  target_only_item_count: 1,
+  target_known_item_count: 3,
+  target_fingerprint: '1234abcd',
+});
+const goodApply = api.validateApply({
+  schema_version: 1,
+  status: 'applied',
+  applied: true,
+  rolled_back: false,
+  applied_change_count: 2,
+  missing_item_count: 1,
+  target_only_item_count: 1,
+  target_fingerprint: '89abcdef',
+});
+process.stdout.write(JSON.stringify({ goodPlan, badPlan, goodApply }));
+"""
+        result = subprocess.run(
+            ["node", "-e", node, str(DASHBOARD_BRIDGE)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["goodPlan"]["restore_available"])
+        self.assertIsNone(payload["badPlan"])
+        self.assertTrue(payload["goodApply"]["applied"])
+        self.assertEqual(payload["goodApply"]["applied_change_count"], 2)
+
     def test_installer_defaults_to_read_only_and_requires_confirmation(self):
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn('MODE="check"', text)
