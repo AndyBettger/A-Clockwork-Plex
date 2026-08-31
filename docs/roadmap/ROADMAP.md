@@ -438,7 +438,7 @@ Keeping completed work off the future list matters. Otherwise the roadmap starts
 3. [x] Documentation/portability/branch hygiene through #77.
 4. [x] Maintainer test-suite catalogue (#78).
 5. [x] Settings → About/version contract (#79).
-6. [x] Release-ready README/INSTALL and visual first-use material (#80].
+6. [x] Release-ready README/INSTALL and visual first-use material (#80).
 7. [x] Pre-approval validation (#81).
 8. [x] Final blank-Pi follow-up/spot-check (#82).
 9. [x] Explicit owner approval for PR #2 merge — received 23 August 2026.
