@@ -39,19 +39,23 @@ body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration
 }
 
 body.mode-settings [data-configuration-restore-preview]:not([hidden]),
-body.mode-settings [data-configuration-restore-apply-zone]:not([hidden]) {
+body.mode-settings [data-configuration-restore-apply-zone]:not([hidden]),
+body.mode-settings [data-configuration-browser-restore-zone]:not([hidden]) {
   display: grid;
   gap: 14px;
 }
 
 body.mode-settings [data-configuration-restore-preview] > .settings-grid,
 body.mode-settings [data-configuration-restore-apply-zone] > p,
-body.mode-settings [data-configuration-restore-confirm] > .settings-action-row {
+body.mode-settings [data-configuration-browser-restore-zone] > p,
+body.mode-settings [data-configuration-restore-confirm] > .settings-action-row,
+body.mode-settings [data-configuration-browser-restore-confirm] > .settings-action-row {
   margin-top: 0;
   margin-bottom: 0;
 }
 
-body.mode-settings [data-configuration-restore-apply-zone] > .settings-action-row {
+body.mode-settings [data-configuration-restore-apply-zone] > .settings-action-row,
+body.mode-settings [data-configuration-browser-restore-zone] > .settings-action-row {
   margin-top: 0;
 }
 
@@ -59,7 +63,13 @@ body.mode-settings [data-configuration-restore-confirm]:not([hidden]) {
   margin-top: 2px;
 }
 
-body.mode-settings [data-configuration-restore-confirm] > .settings-action-row {
+/* The Home confirmation card should not visually collide with its Review row. */
+body.mode-settings [data-configuration-browser-restore-confirm]:not([hidden]) {
+  margin-top: 14px;
+}
+
+body.mode-settings [data-configuration-restore-confirm] > .settings-action-row,
+body.mode-settings [data-configuration-browser-restore-confirm] > .settings-action-row {
   margin-top: 8px;
 }
 

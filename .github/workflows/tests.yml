@@ -115,7 +115,8 @@ jobs:
           grep -q "settings-ipad.js" app/templates/settings.html
           grep -q "settings-advanced.js" app/templates/settings.html
           grep -q "settings-ipad.css" app/templates/settings.html
-          grep -q "20260831-home-restore-v1" app/templates/settings.html
+          grep -q "20260831-home-restore-feedback-v2" app/templates/settings.html
+          grep -q "20260831-home-restore-feedback-v2" app/templates/base.html
           grep -q "('audio', 'Audio'" app/templates/settings.html
           grep -Fq 'airplay.receiver_name' app/templates/settings.html
           grep -Fq 'data-eq-range="{{ band }}"' app/templates/settings.html
@@ -151,6 +152,8 @@ jobs:
           grep -q "apply-plexamp-home-restore" app/static/js/settings-about.js
           grep -q "confirm-plexamp-home-restore" app/static/js/settings-about.js
           grep -q "target_fingerprint" app/static/js/settings-about.js
+          grep -q "The live Home layout now matches this backup." app/static/js/settings-about.js
+          grep -Fq '[data-configuration-browser-restore-confirm]:not([hidden])' app/static/css/settings-backup-restore.css
           grep -q "ACPPlexampBrowserPreferences" app/static/js/plexamp-browser-bridge.js
           grep -q "planHome" app/static/js/plexamp-browser-bridge.js
           grep -q "applyHome" app/static/js/plexamp-browser-bridge.js

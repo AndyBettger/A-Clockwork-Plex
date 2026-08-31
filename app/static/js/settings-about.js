@@ -652,9 +652,14 @@
         throw new Error('Plexamp Home write completed but the follow-up live verification did not converge.');
       }
       renderRestorePreview(lastPlan, verified);
+      const count = Number(result.applied_change_count || 0);
+      const success = `Plexamp Home restore verified: ${count} logical change${count === 1 ? '' : 's'} applied.`;
       if (browserMessage) {
-        const count = Number(result.applied_change_count || 0);
-        browserMessage.textContent = `Plexamp Home restore verified: ${count} logical change${count === 1 ? '' : 's'} applied. Reloading the Plexamp surface…`;
+        browserMessage.textContent = `${success} Reloading the Plexamp surface…`;
+      }
+      if (restoreMessage) {
+        restoreMessage.classList.remove('is-conflict');
+        restoreMessage.textContent = `${success} The live Home layout now matches this backup.`;
       }
       const frame = document.getElementById('persistent-plexamp-frame');
       if (frame?.src) {

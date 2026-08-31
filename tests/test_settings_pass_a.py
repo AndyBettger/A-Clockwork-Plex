@@ -15,6 +15,7 @@ SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
 CLIENT = ROOT / "app" / "static" / "js" / "settings-pass-a.js"
 RESTORE_CLIENT = ROOT / "app" / "static" / "js" / "settings-about.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-pass-a.css"
+RESTORE_STYLE = ROOT / "app" / "static" / "css" / "settings-backup-restore.css"
 SAFE_LINKS = ROOT / "app" / "static" / "js" / "kiosk-safe-links.js"
 SAFE_LINK_STYLE = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
 DIMMING_STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
@@ -135,7 +136,21 @@ class SettingsPassATests(unittest.TestCase):
             "restoreMessage.textContent = 'Run Preview restore again before any retry.'",
             restore_client,
         )
-        self.assertIn("20260831-home-restore-v1", settings_template)
+        self.assertIn("20260831-home-restore-feedback-v2", settings_template)
+
+    def test_home_restore_success_feedback_and_confirmation_spacing_are_guarded(self):
+        base = BASE.read_text(encoding="utf-8")
+        restore_client = RESTORE_CLIENT.read_text(encoding="utf-8")
+        restore_style = RESTORE_STYLE.read_text(encoding="utf-8")
+
+        self.assertIn("20260831-home-restore-feedback-v2", base)
+        self.assertIn("The live Home layout now matches this backup.", restore_client)
+        self.assertIn("restoreMessage.classList.remove('is-conflict')", restore_client)
+        self.assertIn(
+            '[data-configuration-browser-restore-confirm]:not([hidden])',
+            restore_style,
+        )
+        self.assertIn("margin-top: 14px", restore_style)
 
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
         modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
