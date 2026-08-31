@@ -338,7 +338,7 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
-3. **Touchscreen Plexamp text entry** — NEXT
+3. **Touchscreen Plexamp text entry** — IN PROGRESS at checkpoint #91
 4. **BBC News**
 5. **Events calendar**
 6. **High-resolution Plexamp audio / mixer-EQ path**
@@ -353,9 +353,13 @@ This priority list is authoritative. Detailed sections below are technical refer
 - [x] **Configuration import/restore — COMPLETE at #90.** Read-only Preview, transactional ACP/server restore, exact-version allow-listed Plexamp Headless restore, target-context-aware Plexamp Home restore and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted. The final combined restore applied one ACP/server plus one Plexamp Home change and the persistent completion presentation was accepted after the final spacing follow-up.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
-### Touchscreen Plexamp text entry
+### Touchscreen Plexamp text entry — IN PROGRESS at checkpoint #91
 
-- [ ] **Plexamp search keyboard/bridge.** The ACP Settings screen has its own touchscreen keyboard, but embedded Plexamp is a separate origin/surface. Investigate a safe touchscreen text-entry bridge that does not depend on the desktop OS on-screen keyboard. The permission-free localhost-only content bridge introduced by #89 is the preferred foundation if physical acceptance confirms it behaves reliably.
+- [x] **Shared Settings keyboard baseline corrected.** Shift is now a true one-shot modifier rather than a Caps-Lock-like toggle: the armed keyboard visibly redraws alphabetic keycaps in uppercase, inserts one uppercase alphabetic character, then returns to lowercase. A second Shift tap cancels it; Space, Backspace and Clear do not consume it; layout changes reset it.
+- [x] **Keyboard presentation aligned with ACP.** The internal “Text keyboard” layout label is suppressed from the user-facing header, Shift exposes an active/`aria-pressed` state, and keyboard surface/key/active/Done styling consumes the existing daytime-theme variables with Classic Dark fallbacks.
+- [x] Added source/syntax regression coverage in the existing Settings test module and documented the cross-surface boundary in [`../development/architecture/touchscreen-text-entry.md`](../development/architecture/touchscreen-text-entry.md).
+- [ ] **Physical Settings-keyboard acceptance.** At 1280×720, confirm one-shot Shift, uppercase keycap feedback, second-tap cancellation, theme-aware presentation and removal of the old layout heading before treating the corrected shared keyboard as accepted.
+- [ ] **Plexamp Search keyboard/bridge.** Extend the existing local Plexamp content bridge with a narrow focused-text/edit/submit contract, present the shared ACP keyboard above the persistent Plexamp layer, and prove Search first. Physical keyboard behaviour must remain native and unchanged.
 
 ### News
 

@@ -13,8 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
 CLIENT = ROOT / "app" / "static" / "js" / "settings-pass-a.js"
+KEYBOARD_CLIENT = ROOT / "app" / "static" / "js" / "settings-keyboard.js"
 RESTORE_CLIENT = ROOT / "app" / "static" / "js" / "settings-about.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-pass-a.css"
+SETTINGS_STYLE = ROOT / "app" / "static" / "css" / "settings.css"
 RESTORE_STYLE = ROOT / "app" / "static" / "css" / "settings-backup-restore.css"
 SAFE_LINKS = ROOT / "app" / "static" / "js" / "kiosk-safe-links.js"
 SAFE_LINK_STYLE = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
@@ -27,7 +29,7 @@ class SettingsPassATests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for path in (CLIENT, RESTORE_CLIENT, SAFE_LINKS):
+        for path in (CLIENT, KEYBOARD_CLIENT, RESTORE_CLIENT, SAFE_LINKS):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 capture_output=True,
@@ -75,6 +77,28 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("--settings-keyboard-height", client)
         self.assertIn("body.keyboard-open .settings-detail", style)
         self.assertIn("scroll-padding-bottom", style)
+
+    def test_touch_keyboard_shift_is_one_shot_visible_and_theme_aware(self):
+        keyboard = KEYBOARD_CLIENT.read_text(encoding="utf-8")
+        style = SETTINGS_STYLE.read_text(encoding="utf-8")
+
+        self.assertIn("shift: 'Shift'", keyboard)
+        self.assertNotIn("shifted ? 'ABC' : 'Shift'", keyboard)
+        self.assertIn("if (shifted && /^[a-z]$/.test(key)) return key.toUpperCase()", keyboard)
+        self.assertIn("button.setAttribute('aria-pressed', shifted ? 'true' : 'false')", keyboard)
+        self.assertIn("button.classList.toggle('is-active', shifted)", keyboard)
+        self.assertIn("const letterKey = /^[a-z]$/.test(key)", keyboard)
+        self.assertIn("insertText(shifted && letterKey ? key.toUpperCase() : key)", keyboard)
+        self.assertIn("if (shifted && letterKey)", keyboard)
+        self.assertIn("label.textContent = ''", keyboard)
+        self.assertIn("label.hidden = true", keyboard)
+
+        self.assertIn("justify-content: flex-end", style)
+        self.assertIn("var(--acp-theme-surface", style)
+        self.assertIn("var(--acp-theme-control", style)
+        self.assertIn('.touch-key[aria-pressed="true"]', style)
+        self.assertIn("background: var(--accent)", style)
+        self.assertIn("color: var(--acp-theme-contrast", style)
 
     def test_redundant_status_badges_are_removed_and_alarm_count_is_a_heading_box(self):
         client = CLIENT.read_text(encoding="utf-8")

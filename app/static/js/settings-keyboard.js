@@ -75,15 +75,18 @@
   let shifted = false;
   let usingNumbers = false;
 
-  function specialLabel(key) {
-    return {
+  function keyLabel(key) {
+    const command = {
       backspace: '⌫',
       clear: 'Clear',
       space: 'Space',
-      shift: shifted ? 'ABC' : 'Shift',
+      shift: 'Shift',
       numbers: '123',
       letters: 'ABC',
-    }[key] || key;
+    }[key];
+    if (command) return command;
+    if (shifted && /^[a-z]$/.test(key)) return key.toUpperCase();
+    return key;
   }
 
   function buttonForKey(key) {
@@ -91,7 +94,11 @@
     button.type = 'button';
     button.className = `touch-key ${key.length > 1 ? 'is-command' : ''}`;
     button.dataset.key = key;
-    button.textContent = specialLabel(key);
+    button.textContent = keyLabel(key);
+    if (key === 'shift') {
+      button.setAttribute('aria-pressed', shifted ? 'true' : 'false');
+      button.classList.toggle('is-active', shifted);
+    }
     button.addEventListener('pointerdown', (event) => event.preventDefault());
     button.addEventListener('click', () => pressKey(key));
     return button;
@@ -99,7 +106,8 @@
 
   function renderKeyboard() {
     const layout = layouts[layoutName] || layouts.text;
-    label.textContent = layout.label;
+    label.textContent = '';
+    label.hidden = true;
     keyGrid.replaceChildren();
     quickRow.replaceChildren();
     quickRow.hidden = !layout.quick.length;
@@ -205,18 +213,25 @@
     }
 
     if (key === 'numbers') {
+      shifted = false;
       usingNumbers = true;
       renderKeyboard();
       return;
     }
 
     if (key === 'letters') {
+      shifted = false;
       usingNumbers = false;
       renderKeyboard();
       return;
     }
 
-    insertText(shifted && key.length === 1 ? key.toUpperCase() : key);
+    const letterKey = /^[a-z]$/.test(key);
+    insertText(shifted && letterKey ? key.toUpperCase() : key);
+    if (shifted && letterKey) {
+      shifted = false;
+      renderKeyboard();
+    }
   }
 
   document.addEventListener('focusin', (event) => {

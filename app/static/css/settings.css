@@ -296,8 +296,8 @@ body.keyboard-open .settings-actions {
   bottom: 0;
   max-height: min(44vh, 330px);
   padding: 8px clamp(8px, 1.5vw, 18px) max(8px, env(safe-area-inset-bottom));
-  background: rgba(3, 7, 13, 0.96);
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--acp-theme-surface, rgba(3, 7, 13, 0.96));
+  border-top: 1px solid var(--acp-theme-control-border, var(--panel-border));
   box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.42);
   transform: translateY(105%);
   transition: transform 170ms ease;
@@ -311,23 +311,21 @@ body.keyboard-open .touch-keyboard {
 .touch-keyboard-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   margin-bottom: 6px;
 }
 
-.touch-keyboard-header span {
-  color: var(--muted);
-  font-size: clamp(0.76rem, 1.8vmin, 0.95rem);
-  font-weight: 850;
+.touch-keyboard-header span[hidden] {
+  display: none !important;
 }
 
 .touch-keyboard-command,
 .touch-key {
   min-height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--acp-theme-control-border, var(--panel-border));
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.11);
+  background: var(--acp-theme-control, rgba(255, 255, 255, 0.11));
   color: var(--text);
   font: inherit;
   font-size: clamp(0.84rem, 2.1vmin, 1.06rem);
@@ -336,8 +334,17 @@ body.keyboard-open .touch-keyboard {
 
 .touch-keyboard-command {
   padding: 7px 16px;
-  background: var(--text);
-  color: #07101d;
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--acp-theme-contrast, #07101d);
+}
+
+.touch-key.is-active,
+.touch-key[aria-pressed="true"] {
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  color: var(--acp-theme-contrast, #07101d);
+  box-shadow: 0 0 0 2px var(--acp-theme-soft, rgba(143, 211, 255, 0.16));
 }
 
 .touch-keyboard-quick {
@@ -380,7 +387,7 @@ body.keyboard-open .touch-keyboard {
 .clock-card-remove-button:active,
 .settings-pill:active {
   transform: scale(0.98);
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--acp-theme-surface-raised, rgba(255, 255, 255, 0.2));
 }
 
 @media (max-height: 520px), (max-width: 860px) {
