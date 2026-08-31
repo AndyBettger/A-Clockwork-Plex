@@ -9,11 +9,11 @@
   const TICKER_PIXELS_PER_SECOND = Object.freeze({ slow: 30, normal: 45, fast: 65 });
   const SAFE_LOGO_SUFFIXES = ['bbc.co.uk', 'bbci.co.uk', 'bbcimg.co.uk', 'bbc.com'];
 
+  const page = document.querySelector('.news-page');
   const categoryMount = document.querySelector('[data-news-categories]');
   const storyMount = document.querySelector('[data-news-stories]');
   const categoryTitle = document.querySelector('[data-news-category-title]');
   const statusPill = document.querySelector('[data-news-status]');
-  const updatedText = document.querySelector('[data-news-updated]');
   const sourceTime = document.querySelector('[data-news-source-time]');
   const message = document.querySelector('[data-news-message]');
   const logo = document.querySelector('[data-news-logo]');
@@ -126,13 +126,6 @@
     if (statusPill) {
       statusPill.textContent = statusLabel(overall);
       statusPill.classList.toggle('is-warning', warning);
-    }
-
-    const lastSuccess = state.last_success_at || snapshot?.last_attempt_at;
-    if (updatedText) {
-      updatedText.textContent = lastSuccess
-        ? `${state.stale ? 'Cached from' : 'Updated'} ${formatDate(lastSuccess)}`
-        : 'No successful BBC News update yet';
     }
 
     const build = state?.feed?.last_build_at;
@@ -248,10 +241,12 @@
 
     if (!enabled || !stories.length) {
       ticker.hidden = true;
+      page?.classList.add('is-ticker-hidden');
       return;
     }
 
     ticker.hidden = false;
+    page?.classList.remove('is-ticker-hidden');
     const first = tickerSet(stories);
     tickerTrack.appendChild(first);
 
