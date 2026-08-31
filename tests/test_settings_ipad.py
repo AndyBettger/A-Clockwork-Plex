@@ -17,6 +17,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.news_settings = Path("app/static/js/settings-news.js").read_text(encoding="utf-8")
         self.news_template = Path("app/templates/news.html").read_text(encoding="utf-8")
         self.news_client = Path("app/static/js/news.js").read_text(encoding="utf-8")
+        self.screen_projection = Path("app/static/js/screen-projection.js").read_text(encoding="utf-8")
 
     def test_template_uses_persistent_sidebar_and_right_detail_pane(self):
         self.assertIn("settings-ipad-shell", self.template)
@@ -166,9 +167,16 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("window.ACPUnifiedSettings.registerDomain('news'", self.news_settings)
         self.assertIn("window.ACPUnifiedSettings?.markDirty?.('news')", self.news_settings)
         self.assertNotIn("fetch(", self.news_settings)
+        self.assertIn('data-settings-overview="news"', self.news_settings)
+        self.assertIn('data-settings-subpage-target="news:sections"', self.news_settings)
+        self.assertIn('data-settings-subpage-target="news:presentation"', self.news_settings)
+        self.assertIn('data-settings-subpage="news:sections"', self.news_settings)
+        self.assertIn('data-settings-subpage="news:presentation"', self.news_settings)
+        self.assertIn('data-settings-back="news"', self.news_settings)
         self.assertLess(self.base.index("settings-news.js"), self.base.index("{% block scripts %}"))
         self.assertIn('href="/news"', navigation)
         self.assertIn("'/news'", transitions)
+        self.assertIn("news: '/news'", self.screen_projection)
         self.assertIn('MANUAL_LEASE_SCREENS.add("news")', news_ui)
         self.assertNotIn('IDLE_RETURN_SCREENS.add("news")', news_ui)
 
