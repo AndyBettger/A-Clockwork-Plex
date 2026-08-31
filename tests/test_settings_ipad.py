@@ -17,6 +17,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.news_settings = Path("app/static/js/settings-news.js").read_text(encoding="utf-8")
         self.news_template = Path("app/templates/news.html").read_text(encoding="utf-8")
         self.news_client = Path("app/static/js/news.js").read_text(encoding="utf-8")
+        self.news_css = Path("app/static/css/news.css").read_text(encoding="utf-8")
         self.screen_projection = Path("app/static/js/screen-projection.js").read_text(encoding="utf-8")
 
     def test_template_uses_persistent_sidebar_and_right_detail_pane(self):
@@ -158,6 +159,13 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertNotIn("<a ", self.news_template)
         self.assertIn("data-news-detail", self.news_template)
         self.assertIn("data-news-ticker", self.news_template)
+        self.assertNotIn("data-news-updated", self.news_template)
+        self.assertIn('class="news-page is-ticker-hidden"', self.news_template)
+        self.assertIn("page?.classList.add('is-ticker-hidden')", self.news_client)
+        self.assertIn("page?.classList.remove('is-ticker-hidden')", self.news_client)
+        self.assertIn(".news-page.is-ticker-hidden", self.news_css)
+        self.assertIn(".news-ticker[hidden]", self.news_css)
+        self.assertIn("display: none;", self.news_css)
 
     def test_news_settings_and_navigation_reuse_existing_owners(self):
         navigation = Path("app/templates/_nav.html").read_text(encoding="utf-8")
