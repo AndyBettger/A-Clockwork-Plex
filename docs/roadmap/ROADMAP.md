@@ -339,7 +339,7 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
 3. **Touchscreen Plexamp text entry** — COMPLETE at checkpoint #91
-4. **BBC News** — NEXT
+4. **BBC News** — IN PROGRESS at checkpoint #92
 5. **Events calendar**
 6. **High-resolution Plexamp audio / mixer-EQ path**
 7. **Astronomy**
@@ -366,12 +366,22 @@ This priority list is authoritative. Detailed sections below are technical refer
 - [x] **Checkpoint #91 closure.** Required touchscreen Plexamp text-entry scope is physically accepted. Login-screen keyboard support remains an optional resilience enhancement because commissioning already documents VNC; it is not an acceptance blocker.
 
 
-### News
+### BBC News — IN PROGRESS at checkpoint #92
 
-- [ ] **BBC News headlines page.** Use BBC RSS/Atom feeds, assuming they remain publicly available at implementation time; do not scrape BBC HTML. Start with top headlines and optionally UK/World/Science/Technology where the feed catalogue supports it cleanly.
-- [ ] **Cached/background feed handling.** Fetch outside render, cache the last successful feed, show update/source time and fail gracefully to stale-but-labelled content. News failure must never affect the appliance.
-- [ ] **Safe headline presentation.** Sanitise feed markup, preserve BBC attribution and define kiosk-safe article opening.
-- [ ] **Touch layout.** Favour a readable headline list/cards with clear age/source information and natural Touch Display 2 scrolling.
+The first #92 slice deliberately establishes one safe BBC feed/cache authority before any new navigation or animated presentation is added. The UI is **not** physically accepted yet.
+
+- [x] **RSS feed/parser foundation — CI-GREEN.** Added a fixed allow-list for BBC Top Stories, UK, World, Science and Technology RSS feeds; BBC HTML pages are never scraped. Feed markup is reduced to plain text and article links/GUIDs are deliberately excluded from ACP's public story model, so outbound article navigation cannot appear accidentally.
+- [x] **Background/last-good cache foundation — CI-GREEN.** The application worker refreshes outside page rendering, persists `bbc-news-cache.json` atomically, retains last-good stories across provider failure and labels degraded/stale state. `GET /api/news` is read-only; POST is rejected.
+- [x] **Single Top Stories ticker authority — CI-GREEN.** Ticker headlines are projected only from the same cached Top Stories feed. Top Stories remains a background fetch dependency while the ticker is enabled even if another category is the visible/default News category.
+- [x] **Unified News preference model — CI-GREEN.** All five categories are enabled by default, Top Stories is the default category, summaries and ticker are enabled, and ticker speed is bounded to Slow/Normal/Fast. Settings changes participate in the existing revisioned transaction and wake the News worker rather than blocking Save on a BBC request.
+- [x] **Portable ownership — CI-GREEN.** News categories/default/summaries/ticker preferences are included in schema-v1 configuration backup and accepted by the existing transactional Settings restore owner. The downloaded feed/cache itself remains runtime state and is excluded from backup.
+- [x] **Automated foundation gate.** Draft PR #8 implementation head `fe4f29ca26d36a3fea0f61272abbd0a5a221d0a6` passed **Tests #4395: 996 tests, `OK`**, including the explicit `app/news_feed.py` compile gate, page-wiring/shell checks, BBC fixture/cache tests and the existing backup/restore suite.
+- [ ] **Live commissioned-Pi BBC feed verification.** Confirm the current real BBC RSS feeds can be fetched by the appliance, populate the cache/API, preserve attribution/feed timing and expose no article URL/link/GUID fields. This is the next #92 physical gate.
+- [ ] **News Settings UI.** Add the agreed category/default/summaries/ticker controls to the existing touch-first Settings hierarchy without creating a second persistence path.
+- [ ] **Left-rail News page and touch layout.** Add the normal dashboard navigation destination and a readable 1280×720 headline list/card surface with natural touch scrolling and explicit ready/degraded/stale/source-time presentation.
+- [ ] **BBC branding/attribution presentation.** Use only feed-supplied/otherwise permitted BBC attribution imagery and keep source ownership visible.
+- [ ] **Scrolling Top Stories ticker.** Add a non-blocking ticker presentation driven only by the cached Top Stories projection, respecting the saved on/off and Slow/Normal/Fast choices.
+- [ ] **Physical 1280×720 acceptance.** Verify category switching, summaries, scrolling, ticker speeds/on-off, stale/offline behaviour, navigation/idle interaction and no regression to Clock/Weather/Plexamp/AirPlay before closing #92.
 
 ### Events calendar
 
@@ -428,7 +438,7 @@ Keeping completed work off the future list matters. Otherwise the roadmap starts
 3. [x] Documentation/portability/branch hygiene through #77.
 4. [x] Maintainer test-suite catalogue (#78).
 5. [x] Settings → About/version contract (#79).
-6. [x] Release-ready README/INSTALL and visual first-use material (#80).
+6. [x] Release-ready README/INSTALL and visual first-use material (#80].
 7. [x] Pre-approval validation (#81).
 8. [x] Final blank-Pi follow-up/spot-check (#82).
 9. [x] Explicit owner approval for PR #2 merge — received 23 August 2026.
