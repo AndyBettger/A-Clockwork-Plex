@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -17,11 +18,15 @@ KEYBOARD_CLIENT = ROOT / "app" / "static" / "js" / "settings-keyboard.js"
 RESTORE_CLIENT = ROOT / "app" / "static" / "js" / "settings-about.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-pass-a.css"
 SETTINGS_STYLE = ROOT / "app" / "static" / "css" / "settings.css"
+SHARED_KEYBOARD_STYLE = ROOT / "app" / "static" / "css" / "touch-keyboard.css"
 RESTORE_STYLE = ROOT / "app" / "static" / "css" / "settings-backup-restore.css"
 SAFE_LINKS = ROOT / "app" / "static" / "js" / "kiosk-safe-links.js"
 SAFE_LINK_STYLE = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
 DIMMING_STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
 SCHEDULED_SETTINGS = ROOT / "app" / "settings_unified_scheduled.py"
+PLEXAMP_BRIDGE = ROOT / "browser" / "plexamp-search-bridge" / "content.js"
+PLEXAMP_SEARCH_MANIFEST = ROOT / "browser" / "plexamp-search-bridge" / "manifest.json"
+KIOSK_LAUNCHER = ROOT / "scripts" / "launch-dashboard-kiosk.sh"
 
 
 class SettingsPassATests(unittest.TestCase):
@@ -29,7 +34,7 @@ class SettingsPassATests(unittest.TestCase):
         node = shutil.which("node")
         if node is None:
             self.skipTest("Node.js is not installed.")
-        for path in (CLIENT, KEYBOARD_CLIENT, RESTORE_CLIENT, SAFE_LINKS):
+        for path in (CLIENT, KEYBOARD_CLIENT, RESTORE_CLIENT, SAFE_LINKS, PLEXAMP_BRIDGE):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 capture_output=True,
@@ -80,7 +85,7 @@ class SettingsPassATests(unittest.TestCase):
 
     def test_touch_keyboard_shift_is_one_shot_visible_and_theme_aware(self):
         keyboard = KEYBOARD_CLIENT.read_text(encoding="utf-8")
-        style = SETTINGS_STYLE.read_text(encoding="utf-8")
+        style = SHARED_KEYBOARD_STYLE.read_text(encoding="utf-8")
 
         self.assertIn("shift: 'Shift'", keyboard)
         self.assertNotIn("shifted ? 'ABC' : 'Shift'", keyboard)
@@ -99,6 +104,125 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn('.touch-key[aria-pressed="true"]', style)
         self.assertIn("background: var(--accent)", style)
         self.assertIn("color: var(--acp-theme-contrast", style)
+
+    def test_touch_keyboard_is_shared_and_plexamp_search_aware(self):
+        base = BASE.read_text(encoding="utf-8")
+        keyboard = KEYBOARD_CLIENT.read_text(encoding="utf-8")
+        style = SHARED_KEYBOARD_STYLE.read_text(encoding="utf-8")
+
+        self.assertIn("touch-keyboard.css", base)
+        self.assertIn("settings-keyboard.js", base)
+        self.assertIn("__aClockworkPlexTouchKeyboardLoaded", keyboard)
+        self.assertIn("ensureKeyboardMarkup", keyboard)
+        self.assertIn("acp-plexamp-search-focus-v1", keyboard)
+        self.assertIn("acp-plexamp-search-edit-v1", keyboard)
+        self.assertIn("submit: 'Search'", keyboard)
+        self.assertIn("postRemote('submit')", keyboard)
+        self.assertIn("notifyRemote: isRemoteSearch()", keyboard)
+        self.assertIn("plexamp-search-keyboard-open", keyboard)
+        self.assertIn("body.plexamp-search-keyboard-open .touch-keyboard", style)
+        self.assertIn("z-index: 160", style)
+
+    def test_plexamp_search_bridge_is_permission_free_loopback_only_and_loaded_by_kiosk(self):
+        manifest = json.loads(PLEXAMP_SEARCH_MANIFEST.read_text(encoding="utf-8"))
+        launcher = KIOSK_LAUNCHER.read_text(encoding="utf-8")
+
+        self.assertEqual(manifest["manifest_version"], 3)
+        self.assertNotIn("permissions", manifest)
+        self.assertNotIn("host_permissions", manifest)
+        self.assertNotIn("background", manifest)
+        scripts = manifest["content_scripts"]
+        self.assertEqual(len(scripts), 1)
+        self.assertEqual(
+            set(scripts[0]["matches"]),
+            {"http://localhost:32500/*", "http://127.0.0.1:32500/*"},
+        )
+        self.assertEqual(scripts[0]["js"], ["content.js"])
+        self.assertTrue(scripts[0]["all_frames"])
+        self.assertIn("browser/plexamp-search-bridge", launcher)
+        self.assertIn("extension_dirs", launcher)
+        self.assertIn('browser_args+=(--load-extension="$extension_arg")', launcher)
+        self.assertNotIn("--remote-debugging-port", launcher)
+
+    def test_plexamp_search_bridge_accepts_only_narrow_search_edit_contract(self):
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed.")
+        bridge_source = PLEXAMP_BRIDGE.read_text(encoding="utf-8")
+        script = r"""
+const bridge = require(process.argv[1]);
+function input(attrs = {}) {
+  return {
+    tagName: 'INPUT',
+    type: attrs.type || 'text',
+    disabled: false,
+    readOnly: false,
+    getAttribute(name) { return attrs[name] || ''; },
+    closest() { return null; },
+  };
+}
+const payload = {
+  eligibleByType: bridge.isEligibleSearchTarget(input({ type: 'search' })),
+  eligibleByPlaceholder: bridge.isEligibleSearchTarget(input({ placeholder: 'Search' })),
+  rejectsOrdinaryText: bridge.isEligibleSearchTarget(input({ placeholder: 'Username' })),
+  insertPlan: bridge.planSearchEdit('Miles Davis', 5, 5, 'insert', '!'),
+  emojiBackspace: bridge.planSearchEdit('A😀B', 3, 3, 'backspace'),
+  acceptsInsert: bridge.validateSearchEditRequest({
+    type: 'acp-plexamp-search-edit-v1',
+    session_id: '1234567890abcdef',
+    command: 'insert',
+    text: 'Q',
+  }),
+  rejectsLongInsert: bridge.validateSearchEditRequest({
+    type: 'acp-plexamp-search-edit-v1',
+    session_id: '1234567890abcdef',
+    command: 'insert',
+    text: 'DROP',
+  }),
+  rejectsArbitraryCommand: bridge.validateSearchEditRequest({
+    type: 'acp-plexamp-search-edit-v1',
+    session_id: '1234567890abcdef',
+    command: 'selector',
+  }),
+};
+process.stdout.write(JSON.stringify(payload));
+"""
+        result = subprocess.run(
+            [node, "-e", script, str(PLEXAMP_BRIDGE)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["eligibleByType"])
+        self.assertTrue(payload["eligibleByPlaceholder"])
+        self.assertFalse(payload["rejectsOrdinaryText"])
+        self.assertEqual(payload["insertPlan"]["value"], "Miles! Davis")
+        self.assertEqual(payload["emojiBackspace"]["value"], "AB")
+        self.assertIsNotNone(payload["acceptsInsert"])
+        self.assertIsNone(payload["rejectsLongInsert"])
+        self.assertIsNone(payload["rejectsArbitraryCommand"])
+
+        self.assertIn("ALLOWED_COMMANDS", bridge_source)
+        self.assertIn("doc.activeElement !== activeTarget", bridge_source)
+        self.assertIn("Array.from(text).length !== 1", bridge_source)
+        self.assertIn("event.source !== win.parent", bridge_source)
+        self.assertIn("DASHBOARD_ORIGINS.has(event.origin)", bridge_source)
+        self.assertIn("typeof win?.crypto?.getRandomValues !== 'function'", bridge_source)
+        for forbidden in (
+            "request.selector",
+            "value: activeTarget.value",
+            "text: activeTarget.value",
+            "fetch(",
+            "XMLHttpRequest",
+            "WebSocket",
+            "document.cookie",
+            "localStorage",
+            "chrome.storage",
+        ):
+            self.assertNotIn(forbidden, bridge_source)
 
     def test_redundant_status_badges_are_removed_and_alarm_count_is_a_heading_box(self):
         client = CLIENT.read_text(encoding="utf-8")
@@ -236,6 +360,8 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("settings-pass-a.css", base)
         self.assertIn("settings-pass-a.js", base)
         self.assertIn("20260802-kiosk-address-panel", base)
+        self.assertIn("touch-keyboard.css", base)
+        self.assertIn("20260831-shared-plexamp-search-v1", base)
 
     def test_external_navigation_is_forbidden_from_the_kiosk_client(self):
         client = SAFE_LINKS.read_text(encoding="utf-8")

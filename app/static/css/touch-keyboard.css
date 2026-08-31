@@ -1,0 +1,140 @@
+/* Shared A Clockwork Plex touchscreen keyboard.
+   Settings remains the original consumer; Plexamp Search reuses the same DOM,
+   layouts and theme tokens above the persistent iframe. */
+
+.touch-keyboard {
+  position: fixed;
+  z-index: 150;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(44vh, 330px);
+  padding: 8px clamp(8px, 1.5vw, 18px) max(8px, env(safe-area-inset-bottom));
+  background: var(--acp-theme-surface, rgba(3, 7, 13, 0.96));
+  border-top: 1px solid var(--acp-theme-control-border, var(--panel-border));
+  box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.42);
+  transform: translateY(105%);
+  transition: transform 170ms ease;
+  backdrop-filter: blur(16px);
+}
+
+body.keyboard-open .touch-keyboard {
+  transform: translateY(0);
+}
+
+body.plexamp-search-keyboard-open .touch-keyboard {
+  z-index: 160;
+}
+
+.touch-keyboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.touch-keyboard-header span[hidden] {
+  display: none !important;
+}
+
+.touch-keyboard-command,
+.touch-key {
+  min-height: 34px;
+  border: 1px solid var(--acp-theme-control-border, var(--panel-border));
+  border-radius: 12px;
+  background: var(--acp-theme-control, rgba(255, 255, 255, 0.11));
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(0.84rem, 2.1vmin, 1.06rem);
+  font-weight: 850;
+}
+
+.touch-keyboard-command {
+  padding: 7px 16px;
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--acp-theme-contrast, #07101d);
+}
+
+.touch-key.is-active,
+.touch-key[aria-pressed="true"] {
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  color: var(--acp-theme-contrast, #07101d);
+  box-shadow: 0 0 0 2px var(--acp-theme-soft, rgba(143, 211, 255, 0.16));
+}
+
+.touch-keyboard-quick {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.touch-quick-key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.touch-keyboard-keys {
+  display: grid;
+  gap: 6px;
+}
+
+.touch-key-row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.touch-key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 7px;
+}
+
+.touch-key.is-command,
+.touch-key[data-key="space"],
+.touch-key[data-key="submit"] {
+  flex-grow: 1.6;
+}
+
+.touch-key[data-key="submit"] {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--acp-theme-contrast, #07101d);
+}
+
+.touch-key:active {
+  transform: scale(0.98);
+  background: var(--acp-theme-surface-raised, rgba(255, 255, 255, 0.2));
+}
+
+@media (max-height: 520px), (max-width: 860px) {
+  .touch-keyboard {
+    max-height: 235px;
+    padding: 6px 8px 6px;
+  }
+
+  .touch-keyboard-header {
+    margin-bottom: 4px;
+  }
+
+  .touch-keyboard-quick,
+  .touch-keyboard-keys {
+    gap: 4px;
+  }
+
+  .touch-key-row {
+    gap: 4px;
+  }
+
+  .touch-keyboard-command,
+  .touch-key {
+    min-height: 28px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+  }
+}
