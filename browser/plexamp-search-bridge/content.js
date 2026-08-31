@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  // Protocol strings keep the original Search name for backwards-safe deployment.
+  // The payload kind is now the explicit allow-list for supported Plexamp text fields.
   const FOCUS_TYPE = 'acp-plexamp-search-focus-v1';
   const EDIT_TYPE = 'acp-plexamp-search-edit-v1';
   const DASHBOARD_ORIGINS = new Set([
@@ -9,6 +11,14 @@
   ]);
   const SAFE_SESSION = /^[A-Za-z0-9-]{16,96}$/;
   const SEARCH_WORD = /\bsearch\b/i;
+  const FIELD_KINDS = new Set([
+    'search',
+    'home-section-title',
+    'playlist-name',
+    'playlist-description',
+    'home-screen-title',
+    'player-name',
+  ]);
   const ALLOWED_COMMANDS = new Set(['insert', 'backspace', 'clear', 'submit', 'done']);
 
   function attribute(target, name) {
@@ -19,31 +29,93 @@
     }
   }
 
-  function isEligibleSearchTarget(target) {
-    if (!target || String(target.tagName || '').toUpperCase() !== 'INPUT') return false;
-    if (target.disabled === true || target.readOnly === true) return false;
+  function normaliseText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
 
-    const type = String(target.type || attribute(target, 'type') || 'text').toLowerCase();
-    if (!['search', 'text'].includes(type)) return false;
-    if (type === 'search') return true;
-
-    const role = attribute(target, 'role').toLowerCase();
-    if (role === 'searchbox') return true;
-
-    const clues = [
+  function targetClues(target) {
+    return normaliseText([
       attribute(target, 'aria-label'),
       attribute(target, 'placeholder'),
       attribute(target, 'name'),
       attribute(target, 'data-testid'),
-    ];
-    if (clues.some((value) => SEARCH_WORD.test(value))) return true;
+      attribute(target, 'id'),
+    ].join(' '));
+  }
 
-    try {
-      const container = target.closest?.('[role="search"], [aria-label*="search" i]');
-      return Boolean(container);
-    } catch (_error) {
-      return false;
+  function surroundingText(target) {
+    const parts = [];
+    let node = target?.parentElement || null;
+    for (let depth = 0; node && depth < 6; depth += 1, node = node.parentElement) {
+      const aria = attribute(node, 'aria-label');
+      if (aria) parts.push(aria);
+      let text = '';
+      try {
+        text = normaliseText(node.innerText || node.textContent || '');
+      } catch (_error) {
+        text = '';
+      }
+      if (text && text.length <= 2400) parts.push(text);
     }
+    return normaliseText(parts.join(' ')).slice(0, 6000);
+  }
+
+  function isTextLikeTarget(target) {
+    const tag = String(target?.tagName || '').toUpperCase();
+    if (!['INPUT', 'TEXTAREA'].includes(tag)) return false;
+    if (target.disabled === true || target.readOnly === true) return false;
+    if (attribute(target, 'aria-hidden').toLowerCase() === 'true') return false;
+    if (tag === 'TEXTAREA') return true;
+    const type = String(target.type || attribute(target, 'type') || 'text').toLowerCase();
+    return ['search', 'text'].includes(type);
+  }
+
+  function classifyTextTarget(target) {
+    if (!isTextLikeTarget(target)) return null;
+
+    const tag = String(target.tagName || '').toUpperCase();
+    const type = tag === 'INPUT'
+      ? String(target.type || attribute(target, 'type') || 'text').toLowerCase()
+      : 'textarea';
+    const role = attribute(target, 'role').toLowerCase();
+    const clues = targetClues(target);
+    const context = surroundingText(target);
+
+    if (type === 'search' || role === 'searchbox' || SEARCH_WORD.test(clues)) return 'search';
+    try {
+      if (target.closest?.('[role="search"], [aria-label*="search" i]')) return 'search';
+    } catch (_error) {
+      // Continue through the explicit non-Search field allow-list.
+    }
+
+    if (/\bheader title\b/i.test(clues)) return 'home-section-title';
+    if (/\bplaylist name\b/i.test(clues)) return 'playlist-name';
+    if (/\bplaylist description\b/i.test(clues)) return 'playlist-description';
+    if (/\bplayer name\b/i.test(clues)) return 'player-name';
+
+    if (/\bcreate smart playlist\b/i.test(context)) {
+      if (/\bdescription\b/i.test(clues) || tag === 'TEXTAREA') return 'playlist-description';
+      if (/\bname\b/i.test(clues)) return 'playlist-name';
+    }
+
+    if (/\bplayer name\b/i.test(context)) return 'player-name';
+
+    const homeEditorContext = (
+      /\btitle\b/i.test(context)
+      && /\bdisplay as\b/i.test(context)
+      && (/\bsubtype\b/i.test(context) || /\bvisible\b/i.test(context))
+    );
+    if (homeEditorContext) return 'home-screen-title';
+
+    return null;
+  }
+
+  function isEligibleTextTarget(target) {
+    return FIELD_KINDS.has(classifyTextTarget(target));
+  }
+
+  function isEligibleSearchTarget(target) {
+    return classifyTextTarget(target) === 'search';
   }
 
   function validInsertText(text) {
@@ -51,7 +123,7 @@
     return !/[\u0000-\u001f\u007f]/.test(text);
   }
 
-  function validateSearchEditRequest(raw) {
+  function validateTextEditRequest(raw) {
     if (!raw || raw.type !== EDIT_TYPE) return null;
     if (typeof raw.session_id !== 'string' || !SAFE_SESSION.test(raw.session_id)) return null;
     if (typeof raw.command !== 'string' || !ALLOWED_COMMANDS.has(raw.command)) return null;
@@ -69,7 +141,7 @@
     return Math.max(0, Math.min(value.length, Math.trunc(parsed)));
   }
 
-  function planSearchEdit(value, selectionStart, selectionEnd, command, text = '') {
+  function planTextEdit(value, selectionStart, selectionEnd, command, text = '') {
     const current = String(value ?? '');
     const start = clampSelection(current, selectionStart);
     const end = Math.max(start, clampSelection(current, selectionEnd));
@@ -100,9 +172,12 @@
     return null;
   }
 
-  function setNativeInputValue(target, value) {
+  function setNativeEditableValue(target, value) {
     const view = target?.ownerDocument?.defaultView;
-    const prototype = view?.HTMLInputElement?.prototype;
+    const tag = String(target?.tagName || '').toUpperCase();
+    const prototype = tag === 'TEXTAREA'
+      ? view?.HTMLTextAreaElement?.prototype
+      : view?.HTMLInputElement?.prototype;
     const descriptor = prototype ? Object.getOwnPropertyDescriptor(prototype, 'value') : null;
     if (descriptor?.set) descriptor.set.call(target, value);
     else target.value = value;
@@ -148,26 +223,23 @@
     const continueDefault = target.dispatchEvent(down);
     target.dispatchEvent(new KeyboardEventCtor('keypress', init));
     target.dispatchEvent(new KeyboardEventCtor('keyup', init));
-
     if (continueDefault && !down.defaultPrevented) {
-      try {
-        target.form?.requestSubmit?.();
-      } catch (_error) {
-        // Plexamp normally handles Search through its key/input listeners.
-      }
+      try { target.form?.requestSubmit?.(); } catch (_error) { /* compatibility only */ }
     }
     return true;
   }
 
-  function applySearchEdit(target, request) {
-    if (!isEligibleSearchTarget(target) || target.isConnected === false) return false;
+  function applyTextEdit(target, request) {
+    if (!isEligibleTextTarget(target) || target.isConnected === false) return false;
     if (request.command === 'done') {
       target.blur?.();
       return true;
     }
+    // Legacy protocol compatibility only. ACP no longer renders a Search key;
+    // Plexamp Search updates live while the user types.
     if (request.command === 'submit') return dispatchSubmit(target);
 
-    const plan = planSearchEdit(
+    const plan = planTextEdit(
       target.value,
       target.selectionStart,
       target.selectionEnd,
@@ -176,7 +248,7 @@
     );
     if (!plan) return false;
     if (plan.changed) {
-      setNativeInputValue(target, plan.value);
+      setNativeEditableValue(target, plan.value);
       target.setSelectionRange?.(plan.cursor, plan.cursor);
       dispatchInput(target, plan);
     }
@@ -191,17 +263,18 @@
     return Array.from(values, (value) => value.toString(16).padStart(8, '0')).join('');
   }
 
-  function installSearchBridge(win, doc) {
+  function installTextBridge(win, doc) {
     if (!win?.addEventListener || !doc?.addEventListener || win.parent === win) return;
 
     let activeTarget = null;
     let activeSession = null;
+    let activeKind = null;
 
     const notify = (state) => {
-      if (!activeSession) return;
+      if (!activeSession || !activeKind) return;
       const payload = {
         type: FOCUS_TYPE,
-        kind: 'search',
+        kind: activeKind,
         state,
         session_id: activeSession,
       };
@@ -211,21 +284,25 @@
     };
 
     const deactivate = () => {
-      if (!activeTarget || !activeSession) return;
+      if (!activeTarget || !activeSession || !activeKind) return;
       notify('blurred');
       activeTarget = null;
       activeSession = null;
+      activeKind = null;
     };
 
     const activate = (target) => {
-      if (!isEligibleSearchTarget(target)) return false;
-      if (target === activeTarget && activeSession) return true;
+      const kind = classifyTextTarget(target);
+      if (!FIELD_KINDS.has(kind)) return false;
+      if (target === activeTarget && activeSession && kind === activeKind) return true;
       if (activeTarget) deactivate();
       activeTarget = target;
+      activeKind = kind;
       activeSession = newSessionId(win);
       if (!SAFE_SESSION.test(activeSession)) {
         activeTarget = null;
         activeSession = null;
+        activeKind = null;
         return false;
       }
       notify('focused');
@@ -233,37 +310,43 @@
     };
 
     doc.addEventListener('focusin', (event) => {
-      if (isEligibleSearchTarget(event.target)) activate(event.target);
+      if (isEligibleTextTarget(event.target)) activate(event.target);
     }, true);
 
     doc.addEventListener('focusout', (event) => {
       if (event.target !== activeTarget) return;
       win.setTimeout(() => {
         if (doc.activeElement === activeTarget) return;
-        if (isEligibleSearchTarget(doc.activeElement)) activate(doc.activeElement);
+        if (isEligibleTextTarget(doc.activeElement)) activate(doc.activeElement);
         else deactivate();
       }, 0);
     }, true);
 
     win.addEventListener('message', (event) => {
       if (event.source !== win.parent || !DASHBOARD_ORIGINS.has(event.origin)) return;
-      const request = validateSearchEditRequest(event.data);
+      const request = validateTextEditRequest(event.data);
       if (!request || !activeTarget || request.session_id !== activeSession) return;
       if (doc.activeElement !== activeTarget || activeTarget.isConnected === false) return;
-      applySearchEdit(activeTarget, request);
+      applyTextEdit(activeTarget, request);
     });
   }
 
-  const searchApi = {
-    applySearchEdit,
+  const textApi = {
+    applyTextEdit,
+    classifyTextTarget,
+    isEligibleTextTarget,
     isEligibleSearchTarget,
-    planSearchEdit,
-    validateSearchEditRequest,
+    planTextEdit,
+    validateTextEditRequest,
+    // Backwards-compatible names retained for the first Search-slice contract.
+    applySearchEdit: applyTextEdit,
+    planSearchEdit: planTextEdit,
+    validateSearchEditRequest: validateTextEditRequest,
   };
   if (typeof module !== 'undefined' && module.exports) {
-    Object.assign(module.exports, searchApi);
+    Object.assign(module.exports, textApi);
   }
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-    installSearchBridge(window, document);
+    installTextBridge(window, document);
   }
 })();
