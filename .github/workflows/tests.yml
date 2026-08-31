@@ -43,6 +43,7 @@ jobs:
             app/configuration_backup.py \
             app/configuration_restore.py \
             app/plexamp_preferences.py \
+            app/news_feed.py \
             app/weather_rainfall_history.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
