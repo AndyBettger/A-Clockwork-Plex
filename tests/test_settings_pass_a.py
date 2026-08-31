@@ -162,6 +162,32 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("[data-configuration-restore-result-status]:not([hidden])", restore_style)
         self.assertIn("margin-top: 14px", restore_style)
 
+    def test_guided_restore_physical_followup_layout_is_guarded(self):
+        restore_style = RESTORE_STYLE.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '.settings-action-row:has([data-action="preview-configuration-restore"])',
+            restore_style,
+        )
+        self.assertIn("margin-bottom: 12px", restore_style)
+        self.assertIn(
+            '[data-configuration-restore-apply-zone]:not([hidden])::before',
+            restore_style,
+        )
+        self.assertIn('content: "Review restore"', restore_style)
+        self.assertIn("grid-template-columns: auto minmax(0, 1fr)", restore_style)
+        self.assertIn('[data-action="review-selected-restore"]', restore_style)
+        self.assertIn("[data-configuration-restore-review-status]:not([hidden])", restore_style)
+        self.assertIn("[data-configuration-restore-confirm][hidden]", restore_style)
+        self.assertIn("display: none !important", restore_style)
+        self.assertIn(
+            '.settings-card:has(> [data-configuration-restore-result-status]:not([hidden]))',
+            restore_style,
+        )
+        self.assertIn("flex-direction: column", restore_style)
+        self.assertIn("order: -2", restore_style)
+        self.assertIn("order: -1", restore_style)
+
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
         modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
         dimming_style = DIMMING_STYLE.read_text(encoding="utf-8")
