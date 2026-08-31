@@ -135,7 +135,7 @@ class SettingsPassATests(unittest.TestCase):
             "restoreMessage.textContent = 'Run Preview restore again before any retry.'",
             restore_client,
         )
-        self.assertIn("20260830-stale-restore-owner-v1", settings_template)
+        self.assertIn("20260831-home-restore-v1", settings_template)
 
     def test_kiosk_address_dialog_stays_below_pointer_transparent_night_overlay(self):
         modal_style = SAFE_LINK_STYLE.read_text(encoding="utf-8")
