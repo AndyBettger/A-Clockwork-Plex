@@ -105,7 +105,7 @@ default
 
     def test_backup_restore_polish_centres_actions_and_spaces_blocks(self):
         self.assertIn("settings-backup-restore.css", self.base)
-        self.assertIn("20260824-restore-polish-v1", self.base)
+        self.assertIn("20260831-home-restore-feedback-v2", self.base)
         self.assertIn('[data-settings-subpage="advanced:backup"] .settings-action-row', self.restore_css)
         self.assertIn("align-items: center", self.restore_css)
         self.assertIn('[data-configuration-restore-preview]:not([hidden])', self.restore_css)
