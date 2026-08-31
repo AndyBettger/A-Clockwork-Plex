@@ -338,8 +338,8 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
-3. **Touchscreen Plexamp text entry** — IN PROGRESS at checkpoint #91
-4. **BBC News**
+3. **Touchscreen Plexamp text entry** — COMPLETE at checkpoint #91
+4. **BBC News** — NEXT
 5. **Events calendar**
 6. **High-resolution Plexamp audio / mixer-EQ path**
 7. **Astronomy**
@@ -353,14 +353,18 @@ This priority list is authoritative. Detailed sections below are technical refer
 - [x] **Configuration import/restore — COMPLETE at #90.** Read-only Preview, transactional ACP/server restore, exact-version allow-listed Plexamp Headless restore, target-context-aware Plexamp Home restore and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted. The final combined restore applied one ACP/server plus one Plexamp Home change and the persistent completion presentation was accepted after the final spacing follow-up.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
-### Touchscreen Plexamp text entry — IN PROGRESS at checkpoint #91
+### Touchscreen Plexamp text entry — COMPLETE at checkpoint #91
 
 - [x] **Shared Settings keyboard baseline corrected.** Shift is now a true one-shot modifier rather than a Caps-Lock-like toggle: the armed keyboard visibly redraws alphabetic keycaps in uppercase, inserts one uppercase alphabetic character, then returns to lowercase. A second Shift tap cancels it; Space, Backspace and Clear do not consume it; layout changes reset it.
 - [x] **Keyboard presentation aligned with ACP.** The internal “Text keyboard” layout label is suppressed from the user-facing header, Shift exposes an active/`aria-pressed` state, and keyboard surface/key/active/Done styling consumes the existing daytime-theme variables with Classic Dark fallbacks.
 - [x] Added source/syntax regression coverage in the existing Settings test module and documented the cross-surface boundary in [`../development/architecture/touchscreen-text-entry.md`](../development/architecture/touchscreen-text-entry.md).
 - [x] **Physical Settings-keyboard acceptance — ACCEPTED 31 August 2026.** The owner re-checked the corrected keyboard at 1280×720 and confirmed the one-shot Shift/presentation follow-up is working better; this shared baseline is accepted for the Plexamp reuse layer.
-- [x] **Plexamp Search keyboard/bridge implementation — CI-GREEN, PHYSICAL PASS PENDING.** Added the separate permission-free loopback-only `browser/plexamp-search-bridge/` rather than expanding the accepted Home backup/restore bridge; the shared ACP keyboard is available above persistent Plexamp, Search focus uses an opaque cryptographic session, and the only remote actions are one-character insert, Backspace, Clear, Search/submit and Done. Search text is never returned to ACP, the Home bridge remains untouched, and normal physical-keyboard handling is not intercepted. Draft PR #6 implementation gate **Tests #4380** passed **990 tests, `OK`** with compile, JavaScript/page-wiring and shell checks green.
-- [ ] **Plexamp Search physical acceptance.** At 1280×720, confirm touching Search opens the ACP keyboard; lowercase/one-shot Shift, numbers/symbols, Space, Backspace and Clear edit the live Search field; **Search** submits; **Done** dismisses without leaving Plexamp; normal browsing/playback remains intact; and an attached physical keyboard still behaves natively.
+- [x] **Plexamp Search keyboard/bridge implementation and physical acceptance — ACCEPTED 31 August 2026.** The separate permission-free loopback-only `browser/plexamp-search-bridge/` leaves the accepted Home backup/restore bridge untouched. Search opens the shared ACP keyboard, live results update as text is entered, editing/Shift/symbols work, and the simplified **Done** action dismisses cleanly without a redundant Search key.
+- [x] **General Plexamp text fields — ACCEPTED 31 August 2026.** Physical 1280×720 testing passed for Home `+Home` section Title, Smart Playlist Name and Description, Settings → Experience → Home Screen section Title, and Settings → Experience → Player Name. Each field opens the same ACP keyboard, accepts edits and dismisses with Done; Plexamp's own Add/Create/Save actions remain explicit touches.
+- [x] **Narrow bridge authority preserved.** Only explicitly classified Plexamp text fields participate; ordinary unrelated inputs and password/login fields remain excluded. Field contents are never returned to ACP, physical-keyboard handling remains native, and the Home preference bridge is unchanged.
+- [x] **Automated implementation gate green.** Draft PR #7 exact feature head `b3ae887fdb4af07ab2b10f49c75744cccb476a2c` passed **Tests #4383: 990 tests, `OK`**, with compile, JavaScript/page-wiring and shell checks green before the closing acceptance documentation.
+- [x] **Checkpoint #91 closure.** Required touchscreen Plexamp text-entry scope is physically accepted. Login-screen keyboard support remains an optional resilience enhancement because commissioning already documents VNC; it is not an acceptance blocker.
+
 
 ### News
 
