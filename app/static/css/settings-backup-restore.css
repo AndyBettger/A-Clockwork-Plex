@@ -305,7 +305,7 @@ body.mode-settings [data-settings-subpage="advanced:backup"] .settings-card:has(
 
 body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration-restore-result-status]:not([hidden]) {
   order: -1;
-  margin: 12px 0 2px;
+  margin: 12px 0 14px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
 }
 
