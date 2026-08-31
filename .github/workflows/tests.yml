@@ -146,7 +146,15 @@ jobs:
           grep -q "plan.apply_enabled !== false" app/static/js/settings-about.js
           grep -q "confirm-configuration-restore" app/static/js/settings-about.js
           grep -q "includeBrowserPreferences" app/static/js/settings-about.js
+          grep -q "previewBrowserHome" app/static/js/settings-about.js
+          grep -q "apply-plexamp-home-restore" app/static/js/settings-about.js
+          grep -q "confirm-plexamp-home-restore" app/static/js/settings-about.js
+          grep -q "target_fingerprint" app/static/js/settings-about.js
           grep -q "ACPPlexampBrowserPreferences" app/static/js/plexamp-browser-bridge.js
+          grep -q "planHome" app/static/js/plexamp-browser-bridge.js
+          grep -q "applyHome" app/static/js/plexamp-browser-bridge.js
+          grep -q "PLAN_REQUEST_TYPE" browser/plexamp-bridge/content.js
+          grep -q "APPLY_REQUEST_TYPE" browser/plexamp-bridge/content.js
           grep -q "a-clockwork-plex-plexamp-preferences.py" scripts/install-appliance-helpers.sh
           grep -q "PLEXAMP_PREF_TARGET=/usr/local/bin/a-clockwork-plex-plexamp-preferences" scripts/install-appliance-helpers.sh
           grep -q -- "--load-extension=" scripts/launch-dashboard-kiosk.sh
