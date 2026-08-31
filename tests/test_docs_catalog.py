@@ -106,7 +106,7 @@ class DocsCatalogTests(unittest.TestCase):
         self.assertIn("Future product backlog", roadmap)
         self.assertIn("Friendly forecast-location entry", roadmap)
         self.assertIn("Configuration backup/export", roadmap)
-        self.assertIn("Plexamp search keyboard/bridge", roadmap)
+        self.assertIn("Plexamp Search keyboard/bridge", roadmap)
         self.assertNotIn("# EQ-capable Audio + Full Appliance Installer Roadmap", roadmap)
 
     def test_archive_preserves_the_pre_reorganisation_engineering_tree(self):
