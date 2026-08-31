@@ -149,7 +149,7 @@ Initial #89 implementation sequence:
 - rejected-order identifier diagnostic: `3a31ecf6d79586402aa3f73f4c14dd3cb41f9734`, `8057b7a3eb7e66d5f1ba7f28d0757d5dda633e66`, `d802ea734902ab1c0c221fc1775d024357a9397d`;
 - final `/` identifier support/client validation/cache refresh: `99c0ede324ab5356a6d16b419e8cd50e5b5a7f05`, `8b37229cbdd579af69269586c7309298bdc7684f`, `9fe7c8350daf211fbd7a393ab72e9317ec996fcb`, `2657e86f937fd42669d1513ab2da65becf10bf01`, `a02592b25baa178cb10f775d461d1c44f7e21586`.
 
-### Configuration import/restore — IN PROGRESS at checkpoint #90
+### Configuration import/restore — COMPLETE at checkpoint #90
 
 #### Phase 1 — parse / validate / preview — PHYSICALLY ACCEPTED
 
@@ -213,7 +213,7 @@ Phase 3 is the first Plexamp-owned mutation stage. It remains deliberately narro
 - [x] Post-round-trip invariants passed: both services active, restricted owner still `restore_ready: true`, clean repository, and Plexamp opened and played normally after the two controlled restarts.
 - [x] The destructive late-restart rollback path remains covered by controlled automated fault injection and was deliberately not forced on the commissioned appliance.
 
-#### Phase 4 — target-context-aware Plexamp Home order/hidden restore — PHYSICALLY ACCEPTED; GUIDED RESTORE UX FOLLOW-UP IN ACCEPTANCE
+#### Phase 4 — target-context-aware Plexamp Home order/hidden restore — PHYSICALLY ACCEPTED
 
 - [x] Extended the existing permission-free localhost-only Plexamp browser bridge from export to scoped `planHome` / `applyHome` operations for logical Home `order` / `hidden` state.
 - [x] The browser owner discovers the **target's current** contextual customization keys from the live Plexamp Local Storage after commissioning. The source backup's account/library context is discarded and is never written literally to the target.
@@ -229,9 +229,11 @@ Phase 3 is the first Plexamp-owned mutation stage. It remains deliberately narro
 - [x] One final confirmation can orchestrate both targets while preserving truthful ownership underneath. When browser Home and server/Headless work coexist, Home is applied and verified first, then the server/Headless transaction runs; each stage retains its own rollback owner and the UI does **not** claim atomic rollback across Chromium Local Storage and a Plexamp service restart.
 - [x] Preview, Review, completion, blocked and failed states now use adjacent status boxes; Review itself remains read-only and refreshes the selected owner plans before exposing the final confirmation. Changed sections/technical paths are collapsed under Preview details and warnings appear only when present.
 - [x] Guided-flow source/syntax/regression coverage passed exact **Tests #4363** on `b0065a70ebc9e0a54d180869f15c87eb4627a169`: **985 tests, `OK`** on 31 August 2026.
-- [ ] Remaining Phase-4 gate is **guided UX physical acceptance**, not proof of the Home restore engine. At 1280×720, prove target selection is clear, both targets can be selected together, Review produces an obvious adjacent **Ready to confirm** state, one Confirm restores a harmless ACP + Plexamp Home combination, the final result status remains obvious after any Settings reload, and normal Plexamp playback/login/library/player identity remain unchanged.
+- [x] Final guided UX physical acceptance passed at 1280×720. Preview clearly presented both targets with **1 restorable** change each and **Both selected · 2 selected**; **Review selected restore** produced the adjacent **Ready to confirm** state; one **Confirm & restore** applied and verified **2 changes (1 ACP/server, 1 Plexamp Home)**; and the durable **Restore complete** result remained visible after Settings reloaded.
+- [x] The first final pass exposed only a small persisted-result spacing issue. `bcbcdc56218fd34062edb090e7d5950031ca8108` corrected the result-to-file-card gap and `9cd0a36f9337a5a2b918047a44c6ae721350ce2c` guarded it in the existing Settings suite. The owner then repeated the restore and confirmed the result now looks correct.
+- [x] Exact final implementation **Tests #4371** on `9cd0a36f9337a5a2b918047a44c6ae721350ce2c` passed **986 tests, `OK`**, with compile, JavaScript/page-wiring, shell and direct-import gates green.
 
-- [ ] Final #90 closure requires synchronized docs-inclusive CI plus that guided restore UX physical acceptance.
+- [x] Final #90 closure: all four restore phases and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted; the final implementation gate is green; this roadmap/ownership synchronization is the closing docs-inclusive repository check.
 
 Initial #90 implementation sequence:
 - read-only planner/API: `95b557c1254921f706d0f7f9c9e7faebb549c08e`;
@@ -261,7 +263,9 @@ Initial #90 implementation sequence:
 - production direct-run import fix/gate: `6c0f826288492ea44c473e03302a4c190fb31d46`, `0ff222958659a63e041f6d4675ad7fb22dd38f27`;
 - Phase-3 physical acceptance ownership synchronization: `bfd6614d2e4c8b12d04c74199e6723a75b6f32bb`;
 - Phase-4 completed-write rollback/cache/CI hardening and final implementation gate: `ac00bbf3c36c0e93d9557d26f3bdf9b6590ff439`, `63b1b643832505ba68b23164871661a8c7344a2c`, `edb833e2f0f2ba22a1f705d63c0627c0714e2ec3`, `f010ae1b8700301bd4898e733ecdafd10bcfd480`;
-- Phase-4 physical acceptance / guided restore UX implementation: `b0065a70ebc9e0a54d180869f15c87eb4627a169`.
+- Phase-4 physical acceptance / guided restore UX implementation: `b0065a70ebc9e0a54d180869f15c87eb4627a169`;
+- guided restore physical-follow-up spacing/gate: `bcbcdc56218fd34062edb090e7d5950031ca8108`, `9cd0a36f9337a5a2b918047a44c6ae721350ce2c`;
+- final #90 ownership synchronization: `64c16ec2ce84fee11c91c4bdbeae259fbc7b6b51`.
 
 ## Current supported release
 
@@ -333,8 +337,8 @@ These are post-v0.4.0 ideas, not commitments to one release. Design/test indepen
 Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — IN PROGRESS at #90; #88 ownership COMPLETE, #89 export COMPLETE, Headless restore Phase 3 PHYSICALLY ACCEPTED, Home restore Phase 4 PHYSICALLY ACCEPTED, guided restore UX acceptance remaining
-3. **Touchscreen Plexamp text entry**
+2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
+3. **Touchscreen Plexamp text entry** — NEXT
 4. **BBC News**
 5. **Events calendar**
 6. **High-resolution Plexamp audio / mixer-EQ path**
@@ -346,7 +350,7 @@ This priority list is authoritative. Detailed sections below are technical refer
 
 - [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
-- [ ] **Configuration import/restore — IN PROGRESS at #90.** Read-only Preview, transactional ACP/server Phase 2, version-aware allow-listed Plexamp Headless Phase 3 and target-context-aware Plexamp Home Phase 4 are physically accepted. The remaining gate is physical acceptance of the guided ACP/Plexamp/Both selection and single-confirmation UX introduced after the Home round-trip exposed workflow ambiguity.
+- [x] **Configuration import/restore — COMPLETE at #90.** Read-only Preview, transactional ACP/server restore, exact-version allow-listed Plexamp Headless restore, target-context-aware Plexamp Home restore and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted. The final combined restore applied one ACP/server plus one Plexamp Home change and the persistent completion presentation was accepted after the final spacing follow-up.
 - [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
 
 ### Touchscreen Plexamp text entry
