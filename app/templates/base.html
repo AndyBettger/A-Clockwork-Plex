@@ -95,7 +95,7 @@
   <script src="{{ url_for('static', filename='js/airplay-start-commit.js') }}"></script>
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
   <script src="{{ url_for('static', filename='js/plexamp-persistent.js', v='20260730-atomic-plexamp-underlay-handoff') }}"></script>
-  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20260730-playback-generation-transition-serialization-20260802-night-navigation-state') }}"></script>
+  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20260831-news-lease-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260730-stale-projection-navigation-epoch') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
   {% if active_page | default(state.mode) == 'weather' %}
@@ -104,6 +104,7 @@
   {% endif %}
   {% if active_page | default(state.mode) == 'settings' %}
   <script src="{{ url_for('static', filename='js/settings-transaction-guard.js', v='20260802-single-transaction') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-news.js', v='20260831-news-settings-v1') }}"></script>
   {% endif %}
   {% block scripts %}{% endblock %}
   {% if active_page | default(state.mode) != 'settings' %}
