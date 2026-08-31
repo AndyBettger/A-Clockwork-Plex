@@ -14,6 +14,9 @@ class SettingsIpadTests(unittest.TestCase):
         self.client = Path("app/static/js/settings-ipad.js").read_text(encoding="utf-8")
         self.alarms = Path("app/static/js/settings-alarms.js").read_text(encoding="utf-8")
         self.transaction_guard = Path("app/static/js/settings-transaction-guard.js").read_text(encoding="utf-8")
+        self.news_settings = Path("app/static/js/settings-news.js").read_text(encoding="utf-8")
+        self.news_template = Path("app/templates/news.html").read_text(encoding="utf-8")
+        self.news_client = Path("app/static/js/news.js").read_text(encoding="utf-8")
 
     def test_template_uses_persistent_sidebar_and_right_detail_pane(self):
         self.assertIn("settings-ipad-shell", self.template)
@@ -140,12 +143,42 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("Applied immediately", self.template)
         self.assertIn("Live controls and tests act immediately", self.template)
 
+    def test_news_page_is_cache_only_and_cannot_navigate_to_articles(self):
+        self.assertIn("const API = '/api/news';", self.news_client)
+        self.assertEqual(self.news_client.count("fetch("), 1)
+        self.assertIn("const MAX_VISIBLE_STORIES = 24;", self.news_client)
+        self.assertIn("const MAX_TICKER_STORIES = 12;", self.news_client)
+        self.assertIn("textContent = text(story.title)", self.news_client)
+        self.assertIn("textContent = text(story.summary)", self.news_client)
+        self.assertNotIn("window.open(", self.news_client)
+        self.assertNotIn("window.location.assign", self.news_client)
+        self.assertNotIn("location.href =", self.news_client)
+        self.assertNotIn("<a ", self.news_template)
+        self.assertIn("data-news-detail", self.news_template)
+        self.assertIn("data-news-ticker", self.news_template)
+
+    def test_news_settings_and_navigation_reuse_existing_owners(self):
+        navigation = Path("app/templates/_nav.html").read_text(encoding="utf-8")
+        transitions = Path("app/static/js/page-transitions.js").read_text(encoding="utf-8")
+        news_ui = Path("app/news_ui.py").read_text(encoding="utf-8")
+
+        self.assertIn("window.ACPUnifiedSettings.registerDomain('news'", self.news_settings)
+        self.assertIn("window.ACPUnifiedSettings?.markDirty?.('news')", self.news_settings)
+        self.assertNotIn("fetch(", self.news_settings)
+        self.assertLess(self.base.index("settings-news.js"), self.base.index("{% block scripts %}"))
+        self.assertIn('href="/news"', navigation)
+        self.assertIn("'/news'", transitions)
+        self.assertIn('MANUAL_LEASE_SCREENS.add("news")', news_ui)
+        self.assertNotIn('IDLE_RETURN_SCREENS.add("news")', news_ui)
+
     def test_new_clients_have_valid_javascript_syntax(self):
         for path in (
             "app/static/js/settings-transaction-guard.js",
             "app/static/js/settings-ipad.js",
             "app/static/js/settings-advanced.js",
             "app/static/js/settings-alarms.js",
+            "app/static/js/settings-news.js",
+            "app/static/js/news.js",
         ):
             result = subprocess.run(
                 ["node", "--check", path],
