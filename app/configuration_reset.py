@@ -36,6 +36,7 @@ PRESERVED_OWNERS = (
     "Plex/Plexamp login, claim, authentication and browser session state",
     "Plexamp player identity and Headless preferences",
     "Chromium profile and browser cache/session data",
+    "Alarm sound master/scheduled safety switches (reset never silently changes the arming state)",
     "DAC, ALSA, mixer topology and installer-owned hardware configuration",
     "Installed runtimes, systemd units and appliance service ownership",
     "Weather/news caches, rainfall history and other runtime data",
@@ -63,6 +64,10 @@ class ConfigurationResetPlanner:
     the running application's own default Settings projection, then narrowed by
     the same portable ownership boundary used by backup/restore. Specialist EQ
     and mixer defaults are included only while those owners are available.
+
+    Alarm sound master/scheduled safety switches are intentionally outside this
+    reset target. They are safety arming state rather than portable personality,
+    so Reset never silently changes them in either direction.
     """
 
     def __init__(
