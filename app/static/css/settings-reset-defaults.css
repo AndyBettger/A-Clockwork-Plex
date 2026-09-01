@@ -1,0 +1,263 @@
+/* Reset-to-defaults presentation. The Reset workflow deliberately reuses the
+ * guided Restore component vocabulary, but it is a separate Settings subpage
+ * and therefore owns an explicit layout scope of its own. */
+
+body.mode-settings [data-settings-subpage="advanced:reset"] {
+  gap: 18px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] > .settings-card {
+  display: grid;
+  gap: 16px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] > .settings-back {
+  margin-bottom: 2px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-card-heading {
+  gap: 16px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-card-heading > div {
+  min-width: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-card-heading p,
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-card > p {
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: 1.45;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 2px 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target {
+  display: grid;
+  align-content: start;
+  gap: 11px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 15px 16px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .045);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  -webkit-text-fill-color: currentColor;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, opacity .16s ease;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target[data-reset-target="acp"] {
+  border-color: color-mix(in srgb, var(--accent) 52%, rgba(255, 255, 255, .12));
+  background: color-mix(in srgb, var(--accent) 10%, rgba(255, 255, 255, .045));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 78%, white 5%);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target:not(:disabled):hover,
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target:not(:disabled):focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, .14));
+  background: color-mix(in srgb, var(--accent) 11%, rgba(255, 255, 255, .055));
+  outline: none;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 74%, white 8%);
+  background: color-mix(in srgb, var(--accent) 17%, rgba(255, 255, 255, .055));
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Disabled means the browser-owned Home target did not produce a safe plan;
+ * keep it visually readable instead of falling back to Chromium's grey button. */
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target:disabled {
+  opacity: .66;
+  color: var(--text);
+  -webkit-text-fill-color: currentColor;
+  background: rgba(255, 255, 255, .025);
+  border-color: rgba(255, 255, 255, .09);
+  box-shadow: none;
+  cursor: default;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target-title strong {
+  min-width: 0;
+  font-size: clamp(.9rem, 2vmin, 1.06rem);
+  line-height: 1.25;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target small {
+  display: block;
+  color: var(--muted);
+  font-size: clamp(.68rem, 1.5vmin, .78rem);
+  line-height: 1.42;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin: 2px 0 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-action-row > .muted.small {
+  flex: 1 1 300px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-status:not([hidden]) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, rgba(255, 255, 255, .12));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent) 9%, rgba(255, 255, 255, .04));
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-status > span:last-child {
+  min-width: 0;
+  color: var(--muted);
+  font-size: clamp(.72rem, 1.7vmin, .88rem);
+  line-height: 1.38;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-status[data-status="warning"] {
+  border-color: rgba(255, 205, 112, .46);
+  background: rgba(255, 205, 112, .12);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-status[data-status="error"] {
+  border-color: rgba(255, 120, 120, .52);
+  background: rgba(255, 120, 120, .11);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-warning {
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 205, 112, .34);
+  border-radius: 13px;
+  background: rgba(255, 205, 112, .08);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-warning > strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-warning ul,
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-detail-grid ul,
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation ul {
+  margin-top: 7px;
+  margin-bottom: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  padding: 2px 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-detail-grid > div {
+  min-width: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-details {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .025);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-details > summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-home-detail] {
+  margin: 0;
+  padding: 2px 0;
+  line-height: 1.42;
+}
+
+/* Review is a separate deliberate stage; visually bracket it away from both
+ * Preview detail above and destructive confirmation below. */
+body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-zone]:not([hidden]) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 4px;
+  padding: 16px 0 2px;
+  border-top: 1px solid rgba(255, 255, 255, .09);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-status]:not([hidden]) {
+  margin-top: 8px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation:not([hidden]) {
+  display: grid;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 16px 17px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, .12));
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .045);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation > span,
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation > strong,
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation > small {
+  margin: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation > strong {
+  font-size: clamp(.95rem, 2.1vmin, 1.12rem);
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation > small {
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation > .settings-action-row {
+  margin-top: 4px;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-status][data-status="error"] + *,
+body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-status][data-status="error"] + * {
+  margin-top: 8px;
+}
+
+@media (max-width: 820px) {
+  body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-target-grid,
+  body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-status:not([hidden]) {
+    grid-template-columns: 1fr;
+  }
+
+  body.mode-settings [data-settings-subpage="advanced:reset"] .settings-action-row > .muted.small {
+    flex-basis: 100%;
+  }
+}
