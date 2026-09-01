@@ -41,6 +41,7 @@ jobs:
             app/settings_unified_scheduled.py \
             app/settings_weather_rainfall.py \
             app/configuration_backup.py \
+            app/configuration_reset.py \
             app/configuration_restore.py \
             app/plexamp_preferences.py \
             app/news_feed.py \
@@ -142,6 +143,11 @@ jobs:
           grep -q "register_configuration_backup_api" app/runner.py
           grep -q "register_configuration_restore_preview_api" app/runner.py
           grep -q "register_configuration_restore_apply_api" app/runner.py
+          grep -q "register_configuration_reset_preview_api" app/runner.py
+          grep -q "register_configuration_reset_apply_api" app/runner.py
+          grep -q "/api/settings/reset/preview" app/static/js/settings-advanced.js
+          grep -q "/api/settings/reset/apply" app/static/js/settings-advanced.js
+          grep -q "Plexamp Home customisation" app/static/js/settings-advanced.js
           grep -q "PlexampPreferenceManager" app/runner.py
           grep -q "plexamp_preference_status=plexamp_preferences.status" app/runner.py
           grep -q "plexamp_preference_apply=plexamp_preferences.apply" app/runner.py
