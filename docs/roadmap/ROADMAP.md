@@ -341,18 +341,19 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
 3. **Touchscreen Plexamp text entry** — COMPLETE at checkpoint #91
 4. **BBC News** — COMPLETE at checkpoint #92
-5. **Events calendar** — NEXT
-6. **High-resolution Plexamp audio / mixer-EQ path**
-7. **Astronomy**
+5. **High-resolution Plexamp audio / mixer-EQ path**
+6. **Astronomy**
+7. **Appliance resilience** — cross-cutting release-quality track
+8. **Events calendar**
 
-This priority list is authoritative. Detailed sections below are technical reference and do not imply a different order. The separate **Appliance resilience** track is cross-cutting release-quality work discovered during commissioned-Pi testing; it does not silently reorder the feature list, but it must be investigated and deliberately addressed before the next supported release is promoted to `main`.
+This priority list is authoritative. Detailed sections below follow the same active-work order. Before item 5 begins, the sole remaining Settings follow-up — **Reset-to-defaults** — is queued as checkpoint **#93** so the #88–#90 ownership work can be closed cleanly without turning that follow-up into a separate product priority.
 
 ### Settings and appliance ownership
 
 - [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
 - [x] **Configuration import/restore — COMPLETE at #90.** Read-only Preview, transactional ACP/server restore, exact-version allow-listed Plexamp Headless restore, target-context-aware Plexamp Home restore and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted. The final combined restore applied one ACP/server plus one Plexamp Home change and the persistent completion presentation was accepted after the final spacing follow-up.
-- [ ] **Reset-to-defaults workflow.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion.
+- [ ] **Reset-to-defaults workflow — NEXT at checkpoint #93.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion. Treat reset as an ownership transaction: explicitly define which ACP preferences, logical EQ/mixer state and other user-owned configuration return to defaults, which credentials/account/device/runtime state must survive, what preview/confirmation UX is required, and how rollback/failure is handled.
 
 ### Touchscreen Plexamp text entry — COMPLETE at checkpoint #91
 
@@ -388,26 +389,6 @@ The BBC feed/cache authority, touch UI, Settings ownership and startup/idle inte
 - [x] **Final implementation gate before closing docs.** Exact pre-acceptance candidate `fffc5af8afad08d7c78e11e530d7ec7631d37a8b` passed **Tests #4432: 1001 tests, `OK`**, including the real production `/settings` render check that requires News in both Startup and Idle destination lists.
 - [x] **Checkpoint #92 closure.** The complete News scope is physically accepted; [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) records the detailed authority and physical evidence. The separate read-only-filesystem/Wi-Fi recovery findings are queued under Appliance resilience below rather than misattributed to News.
 
-### Appliance resilience — cross-cutting release-quality track
-
-Commissioned-Pi testing exposed two appliance-recovery concerns that deserve explicit work before the next supported release. Detailed design notes and security constraints are maintained in [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md); this roadmap remains the priority/status authority.
-
-- [ ] **Investigate intermittent read-only root filesystem / SD-card resilience.** On recurrence capture kernel `mmc`/ext4/I/O/timeout/voltage evidence and `vcgencmd get_throttled` before reboot where possible. Do not assume flash wear: two new SanDisk Extreme A2 128 GB test cards have exhibited the symptom despite repeated H2testw passes, while the previously used 64 GB card ran the older dashboard without the same observed failure.
-- [ ] **Reduce expendable Chromium writes.** Evaluate a bounded RAM-backed disk/media cache (for example `/dev/shm`/verified tmpfs) while retaining the persistent normal kiosk profile, Plexamp session state and unpacked extensions. Incognito is not the appliance solution.
-- [ ] **Audit ACP write ownership/frequency.** Separate volatile runtime/current-observation state from durable configuration/history, avoid persistent rewrites when values have not materially changed, and investigate `/run/a-clockwork-plex` or another tmpfs for genuinely transient state.
-- [ ] **Graceful read-only-storage degradation.** `EROFS` should surface a clear storage diagnostic and should not turn otherwise renderable pages into HTTP 500 merely because a current mode/state write could not be persisted.
-- [ ] **Overlay filesystem feasibility after ownership separation.** Only evaluate Raspberry Pi OS overlayfs once settings, updates and genuinely durable history have explicit persistent ownership so successful-looking changes cannot disappear on reboot.
-- [ ] **Kiosk-safe Wi-Fi recovery / provisioning design and implementation.** Investigate a bounded temporary NetworkManager-backed recovery AP, on-screen QR code for joining that temporary AP from an iPhone/phone, and a local captive-portal-style page for selecting a nearby SSID and securely supplying its passphrase. The temporary AP must disappear after success/timeout/cancel; credentials must never enter query strings, argv, logs, browser persistence or ACP backup; privileged network mutation must be narrow rather than a broad root shell.
-- [ ] **Wi-Fi recovery physical acceptance.** With normal WLAN deliberately unavailable, recover using only touchscreen + phone, join a replacement SSID, prove the temporary AP disappears and online ACP services recover, then reboot to prove the NetworkManager profile persists. Working Ethernet must not be disrupted.
-- [ ] **Storage endurance physical gate.** After write hardening, run a representative multi-day workload including Chromium kiosk, Ecowitt, Weather/News refresh, playback and normal navigation and inspect kernel/storage behaviour before claiming mitigation complete.
-
-### Events calendar
-
-- [ ] **Events calendar design spike.** Define the first data model: local-first storage and/or read-only iCalendar/ICS/CalDAV are preferable starting points; optional cloud-provider integrations remain separate.
-- [ ] **Useful bedside views.** Today, upcoming events and a compact month/date browser; clearly distinguish all-day/timed events.
-- [ ] **Calendar Settings/ownership.** Keep credentials/remote secrets out of browser-visible configuration and make offline/stale state explicit.
-- [ ] **Reminders are separate.** Calendar events never silently become alarm-clock alarms; any future reminder needs explicit user policy and audio/priority semantics.
-
 ### High-resolution Plexamp audio / mixer-EQ path
 
 The current v0.4.0 audio profiles intentionally use a fixed **16-bit / 44.1 kHz** shared bus. Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
@@ -435,6 +416,26 @@ Treat Astronomy as a **multi-screen touch section** with its own sub-navigation,
 - [ ] **Planets.** Mercury–Neptune rise/transit/set and useful position data; investigate magnitude, elongation, distance and constellation where reliable.
 - [ ] **Navigation/presentation.** Touch-first 1280×720 sub-navigation, global drawer always reachable, night presentation designed from the outset.
 - [ ] **Validation.** Reference dates/locations plus circumpolar/no-rise/no-set/polar/DST/local-date edge cases.
+
+### Appliance resilience — cross-cutting release-quality track
+
+Commissioned-Pi testing exposed two appliance-recovery concerns that deserve explicit work before the next supported release. Detailed design notes and security constraints are maintained in [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md); this roadmap remains the priority/status authority.
+
+- [ ] **Investigate intermittent read-only root filesystem / SD-card resilience.** On recurrence capture kernel `mmc`/ext4/I/O/timeout/voltage evidence and `vcgencmd get_throttled` before reboot where possible. Do not assume flash wear: two new SanDisk Extreme A2 128 GB test cards have exhibited the symptom despite repeated H2testw passes, while the previously used 64 GB card ran the older dashboard without the same observed failure.
+- [ ] **Reduce expendable Chromium writes.** Evaluate a bounded RAM-backed disk/media cache (for example `/dev/shm`/verified tmpfs) while retaining the persistent normal kiosk profile, Plexamp session state and unpacked extensions. Incognito is not the appliance solution.
+- [ ] **Audit ACP write ownership/frequency.** Separate volatile runtime/current-observation state from durable configuration/history, avoid persistent rewrites when values have not materially changed, and investigate `/run/a-clockwork-plex` or another tmpfs for genuinely transient state.
+- [ ] **Graceful read-only-storage degradation.** `EROFS` should surface a clear storage diagnostic and should not turn otherwise renderable pages into HTTP 500 merely because a current mode/state write could not be persisted.
+- [ ] **Overlay filesystem feasibility after ownership separation.** Only evaluate Raspberry Pi OS overlayfs once settings, updates and genuinely durable history have explicit persistent ownership so successful-looking changes cannot disappear on reboot.
+- [ ] **Kiosk-safe Wi-Fi recovery / provisioning design and implementation.** Investigate a bounded temporary NetworkManager-backed recovery AP, on-screen QR code for joining that temporary AP from an iPhone/phone, and a local captive-portal-style page for selecting a nearby SSID and securely supplying its passphrase. The temporary AP must disappear after success/timeout/cancel; credentials must never enter query strings, argv, logs, browser persistence or ACP backup; privileged network mutation must be narrow rather than a broad root shell.
+- [ ] **Wi-Fi recovery physical acceptance.** With normal WLAN deliberately unavailable, recover using only touchscreen + phone, join a replacement SSID, prove the temporary AP disappears and online ACP services recover, then reboot to prove the NetworkManager profile persists. Working Ethernet must not be disrupted.
+- [ ] **Storage endurance physical gate.** After write hardening, run a representative multi-day workload including Chromium kiosk, Ecowitt, Weather/News refresh, playback and normal navigation and inspect kernel/storage behaviour before claiming mitigation complete.
+
+### Events calendar
+
+- [ ] **Events calendar design spike.** Define the first data model: local-first storage and/or read-only iCalendar/ICS/CalDAV are preferable starting points; optional cloud-provider integrations remain separate.
+- [ ] **Useful bedside views.** Today, upcoming events and a compact month/date browser; clearly distinguish all-day/timed events.
+- [ ] **Calendar Settings/ownership.** Keep credentials/remote secrets out of browser-visible configuration and make offline/stale state explicit.
+- [ ] **Reminders are separate.** Calendar events never silently become alarm-clock alarms; any future reminder needs explicit user policy and audio/priority semantics.
 
 ### Weather
 
