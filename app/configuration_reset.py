@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from typing import Any, Callable
 
@@ -31,6 +32,16 @@ StatusProvider = Callable[[], dict[str, Any]]
 
 MAX_RESET_REQUEST_BYTES = 32_768
 
+# The restricted ALSA helper maps the human-facing perceptual percentage onto
+# an integer 0..100 softvol position spanning -51..0 dB. A value such as the
+# shipped 80% Music master therefore reads back as 79% after the real device has
+# quantised it. Reset targets must use that observable value or the generic #90
+# exact verifier correctly reports a mismatch even though the mixer reached its
+# nearest representable default. These constants are pinned to the helper by
+# test_audio_mixer_scale.py so the two owners cannot drift silently.
+MIXER_MIN_DB = -51.0
+MIXER_MAX_DB = 0.0
+
 PRESERVED_OWNERS = (
     "Weather Underground API key and other managed credentials",
     "Plex/Plexamp login, claim, authentication and browser session state",
@@ -50,9 +61,36 @@ def _default_eq() -> dict[str, Any]:
     }
 
 
+def _observable_mixer_percent(value: Any) -> int:
+    """Return the helper percentage that the requested default reads back as."""
+
+    try:
+        requested = max(0, min(100, int(value)))
+    except (TypeError, ValueError):
+        requested = 0
+    if requested <= 0:
+        return 0
+
+    desired_db = max(
+        MIXER_MIN_DB,
+        min(MIXER_MAX_DB, 20.0 * math.log10(requested / 100.0)),
+    )
+    raw_percent = round(
+        100.0
+        * (desired_db - MIXER_MIN_DB)
+        / (MIXER_MAX_DB - MIXER_MIN_DB)
+    )
+    represented_db = MIXER_MIN_DB + (
+        (MIXER_MAX_DB - MIXER_MIN_DB) * raw_percent / 100.0
+    )
+    if represented_db <= MIXER_MIN_DB:
+        return 0
+    return max(0, min(100, round(100.0 * (10.0 ** (represented_db / 20.0)))))
+
+
 def _default_mixer() -> dict[str, int]:
     return {
-        channel: int(metadata["default_percent"])
+        channel: _observable_mixer_percent(metadata["default_percent"])
         for channel, metadata in MIXER_CHANNELS.items()
     }
 
