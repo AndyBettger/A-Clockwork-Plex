@@ -14,6 +14,12 @@ class SettingsIpadTests(unittest.TestCase):
         self.client = Path("app/static/js/settings-ipad.js").read_text(encoding="utf-8")
         self.alarms = Path("app/static/js/settings-alarms.js").read_text(encoding="utf-8")
         self.transaction_guard = Path("app/static/js/settings-transaction-guard.js").read_text(encoding="utf-8")
+        self.news_settings = Path("app/static/js/settings-news.js").read_text(encoding="utf-8")
+        self.news_template = Path("app/templates/news.html").read_text(encoding="utf-8")
+        self.news_client = Path("app/static/js/news.js").read_text(encoding="utf-8")
+        self.news_css = Path("app/static/css/news.css").read_text(encoding="utf-8")
+        self.screen_projection = Path("app/static/js/screen-projection.js").read_text(encoding="utf-8")
+        self.dashboard_preferences = Path("app/static/js/dashboard-preferences-bootstrap.js").read_text(encoding="utf-8")
 
     def test_template_uses_persistent_sidebar_and_right_detail_pane(self):
         self.assertIn("settings-ipad-shell", self.template)
@@ -140,12 +146,100 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("Applied immediately", self.template)
         self.assertIn("Live controls and tests act immediately", self.template)
 
+    def test_news_page_is_cache_only_and_cannot_navigate_to_articles(self):
+        self.assertIn("const API = '/api/news';", self.news_client)
+        self.assertEqual(self.news_client.count("fetch("), 1)
+        self.assertIn("const MAX_VISIBLE_STORIES = 24;", self.news_client)
+        self.assertIn("const MAX_TICKER_STORIES = 12;", self.news_client)
+        self.assertIn("return text(story?.title).toLocaleLowerCase('en-GB');", self.news_client)
+        self.assertIn("textContent = text(story.title)", self.news_client)
+        self.assertIn("textContent = text(story.summary)", self.news_client)
+        self.assertNotIn("window.open(", self.news_client)
+        self.assertNotIn("window.location.assign", self.news_client)
+        self.assertNotIn("location.href =", self.news_client)
+        self.assertNotIn("<a ", self.news_template)
+        self.assertIn("data-news-detail", self.news_template)
+        self.assertIn("data-news-ticker", self.news_template)
+        self.assertNotIn("data-news-updated", self.news_template)
+        self.assertIn('class="news-page is-ticker-hidden"', self.news_template)
+        self.assertIn("page?.classList.add('is-ticker-hidden')", self.news_client)
+        self.assertIn("page?.classList.remove('is-ticker-hidden')", self.news_client)
+        self.assertIn(".news-page.is-ticker-hidden", self.news_css)
+        self.assertIn(".news-ticker[hidden]", self.news_css)
+        self.assertIn("display: none;", self.news_css)
+
+    def test_news_feed_time_and_story_scroll_use_dashboard_chrome(self):
+        self.assertIn('class="news-source-time news-source-pill"', self.news_template)
+        self.assertIn("data-news-story-scrollbar", self.news_template)
+        self.assertIn('aria-orientation="vertical"', self.news_template)
+        self.assertIn("bindStoryScrollbar", self.news_client)
+        self.assertIn("storyMount.scrollTop", self.news_client)
+        self.assertIn("storyMount.addEventListener('scroll', update", self.news_client)
+        self.assertIn("scrollbar-width: none", self.news_css)
+        self.assertIn(".news-story-scrollbar-thumb", self.news_css)
+        self.assertIn("linear-gradient(180deg, var(--accent), var(--accent-strong))", self.news_css)
+
+    def test_news_settings_and_navigation_reuse_existing_owners(self):
+        navigation = Path("app/templates/_nav.html").read_text(encoding="utf-8")
+        transitions = Path("app/static/js/page-transitions.js").read_text(encoding="utf-8")
+        news_ui = Path("app/news_ui.py").read_text(encoding="utf-8")
+
+        self.assertIn("window.ACPUnifiedSettings.registerDomain('news'", self.news_settings)
+        self.assertIn("window.ACPUnifiedSettings?.markDirty?.('news')", self.news_settings)
+        self.assertNotIn("fetch(", self.news_settings)
+        self.assertIn('data-settings-overview="news"', self.news_settings)
+        self.assertIn('data-settings-subpage-target="news:sections"', self.news_settings)
+        self.assertIn('data-settings-subpage-target="news:presentation"', self.news_settings)
+        self.assertIn('data-settings-subpage="news:sections"', self.news_settings)
+        self.assertIn('data-settings-subpage="news:presentation"', self.news_settings)
+        self.assertIn('data-settings-back="news"', self.news_settings)
+        self.assertLess(self.base.index("settings-news.js"), self.base.index("{% block scripts %}"))
+        self.assertIn('href="/news"', navigation)
+        self.assertIn("'/news'", transitions)
+        self.assertIn("news: '/news'", self.screen_projection)
+        self.assertIn('MANUAL_LEASE_SCREENS.add("news")', news_ui)
+        self.assertIn('IDLE_RETURN_SCREENS.add("news")', news_ui)
+        self.assertIn('_settings_unified.VALID_MODES.add("news")', news_ui)
+        self.assertIn('_install_news_settings_mode_option(dashboard)', news_ui)
+        self.assertIn('core = getattr(dashboard, "core", None)', news_ui)
+        self.assertIn('_wrap_news_settings_mode_option(core)', news_ui)
+        self.assertIn('{"id": "news", "label": "News"}', news_ui)
+
+    def test_news_is_rendered_in_both_production_settings_destination_lists(self):
+        script = "\n".join(
+            [
+                "from app import runner",
+                "from app import dashboard_core as core",
+                "core.set_mode = lambda _mode: {}",
+                "response = runner.app.test_client().get('/settings')",
+                "assert response.status_code == 200, response.status_code",
+                "html = response.get_data(as_text=True)",
+                "assert html.count('<option value=\"news\">News</option>') == 2, html.count('<option value=\"news\">News</option>')",
+            ]
+        )
+        result = subprocess.run(
+            ["python", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_news_is_valid_during_startup_bootstrap(self):
+        self.assertIn(
+            "new Set(['clock', 'weather', 'news', 'airplay', 'plexamp'])",
+            self.dashboard_preferences,
+        )
+        self.assertIn("window.location.replace(`/${preferences.startupMode}`)", self.dashboard_preferences)
+
     def test_new_clients_have_valid_javascript_syntax(self):
         for path in (
             "app/static/js/settings-transaction-guard.js",
             "app/static/js/settings-ipad.js",
             "app/static/js/settings-advanced.js",
             "app/static/js/settings-alarms.js",
+            "app/static/js/settings-news.js",
+            "app/static/js/news.js",
         ):
             result = subprocess.run(
                 ["node", "--check", path],

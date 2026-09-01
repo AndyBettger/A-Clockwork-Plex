@@ -23,6 +23,8 @@ try:
         register_configuration_restore_preview_api,
     )
     from .input_activity import LinuxInputActivityMonitor
+    from .news_feed import BBCNewsFeedService, register_news_api
+    from .news_ui import register_news_ui
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
@@ -71,6 +73,8 @@ except ImportError:  # Supports direct execution with: python app/runner.py
         register_configuration_restore_preview_api,
     )
     from input_activity import LinuxInputActivityMonitor
+    from news_feed import BBCNewsFeedService, register_news_api
+    from news_ui import register_news_ui
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
@@ -99,6 +103,7 @@ except ImportError:  # Supports direct execution with: python app/runner.py
 
 
 app = dashboard.app
+register_news_ui(app, dashboard)
 promote_server_time_formatting(dashboard)
 scheduled_alarm_audio = promote_scheduled_alarm_audio(dashboard)
 register_alarm_audio_preview_api(app, dashboard)
@@ -161,6 +166,11 @@ register_weather_forecast_settings_api(
     dashboard.load_config,
     lambda config: dashboard.save_json(dashboard.CONFIG_PATH, config),
 )
+bbc_news = BBCNewsFeedService(
+    dashboard.load_config,
+    dashboard.BASE_DIR / "bbc-news-cache.json",
+)
+register_news_api(app, bbc_news)
 shairport_name = ShairportNameManager()
 unified_settings = UnifiedSettingsService(
     load_config=dashboard.load_config,
@@ -175,6 +185,7 @@ unified_settings = UnifiedSettingsService(
     screen_idle_mode=screen_projection.set_idle_return_mode,
     observations=weather_observations,
     rainfall=weather_rainfall,
+    news=bbc_news,
 )
 register_unified_settings_api(app, unified_settings)
 configuration_backup = ConfigurationBackupService(
@@ -214,6 +225,7 @@ if __name__ == "__main__":
     weather_forecast.start()
     weather_rainfall.start()
     weather_rainfall_lifetime.start()
+    bbc_news.start()
     if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
         input_activity_monitor.start()
     if isinstance(playback_coordinator, PlaybackCoordinator):
@@ -230,6 +242,7 @@ if __name__ == "__main__":
             playback_coordinator.shutdown()
         if isinstance(input_activity_monitor, LinuxInputActivityMonitor):
             input_activity_monitor.shutdown()
+        bbc_news.shutdown()
         weather_rainfall_lifetime.shutdown()
         weather_rainfall.shutdown()
         weather_forecast.shutdown()

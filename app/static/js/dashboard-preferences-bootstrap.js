@@ -9,7 +9,7 @@
 
   const EXPLICIT_NAVIGATION_KEY = 'a-clockwork-plex.explicit-navigation';
   const LEGACY_CLOCK_FORMAT_KEY = 'a-clockwork-plex.clock-format';
-  const modes = new Set(['clock', 'weather', 'airplay', 'plexamp']);
+  const modes = new Set(['clock', 'weather', 'news', 'airplay', 'plexamp']);
   const daytimeThemes = new Set([
     'classic_dark',
     'midnight_blue',

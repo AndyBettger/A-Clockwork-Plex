@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set active_page = 'news' %}
+{% block title %}BBC News - A Clockwork Plex{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20260831-news-v3') }}">
+{% endblock %}
+{% block content %}
+<section class="news-page is-ticker-hidden" aria-label="BBC News">
+  <div class="news-shell">
+    <aside class="news-rail" aria-label="BBC News categories">
+      <div class="news-brand" aria-label="BBC News">
+        <img class="news-brand-image" data-news-logo alt="BBC News" hidden>
+        <span class="news-brand-fallback" data-news-logo-fallback>BBC NEWS</span>
+      </div>
+      <nav class="news-category-list" data-news-categories aria-label="News sections"></nav>
+      <div class="news-rail-status">
+        <span class="news-status-pill" data-news-status>Loading</span>
+      </div>
+    </aside>
+
+    <section class="news-content" aria-live="polite">
+      <header class="news-content-header">
+        <div>
+          <span class="news-kicker">BBC News</span>
+          <h1 data-news-category-title>Top Stories</h1>
+        </div>
+        <span class="news-source-time news-source-pill" data-news-source-time></span>
+      </header>
+
+      <div class="news-message" data-news-message hidden></div>
+      <div class="news-story-scroll">
+        <div id="news-story-list" class="news-story-list" data-news-stories aria-label="BBC News headlines"></div>
+        <div class="news-story-scrollbar" data-news-story-scrollbar role="scrollbar" aria-label="BBC News headline vertical scroll" aria-controls="news-story-list" aria-orientation="vertical" aria-hidden="true" tabindex="-1">
+          <div class="news-story-scrollbar-thumb" data-news-story-scrollbar-thumb></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="news-ticker" data-news-ticker hidden aria-label="BBC News Top Stories ticker">
+    <strong class="news-ticker-label">BBC NEWS</strong>
+    <div class="news-ticker-viewport">
+      <div class="news-ticker-track" data-news-ticker-track aria-live="off"></div>
+    </div>
+  </section>
+</section>
+
+<div class="news-detail" data-news-detail hidden role="dialog" aria-modal="true" aria-labelledby="news-detail-title">
+  <article class="news-detail-card">
+    <div class="news-detail-meta" data-news-detail-meta></div>
+    <h2 id="news-detail-title" data-news-detail-title>Story details</h2>
+    <p data-news-detail-summary></p>
+    <div class="news-detail-actions">
+      <button class="button" type="button" data-news-detail-close>Close</button>
+    </div>
+  </article>
+</div>
+
+{% include "_nav.html" %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/news.js', v='20260831-news-v3') }}"></script>
+{% endblock %}

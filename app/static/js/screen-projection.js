@@ -6,6 +6,7 @@
     alarm: '/alarm',
     airplay: '/airplay',
     clock: '/clock',
+    news: '/news',
     plexamp: '/plexamp',
     settings: '/settings',
     weather: '/weather',

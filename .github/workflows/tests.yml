@@ -43,6 +43,8 @@ jobs:
             app/configuration_backup.py \
             app/configuration_restore.py \
             app/plexamp_preferences.py \
+            app/news_feed.py \
+            app/news_ui.py \
             app/weather_rainfall_history.py \
             app/alarm_config.py \
             app/alarm_scheduler.py \
@@ -69,6 +71,8 @@ jobs:
           node --check app/static/js/settings-about.js
           node --check app/static/js/settings-clock-cards.js
           node --check app/static/js/settings-weather-location.js
+          node --check app/static/js/settings-news.js
+          node --check app/static/js/news.js
           node --check app/static/js/clock-dashboard.js
           node --check app/static/js/segment-display.js
           node --check app/static/js/dashboard-preferences-bootstrap.js
@@ -100,6 +104,11 @@ jobs:
           grep -q "airplay-layout-v3.js" app/templates/airplay.html
           grep -q "airplay-hydration.js" app/templates/airplay.html
           grep -q "clock-hydration.js" app/templates/clock.html
+          grep -q "news.css" app/templates/news.html
+          grep -q "news.js" app/templates/news.html
+          grep -q 'href="/news"' app/templates/_nav.html
+          grep -q "settings-news.js" app/templates/base.html
+          grep -q "register_news_ui" app/runner.py
           grep -q "nav-layer.js" app/templates/base.html
           grep -q "nav-drawer-lifecycle.js" app/templates/base.html
           grep -q "audio-eq.css" app/templates/base.html

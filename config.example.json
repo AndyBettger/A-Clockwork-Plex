@@ -90,6 +90,21 @@
       "pressure"
     ]
   },
+  "news": {
+    "enabled_categories": [
+      "top",
+      "uk",
+      "world",
+      "science",
+      "technology"
+    ],
+    "default_category": "top",
+    "show_summaries": true,
+    "ticker": {
+      "enabled": true,
+      "speed": "normal"
+    }
+  },
   "alarm": {
     "enabled": false,
     "default_time": "11:00",

@@ -10,7 +10,7 @@
   let presentationTimer = null;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
   const explicitNavigationMaxAgeMs = 15000;
-  const leasableRoutes = new Set(['/airplay', '/clock', '/plexamp', '/settings', '/weather']);
+  const leasableRoutes = new Set(['/airplay', '/clock', '/news', '/plexamp', '/settings', '/weather']);
 
   function sameOriginTarget(url) {
     try {

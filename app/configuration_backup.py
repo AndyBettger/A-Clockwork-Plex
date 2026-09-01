@@ -195,7 +195,7 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
             portable_observations["weather_underground"] = wunderground
         weather["observations"] = portable_observations
 
-    return {
+    result = {
         "dashboard": dashboard,
         "display": display,
         "weather": weather,
@@ -210,6 +210,13 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
             ),
         ),
     }
+    news = _pick(
+        settings.get("news"),
+        ("enabled_categories", "default_category", "show_summaries", "ticker"),
+    )
+    if news:
+        result["news"] = news
+    return result
 
 
 def portable_eq(settings: dict[str, Any]) -> dict[str, Any]:
