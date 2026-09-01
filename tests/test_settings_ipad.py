@@ -303,7 +303,9 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertEqual(target["plexamp"], {})
         self.assertNotIn("plexamp", target["a_clockwork_plex"]["settings"])
         self.assertEqual(target["a_clockwork_plex"]["audio"]["eq"]["bands"], {"bass": 0.0, "mid": 0.0, "treble": 0.0})
-        self.assertEqual(target["a_clockwork_plex"]["audio"]["mixer"], {"master": 80, "plexamp": 100, "airplay": 100, "alarm": 100})
+        # The real -51..0 dB integer softvol reports the shipped 80% master
+        # default back as 79%; Reset targets the observable verified state.
+        self.assertEqual(target["a_clockwork_plex"]["audio"]["mixer"], {"master": 79, "plexamp": 100, "airplay": 100, "alarm": 100})
         self.assertTrue(any("Plex/Plexamp login" in item for item in result["preserved"]))
 
     def test_reset_executor_rebuilds_target_and_delegates_to_restore_executor(self):
