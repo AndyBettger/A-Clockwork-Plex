@@ -358,7 +358,9 @@ Managed secrets remain a deliberate **post-restore commissioning step** througho
 
 ## Reset-to-defaults relationship
 
-The future reset workflow should use the same ownership classification rather than deleting files indiscriminately. It should be possible to reset ordinary user settings while leaving installer-owned hardware/audio topology and credentials alone unless the owner explicitly chooses a deeper decommissioning action.
+Checkpoint #93 implements Reset to defaults using the same ownership classification rather than deleting files indiscriminately. The ACP/server target is built from version-controlled defaults through production normalisers and uses the proven #90 stale-preview, explicit-confirmation, verification and rollback transaction for portable Settings plus logical EQ/mixer state. Optional Plexamp Home reset remains a separate browser-owned stage and removes only the already-classified target-context Home `order` / `hidden` customisation records.
+
+Reset deliberately preserves the alarm-audio master/scheduled arming switches, credentials and authentication, Plexamp player/Headless state, hardware/audio topology, installed runtimes/services and caches/history. Cross-owner orchestration is truthful rather than pretending browser Local Storage and the server transaction are globally atomic. Detailed #93 ownership, automated evidence and the still-open commissioned-Pi physical gate are recorded in [`reset-to-defaults.md`](reset-to-defaults.md).
 
 ## #88 audit status — COMPLETE
 
