@@ -294,7 +294,7 @@
   document.head.append(stylesheet);
 
   const script = document.createElement('script');
-  script.src = '/static/js/settings-reset-defaults.js?v=20260901-reset-defaults-v3';
+  script.src = '/static/js/settings-reset-defaults.js?v=20260901-reset-defaults-v2';
   script.async = false;
   document.head.append(script);
 })();
