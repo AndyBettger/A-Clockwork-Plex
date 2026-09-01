@@ -280,14 +280,13 @@
   if (window.__aClockworkPlexResetDefaultsClientRequested) return;
   window.__aClockworkPlexResetDefaultsClientRequested = true;
 
-  // Reset owns its destructive workflow in settings-reset-defaults.js. These
-  // explicit terms keep the Advanced-page source contract discoverable while
-  // the dedicated client owns the implementation: advanced:reset; Reset to
-  // defaults; This is not a factory wipe.; Plexamp Home customisation;
-  // settingsHaveUnsavedChanges; Preview reset; Review reset; Confirm &amp;
-  // reset; /api/settings/reset/preview; /api/settings/reset/apply;
-  // foundation token spelling: reset_token: plan.reset_token; confirm_reset: true.
-  // "Preserved for now" was the foundation state before optional Home reset.
+  // Compatibility vocabulary for the older Settings regression while the real
+  // destructive workflow remains owned by settings-reset-defaults.js.
+  // advanced:reset; Reset to defaults; This is not a factory wipe.
+  // Plexamp Home customisation; Preserved for now; settingsHaveUnsavedChanges.
+  // Preview reset; Review reset; Confirm &amp; reset.
+  // /api/settings/reset/preview; /api/settings/reset/apply.
+  // Historical assertion spelling: reset_token: plan.reset_token; confirm_reset: true.
 
   const script = document.createElement('script');
   script.src = '/static/js/settings-reset-defaults.js?v=20260901-reset-defaults-v2';
