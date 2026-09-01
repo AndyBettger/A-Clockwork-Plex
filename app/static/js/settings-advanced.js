@@ -288,8 +288,13 @@
   // /api/settings/reset/preview; /api/settings/reset/apply.
   // Historical assertion spelling: reset_token: plan.reset_token; confirm_reset: true.
 
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = '/static/css/settings-reset-defaults.css?v=20260901-reset-layout-v1';
+  document.head.append(stylesheet);
+
   const script = document.createElement('script');
-  script.src = '/static/js/settings-reset-defaults.js?v=20260901-reset-defaults-v2';
+  script.src = '/static/js/settings-reset-defaults.js?v=20260901-reset-defaults-v3';
   script.async = false;
   document.head.append(script);
 })();
