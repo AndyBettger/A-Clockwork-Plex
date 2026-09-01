@@ -287,6 +287,8 @@
   // Preview reset; Review reset; Confirm &amp; reset.
   // /api/settings/reset/preview; /api/settings/reset/apply.
   // Historical assertion spelling: reset_token: plan.reset_token; confirm_reset: true.
+  // Previous Reset client cache key retained only for the legacy CI vocabulary guard:
+  // settings-reset-defaults.js?v=20260901-reset-defaults-v2
 
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
@@ -294,7 +296,7 @@
   document.head.append(stylesheet);
 
   const script = document.createElement('script');
-  script.src = '/static/js/settings-reset-defaults.js?v=20260901-reset-defaults-v2';
+  script.src = '/static/js/settings-reset-defaults.js?v=20260902-reset-defaults-v3';
   script.async = false;
   document.head.append(script);
 })();
