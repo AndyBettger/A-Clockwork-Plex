@@ -19,7 +19,8 @@ Detailed earlier chronology is preserved separately so completed engineering doe
 - [`../development/evidence/final-clean-room-physical-progress-2026-08-21.md`](../development/evidence/final-clean-room-physical-progress-2026-08-21.md) — replacement-SD physical evidence;
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
 - [`../development/evidence/release-hygiene-audit-2026-08-19.md`](../development/evidence/release-hygiene-audit-2026-08-19.md) — repository/release-hygiene record;
-- [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — design notes for the queued storage and kiosk-safe Wi-Fi resilience track.
+- [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — design notes for the queued storage and kiosk-safe Wi-Fi resilience track;
+- [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — checkpoint #93 reset ownership, transaction boundaries and physical acceptance gate.
 
 Normal appliance owners do not need any of those files to install the clock. That job belongs to [`../INSTALL.md`](../INSTALL.md).
 
@@ -338,7 +339,7 @@ These are post-v0.4.0 ideas, not commitments to one release. Design/test indepen
 Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — COMPLETE for the agreed #88–#90 ownership/backup/restore scope; reset-to-defaults remains a separate future backlog item
+2. **Settings and appliance ownership** — #88–#90 COMPLETE; checkpoint #93 Reset-to-defaults IMPLEMENTED / CI-GREEN, physical acceptance OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE at checkpoint #91
 4. **BBC News** — COMPLETE at checkpoint #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
@@ -346,14 +347,14 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 7. **Appliance resilience** — cross-cutting release-quality track
 8. **Events calendar**
 
-This priority list is authoritative. Detailed sections below follow the same active-work order. Before item 5 begins, the sole remaining Settings follow-up — **Reset-to-defaults** — is queued as checkpoint **#93** so the #88–#90 ownership work can be closed cleanly without turning that follow-up into a separate product priority.
+This priority list is authoritative. Detailed sections below follow the same active-work order. Before item 5 begins, the sole remaining Settings follow-up — **Reset-to-defaults** at checkpoint **#93** — is implemented and CI-green but still requires commissioned-Pi physical acceptance.
 
 ### Settings and appliance ownership
 
 - [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
 - [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
 - [x] **Configuration import/restore — COMPLETE at #90.** Read-only Preview, transactional ACP/server restore, exact-version allow-listed Plexamp Headless restore, target-context-aware Plexamp Home restore and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted. The final combined restore applied one ACP/server plus one Plexamp Home change and the persistent completion presentation was accepted after the final spacing follow-up.
-- [ ] **Reset-to-defaults workflow — NEXT at checkpoint #93.** Add an intentional confirmation-gated reset that distinguishes user configuration from appliance/runtime ownership instead of recommending manual JSON deletion. Treat reset as an ownership transaction: explicitly define which ACP preferences, logical EQ/mixer state and other user-owned configuration return to defaults, which credentials/account/device/runtime state must survive, what preview/confirmation UX is required, and how rollback/failure is handled.
+- [ ] **Reset-to-defaults workflow — IMPLEMENTED / PHYSICAL ACCEPTANCE OPEN at checkpoint #93.** The server builds reset targets from version-controlled defaults through production normalisers and reuses the proven #90 stale-preview, confirmation, verification and rollback transaction for portable ACP settings plus logical EQ/mixer state. Optional Plexamp Home reset is off by default and removes only the already-classified Home `order` / `hidden` customisation records through the existing permission-free loopback browser owner. Alarm-audio master/scheduled arming switches are deliberately preserved, as are credentials/authentication, Plexamp player/Headless state, hardware/audio topology, installed runtimes/services and caches/history. The pre-documentation functional head `2944a876284535121f63e256b88696c860317fea` passed **Tests #4452: 1005 tests, `OK`**; detailed ownership and the remaining physical gate are recorded in [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
 ### Touchscreen Plexamp text entry — COMPLETE at checkpoint #91
 
