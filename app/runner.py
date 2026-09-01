@@ -16,6 +16,12 @@ try:
         ConfigurationBackupService,
         register_configuration_backup_api,
     )
+    from .configuration_reset import (
+        ConfigurationResetExecutor,
+        ConfigurationResetPlanner,
+        register_configuration_reset_apply_api,
+        register_configuration_reset_preview_api,
+    )
     from .configuration_restore import (
         ConfigurationRestoreExecutor,
         ConfigurationRestorePlanner,
@@ -65,6 +71,12 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from configuration_backup import (
         ConfigurationBackupService,
         register_configuration_backup_api,
+    )
+    from configuration_reset import (
+        ConfigurationResetExecutor,
+        ConfigurationResetPlanner,
+        register_configuration_reset_apply_api,
+        register_configuration_reset_preview_api,
     )
     from configuration_restore import (
         ConfigurationRestoreExecutor,
@@ -214,6 +226,50 @@ configuration_restore_executor = ConfigurationRestoreExecutor(
     plexamp_preference_apply=plexamp_preferences.apply,
 )
 register_configuration_restore_apply_api(app, configuration_restore_executor)
+
+
+def _reset_default_settings() -> dict:
+    default_config = dashboard.load_json(dashboard.EXAMPLE_CONFIG_PATH, {})
+    default_airplay = (
+        default_config.get("airplay")
+        if isinstance(default_config.get("airplay"), dict)
+        else {}
+    )
+    eq_status = {
+        "available": True,
+        "installed": True,
+        "bypassed": False,
+        "bands": {
+            band: {"db": 0.0, "stored_db": 0.0}
+            for band in ("bass", "mid", "treble")
+        },
+    }
+    receiver_status = {
+        "available": True,
+        "installed": True,
+        "service_active": True,
+        "receiver_name": str(default_airplay.get("display_name") or "Bedroom Plexamp"),
+    }
+    return unified_settings._public_settings(
+        default_config,
+        eq_status=eq_status,
+        receiver_status=receiver_status,
+    )
+
+
+configuration_reset = ConfigurationResetPlanner(
+    restore_planner=configuration_restore,
+    current_backup=configuration_backup.build,
+    default_settings=_reset_default_settings,
+    eq_status=master_equalizer.status,
+    mixer_status=shared_audio_mixer.status,
+)
+register_configuration_reset_preview_api(app, configuration_reset)
+configuration_reset_executor = ConfigurationResetExecutor(
+    planner=configuration_reset,
+    restore_executor=configuration_restore_executor,
+)
+register_configuration_reset_apply_api(app, configuration_reset_executor)
 
 
 if __name__ == "__main__":
