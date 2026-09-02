@@ -2,7 +2,7 @@
 
 **Status:** final Phase 7 release-candidate clean-room procedure  
 **Branch under test:** `feature/alarm-engine`  
-**Updated:** 20 August 2026
+**Updated:** 3 September 2026
 
 ## Purpose
 
@@ -19,7 +19,8 @@ fresh Raspberry Pi OS
   -> operator-controlled reboot only if requested
   -> integrated CamillaDSP acquisition
   -> integrated Plexamp claim launch/resume
-  -> Plexamp GUI commissioning
+  -> setup-owned Plexamp commissioning
+  -> Plexamp browser sign-in/library verification
   -> Settings commissioning
   -> playback/Weather/NFC/alarm checks
   -> reboot + formal verifiers
@@ -164,9 +165,9 @@ A new unclaimed player may make the lower-level guarded engine report its intern
 
 manually.
 
-Obtain a fresh claim code from `https://plex.tv/claim` only when Plexamp asks for it. Enter it directly into the local Plexamp prompt. Do not save the code in the evidence directory.
+Obtain a fresh claim code from `https://plex.tv/claim` only when Plexamp asks for it. Enter it directly into the local Plexamp prompt. Do not save the code in the evidence directory. The **player name entered during this claim becomes the appliance's reset baseline once setup completes its commissioning step**.
 
-After claim completes, `setup.sh` must resume/converge the guarded install rather than asking the operator to reconstruct the remaining stages.
+After claim completes, `setup.sh` must resume/converge the guarded install rather than asking the operator to reconstruct the remaining stages. Once the guarded appliance install commits, setup must also capture/verify the claimed player name baseline and resolve the exact **`A Clockwork Plex - Plexamp`** device from Plexamp's live output list. It must not hard-code or export a device UUID.
 
 For later identity evidence, once setup has completed:
 
@@ -180,19 +181,21 @@ Require CamillaDSP 4.1.3 and executable SHA `e04c7a6603e9482bab33c1e18afc41d3c07
 
 ---
 
-# 5. Commission Plexamp through its browser UI
+# 5. Finish Plexamp browser commissioning and verify setup-owned output
 
-After the installer has completed:
+After setup has completed its own Plexamp commissioning:
 
 1. open the Plexamp Headless browser interface;
 2. sign into the Plex account if required;
 3. choose the intended music library;
-4. choose **`A Clockwork Plex - Plexamp`** as the audio output;
-5. do **not** leave Plexamp on **Follows system output**.
+4. **verify** the audio output is already **`A Clockwork Plex - Plexamp`**;
+5. verify Plexamp is **not** left on **Follows system output**.
+
+The browser UI remains the owner of account sign-in and library selection. It is no longer the normal owner of the appliance audio-route choice: `setup.sh` resolves and verifies the managed output through Plexamp's loopback settings API. If the expected output is not selected after successful setup, treat that as a commissioning failure and diagnose/re-run `bash setup.sh` rather than silently creating a second manual source of truth.
 
 VNC is recommended for account/password-manager use and long Settings values.
 
-Record only non-secret commissioning outcomes, not credentials.
+Record only non-secret commissioning outcomes, not credentials, player-setting values or device UUIDs.
 
 ---
 
@@ -346,6 +349,8 @@ Require:
 
 - no renewed Plexamp claim requirement;
 - no unnecessary reboot checkpoint;
+- the captured Plexamp player-name reset baseline is not silently replaced by a later rename;
+- the managed `A Clockwork Plex - Plexamp` output is still verified;
 - no loss of WU configuration or managed credential;
 - no route/EQ ownership drift;
 - no duplicate services/helpers/autostart entries;
@@ -395,7 +400,7 @@ Create/update final dated evidence in the repository containing only non-secret 
 - whether a hardware reboot checkpoint occurred;
 - integrated Camilla acquisition result;
 - integrated Plexamp claim/resume result;
-- Plexamp GUI/output commissioning result;
+- setup-owned Plexamp player-name/output commissioning and browser verification result;
 - WU Settings commissioning result without key material;
 - Clock/daytime/night presentation result;
 - Plexamp/EQ, AirPlay, NFC and real scheduled-alarm results;
