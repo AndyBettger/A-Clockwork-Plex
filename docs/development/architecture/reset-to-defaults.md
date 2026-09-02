@@ -2,13 +2,13 @@
 
 ## Status
 
-Checkpoint **#93 Reset to defaults** remains **physical acceptance open**, but the commissioned 1280×720 Pi has now proved the core **A Clockwork Plex reset transaction** in production.
+Checkpoint **#93 Reset to defaults** remains **physical acceptance open**, but the commissioned 1280×720 Pi has now proved the core **A Clockwork Plex reset transaction and its final guided presentation** in production.
 
 On 2 September 2026 the corrected ACP reset applied and verified **27 supported changes** on the commissioned appliance after an earlier physical pass exposed the real ALSA Music Master round-trip boundary. The nominal shipped 80% Music Master request quantises through the existing integer softvol mapping and is observed back as **79%**; Reset now targets that physically observable value and regression coverage pins the conversion.
 
-The remaining #93 blocker is the optional **Plexamp Home factory-reset meaning**, not ACP reset integrity. Physical testing disproved the assumption that absence/deletion of the known browser `order` / `hidden` override records necessarily means Plexamp factory Home. The product UI therefore keeps Plexamp Home **inspection-only** until the effective baseline authority is identified and a truthful factory target can be defined.
+A later physical pass on exact branch head `526f580a4802c7c20dd00c96ab63b97a03d5122c` confirmed that the Preview panel stays hidden before Preview, Plexamp Home is clearly inspection-only, the **Review reset → Ready to confirm → full-width Final confirmation** staging matches the accepted Backup/Restore interaction, and a repeated 27-change ACP reset again completed and verified successfully. That exact source/docs head passed **Tests #4468: 1006 tests, `OK`**.
 
-The latest baseline-safe UI/code candidate is `c88377675e336a10267221b7dd73bb6e70c79179`, which passed **Tests #4466: 1006 tests, `OK`**, including Python compilation, JavaScript/page wiring, shell checks, direct-import smoke and the synthetic low-level Home bridge safety exercise.
+The remaining #93 blocker is the optional **Plexamp Home factory-reset meaning**, not ACP reset integrity or Reset presentation. Physical testing disproved the assumption that absence/deletion of the known browser `order` / `hidden` override records necessarily means Plexamp factory Home. The product UI therefore keeps Plexamp Home **inspection-only** until the effective baseline authority is identified and a truthful factory target can be defined.
 
 ## Product boundary
 
@@ -54,7 +54,7 @@ Investigation proved that the existing restricted ALSA helper maps the nominal M
 
 Reset therefore targets the **observable physical default** of 79% for Music Master while retaining 100% for Plexamp, AirPlay and Alarm. A regression test now calls the real restricted mixer conversion helper so this hardware-facing contract cannot silently drift.
 
-The follow-up commissioned-Pi run completed successfully and reported:
+The commissioned-Pi corrected reset has now completed successfully more than once and reported:
 
 > Reset complete — Selected reset completed and verified. 27 changes applied across A Clockwork Plex.
 
@@ -88,18 +88,20 @@ A deeper decommissioning/factory-wipe operation is a different product and is no
 
 The eight approved Headless scalar preferences discovered at checkpoint #88 remain part of **backup/restore**, not ordinary #93 Reset. Reset deliberately preserves them while the high-resolution-audio work remains a separate roadmap item.
 
-The supported allow-list is:
+A fresh read-only commissioned-Pi audit on 2 September 2026 reconfirmed all eight exact current values without opening any unknown/device/account/browser values:
 
-- `audioConversionBitrate`
-- `autoPlayEnabled`
-- `cacheSize`
-- `cachingWiFi`
-- `loudnessLeveling`
-- `precacheNetworkSpeed`
-- `sampleRateConversionQuality`
-- `sampleRateMatching`
+| Preference | Current commissioned value | #93 Reset |
+| --- | ---: | --- |
+| `audioConversionBitrate` | `256` | Preserved |
+| `autoPlayEnabled` | `false` | Preserved |
+| `cacheSize` | `32768` | Preserved |
+| `cachingWiFi` | `10` | Preserved |
+| `loudnessLeveling` | `false` | Preserved |
+| `precacheNetworkSpeed` | `0` | Preserved |
+| `sampleRateConversionQuality` | `4` | Preserved |
+| `sampleRateMatching` | `2` | Preserved |
 
-`audioDeviceUuid` is device-specific and excluded; `premium` is account/capability-derived and excluded; authentication/claim/session state and player identity are excluded.
+These are **current commissioned values and the supported backup/restore allow-list**, not a claim that Plexamp factory defaults have been established. `audioDeviceUuid` remains device-specific and excluded; `premium` remains account/capability-derived and excluded; `playerName` remains separately owned device identity. The same audit still found **35** Plexamp Settings files in total, with **11** safe-looking candidate names and **24** deliberately unclassified/excluded files.
 
 ## Plexamp Home inspection and baseline discovery
 
@@ -143,15 +145,25 @@ On the commissioned Pi:
 
 Therefore the known browser records are at least partly **delta overrides over another effective baseline**. The authority for that baseline may be another local Plexamp state family, account/library-derived state, or another owner; it is not yet established.
 
-The UI now uses truthful language:
+### New value-blind baseline lead
+
+The 2 September content-blind browser-key audit exposed one additional customization-family key name while the visible Home was the owner's configured baseline and the known `order` / `hidden` override count was zero:
+
+```text
+mmkv.default\discovery:customizations:<context>::/library/sections/9:c
+```
+
+The same filtered scan also saw `custom.hub.*:cachedItems` and `music.recent.played.*:cachedItems` records. Those `cachedItems` families remain generated cache state and are not reset/backup candidates.
+
+The meaning of the compact `:c` suffix is **not yet established**. Its value has not been decoded, printed or added to any bridge allow-list, and its mere presence is not evidence that it owns the effective Home baseline. It is the next narrow discovery candidate because it shares the already-observed `discovery:customizations:<context>::/library/sections/<id>` namespace. Investigation must remain value-blind or otherwise explicitly bounded until its semantics are proved; no broader browser permissions or arbitrary storage reads are justified by this finding.
+
+The UI therefore continues to use truthful language:
 
 - `No local overrides` means exactly that, not “Already default”;
 - `N local overrides` reports the bounded known records;
 - Plexamp Home remains disabled for mutation while baseline discovery is open.
 
-No broader browser permissions or arbitrary storage reads are introduced to solve this discovery problem.
-
-## Reset presentation evidence
+## Reset presentation evidence — PHYSICALLY ACCEPTED
 
 The first physical layout pass exposed that Reset reused Restore component markup without an equivalent Reset layout scope. A dedicated `settings-reset-defaults.css` fixed the overlapping/crowded target and status presentation.
 
@@ -163,6 +175,8 @@ The owner also requested Review/Confirm to match the already-accepted Backup/Res
 
 with the same visual staging philosophy as Backup/Restore.
 
+The 2 September 1280×720 recheck physically accepted the completed presentation: Preview is absent until requested, the Home inspection target is visibly disabled, Preview details are readable, Review/Ready-to-confirm are adjacent, Final confirmation is full-width below them, and the persistent Reset-complete result remains clear after reload.
+
 ## Automated evidence
 
 Key green gates:
@@ -170,18 +184,16 @@ Key green gates:
 - implementation head `2944a876284535121f63e256b88696c860317fea` — **Tests #4452: 1005 tests, `OK`**;
 - docs-synchronised pre-physical head `7e7c1ddf019f11813bcdcf31287c5c5aa57208a0` — **Tests #4456: 1005 tests, `OK`**;
 - first physical-follow-up head `3e627472eaa73079d194ffc5aed4878d61c4f88b` — **Tests #4462: 1006 tests, `OK`**;
-- baseline-safe UI head `c88377675e336a10267221b7dd73bb6e70c79179` — **Tests #4466: 1006 tests, `OK`**.
+- baseline-safe UI head `c88377675e336a10267221b7dd73bb6e70c79179` — **Tests #4466: 1006 tests, `OK`**;
+- exact physically rechecked source/docs head `526f580a4802c7c20dd00c96ab63b97a03d5122c` — **Tests #4468: 1006 tests, `OK`**.
 
-## Physical acceptance gate — OPEN
+## Physical acceptance gate — OPEN only for Plexamp Home semantics / final health check
 
-The ACP mutation boundary is physically proven. Before checkpoint #93 can close:
+The ACP mutation boundary and Reset presentation are physically proven. Before checkpoint #93 can close:
 
-1. pull the latest baseline-safe candidate and verify the Reset Preview is hidden until Preview is requested;
-2. verify the Reset Review/Confirm staging is visually consistent with accepted Backup/Restore at 1280×720;
-3. verify Plexamp Home reports only `No local overrides`, `N local overrides`, or a bounded inspection failure and cannot currently be selected for mutation;
-4. identify the actual authority that supplies Plexamp's effective Home baseline;
-5. decide from evidence whether a safe factory-Home reset can be implemented without touching login/claim/player identity or unrelated browser state;
-6. if implemented, physically prove the resulting Plexamp Home reset on the commissioned Pi; otherwise explicitly defer/remove that optional scope from #93 with owner agreement;
-7. run a final zero-difference ACP Preview and confirm normal navigation/playback remains healthy.
+1. investigate the newly observed `discovery:customizations:...:/library/sections/9:c` lead and identify, if possible, the actual authority that supplies Plexamp's effective Home baseline without broadening into arbitrary browser-state access;
+2. decide from evidence whether a safe factory-Home reset can be implemented without touching login/claim/player identity or unrelated browser state;
+3. if implemented, physically prove the resulting Plexamp Home reset on the commissioned Pi; otherwise explicitly defer/remove that optional scope from #93 with owner agreement;
+4. run a final zero-difference ACP Preview after the successful reset and confirm normal navigation/playback remains healthy.
 
-Only then can #93 move from **ACP reset physically proven / full checkpoint open** to **COMPLETE**.
+Only then can #93 move from **ACP reset and presentation physically proven / Plexamp Home semantic decision open** to **COMPLETE**.
