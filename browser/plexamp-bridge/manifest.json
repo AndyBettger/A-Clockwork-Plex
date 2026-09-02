@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "A Clockwork Plex - Plexamp Bridge",
-  "version": "1.2.0",
-  "description": "Local allow-listed backup, restore and optional Home-customisation reset bridge for Plexamp inside the dedicated appliance kiosk.",
+  "version": "1.2.1",
+  "description": "Local allow-listed backup, restore and bounded Home-customisation inspection/reset bridge for Plexamp inside the dedicated appliance kiosk.",
   "content_scripts": [
     {
       "matches": [
