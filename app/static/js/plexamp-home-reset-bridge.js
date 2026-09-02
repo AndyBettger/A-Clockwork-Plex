@@ -18,6 +18,15 @@
     return Number.isInteger(value) && value >= 0 && value <= max ? value : null;
   }
 
+  function validateBaselineDiagnostics(raw, result) {
+    const recordCount = boundedCount(raw.baseline_candidate_record_count, 2048);
+    const scopeCount = boundedCount(raw.baseline_candidate_scope_count, 2048);
+    if (recordCount === null || scopeCount === null || scopeCount > recordCount) return false;
+    result.baseline_candidate_record_count = recordCount;
+    result.baseline_candidate_scope_count = scopeCount;
+    return true;
+  }
+
   function validatePlan(raw) {
     if (
       !raw
@@ -36,12 +45,24 @@
       if (Number.isInteger(raw.context_count) && raw.context_count >= 0 && raw.context_count <= 32) {
         result.context_count = raw.context_count;
       }
+      if (
+        'baseline_candidate_record_count' in raw
+        || 'baseline_candidate_scope_count' in raw
+      ) {
+        if (!validateBaselineDiagnostics(raw, result)) return null;
+      }
       return result;
     }
 
     const changeCount = boundedCount(raw.change_count, 129);
     const orderRecordCount = boundedCount(raw.order_record_count, 1);
     const hiddenRecordCount = boundedCount(raw.hidden_record_count, 128);
+    const result = {
+      schema_version: 1,
+      status: 'ready',
+      read_only: true,
+      reset_available: raw.reset_available,
+    };
     if (
       changeCount === null
       || orderRecordCount === null
@@ -49,17 +70,13 @@
       || changeCount !== orderRecordCount + hiddenRecordCount
       || typeof raw.target_fingerprint !== 'string'
       || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
+      || !validateBaselineDiagnostics(raw, result)
     ) return null;
-    return {
-      schema_version: 1,
-      status: 'ready',
-      read_only: true,
-      reset_available: raw.reset_available,
-      change_count: changeCount,
-      order_record_count: orderRecordCount,
-      hidden_record_count: hiddenRecordCount,
-      target_fingerprint: raw.target_fingerprint,
-    };
+    result.change_count = changeCount;
+    result.order_record_count = orderRecordCount;
+    result.hidden_record_count = hiddenRecordCount;
+    result.target_fingerprint = raw.target_fingerprint;
+    return result;
   }
 
   function validateApply(raw) {

@@ -12,7 +12,7 @@
   const PREVIEW_API = '/api/settings/reset/preview';
   const APPLY_API = '/api/settings/reset/apply';
   const RESULT_KEY = 'acp-reset-defaults-result-v2';
-  const HOME_BRIDGE_SRC = '/static/js/plexamp-home-reset-bridge.js?v=20260901-reset-home-v1';
+  const HOME_BRIDGE_SRC = '/static/js/plexamp-home-reset-bridge.js?v=20260902-reset-home-v2';
 
   let serverPlan = null;
   let homePlan = null;
@@ -284,6 +284,11 @@
 
     const homeReady = homePlan?.status === 'ready';
     const homeCount = homeReady ? Number(homePlan.change_count || 0) : 0;
+    const baselineCandidateCount = homeReady ? Number(homePlan.baseline_candidate_record_count || 0) : 0;
+    const baselineCandidateScopes = homeReady ? Number(homePlan.baseline_candidate_scope_count || 0) : 0;
+    const baselineDetail = baselineCandidateCount
+      ? ` Live key-name inspection also found ${baselineCandidateCount} compact :c customization metadata key${baselineCandidateCount === 1 ? '' : 's'} across ${baselineCandidateScopes} scope${baselineCandidateScopes === 1 ? '' : 's'}. Their values were not opened; this is a baseline-discovery lead only.`
+      : ' Live key-name inspection found no compact :c customization metadata key.';
     homeSelected = false;
     homeTarget.disabled = true;
     homeTarget.setAttribute('aria-pressed', 'false');
@@ -296,8 +301,8 @@
       homeDetail.textContent = !homeReady
         ? 'Plexamp Home could not be safely inspected through the local bridge.'
         : homeCount
-          ? `${homePlan.order_record_count || 0} local Home order record and ${homePlan.hidden_record_count || 0} hidden-item record${Number(homePlan.hidden_record_count || 0) === 1 ? '' : 's'} are present. Physical testing proved that deleting these records returns Plexamp to its current effective baseline, which is not necessarily Plexamp factory Home, so this target is not selectable yet.`
-          : 'No allow-listed local Home order/hidden override records are present. This does not prove that the visible Home screen is Plexamp factory default; the effective baseline authority is still being identified.';
+          ? `${homePlan.order_record_count || 0} local Home order record and ${homePlan.hidden_record_count || 0} hidden-item record${Number(homePlan.hidden_record_count || 0) === 1 ? '' : 's'} are present. Physical testing proved that deleting these records returns Plexamp to its current effective baseline, which is not necessarily Plexamp factory Home, so this target is not selectable yet.${baselineDetail}`
+          : `No allow-listed local Home order/hidden override records are present. This does not prove that the visible Home screen is Plexamp factory default; the effective baseline authority is still being identified.${baselineDetail}`;
     }
 
     const selectedCount = selectedChangeCount();

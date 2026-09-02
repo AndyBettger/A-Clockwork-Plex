@@ -13,6 +13,7 @@
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const ORDER_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):order$/;
   const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.\/-]{1,220}):hidden$/;
+  const BASELINE_CANDIDATE_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):c$/;
   const MAX_STORAGE_KEYS = 2048;
   const MAX_RECORDS = 129;
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
@@ -30,14 +31,25 @@
     return `${context}\u0000${section}`;
   }
 
-  function collectRecords(storage) {
+  function collectInventory(storage) {
     const scopes = new Map();
+    const baselineCandidateScopes = new Set();
+    let baselineCandidateRecordCount = 0;
     const length = Math.min(Number(storage?.length || 0), MAX_STORAGE_KEYS);
     for (let index = 0; index < length; index += 1) {
       const key = storage.key(index);
       if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
       const suffix = key.slice(MMKV_PREFIX.length);
       if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
+
+      const baselineCandidateMatch = suffix.match(BASELINE_CANDIDATE_RE);
+      if (baselineCandidateMatch) {
+        baselineCandidateRecordCount += 1;
+        baselineCandidateScopes.add(scopeId(baselineCandidateMatch[1], baselineCandidateMatch[2]));
+        // Deliberately name-only: never open the value of an unclassified :c record.
+        continue;
+      }
+
       const orderMatch = suffix.match(ORDER_RE);
       const hiddenMatch = suffix.match(HIDDEN_RE);
       const match = orderMatch || hiddenMatch;
@@ -57,7 +69,11 @@
       });
       scopes.set(id, scope);
     }
-    return scopes;
+    return {
+      scopes,
+      baselineCandidateRecordCount,
+      baselineCandidateScopeCount: baselineCandidateScopes.size,
+    };
   }
 
   function recordFingerprint(scope) {
@@ -73,7 +89,12 @@
   }
 
   function buildResetPlan(storage) {
-    const scopes = collectRecords(storage);
+    const inventory = collectInventory(storage);
+    const { scopes } = inventory;
+    const baselineDiagnostics = {
+      baseline_candidate_record_count: inventory.baselineCandidateRecordCount,
+      baseline_candidate_scope_count: inventory.baselineCandidateScopeCount,
+    };
     if (scopes.size > 1) {
       return {
         public: {
@@ -82,6 +103,7 @@
           read_only: true,
           reset_available: false,
           context_count: scopes.size,
+          ...baselineDiagnostics,
         },
         scope: null,
         fingerprint: null,
@@ -96,6 +118,7 @@
           status: 'too-many-records',
           read_only: true,
           reset_available: false,
+          ...baselineDiagnostics,
         },
         scope: null,
         fingerprint: null,
@@ -116,6 +139,7 @@
         order_record_count: orderRecordCount,
         hidden_record_count: hiddenRecordCount,
         target_fingerprint: fingerprint,
+        ...baselineDiagnostics,
       },
       scope,
       fingerprint,
