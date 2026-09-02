@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 2 September 2026  
+**Last updated:** 3 September 2026  
 **Active development branch:** `develop`  
 **Stable branch:** `main`  
 **PR #2:** merged into `main` on 23 August 2026.  
@@ -93,7 +93,7 @@ The Settings/appliance-ownership cycle began by classifying persistent data befo
 - [x] Added `scripts/audit-plexamp-preferences.py`, content-blind by default and progressively narrowed through explicit safe audit modes; unknown/auth/device/browser values were never dumped.
 - [x] Physical Plexamp 4.13.2 Headless inventory found **35 Settings files: 11 safe-looking candidate names and 24 unclassified/excluded files**.
 - [x] Established the exact typed Headless portable allow-list from the commissioned Pi: `audioConversionBitrate`, `autoPlayEnabled`, `cacheSize`, `cachingWiFi`, `loudnessLeveling`, `precacheNetworkSpeed`, `sampleRateConversionQuality`, `sampleRateMatching`.
-- [x] `audioDeviceUuid` is device-specific and must be recommissioned; `premium` is account/capability-derived and excluded; `playerName` remains a separate future device-label decision rather than an ordinary preference.
+- [x] `audioDeviceUuid` and `playerName` remain excluded from portable backup/restore because they are appliance-specific; checkpoint #93 now gives them a separate same-appliance commissioning Reset owner instead of making them migratable. `premium` remains account/capability-derived and excluded.
 - [x] Browser discovery identified Plexamp at `http://localhost:32500` and MMKV web keys under `mmkv.default\<key>` without decoding their values.
 - [x] `@Plexamp:resources`, all `*:cachedItems`, session/auth material and unrelated browser state are explicitly excluded.
 - [x] A physical Home reorder experiment proved the contextual `discovery:customizations:...:order` family owns Home item ordering.
@@ -196,7 +196,7 @@ Phase 2 deliberately restored only owners already controlled transactionally by 
 
 Phase 3 is the first Plexamp-owned mutation stage. It remains deliberately narrower than ordinary server restore and does not make the whole Plexamp Settings directory a backup/restore unit.
 
-- [x] Restore eligibility is limited to the exact eight typed Headless allow-listed preferences established at #88/#89; unknown files, auth/session state, `audioDeviceUuid`, `playerName` and `premium` remain untouched.
+- [x] Restore eligibility is limited to the exact eight typed Headless allow-listed preferences established at #88/#89; unknown files, auth/session state, `audioDeviceUuid`, `playerName` and `premium` remain untouched by portable restore.
 - [x] A dedicated root-side owner `/usr/local/bin/a-clockwork-plex-plexamp-preferences` and unprivileged `PlexampPreferenceManager` are implemented. Preference values cross the privileged boundary as bounded JSON on stdin, never argv.
 - [x] Backup/export and restore share the guarded installer's ACP-owned `~/plexamp/.a-clockwork-plex-runtime` manifest as the runtime-version authority. The backup, current runtime and helper-reported installed Plexamp versions must be an exact known match before Headless paths become restorable; `package.json` is not used as a fallback.
 - [x] `sampleRateConversionQuality` and `sampleRateMatching` are additionally appliance-audio-generation aware and remain deferred when a backup comes from a different application/audio generation.
@@ -339,7 +339,7 @@ These are post-v0.4.0 ideas, not commitments to one release. Design/test indepen
 Unless deliberately reprioritised, implementation proceeds in this order:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88–#90 COMPLETE; checkpoint #93 ACP reset + presentation PHYSICALLY ACCEPTED, Plexamp Home baseline decision OPEN
+2. **Settings and appliance ownership** — #88–#90 COMPLETE; #93 ACP reset + presentation PHYSICALLY ACCEPTED; Plexamp commissioning Reset IMPLEMENTED/CI-GREEN and PHYSICAL ACCEPTANCE OPEN; factory-Home Reset decision OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE at checkpoint #91
 4. **BBC News** — COMPLETE at checkpoint #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
@@ -347,14 +347,14 @@ Unless deliberately reprioritised, implementation proceeds in this order:
 7. **Appliance resilience** — cross-cutting release-quality track
 8. **Events calendar**
 
-This priority list is authoritative. Detailed sections below follow the same active-work order. Before item 5 begins, checkpoint **#93 Reset-to-defaults** needs only the Plexamp Home factory-baseline decision plus the final zero-difference/normal-health check; the ACP reset transaction and guided presentation are physically accepted.
+This priority list is authoritative. Detailed sections below follow the same active-work order. Before item 5 begins, checkpoint **#93 Reset-to-defaults** still needs the real-Pi commissioning-baseline/output Reset round-trip, a fresh zero-difference/normal-health check and an explicit owner decision on whether the optional Plexamp factory-Home Reset scope is deferred or investigated further. The ACP reset transaction and guided presentation are already physically accepted.
 
 ### Settings and appliance ownership
 
 - [x] **Configuration backup/export — COMPLETE at #89.** Schema-v1 secret-free ACP/audio/Headless export plus the live browser Home bridge passed on the commissioned Pi with 15 ordered Home items, 1 hidden item, no browser omission and zero warnings; synchronized `develop` Actions is green.
-- [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units.
+- [x] **Plexamp preference backup feasibility/discovery — COMPLETE at #88.** Exact Headless allow-list and browser Home `order` / per-hub `hidden` key families are physically mapped. Auth/resource/caches/editor/device identity are excluded. Raw Plexamp/Chromium profiles and LevelDB are not backup units. `playerName` and `audioDeviceUuid` remain excluded from portable backup/restore; #93's separate local commissioning owner does not change that portability rule.
 - [x] **Configuration import/restore — COMPLETE at #90.** Read-only Preview, transactional ACP/server restore, exact-version allow-listed Plexamp Headless restore, target-context-aware Plexamp Home restore and the guided ACP/Plexamp/Both single-confirmation UX are physically accepted. The final combined restore applied one ACP/server plus one Plexamp Home change and the persistent completion presentation was accepted after the final spacing follow-up.
-- [ ] **Reset-to-defaults workflow — ACP RESET + PRESENTATION PHYSICALLY ACCEPTED / PLEXAMP HOME SEMANTIC DECISION OPEN at checkpoint #93.** The server-owned ACP reset target is generated from version-controlled defaults through production normalisers and reuses #90 stale-preview, confirmation, verification and rollback for portable Settings plus logical EQ/mixer state. The commissioned Pi has repeatedly applied and verified **27** ACP changes; the 1280×720 recheck on exact head `526f580a4802c7c20dd00c96ab63b97a03d5122c` accepted hidden-before-Preview behaviour and the Backup/Restore-style Review/Ready/Final-confirmation hierarchy. Plexamp Home is now inspection-only because deleting/omitting known `order` / `hidden` records proved to return to another effective baseline rather than necessarily factory Home. A content-blind key scan exposed a new `discovery:customizations:<context>::/library/sections/9:c` lead, whose value/meaning remains deliberately unopened/unproven. The same read-only pass reconfirmed all eight supported Headless backup/restore values unchanged; they remain preserved by ordinary Reset and are not claimed as factory defaults. Exact candidate **Tests #4468: 1006 tests, `OK`**. Detailed evidence and remaining gate are in [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
+- [ ] **Reset-to-defaults workflow — ACP RESET + PRESENTATION PHYSICALLY ACCEPTED / PLEXAMP COMMISSIONING IMPLEMENTED + CI-GREEN / PHYSICAL ACCEPTANCE + FACTORY-HOME DECISION OPEN at checkpoint #93.** The server-owned ACP reset target is generated from version-controlled defaults through production normalisers and reuses #90 stale-preview, confirmation, verification and rollback for portable Settings plus logical EQ/mixer state. The commissioned Pi has repeatedly applied and verified **27** ACP changes; the 1280×720 recheck on exact head `526f580a4802c7c20dd00c96ab63b97a03d5122c` accepted hidden-before-Preview behaviour and the Backup/Restore-style Review/Ready/Final-confirmation hierarchy. A separate same-appliance Plexamp commissioning owner is now implemented: `setup.sh` captures the claimed `playerName` once as a local Reset baseline and dynamically resolves the exact **`A Clockwork Plex - Plexamp`** output rather than storing/restoring an `audioDeviceUuid`. These two values remain excluded from portable Backup/Restore; Plex/Plexamp login/claim/session and unrelated Headless state remain untouched. Combined Reset fingerprints ACP + commissioning state, supports commissioning-only work and rolls exact pre-reset ACP state back if a later commissioning stage fails. Implementation/catalogue head `fc1c9462957a6533e833a53d6d61e6453e133c14` passed **Tests #4479: 1023 tests, `OK`** with compile/JavaScript/page/shell gates green; physical migration and harmless player-name/output round-trip are still required. The exact eight supported Headless backup/restore values remain preserved by ordinary Reset. Plexamp Home also remains Reset-inspection-only: physical testing proved known `order` / `hidden` records are deltas over another effective baseline, and the compact `:c` LevelDB lead was subsequently ruled out as live Local Storage state without opening its value. The remaining Home question is therefore an explicit product-scope decision, not a reason to weaken browser isolation. Detailed ownership/evidence/gates are in [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
 ### Touchscreen Plexamp text entry — COMPLETE at checkpoint #91
 
