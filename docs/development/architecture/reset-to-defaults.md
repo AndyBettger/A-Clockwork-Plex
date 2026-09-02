@@ -8,7 +8,7 @@ On 2 September 2026 the corrected ACP reset applied and verified **27 supported 
 
 A later physical pass on exact branch head `526f580a4802c7c20dd00c96ab63b97a03d5122c` confirmed that the Preview panel stays hidden before Preview, Plexamp Home is clearly inspection-only, the **Review reset → Ready to confirm → full-width Final confirmation** staging matches the accepted Backup/Restore interaction, and a repeated 27-change ACP reset again completed and verified successfully. That exact source/docs head passed **Tests #4468: 1006 tests, `OK`**.
 
-The remaining #93 blocker is the optional **Plexamp Home factory-reset meaning**, not ACP reset integrity or Reset presentation. Physical testing disproved the assumption that absence/deletion of the known browser `order` / `hidden` override records necessarily means Plexamp factory Home. The product UI therefore keeps Plexamp Home **inspection-only** until the effective baseline authority is identified and a truthful factory target can be defined.
+The remaining #93 blocker is the optional **Plexamp Home factory-reset meaning**, not ACP reset integrity or Reset presentation. Physical testing disproved the assumption that absence/deletion of the known browser `order` / `hidden` override records necessarily means Plexamp factory Home. A later live key-name-only probe also proved that the compact `:c` record seen in Chromium LevelDB was historical residue rather than a current Local Storage authority. The product UI therefore keeps Plexamp Home **inspection-only** until the effective baseline authority is identified and a truthful factory target can be defined.
 
 ## Product boundary
 
@@ -23,7 +23,7 @@ Preview and Review are read-only. Ordinary unsaved Settings changes block Previe
 The current product boundary has one mutating owner and one read-only discovery owner:
 
 1. **A Clockwork Plex** — always selected; resets supported ACP user configuration through the existing server-side transaction.
-2. **Plexamp Home inspection** — read-only; reports only the already-classified local Home `order` / `hidden` override records. It is deliberately not selectable for reset until Plexamp's effective factory-baseline authority is proven.
+2. **Plexamp Home inspection** — read-only; reports only the already-classified local Home `order` / `hidden` override records plus bounded key-name-only baseline diagnostics. It is deliberately not selectable for reset until Plexamp's effective factory-baseline authority is proven.
 
 This is stricter than the original #93 design. The first implementation allowed optional deletion of the known local Home override records. Physical testing showed that such deletion returned Plexamp to the appliance's **current effective baseline**, which can itself be a previously customised layout. Therefore “no local overrides” is not equivalent to “Plexamp factory default”.
 
@@ -127,7 +127,8 @@ The low-level bridge can safely:
 - return a bounded fingerprint without exposing raw values;
 - require an exact fresh fingerprint before mutation;
 - delete only the classified records;
-- restore exact raw values after an injected failure.
+- restore exact raw values after an injected failure;
+- inspect the exact compact `...:/library/sections/<id>:c` **key name only** and return bounded record/scope counts without opening its value.
 
 Synthetic CI continues to prove stale-target refusal, scoped deletion, auth/cache/editor preservation, exact rollback and ambiguous-context refusal.
 
@@ -145,17 +146,34 @@ On the commissioned Pi:
 
 Therefore the known browser records are at least partly **delta overrides over another effective baseline**. The authority for that baseline may be another local Plexamp state family, account/library-derived state, or another owner; it is not yet established.
 
-### New value-blind baseline lead
+### Compact `:c` lead — ruled out as live Local Storage authority
 
-The 2 September content-blind browser-key audit exposed one additional customization-family key name while the visible Home was the owner's configured baseline and the known `order` / `hidden` override count was zero:
+A content-blind browser-key scan originally exposed:
 
 ```text
 mmkv.default\discovery:customizations:<context>::/library/sections/9:c
 ```
 
-The same filtered scan also saw `custom.hub.*:cachedItems` and `music.recent.played.*:cachedItems` records. Those `cachedItems` families remain generated cache state and are not reset/backup candidates.
+while the visible Home was the owner's configured baseline and the known `order` / `hidden` override count was zero. The same filtered scan also saw `custom.hub.*:cachedItems` and `music.recent.played.*:cachedItems`; those remain generated cache state and are not reset/backup candidates.
 
-The meaning of the compact `:c` suffix is **not yet established**. Its value has not been decoded, printed or added to any bridge allow-list, and its mere presence is not evidence that it owns the effective Home baseline. It is the next narrow discovery candidate because it shares the already-observed `discovery:customizations:<context>::/library/sections/<id>` namespace. Investigation must remain value-blind or otherwise explicitly bounded until its semantics are proved; no broader browser permissions or arbitrary storage reads are justified by this finding.
+Because Chromium LevelDB can retain historical/deleted records, the `:c` observation was deliberately treated only as a lead. Bridge `1.2.1` added a narrower **live key-name-only** probe: it matches only the exact compact `:c` shape, counts candidate records/scopes and immediately continues before any `storage.getItem()` call. No value was decoded, printed or added to an allow-list.
+
+The 2 September commissioned-Pi physical follow-up, after pulling exact head `ae26c9af57a37850f6ce5a55dedd5ff506c9401d` and fully rebooting Chromium, reported:
+
+> Live key-name inspection found no compact `:c` customization metadata key.
+
+The visible Plexamp Home still remained the owner's configured post-install baseline and the known `order` / `hidden` override count remained zero. Therefore the previously observed `:c` entry is **historical LevelDB residue, not a current live Local Storage authority**. Its value remains unopened and the lead is closed.
+
+Normal Plexamp playback was also confirmed after the reboot/probe pass.
+
+### Next semantic discriminator
+
+The next investigation should remain non-mutating and content-safe:
+
+1. determine whether any other live `discovery:customizations:*` key names exist while still refusing to open unclassified values;
+2. if no useful live customization family exists, compare the same Plexamp Headless instance through a **disposable fresh Chromium profile** with no copied ACP profile, no extensions and no persisted credentials;
+3. if the owner's configured Home baseline appears in that disposable browser, the strongest evidence shifts away from Chromium-profile ownership toward Plexamp Headless/account/library-derived state;
+4. if factory Home appears instead, continue browser-profile discovery, but only through a newly bounded owner rather than arbitrary storage inspection.
 
 The UI therefore continues to use truthful language:
 
@@ -175,7 +193,7 @@ The owner also requested Review/Confirm to match the already-accepted Backup/Res
 
 with the same visual staging philosophy as Backup/Restore.
 
-The 2 September 1280×720 recheck physically accepted the completed presentation: Preview is absent until requested, the Home inspection target is visibly disabled, Preview details are readable, Review/Ready-to-confirm are adjacent, Final confirmation is full-width below them, and the persistent Reset-complete result remains clear after reload.
+The 2 September 1280×720 recheck physically accepted the completed presentation: Preview is absent until requested, the Home inspection target is visibly disabled, Preview details are readable, Review/Ready-to-confirm are adjacent, Final confirmation is full-width below them, and the persistent Reset-complete result remains clear after reload. A later full-page screenshot pass on the live-probe build reconfirmed the complete layout including the collapsible technical path list.
 
 ## Automated evidence
 
@@ -185,15 +203,17 @@ Key green gates:
 - docs-synchronised pre-physical head `7e7c1ddf019f11813bcdcf31287c5c5aa57208a0` — **Tests #4456: 1005 tests, `OK`**;
 - first physical-follow-up head `3e627472eaa73079d194ffc5aed4878d61c4f88b` — **Tests #4462: 1006 tests, `OK`**;
 - baseline-safe UI head `c88377675e336a10267221b7dd73bb6e70c79179` — **Tests #4466: 1006 tests, `OK`**;
-- exact physically rechecked source/docs head `526f580a4802c7c20dd00c96ab63b97a03d5122c` — **Tests #4468: 1006 tests, `OK`**.
+- exact physically rechecked source/docs head `526f580a4802c7c20dd00c96ab63b97a03d5122c` — **Tests #4468: 1006 tests, `OK`**;
+- compact live-key probe head `ae26c9af57a37850f6ce5a55dedd5ff506c9401d` — **Tests #4471: compile, JavaScript/page wiring, shell and unit-test gates green**.
 
 ## Physical acceptance gate — OPEN only for Plexamp Home semantics / final health check
 
-The ACP mutation boundary and Reset presentation are physically proven. Before checkpoint #93 can close:
+The ACP mutation boundary and Reset presentation are physically proven. The compact `:c` LevelDB lead has now been ruled out as live Local Storage authority. Before checkpoint #93 can close:
 
-1. investigate the newly observed `discovery:customizations:...:/library/sections/9:c` lead and identify, if possible, the actual authority that supplies Plexamp's effective Home baseline without broadening into arbitrary browser-state access;
-2. decide from evidence whether a safe factory-Home reset can be implemented without touching login/claim/player identity or unrelated browser state;
-3. if implemented, physically prove the resulting Plexamp Home reset on the commissioned Pi; otherwise explicitly defer/remove that optional scope from #93 with owner agreement;
-4. run a final zero-difference ACP Preview after the successful reset and confirm normal navigation/playback remains healthy.
+1. determine whether any other live `discovery:customizations:*` key names remain without reading unclassified values;
+2. use a disposable fresh Chromium profile against the same Plexamp Headless instance to distinguish Chromium-profile ownership from Headless/account/library-derived baseline ownership;
+3. decide from evidence whether a safe factory-Home reset can be implemented without touching login/claim/player identity or unrelated browser state;
+4. if implemented, physically prove it; otherwise explicitly defer/remove that optional scope from #93 with owner agreement;
+5. when the owner is ready to leave ACP at shipped defaults, run the final zero-difference ACP Preview and confirm normal navigation/playback remains healthy.
 
 Only then can #93 move from **ACP reset and presentation physically proven / Plexamp Home semantic decision open** to **COMPLETE**.
