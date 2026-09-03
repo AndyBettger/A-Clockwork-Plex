@@ -41,9 +41,11 @@ class PlexampCommissioningConflict(PlexampCommissioningError):
     pass
 
 
-def _safe_text(value: Any, label: str, maximum: int) -> str:
+def _safe_text(value: Any, label: str, maximum: int, *, allow_empty: bool = False) -> str:
     if not isinstance(value, str):
         raise PlexampCommissioningError(f"Plexamp {label} is not a string.")
+    if allow_empty and value == "":
+        return ""
     text = value.strip()
     if not text or len(text) > maximum or any(ord(char) < 32 for char in text):
         raise PlexampCommissioningError(f"Plexamp {label} is outside the supported format.")
@@ -137,6 +139,7 @@ class PlexampCommissioningManager:
                 payload.get("audioDeviceUuid"),
                 "audio-device value",
                 MAX_DEVICE_VALUE_LENGTH,
+                allow_empty=True,
             ),
         }
 
@@ -312,7 +315,12 @@ class PlexampCommissioningManager:
         if name not in ALLOWED_SETTING_NAMES:
             raise ValueError("Unsupported Plexamp commissioning setting.")
         maximum = MAX_PLAYER_NAME_LENGTH if name == "playerName" else MAX_DEVICE_VALUE_LENGTH
-        checked = _safe_text(value, name, maximum)
+        checked = _safe_text(
+            value,
+            name,
+            maximum,
+            allow_empty=name == "audioDeviceUuid",
+        )
         query = urlencode({"name": name, "value": checked})
         self._request("PUT", f"/settings?{query}")
 
