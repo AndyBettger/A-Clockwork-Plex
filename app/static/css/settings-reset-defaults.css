@@ -204,9 +204,10 @@ body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-home-det
 }
 
 /* Match Backup/Restore's deliberate Review step: action on the left, current
- * review state on the right, then one full-width confirmation card below. */
+ * review state on the right, then one full-width confirmation card below. The
+ * columns are bounded so the action cannot consume the status card at 1280x720. */
 body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-preview]:not([hidden]) {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
   align-items: stretch;
   gap: 12px;
 }
@@ -224,6 +225,7 @@ body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-z
   display: grid;
   align-content: stretch;
   gap: 8px;
+  min-width: 0;
   margin: 0;
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, .11);
@@ -240,7 +242,10 @@ body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-z
 }
 
 body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-zone] > [data-action="review-reset-defaults"] {
+  width: 100%;
+  min-width: 0;
   min-height: 44px;
+  white-space: normal;
 }
 
 body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-zone] > .muted.small {
@@ -249,8 +254,15 @@ body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-z
 
 body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-status]:not([hidden]) {
   grid-column: 2;
+  grid-template-columns: 1fr;
+  align-content: center;
   align-self: stretch;
+  min-width: 0;
   margin: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:reset"] [data-reset-review-status] > .settings-chip {
+  justify-self: start;
 }
 
 body.mode-settings [data-settings-subpage="advanced:reset"] .settings-restore-confirmation:not([hidden]) {
