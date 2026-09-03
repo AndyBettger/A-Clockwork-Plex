@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SETUP = ROOT / "setup.sh"
 DEPENDENCIES = ROOT / "installer" / "repository-dependencies.txt"
 RESET_CLIENT = ROOT / "app" / "static" / "js" / "settings-reset-defaults.js"
+RESET_CSS = ROOT / "app" / "static" / "css" / "settings-reset-defaults.css"
+SETTINGS_ADVANCED = ROOT / "app" / "static" / "js" / "settings-advanced.js"
 
 
 class PlexampCommissioningWiringTests(unittest.TestCase):
@@ -70,6 +72,20 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_reset_review_layout_reserves_status_width_at_appliance_resolution(self) -> None:
+        css = RESET_CSS.read_text(encoding="utf-8")
+        advanced = SETTINGS_ADVANCED.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr)",
+            css,
+        )
+        self.assertIn("[data-reset-review-status]:not([hidden])", css)
+        self.assertIn("grid-template-columns: 1fr", css)
+        self.assertIn("white-space: normal", css)
+        self.assertIn("min-width: 0", css)
+        self.assertIn("20260903-reset-review-layout-v3", advanced)
 
 
 if __name__ == "__main__":
