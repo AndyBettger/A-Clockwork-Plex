@@ -292,7 +292,7 @@
 
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = '/static/css/settings-reset-defaults.css?v=20260902-reset-layout-v2';
+  stylesheet.href = '/static/css/settings-reset-defaults.css?v=20260903-reset-review-layout-v3';
   document.head.append(stylesheet);
 
   const script = document.createElement('script');
