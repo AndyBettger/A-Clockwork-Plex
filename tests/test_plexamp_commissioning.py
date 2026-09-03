@@ -18,20 +18,21 @@ class FakePlexampApi:
     def __init__(self) -> None:
         self.settings = {
             "playerName": "Bedroom Plexamp",
-            "audioDeviceUuid": "default",
+            "audioDeviceUuid": "",
         }
         self.audio_choices = [
-            ["default", "Follows system output"],
+            ["", "Follows system output"],
             ["hw:7,0", MANAGED_AUDIO_DEVICE_LABEL],
         ]
         self.calls: list[tuple[str, str]] = []
         self.fail_put_name: str | None = None
+        self.ignore_put_name: str | None = None
 
     def __call__(self, method: str, path: str, timeout: int):
         del timeout
         self.calls.append((method, path))
         parsed = urlparse(path)
-        query = parse_qs(parsed.query)
+        query = parse_qs(parsed.query, keep_blank_values=True)
         if method == "GET" and parsed.path == "/settings" and not parsed.query:
             return {
                 **self.settings,
@@ -49,7 +50,8 @@ class FakePlexampApi:
                 raise PlexampCommissioningError(f"injected failure for {name}")
             if name not in {"playerName", "audioDeviceUuid"} or not isinstance(value, str):
                 raise AssertionError(path)
-            self.settings[name] = value
+            if name != self.ignore_put_name:
+                self.settings[name] = value
             return {"ok": True}
         raise AssertionError((method, path))
 
@@ -60,7 +62,7 @@ class PlexampCommissioningTests(unittest.TestCase):
         home.mkdir(parents=True)
         return PlexampCommissioningManager(home=home, requester=api)
 
-    def test_first_commission_captures_claimed_name_and_selects_managed_output(self) -> None:
+    def test_first_commission_accepts_unset_audio_and_selects_managed_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             api = FakePlexampApi()
@@ -84,7 +86,7 @@ class PlexampCommissioningTests(unittest.TestCase):
             manager = self.manager(root, api)
             manager.commission()
             api.settings["playerName"] = "Temporary renamed player"
-            api.settings["audioDeviceUuid"] = "default"
+            api.settings["audioDeviceUuid"] = ""
 
             result = manager.commission()
 
@@ -102,7 +104,7 @@ class PlexampCommissioningTests(unittest.TestCase):
             manager = self.manager(root, api)
             manager.commission()
             api.settings["playerName"] = "Secret-ish room label"
-            api.settings["audioDeviceUuid"] = "default"
+            api.settings["audioDeviceUuid"] = ""
 
             plan = manager.plan()
             encoded = json.dumps(plan, sort_keys=True)
@@ -155,7 +157,7 @@ class PlexampCommissioningTests(unittest.TestCase):
             manager = self.manager(root, api)
             manager.commission()
             api.settings["playerName"] = "Temporary name"
-            api.settings["audioDeviceUuid"] = "default"
+            api.settings["audioDeviceUuid"] = ""
             before = dict(api.settings)
             plan = manager.plan()
             api.fail_put_name = "audioDeviceUuid"
@@ -167,13 +169,35 @@ class PlexampCommissioningTests(unittest.TestCase):
             self.assertEqual(context.exception.rollback_failures, [])
             self.assertEqual(api.settings, before)
 
+    def test_verification_failure_can_roll_audio_back_to_exact_unset_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            api = FakePlexampApi()
+            manager = self.manager(root, api)
+            manager.commission()
+            api.settings["audioDeviceUuid"] = ""
+            plan = manager.plan()
+            api.ignore_put_name = "audioDeviceUuid"
+            call_count = len(api.calls)
+
+            with self.assertRaises(PlexampCommissioningError) as context:
+                manager.apply(fingerprint=plan["fingerprint"])
+
+            self.assertTrue(context.exception.rolled_back)
+            self.assertEqual(context.exception.rollback_failures, [])
+            self.assertEqual(api.settings["audioDeviceUuid"], "")
+            later_puts = [
+                path for method, path in api.calls[call_count:] if method == "PUT"
+            ]
+            self.assertTrue(any("name=audioDeviceUuid&value=" in path for path in later_puts))
+
     def test_missing_or_ambiguous_managed_audio_route_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             api = FakePlexampApi()
             manager = self.manager(root, api)
 
-            api.audio_choices = [["default", "Follows system output"]]
+            api.audio_choices = [["", "Follows system output"]]
             with self.assertRaises(PlexampCommissioningError):
                 manager.commission()
 
@@ -185,7 +209,7 @@ class PlexampCommissioningTests(unittest.TestCase):
             ]
             with self.assertRaises(PlexampCommissioningError):
                 manager.commission()
-            self.assertEqual(api.settings["audioDeviceUuid"], "default")
+            self.assertEqual(api.settings["audioDeviceUuid"], "")
 
     def test_non_loopback_commissioning_url_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
