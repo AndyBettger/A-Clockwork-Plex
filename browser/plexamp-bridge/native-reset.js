@@ -16,16 +16,6 @@
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
   const EXCLUDED_COMMISSIONING_KEYS = new Set(['playerName', 'audioDeviceUuid']);
-  const PRESERVED_PORTABLE_HEADLESS_KEYS = new Set([
-    'audioConversionBitrate',
-    'autoPlayEnabled',
-    'cacheSize',
-    'cachingWiFi',
-    'loudnessLeveling',
-    'precacheNetworkSpeed',
-    'sampleRateConversionQuality',
-    'sampleRateMatching',
-  ]);
   const MAX_SETTINGS = 512;
   const MAX_DEPTH = 5;
   const MAX_COLLECTION_ITEMS = 128;
@@ -33,7 +23,6 @@
   const MAX_STRING_CHARS = 4096;
 
   const rollbackSnapshots = new Map();
-  let cachedWebpackRequire = null;
   let cachedSettings = null;
 
   function hash32(text) {
@@ -57,15 +46,9 @@
       : hash32(`${Date.now()}-${Math.random()}`).repeat(4);
   }
 
-  function comparableKey(
-    key,
-    value,
-    includeCommissioning = false,
-    includeProtectedHeadless = false,
-  ) {
+  function comparableKey(key, value, includeCommissioning = false) {
     if (typeof key !== 'string' || key.startsWith('_') || key === 'premium') return false;
     if (!includeCommissioning && EXCLUDED_COMMISSIONING_KEYS.has(key)) return false;
-    if (!includeProtectedHeadless && PRESERVED_PORTABLE_HEADLESS_KEYS.has(key)) return false;
     return typeof value !== 'function';
   }
 
@@ -136,28 +119,15 @@
     return JSON.stringify(canonicalize(value));
   }
 
-  function settingKeys(
-    settings,
-    includeCommissioning = false,
-    includeProtectedHeadless = false,
-  ) {
+  function settingKeys(settings, includeCommissioning = false) {
     return Object.keys(settings || {})
-      .filter((key) => comparableKey(
-        key,
-        settings[key],
-        includeCommissioning,
-        includeProtectedHeadless,
-      ))
+      .filter((key) => comparableKey(key, settings[key], includeCommissioning))
       .sort()
       .slice(0, MAX_SETTINGS);
   }
 
-  function stateFingerprint(
-    settings,
-    includeCommissioning = false,
-    includeProtectedHeadless = false,
-  ) {
-    const keys = settingKeys(settings, includeCommissioning, includeProtectedHeadless);
+  function stateFingerprint(settings, includeCommissioning = false) {
+    const keys = settingKeys(settings, includeCommissioning);
     return hash32(JSON.stringify(keys.map((key) => [key, encodedValue(settings[key])])));
   }
 
@@ -183,7 +153,7 @@
       };
     }
 
-    const keys = settingKeys(settings, false, false);
+    const keys = settingKeys(settings, false);
     const changed = keys.filter((key) => encodedValue(settings[key]) !== encodedValue(defaults[key]));
     return {
       schema_version: 1,
@@ -191,49 +161,25 @@
       read_only: true,
       reset_available: changed.length > 0,
       change_count: changed.length,
-      target_fingerprint: stateFingerprint(settings, false, false),
+      target_fingerprint: stateFingerprint(settings, false),
     };
   }
 
   function captureSnapshot(settings) {
     const values = new Map();
     for (const key of Object.keys(settings || {})) {
-      if (typeof key !== 'string' || key.startsWith('_') || key === 'premium') continue;
-      if (typeof settings[key] === 'function') continue;
+      if (!comparableKey(key, settings[key], true)) continue;
       values.set(key, settings[key]);
     }
     return {
       values,
-      fingerprint: stateFingerprint(settings, true, true),
+      fingerprint: stateFingerprint(settings, true),
     };
   }
 
   function restoreSnapshot(settings, snapshot) {
     for (const [key, value] of snapshot.values.entries()) settings[key] = value;
-    return stateFingerprint(settings, true, true) === snapshot.fingerprint;
-  }
-
-  function captureProtectedHeadless(settings) {
-    return Array.from(PRESERVED_PORTABLE_HEADLESS_KEYS, (key) => ({
-      key,
-      present: Object.prototype.hasOwnProperty.call(settings, key),
-      value: settings[key],
-    }));
-  }
-
-  function restoreProtectedHeadless(settings, snapshot) {
-    for (const entry of snapshot) {
-      if (entry.present) {
-        settings[entry.key] = entry.value;
-      } else {
-        delete settings[entry.key];
-      }
-    }
-    return snapshot.every((entry) => {
-      const present = Object.prototype.hasOwnProperty.call(settings, entry.key);
-      if (present !== entry.present) return false;
-      return !entry.present || encodedValue(settings[entry.key]) === encodedValue(entry.value);
-    });
+    return stateFingerprint(settings, true) === snapshot.fingerprint;
   }
 
   function applySettingsReset(settings, expectedFingerprint, confirmReset = false) {
@@ -283,12 +229,8 @@
     }
 
     const snapshot = captureSnapshot(settings);
-    const protectedHeadless = captureProtectedHeadless(settings);
     try {
       settings.resetToDefaults();
-      if (!restoreProtectedHeadless(settings, protectedHeadless)) {
-        throw new Error('protected-headless-verification');
-      }
       const verified = buildResetPlan(settings);
       if (verified.status !== 'ready' || verified.reset_available) throw new Error('verification');
       const rollbackToken = randomToken();
@@ -380,40 +322,21 @@
     };
   }
 
-  function webpackRequire(win) {
-    if (cachedWebpackRequire?.c) return cachedWebpackRequire;
-    const names = Object.keys(win || {}).filter((name) => name.startsWith('webpackChunk'));
-    for (const name of names) {
-      const chunks = win[name];
-      if (!Array.isArray(chunks) || typeof chunks.push !== 'function') continue;
-      let candidate = null;
-      try {
-        const chunkId = Math.floor(1000000000 + Math.random() * 1000000000);
-        chunks.push([[chunkId], {}, (runtime) => { candidate = runtime; }]);
-      } catch (_error) {
-        candidate = null;
-      }
-      if (candidate?.c && typeof candidate.c === 'object') {
-        cachedWebpackRequire = candidate;
-        return candidate;
-      }
-    }
-    return null;
-  }
-
   function locateSettings(win) {
     if (cachedSettings && typeof cachedSettings.resetToDefaults === 'function') return cachedSettings;
-    const runtime = webpackRequire(win);
-    if (!runtime?.c) return null;
-    for (const module of Object.values(runtime.c)) {
-      const exported = module?.exports;
-      const candidates = [exported, exported?.default];
-      for (const candidate of candidates) {
-        const settings = candidate?.rootStore?.settings;
-        if (settings && typeof settings.resetToDefaults === 'function') {
-          cachedSettings = settings;
-          return settings;
-        }
+
+    // Plexamp 4.13.2 module 92895 exposes rootStore as a proxy over
+    // global.app.rootStore. In the browser page world that application-global
+    // object is the supported runtime authority; no webpack cache discovery is
+    // required or attempted.
+    const candidates = [
+      win?.app?.rootStore?.settings,
+      win?.global?.app?.rootStore?.settings,
+    ];
+    for (const settings of candidates) {
+      if (settings && typeof settings.resetToDefaults === 'function') {
+        cachedSettings = settings;
+        return settings;
       }
     }
     return null;
