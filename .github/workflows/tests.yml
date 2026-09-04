@@ -69,6 +69,7 @@ jobs:
           node --check app/static/js/settings-advanced.js
           node --check app/static/js/settings-reset-defaults.js
           node --check app/static/js/plexamp-home-reset-bridge.js
+          node --check app/static/js/plexamp-native-reset-bridge.js
           node --check app/static/js/settings-alarms.js
           node --check app/static/js/settings-keyboard.js
           node --check app/static/js/settings-about.js
@@ -96,6 +97,7 @@ jobs:
           node --check app/static/js/plexamp-browser-bridge.js
           node --check browser/plexamp-bridge/content.js
           node --check browser/plexamp-bridge/reset.js
+          node --check browser/plexamp-bridge/native-reset.js
           node -e "JSON.parse(require('fs').readFileSync('browser/plexamp-bridge/manifest.json', 'utf8'))"
           node --check app/static/js/idle-return.js
           node --check app/static/js/page-transitions.js
@@ -148,16 +150,22 @@ jobs:
           grep -q "register_configuration_restore_apply_api" app/runner.py
           grep -q "register_configuration_reset_preview_api" app/runner.py
           grep -q "register_configuration_reset_apply_api" app/runner.py
-          grep -q "settings-reset-defaults.js?v=20260901-reset-defaults-v2" app/static/js/settings-advanced.js
+          grep -q "settings-reset-defaults.js?v=20260904-native-home-reset-v4" app/static/js/settings-advanced.js
           grep -q "/api/settings/reset/preview" app/static/js/settings-reset-defaults.js
           grep -q "/api/settings/reset/apply" app/static/js/settings-reset-defaults.js
           grep -q "Plexamp Home customisation" app/static/js/settings-reset-defaults.js
           grep -q "ACPPlexampHomeReset" app/static/js/settings-reset-defaults.js
+          grep -q "ACPPlexampNativeReset" app/static/js/settings-reset-defaults.js
           grep -q "acp-plexamp-home-reset-plan-request-v1" app/static/js/plexamp-home-reset-bridge.js
           grep -q "acp-plexamp-home-reset-apply-request-v1" app/static/js/plexamp-home-reset-bridge.js
           grep -q "acp-plexamp-home-reset-plan-request-v1" browser/plexamp-bridge/reset.js
           grep -q "acp-plexamp-home-reset-apply-request-v1" browser/plexamp-bridge/reset.js
+          grep -q "acp-plexamp-native-reset-plan-request-v1" app/static/js/plexamp-native-reset-bridge.js
+          grep -q "acp-plexamp-native-reset-apply-request-v1" browser/plexamp-bridge/native-reset.js
+          grep -q "PRESERVED_PORTABLE_HEADLESS_KEYS" browser/plexamp-bridge/native-reset.js
+          grep -q "chrome.runtime.getURL('native-reset.js')" browser/plexamp-bridge/reset.js
           grep -Fq '"js": ["content.js", "reset.js"]' browser/plexamp-bridge/manifest.json
+          grep -Fq '"resources": ["native-reset.js"]' browser/plexamp-bridge/manifest.json
           grep -q "PlexampPreferenceManager" app/runner.py
           grep -q "plexamp_preference_status=plexamp_preferences.status" app/runner.py
           grep -q "plexamp_preference_apply=plexamp_preferences.apply" app/runner.py
