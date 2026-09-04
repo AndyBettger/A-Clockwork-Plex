@@ -52,7 +52,7 @@ class AudioMixerScaleTests(unittest.TestCase):
         self.assertEqual(configuration_reset.MIXER_MIN_DB, HELPER.MIN_DB)
         self.assertEqual(configuration_reset.MIXER_MAX_DB, HELPER.MAX_DB)
         defaults = configuration_reset._default_mixer()
-        self.assertEqual(defaults["master"], 79)
+        self.assertEqual(defaults["master"], 100)
         self.assertEqual(defaults["plexamp"], 100)
         self.assertEqual(defaults["airplay"], 100)
         self.assertEqual(defaults["alarm"], 100)
