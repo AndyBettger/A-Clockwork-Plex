@@ -2,58 +2,39 @@
 
 ## Purpose
 
-A Clockwork Plex needs a supported way to move the useful personality of a commissioned appliance onto a rebuilt or replacement installation without accidentally cloning credentials, hardware identity, volatile runtime state or stale machine-specific files.
+A Clockwork Plex needs a supported way to move the useful personality of a commissioned appliance onto a rebuilt or replacement installation without cloning credentials, hardware identity, volatile runtime state or stale machine-specific files.
 
-The backup contract therefore follows the same ownership rule as the rest of the appliance:
+The governing rule remains:
 
 > **Back up logical user choices through their owning authority; do not copy implementation directories wholesale.**
 
-This document records the post-v0.4.0 ownership audit and the contract now used by the backup/export implementation.
-
-## Design goals
-
-A normal appliance backup should:
-
-- preserve settings the owner would reasonably expect to survive a rebuild;
-- be inspectable, versioned and portable between supported A Clockwork Plex installations;
-- contain **no authentication or managed secrets**;
-- avoid machine-specific paths, generated caches and transient runtime state;
-- restore through the same validated authorities used by Settings rather than overwriting arbitrary files;
-- tolerate a newer appliance/Plexamp version by validating known fields and ignoring or reporting unsupported optional preferences;
-- provide a preview before a restore can change the live appliance.
-
-A backup is **not** intended to be a disk image or a forensic copy of the Pi.
-
-A separate same-appliance Reset owner may legitimately own **nonportable commissioning state** without making that state part of a backup. This distinction is now important for Plexamp player naming/output selection: portability answers “should another appliance inherit this?”, while Reset answers “can this appliance safely return to its own commissioned state?”.
+A backup is not a disk image or forensic copy of the Pi. A separate same-appliance Reset owner may legitimately own **nonportable commissioning state** without making that state portable.
 
 ## Ownership matrix
 
-| State | Current owner/location | Ordinary backup policy | Restore policy |
+| State | Current owner/location | Ordinary backup policy | Restore / Reset relationship |
 | --- | --- | --- | --- |
-| A Clockwork Plex user settings | `config.json`, exposed/validated through `UnifiedSettingsService` and specialist Settings extensions | **Include as a normalised portable settings model**, not as raw `config.json` bytes | Validate and apply through the unified/specialist settings authorities |
-| Alarm schedules and user alarm choices | `config.json` / alarm configuration authority | **Include** | Preview enabled alarms and validate before applying; never copy alarm runtime state |
-| Display themes, night behaviour, clock layout and idle/startup choices | `config.json` / Unified Settings | **Include** | Apply through Settings validation |
-| Weather station labels, units, clock cards, observation provider settings and forecast location | `config.json` / Weather Settings authorities | **Include non-secret values** | Apply through Weather Settings validation; remote credentials remain a separate commissioning step |
-| Weather Underground API key | `/etc/default/a-clockwork-plex-weather`, root-owned, mode `0600` | **Never include** | Recommission explicitly through the managed credential owner |
-| AirPlay receiver name and ordinary handoff/default-volume preferences | configuration plus `ShairportNameManager` | **Include logical values** | Apply receiver name through its guarded helper and other preferences through Settings |
-| Master EQ Bass/Mid/Treble and bypass state | `/var/lib/a-clockwork-plex/split-bus/master-eq.json`, owned by the restricted EQ helper | **Include as normalised logical values** | Apply through `MasterEqualizer`; never replace the root-owned state file directly |
-| Persistent shared mixer levels | ALSA control state persisted by `alsactl store` | **Include four normalised percentages** (`master`, `plexamp`, `airplay`, `alarm`) | Apply through the restricted mixer helper after the accepted audio route exists; never copy ALSA state files |
-| Audio routes, CamillaDSP configuration/binary, systemd units, sudoers and hardware bindings | guarded installer/audio lifecycle | **Exclude** | Recreate from the installed release and hardware commissioning, not from user backup |
-| Plexamp Headless runtime | `~/plexamp`, installed from pinned release archive | **Exclude** | Reinstall through the guarded Plexamp runtime owner |
-| Plexamp Headless persistent Settings store | `~/.local/share/Plexamp/Settings` | **Selective allow-list only; never copy directory wholesale** | Restore only the exact known typed non-auth preferences through the dedicated exact-version transactional owner; incompatible/unknown target state is deferred before mutation |
-| Plexamp appliance-local commissioning baseline | `~/.local/share/a-clockwork-plex/plexamp-commissioning.json` plus live Plexamp loopback output catalogue | **Exclude**; player label/output binding are deliberately nonportable | Not part of backup restore. `setup.sh` captures the local player-name baseline once; #93 Reset can restore that label and dynamically resolve the exact `A Clockwork Plex - Plexamp` output without copying a UUID |
-| A Clockwork Plex kiosk Chromium profile | `~/.config/a-clockwork-plex/chromium-profile` | **Never copy profile wholesale**; export only validated logical Plexamp Home state through the scoped live browser bridge | Restore only explicit logical Home choices through the live target-context browser owner after fresh Plexamp claim/library commissioning; never restore the Chromium profile |
-| WU selected-period/full-station rainfall caches | `weather-rainfall-history.json`, `weather-rainfall-lifetime.json` | **Exclude** | Rebuild/backfill from the commissioned Weather source |
-| Forecast cache | `weather-forecast-cache.json` | **Exclude** | Re-fetch from Open-Meteo |
-| Dashboard/weather live state and pressure/extreme history | `state.json` | **Exclude** | Rebuild from live observations |
-| Alarm runtime/audio runtime | `alarm-runtime.json`, `alarm-audio-runtime.json` | **Exclude** | Recreate from configuration and current time; never resurrect an old ringing/snoozed occurrence |
-| Playback/handoff runtime | `playback-runtime.json` and application-state runtime | **Exclude** | Recreate from live Plexamp/AirPlay state |
-| EQ route state, install markers, pre-EQ rollback backup and installer transactions | `/var/lib/a-clockwork-plex/...` | **Exclude** | Owned by installation/repair lifecycle only |
-| Generated assets, logs and caches | project/runtime cache paths | **Exclude** | Regenerate |
+| A Clockwork Plex user settings | `config.json` through `UnifiedSettingsService` and specialist Settings owners | **Include as normalised portable settings**, never raw bytes | Restore through validated owners; #93 Reset derives ACP defaults from `config.example.json` through the same normalisers |
+| Alarm schedules and user alarm choices | alarm configuration authority | **Include** | Restore normally; #93 Reset restores ordinary alarm choices but preserves alarm-audio arming switches |
+| Display/theme/night/clock/startup choices | Unified Settings | **Include** | Restore through Settings; #93 Reset owns supported defaults |
+| Weather non-secret choices | Weather Settings authorities | **Include** | Restore through Weather Settings; credentials remain separate commissioning |
+| Weather Underground API key | `/etc/default/a-clockwork-plex-weather` | **Never include** | Recommission explicitly; #93 Reset preserves it |
+| AirPlay receiver and user preferences | configuration + `ShairportNameManager` | **Include logical values** | Restore through guarded owners; #93 Reset owns supported user defaults |
+| Master EQ | restricted EQ owner | **Include logical enabled/band state** | Restore through `MasterEqualizer`; #93 Reset owns neutral/default logical state |
+| Persistent mixer levels | ALSA control state through restricted mixer helper | **Include four logical percentages** | Restore through mixer helper; #93 Reset uses physically observable mixer defaults |
+| Audio routes/CamillaDSP/systemd/sudoers/hardware | guarded installer/audio lifecycle | **Exclude** | Recreate from release/hardware commissioning; #93 Reset preserves topology |
+| Plexamp Headless runtime | guarded Plexamp runtime owner | **Exclude** | Reinstall through runtime owner; #93 Reset does not replace runtime |
+| Plexamp Headless persistent Settings | `~/.local/share/Plexamp/Settings` | **Selective eight-value allow-list only** | Exact-version transactional restore; #93 native Reset preserves/re-applies those same eight values |
+| Plexamp appliance-local commissioning baseline | `~/.local/share/a-clockwork-plex/plexamp-commissioning.json` + live loopback output catalogue | **Exclude** | #93 same-appliance commissioning Reset owns `playerName` + managed output only |
+| Plexamp Home logical choices | live kiosk browser origin | **Include validated logical order/hidden choices**, never Chromium profile | #90 restores backed-up logical layout; #93 separately resets bounded Home order/visibility to Plexamp defaults |
+| Chromium profile wholesale | `~/.config/a-clockwork-plex/chromium-profile` | **Never include** | Never restore/copy wholesale; #93 touches only classified Home records |
+| Weather/News caches and rainfall history | runtime cache files | **Exclude** | Rebuild/refetch; #93 preserves runtime/history state |
+| Alarm/playback runtime | runtime state files | **Exclude** | Recreate from live state/current time |
+| EQ route/install rollback state | `/var/lib/a-clockwork-plex/...` | **Exclude** | Installer/repair lifecycle only |
 
 ## Portable A Clockwork Plex settings
 
-The export is built from the **normalised Settings model**, not by serialising `config.json` directly. The public Settings authority already knows how to normalise and validate the appliance domains.
+The export is built from the **normalised Settings model**, not by serialising `config.json` directly.
 
 Portable settings include:
 
@@ -65,173 +46,172 @@ Portable settings include:
 - AirPlay receiver name, default starting volume and hold behaviour;
 - safe user-facing audio preferences.
 
-Installer/hardware integration values do not migrate merely because they happen to appear in `config.json`. Examples include fixed ALSA hardware device names, installer-owned service paths, Plexamp localhost/service plumbing and compatibility fields. A restore uses the target installation's commissioned hardware/runtime values unless a field has deliberately been classified as portable.
-
-The Weather Underground `api_key_env` setting is also target-owned implementation detail and is omitted from the portable backup. The actual API key is already outside normal Settings and remains a hard exclusion.
+Installer/hardware integration values do not migrate merely because they happen to appear in `config.json`. The Weather Underground `api_key_env` field is target-owned implementation detail and is omitted; the real API key remains a hard exclusion.
 
 ## Secrets and identity: hard exclusions
 
 An ordinary backup must never contain:
 
-- Weather Underground API key or any future managed Weather secret;
-- Plex account authentication token, claim token or account/session credentials;
-- Plexamp player/machine/client identity intended to distinguish one player from another;
+- Weather Underground API key or future managed Weather secrets;
+- Plex authentication/claim/account/session credentials;
+- Plexamp player/machine/client identity intended to distinguish one appliance from another;
 - Chromium cookies, login data, session storage or authentication databases;
-- passwords, bearer tokens, API keys or other values matching a managed-secret class;
-- private key material.
+- passwords, bearer tokens, API keys or private-key material;
+- raw machine-specific audio/hardware topology.
 
-A non-credential backup can still contain personal household information such as alarm times, station IDs, labels and approximate forecast coordinates. The UI/documentation should make that distinction clear rather than describing the file as anonymous.
+A non-credential backup can still contain personal household information such as alarm times, labels, station IDs and approximate forecast coordinates. It is therefore portable and secret-safe, not anonymous.
 
-The local #93 commissioning baseline does **not** weaken these portable-backup exclusions. Its player label stays on the appliance under the ACP-owned local state directory and is never added to schema-v1 export. The current/output UUID is not persisted by that baseline at all.
+The #93 commissioning baseline does **not** weaken these exclusions. Its player label remains local to the appliance and never enters schema-v1 backup. The audio output UUID is not stored in that baseline at all.
 
-## Plexamp ownership boundary
+## Plexamp Headless portable preference boundary
 
-The guarded Plexamp installer treats:
+The guarded installer preserves:
 
 ```text
 ~/.local/share/Plexamp/Settings
 ```
 
-as persistent state outside the replaceable `~/plexamp` runtime. That directory is intentionally preserved across Plexamp runtime repairs/updates, but it is **not safe as a backup unit**.
+across Plexamp runtime replacement, but the directory is **not** a supported backup unit.
 
-The commissioned Plexamp 4.13.2 development Pi physically exposed 35 files in this store. Eleven safe-looking `@Plexamp:settings:*` names were visible to the content-blind audit and 24 files remained deliberately unclassified. The exact ordinary typed scalar allow-list established from that live inventory is:
+The commissioned Plexamp 4.13.2 Pi physically exposed 35 files. Eleven safe-looking `@Plexamp:settings:*` names were visible to content-blind audit and 24 files remained deliberately unclassified. The exact typed scalar portable allow-list is:
 
-| Preference | Observed value | Backup policy |
-| --- | ---: | --- |
-| `audioConversionBitrate` | `256` | Include, version-aware |
-| `autoPlayEnabled` | `false` | Include, version-aware |
-| `cacheSize` | `32768` | Include, version-aware |
-| `cachingWiFi` | `10` | Include, version-aware |
-| `loudnessLeveling` | `false` | Include, version-aware |
-| `precacheNetworkSpeed` | `0` | Include, version-aware |
-| `sampleRateConversionQuality` | `4` | Include, version/audio-policy aware |
-| `sampleRateMatching` | `2` | Include, version/audio-policy aware |
-| `audioDeviceUuid` | value deliberately not read by backup audit | **Exclude from portable backup/restore**; #93 commissioning Reset dynamically resolves the target UUID from the exact managed output label |
-| `premium` | value deliberately not read | **Exclude**; derived account/capability state |
-| `playerName` | value deliberately not read by backup audit | **Exclude from portable backup/restore**; #93 commissioning Reset owns only this appliance's separately captured local baseline |
+| Preference | Observed commissioned value | Backup/Restore | #93 Reset |
+| --- | ---: | --- | --- |
+| `audioConversionBitrate` | `256` | Include, version-aware | Preserve/re-apply |
+| `autoPlayEnabled` | `false` | Include, version-aware | Preserve/re-apply |
+| `cacheSize` | `32768` | Include, version-aware | Preserve/re-apply |
+| `cachingWiFi` | `10` | Include, version-aware | Preserve/re-apply |
+| `loudnessLeveling` | `false` | Include, version-aware | Preserve/re-apply |
+| `precacheNetworkSpeed` | `0` | Include, version-aware | Preserve/re-apply |
+| `sampleRateConversionQuality` | `4` | Include, version/audio-policy aware | Preserve/re-apply |
+| `sampleRateMatching` | `2` | Include, version/audio-policy aware | Preserve/re-apply |
+| `audioDeviceUuid` | deliberately not read by backup audit | **Exclude** | Same-appliance commissioning owner resolves managed output dynamically |
+| `premium` | deliberately not read | **Exclude** | Account/capability-derived; preserved |
+| `playerName` | deliberately not read by backup audit | **Exclude** | Same-appliance commissioning owner restores local baseline |
 
-Plexamp's typed scalar files use `Btrue` / `Bfalse` and `N<number>` encodings for the eight portable observed settings. Export code accepts only the exact allow-listed names and expected scalar type; unknown files and malformed values are skipped rather than copied.
+The eight portable values use Plexamp's typed scalar encodings such as `Btrue` / `Bfalse` and `N<number>`. Export accepts only exact allow-listed names and expected types; malformed/unknown files are skipped rather than copied.
 
-Current queue/state, resources, tokens and identity remain excluded even if technically easy to copy.
+These eight observed values are **commissioned values and the supported Backup/Restore allow-list**, not a statement of Plexamp factory defaults.
 
-### Appliance-local Plexamp commissioning ownership
+### Relationship to native #93 Plexamp Reset
 
-Checkpoint #93 introduces a separate owner rather than expanding the portable Headless preference bundle.
+Checkpoint #93 now calls Plexamp's own in-application `settings.resetToDefaults()` for ordinary Plexamp settings. That native method is deliberately prevented from consuming the portable Headless ownership boundary.
 
-`app/plexamp_commissioning.py` and setup-owned `scripts/commission-plexamp.py` may operate only on:
+`browser/plexamp-bridge/native-reset.js` therefore:
+
+1. excludes all eight allow-listed Headless keys from native Reset Preview/counting;
+2. captures their current values and present/absent state immediately before `resetToDefaults()`;
+3. calls Plexamp's native reset method;
+4. immediately restores the eight captured values;
+5. verifies them before native Reset can report success;
+6. includes them in the retained full rollback verification.
+
+This is important for the queued high-resolution-audio work: #93 does **not** redefine current Headless sample-rate/audio-policy choices as Plexamp Reset defaults.
+
+Unknown Headless values remain unclassified rather than becoming portable merely because the page-world settings object can see them.
+
+## Appliance-local Plexamp commissioning ownership — PHYSICALLY ACCEPTED
+
+`app/plexamp_commissioning.py` and `scripts/commission-plexamp.py` may operate only on:
 
 - `playerName`;
 - `audioDeviceUuid`.
 
 Their contract is deliberately local and narrow:
 
-- only the Plexamp loopback settings API on port `32500` is accepted;
+- only Plexamp's loopback settings API on port `32500` is accepted;
 - first successful `setup.sh` commissioning captures the claimed player name into `~/.local/share/a-clockwork-plex/plexamp-commissioning.json` with mode `0600`;
-- repeat setup does not silently recapture a later rename, so the Reset target remains stable;
-- an older already-installed appliance acquires the baseline only when `bash setup.sh` is deliberately run once after upgrading to this owner; Reset Preview never adopts the current label as a side effect;
-- the baseline contains no audio UUID. Each commission/Reset operation resolves exactly one live Plexamp output labelled **`A Clockwork Plex - Plexamp`** and uses that target's current UUID;
-- missing or ambiguous matching outputs fail closed;
-- public Reset planning returns only bounded state/count/fingerprint information, never the player-name value or UUID;
-- auth, claim, account/resource state and unrelated Plexamp settings remain outside this owner;
-- this owner is not serialized into the backup envelope and does not change #90 restore compatibility semantics.
+- repeat setup does not recapture a later rename;
+- an older appliance acquires the baseline only through deliberate one-time setup migration;
+- the baseline stores no audio UUID;
+- each commission/Reset operation dynamically requires exactly one output labelled **`A Clockwork Plex - Plexamp`** and uses its current UUID;
+- missing/ambiguous matching outputs fail closed;
+- public Reset planning returns bounded status/count/fingerprint information, never player-name values or UUID;
+- authentication, claim/account/resource state and unrelated Plexamp settings remain outside this owner;
+- the owner is never serialized into the portable backup envelope.
 
-This gives one appliance a truthful “return to how this player was commissioned” capability without creating a machine-cloning feature.
+Physical acceptance completed on 3 September 2026: a temporary player rename and **Follows system output** produced exactly two commissioning differences, and Reset returned both to the commissioned appliance state without leaking values.
 
-### Browser-side Plexamp Home customisation
+## Browser-side Plexamp Home ownership
 
-The A Clockwork Plex kiosk uses its own Chromium profile:
+The kiosk Chromium profile is:
 
 ```text
 ~/.config/a-clockwork-plex/chromium-profile
 ```
 
-The same browser profile renders the dashboard and Plexamp web UI. The profile also contains browser session/authentication state, therefore **the Chromium profile must never be archived/restored wholesale**.
+It contains authentication/session state as well as Plexamp UI preferences, so **the profile must never be archived/restored wholesale**.
 
-Read-only physical discovery on the commissioned Pi established the Plexamp origin as `http://localhost:32500` and identified React Native MMKV-style Local Storage keys under the `mmkv.default\<key>` namespace. The discovery helper deliberately read names/fingerprints only, never browser values.
+Physical discovery established Plexamp at `http://localhost:32500` and identified MMKV-style Local Storage state. Useful classified families are:
 
-The useful ownership findings are:
+- contextual `mmkv.default\discovery:customizations:<context>::/library/sections/<id>:order` — Home ordering;
+- contextual `mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:hidden` — Home visibility;
+- corresponding `:editing` records — transient editor state, excluded;
+- `*:cachedItems`, resources, auth/session and unrelated state — excluded.
 
-- `@Plexamp:resources` — **exclude**; server/resource identity;
-- `@Plexamp:settings:activeTab` — transient navigation state, exclude from ordinary backup;
-- `@Plexamp:settings:radioIncludeExternal` — ordinary browser preference candidate, not currently in the Home-layout bridge allow-list;
-- `mmkv.default\...:cachedItems` — generated cache content, exclude;
-- `mmkv.default\discovery:customizations:<context>::/library/sections/<id>:order` — physically proven Home-item ordering authority;
-- `mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:hidden` — physically proven per-item hidden/shown customization state;
-- matching `...:<hub-id>:editing` records — transient customiser/editor state, exclude.
+The live #89/#90 browser bridge remains the supported Backup/Restore authority. Raw Chromium LevelDB is discovery evidence only because browser compaction changes historical records.
 
-A physical differential test moved one Home item and only the contextual `:order` record acquired new state. A separate real hide action created the complete per-hub `:hidden` key and transient `:editing` records for the affected Home hub.
+### Backup/Restore Home bridge
 
-The raw Chromium LevelDB files are **discovery evidence only, not the production backup authority**. Chromium compacted the database between snapshots, changing which historical records were visible. Production Home-layout export therefore executes against the live Plexamp browser origin and never scrapes/copies the LevelDB files.
+`browser/plexamp-bridge/` is an unpacked Manifest V3 bridge loaded only by the dedicated kiosk launcher. It remains:
 
-The #89 live bridge is deliberately narrow:
+- loopback-only on Plexamp port `32500`;
+- permission-free;
+- without a background/service worker;
+- without remote-debugging authority;
+- without general network/cookie access.
 
-- `browser/plexamp-bridge/` is an unpacked Manifest V3 content extension loaded only by the dedicated kiosk launcher;
-- the manifest requests no Chrome permissions, has no background/service worker and matches only Plexamp loopback origins on port `32500`;
-- the kiosk does **not** expose a remote-debugging port;
-- inside Plexamp, the bridge reads only the live Local Storage key families already physically classified as Home `order` / per-hub `hidden` state;
-- `editing`, caches, resources, auth/session state and unrelated browser preferences are not emitted and their values are not opened;
-- the bridge responds only to the A Clockwork Plex dashboard parent origins on port `8088` and uses a request nonce;
-- the dashboard parent validates origin, frame source, schema, status, item counts and conservative hub-ID syntax before accepting the snapshot;
-- physical discovery narrowed accepted Home identifiers to **`[A-Za-z0-9_./-]`** with a 220-character bound; `/` was the only additional character observed beyond the original conservative set, while `:` remains rejected;
-- the accepted browser snapshot is merged into the already secret-free server backup **in browser memory**; it is not POSTed to the dashboard service or written to a temporary server-side file;
-- if the extension is unavailable or an observed Plexamp value uses an unsupported format, export fails closed for this optional section and records an omission/warning instead of broadening the read boundary.
+For export, the bridge opens values only after keys match the exact Home `order` / `hidden` allow-list. It emits logical Home choices only. The dashboard validates schema, origin, source frame, request nonce, bounded counts and conservative hub identifiers before merging the optional browser section **in browser memory** into the server-generated secret-free backup.
 
-The final commissioned-Pi #89 export physically returned browser schema `1`, **15 ordered Home identifiers**, **1 hidden identifier**, no browser omission and **zero warnings**. This establishes the live browser bridge as the supported export authority for Home order/hidden state.
+The final commissioned-Pi #89 export physically returned browser schema `1`, **15 ordered Home identifiers**, **1 hidden identifier**, no browser omission and zero warnings.
 
-The source customization key contains account/library context. The exported logical browser section deliberately discards that source context and retains only order/hidden choices. Phase 4 extends the same live bridge with the supported target-context restore authority rather than ever writing the source key literally:
+For #90 restore, `planHome` discovers the target's live current context and maps saved logical choices onto hubs that exist there. `applyHome` requires explicit confirmation plus an exact fresh fingerprint, captures exact raw target state, writes only classified target-context `order` / `hidden` records, verifies the logical layout and reverses completed writes exactly on failure.
 
-- `planHome` discovers the live target's current Home customization context and catalogue from already allow-listed `:order` / `:hidden` records only;
-- the saved logical order is mapped onto hubs that exist on the target, target-only hubs are preserved, and saved hubs absent from the target are counted/skipped rather than invented;
-- plan is read-only and returns a target fingerprint binding confirmation to the current target context/raw state;
-- `applyHome` requires explicit confirmation plus that exact fresh fingerprint and refuses a stale target before any Local Storage write;
-- every changed target key is captured as exact raw Local Storage state before mutation; successful writes are tracked, the resulting logical layout is verified, and failures reverse-roll only writes that actually completed back to their exact raw state;
-- `editing`, caches, resources, auth/session and unrelated state remain outside both the read and write boundary;
-- this browser transaction never restarts Plexamp and does not depend on a copied Chromium profile, browser permissions or remote debugging.
+Checkpoint #90 Phase 4 is physically accepted: both order+hidden and order-only round trips restored the backed-up Home layout, converged to zero Home differences and left Plexamp browsing/playback healthy.
 
-The browser owner is intentionally a **separate transactional owner** from the Python/server/Headless restore chain. A Headless restore may restart Plexamp and therefore invalidate a frame-local browser rollback lease. The guided UI can preview both domains from one backup and offer one final confirmation, but that confirmation orchestrates **Home first → verify → server/Headless → verify** when both stages are selected. Each stage owns its own rollback; A Clockwork Plex does **not** claim one atomic transaction across Chromium Local Storage and a Plexamp service restart. If Home succeeds and a later server/Headless stage cannot complete, the result must report that partial outcome truthfully rather than invent a cross-owner rollback guarantee.
+### Separate #93 Home Reset owner
+
+Backup/Restore means “return to this saved logical Home layout”. Reset means “return to Plexamp's browser/device-local default Home”. Those are different operations.
+
+An early #93 experiment proved that deleting one newly created contextual override could merely return Plexamp to the owner's already-configured browser baseline; absence of that one override was therefore **not** enough to prove factory/default Home.
+
+A later disposable fresh Chromium profile resolved the semantic boundary safely:
+
+- same Plex account/library + fresh browser profile produced the genuine default Home (`Mixes for You` first in the physical test);
+- therefore the commissioned Home baseline is browser/device-local, not account-synchronised;
+- Plexamp **Home Screen → Reset order** restores the default ordering;
+- Reset order does not unhide a deliberately hidden section.
+
+The #93 Home owner therefore resets both ordering and visibility across the bounded modern contextual records plus the exact legacy keys:
+
+- `mmkv.default\discovery:customizations:order`;
+- `mmkv.default\discovery:customizations:hidden`.
+
+It does not generalise to arbitrary `discovery:` state. Preview reports only counts/fingerprint; apply is stale-protected, snapshots exact raw bytes, deletes only classified reset records, verifies absence and retains rollback state until the outer Reset finalizes. Auth/cache/editor values remain unopened and untouched.
+
+The old compact `:c` LevelDB lead was later absent from live Local Storage and remains historical/deleted residue rather than a Reset authority.
+
+The full native/Home Reset implementation is automated-green at `fe2409f36584d360afc05c474bfbea6e8ff4657a` / **Tests #4506: 1027 tests in 51.242s, `OK`**. Combined native/Home physical acceptance is still open.
 
 ## Audio preferences
 
 ### EQ
 
-`MasterEqualizer` is the authority for persisted Bass/Mid/Treble and bypass state. The backup carries only the logical model, for example:
-
-```json
-{
-  "enabled": true,
-  "bands": {
-    "bass": 1.0,
-    "mid": 0.0,
-    "treble": -0.5
-  }
-}
-```
-
-Restore calls the EQ authority after the audio backend has been installed and verified. It must not write `master-eq.json` directly.
+`MasterEqualizer` is the authority for persisted Bass/Mid/Treble and bypass state. Backups carry only the logical model. Restore calls that authority after the audio backend is installed/verified and never writes `master-eq.json` directly.
 
 ### Mixer
 
-Persistent mixer levels are stored by ALSA, but ALSA's state file is tied to a particular card/control graph. The backup stores the four user-facing percentages instead:
+Persistent mixer levels are stored by ALSA, but raw ALSA state is tied to a card/control graph. Backups therefore store the four user-facing percentages (`master`, `plexamp`, `airplay`, `alarm`) and restore them through the restricted mixer helper.
 
-```json
-{
-  "master": 80,
-  "plexamp": 100,
-  "airplay": 100,
-  "alarm": 85
-}
-```
-
-Restore invokes the existing restricted mixer helper after the target audio profile is ready. This makes the backup portable even if the underlying raw softvol percentages or device identity change.
+The physically proven #93 default for Music Master is **79% observable**, not the nominal 80%, because of integer softvol quantisation. The other three Reset mixer defaults remain 100%.
 
 ## Backup envelope
 
-The first supported format is JSON and explicitly versioned:
+The supported format is explicitly versioned JSON:
 
 ```json
 {
   "schema_version": 1,
-  "created_at": "2026-08-24T00:35:02+01:00",
   "source": {
     "application": "A Clockwork Plex",
     "app_version": "0.4.0",
@@ -240,247 +220,77 @@ The first supported format is JSON and explicitly versioned:
   },
   "a_clockwork_plex": {
     "settings": {},
-    "audio": {
-      "eq": {},
-      "mixer": {}
-    }
+    "audio": {"eq": {}, "mixer": {}}
   },
   "plexamp": {
     "source_version": "4.13.2",
     "headless_preferences": {},
     "browser_preferences": {
       "schema_version": 1,
-      "home": {
-        "order": [],
-        "hidden": []
-      }
+      "home": {"order": [], "hidden": []}
     }
   },
-  "export_report": {
-    "warnings": [],
-    "omitted": []
-  }
+  "export_report": {"warnings": [], "omitted": []}
 }
 ```
 
-`plexamp.browser_preferences` is optional. It is present only when the live browser bridge returns a validated `ready`/`empty` snapshot; otherwise the export report keeps the browser section explicitly omitted and may include a safe bridge-status warning.
+`plexamp.browser_preferences` is optional and present only after a validated live bridge snapshot. The commissioning baseline is intentionally absent.
 
-Release/version metadata is derived from `app/static/app-version.json`, not hard-coded into the exporter. Plexamp runtime compatibility identity comes from the ACP-owned `~/plexamp/.a-clockwork-plex-runtime` manifest written and verified by the guarded Plexamp runtime installer. Backup and restore do **not** infer compatibility from an optional Plexamp `package.json` packaging detail.
-
-Sections may be omitted when their owner/backend is unavailable. Export reports what was deliberately skipped.
-
-The appliance-local Plexamp commissioning baseline is intentionally **absent** from this envelope. It is same-appliance Reset state, not migratable personality.
+Release identity comes from `app/static/app-version.json`. Plexamp runtime compatibility comes from the ACP-owned `~/plexamp/.a-clockwork-plex-runtime` manifest rather than optional `package.json` packaging details.
 
 ## Restore contract
 
-Restore is a separate operation from export and remains conservative:
+Restore remains conservative:
 
-1. parse and validate the schema without changing anything;
-2. reject malformed/unsupported required data and bound all values;
-3. present a summary/preview, including unavailable optional sections and confirmation requirements;
-4. establish that the target appliance/runtime/audio owners are installed and healthy;
-5. capture rollback state for every owner that will change;
-6. apply ordinary ACP configuration through its Settings authorities;
-7. apply guarded specialist state (AirPlay receiver name, EQ, mixer) through those specialist owners;
-8. apply supported Plexamp allow-listed preferences only after Plexamp is installed/claimed and version compatibility is known;
-9. verify the resulting Settings/specialist snapshots;
-10. roll back changed owners if a required restore stage fails.
+1. parse/validate schema without mutation;
+2. reject malformed/forbidden credential or machine-owned fields;
+3. Preview changed paths/counts without values;
+4. preflight required target owners;
+5. capture rollback state;
+6. apply ACP Settings and specialist EQ/mixer/AirPlay through their owners;
+7. apply exact-version supported Plexamp Headless preferences only through their restricted owner;
+8. apply/verify browser Home through its separate target-context owner when selected;
+9. verify resulting logical state;
+10. roll back within each supported owner boundary on failure.
 
-The #90 preview endpoint implements steps 1–3 without mutation. `POST /api/settings/restore/preview` accepts schema-v1 JSON in memory, rejects forbidden credential/machine-owned fields case-insensitively, validates bounded portable structures and compares the candidate to a fresh normalised current backup. EQ values are additionally constrained to the production `-6…+6 dB` / `0.5 dB` contract. Its response contains changed paths/counts rather than old/new values and permanently returns `read_only: true` and `apply_enabled: false`. Separate `restore_available`, `server_restore_available` and `plexamp_headless_restore_available` fields describe work available to the distinct confirmed restore endpoint; they never change the read-only meaning of Preview.
+The guided owner-facing flow is **Preview → choose A Clockwork Plex / Plexamp / both → Review selected restore → Confirm & restore**. Review refreshes selected-owner plans immediately before confirmation. Browser Home and server/Headless storage remain separate transactional owners; the UI does not invent a global atomic filesystem/browser transaction.
 
-The commissioned Pi physically accepted this preview stage on 24 August 2026 using the just-created schema-v1 backup: **0 server-owned differences**, `read_only: true`, `apply_enabled: false`, browser schema `1`, **15 ordered** Home items and **1 hidden** item. The only warning was the expected notice that Plexamp Home comparison/application remained a future live-browser stage at that checkpoint. The 1280×720 Settings presentation was also physically checked.
+## #88 ownership audit — COMPLETE
 
-The #90 transactional apply endpoint first reached physical acceptance for server-owned ACP state in Phase 2:
+Checkpoint #88 established the portable/nonportable boundaries described above. The commissioned Pi physically proved the eight Headless allow-list and Home order/hidden browser families while unknown/auth/device/browser values remained unopened. No raw Plexamp Settings directory, Chromium profile or LevelDB file is a supported backup unit.
 
-- `POST /api/settings/restore/apply` is a separate endpoint from Preview and requires an explicit `confirm_restore: true` request;
-- a 32-hex preview fingerprint binds Apply to the exact normalized backup plus current comparison/capability state; if the appliance, selected backup or participating restore capability changes after Preview, Apply returns a conflict and requires a fresh preview before any owner is touched;
-- required confirmations such as an AirPlay receiver restart are carried forward from the preview contract;
-- preflight refuses the whole operation before mutation if a required owner is unavailable;
-- rollback state is captured from the same normalised authorities before the first owner changes;
-- server application order is **Unified Settings → Master EQ → persistent four-channel mixer**;
-- verification re-runs the normalised comparison and requires all supported apply paths to match the requested backup;
-- any required-stage failure rolls touched owners back in reverse order and reports rollback failures explicitly;
-- Settings refuses the UI restore path while ordinary staged Settings changes are unsaved;
-- automated fake-backed regression coverage injects late failures and verifies that previously touched owners return to their original logical state.
+## #89 configuration backup/export — COMPLETE
 
-The normal Phase-2 successful path is physically accepted on the commissioned Pi. One harmless ordinary Settings value, one `0.5 dB` EQ value and one small persistent mixer value were deliberately changed after taking a baseline backup. Preview reported exactly three supported server-owned differences; the explicit two-stage restore returned all three values to the backed-up state; selecting the same backup again then reported **0** restorable server-owned items.
+The complete schema-v1 export is physically accepted:
 
-The stale-preview path is also physically accepted. After a Preview reported one Settings difference, a further `0.5 dB` Bass change was saved before Apply. The old preview was refused before mutation, both changed values remained changed, and a fresh Preview then reported both differences. This physically confirms the preview fingerprint is an optimistic-concurrency safety boundary rather than merely a UI hint.
+- ACP normalised portable settings, logical EQ/mixer and all eight approved Headless values are exported;
+- secrets, player/device identity, hardware topology, runtime/caches are excluded;
+- the live permission-free browser bridge adds validated logical Plexamp Home data in browser memory;
+- physical export contained 15 ordered Home identifiers and 1 hidden identifier with zero warnings;
+- the owner-facing download explicitly states credentials/authentication are not included.
 
-The original owner-specific controls established the safe mutation boundaries but exposed too much implementation detail once Home restore joined the system. The current guided UI keeps the same safety contracts while presenting one owner-facing sequence: **Preview → choose A Clockwork Plex / Plexamp / both → Review selected restore → Confirm & restore**. Preview and Review are read-only. Review regenerates fresh plans for only the selected owners and exposes the sole mutating confirmation only when the selected work is still current. The A Clockwork Plex target covers Settings/alarms/EQ/mixer; the Plexamp target covers compatible Headless preferences plus Home order/hidden choices. The selective server candidate deliberately omits unselected domains so a visual choice cannot silently become an empty-value overwrite.
+## #90 configuration restore — COMPLETE
 
-When both targets are selected, one confirmation may invoke two protected stages underneath. Browser Home is applied and verified first because a later Headless restart can invalidate a frame-local Home rollback lease; the server/Headless transaction then runs using its own fresh preview fingerprint and rollback state. This is guided orchestration, **not a claim of cross-owner atomicity**. Completion, conflict and failure feedback is kept next to the action path, and a server-involved successful restore persists the final status across the Settings reload so the result is not lost off-screen.
+All four restore phases are physically accepted:
 
-Plexamp Home therefore remains outside the Python transaction even though the user can select it as part of one guided restore operation. Its target fingerprint and exact raw Local Storage rollback snapshot remain browser-owned.
+- **Phase 1:** parse/validate/read-only Preview;
+- **Phase 2:** transactional ACP Settings/EQ/mixer apply with stale-preview refusal and rollback;
+- **Phase 3:** exact-version eight-value Plexamp Headless apply with restricted helper, service coordination, compatibility checks and rollback;
+- **Phase 4:** target-context-aware Plexamp Home order/hidden restore with exact raw browser rollback.
 
-### Plexamp Headless restore boundary — PHYSICALLY ACCEPTED
+Physical acceptance included harmless ACP/EQ/mixer round trips, stale-preview refusal, incompatible Plexamp-version deferral, exact-version `autoPlayEnabled` round trip, Home order+hidden/order-only round trips and final zero-difference previews. Normal Plexamp playback remained healthy.
 
-Phase 3 extends the same confirmed restore transaction with a dedicated Plexamp-owned stage; it does **not** turn the Plexamp Settings directory into a generic file-copy unit:
+The accepted guided UI presents one Preview/Review/Confirm flow while preserving the actual distinct transaction owners underneath.
 
-- only the eight previously classified typed preferences are eligible;
-- `app/plexamp_preferences.py` calls the installed restricted owner through `sudo -n`; preference values are supplied as bounded JSON on **stdin**, never argv;
-- `/usr/local/bin/a-clockwork-plex-plexamp-preferences` is the narrow root-side owner. Its sudo policy exposes only `status` and `apply`, not unrestricted `systemctl` or filesystem access;
-- backup/export and the privileged restore owner derive Plexamp runtime compatibility from the same ACP-owned `~/plexamp/.a-clockwork-plex-runtime` manifest. The backup Plexamp version, the current backup runtime version and the helper-reported installed runtime version must be an exact known match before a Headless path becomes restorable; there is no `package.json` compatibility fallback;
-- the current target must expose all eight valid typed files and an active `plexamp.service`; missing/malformed target state fails closed rather than creating unknown preference files;
-- `audioDeviceUuid`, `playerName`, `premium`, auth/session/resource state and every unknown Settings file remain untouched **by portable Headless restore**; the first two have the distinct same-appliance commissioning Reset owner described above;
-- `sampleRateConversionQuality` and `sampleRateMatching` are additionally appliance-audio-generation aware: when the backup application generation differs, those paths remain deferred even when ordinary exact-version Headless preferences can be restored;
-- each changed key is snapshotted with exact bytes, mode, ownership and timestamps; replacement is atomic/fsync-backed and typed values are verified both before and after service restart;
-- the helper quiesces only `plexamp.service`, restores its original active state, waits for systemd activity plus loopback port `32500`, and on a late failure restores the original preference snapshots before returning an explicit rollback result;
-- the outer restore transaction applies **Unified Settings → Master EQ → persistent mixer → Plexamp Headless** and rolls earlier ACP owners back if the Headless stage fails;
-- the Preview fingerprint includes Headless capability/version context, so an installed-version or readiness change between Preview and Apply invalidates the preview before mutation;
-- Settings reports Headless availability as part of the Plexamp restore target without displaying old/new preference values;
-- Plexamp Home remains a separate live-browser owner and does not use the Headless service-restart transaction.
+## #93 Reset-to-defaults relationship — IN PHYSICAL ACCEPTANCE
 
-The first commissioned-Pi Phase-3 status probe on 30 August 2026 was intentionally read-only and caught an ownership mismatch before any Plexamp preference mutation. It proved all **8/8** allow-listed preference files valid, the Settings directory present and `plexamp.service` active, while reporting `installed_version: null` / `restore_ready: false`. A second read-only inspection proved why: the commissioned runtime has no `~/plexamp/package.json`; its verified identity is the installer-owned `~/plexamp/.a-clockwork-plex-runtime` manifest with `kind=plexamp`, `version=4.13.2` and the pinned archive SHA-256. The helper correctly failed closed rather than guessing.
+Checkpoint #93 deliberately reuses these ownership classifications without turning Reset into deletion or machine cloning:
 
-The compatibility authority was corrected in `0240473a6f9f7c4ef45b0acfbc07f109c4fd4e37` (backup), `a85c68e4d8818382d044110a9cf704821201af56` (restore owner), `ebbbecdf0b831d21c1fb76eea2075a61775aee1d` (commissioned-layout regressions) and `84f3e256979dc429c4dbf3622f2bae98e197d116` (remaining backup fixture). Fake/alternate-root coverage still proves exact-version round-trip, incompatible-version deferral, audio-generation deferral for sample-rate preferences, stale capability refusal and a deliberately injected **late Plexamp restart failure** that restores the original preference bytes/service state. It also proves the outer transaction rolls previously changed ACP owners back when the Headless owner fails. The corrected synchronized source/compile/JavaScript/unit gate was green at **develop Tests #4343: 978 tests, `OK`** on 30 August 2026.
+- ACP defaults are server-owned and normalized from version-controlled defaults;
+- Plexamp commissioning returns the local player name/output to the physically accepted appliance baseline;
+- Plexamp ordinary settings use Plexamp's own `resetToDefaults()` authority;
+- all eight portable Headless preferences are protected/re-applied around that native reset;
+- Plexamp Home order and visibility use a separate bounded browser/device-local Reset owner derived from physical disposable-profile evidence;
+- credentials/authentication, login/library selection, alarm arming, hardware/topology, runtimes and caches/history remain preserved.
 
-The first attempt to reload the corrected dashboard source on the commissioned Pi then exposed a separate runtime-startup regression before the mismatch Preview could run. The systemd service launches `app/runner.py` directly, while the newly introduced `app/plexamp_preferences.py` initially imported `configuration_backup` only as a package-relative module. That combination compiled successfully but crashed in production direct-run import mode, leaving the dashboard in a restart loop and causing the kiosk launcher to time out. No restore Preview or Apply had run at that point and Plexamp remained healthy. Commit `6c0f826288492ea44c473e03302a4c190fb31d46` added the direct-run import fallback; `0ff222958659a63e041f6d4675ad7fb22dd38f27` added a `PYTHONPATH=app` direct-import smoke gate to CI. **Tests #4347 passed all 978 tests with `OK`**. Physical recovery then proved the production-style import check, `a-clockwork-plex.service`, `/api/state` and a rebooted kiosk all healthy again.
-
-Commissioned-Pi Phase-3 acceptance completed on 31 August 2026:
-
-- corrected restricted-helper status returned **8/8** allow-listed preferences, `installed_version: 4.13.2`, `restore_ready: true` and active `plexamp.service`;
-- a deliberately incompatible copied backup (`4.13.3`) with only `autoPlayEnabled` flipped produced **1 detected / 0 restorable / 1 deferred** Headless difference, `restore_available: false`, and before/after backups proved ACP configuration, Headless preferences and runtime identity were unchanged;
-- an exact-version `4.13.2` round-trip flipped only `autoPlayEnabled` from its original `false` to `true`, applied and verified exactly one Plexamp Headless path, then Previewed and restored the original `false` value with a second verified one-path apply;
-- the final Preview of the original baseline returned **0 differences / 0 restorable changes**;
-- `a-clockwork-plex.service` and `plexamp.service` remained active, the restricted owner remained `restore_ready: true`, the repository remained clean, and the owner physically confirmed Plexamp still opened and played normally after both controlled restarts.
-
-The destructive late-restart rollback path remains intentionally covered by controlled automated fault injection rather than being forced on the commissioned appliance. Phase 3 is therefore **physically accepted**.
-
-### Plexamp Home restore boundary — PHYSICALLY ACCEPTED
-
-Phase 4 adds the separately transactional browser-owned Home restore path without widening the #89 export/read boundary:
-
-- the existing permission-free localhost-only content bridge exposes validated `planHome` and `applyHome` requests in addition to export;
-- planning discovers the live target customization context, maps saved logical Home choices to the target catalogue, preserves target-only hubs and safely skips saved hubs that do not exist on the target;
-- plan is read-only and returns counts plus a target fingerprint rather than exposing contextual key names or arbitrary browser values to Settings;
-- Apply is available only after explicit confirmation and refuses a stale fingerprint before the first write;
-- the bridge snapshots exact raw state for each changed target-context `order` / `hidden` key, performs only those allow-listed writes, verifies the effective logical layout and reverse-rolls successful writes to exact raw state on failure;
-- rollback bookkeeping tracks a mutation only after its write completes successfully, so an exception on a write is not falsely treated as a completed mutation;
-- auth/session/resource/cache/editor state and unrelated Local Storage remain outside both the read and write boundaries; no extension permissions, background worker, remote-debugging path or server-side browser-state staging was added;
-- Node/browser contract tests cover target-aware mapping, target-only preservation, missing-source-hub skipping, successful write/verification, stale-target refusal before mutation, injected mid-transaction failure with exact raw rollback and strict parent-side response validation;
-- source/wiring CI gates continue to pin the browser client, target fingerprint and completed-write rollback invariant.
-
-The exact Phase-4 owner implementation head `f010ae1b8700301bd4898e733ecdafd10bcfd480` passed synchronized **develop Tests #4359: 983 tests, `OK`** on 31 August 2026.
-
-The commissioned-Pi Home owner then passed harmless physical round-trips. A test with both an order change and a hidden-item change Previewed as **2 Plexamp Home changes**, restored the backed-up Home state, and converged to zero remaining Home differences. A later order-only test Previewed as **1 Home change**, restored successfully, visibly returned Plexamp Home to the backed-up ordering and again converged to zero. The owner confirmed Plexamp could still be opened and played normally afterwards. These results close the Home transaction's physical acceptance gate.
-
-That same physical pass identified a **workflow UX issue, not a transaction failure**: the separate Home Review/Confirm controls looked like a second restore product beside the server restore, Review status was visually detached from the action, and final success feedback could appear far away from the button that caused it.
-
-Commit `b0065a70ebc9e0a54d180869f15c87eb4627a169` therefore keeps the proven owners but replaces the implementation-shaped presentation with a guided target model:
-
-- Preview reports the current safe differences and automatically selects each target that has restorable work;
-- **A Clockwork Plex** selects Settings/alarms/EQ/mixer server-owned paths;
-- **Plexamp** selects compatible Headless paths plus browser-owned Home paths;
-- the owner may choose ACP only, Plexamp only or both before mutation;
-- changing selection invalidates any previous Review;
-- **Review selected restore** is read-only and obtains fresh selected-owner plans immediately before confirmation;
-- **Confirm & restore** is the one user-facing mutating action;
-- where both Home and server/Headless work exist, Home executes and verifies first, then server/Headless executes with its own transaction and verification;
-- nearby status boxes own Preview, Review and final success/blocked/failure feedback; the successful server path persists the result across the Settings reload;
-- the UI explicitly avoids promising global atomic rollback across browser Local Storage and a Plexamp service restart.
-
-The guided-flow source, syntax and regression gates passed exact **develop Tests #4363** on `b0065a70ebc9e0a54d180869f15c87eb4627a169`: **985 tests, `OK`** on 31 August 2026.
-
-Final guided UX physical acceptance completed on the commissioned 1280×720 appliance on 31 August 2026. Preview presented both **A Clockwork Plex** and **Plexamp** as selected targets with one restorable change each; **Review selected restore** produced the adjacent **Ready to confirm** state; one **Confirm & restore** applied and verified exactly **2 changes (1 ACP/server, 1 Plexamp Home)**. The successful result survived the Settings reload as the durable **Restore complete** status. The physical pass then exposed only a presentation spacing defect around that persisted result; the final correction at `9cd0a36f9337a5a2b918047a44c6ae721350ce2c` increased the result-to-file-card gap and the owner repeated the restore, confirming that the presentation now looks correct. The exact final implementation head passed **develop Tests #4371: 986 tests, `OK`**, including compile, JavaScript/page-wiring, shell and direct-import gates. No restore-engine, browser-owner or transaction boundary changed in that final spacing-only follow-up.
-
-Managed secrets remain a deliberate **post-restore commissioning step** throughout every phase.
-
-## Reset-to-defaults relationship
-
-Checkpoint #93 implements Reset to defaults using the same ownership classification rather than deleting files indiscriminately.
-
-The current reset model has three distinct Plexamp relationships:
-
-1. **Plexamp commissioning Reset participant** — same-appliance only. `playerName` may return to the setup-captured local baseline and `audioDeviceUuid` may return to the UUID dynamically resolved from the exact managed **`A Clockwork Plex - Plexamp`** output. Neither value enters a portable backup.
-2. **Plexamp Headless portable preferences** — the exact eight #88/#89 values remain Backup/Restore state and are deliberately preserved by Reset.
-3. **Plexamp Home** — Backup/Restore of logical Home choices is proven, but Reset remains inspection-only because absence/deletion of known `order` / `hidden` delta records was physically shown not to mean factory Home.
-
-The ACP/server target is built from version-controlled defaults through production normalisers and uses the proven #90 stale-preview, explicit-confirmation, verification and rollback transaction for portable Settings plus logical EQ/mixer state. The combined #93 Reset fingerprint also binds current commissioning state. If commissioning fails after ACP has applied, the commissioning owner rolls back its own touched setting(s) and the outer Reset owner restores the exact pre-reset ACP backup.
-
-Reset deliberately preserves alarm-audio master/scheduled arming switches, credentials/authentication, the eight portable Plexamp Headless preferences and unknown Plexamp state, hardware/audio topology, installed runtimes/services and caches/history. Detailed #93 ownership, automated evidence and the still-open commissioned-Pi physical gate are recorded in [`reset-to-defaults.md`](reset-to-defaults.md).
-
-Implementation/catalogue head `fc1c9462957a6533e833a53d6d61e6453e133c14` passed **Tests #4479: 1023 tests, `OK`** on 3 September 2026. The commissioning Reset owner still requires physical acceptance and Plexamp factory-Home Reset remains an explicit optional-scope decision rather than a claimed implementation.
-
-## #88 audit status — COMPLETE
-
-Checkpoint #88 is complete. Repository ownership classification, live Plexamp Headless inventory and browser-side Home-layout discovery have all established a narrow non-authentication backup boundary. No raw Plexamp profile, Chromium profile or LevelDB file is a supported backup unit.
-
-The commissioned Pi physically proved the Headless allow-list and browser key families through staged read-only audits and before/after Home reorder/hide experiments. This closes discovery and moves the active Settings/appliance-ownership work to #89.
-
-## #89 backup/export status — COMPLETE
-
-The complete schema-v1 export path is physically accepted on the commissioned Pi and covered by synchronized green `develop` Actions:
-
-- `app/configuration_backup.py` builds schema-version-1 JSON from the existing normalised Settings authority;
-- portable field selection excludes installer/hardware values instead of serialising the whole public Settings snapshot;
-- Weather observation export omits both the WU secret and target-owned `api_key_env` implementation detail;
-- the exact eight typed Plexamp Headless preferences are read through a strict allow-list;
-- Plexamp source-version metadata comes from the guarded installer's verified `.a-clockwork-plex-runtime` identity rather than optional runtime package metadata;
-- EQ is exported as logical state and available shared-mixer levels as four percentages;
-- `GET /api/settings/backup` is read-only, `Cache-Control: no-store`, and returns an attachment filename in the appliance/source timezone;
-- Settings exposes **Advanced → Backup & restore → Download backup** without making backup part of the staged Save Changes transaction;
-- the first physical download contained schema `1`, the expected five ACP settings domains, EQ + mixer, all eight approved Headless preferences, zero warnings and no forbidden credential/machine-state key paths;
-- the scoped live Plexamp bridge physically added browser schema `1`, 15 Home-order identifiers and 1 hidden identifier; the browser omission was removed and warning count remained zero;
-- the owner-facing success message explicitly states that Plexamp Home layout was included and credentials/authentication were not;
-- synchronized `develop` validation remains green through **Tests #4347: 978 tests, `OK`** on 30 August 2026.
-
-## #90 configuration restore status — COMPLETE
-
-### Phase 1 — parse / validate / preview — PHYSICALLY ACCEPTED
-
-- [x] Schema-v1 backup is parsed and bounded before comparison.
-- [x] Credential, identity and target-machine fields are rejected without echoing values.
-- [x] Preview remains read-only and exposes changed paths/counts rather than old/new values.
-- [x] Plexamp Home data is validated and summarized without browser mutation.
-- [x] Commissioned-Pi preview of the fresh backup returned **0** server-owned changes, `read_only: true`, `apply_enabled: false`, **15 ordered / 1 hidden**, and only the expected deferred-browser warning.
-- [x] The 1280×720 Restore preview presentation was physically accepted.
-
-### Phase 2 — transactional server-owned apply — PHYSICALLY ACCEPTED
-
-- [x] Separate confirmed `POST /api/settings/restore/apply` endpoint implemented.
-- [x] Fresh-preview fingerprint/stale-state refusal implemented and physically accepted without mutation.
-- [x] Unified Settings, Master EQ and persistent mixer are applied through their existing owners only.
-- [x] Reverse-order rollback and post-apply verification implemented.
-- [x] EQ step/range and case-insensitive forbidden-key validation tightened before mutation was enabled.
-- [x] Regression coverage includes success, stale-preview refusal and injected late-mixer-failure rollback.
-- [x] CI source/syntax gates cover the separate apply endpoint and confirmation UI.
-- [x] Physical harmless-change restore returned one Settings value, one `0.5 dB` EQ value and one small persistent mixer value to their backed-up state; a second preview of the same backup returned **0** supported server-owned differences.
-- [x] Physical stale-preview refusal retained both post-preview changes and a subsequent fresh Preview correctly found both differences.
-- [x] Scoped spacing/alignment polish was physically re-checked at 1280×720; the Preview/results and confirmation blocks are now clearly separated.
-- [x] Tests #4311/#4312 passed the clearer blocked-warning/control-label logic and warning CSS.
-- [x] The owning restore client now preserves the full stale-preview backend reason instead of overwriting it with a generic retry line; Tests #4320/#4321 passed the source/cache/syntax gates.
-- [x] Final physical re-check accepted the **Review restore → Confirm & restore** labels and the conspicuous full blocked-restore warning.
-
-### Phase 3 — version-aware Plexamp Headless apply — PHYSICALLY ACCEPTED
-
-- [x] Dedicated exact-allow-list typed preference owner implemented with per-key snapshot, atomic write, typed verification and exact rollback state.
-- [x] Commissioned-target readiness and exact Plexamp-version compatibility are preflight requirements before a Headless path becomes restorable.
-- [x] Backup/export and restore use the guarded installer's ACP-owned `~/plexamp/.a-clockwork-plex-runtime` manifest as the shared version authority; optional Plexamp `package.json` metadata is not part of the compatibility contract.
-- [x] Narrow runtime coordination is implemented: only `plexamp.service` can be quiesced/restarted by the restricted owner; the dashboard receives no broad service-control sudo authority.
-- [x] The two sample-rate preferences are additionally appliance-audio-generation aware and remain deferred across a generation mismatch.
-- [x] Preview/Settings reports ACP/server and Plexamp-owned work without exposing values.
-- [x] Automated coverage proves exact-version success, incompatible-version deferral, audio-generation deferral, stale-capability refusal, injected late-restart rollback and outer-transaction rollback.
-- [x] Initial commissioned-Pi read-only status physically proved all **8/8** allow-listed preferences and active `plexamp.service` but correctly failed closed with `installed_version: null`; read-only inspection then proved the installed 4.13.2 identity lives only in `.a-clockwork-plex-runtime`. No preference was mutated during discovery.
-- [x] The shared runtime-authority correction and commissioned-layout regressions passed **Tests #4343: 978 tests, `OK` on 30 August 2026**.
-- [x] Production reload exposed the direct-run import regression before restore mutation; `6c0f826288492ea44c473e03302a4c190fb31d46` fixed the import mode and `0ff222958659a63e041f6d4675ad7fb22dd38f27` added the matching CI smoke gate. **Tests #4347 passed 978 tests with `OK`**, and the commissioned dashboard/API/kiosk physically recovered.
-- [x] Corrected owner readiness physically passed with `installed_version: 4.13.2`, `restore_ready: true`, all 8/8 preferences and active Plexamp.
-- [x] Incompatible-version Preview physically passed with exactly one detected Headless difference deferred, zero restorable work and before/after proof of zero mutation.
-- [x] Exact-version `autoPlayEnabled` round-trip physically passed: one verified apply to the temporary value, one verified apply back to the original value, final zero-difference Preview, healthy services and normal Plexamp playback.
-
-### Phase 4 — target-context-aware Plexamp Home order/hidden apply — PHYSICALLY ACCEPTED
-
-- [x] Live localhost-only browser owner implements read-only Home planning and confirmed Home application against the target's current Plexamp customization context.
-- [x] Saved logical Home choices are mapped to target hubs without transplanting source contextual keys; target-only hubs are preserved and unavailable source hubs are skipped/reported.
-- [x] Home plan is read-only and target-fingerprinted; stale target state is refused before any write.
-- [x] Home Apply snapshots exact raw target state, writes only allow-listed target-context `order` / `hidden` records, verifies the logical result and reverse-rolls completed writes exactly on failure.
-- [x] Auth/session/resource/cache/editor and unrelated browser state remain outside the read/write boundary; extension permissions and kiosk debugging authority remain unchanged.
-- [x] Automated target mapping, stale-preview, successful-apply, exact-rollback and client-validation coverage is in the synchronized suite.
-- [x] **Tests #4359** passed on `f010ae1b8700301bd4898e733ecdafd10bcfd480`: **983 tests, `OK`** on 31 August 2026.
-- [x] Commissioned-Pi Home round-trip acceptance passed with both two-change (order + hidden) and order-only cases; the backed-up Home layout returned, follow-up Preview converged to zero Home differences, and normal Plexamp browsing/playback remained available.
-- [x] Guided target-selection/single-confirmation follow-up implemented in `b0065a70ebc9e0a54d180869f15c87eb4627a169` without changing the proven backend/browser owner boundaries.
-- [x] **Tests #4363** passed the guided-flow source/syntax/regression gate: **985 tests, `OK`** on 31 August 2026.
-- [x] Final guided physical acceptance passed at 1280×720: both ACP and Plexamp targets were clearly selected together; Review produced the adjacent **Ready to confirm** state; one confirmation restored **1 ACP/server + 1 Plexamp Home** change; the durable **Restore complete** result survived reload; and a second restore after the final spacing correction was visually accepted as looking correct.
-- [x] Final implementation head `9cd0a36f9337a5a2b918047a44c6ae721350ce2c` passed **Tests #4371: 986 tests, `OK`** with all compile/JavaScript/page/shell/direct-import gates green.
-
-Checkpoint #90 configuration import/restore is **complete and physically accepted**. Managed credentials and authentication remain intentionally outside backup/restore and continue as separate commissioning steps.
+Detailed #93 sequencing, rollback and remaining physical acceptance are maintained in [`reset-to-defaults.md`](reset-to-defaults.md).
