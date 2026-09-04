@@ -18,9 +18,23 @@
   ]);
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
+  const SAFE_SETTING_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
+  const MAX_CHANGED_KEYS = 64;
 
   function boundedCount(value, max = 512) {
     return Number.isInteger(value) && value >= 0 && value <= max ? value : null;
+  }
+
+  function validatedChangedKeys(raw, changeCount) {
+    if (!Array.isArray(raw) || raw.length > MAX_CHANGED_KEYS || raw.length > changeCount) return null;
+    const result = [];
+    const seen = new Set();
+    for (const value of raw) {
+      if (typeof value !== 'string' || !SAFE_SETTING_KEY.test(value) || seen.has(value)) return null;
+      seen.add(value);
+      result.push(value);
+    }
+    return result;
   }
 
   function validatePlan(raw) {
@@ -42,8 +56,10 @@
     }
 
     const changeCount = boundedCount(raw.change_count);
+    const changedKeys = validatedChangedKeys(raw.changed_keys, changeCount ?? 0);
     if (
       changeCount === null
+      || changedKeys === null
       || typeof raw.target_fingerprint !== 'string'
       || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
       || raw.reset_available !== (changeCount > 0)
@@ -55,6 +71,7 @@
       read_only: true,
       reset_available: raw.reset_available,
       change_count: changeCount,
+      changed_keys: changedKeys,
       target_fingerprint: raw.target_fingerprint,
     };
   }
