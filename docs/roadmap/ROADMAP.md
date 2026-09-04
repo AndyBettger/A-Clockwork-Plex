@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 4 September 2026  
+**Last updated:** 5 September 2026  
 **Active integration branch:** `develop`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
@@ -104,73 +104,83 @@ Accepted constraints for later implementation:
 - [x] Last-good cache, stale/degraded presentation and Top Stories ticker physically accepted.
 - [x] Settings, News page, touch scrolling, startup/idle-return and Wi-Fi-loss recovery physically accepted.
 
-### #93 Reset-to-defaults workflow — FINAL COMBINED PHYSICAL ACCEPTANCE OPEN
+### #93 Reset-to-defaults workflow — REVISED FINAL PHYSICAL ACCEPTANCE OPEN
 
-PR #9 remains **Draft and unmerged**. Do not promote it until the final commissioned-Pi combined transaction passes and the owner explicitly accepts it.
+PR #9 remains **Draft and unmerged**. Do not promote it until the revised commissioned-Pi transaction passes and the owner explicitly accepts it.
 
 #### Physically accepted foundations
 
 - [x] ACP Reset transaction generated from version-controlled defaults through production normalisers.
-- [x] Real commissioned-Pi ACP Reset, including physically observable **79%** Music Master default.
-- [x] Final 1280×720 Preview/Review/Ready/Confirm presentation.
+- [x] ACP stale-preview, verification and rollback semantics physically accepted.
+- [x] Final 1280×720 Preview/Review/Ready/Confirm presentation physically accepted.
 - [x] Same-appliance Plexamp commissioning owner: captured player-name baseline + dynamically resolved **`A Clockwork Plex - Plexamp`** output.
 - [x] Deliberate player rename + **Follows system output** produced exactly two differences and Reset restored both without exposing name/UUID values.
 
-#### Native Plexamp/Home semantics established
+#### Native Plexamp settings owner
 
-- [x] Disposable fresh Chromium profile using the same account/library proved the genuine default Home is browser/device-local (`Mixes for You` first in the physical test).
-- [x] Plexamp **Debugging → Reset to Defaults** preserves login/library while resetting ordinary settings.
-- [x] Plexamp **Home Screen → Reset order** restores default Home ordering.
-- [x] Reset order alone does not unhide a hidden section, so visibility has its own bounded Reset ownership.
+- [x] Disposable Chromium testing proved Plexamp **Debugging → Reset to Defaults** preserves login and selected library while resetting ordinary settings.
+- [x] Read-only bundle inspection established `global.app.rootStore.settings` as the real Plexamp 4.13.2 settings authority.
+- [x] Native owner calls Plexamp's real `settings.resetToDefaults()`; no webpack scanning, `eval`, generic page execution, remote debugging or arbitrary DOM automation.
+- [x] The eight safe Headless preferences remain portable Backup/Restore values but follow Plexamp's own defaults during Reset.
+- [x] Preview now exposes bounded **setting names only** under Technical changed paths, never old/new values. This lets a residual “1 setting differs” be identified safely.
+- [x] Plexamp live music-player volume is part of the native transaction: target **100%**, same-origin player API, verified apply and exact pre-reset rollback.
 
-#### First combined physical candidate — useful fail-closed result
+#### Revised Home boundary — preserve structure, reset presentation
 
-On 4 September 2026 the first combined native/Home candidate was pulled and the appliance fully rebooted.
+Physical investigation disproved the earlier assumption that deleting local order/hidden records necessarily means “factory Home”. Those records can be delta overrides over another effective Home baseline.
 
-Physical Preview proved:
+The product boundary is therefore now:
 
-- [x] the changed extension was loaded;
-- [x] Home Reset correctly saw **1 deliberate order + 1 deliberate visibility record**;
-- [x] commissioning correctly saw **2 deliberate changes**;
-- [x] Preview exposed only logical paths/counts, not raw Home values, player name or UUID;
-- [x] native settings inspection failed closed as `runtime-unavailable`, so Review/Confirm stayed blocked and nothing was partially reset.
+- [x] preserve Home section order;
+- [x] preserve hidden/visible choices;
+- [x] preserve custom-added sections;
+- [x] preserve validated custom section titles;
+- [x] reset only current-context per-section `viewSettings` presentation data to Plexamp's own per-section defaults;
+- [x] do not open/mutate order, hidden, editor, custom-hub, auth or cache values during this Home Reset owner.
 
-The four deliberate test deviations remain intentionally in place for the corrected candidate:
+The bounded family is:
 
-- Artists hidden;
-- Recently Added in Music moved to the top;
-- temporary Plexamp player name;
-- audio output changed to Follows system output.
+```text
+mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:viewSettings
+```
 
-#### Native runtime correction — automated green
+Built-in non-default `viewSettings` are removed. Custom-section presentation fields are stripped while the custom title is retained. Apply is fingerprint/stale-protected, verifies convergence and retains exact rollback bytes until the outer transaction succeeds.
 
-Read-only inspection of the installed Plexamp 4.13.2 static bundle established that module `92895` proxies settings through `global.app.rootStore.settings`. The real bundle is a closed webpack IIFE and does not expose the `webpackChunk*` runtime/cache assumed by the first implementation.
+#### ACP audio Reset baseline — revised
 
-- [x] Native owner now uses Plexamp's application-global settings store directly.
-- [x] No webpack module scanning, `eval`, generic JavaScript execution or arbitrary DOM automation is used.
-- [x] Extension remains one isolated permission-free loopback content-script entry plus one loopback-scoped packaged page-world resource; no background/cookie/remote-debug authority.
-- [x] Native Preview remains bounded status/count/fingerprint only; `playerName` and `audioDeviceUuid` stay separately commissioned.
-- [x] Native apply uses Plexamp's own `settings.resetToDefaults()`, verifies against a fresh settings instance and retains exact rollback state until the outer transaction succeeds.
-- [x] Corrected implementation `c2754171b6394485306df6aebf21df4d2c2e3e33` passed **Tests #4512: 1027 tests in 49.344s, `OK`**, including compile, JavaScript/page-wiring, shell and full unit suite.
+The shipped Reset baseline is now deliberately neutral/full-scale:
 
-#### Corrected Headless Reset ownership
+- [x] Master EQ enabled, Bass/Mid/Treble all 0.0 dB;
+- [x] Music Master 100%;
+- [x] Plexamp trim 100%;
+- [x] AirPlay trim 100%;
+- [x] Maximum Alarm Volume 100%.
 
-The eight safe Headless preferences remain the exact portable **Backup/Restore** allow-list, but they are **not ACP-owned Reset baselines**.
+The earlier nominal 80% / physically observed 79% Music Master result remains useful ALSA quantisation evidence but is no longer the Reset default.
 
-Earlier #88/#90 audit values and the different values observed on 4 September are evidence of real appliance state, not Plexamp-default constants. #93 now lets these ordinary Plexamp settings follow Plexamp's own `resetToDefaults()` semantics. Future high-resolution work may deliberately claim specific values later, but must establish that ownership explicitly rather than inheriting an accidental Reset policy.
+AirPlay's separate 60% **session-start volume** remains a user preference/runtime policy and is not the persistent AirPlay trim baseline.
+
+#### Automated evidence
+
+- [x] Revised browser/native/Home/audio implementation reached automated green at `c1b98dc018b2e60d4ed8c6fba0999d022155eef9` / **Tests #4550**.
+- [x] Compile, JavaScript/page wiring and shell checks all passed.
+- [x] Full suite: **1027 tests passed**.
+- [x] Regression coverage now includes native changed-key diagnostics, Plexamp player-volume Reset/rollback, Home `viewSettings` reset with exact structure preservation, and all four persistent mixer defaults at 100%.
 
 #### Remaining physical gate before #93 can close
 
-- [ ] Pull and fully reboot the final documentation-synchronised corrected candidate.
-- [ ] Preview must become complete: native Plexamp + Home + commissioning owners all inspect successfully.
-- [ ] Native Preview must expose only bounded count/fingerprint semantics, not raw settings.
+- [ ] Pull and fully reboot the final documentation-synchronised candidate so Chromium reloads the packaged bridge scripts.
+- [ ] Set at least one ordinary Plexamp preference away from default and Plexamp player volume below 100%.
+- [ ] Change one or more Home section presentation/view options while keeping the desired Home order/visibility/custom sections in place.
+- [ ] Optionally keep a temporary player name + Follows system output to re-prove the already accepted commissioning participant inside the combined transaction.
+- [ ] Preview must be complete and expose only bounded setting names/counts/fingerprints, not raw values.
 - [ ] Review → Confirm & reset.
-- [ ] Verify ordinary Plexamp settings follow Plexamp defaults.
-- [ ] Verify genuine default Home order is restored and Artists is visible again.
-- [ ] Verify commissioned player name and **A Clockwork Plex - Plexamp** output are restored.
+- [ ] Verify ordinary Plexamp settings follow Plexamp defaults and live Plexamp player volume becomes 100%.
+- [ ] Verify Home presentation returns to Plexamp per-section defaults while order, visibility and custom sections remain unchanged.
+- [ ] Verify commissioned player name and **A Clockwork Plex - Plexamp** output are restored when deliberately changed.
+- [ ] Verify neutral ACP EQ and Music Master/Plexamp trim/AirPlay trim/Maximum Alarm Volume all at 100%.
 - [ ] Verify Plex login and selected library survive, with normal playback and dashboard navigation.
-- [ ] Verify the eight safe Headless preferences follow Plexamp's own defaults rather than an ACP hard-coded baseline.
-- [ ] Fresh Preview converges to zero native/Home/commissioning differences; ACP should also be zero if left at shipped defaults.
+- [ ] Fresh Preview converges to zero native/Home-presentation/commissioning differences; ACP should also be zero if intentionally left at shipped defaults.
 - [ ] Explicit owner acceptance required before PR #9 leaves Draft or merges.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
@@ -182,7 +192,7 @@ Detailed authority: [`../development/architecture/reset-to-defaults.md`](../deve
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88–#90 COMPLETE; #93 final combined physical acceptance OPEN
+2. **Settings and appliance ownership** — #88–#90 COMPLETE; #93 revised final physical acceptance OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
