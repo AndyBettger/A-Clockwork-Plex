@@ -45,17 +45,12 @@
       return result;
     }
 
-    const changeCount = boundedCount(raw.change_count, 132);
-    const orderRecordCount = boundedCount(raw.order_record_count, 2);
-    const hiddenRecordCount = boundedCount(raw.hidden_record_count, 129);
-    const legacyRecordCount = boundedCount(raw.legacy_record_count, 2);
+    const changeCount = boundedCount(raw.change_count, 256);
+    const viewSettingsRecordCount = boundedCount(raw.view_settings_record_count, 256);
     if (
       changeCount === null
-      || orderRecordCount === null
-      || hiddenRecordCount === null
-      || legacyRecordCount === null
-      || changeCount !== orderRecordCount + hiddenRecordCount
-      || legacyRecordCount > changeCount
+      || viewSettingsRecordCount === null
+      || changeCount !== viewSettingsRecordCount
       || typeof raw.target_fingerprint !== 'string'
       || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
       || raw.reset_available !== (changeCount > 0)
@@ -67,9 +62,7 @@
       read_only: true,
       reset_available: raw.reset_available,
       change_count: changeCount,
-      order_record_count: orderRecordCount,
-      hidden_record_count: hiddenRecordCount,
-      legacy_record_count: legacyRecordCount,
+      view_settings_record_count: viewSettingsRecordCount,
       target_fingerprint: raw.target_fingerprint,
     };
   }
@@ -91,32 +84,26 @@
     };
     if (raw.fresh_preview_required === true) result.fresh_preview_required = true;
     if ('rollback_failure_count' in raw) {
-      const rollbackFailureCount = boundedCount(raw.rollback_failure_count, 132);
+      const rollbackFailureCount = boundedCount(raw.rollback_failure_count, 256);
       if (rollbackFailureCount === null) return null;
       result.rollback_failure_count = rollbackFailureCount;
     }
     if ('applied_change_count' in raw) {
-      const appliedChangeCount = boundedCount(raw.applied_change_count, 132);
+      const appliedChangeCount = boundedCount(raw.applied_change_count, 256);
       if (appliedChangeCount === null) return null;
       result.applied_change_count = appliedChangeCount;
     }
     if (raw.applied) {
-      const orderRecordCount = boundedCount(raw.order_record_count, 2);
-      const hiddenRecordCount = boundedCount(raw.hidden_record_count, 129);
-      const legacyRecordCount = boundedCount(raw.legacy_record_count, 2);
+      const viewSettingsRecordCount = boundedCount(raw.view_settings_record_count, 256);
       if (
         raw.status !== 'applied'
-        || orderRecordCount === null
-        || hiddenRecordCount === null
-        || legacyRecordCount === null
+        || viewSettingsRecordCount === null
         || typeof raw.target_fingerprint !== 'string'
         || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
         || typeof raw.rollback_token !== 'string'
         || !SAFE_ROLLBACK_TOKEN.test(raw.rollback_token)
       ) return null;
-      result.order_record_count = orderRecordCount;
-      result.hidden_record_count = hiddenRecordCount;
-      result.legacy_record_count = legacyRecordCount;
+      result.view_settings_record_count = viewSettingsRecordCount;
       result.target_fingerprint = raw.target_fingerprint;
       result.rollback_token = raw.rollback_token;
     }
