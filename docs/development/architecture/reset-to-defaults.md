@@ -2,20 +2,28 @@
 
 ## Status
 
-Checkpoint **#93 Reset to defaults** remains **physical acceptance open**. The commissioned 1280×720 Pi has already proved the core **A Clockwork Plex reset transaction and final guided presentation** in production; a new narrowly scoped **Plexamp commissioning reset participant** is now implemented and CI-green but still needs physical acceptance on that appliance.
+Checkpoint **#93 Reset to defaults** remains **physical acceptance open** only for the final combined Plexamp-native/Home path.
 
-On 2 September 2026 the corrected ACP reset applied and verified **27 supported changes** after an earlier physical pass exposed the real ALSA Music Master round-trip boundary. The nominal shipped 80% Music Master request quantises through the existing integer softvol mapping and is observed back as **79%**; Reset now targets that physically observable value and regression coverage pins the conversion.
+The commissioned 1280×720 Pi has already physically proved:
 
-A later physical pass on exact branch head `526f580a4802c7c20dd00c96ab63b97a03d5122c` confirmed that the Preview panel stays hidden before Preview, Plexamp Home is clearly inspection-only, the **Review reset → Ready to confirm → full-width Final confirmation** staging matches the accepted Backup/Restore interaction, and a repeated 27-change ACP reset again completed and verified successfully. That exact source/docs head passed **Tests #4468: 1006 tests, `OK`**.
+- the core **A Clockwork Plex reset transaction**;
+- the final guided **Preview → Review → Confirm** presentation;
+- the separate same-appliance **Plexamp commissioning Reset** for player name and managed audio output.
 
-The next implementation step deliberately did **not** broaden Plexamp Home access. Instead, two already-understood appliance commissioning choices were given their own narrow owner:
+On 2 September 2026 the corrected ACP reset repeatedly applied and verified **27 supported changes**. The first physical pass exposed the real ALSA Music Master round-trip boundary: the nominal 80% request quantises through the existing integer softvol mapping and reads back as **79%**, so Reset now targets that physically observable value.
 
-- the **claimed Plexamp player name** used for this appliance;
-- the exact managed audio output labelled **`A Clockwork Plex - Plexamp`**.
+On 3 September 2026 the commissioning owner was physically accepted. A deliberate temporary player rename plus selection of **Follows system output** produced two commissioning differences; Reset restored the original commissioned player name and the managed **`A Clockwork Plex - Plexamp`** output without exposing the name values or device UUID in Preview.
 
-Those values are not portable backup state. `setup.sh` now records the player name once as this appliance's local Reset baseline and resolves the managed audio device dynamically from Plexamp's loopback settings API. Reset can therefore return a later renamed player and/or changed output to the commissioned appliance state without copying a source-machine UUID, touching Plex credentials, or pretending the Home baseline problem has been solved.
+A later disposable Chromium-profile investigation established Plexamp's real native reset semantics:
 
-Implementation/catalogue head `fc1c9462957a6533e833a53d6d61e6453e133c14` passed **Tests #4479: 1023 tests, `OK`** on 3 September 2026, with Python compile, JavaScript/page-wiring and shell syntax gates green. Physical commissioning/reset acceptance remains outstanding.
+- a fresh browser profile signed into the same account/library shows Plexamp's genuine default Home, proving the commissioned Home layout is browser/device-local rather than account-synchronised;
+- **Debugging → Reset to Defaults** restores ordinary Plexamp settings while preserving login and selected library;
+- **Home Screen → Reset order** restores Plexamp's default Home ordering;
+- Reset order alone does **not** restore deliberately hidden Home sections.
+
+The branch now implements those semantics through a bounded native settings owner plus a bounded Home order/visibility owner. The exact code-side candidate `fe2409f36584d360afc05c474bfbea6e8ff4657a` passed **Tests #4506: 1027 tests in 51.242s, `OK`**, with Python compile, direct JavaScript syntax/page-wiring, shell, extension-security and unit-test gates green.
+
+The remaining #93 gate is therefore physical verification of the **combined native Plexamp settings + Home order/visibility Reset** on the commissioned appliance. Until that passes, PR #9 remains Draft and must not be merged.
 
 ## Product boundary
 
@@ -25,15 +33,16 @@ The owner-facing path is:
 
 **Settings → Advanced → Reset to defaults → Preview reset → Review reset → Confirm & reset**
 
-Preview and Review are read-only. Ordinary unsaved Settings changes block Preview/Apply so a reset cannot silently overwrite staged work.
+Preview and Review are read-only. Ordinary unsaved Settings changes block Preview/Apply so Reset cannot silently overwrite staged work.
 
-The current product boundary contains **two mutating reset participants and one read-only discovery owner**:
+The current Reset has four deliberately separate participants:
 
 1. **A Clockwork Plex** — always selected; resets supported ACP user configuration through the existing server-side transaction.
-2. **Plexamp commissioning** — participates when a setup-owned commissioning baseline exists and the current player name and/or managed output differs. It can restore only those two appliance-local choices.
-3. **Plexamp Home inspection** — read-only; reports only the already-classified local Home `order` / `hidden` override records plus bounded key-name-only diagnostics. It remains non-selectable for Reset because Plexamp's effective factory-Home baseline authority has not been established.
+2. **Plexamp commissioning** — same-appliance owner for the commissioned `playerName` and managed audio output only.
+3. **Plexamp native settings** — uses Plexamp's own `resetToDefaults()` authority for ordinary Plexamp settings while explicitly preserving ACP-owned Headless preferences and leaving commissioning identity to participant 2.
+4. **Plexamp Home** — resets the bounded browser/device-local Home order and visibility records that physical testing associated with Plexamp's native Home reset behaviour.
 
-This is intentionally different from portable Backup & restore. A value can be **nonportable** yet still have a legitimate same-appliance Reset owner. `playerName` and `audioDeviceUuid` remain excluded from backup files because another appliance must not inherit this device's identity/binding. The local commissioning owner instead records only the intended player label and resolves the target output UUID afresh on the same appliance.
+Portable Backup & restore remains a different ownership model. A value can be **nonportable** yet still have a legitimate same-appliance Reset owner. `playerName` and `audioDeviceUuid`, for example, remain excluded from backup files even though the local commissioning owner can return them to this appliance's commissioned state.
 
 ## A Clockwork Plex reset owner
 
@@ -60,13 +69,11 @@ The first commissioned-Pi ACP reset attempt reached mutation but failed during p
 
 Investigation proved that the existing restricted ALSA helper maps the nominal Music Master default of 80% through an integer `-51..0 dB` softvol range and reads the resulting state back as 79%. A fake mixer can round-trip 80 exactly; the real appliance cannot.
 
-Reset therefore targets the **observable physical default** of 79% for Music Master while retaining 100% for Plexamp, AirPlay and Alarm. A regression test calls the real restricted mixer conversion helper so this hardware-facing contract cannot silently drift.
+Reset therefore targets the **observable physical default** of 79% for Music Master while retaining 100% for Plexamp, AirPlay and Alarm. Regression coverage calls the real restricted mixer conversion helper so this hardware-facing contract cannot silently drift.
 
 The commissioned-Pi corrected reset has completed successfully more than once and reported:
 
 > Reset complete — Selected reset completed and verified. 27 changes applied across A Clockwork Plex.
-
-The physically previewed changes covered EQ, all four persistent mixer values, AirPlay starting volume, alarm schedule/enabled state, display/theme/night/transition settings and Weather provider/location/card/history choices.
 
 ### Alarm sound safety switches
 
@@ -76,9 +83,9 @@ They are safety arming state rather than portable appliance personality. Reset t
 
 Alarm hardware/ALSA/helper fields are also outside the reset target.
 
-## Plexamp commissioning reset owner
+## Plexamp commissioning reset owner — PHYSICALLY ACCEPTED
 
-`app/plexamp_commissioning.py` is a separate appliance-local owner. `scripts/commission-plexamp.py` is its setup-owned command surface.
+`app/plexamp_commissioning.py` is the separate appliance-local owner. `scripts/commission-plexamp.py` is its setup-owned command surface.
 
 Its allowed setting set is deliberately only:
 
@@ -97,44 +104,166 @@ The reset baseline is stored in:
 
 The file is atomic, mode `0600`, schema-versioned and contains only the commissioned **player name**. It does **not** contain a Plex token, account identifier, browser state or audio-device UUID.
 
-For a fresh appliance, the player name entered during the interactive Plexamp claim becomes the baseline when `setup.sh` subsequently completes the commissioning step. Once captured, ordinary repeat `bash setup.sh` runs **do not replace that baseline** merely because the owner has since renamed the player. This is essential: a Reset target must not move every time setup is rerun.
+For a fresh appliance, the player name entered during the interactive Plexamp claim becomes the baseline when `setup.sh` subsequently completes commissioning. Once captured, ordinary repeat `bash setup.sh` runs **do not replace that baseline** merely because the player has since been renamed.
 
-For an appliance installed before this owner existed, Reset Preview does not silently invent/adopt a baseline. The migration is deliberate: run `bash setup.sh` once while the current Plexamp player name is the name that should become this appliance's Reset baseline. Later renames then remain resettable customisation rather than redefining the baseline.
+For an appliance installed before this owner existed, baseline migration is deliberate rather than implicit: run `bash setup.sh` once while Plexamp has the intended long-term commissioned player name.
 
 ### Managed audio output
 
-The audio route is not stored as a baseline UUID. Each commission/Reset operation asks Plexamp for its current output/device catalogue and requires exactly one device whose display label is:
+The audio route is not stored as a baseline UUID. Each commission/Reset operation asks Plexamp for its live output/device catalogue and requires exactly one device whose display label is:
 
 ```text
 A Clockwork Plex - Plexamp
 ```
 
-The owner then uses that live device's UUID for the scoped `audioDeviceUuid` write. Missing or ambiguous matching devices fail closed. This avoids transplanting a stale machine-specific UUID and keeps the label/installer-created route as the durable appliance authority.
+The owner uses that live device's UUID for the scoped `audioDeviceUuid` write. Missing or ambiguous matching devices fail closed. `Follows system output` remains a normal Plexamp choice but is not the supported commissioned target.
 
-`Follows system output` is therefore not the supported commissioned target even though it remains a normal Plexamp choice the owner may temporarily select for testing.
+### Physical evidence
 
-### Preview, stale state and transaction behaviour
+On 3 September 2026 the real appliance proved the complete commissioning round-trip:
 
-The commissioning plan exposes only bounded status, counts and a fingerprint. It never returns the actual player name or device UUID to the Reset UI.
+- one-time baseline capture succeeded;
+- the managed output was dynamically resolved and selected;
+- an immediate plan reported zero differences;
+- a temporary player rename plus **Follows system output** produced exactly two differences;
+- Settings Reset Preview exposed only `plexamp.commissioning.player_name` and `plexamp.commissioning.audio_output`, never the actual names or UUID;
+- Reset completed and verified both changes;
+- Plexamp directly showed the intended commissioned player name and **`A Clockwork Plex - Plexamp`** output afterwards.
 
-The combined #93 reset token binds both:
+This participant is therefore **physically accepted**.
 
-- current ACP reset comparison/capability state; and
-- current commissioning comparison/capability state.
+## Plexamp native ordinary-settings reset owner
 
-A later player-name/output change invalidates the old Preview before mutation.
+`browser/plexamp-bridge/native-reset.js` owns ordinary Plexamp application settings.
 
-Apply sequencing is:
+Physical disposable-profile testing established that Plexamp's own **Debugging → Reset to Defaults** is the correct semantic authority for ordinary Plexamp settings. The implementation therefore calls the same in-application `settings.resetToDefaults()` method rather than maintaining an ACP-authored table of guessed Plexamp defaults.
 
-1. capture the exact pre-reset ACP backup and commissioning state;
-2. apply/verify ACP through the existing #90 transaction when ACP work exists;
-3. apply/verify the two-setting commissioning owner when commissioning work exists;
-4. if the second Plexamp setting fails after the first succeeded, the commissioning owner restores its exact touched settings;
-5. if commissioning still fails after ACP has already applied, the outer reset executor restores the exact pre-reset ACP backup as well.
+### Page-world boundary
 
-A commissioning-only Reset is also supported and does not manufacture a pointless ACP restore transaction.
+The live Plexamp settings object belongs to Plexamp's page JavaScript world. ACP reaches it without broadening the extension's privileges:
 
-Automated fault injection covers the important late-failure shape: player-name write succeeds, audio-output write fails, the player-name write is rolled back, and earlier ACP mutation is also rolled back by the outer owner.
+- the existing Manifest V3 bridge still has exactly one isolated content-script entry: `content.js` + `reset.js`;
+- the extension remains limited to `http://localhost:32500/*` and `http://127.0.0.1:32500/*`;
+- it has no `permissions`, no `host_permissions`, no background worker, no cookie authority and no remote-debugging interface;
+- `native-reset.js` is exposed as one loopback-scoped packaged web-accessible resource;
+- the isolated reset bridge injects that one packaged script into the Plexamp page world.
+
+The native owner locates the live Plexamp settings store from Plexamp's already-loaded webpack runtime and never sends raw setting values back to ACP.
+
+### Read-only Preview
+
+Preview constructs a fresh instance of the live settings class and compares bounded ordinary settings against that instance. Public output contains only:
+
+- status;
+- whether reset work exists;
+- a change count;
+- a short state fingerprint.
+
+It deliberately excludes commissioning identity and the eight protected Headless preferences described below, so those values neither appear in the native change count nor become native Reset targets.
+
+### Apply, verification and rollback
+
+Apply requires the exact Preview fingerprint and explicit confirmation. A stale fingerprint refuses before mutation.
+
+The native owner then:
+
+1. captures a bounded exact pre-reset settings snapshot for rollback;
+2. captures the eight protected Headless values and their presence/absence state;
+3. calls Plexamp's own `settings.resetToDefaults()`;
+4. immediately restores and verifies the eight protected Headless values;
+5. verifies that the remaining Reset-owned ordinary settings now compare equal to a fresh Plexamp settings instance;
+6. retains a rollback token until the complete outer #93 transaction succeeds.
+
+If native verification fails, the pre-reset snapshot is restored. If a later Home/server participant fails, the outer Reset client uses the retained native rollback token before reporting failure.
+
+`playerName` and `audioDeviceUuid` are intentionally allowed to take Plexamp's native defaults during this participant. They are not counted here and are subsequently returned to the physically accepted appliance values by the separate commissioning owner before the complete Reset can succeed.
+
+## Protected Plexamp Headless preferences
+
+The eight approved Headless scalar preferences discovered at checkpoint #88 remain a separate **portable Backup/Restore** owner and are deliberately preserved by ordinary #93 Reset:
+
+| Preference | Current commissioned value | #93 native Reset |
+| --- | ---: | --- |
+| `audioConversionBitrate` | `256` | Preserved and re-applied |
+| `autoPlayEnabled` | `false` | Preserved and re-applied |
+| `cacheSize` | `32768` | Preserved and re-applied |
+| `cachingWiFi` | `10` | Preserved and re-applied |
+| `loudnessLeveling` | `false` | Preserved and re-applied |
+| `precacheNetworkSpeed` | `0` | Preserved and re-applied |
+| `sampleRateConversionQuality` | `4` | Preserved and re-applied |
+| `sampleRateMatching` | `2` | Preserved and re-applied |
+
+These values are the **current commissioned values and supported backup/restore allow-list**, not a claim that they are Plexamp factory defaults.
+
+Calling Plexamp's native `resetToDefaults()` without this boundary could silently consume later high-resolution/audio policy work. The native owner therefore snapshots these eight immediately before Plexamp's reset, restores them immediately afterwards and verifies them before native Reset can report success.
+
+`premium` remains account/capability-derived and excluded. Unknown Headless preferences are not promoted into ACP's portable ownership merely because the native settings object can see them.
+
+## Plexamp Home reset owner
+
+The existing browser bridge remains scoped to the physically classified Home Local Storage families:
+
+- `mmkv.default\\discovery:customizations:<context>::/library/sections/<id>:order`
+- `mmkv.default\\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:hidden`
+
+The final Reset owner additionally recognises the exact legacy keys used by Plexamp's Home customization layer:
+
+- `mmkv.default\\discovery:customizations:order`
+- `mmkv.default\\discovery:customizations:hidden`
+
+It does not generalise to arbitrary `discovery:` data.
+
+### Why this differs from the first Home experiment
+
+The first commissioned-Pi experiment proved that merely deleting a newly created current-context `order`/`hidden` delta could return Plexamp to the owner's already-configured browser baseline rather than the original Plexamp Home. That correctly disproved the earlier claim that “no current-context override” always meant “factory Home”.
+
+A later **disposable fresh Chromium profile** resolved the missing semantic question without risking the commissioned profile:
+
+- same Plex account and selected library + fresh browser profile produced Plexamp's default Home, including `Mixes for You` first;
+- therefore the commissioned Home baseline is browser/device-local rather than account-synchronised;
+- Plexamp's native **Reset order** restores that default order;
+- a deliberately hidden section remains hidden after Reset order, proving visibility needs a separate reset step.
+
+The current bounded owner therefore resets both order and visibility records, including the exact legacy order/hidden records, rather than equating one current-context deletion with the whole factory semantic.
+
+### Safety and rollback
+
+The isolated bridge enumerates Local Storage **key names** and calls `getItem()` only after a key matches the exact reset/restore classification. It does not open auth/session, cache/resource or editor values.
+
+Home Preview reports only bounded record counts plus a fingerprint. Apply requires the fresh fingerprint and explicit confirmation, captures exact raw record bytes, deletes only the classified order/hidden records, verifies their absence and retains exact rollback state until the outer Reset finalizes.
+
+Synthetic regressions cover:
+
+- modern current-context order + hidden reset;
+- exact legacy order + hidden reset;
+- stale-target refusal before mutation;
+- exact raw rollback after injected failure;
+- preservation of unrelated auth/cache/editor state;
+- ambiguous modern-context refusal.
+
+### Compact `:c` historical lead
+
+Earlier LevelDB inspection had exposed a historical key-shaped residue ending in `:c`. A later live key-name-only probe found no matching live Local Storage key while the configured Home remained visible. Its value was never opened.
+
+That lead remains classified as **historical/deleted LevelDB residue, not a live Reset authority**.
+
+## Combined transaction sequencing
+
+The browser and server owners cannot share one storage engine, so #93 composes them with retained rollback boundaries rather than pretending they are one database transaction.
+
+The guided flow is:
+
+1. **Preview** obtains the server ACP/commissioning plan plus native Plexamp and Home plans; no participant mutates state.
+2. **Review reset** performs a fresh Preview and binds the confirmation UI to those fresh owner fingerprints/tokens.
+3. **Confirm & reset** first applies native Plexamp ordinary settings when required and retains its rollback token.
+4. It then applies Home order/visibility when required and retains its exact raw rollback token.
+5. Before any server mutation, the client obtains a fresh server Preview and requires the reviewed ACP owner token to still match. Any intervening ACP/commissioning change causes refusal rather than applying against stale state.
+6. The server applies the existing ACP + commissioning transaction. Its own owners verify and roll back their state on failure.
+7. Only after all required server/browser participants report success are the retained native/Home rollback snapshots finalized and discarded.
+
+If a browser owner fails, any earlier browser owner is rolled back. If a later server owner fails, the browser owners are also rolled back before the UI reports failure. The server transaction separately restores its own captured ACP/commissioning pre-state.
+
+This keeps the user-facing product at **one Preview, one Review and one final confirmation** while preserving each storage owner's truthful verification/rollback boundary.
 
 ## Always-preserved ownership
 
@@ -142,163 +271,67 @@ A normal #93 Reset keeps all of the following intact:
 
 - Weather Underground API key and other managed credentials;
 - Plex/Plexamp login, claim, authentication and browser session state;
-- Plex account/server/resource state and unrelated player/machine identity;
-- all eight allow-listed Plexamp Headless portable preferences and every unknown Headless preference;
-- Chromium profile/session/cache as a whole;
-- Plexamp Home effective baseline state beyond the already-classified read-only inspection boundary;
+- selected Plex account/server/library state;
+- the eight supported Headless portable preferences listed above;
 - alarm sound master/scheduled safety arming switches;
-- DAC, ALSA, mixer topology and installer-owned hardware configuration;
+- DAC, ALSA and installer-owned hardware/topology configuration;
 - installed runtimes, systemd units, sudo policies and appliance service ownership;
-- Weather/News downloaded caches, rainfall history and other runtime/history state.
+- Weather/News downloaded caches, rainfall history and other runtime/history state;
+- Chromium profile data outside the narrowly classified Plexamp Home reset records;
+- unknown/unclassified Plexamp browser/Headless state that has not been deliberately promoted to a Reset owner.
 
-The **player label** and **managed Plexamp output selection** are no longer in this always-preserved list when a commissioning baseline exists; they are the narrowly resettable commissioning participant described above.
+The player label and managed Plexamp output selection are not “always preserved” when the commissioning baseline exists; they are deliberately returned to that appliance-local commissioned state.
 
 A deeper decommissioning/factory-wipe operation is a different product and is not implied by Reset to defaults.
-
-## Plexamp Headless portable preferences remain a separate owner
-
-The eight approved Headless scalar preferences discovered at checkpoint #88 remain part of **backup/restore**, not ordinary #93 Reset. Reset deliberately preserves them while the high-resolution-audio work remains a separate roadmap item.
-
-A fresh read-only commissioned-Pi audit on 2 September 2026 reconfirmed all eight exact current values without opening any unknown/device/account/browser values:
-
-| Preference | Current commissioned value | #93 Reset |
-| --- | ---: | --- |
-| `audioConversionBitrate` | `256` | Preserved |
-| `autoPlayEnabled` | `false` | Preserved |
-| `cacheSize` | `32768` | Preserved |
-| `cachingWiFi` | `10` | Preserved |
-| `loudnessLeveling` | `false` | Preserved |
-| `precacheNetworkSpeed` | `0` | Preserved |
-| `sampleRateConversionQuality` | `4` | Preserved |
-| `sampleRateMatching` | `2` | Preserved |
-
-These are **current commissioned values and the supported backup/restore allow-list**, not a claim that Plexamp factory defaults have been established. `premium` remains account/capability-derived and excluded. `playerName` and `audioDeviceUuid` are deliberately outside this portable Headless bundle and are owned only by the separate appliance-local commissioning boundary above.
-
-The same audit still found **35** Plexamp Settings files in total, with **11** safe-looking candidate names and **24** deliberately unclassified/excluded files.
-
-## Plexamp Home inspection and baseline discovery
-
-The browser bridge remains scoped to the already-physically-classified Home Local Storage families:
-
-- `mmkv.default\\discovery:customizations:<context>::/library/sections/<id>:order`
-- `mmkv.default\\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:hidden`
-
-`browser/plexamp-bridge/reset.js` is loaded by the same unpacked Manifest V3 extension. The extension remains:
-
-- scoped only to `http://localhost:32500/*` and `http://127.0.0.1:32500/*`;
-- permission-free;
-- without background worker, network/cookie authority or remote-debugging access.
-
-The content script enumerates key names and calls `getItem()` only after a key matches the exact allow-list. `editing`, caches, resources, auth/session state and unrelated Local Storage values are therefore not opened by this owner.
-
-### What the low-level bridge proves
-
-The low-level bridge can safely:
-
-- count matching local `order` / `hidden` records;
-- fail closed if more than one customization context is present;
-- return a bounded fingerprint without exposing raw values;
-- require an exact fresh fingerprint before its classified restore mutation;
-- restore exact raw values after an injected failure;
-- inspect deliberately bounded key-name-only diagnostic shapes without opening their values.
-
-Synthetic CI continues to prove stale-target refusal, scoped mutation, auth/cache/editor preservation, exact rollback and ambiguous-context refusal for the supported Backup/Restore Home owner.
-
-### What physical testing disproved for Reset
-
-Those safety properties do **not** prove the semantic claim “remove these records = Plexamp factory Home”.
-
-On the commissioned Pi:
-
-1. the Home bridge successfully loaded after Chromium was fully restarted;
-2. the visible Home screen was a layout the owner had deliberately configured after installation;
-3. Reset Preview reported **zero** allow-listed local `order` / `hidden` records;
-4. after making a new visible Home change, the bridge could detect/remove the corresponding local override;
-5. Plexamp then returned to the owner's existing configured Home layout, **not** Plexamp's original factory Home.
-
-Therefore the known browser records are at least partly **delta overrides over another effective baseline**. The authority for that baseline may be another local Plexamp state family, account/library-derived state, or another owner; it is not established.
-
-### Compact `:c` lead — ruled out as live Local Storage authority
-
-A content-blind browser-key scan originally exposed:
-
-```text
-mmkv.default\discovery:customizations:<context>::/library/sections/9:c
-```
-
-while the visible Home was the owner's configured baseline and the known `order` / `hidden` override count was zero. Because Chromium LevelDB can retain historical/deleted records, this was treated only as a lead.
-
-A narrower live key-name-only probe then matched only that exact compact shape and deliberately continued before any `storage.getItem()` call. The 2 September commissioned-Pi follow-up reported:
-
-> Live key-name inspection found no compact `:c` customization metadata key.
-
-The visible Plexamp Home still remained the owner's configured post-install baseline and the known `order` / `hidden` override count remained zero. The earlier `:c` observation is therefore **historical LevelDB residue, not a current live Local Storage authority**. Its value was never opened.
-
-Normal Plexamp playback was confirmed after that reboot/probe pass.
-
-### Reset policy for Home
-
-The UI continues to use truthful language:
-
-- `No local overrides` means exactly that, not “Already default”;
-- `N local overrides` reports the bounded known records;
-- Plexamp Home remains disabled for Reset mutation while the effective factory baseline is unproven.
-
-This does **not** affect the already-accepted #90 Backup/Restore Home owner, which restores a user's backed-up logical Home choices against the target's live context. “Restore my saved Home” is a proven target; “return to Plexamp factory Home” is a different semantic claim.
-
-The remaining product decision is whether to continue bounded Home-baseline research or explicitly defer factory-Home Reset as optional scope. The commissioning owner does not resolve or weaken that decision.
 
 ## Reset presentation evidence — PHYSICALLY ACCEPTED
 
 The first physical layout pass exposed that Reset reused Restore component markup without an equivalent Reset layout scope. A dedicated `settings-reset-defaults.css` fixed the overlapping/crowded target and status presentation.
 
-A second physical pass exposed a separate CSS specificity bug: a Reset `.settings-card { display: grid; }` rule overrode the browser's native `[hidden]` behaviour, causing an empty Preview card to appear before Preview had been requested. The current stylesheet explicitly protects the hidden contract.
+A second physical pass exposed a separate CSS specificity bug: a Reset `.settings-card { display: grid; }` rule overrode the browser's native `[hidden]` behaviour, causing an empty Preview card before Preview was requested. The stylesheet now explicitly protects the hidden contract.
 
-The owner also requested Review/Confirm to match the already-accepted Backup/Restore interaction hierarchy. The current Reset layout therefore presents:
+A later 1280×720 pass exposed the commissioning-integrated Review card consuming too much width and compressing **Ready to confirm** into a word-per-line column. The repaired two-column review layout was physically rechecked on exact head `d8282a348cc701db1264a06b9abfcc46968d47d9` and accepted.
+
+The accepted hierarchy remains:
 
 **Preview result → Review reset action + Ready-to-confirm status → full-width Final confirmation card**
 
-with the same visual staging philosophy as Backup/Restore.
-
-The 2 September 1280×720 recheck physically accepted the completed presentation: Preview is absent until requested, the Home inspection target is visibly disabled, Preview details are readable, Review/Ready-to-confirm are adjacent, Final confirmation is full-width below them, and the persistent Reset-complete result remains clear after reload.
-
-The commissioning participant extends the same guided flow; it does not add a second confirmation product. Its summary reports only availability/change counts and the managed output label, never the current/baseline player-name value or UUID. Its final visual/physical acceptance is still required.
+The native/Home participants reuse that same presentation and do not introduce additional confirmation products.
 
 ## Automated evidence
 
-Key green gates:
+Important recent green gates:
 
-- implementation head `2944a876284535121f63e256b88696c860317fea` — **Tests #4452: 1005 tests, `OK`**;
-- docs-synchronised pre-physical head `7e7c1ddf019f11813bcdcf31287c5c5aa57208a0` — **Tests #4456: 1005 tests, `OK`**;
-- first physical-follow-up head `3e627472eaa73079d194ffc5aed4878d61c4f88b` — **Tests #4462: 1006 tests, `OK`**;
-- baseline-safe UI head `c88377675e336a10267221b7dd73bb6e70c79179` — **Tests #4466: 1006 tests, `OK`**;
-- exact physically rechecked source/docs head `526f580a4802c7c20dd00c96ab63b97a03d5122c` — **Tests #4468: 1006 tests, `OK`**;
-- compact live-key probe head `ae26c9af57a37850f6ce5a55dedd5ff506c9401d` — **Tests #4471: compile, JavaScript/page wiring, shell and unit-test gates green**;
-- commissioning implementation + catalogue-green head `fc1c9462957a6533e833a53d6d61e6453e133c14` — **Tests #4479: 1023 tests, `OK`**, with compile, JavaScript/page wiring and shell gates green.
+- `526f580a4802c7c20dd00c96ab63b97a03d5122c` — **Tests #4468: 1006 tests, `OK`**; exact source physically rechecked for ACP Reset presentation.
+- `fc1c9462957a6533e833a53d6d61e6453e133c14` — **Tests #4479: 1023 tests, `OK`**; commissioning implementation/catalogue baseline.
+- `d8282a348cc701db1264a06b9abfcc46968d47d9` — **Tests #4490: 1025 tests in 41.235s, `OK`**; presentation reaccepted and commissioning physical acceptance subsequently completed.
+- `b46209a3d250cc597e9c08d2b26e893dab62306e` — **Tests #4502: 1027 tests, `OK`**; isolated page-world native injection contract plus native/Home owner regressions.
+- `fe2409f36584d360afc05c474bfbea6e8ff4657a` — **Tests #4506: 1027 tests in 51.242s, `OK`**; exact native/Home code candidate with direct syntax/wiring checks and explicit preservation of all eight Headless portable preferences.
 
-The new commissioning regressions cover:
+The final native/Home automated coverage now includes:
 
-- first-run baseline capture and immutable repeat-setup baseline behaviour;
-- exact managed-output label resolution with missing/ambiguous-route refusal;
-- loopback-only API restriction;
-- value-free Preview/public plan responses;
-- stale-fingerprint refusal before mutation;
-- successful two-setting convergence;
-- injected second-write failure restoring the first Plexamp write;
-- commissioning-only Reset;
-- combined ACP + commissioning Reset and outer ACP rollback after a late commissioning failure;
-- setup/dependency/Reset UI wiring and Python/shell/JavaScript syntax.
+- native comparison against Plexamp's own settings-class defaults;
+- stale native fingerprint refusal;
+- native retained rollback/finalize contract;
+- all eight Headless values excluded from native change count and re-applied after `resetToDefaults()`;
+- modern + legacy Home order/visibility reset;
+- exact Home raw-state rollback;
+- auth/cache/editor preservation;
+- isolated extension manifest/resource injection security contract;
+- ACP/commissioning token revalidation before server mutation;
+- browser-owner rollback when a later participant fails.
 
 ## Physical acceptance gate — OPEN
 
-The ACP mutation boundary and base Reset presentation are physically proven. The commissioning implementation is CI-green but not yet physically proven. Before checkpoint #93 can close:
+ACP Reset, its presentation and Plexamp commissioning are already physically accepted. Before checkpoint #93 can close, the final native/Home candidate must be tested on the commissioned Pi:
 
-1. pull the exact final docs-synchronised candidate onto the commissioned Pi and confirm the dashboard/Plexamp services remain healthy;
-2. **existing-appliance migration:** while Plexamp currently has the player name the owner wants as its long-term Reset baseline, run `bash setup.sh` once and confirm setup reports the baseline/output commissioning step as successful;
-3. verify ordinary repeat setup does not recapture a later temporary player rename;
-4. make a harmless temporary commissioning deviation — for example rename the player and select **Follows system output** — then run Reset Preview and confirm commissioning work is detected without exposing the old/new player name or device UUID;
-5. **Review reset → Confirm & reset** and physically verify the original commissioned player name returns, the output returns to **`A Clockwork Plex - Plexamp`**, and normal Plexamp playback works;
-6. run a fresh Preview and confirm the commissioning participant is at zero differences; when the owner is ready to leave ACP at shipped defaults, also confirm zero ACP differences and normal navigation/playback health;
-7. make an explicit owner decision on optional **Plexamp factory-Home Reset** scope: either continue bounded semantic investigation and prove a safe target, or defer that optional feature while retaining the truthful inspection-only UI and already-supported Backup/Restore Home owner.
+1. pull the exact final docs-synchronised candidate and **fully restart Chromium/the kiosk** so the changed extension is reloaded;
+2. record the current eight protected Headless values before mutation;
+3. obtain Reset Preview and confirm only bounded counts/paths are exposed — no Plex credentials, player-name values, device UUID or raw Home values;
+4. make harmless deliberate deviations in ordinary Plexamp settings, Home ordering and Home visibility; optionally repeat the already-accepted player-name/output deviation as an integration check;
+5. Review → Confirm & reset;
+6. verify Plexamp remains signed in with the selected library, ordinary settings return to Plexamp defaults, Home returns to the default order, the deliberately hidden section is visible again, the commissioned player name/output are correct, and all eight protected Headless values are unchanged;
+7. confirm normal playback and dashboard navigation;
+8. run a fresh Preview and confirm zero differences for the native Plexamp, Home and commissioning participants; when ACP is also intentionally left at shipped defaults, confirm zero ACP differences too.
 
-Only after those physical checks and the Home-scope decision can #93 move to **COMPLETE**.
+Only after those physical checks and explicit owner approval can #93 move to **COMPLETE**, PR #9 leave Draft, and the next high-resolution-audio roadmap item begin.
