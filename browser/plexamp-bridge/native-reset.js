@@ -16,6 +16,16 @@
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
   const EXCLUDED_COMMISSIONING_KEYS = new Set(['playerName', 'audioDeviceUuid']);
+  const PRESERVED_PORTABLE_HEADLESS_KEYS = new Set([
+    'audioConversionBitrate',
+    'autoPlayEnabled',
+    'cacheSize',
+    'cachingWiFi',
+    'loudnessLeveling',
+    'precacheNetworkSpeed',
+    'sampleRateConversionQuality',
+    'sampleRateMatching',
+  ]);
   const MAX_SETTINGS = 512;
   const MAX_DEPTH = 5;
   const MAX_COLLECTION_ITEMS = 128;
@@ -47,9 +57,15 @@
       : hash32(`${Date.now()}-${Math.random()}`).repeat(4);
   }
 
-  function comparableKey(key, value, includeCommissioning = false) {
+  function comparableKey(
+    key,
+    value,
+    includeCommissioning = false,
+    includeProtectedHeadless = false,
+  ) {
     if (typeof key !== 'string' || key.startsWith('_') || key === 'premium') return false;
     if (!includeCommissioning && EXCLUDED_COMMISSIONING_KEYS.has(key)) return false;
+    if (!includeProtectedHeadless && PRESERVED_PORTABLE_HEADLESS_KEYS.has(key)) return false;
     return typeof value !== 'function';
   }
 
@@ -120,15 +136,28 @@
     return JSON.stringify(canonicalize(value));
   }
 
-  function settingKeys(settings, includeCommissioning = false) {
+  function settingKeys(
+    settings,
+    includeCommissioning = false,
+    includeProtectedHeadless = false,
+  ) {
     return Object.keys(settings || {})
-      .filter((key) => comparableKey(key, settings[key], includeCommissioning))
+      .filter((key) => comparableKey(
+        key,
+        settings[key],
+        includeCommissioning,
+        includeProtectedHeadless,
+      ))
       .sort()
       .slice(0, MAX_SETTINGS);
   }
 
-  function stateFingerprint(settings, includeCommissioning = false) {
-    const keys = settingKeys(settings, includeCommissioning);
+  function stateFingerprint(
+    settings,
+    includeCommissioning = false,
+    includeProtectedHeadless = false,
+  ) {
+    const keys = settingKeys(settings, includeCommissioning, includeProtectedHeadless);
     return hash32(JSON.stringify(keys.map((key) => [key, encodedValue(settings[key])])));
   }
 
@@ -154,7 +183,7 @@
       };
     }
 
-    const keys = settingKeys(settings, false);
+    const keys = settingKeys(settings, false, false);
     const changed = keys.filter((key) => encodedValue(settings[key]) !== encodedValue(defaults[key]));
     return {
       schema_version: 1,
@@ -162,7 +191,7 @@
       read_only: true,
       reset_available: changed.length > 0,
       change_count: changed.length,
-      target_fingerprint: stateFingerprint(settings, false),
+      target_fingerprint: stateFingerprint(settings, false, false),
     };
   }
 
@@ -175,13 +204,36 @@
     }
     return {
       values,
-      fingerprint: stateFingerprint(settings, true),
+      fingerprint: stateFingerprint(settings, true, true),
     };
   }
 
   function restoreSnapshot(settings, snapshot) {
     for (const [key, value] of snapshot.values.entries()) settings[key] = value;
-    return stateFingerprint(settings, true) === snapshot.fingerprint;
+    return stateFingerprint(settings, true, true) === snapshot.fingerprint;
+  }
+
+  function captureProtectedHeadless(settings) {
+    return Array.from(PRESERVED_PORTABLE_HEADLESS_KEYS, (key) => ({
+      key,
+      present: Object.prototype.hasOwnProperty.call(settings, key),
+      value: settings[key],
+    }));
+  }
+
+  function restoreProtectedHeadless(settings, snapshot) {
+    for (const entry of snapshot) {
+      if (entry.present) {
+        settings[entry.key] = entry.value;
+      } else {
+        delete settings[entry.key];
+      }
+    }
+    return snapshot.every((entry) => {
+      const present = Object.prototype.hasOwnProperty.call(settings, entry.key);
+      if (present !== entry.present) return false;
+      return !entry.present || encodedValue(settings[entry.key]) === encodedValue(entry.value);
+    });
   }
 
   function applySettingsReset(settings, expectedFingerprint, confirmReset = false) {
@@ -231,8 +283,12 @@
     }
 
     const snapshot = captureSnapshot(settings);
+    const protectedHeadless = captureProtectedHeadless(settings);
     try {
       settings.resetToDefaults();
+      if (!restoreProtectedHeadless(settings, protectedHeadless)) {
+        throw new Error('protected-headless-verification');
+      }
       const verified = buildResetPlan(settings);
       if (verified.status !== 'ready' || verified.reset_available) throw new Error('verification');
       const rollbackToken = randomToken();
