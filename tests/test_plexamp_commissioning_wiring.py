@@ -103,103 +103,145 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, f"{script}: {result.stderr}")
 
-    def test_native_plexamp_reset_uses_application_defaults_and_retained_rollback(self) -> None:
+    def test_native_plexamp_reset_uses_defaults_player_volume_and_retained_rollback(self) -> None:
         source = NATIVE_EXTENSION.read_text(encoding="utf-8")
         self.assertIn("global.app.rootStore", source)
         self.assertIn("win?.app?.rootStore?.settings", source)
         self.assertIn("changed_keys", source)
+        self.assertIn("PLAYER_VOLUME_TARGET = 100", source)
+        self.assertIn("/player/playback/setParameters", source)
         self.assertNotIn("webpackChunk", source)
         self.assertNotIn("PRESERVED_PORTABLE_HEADLESS_KEYS", source)
         self.assertNotIn("restoreProtectedHeadless", source)
 
         script = r"""
 const bridge = require('./browser/plexamp-bridge/native-reset.js');
-const ordinaryHeadlessKeys = [
-  'audioConversionBitrate',
-  'autoPlayEnabled',
-  'cacheSize',
-  'cachingWiFi',
-  'loudnessLeveling',
-  'precacheNetworkSpeed',
-  'sampleRateConversionQuality',
-  'sampleRateMatching',
-];
 
-class FakeSettings {
-  constructor() {
-    this.foo = 1;
-    this.bar = 'default';
-    this.playerName = 'Factory player';
-    this.audioDeviceUuid = '';
-    this.premium = true;
-    this._source = 'library';
-    this.audioConversionBitrate = 128;
-    this.autoPlayEnabled = true;
-    this.cacheSize = 4096;
-    this.cachingWiFi = 1;
-    this.loudnessLeveling = true;
-    this.precacheNetworkSpeed = 100;
-    this.sampleRateConversionQuality = 1;
-    this.sampleRateMatching = 0;
-  }
-  resetToDefaults() {
-    const defaults = new FakeSettings();
-    for (const key of Object.keys(this)) {
-      if (!key.startsWith('_') && key !== 'premium') this[key] = defaults[key];
+(async () => {
+  const ordinaryHeadlessKeys = [
+    'audioConversionBitrate',
+    'autoPlayEnabled',
+    'cacheSize',
+    'cachingWiFi',
+    'loudnessLeveling',
+    'precacheNetworkSpeed',
+    'sampleRateConversionQuality',
+    'sampleRateMatching',
+  ];
+
+  class FakeSettings {
+    constructor() {
+      this.foo = 1;
+      this.bar = 'default';
+      this.playerName = 'Factory player';
+      this.audioDeviceUuid = '';
+      this.premium = true;
+      this._source = 'library';
+      this.audioConversionBitrate = 128;
+      this.autoPlayEnabled = true;
+      this.cacheSize = 4096;
+      this.cachingWiFi = 1;
+      this.loudnessLeveling = true;
+      this.precacheNetworkSpeed = 100;
+      this.sampleRateConversionQuality = 1;
+      this.sampleRateMatching = 0;
+    }
+    resetToDefaults() {
+      const defaults = new FakeSettings();
+      for (const key of Object.keys(this)) {
+        if (!key.startsWith('_') && key !== 'premium') this[key] = defaults[key];
+      }
     }
   }
-}
 
-const settings = new FakeSettings();
-settings.foo = 9;
-settings.playerName = 'Bedroom Plexamp';
-settings.audioDeviceUuid = 'managed-output';
-const beforeHeadless = [256, false, 32768, 10, false, 0, 4, 2];
-ordinaryHeadlessKeys.forEach((key, index) => { settings[key] = beforeHeadless[index]; });
-
-const located = bridge.locateSettings({ app: { rootStore: { settings } } });
-if (located !== settings) throw new Error('application-global Plexamp settings were not located');
-
-const plan = bridge.buildResetPlan(settings);
-if (plan.status !== 'ready' || plan.change_count !== 9 || !plan.reset_available) {
-  throw new Error(`unexpected native plan ${JSON.stringify(plan)}`);
-}
-const expectedNames = new Set(['foo', ...ordinaryHeadlessKeys]);
-if (!Array.isArray(plan.changed_keys) || plan.changed_keys.length !== expectedNames.size) {
-  throw new Error(`native changed-key diagnostics missing ${JSON.stringify(plan)}`);
-}
-for (const key of plan.changed_keys) {
-  if (!expectedNames.has(key)) throw new Error(`unexpected native changed key ${key}`);
-}
-if (plan.changed_keys.includes('playerName') || plan.changed_keys.includes('audioDeviceUuid')) {
-  throw new Error('commissioning-owned key leaked into native diagnostics');
-}
-
-const applied = bridge.applySettingsReset(settings, plan.target_fingerprint, true);
-if (!applied.applied || applied.applied_change_count !== 9 || !applied.rollback_token) {
-  throw new Error(`native reset failed ${JSON.stringify(applied)}`);
-}
-if (settings.foo !== 1 || settings.playerName !== 'Factory player' || settings.audioDeviceUuid !== '') {
-  throw new Error('native reset did not use Plexamp-style defaults');
-}
-const defaults = new FakeSettings();
-ordinaryHeadlessKeys.forEach((key) => {
-  if (settings[key] !== defaults[key]) {
-    throw new Error(`ordinary Headless preference did not reset with Plexamp: ${key}`);
+  class FakeTimeline {
+    constructor(type, volume) { this.type = type; this.volume = volume; }
+    getAttribute(name) { return name === 'type' ? this.type : name === 'volume' ? String(this.volume) : null; }
   }
-});
-const rolled = bridge.rollbackSettingsReset(applied.rollback_token, true);
-if (!rolled.rolled_back || !rolled.verified) {
-  throw new Error(`native rollback failed ${JSON.stringify(rolled)}`);
-}
-if (settings.foo !== 9 || settings.playerName !== 'Bedroom Plexamp' || settings.audioDeviceUuid !== 'managed-output') {
-  throw new Error('native rollback did not restore exact commissioning values');
-}
-ordinaryHeadlessKeys.forEach((key, index) => {
-  if (settings[key] !== beforeHeadless[index]) {
-    throw new Error(`rollback did not restore Headless preference: ${key}`);
+  class FakeDocument {
+    constructor(volume) { this.volume = volume; }
+    getElementsByTagName(name) { return name === 'Timeline' ? [new FakeTimeline('music', this.volume)] : []; }
   }
-});
+  class FakeDOMParser {
+    parseFromString(payload) {
+      const match = String(payload).match(/volume="([0-9.]+)"/);
+      return new FakeDocument(match ? Number(match[1]) : NaN);
+    }
+  }
+
+  const settings = new FakeSettings();
+  settings.foo = 9;
+  settings.playerName = 'Bedroom Plexamp';
+  settings.audioDeviceUuid = 'managed-output';
+  const beforeHeadless = [256, false, 32768, 10, false, 0, 4, 2];
+  ordinaryHeadlessKeys.forEach((key, index) => { settings[key] = beforeHeadless[index]; });
+
+  let playerVolume = 87;
+  const win = {
+    app: { rootStore: { settings } },
+    DOMParser: FakeDOMParser,
+    setTimeout(callback) { callback(); },
+    async fetch(url) {
+      const text = String(url);
+      if (text.startsWith('/player/timeline/poll?')) {
+        return { ok: true, async text() { return `<MediaContainer><Timeline type="music" volume="${playerVolume}" /></MediaContainer>`; } };
+      }
+      if (text.startsWith('/player/playback/setParameters?')) {
+        const parsed = new URL(text, 'http://localhost:32500');
+        playerVolume = Number(parsed.searchParams.get('volume'));
+        return { ok: true, async text() { return ''; } };
+      }
+      return { ok: false, async text() { return ''; } };
+    },
+  };
+
+  const located = bridge.locateSettings(win);
+  if (located !== settings) throw new Error('application-global Plexamp settings were not located');
+
+  const plan = await bridge.planNativeReset(win, settings);
+  if (plan.status !== 'ready' || plan.change_count !== 10 || !plan.reset_available || !plan.player_volume_changed) {
+    throw new Error(`unexpected native plan ${JSON.stringify(plan)}`);
+  }
+  const expectedNames = new Set(['foo', ...ordinaryHeadlessKeys, 'playerVolume']);
+  if (!Array.isArray(plan.changed_keys) || plan.changed_keys.length !== expectedNames.size) {
+    throw new Error(`native changed-key diagnostics missing ${JSON.stringify(plan)}`);
+  }
+  for (const key of plan.changed_keys) {
+    if (!expectedNames.has(key)) throw new Error(`unexpected native changed key ${key}`);
+  }
+  if (plan.changed_keys.includes('playerName') || plan.changed_keys.includes('audioDeviceUuid')) {
+    throw new Error('commissioning-owned key leaked into native diagnostics');
+  }
+
+  const applied = await bridge.applyNativeReset(win, settings, plan.target_fingerprint, true);
+  if (!applied.applied || applied.applied_change_count !== 10 || !applied.rollback_token) {
+    throw new Error(`native reset failed ${JSON.stringify(applied)}`);
+  }
+  if (playerVolume !== 100) throw new Error(`Plexamp player volume did not reset to 100: ${playerVolume}`);
+  if (settings.foo !== 1 || settings.playerName !== 'Factory player' || settings.audioDeviceUuid !== '') {
+    throw new Error('native reset did not use Plexamp-style defaults');
+  }
+  const defaults = new FakeSettings();
+  ordinaryHeadlessKeys.forEach((key) => {
+    if (settings[key] !== defaults[key]) {
+      throw new Error(`ordinary Headless preference did not reset with Plexamp: ${key}`);
+    }
+  });
+
+  const rolled = await bridge.rollbackSettingsReset(applied.rollback_token, true);
+  if (!rolled.rolled_back || !rolled.verified) {
+    throw new Error(`native rollback failed ${JSON.stringify(rolled)}`);
+  }
+  if (playerVolume !== 87) throw new Error(`player-volume rollback did not restore 87: ${playerVolume}`);
+  if (settings.foo !== 9 || settings.playerName !== 'Bedroom Plexamp' || settings.audioDeviceUuid !== 'managed-output') {
+    throw new Error('native rollback did not restore exact commissioning values');
+  }
+  ordinaryHeadlessKeys.forEach((key, index) => {
+    if (settings[key] !== beforeHeadless[index]) {
+      throw new Error(`rollback did not restore Headless preference: ${key}`);
+    }
+  });
+})().catch((error) => { console.error(error); process.exit(1); });
 """
         result = subprocess.run(
             ["node", "-e", script],
