@@ -17,6 +17,8 @@
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
   const SAFE_SETTING_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
   const EXCLUDED_COMMISSIONING_KEYS = new Set(['playerName', 'audioDeviceUuid']);
+  const PLAYER_VOLUME_KEY = 'playerVolume';
+  const PLAYER_VOLUME_TARGET = 100;
   const MAX_SETTINGS = 512;
   const MAX_PUBLIC_CHANGED_KEYS = 64;
   const MAX_DEPTH = 5;
@@ -26,6 +28,7 @@
 
   const rollbackSnapshots = new Map();
   let cachedSettings = null;
+  let playerCommandId = Date.now() % 2000000000;
 
   function hash32(text) {
     let hash = 0x811c9dc5;
@@ -46,6 +49,11 @@
     return SAFE_ROLLBACK_TOKEN.test(token)
       ? token
       : hash32(`${Date.now()}-${Math.random()}`).repeat(4);
+  }
+
+  function nextPlayerCommandId() {
+    playerCommandId = (playerCommandId + 1) % 2000000000;
+    return playerCommandId;
   }
 
   function comparableKey(key, value, includeCommissioning = false) {
@@ -133,17 +141,32 @@
     return hash32(JSON.stringify(keys.map((key) => [key, encodedValue(settings[key])])));
   }
 
+  function combinedFingerprint(settings, playerVolume) {
+    return hash32(JSON.stringify({
+      settings: stateFingerprint(settings, false),
+      player_volume: playerVolume,
+    }));
+  }
+
   function publicChangedKeys(changed) {
     return changed
       .filter((key) => SAFE_SETTING_KEY.test(key))
       .slice(0, MAX_PUBLIC_CHANGED_KEYS);
   }
 
-  function buildResetPlan(settings) {
+  function buildResetPlan(settings, playerVolume = PLAYER_VOLUME_TARGET) {
     if (!settings || typeof settings.resetToDefaults !== 'function' || typeof settings.constructor !== 'function') {
       return {
         schema_version: 1,
         status: 'settings-unavailable',
+        read_only: true,
+        reset_available: false,
+      };
+    }
+    if (!Number.isInteger(playerVolume) || playerVolume < 0 || playerVolume > 100) {
+      return {
+        schema_version: 1,
+        status: 'player-volume-unavailable',
         read_only: true,
         reset_available: false,
       };
@@ -162,15 +185,23 @@
     }
 
     const keys = settingKeys(settings, false);
-    const changed = keys.filter((key) => encodedValue(settings[key]) !== encodedValue(defaults[key]));
+    const changedSettings = keys.filter(
+      (key) => encodedValue(settings[key]) !== encodedValue(defaults[key]),
+    );
+    const playerVolumeChanged = playerVolume !== PLAYER_VOLUME_TARGET;
+    const changed = playerVolumeChanged
+      ? [...changedSettings, PLAYER_VOLUME_KEY]
+      : changedSettings;
     return {
       schema_version: 1,
       status: 'ready',
       read_only: true,
       reset_available: changed.length > 0,
       change_count: changed.length,
+      settings_change_count: changedSettings.length,
+      player_volume_changed: playerVolumeChanged,
       changed_keys: publicChangedKeys(changed),
-      target_fingerprint: stateFingerprint(settings, false),
+      target_fingerprint: combinedFingerprint(settings, playerVolume),
     };
   }
 
@@ -186,12 +217,92 @@
     };
   }
 
-  function restoreSnapshot(settings, snapshot) {
+  function restoreSettingsSnapshot(settings, snapshot) {
     for (const [key, value] of snapshot.values.entries()) settings[key] = value;
     return stateFingerprint(settings, true) === snapshot.fingerprint;
   }
 
-  function applySettingsReset(settings, expectedFingerprint, confirmReset = false) {
+  function parsePlayerVolume(win, payload) {
+    if (typeof payload !== 'string' || !payload.length || !win?.DOMParser) return null;
+    try {
+      const documentNode = new win.DOMParser().parseFromString(payload, 'application/xml');
+      for (const element of documentNode.getElementsByTagName('Timeline')) {
+        if (String(element.getAttribute('type') || '').toLowerCase() !== 'music') continue;
+        const raw = Number(element.getAttribute('volume'));
+        if (!Number.isFinite(raw)) return null;
+        return Math.max(0, Math.min(100, Math.round(raw)));
+      }
+    } catch (_error) {
+      return null;
+    }
+    return null;
+  }
+
+  async function readPlayerVolume(win) {
+    if (typeof win?.fetch !== 'function') return null;
+    const query = new URLSearchParams({
+      commandID: String(nextPlayerCommandId()),
+      type: 'music',
+      wait: '0',
+    });
+    try {
+      const response = await win.fetch(`/player/timeline/poll?${query.toString()}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      if (!response?.ok) return null;
+      return parsePlayerVolume(win, await response.text());
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function wait(win, milliseconds) {
+    return new Promise((resolve) => {
+      if (typeof win?.setTimeout === 'function') win.setTimeout(resolve, milliseconds);
+      else setTimeout(resolve, milliseconds);
+    });
+  }
+
+  async function setPlayerVolume(win, percent) {
+    if (!Number.isInteger(percent) || percent < 0 || percent > 100 || typeof win?.fetch !== 'function') {
+      return false;
+    }
+    const query = new URLSearchParams({
+      volume: String(percent),
+      type: 'music',
+      commandID: String(nextPlayerCommandId()),
+    });
+    try {
+      const response = await win.fetch(`/player/playback/setParameters?${query.toString()}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      if (!response?.ok) return false;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        if (attempt) await wait(win, 60);
+        if (await readPlayerVolume(win) === percent) return true;
+      }
+    } catch (_error) {
+      return false;
+    }
+    return false;
+  }
+
+  async function planNativeReset(win, settings) {
+    const playerVolume = await readPlayerVolume(win);
+    if (playerVolume === null) {
+      return {
+        schema_version: 1,
+        status: 'player-volume-unavailable',
+        read_only: true,
+        reset_available: false,
+      };
+    }
+    return buildResetPlan(settings, playerVolume);
+  }
+
+  async function applyNativeReset(win, settings, expectedFingerprint, confirmReset = false) {
     if (confirmReset !== true) {
       return {
         schema_version: 1,
@@ -209,7 +320,16 @@
       };
     }
 
-    const plan = buildResetPlan(settings);
+    const playerVolume = await readPlayerVolume(win);
+    if (playerVolume === null) {
+      return {
+        schema_version: 1,
+        status: 'player-volume-unavailable',
+        applied: false,
+        rolled_back: false,
+      };
+    }
+    const plan = buildResetPlan(settings, playerVolume);
     if (plan.status !== 'ready') {
       return {
         schema_version: 1,
@@ -238,39 +358,53 @@
     }
 
     const snapshot = captureSnapshot(settings);
+    const rollbackPlayerVolume = playerVolume;
     try {
-      settings.resetToDefaults();
-      const verified = buildResetPlan(settings);
+      if (plan.settings_change_count > 0) settings.resetToDefaults();
+      if (!(await setPlayerVolume(win, PLAYER_VOLUME_TARGET))) throw new Error('player-volume');
+      const verified = await planNativeReset(win, settings);
       if (verified.status !== 'ready' || verified.reset_available) throw new Error('verification');
       const rollbackToken = randomToken();
-      rollbackSnapshots.set(rollbackToken, { settings, snapshot });
+      rollbackSnapshots.set(rollbackToken, {
+        win,
+        settings,
+        snapshot,
+        playerVolume: rollbackPlayerVolume,
+      });
       return {
         schema_version: 1,
         status: 'applied',
         applied: true,
         rolled_back: false,
         applied_change_count: plan.change_count,
+        player_volume_changed: plan.player_volume_changed,
         target_fingerprint: verified.target_fingerprint,
         rollback_token: rollbackToken,
       };
     } catch (_error) {
-      let rolledBack = false;
+      let settingsRolledBack = false;
+      let volumeRolledBack = false;
       try {
-        rolledBack = restoreSnapshot(settings, snapshot);
+        settingsRolledBack = restoreSettingsSnapshot(settings, snapshot);
       } catch (_rollbackError) {
-        rolledBack = false;
+        settingsRolledBack = false;
+      }
+      try {
+        volumeRolledBack = await setPlayerVolume(win, rollbackPlayerVolume);
+      } catch (_rollbackError) {
+        volumeRolledBack = false;
       }
       return {
         schema_version: 1,
         status: 'apply-failed',
         applied: false,
-        rolled_back: rolledBack,
+        rolled_back: settingsRolledBack && volumeRolledBack,
         fresh_preview_required: true,
       };
     }
   }
 
-  function rollbackSettingsReset(rollbackToken, confirmRollback = false) {
+  async function rollbackSettingsReset(rollbackToken, confirmRollback = false) {
     if (
       confirmRollback !== true
       || typeof rollbackToken !== 'string'
@@ -293,8 +427,9 @@
       };
     }
     try {
-      const verified = restoreSnapshot(entry.settings, entry.snapshot);
-      if (!verified) {
+      const settingsVerified = restoreSettingsSnapshot(entry.settings, entry.snapshot);
+      const volumeVerified = await setPlayerVolume(entry.win, entry.playerVolume);
+      if (!settingsVerified || !volumeVerified) {
         return {
           schema_version: 1,
           status: 'rollback-failed',
@@ -353,7 +488,7 @@
 
   function install(win) {
     if (!win?.addEventListener) return;
-    win.addEventListener('message', (event) => {
+    win.addEventListener('message', async (event) => {
       if (event.source !== win.parent || !DASHBOARD_ORIGINS.has(event.origin)) return;
       const request = event.data;
       if (!request || typeof request.type !== 'string') return;
@@ -370,7 +505,7 @@
           responseType = PLAN_RESPONSE_TYPE;
           const settings = locateSettings(win);
           result = settings
-            ? buildResetPlan(settings)
+            ? await planNativeReset(win, settings)
             : {
                 schema_version: 1,
                 status: 'runtime-unavailable',
@@ -381,7 +516,8 @@
           responseType = APPLY_RESPONSE_TYPE;
           const settings = locateSettings(win);
           result = settings
-            ? applySettingsReset(
+            ? await applyNativeReset(
+                win,
                 settings,
                 request.target_fingerprint,
                 request.confirm_reset === true,
@@ -394,7 +530,7 @@
               };
         } else if (request.type === ROLLBACK_REQUEST_TYPE) {
           responseType = ROLLBACK_RESPONSE_TYPE;
-          result = rollbackSettingsReset(
+          result = await rollbackSettingsReset(
             request.rollback_token,
             request.confirm_rollback === true,
           );
@@ -442,11 +578,15 @@
   }
 
   const api = {
-    applySettingsReset,
+    applyNativeReset,
     buildResetPlan,
     finalizeSettingsReset,
     locateSettings,
+    parsePlayerVolume,
+    planNativeReset,
+    readPlayerVolume,
     rollbackSettingsReset,
+    setPlayerVolume,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') install(window);
