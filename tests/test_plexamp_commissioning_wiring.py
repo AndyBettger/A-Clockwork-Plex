@@ -79,8 +79,12 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         manifest = BRIDGE_MANIFEST.read_text(encoding="utf-8")
         self.assertIn('"version": "1.3.0"', manifest)
         self.assertIn('"js": ["content.js", "reset.js"]', manifest)
-        self.assertIn('"js": ["native-reset.js"]', manifest)
-        self.assertIn('"world": "MAIN"', manifest)
+        self.assertIn('"web_accessible_resources"', manifest)
+        self.assertIn('"resources": ["native-reset.js"]', manifest)
+        self.assertNotIn('"world": "MAIN"', manifest)
+        home_extension = HOME_EXTENSION.read_text(encoding="utf-8")
+        self.assertIn("chrome.runtime.getURL('native-reset.js')", home_extension)
+        self.assertIn("installNativeResetBridge(document)", home_extension)
 
         for script in (
             RESET_CLIENT,
