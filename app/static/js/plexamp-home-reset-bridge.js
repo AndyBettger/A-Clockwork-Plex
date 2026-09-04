@@ -8,23 +8,19 @@
   const PLAN_RESPONSE_TYPE = 'acp-plexamp-home-reset-plan-response-v1';
   const APPLY_REQUEST_TYPE = 'acp-plexamp-home-reset-apply-request-v1';
   const APPLY_RESPONSE_TYPE = 'acp-plexamp-home-reset-apply-response-v1';
+  const ROLLBACK_REQUEST_TYPE = 'acp-plexamp-home-reset-rollback-request-v1';
+  const ROLLBACK_RESPONSE_TYPE = 'acp-plexamp-home-reset-rollback-response-v1';
+  const FINALIZE_REQUEST_TYPE = 'acp-plexamp-home-reset-finalize-request-v1';
+  const FINALIZE_RESPONSE_TYPE = 'acp-plexamp-home-reset-finalize-response-v1';
   const ALLOWED_PLEXAMP_ORIGINS = new Set([
     'http://localhost:32500',
     'http://127.0.0.1:32500',
   ]);
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
+  const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
 
   function boundedCount(value, max = 256) {
     return Number.isInteger(value) && value >= 0 && value <= max ? value : null;
-  }
-
-  function validateBaselineDiagnostics(raw, result) {
-    const recordCount = boundedCount(raw.baseline_candidate_record_count, 2048);
-    const scopeCount = boundedCount(raw.baseline_candidate_scope_count, 2048);
-    if (recordCount === null || scopeCount === null || scopeCount > recordCount) return false;
-    result.baseline_candidate_record_count = recordCount;
-    result.baseline_candidate_scope_count = scopeCount;
-    return true;
   }
 
   function validatePlan(raw) {
@@ -35,6 +31,7 @@
       || raw.read_only !== true
       || typeof raw.reset_available !== 'boolean'
     ) return null;
+
     if (raw.status !== 'ready') {
       const result = {
         schema_version: 1,
@@ -45,38 +42,36 @@
       if (Number.isInteger(raw.context_count) && raw.context_count >= 0 && raw.context_count <= 32) {
         result.context_count = raw.context_count;
       }
-      if (
-        'baseline_candidate_record_count' in raw
-        || 'baseline_candidate_scope_count' in raw
-      ) {
-        if (!validateBaselineDiagnostics(raw, result)) return null;
-      }
       return result;
     }
 
-    const changeCount = boundedCount(raw.change_count, 129);
-    const orderRecordCount = boundedCount(raw.order_record_count, 1);
-    const hiddenRecordCount = boundedCount(raw.hidden_record_count, 128);
-    const result = {
-      schema_version: 1,
-      status: 'ready',
-      read_only: true,
-      reset_available: raw.reset_available,
-    };
+    const changeCount = boundedCount(raw.change_count, 132);
+    const orderRecordCount = boundedCount(raw.order_record_count, 2);
+    const hiddenRecordCount = boundedCount(raw.hidden_record_count, 129);
+    const legacyRecordCount = boundedCount(raw.legacy_record_count, 2);
     if (
       changeCount === null
       || orderRecordCount === null
       || hiddenRecordCount === null
+      || legacyRecordCount === null
       || changeCount !== orderRecordCount + hiddenRecordCount
+      || legacyRecordCount > changeCount
       || typeof raw.target_fingerprint !== 'string'
       || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
-      || !validateBaselineDiagnostics(raw, result)
+      || raw.reset_available !== (changeCount > 0)
     ) return null;
-    result.change_count = changeCount;
-    result.order_record_count = orderRecordCount;
-    result.hidden_record_count = hiddenRecordCount;
-    result.target_fingerprint = raw.target_fingerprint;
-    return result;
+
+    return {
+      schema_version: 1,
+      status: 'ready',
+      read_only: true,
+      reset_available: raw.reset_available,
+      change_count: changeCount,
+      order_record_count: orderRecordCount,
+      hidden_record_count: hiddenRecordCount,
+      legacy_record_count: legacyRecordCount,
+      target_fingerprint: raw.target_fingerprint,
+    };
   }
 
   function validateApply(raw) {
@@ -87,6 +82,7 @@
       || typeof raw.applied !== 'boolean'
       || typeof raw.rolled_back !== 'boolean'
     ) return null;
+
     const result = {
       schema_version: 1,
       status: raw.status,
@@ -95,30 +91,66 @@
     };
     if (raw.fresh_preview_required === true) result.fresh_preview_required = true;
     if ('rollback_failure_count' in raw) {
-      const rollbackFailureCount = boundedCount(raw.rollback_failure_count, 129);
+      const rollbackFailureCount = boundedCount(raw.rollback_failure_count, 132);
       if (rollbackFailureCount === null) return null;
       result.rollback_failure_count = rollbackFailureCount;
     }
     if ('applied_change_count' in raw) {
-      const appliedChangeCount = boundedCount(raw.applied_change_count, 129);
+      const appliedChangeCount = boundedCount(raw.applied_change_count, 132);
       if (appliedChangeCount === null) return null;
       result.applied_change_count = appliedChangeCount;
     }
     if (raw.applied) {
-      const orderRecordCount = boundedCount(raw.order_record_count, 1);
-      const hiddenRecordCount = boundedCount(raw.hidden_record_count, 128);
+      const orderRecordCount = boundedCount(raw.order_record_count, 2);
+      const hiddenRecordCount = boundedCount(raw.hidden_record_count, 129);
+      const legacyRecordCount = boundedCount(raw.legacy_record_count, 2);
       if (
         raw.status !== 'applied'
         || orderRecordCount === null
         || hiddenRecordCount === null
+        || legacyRecordCount === null
         || typeof raw.target_fingerprint !== 'string'
         || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
+        || typeof raw.rollback_token !== 'string'
+        || !SAFE_ROLLBACK_TOKEN.test(raw.rollback_token)
       ) return null;
       result.order_record_count = orderRecordCount;
       result.hidden_record_count = hiddenRecordCount;
+      result.legacy_record_count = legacyRecordCount;
       result.target_fingerprint = raw.target_fingerprint;
+      result.rollback_token = raw.rollback_token;
     }
     return result;
+  }
+
+  function validateRollback(raw) {
+    if (
+      !raw
+      || raw.schema_version !== 1
+      || typeof raw.status !== 'string'
+      || typeof raw.rolled_back !== 'boolean'
+      || typeof raw.verified !== 'boolean'
+    ) return null;
+    return {
+      schema_version: 1,
+      status: raw.status,
+      rolled_back: raw.rolled_back,
+      verified: raw.verified,
+    };
+  }
+
+  function validateFinalize(raw) {
+    if (
+      !raw
+      || raw.schema_version !== 1
+      || typeof raw.status !== 'string'
+      || typeof raw.finalized !== 'boolean'
+    ) return null;
+    return {
+      schema_version: 1,
+      status: raw.status,
+      finalized: raw.finalized,
+    };
   }
 
   function nonce() {
@@ -145,7 +177,7 @@
     }
 
     const requestNonce = nonce();
-    const timeoutMs = Math.max(250, Math.min(4000, Number(options.timeoutMs || 1500)));
+    const timeoutMs = Math.max(250, Math.min(5000, Number(options.timeoutMs || 1800)));
     return new Promise((resolve) => {
       let finished = false;
       const finish = (result) => {
@@ -180,7 +212,12 @@
 
   function apply(targetFingerprint, options = {}) {
     if (typeof targetFingerprint !== 'string' || !SAFE_FINGERPRINT.test(targetFingerprint)) {
-      return Promise.resolve({ schema_version: 1, status: 'invalid-request', applied: false, rolled_back: false });
+      return Promise.resolve({
+        schema_version: 1,
+        status: 'invalid-request',
+        applied: false,
+        rolled_back: false,
+      });
     }
     return frameRequest(
       APPLY_REQUEST_TYPE,
@@ -191,10 +228,49 @@
     );
   }
 
+  function rollback(rollbackToken, options = {}) {
+    if (typeof rollbackToken !== 'string' || !SAFE_ROLLBACK_TOKEN.test(rollbackToken)) {
+      return Promise.resolve({
+        schema_version: 1,
+        status: 'invalid-request',
+        rolled_back: false,
+        verified: false,
+      });
+    }
+    return frameRequest(
+      ROLLBACK_REQUEST_TYPE,
+      ROLLBACK_RESPONSE_TYPE,
+      { rollback_token: rollbackToken, confirm_rollback: true },
+      validateRollback,
+      options,
+    );
+  }
+
+  function finalize(rollbackToken, options = {}) {
+    if (typeof rollbackToken !== 'string' || !SAFE_ROLLBACK_TOKEN.test(rollbackToken)) {
+      return Promise.resolve({
+        schema_version: 1,
+        status: 'invalid-request',
+        finalized: false,
+      });
+    }
+    return frameRequest(
+      FINALIZE_REQUEST_TYPE,
+      FINALIZE_RESPONSE_TYPE,
+      { rollback_token: rollbackToken },
+      validateFinalize,
+      options,
+    );
+  }
+
   window.ACPPlexampHomeReset = {
     apply,
+    finalize,
     plan,
+    rollback,
     validateApply,
+    validateFinalize,
     validatePlan,
+    validateRollback,
   };
 })();
