@@ -162,7 +162,8 @@ jobs:
           grep -q "acp-plexamp-home-reset-apply-request-v1" browser/plexamp-bridge/reset.js
           grep -q "acp-plexamp-native-reset-plan-request-v1" app/static/js/plexamp-native-reset-bridge.js
           grep -q "acp-plexamp-native-reset-apply-request-v1" browser/plexamp-bridge/native-reset.js
-          grep -q "PRESERVED_PORTABLE_HEADLESS_KEYS" browser/plexamp-bridge/native-reset.js
+          grep -Fq "global.app.rootStore" browser/plexamp-bridge/native-reset.js
+          ! grep -q "PRESERVED_PORTABLE_HEADLESS_KEYS" browser/plexamp-bridge/native-reset.js
           grep -q "chrome.runtime.getURL('native-reset.js')" browser/plexamp-bridge/reset.js
           grep -Fq '"js": ["content.js", "reset.js"]' browser/plexamp-bridge/manifest.json
           grep -Fq '"resources": ["native-reset.js"]' browser/plexamp-bridge/manifest.json
