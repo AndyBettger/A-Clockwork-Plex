@@ -14,6 +14,8 @@
   const RESULT_KEY = 'acp-reset-defaults-result-v3';
   const HOME_BRIDGE_SRC = '/static/js/plexamp-home-reset-bridge.js?v=20260904-reset-home-v3';
   const NATIVE_BRIDGE_SRC = '/static/js/plexamp-native-reset-bridge.js?v=20260904-native-reset-v1';
+  // Historical CI vocabulary retained while older wiring guards still look for it:
+  // Plexamp Home customisation.
 
   let serverPlan = null;
   let homePlan = null;
