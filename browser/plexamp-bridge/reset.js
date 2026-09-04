@@ -14,13 +14,11 @@
     'http://127.0.0.1:8088',
   ]);
   const MMKV_PREFIX = 'mmkv.default\\';
-  const CUSTOM_PREFIX = 'discovery:customizations:';
-  const LEGACY_ORDER_SUFFIX = 'discovery:customizations:order';
-  const LEGACY_HIDDEN_SUFFIX = 'discovery:customizations:hidden';
-  const ORDER_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):order$/;
-  const HIDDEN_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.\/-]{1,220}):hidden$/;
+  const VIEW_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.\/-]{1,220}):viewSettings$/;
   const MAX_STORAGE_KEYS = 2048;
-  const MAX_RECORDS = 132;
+  const MAX_RECORDS = 256;
+  const MAX_VIEW_BYTES = 16384;
+  const MAX_TITLE_CHARS = 240;
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
 
@@ -47,117 +45,108 @@
       : hash32(`${Date.now()}-${Math.random()}`).repeat(4);
   }
 
-  function scopeId(context, section) {
-    return `${context}\u0000${section}`;
+  function safeTitle(value) {
+    if (typeof value !== 'string' || !value.length || value.length > MAX_TITLE_CHARS) return null;
+    if (Array.from(value).some((char) => char.codePointAt(0) < 32)) return null;
+    return value;
+  }
+
+  function decodedViewSettings(raw) {
+    if (typeof raw !== 'string' || raw.length > MAX_VIEW_BYTES) return null;
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return null;
+    }
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return null;
+
+    let codec = { kind: 'direct' };
+    let value = parsed;
+    const outerKeys = Object.keys(parsed);
+    if (
+      outerKeys.length === 1
+      && typeof outerKeys[0] === 'string'
+      && outerKeys[0].length <= 32
+      && parsed[outerKeys[0]]
+      && !Array.isArray(parsed[outerKeys[0]])
+      && typeof parsed[outerKeys[0]] === 'object'
+    ) {
+      codec = { kind: 'wrapped', key: outerKeys[0] };
+      value = parsed[outerKeys[0]];
+    }
+
+    const title = Object.prototype.hasOwnProperty.call(value, 'title')
+      ? safeTitle(value.title)
+      : null;
+    if (Object.prototype.hasOwnProperty.call(value, 'title') && title === null) return null;
+
+    const targetValue = title === null ? null : { title };
+    let targetRaw = null;
+    if (targetValue !== null) {
+      targetRaw = codec.kind === 'wrapped'
+        ? JSON.stringify({ [codec.key]: targetValue })
+        : JSON.stringify(targetValue);
+    }
+    return { targetRaw };
   }
 
   function collectInventory(storage) {
-    const scopes = new Map();
-    const legacyRecords = [];
+    const records = [];
+    const contexts = new Set();
     const length = Math.min(Number(storage?.length || 0), MAX_STORAGE_KEYS);
-
     for (let index = 0; index < length; index += 1) {
       const key = storage.key(index);
       if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
       const suffix = key.slice(MMKV_PREFIX.length);
-      if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
-
-      if (suffix === LEGACY_ORDER_SUFFIX || suffix === LEGACY_HIDDEN_SUFFIX) {
-        const raw = storage.getItem(key);
-        if (typeof raw === 'string') {
-          legacyRecords.push({
-            key,
-            raw,
-            kind: suffix === LEGACY_ORDER_SUFFIX ? 'legacy-order' : 'legacy-hidden',
-          });
-        }
-        continue;
-      }
-
-      const orderMatch = suffix.match(ORDER_RE);
-      const hiddenMatch = suffix.match(HIDDEN_RE);
-      const match = orderMatch || hiddenMatch;
+      const match = suffix.match(VIEW_RE);
       if (!match) continue;
-
       const raw = storage.getItem(key);
       if (typeof raw !== 'string') continue;
-      const id = scopeId(match[1], match[2]);
-      const scope = scopes.get(id) || {
-        context: match[1],
-        section: match[2],
-        records: [],
-      };
-      scope.records.push({
-        key,
-        raw,
-        kind: orderMatch ? 'order' : 'hidden',
-      });
-      scopes.set(id, scope);
+      const decoded = decodedViewSettings(raw);
+      if (!decoded) {
+        return { status: 'unsupported-view-settings-format', records: [], contextCount: 1 };
+      }
+      contexts.add(`${match[1]}\u0000${match[2]}`);
+      if (decoded.targetRaw !== raw) {
+        records.push({
+          key,
+          raw,
+          targetRaw: decoded.targetRaw,
+          hub: match[3],
+        });
+      }
     }
-
-    return { scopes, legacyRecords };
+    if (contexts.size > 1) {
+      return { status: 'ambiguous-context', records: [], contextCount: contexts.size };
+    }
+    if (records.length > MAX_RECORDS) {
+      return { status: 'too-many-records', records: [], contextCount: contexts.size };
+    }
+    return { status: 'ready', records, contextCount: contexts.size };
   }
 
-  function recordFingerprint(scope, legacyRecords) {
-    const records = [
-      ...(scope?.records || []),
-      ...legacyRecords,
-    ]
-      .map((record) => [record.key, record.raw])
-      .sort(([left], [right]) => left.localeCompare(right));
-
-    return hash32(JSON.stringify({
-      context: scope?.context || null,
-      section: scope?.section || null,
-      records,
-    }));
+  function fingerprint(records) {
+    return hash32(JSON.stringify(records
+      .map((record) => [record.key, record.raw, record.targetRaw])
+      .sort(([left], [right]) => left.localeCompare(right))));
   }
 
   function buildResetPlan(storage) {
     const inventory = collectInventory(storage);
-    const { scopes, legacyRecords } = inventory;
-
-    if (scopes.size > 1) {
-      return {
-        public: {
-          schema_version: 1,
-          status: 'ambiguous-context',
-          read_only: true,
-          reset_available: false,
-          context_count: scopes.size,
-        },
-        scope: null,
-        legacyRecords: [],
-        fingerprint: null,
+    if (inventory.status !== 'ready') {
+      const publicPlan = {
+        schema_version: 1,
+        status: inventory.status,
+        read_only: true,
+        reset_available: false,
       };
+      if (inventory.contextCount > 1) publicPlan.context_count = inventory.contextCount;
+      return { public: publicPlan, records: [], fingerprint: null };
     }
 
-    const scope = scopes.size === 1 ? Array.from(scopes.values())[0] : null;
-    const records = [...(scope?.records || []), ...legacyRecords];
-
-    if (records.length > MAX_RECORDS) {
-      return {
-        public: {
-          schema_version: 1,
-          status: 'too-many-records',
-          read_only: true,
-          reset_available: false,
-        },
-        scope: null,
-        legacyRecords: [],
-        fingerprint: null,
-      };
-    }
-
-    const orderRecordCount = records.filter(
-      (record) => record.kind === 'order' || record.kind === 'legacy-order',
-    ).length;
-    const hiddenRecordCount = records.filter(
-      (record) => record.kind === 'hidden' || record.kind === 'legacy-hidden',
-    ).length;
-    const legacyRecordCount = legacyRecords.length;
-    const fingerprint = recordFingerprint(scope, legacyRecords);
-
+    const records = inventory.records;
+    const targetFingerprint = fingerprint(records);
     return {
       public: {
         schema_version: 1,
@@ -165,14 +154,11 @@
         read_only: true,
         reset_available: records.length > 0,
         change_count: records.length,
-        order_record_count: orderRecordCount,
-        hidden_record_count: hiddenRecordCount,
-        legacy_record_count: legacyRecordCount,
-        target_fingerprint: fingerprint,
+        view_settings_record_count: records.length,
+        target_fingerprint: targetFingerprint,
       },
-      scope,
-      legacyRecords,
-      fingerprint,
+      records,
+      fingerprint: targetFingerprint,
     };
   }
 
@@ -180,20 +166,17 @@
     return buildResetPlan(storage).public;
   }
 
-  function allRecords(plan) {
-    return [
-      ...(plan.scope?.records || []),
-      ...(plan.legacyRecords || []),
-    ];
-  }
-
-  function verifyRaw(storage, records) {
-    return records.every((record) => storage.getItem(record.key) === record.raw);
+  function verifyTargets(storage, records) {
+    return records.every((record) => (
+      record.targetRaw === null
+        ? storage.getItem(record.key) === null
+        : storage.getItem(record.key) === record.targetRaw
+    ));
   }
 
   function restoreRecords(storage, records) {
     for (const record of records) storage.setItem(record.key, record.raw);
-    return verifyRaw(storage, records);
+    return records.every((record) => storage.getItem(record.key) === record.raw);
   }
 
   function applyHomeReset(storage, expectedFingerprint, confirmReset = false) {
@@ -242,13 +225,15 @@
       };
     }
 
-    const records = allRecords(plan).map((record) => ({ ...record }));
+    const records = plan.records.map((record) => ({ ...record }));
     const touched = [];
     try {
       for (const record of records) {
-        storage.removeItem(record.key);
+        if (record.targetRaw === null) storage.removeItem(record.key);
+        else storage.setItem(record.key, record.targetRaw);
         touched.push(record);
       }
+      if (!verifyTargets(storage, records)) throw new Error('verification');
       const verified = buildResetPlan(storage);
       if (verified.public.status !== 'ready' || verified.public.reset_available) {
         throw new Error('verification');
@@ -262,9 +247,7 @@
         applied: true,
         rolled_back: false,
         applied_change_count: plan.public.change_count,
-        order_record_count: plan.public.order_record_count,
-        hidden_record_count: plan.public.hidden_record_count,
-        legacy_record_count: plan.public.legacy_record_count,
+        view_settings_record_count: plan.public.view_settings_record_count,
         target_fingerprint: verified.fingerprint,
         rollback_token: rollbackToken,
       };
