@@ -15,8 +15,10 @@
   ]);
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
+  const SAFE_SETTING_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
   const EXCLUDED_COMMISSIONING_KEYS = new Set(['playerName', 'audioDeviceUuid']);
   const MAX_SETTINGS = 512;
+  const MAX_PUBLIC_CHANGED_KEYS = 64;
   const MAX_DEPTH = 5;
   const MAX_COLLECTION_ITEMS = 128;
   const MAX_OBJECT_KEYS = 128;
@@ -131,6 +133,12 @@
     return hash32(JSON.stringify(keys.map((key) => [key, encodedValue(settings[key])])));
   }
 
+  function publicChangedKeys(changed) {
+    return changed
+      .filter((key) => SAFE_SETTING_KEY.test(key))
+      .slice(0, MAX_PUBLIC_CHANGED_KEYS);
+  }
+
   function buildResetPlan(settings) {
     if (!settings || typeof settings.resetToDefaults !== 'function' || typeof settings.constructor !== 'function') {
       return {
@@ -161,6 +169,7 @@
       read_only: true,
       reset_available: changed.length > 0,
       change_count: changed.length,
+      changed_keys: publicChangedKeys(changed),
       target_fingerprint: stateFingerprint(settings, false),
     };
   }
