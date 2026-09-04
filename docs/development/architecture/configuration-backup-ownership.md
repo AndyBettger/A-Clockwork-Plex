@@ -20,14 +20,15 @@ Backup/Restore and Reset are deliberately different operations. A setting can be
 | Weather non-secret choices | Include | Restore through Weather Settings; #93 resets supported choices |
 | Weather Underground API key | Never include | Recommission explicitly; #93 preserves credential |
 | AirPlay user preferences | Include logical values | Restore through guarded owners; #93 resets supported user defaults |
-| Master EQ | Include logical enabled/bands | Restore through EQ owner; #93 resets to neutral/default logical state |
-| Persistent mixer levels | Include logical percentages | Restore through mixer owner; #93 uses physically observable mixer defaults |
+| Master EQ | Include logical enabled/bands | Restore through EQ owner; #93 resets to enabled neutral 0/0/0 dB |
+| Persistent mixer levels | Include logical percentages | Restore through mixer owner; #93 resets Music Master, Plexamp trim, AirPlay trim and Maximum Alarm Volume to 100% |
 | Audio routes/CamillaDSP/systemd/sudoers/hardware | Exclude | Recreate from installer/hardware commissioning; #93 preserves topology |
 | Plexamp runtime | Exclude | Reinstall through runtime owner; #93 does not replace runtime |
 | Eight safe Plexamp Headless preferences | Include exact typed allow-list, version-aware | Restore saved values through restricted owner; **#93 lets Plexamp's own Reset to Defaults reset them normally** |
 | Plexamp player name/audio output | Exclude from portable backup | Same-appliance #93 commissioning owner restores captured player name + dynamically resolved managed output |
-| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores saved layout; #93 separately returns bounded order/visibility to Plexamp default state |
-| Chromium profile wholesale | Never include | Never restore/copy wholesale; #93 touches only classified Home records |
+| Plexamp live player volume | Exclude from portable backup | Runtime/player state rather than portable personality; #93 explicitly returns live Plexamp music volume to 100% with rollback |
+| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores saved layout; #93 **preserves order/visibility/custom sections** and resets only per-section presentation `viewSettings` |
+| Chromium profile wholesale | Never include | Never restore/copy wholesale; #93 touches only bounded native settings and Home presentation records |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch; #93 preserves runtime/history |
 | Alarm/playback runtime | Exclude | Recreate from live state/current time |
 
@@ -97,9 +98,27 @@ During the 4 September #93 physical pass the same appliance instead reported:
 
 Those observations are useful forensic/commissioning evidence, but **neither set is a #93 Reset baseline**.
 
-Backup/Restore means “restore the saved user's choices”. Reset means “return Plexamp's ordinary settings to the defaults defined by Plexamp itself”. Therefore `browser/plexamp-bridge/native-reset.js` now allows all eight safe Headless preferences to participate normally in Plexamp's own `settings.resetToDefaults()` method.
+Backup/Restore means “restore the saved user's choices”. Reset means “return Plexamp's ordinary settings to the defaults defined by Plexamp itself”. Therefore `browser/plexamp-bridge/native-reset.js` allows all eight safe Headless preferences to participate normally in Plexamp's own `settings.resetToDefaults()` method.
 
 If later high-resolution-audio work deliberately makes one of these values an ACP appliance policy, that future work must establish and document its own commissioned ownership rather than inheriting an accidental #93 baseline.
+
+## ACP audio portability and Reset relationship
+
+Backup stores logical EQ and mixer values so a replacement appliance can restore the user's chosen curve and calibration.
+
+Reset is different: the current #93 baseline is intentionally neutral/full-scale:
+
+```text
+Master EQ: enabled, Bass 0.0 dB, Mid 0.0 dB, Treble 0.0 dB
+Music Master: 100%
+Plexamp trim: 100%
+AirPlay trim: 100%
+Maximum Alarm Volume: 100%
+```
+
+The earlier nominal 80% / observed 79% Music Master result remains useful evidence about ALSA quantisation but is no longer a product default.
+
+AirPlay's separate 60% **session-start volume** is a user preference/runtime policy, not the persistent AirPlay trim baseline.
 
 ## Appliance-local Plexamp commissioning ownership — PHYSICALLY ACCEPTED
 
@@ -125,9 +144,9 @@ Physical acceptance completed on 3 September 2026: a temporary player rename and
 
 The kiosk Chromium profile contains authentication/session material as well as UI state, so **the profile must never be archived/restored wholesale**.
 
-The live #89/#90 bridge classifies only Plexamp Home order/hidden records under the local Plexamp origin. Auth/session, cache/resource, editor and unrelated values remain outside the owner.
-
 ### Backup/Restore Home bridge
+
+The #89/#90 bridge classifies only validated Home order/hidden records under the local Plexamp origin. Auth/session, cache/resource, editor and unrelated values remain outside the owner.
 
 For #89 export, the permission-free loopback-only bridge emits only validated logical Home order/hidden choices in browser memory. The final commissioned-Pi export physically contained **15 ordered Home identifiers + 1 hidden identifier**, with no browser omission and zero warnings.
 
@@ -135,32 +154,47 @@ For #90 restore, the bridge maps saved logical choices onto the target's live co
 
 Checkpoint #90 Home restore is physically accepted, including combined restore convergence back to zero differences.
 
-### Separate #93 Home Reset
+### Separate #93 Home Reset — presentation only
 
-Backup/Restore means “return to this saved layout”. Reset means “return to Plexamp's browser/device-local default Home”.
+The physical investigation showed that deleting order/visibility override records is not a reliable definition of “factory Home”. An appliance can have an already-customised effective Home while reporting no local order/hidden override records, so absence cannot truthfully be called default.
 
-A disposable fresh Chromium profile using the same Plex account/library established the default Home independently; `Mixes for You` appeared first in the physical test. Plexamp **Home Screen → Reset order** restored this default order, but did not unhide a deliberately hidden section.
+The #93 product boundary therefore changed:
 
-The #93 Home owner therefore resets both order and visibility across only these bounded families:
+- **preserve Home order**;
+- **preserve hidden/visible choices**;
+- **preserve custom-added sections**;
+- **preserve custom section titles**;
+- reset only each section's presentation-specific `viewSettings` back to Plexamp's own per-section defaults.
+
+The current Reset owner recognises only:
 
 ```text
-mmkv.default\discovery:customizations:<context>::/library/sections/<id>:order
-mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:hidden
-mmkv.default\discovery:customizations:order
-mmkv.default\discovery:customizations:hidden
+mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:viewSettings
 ```
 
-Preview reports only counts/fingerprint. Apply is stale-protected, snapshots exact raw bytes, removes only classified reset records, verifies absence and retains rollback state until the outer Reset finalizes.
+For built-in sections, a non-default `viewSettings` record is removed. For custom-added sections, presentation fields are stripped while a validated custom `title` is retained. Order, hidden, editor, custom-hub, auth and cache values are not opened or mutated by this Reset owner.
 
-The old compact `:c` LevelDB lead was absent from live Local Storage during a bounded key-name-only probe and remains historical/deleted residue rather than a Reset authority.
+Preview reports only a count/fingerprint. Apply is stale-protected, snapshots exact raw bytes, writes/removes only classified `viewSettings`, verifies convergence and retains rollback state until the outer Reset finalizes.
 
-## Native Plexamp Reset runtime relationship
+The old compact `:c` LevelDB lead remains historical/deleted residue rather than a Reset authority.
+
+## Native Plexamp Reset relationship
 
 Plexamp's native Reset owner runs in the Plexamp page world while the extension remains permission-free and loopback-scoped.
 
-The first physical combined Preview on 4 September 2026 correctly failed closed with native `runtime-unavailable`: the original implementation assumed a webpack chunk/cache export not present on the real app. Read-only inspection of the installed Plexamp 4.13.2 static bundle identified module `92895` and its proxy getter to `global.app.rootStore.settings`.
+Read-only inspection of the installed Plexamp 4.13.2 static bundle identified the real settings authority through `global.app.rootStore.settings`. The corrected owner calls Plexamp's real `settings.resetToDefaults()` method and compares against a fresh live settings instance.
 
-The corrected owner therefore uses Plexamp's application-global settings store directly and calls Plexamp's real `settings.resetToDefaults()` method. It neither exposes raw setting values nor adds generic page execution, remote debugging, cookies or network authority.
+The public Preview exposes only bounded setting **names**, counts and a fingerprint — never old/new values. This is intentionally enough to diagnose a residual “1 setting differs” case without broadening the preference-value surface.
+
+The native owner also treats live Plexamp music-player volume as one bounded Reset choice:
+
+- Preview reports `playerVolume` by name when it differs;
+- target is 100%;
+- apply uses Plexamp's same-origin player API;
+- verification confirms 100%;
+- rollback restores the exact pre-reset volume if this or a later Reset participant fails.
+
+`playerName` and `audioDeviceUuid` remain excluded from native Preview diagnostics because commissioning owns their final appliance state.
 
 ## Backup envelope
 
@@ -190,7 +224,7 @@ The supported portable format remains schema-versioned JSON with these logical d
 }
 ```
 
-`plexamp.browser_preferences` is optional and is merged only after a validated live bridge snapshot. The commissioning baseline is intentionally absent.
+`plexamp.browser_preferences` is optional and is merged only after a validated live bridge snapshot. The commissioning baseline and live Plexamp player volume are intentionally absent.
 
 ## Restore contract
 
@@ -223,6 +257,6 @@ Physically accepted schema-v1 export of ACP logical settings/EQ/mixer, all eight
 
 Physically accepted read-only Preview, stale-protected server transaction, exact-version Headless restore, Home restore/rollback and guided owner-facing presentation. Final combined physical restore converged back to zero differences.
 
-### #93 Reset relationship — PHYSICAL ACCEPTANCE STILL OPEN FOR FINAL NATIVE/HOME COMBINATION
+### #93 Reset relationship — FINAL REVISED PHYSICAL ACCEPTANCE OPEN
 
-ACP Reset and commissioning Reset are already physically accepted. The corrected native Plexamp settings + Home implementation is automated-green at `c2754171b6394485306df6aebf21df4d2c2e3e33` / **Tests #4512: 1027 tests in 49.344s, `OK`** after the live runtime locator and Headless Reset ownership corrections.
+ACP Reset and commissioning Reset are already physically accepted. The revised browser-side contract is automated-green through `c1b98dc018b2e60d4ed8c6fba0999d022155eef9` / **Tests #4550** with 1027 tests passing: native setting-name diagnostics, Plexamp player-volume 100% Reset/rollback, Home `viewSettings` reset with order/visibility/custom-section preservation, and the new full-scale ACP mixer baseline.
