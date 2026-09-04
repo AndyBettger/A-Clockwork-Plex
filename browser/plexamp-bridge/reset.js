@@ -59,7 +59,7 @@
     for (let index = 0; index < length; index += 1) {
       const key = storage.key(index);
       if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
-      const suffix = key.slice(MMK_PREFIX.length);
+      const suffix = key.slice(MMKV_PREFIX.length);
       if (!suffix.startsWith(CUSTOM_PREFIX)) continue;
 
       if (suffix === LEGACY_ORDER_SUFFIX || suffix === LEGACY_HIDDEN_SUFFIX) {
