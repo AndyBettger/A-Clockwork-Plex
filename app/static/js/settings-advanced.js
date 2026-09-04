@@ -296,7 +296,7 @@
   document.head.append(stylesheet);
 
   const script = document.createElement('script');
-  script.src = '/static/js/settings-reset-defaults.js?v=20260904-native-home-reset-v4';
+  script.src = '/static/js/settings-reset-defaults.js?v=20260904-native-home-reset-v5';
   script.async = false;
   document.head.append(script);
 })();
