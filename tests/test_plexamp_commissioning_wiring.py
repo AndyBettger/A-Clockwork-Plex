@@ -68,7 +68,8 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         self.assertIn("player name will return to the name captured during appliance setup", text)
         self.assertIn("audio output will return to A Clockwork Plex - Plexamp", text)
         self.assertIn("Plexamp's own Reset to Defaults semantics", text)
-        self.assertIn("default Home order", text)
+        self.assertIn("Home order, visibility and custom sections are preserved", text)
+        self.assertIn("per-section defaults", text)
         self.assertIn("ACPPlexampHomeReset", text)
         self.assertIn("ACPPlexampNativeReset", text)
         self.assertIn("rollbackBrowserOwners", text)
@@ -106,6 +107,7 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         source = NATIVE_EXTENSION.read_text(encoding="utf-8")
         self.assertIn("global.app.rootStore", source)
         self.assertIn("win?.app?.rootStore?.settings", source)
+        self.assertIn("changed_keys", source)
         self.assertNotIn("webpackChunk", source)
         self.assertNotIn("PRESERVED_PORTABLE_HEADLESS_KEYS", source)
         self.assertNotIn("restoreProtectedHeadless", source)
@@ -162,6 +164,17 @@ const plan = bridge.buildResetPlan(settings);
 if (plan.status !== 'ready' || plan.change_count !== 9 || !plan.reset_available) {
   throw new Error(`unexpected native plan ${JSON.stringify(plan)}`);
 }
+const expectedNames = new Set(['foo', ...ordinaryHeadlessKeys]);
+if (!Array.isArray(plan.changed_keys) || plan.changed_keys.length !== expectedNames.size) {
+  throw new Error(`native changed-key diagnostics missing ${JSON.stringify(plan)}`);
+}
+for (const key of plan.changed_keys) {
+  if (!expectedNames.has(key)) throw new Error(`unexpected native changed key ${key}`);
+}
+if (plan.changed_keys.includes('playerName') || plan.changed_keys.includes('audioDeviceUuid')) {
+  throw new Error('commissioning-owned key leaked into native diagnostics');
+}
+
 const applied = bridge.applySettingsReset(settings, plan.target_fingerprint, true);
 if (!applied.applied || applied.applied_change_count !== 9 || !applied.rollback_token) {
   throw new Error(`native reset failed ${JSON.stringify(applied)}`);
@@ -197,59 +210,114 @@ ordinaryHeadlessKeys.forEach((key, index) => {
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
-    def test_home_reset_clears_modern_and_legacy_order_visibility_with_rollback(self) -> None:
+    def test_home_reset_resets_view_settings_but_preserves_home_structure(self) -> None:
         script = r"""
 const bridge = require('./browser/plexamp-bridge/reset.js');
 
+const builtInViewKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:viewSettings';
+const customViewKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.custom:viewSettings';
 const orderKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:order';
 const hiddenKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:hidden';
-const legacyOrderKey = 'mmkv.default\\discovery:customizations:order';
-const legacyHiddenKey = 'mmkv.default\\discovery:customizations:hidden';
-const authKey = 'mmkv.default\\authToken';
 const editingKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:editing';
+const customHubKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:customHubs';
+const authKey = 'mmkv.default\\authToken';
+const cacheKey = 'mmkv.default\\music.popular.9:cachedItems';
 
-const values = new Map([
-  [orderKey, JSON.stringify({0:['hub.a','hub.b']})],
-  [hiddenKey, JSON.stringify({_:true})],
-  [legacyOrderKey, JSON.stringify(['legacy.a'])],
-  [legacyHiddenKey, JSON.stringify(['legacy.hidden'])],
-  [authKey, 'AUTH-MUST-STAY'],
-  [editingKey, 'EDITING-MUST-STAY'],
-]);
-const storage = {
-  get length() { return values.size; },
-  key(index) { return Array.from(values.keys())[index] ?? null; },
-  getItem(key) { return values.has(key) ? values.get(key) : null; },
-  setItem(key, value) { values.set(key, String(value)); },
-  removeItem(key) { values.delete(key); },
-};
+function fixture({ failMutationAt = 0 } = {}) {
+  const builtInRaw = JSON.stringify({0:{size:'large',style:'carousel'}});
+  const customRaw = JSON.stringify({0:{title:'My custom row',size:'large',style:'carousel'}});
+  const values = new Map([
+    [builtInViewKey, builtInRaw],
+    [customViewKey, customRaw],
+    [orderKey, JSON.stringify({0:['hub.a','hub.custom']})],
+    [hiddenKey, JSON.stringify({0:true})],
+    [editingKey, 'true'],
+    [customHubKey, JSON.stringify({0:['hub.custom']})],
+    [authKey, 'AUTH-MUST-STAY'],
+    [cacheKey, 'CACHE-MUST-STAY'],
+  ]);
+  let mutationCalls = 0;
+  const maybeFail = () => {
+    mutationCalls += 1;
+    if (failMutationAt && mutationCalls === failMutationAt) throw new Error('injected-mutation-failure');
+  };
+  const storage = {
+    get length() { return values.size; },
+    key(index) { return Array.from(values.keys())[index] ?? null; },
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { maybeFail(); values.set(key, String(value)); },
+    removeItem(key) { maybeFail(); values.delete(key); },
+  };
+  return { values, storage, builtInRaw, customRaw };
+}
 
-const plan = bridge.planHomeReset(storage);
+const successFixture = fixture();
+const plan = bridge.planHomeReset(successFixture.storage);
 if (
   plan.status !== 'ready'
-  || plan.change_count !== 4
-  || plan.order_record_count !== 2
-  || plan.hidden_record_count !== 2
-  || plan.legacy_record_count !== 2
-) throw new Error(`unexpected Home plan ${JSON.stringify(plan)}`);
+  || plan.change_count !== 2
+  || plan.view_settings_record_count !== 2
+  || !plan.reset_available
+) throw new Error(`unexpected Home presentation plan ${JSON.stringify(plan)}`);
 
-const applied = bridge.applyHomeReset(storage, plan.target_fingerprint, true);
-if (!applied.applied || applied.applied_change_count !== 4 || !applied.rollback_token) {
-  throw new Error(`Home reset failed ${JSON.stringify(applied)}`);
+const success = bridge.applyHomeReset(successFixture.storage, plan.target_fingerprint, true);
+if (!success.applied || success.applied_change_count !== 2 || !success.rollback_token) {
+  throw new Error(`Home presentation reset failed ${JSON.stringify(success)}`);
 }
-for (const key of [orderKey, hiddenKey, legacyOrderKey, legacyHiddenKey]) {
-  if (values.has(key)) throw new Error(`resettable Home record remained: ${key}`);
+if (successFixture.values.has(builtInViewKey)) {
+  throw new Error('built-in Home viewSettings were not cleared to Plexamp defaults');
 }
-if (values.get(authKey) !== 'AUTH-MUST-STAY' || values.get(editingKey) !== 'EDITING-MUST-STAY') {
-  throw new Error('Home reset touched unrelated state');
+const customAfter = JSON.parse(successFixture.values.get(customViewKey));
+if (JSON.stringify(customAfter) !== JSON.stringify({0:{title:'My custom row'}})) {
+  throw new Error(`custom Home title was not preserved exactly ${JSON.stringify(customAfter)}`);
+}
+for (const [key, expected] of [
+  [orderKey, JSON.stringify({0:['hub.a','hub.custom']})],
+  [hiddenKey, JSON.stringify({0:true})],
+  [editingKey, 'true'],
+  [customHubKey, JSON.stringify({0:['hub.custom']})],
+  [authKey, 'AUTH-MUST-STAY'],
+  [cacheKey, 'CACHE-MUST-STAY'],
+]) {
+  if (successFixture.values.get(key) !== expected) throw new Error(`Home reset altered preserved record ${key}`);
 }
 
-const rolled = bridge.rollbackHomeReset(applied.rollback_token, true);
+const rolled = bridge.rollbackHomeReset(success.rollback_token, true);
 if (!rolled.rolled_back || !rolled.verified) {
   throw new Error(`Home rollback failed ${JSON.stringify(rolled)}`);
 }
-for (const key of [orderKey, hiddenKey, legacyOrderKey, legacyHiddenKey]) {
-  if (!values.has(key)) throw new Error(`rollback missed Home record: ${key}`);
+if (
+  successFixture.values.get(builtInViewKey) !== successFixture.builtInRaw
+  || successFixture.values.get(customViewKey) !== successFixture.customRaw
+) throw new Error('Home rollback did not restore exact viewSettings bytes');
+
+const staleFixture = fixture();
+const stalePlan = bridge.planHomeReset(staleFixture.storage);
+staleFixture.values.set(builtInViewKey, JSON.stringify({0:{size:'small'}}));
+const stale = bridge.applyHomeReset(staleFixture.storage, stalePlan.target_fingerprint, true);
+if (stale.status !== 'stale-target' || stale.applied || !stale.fresh_preview_required) {
+  throw new Error(`stale Home presentation reset was not refused ${JSON.stringify(stale)}`);
+}
+
+const failureFixture = fixture({ failMutationAt: 2 });
+const failurePlan = bridge.planHomeReset(failureFixture.storage);
+const failed = bridge.applyHomeReset(failureFixture.storage, failurePlan.target_fingerprint, true);
+if (failed.status !== 'apply-failed' || failed.applied || !failed.rolled_back) {
+  throw new Error(`injected Home failure did not roll back ${JSON.stringify(failed)}`);
+}
+if (
+  failureFixture.values.get(builtInViewKey) !== failureFixture.builtInRaw
+  || failureFixture.values.get(customViewKey) !== failureFixture.customRaw
+) throw new Error('failure rollback did not restore exact Home viewSettings bytes');
+
+const ambiguous = fixture();
+ambiguous.values.set(
+  'mmkv.default\\discovery:customizations:other::/library/sections/7:hub.z:viewSettings',
+  JSON.stringify({0:{size:'large'}}),
+);
+const ambiguousPlan = bridge.planHomeReset(ambiguous.storage);
+if (ambiguousPlan.status !== 'ambiguous-context' || ambiguousPlan.reset_available) {
+  throw new Error(`ambiguous Home context did not fail closed ${JSON.stringify(ambiguousPlan)}`);
 }
 """
         result = subprocess.run(
