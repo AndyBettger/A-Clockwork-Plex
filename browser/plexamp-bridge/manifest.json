@@ -5,17 +5,22 @@
   "description": "Local allow-listed backup, restore and bounded Plexamp reset bridge for the dedicated appliance kiosk.",
   "content_scripts": [
     {
-      "matches": ["http://localhost:32500/*", "http://127.0.0.1:32500/*"],
+      "matches": [
+        "http://localhost:32500/*",
+        "http://127.0.0.1:32500/*"
+      ],
       "js": ["content.js", "reset.js"],
       "run_at": "document_idle",
       "all_frames": true
-    },
+    }
+  ],
+  "web_accessible_resources": [
     {
-      "matches": ["http://localhost:32500/*", "http://127.0.0.1:32500/*"],
-      "js": ["native-reset.js"],
-      "run_at": "document_idle",
-      "all_frames": true,
-      "world": "MAIN"
+      "resources": ["native-reset.js"],
+      "matches": [
+        "http://localhost:32500/*",
+        "http://127.0.0.1:32500/*"
+      ]
     }
   ]
 }
