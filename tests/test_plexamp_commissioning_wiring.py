@@ -11,6 +11,11 @@ DEPENDENCIES = ROOT / "installer" / "repository-dependencies.txt"
 RESET_CLIENT = ROOT / "app" / "static" / "js" / "settings-reset-defaults.js"
 RESET_CSS = ROOT / "app" / "static" / "css" / "settings-reset-defaults.css"
 SETTINGS_ADVANCED = ROOT / "app" / "static" / "js" / "settings-advanced.js"
+HOME_CLIENT_BRIDGE = ROOT / "app" / "static" / "js" / "plexamp-home-reset-bridge.js"
+NATIVE_CLIENT_BRIDGE = ROOT / "app" / "static" / "js" / "plexamp-native-reset-bridge.js"
+HOME_EXTENSION = ROOT / "browser" / "plexamp-bridge" / "reset.js"
+NATIVE_EXTENSION = ROOT / "browser" / "plexamp-bridge" / "native-reset.js"
+BRIDGE_MANIFEST = ROOT / "browser" / "plexamp-bridge" / "manifest.json"
 
 
 class PlexampCommissioningWiringTests(unittest.TestCase):
@@ -56,22 +61,160 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         )
         self.assertEqual(shell.returncode, 0, shell.stderr)
 
-    def test_reset_client_exposes_commissioning_without_claiming_home_reset(self) -> None:
+    def test_reset_client_integrates_native_home_and_commissioning_owners(self) -> None:
         text = RESET_CLIENT.read_text(encoding="utf-8")
         self.assertIn("A Clockwork Plex + managed Plexamp", text)
+        self.assertIn("Plexamp settings + Home customisation", text)
         self.assertIn("player name will return to the name captured during appliance setup", text)
         self.assertIn("audio output will return to A Clockwork Plex - Plexamp", text)
-        self.assertIn("Plexamp Home is not part of this reset", text)
+        self.assertIn("Plexamp's own Reset to Defaults semantics", text)
+        self.assertIn("default Home order", text)
+        self.assertIn("ACPPlexampHomeReset", text)
+        self.assertIn("ACPPlexampNativeReset", text)
+        self.assertIn("rollbackBrowserOwners", text)
+        self.assertIn("owner_tokens?.a_clockwork_plex", text)
         self.assertIn("plexamp_commissioning_change_count", text)
-        self.assertNotIn("player identity, Headless preferences", text)
+        self.assertNotIn("factory-baseline authority", text)
+
+        manifest = BRIDGE_MANIFEST.read_text(encoding="utf-8")
+        self.assertIn('"version": "1.3.0"', manifest)
+        self.assertIn('"js": ["content.js", "reset.js"]', manifest)
+        self.assertIn('"js": ["native-reset.js"]', manifest)
+        self.assertIn('"world": "MAIN"', manifest)
+
+        for script in (
+            RESET_CLIENT,
+            HOME_CLIENT_BRIDGE,
+            NATIVE_CLIENT_BRIDGE,
+            HOME_EXTENSION,
+            NATIVE_EXTENSION,
+        ):
+            result = subprocess.run(
+                ["node", "--check", str(script)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, f"{script}: {result.stderr}")
+
+    def test_native_plexamp_reset_uses_application_defaults_and_retained_rollback(self) -> None:
+        script = r"""
+const bridge = require('./browser/plexamp-bridge/native-reset.js');
+
+class FakeSettings {
+  constructor() {
+    this.foo = 1;
+    this.bar = 'default';
+    this.playerName = 'Factory player';
+    this.audioDeviceUuid = '';
+    this.premium = true;
+    this._source = 'library';
+  }
+  resetToDefaults() {
+    const defaults = new FakeSettings();
+    for (const key of Object.keys(this)) {
+      if (!key.startsWith('_') && key !== 'premium') this[key] = defaults[key];
+    }
+  }
+}
+
+const settings = new FakeSettings();
+settings.foo = 9;
+settings.playerName = 'Bedroom Plexamp';
+settings.audioDeviceUuid = 'managed-output';
+
+const plan = bridge.buildResetPlan(settings);
+if (plan.status !== 'ready' || plan.change_count !== 1 || !plan.reset_available) {
+  throw new Error(`unexpected native plan ${JSON.stringify(plan)}`);
+}
+const applied = bridge.applySettingsReset(settings, plan.target_fingerprint, true);
+if (!applied.applied || applied.applied_change_count !== 1 || !applied.rollback_token) {
+  throw new Error(`native reset failed ${JSON.stringify(applied)}`);
+}
+if (settings.foo !== 1 || settings.playerName !== 'Factory player' || settings.audioDeviceUuid !== '') {
+  throw new Error('native reset did not use Plexamp-style defaults');
+}
+const rolled = bridge.rollbackSettingsReset(applied.rollback_token, true);
+if (!rolled.rolled_back || !rolled.verified) {
+  throw new Error(`native rollback failed ${JSON.stringify(rolled)}`);
+}
+if (settings.foo !== 9 || settings.playerName !== 'Bedroom Plexamp' || settings.audioDeviceUuid !== 'managed-output') {
+  throw new Error('native rollback did not restore exact commissioning values');
+}
+"""
         result = subprocess.run(
-            ["node", "--check", str(RESET_CLIENT)],
+            ["node", "-e", script],
             cwd=ROOT,
             capture_output=True,
             text=True,
             check=False,
         )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_home_reset_clears_modern_and_legacy_order_visibility_with_rollback(self) -> None:
+        script = r"""
+const bridge = require('./browser/plexamp-bridge/reset.js');
+
+const orderKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:order';
+const hiddenKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:hidden';
+const legacyOrderKey = 'mmkv.default\\discovery:customizations:order';
+const legacyHiddenKey = 'mmkv.default\\discovery:customizations:hidden';
+const authKey = 'mmkv.default\\authToken';
+const editingKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:editing';
+
+const values = new Map([
+  [orderKey, JSON.stringify({0:['hub.a','hub.b']})],
+  [hiddenKey, JSON.stringify({_:true})],
+  [legacyOrderKey, JSON.stringify(['legacy.a'])],
+  [legacyHiddenKey, JSON.stringify(['legacy.hidden'])],
+  [authKey, 'AUTH-MUST-STAY'],
+  [editingKey, 'EDITING-MUST-STAY'],
+]);
+const storage = {
+  get length() { return values.size; },
+  key(index) { return Array.from(values.keys())[index] ?? null; },
+  getItem(key) { return values.has(key) ? values.get(key) : null; },
+  setItem(key, value) { values.set(key, String(value)); },
+  removeItem(key) { values.delete(key); },
+};
+
+const plan = bridge.planHomeReset(storage);
+if (
+  plan.status !== 'ready'
+  || plan.change_count !== 4
+  || plan.order_record_count !== 2
+  || plan.hidden_record_count !== 2
+  || plan.legacy_record_count !== 2
+) throw new Error(`unexpected Home plan ${JSON.stringify(plan)}`);
+
+const applied = bridge.applyHomeReset(storage, plan.target_fingerprint, true);
+if (!applied.applied || applied.applied_change_count !== 4 || !applied.rollback_token) {
+  throw new Error(`Home reset failed ${JSON.stringify(applied)}`);
+}
+for (const key of [orderKey, hiddenKey, legacyOrderKey, legacyHiddenKey]) {
+  if (values.has(key)) throw new Error(`resettable Home record remained: ${key}`);
+}
+if (values.get(authKey) !== 'AUTH-MUST-STAY' || values.get(editingKey) !== 'EDITING-MUST-STAY') {
+  throw new Error('Home reset touched unrelated state');
+}
+
+const rolled = bridge.rollbackHomeReset(applied.rollback_token, true);
+if (!rolled.rolled_back || !rolled.verified) {
+  throw new Error(`Home rollback failed ${JSON.stringify(rolled)}`);
+}
+for (const key of [orderKey, hiddenKey, legacyOrderKey, legacyHiddenKey]) {
+  if (!values.has(key)) throw new Error(`rollback missed Home record: ${key}`);
+}
+"""
+        result = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_reset_review_layout_reserves_status_width_at_appliance_resolution(self) -> None:
         css = RESET_CSS.read_text(encoding="utf-8")

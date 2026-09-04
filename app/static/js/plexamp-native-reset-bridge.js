@@ -1,17 +1,17 @@
 (() => {
   'use strict';
 
-  if (window.__aClockworkPlexHomeResetBridgeLoaded) return;
-  window.__aClockworkPlexHomeResetBridgeLoaded = true;
+  if (window.__aClockworkPlexNativeResetBridgeLoaded) return;
+  window.__aClockworkPlexNativeResetBridgeLoaded = true;
 
-  const PLAN_REQUEST_TYPE = 'acp-plexamp-home-reset-plan-request-v1';
-  const PLAN_RESPONSE_TYPE = 'acp-plexamp-home-reset-plan-response-v1';
-  const APPLY_REQUEST_TYPE = 'acp-plexamp-home-reset-apply-request-v1';
-  const APPLY_RESPONSE_TYPE = 'acp-plexamp-home-reset-apply-response-v1';
-  const ROLLBACK_REQUEST_TYPE = 'acp-plexamp-home-reset-rollback-request-v1';
-  const ROLLBACK_RESPONSE_TYPE = 'acp-plexamp-home-reset-rollback-response-v1';
-  const FINALIZE_REQUEST_TYPE = 'acp-plexamp-home-reset-finalize-request-v1';
-  const FINALIZE_RESPONSE_TYPE = 'acp-plexamp-home-reset-finalize-response-v1';
+  const PLAN_REQUEST_TYPE = 'acp-plexamp-native-reset-plan-request-v1';
+  const PLAN_RESPONSE_TYPE = 'acp-plexamp-native-reset-plan-response-v1';
+  const APPLY_REQUEST_TYPE = 'acp-plexamp-native-reset-apply-request-v1';
+  const APPLY_RESPONSE_TYPE = 'acp-plexamp-native-reset-apply-response-v1';
+  const ROLLBACK_REQUEST_TYPE = 'acp-plexamp-native-reset-rollback-request-v1';
+  const ROLLBACK_RESPONSE_TYPE = 'acp-plexamp-native-reset-rollback-response-v1';
+  const FINALIZE_REQUEST_TYPE = 'acp-plexamp-native-reset-finalize-request-v1';
+  const FINALIZE_RESPONSE_TYPE = 'acp-plexamp-native-reset-finalize-response-v1';
   const ALLOWED_PLEXAMP_ORIGINS = new Set([
     'http://localhost:32500',
     'http://127.0.0.1:32500',
@@ -19,7 +19,7 @@
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
 
-  function boundedCount(value, max = 256) {
+  function boundedCount(value, max = 512) {
     return Number.isInteger(value) && value >= 0 && value <= max ? value : null;
   }
 
@@ -33,29 +33,17 @@
     ) return null;
 
     if (raw.status !== 'ready') {
-      const result = {
+      return {
         schema_version: 1,
         status: raw.status,
         read_only: true,
         reset_available: false,
       };
-      if (Number.isInteger(raw.context_count) && raw.context_count >= 0 && raw.context_count <= 32) {
-        result.context_count = raw.context_count;
-      }
-      return result;
     }
 
-    const changeCount = boundedCount(raw.change_count, 132);
-    const orderRecordCount = boundedCount(raw.order_record_count, 2);
-    const hiddenRecordCount = boundedCount(raw.hidden_record_count, 129);
-    const legacyRecordCount = boundedCount(raw.legacy_record_count, 2);
+    const changeCount = boundedCount(raw.change_count);
     if (
       changeCount === null
-      || orderRecordCount === null
-      || hiddenRecordCount === null
-      || legacyRecordCount === null
-      || changeCount !== orderRecordCount + hiddenRecordCount
-      || legacyRecordCount > changeCount
       || typeof raw.target_fingerprint !== 'string'
       || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
       || raw.reset_available !== (changeCount > 0)
@@ -67,9 +55,6 @@
       read_only: true,
       reset_available: raw.reset_available,
       change_count: changeCount,
-      order_record_count: orderRecordCount,
-      hidden_record_count: hiddenRecordCount,
-      legacy_record_count: legacyRecordCount,
       target_fingerprint: raw.target_fingerprint,
     };
   }
@@ -89,34 +74,21 @@
       applied: raw.applied,
       rolled_back: raw.rolled_back,
     };
+
     if (raw.fresh_preview_required === true) result.fresh_preview_required = true;
-    if ('rollback_failure_count' in raw) {
-      const rollbackFailureCount = boundedCount(raw.rollback_failure_count, 132);
-      if (rollbackFailureCount === null) return null;
-      result.rollback_failure_count = rollbackFailureCount;
-    }
     if ('applied_change_count' in raw) {
-      const appliedChangeCount = boundedCount(raw.applied_change_count, 132);
-      if (appliedChangeCount === null) return null;
-      result.applied_change_count = appliedChangeCount;
+      const count = boundedCount(raw.applied_change_count);
+      if (count === null) return null;
+      result.applied_change_count = count;
     }
     if (raw.applied) {
-      const orderRecordCount = boundedCount(raw.order_record_count, 2);
-      const hiddenRecordCount = boundedCount(raw.hidden_record_count, 129);
-      const legacyRecordCount = boundedCount(raw.legacy_record_count, 2);
       if (
         raw.status !== 'applied'
-        || orderRecordCount === null
-        || hiddenRecordCount === null
-        || legacyRecordCount === null
         || typeof raw.target_fingerprint !== 'string'
         || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
         || typeof raw.rollback_token !== 'string'
         || !SAFE_ROLLBACK_TOKEN.test(raw.rollback_token)
       ) return null;
-      result.order_record_count = orderRecordCount;
-      result.hidden_record_count = hiddenRecordCount;
-      result.legacy_record_count = legacyRecordCount;
       result.target_fingerprint = raw.target_fingerprint;
       result.rollback_token = raw.rollback_token;
     }
@@ -263,7 +235,7 @@
     );
   }
 
-  window.ACPPlexampHomeReset = {
+  window.ACPPlexampNativeReset = {
     apply,
     finalize,
     plan,
