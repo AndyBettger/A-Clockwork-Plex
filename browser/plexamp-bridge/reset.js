@@ -17,7 +17,7 @@
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const SECTION_MARKER = '::/library/sections/';
   const VIEW_FAMILY_SUFFIX = ':viewSettings';
-  const VIEW_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.:/%+@~=\-]{1,600}):viewSettings$/;
+  const VIEW_RE = /^discovery:customizations:([A-Za-z0-9_.:/%+@~=\-]{1,600})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.:/%+@~=\-]{1,600}):viewSettings$/;
   const MAX_STORAGE_KEYS = 2048;
   const MAX_RECORDS = 256;
   const MAX_VIEW_BYTES = 16384;
