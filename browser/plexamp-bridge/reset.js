@@ -14,6 +14,9 @@
     'http://127.0.0.1:8088',
   ]);
   const MMKV_PREFIX = 'mmkv.default\\';
+  const CUSTOM_PREFIX = 'discovery:customizations:';
+  const SECTION_MARKER = '::/library/sections/';
+  const VIEW_FAMILY_SUFFIX = ':viewSettings';
   const VIEW_RE = /^discovery:customizations:([A-Za-z0-9_-]{1,128})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.:/%+@~=\-]{1,600}):viewSettings$/;
   const MAX_STORAGE_KEYS = 2048;
   const MAX_RECORDS = 256;
@@ -91,16 +94,27 @@
     return { targetRaw };
   }
 
+  function looksLikeViewSettingsFamily(suffix) {
+    return typeof suffix === 'string'
+      && suffix.startsWith(CUSTOM_PREFIX)
+      && suffix.includes(SECTION_MARKER)
+      && suffix.endsWith(VIEW_FAMILY_SUFFIX);
+  }
+
   function collectInventory(storage) {
     const records = [];
     const contexts = new Set();
+    let unclassifiedViewKeys = 0;
     const length = Math.min(Number(storage?.length || 0), MAX_STORAGE_KEYS);
     for (let index = 0; index < length; index += 1) {
       const key = storage.key(index);
       if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
       const suffix = key.slice(MMKV_PREFIX.length);
       const match = suffix.match(VIEW_RE);
-      if (!match) continue;
+      if (!match) {
+        if (looksLikeViewSettingsFamily(suffix)) unclassifiedViewKeys += 1;
+        continue;
+      }
       const raw = storage.getItem(key);
       if (typeof raw !== 'string') continue;
       const decoded = decodedViewSettings(raw);
@@ -116,6 +130,13 @@
           hub: match[3],
         });
       }
+    }
+    if (unclassifiedViewKeys > 0) {
+      return {
+        status: 'unclassified-view-settings-key',
+        records: [],
+        contextCount: contexts.size,
+      };
     }
     if (contexts.size > 1) {
       return { status: 'ambiguous-context', records: [], contextCount: contexts.size };
