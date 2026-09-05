@@ -11,12 +11,13 @@ class FakeRestorePlanner:
     def __init__(self, current_ref: dict) -> None:
         self.current_ref = current_ref
         self.rollback_mode = False
+        self.preview_token = "a" * 32
 
     def plan(self, target):
         target_settings = target.get("a_clockwork_plex", {}).get("settings", {})
         current_settings = self.current_ref.get("a_clockwork_plex", {}).get("settings", {})
         changed = target_settings != current_settings
-        token = "b" * 32 if self.rollback_mode else "a" * 32
+        token = "b" * 32 if self.rollback_mode else self.preview_token
         return {
             "server_changed_paths": (
                 ["a_clockwork_plex.settings.dashboard.startup_mode"] if changed else []
@@ -150,8 +151,31 @@ class ResetCommissioningTests(unittest.TestCase):
         self.assertIn("plexamp.commissioning.audio_output", result["changed_paths"])
         self.assertEqual(result["sections"]["plexamp.commissioning"], 2)
         self.assertNotEqual(result["reset_token"], "a" * 32)
-        self.assertEqual(result["owner_tokens"]["a_clockwork_plex"], "a" * 32)
+        self.assertEqual(result["restore_preview_token"], "a" * 32)
+        self.assertRegex(result["owner_tokens"]["a_clockwork_plex"], r"^[a-f0-9]{32}$")
+        self.assertNotEqual(result["owner_tokens"]["a_clockwork_plex"], "a" * 32)
         self.assertEqual(result["owner_tokens"]["plexamp_commissioning"], "c" * 32)
+
+    def test_acp_owner_token_ignores_headless_restore_token_drift_but_tracks_acp_state(self) -> None:
+        current, restore_planner, _re, _commissioning, planner, _executor = self.build()
+        first = planner.plan()
+        first_acp_token = first["owner_tokens"]["a_clockwork_plex"]
+        first_reset_token = first["reset_token"]
+
+        current["plexamp"]["headless_preferences"] = {
+            "audioConversionBitrate": 128,
+            "cacheSize": 512,
+        }
+        restore_planner.preview_token = "d" * 32
+        second = planner.plan()
+
+        self.assertEqual(second["owner_tokens"]["a_clockwork_plex"], first_acp_token)
+        self.assertEqual(second["restore_preview_token"], "d" * 32)
+        self.assertNotEqual(second["reset_token"], first_reset_token)
+
+        current["a_clockwork_plex"]["settings"]["dashboard"]["startup_mode"] = "radio"
+        third = planner.plan()
+        self.assertNotEqual(third["owner_tokens"]["a_clockwork_plex"], first_acp_token)
 
     def test_combined_apply_reports_all_three_verified_changes(self) -> None:
         _current, _rp, restore_executor, commissioning, planner, executor = self.build()
@@ -166,6 +190,7 @@ class ResetCommissioningTests(unittest.TestCase):
         self.assertEqual(result["acp_applied_change_count"], 1)
         self.assertEqual(result["plexamp_commissioning_applied_change_count"], 2)
         self.assertEqual(len(restore_executor.calls), 1)
+        self.assertEqual(restore_executor.calls[0][1]["preview_token"], "a" * 32)
         self.assertEqual(commissioning.apply_calls, ["c" * 32])
         self.assertTrue(result["plexamp_auth_preserved"])
         self.assertTrue(result["plexamp_headless_preferences_preserved"])
@@ -215,6 +240,7 @@ class ResetCommissioningTests(unittest.TestCase):
         self.assertEqual(result["plexamp_commissioning_change_count"], 0)
         self.assertEqual(result["change_count"], 1)
         self.assertEqual(result["reset_token"], "a" * 32)
+        self.assertEqual(result["restore_preview_token"], "a" * 32)
         self.assertFalse(result["plexamp_commissioning"]["ready"])
 
 
