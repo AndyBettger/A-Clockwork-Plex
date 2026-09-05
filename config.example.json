@@ -29,7 +29,7 @@
   },
   "airplay": {
     "display_name": "Bedroom Plexamp",
-    "default_volume_percent": 60,
+    "default_volume_percent": 10,
     "apply_default_volume_on_start": true,
     "pause_hold_seconds": 420
   },
