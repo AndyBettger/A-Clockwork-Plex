@@ -206,12 +206,12 @@ jobs:
           grep -Fq "const touched = [];" browser/plexamp-bridge/content.js
           node - <<'NODE'
           const bridge = require('./browser/plexamp-bridge/reset.js');
-          const builtInViewKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:viewSettings';
-          const customViewKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.custom:viewSettings';
-          const orderKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:order';
-          const hiddenKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:hidden';
-          const editingKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:editing';
-          const customHubKey = 'mmkv.default\\discovery:customizations:ctx::/library/sections/9:customHubs';
+          const builtInViewKey = 'mmkv.default\\discovery:customizations:ctx:https://home.example/library%2F9+default@v1~=x::/library/sections/9:hub:https://metadata.example/library%2F9+mix@v1~=x:viewSettings';
+          const customViewKey = 'mmkv.default\\discovery:customizations:ctx:https://home.example/library%2F9+default@v1~=x::/library/sections/9:hub:https://metadata.example/library%2F9+custom@v1~=x:viewSettings';
+          const orderKey = 'mmkv.default\\discovery:customizations:ctx:https://home.example/library%2F9+default@v1~=x::/library/sections/9:order';
+          const hiddenKey = 'mmkv.default\\discovery:customizations:ctx:https://home.example/library%2F9+default@v1~=x::/library/sections/9:hub:https://metadata.example/library%2F9+mix@v1~=x:hidden';
+          const editingKey = 'mmkv.default\\discovery:customizations:ctx:https://home.example/library%2F9+default@v1~=x::/library/sections/9:hub:https://metadata.example/library%2F9+mix@v1~=x:editing';
+          const customHubKey = 'mmkv.default\\discovery:customizations:ctx:https://home.example/library%2F9+default@v1~=x::/library/sections/9:customHubs';
           const authKey = 'mmkv.default\\authToken';
           const cacheKey = 'mmkv.default\\music.popular.9:cachedItems';
 
@@ -221,10 +221,10 @@ jobs:
             const values = new Map([
               [builtInViewKey, builtInRaw],
               [customViewKey, customRaw],
-              [orderKey, JSON.stringify({ 0: ['hub.a', 'hub.custom'] })],
+              [orderKey, JSON.stringify({ 0: ['hub:https://metadata.example/library%2F9+mix@v1~=x', 'hub:https://metadata.example/library%2F9+custom@v1~=x'] })],
               [hiddenKey, JSON.stringify({ 0: true })],
               [editingKey, 'true'],
-              [customHubKey, JSON.stringify({ 0: ['hub.custom'] })],
+              [customHubKey, JSON.stringify({ 0: ['hub:https://metadata.example/library%2F9+custom@v1~=x'] })],
               [authKey, 'AUTH-MUST-STAY'],
               [cacheKey, 'CACHE-MUST-STAY'],
             ]);
@@ -277,10 +277,10 @@ jobs:
             throw new Error(`custom Home title was not preserved ${JSON.stringify(customAfter)}`);
           }
           if (
-            successFixture.values.get(orderKey) !== JSON.stringify({ 0: ['hub.a', 'hub.custom'] })
+            successFixture.values.get(orderKey) !== JSON.stringify({ 0: ['hub:https://metadata.example/library%2F9+mix@v1~=x', 'hub:https://metadata.example/library%2F9+custom@v1~=x'] })
             || successFixture.values.get(hiddenKey) !== JSON.stringify({ 0: true })
             || successFixture.values.get(editingKey) !== 'true'
-            || successFixture.values.get(customHubKey) !== JSON.stringify({ 0: ['hub.custom'] })
+            || successFixture.values.get(customHubKey) !== JSON.stringify({ 0: ['hub:https://metadata.example/library%2F9+custom@v1~=x'] })
             || successFixture.values.get(authKey) !== 'AUTH-MUST-STAY'
             || successFixture.values.get(cacheKey) !== 'CACHE-MUST-STAY'
           ) throw new Error('Home presentation reset altered preserved Home/auth/cache state');
