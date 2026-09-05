@@ -2,7 +2,7 @@
 
 ## Status
 
-Checkpoint **#93 Reset to defaults** has passed its revised combined multi-owner transaction on the commissioned Pi. One final convergence check remains before explicit owner acceptance and promotion of PR #9.
+Checkpoint **#93 Reset to defaults** has passed its revised combined multi-owner transaction on the commissioned Pi. Functional Reset is now proven; final product acceptance remains open while the AirPlay session-start typo is corrected to 100% and the owner decides whether the accepted presentation-only Home Reset should be extended to a full factory-Home baseline.
 
 Physically accepted:
 
@@ -13,7 +13,7 @@ Physically accepted:
 - the Plexamp Home presentation Reset, with per-section presentation returned to Plexamp defaults while Home order and visibility remain intact;
 - the corrected ACP-only browser/server stale-token hand-off inside the full combined transaction.
 
-PR #9 remains Draft and must not merge until the final supported-baseline convergence check passes and the owner explicitly accepts it.
+PR #9 remains Draft and must not merge until the final supported baseline is accepted explicitly.
 
 ## Product boundary
 
@@ -74,11 +74,12 @@ Reset deliberately returns the persistent ACP audio controls to a neutral/full-s
 - Music Master: 100%;
 - Plexamp trim: 100%;
 - AirPlay trim: 100%;
-- Maximum Alarm Volume: 100%.
+- Maximum Alarm Volume: 100%;
+- AirPlay session-start volume: 100%.
 
 The earlier 80% Music Master / physically observed 79% round-trip was useful evidence about ALSA softvol quantisation, but it is no longer the Reset baseline.
 
-AirPlay's separate **session-start volume** is a different user preference/runtime policy rather than a persistent trim. Physical review of the successful Reset identified that the old 60% shipped value was unnecessarily high for the bedside appliance. The shipped/Reset baseline is now deliberately **10%**, while the persistent AirPlay trim remains 100%.
+AirPlay's session-start volume and persistent AirPlay trim are separate controls, but the intended shipped/reset value for both is **100%**. A short-lived 10% edit made during the 5 September follow-up was immediately identified by the owner as a typo and is not an accepted policy.
 
 ### Alarm sound safety
 
@@ -225,6 +226,19 @@ The corrected combined physical transaction subsequently proved that the Home pr
 
 The historical compact `:c` LevelDB lead remains classified as historical/deleted residue, not a Reset authority.
 
+### Full factory-Home baseline — open product decision
+
+The owner has reasonably asked whether a clean/default Plexamp Home could be captured and then applied so Reset also restores default section order, visibility and section membership.
+
+That is technically plausible, but **not by copying a clean profile's raw storage**. A clean effective Home may have no local order/hidden override records at all, even though a definite visible order exists. The effective default can be supplied by Plexamp runtime/server state, while the identifiers embedded in local records can be account/library/context specific.
+
+A safe full-Home implementation therefore needs a logical effective baseline. The two credible routes are:
+
+1. discover a narrow read-only Plexamp runtime authority for the effective Home model in a disposable clean profile, then normalise section identity/order/visibility/presentation into a bounded baseline; or
+2. deliberately capture a same-appliance commissioned Home baseline from a known-clean profile before user customisation, then map that logical model onto the live context during Reset.
+
+Either route must define target-only/custom sections explicitly and continue excluding authentication/session/browser databases. Until that is designed and physically proven, #93's accepted Reset boundary remains presentation-only for Home structure.
+
 ## Browser isolation
 
 The bridge remains deliberately narrow:
@@ -258,7 +272,7 @@ This complete sequence, including the corrected ACP-only hand-off, has now passe
 
 ## Automated evidence and remaining gate
 
-The stale-token correction was automated-green at `4a14205691ad320b7c6360fd06434fd26d1dc292` / **Tests #4559**, with compile, JavaScript/page-wiring, shell checks and **1028 tests passed**. The later documentation-synchronised head `85e8ef563b987f16b7e3efc8e23840dd98c33501` also passed **Tests #4561** with 1028 tests.
+The combined implementation was automated-green through **Tests #4567** on `3a860aa050b323959e75420891540e95ee77a516`: compile, JavaScript/page-wiring, shell checks and **1028 tests passed** in 47.560s.
 
 The regression specifically proves that changing portable Plexamp Headless state and the underlying #90 restore token does **not** change `owner_tokens.a_clockwork_plex`, while an actual ACP-state change does. The complete reset token still changes with the broader server state, so the real apply boundary remains stale-protected.
 
@@ -276,13 +290,14 @@ Physical evidence through 5 September 2026 now establishes:
 - ACP EQ became 0/0/0 dB and Music Master/Plexamp trim/AirPlay trim/Maximum Alarm Volume all became 100%;
 - post-reset native diagnostics converged from `activeTab` + `equalizerPresets` + `showFullScreenPlayerOnStart` to only `equalizerPresets`, which is now classified as runtime-normalised state;
 - regression coverage simulates that preset-catalogue repopulation and proves it no longer creates a false Reset difference while exact rollback still retains it;
-- the shipped AirPlay session-start baseline is now 10% rather than 60%.
+- the AirPlay session-start baseline correction is now 100%, matching the owner's intended full-scale baseline.
 
-The remaining physical acceptance is deliberately small:
+The remaining acceptance is deliberately narrow:
 
-1. pull and reboot the final documentation-synchronised candidate so Chromium reloads the packaged bridge;
-2. confirm a fresh Preview no longer reports `equalizerPresets`;
-3. confirm ACP Preview reports the intentional AirPlay session-start change from the current commissioned 60% value to the new 10% baseline;
-4. apply that ACP baseline change and verify AirPlay session-start volume is 10% while persistent AirPlay trim remains 100%;
-5. run one fresh Preview and confirm convergence to the supported Reset baseline; classify any genuinely stable new native residual rather than repeatedly resetting blindly;
-6. obtain explicit owner acceptance before PR #9 leaves Draft or merges.
+1. let CI finish on the final documentation-synchronised 100% AirPlay correction;
+2. pull/reboot that exact head so the packaged bridge and corrected config are current;
+3. confirm a fresh Preview no longer reports `equalizerPresets`;
+4. if the commissioned Pi is currently at the short-lived 10% AirPlay start value, ACP Preview should offer one change back to **100%**; apply it and verify AirPlay session-start volume and persistent AirPlay trim are both 100%;
+5. decide whether full factory-Home structure belongs in #93 or a tightly scoped follow-up; presentation-only Reset is already physically accepted;
+6. keep the newly identified Home `viewSettings` backup/restore completeness gap open until it is implemented or explicitly deferred;
+7. obtain explicit owner acceptance before PR #9 leaves Draft or merges.
