@@ -27,7 +27,8 @@ Backup/Restore and Reset are deliberately different operations. A setting can be
 | Eight safe Plexamp Headless preferences | Include exact typed allow-list, version-aware | Restore saved values through restricted owner; **#93 lets Plexamp's own Reset to Defaults reset them normally** |
 | Plexamp player name/audio output | Exclude from portable backup | Same-appliance #93 commissioning owner restores captured player name + dynamically resolved managed output |
 | Plexamp live player volume | Exclude from portable backup | Runtime/player state rather than portable personality; #93 explicitly returns live Plexamp music volume to 100% with rollback |
-| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores saved layout; #93 **preserves order/visibility/custom sections** and resets only per-section presentation `viewSettings` |
+| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores saved order/visibility; #93 currently preserves order/visibility/custom sections |
+| Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 can reset these safely to Plexamp defaults; backup/restore completeness follow-up is open |
 | Chromium profile wholesale | Never include | Never restore/copy wholesale; #93 touches only bounded native settings and Home presentation records |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch; #93 preserves runtime/history |
 | Alarm/playback runtime | Exclude | Recreate from live state/current time |
@@ -114,11 +115,12 @@ Music Master: 100%
 Plexamp trim: 100%
 AirPlay trim: 100%
 Maximum Alarm Volume: 100%
+AirPlay session-start volume: 100%
 ```
 
 The earlier nominal 80% / observed 79% Music Master result remains useful evidence about ALSA quantisation but is no longer a product default.
 
-AirPlay's separate 60% **session-start volume** is a user preference/runtime policy, not the persistent AirPlay trim baseline.
+AirPlay's session-start preference and persistent AirPlay trim are separate owners, but the intended shipped/reset value for both is now **100%**. The short-lived 10% edit on 5 September was a typo discovered immediately during physical review, not an accepted product policy.
 
 ## Appliance-local Plexamp commissioning ownership — PHYSICALLY ACCEPTED
 
@@ -144,15 +146,28 @@ Physical acceptance completed on 3 September 2026: a temporary player rename and
 
 The kiosk Chromium profile contains authentication/session material as well as UI state, so **the profile must never be archived/restored wholesale**.
 
-### Backup/Restore Home bridge
+### Backup/Restore Home bridge — current schema-v1 boundary
 
-The #89/#90 bridge classifies only validated Home order/hidden records under the local Plexamp origin. Auth/session, cache/resource, editor and unrelated values remain outside the owner.
+The #89/#90 bridge classifies only validated Home **order** and **hidden/visible** records under the local Plexamp origin. Auth/session, cache/resource, editor and unrelated values remain outside the owner.
 
 For #89 export, the permission-free loopback-only bridge emits only validated logical Home order/hidden choices in browser memory. The final commissioned-Pi export physically contained **15 ordered Home identifiers + 1 hidden identifier**, with no browser omission and zero warnings.
 
-For #90 restore, the bridge maps saved logical choices onto the target's live context, requires a fresh fingerprint and explicit confirmation, captures exact target raw state, writes only classified Home records, verifies the logical result and reverses completed writes exactly on failure.
+For #90 restore, the bridge maps those saved logical choices onto the target's live context, requires a fresh fingerprint and explicit confirmation, captures exact target raw state, writes only classified Home records, verifies the logical result and reverses completed writes exactly on failure.
 
-Checkpoint #90 Home restore is physically accepted, including combined restore convergence back to zero differences.
+Checkpoint #90 Home restore is therefore physically accepted **for the original order/hidden scope**.
+
+The current portable model is explicitly:
+
+```json
+"home": {
+  "order": [],
+  "hidden": []
+}
+```
+
+It does **not** currently export per-section `viewSettings`. A 5 September physical restore from a backup taken with the Home page arranged/presented as desired confirmed the consequence: order/hidden remain in the portable model, but the saved section presentation cannot be restored because it was never present in that backup.
+
+That is a real completeness gap, not a restore-transaction failure. #93 has now established a bounded, physically proven owner for `viewSettings`, so extending Backup/Restore to a validated logical presentation model is the preferred follow-up rather than copying raw Chromium storage.
 
 ### Separate #93 Home Reset — presentation only
 
@@ -177,6 +192,17 @@ For built-in sections, a non-default `viewSettings` record is removed. For custo
 Preview reports only a count/fingerprint. Apply is stale-protected, snapshots exact raw bytes, writes/removes only classified `viewSettings`, verifies convergence and retains rollback state until the outer Reset finalizes.
 
 The old compact `:c` LevelDB lead remains historical/deleted residue rather than a Reset authority.
+
+### Why a clean Plexamp profile cannot simply be copied raw
+
+Using a clean/default Plexamp profile as a reference is a sensible direction, but copying its browser files or local override records is not sufficient or portable:
+
+- a clean effective Home can legitimately have **no local order/hidden overrides**, so “no records” does not encode the visible default order;
+- Home identifiers contain account/library/context-specific values and cannot safely be hard-coded from another profile or installation;
+- server/runtime-provided default sections can exist without an equivalent local record;
+- custom sections and target-only hubs need an explicit product rule rather than accidental deletion.
+
+A future full-Home Reset should therefore capture or derive a **logical effective Home baseline**, not copy LevelDB/MMKV bytes. The strongest options are either a narrowly read effective-Home authority from a disposable clean Plexamp profile, or a same-appliance commissioned Home baseline captured deliberately before user customisation. In either case the baseline must be normalised to logical section identifiers and mapped onto the live target context, with credentials/session state remaining completely outside the owner.
 
 ## Native Plexamp Reset relationship
 
@@ -224,7 +250,7 @@ The supported portable format remains schema-versioned JSON with these logical d
 }
 ```
 
-`plexamp.browser_preferences` is optional and is merged only after a validated live bridge snapshot. The commissioning baseline and live Plexamp player volume are intentionally absent.
+`plexamp.browser_preferences` is optional and is merged only after a validated live bridge snapshot. In schema v1 its Home payload contains order/hidden only; per-section presentation remains the newly identified follow-up. The commissioning baseline and live Plexamp player volume are intentionally absent.
 
 ## Restore contract
 
@@ -237,7 +263,7 @@ Restore remains conservative:
 5. capture rollback state;
 6. apply ACP Settings/EQ/mixer/AirPlay through their owners;
 7. restore exact-version safe Headless preferences through the restricted owner;
-8. restore Home through the target-context browser owner when selected;
+8. restore current schema-v1 Home order/hidden through the target-context browser owner when selected;
 9. verify resulting logical state;
 10. roll back within each supported owner boundary on failure.
 
@@ -249,14 +275,14 @@ The guided owner-facing flow remains **Preview → choose A Clockwork Plex / Ple
 
 Established the portable/nonportable boundaries, exact eight-value Headless allow-list and safe Home order/hidden families while unknown/auth/device/browser values remained unopened.
 
-### #89 configuration backup/export — COMPLETE
+### #89 configuration backup/export — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
-Physically accepted schema-v1 export of ACP logical settings/EQ/mixer, all eight safe Headless preferences and validated logical Home data, with secrets/device identity/runtime state excluded.
+Physically accepted schema-v1 export of ACP logical settings/EQ/mixer, all eight safe Headless preferences and validated Home order/hidden data, with secrets/device identity/runtime state excluded. Physical testing on 5 September then established that per-section `viewSettings` were never part of this schema and therefore cannot yet be restored from a backup.
 
-### #90 configuration import/restore — COMPLETE
+### #90 configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
-Physically accepted read-only Preview, stale-protected server transaction, exact-version Headless restore, Home restore/rollback and guided owner-facing presentation. Final combined physical restore converged back to zero differences.
+Physically accepted read-only Preview, stale-protected server transaction, exact-version Headless restore, Home order/hidden restore/rollback and guided owner-facing presentation. The transaction remains accepted; the newly exposed product gap is extending the portable Home model to section presentation.
 
-### #93 Reset relationship — FINAL REVISED PHYSICAL ACCEPTANCE OPEN
+### #93 Reset relationship — REVISED PHYSICAL TRANSACTION ACCEPTED; FINAL HOME SCOPE OPEN
 
-ACP Reset and commissioning Reset are already physically accepted. The revised browser-side contract is automated-green through `c1b98dc018b2e60d4ed8c6fba0999d022155eef9` / **Tests #4550** with 1027 tests passing: native setting-name diagnostics, Plexamp player-volume 100% Reset/rollback, Home `viewSettings` reset with order/visibility/custom-section preservation, and the new full-scale ACP mixer baseline.
+The combined Reset transaction has now passed physically: native settings, player volume, Home presentation, commissioning and ACP all complete with rollback boundaries intact. `equalizerPresets` has been classified as runtime-normalised state. The outstanding Reset/product work is correcting the AirPlay session-start typo to 100% on the final candidate and deciding whether a full factory-Home baseline should be added beyond the currently accepted presentation-only Reset.
