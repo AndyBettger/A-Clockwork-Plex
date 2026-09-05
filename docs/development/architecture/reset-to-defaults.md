@@ -2,20 +2,18 @@
 
 ## Status
 
-Checkpoint **#93 Reset to defaults** remains open for the final commissioned-Pi physical acceptance of the revised combined transaction.
+Checkpoint **#93 Reset to defaults** has passed its revised combined multi-owner transaction on the commissioned Pi. One final convergence check remains before explicit owner acceptance and promotion of PR #9.
 
-Already physically accepted:
+Physically accepted:
 
 - the A Clockwork Plex (ACP) Reset transaction, verification and rollback model;
 - the final 1280×720 Preview → Review → Confirm presentation;
-- the same-appliance Plexamp commissioning Reset for player name and managed audio output.
+- the same-appliance Plexamp commissioning Reset for player name and managed audio output;
+- the Plexamp native ordinary-settings Reset, including Plexamp player volume returning to 100%;
+- the Plexamp Home presentation Reset, with per-section presentation returned to Plexamp defaults while Home order and visibility remain intact;
+- the corrected ACP-only browser/server stale-token hand-off inside the full combined transaction.
 
-The revised combined candidate adds two browser-side owners:
-
-1. **Plexamp native ordinary-settings Reset** — Plexamp's own `settings.resetToDefaults()` authority, plus Plexamp player volume returning to 100%;
-2. **Plexamp Home presentation Reset** — bounded per-section `viewSettings` only. Home order, visibility and custom-added sections are preserved.
-
-PR #9 remains Draft and must not merge until the final physical transaction passes and the owner explicitly accepts it.
+PR #9 remains Draft and must not merge until the final supported-baseline convergence check passes and the owner explicitly accepts it.
 
 ## Product boundary
 
@@ -64,9 +62,11 @@ The browser-native Plexamp participant runs before the server-owned ACP particip
 
 Those tokens must not be conflated. Native Plexamp Reset is explicitly allowed to change ordinary Headless preferences before the server step. Therefore a legitimate Headless change may invalidate the broader #90 restore token while the ACP-only owner token remains unchanged.
 
-Physical testing on 5 September exposed the previous mistake: the first combined implementation reused the broader #90 token as the ACP hand-off token. A full-state Review contained 16 native Plexamp changes, including Headless preferences; native Reset changed them, the broader token changed, and the client falsely reported **“A Clockwork Plex settings changed after Review.”** The retained browser-native/Home rollback then restored the browser-owned prestate correctly. The fix gives ACP its own scoped token while retaining the full #90 token for the actual server transaction.
+Physical testing on 5 September exposed the previous mistake: the first combined implementation reused the broader #90 token as the ACP hand-off token. A full-state Review contained 16 native Plexamp changes, including Headless preferences; native Reset changed them, the broader token changed, and the client falsely reported **“A Clockwork Plex settings changed after Review.”** The retained browser-native/Home rollback then restored the browser-owned prestate correctly.
 
-### Audio Reset baseline
+The fix gives ACP its own scoped token while retaining the full #90 token for the actual server transaction. The subsequent commissioned-Pi combined transaction physically crossed that hand-off and completed successfully.
+
+### Audio and AirPlay Reset baseline
 
 Reset deliberately returns the persistent ACP audio controls to a neutral/full-scale baseline:
 
@@ -78,7 +78,7 @@ Reset deliberately returns the persistent ACP audio controls to a neutral/full-s
 
 The earlier 80% Music Master / physically observed 79% round-trip was useful evidence about ALSA softvol quantisation, but it is no longer the Reset baseline.
 
-AirPlay's **60% session-start volume** remains a separate user preference and runtime policy. It is not the persistent AirPlay trim baseline.
+AirPlay's separate **session-start volume** is a different user preference/runtime policy rather than a persistent trim. Physical review of the successful Reset identified that the old 60% shipped value was unnecessarily high for the bedside appliance. The shipped/Reset baseline is now deliberately **10%**, while the persistent AirPlay trim remains 100%.
 
 ### Alarm sound safety
 
@@ -127,15 +127,18 @@ global.app.rootStore.settings
 
 with the browser-global compatibility form as fallback. The owner requires `resetToDefaults()` before Preview can become ready. It does not scan webpack modules, use `eval`, expose a generic JavaScript executor or automate arbitrary DOM controls.
 
-### Preview diagnostics
+### Preview diagnostics and runtime-normalised exclusions
 
 Preview compares bounded public settings against a fresh settings instance.
 
-Excluded from this native participant:
+Excluded from the native changed-set/fingerprint are:
 
 - keys beginning `_`;
 - `premium` (account/capability-derived);
-- `playerName` and `audioDeviceUuid` (owned by commissioning).
+- `playerName` and `audioDeviceUuid` (owned by commissioning);
+- `equalizerPresets`, because physical post-reset evidence showed Plexamp repopulates this catalogue after its own Reset, making it runtime-normalised/non-convergent state rather than a durable user-choice Reset target.
+
+The `equalizerPresets` exclusion is deliberately narrow. It remains included in the exact pre-reset rollback snapshot, so if a later owner fails the transaction can still restore the precise runtime state that existed before Reset.
 
 All other bounded non-function settings, including the eight safe Headless preferences used by Backup/Restore, participate normally in Plexamp's native Reset semantics.
 
@@ -145,7 +148,7 @@ Preview also reads Plexamp's live music-player volume through the same-origin pl
 playerVolume
 ```
 
-Public Preview exposes bounded **setting names only** under Technical changed paths, together with count/fingerprint information. It never exposes old/new values. This deliberately makes residual post-reset differences diagnosable without turning Preview into a preference-value dump.
+Public Preview exposes bounded **setting names only** under Technical changed paths, together with count/fingerprint information. It never exposes old/new values. This made the post-reset convergence issue diagnosable without turning Preview into a preference-value dump.
 
 ### Apply, verification and rollback
 
@@ -154,12 +157,22 @@ Apply requires explicit confirmation and the exact fresh fingerprint. It then:
 1. captures a bounded exact pre-reset settings snapshot and the current Plexamp player volume;
 2. calls Plexamp's own `settings.resetToDefaults()` when ordinary settings differ;
 3. sets Plexamp player volume to **100%** through Plexamp's same-origin player parameter endpoint;
-4. verifies settings against a fresh settings instance and verifies player volume at 100%;
+4. verifies Reset-owned settings against a fresh settings instance and verifies player volume at 100%;
 5. retains a rollback token until the outer multi-owner transaction succeeds.
 
-If verification fails, both settings and player volume are restored. If a later Home/server participant fails, the outer Reset client uses the retained token to restore the exact browser-native prestate.
+If verification fails, both settings and player volume are restored. If a later Home/server participant fails, the outer Reset client uses the retained token to restore the exact browser-native prestate, including the runtime-normalised preset catalogue captured before Reset.
 
 The native call may temporarily reset `playerName` and `audioDeviceUuid`; the physically accepted commissioning participant subsequently returns them to this appliance's commissioned state.
+
+### Physical convergence evidence
+
+After the corrected full Reset succeeded, a fresh Preview reported three native names:
+
+- `activeTab`;
+- `equalizerPresets`;
+- `showFullScreenPlayerOnStart`.
+
+A second native Reset converged `activeTab` and `showFullScreenPlayerOnStart`. A further Preview then reported only `equalizerPresets`. That repeatable 3 → 1 result is the physical basis for classifying `equalizerPresets` as runtime-populated state rather than repeatedly invoking Reset against it.
 
 ## Eight safe Headless preferences: Backup/Restore vs Reset
 
@@ -208,6 +221,8 @@ Preview reports only a bounded record count and fingerprint. Apply requires the 
 
 On exact physical-preview head `4e01b289fbfec352d41d345a50e22dcc30bf53a3`, the commissioned Pi successfully reported **15 Home presentation records** in one Preview and **14** after the state was recreated, with the technical UI collapsing them to `plexamp.home.view-settings · N` and exposing no raw Home identifiers or values.
 
+The corrected combined physical transaction subsequently proved that the Home presentation returned to Plexamp's per-section defaults while the owner's existing Home order and hidden/visible choices remained unchanged.
+
 The historical compact `:c` LevelDB lead remains classified as historical/deleted residue, not a Reset authority.
 
 ## Browser isolation
@@ -239,31 +254,35 @@ The browser and server owners cannot share one storage engine, so Reset composes
 
 If any browser participant fails, earlier browser work rolls back. If the later server transaction or hand-off check fails, retained browser owners roll back before failure is reported.
 
+This complete sequence, including the corrected ACP-only hand-off, has now passed on the commissioned Pi.
+
 ## Automated evidence and remaining gate
 
-Current code evidence is green at `4a14205691ad320b7c6360fd06434fd26d1dc292` / **Tests #4559**. That run passed compile, JavaScript/page-wiring, shell checks and the full **1028-test** suite.
+The stale-token correction was automated-green at `4a14205691ad320b7c6360fd06434fd26d1dc292` / **Tests #4559**, with compile, JavaScript/page-wiring, shell checks and **1028 tests passed**. The later documentation-synchronised head `85e8ef563b987f16b7e3efc8e23840dd98c33501` also passed **Tests #4561** with 1028 tests.
 
-The added regression specifically proves that changing portable Plexamp Headless state and the underlying #90 restore token does **not** change `owner_tokens.a_clockwork_plex`, while an actual ACP-state change does. The complete reset token still changes with the broader server state, so the real apply boundary remains stale-protected.
+The regression specifically proves that changing portable Plexamp Headless state and the underlying #90 restore token does **not** change `owner_tokens.a_clockwork_plex`, while an actual ACP-state change does. The complete reset token still changes with the broader server state, so the real apply boundary remains stale-protected.
 
-Physical evidence through 5 September 2026:
+Physical evidence through 5 September 2026 now establishes:
 
 - ACP Reset/rollback and presentation are accepted;
 - commissioning rename/output round-trip is accepted;
-- the native runtime fail-closed path led to the physically established `global.app.rootStore.settings` authority;
-- the real Home `viewSettings` family is now classified on the commissioned profile and Preview is complete;
-- exact head `4e01b289fbfec352d41d345a50e22dcc30bf53a3` physically reached **Preview ready** with bounded ACP/native/Home counts and names only;
-- after recreating a fuller saved appliance state, Review reached **Ready to confirm** with 20 server-owned, 16 native Plexamp and 14 Home-presentation changes;
-- Confirm then exposed the old false-stale ACP hand-off token bug because native Reset legitimately changed Headless preferences;
-- the UI reported the failure and the retained browser-owned Plexamp changes were physically rolled back, which is positive rollback evidence;
-- `4a14205691ad320b7c6360fd06434fd26d1dc292` fixes that token-scope defect and is automated-green; its final commissioned-Pi transaction remains to be retried.
+- the native runtime fail-closed path established `global.app.rootStore.settings` as the live Plexamp authority;
+- the real Home `viewSettings` family is classified on the commissioned profile;
+- the earlier full-state Review reached **Ready to confirm** with 20 server-owned, 16 native Plexamp and 14 Home-presentation changes;
+- the first full Confirm exposed the old false-stale ACP hand-off and physically proved browser-native/Home rollback;
+- after the ACP-only token correction, the full multi-owner Confirm completed successfully;
+- Plexamp player volume became 100%;
+- Home presentation returned to Plexamp defaults while order and visibility were retained;
+- ACP EQ became 0/0/0 dB and Music Master/Plexamp trim/AirPlay trim/Maximum Alarm Volume all became 100%;
+- post-reset native diagnostics converged from `activeTab` + `equalizerPresets` + `showFullScreenPlayerOnStart` to only `equalizerPresets`, which is now classified as runtime-normalised state;
+- regression coverage simulates that preset-catalogue repopulation and proves it no longer creates a false Reset difference while exact rollback still retains it;
+- the shipped AirPlay session-start baseline is now 10% rather than 60%.
 
-The remaining physical acceptance is now deliberately narrow:
+The remaining physical acceptance is deliberately small:
 
-1. pull and reboot the final documentation-synchronised candidate;
-2. Preview must again be complete and Review must reach Ready to confirm;
-3. Confirm must cross the ACP-only hand-off without the false **“A Clockwork Plex settings changed after Review”** refusal;
-4. verify ordinary Plexamp settings follow Plexamp defaults, Plexamp player volume becomes 100%, and Home section presentation returns to Plexamp per-section defaults while order/visibility/custom sections remain unchanged;
-5. verify commissioned player name/output when deliberately changed, Plex login/library, playback and dashboard navigation remain healthy;
-6. verify neutral ACP EQ and all four persistent mixer levels at 100%;
-7. fresh Preview should converge to the supported baselines; any stable native runtime-normalised differences must be classified rather than repeatedly reset blindly;
-8. obtain explicit owner acceptance before PR #9 leaves Draft or merges.
+1. pull and reboot the final documentation-synchronised candidate so Chromium reloads the packaged bridge;
+2. confirm a fresh Preview no longer reports `equalizerPresets`;
+3. confirm ACP Preview reports the intentional AirPlay session-start change from the current commissioned 60% value to the new 10% baseline;
+4. apply that ACP baseline change and verify AirPlay session-start volume is 10% while persistent AirPlay trim remains 100%;
+5. run one fresh Preview and confirm convergence to the supported Reset baseline; classify any genuinely stable new native residual rather than repeatedly resetting blindly;
+6. obtain explicit owner acceptance before PR #9 leaves Draft or merges.
