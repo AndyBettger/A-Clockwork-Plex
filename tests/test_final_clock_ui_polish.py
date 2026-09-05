@@ -91,11 +91,12 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertIn('_ALARM_INDICATOR_MODES = {"within_12h", "any_future"}', settings_backend)
         self.assertIn('"alarm_indicator_mode": _alarm_indicator_mode(', settings_backend)
 
-    def test_fresh_config_uses_twelve_hour_indicator_and_ten_percent_alarm_start(self) -> None:
+    def test_fresh_config_uses_safe_ten_percent_start_volumes(self) -> None:
         config = json.loads((ROOT / "config.example.json").read_text(encoding="utf-8"))
         self.assertEqual(config["dashboard"]["alarm_indicator_mode"], "within_12h")
         self.assertEqual(config["alarm"]["defaults"]["start_percent"], 10)
         self.assertEqual(config["alarm"]["alarms"][0]["volume"]["start_percent"], 10)
+        self.assertEqual(config["airplay"]["default_volume_percent"], 10)
 
     def test_settings_ranges_repaint_after_saved_value_hydration(self) -> None:
         client = (ROOT / "app/static/js/settings-range-theme.js").read_text(encoding="utf-8")
