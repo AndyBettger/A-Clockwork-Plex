@@ -160,11 +160,13 @@ Physical evidence on 5 September established:
 
 - [x] before Plex login/library selection, the live discovery-hub backing collection exists but contains **0 hubs**;
 - [x] after signing into the same fresh profile, selecting the intended library and making **no Home changes**, Plexamp populated **12 effective Home hubs by itself**;
+- [x] the untouched default Home visibly contains **12 sections**, strongly correlating the 12 runtime hubs with the 12 rendered default Home sections without treating that count as a permanent Plexamp invariant;
 - [x] the narrow runtime authority is `rootStore.discovery.$mobx.values.hubs.value.$mobx.values`;
 - [x] all 12 hub objects expose consistent logical Home metadata shapes such as `hubIdentifier`, `source`, `title`, `type` and `items`, with many also exposing `hubKey`, `key` and `size`;
-- [x] the bounded `scripts/inspect-plexamp-home-hubs.py` probe emits names/types/collection lengths only and does not read primitive values or invoke getters.
+- [x] the bounded `scripts/inspect-plexamp-home-hubs.py` probe emits names/types/collection lengths only and does not read primitive values or invoke getters;
+- [x] the untouched authenticated/library-selected profile has **zero** `mmkv.default\discovery:customizations:*` keys: 0 `order`, 0 `hidden`, 0 `viewSettings`, 0 `editing`, 0 `customHubs`, 0 `other`, 0 invalid structures and 0 contexts.
 
-The **0-hub pre-login state is not itself a factory Home target**; it represents an unresolved authentication/library context. The important finding is that, once authentication and the selected library exist, Plexamp can populate the effective Home without ACP supplying a section template.
+The **0-hub pre-login state is not itself a factory Home target**; it represents an unresolved authentication/library context. The important finding is that, once authentication and the selected library exist, Plexamp can populate the effective Home without ACP supplying a section template. The zero-key customisation inventory strengthens this further: the complete untouched 12-section Home exists with no persistent Home-customisation overlay at all.
 
 The preferred full-Home design is therefore now:
 
@@ -179,8 +181,9 @@ This is preferable to hard-coding the observed 12 rows because hub identity/memb
 
 Next physical investigation:
 
-- [ ] inventory the active-context Home customisation **key families only** on the untouched disposable profile;
-- [ ] make a deliberately bounded set of disposable Home edits (order, hidden/visible, presentation and one custom section/title), then inventory the key families again;
+- [x] inventory the active-context Home customisation **key families only** on the untouched disposable profile: all recognised family counts and matching-key/context counts are zero;
+- [ ] change **only Home order** by moving one existing default section, then inventory again to establish causal ownership of the first overlay family;
+- [ ] continue one change at a time for hidden/visible state, presentation and one custom section/title, inventorying after each change rather than combining edits;
 - [ ] classify exactly which persisted families constitute Home customisation without opening auth/session/library values;
 - [ ] prove a reversible disposable-profile scrub of only those families followed by Plexamp reload/re-fetch returns to the untouched effective Home while login and selected library remain intact;
 - [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
@@ -216,12 +219,13 @@ The brief 10% AirPlay session-start change introduced during the 5 September fol
 - [x] AirPlay session-start default corrected in source/regression from the accidental 10% back to the intended 100%.
 - [x] Fresh disposable Chromium broad and narrow read-only probes physically established the 0 → 12 authenticated effective-Home rebuild and the bounded discovery-hub authority.
 - [x] The new narrow hub probe's own four regression tests passed; the first full CI run exposed only missing script/test catalogue entries, which were corrected immediately.
-- [ ] CI must pass on the catalogue/documentation-synchronised hub-probe candidate.
+- [x] The untouched Home-customisation inventory physically returned zero matching keys/families while the 12-section Home was fully rendered.
+- [x] **Tests #4586** passed on `1468d7e58a44664d67b7237f16633a3afce93f4b`: compile, JavaScript/page wiring, shell checks and the complete **1037-test** unit suite.
 
 #### Remaining gate before #93 can close
 
-- [ ] Let CI pass on the documentation-synchronised Home-investigation candidate.
-- [ ] Complete the disposable Home-customisation inventory and reversible scrub/rebuild experiment described above.
+- [x] Current Home-investigation diagnostic candidate is green in CI on `1468d7e58a44664d67b7237f16633a3afce93f4b`.
+- [ ] Complete the one-change-at-a-time disposable Home-customisation inventory and reversible scrub/rebuild experiment described above.
 - [ ] Decide from that evidence whether full Home structure joins #93 or remains a tightly scoped follow-up; the presentation-only implementation itself is physically accepted.
 - [ ] Pull/reboot the eventual final accepted branch head so Chromium reloads the packaged production bridge.
 - [ ] Fresh production Preview must no longer report `equalizerPresets` as a native Reset difference.
