@@ -122,7 +122,7 @@ PR #9 remains **Draft and unmerged**. Do not promote it until the revised commis
 - [x] Read-only bundle inspection established `global.app.rootStore.settings` as the real Plexamp 4.13.2 settings authority.
 - [x] Native owner calls Plexamp's real `settings.resetToDefaults()`; no webpack scanning, `eval`, generic page execution, remote debugging or arbitrary DOM automation.
 - [x] The eight safe Headless preferences remain portable Backup/Restore values but follow Plexamp's own defaults during Reset.
-- [x] Preview now exposes bounded **setting names only** under Technical changed paths, never old/new values. This lets a residual “1 setting differs” be identified safely.
+- [x] Preview exposes bounded **setting names only** under Technical changed paths, never old/new values.
 - [x] Plexamp live music-player volume is part of the native transaction: target **100%**, same-origin player API, verified apply and exact pre-reset rollback.
 
 #### Revised Home boundary — preserve structure, reset presentation
@@ -144,11 +144,11 @@ The bounded family is:
 mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:viewSettings
 ```
 
-Built-in non-default `viewSettings` are removed. Custom-section presentation fields are stripped while the custom title is retained. Apply is fingerprint/stale-protected, verifies convergence and retains exact rollback bytes until the outer transaction succeeds.
+Built-in non-default `viewSettings` are removed. Custom-section presentation fields are stripped while the custom title is retained. Real-profile testing established URL-like characters in both context/hub identifiers; the matcher remains structurally bounded and fails closed on an unclassified `viewSettings` family key rather than reporting a false zero.
 
 #### ACP audio Reset baseline — revised
 
-The shipped Reset baseline is now deliberately neutral/full-scale:
+The shipped Reset baseline is deliberately neutral/full-scale:
 
 - [x] Master EQ enabled, Bass/Mid/Treble all 0.0 dB;
 - [x] Music Master 100%;
@@ -160,27 +160,27 @@ The earlier nominal 80% / physically observed 79% Music Master result remains us
 
 AirPlay's separate 60% **session-start volume** remains a user preference/runtime policy and is not the persistent AirPlay trim baseline.
 
-#### Automated evidence
+#### Physical and automated evidence
 
-- [x] Revised browser/native/Home/audio implementation reached automated green at `c1b98dc018b2e60d4ed8c6fba0999d022155eef9` / **Tests #4550**.
-- [x] Compile, JavaScript/page wiring and shell checks all passed.
-- [x] Full suite: **1027 tests passed**.
-- [x] Regression coverage now includes native changed-key diagnostics, Plexamp player-volume Reset/rollback, Home `viewSettings` reset with exact structure preservation, and all four persistent mixer defaults at 100%.
+- [x] Exact `4e01b289fbfec352d41d345a50e22dcc30bf53a3` physically produced a complete commissioned-Pi Preview with bounded native names and real Home `viewSettings` counts: one state showed 25 total changes including 15 Home presentation records.
+- [x] Recreated full-state Review reached **Ready to confirm** with 20 server-owned, 16 native Plexamp and 14 Home-presentation changes.
+- [x] Confirm exposed a false ACP-stale hand-off: the old browser/server check reused the broader #90 restore token, which also fingerprints portable Headless preferences. Native Plexamp Reset legitimately changed those preferences, so the client incorrectly reported **“A Clockwork Plex settings changed after Review.”**
+- [x] The retained browser-native/Home rollback worked: the UI reported that browser-owned Plexamp changes were rolled back.
+- [x] The hand-off is now split correctly: `owner_tokens.a_clockwork_plex` fingerprints only ACP target/current state; the broader #90 `restore_preview_token` remains separate for the actual server restore transaction; commissioning keeps its own fingerprint.
+- [x] Current code `4a14205691ad320b7c6360fd06434fd26d1dc292` is green in **Tests #4559**: compile, JavaScript/page wiring, shell checks and **1028 tests passed**.
+- [x] Regression coverage proves Headless/restore-token drift leaves the ACP-only hand-off token unchanged, while a real ACP-state change still invalidates it.
 
 #### Remaining physical gate before #93 can close
 
-- [ ] Pull and fully reboot the final documentation-synchronised candidate so Chromium reloads the packaged bridge scripts.
-- [ ] Set at least one ordinary Plexamp preference away from default and Plexamp player volume below 100%.
-- [ ] Change one or more Home section presentation/view options while keeping the desired Home order/visibility/custom sections in place.
-- [ ] Optionally keep a temporary player name + Follows system output to re-prove the already accepted commissioning participant inside the combined transaction.
-- [ ] Preview must be complete and expose only bounded setting names/counts/fingerprints, not raw values.
-- [ ] Review → Confirm & reset.
+- [ ] Pull and reboot the final documentation-synchronised candidate containing the ACP-only stale-token fix.
+- [ ] Preview must again be complete; Review must reach Ready to confirm.
+- [ ] Confirm must cross the ACP-only browser/server hand-off without the false **“A Clockwork Plex settings changed after Review”** refusal.
 - [ ] Verify ordinary Plexamp settings follow Plexamp defaults and live Plexamp player volume becomes 100%.
 - [ ] Verify Home presentation returns to Plexamp per-section defaults while order, visibility and custom sections remain unchanged.
 - [ ] Verify commissioned player name and **A Clockwork Plex - Plexamp** output are restored when deliberately changed.
 - [ ] Verify neutral ACP EQ and Music Master/Plexamp trim/AirPlay trim/Maximum Alarm Volume all at 100%.
 - [ ] Verify Plex login and selected library survive, with normal playback and dashboard navigation.
-- [ ] Fresh Preview converges to zero native/Home-presentation/commissioning differences; ACP should also be zero if intentionally left at shipped defaults.
+- [ ] Fresh Preview should converge to the supported baselines; any stable native runtime-normalised differences must be classified rather than repeatedly reset blindly.
 - [ ] Explicit owner acceptance required before PR #9 leaves Draft or merges.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
@@ -208,7 +208,7 @@ These are post-v0.4.0 product areas, not commitments to one release. Design/test
 
 ### High-resolution Plexamp audio / mixer-EQ path
 
-The current v0.4.0 audio profiles use a fixed **16-bit / 44.1 kHz** shared bus. Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
+The current v0.4.0 audio profiles use a fixed **16-bit / 44.1 kHz** shared music path. Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
 
 Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
 
