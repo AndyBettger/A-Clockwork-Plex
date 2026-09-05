@@ -290,7 +290,7 @@ The next disposable-profile sequence is now:
 
 1. keep **Mixes for you** in its moved third-place tracer position and make no other Home changes;
 2. run the bounded browser-storage metadata probe;
-3. use only metadata/structure to identify candidate durable persistence surfaces; because no pre-edit metadata baseline exists for this broader probe, a single current inventory by itself cannot attribute the order change;
+3. use that current metadata inventory only to identify candidate persistence surfaces; because there is no pre-edit baseline from this broader probe, do not attribute the order change from a single inventory alone;
 4. if necessary, design a still-narrower read-only comparison or a second genuinely fresh disposable-profile baseline that exposes shapes/counts rather than auth/session/user values;
 5. classify order ownership before changing visibility, presentation or custom sections;
 6. only after all Home-owned persistence is bounded, build a disposable-only reversible scrub/rebuild experiment;
