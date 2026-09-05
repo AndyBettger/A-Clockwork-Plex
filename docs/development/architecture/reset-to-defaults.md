@@ -268,7 +268,7 @@ A production full-Home Reset **must not** simply delete the previously known Loc
 
 #### Current bounded browser-storage diagnostic
 
-`scripts/inspect-plexamp-browser-storage.py` is a disposable-profile-only read-only diagnostic intended to classify the next persistence surface without opening user data.
+`scripts/inspect-plexamp-browser-storage.py` is a disposable-profile-only metadata diagnostic intended to classify the next persistence surface without reading stored user data or changing browser state.
 
 It reports only:
 
