@@ -106,9 +106,9 @@ Accepted constraints for later implementation:
 - [x] Last-good cache, stale/degraded presentation and Top Stories ticker physically accepted.
 - [x] Settings, News page, touch scrolling, startup/idle-return and Wi-Fi-loss recovery physically accepted.
 
-### #93 Reset-to-defaults workflow — TRANSACTION ACCEPTED; FINAL HOME/BASELINE DECISION OPEN
+### #93 Reset-to-defaults workflow — TRANSACTION ACCEPTED; FULL HOME REBUILD INVESTIGATION OPEN
 
-PR #9 remains **Draft and unmerged**. The complete multi-owner transaction has now passed physically. Remaining work is the final 100% AirPlay session-start correction plus the owner's decision on whether Home Reset remains presentation-only or gains a separately proven full factory-Home baseline.
+PR #9 remains **Draft and unmerged**. The complete multi-owner transaction has passed physically and the corrected AirPlay session-start baseline is 100%. The remaining product question is whether the already accepted presentation-only Home Reset is extended to a separately proven full Home-customisation reset which lets Plexamp rebuild its own effective Home.
 
 #### Physically accepted foundations
 
@@ -150,23 +150,43 @@ mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>
 
 Built-in non-default `viewSettings` are removed. Custom-section presentation fields are stripped while the custom title is retained. Real-profile testing established URL-like characters in both context/hub identifiers; the matcher remains structurally bounded and fails closed on an unclassified `viewSettings` family key rather than reporting a false zero.
 
-Physical acceptance now proves that Home presentation returns to Plexamp's per-section defaults while the commissioned Home order and visibility choices remain intact.
+Physical acceptance proves that Home presentation returns to Plexamp's per-section defaults while the commissioned Home order and visibility choices remain intact.
 
-#### Full factory-Home baseline — investigation/product decision open
+#### Full Home-customisation reset — native rebuild investigation
 
-The owner has asked whether a clean/default Plexamp Home can be used as the Reset source for default section order, visibility and membership as well as presentation.
+A genuinely fresh disposable Chromium profile has now materially changed the preferred design.
 
-That is a sensible direction, but raw profile copying is not safe or sufficient because a clean visible Home can legitimately have **no local order/hidden overrides**, while account/library/context-specific identifiers and server/runtime-provided sections still define the effective layout.
+Physical evidence on 5 September established:
 
-Preferred investigation:
+- [x] before Plex login/library selection, the live discovery-hub backing collection exists but contains **0 hubs**;
+- [x] after signing into the same fresh profile, selecting the intended library and making **no Home changes**, Plexamp populated **12 effective Home hubs by itself**;
+- [x] the narrow runtime authority is `rootStore.discovery.$mobx.values.hubs.value.$mobx.values`;
+- [x] all 12 hub objects expose consistent logical Home metadata shapes such as `hubIdentifier`, `source`, `title`, `type` and `items`, with many also exposing `hubKey`, `key` and `size`;
+- [x] the bounded `scripts/inspect-plexamp-home-hubs.py` probe emits names/types/collection lengths only and does not read primitive values or invoke getters.
 
-- [ ] use a disposable clean Plexamp profile to find a narrow **effective Home** read authority rather than copying Chromium/LevelDB bytes;
-- [ ] if that authority can be bounded safely, normalise default section identity/order/visibility/presentation into a logical baseline and map it onto the live target context;
-- [ ] alternatively evaluate a deliberately captured same-appliance commissioned Home baseline before user customisation;
-- [ ] define what Reset does with target-only/custom sections explicitly rather than deleting them accidentally;
-- [ ] keep auth/session/account material outside the baseline and bridge.
+The **0-hub pre-login state is not itself a factory Home target**; it represents an unresolved authentication/library context. The important finding is that, once authentication and the selected library exist, Plexamp can populate the effective Home without ACP supplying a section template.
 
-Until this is accepted, presentation-only Home Reset remains the proven boundary.
+The preferred full-Home design is therefore now:
+
+1. preserve Plex authentication/session, selected library, commissioned player name/output and unrelated browser/cache state;
+2. classify and remove only the bounded **persistent Home customisation overlay** for the active context;
+3. do **not** construct, copy or directly mutate the transient runtime hub array;
+4. ask Plexamp to reload/re-fetch Home, or reload the local Plexamp page if that is the narrowest proven trigger;
+5. let Plexamp regenerate its own effective Home from its runtime/server authority;
+6. verify the rebuilt logical Home against the untouched disposable-profile baseline shape/identity and retain exact customisation bytes for rollback until the outer Reset transaction finalises.
+
+This is preferable to hard-coding the observed 12 rows because hub identity/membership is account/library/runtime-derived and may legitimately evolve with Plexamp.
+
+Next physical investigation:
+
+- [ ] inventory the active-context Home customisation **key families only** on the untouched disposable profile;
+- [ ] make a deliberately bounded set of disposable Home edits (order, hidden/visible, presentation and one custom section/title), then inventory the key families again;
+- [ ] classify exactly which persisted families constitute Home customisation without opening auth/session/library values;
+- [ ] prove a reversible disposable-profile scrub of only those families followed by Plexamp reload/re-fetch returns to the untouched effective Home while login and selected library remain intact;
+- [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
+- [ ] only then consider replacing the accepted presentation-only production owner.
+
+Until that experiment passes, presentation-only Home Reset remains the proven production boundary.
 
 #### ACP audio and AirPlay Reset baseline — corrected
 
@@ -192,17 +212,20 @@ The brief 10% AirPlay session-start change introduced during the 5 September fol
 - [x] The corrected full transaction then completed physically. Plexamp Home presentation reset while order/visibility stayed put; Plexamp player volume became 100%; ACP EQ became 0/0/0 dB and all four persistent mixer levels became 100%.
 - [x] A fresh Preview then exposed three native residual names: `activeTab`, `equalizerPresets`, `showFullScreenPlayerOnStart`. A second Reset converged `activeTab` and `showFullScreenPlayerOnStart`; a further Preview left only `equalizerPresets`.
 - [x] `equalizerPresets` is now excluded as physically proven runtime-normalised state, with a regression that simulates post-reset repopulation and proves exact rollback still retains/restores the pre-reset catalogue.
-- [x] **Tests #4567** passed on `3a860aa050b323959e75420891540e95ee77a516`: compile, JavaScript/page wiring, shell checks and **1028 tests** in 47.560s.
+- [x] **Tests #4575** passed on `07fec02c85a6871cc3a74160b7cd029ff7736f2c`: compile, JavaScript/page wiring, shell checks and **1029 tests** in 53.364s.
 - [x] AirPlay session-start default corrected in source/regression from the accidental 10% back to the intended 100%.
-- [ ] CI must pass on the final documentation-synchronised 100% correction.
+- [x] Fresh disposable Chromium broad and narrow read-only probes physically established the 0 → 12 authenticated effective-Home rebuild and the bounded discovery-hub authority.
+- [x] The new narrow hub probe's own four regression tests passed; the first full CI run exposed only missing script/test catalogue entries, which were corrected immediately.
+- [ ] CI must pass on the catalogue/documentation-synchronised hub-probe candidate.
 
 #### Remaining gate before #93 can close
 
-- [ ] Let CI finish on the final documentation-synchronised candidate.
-- [ ] Pull/reboot that exact head so Chromium reloads the packaged bridge and the corrected default model is current.
-- [ ] Fresh Preview must no longer report `equalizerPresets` as a native Reset difference.
-- [ ] If the commissioned Pi currently contains the short-lived 10% AirPlay start value, ACP Preview should offer one change back to **100%**; apply it and verify both AirPlay session-start and persistent AirPlay trim are 100%.
-- [ ] Decide whether full factory-Home structure is part of #93 or a tightly scoped follow-up; the presentation-only implementation itself is physically accepted.
+- [ ] Let CI pass on the documentation-synchronised Home-investigation candidate.
+- [ ] Complete the disposable Home-customisation inventory and reversible scrub/rebuild experiment described above.
+- [ ] Decide from that evidence whether full Home structure joins #93 or remains a tightly scoped follow-up; the presentation-only implementation itself is physically accepted.
+- [ ] Pull/reboot the eventual final accepted branch head so Chromium reloads the packaged production bridge.
+- [ ] Fresh production Preview must no longer report `equalizerPresets` as a native Reset difference.
+- [ ] If the commissioned Pi ever contains the short-lived 10% AirPlay start value, ACP Preview should offer one change back to **100%**; apply it and verify both AirPlay session-start and persistent AirPlay trim are 100%.
 - [ ] Keep the Home `viewSettings` backup/restore completeness follow-up open until implemented or explicitly deferred.
 - [ ] Explicit owner acceptance required before PR #9 leaves Draft or merges.
 
@@ -215,7 +238,7 @@ Detailed authority: [`../development/architecture/reset-to-defaults.md`](../deve
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88 core COMPLETE; #89/#90 Home-presentation portability follow-up OPEN; #93 transaction accepted with final Home/baseline decision OPEN
+2. **Settings and appliance ownership** — #88 core COMPLETE; #89/#90 Home-presentation portability follow-up OPEN; #93 transaction accepted with full Home rebuild investigation OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
