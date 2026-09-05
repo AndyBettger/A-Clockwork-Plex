@@ -3,9 +3,13 @@
 
 This developer diagnostic inventories browser-local persistence *metadata only* for
 Plexamp's disposable Chromium profile. It reports bounded Local Storage and Session
-Storage key-family counts plus IndexedDB database/object-store names. It never reads
-Web Storage values, never reads IndexedDB records, never opens an IndexedDB
-transaction, and never mutates browser storage.
+Storage key-family counts plus IndexedDB database/object-store names. Web Storage
+values and IndexedDB records are never read, IndexedDB transactions are never opened,
+and the page never opens/creates an IndexedDB database.
+
+IndexedDB schema metadata is obtained through Chrome DevTools Protocol's read-only
+IndexedDB metadata commands (`requestDatabaseNames` / `requestDatabase`), not the
+page-level IndexedDB API.
 
 Use only with a disposable Chromium profile launched manually with loopback-only
 remote debugging. The production kiosk Chromium profile is not a target.
@@ -16,35 +20,32 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 DEFAULT_DEBUG_PORT = 9224
 DEFAULT_TIMEOUT = 5.0
+MAX_DATABASES = 32
+MAX_OBJECT_STORES = 64
+SAFE_METADATA_NAME = re.compile(r"^[A-Za-z0-9_.:@~+=\/-]{1,160}$")
+SENSITIVE_NAME = re.compile(
+    r"(token|auth|account|session|cookie|credential|password|secret|claim|machine|clientidentifier|email)",
+    re.IGNORECASE,
+)
 
 
 RUNTIME_EXPRESSION = r"""
-(async () => {
+(() => {
   'use strict';
 
   const MMKV_PREFIX = 'mmkv.default\\\\';
   const SAFE_FAMILY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
-  const SAFE_DB_NAME = /^[A-Za-z0-9_.:@~+=\/-]{1,160}$/;
   const SENSITIVE_NAME = /(token|auth|account|session|cookie|credential|password|secret|claim|machine|clientidentifier|email)/i;
   const MAX_STORAGE_KEYS = 2048;
   const MAX_FAMILIES = 64;
-  const MAX_DATABASES = 32;
-  const MAX_OBJECT_STORES = 64;
-
-  function boundedName(name) {
-    if (typeof name !== 'string') return { name: null, name_length: 0, redacted: true };
-    const length = Math.min(name.length, 9999);
-    if (!SAFE_DB_NAME.test(name) || SENSITIVE_NAME.test(name)) {
-      return { name: null, name_length: length, redacted: true };
-    }
-    return { name, name_length: length, redacted: false };
-  }
 
   function keyFamily(key) {
     if (typeof key !== 'string' || key.length === 0) return 'other';
@@ -102,111 +103,12 @@ RUNTIME_EXPRESSION = r"""
     };
   }
 
-  async function inspectIndexedDb() {
-    if (!globalThis.indexedDB || typeof globalThis.indexedDB.databases !== 'function') {
-      return {
-        status: 'databases-api-unavailable',
-        records_read: false,
-        transactions_opened: false,
-        database_count: null,
-        databases: [],
-      };
-    }
-
-    let databaseInfo;
-    try {
-      databaseInfo = await globalThis.indexedDB.databases();
-    } catch (_error) {
-      return {
-        status: 'database-list-failed',
-        records_read: false,
-        transactions_opened: false,
-        database_count: null,
-        databases: [],
-      };
-    }
-
-    if (!Array.isArray(databaseInfo) || databaseInfo.length > MAX_DATABASES) {
-      return {
-        status: 'database-limit-exceeded',
-        records_read: false,
-        transactions_opened: false,
-        database_count: Array.isArray(databaseInfo) ? databaseInfo.length : null,
-        databases: [],
-        max_databases: MAX_DATABASES,
-      };
-    }
-
-    const databases = [];
-    for (const info of databaseInfo) {
-      const rawName = typeof info?.name === 'string' ? info.name : null;
-      if (!rawName) {
-        databases.push({ ...boundedName(rawName), version: null, object_store_count: null, object_stores: [], metadata_status: 'unnamed' });
-        continue;
-      }
-
-      const objectStores = await new Promise((resolve) => {
-        let request;
-        try {
-          request = globalThis.indexedDB.open(rawName);
-        } catch (_error) {
-          resolve({ status: 'open-failed', names: [] });
-          return;
-        }
-        request.onerror = () => resolve({ status: 'open-failed', names: [] });
-        request.onblocked = () => resolve({ status: 'blocked', names: [] });
-        request.onsuccess = () => {
-          const db = request.result;
-          try {
-            const names = Array.from(db.objectStoreNames || []);
-            if (names.length > MAX_OBJECT_STORES) {
-              resolve({ status: 'object-store-limit-exceeded', names: [] });
-            } else {
-              resolve({ status: 'ready', names });
-            }
-          } finally {
-            db.close();
-          }
-        };
-      });
-
-      databases.push({
-        ...boundedName(rawName),
-        version: Number.isFinite(Number(info?.version)) ? Number(info.version) : null,
-        object_store_count: objectStores.status === 'ready' ? objectStores.names.length : null,
-        object_stores: objectStores.names.map((name) => boundedName(name)),
-        metadata_status: objectStores.status,
-      });
-    }
-
-    return {
-      status: 'ready',
-      records_read: false,
-      transactions_opened: false,
-      database_count: databaseInfo.length,
-      databases,
-      max_databases: MAX_DATABASES,
-      max_object_stores: MAX_OBJECT_STORES,
-    };
-  }
-
-  const local_storage = inspectWebStorage(globalThis.localStorage);
-  const session_storage = inspectWebStorage(globalThis.sessionStorage);
-  const indexed_db = await inspectIndexedDb();
-
-  const statuses = [local_storage.status, session_storage.status, indexed_db.status];
-  const status = statuses.every((value) => value === 'ready') ? 'ready' : 'partial';
-
   return {
     schema_version: 1,
-    status,
     read_only: true,
     web_storage_values_read: false,
-    indexeddb_records_read: false,
-    indexeddb_transactions_opened: false,
-    local_storage,
-    session_storage,
-    indexed_db,
+    local_storage: inspectWebStorage(globalThis.localStorage),
+    session_storage: inspectWebStorage(globalThis.sessionStorage),
   };
 })()
 """.strip()
@@ -245,7 +147,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def evaluate_probe(connection, probe_error):
+def cdp_call(connection, request_id: int, method: str, params: dict[str, object], probe_error):
+    connection.send_json(
+        {
+            "id": request_id,
+            "method": method,
+            "params": params,
+        }
+    )
+    while True:
+        response = connection.recv_json()
+        if response.get("id") != request_id:
+            continue
+        if "error" in response:
+            raise probe_error(f"Chromium rejected the bounded {method} metadata request.")
+        result = response.get("result")
+        if not isinstance(result, dict):
+            raise probe_error(f"Chromium returned an unexpected result for {method}.")
+        return result
+
+
+def evaluate_web_storage(connection, probe_error):
     request_id = 1
     connection.send_json(
         {
@@ -254,7 +176,7 @@ def evaluate_probe(connection, probe_error):
             "params": {
                 "expression": RUNTIME_EXPRESSION,
                 "returnByValue": True,
-                "awaitPromise": True,
+                "awaitPromise": False,
                 "silent": True,
                 "disableBreaks": True,
                 "userGesture": False,
@@ -266,19 +188,122 @@ def evaluate_probe(connection, probe_error):
         if response.get("id") != request_id:
             continue
         if "error" in response:
-            raise probe_error("Chromium rejected the bounded browser-storage Runtime.evaluate request.")
+            raise probe_error("Chromium rejected the bounded Web Storage metadata request.")
         result = response.get("result")
         if not isinstance(result, dict):
             raise probe_error("Chromium returned no Runtime.evaluate result.")
         if "exceptionDetails" in result:
-            raise probe_error("The bounded Plexamp browser-storage probe raised an exception.")
+            raise probe_error("The bounded Plexamp Web Storage probe raised an exception.")
         remote = result.get("result")
         if not isinstance(remote, dict) or "value" not in remote:
-            raise probe_error("Chromium did not return the browser-storage probe result by value.")
+            raise probe_error("Chromium did not return the Web Storage probe result by value.")
         value = remote.get("value")
         if not isinstance(value, dict):
-            raise probe_error("Plexamp browser-storage probe returned an unexpected result shape.")
+            raise probe_error("Plexamp Web Storage probe returned an unexpected result shape.")
         return value
+
+
+def target_security_origin(target: dict[str, object], probe_error) -> str:
+    raw_url = target.get("url")
+    if not isinstance(raw_url, str):
+        raise probe_error("Plexamp target did not expose a page URL.")
+    parsed = urlparse(raw_url)
+    if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"} or parsed.port != 32500:
+        raise probe_error("Plexamp target escaped the expected loopback origin.")
+    return f"http://{parsed.hostname}:32500"
+
+
+def bounded_metadata_name(name: object) -> dict[str, object]:
+    if not isinstance(name, str):
+        return {"name": None, "name_length": 0, "redacted": True}
+    length = min(len(name), 9999)
+    if SAFE_METADATA_NAME.fullmatch(name) is None or SENSITIVE_NAME.search(name):
+        return {"name": None, "name_length": length, "redacted": True}
+    return {"name": name, "name_length": length, "redacted": False}
+
+
+def inspect_indexeddb(connection, security_origin: str, probe_error) -> dict[str, object]:
+    cdp_call(connection, 2, "IndexedDB.enable", {}, probe_error)
+    names_result = cdp_call(
+        connection,
+        3,
+        "IndexedDB.requestDatabaseNames",
+        {"securityOrigin": security_origin},
+        probe_error,
+    )
+    database_names = names_result.get("databaseNames")
+    if not isinstance(database_names, list) or any(not isinstance(name, str) for name in database_names):
+        raise probe_error("Chromium returned an unexpected IndexedDB database-name inventory.")
+    if len(database_names) > MAX_DATABASES:
+        return {
+            "status": "database-limit-exceeded",
+            "records_read": False,
+            "transactions_opened": False,
+            "page_database_opened": False,
+            "database_count": len(database_names),
+            "databases": [],
+            "max_databases": MAX_DATABASES,
+            "max_object_stores": MAX_OBJECT_STORES,
+        }
+
+    databases: list[dict[str, object]] = []
+    next_request_id = 4
+    for raw_name in database_names:
+        metadata_result = cdp_call(
+            connection,
+            next_request_id,
+            "IndexedDB.requestDatabase",
+            {"securityOrigin": security_origin, "databaseName": raw_name},
+            probe_error,
+        )
+        next_request_id += 1
+        database = metadata_result.get("databaseWithObjectStores")
+        if not isinstance(database, dict):
+            raise probe_error("Chromium returned an unexpected IndexedDB database metadata shape.")
+        object_stores = database.get("objectStores")
+        if not isinstance(object_stores, list):
+            raise probe_error("Chromium returned an unexpected IndexedDB object-store inventory.")
+        if len(object_stores) > MAX_OBJECT_STORES:
+            databases.append(
+                {
+                    **bounded_metadata_name(raw_name),
+                    "version": None,
+                    "object_store_count": len(object_stores),
+                    "object_stores": [],
+                    "metadata_status": "object-store-limit-exceeded",
+                }
+            )
+            continue
+
+        store_names: list[dict[str, object]] = []
+        for store in object_stores:
+            if not isinstance(store, dict):
+                raise probe_error("Chromium returned a malformed IndexedDB object-store entry.")
+            store_names.append(bounded_metadata_name(store.get("name")))
+
+        version = database.get("version")
+        if not isinstance(version, (int, float)) or isinstance(version, bool):
+            version = None
+        databases.append(
+            {
+                **bounded_metadata_name(raw_name),
+                "version": version,
+                "object_store_count": len(object_stores),
+                "object_stores": store_names,
+                "metadata_status": "ready",
+            }
+        )
+
+    return {
+        "status": "ready",
+        "records_read": False,
+        "transactions_opened": False,
+        "page_database_opened": False,
+        "database_count": len(database_names),
+        "databases": databases,
+        "max_databases": MAX_DATABASES,
+        "max_object_stores": MAX_OBJECT_STORES,
+    }
 
 
 def main() -> int:
@@ -288,19 +313,42 @@ def main() -> int:
         port = transport.require_safe_port(args.debug_port)
         timeout = transport.require_safe_timeout(args.timeout)
         target = transport.plexamp_target(transport.fetch_targets(port, timeout))
+        security_origin = target_security_origin(target, transport.ProbeError)
         connection = transport.connect_devtools(target, port, timeout)
         try:
-            result = evaluate_probe(connection, transport.ProbeError)
+            web_storage = evaluate_web_storage(connection, transport.ProbeError)
+            indexed_db = inspect_indexeddb(connection, security_origin, transport.ProbeError)
         finally:
             connection.close()
     except (transport.ProbeError, RuntimeError) as exc:
         print(f"Plexamp browser-storage probe: ERROR — {exc}", file=sys.stderr)
         return 1
 
+    local_storage = web_storage.get("local_storage")
+    session_storage = web_storage.get("session_storage")
+    statuses = [
+        local_storage.get("status") if isinstance(local_storage, dict) else None,
+        session_storage.get("status") if isinstance(session_storage, dict) else None,
+        indexed_db.get("status"),
+    ]
+    status = "ready" if all(value == "ready" for value in statuses) else "partial"
+    result = {
+        "schema_version": 1,
+        "status": status,
+        "read_only": True,
+        "web_storage_values_read": False,
+        "indexeddb_records_read": False,
+        "indexeddb_transactions_opened": False,
+        "indexeddb_page_database_opened": False,
+        "local_storage": local_storage,
+        "session_storage": session_storage,
+        "indexed_db": indexed_db,
+    }
+
     print("Plexamp browser-storage surface probe")
-    print("READ-ONLY: storage metadata only; Web Storage values and IndexedDB records are never read.")
+    print("READ-ONLY: metadata only; Web Storage values and IndexedDB records are never read.")
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0 if result.get("status") in {"ready", "partial"} else 2
+    return 0 if status in {"ready", "partial"} else 2
 
 
 if __name__ == "__main__":
