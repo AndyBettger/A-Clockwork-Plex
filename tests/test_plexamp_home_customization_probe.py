@@ -47,7 +47,10 @@ class PlexampHomeCustomizationProbeTests(unittest.TestCase):
                 self.assertIn(f"{family}: 0", self.expression)
         self.assertIn("family_counts: families", self.expression)
         self.assertNotIn("raw_keys", self.expression)
-        self.assertNotIn("keys:", self.expression)
+        self.assertNotIn("rawKeys", self.expression)
+        self.assertNotIn("key_list", self.expression)
+        self.assertNotIn("keyList", self.expression)
+        self.assertNotIn(".push(key)", self.expression)
 
     def test_probe_reuses_disposable_loopback_transport_and_has_no_expression_argument(self):
         source = SCRIPT.read_text(encoding="utf-8")
