@@ -216,6 +216,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
 - `tests/test_nfc_python_dependency_check.py` — Checks the dedicated NFC Python environment contains the required importable dependencies.
 - `tests/test_plexamp_commissioning.py` — Protects the narrow loopback-only Plexamp player-name/audio-output commissioning owner, immutable baseline capture, dynamic managed-output resolution, stale-state refusal and rollback.
+- `tests/test_plexamp_home_hub_probe.py` — Protects the bounded disposable-profile Plexamp effective-Home hub-shape probe: fixed discovery authority, no primitive/sensitive values, no arbitrary expression input and reuse of the loopback-only transport.
 - `tests/test_plexamp_runtime_installer.py` — Exercises pinned Plexamp Headless/Node runtime installation, claim-state handling and service wiring.
 - `tests/test_plexamp_ui_handoff_retirement.py` — Guards retirement of superseded Plexamp UI hand-off artefacts in favour of current screen authority.
 - `tests/test_plexamp_upgrade_preparation_safety.py` — Checks Plexamp upgrade preparation remains non-destructive and does not bypass installer ownership.
