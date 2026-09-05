@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import subprocess
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "prepare-plexamp-upgrade-rehearsal.sh"
 AUDIT_SCRIPT = ROOT / "scripts" / "audit-plexamp-preferences.py"
+HOME_RUNTIME_PROBE = ROOT / "scripts" / "inspect-plexamp-home-runtime.py"
 
 
 class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
@@ -40,6 +42,52 @@ class PlexampUpgradePreparationSafetyTests(unittest.TestCase):
         self.assertIn("systemctl cat plexamp.service", text)
         self.assertIn("aplay -L", text)
         self.assertIn("98-a-clockwork-plex-control-aliases.conf", text)
+
+    def test_home_runtime_probe_is_bounded_read_only_and_syntax_valid(self):
+        source = HOME_RUNTIME_PROBE.read_text(encoding="utf-8")
+        ast.parse(source, filename=str(HOME_RUNTIME_PROBE))
+        for token in (
+            "PLEXAMP_HOSTS = {\"localhost\", \"127.0.0.1\"}",
+            "parsed.port != 32500",
+            '"method": "Runtime.evaluate"',
+            "Object.getOwnPropertyDescriptors",
+            "values_exposed: false",
+            "getters_invoked: false",
+            "SENSITIVE_NAME",
+            "Object.prototype.hasOwnProperty.call(descriptor, 'value')",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, source)
+        for forbidden in (
+            "--expression",
+            "Runtime.callFunctionOn",
+            "Page.navigate",
+            "Storage.clearDataForOrigin",
+            "Network.setCookie",
+            "DOM.setAttributeValue",
+        ):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, source)
+
+        help_result = subprocess.run(
+            ["python3", str(HOME_RUNTIME_PROBE), "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("No Plexamp values are emitted", help_result.stdout)
+
+        unsafe_port = subprocess.run(
+            ["python3", str(HOME_RUNTIME_PROBE), "--debug-port", "80"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(unsafe_port.returncode, 1)
+        self.assertIn("unprivileged TCP port", unsafe_port.stderr)
 
     def test_preference_auditor_default_mode_is_content_blind(self):
         source = AUDIT_SCRIPT.read_text(encoding="utf-8")
