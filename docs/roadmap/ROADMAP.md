@@ -192,7 +192,8 @@ Next physical investigation:
 - [x] inventory the known Home customisation Local Storage key families on the untouched disposable profile: all recognised family counts and matching-key/context counts are zero;
 - [x] isolate an order-only edit and prove it is durable across page refresh and full Chromium process restart while the known Local Storage family remains empty;
 - [ ] run the new bounded `scripts/inspect-plexamp-browser-storage.py` metadata probe against the current tracer profile: Local/Session Storage key-family counts plus IndexedDB database/object-store **names only**, with no Web Storage values, IndexedDB records or transactions;
-- [ ] classify the actual durable order persistence authority before making any additional visibility/presentation/custom-section edits;
+- [ ] use that current metadata inventory only to identify candidate persistence surfaces; because there is no pre-edit baseline from this broader probe, do not attribute the order change from a single inventory alone;
+- [ ] classify the actual durable order persistence authority before making any additional visibility/presentation/custom-section edits, using a still-narrower comparison or second genuinely fresh disposable baseline if needed;
 - [ ] once order ownership is understood, continue one change at a time for hidden/visible state, presentation and one custom section/title;
 - [ ] prove a reversible disposable-profile scrub of only the complete classified Home-owned state followed by Plexamp rebuild returns to the untouched effective Home while login and selected library remain intact;
 - [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
