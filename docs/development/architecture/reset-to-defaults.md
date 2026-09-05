@@ -284,7 +284,7 @@ It explicitly does **not**:
 - accept arbitrary JavaScript, expressions or URLs;
 - target the production kiosk profile.
 
-Sensitive-looking metadata names are redacted and all inventories are bounded. Merely seeing an IndexedDB database/object-store name will not prove Home ownership; it will only identify a candidate surface for a still-narrower comparison.
+For IndexedDB, it uses `indexedDB.databases()` to enumerate existing databases and opens an already listed database **without supplying a version** only long enough to read `objectStoreNames`, then closes it. It does not create/upgrade schemas or open a transaction. Sensitive-looking metadata names are redacted and all inventories are bounded. Merely seeing an IndexedDB database/object-store name will not prove Home ownership; it will only identify a candidate surface for a still-narrower comparison.
 
 The next disposable-profile sequence is now:
 
