@@ -93,6 +93,27 @@ def _combined_reset_token(restore_token: str, commissioning_fingerprint: str | N
     return hashlib.sha256(encoded).hexdigest()[:32]
 
 
+def _acp_owner_token(target: dict[str, Any], current: dict[str, Any]) -> str:
+    """Fingerprint only ACP-owned state for the browser/server hand-off.
+
+    The portable #90 restore token also fingerprints Plexamp Headless preferences.
+    Native Plexamp Reset is allowed to change those preferences before the server
+    participant runs, so that broader token must not masquerade as the ACP owner
+    token used to decide whether ACP itself changed after Review.
+    """
+
+    encoded = json.dumps(
+        {
+            "target": deepcopy(target.get("a_clockwork_plex") or {}),
+            "current": deepcopy(current.get("a_clockwork_plex") or {}),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:32]
+
+
 class ConfigurationResetPlanner:
     """Build shipped ACP defaults plus the narrow Plexamp commissioning baseline."""
 
@@ -222,6 +243,7 @@ class ConfigurationResetPlanner:
     def plan(self) -> dict[str, Any]:
         target, owner_warnings = self.build_target()
         restore = self.restore_plan(target)
+        current = self.current_backup()
         acp_changed_paths = list(restore.get("server_changed_paths") or [])
         sections = {
             key: value
@@ -239,6 +261,7 @@ class ConfigurationResetPlanner:
             sections["plexamp.commissioning"] = len(commissioning_paths)
         changed_paths = [*acp_changed_paths, *commissioning_paths]
         restore_token = str(restore.get("preview_token") or "")
+        acp_owner_token = _acp_owner_token(target, current)
         commissioning_fingerprint = (
             str(commissioning.get("fingerprint")) if commissioning.get("ready") is True else None
         )
@@ -249,8 +272,9 @@ class ConfigurationResetPlanner:
             "apply_enabled": False,
             "reset_available": bool(changed_paths),
             "reset_token": _combined_reset_token(restore_token, commissioning_fingerprint),
+            "restore_preview_token": restore_token,
             "owner_tokens": {
-                "a_clockwork_plex": restore_token,
+                "a_clockwork_plex": acp_owner_token,
                 "plexamp_commissioning": commissioning_fingerprint,
             },
             "change_count": len(changed_paths),
@@ -326,8 +350,8 @@ class ConfigurationResetExecutor:
             raise RestoreConflict(f"Reset confirmation is required for: {missing[0]}")
         acp_count = int(current_plan.get("acp_change_count") or 0)
         commissioning_count = int(current_plan.get("plexamp_commissioning_change_count") or 0)
+        restore_token = str(current_plan.get("restore_preview_token") or "")
         owner_tokens = current_plan.get("owner_tokens") or {}
-        restore_token = str(owner_tokens.get("a_clockwork_plex") or "")
         commissioning_fingerprint = str(owner_tokens.get("plexamp_commissioning") or "")
         if commissioning_count and (
             self._plexamp_commissioning_apply is None or not commissioning_fingerprint
