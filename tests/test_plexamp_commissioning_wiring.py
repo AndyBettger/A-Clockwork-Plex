@@ -109,6 +109,7 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         self.assertIn("win?.app?.rootStore?.settings", source)
         self.assertIn("changed_keys", source)
         self.assertIn("PLAYER_VOLUME_TARGET = 100", source)
+        self.assertIn("RUNTIME_NORMALIZED_KEYS = new Set(['equalizerPresets'])", source)
         self.assertIn("/player/playback/setParameters", source)
         self.assertNotIn("webpackChunk", source)
         self.assertNotIn("PRESERVED_PORTABLE_HEADLESS_KEYS", source)
@@ -133,6 +134,7 @@ const bridge = require('./browser/plexamp-bridge/native-reset.js');
     constructor() {
       this.foo = 1;
       this.bar = 'default';
+      this.equalizerPresets = [];
       this.playerName = 'Factory player';
       this.audioDeviceUuid = '';
       this.premium = true;
@@ -171,6 +173,7 @@ const bridge = require('./browser/plexamp-bridge/native-reset.js');
 
   const settings = new FakeSettings();
   settings.foo = 9;
+  settings.equalizerPresets = ['runtime-loaded-before-reset'];
   settings.playerName = 'Bedroom Plexamp';
   settings.audioDeviceUuid = 'managed-output';
   const beforeHeadless = [256, false, 32768, 10, false, 0, 4, 2];
@@ -209,6 +212,9 @@ const bridge = require('./browser/plexamp-bridge/native-reset.js');
   for (const key of plan.changed_keys) {
     if (!expectedNames.has(key)) throw new Error(`unexpected native changed key ${key}`);
   }
+  if (plan.changed_keys.includes('equalizerPresets')) {
+    throw new Error('runtime-populated equalizer preset catalogue leaked into reset changes');
+  }
   if (plan.changed_keys.includes('playerName') || plan.changed_keys.includes('audioDeviceUuid')) {
     throw new Error('commissioning-owned key leaked into native diagnostics');
   }
@@ -228,6 +234,12 @@ const bridge = require('./browser/plexamp-bridge/native-reset.js');
     }
   });
 
+  settings.equalizerPresets = ['runtime-repopulated-after-reset'];
+  const postHydrationPlan = await bridge.planNativeReset(win, settings);
+  if (postHydrationPlan.status !== 'ready' || postHydrationPlan.reset_available || postHydrationPlan.change_count !== 0) {
+    throw new Error(`runtime preset hydration became a false reset difference ${JSON.stringify(postHydrationPlan)}`);
+  }
+
   const rolled = await bridge.rollbackSettingsReset(applied.rollback_token, true);
   if (!rolled.rolled_back || !rolled.verified) {
     throw new Error(`native rollback failed ${JSON.stringify(rolled)}`);
@@ -235,6 +247,9 @@ const bridge = require('./browser/plexamp-bridge/native-reset.js');
   if (playerVolume !== 87) throw new Error(`player-volume rollback did not restore 87: ${playerVolume}`);
   if (settings.foo !== 9 || settings.playerName !== 'Bedroom Plexamp' || settings.audioDeviceUuid !== 'managed-output') {
     throw new Error('native rollback did not restore exact commissioning values');
+  }
+  if (JSON.stringify(settings.equalizerPresets) !== JSON.stringify(['runtime-loaded-before-reset'])) {
+    throw new Error('rollback did not restore the exact pre-reset runtime preset catalogue');
   }
   ordinaryHeadlessKeys.forEach((key, index) => {
     if (settings[key] !== beforeHeadless[index]) {
