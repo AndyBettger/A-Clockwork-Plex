@@ -25,6 +25,7 @@ class PlexampBrowserStorageProbeTests(unittest.TestCase):
     def setUpClass(cls):
         cls.module = load_module()
         cls.expression = cls.module.RUNTIME_EXPRESSION
+        cls.source = SCRIPT.read_text(encoding="utf-8")
 
     def test_web_storage_inventory_never_reads_or_mutates_values(self):
         self.assertIn("storage.key(index)", self.expression)
@@ -34,35 +35,41 @@ class PlexampBrowserStorageProbeTests(unittest.TestCase):
         self.assertNotIn(".clear(", self.expression)
         self.assertIn("web_storage_values_read: false", self.expression)
 
-    def test_indexeddb_inventory_reads_metadata_not_records(self):
-        self.assertIn("indexedDB.databases()", self.expression)
-        self.assertIn("indexedDB.open(rawName)", self.expression)
-        self.assertIn("db.objectStoreNames", self.expression)
-        self.assertNotIn(".transaction(", self.expression)
-        self.assertNotIn(".objectStore(", self.expression)
-        self.assertNotIn("openCursor(", self.expression)
-        self.assertNotIn("getAll(", self.expression)
-        self.assertNotIn("records.push", self.expression)
-        self.assertIn("indexeddb_records_read: false", self.expression)
-        self.assertIn("indexeddb_transactions_opened: false", self.expression)
+    def test_indexeddb_inventory_uses_cdp_metadata_not_page_database_open(self):
+        self.assertNotIn("indexedDB.open(", self.source)
+        self.assertNotIn("indexedDB.databases(", self.source)
+        self.assertIn('"IndexedDB.enable"', self.source)
+        self.assertIn('"IndexedDB.requestDatabaseNames"', self.source)
+        self.assertIn('"IndexedDB.requestDatabase"', self.source)
+        self.assertNotIn('"IndexedDB.requestData"', self.source)
+        self.assertNotIn('"IndexedDB.clearObjectStore"', self.source)
+        self.assertNotIn('"IndexedDB.deleteDatabase"', self.source)
+        self.assertNotIn(".transaction(", self.source)
+        self.assertNotIn(".objectStore(", self.source)
+        self.assertIn('"indexeddb_records_read": False', self.source)
+        self.assertIn('"indexeddb_transactions_opened": False', self.source)
+        self.assertIn('"indexeddb_page_database_opened": False', self.source)
 
-    def test_probe_is_bounded_and_redacts_sensitive_metadata_names(self):
+    def test_probe_is_bounded_redacted_and_origin_scoped(self):
         self.assertIn("MAX_STORAGE_KEYS = 2048", self.expression)
         self.assertIn("MAX_FAMILIES = 64", self.expression)
-        self.assertIn("MAX_DATABASES = 32", self.expression)
-        self.assertIn("MAX_OBJECT_STORES = 64", self.expression)
-        self.assertIn("SENSITIVE_NAME", self.expression)
-        self.assertIn("redacted: true", self.expression)
+        self.assertIn("MAX_DATABASES = 32", self.source)
+        self.assertIn("MAX_OBJECT_STORES = 64", self.source)
+        self.assertIn("SENSITIVE_NAME", self.source)
+        self.assertIn("bounded_metadata_name", self.source)
+        self.assertIn("target_security_origin", self.source)
+        self.assertIn('{"localhost", "127.0.0.1"}', self.source)
+        self.assertIn('parsed.port != 32500', self.source)
+        self.assertIn('{"securityOrigin": security_origin}', self.source)
 
     def test_probe_reuses_disposable_loopback_transport_and_has_no_code_argument(self):
-        source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('with_name("inspect-plexamp-home-runtime.py")', source)
-        self.assertIn("transport.plexamp_target", source)
-        self.assertIn("transport.connect_devtools", source)
-        self.assertNotIn("--expression", source)
-        self.assertNotIn("--javascript", source)
-        self.assertNotIn("--url", source)
-        self.assertIn('"awaitPromise": True', source)
+        self.assertIn('with_name("inspect-plexamp-home-runtime.py")', self.source)
+        self.assertIn("transport.plexamp_target", self.source)
+        self.assertIn("transport.connect_devtools", self.source)
+        self.assertNotIn("--expression", self.source)
+        self.assertNotIn("--javascript", self.source)
+        self.assertNotIn("--url", self.source)
+        self.assertIn('"awaitPromise": False', self.source)
 
 
 if __name__ == "__main__":
