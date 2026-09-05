@@ -17,6 +17,7 @@
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
   const SAFE_SETTING_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
   const EXCLUDED_COMMISSIONING_KEYS = new Set(['playerName', 'audioDeviceUuid']);
+  const RUNTIME_NORMALIZED_KEYS = new Set(['equalizerPresets']);
   const PLAYER_VOLUME_KEY = 'playerVolume';
   const PLAYER_VOLUME_TARGET = 100;
   const MAX_SETTINGS = 512;
@@ -129,15 +130,20 @@
     return JSON.stringify(canonicalize(value));
   }
 
-  function settingKeys(settings, includeCommissioning = false) {
+  function settingKeys(settings, includeCommissioning = false, includeRuntimeNormalized = false) {
     return Object.keys(settings || {})
       .filter((key) => comparableKey(key, settings[key], includeCommissioning))
+      .filter((key) => includeRuntimeNormalized || !RUNTIME_NORMALIZED_KEYS.has(key))
       .sort()
       .slice(0, MAX_SETTINGS);
   }
 
-  function stateFingerprint(settings, includeCommissioning = false) {
-    const keys = settingKeys(settings, includeCommissioning);
+  function stateFingerprint(
+    settings,
+    includeCommissioning = false,
+    includeRuntimeNormalized = false,
+  ) {
+    const keys = settingKeys(settings, includeCommissioning, includeRuntimeNormalized);
     return hash32(JSON.stringify(keys.map((key) => [key, encodedValue(settings[key])])));
   }
 
@@ -213,13 +219,13 @@
     }
     return {
       values,
-      fingerprint: stateFingerprint(settings, true),
+      fingerprint: stateFingerprint(settings, true, true),
     };
   }
 
   function restoreSettingsSnapshot(settings, snapshot) {
     for (const [key, value] of snapshot.values.entries()) settings[key] = value;
-    return stateFingerprint(settings, true) === snapshot.fingerprint;
+    return stateFingerprint(settings, true, true) === snapshot.fingerprint;
   }
 
   function parsePlayerVolume(win, payload) {
