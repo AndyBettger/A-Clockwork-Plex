@@ -215,6 +215,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
 - `tests/test_nfc_python_dependency_check.py` — Checks the dedicated NFC Python environment contains the required importable dependencies.
+- `tests/test_plexamp_browser_storage_probe.py` — Protects the disposable-profile browser-storage metadata inventory: Web Storage key names/families only, IndexedDB database/object-store metadata only, no stored values/records/transactions, bounded sensitive-name redaction and loopback-only transport reuse.
 - `tests/test_plexamp_commissioning.py` — Protects the narrow loopback-only Plexamp player-name/audio-output commissioning owner, immutable baseline capture, dynamic managed-output resolution, stale-state refusal and rollback.
 - `tests/test_plexamp_home_customization_probe.py` — Protects the disposable-profile Home customisation key-family inventory: bounded namespace, key-names-only reads, no stored values/mutation and loopback-only transport reuse.
 - `tests/test_plexamp_home_hub_probe.py` — Protects the bounded disposable-profile Plexamp effective-Home hub-shape probe: fixed discovery authority, no primitive/sensitive values, no arbitrary expression input and reuse of the loopback-only transport.
