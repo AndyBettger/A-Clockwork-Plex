@@ -284,14 +284,14 @@ It explicitly does **not**:
 - accept arbitrary JavaScript, expressions or URLs;
 - target the production kiosk profile.
 
-For IndexedDB, it uses `indexedDB.databases()` to enumerate existing databases and opens an already listed database **without supplying a version** only long enough to read `objectStoreNames`, then closes it. It does not create/upgrade schemas or open a transaction. Sensitive-looking metadata names are redacted and all inventories are bounded. Merely seeing an IndexedDB database/object-store name will not prove Home ownership; it will only identify a candidate surface for a still-narrower comparison.
+For IndexedDB, it uses `indexedDB.databases()` to enumerate existing databases and opens an already listed database **without supplying a version** only long enough to read `objectStoreNames`, then closes it. It does not request a schema version, create/upgrade schemas, or open a transaction. Sensitive-looking metadata names are redacted and all inventories are bounded. Merely seeing an IndexedDB database/object-store name will not prove Home ownership; it will only identify a candidate surface for a still-narrower comparison.
 
 The next disposable-profile sequence is now:
 
 1. keep **Mixes for you** in its moved third-place tracer position and make no other Home changes;
 2. run the bounded browser-storage metadata probe;
-3. use only metadata deltas/structure to identify the most likely durable order persistence surface;
-4. if necessary, design a still-narrower read-only comparison that exposes shapes/counts rather than auth/session/user values;
+3. use only metadata/structure to identify candidate durable persistence surfaces; because no pre-edit metadata baseline exists for this broader probe, a single current inventory by itself cannot attribute the order change;
+4. if necessary, design a still-narrower read-only comparison or a second genuinely fresh disposable-profile baseline that exposes shapes/counts rather than auth/session/user values;
 5. classify order ownership before changing visibility, presentation or custom sections;
 6. only after all Home-owned persistence is bounded, build a disposable-only reversible scrub/rebuild experiment;
 7. prove exact rollback restores the pre-scrub Home customisation if a later Reset participant fails.
