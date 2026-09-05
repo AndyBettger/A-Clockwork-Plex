@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 
 
-SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "a-clockwork-plex-audio-mixer.py"
+ROOT = Path(__file__).resolve().parent.parent
+APP_DIR = ROOT / "app"
+if str(APP_DIR) not in sys.path:
+    sys.path.insert(0, str(APP_DIR))
+
+import configuration_reset
+
+
+SCRIPT_PATH = ROOT / "scripts" / "a-clockwork-plex-audio-mixer.py"
 SPEC = importlib.util.spec_from_file_location("a_clockwork_plex_audio_mixer_helper", SCRIPT_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Could not load mixer helper from {SCRIPT_PATH}")
@@ -38,6 +47,27 @@ class AudioMixerScaleTests(unittest.TestCase):
         self.assertAlmostEqual(HELPER.db_to_raw_percent(-6.02), 88, delta=1)
         self.assertAlmostEqual(HELPER.db_to_raw_percent(-12.04), 76, delta=1)
         self.assertAlmostEqual(HELPER.db_to_raw_percent(-20.0), 61, delta=1)
+
+    def test_reset_defaults_use_the_helpers_observable_quantized_percentages(self):
+        self.assertEqual(configuration_reset.MIXER_MIN_DB, HELPER.MIN_DB)
+        self.assertEqual(configuration_reset.MIXER_MAX_DB, HELPER.MAX_DB)
+        defaults = configuration_reset._default_mixer()
+        self.assertEqual(defaults["master"], 100)
+        self.assertEqual(defaults["plexamp"], 100)
+        self.assertEqual(defaults["airplay"], 100)
+        self.assertEqual(defaults["alarm"], 100)
+
+        for channel, requested in {
+            key: int(metadata["default_percent"])
+            for key, metadata in configuration_reset.MIXER_CHANNELS.items()
+        }.items():
+            db_value = HELPER.loudness_percent_to_db(requested)
+            raw_percent = HELPER.db_to_raw_percent(db_value)
+            represented_db = HELPER.MIN_DB + (
+                (HELPER.MAX_DB - HELPER.MIN_DB) * raw_percent / 100.0
+            )
+            observed = HELPER.db_to_loudness_percent(represented_db)
+            self.assertEqual(defaults[channel], observed)
 
 
 if __name__ == "__main__":

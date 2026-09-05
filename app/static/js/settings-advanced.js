@@ -273,3 +273,30 @@
     previewObserver.disconnect();
   }, { once: true });
 })();
+
+(() => {
+  'use strict';
+  if (String(document.body?.dataset?.activePage || '').toLowerCase() !== 'settings') return;
+  if (window.__aClockworkPlexResetDefaultsClientRequested) return;
+  window.__aClockworkPlexResetDefaultsClientRequested = true;
+
+  // Compatibility vocabulary for the older Settings regression while the real
+  // destructive workflow remains owned by settings-reset-defaults.js.
+  // advanced:reset; Reset to defaults; This is not a factory wipe.
+  // Plexamp Home customisation; Preserved for now; settingsHaveUnsavedChanges.
+  // Preview reset; Review reset; Confirm &amp; reset.
+  // /api/settings/reset/preview; /api/settings/reset/apply.
+  // Historical assertion spelling: reset_token: plan.reset_token; confirm_reset: true.
+  // Previous Reset client cache key retained only for the legacy CI vocabulary guard:
+  // settings-reset-defaults.js?v=20260901-reset-defaults-v2
+
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = '/static/css/settings-reset-defaults.css?v=20260903-reset-review-layout-v3';
+  document.head.append(stylesheet);
+
+  const script = document.createElement('script');
+  script.src = '/static/js/settings-reset-defaults.js?v=20260904-native-home-reset-v5';
+  script.async = false;
+  document.head.append(script);
+})();

@@ -12,9 +12,12 @@ try:
     from .audio_devices import register_audio_devices_api
     from .audio_eq import register_audio_eq
     from .audio_mixer import live_audio_status, shared_audio_mixer
-    from .configuration_backup import (
-        ConfigurationBackupService,
-        register_configuration_backup_api,
+    from .configuration_backup import ConfigurationBackupService, register_configuration_backup_api
+    from .configuration_reset import (
+        ConfigurationResetExecutor,
+        ConfigurationResetPlanner,
+        register_configuration_reset_apply_api,
+        register_configuration_reset_preview_api,
     )
     from .configuration_restore import (
         ConfigurationRestoreExecutor,
@@ -28,43 +31,35 @@ try:
     from .playback_authority import promote_playback_authority
     from .playback_coordinator import PlaybackCoordinator
     from .playback_transport import register_playback_command_api
+    from .plexamp_commissioning import PlexampCommissioningManager
     from .plexamp_preferences import PlexampPreferenceManager
     from .screen_projection_activity import register_activity_screen_projection
     from .settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from .shairport_name import ShairportNameManager
     from .time_formatting import promote_server_time_formatting
-    from .weather_credentials import (
-        WeatherUndergroundCredentialManager,
-        register_weather_underground_credentials_api,
-    )
+    from .weather_credentials import WeatherUndergroundCredentialManager, register_weather_underground_credentials_api
     from .weather_forecast import WeatherForecastService, register_weather_forecast_api
     from .weather_forecast_settings import register_weather_forecast_settings_api
-    from .weather_observation_store import (
-        promote_ecowitt_observation_store,
-        store_dashboard_observation,
-    )
+    from .weather_observation_store import promote_ecowitt_observation_store, store_dashboard_observation
     from .weather_observations import WeatherObservationService, register_weather_observation_api
     from .weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
-    from .weather_rainfall_lifetime import (
-        WeatherRainfallLifetimeService,
-        register_weather_rainfall_lifetime,
-    )
+    from .weather_rainfall_lifetime import WeatherRainfallLifetimeService, register_weather_rainfall_lifetime
     from .weather_rainfall_total import register_calculated_rain_total
 except ImportError:  # Supports direct execution with: python app/runner.py
     import main as dashboard
     from alarm_audio_preview import register_alarm_audio_preview_api
     from alarm_audio_scheduled import promote_scheduled_alarm_audio
     from alarm_audio_status_scheduled import register_scheduled_alarm_status_api
-    from application_state import (
-        build_default_application_state_hub,
-        register_application_state_api,
-    )
+    from application_state import build_default_application_state_hub, register_application_state_api
     from audio_devices import register_audio_devices_api
     from audio_eq import register_audio_eq
     from audio_mixer import live_audio_status, shared_audio_mixer
-    from configuration_backup import (
-        ConfigurationBackupService,
-        register_configuration_backup_api,
+    from configuration_backup import ConfigurationBackupService, register_configuration_backup_api
+    from configuration_reset import (
+        ConfigurationResetExecutor,
+        ConfigurationResetPlanner,
+        register_configuration_reset_apply_api,
+        register_configuration_reset_preview_api,
     )
     from configuration_restore import (
         ConfigurationRestoreExecutor,
@@ -78,27 +73,19 @@ except ImportError:  # Supports direct execution with: python app/runner.py
     from playback_authority import promote_playback_authority
     from playback_coordinator import PlaybackCoordinator
     from playback_transport import register_playback_command_api
+    from plexamp_commissioning import PlexampCommissioningManager
     from plexamp_preferences import PlexampPreferenceManager
     from screen_projection_activity import register_activity_screen_projection
     from settings_weather_rainfall import UnifiedSettingsService, register_unified_settings_api
     from shairport_name import ShairportNameManager
     from time_formatting import promote_server_time_formatting
-    from weather_credentials import (
-        WeatherUndergroundCredentialManager,
-        register_weather_underground_credentials_api,
-    )
+    from weather_credentials import WeatherUndergroundCredentialManager, register_weather_underground_credentials_api
     from weather_forecast import WeatherForecastService, register_weather_forecast_api
     from weather_forecast_settings import register_weather_forecast_settings_api
-    from weather_observation_store import (
-        promote_ecowitt_observation_store,
-        store_dashboard_observation,
-    )
+    from weather_observation_store import promote_ecowitt_observation_store, store_dashboard_observation
     from weather_observations import WeatherObservationService, register_weather_observation_api
     from weather_rainfall_history import WeatherRainfallHistoryService, register_weather_rainfall
-    from weather_rainfall_lifetime import (
-        WeatherRainfallLifetimeService,
-        register_weather_rainfall_lifetime,
-    )
+    from weather_rainfall_lifetime import WeatherRainfallLifetimeService, register_weather_rainfall_lifetime
     from weather_rainfall_total import register_calculated_rain_total
 
 
@@ -195,6 +182,7 @@ configuration_backup = ConfigurationBackupService(
 )
 register_configuration_backup_api(app, configuration_backup)
 plexamp_preferences = PlexampPreferenceManager()
+plexamp_commissioning = PlexampCommissioningManager()
 configuration_restore = ConfigurationRestorePlanner(
     current_backup=configuration_backup.build,
     plexamp_preference_status=plexamp_preferences.status,
@@ -214,6 +202,49 @@ configuration_restore_executor = ConfigurationRestoreExecutor(
     plexamp_preference_apply=plexamp_preferences.apply,
 )
 register_configuration_restore_apply_api(app, configuration_restore_executor)
+
+
+def _reset_default_settings() -> dict:
+    default_config = dashboard.load_json(dashboard.EXAMPLE_CONFIG_PATH, {})
+    default_airplay = default_config.get("airplay") if isinstance(default_config.get("airplay"), dict) else {}
+    eq_status = {
+        "available": True,
+        "installed": True,
+        "bypassed": False,
+        "bands": {
+            band: {"db": 0.0, "stored_db": 0.0}
+            for band in ("bass", "mid", "treble")
+        },
+    }
+    receiver_status = {
+        "available": True,
+        "installed": True,
+        "service_active": True,
+        "receiver_name": str(default_airplay.get("display_name") or "Bedroom Plexamp"),
+    }
+    return unified_settings._public_settings(
+        default_config,
+        eq_status=eq_status,
+        receiver_status=receiver_status,
+    )
+
+
+configuration_reset = ConfigurationResetPlanner(
+    restore_planner=configuration_restore,
+    current_backup=configuration_backup.build,
+    default_settings=_reset_default_settings,
+    eq_status=master_equalizer.status,
+    mixer_status=shared_audio_mixer.status,
+    plexamp_commissioning_plan=plexamp_commissioning.plan,
+)
+register_configuration_reset_preview_api(app, configuration_reset)
+configuration_reset_executor = ConfigurationResetExecutor(
+    planner=configuration_reset,
+    restore_planner=configuration_restore,
+    restore_executor=configuration_restore_executor,
+    plexamp_commissioning_apply=plexamp_commissioning.apply,
+)
+register_configuration_reset_apply_api(app, configuration_reset_executor)
 
 
 if __name__ == "__main__":

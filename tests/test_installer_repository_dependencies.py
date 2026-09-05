@@ -13,6 +13,7 @@ EXPECTED_DEPENDENCIES = {
     "config.example.json",
     "requirements.txt",
     "app/runner.py",
+    "app/plexamp_commissioning.py",
     "systemd/a-clockwork-plex.service",
     "installer/lib/application_transaction.sh",
     "installer/lib/audio.sh",
@@ -49,6 +50,7 @@ EXPECTED_DEPENDENCIES = {
     "scripts/install-appliance-packages.sh",
     "scripts/install-platform-hardware.sh",
     "scripts/install-plexamp-runtime.sh",
+    "scripts/commission-plexamp.py",
     "scripts/install-nfc-listener.sh",
     "scripts/install-weather-config.sh",
     "scripts/install-dashboard-integration.sh",
@@ -146,6 +148,7 @@ class InstallerRepositoryDependencyTests(unittest.TestCase):
             "vendor/plexamp-nfc-listener/nfc_listener.py",
             "scripts/nfc-plexamp-mode.sh",
             "config.example.json",
+            "app/plexamp_commissioning.py",
             "systemd/a-clockwork-plex.service",
             "installer/lib/common.sh",
             "installer/lib/services.sh",
@@ -155,6 +158,7 @@ class InstallerRepositoryDependencyTests(unittest.TestCase):
             "installer/templates/a-clockwork-plex-audio-route.sudoers.in",
             "installer/templates/a-clockwork-plex-audio-eq.sudoers.in",
             "scripts/a-clockwork-plex-plexamp-preferences.py",
+            "scripts/commission-plexamp.py",
         }
         self.assertTrue(high_risk_transitive <= entries, sorted(high_risk_transitive - entries))
 

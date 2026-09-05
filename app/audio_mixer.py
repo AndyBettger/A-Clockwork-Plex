@@ -26,7 +26,7 @@ MIXER_CHANNELS: dict[str, dict[str, Any]] = {
         "label": "Music master",
         "control": "A Clockwork Master",
         "pcm": "acp_master",
-        "default_percent": 80,
+        "default_percent": 100,
         "description": "Shared persistent level for Plexamp and AirPlay. Scheduled alarms bypass this control.",
     },
     "plexamp": {

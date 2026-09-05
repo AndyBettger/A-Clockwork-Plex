@@ -62,11 +62,15 @@ class FreshApplianceAcceptanceRunbookTests(unittest.TestCase):
         self.assertIn("/opt/a-clockwork-plex/node-v20.20.2-linux-arm64/bin/node js/index.js", text)
         self.assertNotIn("--camilladsp-binary \"$CAMILLA\"", text)
 
-    def test_runbook_requires_plexamp_gui_output_commissioning(self) -> None:
+    def test_runbook_requires_setup_owned_plexamp_output_commissioning(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")
+        self.assertIn("setup-owned Plexamp commissioning", text)
+        self.assertIn("claimed player name", text)
         self.assertIn("A Clockwork Plex - Plexamp", text)
         self.assertIn("Follows system output", text)
+        self.assertIn("verify", text.lower())
         self.assertIn("password-manager", text)
+        self.assertNotIn("choose **`A Clockwork Plex - Plexamp`** as the audio output", text)
 
     def test_wu_acceptance_is_settings_based_and_never_puts_secret_on_cli(self) -> None:
         text = RUNBOOK.read_text(encoding="utf-8")

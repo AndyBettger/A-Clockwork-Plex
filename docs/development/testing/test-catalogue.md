@@ -150,6 +150,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_full_installer_verifier_plan.py` — Checks verifier planning/order without performing appliance mutations.
 - `tests/test_installer_repository_dependencies.py` — Protects exact repository dependency-manifest closure for both supported installer paths.
 - `tests/test_platform_hardware_installer.py` — Exercises guarded Raspberry Pi/I2C/DAC platform commissioning against fake hardware roots.
+- `tests/test_plexamp_commissioning_wiring.py` — Checks setup/installer dependency closure, Reset UI/backend wiring and syntax contracts for the Plexamp commissioning owner.
 - `tests/test_project_user_portability.py` — Prevents live installer/runtime sources from assuming a specific username or home directory.
 - `tests/test_root_installer_apply_gate.py` — Exercises root apply gates, confirmations, transaction rollback and fail-closed mutation rules.
 - `tests/test_user_setup_installer.py` — Checks the public `setup.sh` hand-off, project-user selection and interactive reboot/Plexamp-claim checkpoints.
@@ -157,6 +158,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### Dashboard, display and Settings UI
 
 - `tests/test_application_state.py` — Exercises persisted/shared application state, atomic updates and runtime-state boundaries.
+- `tests/test_configuration_reset_commissioning.py` — Exercises combined ACP + Plexamp commissioning Reset planning, stale-token binding, cross-owner rollback and commissioning-only reset.
 - `tests/test_dashboard_browser_auth_migration.py` — Protects browser-auth/session migration behaviour used by the dashboard kiosk.
 - `tests/test_dashboard_integration_installer.py` — Exercises dashboard/kiosk integration installation and managed file/service wiring.
 - `tests/test_dashboard_kiosk_install_safety.py` — Checks kiosk installation is scoped to the intended desktop user/session and safe paths.
@@ -213,6 +215,10 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
 - `tests/test_nfc_python_dependency_check.py` — Checks the dedicated NFC Python environment contains the required importable dependencies.
+- `tests/test_plexamp_browser_storage_probe.py` — Protects the disposable-profile browser-storage metadata inventory: Web Storage key names/families only, IndexedDB database/object-store metadata only, no stored values/records/transactions, bounded sensitive-name redaction and loopback-only transport reuse.
+- `tests/test_plexamp_commissioning.py` — Protects the narrow loopback-only Plexamp player-name/audio-output commissioning owner, immutable baseline capture, dynamic managed-output resolution, stale-state refusal and rollback.
+- `tests/test_plexamp_home_customization_probe.py` — Protects the disposable-profile Home customisation key-family inventory: bounded namespace, key-names-only reads, no stored values/mutation and loopback-only transport reuse.
+- `tests/test_plexamp_home_hub_probe.py` — Protects the bounded disposable-profile Plexamp effective-Home hub-shape probe: fixed discovery authority, no primitive/sensitive values, no arbitrary expression input and reuse of the loopback-only transport.
 - `tests/test_plexamp_runtime_installer.py` — Exercises pinned Plexamp Headless/Node runtime installation, claim-state handling and service wiring.
 - `tests/test_plexamp_ui_handoff_retirement.py` — Guards retirement of superseded Plexamp UI hand-off artefacts in favour of current screen authority.
 - `tests/test_plexamp_upgrade_preparation_safety.py` — Checks Plexamp upgrade preparation remains non-destructive and does not bypass installer ownership.
