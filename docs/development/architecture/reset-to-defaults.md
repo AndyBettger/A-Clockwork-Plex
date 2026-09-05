@@ -226,50 +226,77 @@ The corrected combined physical transaction subsequently proved that the Home pr
 
 The historical compact `:c` LevelDB lead remains classified as historical/deleted residue, not a Reset authority.
 
-### Full Home-customisation reset — native rebuild investigation
+### Full Home-customisation reset — native rebuild and persistence-authority investigation
 
-The owner's suggestion to let Plexamp rebuild Home rather than replaying a copied baseline is now the preferred investigation path.
+The owner's suggestion to let Plexamp rebuild Home rather than replaying a copied baseline remains the preferred investigation path, but the persistence boundary is now explicitly **unclassified**.
 
-A genuinely fresh disposable Chromium profile was launched with loopback-only DevTools on port 9224. Two broad read-only probes established:
+A genuinely fresh disposable Chromium profile was launched with loopback-only DevTools on port 9224. Read-only runtime probes established:
 
 - before Plex authentication/library selection, `rootStore.discovery` existed but its backing hub collection contained **0 hubs**;
-- after signing in, selecting the intended library, checking the commissioned player/output and making **no Home customisation**, the same profile contained **12 effective discovery hubs**.
+- after signing in, selecting the intended library and making **no Home customisation**, the same profile contained **12 effective discovery hubs**;
+- the visible untouched Home also contained **12 sections**;
+- the narrow live authority is `rootStore.discovery.$mobx.values.hubs.value.$mobx.values`;
+- those hub objects expose consistent logical shapes without requiring ACP to supply a copied template.
 
-The important interpretation is that the pre-login 0-hub state is **not** a factory Home target. It is an unresolved account/library context. The useful evidence is the automatic 0 → 12 transition after account and library context became available without ACP writing any Home layout.
+The important interpretation is that the pre-login 0-hub state is **not** a factory Home target. It is an unresolved account/library context. The useful positive evidence is the automatic 0 → 12 transition after account/library context became available.
 
-A second bounded read-only probe, `scripts/inspect-plexamp-home-hubs.py`, narrowed the effective authority to:
+The Local Storage investigation then established a separate and equally important persistence result:
 
-```text
-rootStore.discovery.$mobx.values.hubs.value.$mobx.values
-```
+- the untouched authenticated/library-selected 12-section Home had **zero** keys beneath `mmkv.default\discovery:customizations:*`;
+- moving the default **Mixes for you** section down two places created no key-family delta there;
+- the moved order survived a normal page refresh while the namespace remained empty;
+- after fully exiting disposable Chromium, confirming the loopback DevTools endpoint had disappeared, and relaunching the **same disposable profile**, Mixes remained in the moved position;
+- the same key-family probe still reported 0 `order`, 0 `hidden`, 0 `viewSettings`, 0 `editing`, 0 `customHubs`, 0 `other`, 0 contexts and 0 structurally invalid keys.
 
-The 12 runtime hub objects expose consistent logical shapes including `hubIdentifier`, `source`, `title`, `type` and `items`; many also expose `hubKey`, `key` and `size`. The probe emits only member names, kinds and bounded collection lengths. It does not read primitive values, invoke getters or accept arbitrary JavaScript.
+Therefore the known `mmkv.default\discovery:customizations:*` Local Storage family is **not the complete Home persistence authority**. The order change is durable browser-profile state rather than merely live MobX/session state, but its durable owner is not yet classified. IndexedDB or another browser-local persistence mechanism is a candidate, not a conclusion.
 
-This evidence makes a copied/hard-coded clean Home baseline less attractive. The runtime hubs contain account/library/runtime-derived identity and dynamic content, and Plexamp has already demonstrated that it can build them itself.
+This also changes how the previously accepted Backup/Restore evidence must be interpreted: the real Local Storage `order`/`hidden` records observed and round-tripped on the commissioned profile remain valid evidence for that profile/state, but they are no longer assumed to be Plexamp's only or universal order/visibility representation.
 
-The preferred full-reset architecture is therefore:
+The revised preferred full-reset architecture is therefore:
 
 1. preserve authentication/session and selected library;
 2. preserve the commissioned player name and managed audio output through their existing owner;
-3. identify the exact **persistent Home customisation overlay** for the current context;
-4. capture the exact raw bytes of only those classified customisation records for rollback;
-5. remove only those records;
-6. do **not** directly clear, populate or otherwise mutate `rootStore.discovery`'s transient hub array;
-7. trigger the narrowest proven Plexamp Home reload/re-fetch mechanism, with a local page reload as an acceptable candidate if it is the safer authority;
-8. allow Plexamp to regenerate the effective Home from its own runtime/server sources;
+3. classify the **complete bounded Home-owned persistence authority** rather than assuming the known Local Storage family is exhaustive;
+4. do **not** directly clear, populate or otherwise mutate `rootStore.discovery`'s transient hub array;
+5. only after classification, capture the exact pre-reset state of narrowly proven Home-owned records for rollback;
+6. remove/reset only those Home-owned records;
+7. trigger the narrowest proven Plexamp Home reload/re-fetch mechanism, with a local page reload acceptable only if it is the safest proven trigger;
+8. allow Plexamp to regenerate the effective Home from its own runtime sources;
 9. verify the rebuilt logical Home and continued login/library state before finalising the rollback snapshot.
 
-The next disposable-profile experiment must classify the customisation layer before any production mutation. The planned sequence is:
+A production full-Home Reset **must not** simply delete the previously known Local Storage `order`/`hidden`/`viewSettings` families and claim completeness.
 
-1. inventory only `mmkv.default\discovery:customizations:` key **names/families** on the untouched fresh profile, without opening values;
-2. deliberately change Home order, hide/show state, presentation and one custom section/title on that disposable profile;
-3. inventory again and classify the exact families created/changed (`order`, per-hub hidden state, `viewSettings`, custom-hub/editor/title-related state and any other structurally bounded family);
-4. build a disposable-only reversible scrub which removes only those classified current-context customisation records;
-5. reload/re-fetch Plexamp;
-6. prove the effective Home returns to the untouched Plexamp-generated state while login and selected library remain intact;
-7. prove exact rollback can restore the pre-scrub customisation if a later Reset participant fails.
+#### Current bounded browser-storage diagnostic
 
-Only if that passes should the production Home owner expand beyond the currently accepted presentation-only boundary. Authentication/session/browser databases and unrelated caches remain out of scope throughout.
+`scripts/inspect-plexamp-browser-storage.py` is a disposable-profile-only read-only diagnostic intended to classify the next persistence surface without opening user data.
+
+It reports only:
+
+- bounded Local Storage key-family counts, using key names only;
+- bounded Session Storage key-family counts, using key names only;
+- IndexedDB database metadata and object-store names.
+
+It explicitly does **not**:
+
+- call Web Storage `getItem()` or mutate Web Storage;
+- open IndexedDB transactions;
+- access object-store records, cursors, `get()`/`getAll()` data or values;
+- accept arbitrary JavaScript, expressions or URLs;
+- target the production kiosk profile.
+
+Sensitive-looking metadata names are redacted and all inventories are bounded. Merely seeing an IndexedDB database/object-store name will not prove Home ownership; it will only identify a candidate surface for a still-narrower comparison.
+
+The next disposable-profile sequence is now:
+
+1. keep **Mixes for you** in its moved third-place tracer position and make no other Home changes;
+2. run the bounded browser-storage metadata probe;
+3. use only metadata deltas/structure to identify the most likely durable order persistence surface;
+4. if necessary, design a still-narrower read-only comparison that exposes shapes/counts rather than auth/session/user values;
+5. classify order ownership before changing visibility, presentation or custom sections;
+6. only after all Home-owned persistence is bounded, build a disposable-only reversible scrub/rebuild experiment;
+7. prove exact rollback restores the pre-scrub Home customisation if a later Reset participant fails.
+
+Only if that passes should the production Home owner expand beyond the currently accepted presentation-only boundary. Authentication/session/browser databases unrelated to Home and unrelated caches remain out of scope throughout.
 
 ## Browser isolation
 
@@ -308,7 +335,12 @@ The combined production implementation was automated-green through **Tests #4575
 
 The regression specifically proves that changing portable Plexamp Headless state and the underlying #90 restore token does **not** change `owner_tokens.a_clockwork_plex`, while an actual ACP-state change does. The complete reset token still changes with the broader server state, so the real apply boundary remains stale-protected.
 
-The new hub-shape diagnostic has four explicit regressions covering its fixed discovery authority, absence of arbitrary expression input, exclusion of sensitive/primitive values and reuse of the existing loopback-only transport. Its first full CI run executed all **1033 tests** and failed only the repository catalogue guards because the newly retained script/test module had not yet been catalogued; those two documentation catalogue entries were then added.
+The Home diagnostics now have separate bounded purposes:
+
+- `inspect-plexamp-home-runtime.py` — broad live names/shapes discovery;
+- `inspect-plexamp-home-hubs.py` — narrow effective discovery-hub shapes;
+- `inspect-plexamp-home-customizations.py` — known Home Local Storage key-family names/counts only;
+- `inspect-plexamp-browser-storage.py` — broader browser persistence **metadata only**, with no Web Storage values or IndexedDB records/transactions.
 
 Physical evidence through 5 September 2026 now establishes:
 
@@ -326,15 +358,18 @@ Physical evidence through 5 September 2026 now establishes:
 - regression coverage simulates that preset-catalogue repopulation and proves it no longer creates a false Reset difference while exact rollback still retains it;
 - the AirPlay session-start baseline correction is 100%, matching the owner's intended full-scale baseline;
 - a fresh disposable Chromium profile physically rebuilt its effective discovery hubs from **0 before login/library context to 12 after login/library selection with no Home edits**;
-- the narrow discovery-hub authority and consistent logical hub shapes are now physically classified without exposing primitive values.
+- the untouched 12-section Home required zero keys in the known Local Storage Home namespace;
+- moving Mixes for you persisted across both page refresh and a full disposable Chromium process restart while that namespace remained empty.
 
 The remaining acceptance is deliberately narrow:
 
-1. let CI pass on the catalogue/documentation-synchronised Home-investigation candidate;
-2. complete the disposable Home-customisation key-family inventory and reversible scrub/rebuild experiment;
-3. decide from that evidence whether full Home structure belongs in #93 or a tightly scoped follow-up; presentation-only Reset is already physically accepted;
-4. pull/reboot the eventual final accepted production head so the packaged bridge and corrected config are current;
-5. confirm a fresh production Preview no longer reports `equalizerPresets`;
-6. if the commissioned Pi is ever at the short-lived 10% AirPlay start value, ACP Preview should offer one change back to **100%**; apply it and verify AirPlay session-start volume and persistent AirPlay trim are both 100%;
-7. keep the newly identified Home `viewSettings` backup/restore completeness gap open until it is implemented or explicitly deferred;
-8. obtain explicit owner acceptance before PR #9 leaves Draft or merges.
+1. get the broader browser-storage metadata probe candidate green in CI;
+2. classify the durable Home order persistence authority before making more Home edits;
+3. continue the one-change-at-a-time investigation only after that owner is understood;
+4. build and physically prove the reversible full-Home scrub/rebuild path only after the complete Home-owned persistence surface is bounded;
+5. decide from that evidence whether full Home structure belongs in #93 or a tightly scoped follow-up; presentation-only Reset is already physically accepted;
+6. pull/reboot the eventual final accepted production head so the packaged bridge and corrected config are current;
+7. confirm a fresh production Preview no longer reports `equalizerPresets`;
+8. if the commissioned Pi is ever at the short-lived 10% AirPlay start value, ACP Preview should offer one change back to **100%**; apply it and verify AirPlay session-start volume and persistent AirPlay trim are both 100%;
+9. keep the Home `viewSettings` backup/restore completeness gap and the newly exposed order-authority completeness gap open until implemented or explicitly deferred;
+10. obtain explicit owner acceptance before PR #9 leaves Draft or merges.
