@@ -2,7 +2,7 @@
 """Read-only Plexamp Home-customisation key-family probe for disposable Chromium.
 
 This developer diagnostic inventories only Local Storage *key names* beneath Plexamp's
-`mmkv.default\\discovery:customizations:` namespace. It never calls getItem(), never
+`mmkv.default\discovery:customizations:` namespace. It never calls getItem(), never
 emits raw keys/context/hub identifiers, and never reads stored values. The result is a
 bounded family/count summary used to compare an untouched disposable Home with the
 same disposable profile after deliberate Home edits.
@@ -28,7 +28,7 @@ RUNTIME_EXPRESSION = r"""
 (() => {
   'use strict';
 
-  const MMKV_PREFIX = 'mmkv.default\\\\';
+  const MMKV_PREFIX = 'mmkv.default\\';
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const SECTION_MARKER = '::/library/sections/';
   const SAFE_IDENTIFIER = /^[A-Za-z0-9_.:/%+@~=\-]{1,600}$/;
@@ -173,7 +173,7 @@ RUNTIME_EXPRESSION = r"""
     read_only: true,
     key_names_only: true,
     storage_values_read: false,
-    namespace: 'mmkv.default\\\\discovery:customizations:*',
+    namespace: 'mmkv.default\\discovery:customizations:*',
     matching_key_count: matchingKeys,
     context_count: contexts.size,
     section_context_count: sections.size,
