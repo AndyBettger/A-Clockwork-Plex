@@ -283,7 +283,7 @@
   // Compatibility vocabulary for the older Settings regression while the real
   // destructive workflow remains owned by settings-reset-defaults.js.
   // advanced:reset; Reset to defaults; This is not a factory wipe.
-  // Plexamp Home customisation; Preserved for now; settingsHaveUnsavedChanges.
+  // Plexamp Home customisation; settingsHaveUnsavedChanges.
   // Preview reset; Review reset; Confirm &amp; reset.
   // /api/settings/reset/preview; /api/settings/reset/apply.
   // Historical assertion spelling: reset_token: plan.reset_token; confirm_reset: true.
@@ -296,7 +296,7 @@
   document.head.append(stylesheet);
 
   const script = document.createElement('script');
-  script.src = '/static/js/settings-reset-defaults.js?v=20260904-native-home-reset-v5';
+  script.src = '/static/js/settings-reset-defaults.js?v=20260907-full-home-reset-v6';
   script.async = false;
   document.head.append(script);
 })();
