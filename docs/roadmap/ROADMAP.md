@@ -42,6 +42,8 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation remains queued until the Settings/appliance-ownership track is deliberately closed or its remaining Home follow-ups are explicitly deferred.
 
+Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
+
 Accepted constraints:
 
 - AirPlay compatibility must remain truthful to the received source format;
