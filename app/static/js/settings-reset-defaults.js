@@ -357,7 +357,6 @@
   }
 
   function renderPlans() {
-    previewPanel.hidden = false;
     invalidateReview();
 
     const commissioningCount = commissioningChangeCount();
@@ -458,6 +457,10 @@
     }
     warningsBox.hidden = warnings.length === 0;
     replaceList(warningsList, warnings, 'No warnings.');
+
+    previewPanel.hidden = browserOwnersReady()
+      && selectedCount === 0
+      && warnings.length === 0;
 
     if (changeSummary) {
       changeSummary.textContent = `${selectedCount} selected change${selectedCount === 1 ? '' : 's'}`;
