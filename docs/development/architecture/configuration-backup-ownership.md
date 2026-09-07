@@ -8,7 +8,7 @@ The governing rule remains:
 
 > **Back up logical user choices through their owning authority; do not copy implementation directories wholesale.**
 
-Backup/Restore and Reset are deliberately different. A setting can be safe and portable enough to back up while still following its application's own defaults when Reset is requested.
+Backup/Restore and Reset are deliberately different. A state family can be safe to clear and rebuild during same-profile Reset without being safe or meaningful to copy raw between appliances.
 
 ## Ownership matrix
 
@@ -26,21 +26,13 @@ Backup/Restore and Reset are deliberately different. A setting can be safe and p
 | Plexamp runtime | Exclude | Reinstall through runtime owner; #93 does not replace runtime |
 | Eight safe Plexamp Headless preferences | Include exact typed allow-list, version-aware | Restore saved values through restricted owner; #93 lets Plexamp's own Reset reset them normally |
 | Plexamp player name/audio output | Exclude from portable backup | Same-appliance #93 commissioning owner restores captured player name + dynamically resolved managed output |
-| Plexamp live player volume | Exclude from portable backup | Runtime/player state; #93 explicitly returns live Plexamp music volume to 100% with rollback |
-| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores target-context logical choices; fresh-profile #93 independently confirms both durable browser-local families |
-| Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 physically confirms `viewSettings` as the durable presentation owner; portability follow-up remains open |
-| Plexamp Home custom sections/titles | **Not yet included in schema-v1 portable backup** | #93 physically confirms custom sections as `customHubs` + `order` + `viewSettings`, with validated title inside `viewSettings`; portability model still open |
+| Plexamp live player volume | Exclude from portable backup | Runtime/player state; #93 returns live Plexamp music volume to 100% with rollback |
+| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores target-context choices; #93 also classifies both as durable resettable Home customisation |
+| Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 confirms durable ownership and now clears it during bounded full-Home Reset; portable logical model remains open |
+| Plexamp Home custom sections/titles | **Not yet included in schema-v1 portable backup** | #93 confirms custom sections as `customHubs + order + viewSettings`, title inside `viewSettings`, and clears the bounded bundle during Reset; portable model remains open |
 | Chromium profile wholesale | Never include | Never restore/copy wholesale |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch |
 | Alarm/playback runtime | Exclude | Recreate from live state/current time |
-
-## Portable ACP settings
-
-Export is built from the **normalised Settings model**, not by serialising `config.json` directly.
-
-Portable ACP state includes supported startup/idle, clock/display/night, Weather, alarms, AirPlay and safe user-facing audio choices. Installer/hardware integration does not migrate merely because a value happens to appear in configuration.
-
-Credentials, raw hardware identity/topology, ALSA implementation state, service/runtime caches and machine identity remain excluded.
 
 ## Secrets and identity — hard exclusions
 
@@ -74,19 +66,19 @@ Checkpoint #88 established this exact typed scalar portable allow-list:
 
 Only exact allow-listed names and expected types are exported/restored; malformed/unknown files are skipped rather than copied.
 
-Known nonportable/separately owned fields remain:
+Known nonportable/separately owned fields include:
 
 - `playerName` — appliance-local commissioning label;
 - `audioDeviceUuid` — target-specific output binding resolved live;
 - `premium` — account/capability-derived.
 
-Observed values from commissioned testing are evidence of real state, **not Reset defaults**. Backup/Restore means “restore the saved user's choices”; Reset means “return ordinary Plexamp settings to defaults defined by Plexamp itself”.
+Observed values from commissioned testing are evidence of state, **not Reset defaults**. Backup/Restore means “restore saved user choices”; Reset means “return choices to defaults defined by their owners”.
 
 ## ACP audio portability and Reset relationship
 
 Backup stores logical EQ and mixer choices so a replacement appliance can restore the user's curve/calibration.
 
-The current #93 Reset baseline is intentionally neutral/full-scale:
+The accepted #93 Reset baseline is:
 
 ```text
 Master EQ: enabled
@@ -121,11 +113,9 @@ A temporary player rename plus **Follows system output** physically produced exa
 
 The kiosk Chromium profile contains authentication/session material as well as UI state, so **the profile must never be archived/restored wholesale**.
 
-### Current schema-v1 Home model
+### Current schema-v1 portable Home model
 
-The #89/#90 bridge currently owns only validated logical Home **order** and **hidden/visible** choices.
-
-The portable model is:
+The #89/#90 bridge currently exports/restores only validated logical Home **order** and **hidden/visible** choices:
 
 ```json
 "home": {
@@ -134,112 +124,73 @@ The portable model is:
 }
 ```
 
-For export, the permission-free loopback browser bridge emits validated logical Home choices. The physically accepted commissioned export contained **15 ordered Home identifiers + 1 hidden identifier** with zero warnings.
+The physically accepted commissioned export contained **15 ordered Home identifiers + 1 hidden identifier** with zero warnings.
 
-For restore, the bridge maps those logical choices onto the target's live Home context, requires a fresh fingerprint and explicit confirmation, captures exact target raw state, writes only classified Home records, verifies the logical result and reverses completed writes exactly on failure.
+Restore maps those logical choices onto the target's live Home context, requires a fresh fingerprint and explicit confirmation, captures exact target rollback state, writes only classified Home records, verifies the logical result and reverses completed writes exactly on failure.
 
 Checkpoint #90 is physically accepted for this schema-v1 order/hidden scope.
 
-### Fresh-profile confirmation of schema-v1 owners
+### Complete persistence classification
 
-#93 disposable-profile testing independently supports the existing logical mapper rather than exposing alternate storage owners.
+Fresh-profile #93 work independently established the durable browser-local Home families used by the tested customisations:
 
-#### Order
+```text
+order
+hidden
+viewSettings
+customHubs
+```
 
-Moving **Mixes for you** down two positions created the established browser-local `...:<section>:order` family. The move:
+Causal evidence established:
 
-- survived page refresh;
-- survived full Chromium process exit/relaunch;
-- remained local to that browser profile when compared with another profile using the same Headless/account/library.
+- moving **Mixes for you** survives reload/restart through `order`;
+- hiding **Recent Plays** survives reload/restart through `hidden`;
+- changing **Recent Plays → Carousel** survives through `viewSettings`; its companion `editing` state is transient and disappears after reload;
+- opening/leaving the Home editor without changing anything creates no Home record;
+- adding Artist-based **ACP Test Section** creates a durable coordinated `customHubs=1`, `order=1`, `viewSettings=1` bundle;
+- renaming that section changes no family count; the validated title lives inside the same durable `viewSettings` record and survives reload/restart.
 
-The corrected family probe reported exactly `order=1` on the order tracer.
+Therefore the remaining Backup/Restore work is **logical-model design and implementation**, not storage-family discovery.
 
-#### Hidden/visible
+### Presentation/custom-section portability gap
 
-A separate initially all-zero profile hid exactly **Recent Plays**. That created exactly one `hidden` record with `order=0`; the hide and family state survived page refresh and full Chromium restart.
-
-Therefore the existing schema-v1 logical **order/hidden** abstraction is independently supported by fresh-profile physical evidence.
-
-### Presentation (`viewSettings`) — confirmed owner, schema-v1 portability gap
-
-Schema v1 does **not** currently export per-section `viewSettings`. A 5 September physical restore from a backup taken with Home presentation arranged as desired confirmed the consequence: order/hidden restored, but section presentation could not because it was never present in the backup.
+Schema v1 does **not** export per-section `viewSettings`, custom-section structure or custom titles. Physical restore testing on 5 September demonstrated the consequence: supported order/hidden choices restore, but presentation cannot restore when it was never present in the backup.
 
 That is a backup-schema completeness gap, not a restore-transaction failure.
 
-Fresh #93 testing independently confirms the durable presentation owner:
+A future portable model must describe validated logical presentation/custom-section/title semantics and map them through the target's live context. It must **not** serialize raw Chromium Local Storage keys/values or copy a profile.
 
-1. a third fresh profile started with all Home families zero;
-2. changing exactly **Recent Plays → Carousel** produced `viewSettings=1` plus `editing=1` immediately after the edit;
-3. a separate editor-only control profile opened/closed Home customisation without changes and remained completely all-zero;
-4. after normal reload of the presentation tracer, Recent Plays remained Carousel while the probe became exactly `viewSettings=1`, `editing=0`;
-5. after a full Chromium process exit/relaunch, Recent Plays still remained Carousel and the probe again reported exactly `viewSettings=1`, `editing=0`.
+## #93 full Home Reset relationship — PROVEN
 
-Therefore:
+Same-profile Reset has a different goal from portable Backup/Restore. It can safely remove the bounded durable Home customisation records and let Plexamp rebuild its own effective Home from the still-authenticated account/library/runtime context.
 
-- `viewSettings` is the durable presentation owner;
-- `editing` is transient edit bookkeeping, not durable Home personality;
-- the missing schema-v1 presentation model should be built from validated logical `viewSettings` semantics, not raw Chromium storage.
+The disposable 9230 experiment proved this end to end using a mixed state containing:
 
-### Custom sections and titles — persistence classified, portability model open
+- custom **ACP Scrub Section**;
+- moved **Mixes for you**;
+- hidden **Recent Plays**;
+- Carousel / Block / 180 px presentation on **Recently Added in Music**.
 
-Fresh-profile #93 testing now also closes the remaining browser-local persistence questions needed before a logical custom-Home model can be designed.
-
-#### Custom-added section
-
-A fresh all-zero profile added exactly one Artist-based Home section titled **ACP Test Section**. Creation produced exactly:
+Before scrub, the bounded target had exactly five records:
 
 ```text
 customHubs=1
 order=1
-viewSettings=1
-hidden=0
+hidden=1
+viewSettings=2
 editing=0
-other=0
+fingerprint=58ed4b28
 ```
 
-The three records span two classified structural contexts and survived both a normal page refresh and a complete Chromium process exit/relaunch with the section still present in the same place.
+After clearing only those five records, the bounded target was all-zero with fingerprint `741638a5`. A normal reload made Plexamp rebuild a default-looking Home while Plex login and the correct selected library remained intact.
 
-Therefore a custom section is not represented by `customHubs` alone; it is a durable coordinated **custom-hub + ordering + presentation bundle**.
+Exact rollback restored all five raw records and returned the fingerprint to **`58ed4b28`**. After reload, all four deliberate Home customisations returned visually and the title/family probes matched the original state exactly.
 
-#### Custom title
+This proves **Reset ownership**, not **portability**. The production #93 Home owner may clear classified Home state in the current profile with exact rollback, while #89/#90 must still develop a logical cross-installation representation for presentation/custom sections/titles.
 
-A second fresh profile reproduced the same custom section from an all-zero baseline. The bounded title matcher found exactly one supported `viewSettings` record with exactly one title match and no unsupported/unclassified record.
+## Why a clean Plexamp profile cannot be copied raw
 
-Renaming only the section from **ACP Test Section** to **ACP Renamed Section** changed no Home-family count. The old-title match moved `1→0`, the new-title match moved `0→1`, and exactly one titled `viewSettings` record remained. The renamed title and exact `customHubs=1`, `order=1`, `viewSettings=1` bundle survived both page refresh and full Chromium process exit/relaunch.
-
-Therefore:
-
-- the validated custom title lives inside the existing durable `viewSettings` record;
-- there is no separate title persistence family;
-- custom-section persistence must be treated atomically across its `customHubs`, `order` and `viewSettings` participants;
-- the remaining Backup/Restore work is **logical-model design and implementation**, not further storage-family discovery.
-
-The schema-v1 order/hidden payload remains the correct abstraction and must not be replaced by copied browser files.
-
-## #93 Home Reset relationship
-
-The currently accepted production #93 Home Reset intentionally preserves:
-
-- Home order;
-- hidden/visible choices;
-- custom-added sections;
-- custom section titles.
-
-It resets only presentation-specific records of the bounded family:
-
-```text
-mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:viewSettings
-```
-
-For built-in sections, non-default `viewSettings` are removed so Plexamp uses its own per-section presentation defaults. For custom-added sections, the current owner strips presentation fields while retaining a validated title.
-
-Order, hidden, `editing`, custom-hub, auth and cache values are not opened or mutated by this production owner.
-
-This boundary is now strengthened by complete fresh-profile causal evidence: durable presentation and custom title both live in `viewSettings`; `editing` is transient across reload; custom-added structure is the coordinated `customHubs` + `order` + `viewSettings` bundle.
-
-## Why a clean Plexamp profile cannot simply be copied raw
-
-A clean profile is useful as behavioural evidence but is not a portable backup artifact:
+A clean profile is useful behavioural evidence but is not a portable backup artifact:
 
 - browser profiles contain auth/session state;
 - Home identifiers contain account/library/context-specific values;
@@ -247,9 +198,7 @@ A clean profile is useful as behavioural evidence but is not a portable backup a
 - custom sections need explicit logical semantics across installations;
 - copied browser DB/MMKV bytes would couple portability to Chromium/Plexamp implementation details.
 
-Portable Backup/Restore should therefore remain a logical model mapped through bounded live owners.
-
-Likewise, a future full Home Reset should let Plexamp rebuild itself after clearing only narrowly proven Home-owned browser-profile-local persistence, not copy a clean profile's bytes or hard-code an observed default Home.
+Full Home Reset therefore clears only proven Home-owned browser-local overrides and lets Plexamp rebuild itself. Portable Backup/Restore remains a logical model mapped through bounded live owners.
 
 ## Backup envelope
 
@@ -302,16 +251,16 @@ The owner-facing flow remains **Preview → choose A Clockwork Plex / Plexamp / 
 
 ### #88 ownership audit — COMPLETE
 
-Portable/nonportable boundaries, exact eight-value Headless allow-list and safe Home order/hidden ownership established.
+Portable/nonportable boundaries, exact eight-value Headless allow-list and safe Home ownership established.
 
-### #89 configuration backup/export — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
+### #89 configuration backup/export — CORE COMPLETE; HOME PRESENTATION/CUSTOM MODEL FOLLOW-UP OPEN
 
-Schema-v1 export of ACP logical settings/EQ/mixer, eight safe Headless preferences and validated Home order/hidden data is physically accepted. Per-section `viewSettings` remain the principal known schema-v1 completeness gap. Presentation, custom-section structure and custom-title persistence are now independently classified; the remaining work is the validated logical portable model.
+Schema-v1 export of ACP logical settings/EQ/mixer, eight safe Headless preferences and validated Home order/hidden data is physically accepted. Presentation/custom-section/title persistence is fully classified, but the validated portable logical model is not yet implemented.
 
-### #90 configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
+### #90 configuration import/restore — CORE COMPLETE; HOME PRESENTATION/CUSTOM MODEL FOLLOW-UP OPEN
 
-Read-only Preview, stale-protected transaction, exact-version Headless restore, target-context Home order/hidden restore/rollback and guided presentation are physically accepted. The remaining Home portability work is implementation and physical revalidation of a logical presentation/custom-section/title model.
+Read-only Preview, stale-protected transaction, exact-version Headless restore, target-context Home order/hidden restore/rollback and guided presentation are physically accepted. Remaining Home portability work is logical-model implementation and physical revalidation.
 
-### #93 Reset relationship — TRANSACTION ACCEPTED; FINAL HOME SCOPE OPEN
+### #93 Reset relationship — FULL HOME ARCHITECTURE PROVEN; PRODUCTION ACCEPTANCE PENDING
 
-The combined Reset transaction is physically accepted. Home order, hidden/visible, built-in presentation, custom-added section structure and custom-title persistence are now independently classified. Full Home Reset remains open for exact product semantics plus the reversible scrub/rebuild proof, not for further persistence-family discovery.
+The full bounded Home Reset model is physically proven on disposable 9230 and implemented on `feature/reset-defaults`. This does not close the #89/#90 portability gap. #93 now awaits a final green branch head, commissioned-Pi production Preview/Review/Confirm acceptance, and explicit owner approval before PR #9 may leave Draft or merge.
