@@ -27,7 +27,7 @@ Backup/Restore and Reset are deliberately different operations. A setting can be
 | Eight safe Plexamp Headless preferences | Include exact typed allow-list, version-aware | Restore saved values through restricted owner; **#93 lets Plexamp's own Reset to Defaults reset them normally** |
 | Plexamp player name/audio output | Exclude from portable backup | Same-appliance #93 commissioning owner restores captured player name + dynamically resolved managed output |
 | Plexamp live player volume | Exclude from portable backup | Runtime/player state rather than portable personality; #93 explicitly returns live Plexamp music volume to 100% with rollback |
-| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores the physically accepted commissioned-profile representation; #93 now proves durable order is browser-profile-local but can exist outside the previously classified `order` family, so portability completeness is under revalidation |
+| Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores the physically accepted commissioned-profile representation; #93 fresh-profile testing independently confirms the browser-local `...:<section>:order` family, while hidden/visible causal confirmation is still part of the wider Home inventory |
 | Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 can reset these safely to Plexamp defaults; backup/restore completeness follow-up is open |
 | Chromium profile wholesale | Never include | Never restore/copy wholesale; #93 touches only bounded native settings and Home presentation records |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch; #93 preserves runtime/history |
@@ -167,11 +167,19 @@ The current portable model is explicitly:
 
 It does **not** currently export per-section `viewSettings`. A 5 September physical restore from a backup taken with the Home page arranged/presented as desired confirmed the consequence: order/hidden remain in the portable model, but the saved section presentation cannot be restored because it was never present in that backup.
 
-That is one real completeness gap, not a restore-transaction failure. #93 has established a bounded, physically proven owner for `viewSettings`, so extending Backup/Restore to a validated logical presentation model is the preferred follow-up rather than copying raw Chromium storage.
+That is the clear schema-v1 completeness gap, not a restore-transaction failure. #93 has established a bounded, physically proven owner for `viewSettings`, so extending Backup/Restore to a validated logical presentation model is the preferred follow-up rather than copying raw Chromium storage.
 
-A second Home completeness gap is now also proven. Disposable-profile testing through 7 September established that a durable section reorder can be **browser-profile-local** while the previously classified `mmkv.default\discovery:customizations:*` `order` family remains absent. A second fresh Chromium profile connected to the same Plexamp Headless instance, same Plex account and same library rendered the untouched order, proving the moved order is not shared backend/account state. Therefore the old Local Storage `order`/hidden representation remains valid evidence for the commissioned profile, but is no longer treated as Plexamp's only possible browser representation.
+Fresh-profile #93 testing now independently **supports** the existing logical order representation. Moving **Mixes for you** down two places created a browser-profile-local record of the exact family:
 
-The schema-v1 logical payload itself is still the right portability abstraction; what is under revalidation is the browser-side **capture/apply authority** that maps live Plexamp Home state into that logical model.
+```text
+mmkv.default\discovery:customizations:<context>::/library/sections/9:order
+```
+
+The moved order survived refresh and a full Chromium restart. A second clean profile using the same Headless instance/account/library rendered the untouched order. The two-profile key-name comparison found the explicit order record only on the tracer, and the corrected family probe then reported tracer `order=1` versus control `order=0`, without reading values.
+
+So there is **no evidence for a mysterious alternate order store**. The fresh-profile evidence reinforces the commissioned-profile order path already used by schema v1. The remaining causal inventory is hidden/visible, presentation and custom-section/title behaviour; commissioned hidden round-trip remains accepted evidence while a fresh isolated hide is still useful to complete the family map.
+
+The schema-v1 logical payload itself remains the right portability abstraction. The browser-side mapper should continue to use bounded logical Home choices rather than raw Chromium data.
 
 ### #93 Home Reset — presentation-only owner remains accepted
 
@@ -197,44 +205,30 @@ The old compact `:c` LevelDB lead remains historical/deleted residue rather than
 
 ### Full-Home persistence findings relevant to portability
 
-A fresh authenticated/library-selected disposable profile let Plexamp build a 12-section effective Home with zero keys in the previously known Home customisation namespace. Moving **Mixes for you** down two places then:
+A fresh authenticated/library-selected disposable profile let Plexamp build its effective Home automatically. The order-only tracer experiment then established:
 
-- created no key-family delta in that known namespace;
-- survived page refresh;
-- survived a full Chromium process exit/relaunch using the same profile.
+- moving **Mixes for you** down two places survived page refresh and a full Chromium process exit/relaunch;
+- tracer Local Storage: **48 keys**; Session Storage: **0**; IndexedDB: **0 databases**;
+- a second genuinely fresh control profile using the same Headless/account/library rendered Mixes at the untouched top position and had **42 Local Storage keys**, zero Session Storage and zero IndexedDB;
+- the Local Storage key-name comparison found **42 common keys, 0 control-only keys and 6 tracer-only keys**;
+- one tracer-only key was the exact Home order record `mmkv.default\discovery:customizations:<context>::/library/sections/9:order`;
+- after fixing the developer probe's namespace escaping bug, the tracer physically reported one matching Home record with `order=1`, while the clean control reported zero matching records and all family counts zero;
+- no Local Storage values were read during these diagnostics.
 
-A broader read-only metadata probe found on the moved-order tracer profile:
+The earlier all-zero family-probe outputs are withdrawn because that developer diagnostic accidentally matched a two-runtime-backslash namespace. The production Backup/Restore bridge never had that bug.
 
-```text
-Local Storage: 48 keys
-Session Storage: 0 keys
-IndexedDB: 0 databases
-```
-
-A second genuinely fresh control profile using the same Headless/account/library rendered Mixes at the untouched top position and returned:
-
-```text
-Local Storage: 42 keys
-Session Storage: 0 keys
-IndexedDB: 0 databases
-known discovery:customizations families: 0
-```
-
-This proves the order difference is **browser-profile-local** and rules out Session Storage/IndexedDB on both profiles. Local Storage is the strongest current candidate, but the 48-vs-42 result is only a net key-count difference; it does not yet identify exact set deltas or prove whether order is held in a unique key versus a changed value under a common key.
-
-The next bounded diagnostic compares only the Local Storage **key-name sets** between tracer and control profiles. It reads no values, emits safe non-sensitive names only, and redacts sensitive-looking names. Any later value-level work must remain narrowly classified and content-minimising.
+This proves the order difference is **browser-profile-local** and identifies the existing `...:<section>:order` family as its durable persistence owner. Session Storage/IndexedDB are ruled out on both profiles. Hidden/visible, presentation and custom-section/title persistence remain to be causally mapped one change at a time.
 
 ### Why a clean Plexamp profile cannot simply be copied raw
 
 Using a clean/default Plexamp profile as a reference is useful for establishing **effective behaviour**, but copying its browser files is still not a portable solution:
 
-- the control-profile experiment proves order is browser-profile-local, but it does not yet identify the exact browser record family;
-- a clean effective Home can legitimately have **no keys in the previously known order/hidden namespace**, so absence there does not encode all browser-local Home state;
+- the control-profile experiment proves order is browser-profile-local and the explicit `:order` record is now classified, but the complete Home family set still includes hidden/presentation/custom-section behaviour that must remain bounded;
 - Home identifiers contain account/library/context-specific values and cannot safely be hard-coded from another installation;
-- server/runtime-provided default sections can exist without an equivalent local record;
+- server/runtime-provided default sections can exist without equivalent local override records;
 - custom sections and target-only hubs need an explicit logical product rule rather than accidental file deletion.
 
-A future full-Home Reset should therefore let Plexamp rebuild its own effective Home after clearing only **narrowly proven Home-owned browser-profile-local state**, not copy a clean profile's LevelDB/MMKV bytes. Portable Backup/Restore should likewise retain a logical model and improve the live browser mapping rather than archive browser storage wholesale.
+A future full-Home Reset should therefore let Plexamp rebuild its own effective Home after clearing only **narrowly proven Home-owned browser-profile-local state**, not copy a clean profile's LevelDB/MMKV bytes. Portable Backup/Restore should likewise retain a logical model and improve only the live logical mapping that is actually required rather than archive browser storage wholesale.
 
 ## Native Plexamp Reset relationship
 
@@ -282,7 +276,7 @@ The supported portable format remains schema-versioned JSON with these logical d
 }
 ```
 
-`plexamp.browser_preferences` is optional and is merged only after a validated live bridge snapshot. In schema v1 its Home payload contains order/hidden only; per-section presentation remains a follow-up, and the live order/hidden capture/apply authority is now also under revalidation against the new browser-profile-local evidence. The commissioning baseline and live Plexamp player volume are intentionally absent.
+`plexamp.browser_preferences` is optional and is merged only after a validated live bridge snapshot. In schema v1 its Home payload contains order/hidden only; per-section presentation remains a follow-up. Fresh-profile #93 evidence independently confirms the current `:order` persistence family rather than exposing an alternate order representation. The commissioning baseline and live Plexamp player volume are intentionally absent.
 
 ## Restore contract
 
@@ -301,7 +295,7 @@ Restore remains conservative:
 
 The guided owner-facing flow remains **Preview → choose A Clockwork Plex / Plexamp / both → Review selected restore → Confirm & restore**.
 
-The transaction remains physically accepted for the original commissioned representation. Before calling Home portability complete across fresh/replacement browser profiles, the browser-side logical order/hidden mapper must be reconciled with the newly discovered alternate browser-profile-local representation.
+The transaction remains physically accepted for the commissioned representation. Before calling Home portability complete across fresh/replacement profiles, add the missing logical `viewSettings` presentation model and finish the bounded causal family inventory; the order family itself is now independently confirmed.
 
 ## Accepted checkpoints
 
@@ -311,11 +305,11 @@ Established the portable/nonportable boundaries, exact eight-value Headless allo
 
 ### #89 configuration backup/export — CORE COMPLETE; HOME COMPLETENESS FOLLOW-UPS OPEN
 
-Physically accepted schema-v1 export of ACP logical settings/EQ/mixer, all eight safe Headless preferences and validated Home order/hidden data, with secrets/device identity/runtime state excluded. Two Home completeness follow-ups are now explicit: per-section `viewSettings` were never included, and live logical order capture must be reconciled with the alternate browser-profile-local persistence representation found by #93.
+Physically accepted schema-v1 export of ACP logical settings/EQ/mixer, all eight safe Headless preferences and validated Home order/hidden data, with secrets/device identity/runtime state excluded. Per-section `viewSettings` were never included and remain the principal schema-v1 completeness gap. Fresh-profile #93 order testing independently confirms the existing browser-local `:order` representation; hidden/custom-section causal inventory remains useful before the Home work is finally closed.
 
 ### #90 configuration import/restore — CORE COMPLETE; HOME COMPLETENESS FOLLOW-UPS OPEN
 
-Physically accepted read-only Preview, stale-protected server transaction, exact-version Headless restore, commissioned-profile Home order/hidden restore/rollback and guided owner-facing presentation. The transaction remains accepted; the portable Home browser mapper needs follow-up for both `viewSettings` and the newly discovered browser-profile-local order authority.
+Physically accepted read-only Preview, stale-protected server transaction, exact-version Headless restore, commissioned-profile Home order/hidden restore/rollback and guided owner-facing presentation. The transaction remains accepted; portable Home needs the `viewSettings` follow-up, while the existing order mapper is now independently supported by the fresh-profile physical evidence.
 
 ### #93 Reset relationship — REVISED PHYSICAL TRANSACTION ACCEPTED; FINAL HOME SCOPE OPEN
 
