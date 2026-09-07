@@ -28,7 +28,7 @@ Backup/Restore and Reset are deliberately different. A state family can be safe 
 | Plexamp player name/audio output | Exclude from portable backup | Same-appliance #93 commissioning owner restores captured player name + dynamically resolved managed output |
 | Plexamp live player volume | Exclude from portable backup | Runtime/player state; #93 returns live Plexamp music volume to 100% with rollback |
 | Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores target-context choices; #93 also classifies both as durable resettable Home customisation |
-| Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 confirms durable ownership and now clears it during bounded full-Home Reset; portable logical model remains open |
+| Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 confirms durable ownership and clears it during bounded full-Home Reset; portable logical model remains open |
 | Plexamp Home custom sections/titles | **Not yet included in schema-v1 portable backup** | #93 confirms custom sections as `customHubs + order + viewSettings`, title inside `viewSettings`, and clears the bounded bundle during Reset; portable model remains open |
 | Chromium profile wholesale | Never include | Never restore/copy wholesale |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch |
@@ -160,7 +160,7 @@ That is a backup-schema completeness gap, not a restore-transaction failure.
 
 A future portable model must describe validated logical presentation/custom-section/title semantics and map them through the target's live context. It must **not** serialize raw Chromium Local Storage keys/values or copy a profile.
 
-## #93 full Home Reset relationship — PROVEN
+## #93 full Home Reset relationship — PROVEN AND PHYSICALLY ACCEPTED
 
 Same-profile Reset has a different goal from portable Backup/Restore. It can safely remove the bounded durable Home customisation records and let Plexamp rebuild its own effective Home from the still-authenticated account/library/runtime context.
 
@@ -185,6 +185,8 @@ fingerprint=58ed4b28
 After clearing only those five records, the bounded target was all-zero with fingerprint `741638a5`. A normal reload made Plexamp rebuild a default-looking Home while Plex login and the correct selected library remained intact.
 
 Exact rollback restored all five raw records and returned the fingerprint to **`58ed4b28`**. After reload, all four deliberate Home customisations returned visually and the title/family probes matched the original state exactly.
+
+The same bounded full-Home model subsequently passed the complete production Reset transaction on the commissioned bedroom Pi. After the final `activeTab` runtime-normalisation cleanup, exact head `477bf0fd0cd7090a4d434816611f35673d83851e` was pulled cleanly, the dashboard service restarted successfully, `/api/state` passed, and fresh Reset Preview reported **Already at baselines**, **0 Plexamp settings** and **0 Home** differences. The empty detailed Preview card also stayed hidden as intended.
 
 This proves **Reset ownership**, not **portability**. The production #93 Home owner may clear classified Home state in the current profile with exact rollback, while #89/#90 must still develop a logical cross-installation representation for presentation/custom sections/titles.
 
@@ -261,6 +263,6 @@ Schema-v1 export of ACP logical settings/EQ/mixer, eight safe Headless preferenc
 
 Read-only Preview, stale-protected transaction, exact-version Headless restore, target-context Home order/hidden restore/rollback and guided presentation are physically accepted. Remaining Home portability work is logical-model implementation and physical revalidation.
 
-### #93 Reset relationship — FULL HOME ARCHITECTURE PROVEN; PRODUCTION ACCEPTANCE PENDING
+### #93 Reset relationship — COMPLETE
 
-The full bounded Home Reset model is physically proven on disposable 9230 and implemented on `feature/reset-defaults`. This does not close the #89/#90 portability gap. #93 now awaits a final green branch head, commissioned-Pi production Preview/Review/Confirm acceptance, and explicit owner approval before PR #9 may leave Draft or merge.
+The full bounded Home Reset model is proven on disposable 9230 and physically accepted end to end on the commissioned bedroom Pi, including final zero-difference convergence after `activeTab` runtime-normalisation and the compact zero-change Preview presentation. This does **not** close the #89/#90 portability gap; those remain separate open follow-ups.
