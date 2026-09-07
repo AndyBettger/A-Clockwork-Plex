@@ -239,7 +239,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("window.location.replace(`/${preferences.startupMode}`)", self.dashboard_preferences)
 
     def test_reset_to_defaults_is_separate_advanced_workflow(self):
-        self.assertIn("settings-reset-defaults.js?v=20260907-full-home-reset-v6", self.advanced)
+        self.assertIn("settings-reset-defaults.js?v=20260908-zero-preview-v7", self.advanced)
         self.assertIn("Reset to defaults", self.reset_defaults)
         self.assertIn("This is not a factory wipe.", self.reset_defaults)
         self.assertIn("Plexamp Home customisation", self.reset_defaults)
@@ -257,6 +257,12 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("/api/settings/reset/apply", self.reset_defaults)
         self.assertIn("reset_token: serverPlan.reset_token", self.reset_defaults)
         self.assertIn("confirm_reset: true", self.reset_defaults)
+
+    def test_reset_preview_hides_empty_details_but_keeps_warning_details(self):
+        self.assertIn("previewPanel.hidden = browserOwnersReady()", self.reset_defaults)
+        self.assertIn("&& selectedCount === 0", self.reset_defaults)
+        self.assertIn("&& warnings.length === 0;", self.reset_defaults)
+        self.assertNotIn("function renderPlans() {\n    previewPanel.hidden = false;", self.reset_defaults)
 
     def test_reset_owner_reuses_restore_transaction_and_never_resets_plexamp_auth(self):
         captured = {}
