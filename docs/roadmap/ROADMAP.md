@@ -16,7 +16,7 @@ Specialist authorities:
 - [`history-through-phase7-checkpoint6.md`](history-through-phase7-checkpoint6.md) — early Phase 7 chronology;
 - [`history-through-checkpoint64.md`](history-through-checkpoint64.md) — pre-consolidation roadmap snapshot;
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
-- [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and current Home-presentation follow-up;
+- [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and Home completeness;
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and current physical/product gate;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
@@ -29,25 +29,24 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 - substantial isolated work uses short-lived `feature/<name>` branches from `develop`.
 - published `vX.Y.Z` tags/releases are immutable accepted snapshots.
 - the next release version is intentionally not assigned until its real scope is clear.
-- the old `feature/alarm-engine` branch was retired after v0.4.0.
 
 ## Current development cycle
 
 ### #84 Development-cycle bootstrap — COMPLETE
 
-- [x] Created `develop` from post-release v0.4.0 baseline.
+- [x] Created `develop` from the post-v0.4.0 baseline.
 - [x] GitHub Actions validates `develop` and `main`.
 - [x] Established the feature-branch → `develop` → accepted release model.
 
 ### #85 High-resolution audio feasibility audit — COMPLETE; implementation queued
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Raspberry Pi DAC Pro can do more, but no production rate/format change was made by the feasibility audit.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation remains queued until the Settings/appliance-ownership track is deliberately closed or its remaining Home follow-ups are explicitly deferred.
 
-Accepted constraints for later implementation:
+Accepted constraints:
 
 - AirPlay compatibility must remain truthful to the received source format;
 - scheduled-alarm takeover, Maximum Alarm Volume and recovery are non-negotiable;
-- bypass/native/bit-perfect claims must be based on measured ALSA/DAC state, not labels;
+- bypass/native/bit-perfect claims must be based on measured ALSA/DAC state;
 - appliance reliability outranks a bit-perfect badge.
 
 ### #86 Friendly forecast-location entry — COMPLETE
@@ -55,7 +54,6 @@ Accepted constraints for later implementation:
 - [x] Read-only town/city/postcode lookup using Open-Meteo plus Postcodes.io fallback for full UK postcodes.
 - [x] Friendly location stages exact forecast coordinates while retaining precise manual latitude/longitude fallback.
 - [x] Physical Milland and `GU30 7JS` tests passed.
-- [x] Unsupported long-range condition cards are suppressed without corrupting Today/Tomorrow/date labelling.
 
 ### #87 WU supplemental indoor expiry — COMPLETE
 
@@ -63,26 +61,24 @@ Accepted constraints for later implementation:
 - [x] Weather removes expired indoor values; Clock retains paired geometry with placeholders.
 - [x] Re-enabling Ecowitt restores indoor data without service restart.
 
-**Weather priority #1 for this cycle is complete.**
-
 ### #88 Configuration ownership and backup-format audit — COMPLETE
 
 - [x] Portable ACP settings are a normalised logical model, never raw `config.json` bytes.
 - [x] Credentials/auth/session, hardware identity/topology, raw ALSA, caches and machine identity are excluded.
 - [x] Exact eight-value Plexamp Headless portable allow-list established: `audioConversionBitrate`, `autoPlayEnabled`, `cacheSize`, `cachingWiFi`, `loudnessLeveling`, `precacheNetworkSpeed`, `sampleRateConversionQuality`, `sampleRateMatching`.
 - [x] `playerName` and `audioDeviceUuid` classified nonportable.
-- [x] Plexamp Home order/per-hub-hidden browser families physically classified without treating the Chromium profile as a backup unit.
+- [x] Plexamp Home order and per-hub hidden families physically classified without treating the Chromium profile as a backup unit.
 
 ### #89 Configuration backup/export — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
-- [x] **Configuration backup/export** schema-v1 path physically accepted.
-- [x] Export contains normalised ACP settings, logical EQ/mixer and the exact eight typed Headless preferences.
+- [x] Schema-v1 backup/export physically accepted.
+- [x] Export contains normalised ACP settings, logical EQ/mixer, the exact eight typed Headless preferences and logical Home order/hidden choices.
 - [x] Credentials, browser auth/session, player/device identity, hardware topology and runtime/cache state excluded.
-- [x] Permission-free loopback browser bridge adds validated logical Home **order/hidden** choices.
 - [x] Physical final export captured **15 ordered Home identifiers + 1 hidden identifier** with zero warnings.
-- [x] Fresh disposable-profile #93 testing independently confirmed both logical persistence families used by schema v1: the moved-order tracer produces exactly one `...:<section>:order` record, and the isolated **Recent Plays** hide produces exactly one `...:<hub>:hidden` record which survives refresh and full Chromium restart.
-- [ ] Per-section Home presentation `viewSettings` are **not currently in schema-v1 backup**. Physical restore testing on 5 September confirmed that a backup taken with the Home page looking as desired cannot restore those section-presentation choices because they were never exported.
-- [ ] Complete Home portability after #93 finishes the causal presentation/custom-section inventory; order and hidden/visible persistence are now independently confirmed.
+- [x] Fresh disposable-profile #93 testing independently confirmed the existing logical persistence families: `order` and `hidden` are durable browser-profile-local Local Storage owners.
+- [x] Fresh disposable-profile #93 testing independently confirmed built-in presentation persistence: **Recent Plays → Carousel** creates a durable `viewSettings` record; the companion `editing` record is transient and disappears on reload.
+- [ ] Per-section Home presentation `viewSettings` are **not currently in schema-v1 backup**. Physical restore testing on 5 September confirmed this is the principal known portability gap.
+- [ ] Define a validated logical presentation model after the custom-section/title family is classified.
 
 ### #90 Configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
@@ -91,15 +87,15 @@ Accepted constraints for later implementation:
 - [x] Exact-version eight-value Plexamp Headless restore through the narrow restricted owner.
 - [x] Target-context-aware Home order/hidden restore with exact raw rollback.
 - [x] Guided **Preview → choose ACP / Plexamp / both → Review → Confirm & restore** presentation physically accepted at 1280×720.
-- [x] Final combined physical restore converged back to zero differences for the original supported scope.
-- [x] Fresh-profile #93 evidence independently confirms the existing browser-local `order` and `hidden` persistence families rather than exposing alternate owners.
-- [ ] Extend the portable Home model to validated per-section presentation now that #93 has physically established the bounded `viewSettings` family and rollback semantics.
-- [ ] Revalidate complete logical Home restore after the remaining presentation/custom-section families are causally classified.
+- [x] Final combined physical restore converged back to zero differences for the supported schema-v1 scope.
+- [x] Fresh-profile #93 evidence independently confirms the existing browser-local `order`, `hidden` and `viewSettings` persistence families rather than exposing alternate owners.
+- [ ] Extend the portable Home model to validated per-section presentation.
+- [ ] Revalidate complete logical Home restore after the custom-section/title family is causally classified.
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
 - [x] Shared Settings keyboard uses true one-shot Shift and theme-aware presentation.
-- [x] **Plexamp Search keyboard/bridge** physically accepted; results update during entry and Done dismisses cleanly.
+- [x] Plexamp Search keyboard/bridge physically accepted.
 - [x] General Plexamp text fields physically accepted for Home title, Smart Playlist name/description, Home Screen section title and Player Name.
 - [x] Bridge remains permission-free, loopback-only and excludes login/password fields.
 
@@ -112,145 +108,112 @@ Accepted constraints for later implementation:
 
 ### #93 Reset-to-defaults workflow — TRANSACTION ACCEPTED; FULL HOME REBUILD INVESTIGATION OPEN
 
-PR #9 remains **Draft and unmerged**. The complete multi-owner transaction has passed physically and the corrected AirPlay session-start baseline is 100%. The remaining product question is whether the already accepted presentation-only Home Reset is extended to a separately proven full Home-customisation reset which lets Plexamp rebuild its own effective Home.
+PR #9 remains **Draft and unmerged**. The complete multi-owner transaction has passed physically. The remaining product question is whether the already accepted presentation-only Home Reset should expand into a separately proven full Home-customisation reset which clears only proven Home-owned persistence and lets Plexamp rebuild its own effective Home.
 
 #### Physically accepted foundations
 
 - [x] ACP Reset transaction generated from version-controlled defaults through production normalisers.
 - [x] ACP stale-preview, verification and rollback semantics physically accepted.
 - [x] Final 1280×720 Preview/Review/Ready/Confirm presentation physically accepted.
-- [x] Same-appliance Plexamp commissioning owner: captured player-name baseline + dynamically resolved **`A Clockwork Plex - Plexamp`** output.
-- [x] Deliberate player rename + **Follows system output** produced exactly two differences and Reset restored both without exposing name/UUID values.
-- [x] Full multi-owner Confirm now crosses the corrected ACP-only browser/server stale-token boundary and completes successfully.
+- [x] Same-appliance Plexamp commissioning owner restores captured player name + dynamically resolved **`A Clockwork Plex - Plexamp`** output.
+- [x] Plexamp native owner calls the real `global.app.rootStore.settings.resetToDefaults()` authority.
+- [x] Plexamp live music-player volume resets to **100%** with verification and exact rollback.
+- [x] `equalizerPresets` is excluded from native changed-set/fingerprinting as physically proven runtime-normalised state while remaining rollback-covered.
+- [x] ACP EQ returns to 0/0/0 dB; Music Master, Plexamp trim, AirPlay trim, Maximum Alarm Volume and AirPlay session-start volume all use the accepted 100% baseline.
+- [x] Full multi-owner Confirm crosses the corrected ACP-only browser/server stale-token boundary and completes successfully.
 
-#### Native Plexamp settings owner
+#### Accepted production Home Reset boundary
 
-- [x] Disposable Chromium testing proved Plexamp **Debugging → Reset to Defaults** preserves login and selected library while resetting ordinary settings.
-- [x] Read-only bundle inspection established `global.app.rootStore.settings` as the real Plexamp 4.13.2 settings authority.
-- [x] Native owner calls Plexamp's real `settings.resetToDefaults()`; no webpack scanning, `eval`, generic page execution, remote debugging or arbitrary DOM automation.
-- [x] The eight safe Headless preferences remain portable Backup/Restore values but follow Plexamp's own defaults during Reset.
-- [x] Preview exposes bounded **setting names only** under Technical changed paths, never old/new values.
-- [x] Plexamp live music-player volume is part of the native transaction: target **100%**, same-origin player API, verified apply and exact pre-reset rollback.
-- [x] Physical post-reset diagnostics classified `equalizerPresets` as a runtime-populated/non-convergent catalogue rather than a Resettable user choice. It is excluded from native Reset comparison/fingerprinting while remaining inside the exact rollback snapshot.
-
-#### Current Home Reset boundary — preserve structure, reset presentation
-
-Physical investigation disproved the earlier assumption that deleting local order/hidden records necessarily means “factory Home”. Those records can be delta overrides over another effective Home baseline.
-
-The currently accepted product boundary is therefore:
+The current production owner deliberately preserves structure and resets only presentation:
 
 - [x] preserve Home section order;
 - [x] preserve hidden/visible choices;
 - [x] preserve custom-added sections;
 - [x] preserve validated custom section titles;
 - [x] reset only current-context per-section `viewSettings` presentation data to Plexamp's own per-section defaults;
-- [x] do not open/mutate order, hidden, editor, custom-hub, auth or cache values during this Home Reset owner.
+- [x] leave `order`, `hidden`, `editing`, custom-hub, auth and cache records untouched.
 
-The bounded family is:
+The bounded presentation family is:
 
 ```text
 mmkv.default\discovery:customizations:<context>::/library/sections/<id>:<hub-id>:viewSettings
 ```
 
-Built-in non-default `viewSettings` are removed. Custom-section presentation fields are stripped while the custom title is retained. Real-profile testing established URL-like characters in both context/hub identifiers; the matcher remains structurally bounded and fails closed on an unclassified `viewSettings` family key rather than reporting a false zero.
+Physical acceptance proved this presentation-only owner works on the commissioned appliance while preserving order and visibility.
 
-Physical acceptance proves that Home presentation returns to Plexamp's per-section defaults while the commissioned Home order and visibility choices remain intact.
+#### Full Home-customisation persistence investigation
 
-#### Full Home-customisation reset — persistence authority investigation
+A genuinely fresh disposable Chromium profile established that Plexamp can build a complete effective Home from account/library/runtime context with no Home edits. The pre-login 0-hub state is unresolved context, not a factory target; after login/library selection Plexamp populated the effective Home itself.
 
-A genuinely fresh disposable Chromium profile established that Plexamp can build a complete effective Home from account/library/runtime context with no user edits. Two deliberately isolated disposable tracers have now independently classified durable **order** and **hidden/visible** persistence as browser-profile-local Local Storage records. Earlier all-zero results from `inspect-plexamp-home-customizations.py` are withdrawn because that diagnostic had a double-backslash namespace escaping bug; the production Backup/Restore bridge did not share that bug.
-
-Physical evidence through 7 September established:
-
-- [x] before Plex login/library selection, the live discovery-hub backing collection exists but contains **0 hubs**;
-- [x] after signing into a fresh profile, selecting the intended library and making **no Home changes**, Plexamp populated **12 effective Home hubs by itself**;
-- [x] the untouched default Home visibly contains **12 sections**, strongly correlating the 12 runtime hubs with the 12 rendered default Home sections without treating that count as a permanent Plexamp invariant;
-- [x] the narrow runtime authority is `rootStore.discovery.$mobx.values.hubs.value.$mobx.values`;
-- [x] moving the default **Mixes for you** section down two places produced a durable reordered Home which survived normal refresh and a full Chromium process exit/relaunch using the same profile;
-- [x] a second genuinely fresh profile using the same Plexamp Headless/account/library initially rendered Mixes at the untouched top position, proving the order delta is browser-profile-local;
-- [x] the key-name-only comparison found **42 common keys, 0 control-only keys and exactly 6 order-tracer-only keys**, including `mmkv.default\discovery:customizations:<context>::/library/sections/9:order`;
-- [x] the corrected family probe physically reports **one matching record with `order=1`** on the order tracer and `order=0` on the then-clean second profile;
-- [x] the second profile was then used as a deliberately isolated hidden-only tracer: hiding **Recent Plays** changed its Home-family inventory from all-zero to exactly **one `hidden` record**, with `order=0` and all other families zero;
-- [x] after a normal page refresh, Recent Plays remained hidden, Mixes remained at the untouched top position, and the hidden-only tracer remained exactly `hidden=1`, `order=0`;
-- [x] after fully closing Chromium, verifying the 9225 DevTools endpoint had disappeared, and relaunching the **same** profile, Recent Plays was still hidden, Mixes was still top/default, and the probe again returned exactly `hidden=1`, `order=0`, one context and one matching record;
-- [x] no Local Storage values were read during these diagnostics.
-
-The two tracers therefore give clean independent ownership:
+Causal disposable-profile evidence now closes three durable owners:
 
 ```text
-9224 order tracer  -> Mixes moved,       order=1,  hidden=0
-9225 hidden tracer -> Recent Plays hidden, order=0, hidden=1
+9224 order tracer        Mixes for you moved to third
+                          order=1, hidden=0
+
+9225 hidden tracer       Recent Plays hidden
+                          hidden=1, order=0
+
+9226 presentation tracer Recent Plays → Carousel
+                          viewSettings=1 after page refresh and full Chromium restart
+                          editing=0 after reload
+
+9227 editor-only control Open/close Home editor, change nothing
+                          all Home families remain zero
 ```
 
-Home **order** and **hidden/visible** persistence ownership are now closed as bounded browser-profile-local Local Storage families. The complete Home customisation surface is not yet assumed: presentation and custom-section/title behaviour still need causal classification.
+Specific conclusions:
 
-The preferred full-Home design remains “let Plexamp rebuild itself”, with the mutation boundary deliberately evidence-driven:
+- [x] **Order:** moving Mixes for you survives page refresh and full Chromium restart; an explicit browser-local `...:<section>:order` key is present only on the order tracer.
+- [x] **Hidden/visible:** hiding Recent Plays creates exactly one `hidden` record, survives page refresh and full Chromium restart, and leaves order at default.
+- [x] **Presentation:** changing Recent Plays to Carousel from an all-zero profile creates `viewSettings=1` plus transient `editing=1`; after normal reload `editing` disappears while `viewSettings=1` and the Carousel remain. A full Chromium process exit/relaunch preserves the Carousel with exactly `viewSettings=1`, `editing=0`.
+- [x] **Editor-only control:** entering and leaving the editor without changing anything creates no Home record at all.
+- [x] No Local Storage values were read by the family diagnostics; Session Storage/IndexedDB were ruled out in the earlier browser-storage inventory.
+
+Therefore Home **order**, **hidden/visible** and built-in **presentation** persistence are all closed as bounded browser-profile-local Local Storage owners. `editing` is transient edit bookkeeping, not a durable presentation owner.
+
+The preferred full-Home design remains “let Plexamp rebuild itself”:
 
 1. preserve Plex authentication/session, selected library, commissioned player name/output and unrelated browser/cache state;
-2. identify the complete bounded browser-profile-local persistence authority for Home customisation;
+2. classify the complete bounded browser-profile-local Home persistence authority;
 3. do **not** construct, copy or directly mutate the transient runtime hub array;
-4. only after the persistence owner is classified, capture exact rollback state for the narrowly proven Home-owned records;
-5. clear only those classified Home-owned records and trigger the narrowest proven Plexamp Home reload/re-fetch mechanism;
-6. let Plexamp regenerate its own effective Home;
-7. verify the rebuilt logical Home plus continued login/library state before the outer Reset transaction finalises.
+4. capture exact rollback state for narrowly proven Home-owned records;
+5. clear only those records;
+6. trigger the narrowest proven Plexamp Home reload/re-fetch mechanism;
+7. let Plexamp regenerate its own effective Home;
+8. verify rebuilt logical Home plus continued login/library state;
+9. rollback if a later transaction participant fails.
 
-Next physical investigation:
+#### Next physical investigation
 
-- [x] classify order persistence with the isolated 9224 tracer and full-process durability;
-- [x] classify hidden/visible persistence with the isolated 9225 Recent Plays tracer, page-refresh durability and full-process durability;
-- [ ] create a third genuinely fresh disposable profile for a presentation-only experiment, leaving both existing tracers untouched;
-- [ ] on that clean profile, change exactly one built-in Home section presentation setting and rerun the corrected family probe to causally classify the resulting `viewSettings` record;
-- [ ] after presentation ownership is independently confirmed, classify one custom section/title one change at a time;
-- [ ] prove a reversible disposable-profile scrub of only the complete classified Home-owned state followed by Plexamp rebuild returns to the untouched effective Home while login and selected library remain intact;
+- [x] order persistence + full-process durability;
+- [x] hidden/visible persistence + full-process durability;
+- [x] built-in presentation persistence + full-process durability;
+- [x] editor-only control;
+- [ ] classify **custom-added section persistence** on a fresh isolated profile;
+- [ ] classify **custom section title persistence** one change at a time;
 - [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
-- [ ] only then consider replacing the accepted presentation-only production owner.
+- [ ] only then build a disposable-only reversible scrub/rebuild experiment across the complete classified Home-owned family set;
+- [ ] decide whether full Home structure joins #93 or remains a tightly scoped follow-up.
 
-Until that experiment passes, presentation-only Home Reset remains the proven production boundary.
+#### Automated evidence
 
-#### ACP audio and AirPlay Reset baseline — corrected
-
-The shipped Reset baseline is deliberately neutral/full-scale:
-
-- [x] Master EQ enabled, Bass/Mid/Treble all 0.0 dB;
-- [x] Music Master 100%;
-- [x] Plexamp trim 100%;
-- [x] AirPlay trim 100%;
-- [x] Maximum Alarm Volume 100%;
-- [x] AirPlay session-start volume **100%**.
-
-The earlier nominal 80% / physically observed 79% Music Master result remains useful ALSA quantisation evidence but is no longer the Reset default.
-
-The brief 10% AirPlay session-start change introduced during the 5 September follow-up was a typo, immediately corrected back to the intended 100% full-scale baseline.
-
-#### Physical and automated evidence
-
-- [x] Exact `4e01b289fbfec352d41d345a50e22dcc30bf53a3` physically produced a complete commissioned-Pi Preview with bounded native names and real Home `viewSettings` counts: one state showed 25 total changes including 15 Home presentation records.
-- [x] Recreated full-state Review reached **Ready to confirm** with 20 server-owned, 16 native Plexamp and 14 Home-presentation changes.
-- [x] The first full Confirm exposed the false ACP-stale hand-off because the old browser/server check reused the broader #90 restore token; retained browser-native/Home rollback restored the prestate correctly.
-- [x] The hand-off is now split correctly: `owner_tokens.a_clockwork_plex` fingerprints only ACP target/current state; the broader #90 `restore_preview_token` remains separate for the actual server restore transaction; commissioning keeps its own fingerprint.
-- [x] The corrected full transaction then completed physically. Plexamp Home presentation reset while order/visibility stayed put; Plexamp player volume became 100%; ACP EQ became 0/0/0 dB and all four persistent mixer levels became 100%.
-- [x] A fresh Preview then exposed three native residual names: `activeTab`, `equalizerPresets`, `showFullScreenPlayerOnStart`. A second Reset converged `activeTab` and `showFullScreenPlayerOnStart`; a further Preview left only `equalizerPresets`.
-- [x] `equalizerPresets` is now excluded as physically proven runtime-normalised state, with a regression that simulates post-reset repopulation and proves exact rollback still retains/restores the pre-reset catalogue.
-- [x] **Tests #4575** passed on `07fec02c85a6871cc3a74160b7cd029ff7736f2c`: compile, JavaScript/page wiring, shell checks and **1029 tests** in 53.364s.
-- [x] AirPlay session-start default corrected in source/regression from the accidental 10% back to the intended 100%.
-- [x] Fresh disposable Chromium broad and narrow read-only probes physically established the 0 → 12 authenticated effective-Home rebuild and the bounded discovery-hub authority.
-- [x] **Tests #4586** passed on `1468d7e58a44664d67b7237f16633a3afce93f4b`: compile, JavaScript/page wiring, shell checks and the complete **1037-test** unit suite. The then-current Home-customisation family probe still contained the later-discovered namespace escaping bug, so its all-zero physical outputs are not retained as persistence evidence.
-- [x] **Tests #4601** passed on `379a49af5d77de2a3def470ada946fd8246d2664`: Python compile, JavaScript/page-wiring, shell syntax and the complete unit suite, including the CDP-only browser-storage safety regressions.
-- [x] The bounded key-name comparison physically returned 42 common keys, 0 control-only keys and six order-tracer-only keys, including the explicit `.../library/sections/9:order` record, without reading Local Storage values.
-- [x] The corrected Home-family probe physically confirmed the isolated order tracer as `order=1`, `hidden=0` and the initially clean second profile as all-zero.
-- [x] The second profile then became an isolated hidden tracer: one Recent Plays hide produced exactly `hidden=1`, `order=0`; that exact family state and the corresponding visual hide survived both page refresh and a full Chromium process restart.
-- [x] **Tests #4619** passed on `7f5c756de22805fdafcfee0a3e6d7f0c260aedbc`, including the invalid-escape warning regression.
-- [x] **Tests #4620** passed on `f5f0f4e460a12d50666932c75801fb4c692d229d`, the exact pre-hidden-acceptance repository state.
+- [x] Tests #4575 passed on `07fec02c85a6871cc3a74160b7cd029ff7736f2c`.
+- [x] Tests #4586 passed on `1468d7e58a44664d67b7237f16633a3afce93f4b`.
+- [x] Tests #4601 passed on `379a49af5d77de2a3def470ada946fd8246d2664`.
+- [x] Tests #4619 passed on `7f5c756de22805fdafcfee0a3e6d7f0c260aedbc`.
+- [x] Tests #4620 passed on `f5f0f4e460a12d50666932c75801fb4c692d229d`.
+- [x] Tests #4621 passed on `9cdcf1abfc81bf4a9bc050ae4ea85ca1087eaf29`.
 
 #### Remaining gate before #93 can close
 
-- [ ] Classify one isolated built-in `viewSettings` presentation change on a third clean disposable profile, then one custom section/title one change at a time.
+- [ ] Classify custom-added section/title persistence one variable at a time.
 - [ ] Complete the reversible scrub/rebuild experiment only after the complete Home-owned persistence surface is bounded.
-- [ ] Decide from that evidence whether full Home structure joins #93 or remains a tightly scoped follow-up; the presentation-only implementation itself is physically accepted.
-- [ ] Pull/reboot the eventual final accepted branch head so Chromium reloads the packaged production bridge.
+- [ ] Decide from that evidence whether full Home structure joins #93 or remains a follow-up; presentation-only Reset itself is already physically accepted.
+- [ ] Pull/reboot the eventual final accepted production head so Chromium reloads the packaged bridge.
 - [ ] Fresh production Preview must no longer report `equalizerPresets` as a native Reset difference.
-- [ ] If the commissioned Pi ever contains the short-lived 10% AirPlay start value, ACP Preview should offer one change back to **100%**; apply it and verify both AirPlay session-start and persistent AirPlay trim are 100%.
-- [ ] Keep the Home `viewSettings` backup/restore completeness follow-up open until implemented or explicitly deferred.
+- [ ] If the commissioned Pi ever contains the short-lived 10% AirPlay start value, Reset should offer the accepted return to **100%** and verify both AirPlay session-start and persistent AirPlay trim at 100%.
+- [ ] Keep the Home `viewSettings` Backup/Restore completeness follow-up open until implemented or explicitly deferred.
 - [ ] Explicit owner acceptance required before PR #9 leaves Draft or merges.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
@@ -267,69 +230,63 @@ Unless deliberately reprioritised:
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
 6. **Astronomy**
-7. **Appliance resilience** — cross-cutting release-quality track
+7. **Appliance resilience**
 8. **Events calendar**
 
 This priority list is authoritative.
 
 ## Future product backlog
 
-These are post-v0.4.0 product areas, not commitments to one release. Design/test independently before promotion to `main`.
-
 ### High-resolution Plexamp audio / mixer-EQ path
 
-The current v0.4.0 audio profiles use a fixed **16-bit / 44.1 kHz** shared music path. Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
+Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
 
-Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
-
-- [ ] Physical capability audit with known 16/44.1, 24/48, 24/96 and 24/192 Plex files; record Plexamp mode/rate, DAC hardware params and live ALSA state.
-- [ ] Choose a managed high-resolution bus by measured CPU/stability/latency rather than maximum-number enthusiasm.
-- [ ] Remove the managed 16/44.1 bottleneck while preserving source trims → Music Master → fixed -6.5 dB reserve → Bass/Mid/Treble → limiter and post-EQ scheduled-alarm join.
-- [ ] Define truthful EQ-active high-resolution and native-bypass behaviour; never call a path bit-perfect while volume/reserve/limiting/resampling remains active.
+- [ ] Physical capability audit with known 16/44.1, 24/48, 24/96 and 24/192 Plex files.
+- [ ] Choose a managed high-resolution bus by measured CPU/stability/latency.
+- [ ] Remove the managed 16/44.1 bottleneck while preserving trims → Music Master → reserve → EQ → limiter → alarm join.
+- [ ] Define truthful EQ-active high-resolution and native-bypass behaviour.
 - [ ] Investigate source-rate-native Direct Plexamp across 44.1/48/88.2/96/176.4/192 kHz.
-- [ ] Define deliberate resampling policy for Plexamp and lower-rate AirPlay sources.
+- [ ] Define deliberate resampling policy for Plexamp and AirPlay sources.
 - [ ] Expose source, processing and final DAC format/rate separately in diagnostics.
 - [ ] Regression/physical acceptance: route/fallback, EQ active/bypass, alarm takeover, AirPlay both directions and recovery.
 
-### Astronomy — major application area
-
-Treat Astronomy as a touch-first numerical astronomy section in the spirit of Peter Duffett-Smith rather than decorative horoscope content. 🔭
+### Astronomy
 
 - [ ] Deterministic local/offline calculation authority with reference fixtures and tolerances.
 - [ ] Observer/location model reusing existing coordinates/timezone where sensible.
-- [ ] Overview/Tonight: Julian Date, local/Greenwich sidereal time, Sun/Moon headline state and useful events.
+- [ ] Overview/Tonight: Julian Date, sidereal time, Sun/Moon headline state and useful events.
 - [ ] Sun: rise/transit/set, twilight classes, day length, RA/Dec and altitude/azimuth.
-- [ ] Moon: rise/transit/set, phase/age/illumination, next principal phases, distance/angular diameter, RA/Dec and altitude/azimuth.
+- [ ] Moon: rise/transit/set, phase/age/illumination, principal phases, distance/angular diameter, RA/Dec and altitude/azimuth.
 - [ ] Planets Mercury–Neptune: rise/transit/set and useful position/magnitude/elongation data where reliable.
 - [ ] Touch-first 1280×720 navigation plus night presentation.
 - [ ] Validate circumpolar/no-rise/no-set/polar/DST/local-date edge cases.
 
-### Appliance resilience — cross-cutting release-quality track
+### Appliance resilience
 
 Detailed design/security constraints: [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md).
 
-- [ ] Investigate intermittent read-only root-filesystem/SD behaviour observed during real commissioned-Pi testing; collect storage/kernel evidence before changing policy.
+- [ ] Investigate intermittent read-only root-filesystem/SD behaviour observed during commissioned-Pi testing.
 - [ ] Reduce avoidable appliance writes where this does not weaken rollback/history/recovery.
-- [ ] Design kiosk-safe Wi-Fi recovery: bounded temporary NetworkManager-backed recovery AP, on-screen QR join path and local captive-portal-style SSID/passphrase entry.
+- [ ] Design kiosk-safe Wi-Fi recovery with a bounded temporary NetworkManager-backed recovery AP and local QR/captive-portal-style setup.
 - [ ] Keep Wi-Fi credentials out of query strings, argv, logs, browser history and persistent recovery pages.
-- [ ] Define recovery timeout/rollback so a failed reconfiguration cannot strand the appliance indefinitely.
-- [ ] Add truthful health/status for storage, network and critical appliance services without turning diagnostics into an automatic mutator.
+- [ ] Define recovery timeout/rollback so failed reconfiguration cannot strand the appliance indefinitely.
+- [ ] Add truthful health/status for storage, network and critical appliance services without automatic mutation.
 
 ### Events calendar
 
-- [ ] Define source/credential ownership before implementation; calendar credentials must remain outside ordinary portable configuration.
-- [ ] Build a cache-first, touch-friendly upcoming-events model suitable for the bedside dashboard.
+- [ ] Define source/credential ownership before implementation.
+- [ ] Build a cache-first, touch-friendly upcoming-events model.
 - [ ] Reuse global date/time formatting and existing screen/idle ownership.
-- [ ] Design stale/offline behaviour so previously fetched events remain useful without pretending to be current.
+- [ ] Design stale/offline behaviour.
 - [ ] Keep external event links/navigation out of the kiosk unless explicitly designed and safely owned.
 
 ## Release gate for the next version
 
 Before promoting the next development cycle to `main`:
 
-- all included feature branches must be merged into `develop` only after their own automated and physical acceptance;
-- the clean-room installer/runbook must still pass on the supported hardware path;
+- all included feature branches must be merged into `develop` only after automated and physical acceptance;
+- the clean-room installer/runbook must still pass on supported hardware;
 - repeat `bash setup.sh` must remain safe/idempotent;
-- repository/docs catalogues and the live roadmap must describe the actual shipped state;
+- repository/docs catalogues and this live roadmap must describe the actual shipped state;
 - the accepted production appliance must not be used as the disposable target for destructive audio/storage experiments;
 - release version/tag/name is assigned only after final scope and acceptance are known.
