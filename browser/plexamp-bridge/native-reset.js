@@ -18,6 +18,7 @@
   const SAFE_SETTING_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
   const EXCLUDED_COMMISSIONING_KEYS = new Set(['playerName', 'audioDeviceUuid']);
   const RUNTIME_NORMALIZED_KEYS = new Set(['equalizerPresets']);
+  RUNTIME_NORMALIZED_KEYS.add('activeTab');
   const PLAYER_VOLUME_KEY = 'playerVolume';
   const PLAYER_VOLUME_TARGET = 100;
   const MAX_SETTINGS = 512;
