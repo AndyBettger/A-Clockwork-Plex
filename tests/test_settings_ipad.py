@@ -15,6 +15,7 @@ class SettingsIpadTests(unittest.TestCase):
         self.base = Path("app/templates/base.html").read_text(encoding="utf-8")
         self.client = Path("app/static/js/settings-ipad.js").read_text(encoding="utf-8")
         self.advanced = Path("app/static/js/settings-advanced.js").read_text(encoding="utf-8")
+        self.reset_defaults = Path("app/static/js/settings-reset-defaults.js").read_text(encoding="utf-8")
         self.alarms = Path("app/static/js/settings-alarms.js").read_text(encoding="utf-8")
         self.transaction_guard = Path("app/static/js/settings-transaction-guard.js").read_text(encoding="utf-8")
         self.news_settings = Path("app/static/js/settings-news.js").read_text(encoding="utf-8")
@@ -238,19 +239,24 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("window.location.replace(`/${preferences.startupMode}`)", self.dashboard_preferences)
 
     def test_reset_to_defaults_is_separate_advanced_workflow(self):
-        self.assertIn("advanced:reset", self.advanced)
-        self.assertIn("Reset to defaults", self.advanced)
-        self.assertIn("This is not a factory wipe.", self.advanced)
-        self.assertIn("Plexamp Home customisation", self.advanced)
-        self.assertIn("Preserved for now", self.advanced)
-        self.assertIn("settingsHaveUnsavedChanges", self.advanced)
-        self.assertIn("Preview reset", self.advanced)
-        self.assertIn("Review reset", self.advanced)
-        self.assertIn("Confirm &amp; reset", self.advanced)
-        self.assertIn("/api/settings/reset/preview", self.advanced)
-        self.assertIn("/api/settings/reset/apply", self.advanced)
-        self.assertIn("reset_token: plan.reset_token", self.advanced)
-        self.assertIn("confirm_reset: true", self.advanced)
+        self.assertIn("settings-reset-defaults.js?v=20260907-full-home-reset-v6", self.advanced)
+        self.assertIn("Reset to defaults", self.reset_defaults)
+        self.assertIn("This is not a factory wipe.", self.reset_defaults)
+        self.assertIn("Plexamp Home customisation", self.reset_defaults)
+        self.assertIn("Plexamp settings + Home customisation", self.reset_defaults)
+        self.assertIn(
+            "Stored order, visibility, presentation, custom sections and custom titles return to Plexamp's rebuilt Home.",
+            self.reset_defaults,
+        )
+        self.assertNotIn("Preserved for now", self.reset_defaults)
+        self.assertIn("settingsHaveUnsavedChanges", self.reset_defaults)
+        self.assertIn("Preview reset", self.reset_defaults)
+        self.assertIn("Review selected reset", self.reset_defaults)
+        self.assertIn("Confirm &amp; reset", self.reset_defaults)
+        self.assertIn("/api/settings/reset/preview", self.reset_defaults)
+        self.assertIn("/api/settings/reset/apply", self.reset_defaults)
+        self.assertIn("reset_token: serverPlan.reset_token", self.reset_defaults)
+        self.assertIn("confirm_reset: true", self.reset_defaults)
 
     def test_reset_owner_reuses_restore_transaction_and_never_resets_plexamp_auth(self):
         captured = {}
@@ -385,6 +391,7 @@ class SettingsIpadTests(unittest.TestCase):
             "app/static/js/settings-transaction-guard.js",
             "app/static/js/settings-ipad.js",
             "app/static/js/settings-advanced.js",
+            "app/static/js/settings-reset-defaults.js",
             "app/static/js/settings-alarms.js",
             "app/static/js/settings-news.js",
             "app/static/js/news.js",
