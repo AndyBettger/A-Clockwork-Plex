@@ -150,7 +150,7 @@ jobs:
           grep -q "register_configuration_restore_apply_api" app/runner.py
           grep -q "register_configuration_reset_preview_api" app/runner.py
           grep -q "register_configuration_reset_apply_api" app/runner.py
-          grep -q "settings-reset-defaults.js?v=20260907-full-home-reset-v6" app/static/js/settings-advanced.js
+          grep -q "settings-reset-defaults.js?v=20260908-zero-preview-v7" app/static/js/settings-advanced.js
           grep -q "/api/settings/reset/preview" app/static/js/settings-reset-defaults.js
           grep -q "/api/settings/reset/apply" app/static/js/settings-reset-defaults.js
           grep -q "Plexamp Home customisation" app/static/js/settings-reset-defaults.js
