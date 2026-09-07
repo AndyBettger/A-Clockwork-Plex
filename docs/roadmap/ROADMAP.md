@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 5 September 2026  
+**Last updated:** 7 September 2026  
 **Active integration branch:** `develop`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
@@ -81,7 +81,7 @@ Accepted constraints for later implementation:
 - [x] Permission-free loopback browser bridge adds validated logical Home **order/hidden** choices.
 - [x] Physical final export captured **15 ordered Home identifiers + 1 hidden identifier** with zero warnings.
 - [ ] Per-section Home presentation `viewSettings` are **not currently in schema-v1 backup**. Physical restore testing on 5 September confirmed that a backup taken with the Home page looking as desired cannot restore those section-presentation choices because they were never exported.
-- [ ] Reconcile the portable logical Home owner with #93's fresh-profile evidence that durable section order can survive with the previously classified Local Storage `order` family absent; the actual authority may be browser-local or shared Plexamp Headless/account state and is not yet classified.
+- [ ] Reconcile the portable logical Home owner with #93's fresh-profile evidence that durable section order is **browser-profile-local** but can exist while the previously classified Local Storage `order` family is absent. The previously accepted order/hidden path remains real evidence but is no longer assumed to be the only browser representation.
 
 ### #90 Configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
@@ -92,7 +92,7 @@ Accepted constraints for later implementation:
 - [x] Guided **Preview → choose ACP / Plexamp / both → Review → Confirm & restore** presentation physically accepted at 1280×720.
 - [x] Final combined physical restore converged back to zero differences for the original supported scope.
 - [ ] Extend the portable Home model to validated per-section presentation now that #93 has physically established the bounded `viewSettings` family and rollback semantics.
-- [ ] Revalidate logical Home order restore against the newly exposed durable persistence authority once that authority is classified; the previously accepted Local Storage path remains real evidence but is no longer assumed to be exhaustive.
+- [ ] Revalidate logical Home order restore against the newly exposed browser-profile-local persistence authority once its exact Local Storage/browser representation is classified; the previously accepted Local Storage path remains real evidence but is no longer assumed to be exhaustive.
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -158,7 +158,7 @@ Physical acceptance proves that Home presentation returns to Plexamp's per-secti
 
 A genuinely fresh disposable Chromium profile has now materially changed the preferred design and disproved the assumption that the known Local Storage customisation family is the complete Home persistence authority.
 
-Physical evidence on 5 September established:
+Physical evidence through 7 September established:
 
 - [x] before Plex login/library selection, the live discovery-hub backing collection exists but contains **0 hubs**;
 - [x] after signing into the same fresh profile, selecting the intended library and making **no Home changes**, Plexamp populated **12 effective Home hubs by itself**;
@@ -166,20 +166,22 @@ Physical evidence on 5 September established:
 - [x] the narrow runtime authority is `rootStore.discovery.$mobx.values.hubs.value.$mobx.values`;
 - [x] all 12 hub objects expose consistent logical Home metadata shapes such as `hubIdentifier`, `source`, `title`, `type` and `items`, with many also exposing `hubKey`, `key` and `size`;
 - [x] the bounded `scripts/inspect-plexamp-home-hubs.py` probe emits names/types/collection lengths only and does not read primitive values or invoke getters;
-- [x] the untouched authenticated/library-selected profile has **zero** `mmkv.default\discovery:customizations:*` keys: 0 `order`, 0 `hidden`, 0 `viewSettings`, 0 `editing`, 0 `customHubs`, 0 `other`, 0 invalid structures and 0 contexts;
-- [x] moving the default **Mixes for you** section down two places produced **no key-family delta** in that Local Storage namespace;
+- [x] the untouched authenticated/library-selected tracer profile initially had **zero** `mmkv.default\discovery:customizations:*` keys;
+- [x] moving the default **Mixes for you** section down two places produced **no key-family delta** in that known Home Local Storage namespace;
 - [x] the moved order survived a normal page refresh while that namespace remained empty;
-- [x] the moved order then survived a **full disposable Chromium process exit and relaunch using the same profile**, while the same Local Storage probe still returned all-zero family/context counts;
-- [x] the broader read-only storage probe on that tracer profile found **48 Local Storage keys** (`bugsnag-anonymous-id` ×1 plus 47 deliberately collapsed `other` keys), **0 Session Storage keys** and **0 IndexedDB databases**, with no IndexedDB page open, record read or transaction.
+- [x] the moved order survived a **full Chromium process exit and relaunch using the same profile**, while the same known Home Local Storage probe still returned all-zero family/context counts;
+- [x] the broader read-only storage probe on that tracer profile found **48 Local Storage keys** (`bugsnag-anonymous-id` ×1 plus 47 deliberately collapsed `other` keys), **0 Session Storage keys** and **0 IndexedDB databases**, with no IndexedDB page open, record read or transaction;
+- [x] a second genuinely fresh control Chromium profile on a separate loopback debug port, signed into the **same Plex account** and **same library** with no Home edits, rendered **Mixes for you at the untouched top position**, not the tracer's moved third position;
+- [x] that control profile also had **zero** known `discovery:customizations` keys, **42 Local Storage keys** (`bugsnag-anonymous-id` ×1 plus 41 collapsed `other` keys), **0 Session Storage keys** and **0 IndexedDB databases**.
 
-The **0-hub pre-login state is not itself a factory Home target**; it represents an unresolved authentication/library context. The useful positive finding remains that Plexamp can build the effective default Home itself once authentication and library context exist. However, the later order experiment establishes an equally important negative finding: **the known `mmkv.default\discovery:customizations:*` Local Storage family is not the complete Home persistence authority**.
+The control experiment is decisive on ownership scope: the durable Home reorder is **first-browser-profile-local**, not shared Plexamp Headless/backend/account state. The second profile saw the untouched default Home despite using the same Headless instance, account and library.
 
-Surviving a complete Chromium restart proves the reorder is durable beyond live MobX/session state, but it does **not** by itself prove that the owner is inside the Chromium profile. The broader probe now rules out Session Storage and IndexedDB for this profile. Remaining candidates include another Local Storage key/value, another browser-local persistence surface, the local Plexamp Headless/backend authority, or Plex account/server state.
+Session Storage and IndexedDB are now ruled out on **both** profiles. The remaining persistence search is therefore inside browser-profile-local state, with Local Storage the strongest current candidate: the moved tracer has 48 keys while the clean control has 42. That is a net +6 key-count difference, but the exact set delta is not yet known — control-only keys may exist, and the order could also be encoded as a changed value under a key common to both profiles. No value should be read until key-name comparison has narrowed this further.
 
-The preferred full-Home design remains “let Plexamp rebuild itself”, but its mutation boundary is now deliberately unresolved:
+The preferred full-Home design remains “let Plexamp rebuild itself”, but its mutation boundary is still deliberately unresolved:
 
 1. preserve Plex authentication/session, selected library, commissioned player name/output and unrelated browser/cache state;
-2. identify the complete bounded persistence authority for Home customisation rather than assuming one Local Storage family is exhaustive;
+2. identify the complete bounded browser-profile-local persistence authority for Home customisation rather than assuming the old `discovery:customizations` family is exhaustive;
 3. do **not** construct, copy or directly mutate the transient runtime hub array;
 4. only after the persistence owner is classified, capture exact rollback state for the narrowly proven Home-owned records;
 5. clear only those classified Home-owned records and trigger the narrowest proven Plexamp Home reload/re-fetch mechanism;
@@ -193,9 +195,11 @@ Next physical investigation:
 - [x] inventory the known Home customisation Local Storage key families on the untouched disposable profile: all recognised family counts and matching-key/context counts are zero;
 - [x] isolate an order-only edit and prove it is durable across page refresh and full Chromium process restart while the known Local Storage family remains empty;
 - [x] run the bounded `scripts/inspect-plexamp-browser-storage.py` probe on the tracer profile: 48 Local Storage keys, 0 Session Storage keys, 0 IndexedDB databases; no stored values or records exposed;
-- [ ] launch a **second genuinely fresh disposable Chromium profile** against the same Plexamp Headless instance, sign into the same Plex account/select the same library, make no Home edits, and record whether **Mixes for you** initially appears in the moved third position or the untouched default position;
-- [ ] run the same read-only browser-storage probe on that control profile;
-- [ ] use those two results to separate first-profile-local persistence from shared Plexamp Headless/backend/account persistence before reading any broader storage values;
+- [x] launch a second genuinely fresh disposable Chromium profile against the same Plexamp Headless/account/library with no Home edits: **Mixes for you remained at the untouched top position**, proving the reorder is first-profile-local;
+- [x] run the same storage probes on the control profile: 42 Local Storage keys, 0 Session Storage keys, 0 IndexedDB databases, 0 known Home-customisation keys;
+- [ ] get the new bounded `scripts/compare-plexamp-local-storage-keys.py` two-profile key-name-only comparison green in CI;
+- [ ] run that comparison against tracer port 9224 and control port 9225; expose only safe key names and redact sensitive-looking names, with **no Local Storage values read**;
+- [ ] use the key-set delta to determine whether a unique browser-local key family is a plausible order owner before considering any still-narrower value-shape/fingerprint comparison;
 - [ ] once order ownership is understood, continue one change at a time for hidden/visible state, presentation and one custom section/title;
 - [ ] prove a reversible disposable-profile scrub of only the complete classified Home-owned state followed by Plexamp rebuild returns to the untouched effective Home while login and selected library remain intact;
 - [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
@@ -236,11 +240,13 @@ The brief 10% AirPlay session-start change introduced during the 5 September fol
 - [x] The order-only tracer physically survived page refresh and a full disposable Chromium process restart while the known Local Storage Home namespace remained empty.
 - [x] **Tests #4601** passed on `379a49af5d77de2a3def470ada946fd8246d2664`: Python compile, JavaScript/page-wiring, shell syntax and the complete unit suite, including the CDP-only browser-storage safety regressions.
 - [x] The broader browser-storage probe physically returned 48 Local Storage keys, 0 Session Storage keys and 0 IndexedDB databases on the moved-order tracer profile, with no Web Storage values or IndexedDB records read.
+- [x] The second clean control profile physically rendered Mixes at the untouched top position and returned 42 Local Storage keys, 0 Session Storage keys, 0 IndexedDB databases and 0 known Home-customisation keys, proving the order difference is browser-profile-local rather than shared through Headless/account state.
+- [ ] The new two-profile Local Storage key-name comparison candidate must pass CI before its physical output is treated as evidence.
 
 #### Remaining gate before #93 can close
 
-- [ ] Use the second fresh-profile control to separate first-profile-local persistence from shared Headless/backend/account persistence.
-- [ ] Classify the durable Home order persistence authority, then continue the one-change-at-a-time Home investigation.
+- [ ] Get the Local Storage key-name comparison diagnostic green in CI and run it against the tracer/control profiles without reading stored values.
+- [ ] Classify the browser-profile-local Home order persistence authority, then continue the one-change-at-a-time Home investigation.
 - [ ] Complete the reversible scrub/rebuild experiment only after the complete Home-owned persistence surface is bounded.
 - [ ] Decide from that evidence whether full Home structure joins #93 or remains a tightly scoped follow-up; the presentation-only implementation itself is physically accepted.
 - [ ] Pull/reboot the eventual final accepted branch head so Chromium reloads the packaged production bridge.
