@@ -2,7 +2,9 @@
 
 ## Status
 
-Checkpoint **#93 Reset to defaults** has passed the combined multi-owner transaction on the commissioned Pi and the disposable **9230 full-Home scrub → Plexamp rebuild → exact rollback** rehearsal. PR #9 remains **Draft and unmerged** until the widened production Home owner is physically accepted on the commissioned appliance and the owner explicitly approves merge.
+Checkpoint **#93 Reset to defaults** has now passed the full production **Preview → Review → Confirm** transaction on the commissioned bedroom Pi, including bounded full-Home rebuild, retained Plex login/library, commissioned player identity/output and accepted ACP defaults. The disposable **9230 full-Home scrub → Plexamp rebuild → exact rollback** rehearsal also remains the reversible architecture proof.
+
+PR #9 remains **Draft and unmerged** pending one final cleanup verification: fresh post-reset Preview exposed `activeTab` as the sole Plexamp native residue after normal UI/navigation activity. Commit `09488072ad204d9a7c0f984d8a4a2a64e92387dd` now classifies that key as runtime-normalised state, analogous to `equalizerPresets`; Tests #4650 passed. The final physical gate is to load that cleanup head in the production kiosk and confirm Preview reports no meaningful Reset work, followed by explicit owner approval.
 
 Reset is deliberately **not a factory wipe**. Authentication, selected library, claim/session, account/machine identity, credentials, hardware topology, installed runtimes/services and unrelated Chromium state remain outside Reset.
 
@@ -84,9 +86,10 @@ Excluded from the native changed-set/fingerprint are:
 - keys beginning `_`;
 - `premium`;
 - `playerName` and `audioDeviceUuid`, because commissioning owns their final appliance state;
-- `equalizerPresets`, because physical evidence proved it is runtime-populated/non-convergent catalogue state rather than a durable resettable user choice.
+- `equalizerPresets`, because physical evidence proved it is runtime-populated/non-convergent catalogue state rather than a durable resettable user choice;
+- `activeTab`, because the commissioned production Reset returned every meaningful owner to baseline but normal Plexamp UI/navigation then repopulated `activeTab` as the sole fresh-Preview difference. It is navigation residue, not durable user configuration.
 
-`equalizerPresets` remains inside the exact rollback snapshot.
+Both `equalizerPresets` and `activeTab` remain inside the exact rollback snapshot. The exclusion applies only to changed-set/fingerprint convergence semantics.
 
 Plexamp live music-player volume is explicitly returned to **100%**, verified, and exact-rollback covered.
 
@@ -226,6 +229,32 @@ The production sequence is:
 
 The ordering is important. Reloading immediately after the Home clear would destroy the in-memory production rollback token before the later server participant had committed. The existing post-success reload avoids that problem cleanly.
 
+## Commissioned-Pi production acceptance — PASSED
+
+The accepted branch head `1f077b28ad453b90409ea91f24da0773c3a0ba90` was converged through normal `bash setup.sh`, followed by the supported reboot. Post-reboot verification confirmed:
+
+- clean Git working tree at the exact accepted head;
+- packaged bridge 1.4.0 loaded by the production kiosk;
+- no remote-debugging flags;
+- dashboard, Plexamp, Shairport, NFC and CamillaDSP services active;
+- dashboard API healthy;
+- Plex still signed in with the correct library.
+
+Fresh production Preview reported **19 server-owned + 8 Plexamp native + 5 Home customisation** changes, with no warnings. The Home records were classified as `order=1`, `hidden=0`, `viewSettings=3`, `customHubs=1`. `equalizerPresets` was absent. Review refreshed the same scope and reported **Ready to confirm**.
+
+Production Confirm completed and verified **34 applied changes**. After the automatic completion reload:
+
+- Plexamp Home was back in default order/style;
+- the custom section and stored presentation/title overrides were gone;
+- Plex remained signed in to the correct library;
+- player name remained correct;
+- managed output remained **A Clockwork Plex - Plexamp**;
+- ACP fresh Preview reported **Already at baselines**;
+- Home fresh Preview reported **0** bounded customisation overrides;
+- commissioning remained correct.
+
+The only fresh-Preview difference was `plexamp.native-settings.activeTab`. This appeared only after normal UI/navigation use and is therefore classified as runtime-normalised navigation state rather than meaningful resettable configuration. Commit `09488072ad204d9a7c0f984d8a4a2a64e92387dd` adds it to `RUNTIME_NORMALIZED_KEYS`; Tests #4650 passed.
+
 ## Browser isolation
 
 The production bridge remains deliberately narrow:
@@ -260,9 +289,9 @@ Selected green CI checkpoints:
 - Tests #4632 — custom-title closure;
 - Tests #4633 — reversible scrub rehearsal tooling;
 - Tests #4638 on `96f06e09544fafed3475f3416ac28650b040c580` — widened production full-Home owner, five-record workflow smoke, JavaScript/page wiring, shell checks and full unit suite all green;
-- Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f` — final production implementation gate after UI/cache/version and stale-regression updates; compile, JavaScript/page wiring/shell checks and full unit suite all green.
-
-Tests #4647 is the implementation gate for commissioned-Pi acceptance. Documentation-only acceptance bookkeeping may advance the branch head afterwards without changing the packaged Reset bridge/client implementation; those bookkeeping heads still remain subject to ordinary CI before merge.
+- Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f` — final production full-Home implementation gate after UI/cache/version and stale-regression updates;
+- Tests #4649 on `1f077b28ad453b90409ea91f24da0773c3a0ba90` — exact commissioned-Pi acceptance head including documentation bookkeeping;
+- Tests #4650 on `09488072ad204d9a7c0f984d8a4a2a64e92387dd` — `activeTab` runtime-normalisation cleanup; compile, JavaScript/page wiring/shell checks and full unit suite green.
 
 ## Remaining gate before #93 can close
 
@@ -270,10 +299,12 @@ Tests #4647 is the implementation gate for commissioned-Pi acceptance. Documenta
 - [x] Complete disposable mixed scrub → Plexamp rebuild → exact rollback with auth/library preserved.
 - [x] Decide that bounded full Home customisation belongs in #93.
 - [x] Implement the widened production Home owner and automated five-record rollback/safety coverage.
-- [x] Obtain a complete green CI run on the final production implementation head — Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f`.
-- [ ] Pull/reboot the accepted branch head on the commissioned Pi so Chromium loads packaged bridge **1.4.0** carrying full-Home semantics.
-- [ ] Physically accept production Preview → Review → Confirm, including Home rebuild, retained login/library, commissioning restoration and accepted ACP defaults.
-- [ ] Verify a fresh production Preview no longer reports `equalizerPresets` as a native Reset difference.
-- [ ] If the commissioned Pi contains the short-lived 10% AirPlay start value, verify Reset returns AirPlay session-start and persistent AirPlay trim to **100%**.
+- [x] Obtain complete green CI on the accepted production implementation/bookkeeping heads.
+- [x] Pull/converge/reboot the commissioned Pi with bridge 1.4.0.
+- [x] Physically accept production Preview → Review → Confirm, including Home rebuild, retained login/library, commissioning restoration and accepted ACP defaults.
+- [x] Verify fresh production Preview no longer reports `equalizerPresets` and reports ACP/Home at baseline.
+- [x] Confirm the commissioned Pi did not contain the short-lived 10% AirPlay start residue at the accepted Preview checkpoint.
+- [x] Classify and exclude the sole post-reset `activeTab` navigation residue; Tests #4650 green.
+- [ ] Pull/restart the production kiosk on the `activeTab` cleanup head and verify fresh Preview reports no meaningful Reset differences.
 - [ ] Keep the #89/#90 Home presentation/custom-structure portable Backup/Restore follow-up open until implemented or deliberately deferred.
 - [ ] Explicit owner acceptance required before PR #9 leaves Draft or merges.
