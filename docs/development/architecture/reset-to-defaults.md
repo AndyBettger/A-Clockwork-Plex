@@ -259,9 +259,10 @@ Selected green CI checkpoints:
 - Tests #4631 — bounded title diagnostic/catalogues;
 - Tests #4632 — custom-title closure;
 - Tests #4633 — reversible scrub rehearsal tooling;
-- Tests #4638 on `96f06e09544fafed3475f3416ac28650b040c580` — widened production full-Home owner, five-record workflow smoke, JavaScript/page wiring, shell checks and full unit suite all green.
+- Tests #4638 on `96f06e09544fafed3475f3416ac28650b040c580` — widened production full-Home owner, five-record workflow smoke, JavaScript/page wiring, shell checks and full unit suite all green;
+- Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f` — final production implementation gate after UI/cache/version and stale-regression updates; compile, JavaScript/page wiring/shell checks and full unit suite all green.
 
-Later branch heads must also be green before commissioned-Pi production acceptance.
+Tests #4647 is the implementation gate for commissioned-Pi acceptance. Documentation-only acceptance bookkeeping may advance the branch head afterwards without changing the packaged Reset bridge/client implementation; those bookkeeping heads still remain subject to ordinary CI before merge.
 
 ## Remaining gate before #93 can close
 
@@ -269,8 +270,8 @@ Later branch heads must also be green before commissioned-Pi production acceptan
 - [x] Complete disposable mixed scrub → Plexamp rebuild → exact rollback with auth/library preserved.
 - [x] Decide that bounded full Home customisation belongs in #93.
 - [x] Implement the widened production Home owner and automated five-record rollback/safety coverage.
-- [ ] Obtain a complete green CI run on the final production/docs head.
-- [ ] Pull/reboot that exact head on the commissioned Pi so Chromium loads the packaged bridge version carrying full-Home semantics.
+- [x] Obtain a complete green CI run on the final production implementation head — Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f`.
+- [ ] Pull/reboot the accepted branch head on the commissioned Pi so Chromium loads packaged bridge **1.4.0** carrying full-Home semantics.
 - [ ] Physically accept production Preview → Review → Confirm, including Home rebuild, retained login/library, commissioning restoration and accepted ACP defaults.
 - [ ] Verify a fresh production Preview no longer reports `equalizerPresets` as a native Reset difference.
 - [ ] If the commissioned Pi contains the short-lived 10% AirPlay start value, verify Reset returns AirPlay session-start and persistent AirPlay trim to **100%**.
