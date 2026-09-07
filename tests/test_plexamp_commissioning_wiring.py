@@ -68,8 +68,6 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         self.assertIn("player name will return to the name captured during appliance setup", text)
         self.assertIn("audio output will return to A Clockwork Plex - Plexamp", text)
         self.assertIn("Plexamp's own Reset to Defaults semantics", text)
-        self.assertIn("Home order, visibility and custom sections are preserved", text)
-        self.assertIn("per-section defaults", text)
         self.assertIn("ACPPlexampHomeReset", text)
         self.assertIn("ACPPlexampNativeReset", text)
         self.assertIn("rollbackBrowserOwners", text)
@@ -86,6 +84,8 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         home_extension = HOME_EXTENSION.read_text(encoding="utf-8")
         self.assertIn("chrome.runtime.getURL('native-reset.js')", home_extension)
         self.assertIn("installNativeResetBridge(document)", home_extension)
+        self.assertIn("DURABLE_FAMILIES", home_extension)
+        self.assertNotIn("localStorage.clear", home_extension)
 
         for script in (
             RESET_CLIENT,
@@ -267,7 +267,7 @@ const bridge = require('./browser/plexamp-bridge/native-reset.js');
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
-    def test_home_reset_resets_view_settings_but_preserves_home_structure(self) -> None:
+    def test_home_reset_clears_complete_bounded_home_and_restores_exactly(self) -> None:
         script = r"""
 const bridge = require('./browser/plexamp-bridge/reset.js');
 
@@ -280,19 +280,18 @@ const customHubKey = 'mmkv.default\\discovery:customizations:ctx::/library/secti
 const authKey = 'mmkv.default\\authToken';
 const cacheKey = 'mmkv.default\\music.popular.9:cachedItems';
 
-function fixture({ failMutationAt = 0 } = {}) {
-  const builtInRaw = JSON.stringify({0:{size:'large',style:'carousel'}});
-  const customRaw = JSON.stringify({0:{title:'My custom row',size:'large',style:'carousel'}});
+function fixture({ failMutationAt = 0, editing = false } = {}) {
   const values = new Map([
-    [builtInViewKey, builtInRaw],
-    [customViewKey, customRaw],
+    [builtInViewKey, JSON.stringify({0:{size:'large',style:'carousel'}})],
+    [customViewKey, JSON.stringify({0:{title:'My custom row',size:'large',style:'carousel'}})],
     [orderKey, JSON.stringify({0:['hub.a','hub.custom']})],
     [hiddenKey, JSON.stringify({0:true})],
-    [editingKey, 'true'],
     [customHubKey, JSON.stringify({0:['hub.custom']})],
     [authKey, 'AUTH-MUST-STAY'],
     [cacheKey, 'CACHE-MUST-STAY'],
   ]);
+  if (editing) values.set(editingKey, 'true');
+  const original = new Map(values);
   let mutationCalls = 0;
   const maybeFail = () => {
     mutationCalls += 1;
@@ -305,76 +304,104 @@ function fixture({ failMutationAt = 0 } = {}) {
     setItem(key, value) { maybeFail(); values.set(key, String(value)); },
     removeItem(key) { maybeFail(); values.delete(key); },
   };
-  return { values, storage, builtInRaw, customRaw };
+  return { values, original, storage };
 }
 
+const durableKeys = [builtInViewKey, customViewKey, orderKey, hiddenKey, customHubKey];
 const successFixture = fixture();
 const plan = bridge.planHomeReset(successFixture.storage);
 if (
   plan.status !== 'ready'
-  || plan.change_count !== 2
-  || plan.view_settings_record_count !== 2
+  || plan.change_count !== 5
+  || plan.home_record_count !== 5
   || !plan.reset_available
-) throw new Error(`unexpected Home presentation plan ${JSON.stringify(plan)}`);
+  || plan.family_counts.order !== 1
+  || plan.family_counts.hidden !== 1
+  || plan.family_counts.viewSettings !== 2
+  || plan.family_counts.customHubs !== 1
+  || plan.family_counts.editing !== 0
+  || plan.family_counts.other !== 0
+) throw new Error(`unexpected full Home plan ${JSON.stringify(plan)}`);
+const originalFingerprint = plan.target_fingerprint;
 
-const success = bridge.applyHomeReset(successFixture.storage, plan.target_fingerprint, true);
-if (!success.applied || success.applied_change_count !== 2 || !success.rollback_token) {
-  throw new Error(`Home presentation reset failed ${JSON.stringify(success)}`);
+const success = bridge.applyHomeReset(successFixture.storage, originalFingerprint, true);
+if (!success.applied || success.applied_change_count !== 5 || !success.rollback_token) {
+  throw new Error(`full Home reset failed ${JSON.stringify(success)}`);
 }
-if (successFixture.values.has(builtInViewKey)) {
-  throw new Error('built-in Home viewSettings were not cleared to Plexamp defaults');
+for (const key of durableKeys) {
+  if (successFixture.values.has(key)) throw new Error(`Home reset did not remove ${key}`);
 }
-const customAfter = JSON.parse(successFixture.values.get(customViewKey));
-if (JSON.stringify(customAfter) !== JSON.stringify({0:{title:'My custom row'}})) {
-  throw new Error(`custom Home title was not preserved exactly ${JSON.stringify(customAfter)}`);
+if (successFixture.values.get(authKey) !== 'AUTH-MUST-STAY' || successFixture.values.get(cacheKey) !== 'CACHE-MUST-STAY') {
+  throw new Error('Home reset altered unrelated auth/cache state');
 }
-for (const [key, expected] of [
-  [orderKey, JSON.stringify({0:['hub.a','hub.custom']})],
-  [hiddenKey, JSON.stringify({0:true})],
-  [editingKey, 'true'],
-  [customHubKey, JSON.stringify({0:['hub.custom']})],
-  [authKey, 'AUTH-MUST-STAY'],
-  [cacheKey, 'CACHE-MUST-STAY'],
-]) {
-  if (successFixture.values.get(key) !== expected) throw new Error(`Home reset altered preserved record ${key}`);
+const emptyPlan = bridge.planHomeReset(successFixture.storage);
+if (emptyPlan.status !== 'ready' || emptyPlan.reset_available || emptyPlan.change_count !== 0) {
+  throw new Error(`Home reset did not converge to empty bounded state ${JSON.stringify(emptyPlan)}`);
 }
 
 const rolled = bridge.rollbackHomeReset(success.rollback_token, true);
-if (!rolled.rolled_back || !rolled.verified) {
+if (!rolled.rolled_back || !rolled.verified || rolled.target_fingerprint !== originalFingerprint) {
   throw new Error(`Home rollback failed ${JSON.stringify(rolled)}`);
 }
-if (
-  successFixture.values.get(builtInViewKey) !== successFixture.builtInRaw
-  || successFixture.values.get(customViewKey) !== successFixture.customRaw
-) throw new Error('Home rollback did not restore exact viewSettings bytes');
+for (const [key, value] of successFixture.original.entries()) {
+  if (successFixture.values.get(key) !== value) throw new Error(`Home rollback did not restore exact bytes for ${key}`);
+}
+const restoredPlan = bridge.planHomeReset(successFixture.storage);
+if (restoredPlan.target_fingerprint !== originalFingerprint || restoredPlan.change_count !== 5) {
+  throw new Error(`Home rollback did not restore exact fingerprint ${JSON.stringify(restoredPlan)}`);
+}
 
 const staleFixture = fixture();
 const stalePlan = bridge.planHomeReset(staleFixture.storage);
 staleFixture.values.set(builtInViewKey, JSON.stringify({0:{size:'small'}}));
 const stale = bridge.applyHomeReset(staleFixture.storage, stalePlan.target_fingerprint, true);
 if (stale.status !== 'stale-target' || stale.applied || !stale.fresh_preview_required) {
-  throw new Error(`stale Home presentation reset was not refused ${JSON.stringify(stale)}`);
+  throw new Error(`stale full Home reset was not refused ${JSON.stringify(stale)}`);
 }
 
 const failureFixture = fixture({ failMutationAt: 2 });
 const failurePlan = bridge.planHomeReset(failureFixture.storage);
 const failed = bridge.applyHomeReset(failureFixture.storage, failurePlan.target_fingerprint, true);
 if (failed.status !== 'apply-failed' || failed.applied || !failed.rolled_back) {
-  throw new Error(`injected Home failure did not roll back ${JSON.stringify(failed)}`);
+  throw new Error(`injected Home failure did not self-roll back ${JSON.stringify(failed)}`);
 }
-if (
-  failureFixture.values.get(builtInViewKey) !== failureFixture.builtInRaw
-  || failureFixture.values.get(customViewKey) !== failureFixture.customRaw
-) throw new Error('failure rollback did not restore exact Home viewSettings bytes');
+const failureRestoredPlan = bridge.planHomeReset(failureFixture.storage);
+if (failureRestoredPlan.target_fingerprint !== failurePlan.target_fingerprint) {
+  throw new Error('failed apply did not restore the exact pre-apply Home fingerprint');
+}
 
-const ambiguous = fixture();
-ambiguous.values.set(
-  'mmkv.default\\discovery:customizations:other::/library/sections/7:hub.z:viewSettings',
-  JSON.stringify({0:{size:'large'}}),
+const editingFixture = fixture({ editing: true });
+const editingPlan = bridge.planHomeReset(editingFixture.storage);
+if (editingPlan.status !== 'editing-active' || editingPlan.reset_available) {
+  throw new Error(`active Home editor state did not fail closed ${JSON.stringify(editingPlan)}`);
+}
+
+const unknownFixture = fixture();
+unknownFixture.values.set(
+  'mmkv.default\\discovery:customizations:ctx::/library/sections/9:hub.a:futureSetting',
+  'x',
 );
-const ambiguousPlan = bridge.planHomeReset(ambiguous.storage);
-if (ambiguousPlan.status !== 'ambiguous-context' || ambiguousPlan.reset_available) {
-  throw new Error(`ambiguous Home context did not fail closed ${JSON.stringify(ambiguousPlan)}`);
+const unknownPlan = bridge.planHomeReset(unknownFixture.storage);
+if (unknownPlan.status !== 'unclassified-customization-keys' || unknownPlan.reset_available) {
+  throw new Error(`unknown Home family did not fail closed ${JSON.stringify(unknownPlan)}`);
+}
+
+const guardedRollbackFixture = fixture();
+const guardedPlan = bridge.planHomeReset(guardedRollbackFixture.storage);
+const guardedApplied = bridge.applyHomeReset(
+  guardedRollbackFixture.storage,
+  guardedPlan.target_fingerprint,
+  true,
+);
+guardedRollbackFixture.values.set(orderKey, JSON.stringify({0:['unexpected']}));
+const refusedRollback = bridge.rollbackHomeReset(guardedApplied.rollback_token, true);
+if (refusedRollback.status !== 'rollback-target-not-empty' || refusedRollback.rolled_back) {
+  throw new Error(`non-empty rollback target did not fail closed ${JSON.stringify(refusedRollback)}`);
+}
+guardedRollbackFixture.values.delete(orderKey);
+const guardedRolled = bridge.rollbackHomeReset(guardedApplied.rollback_token, true);
+if (!guardedRolled.rolled_back || guardedRolled.target_fingerprint !== guardedPlan.target_fingerprint) {
+  throw new Error(`guarded rollback did not succeed after target was empty ${JSON.stringify(guardedRolled)}`);
 }
 """
         result = subprocess.run(
