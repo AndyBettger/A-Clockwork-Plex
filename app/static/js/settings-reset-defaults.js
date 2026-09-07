@@ -12,10 +12,9 @@
   const PREVIEW_API = '/api/settings/reset/preview';
   const APPLY_API = '/api/settings/reset/apply';
   const RESULT_KEY = 'acp-reset-defaults-result-v3';
-  const HOME_BRIDGE_SRC = '/static/js/plexamp-home-reset-bridge.js?v=20260904-reset-home-v4';
+  const HOME_BRIDGE_SRC = '/static/js/plexamp-home-reset-bridge.js?v=20260907-full-home-reset-v5';
   const NATIVE_BRIDGE_SRC = '/static/js/plexamp-native-reset-bridge.js?v=20260904-native-reset-v2';
-  // Historical CI vocabulary retained while older wiring guards still look for it:
-  // Plexamp Home customisation.
+  // Plexamp Home customisation is intentionally a bounded browser-local Reset owner.
 
   let serverPlan = null;
   let homePlan = null;
@@ -26,7 +25,7 @@
   row.className = 'settings-subpage-row';
   row.type = 'button';
   row.dataset.settingsSubpageTarget = 'advanced:reset';
-  row.innerHTML = '<span><strong>Reset to defaults</strong><small>ACP + Plexamp settings, Home presentation and appliance commissioning</small></span><span>›</span>';
+  row.innerHTML = '<span><strong>Reset to defaults</strong><small>ACP + Plexamp settings, Home customisation and appliance commissioning</small></span><span>›</span>';
   overview.append(row);
 
   const page = document.createElement('section');
@@ -43,7 +42,7 @@
         </div>
         <span class="settings-chip">Preview first</span>
       </div>
-      <p class="muted small"><strong>This is not a factory wipe.</strong> Plexamp keeps its login, selected library and device/account identity. Plexamp's own Reset to Defaults semantics restore ordinary Plexamp settings; each Home section's presentation returns to Plexamp's per-section default while Home order, visibility and custom sections are preserved; A Clockwork Plex then restores the commissioned player name and managed audio output.</p>
+      <p class="muted small"><strong>This is not a factory wipe.</strong> Plexamp keeps its login, selected library and device/account identity. Plexamp's own Reset to Defaults semantics restore ordinary Plexamp settings; bounded Home customisation records are cleared so Plexamp can rebuild its own Home on the completion reload; A Clockwork Plex then restores the commissioned player name and managed audio output.</p>
       <div class="settings-restore-target-grid" role="group" aria-label="Reset owners">
         <div class="settings-restore-target" aria-pressed="true" data-reset-target="acp">
           <span class="settings-restore-target-title"><strong>A Clockwork Plex + managed Plexamp</strong><span class="settings-chip" data-reset-acp-summary>Not previewed</span></span>
@@ -51,10 +50,10 @@
         </div>
         <div class="settings-restore-target" aria-pressed="true" data-reset-target="plexamp">
           <span class="settings-restore-target-title"><strong>Plexamp settings + Home customisation</strong><span class="settings-chip" data-reset-plexamp-summary>Not previewed</span></span>
-          <small>Plexamp's native settings defaults plus per-section Home presentation defaults. Order, visibility and custom sections are preserved.</small>
+          <small>Plexamp's native settings defaults plus a bounded Home customisation reset. Stored order, visibility, presentation, custom sections and custom titles return to Plexamp's rebuilt Home.</small>
         </div>
       </div>
-      <p class="muted small"><strong>Always preserved:</strong> Plex/Plexamp login, selected library, claim/session and account/machine identity; Home order, visibility and custom sections; Chromium profile outside the bounded reset records; credentials; hardware topology; installed runtimes and services.</p>
+      <p class="muted small"><strong>Always preserved:</strong> Plex/Plexamp login, selected library, claim/session and account/machine identity; Chromium profile outside the bounded reset records; credentials; hardware topology; installed runtimes and services.</p>
       <div class="settings-action-row">
         <button class="button settings-secondary" type="button" data-action="preview-reset-defaults">Preview reset</button>
       </div>
@@ -84,7 +83,7 @@
         </div>
       </div>
       <p class="muted small" data-reset-native-detail>Plexamp native settings have not been inspected yet.</p>
-      <p class="muted small" data-reset-home-detail>Plexamp Home presentation has not been inspected yet.</p>
+      <p class="muted small" data-reset-home-detail>Plexamp Home customisation has not been inspected yet.</p>
       <p class="muted small" data-reset-commissioning-detail>Plexamp commissioning has not been inspected yet.</p>
       <details class="settings-restore-details">
         <summary>Technical changed paths</summary>
@@ -101,7 +100,7 @@
       <div class="setting-field settings-restore-confirmation" data-reset-confirm hidden>
         <span>Final confirmation</span>
         <strong>Reset the selected user customisation?</strong>
-        <small>Browser-owned Plexamp settings/Home presentation are protected by stale-preview checks and retained rollback state until the server-owned reset completes.</small>
+        <small>Browser-owned Plexamp settings/Home customisation are protected by stale-preview checks and retained rollback state until the server-owned reset completes.</small>
         <ul class="muted small" data-reset-confirm-summary></ul>
         <div class="settings-action-row">
           <button class="button" type="button" data-action="confirm-reset-defaults">Confirm &amp; reset</button>
@@ -343,9 +342,18 @@
     return [
       ...filtered,
       'Plexamp login, selected library, claim/session, account capability and machine identity',
-      'Plexamp Home order, visibility and custom-added sections',
-      'Chromium profile outside the bounded Plexamp settings/Home presentation reset records',
+      'Chromium profile outside the bounded Plexamp settings/Home customisation reset records',
     ];
+  }
+
+  function homeFamilySummary() {
+    const counts = homePlan?.family_counts || {};
+    return [
+      `${Number(counts.order || 0)} order`,
+      `${Number(counts.hidden || 0)} visibility`,
+      `${Number(counts.viewSettings || 0)} presentation/title`,
+      `${Number(counts.customHubs || 0)} custom-section`,
+    ].join(', ');
   }
 
   function renderPlans() {
@@ -374,7 +382,7 @@
       ([name, total]) => `${name} · ${total}`,
     );
     if (nativeCount) sections.push(`plexamp.native-settings · ${nativeCount}`);
-    if (homeCount) sections.push(`plexamp.home-presentation · ${homeCount}`);
+    if (homeCount) sections.push(`plexamp.home-customisation · ${homeCount}`);
     replaceList(sectionsList, sections, 'All supported reset owners already match their baselines.');
 
     replaceList(
@@ -394,7 +402,7 @@
         technicalPaths.push(`plexamp.native-settings · ${nativeCount}`);
       }
     }
-    if (homeCount) technicalPaths.push(`plexamp.home.view-settings · ${homeCount}`);
+    if (homeCount) technicalPaths.push(`plexamp.home.customisation · ${homeCount}`);
     replaceList(pathsList, technicalPaths, 'No supported technical paths differ.');
 
     const commissioning = serverPlan?.plexamp_commissioning || {};
@@ -427,11 +435,15 @@
 
     if (homeDetail) {
       if (homePlan?.status !== 'ready') {
-        homeDetail.textContent = `Plexamp Home presentation inspection is unavailable (${String(homePlan?.status || 'unknown').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 80)}).`;
+        const reason = String(homePlan?.status || 'unknown').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 80);
+        homeDetail.textContent = reason === 'editing-active'
+          ? 'Plexamp Home customisation cannot be reset while an active Home editing record is present. Leave the Home editor, allow Plexamp to settle, then Preview again.'
+          : `Plexamp Home customisation inspection is unavailable (${reason}).`;
       } else if (homeCount) {
-        homeDetail.textContent = `${homePlan.view_settings_record_count || 0} Home section presentation record${Number(homePlan.view_settings_record_count || 0) === 1 ? '' : 's'} will return to Plexamp's per-section defaults. Home order, visibility and custom-added sections will be preserved.`;
+        const recordCount = Number(homePlan.home_record_count || homeCount);
+        homeDetail.textContent = `${recordCount} bounded Home customisation record${recordCount === 1 ? '' : 's'} will be cleared (${homeFamilySummary()}). After the complete Reset succeeds, Plexamp reloads and rebuilds its own Home while login and selected library remain intact.`;
       } else {
-        homeDetail.textContent = 'Plexamp Home section presentation already has no resettable view overrides. Order, visibility and custom-added sections are preserved.';
+        homeDetail.textContent = 'Plexamp Home has no bounded customisation overrides to clear. Its effective Home will remain Plexamp-owned.';
       }
     }
 
@@ -440,7 +452,9 @@
       warnings.push('Plexamp native reset owner is unavailable. Full Reset is blocked until the local bridge is available.');
     }
     if (homePlan?.status !== 'ready') {
-      warnings.push('Plexamp Home presentation reset owner is unavailable. Full Reset is blocked until the local bridge is available.');
+      warnings.push(homePlan?.status === 'editing-active'
+        ? 'Plexamp Home is still marked as being edited. Leave the Home editor and Preview again; Reset refuses to guess through active edit state.'
+        : 'Plexamp Home customisation reset owner is unavailable or contains unclassified state. Full Reset is blocked until the bounded owner reports ready.');
     }
     warningsBox.hidden = warnings.length === 0;
     replaceList(warningsList, warnings, 'No warnings.');
@@ -456,7 +470,7 @@
         statusPill,
         statusMessage,
         'Preview incomplete',
-        'The local Plexamp browser reset owner is unavailable. Preview again after the kiosk bridge is reloaded.',
+        'A local Plexamp browser reset owner is unavailable or not safely classifiable. Resolve the warning and Preview again.',
         'warning',
       );
     } else {
@@ -466,8 +480,8 @@
         statusMessage,
         selectedCount ? 'Preview ready' : 'Already at baselines',
         selectedCount
-          ? `${serverChangeCount()} server-owned, ${nativeCount} Plexamp setting and ${homeCount} Plexamp Home presentation change${selectedCount === 1 ? '' : 's'} found. Nothing has changed yet.`
-          : 'A Clockwork Plex, Plexamp settings, Home section presentation and commissioning already match their baselines.',
+          ? `${serverChangeCount()} server-owned, ${nativeCount} Plexamp setting and ${homeCount} Plexamp Home customisation change${selectedCount === 1 ? '' : 's'} found. Nothing has changed yet.`
+          : 'A Clockwork Plex, Plexamp settings, bounded Home customisation and commissioning already match their baselines.',
         'ready',
       );
     }
@@ -505,7 +519,7 @@
       statusPill,
       statusMessage,
       'Previewing…',
-      'Reading ACP, Plexamp native settings, Home section presentation and appliance commissioning.',
+      'Reading ACP, Plexamp native settings, bounded Home customisation and appliance commissioning.',
       'ready',
     );
     try {
@@ -559,7 +573,7 @@
           reviewPill,
           reviewMessage,
           'Review blocked',
-          'The local Plexamp reset bridge is unavailable.',
+          'A local Plexamp reset owner is unavailable or not safely classifiable.',
           'warning',
         );
         return;
@@ -597,8 +611,8 @@
 
       summary.push(
         homeCount
-          ? `${homeCount} Plexamp Home section presentation${homeCount === 1 ? '' : 's'} will return to Plexamp's per-section defaults. Home order, visibility and custom-added sections will be preserved.`
-          : 'Plexamp Home section presentation already has no resettable view overrides; order, visibility and custom-added sections will be preserved.',
+          ? `${homeCount} bounded Plexamp Home customisation record${homeCount === 1 ? '' : 's'} will be cleared. Stored order, visibility, presentation, custom sections and titles will return to Plexamp's rebuilt Home after the complete transaction succeeds.`
+          : 'Plexamp Home has no bounded customisation overrides to clear.',
       );
 
       if (commissioningCount) {
@@ -617,7 +631,7 @@
       if ((serverPlan.confirmations_required || []).includes('airplay_restart')) {
         summary.push('The AirPlay receiver name will return to its default and Shairport Sync will briefly restart.');
       }
-      summary.push('Plex/Plexamp login, selected library, Home order/visibility/custom sections, claim/session, account/machine identity and hardware topology will be preserved.');
+      summary.push('Plex/Plexamp login, selected library, claim/session, account/machine identity and hardware topology will be preserved.');
 
       replaceList(confirmSummary, summary, 'No changes are selected.');
       confirmZone.hidden = commissioning.ready !== true && nativeCount > 0;
@@ -696,7 +710,7 @@
     const failures = [];
     if (tokens.home) {
       const result = await window.ACPPlexampHomeReset.rollback(tokens.home, { timeoutMs: 2500 });
-      if (result?.rolled_back !== true || result?.verified !== true) failures.push('Plexamp Home presentation');
+      if (result?.rolled_back !== true || result?.verified !== true) failures.push('Plexamp Home customisation');
     }
     if (tokens.native) {
       const result = await window.ACPPlexampNativeReset.rollback(tokens.native, { timeoutMs: 2500 });
@@ -740,10 +754,10 @@
           { timeoutMs: 3000 },
         );
         if (homeResult?.status === 'stale-target') {
-          throw new Error('Plexamp Home presentation changed after Review. Preview again.');
+          throw new Error('Plexamp Home customisation changed after Review. Preview again.');
         }
         if (homeResult?.applied !== true || !homeResult.rollback_token) {
-          throw new Error('Plexamp Home presentation reset did not complete and verify.');
+          throw new Error('Plexamp Home customisation reset did not complete and verify.');
         }
         tokens.home = homeResult.rollback_token;
         result.homeCount = Number(homeResult.applied_change_count || 0);
@@ -865,7 +879,7 @@
       const ownerLabels = [];
       if (saved.acp) ownerLabels.push('A Clockwork Plex');
       if (saved.native) ownerLabels.push('Plexamp settings');
-      if (saved.home) ownerLabels.push('Plexamp Home presentation');
+      if (saved.home) ownerLabels.push('Plexamp Home customisation');
       if (saved.commissioning) ownerLabels.push('Plexamp commissioning');
       const owners = ownerLabels.length ? ownerLabels.join(' + ') : 'Selected owners';
       setStatus(
