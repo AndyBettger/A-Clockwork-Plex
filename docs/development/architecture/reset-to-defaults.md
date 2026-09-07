@@ -144,7 +144,7 @@ A fresh disposable profile established that:
 
 ### Durable browser-profile-local owners now closed
 
-Four isolated disposable profiles remain independent durable reference evidence, and a fifth profile is now classifying custom-section creation:
+Five isolated disposable profiles now cover four durable Home persistence cases plus one editor-only control:
 
 ```text
 9224 order tracer
@@ -165,12 +165,11 @@ Four isolated disposable profiles remain independent durable reference evidence,
   all Home families remain zero
 
 9228 custom-section tracer
-  one new Home section created from an all-zero profile
-  immediate family inventory:
+  Artist-based custom Home section titled ACP Test Section
+  durable after page refresh and full Chromium restart:
   customHubs=1, order=1, viewSettings=1
   hidden=0, editing=0, other=0
   context_count=2, section_context_count=2
-  page-refresh/full-process durability pending
 ```
 
 #### Order
@@ -226,9 +225,9 @@ Therefore:
 - `editing` is not required to preserve the presentation choice;
 - the current production Reset is correctly scoped to `viewSettings` and should continue leaving `editing` alone.
 
-#### Custom-section creation — immediate effect
+#### Custom-section creation and durability
 
-A fifth fresh profile started with all Home persistence families at zero. Adding exactly one new Home section changed the family inventory to:
+A fifth fresh profile started with all Home persistence families at zero. Adding exactly one Artist-based custom Home section titled **ACP Test Section** changed the family inventory to:
 
 ```text
 customHubs=1
@@ -239,9 +238,15 @@ editing=0
 other=0
 ```
 
-The three matching records span two classified structural contexts (`context_count=2`, `section_context_count=2`). This is strong creation-time evidence that a custom section is materialised as a coordinated **custom-hub + ordering + presentation bundle**, rather than a standalone `customHubs` record.
+The three matching records span two classified structural contexts (`context_count=2`, `section_context_count=2`). The section remained present in the same position and the family inventory remained exactly unchanged after both a normal page refresh and a complete Chromium process exit/relaunch using the same profile.
 
-This is **not yet a durability conclusion**. The profile must first survive a normal page reload and then a full Chromium process exit/relaunch with the custom section still present and the same classified family inventory. Until those checks pass, the full Reset must not assume the three-record creation bundle is the durable minimal owner.
+Therefore custom-added section persistence is now closed as a durable coordinated **custom-hub + ordering + presentation bundle**. A future full-Home scrub must treat that bundle atomically and retain exact rollback for all participating records rather than deleting `customHubs` in isolation.
+
+### Bounded custom-title diagnostic
+
+The existing production Home Reset decoder already accepts and preserves only a validated `viewSettings.title` field: 1–240 characters, no control characters, direct/wrapped object codecs only. `scripts/inspect-plexamp-home-title.py` reuses that envelope as a developer-only disposable-profile diagnostic.
+
+Unlike the key-family probe, the title diagnostic necessarily calls `getItem()` for structurally validated `viewSettings` keys. It then inspects only the optional validated `title` field and reports counts/matches against one caller-supplied expected title. It never emits stored titles, raw Local Storage values, raw keys, context identifiers or hub identifiers, and it never mutates storage. It exists solely to isolate a custom-title rename without broadening the production bridge.
 
 ### Diagnostic safety and corrected matcher
 
@@ -270,13 +275,12 @@ The observed default hub count is not a product invariant and must never be hard
 
 ## Remaining Home investigation
 
-Order, hidden/visible and built-in presentation are closed. Custom-section creation has a clean immediate family delta, but its durability is still open. The remaining causal work is deliberately narrow:
+Order, hidden/visible, built-in presentation and custom-added section structure are closed. The remaining causal work is deliberately narrow:
 
-1. verify the **9228 custom-section three-record bundle** across page refresh and full Chromium process restart without further Home mutation;
-2. classify **custom section title persistence** one change at a time only after custom-section durability is closed;
-3. decide exact full-Reset semantics for custom sections/titles from that evidence;
-4. only then build a disposable-only reversible scrub/rebuild experiment using the complete classified family set;
-5. prove exact rollback restores the pre-scrub Home if a later Reset participant fails.
+1. classify **custom section title persistence** one change at a time with the bounded title matcher;
+2. decide exact full-Reset semantics for custom sections/titles from that evidence;
+3. only then build a disposable-only reversible scrub/rebuild experiment using the complete classified family set;
+4. prove exact rollback restores the pre-scrub Home if a later Reset participant fails.
 
 Only if those gates pass should production expand beyond the accepted presentation-only Home owner.
 
@@ -318,7 +322,8 @@ Key green CI checkpoints:
 - Tests #4619 — corrected Home-family probe and warning regression;
 - Tests #4620 — exact pre-hidden-acceptance state;
 - Tests #4621 — hidden-acceptance roadmap state;
-- Tests #4623 — post-presentation documentation/safety state.
+- Tests #4623 — post-presentation documentation/safety state;
+- Tests #4625 — post-custom-section creation documentation state.
 
 Physical evidence through 7 September 2026 establishes:
 
@@ -332,12 +337,12 @@ Physical evidence through 7 September 2026 establishes:
 - Home hidden/visible persistence closed;
 - built-in Home presentation persistence closed;
 - transient `editing` separated from durable `viewSettings`;
-- custom-section creation immediately produces `customHubs=1`, `order=1`, `viewSettings=1` across two classified contexts, with durability pending;
-- full Home rebuild remains open for custom-section durability, custom-title classification and the reversible scrub/rebuild proof.
+- custom-added section persistence closed as a durable `customHubs=1`, `order=1`, `viewSettings=1` bundle across two classified contexts;
+- full Home rebuild remains open only for custom-title classification and the reversible scrub/rebuild proof.
 
 ## Remaining gate before #93 can close
 
-- [ ] Close custom-added section durability and custom-title persistence one variable at a time.
+- [ ] Close custom-title persistence one variable at a time.
 - [ ] Complete the reversible full-Home scrub/rebuild experiment after the persistence surface is fully bounded.
 - [ ] Decide whether full Home structure belongs in #93 or a tightly scoped follow-up.
 - [ ] Pull/reboot the eventual final production head so Chromium reloads the packaged bridge.
