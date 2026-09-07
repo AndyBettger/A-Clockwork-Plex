@@ -228,7 +228,7 @@ The historical compact `:c` LevelDB lead remains classified as historical/delete
 
 ### Full Home-customisation reset — native rebuild and persistence-authority investigation
 
-The owner's suggestion to let Plexamp rebuild Home rather than replaying a copied baseline remains the preferred investigation path, but the persistence boundary is now explicitly **unclassified**.
+The owner's suggestion to let Plexamp rebuild Home rather than replaying a copied baseline remains the preferred investigation path. The persistence scope is now narrowed to **browser-profile-local state**, but the exact record/key owner is still unclassified.
 
 A genuinely fresh disposable Chromium profile was launched with loopback-only DevTools on port 9224. Read-only runtime probes established:
 
@@ -240,22 +240,31 @@ A genuinely fresh disposable Chromium profile was launched with loopback-only De
 
 The important interpretation is that the pre-login 0-hub state is **not** a factory Home target. It is an unresolved account/library context. The useful positive evidence is the automatic 0 → 12 transition after account/library context became available.
 
-The Local Storage investigation then established a separate and equally important persistence result:
+The first-profile Local Storage investigation then established:
 
-- the untouched authenticated/library-selected 12-section Home had **zero** keys beneath `mmkv.default\discovery:customizations:*`;
+- the untouched authenticated/library-selected Home initially had **zero** keys beneath `mmkv.default\discovery:customizations:*`;
 - moving the default **Mixes for you** section down two places created no key-family delta there;
-- the moved order survived a normal page refresh while the namespace remained empty;
+- the moved order survived a normal page refresh while that known namespace remained empty;
 - after fully exiting disposable Chromium, confirming the loopback DevTools endpoint had disappeared, and relaunching the **same disposable profile**, Mixes remained in the moved position;
-- the same key-family probe still reported 0 `order`, 0 `hidden`, 0 `viewSettings`, 0 `editing`, 0 `customHubs`, 0 `other`, 0 contexts and 0 structurally invalid keys.
+- the same known-family probe still reported 0 `order`, 0 `hidden`, 0 `viewSettings`, 0 `editing`, 0 `customHubs`, 0 `other`, 0 contexts and 0 structurally invalid keys.
 
-The broader metadata-only browser-storage probe then found:
+The broader metadata-only browser-storage probe on that moved-order tracer profile found:
 
 - Local Storage: **48 keys** total — `bugsnag-anonymous-id` ×1 and 47 deliberately collapsed `other` keys;
 - Session Storage: **0 keys**;
 - IndexedDB: **0 databases**;
 - no page-level IndexedDB database open, IndexedDB record read or IndexedDB transaction.
 
-Therefore the known `mmkv.default\discovery:customizations:*` Local Storage family is **not the complete Home persistence authority**, and Session Storage/IndexedDB are ruled out for this profile. The order change is durable beyond live MobX/session state because it survives a full Chromium restart, but that does **not** prove that the durable owner is inside the Chromium profile. Remaining candidates include another Local Storage key/value, another browser-local surface, the local Plexamp Headless/backend authority, or Plex account/server state.
+A second **genuinely fresh** Chromium profile was then launched on a separate loopback debug port and signed into the **same Plex account**, using the **same Plexamp Headless instance** and **same selected library**, with no Home edits. Its Home rendered **Mixes for you at the untouched top position**, not in the tracer's moved third position. Its read-only inventories returned:
+
+- Local Storage: **42 keys** total — `bugsnag-anonymous-id` ×1 and 41 collapsed `other` keys;
+- Session Storage: **0 keys**;
+- IndexedDB: **0 databases**;
+- known `mmkv.default\discovery:customizations:*` families: all zero.
+
+That control is the key ownership result: the order change is **first-browser-profile-local**. Shared Plexamp Headless/backend state and Plex account/server state are ruled out for this experiment because the clean second profile, pointed at the same shared authorities, rendered the untouched order.
+
+Session Storage and IndexedDB are also ruled out on both profiles. Local Storage is therefore the strongest current candidate, but the 48-vs-42 count difference alone does not prove which keys differ. It is a net +6 count in the tracer, not yet a proven set of six tracer-only keys; control-only keys may exist, and the actual order may still be encoded as a changed value under a key common to both profiles.
 
 This also changes how the previously accepted Backup/Restore evidence must be interpreted: the real Local Storage `order`/`hidden` records observed and round-tripped on the commissioned profile remain valid evidence for that profile/state, but they are no longer assumed to be Plexamp's only or universal order/visibility representation.
 
@@ -263,7 +272,7 @@ The revised preferred full-reset architecture is therefore:
 
 1. preserve authentication/session and selected library;
 2. preserve the commissioned player name and managed audio output through their existing owner;
-3. classify the **complete bounded Home-owned persistence authority** rather than assuming the known Local Storage family is exhaustive;
+3. classify the **complete bounded browser-profile-local Home persistence authority** rather than assuming the known `discovery:customizations` Local Storage family is exhaustive;
 4. do **not** directly clear, populate or otherwise mutate `rootStore.discovery`'s transient hub array;
 5. only after classification, capture the exact pre-reset state of narrowly proven Home-owned records for rollback;
 6. remove/reset only those Home-owned records;
@@ -273,39 +282,42 @@ The revised preferred full-reset architecture is therefore:
 
 A production full-Home Reset **must not** simply delete the previously known Local Storage `order`/`hidden`/`viewSettings` families and claim completeness.
 
-#### Current bounded browser-storage diagnostic
+#### Current bounded browser-storage diagnostics
 
-`scripts/inspect-plexamp-browser-storage.py` is a disposable-profile-only metadata diagnostic intended to classify persistence surfaces without reading stored user data or changing browser state.
-
-It reports only:
+`scripts/inspect-plexamp-browser-storage.py` inventories one disposable profile's browser-persistence metadata without reading stored user data or changing browser state. It reports only:
 
 - bounded Local Storage key-family counts, using key names only;
 - bounded Session Storage key-family counts, using key names only;
 - IndexedDB database metadata and object-store names.
 
-It explicitly does **not**:
+It explicitly does **not** call Web Storage `getItem()`, mutate Web Storage, call page-level `indexedDB.open()`, open IndexedDB transactions, access object-store records/data, or call CDP `IndexedDB.requestData`/mutation methods.
 
-- call Web Storage `getItem()` or mutate Web Storage;
-- call the page-level `indexedDB.open()` API;
-- open IndexedDB transactions;
-- access object-store records/cursors/data;
-- call CDP `IndexedDB.requestData`, `clearObjectStore` or `deleteDatabase`;
-- accept arbitrary JavaScript, expressions or URLs;
-- target the production kiosk profile.
+For IndexedDB it uses Chromium's DevTools Protocol metadata domain directly: `IndexedDB.enable`, `IndexedDB.requestDatabaseNames` and `IndexedDB.requestDatabase`, scoped to the already validated Plexamp loopback security origin.
 
-For IndexedDB it uses Chromium's DevTools Protocol metadata domain directly: `IndexedDB.enable`, `IndexedDB.requestDatabaseNames` and `IndexedDB.requestDatabase`, scoped to the already validated Plexamp loopback security origin. Sensitive-looking metadata names are redacted and inventories are bounded. The physical tracer profile returned zero databases, so no database metadata request was required beyond the empty name list.
+The next diagnostic, `scripts/compare-plexamp-local-storage-keys.py`, compares the **Local Storage key-name sets only** between the tracer and control disposable profiles. It:
+
+- calls `localStorage.key(index)` only;
+- never calls `getItem()` and never reads stored values;
+- never mutates Local Storage;
+- requires two distinct loopback debug ports (defaults 9224 tracer / 9225 control);
+- emits only bounded key-set counts plus sanitised metadata for tracer-only/control-only keys;
+- emits a safe key name only when it matches the bounded key-name envelope and contains no sensitive terms;
+- redacts sensitive-looking key names to name length only;
+- does not emit hashes/fingerprints of redacted key names;
+- accepts no arbitrary JavaScript/expression/URL input.
+
+A key-name delta may identify a plausible Home-specific owner without opening values. If it does not, any later common-key value comparison must be separately designed to remain content-minimising and must not expose authentication/session values.
 
 The next disposable-profile sequence is now:
 
-1. keep the original profile unchanged with **Mixes for you** in its moved third-place tracer position;
-2. launch a **second genuinely fresh Chromium profile** against the same Plexamp Headless instance on a separate loopback DevTools port;
-3. sign into the same Plex account, select the same library and make **no Home edits**;
-4. record whether Mixes initially appears in third place or the untouched default position;
-5. run the same metadata-only browser-storage probe on the second profile;
-6. if Mixes is already third, investigate shared Plexamp Headless/backend/account authority next; if it is back at default, treat the persistence as first-profile-local and compare the two profiles' safe metadata before designing any narrower value-fingerprint probe;
-7. classify order ownership before changing visibility, presentation or custom sections;
-8. only after all Home-owned persistence is bounded, build a disposable-only reversible scrub/rebuild experiment;
-9. prove exact rollback restores the pre-scrub Home customisation if a later Reset participant fails.
+1. keep the original tracer profile unchanged with **Mixes for you** in moved third place and keep the clean control profile unchanged with Mixes at the untouched top position;
+2. get `compare-plexamp-local-storage-keys.py` and its safety regressions green in CI;
+3. run the key-name-only comparison against ports 9224 and 9225;
+4. inspect only the sanitised set delta; do not read any Local Storage values yet;
+5. if a bounded non-sensitive key uniquely correlates with the tracer, design the narrowest possible follow-up around that key; otherwise consider a content-blind value-shape/fingerprint comparison of carefully classified non-sensitive common keys;
+6. classify order ownership before changing visibility, presentation or custom sections;
+7. only after all Home-owned persistence is bounded, build a disposable-only reversible scrub/rebuild experiment;
+8. prove exact rollback restores the pre-scrub Home customisation if a later Reset participant fails.
 
 Only if that passes should the production Home owner expand beyond the currently accepted presentation-only boundary. Authentication/session/browser databases unrelated to Home and unrelated caches remain out of scope throughout.
 
@@ -351,11 +363,12 @@ The Home diagnostics now have separate bounded purposes:
 - `inspect-plexamp-home-runtime.py` — broad live names/shapes discovery;
 - `inspect-plexamp-home-hubs.py` — narrow effective discovery-hub shapes;
 - `inspect-plexamp-home-customizations.py` — known Home Local Storage key-family names/counts only;
-- `inspect-plexamp-browser-storage.py` — broader browser persistence **metadata only**, with no Web Storage values or IndexedDB records/transactions.
+- `inspect-plexamp-browser-storage.py` — broader one-profile browser persistence metadata only;
+- `compare-plexamp-local-storage-keys.py` — two-profile Local Storage **key-name set comparison only**, with sensitive-name redaction and no values.
 
 **Tests #4601** passed on `379a49af5d77de2a3def470ada946fd8246d2664`: Python compile, JavaScript/page-wiring, shell syntax and the complete unit suite, including the CDP-only IndexedDB metadata safety regressions.
 
-Physical evidence through 5 September 2026 now establishes:
+Physical evidence through 7 September 2026 now establishes:
 
 - ACP Reset/rollback and presentation are accepted;
 - commissioning rename/output round-trip is accepted;
@@ -371,14 +384,16 @@ Physical evidence through 5 September 2026 now establishes:
 - regression coverage simulates that preset-catalogue repopulation and proves it no longer creates a false Reset difference while exact rollback still retains it;
 - the AirPlay session-start baseline correction is 100%, matching the owner's intended full-scale baseline;
 - a fresh disposable Chromium profile physically rebuilt its effective discovery hubs from **0 before login/library context to 12 after login/library selection with no Home edits**;
-- the untouched 12-section Home required zero keys in the known Local Storage Home namespace;
-- moving Mixes for you persisted across both page refresh and a full disposable Chromium process restart while that namespace remained empty;
-- the broader read-only storage probe on that tracer profile found 48 Local Storage keys, zero Session Storage keys and zero IndexedDB databases, ruling out Session Storage and IndexedDB without reading stored values/records.
+- the untouched Home and moved-order tracer both had zero keys in the previously known Home Local Storage namespace;
+- moving Mixes for you persisted across both page refresh and a full tracer Chromium process restart;
+- the tracer profile had 48 Local Storage keys, zero Session Storage keys and zero IndexedDB databases;
+- a second clean profile using the same Headless/account/library rendered Mixes at the untouched top position and had 42 Local Storage keys, zero Session Storage keys, zero IndexedDB databases and zero known Home-customisation keys;
+- therefore the order difference is **browser-profile-local**, while the exact Local Storage/browser record remains unclassified.
 
 The remaining acceptance is deliberately narrow:
 
-1. use the second fresh Chromium-profile control to distinguish first-profile-local persistence from shared Plexamp Headless/backend/account persistence;
-2. classify the durable Home order persistence authority before making more Home edits;
+1. get the two-profile Local Storage key-name comparison candidate green in CI and run it without reading values;
+2. classify the browser-profile-local Home order persistence authority before making more Home edits;
 3. continue the one-change-at-a-time investigation only after that owner is understood;
 4. build and physically prove the reversible full-Home scrub/rebuild path only after the complete Home-owned persistence surface is bounded;
 5. decide from that evidence whether full Home structure belongs in #93 or a tightly scoped follow-up; presentation-only Reset is already physically accepted;
