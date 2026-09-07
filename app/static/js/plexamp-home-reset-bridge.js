@@ -23,6 +23,17 @@
     return Number.isInteger(value) && value >= 0 && value <= max ? value : null;
   }
 
+  function validateFamilyCounts(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const familyCounts = {};
+    for (const name of ['order', 'hidden', 'viewSettings', 'editing', 'customHubs', 'other']) {
+      const count = boundedCount(raw[name], 256);
+      if (count === null) return null;
+      familyCounts[name] = count;
+    }
+    return familyCounts;
+  }
+
   function validatePlan(raw) {
     if (
       !raw
@@ -32,25 +43,44 @@
       || typeof raw.reset_available !== 'boolean'
     ) return null;
 
+    const familyCounts = validateFamilyCounts(raw.family_counts);
+    const contextCount = boundedCount(raw.context_count, 64);
+    const sectionContextCount = boundedCount(raw.section_context_count, 256);
+    const structurallyInvalidCount = boundedCount(raw.structurally_invalid_count, 256);
+    if (
+      familyCounts === null
+      || contextCount === null
+      || sectionContextCount === null
+      || structurallyInvalidCount === null
+    ) return null;
+
     if (raw.status !== 'ready') {
-      const result = {
+      return {
         schema_version: 1,
         status: raw.status,
         read_only: true,
         reset_available: false,
+        family_counts: familyCounts,
+        context_count: contextCount,
+        section_context_count: sectionContextCount,
+        structurally_invalid_count: structurallyInvalidCount,
       };
-      if (Number.isInteger(raw.context_count) && raw.context_count >= 0 && raw.context_count <= 32) {
-        result.context_count = raw.context_count;
-      }
-      return result;
     }
 
     const changeCount = boundedCount(raw.change_count, 256);
-    const viewSettingsRecordCount = boundedCount(raw.view_settings_record_count, 256);
+    const homeRecordCount = boundedCount(raw.home_record_count, 256);
+    const durableCount = familyCounts.order
+      + familyCounts.hidden
+      + familyCounts.viewSettings
+      + familyCounts.customHubs;
     if (
       changeCount === null
-      || viewSettingsRecordCount === null
-      || changeCount !== viewSettingsRecordCount
+      || homeRecordCount === null
+      || changeCount !== homeRecordCount
+      || changeCount !== durableCount
+      || familyCounts.editing !== 0
+      || familyCounts.other !== 0
+      || structurallyInvalidCount !== 0
       || typeof raw.target_fingerprint !== 'string'
       || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
       || raw.reset_available !== (changeCount > 0)
@@ -62,7 +92,11 @@
       read_only: true,
       reset_available: raw.reset_available,
       change_count: changeCount,
-      view_settings_record_count: viewSettingsRecordCount,
+      home_record_count: homeRecordCount,
+      family_counts: familyCounts,
+      context_count: contextCount,
+      section_context_count: sectionContextCount,
+      structurally_invalid_count: structurallyInvalidCount,
       target_fingerprint: raw.target_fingerprint,
     };
   }
@@ -94,16 +128,26 @@
       result.applied_change_count = appliedChangeCount;
     }
     if (raw.applied) {
-      const viewSettingsRecordCount = boundedCount(raw.view_settings_record_count, 256);
+      const homeRecordCount = boundedCount(raw.home_record_count, 256);
+      const familyCounts = validateFamilyCounts(raw.family_counts);
       if (
         raw.status !== 'applied'
-        || viewSettingsRecordCount === null
+        || homeRecordCount === null
+        || familyCounts === null
+        || homeRecordCount !== familyCounts.order
+          + familyCounts.hidden
+          + familyCounts.viewSettings
+          + familyCounts.customHubs
+        || familyCounts.editing !== 0
+        || familyCounts.other !== 0
+        || result.applied_change_count !== homeRecordCount
         || typeof raw.target_fingerprint !== 'string'
         || !SAFE_FINGERPRINT.test(raw.target_fingerprint)
         || typeof raw.rollback_token !== 'string'
         || !SAFE_ROLLBACK_TOKEN.test(raw.rollback_token)
       ) return null;
-      result.view_settings_record_count = viewSettingsRecordCount;
+      result.home_record_count = homeRecordCount;
+      result.family_counts = familyCounts;
       result.target_fingerprint = raw.target_fingerprint;
       result.rollback_token = raw.rollback_token;
     }
@@ -118,12 +162,24 @@
       || typeof raw.rolled_back !== 'boolean'
       || typeof raw.verified !== 'boolean'
     ) return null;
-    return {
+    const result = {
       schema_version: 1,
       status: raw.status,
       rolled_back: raw.rolled_back,
       verified: raw.verified,
     };
+    if ('restored_record_count' in raw) {
+      const restoredRecordCount = boundedCount(raw.restored_record_count, 256);
+      if (restoredRecordCount === null) return null;
+      result.restored_record_count = restoredRecordCount;
+    }
+    if ('target_fingerprint' in raw) {
+      if (typeof raw.target_fingerprint !== 'string' || !SAFE_FINGERPRINT.test(raw.target_fingerprint)) {
+        return null;
+      }
+      result.target_fingerprint = raw.target_fingerprint;
+    }
+    return result;
   }
 
   function validateFinalize(raw) {
