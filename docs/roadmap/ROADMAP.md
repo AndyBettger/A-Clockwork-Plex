@@ -245,7 +245,7 @@ The brief 10% AirPlay session-start change introduced during the 5 September fol
 - [x] The corrected Home-family probe physically confirmed tracer `order=1`, one context/section scope and one matching record, while the clean control remained all-zero.
 - [x] **Tests #4613** passed on `8263c45645df1a42d7afe973bf0ac12609c1c1cf`: compile, JavaScript/page-wiring, shell syntax and the complete unit-test job, including the corrected single-backslash Home-customisation namespace matcher and real-world order-key regression.
 - [x] **Tests #4614** passed on `9de8ac878fa92b1d70d10771e325378eabfc878f`; the exact corrected roadmap evidence state was green before the physical order-family confirmation.
-- [ ] The post-confirmation head also removes the probe docstring invalid-escape `SyntaxWarning` and adds a regression which compiles that script with `SyntaxWarning` promoted to an error; final CI evidence is pending.
+- [x] **Tests #4619** passed on `7f5c756de22805fdafcfee0a3e6d7f0c260aedbc`: compile, JavaScript/page-wiring, shell syntax and the full unit-test job, including the raw-docstring invalid-escape cleanup and a regression which compiles the Home-family probe with `SyntaxWarning` promoted to an error.
 
 #### Remaining gate before #93 can close
 
