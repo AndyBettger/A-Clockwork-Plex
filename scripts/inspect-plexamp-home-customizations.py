@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only Plexamp Home-customisation key-family probe for disposable Chromium.
+r"""Read-only Plexamp Home-customisation key-family probe for disposable Chromium.
 
 This developer diagnostic inventories only Local Storage *key names* beneath Plexamp's
 `mmkv.default\discovery:customizations:` namespace. It never calls getItem(), never
