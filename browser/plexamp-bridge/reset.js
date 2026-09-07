@@ -13,15 +13,19 @@
     'http://localhost:8088',
     'http://127.0.0.1:8088',
   ]);
+
   const MMKV_PREFIX = 'mmkv.default\\';
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const SECTION_MARKER = '::/library/sections/';
-  const VIEW_FAMILY_SUFFIX = ':viewSettings';
-  const VIEW_RE = /^discovery:customizations:([A-Za-z0-9_.:/%+@~=\-]{1,600})::\/library\/sections\/([0-9]{1,10}):([A-Za-z0-9_.:/%+@~=\-]{1,600}):viewSettings$/;
+  const SAFE_IDENTIFIER = /^[A-Za-z0-9_.:/%+@~=\-]{1,600}$/;
+  const SAFE_SECTION = /^[0-9]{1,10}$/;
+  const SAFE_TERMINAL = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+  const SENSITIVE_NAME = /(token|auth|account|session|cookie|credential|password|secret|claim|machine|clientidentifier|email)/i;
+  const DURABLE_FAMILIES = new Set(['order', 'hidden', 'viewSettings', 'customHubs']);
   const MAX_STORAGE_KEYS = 2048;
   const MAX_RECORDS = 256;
-  const MAX_VIEW_BYTES = 16384;
-  const MAX_TITLE_CHARS = 240;
+  const MAX_RECORD_BYTES = 32768;
+  const MAX_TOTAL_BYTES = 262144;
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
 
@@ -48,138 +52,190 @@
       : hash32(`${Date.now()}-${Math.random()}`).repeat(4);
   }
 
-  function safeTitle(value) {
-    if (typeof value !== 'string' || !value.length || value.length > MAX_TITLE_CHARS) return null;
-    if (Array.from(value).some((char) => char.codePointAt(0) < 32)) return null;
-    return value;
-  }
-
-  function decodedViewSettings(raw) {
-    if (typeof raw !== 'string' || raw.length > MAX_VIEW_BYTES) return null;
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (_error) {
-      return null;
-    }
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return null;
-
-    let codec = { kind: 'direct' };
-    let value = parsed;
-    const outerKeys = Object.keys(parsed);
-    if (
-      outerKeys.length === 1
-      && typeof outerKeys[0] === 'string'
-      && outerKeys[0].length <= 32
-      && parsed[outerKeys[0]]
-      && !Array.isArray(parsed[outerKeys[0]])
-      && typeof parsed[outerKeys[0]] === 'object'
-    ) {
-      codec = { kind: 'wrapped', key: outerKeys[0] };
-      value = parsed[outerKeys[0]];
+  function classifySuffix(suffix) {
+    if (typeof suffix !== 'string' || !suffix.startsWith(CUSTOM_PREFIX)) return null;
+    const markerIndex = suffix.indexOf(SECTION_MARKER, CUSTOM_PREFIX.length);
+    if (markerIndex < 0) {
+      return { family: 'other', valid: false, context: null, section: null };
     }
 
-    const title = Object.prototype.hasOwnProperty.call(value, 'title')
-      ? safeTitle(value.title)
-      : null;
-    if (Object.prototype.hasOwnProperty.call(value, 'title') && title === null) return null;
-
-    const targetValue = title === null ? null : { title };
-    let targetRaw = null;
-    if (targetValue !== null) {
-      targetRaw = codec.kind === 'wrapped'
-        ? JSON.stringify({ [codec.key]: targetValue })
-        : JSON.stringify(targetValue);
+    const context = suffix.slice(CUSTOM_PREFIX.length, markerIndex);
+    const rest = suffix.slice(markerIndex + SECTION_MARKER.length);
+    const colonIndex = rest.indexOf(':');
+    if (!SAFE_IDENTIFIER.test(context) || colonIndex < 1) {
+      return { family: 'other', valid: false, context: null, section: null };
     }
-    return { targetRaw };
-  }
 
-  function looksLikeViewSettingsFamily(suffix) {
-    return typeof suffix === 'string'
-      && suffix.startsWith(CUSTOM_PREFIX)
-      && suffix.includes(SECTION_MARKER)
-      && suffix.endsWith(VIEW_FAMILY_SUFFIX);
+    const section = rest.slice(0, colonIndex);
+    const tail = rest.slice(colonIndex + 1);
+    if (!SAFE_SECTION.test(section) || !tail) {
+      return { family: 'other', valid: false, context: null, section: null };
+    }
+
+    if (tail === 'order') return { family: 'order', valid: true, context, section };
+    if (tail === 'customHubs') return { family: 'customHubs', valid: true, context, section };
+
+    const finalColon = tail.lastIndexOf(':');
+    if (finalColon < 1) {
+      return {
+        family: 'other',
+        valid: SAFE_TERMINAL.test(tail) && !SENSITIVE_NAME.test(tail),
+        context,
+        section,
+      };
+    }
+
+    const hub = tail.slice(0, finalColon);
+    const terminal = tail.slice(finalColon + 1);
+    if (!SAFE_IDENTIFIER.test(hub) || !SAFE_TERMINAL.test(terminal) || SENSITIVE_NAME.test(terminal)) {
+      return { family: 'other', valid: false, context: null, section: null };
+    }
+    if (terminal === 'hidden') return { family: 'hidden', valid: true, context, section };
+    if (terminal === 'viewSettings') return { family: 'viewSettings', valid: true, context, section };
+    if (terminal === 'editing') return { family: 'editing', valid: true, context, section };
+    return { family: 'other', valid: true, context, section };
   }
 
   function collectInventory(storage) {
-    const records = [];
+    const families = {
+      order: 0,
+      hidden: 0,
+      viewSettings: 0,
+      editing: 0,
+      customHubs: 0,
+      other: 0,
+    };
     const contexts = new Set();
-    let unclassifiedViewKeys = 0;
-    const length = Math.min(Number(storage?.length || 0), MAX_STORAGE_KEYS);
-    for (let index = 0; index < length; index += 1) {
-      const key = storage.key(index);
-      if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX)) continue;
-      const suffix = key.slice(MMKV_PREFIX.length);
-      const match = suffix.match(VIEW_RE);
-      if (!match) {
-        if (looksLikeViewSettingsFamily(suffix)) unclassifiedViewKeys += 1;
-        continue;
-      }
-      const raw = storage.getItem(key);
-      if (typeof raw !== 'string') continue;
-      const decoded = decodedViewSettings(raw);
-      if (!decoded) {
-        return { status: 'unsupported-view-settings-format', records: [], contextCount: 1 };
-      }
-      contexts.add(`${match[1]}\u0000${match[2]}`);
-      if (decoded.targetRaw !== raw) {
-        records.push({
-          key,
-          raw,
-          targetRaw: decoded.targetRaw,
-          hub: match[3],
-        });
-      }
-    }
-    if (unclassifiedViewKeys > 0) {
+    const sections = new Set();
+    const records = [];
+    let structurallyInvalid = 0;
+    let totalBytes = 0;
+
+    const length = Number(storage?.length || 0);
+    if (!Number.isFinite(length) || length < 0 || length > MAX_STORAGE_KEYS) {
       return {
-        status: 'unclassified-view-settings-key',
+        status: 'storage-key-limit-exceeded',
+        families,
+        contexts,
+        sections,
         records: [],
-        contextCount: contexts.size,
+        structurallyInvalid,
+        totalBytes,
+        fingerprint: null,
       };
     }
-    if (contexts.size > 1) {
-      return { status: 'ambiguous-context', records: [], contextCount: contexts.size };
+
+    for (let index = 0; index < length; index += 1) {
+      const key = storage.key(index);
+      if (typeof key !== 'string' || !key.startsWith(MMKV_PREFIX + CUSTOM_PREFIX)) continue;
+      const suffix = key.slice(MMKV_PREFIX.length);
+      const classified = classifySuffix(suffix);
+      if (!classified) continue;
+
+      families[classified.family] += 1;
+      if (!classified.valid) structurallyInvalid += 1;
+      if (classified.context) contexts.add(classified.context);
+      if (classified.context && classified.section) {
+        sections.add(`${classified.context}\u0000${classified.section}`);
+      }
+
+      if (!classified.valid || !DURABLE_FAMILIES.has(classified.family)) continue;
+      if (records.length >= MAX_RECORDS) {
+        return {
+          status: 'record-limit-exceeded',
+          families,
+          contexts,
+          sections,
+          records: [],
+          structurallyInvalid,
+          totalBytes,
+          fingerprint: null,
+        };
+      }
+
+      const raw = storage.getItem(key);
+      if (typeof raw !== 'string') {
+        return {
+          status: 'storage-value-unavailable',
+          families,
+          contexts,
+          sections,
+          records: [],
+          structurallyInvalid,
+          totalBytes,
+          fingerprint: null,
+        };
+      }
+      if (raw.length > MAX_RECORD_BYTES) {
+        return {
+          status: 'record-size-limit-exceeded',
+          families,
+          contexts,
+          sections,
+          records: [],
+          structurallyInvalid,
+          totalBytes,
+          fingerprint: null,
+        };
+      }
+      totalBytes += raw.length;
+      if (totalBytes > MAX_TOTAL_BYTES) {
+        return {
+          status: 'total-size-limit-exceeded',
+          families,
+          contexts,
+          sections,
+          records: [],
+          structurallyInvalid,
+          totalBytes,
+          fingerprint: null,
+        };
+      }
+      records.push({ key, raw, family: classified.family });
     }
-    if (records.length > MAX_RECORDS) {
-      return { status: 'too-many-records', records: [], contextCount: contexts.size };
-    }
-    return { status: 'ready', records, contextCount: contexts.size };
+
+    records.sort((left, right) => left.key.localeCompare(right.key));
+    let status = 'ready';
+    if (structurallyInvalid > 0 || families.other > 0) status = 'unclassified-customization-keys';
+    else if (families.editing > 0) status = 'editing-active';
+
+    const fingerprint = hash32(JSON.stringify(records.map((record) => [record.key, record.raw])));
+    return {
+      status,
+      families,
+      contexts,
+      sections,
+      records,
+      structurallyInvalid,
+      totalBytes,
+      fingerprint,
+    };
   }
 
-  function fingerprint(records) {
-    return hash32(JSON.stringify(records
-      .map((record) => [record.key, record.raw, record.targetRaw])
-      .sort(([left], [right]) => left.localeCompare(right))));
+  function publicPlan(inventory) {
+    const changeCount = inventory.status === 'ready' ? inventory.records.length : 0;
+    return {
+      schema_version: 1,
+      status: inventory.status,
+      read_only: true,
+      reset_available: inventory.status === 'ready' && changeCount > 0,
+      change_count: changeCount,
+      home_record_count: changeCount,
+      family_counts: { ...inventory.families },
+      context_count: inventory.contexts.size,
+      section_context_count: inventory.sections.size,
+      structurally_invalid_count: inventory.structurallyInvalid,
+      target_fingerprint: inventory.status === 'ready' ? inventory.fingerprint : null,
+    };
   }
 
   function buildResetPlan(storage) {
     const inventory = collectInventory(storage);
-    if (inventory.status !== 'ready') {
-      const publicPlan = {
-        schema_version: 1,
-        status: inventory.status,
-        read_only: true,
-        reset_available: false,
-      };
-      if (inventory.contextCount > 1) publicPlan.context_count = inventory.contextCount;
-      return { public: publicPlan, records: [], fingerprint: null };
-    }
-
-    const records = inventory.records;
-    const targetFingerprint = fingerprint(records);
     return {
-      public: {
-        schema_version: 1,
-        status: 'ready',
-        read_only: true,
-        reset_available: records.length > 0,
-        change_count: records.length,
-        view_settings_record_count: records.length,
-        target_fingerprint: targetFingerprint,
-      },
-      records,
-      fingerprint: targetFingerprint,
+      public: publicPlan(inventory),
+      inventory,
+      records: inventory.status === 'ready' ? inventory.records : [],
+      fingerprint: inventory.status === 'ready' ? inventory.fingerprint : null,
     };
   }
 
@@ -187,17 +243,50 @@
     return buildResetPlan(storage).public;
   }
 
-  function verifyTargets(storage, records) {
-    return records.every((record) => (
-      record.targetRaw === null
-        ? storage.getItem(record.key) === null
-        : storage.getItem(record.key) === record.targetRaw
-    ));
+  function verifyRecordsAbsent(storage, records) {
+    return records.every((record) => storage.getItem(record.key) === null);
   }
 
-  function restoreRecords(storage, records) {
-    for (const record of records) storage.setItem(record.key, record.raw);
+  function verifyRecordsExact(storage, records) {
     return records.every((record) => storage.getItem(record.key) === record.raw);
+  }
+
+  function restoreExactIntoEmpty(storage, records, expectedFingerprint) {
+    const current = collectInventory(storage);
+    if (
+      current.status !== 'ready'
+      || current.records.length !== 0
+      || current.families.editing !== 0
+      || current.families.other !== 0
+      || current.structurallyInvalid !== 0
+    ) {
+      return { ok: false, status: 'rollback-target-not-empty' };
+    }
+
+    const touched = [];
+    try {
+      for (const record of records) {
+        storage.setItem(record.key, record.raw);
+        touched.push(record);
+      }
+      if (!verifyRecordsExact(storage, records)) throw new Error('verification');
+      const after = collectInventory(storage);
+      if (after.status !== 'ready' || after.fingerprint !== expectedFingerprint) {
+        throw new Error('verification');
+      }
+      return { ok: true, status: 'rolled-back' };
+    } catch (_error) {
+      let cleaned = true;
+      for (const record of touched) {
+        try {
+          storage.removeItem(record.key);
+        } catch (_removeError) {
+          cleaned = false;
+        }
+      }
+      if (cleaned) cleaned = verifyRecordsAbsent(storage, touched);
+      return { ok: false, status: cleaned ? 'rollback-failed' : 'rollback-cleanup-failed' };
+    }
   }
 
   function applyHomeReset(storage, expectedFingerprint, confirmReset = false) {
@@ -250,32 +339,48 @@
     const touched = [];
     try {
       for (const record of records) {
-        if (record.targetRaw === null) storage.removeItem(record.key);
-        else storage.setItem(record.key, record.targetRaw);
+        storage.removeItem(record.key);
         touched.push(record);
       }
-      if (!verifyTargets(storage, records)) throw new Error('verification');
-      const verified = buildResetPlan(storage);
-      if (verified.public.status !== 'ready' || verified.public.reset_available) {
+      if (!verifyRecordsAbsent(storage, records)) throw new Error('verification');
+
+      const after = collectInventory(storage);
+      if (
+        after.status !== 'ready'
+        || after.records.length !== 0
+        || after.contexts.size !== 0
+        || after.sections.size !== 0
+        || Object.values(after.families).some((count) => count !== 0)
+      ) {
         throw new Error('verification');
       }
 
       const rollbackToken = randomToken();
-      rollbackSnapshots.set(rollbackToken, { storage, records });
+      rollbackSnapshots.set(rollbackToken, {
+        storage,
+        records,
+        fingerprint: plan.fingerprint,
+      });
       return {
         schema_version: 1,
         status: 'applied',
         applied: true,
         rolled_back: false,
-        applied_change_count: plan.public.change_count,
-        view_settings_record_count: plan.public.view_settings_record_count,
-        target_fingerprint: verified.fingerprint,
+        applied_change_count: records.length,
+        home_record_count: records.length,
+        family_counts: { ...plan.inventory.families },
+        target_fingerprint: after.fingerprint,
         rollback_token: rollbackToken,
       };
     } catch (_error) {
       let rollbackFailureCount = 0;
       try {
-        if (!restoreRecords(storage, touched)) rollbackFailureCount += 1;
+        for (const record of touched) storage.setItem(record.key, record.raw);
+        if (!verifyRecordsExact(storage, records)) rollbackFailureCount += 1;
+        const restored = collectInventory(storage);
+        if (restored.status !== 'ready' || restored.fingerprint !== plan.fingerprint) {
+          rollbackFailureCount += 1;
+        }
       } catch (_rollbackError) {
         rollbackFailureCount += 1;
       }
@@ -314,31 +419,25 @@
       };
     }
 
-    try {
-      const verified = restoreRecords(entry.storage, entry.records);
-      if (!verified) {
-        return {
-          schema_version: 1,
-          status: 'rollback-failed',
-          rolled_back: false,
-          verified: false,
-        };
-      }
-      rollbackSnapshots.delete(rollbackToken);
+    const restored = restoreExactIntoEmpty(entry.storage, entry.records, entry.fingerprint);
+    if (!restored.ok) {
       return {
         schema_version: 1,
-        status: 'rolled-back',
-        rolled_back: true,
-        verified: true,
-      };
-    } catch (_error) {
-      return {
-        schema_version: 1,
-        status: 'rollback-failed',
+        status: restored.status,
         rolled_back: false,
         verified: false,
       };
     }
+
+    rollbackSnapshots.delete(rollbackToken);
+    return {
+      schema_version: 1,
+      status: 'rolled-back',
+      rolled_back: true,
+      verified: true,
+      restored_record_count: entry.records.length,
+      target_fingerprint: entry.fingerprint,
+    };
   }
 
   function finalizeHomeReset(rollbackToken) {
