@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import unittest
+import warnings
 from pathlib import Path
 
 
@@ -25,6 +26,12 @@ class PlexampHomeCustomizationProbeTests(unittest.TestCase):
     def setUpClass(cls):
         cls.module = load_module()
         cls.expression = cls.module.RUNTIME_EXPRESSION
+
+    def test_source_compiles_without_syntax_warnings(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", SyntaxWarning)
+            compile(source, str(SCRIPT), "exec")
 
     def test_probe_is_key_names_only_and_never_reads_values(self):
         self.assertIn("storage.key(index)", self.expression)
