@@ -81,7 +81,7 @@ Accepted constraints for later implementation:
 - [x] Permission-free loopback browser bridge adds validated logical Home **order/hidden** choices.
 - [x] Physical final export captured **15 ordered Home identifiers + 1 hidden identifier** with zero warnings.
 - [ ] Per-section Home presentation `viewSettings` are **not currently in schema-v1 backup**. Physical restore testing on 5 September confirmed that a backup taken with the Home page looking as desired cannot restore those section-presentation choices because they were never exported.
-- [ ] Revalidate the portable logical Home mapper against #93's corrected fresh-profile evidence: durable order is browser-profile-local and the moved tracer contains an explicit `mmkv.default\discovery:customizations:<context>::/library/sections/9:order` record. The previously accepted order/hidden path is supported rather than contradicted; final completeness still depends on classifying hidden, presentation and custom-section families.
+- [ ] Complete Home portability after #93 finishes the causal hidden/presentation/custom-section inventory. The order representation itself is now independently confirmed in a fresh disposable profile as `mmkv.default\discovery:customizations:<context>::/library/sections/9:order`, supporting the existing logical order mapper.
 
 ### #90 Configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
@@ -92,7 +92,7 @@ Accepted constraints for later implementation:
 - [x] Guided **Preview → choose ACP / Plexamp / both → Review → Confirm & restore** presentation physically accepted at 1280×720.
 - [x] Final combined physical restore converged back to zero differences for the original supported scope.
 - [ ] Extend the portable Home model to validated per-section presentation now that #93 has physically established the bounded `viewSettings` family and rollback semantics.
-- [ ] Revalidate logical Home order restore against the now-identified browser-profile-local `...:order` record and continue the causal family inventory before declaring Home portability complete.
+- [ ] Revalidate the complete logical Home restore only after the remaining hidden/presentation/custom-section families are causally classified; fresh-profile physical evidence now independently confirms the existing browser-local `...:order` representation.
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -156,7 +156,7 @@ Physical acceptance proves that Home presentation returns to Plexamp's per-secti
 
 #### Full Home-customisation reset — persistence authority investigation
 
-A genuinely fresh disposable Chromium profile established that Plexamp can build a complete effective Home from account/library/runtime context with no user edits. A later two-profile control experiment then narrowed durable Home order to browser-profile-local state and identified an explicit Local Storage `...:order` record. Earlier all-zero results from `inspect-plexamp-home-customizations.py` are withdrawn because that diagnostic had a double-backslash namespace escaping bug; the production Backup/Restore bridge did not share that bug.
+A genuinely fresh disposable Chromium profile established that Plexamp can build a complete effective Home from account/library/runtime context with no user edits. A later two-profile control experiment narrowed durable Home order to browser-profile-local state and identified an explicit Local Storage `...:order` record. Earlier all-zero results from `inspect-plexamp-home-customizations.py` are withdrawn because that diagnostic had a double-backslash namespace escaping bug; the production Backup/Restore bridge did not share that bug.
 
 Physical evidence through 7 September established:
 
@@ -172,11 +172,12 @@ Physical evidence through 7 September established:
 - [x] that control profile had **42 Local Storage keys**, **0 Session Storage keys** and **0 IndexedDB databases**;
 - [x] the key-name-only comparison found **42 common keys, 0 control-only keys and exactly 6 tracer-only keys**;
 - [x] one of those six tracer-only keys is the explicit order record `mmkv.default\discovery:customizations:d7802466250a75f65d73500476e6f853fb512636::/library/sections/9:order`; the other five are ordinary cache/settings/state artefacts;
-- [x] no Local Storage values were read during that comparison.
+- [x] the corrected Home-family probe physically reports **one context, one matching record and `order=1`** on tracer port 9224, while the untouched control on port 9225 reports **zero matching records and all family counts zero**;
+- [x] no Local Storage values were read during either the key comparison or corrected family-probe confirmation.
 
-The control experiment is decisive on ownership scope: the durable Home reorder is **first-browser-profile-local**, not shared Plexamp Headless/backend/account state. The explicit tracer-only `...:order` key is strong causal evidence that the order-only edit created the browser-local order record.
+The control experiment is decisive on ownership scope: the durable Home reorder is **first-browser-profile-local**, not shared Plexamp Headless/backend/account state. The explicit tracer-only `...:order` key plus the corrected `order=1` / control `order=0` family discriminator closes Home **order** persistence ownership.
 
-Session Storage and IndexedDB are ruled out on **both** profiles. Local Storage is therefore the established durable order surface. The complete Home customisation surface is not yet assumed: the corrected family probe must be rerun on both profiles, then hidden, presentation and custom-section/title changes must be classified one at a time.
+Session Storage and IndexedDB are ruled out on **both** profiles. Local Storage is therefore the established durable order surface. The complete Home customisation surface is not yet assumed: hidden, presentation and custom-section/title changes must still be classified one at a time.
 
 The preferred full-Home design remains “let Plexamp rebuild itself”, with the mutation boundary deliberately evidence-driven:
 
@@ -198,8 +199,9 @@ Next physical investigation:
 - [x] run that comparison against tracer port 9224 and control port 9225 with **no Local Storage values read**;
 - [x] identify the explicit tracer-only browser-local `.../library/sections/9:order` key;
 - [x] correct the Home-customisation family probe's double-backslash namespace bug and add a regression pinned to the physically observed key shape;
-- [ ] rerun the corrected Home-customisation family probe against tracer 9224 and control 9225; expected discriminator is tracer `order=1`, control no order record, but treat exact counts as unproven until physically observed;
-- [ ] once order ownership is confirmed through the corrected family probe, continue one change at a time for hidden/visible state, presentation and one custom section/title;
+- [x] rerun the corrected family probe: tracer 9224 physically reports `order=1` / one matching record; clean control 9225 reports `order=0` / zero matching records;
+- [ ] hide exactly one default Home section in the tracer profile, make no other Home change, then rerun the family probe to classify the expected hidden/visible persistence delta;
+- [ ] after hidden ownership is classified, continue one change at a time for presentation and one custom section/title;
 - [ ] prove a reversible disposable-profile scrub of only the complete classified Home-owned state followed by Plexamp rebuild returns to the untouched effective Home while login and selected library remain intact;
 - [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
 - [ ] only then consider replacing the accepted presentation-only production owner.
@@ -240,12 +242,14 @@ The brief 10% AirPlay session-start change introduced during the 5 September fol
 - [x] The broader browser-storage probe physically returned 48 Local Storage keys, 0 Session Storage keys and 0 IndexedDB databases on the moved-order tracer profile, with no Web Storage values or IndexedDB records read.
 - [x] The second clean control profile physically rendered Mixes at the untouched top position and returned 42 Local Storage keys, 0 Session Storage keys and 0 IndexedDB databases, proving the order difference is browser-profile-local rather than shared through Headless/account state.
 - [x] The bounded key-name comparison physically returned 42 common keys, 0 control-only keys and six tracer-only keys, including the explicit `.../library/sections/9:order` record, without reading Local Storage values.
+- [x] The corrected Home-family probe physically confirmed tracer `order=1`, one context/section scope and one matching record, while the clean control remained all-zero.
 - [x] **Tests #4613** passed on `8263c45645df1a42d7afe973bf0ac12609c1c1cf`: compile, JavaScript/page-wiring, shell syntax and the complete unit-test job, including the corrected single-backslash Home-customisation namespace matcher and real-world order-key regression.
+- [x] **Tests #4614** passed on `9de8ac878fa92b1d70d10771e325378eabfc878f`; the exact corrected roadmap evidence state was green before the physical order-family confirmation.
+- [ ] The post-confirmation head also removes the probe docstring invalid-escape `SyntaxWarning` and adds a regression which compiles that script with `SyntaxWarning` promoted to an error; final CI evidence is pending.
 
 #### Remaining gate before #93 can close
 
-- [ ] Rerun the corrected Home-customisation family probe on tracer/control and physically confirm the order-family discriminator.
-- [ ] Continue the one-change-at-a-time Home investigation for hidden/visible state, presentation and one custom section/title.
+- [ ] Classify hidden/visible persistence with one isolated default-section hide on the disposable tracer, then presentation and one custom section/title one change at a time.
 - [ ] Complete the reversible scrub/rebuild experiment only after the complete Home-owned persistence surface is bounded.
 - [ ] Decide from that evidence whether full Home structure joins #93 or remains a tightly scoped follow-up; the presentation-only implementation itself is physically accepted.
 - [ ] Pull/reboot the eventual final accepted branch head so Chromium reloads the packaged production bridge.
