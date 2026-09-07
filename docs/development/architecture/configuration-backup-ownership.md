@@ -29,6 +29,7 @@ Backup/Restore and Reset are deliberately different. A setting can be safe and p
 | Plexamp live player volume | Exclude from portable backup | Runtime/player state; #93 explicitly returns live Plexamp music volume to 100% with rollback |
 | Plexamp Home logical order/hidden choices | Include validated logical model | #90 restores target-context logical choices; fresh-profile #93 independently confirms both durable browser-local families |
 | Plexamp Home per-section presentation (`viewSettings`) | **Not yet included in schema-v1 portable backup** | #93 physically confirms `viewSettings` as the durable presentation owner; portability follow-up remains open |
+| Plexamp Home custom sections/titles | **Not yet included in schema-v1 portable backup** | #93 physically confirms custom sections as `customHubs` + `order` + `viewSettings`, with validated title inside `viewSettings`; portability model still open |
 | Chromium profile wholesale | Never include | Never restore/copy wholesale |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch |
 | Alarm/playback runtime | Exclude | Recreate from live state/current time |
@@ -165,7 +166,7 @@ Schema v1 does **not** currently export per-section `viewSettings`. A 5 Septembe
 
 That is a backup-schema completeness gap, not a restore-transaction failure.
 
-Fresh #93 testing now independently confirms the durable presentation owner:
+Fresh #93 testing independently confirms the durable presentation owner:
 
 1. a third fresh profile started with all Home families zero;
 2. changing exactly **Recent Plays → Carousel** produced `viewSettings=1` plus `editing=1` immediately after the edit;
@@ -179,16 +180,41 @@ Therefore:
 - `editing` is transient edit bookkeeping, not durable Home personality;
 - the missing schema-v1 presentation model should be built from validated logical `viewSettings` semantics, not raw Chromium storage.
 
-### Custom sections/titles remain the final Home-family gap
+### Custom sections and titles — persistence classified, portability model open
 
-Order, hidden/visible and built-in presentation persistence are now closed. Before declaring Home portability complete across replacement profiles, the remaining causal work is:
+Fresh-profile #93 testing now also closes the remaining browser-local persistence questions needed before a logical custom-Home model can be designed.
 
-- classify custom-added section persistence on a fresh isolated profile;
-- classify custom section title persistence one change at a time;
-- decide which custom structure/title information is portable and how it should be represented logically;
-- revalidate complete Home Backup/Restore after that model is implemented.
+#### Custom-added section
 
-The schema-v1 order/hidden payload itself remains the correct abstraction and must not be replaced by copied browser files.
+A fresh all-zero profile added exactly one Artist-based Home section titled **ACP Test Section**. Creation produced exactly:
+
+```text
+customHubs=1
+order=1
+viewSettings=1
+hidden=0
+editing=0
+other=0
+```
+
+The three records span two classified structural contexts and survived both a normal page refresh and a complete Chromium process exit/relaunch with the section still present in the same place.
+
+Therefore a custom section is not represented by `customHubs` alone; it is a durable coordinated **custom-hub + ordering + presentation bundle**.
+
+#### Custom title
+
+A second fresh profile reproduced the same custom section from an all-zero baseline. The bounded title matcher found exactly one supported `viewSettings` record with exactly one title match and no unsupported/unclassified record.
+
+Renaming only the section from **ACP Test Section** to **ACP Renamed Section** changed no Home-family count. The old-title match moved `1→0`, the new-title match moved `0→1`, and exactly one titled `viewSettings` record remained. The renamed title and exact `customHubs=1`, `order=1`, `viewSettings=1` bundle survived both page refresh and full Chromium process exit/relaunch.
+
+Therefore:
+
+- the validated custom title lives inside the existing durable `viewSettings` record;
+- there is no separate title persistence family;
+- custom-section persistence must be treated atomically across its `customHubs`, `order` and `viewSettings` participants;
+- the remaining Backup/Restore work is **logical-model design and implementation**, not further storage-family discovery.
+
+The schema-v1 order/hidden payload remains the correct abstraction and must not be replaced by copied browser files.
 
 ## #93 Home Reset relationship
 
@@ -209,7 +235,7 @@ For built-in sections, non-default `viewSettings` are removed so Plexamp uses it
 
 Order, hidden, `editing`, custom-hub, auth and cache values are not opened or mutated by this production owner.
 
-This boundary is now strengthened by fresh-profile causal evidence: durable presentation is `viewSettings`; the `editing` family is transient across reload and is not required to preserve the visual choice.
+This boundary is now strengthened by complete fresh-profile causal evidence: durable presentation and custom title both live in `viewSettings`; `editing` is transient across reload; custom-added structure is the coordinated `customHubs` + `order` + `viewSettings` bundle.
 
 ## Why a clean Plexamp profile cannot simply be copied raw
 
@@ -218,7 +244,7 @@ A clean profile is useful as behavioural evidence but is not a portable backup a
 - browser profiles contain auth/session state;
 - Home identifiers contain account/library/context-specific values;
 - server/runtime-provided default sections can exist without local override records;
-- custom sections need explicit product semantics;
+- custom sections need explicit logical semantics across installations;
 - copied browser DB/MMKV bytes would couple portability to Chromium/Plexamp implementation details.
 
 Portable Backup/Restore should therefore remain a logical model mapped through bounded live owners.
@@ -253,7 +279,7 @@ The supported schema-v1 envelope remains:
 }
 ```
 
-`plexamp.browser_preferences` is optional and merged only after a validated live bridge snapshot. Per-section presentation is not yet in schema v1. Commissioning state and live Plexamp player volume are intentionally absent.
+`plexamp.browser_preferences` is optional and merged only after a validated live bridge snapshot. Per-section presentation/custom-section/title semantics are not yet in schema v1. Commissioning state and live Plexamp player volume are intentionally absent.
 
 ## Restore contract
 
@@ -280,12 +306,12 @@ Portable/nonportable boundaries, exact eight-value Headless allow-list and safe 
 
 ### #89 configuration backup/export — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
-Schema-v1 export of ACP logical settings/EQ/mixer, eight safe Headless preferences and validated Home order/hidden data is physically accepted. Per-section `viewSettings` remain the principal known schema-v1 completeness gap; their durable owner is now independently confirmed.
+Schema-v1 export of ACP logical settings/EQ/mixer, eight safe Headless preferences and validated Home order/hidden data is physically accepted. Per-section `viewSettings` remain the principal known schema-v1 completeness gap. Presentation, custom-section structure and custom-title persistence are now independently classified; the remaining work is the validated logical portable model.
 
 ### #90 configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
-Read-only Preview, stale-protected transaction, exact-version Headless restore, target-context Home order/hidden restore/rollback and guided presentation are physically accepted. The remaining Home portability work is a logical `viewSettings` model plus custom-section/title classification.
+Read-only Preview, stale-protected transaction, exact-version Headless restore, target-context Home order/hidden restore/rollback and guided presentation are physically accepted. The remaining Home portability work is implementation and physical revalidation of a logical presentation/custom-section/title model.
 
 ### #93 Reset relationship — TRANSACTION ACCEPTED; FINAL HOME SCOPE OPEN
 
-The combined Reset transaction is physically accepted. Home order, hidden/visible and built-in presentation persistence are now independently classified; full Home Reset remains open only for custom section/title semantics and the reversible scrub/rebuild proof.
+The combined Reset transaction is physically accepted. Home order, hidden/visible, built-in presentation, custom-added section structure and custom-title persistence are now independently classified. Full Home Reset remains open for exact product semantics plus the reversible scrub/rebuild proof, not for further persistence-family discovery.

@@ -80,8 +80,9 @@ Accepted constraints:
 - [x] Fresh disposable-profile #93 testing independently confirmed the existing logical persistence families: `order` and `hidden` are durable browser-profile-local Local Storage owners.
 - [x] Fresh disposable-profile #93 testing independently confirmed built-in presentation persistence: **Recent Plays → Carousel** creates a durable `viewSettings` record; the companion `editing` record is transient and disappears on reload.
 - [x] Fresh disposable-profile #93 testing confirmed a custom-added section is a durable coordinated `customHubs` + `order` + `viewSettings` bundle, not a standalone custom-hub record.
+- [x] Fresh disposable-profile #93 testing confirmed custom titles live inside the same validated `viewSettings` record and survive page refresh plus full Chromium process restart.
 - [ ] Per-section Home presentation `viewSettings` are **not currently in schema-v1 backup**. Physical restore testing on 5 September confirmed this is the principal known portability gap.
-- [ ] Define a validated logical presentation/custom-section model after custom-title persistence is classified.
+- [ ] Define a validated logical presentation/custom-section/title model from the now-complete persistence classification.
 
 ### #90 Configuration import/restore — CORE COMPLETE; HOME PRESENTATION FOLLOW-UP OPEN
 
@@ -91,9 +92,9 @@ Accepted constraints:
 - [x] Target-context-aware Home order/hidden restore with exact raw rollback.
 - [x] Guided **Preview → choose ACP / Plexamp / both → Review → Confirm & restore** presentation physically accepted at 1280×720.
 - [x] Final combined physical restore converged back to zero differences for the supported schema-v1 scope.
-- [x] Fresh-profile #93 evidence independently confirms the existing browser-local `order`, `hidden`, `viewSettings` and custom-section persistence families rather than exposing alternate owners.
-- [ ] Extend the portable Home model to validated per-section presentation/custom-section semantics.
-- [ ] Revalidate complete logical Home restore after custom-title persistence is causally classified.
+- [x] Fresh-profile #93 evidence independently confirms the existing browser-local `order`, `hidden`, `viewSettings`, custom-section and custom-title persistence families rather than exposing alternate owners.
+- [ ] Extend the portable Home model to validated per-section presentation/custom-section/title semantics.
+- [ ] Revalidate complete logical Home restore after that model is implemented.
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -148,7 +149,7 @@ Physical acceptance proved this presentation-only owner works on the commissione
 
 A genuinely fresh disposable Chromium profile established that Plexamp can build a complete effective Home from account/library/runtime context with no Home edits. The pre-login 0-hub state is unresolved context, not a factory target; after login/library selection Plexamp populated the effective Home itself.
 
-Causal disposable-profile evidence now closes four durable Home persistence cases:
+Causal disposable-profile evidence now closes five durable Home persistence cases plus one editor-only control:
 
 ```text
 9224 order tracer        Mixes for you moved to third
@@ -170,6 +171,14 @@ Causal disposable-profile evidence now closes four durable Home persistence case
                           hidden=0, editing=0, other=0
                           context_count=2, section_context_count=2
                           survives page refresh and full Chromium restart
+
+9229 custom-title tracer
+                          same Artist-based custom section renamed
+                          ACP Test Section → ACP Renamed Section
+                          family inventory remains customHubs=1, order=1, viewSettings=1
+                          old title match 1→0; new title match 0→1
+                          renamed title + exact family bundle survive page refresh
+                          and full Chromium process exit/relaunch
 ```
 
 Specific conclusions:
@@ -179,14 +188,15 @@ Specific conclusions:
 - [x] **Presentation:** changing Recent Plays to Carousel from an all-zero profile creates `viewSettings=1` plus transient `editing=1`; after normal reload `editing` disappears while `viewSettings=1` and the Carousel remain. A full Chromium process exit/relaunch preserves the Carousel with exactly `viewSettings=1`, `editing=0`.
 - [x] **Editor-only control:** entering and leaving the editor without changing anything creates no Home record at all.
 - [x] **Custom-section creation/durability:** adding one Artist-based custom section to an all-zero profile creates exactly `customHubs=1`, `order=1`, `viewSettings=1`, spanning two classified structural contexts. The section remains in the same position and the three-record family inventory remains exact after both page refresh and full Chromium process exit/relaunch. No `hidden`, `editing`, unknown family or structurally invalid key appears.
-- [x] No Local Storage values were read by the family diagnostics; Session Storage/IndexedDB were ruled out in the earlier browser-storage inventory.
+- [x] **Custom title:** renaming only the custom section changes no key-family count. The single validated `viewSettings.title` match moves cleanly from the old title to the new title, and the renamed title plus exact three-record bundle survive both page refresh and full Chromium process exit/relaunch.
+- [x] No broad Local Storage value dump was used; the family diagnostics read key names/families only, while the title matcher reads only structurally validated `viewSettings` values and compares only the bounded optional title field. Session Storage/IndexedDB were ruled out in the earlier browser-storage inventory.
 
-Therefore Home **order**, **hidden/visible**, built-in **presentation** and **custom-added section structure** are now closed as bounded browser-profile-local Local Storage persistence. `editing` is transient edit bookkeeping, not a durable presentation owner. A custom section is a coordinated custom-hub/order/presentation bundle and must be treated atomically by any future full-Home scrub/rollback design.
+Therefore Home **order**, **hidden/visible**, built-in **presentation**, **custom-added section structure** and **custom titles** are now closed as bounded browser-profile-local Local Storage persistence. `editing` is transient edit bookkeeping, not durable Home personality. A custom section is a coordinated custom-hub/order/presentation bundle, with its validated title inside `viewSettings`, and must be treated atomically by any future full-Home scrub/rollback design.
 
 The preferred full-Home design remains “let Plexamp rebuild itself”:
 
 1. preserve Plex authentication/session, selected library, commissioned player name/output and unrelated browser/cache state;
-2. classify the complete bounded browser-profile-local Home persistence authority;
+2. use the now-complete bounded browser-profile-local Home persistence classification;
 3. do **not** construct, copy or directly mutate the transient runtime hub array;
 4. capture exact rollback state for narrowly proven Home-owned records;
 5. clear only those records;
@@ -204,9 +214,10 @@ The preferred full-Home design remains “let Plexamp rebuild itself”:
 - [x] custom-added section creation-time family classification;
 - [x] 9228 custom-section page-refresh durability;
 - [x] 9228 custom-section full Chromium process durability;
-- [ ] classify **custom section title persistence** one change at a time with the bounded title matcher;
-- [ ] define exact full-Reset semantics for custom-added sections/titles from that evidence;
-- [ ] only then build a disposable-only reversible scrub/rebuild experiment across the complete classified Home-owned family set;
+- [x] 9229 custom-title causal rename + page-refresh durability;
+- [x] 9229 custom-title full Chromium process durability;
+- [ ] define exact full-Reset semantics for custom-added sections/titles from the completed classification;
+- [ ] build a disposable-only reversible scrub/rebuild experiment across the complete classified Home-owned family set;
 - [ ] decide whether full Home structure joins #93 or remains a tightly scoped follow-up.
 
 #### Automated evidence
@@ -219,12 +230,13 @@ The preferred full-Home design remains “let Plexamp rebuild itself”:
 - [x] Tests #4621 passed on `9cdcf1abfc81bf4a9bc050ae4ea85ca1087eaf29`.
 - [x] Tests #4623 passed on `8db7c9907675ec416681b0d72676594c4781f960`.
 - [x] Tests #4625 passed on `136f6fc5e14b0734f0d9ff5ca8f4d02951418450`.
+- [x] Tests #4631 passed on `9457a4413611e506bfab0cbf73cd4ef01a07184f`.
 
 #### Remaining gate before #93 can close
 
-- [ ] Close custom-title persistence one variable at a time.
-- [ ] Complete the reversible scrub/rebuild experiment only after the complete Home-owned persistence surface is bounded.
-- [ ] Decide from that evidence whether full Home structure joins #93 or remains a follow-up; presentation-only Reset itself is already physically accepted.
+- [x] Close custom-title persistence one variable at a time.
+- [ ] Complete the reversible full-Home scrub/rebuild experiment now that the complete Home-owned persistence surface is bounded.
+- [ ] Decide whether full Home structure joins #93 or remains a follow-up; presentation-only Reset itself is already physically accepted.
 - [ ] Pull/reboot the eventual final accepted production head so Chromium reloads the packaged bridge.
 - [ ] Fresh production Preview must no longer report `equalizerPresets` as a native Reset difference.
 - [ ] If the commissioned Pi ever contains the short-lived 10% AirPlay start value, Reset should offer the accepted return to **100%** and verify both AirPlay session-start and persistent AirPlay trim at 100%.

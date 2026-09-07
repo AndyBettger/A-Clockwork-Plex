@@ -144,7 +144,7 @@ A fresh disposable profile established that:
 
 ### Durable browser-profile-local owners now closed
 
-Five isolated disposable profiles now cover four durable Home persistence cases plus one editor-only control:
+Six isolated disposable profiles now cover five durable Home persistence cases plus one editor-only control:
 
 ```text
 9224 order tracer
@@ -170,6 +170,14 @@ Five isolated disposable profiles now cover four durable Home persistence cases 
   customHubs=1, order=1, viewSettings=1
   hidden=0, editing=0, other=0
   context_count=2, section_context_count=2
+
+9229 custom-title tracer
+  same Artist-based custom section renamed
+  ACP Test Section → ACP Renamed Section
+  family inventory remains customHubs=1, order=1, viewSettings=1
+  old title match 1→0; new title match 0→1
+  renamed title + exact bundle survive page refresh
+  and full Chromium process exit/relaunch
 ```
 
 #### Order
@@ -240,7 +248,26 @@ other=0
 
 The three matching records span two classified structural contexts (`context_count=2`, `section_context_count=2`). The section remained present in the same position and the family inventory remained exactly unchanged after both a normal page refresh and a complete Chromium process exit/relaunch using the same profile.
 
-Therefore custom-added section persistence is now closed as a durable coordinated **custom-hub + ordering + presentation bundle**. A future full-Home scrub must treat that bundle atomically and retain exact rollback for all participating records rather than deleting `customHubs` in isolation.
+Therefore custom-added section persistence is closed as a durable coordinated **custom-hub + ordering + presentation bundle**. A future full-Home scrub must treat that bundle atomically and retain exact rollback for all participating records rather than deleting `customHubs` in isolation.
+
+#### Custom-title persistence and durability
+
+A sixth fresh profile reproduced the same Artist-based **ACP Test Section** bundle after an all-zero baseline. The bounded title matcher found exactly one supported `viewSettings` record with exactly one title match and no unsupported/unclassified records.
+
+Renaming only that section to **ACP Renamed Section** caused no family change:
+
+```text
+customHubs=1
+order=1
+viewSettings=1
+hidden=0
+editing=0
+other=0
+```
+
+The old-title matcher changed from one match to zero while the new-title matcher changed from zero to one. Exactly one supported titled `viewSettings` record remained throughout. The renamed title and exact three-record bundle then survived both a normal page refresh and a complete Chromium process exit/relaunch using the same profile.
+
+Therefore custom-title persistence is also closed. The validated title lives inside the existing durable `viewSettings` record; there is no separate title family. Any future full-Home scrub/rollback must therefore keep the custom section's `customHubs`, `order` and `viewSettings` state together as one atomic structural unit.
 
 ### Bounded custom-title diagnostic
 
@@ -262,7 +289,7 @@ A production full-Home Reset, if accepted, should:
 
 1. preserve authentication/session and selected library;
 2. preserve commissioned player name and managed output through their existing owner;
-3. classify the **complete bounded browser-profile-local Home persistence authority**;
+3. use the **complete bounded browser-profile-local Home persistence authority** now physically classified;
 4. never directly clear/populate/mutate the transient `rootStore.discovery` hub array;
 5. capture exact rollback state for narrowly proven Home-owned persistence;
 6. remove/reset only those proven Home-owned records;
@@ -275,14 +302,15 @@ The observed default hub count is not a product invariant and must never be hard
 
 ## Remaining Home investigation
 
-Order, hidden/visible, built-in presentation and custom-added section structure are closed. The remaining causal work is deliberately narrow:
+The browser-profile-local persistence surface is now fully classified for the tested Home customisation behaviours: order, hidden/visible, built-in presentation, custom-added section structure and custom titles are closed; `editing` is transient.
 
-1. classify **custom section title persistence** one change at a time with the bounded title matcher;
-2. decide exact full-Reset semantics for custom sections/titles from that evidence;
-3. only then build a disposable-only reversible scrub/rebuild experiment using the complete classified family set;
-4. prove exact rollback restores the pre-scrub Home if a later Reset participant fails.
+The remaining work is no longer persistence archaeology:
 
-Only if those gates pass should production expand beyond the accepted presentation-only Home owner.
+1. define exact full-Reset semantics for custom sections/titles from the completed classification;
+2. build a disposable-only reversible scrub/rebuild experiment using the complete classified family set;
+3. prove Plexamp rebuilds Home while login/library and unrelated browser state remain intact;
+4. prove exact rollback restores the pre-scrub Home if a later Reset participant fails;
+5. only then decide whether production expands beyond the accepted presentation-only Home owner.
 
 ## Browser isolation
 
@@ -323,7 +351,8 @@ Key green CI checkpoints:
 - Tests #4620 — exact pre-hidden-acceptance state;
 - Tests #4621 — hidden-acceptance roadmap state;
 - Tests #4623 — post-presentation documentation/safety state;
-- Tests #4625 — post-custom-section creation documentation state.
+- Tests #4625 — post-custom-section creation documentation state;
+- Tests #4631 — bounded Home-title diagnostic + catalogues green.
 
 Physical evidence through 7 September 2026 establishes:
 
@@ -338,12 +367,13 @@ Physical evidence through 7 September 2026 establishes:
 - built-in Home presentation persistence closed;
 - transient `editing` separated from durable `viewSettings`;
 - custom-added section persistence closed as a durable `customHubs=1`, `order=1`, `viewSettings=1` bundle across two classified contexts;
-- full Home rebuild remains open only for custom-title classification and the reversible scrub/rebuild proof.
+- custom-title persistence closed as a durable validated `viewSettings.title` field within that bundle, including page-refresh and full-process durability;
+- the full Home persistence surface needed for the reversible scrub/rebuild proof is now bounded.
 
 ## Remaining gate before #93 can close
 
-- [ ] Close custom-title persistence one variable at a time.
-- [ ] Complete the reversible full-Home scrub/rebuild experiment after the persistence surface is fully bounded.
+- [x] Close custom-title persistence one variable at a time.
+- [ ] Complete the reversible full-Home scrub/rebuild experiment now that the persistence surface is fully bounded.
 - [ ] Decide whether full Home structure belongs in #93 or a tightly scoped follow-up.
 - [ ] Pull/reboot the eventual final production head so Chromium reloads the packaged bridge.
 - [ ] Fresh production Preview must no longer report `equalizerPresets`.
