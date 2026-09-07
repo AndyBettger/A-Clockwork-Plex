@@ -105,9 +105,9 @@ Accepted constraints:
 - [x] Last-good cache, stale/degraded presentation and Top Stories ticker physically accepted.
 - [x] Settings, News page, touch scrolling, startup/idle-return and Wi-Fi-loss recovery physically accepted.
 
-### #93 Reset-to-defaults workflow — FULL HOME ARCHITECTURE PROVEN; FINAL PRODUCTION ACCEPTANCE PENDING
+### #93 Reset-to-defaults workflow — PRODUCTION RESET PHYSICALLY ACCEPTED; ACTIVE-TAB RESIDUE CLEANUP UNDER FINAL CHECK
 
-PR #9 remains **Draft and unmerged**. The combined Reset transaction is physically accepted, the complete tested Home persistence surface is classified, and the disposable **9230 full-Home scrub → Plexamp rebuild → exact rollback** proof has passed. The branch now implements bounded full Home customisation Reset; the remaining gate is commissioned-Pi production acceptance on the final implementation proven by Tests #4647 plus explicit owner approval.
+PR #9 remains **Draft and unmerged** pending the final `activeTab` false-positive cleanup check and explicit owner approval. The complete Reset transaction, including bounded full Home customisation Reset, has now passed on the commissioned bedroom Pi as well as the disposable 9230 scrub/rebuild/rollback rehearsal.
 
 #### Accepted transaction foundations
 
@@ -118,6 +118,7 @@ PR #9 remains **Draft and unmerged**. The combined Reset transaction is physical
 - [x] Plexamp native owner calls real `global.app.rootStore.settings.resetToDefaults()`.
 - [x] Plexamp live music-player volume resets to **100%** with verification and exact rollback.
 - [x] `equalizerPresets` excluded from native changed-set/fingerprint as runtime-normalised catalogue state while remaining rollback-covered.
+- [x] Post-reset physical evidence established `activeTab` as runtime/navigation residue: after a successful complete Reset and rebuild it was the sole fresh-Preview difference. It is now excluded from the native changed-set/fingerprint through the same runtime-normalised mechanism while remaining rollback-covered.
 - [x] ACP EQ returns to 0/0/0 dB; Music Master, Plexamp trim, AirPlay trim, Maximum Alarm Volume and AirPlay session-start volume use the accepted **100%** baseline.
 - [x] Full multi-owner Confirm crosses the corrected ACP-only browser/server stale-token boundary successfully.
 
@@ -202,7 +203,34 @@ Confirmed rollback:
 
 This proves the intended production model: clear only bounded Home-owned customisation state and let Plexamp rebuild itself; do not synthesize runtime hubs or copy a clean Chromium profile.
 
-#### Production full-Home semantics — IMPLEMENTED ON FEATURE BRANCH
+#### Commissioned-Pi production acceptance — PASSED
+
+On the accepted branch head carrying bridge **1.4.0**, normal `bash setup.sh` convergence and the required reboot passed with a clean working tree, all critical services active, healthy dashboard API, correct Plex login/library, and the production kiosk loading the bounded bridge without remote-debugging flags.
+
+Fresh production Preview reported:
+
+```text
+19 server-owned
+8 Plexamp native settings
+5 bounded Home customisation records
+```
+
+The production Home set was classified as `order=1`, `hidden=0`, `viewSettings=3`, `customHubs=1`, with no warnings. `equalizerPresets` was absent. Review refreshed the same protected plan and reported **Ready to confirm**.
+
+Production Confirm then completed and verified **34 applied changes** across ACP, Plexamp native settings, Home customisation and commissioning. After the automatic completion reload:
+
+- [x] Plexamp remained signed in;
+- [x] the correct music library remained selected;
+- [x] Home rebuilt into default order/style and the custom section/presentation overrides disappeared;
+- [x] player name remained the commissioned value;
+- [x] managed audio output remained **A Clockwork Plex - Plexamp**;
+- [x] ACP reported **Already at baselines** on fresh Preview;
+- [x] Home reported **0** bounded customisation overrides on fresh Preview;
+- [x] commissioning still matched the player-name baseline and managed output.
+
+The sole post-reset Preview residue was `plexamp.native-settings.activeTab`, created by normal Plexamp UI/navigation state rather than meaningful user configuration. Commit `09488072ad204d9a7c0f984d8a4a2a64e92387dd` excludes it through the same runtime-normalised comparison boundary already used for `equalizerPresets`; exact rollback snapshots still include it.
+
+#### Production full-Home semantics — IMPLEMENTED AND PHYSICALLY ACCEPTED
 
 The Home owner now:
 
@@ -228,21 +256,21 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] Tests #4632 passed on `1b0fccf26887b708417a24974df92d87ff093553`.
 - [x] Tests #4633 passed on `54600624add3af758dd38d564daf1a4a7868d7eb`.
 - [x] Tests #4638 passed on `96f06e09544fafed3475f3416ac28650b040c580`: widened full-Home production owner + five-record safety/rollback smoke + full suite green.
-- [x] Tests #4647 passed on `88d69c9b8310f0bd82acfefff11c393053f8106f`: final production implementation gate after Reset UI/cache/bridge-version and regression updates; compile, JavaScript/page wiring/shell checks and full unit suite green.
-
-Documentation-only acceptance bookkeeping may advance the branch head after #4647 without changing the packaged production Reset implementation; those bookkeeping heads remain subject to ordinary CI before merge.
+- [x] Tests #4647 passed on `88d69c9b8310f0bd82acfefff11c393053f8106f`: final full-Home production implementation gate after Reset UI/cache/bridge-version and regression updates.
+- [x] Tests #4649 passed on `1f077b28ad453b90409ea91f24da0773c3a0ba90`: exact commissioned-Pi acceptance head, including documentation bookkeeping.
+- [x] Tests #4650 passed on `09488072ad204d9a7c0f984d8a4a2a64e92387dd`: `activeTab` runtime-normalisation cleanup; compile, JavaScript/page wiring/shell checks and full unit suite green.
 
 #### Remaining #93 gate
 
 - [x] Home persistence classification complete.
 - [x] Full disposable scrub/rebuild/rollback proof complete.
 - [x] Full bounded Home customisation joins #93 rather than becoming a separate Reset follow-up.
-- [x] Production owner widened and extension/client cache versions advanced.
-- [x] Complete CI green on the final production implementation head — Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f`.
-- [ ] Pull/reboot the accepted branch head on the commissioned Pi so Chromium loads packaged bridge **1.4.0**.
-- [ ] Run fresh production Preview/Review/Confirm and verify Home rebuild while login/library remain intact.
-- [ ] Verify fresh Preview does not report `equalizerPresets`.
-- [ ] If the commissioned Pi contains the short-lived 10% AirPlay start value, verify Reset restores both AirPlay session-start and persistent AirPlay trim to **100%**.
+- [x] Production owner widened and bridge 1.4.0 physically loaded.
+- [x] Commissioned-Pi Preview → Review → Confirm physically passed; Home rebuilt while login/library/player identity/output remained correct.
+- [x] Fresh post-reset Preview no longer reports `equalizerPresets` and reports ACP/Home at baseline.
+- [x] The commissioned Pi did not contain the short-lived 10% AirPlay session-start residue; no AirPlay-owned change appeared in the accepted Preview.
+- [x] `activeTab` post-reset navigation residue classified and excluded on the feature branch; Tests #4650 green.
+- [ ] Pull/restart the kiosk on the `activeTab` cleanup head and verify a fresh Preview reports no meaningful Reset work.
 - [ ] Keep #89/#90 presentation/custom-section/title portable Backup/Restore follow-up open until implemented or deliberately deferred.
 - [ ] Explicit owner acceptance required before PR #9 leaves Draft or merges.
 
@@ -255,7 +283,7 @@ Detailed authority: [`../development/architecture/reset-to-defaults.md`](../deve
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88 core COMPLETE; #89/#90 Home portability follow-up OPEN; #93 final production acceptance pending
+2. **Settings and appliance ownership** — #88 core COMPLETE; #89/#90 Home portability follow-up OPEN; #93 production Reset accepted, final `activeTab` zero-diff verification pending
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
