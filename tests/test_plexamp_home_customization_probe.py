@@ -35,11 +35,22 @@ class PlexampHomeCustomizationProbeTests(unittest.TestCase):
         self.assertIn("storage_values_read: false", self.expression)
 
     def test_probe_is_bounded_to_home_customisation_namespace(self):
-        self.assertIn("mmkv.default\\\\", self.expression)
+        self.assertIn("const MMKV_PREFIX = 'mmkv.default\\\\';", self.expression)
+        self.assertNotIn("const MMKV_PREFIX = 'mmkv.default\\\\\\\\';", self.expression)
+        self.assertIn("namespace: 'mmkv.default\\\\discovery:customizations:*'", self.expression)
         self.assertIn("discovery:customizations:", self.expression)
         self.assertIn("MAX_STORAGE_KEYS = 2048", self.expression)
         self.assertIn("MAX_MATCHES = 512", self.expression)
         self.assertIn("key.startsWith(MMKV_PREFIX + CUSTOM_PREFIX)", self.expression)
+
+    def test_real_world_single_backslash_order_key_matches_the_probe_prefix(self):
+        real_key = (
+            "mmkv.default\\discovery:customizations:"
+            "d7802466250a75f65d73500476e6f853fb512636::/library/sections/9:order"
+        )
+        runtime_prefix = "mmkv.default\\discovery:customizations:"
+        self.assertTrue(real_key.startswith(runtime_prefix))
+        self.assertIn("::/library/sections/9:order", real_key)
 
     def test_probe_reports_only_classified_families_not_raw_keys(self):
         for family in ("order", "hidden", "viewSettings", "editing", "customHubs", "other"):
