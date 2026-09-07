@@ -205,6 +205,8 @@ The preferred full-Home design remains “let Plexamp rebuild itself”:
 8. verify rebuilt logical Home plus continued login/library state;
 9. rollback if a later transaction participant fails.
 
+A developer-only guarded rehearsal now implements that storage half of the proof in `scripts/rehearse-plexamp-home-scrub.py`. It is intentionally **not** part of production Reset: it refuses the preserved 9224–9229 evidence profiles, accepts only a fresh loopback-debug disposable Plexamp page, refuses active `editing`, unknown or malformed Home families, creates an exact no-overwrite mode-0600 rollback snapshot, stale-checks the bounded target, removes only classified `order`/`hidden`/`viewSettings`/`customHubs` records, verifies the scrub, and restores exact bytes only into an empty bounded Home target. Tests #4633 are green; the physical 9230 scrub → reload/rebuild → rollback proof is still pending.
+
 #### Next physical investigation
 
 - [x] order persistence + full-process durability;
@@ -216,8 +218,9 @@ The preferred full-Home design remains “let Plexamp rebuild itself”:
 - [x] 9228 custom-section full Chromium process durability;
 - [x] 9229 custom-title causal rename + page-refresh durability;
 - [x] 9229 custom-title full Chromium process durability;
-- [ ] define exact full-Reset semantics for custom-added sections/titles from the completed classification;
-- [ ] build a disposable-only reversible scrub/rebuild experiment across the complete classified Home-owned family set;
+- [x] implement automated-green disposable-only reversible scrub/rollback rehearsal tooling;
+- [ ] physically prove a mixed 9230 Home scrub, Plexamp-owned rebuild, preserved login/library and exact rollback;
+- [ ] define the final production full-Reset semantics from that physical proof;
 - [ ] decide whether full Home structure joins #93 or remains a tightly scoped follow-up.
 
 #### Automated evidence
@@ -231,11 +234,13 @@ The preferred full-Home design remains “let Plexamp rebuild itself”:
 - [x] Tests #4623 passed on `8db7c9907675ec416681b0d72676594c4781f960`.
 - [x] Tests #4625 passed on `136f6fc5e14b0734f0d9ff5ca8f4d02951418450`.
 - [x] Tests #4631 passed on `9457a4413611e506bfab0cbf73cd4ef01a07184f`.
+- [x] Tests #4632 passed on `1b0fccf26887b708417a24974df92d87ff093553`.
+- [x] Tests #4633 passed on `54600624add3af758dd38d564daf1a4a7868d7eb`.
 
 #### Remaining gate before #93 can close
 
 - [x] Close custom-title persistence one variable at a time.
-- [ ] Complete the reversible full-Home scrub/rebuild experiment now that the complete Home-owned persistence surface is bounded.
+- [ ] Complete the physical reversible full-Home scrub/rebuild experiment now that the persistence surface is bounded and the rehearsal tool is automated-green.
 - [ ] Decide whether full Home structure joins #93 or remains a follow-up; presentation-only Reset itself is already physically accepted.
 - [ ] Pull/reboot the eventual final accepted production head so Chromium reloads the packaged bridge.
 - [ ] Fresh production Preview must no longer report `equalizerPresets` as a native Reset difference.

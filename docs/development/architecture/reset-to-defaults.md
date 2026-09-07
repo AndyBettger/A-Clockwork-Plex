@@ -300,17 +300,35 @@ A production full-Home Reset, if accepted, should:
 
 The observed default hub count is not a product invariant and must never be hard-coded.
 
+### Disposable reversible scrub rehearsal — IMPLEMENTED; PHYSICAL PROOF PENDING
+
+`scripts/rehearse-plexamp-home-scrub.py` is a developer-only guarded mutation tool for proving the storage/rebuild hypothesis before production ownership expands. It is not loaded by the kiosk or Reset bridge.
+
+Its safety contract is deliberately narrower than a general browser-storage editor:
+
+- refuses the preserved 9224–9229 evidence ports and is intended for a new disposable profile on port 9230 or later;
+- accepts only the existing loopback-only DevTools transport and exactly one local Plexamp page;
+- recognises only the closed durable families `order`, `hidden`, `viewSettings` and `customHubs`;
+- refuses an active `editing` record, unknown family, structurally invalid key, oversized record or stale fingerprint;
+- never calls `localStorage.clear()` and removes only individually classified Home-owned keys;
+- captures exact raw Home-owned bytes before mutation to `/var/tmp/plexamp-home-scrub-<port>.json` with no-overwrite and mode-0600 semantics;
+- verifies the scrub and self-restores touched records if mutation verification fails;
+- rollback validates the snapshot, requires the bounded Home target to be empty, restores exact bytes and verifies the exact fingerprint;
+- never prints raw keys or values, never touches cookies/Session Storage/IndexedDB, and exposes no arbitrary JavaScript or URL argument.
+
+Tests #4633 are green on the implementation head. The remaining proof is physical: construct a mixed disposable Home on 9230, scrub it, reload and verify Plexamp rebuilds its own Home while login/library survive, then exact-rollback and verify the mixed Home returns.
+
 ## Remaining Home investigation
 
-The browser-profile-local persistence surface is now fully classified for the tested Home customisation behaviours: order, hidden/visible, built-in presentation, custom-added section structure and custom titles are closed; `editing` is transient.
+The browser-profile-local persistence surface is fully classified for the tested Home customisation behaviours: order, hidden/visible, built-in presentation, custom-added section structure and custom titles are closed; `editing` is transient.
 
 The remaining work is no longer persistence archaeology:
 
-1. define exact full-Reset semantics for custom sections/titles from the completed classification;
-2. build a disposable-only reversible scrub/rebuild experiment using the complete classified family set;
-3. prove Plexamp rebuilds Home while login/library and unrelated browser state remain intact;
-4. prove exact rollback restores the pre-scrub Home if a later Reset participant fails;
-5. only then decide whether production expands beyond the accepted presentation-only Home owner.
+1. [x] implement an automated-green disposable-only exact-snapshot scrub/rollback rehearsal across the complete classified family set;
+2. [ ] physically prove scrub → Plexamp-owned rebuild on a fresh mixed 9230 profile while login/library and unrelated browser state remain intact;
+3. [ ] physically prove exact rollback restores the pre-scrub mixed Home;
+4. [ ] define the final production full-Reset semantics from that evidence;
+5. [ ] only then decide whether production expands beyond the accepted presentation-only Home owner.
 
 ## Browser isolation
 
@@ -324,7 +342,7 @@ The production bridge remains deliberately narrow:
 - no production remote-debugging interface;
 - no generic page-execution surface.
 
-The DevTools probes used in this investigation are developer diagnostics for disposable Chromium profiles only and are not part of the production kiosk path.
+The DevTools probes and scrub rehearsal used in this investigation are developer tooling for disposable Chromium profiles only and are not part of the production kiosk path.
 
 ## Combined transaction sequencing
 
@@ -352,7 +370,9 @@ Key green CI checkpoints:
 - Tests #4621 — hidden-acceptance roadmap state;
 - Tests #4623 — post-presentation documentation/safety state;
 - Tests #4625 — post-custom-section creation documentation state;
-- Tests #4631 — bounded Home-title diagnostic + catalogues green.
+- Tests #4631 — bounded Home-title diagnostic + catalogues green;
+- Tests #4632 — custom-title closure documentation green;
+- Tests #4633 — reversible Home scrub rehearsal + safety/catalogue coverage green.
 
 Physical evidence through 7 September 2026 establishes:
 
@@ -368,12 +388,13 @@ Physical evidence through 7 September 2026 establishes:
 - transient `editing` separated from durable `viewSettings`;
 - custom-added section persistence closed as a durable `customHubs=1`, `order=1`, `viewSettings=1` bundle across two classified contexts;
 - custom-title persistence closed as a durable validated `viewSettings.title` field within that bundle, including page-refresh and full-process durability;
-- the full Home persistence surface needed for the reversible scrub/rebuild proof is now bounded.
+- the full Home persistence surface needed for the reversible scrub/rebuild proof is bounded;
+- scrub/rollback rehearsal implementation is automated-green, but its physical rebuild/rollback proof remains open.
 
 ## Remaining gate before #93 can close
 
 - [x] Close custom-title persistence one variable at a time.
-- [ ] Complete the reversible full-Home scrub/rebuild experiment now that the persistence surface is fully bounded.
+- [ ] Complete the physical reversible full-Home scrub/rebuild experiment now that the persistence surface is fully bounded and the rehearsal tool is green.
 - [ ] Decide whether full Home structure belongs in #93 or a tightly scoped follow-up.
 - [ ] Pull/reboot the eventual final production head so Chromium reloads the packaged bridge.
 - [ ] Fresh production Preview must no longer report `equalizerPresets`.
