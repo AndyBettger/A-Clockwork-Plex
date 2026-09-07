@@ -68,6 +68,12 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         self.assertIn("player name will return to the name captured during appliance setup", text)
         self.assertIn("audio output will return to A Clockwork Plex - Plexamp", text)
         self.assertIn("Plexamp's own Reset to Defaults semantics", text)
+        self.assertIn("bounded Home customisation", text)
+        self.assertIn(
+            "Stored order, visibility, presentation, custom sections and custom titles return to Plexamp's rebuilt Home.",
+            text,
+        )
+        self.assertIn("plexamp.home.customisation", text)
         self.assertIn("ACPPlexampHomeReset", text)
         self.assertIn("ACPPlexampNativeReset", text)
         self.assertIn("rollbackBrowserOwners", text)
@@ -76,7 +82,8 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         self.assertNotIn("factory-baseline authority", text)
 
         manifest = BRIDGE_MANIFEST.read_text(encoding="utf-8")
-        self.assertIn('"version": "1.3.0"', manifest)
+        self.assertIn('"version": "1.4.0"', manifest)
+        self.assertIn("bounded Plexamp settings/Home reset bridge", manifest)
         self.assertIn('"js": ["content.js", "reset.js"]', manifest)
         self.assertIn('"web_accessible_resources"', manifest)
         self.assertIn('"resources": ["native-reset.js"]', manifest)
