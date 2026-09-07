@@ -107,7 +107,7 @@ Accepted constraints:
 
 ### #93 Reset-to-defaults workflow — FULL HOME ARCHITECTURE PROVEN; FINAL PRODUCTION ACCEPTANCE PENDING
 
-PR #9 remains **Draft and unmerged**. The combined Reset transaction is physically accepted, the complete tested Home persistence surface is classified, and the disposable **9230 full-Home scrub → Plexamp rebuild → exact rollback** proof has passed. The branch now implements bounded full Home customisation Reset; the remaining gate is commissioned-Pi production acceptance on a final green head plus explicit owner approval.
+PR #9 remains **Draft and unmerged**. The combined Reset transaction is physically accepted, the complete tested Home persistence surface is classified, and the disposable **9230 full-Home scrub → Plexamp rebuild → exact rollback** proof has passed. The branch now implements bounded full Home customisation Reset; the remaining gate is commissioned-Pi production acceptance on the final implementation proven by Tests #4647 plus explicit owner approval.
 
 #### Accepted transaction foundations
 
@@ -228,7 +228,9 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] Tests #4632 passed on `1b0fccf26887b708417a24974df92d87ff093553`.
 - [x] Tests #4633 passed on `54600624add3af758dd38d564daf1a4a7868d7eb`.
 - [x] Tests #4638 passed on `96f06e09544fafed3475f3416ac28650b040c580`: widened full-Home production owner + five-record safety/rollback smoke + full suite green.
-- [ ] Final production/docs head must also pass complete CI before the commissioned-Pi acceptance run.
+- [x] Tests #4647 passed on `88d69c9b8310f0bd82acfefff11c393053f8106f`: final production implementation gate after Reset UI/cache/bridge-version and regression updates; compile, JavaScript/page wiring/shell checks and full unit suite green.
+
+Documentation-only acceptance bookkeeping may advance the branch head after #4647 without changing the packaged production Reset implementation; those bookkeeping heads remain subject to ordinary CI before merge.
 
 #### Remaining #93 gate
 
@@ -236,8 +238,8 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] Full disposable scrub/rebuild/rollback proof complete.
 - [x] Full bounded Home customisation joins #93 rather than becoming a separate Reset follow-up.
 - [x] Production owner widened and extension/client cache versions advanced.
-- [ ] Complete CI green on the final code/docs head.
-- [ ] Pull/reboot that exact head on the commissioned Pi so Chromium loads the new packaged bridge.
+- [x] Complete CI green on the final production implementation head — Tests #4647 on `88d69c9b8310f0bd82acfefff11c393053f8106f`.
+- [ ] Pull/reboot the accepted branch head on the commissioned Pi so Chromium loads packaged bridge **1.4.0**.
 - [ ] Run fresh production Preview/Review/Confirm and verify Home rebuild while login/library remain intact.
 - [ ] Verify fresh Preview does not report `equalizerPresets`.
 - [ ] If the commissioned Pi contains the short-lived 10% AirPlay start value, verify Reset restores both AirPlay session-start and persistent AirPlay trim to **100%**.
