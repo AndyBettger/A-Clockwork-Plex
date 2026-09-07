@@ -150,19 +150,21 @@ jobs:
           grep -q "register_configuration_restore_apply_api" app/runner.py
           grep -q "register_configuration_reset_preview_api" app/runner.py
           grep -q "register_configuration_reset_apply_api" app/runner.py
-          grep -q "settings-reset-defaults.js?v=20260904-native-home-reset-v5" app/static/js/settings-advanced.js
+          grep -q "settings-reset-defaults.js?v=20260907-full-home-reset-v6" app/static/js/settings-advanced.js
           grep -q "/api/settings/reset/preview" app/static/js/settings-reset-defaults.js
           grep -q "/api/settings/reset/apply" app/static/js/settings-reset-defaults.js
           grep -q "Plexamp Home customisation" app/static/js/settings-reset-defaults.js
           grep -q "ACPPlexampHomeReset" app/static/js/settings-reset-defaults.js
           grep -q "ACPPlexampNativeReset" app/static/js/settings-reset-defaults.js
-          grep -q "Home order, visibility and custom sections are preserved" app/static/js/settings-reset-defaults.js
-          grep -q "plexamp.home.view-settings" app/static/js/settings-reset-defaults.js
+          grep -q "bounded Home customisation" app/static/js/settings-reset-defaults.js
+          grep -q "plexamp.home.customisation" app/static/js/settings-reset-defaults.js
+          ! grep -q "Home order, visibility and custom sections are preserved" app/static/js/settings-reset-defaults.js
           grep -q "acp-plexamp-home-reset-plan-request-v1" app/static/js/plexamp-home-reset-bridge.js
           grep -q "acp-plexamp-home-reset-apply-request-v1" app/static/js/plexamp-home-reset-bridge.js
           grep -q "acp-plexamp-home-reset-plan-request-v1" browser/plexamp-bridge/reset.js
           grep -q "acp-plexamp-home-reset-apply-request-v1" browser/plexamp-bridge/reset.js
           grep -q "viewSettings" browser/plexamp-bridge/reset.js
+          grep -Fq '"version": "1.4.0"' browser/plexamp-bridge/manifest.json
           grep -q "acp-plexamp-native-reset-plan-request-v1" app/static/js/plexamp-native-reset-bridge.js
           grep -q "acp-plexamp-native-reset-apply-request-v1" browser/plexamp-bridge/native-reset.js
           grep -q "changed_keys" browser/plexamp-bridge/native-reset.js
