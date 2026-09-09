@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import re
 from collections import Counter
 from copy import deepcopy
@@ -38,7 +39,32 @@ MAX_BACKUP_BYTES = 1_000_000
 MAX_APPLY_REQUEST_BYTES = 1_100_000
 MAX_PREVIEW_PATHS = 200
 MAX_BROWSER_ITEMS = 128
+MAX_V2_HOME_ITEMS = 256
+MAX_V2_CUSTOM_SECTIONS = 128
+MAX_PORTABLE_SETTINGS = 256
+MAX_PORTABLE_COLLECTION_ITEMS = 128
+MAX_PORTABLE_OBJECT_KEYS = 128
+MAX_PORTABLE_DEPTH = 5
+MAX_PORTABLE_STRING_CHARS = 4096
+MAX_HOME_QUERY_CHARS = 2048
+MAX_HOME_TITLE_CHARS = 240
+V2_BACKUP_SCHEMA_VERSION = 2
+SUPPORTED_BACKUP_SCHEMA_VERSIONS = frozenset({BACKUP_SCHEMA_VERSION, V2_BACKUP_SCHEMA_VERSION})
+
 SAFE_HUB_ID_RE = re.compile(r"^[A-Za-z0-9_./-]{1,220}$")
+SAFE_V2_HUB_ID_RE = re.compile(r"^[A-Za-z0-9_.:/%+@~=\-]{1,600}$")
+SAFE_PORTABLE_SETTING_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,127}$")
+SAFE_FINGERPRINT_RE = re.compile(r"^[a-f0-9]{8}$")
+SAFE_CUSTOM_REF_RE = re.compile(r"^custom-[1-9][0-9]{0,5}$")
+SAFE_CUSTOM_KIND_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+CUSTOM_HUB_ID_RE = re.compile(
+    r"^custom\.hub\.[A-Za-z0-9_-]{1,64}\.[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+SENSITIVE_NAME_RE = re.compile(
+    r"token|auth|account|session|cookie|credential|password|secret|claim|machine|clientidentifier|email",
+    re.IGNORECASE,
+)
 AUDIO_POLICY_HEADLESS_PREFERENCES = frozenset(
     {"sampleRateConversionQuality", "sampleRateMatching"}
 )
@@ -60,6 +86,16 @@ FORBIDDEN_KEYS = {
     "playername",
     "premium",
 }
+PORTABLE_SETTING_EXCLUSIONS = frozenset(
+    {
+        "playername",
+        "audiodeviceuuid",
+        "premium",
+        "activetab",
+        "equalizerpresets",
+        "equalizervalues",
+    }
+)
 
 TOP_LEVEL_KEYS = {
     "schema_version",
@@ -74,9 +110,23 @@ SETTINGS_DOMAINS = {"dashboard", "display", "weather", "alarms", "airplay", "new
 AUDIO_DOMAINS = {"eq", "mixer"}
 EQ_KEYS = {"enabled", "bands"}
 EQ_BANDS = {"bass", "mid", "treble"}
-PLEXAMP_KEYS = {"source_version", "headless_preferences", "browser_preferences"}
+PLEXAMP_KEYS_V1 = {"source_version", "headless_preferences", "browser_preferences"}
+PLEXAMP_KEYS_V2 = {"source_version", "portable_settings", "browser_preferences"}
 BROWSER_KEYS = {"schema_version", "home"}
-BROWSER_HOME_KEYS = {"order", "hidden"}
+BROWSER_HOME_KEYS_V1 = {"order", "hidden"}
+PORTABLE_SETTINGS_KEYS = {"schema_version", "settings_schema_fingerprint", "settings"}
+BROWSER_HOME_KEYS_V2 = {
+    "schema_version",
+    "order",
+    "hidden",
+    "presentation",
+    "custom_sections",
+}
+HOME_REF_BUILTIN_KEYS = {"type", "id"}
+HOME_REF_CUSTOM_KEYS = {"type", "ref"}
+HOME_CUSTOM_SECTION_KEYS = {"ref", "kind", "query_suffix"}
+HOME_PRESENTATION_ROW_KEYS = {"target", "settings"}
+HOME_PRESENTATION_FIELDS = {"type", "subtype", "size", "limit", "title"}
 
 
 def _object(value: Any, label: str) -> dict[str, Any]:
@@ -125,6 +175,8 @@ def _validate_json_bounds(value: Any, path: str = "backup", depth: int = 0) -> N
         return
     if isinstance(value, str) and len(value) > 16_384:
         raise ValueError(f"{path} contains an oversized string.")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError(f"{path} contains a non-finite number.")
     if value is not None and not isinstance(value, (str, int, float, bool)):
         raise ValueError(f"{path} contains an unsupported JSON value.")
 
@@ -156,7 +208,7 @@ def _validate_eq(value: Any) -> dict[str, Any]:
             if isinstance(raw, bool) or not isinstance(raw, (int, float)):
                 raise ValueError(f"{band.title()} EQ gain must be a number.")
             gain = float(raw)
-            if not -6.0 <= gain <= 6.0:
+            if not math.isfinite(gain) or not -6.0 <= gain <= 6.0:
                 raise ValueError(f"{band.title()} EQ gain must be from -6 dB to +6 dB.")
             quantised = round(gain * 2) / 2
             if abs(quantised - gain) > 1e-9:
@@ -205,13 +257,13 @@ def _validate_browser_list(value: Any, label: str, *, nullable: bool = False) ->
     return result
 
 
-def _validate_browser(value: Any) -> dict[str, Any]:
+def _validate_browser_v1(value: Any) -> dict[str, Any]:
     browser = _object(value, "plexamp.browser_preferences")
     _reject_unknown(browser, BROWSER_KEYS, "plexamp.browser_preferences")
     if browser.get("schema_version") != 1:
-        raise ValueError("Plexamp browser preference schema must be version 1.")
+        raise ValueError("Plexamp browser preference schema must be version 1 for a schema-v1 backup.")
     home = _object(browser.get("home"), "plexamp.browser_preferences.home")
-    _reject_unknown(home, BROWSER_HOME_KEYS, "plexamp.browser_preferences.home")
+    _reject_unknown(home, BROWSER_HOME_KEYS_V1, "plexamp.browser_preferences.home")
     return {
         "schema_version": 1,
         "home": {
@@ -228,15 +280,278 @@ def _validate_browser(value: Any) -> dict[str, Any]:
     }
 
 
+def _validate_portable_value(value: Any, label: str, depth: int = 0) -> Any:
+    if value is None or isinstance(value, bool):
+        return deepcopy(value)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if not math.isfinite(float(value)):
+            raise ValueError(f"{label} contains a non-finite number.")
+        return deepcopy(value)
+    if isinstance(value, str):
+        if len(value) > MAX_PORTABLE_STRING_CHARS:
+            raise ValueError(f"{label} contains an oversized string.")
+        return value
+    if depth >= MAX_PORTABLE_DEPTH:
+        raise ValueError(f"{label} exceeds the portable Plexamp settings nesting depth.")
+    if isinstance(value, list):
+        if len(value) > MAX_PORTABLE_COLLECTION_ITEMS:
+            raise ValueError(f"{label} contains too many list items.")
+        return [
+            _validate_portable_value(item, f"{label}[{index}]", depth + 1)
+            for index, item in enumerate(value)
+        ]
+    if isinstance(value, dict):
+        if len(value) > MAX_PORTABLE_OBJECT_KEYS:
+            raise ValueError(f"{label} contains too many object fields.")
+        result: dict[str, Any] = {}
+        for key in sorted(value):
+            if (
+                not isinstance(key, str)
+                or not SAFE_PORTABLE_SETTING_KEY_RE.fullmatch(key)
+                or SENSITIVE_NAME_RE.search(key)
+            ):
+                raise ValueError(f"{label} contains an unsupported or sensitive field name.")
+            result[key] = _validate_portable_value(value[key], f"{label}.{key}", depth + 1)
+        return result
+    raise ValueError(f"{label} contains an unsupported JSON value.")
+
+
+def _validate_portable_settings(value: Any) -> dict[str, Any]:
+    portable = _object(value, "plexamp.portable_settings")
+    _reject_unknown(portable, PORTABLE_SETTINGS_KEYS, "plexamp.portable_settings")
+    if portable.get("schema_version") != 1:
+        raise ValueError("Plexamp portable settings schema must be version 1.")
+    fingerprint = portable.get("settings_schema_fingerprint")
+    if not isinstance(fingerprint, str) or not SAFE_FINGERPRINT_RE.fullmatch(fingerprint):
+        raise ValueError("Plexamp portable settings fingerprint must be eight lowercase hexadecimal characters.")
+    settings = _object(portable.get("settings"), "plexamp.portable_settings.settings")
+    if len(settings) > MAX_PORTABLE_SETTINGS:
+        raise ValueError(
+            f"plexamp.portable_settings.settings must contain at most {MAX_PORTABLE_SETTINGS} keys."
+        )
+    result: dict[str, Any] = {}
+    for key in sorted(settings):
+        folded = key.casefold() if isinstance(key, str) else ""
+        if (
+            not isinstance(key, str)
+            or not SAFE_PORTABLE_SETTING_KEY_RE.fullmatch(key)
+            or key.startswith("_")
+            or SENSITIVE_NAME_RE.search(key)
+            or folded in PORTABLE_SETTING_EXCLUSIONS
+        ):
+            raise ValueError("Plexamp portable settings contain an unsupported or non-portable setting key.")
+        result[key] = _validate_portable_value(
+            settings[key],
+            f"plexamp.portable_settings.settings.{key}",
+        )
+    return {
+        "schema_version": 1,
+        "settings_schema_fingerprint": fingerprint,
+        "settings": result,
+    }
+
+
+def _safe_home_text(value: Any, max_chars: int, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > max_chars
+        or any(ord(char) < 32 for char in value)
+    ):
+        raise ValueError(f"{label} is not a supported portable Home string.")
+    return value
+
+
+def _validate_query_suffix(value: Any) -> str:
+    query = _safe_home_text(value, MAX_HOME_QUERY_CHARS, "Plexamp custom-section query")
+    if (
+        not query.startswith("/")
+        or "\\" in query
+        or "://" in query
+        or "#" in query
+        or SENSITIVE_NAME_RE.search(query)
+        or re.match(r"^/library/sections(?:/|$)", query, re.IGNORECASE)
+    ):
+        raise ValueError("Plexamp custom-section query is not a safe library-relative path.")
+    path = query.split("?", 1)[0]
+    if any(part in {".", ".."} for part in path.split("/")):
+        raise ValueError("Plexamp custom-section query contains path traversal.")
+    return query
+
+
+def _validate_home_ref(value: Any, custom_refs: set[str], label: str) -> dict[str, str]:
+    ref = _object(value, label)
+    ref_type = ref.get("type")
+    if ref_type == "builtin":
+        _reject_unknown(ref, HOME_REF_BUILTIN_KEYS, label)
+        if set(ref) != HOME_REF_BUILTIN_KEYS:
+            raise ValueError(f"{label} must contain exactly type and id.")
+        hub_id = ref.get("id")
+        if (
+            not isinstance(hub_id, str)
+            or not SAFE_V2_HUB_ID_RE.fullmatch(hub_id)
+            or SENSITIVE_NAME_RE.search(hub_id)
+            or CUSTOM_HUB_ID_RE.fullmatch(hub_id)
+        ):
+            raise ValueError(f"{label} contains an unsupported built-in Home identifier.")
+        return {"type": "builtin", "id": hub_id}
+    if ref_type == "custom":
+        _reject_unknown(ref, HOME_REF_CUSTOM_KEYS, label)
+        if set(ref) != HOME_REF_CUSTOM_KEYS:
+            raise ValueError(f"{label} must contain exactly type and ref.")
+        custom_ref = ref.get("ref")
+        if (
+            not isinstance(custom_ref, str)
+            or not SAFE_CUSTOM_REF_RE.fullmatch(custom_ref)
+            or custom_ref not in custom_refs
+        ):
+            raise ValueError(f"{label} references an unknown portable custom section.")
+        return {"type": "custom", "ref": custom_ref}
+    raise ValueError(f"{label} has an unsupported Home reference type.")
+
+
+def _validate_presentation_settings(value: Any) -> dict[str, Any]:
+    settings = _object(value, "Plexamp Home presentation settings")
+    _reject_unknown(settings, HOME_PRESENTATION_FIELDS, "Plexamp Home presentation settings")
+    if not settings:
+        raise ValueError("Plexamp Home presentation settings must not be empty.")
+    result: dict[str, Any] = {}
+    for key in sorted(settings):
+        raw = settings[key]
+        if key == "title":
+            result[key] = _safe_home_text(raw, MAX_HOME_TITLE_CHARS, "Plexamp custom-section title")
+        elif key in {"type", "subtype"}:
+            result[key] = _safe_home_text(raw, 96, f"Plexamp Home presentation {key}")
+        else:
+            if (
+                isinstance(raw, bool)
+                or not isinstance(raw, (int, float))
+                or not math.isfinite(float(raw))
+                or not 0 <= float(raw) <= 100000
+            ):
+                raise ValueError(f"Plexamp Home presentation {key} must be a finite non-negative number.")
+            result[key] = deepcopy(raw)
+    return result
+
+
+def _validate_home_v2(value: Any) -> dict[str, Any]:
+    home = _object(value, "plexamp.browser_preferences.home")
+    _reject_unknown(home, BROWSER_HOME_KEYS_V2, "plexamp.browser_preferences.home")
+    if set(home) != BROWSER_HOME_KEYS_V2:
+        raise ValueError("Plexamp Home v2 must contain schema_version, order, hidden, presentation and custom_sections.")
+    if home.get("schema_version") != 2:
+        raise ValueError("Plexamp Home schema must be version 2 in a schema-v2 backup.")
+
+    custom_sections_raw = home.get("custom_sections")
+    if not isinstance(custom_sections_raw, list) or len(custom_sections_raw) > MAX_V2_CUSTOM_SECTIONS:
+        raise ValueError(
+            f"Plexamp custom sections must be a list of at most {MAX_V2_CUSTOM_SECTIONS} items."
+        )
+    custom_refs: set[str] = set()
+    custom_sections: list[dict[str, str]] = []
+    for index, raw in enumerate(custom_sections_raw):
+        item = _object(raw, f"Plexamp custom section {index}")
+        _reject_unknown(item, HOME_CUSTOM_SECTION_KEYS, f"Plexamp custom section {index}")
+        if set(item) != HOME_CUSTOM_SECTION_KEYS:
+            raise ValueError("Each Plexamp custom section must contain exactly ref, kind and query_suffix.")
+        ref = item.get("ref")
+        kind = item.get("kind")
+        if (
+            not isinstance(ref, str)
+            or not SAFE_CUSTOM_REF_RE.fullmatch(ref)
+            or ref in custom_refs
+        ):
+            raise ValueError("Plexamp custom sections contain an invalid or duplicate portable reference.")
+        if not isinstance(kind, str) or not SAFE_CUSTOM_KIND_RE.fullmatch(kind):
+            raise ValueError("Plexamp custom section kind is invalid.")
+        custom_refs.add(ref)
+        custom_sections.append(
+            {
+                "ref": ref,
+                "kind": kind,
+                "query_suffix": _validate_query_suffix(item.get("query_suffix")),
+            }
+        )
+
+    def validate_ref_list(raw: Any, label: str) -> list[dict[str, str]]:
+        if not isinstance(raw, list) or len(raw) > MAX_V2_HOME_ITEMS:
+            raise ValueError(f"{label} must be a list of at most {MAX_V2_HOME_ITEMS} items.")
+        result: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for index, item in enumerate(raw):
+            ref = _validate_home_ref(item, custom_refs, f"{label}[{index}]")
+            encoded = json.dumps(ref, sort_keys=True, separators=(",", ":"))
+            if encoded in seen:
+                raise ValueError(f"{label} contains a duplicate Home reference.")
+            seen.add(encoded)
+            result.append(ref)
+        return result
+
+    order = validate_ref_list(home.get("order"), "Plexamp Home order")
+    hidden = validate_ref_list(home.get("hidden"), "Plexamp Home hidden items")
+
+    presentation_raw = home.get("presentation")
+    if not isinstance(presentation_raw, list) or len(presentation_raw) > MAX_V2_HOME_ITEMS:
+        raise ValueError(
+            f"Plexamp Home presentation must be a list of at most {MAX_V2_HOME_ITEMS} items."
+        )
+    presentation: list[dict[str, Any]] = []
+    presentation_targets: set[str] = set()
+    custom_titles: set[str] = set()
+    for index, raw in enumerate(presentation_raw):
+        row = _object(raw, f"Plexamp Home presentation {index}")
+        _reject_unknown(row, HOME_PRESENTATION_ROW_KEYS, f"Plexamp Home presentation {index}")
+        if set(row) != HOME_PRESENTATION_ROW_KEYS:
+            raise ValueError("Each Plexamp Home presentation row must contain exactly target and settings.")
+        target = _validate_home_ref(
+            row.get("target"),
+            custom_refs,
+            f"Plexamp Home presentation {index} target",
+        )
+        encoded = json.dumps(target, sort_keys=True, separators=(",", ":"))
+        if encoded in presentation_targets:
+            raise ValueError("Plexamp Home presentation contains a duplicate target.")
+        presentation_targets.add(encoded)
+        settings = _validate_presentation_settings(row.get("settings"))
+        if target["type"] == "custom" and isinstance(settings.get("title"), str):
+            custom_titles.add(target["ref"])
+        presentation.append({"target": target, "settings": settings})
+
+    missing_titles = sorted(custom_refs - custom_titles)
+    if missing_titles:
+        raise ValueError("Every portable Plexamp custom section must have a title-bearing presentation record.")
+
+    return {
+        "schema_version": 2,
+        "order": order,
+        "hidden": hidden,
+        "presentation": presentation,
+        "custom_sections": custom_sections,
+    }
+
+
+def _validate_browser_v2(value: Any) -> dict[str, Any]:
+    browser = _object(value, "plexamp.browser_preferences")
+    _reject_unknown(browser, BROWSER_KEYS, "plexamp.browser_preferences")
+    if set(browser) != BROWSER_KEYS:
+        raise ValueError("Plexamp browser preferences v2 must contain schema_version and home.")
+    if browser.get("schema_version") != 2:
+        raise ValueError("Plexamp browser preference schema must be version 2 for a schema-v2 backup.")
+    return {
+        "schema_version": 2,
+        "home": _validate_home_v2(browser.get("home")),
+    }
+
+
 def _normalise_restore_model(payload: Any) -> dict[str, Any]:
     backup = _object(payload, "Backup")
     _validate_json_bounds(backup)
     _reject_unknown(backup, TOP_LEVEL_KEYS, "Backup")
     _reject_forbidden(backup)
-    if backup.get("schema_version") != BACKUP_SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported backup schema version; expected {BACKUP_SCHEMA_VERSION}."
-        )
+    schema_version = backup.get("schema_version")
+    if isinstance(schema_version, bool) or schema_version not in SUPPORTED_BACKUP_SCHEMA_VERSIONS:
+        supported = ", ".join(str(item) for item in sorted(SUPPORTED_BACKUP_SCHEMA_VERSIONS))
+        raise ValueError(f"Unsupported backup schema version; supported versions are {supported}.")
 
     acp = _object(backup.get("a_clockwork_plex"), "a_clockwork_plex")
     _reject_unknown(acp, ACP_KEYS, "a_clockwork_plex")
@@ -252,28 +567,40 @@ def _normalise_restore_model(payload: Any) -> dict[str, Any]:
         normalised_audio["mixer"] = _validate_mixer(audio["mixer"])
 
     plexamp = _object(backup.get("plexamp", {}), "plexamp")
-    _reject_unknown(plexamp, PLEXAMP_KEYS, "plexamp")
+    plexamp_keys = PLEXAMP_KEYS_V1 if schema_version == 1 else PLEXAMP_KEYS_V2
+    _reject_unknown(plexamp, plexamp_keys, "plexamp")
     normalised_plexamp: dict[str, Any] = {}
     if "source_version" in plexamp:
         version = plexamp["source_version"]
         if not isinstance(version, str) or len(version) > 80:
             raise ValueError("plexamp.source_version must be a short string.")
         normalised_plexamp["source_version"] = version
-    if "headless_preferences" in plexamp:
-        normalised_plexamp["headless_preferences"] = _validate_headless(
-            plexamp["headless_preferences"]
-        )
-    if "browser_preferences" in plexamp:
-        normalised_plexamp["browser_preferences"] = _validate_browser(
-            plexamp["browser_preferences"]
-        )
+
+    if schema_version == 1:
+        if "headless_preferences" in plexamp:
+            normalised_plexamp["headless_preferences"] = _validate_headless(
+                plexamp["headless_preferences"]
+            )
+        if "browser_preferences" in plexamp:
+            normalised_plexamp["browser_preferences"] = _validate_browser_v1(
+                plexamp["browser_preferences"]
+            )
+    else:
+        if "portable_settings" in plexamp:
+            normalised_plexamp["portable_settings"] = _validate_portable_settings(
+                plexamp["portable_settings"]
+            )
+        if "browser_preferences" in plexamp:
+            normalised_plexamp["browser_preferences"] = _validate_browser_v2(
+                plexamp["browser_preferences"]
+            )
 
     source = backup.get("source", {})
     if source is not None and not isinstance(source, dict):
         raise ValueError("source must be a JSON object when present.")
 
     return {
-        "schema_version": BACKUP_SCHEMA_VERSION,
+        "schema_version": schema_version,
         "source": deepcopy(source) if isinstance(source, dict) else {},
         "a_clockwork_plex": {
             "settings": deepcopy(settings),
@@ -430,6 +757,7 @@ class ConfigurationRestorePlanner:
                 f"Backup application version {source_version} differs from this appliance version {current_version}."
             )
 
+        candidate_schema = int(candidate["schema_version"])
         candidate_plexamp = candidate.get("plexamp", {})
         current_plexamp = current.get("plexamp", {})
         source_plexamp = str(candidate_plexamp.get("source_version") or "").strip()
@@ -480,15 +808,41 @@ class ConfigurationRestorePlanner:
             and source_plexamp != current_plexamp_version
             and not headless_paths
         ):
+            if candidate_schema == 1:
+                warnings.append(
+                    "Backup Plexamp version differs from the installed Plexamp version; no Headless preference mutation is planned."
+                )
+            else:
+                warnings.append(
+                    "Backup Plexamp version differs from the installed version; the live v2 browser owners will determine settings/Home compatibility from target schema and capabilities."
+                )
+
+        portable = candidate_plexamp.get("portable_settings")
+        portable_summary = {
+            "present": isinstance(portable, dict),
+            "setting_items": 0,
+            "comparison": "not-present",
+        }
+        if isinstance(portable, dict):
+            settings = portable.get("settings", {})
+            portable_summary.update(
+                {
+                    "setting_items": len(settings) if isinstance(settings, dict) else 0,
+                    "comparison": "deferred-to-live-browser",
+                }
+            )
             warnings.append(
-                "Backup Plexamp version differs from the installed Plexamp version; no Headless preference mutation is planned."
+                "Portable Plexamp settings are valid, but comparison/application belongs to the live v2 browser restore participant."
             )
 
         browser = candidate_plexamp.get("browser_preferences")
         browser_summary = {
             "present": isinstance(browser, dict),
+            "schema_version": None,
             "order_items": 0,
             "hidden_items": 0,
+            "presentation_items": 0,
+            "custom_section_items": 0,
             "comparison": "not-present",
         }
         if isinstance(browser, dict):
@@ -497,13 +851,16 @@ class ConfigurationRestorePlanner:
             hidden = home.get("hidden", [])
             browser_summary.update(
                 {
+                    "schema_version": browser.get("schema_version"),
                     "order_items": len(order) if isinstance(order, list) else 0,
                     "hidden_items": len(hidden),
+                    "presentation_items": len(home.get("presentation", [])),
+                    "custom_section_items": len(home.get("custom_sections", [])),
                     "comparison": "deferred-to-live-browser",
                 }
             )
             warnings.append(
-                "Plexamp Home layout is valid and portable, but comparison/application belongs to the live browser restore stage after Plexamp is commissioned."
+                "Plexamp Home customisation is valid and portable, but comparison/application belongs to the live browser restore stage after Plexamp is commissioned."
             )
 
         if "a_clockwork_plex.settings.airplay.receiver_name" in changed_paths:
@@ -519,7 +876,7 @@ class ConfigurationRestorePlanner:
 
         return {
             "ok": True,
-            "schema_version": BACKUP_SCHEMA_VERSION,
+            "schema_version": candidate_schema,
             "read_only": True,
             "apply_enabled": False,
             "restore_available": bool(apply_paths),
@@ -543,6 +900,7 @@ class ConfigurationRestorePlanner:
                 "restorable_items": len(headless_apply_paths),
                 "deferred_items": len([path for path in deferred_paths if path.startswith("plexamp.headless_preferences.")]),
             },
+            "plexamp_portable_settings": portable_summary,
             "deferred_change_count": len(deferred_paths),
             "deferred_changed_paths": deferred_paths[:MAX_PREVIEW_PATHS],
             "sections": dict(sorted(sections.items())),
@@ -557,7 +915,7 @@ class ConfigurationRestorePlanner:
 
 
 class ConfigurationRestoreExecutor:
-    """Apply ACP Settings/EQ/mixer and compatible Plexamp Headless preferences transactionally."""
+    """Apply ACP Settings/EQ/mixer and compatible schema-v1 Plexamp Headless preferences transactionally."""
 
     def __init__(
         self,
@@ -646,7 +1004,7 @@ class ConfigurationRestoreExecutor:
 
         apply_paths = list(plan.get("apply_changed_paths") or [])
         if not apply_paths:
-            raise RestoreConflict("No currently supported changes need restoring.")
+            raise RestoreConflict("No currently supported server-owned changes need restoring.")
 
         before_backup = _normalise_restore_model(self._current_backup())
         candidate = _normalise_restore_model(backup)
@@ -806,19 +1164,20 @@ class ConfigurationRestoreExecutor:
         return {
             "ok": True,
             "restored": True,
-            "schema_version": BACKUP_SCHEMA_VERSION,
+            "schema_version": int(candidate["schema_version"]),
             "applied_change_count": len(apply_paths),
             "applied_sections": sorted({_section_for_path(path) for path in apply_paths}),
             "server_applied_change_count": int(plan.get("server_change_count") or 0),
             "plexamp_headless_applied_change_count": int(plan.get("plexamp_headless_change_count") or 0),
             "deferred_change_count": int(plan.get("deferred_change_count") or 0),
             "deferred_changed_paths": list(plan.get("deferred_changed_paths") or []),
+            "plexamp_portable_settings": deepcopy(plan.get("plexamp_portable_settings") or {}),
             "plexamp_browser": deepcopy(plan.get("plexamp_browser") or {}),
             "credentials": {
                 "included": False,
                 "restore_policy": "recommission-separately",
             },
-            "message": "Supported server-owned settings and compatible Plexamp Headless preferences were restored and verified.",
+            "message": "Supported server-owned settings were restored and verified.",
         }
 
 
