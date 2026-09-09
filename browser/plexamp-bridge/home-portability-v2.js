@@ -187,6 +187,7 @@
       || value.includes('://')
       || value.includes('#')
       || SENSITIVE_NAME.test(value)
+      || /^\/library\/sections(?:\/|$)/i.test(value)
       || Array.from(value).some((char) => char.codePointAt(0) < 32)
     ) return false;
     const path = value.split('?')[0];
