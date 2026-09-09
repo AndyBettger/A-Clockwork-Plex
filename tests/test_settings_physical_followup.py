@@ -578,7 +578,7 @@ class ConfigurationRestoreTransactionTests(unittest.TestCase):
         self.assertNotIn("not-a-real-secret", str(context.exception))
 
     def test_restore_ui_requires_preview_token_explicit_confirmation_and_owner_split(self):
-        client = Path("app/static/js/settings-about.js").read_text(encoding="utf-8")
+        client = Path("app/static/js/settings-backup-restore.js").read_text(encoding="utf-8")
         runner = Path("app/runner.py").read_text(encoding="utf-8")
 
         self.assertIn("restore_available", client)
@@ -588,10 +588,12 @@ class ConfigurationRestoreTransactionTests(unittest.TestCase):
         self.assertIn("data-configuration-restore-server-count", client)
         self.assertIn("data-configuration-restore-headless-summary", client)
         self.assertIn("/api/settings/restore/apply", client)
-        self.assertIn("preview_token: lastPlan.preview_token", client)
+        self.assertIn("preview_token: plan.preview_token", client)
         self.assertIn("confirm_restore: true", client)
         self.assertIn("confirm-configuration-restore", client)
-        self.assertIn("Compatible Plexamp Headless preferences", client)
+        self.assertIn("Portable Plexamp settings plus logical Home choices", client)
+        self.assertIn("Schema-v1 backups retain their accepted Headless/order/hidden compatibility path", client)
+        self.assertIn("ACPConfigurationBackupRestoreV2.runRestoreTransaction", client)
         self.assertNotIn("Plexamp Headless preferences and Home layout remain deferred", client)
         self.assertIn("PlexampPreferenceManager", runner)
         self.assertIn("plexamp_preference_status=plexamp_preferences.status", runner)
