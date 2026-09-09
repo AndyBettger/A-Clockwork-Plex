@@ -5,6 +5,21 @@
   // the production extension manifest until the complete transaction has
   // automated and commissioned-Pi acceptance.
 
+  const SNAPSHOT_REQUEST_TYPE = 'acp-plexamp-home-portability-snapshot-request-v2';
+  const SNAPSHOT_RESPONSE_TYPE = 'acp-plexamp-home-portability-snapshot-response-v2';
+  const PLAN_REQUEST_TYPE = 'acp-plexamp-home-portability-plan-request-v2';
+  const PLAN_RESPONSE_TYPE = 'acp-plexamp-home-portability-plan-response-v2';
+  const APPLY_REQUEST_TYPE = 'acp-plexamp-home-portability-apply-request-v2';
+  const APPLY_RESPONSE_TYPE = 'acp-plexamp-home-portability-apply-response-v2';
+  const ROLLBACK_REQUEST_TYPE = 'acp-plexamp-home-portability-rollback-request-v2';
+  const ROLLBACK_RESPONSE_TYPE = 'acp-plexamp-home-portability-rollback-response-v2';
+  const FINALIZE_REQUEST_TYPE = 'acp-plexamp-home-portability-finalize-request-v2';
+  const FINALIZE_RESPONSE_TYPE = 'acp-plexamp-home-portability-finalize-response-v2';
+  const DASHBOARD_ORIGINS = new Set([
+    'http://localhost:8088',
+    'http://127.0.0.1:8088',
+  ]);
+
   const MMKV_PREFIX = 'mmkv.default\\';
   const CUSTOM_PREFIX = 'discovery:customizations:';
   const LIBRARY_RE = /^\/library\/sections\/([0-9]{1,10})$/;
@@ -544,7 +559,7 @@
 
     if (home.order.length) {
       const order = home.order.map((ref) => resolveLogicalRef(ref, customIds));
-      if (order.some((hub) => !hub) || !add(`${scope.structureBaseKey}:order`, order)) {
+      if (order.some((hub) => !hub || typeof hub !== 'string') || !add(`${scope.structureBaseKey}:order`, order)) {
         return { status: 'serialization-failed', records: [] };
       }
     }
@@ -600,6 +615,7 @@
       status: 'ready',
       read_only: true,
       restore_available: changed,
+      change_count: changed ? 1 : 0,
       target_fingerprint: current.target_fingerprint,
       current_record_count: inventory?.status === 'ready' ? inventory.records.length : 0,
     };
@@ -671,7 +687,13 @@
       };
     }
     if (!plan.restore_available) {
-      return { schema_version: 2, status: 'no-change', applied: false, rolled_back: false };
+      return {
+        schema_version: 2,
+        status: 'no-change',
+        applied: false,
+        rolled_back: false,
+        applied_change_count: 0,
+      };
     }
 
     const scope = deriveTargetScope(rootStore);
@@ -711,6 +733,7 @@
         status: 'applied',
         applied: true,
         rolled_back: false,
+        applied_change_count: 1,
         target_fingerprint: after.fingerprint,
         rollback_token: rollbackToken,
       };
@@ -784,6 +807,98 @@
     };
   }
 
+  function locateRootStore(win) {
+    const candidates = [
+      win?.app?.rootStore,
+      win?.global?.app?.rootStore,
+    ];
+    for (const rootStore of candidates) {
+      if (rootStore && deriveTargetScope(rootStore)) return rootStore;
+    }
+    return null;
+  }
+
+  function safeUnavailable(requestType, status = 'runtime-unavailable') {
+    if (requestType === SNAPSHOT_REQUEST_TYPE) {
+      return { schema_version: 2, status, read_only: true };
+    }
+    if (requestType === PLAN_REQUEST_TYPE) {
+      return { schema_version: 2, status, read_only: true, restore_available: false };
+    }
+    if (requestType === APPLY_REQUEST_TYPE) {
+      return { schema_version: 2, status, applied: false, rolled_back: false };
+    }
+    if (requestType === ROLLBACK_REQUEST_TYPE) {
+      return { schema_version: 2, status, rolled_back: false, verified: false };
+    }
+    if (requestType === FINALIZE_REQUEST_TYPE) {
+      return { schema_version: 2, status, finalized: false };
+    }
+    return null;
+  }
+
+  function install(win) {
+    if (!win?.addEventListener) return;
+    win.addEventListener('message', (event) => {
+      if (event.source !== win.parent || !DASHBOARD_ORIGINS.has(event.origin)) return;
+      const request = event.data;
+      if (!request || typeof request.type !== 'string') return;
+      if (
+        typeof request.nonce !== 'string'
+        || request.nonce.length < 8
+        || request.nonce.length > 128
+      ) return;
+
+      let responseType = null;
+      let result = null;
+      try {
+        const rootStore = locateRootStore(win);
+        const storage = win.localStorage;
+        if (request.type === SNAPSHOT_REQUEST_TYPE) {
+          responseType = SNAPSHOT_RESPONSE_TYPE;
+          result = rootStore && storage
+            ? buildPortableSnapshot(storage, rootStore)
+            : safeUnavailable(request.type);
+        } else if (request.type === PLAN_REQUEST_TYPE) {
+          responseType = PLAN_RESPONSE_TYPE;
+          result = rootStore && storage
+            ? buildRestorePlan(storage, rootStore, request.home)
+            : safeUnavailable(request.type);
+        } else if (request.type === APPLY_REQUEST_TYPE) {
+          responseType = APPLY_RESPONSE_TYPE;
+          result = rootStore && storage
+            ? applyPortableHome(
+                storage,
+                rootStore,
+                request.home,
+                request.target_fingerprint,
+                request.confirm_restore === true,
+              )
+            : safeUnavailable(request.type);
+        } else if (request.type === ROLLBACK_REQUEST_TYPE) {
+          responseType = ROLLBACK_RESPONSE_TYPE;
+          result = rollbackPortableHome(
+            request.rollback_token,
+            request.confirm_rollback === true,
+          );
+        } else if (request.type === FINALIZE_REQUEST_TYPE) {
+          responseType = FINALIZE_RESPONSE_TYPE;
+          result = finalizePortableHome(request.rollback_token);
+        }
+      } catch (_error) {
+        result = safeUnavailable(request.type, 'unavailable');
+        if (request.type === SNAPSHOT_REQUEST_TYPE) responseType = SNAPSHOT_RESPONSE_TYPE;
+        else if (request.type === PLAN_REQUEST_TYPE) responseType = PLAN_RESPONSE_TYPE;
+        else if (request.type === APPLY_REQUEST_TYPE) responseType = APPLY_RESPONSE_TYPE;
+        else if (request.type === ROLLBACK_REQUEST_TYPE) responseType = ROLLBACK_RESPONSE_TYPE;
+        else if (request.type === FINALIZE_REQUEST_TYPE) responseType = FINALIZE_RESPONSE_TYPE;
+      }
+
+      if (!responseType || !result) return;
+      win.parent.postMessage({ type: responseType, nonce: request.nonce, result }, event.origin);
+    });
+  }
+
   const api = {
     applyPortableHome,
     buildPortableSnapshot,
@@ -793,6 +908,8 @@
     deriveTargetScope,
     encodeMmkv,
     finalizePortableHome,
+    install,
+    locateRootStore,
     materializePortableHome,
     parseCustomHubIdentifier,
     rollbackPortableHome,
@@ -800,4 +917,5 @@
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (typeof window !== 'undefined') install(window);
 })();
