@@ -159,6 +159,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 - `tests/test_application_state.py` — Exercises persisted/shared application state, atomic updates and runtime-state boundaries.
 - `tests/test_configuration_reset_commissioning.py` — Exercises combined ACP + Plexamp commissioning Reset planning, stale-token binding, cross-owner rollback and commissioning-only reset.
+- `tests/test_configuration_restore_v2.py` — Protects backward-compatible schema-v2 Restore validation, native/Home logical ownership separation, secret/identity exclusion, value-redacted Preview summaries and rejection of source-bound Home state.
 - `tests/test_dashboard_browser_auth_migration.py` — Protects browser-auth/session migration behaviour used by the dashboard kiosk.
 - `tests/test_dashboard_integration_installer.py` — Exercises dashboard/kiosk integration installation and managed file/service wiring.
 - `tests/test_dashboard_kiosk_install_safety.py` — Checks kiosk installation is scoped to the intended desktop user/session and safe paths.
