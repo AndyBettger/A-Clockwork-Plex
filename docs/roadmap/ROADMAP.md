@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 9 September 2026  
+**Last updated:** 10 September 2026  
 **Active integration branch:** `develop`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
@@ -71,7 +71,7 @@ Accepted constraints:
 - [x] `playerName` and `audioDeviceUuid` classified nonportable.
 - [x] Plexamp Home browser-local persistence families physically classified without treating the Chromium profile as a backup unit.
 
-### #89 Configuration backup/export — CORE COMPLETE; V2 ENVELOPE VALIDATOR AUTOMATED GREEN, CLIENT INTEGRATION OPEN
+### #89 Configuration backup/export — CORE COMPLETE; V2 EXPORT/TRANSACTION CORE AUTOMATED GREEN, SETTINGS INTEGRATION OPEN
 
 - [x] Schema-v1 backup/export physically accepted.
 - [x] Export contains normalised ACP settings, logical EQ/mixer, exact eight typed Headless preferences and logical Home order/hidden choices.
@@ -81,13 +81,14 @@ Accepted constraints:
 - [x] Full Home-v2 logical owner implemented for order/hidden/presentation/custom sections/custom titles without exporting source UUIDs, context IDs, library section numbers or raw browser records.
 - [x] Broader native Plexamp settings owner implemented using the proven live settings authority; only classified portable keys are written and global Plexamp Reset is never invoked by portable Restore.
 - [x] Clean post-Reset Home target can derive structure/presentation contexts from live Plexamp server/library state even with zero local Home override records.
-- [x] Top-level schema-v2 import envelope is now explicit: `plexamp.portable_settings` + Home-v2 logical browser preferences. Schema-v1 remains accepted and mixed v1/v2 Plexamp ownership is rejected rather than guessed.
-- [x] Schema-v2 validation exposes only safe counts/status, keeps the recursive credential/machine-state rejection, and rejects source-bound Home context including `/library/sections/<id>/...` masquerading as a relative custom query.
-- [x] Automated gates: native **Tests #4671**; Home-v2/full catalogue **Tests #4675**; schema-v2 validator **Tests #4680**; JavaScript query hardening **Tests #4681**; direct Python/JavaScript parity regression **Tests #4682** on `6ee937d16dde6e1ef0d05c55fbd8344ad8c5ba68`.
-- [ ] Assemble new complete schema-v2 exports in the Settings browser from the secret-safe ACP server export + live native portability snapshot + live Home-v2 snapshot, while retaining schema-v1 **import** compatibility.
+- [x] Top-level schema-v2 import envelope is explicit: `plexamp.portable_settings` + Home-v2 logical browser preferences. Schema-v1 remains accepted and mixed v1/v2 Plexamp ownership is rejected rather than guessed.
+- [x] Schema-v2 validation exposes only safe counts/status, keeps recursive credential/machine-state rejection, and rejects source-bound Home context including `/library/sections/<id>/...` masquerading as a relative custom query.
+- [x] Dormant Settings-browser orchestration assembles a complete schema-v2 export from the secret-safe schema-v1 ACP server export + live native portability snapshot + live Home-v2 snapshot, replacing rather than duplicating legacy Headless/Home ownership and excluding target fingerprints from the portable file.
+- [x] Automated gates: native **Tests #4671**; Home-v2/full catalogue **Tests #4675**; schema-v2 validator **Tests #4680**; JavaScript query hardening **Tests #4681**; direct Python/JavaScript parity **Tests #4682**; dormant dual-owner transport **Tests #4688**; complete dormant export/transaction orchestration **Tests #4691** on `54e4429cab41fdd1bc9bb55b996bd5611baa2029`.
+- [ ] Wire the schema-v2 export assembly into the real Settings Backup action while preserving schema-v1 import compatibility and a safe pre-activation fallback.
 - [ ] Physically accept complete commissioned-Pi export after production bridge activation.
 
-### #90 Configuration import/restore — CORE COMPLETE; V2 VALIDATOR AUTOMATED GREEN, TRANSACTION/PHYSICAL GATE OPEN
+### #90 Configuration import/restore — CORE COMPLETE; V2 TRANSACTION CORE AUTOMATED GREEN, SETTINGS/PHYSICAL GATE OPEN
 
 - [x] Read-only parse/validate/Preview with paths/counts rather than values.
 - [x] Stale-protected ACP Settings/EQ/mixer restore with reverse rollback.
@@ -99,12 +100,14 @@ Accepted constraints:
 - [x] New Home-v2 owner remaps target context/library/fresh custom IDs, verifies logical convergence despite changed physical IDs, and retains exact rollback/finalize.
 - [x] Home-v2 fails closed on active editing, unknown families, malformed wrappers, dangling/wrong-source custom records, invalid presentation/title/query state, unavailable target capability and stale Apply/Rollback.
 - [x] Schema-v2 server validation is backward compatible with v1, rejects ambiguous mixed ownership, validates native/Home logical shapes without reading raw browser state and keeps Preview browser-owned comparison deferred to the live owners.
-- [x] Server and Home-v2 owner now independently reject source-library-bound custom queries; relative `/all?...` style queries remain portable.
-- [ ] Integrate native + Home-v2 + server participants into one reviewed transaction with browser rollback tokens retained until every selected participant commits.
-- [ ] Add mixed-owner injected-failure tests proving later server failure rolls browser owners back in reverse order and success finalizes them only after verification.
-- [ ] Activate the new bridge only after integrated automation is green, then physically revalidate commissioned-Pi **Backup → Reset → Restore**.
+- [x] Server and Home-v2 owner independently reject source-library-bound custom queries; relative `/all?...` style queries remain portable.
+- [x] Dormant v2 transaction core integrates native → Home → server with browser rollback tokens retained until every selected participant commits, and finalizes them only after successful server verification.
+- [x] Injected-failure automation proves a later server failure rolls Home then native back in reverse order; Home/stale failures after native also restore native before returning, browser-only restores do not enter the server participant, and post-commit finalize trouble is reported as cleanup warning rather than a false restore failure.
+- [x] **Tests #4691** passed the complete 1108-test gate on `54e4429cab41fdd1bc9bb55b996bd5611baa2029` after catalogue registration; compile and JavaScript/page/shell checks were also green.
+- [ ] Wire the automated-green transaction core into the real Settings Preview → Review → Confirm path while keeping schema-v1 backups on their accepted compatibility path.
+- [ ] Activate the new bridge only after integrated Settings automation is green, then physically revalidate commissioned-Pi **Backup → Reset → Restore**.
 
-The accepted schema-v1 compatibility flow applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is recorded rather than hidden; the v2 transaction must close it.
+The accepted schema-v1 compatibility flow still applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is deliberately preserved only for old schema-v1 files. The new v2 transaction core closes it in automation; the production Settings page remains on the v1 path until the current integration gate is completed.
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -293,7 +296,7 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] `activeTab` post-reset navigation residue classified and excluded on the feature branch.
 - [x] Final production pull/restart physically verified **0 meaningful Reset differences** and the compact zero-change Preview presentation.
 
-Separate follow-up: #89/#90 complete portable Plexamp Backup/Restore remains open at the transaction-integration + physical-acceptance gate. PR #9 remains Draft and unmerged until explicit owner approval.
+Separate follow-up: #89/#90 complete portable Plexamp Backup/Restore remains open at the Settings-integration + production-bridge + physical-acceptance gate. PR #9 remains Draft and unmerged until explicit owner approval.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
@@ -304,7 +307,7 @@ Detailed authority: [`../development/architecture/reset-to-defaults.md`](../deve
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88 and #93 COMPLETE; #89/#90 v2 transaction/physical acceptance OPEN
+2. **Settings and appliance ownership** — #88 and #93 COMPLETE; #89/#90 v2 Settings integration/physical acceptance OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
