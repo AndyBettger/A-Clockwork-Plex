@@ -79,6 +79,11 @@ const source = new FakeSettings();
 source.cacheSize = 65536;
 source.nestedPortable = { mode: 'source-choice', levels: [4, 5] };
 const saved = owner.buildPortableSnapshot(source);
+const desired = {
+  schema_version: 1,
+  settings_schema_fingerprint: saved.settings_schema_fingerprint,
+  settings: saved.settings,
+};
 
 const target = new FakeSettings();
 target.autoPlayEnabled = true;
@@ -96,13 +101,13 @@ target.opaqueRuntime = new Map([['keep', 42]]);
 const presetsRef = target.equalizerPresets;
 const equalizerValuesRef = target.equalizerValues;
 const opaqueRef = target.opaqueRuntime;
-const plan = owner.buildPortablePlan(target, saved);
+const plan = owner.buildPortablePlan(target, desired);
 const beforeRollback = {
   autoPlayEnabled: target.autoPlayEnabled,
   cacheSize: target.cacheSize,
   nestedPortable: target.nestedPortable,
 };
-const applied = owner.applyPortableSettings(target, saved, plan.target_fingerprint, true);
+const applied = owner.applyPortableSettings(target, desired, plan.target_fingerprint, true);
 
 const afterApply = {
   applied,
@@ -126,6 +131,7 @@ const afterApply = {
 const rolledBack = owner.rollbackPortableSettings(applied.rollback_token, true);
 console.log(JSON.stringify({
   saved,
+  desired,
   plan,
   beforeRollback,
   afterApply,
@@ -165,6 +171,10 @@ console.log(JSON.stringify({
         ):
             self.assertNotIn(excluded, saved["settings"])
 
+        self.assertEqual(
+            set(payload["desired"]),
+            {"schema_version", "settings_schema_fingerprint", "settings"},
+        )
         self.assertTrue(payload["plan"]["restore_available"])
         after_apply = payload["afterApply"]
         self.assertTrue(after_apply["applied"]["applied"])
@@ -212,13 +222,18 @@ console.log(JSON.stringify({
 const source = new FakeSettings();
 source.cacheSize = 65536;
 const saved = owner.buildPortableSnapshot(source);
+const desired = {
+  schema_version: 1,
+  settings_schema_fingerprint: saved.settings_schema_fingerprint,
+  settings: saved.settings,
+};
 
 const target = new FakeSettings();
 target.cacheSize = 1024;
 target.playerName = 'Do not touch';
-const plan = owner.buildPortablePlan(target, saved);
+const plan = owner.buildPortablePlan(target, desired);
 target.cacheSize = 2048;
-const result = owner.applyPortableSettings(target, saved, plan.target_fingerprint, true);
+const result = owner.applyPortableSettings(target, desired, plan.target_fingerprint, true);
 console.log(JSON.stringify({
   result,
   cacheSize: target.cacheSize,
