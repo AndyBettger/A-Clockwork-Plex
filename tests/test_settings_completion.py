@@ -103,7 +103,7 @@ class SettingsCompletionTests(unittest.TestCase):
         self.assertIn("pageVisible()", text)
         self.assertNotIn("5000", text)
 
-    def test_complete_backup_restore_controller_remains_dormant_before_activation(self):
+    def test_complete_backup_restore_controller_is_owned_by_thin_about_bootstrap(self):
         self.assertTrue(BACKUP_RESTORE.exists())
         for template in (BASE, SETTINGS_TEMPLATE):
             self.assertNotIn(
@@ -112,12 +112,18 @@ class SettingsCompletionTests(unittest.TestCase):
             )
 
         about_text = ABOUT_CLIENT.read_text(encoding="utf-8")
-        self.assertIn("data-settings-subpage=\"advanced:backup\"", about_text)
+        self.assertIn("settings-backup-restore.js?v=20260910-controller-v1", about_text)
+        self.assertIn("window.__aClockworkPlexBackupRestoreClientRequested", about_text)
+        self.assertNotIn("data-settings-subpage=\"advanced:backup\"", about_text)
+        self.assertNotIn("/api/settings/backup", about_text)
+        self.assertNotIn("/api/settings/restore/apply", about_text)
+        self.assertNotIn("MAX_RESTORE_FILE_BYTES", about_text)
 
         text = BACKUP_RESTORE.read_text(encoding="utf-8")
         self.assertIn("window.__aClockworkPlexBackupRestoreLoaded", text)
-        self.assertIn("settings-about.js remains the production v1", text)
         self.assertIn("advanced:backup", text)
+        self.assertIn("/api/settings/backup", text)
+        self.assertIn("/api/settings/restore/apply", text)
 
     def test_complete_backup_export_wires_v2_with_safe_v1_fallback(self):
         text = BACKUP_RESTORE.read_text(encoding="utf-8")
