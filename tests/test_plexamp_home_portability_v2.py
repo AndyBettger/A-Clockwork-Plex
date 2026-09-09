@@ -176,6 +176,52 @@ console.log(JSON.stringify({
         self.assertFalse(payload["extra"]["ok"])
         self.assertFalse(payload["scalarOuter"]["ok"])
 
+    def test_portable_custom_query_cannot_embed_source_library_path(self):
+        payload = self.run_node(
+            r"""
+function portableHome(querySuffix) {
+  return {
+    schema_version: 2,
+    order: [{ type: 'custom', ref: 'custom-1' }],
+    hidden: [],
+    presentation: [{
+      target: { type: 'custom', ref: 'custom-1' },
+      settings: { title: 'Portable artist section', type: 'carousel', size: 180 },
+    }],
+    custom_sections: [{ ref: 'custom-1', kind: 'artist', query_suffix: querySuffix }],
+  };
+}
+
+const root = rootStore('srvTargetXYZ789', 42, true);
+const storage = new FakeStorage();
+const before = storage.dump();
+const relative = portableHome('/all?type=8');
+const sourceBound = portableHome('/library/sections/9/all?type=8');
+const validRelative = owner.validatePortableHome(relative);
+const rejectedSourceBound = owner.validatePortableHome(sourceBound);
+const plan = owner.buildRestorePlan(storage, root, sourceBound);
+const materialized = owner.materializePortableHome(
+  sourceBound,
+  root,
+  () => '22222222-2222-4222-8222-222222222222',
+);
+console.log(JSON.stringify({
+  validRelative,
+  rejectedSourceBound,
+  plan,
+  materialized,
+  before,
+  after: storage.dump(),
+}));
+"""
+        )
+        self.assertIsNotNone(payload["validRelative"])
+        self.assertIsNone(payload["rejectedSourceBound"])
+        self.assertEqual(payload["plan"]["status"], "invalid-request")
+        self.assertFalse(payload["plan"]["restore_available"])
+        self.assertEqual(payload["materialized"]["status"], "invalid-request")
+        self.assertEqual(payload["after"], payload["before"])
+
     def test_mixed_source_exports_only_logical_home_and_canonical_custom_refs(self):
         payload = self.run_node(
             r"""
