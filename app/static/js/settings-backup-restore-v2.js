@@ -220,6 +220,8 @@
     ) return { ok: false, schema_version: 2, status: 'review-required', mutated: false };
 
     const retained = [];
+    let nativeAppliedCount = 0;
+    let homeAppliedCount = 0;
     let browserAppliedCount = 0;
     let serverResult = null;
     let failedOwner = null;
@@ -241,7 +243,8 @@
           || !SAFE_ROLLBACK_TOKEN.test(result.rollback_token)
         ) throw ownerFailure('Plexamp settings', result);
         retained.push({ owner: 'plexamp-settings', client: nativeClient, token: result.rollback_token });
-        browserAppliedCount += Number(result.applied_change_count || 0);
+        nativeAppliedCount = Number(result.applied_change_count || 0);
+        browserAppliedCount += nativeAppliedCount;
       }
 
       const homePlan = browserPreview.home_plan;
@@ -261,7 +264,8 @@
           || !SAFE_ROLLBACK_TOKEN.test(result.rollback_token)
         ) throw ownerFailure('Plexamp Home', result);
         retained.push({ owner: 'plexamp-home', client: homeClient, token: result.rollback_token });
-        browserAppliedCount += Number(result.applied_change_count || 0);
+        homeAppliedCount = Number(result.applied_change_count || 0);
+        browserAppliedCount += homeAppliedCount;
       }
 
       if (serverApply !== null) {
@@ -284,6 +288,8 @@
         schema_version: 2,
         status: 'applied',
         mutated: browserAppliedCount > 0 || serverResult !== null,
+        native_applied_change_count: nativeAppliedCount,
+        home_applied_change_count: homeAppliedCount,
         browser_applied_change_count: browserAppliedCount,
         server_result: serverResult,
         finalization: finalized,
@@ -303,6 +309,8 @@
         error: String(error?.message || error || 'Restore failed.'),
         owner_self_rolled_back: error?.ownerRolledBack === true,
         browser_rollback: rollback,
+        native_applied_change_count: nativeAppliedCount,
+        home_applied_change_count: homeAppliedCount,
         browser_applied_change_count: browserAppliedCount,
         server_result: serverResult,
         fresh_preview_required: error?.freshPreviewRequired === true,
