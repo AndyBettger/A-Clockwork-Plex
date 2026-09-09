@@ -15,7 +15,7 @@ BASE = ROOT / "app" / "templates" / "base.html"
 SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
 CLIENT = ROOT / "app" / "static" / "js" / "settings-pass-a.js"
 KEYBOARD_CLIENT = ROOT / "app" / "static" / "js" / "settings-keyboard.js"
-RESTORE_CLIENT = ROOT / "app" / "static" / "js" / "settings-about.js"
+RESTORE_CLIENT = ROOT / "app" / "static" / "js" / "settings-backup-restore.js"
 STYLE = ROOT / "app" / "static" / "css" / "settings-pass-a.css"
 SETTINGS_STYLE = ROOT / "app" / "static" / "css" / "settings.css"
 SHARED_KEYBOARD_STYLE = ROOT / "app" / "static" / "css" / "touch-keyboard.css"
@@ -291,7 +291,9 @@ process.stdout.write(JSON.stringify(payload));
         self.assertIn("Review selected restore", restore_client)
         self.assertIn("Ready to confirm", restore_client)
         self.assertIn("Confirm &amp; restore", restore_client)
-        self.assertIn("Plexamp Home first, then ACP/Headless", restore_client)
+        self.assertIn("Plexamp settings, then coordinated Home customisation, then A Clockwork Plex", restore_client)
+        self.assertIn("Browser rollback is retained until the later ACP stage verifies", restore_client)
+        self.assertIn("accepted schema-v1 compatibility owners", restore_client)
         self.assertNotIn("Review Plexamp Home restore", restore_client)
         self.assertNotIn("Confirm Home restore", restore_client)
         self.assertIn('.settings-restore-target[aria-pressed="true"]', restore_style)
