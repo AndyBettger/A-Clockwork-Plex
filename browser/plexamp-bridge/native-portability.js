@@ -111,11 +111,6 @@
     }
   }
 
-  function encodedPortable(value) {
-    const cloned = clonePortable(value);
-    return cloned.ok ? JSON.stringify(cloned.value) : null;
-  }
-
   function candidateKey(key, currentValue, defaultValue) {
     if (
       typeof key !== 'string'
@@ -130,9 +125,7 @@
   }
 
   function constructDefaults(settings) {
-    if (!settings || typeof settings.resetToDefaults !== 'function' || typeof settings.constructor !== 'function') {
-      return null;
-    }
+    if (!settings || typeof settings.constructor !== 'function') return null;
     try {
       return new settings.constructor();
     } catch (_error) {
@@ -293,37 +286,38 @@
     };
   }
 
-  function captureExactSnapshot(settings) {
+  function capturePortableSnapshot(settings, keys) {
     const values = new Map();
-    for (const key of Object.keys(settings || {})) {
-      if (typeof settings[key] === 'function') continue;
-      values.set(key, settings[key]);
+    const rows = [];
+    for (const key of keys) {
+      const cloned = clonePortable(settings[key]);
+      if (!cloned.ok) return null;
+      values.set(key, cloned.value);
+      rows.push([key, cloned.value]);
     }
-    const rows = Array.from(values.entries())
-      .map(([key, value]) => [key, encodedPortable(value) || `opaque:${Object.prototype.toString.call(value)}`])
-      .sort(([left], [right]) => left.localeCompare(right));
-    return { values, fingerprint: hash32(JSON.stringify(rows)) };
+    return {
+      values,
+      fingerprint: hash32(JSON.stringify(rows)),
+    };
   }
 
-  function exactSnapshotFingerprint(settings, snapshot) {
-    const rows = Array.from(snapshot.values.keys())
-      .map((key) => {
-        const value = settings[key];
-        return [key, encodedPortable(value) || `opaque:${Object.prototype.toString.call(value)}`];
-      })
-      .sort(([left], [right]) => left.localeCompare(right));
+  function portableSnapshotFingerprint(settings, snapshot) {
+    const rows = [];
+    for (const key of snapshot.values.keys()) {
+      const cloned = clonePortable(settings[key]);
+      if (!cloned.ok) return null;
+      rows.push([key, cloned.value]);
+    }
     return hash32(JSON.stringify(rows));
   }
 
-  function restoreExactSnapshot(settings, snapshot) {
-    for (const [key, value] of snapshot.values.entries()) settings[key] = value;
-    return exactSnapshotFingerprint(settings, snapshot) === snapshot.fingerprint;
-  }
-
-  function restoreNonPortable(settings, snapshot, portableKeys) {
+  function restorePortableSnapshot(settings, snapshot) {
     for (const [key, value] of snapshot.values.entries()) {
-      if (!portableKeys.has(key)) settings[key] = value;
+      const cloned = clonePortable(value);
+      if (!cloned.ok) return false;
+      settings[key] = cloned.value;
     }
+    return portableSnapshotFingerprint(settings, snapshot) === snapshot.fingerprint;
   }
 
   function applyPortableSettings(settings, desiredSnapshot, expectedFingerprint, confirmRestore = false) {
@@ -382,13 +376,26 @@
         rolled_back: false,
       };
     }
-    const snapshot = captureExactSnapshot(settings);
-    const portableKeys = new Set(model.keys);
+    const snapshot = capturePortableSnapshot(settings, model.keys);
+    if (!snapshot) {
+      return {
+        schema_version: 1,
+        status: 'snapshot-failed',
+        applied: false,
+        rolled_back: false,
+      };
+    }
+    const defaultsByKey = new Map(model.defaultRows);
 
     try {
-      settings.resetToDefaults();
-      restoreNonPortable(settings, snapshot, portableKeys);
-      for (const [key, value] of Object.entries(desired.settings)) settings[key] = value;
+      for (const key of model.keys) {
+        const wanted = Object.prototype.hasOwnProperty.call(desired.settings, key)
+          ? desired.settings[key]
+          : defaultsByKey.get(key);
+        const cloned = clonePortable(wanted);
+        if (!cloned.ok) throw new Error('invalid-portable-value');
+        settings[key] = cloned.value;
+      }
 
       const verified = buildPortablePlan(settings, desired);
       if (verified.status !== 'ready' || verified.restore_available) throw new Error('verification');
@@ -408,7 +415,7 @@
     } catch (_error) {
       let rolledBack = false;
       try {
-        rolledBack = restoreExactSnapshot(settings, snapshot);
+        rolledBack = restorePortableSnapshot(settings, snapshot);
       } catch (_rollbackError) {
         rolledBack = false;
       }
@@ -445,7 +452,7 @@
       };
     }
     try {
-      const verified = restoreExactSnapshot(entry.settings, entry.snapshot);
+      const verified = restorePortableSnapshot(entry.settings, entry.snapshot);
       if (!verified) {
         return {
           schema_version: 1,
@@ -484,13 +491,13 @@
   }
 
   function locateSettings(win) {
-    if (cachedSettings && typeof cachedSettings.resetToDefaults === 'function') return cachedSettings;
+    if (cachedSettings && constructDefaults(cachedSettings)) return cachedSettings;
     const candidates = [
       win?.app?.rootStore?.settings,
       win?.global?.app?.rootStore?.settings,
     ];
     for (const settings of candidates) {
-      if (settings && typeof settings.resetToDefaults === 'function') {
+      if (settings && constructDefaults(settings)) {
         cachedSettings = settings;
         return settings;
       }
