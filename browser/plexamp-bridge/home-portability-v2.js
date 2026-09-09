@@ -74,6 +74,10 @@
       && !Array.from(value).some((char) => char.codePointAt(0) < 32);
   }
 
+  function customSectionsAvailable(rootStore) {
+    return rootStore?.settings?.premium === true;
+  }
+
   function deriveTargetScope(rootStore) {
     const server = rootStore?.app?.server;
     const library = rootStore?.app?.library;
@@ -170,17 +174,7 @@
   function normalizeQuerySuffix(fullKey, library) {
     if (typeof fullKey !== 'string' || !fullKey.startsWith(library)) return null;
     const suffix = fullKey.slice(library.length);
-    if (
-      !suffix.startsWith('/')
-      || suffix.length > MAX_QUERY_CHARS
-      || suffix.includes('\\')
-      || suffix.includes('://')
-      || suffix.includes('#')
-      || SENSITIVE_NAME.test(suffix)
-      || Array.from(suffix).some((char) => char.codePointAt(0) < 32)
-    ) return null;
-    const path = suffix.split('?', 1)[0];
-    if (path.split('/').some((part) => part === '..' || part === '.')) return null;
+    if (!validateQuerySuffix(suffix)) return null;
     return suffix;
   }
 
@@ -195,7 +189,7 @@
       || SENSITIVE_NAME.test(value)
       || Array.from(value).some((char) => char.codePointAt(0) < 32)
     ) return false;
-    const path = value.split('?', 1)[0];
+    const path = value.split('?')[0];
     return !path.split('/').some((part) => part === '..' || part === '.');
   }
 
@@ -278,7 +272,21 @@
     return { type: 'builtin', id: hub };
   }
 
-  function buildLogicalHome(inventory, scope) {
+  function refSortKey(ref) {
+    return JSON.stringify(ref);
+  }
+
+  function sortLogicalRefs(values) {
+    values.sort((left, right) => refSortKey(left).localeCompare(refSortKey(right)));
+    return values;
+  }
+
+  function sortPresentation(values) {
+    values.sort((left, right) => refSortKey(left.target).localeCompare(refSortKey(right.target)));
+    return values;
+  }
+
+  function buildLogicalHome(inventory, scope, rootStore) {
     if (inventory.status !== 'ready') return { status: inventory.status, home: null };
 
     const orderRows = inventory.decoded.filter((row) => row.family === 'order');
@@ -288,6 +296,9 @@
     const customItems = customRows.length ? customRows[0].value : [];
     if (!Array.isArray(customItems) || customItems.length > MAX_CUSTOM_HUBS) {
       return { status: 'unsupported-custom-hubs', home: null };
+    }
+    if (customItems.length > 0 && !customSectionsAvailable(rootStore)) {
+      return { status: 'custom-sections-capability-unavailable', home: null };
     }
 
     const customById = new Map();
@@ -310,7 +321,7 @@
       customSections.push(section);
     }
 
-    let order = [];
+    const order = [];
     if (orderRows.length) {
       const value = orderRows[0].value;
       if (!Array.isArray(value) || value.length > MAX_ORDER_ITEMS) return { status: 'unsupported-order', home: null };
@@ -333,6 +344,7 @@
       if (!ref) return { status: 'dangling-custom-reference', home: null };
       hidden.push(ref);
     }
+    sortLogicalRefs(hidden);
 
     const presentation = [];
     const presentationSeen = new Set();
@@ -346,10 +358,14 @@
       }
       presentation.push({ target: ref, settings });
     }
+    sortPresentation(presentation);
 
     for (const custom of customSections) {
-      if (!presentation.some((row) => row.target.type === 'custom' && row.target.ref === custom.ref)) {
-        return { status: 'custom-presentation-missing', home: null };
+      const row = presentation.find(
+        (candidate) => candidate.target.type === 'custom' && candidate.target.ref === custom.ref,
+      );
+      if (!row || !safeText(row.settings.title, MAX_TITLE_CHARS)) {
+        return { status: 'custom-title-missing', home: null };
       }
     }
 
@@ -371,7 +387,7 @@
       return { schema_version: 2, status: 'target-context-unavailable', read_only: true };
     }
     const inventory = collectScope(storage, scope);
-    const logical = buildLogicalHome(inventory, scope);
+    const logical = buildLogicalHome(inventory, scope, rootStore);
     if (logical.status !== 'ready') {
       return { schema_version: 2, status: logical.status, read_only: true };
     }
@@ -426,22 +442,22 @@
       customSections.push({ ref: item.ref, kind: item.kind, query_suffix: item.query_suffix });
     }
 
-    const parseRefList = (items) => {
+    const parseRefList = (items, canonical = false) => {
       const result = [];
       const seen = new Set();
       for (const item of items) {
         const ref = validateLogicalRef(item, customRefs);
         if (!ref) return null;
-        const encoded = JSON.stringify(ref);
+        const encoded = refSortKey(ref);
         if (seen.has(encoded)) return null;
         seen.add(encoded);
         result.push(ref);
       }
-      return result;
+      return canonical ? sortLogicalRefs(result) : result;
     };
 
-    const order = parseRefList(value.order);
-    const hidden = parseRefList(value.hidden);
+    const order = parseRefList(value.order, false);
+    const hidden = parseRefList(value.hidden, true);
     if (!order || !hidden) return null;
 
     const presentation = [];
@@ -451,14 +467,18 @@
       const target = validateLogicalRef(row.target, customRefs);
       const settings = validatePresentation(row.settings);
       if (!target || !settings || Object.keys(settings).length === 0) return null;
-      const encoded = JSON.stringify(target);
+      const encoded = refSortKey(target);
       if (seenPresentation.has(encoded)) return null;
       seenPresentation.add(encoded);
       presentation.push({ target, settings });
     }
+    sortPresentation(presentation);
 
     for (const ref of customRefs) {
-      if (!presentation.some((row) => row.target.type === 'custom' && row.target.ref === ref)) return null;
+      const row = presentation.find(
+        (candidate) => candidate.target.type === 'custom' && candidate.target.ref === ref,
+      );
+      if (!row || !safeText(row.settings.title, MAX_TITLE_CHARS)) return null;
     }
 
     return {
@@ -490,7 +510,11 @@
   function materializePortableHome(value, rootStore, uuidFactory = () => globalThis.crypto.randomUUID()) {
     const home = validatePortableHome(value);
     const scope = deriveTargetScope(rootStore);
-    if (!home || !scope) return { status: 'invalid-request', records: [] };
+    if (!home) return { status: 'invalid-request', records: [] };
+    if (!scope) return { status: 'target-context-unavailable', records: [] };
+    if (home.custom_sections.length > 0 && !customSectionsAvailable(rootStore)) {
+      return { status: 'custom-sections-capability-unavailable', records: [] };
+    }
 
     const customIds = new Map();
     const customItems = [];
@@ -552,21 +576,31 @@
 
   function buildRestorePlan(storage, rootStore, desiredHome) {
     const desired = validatePortableHome(desiredHome);
-    const current = buildPortableSnapshot(storage, rootStore);
     if (!desired) {
       return { schema_version: 2, status: 'invalid-request', read_only: true, restore_available: false };
     }
+    if (desired.custom_sections.length > 0 && !customSectionsAvailable(rootStore)) {
+      return {
+        schema_version: 2,
+        status: 'custom-sections-capability-unavailable',
+        read_only: true,
+        restore_available: false,
+      };
+    }
+    const current = buildPortableSnapshot(storage, rootStore);
     if (current.status !== 'ready') {
       return { schema_version: 2, status: current.status, read_only: true, restore_available: false };
     }
     const changed = !logicalEqual(current.home, desired);
+    const scope = deriveTargetScope(rootStore);
+    const inventory = scope ? collectScope(storage, scope) : null;
     return {
       schema_version: 2,
       status: 'ready',
       read_only: true,
       restore_available: changed,
       target_fingerprint: current.target_fingerprint,
-      current_record_count: collectScope(storage, deriveTargetScope(rootStore)).records.length,
+      current_record_count: inventory?.status === 'ready' ? inventory.records.length : 0,
     };
   }
 
@@ -592,6 +626,19 @@
     for (const record of records) storage.setItem(record.key, record.raw);
     const restored = collectScope(storage, scope);
     return restored.status === 'ready' && restored.fingerprint === exactFingerprint(records);
+  }
+
+  function restoreAfterFailedApply(storage, rootStore, beforeRecords, attemptedRecords) {
+    const keys = new Set([
+      ...beforeRecords.map((record) => record.key),
+      ...attemptedRecords.map((record) => record.key),
+    ]);
+    for (const key of keys) storage.removeItem(key);
+    for (const record of beforeRecords) storage.setItem(record.key, record.raw);
+    const scope = deriveTargetScope(rootStore);
+    if (!scope) return false;
+    const restored = collectScope(storage, scope);
+    return restored.status === 'ready' && restored.fingerprint === exactFingerprint(beforeRecords);
   }
 
   function applyPortableHome(
@@ -669,9 +716,12 @@
     } catch (_error) {
       let rolledBack = false;
       try {
-        const current = collectScope(storage, scope);
-        rolledBack = current.status === 'ready'
-          && restoreExactRecords(storage, rootStore, before.records, current.fingerprint);
+        rolledBack = restoreAfterFailedApply(
+          storage,
+          rootStore,
+          before.records,
+          materialized.records,
+        );
       } catch (_rollbackError) {
         rolledBack = false;
       }
