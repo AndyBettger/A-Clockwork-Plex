@@ -635,6 +635,21 @@ def _comparison_domains(model: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _preview_current_domains(
+    candidate: dict[str, Any],
+    current: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind stale protection only to state owned by this schema's server participant."""
+    domains = _comparison_domains(current)
+    if int(candidate.get("schema_version") or 0) == V2_BACKUP_SCHEMA_VERSION:
+        # Schema v2 moves ordinary Plexamp settings to the retained browser
+        # owner. The legacy Headless reader can still observe some of those
+        # same values, so including it here would make a valid native-v2 apply
+        # stale the later ACP server token inside the same transaction.
+        domains["plexamp"]["headless_preferences"] = {}
+    return domains
+
+
 def _section_for_path(path: str) -> str:
     parts = path.split(".")
     if len(parts) >= 3 and parts[:2] == ["a_clockwork_plex", "settings"]:
@@ -654,7 +669,7 @@ def _preview_token(
     encoded = json.dumps(
         {
             "candidate": candidate,
-            "current": _comparison_domains(current),
+            "current": _preview_current_domains(candidate, current),
             "capabilities": capability_context or {},
         },
         sort_keys=True,
@@ -867,12 +882,16 @@ class ConfigurationRestorePlanner:
             confirmations.append("airplay_restart")
 
         apply_paths = sorted([*server_paths, *headless_apply_paths])
-        capability_context = {
-            "plexamp_headless": {
-                "restore_ready": capability.get("restore_ready") is True,
-                "installed_version": capability.get("installed_version"),
+        capability_context = (
+            {
+                "plexamp_headless": {
+                    "restore_ready": capability.get("restore_ready") is True,
+                    "installed_version": capability.get("installed_version"),
+                }
             }
-        }
+            if candidate_schema == 1
+            else {}
+        )
 
         return {
             "ok": True,
