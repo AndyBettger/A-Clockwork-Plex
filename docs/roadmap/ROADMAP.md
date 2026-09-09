@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 8 September 2026  
+**Last updated:** 9 September 2026  
 **Active integration branch:** `develop`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
@@ -71,25 +71,36 @@ Accepted constraints:
 - [x] `playerName` and `audioDeviceUuid` classified nonportable.
 - [x] Plexamp Home browser-local persistence families physically classified without treating the Chromium profile as a backup unit.
 
-### #89 Configuration backup/export — CORE COMPLETE; HOME PRESENTATION/CUSTOM MODEL FOLLOW-UP OPEN
+### #89 Configuration backup/export — CORE COMPLETE; V2 OWNERS AUTOMATED GREEN, INTEGRATION OPEN
 
 - [x] Schema-v1 backup/export physically accepted.
 - [x] Export contains normalised ACP settings, logical EQ/mixer, exact eight typed Headless preferences and logical Home order/hidden choices.
 - [x] Credentials, browser auth/session, player/device identity, hardware topology and runtime/cache state excluded.
 - [x] Physical export captured **15 ordered Home identifiers + 1 hidden identifier** with zero warnings.
 - [x] Fresh-profile #93 evidence independently confirms durable `order`, `hidden`, `viewSettings`, custom-section and custom-title persistence.
-- [ ] Per-section Home `viewSettings`, custom-section structure and custom-title semantics are **not currently portable in schema v1**.
-- [ ] Define and implement a validated logical presentation/custom-section/title model; never export raw browser keys/values.
+- [x] Full Home-v2 logical owner implemented for order/hidden/presentation/custom sections/custom titles without exporting source UUIDs, context IDs, library section numbers or raw browser records.
+- [x] Broader native Plexamp settings owner implemented using the proven live settings authority; only classified portable keys are written and global Plexamp Reset is never invoked by portable Restore.
+- [x] Clean post-Reset Home target can derive structure/presentation contexts from live Plexamp server/library state even with zero local Home override records.
+- [x] Automated owner gates passed: native **Tests #4671**; Home-v2/full catalogue **Tests #4675** on `92d2c20afdd4dd8fc6e4734fdccae18411d34102`.
+- [ ] Integrate the automated-green owners into a backward-compatible backup envelope/client path while keeping schema-v1 backups valid.
+- [ ] Physically accept complete commissioned-Pi export after production bridge activation.
 
-### #90 Configuration import/restore — CORE COMPLETE; HOME PRESENTATION/CUSTOM MODEL FOLLOW-UP OPEN
+### #90 Configuration import/restore — CORE COMPLETE; V2 OWNERS AUTOMATED GREEN, TRANSACTION/PHYSICAL GATE OPEN
 
 - [x] Read-only parse/validate/Preview with paths/counts rather than values.
 - [x] Stale-protected ACP Settings/EQ/mixer restore with reverse rollback.
-- [x] Exact-version eight-value Plexamp Headless restore through the restricted owner.
-- [x] Target-context-aware Home order/hidden restore with exact raw rollback.
+- [x] Exact-version eight-value Plexamp Headless restore through the restricted schema-v1 owner.
+- [x] Target-context-aware schema-v1 Home order/hidden restore with exact local write rollback.
 - [x] Guided **Preview → choose ACP / Plexamp / both → Review → Confirm & restore** presentation physically accepted at 1280×720.
 - [x] Final combined physical restore converged to zero differences for the supported schema-v1 scope.
-- [ ] Extend the portable Home model to validated presentation/custom-section/title semantics and physically revalidate complete logical Home restore.
+- [x] New native portability owner has fresh schema/target fingerprints plus retained rollback/finalize and touches only classified portable settings.
+- [x] New Home-v2 owner remaps target context/library/fresh custom IDs, verifies logical convergence despite changed physical IDs, and retains exact rollback/finalize.
+- [x] Home-v2 fails closed on active editing, unknown families, malformed wrappers, dangling/wrong-source custom records, invalid presentation/title/query state, unavailable target capability and stale Apply/Rollback.
+- [ ] Integrate native + Home-v2 + server participants into one reviewed transaction with browser rollback tokens retained until every selected participant commits.
+- [ ] Add mixed-owner injected-failure tests proving later server failure rolls browser owners back in reverse order and success finalizes them only after verification.
+- [ ] Activate the new bridge only after integrated automation is green, then physically revalidate commissioned-Pi **Backup → Reset → Restore**.
+
+The accepted schema-v1 compatibility flow applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is recorded rather than hidden; the v2 transaction must close it.
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -109,7 +120,7 @@ Accepted constraints:
 
 The complete four-owner Reset transaction, bounded full Home customisation Reset, post-reset convergence and zero-change owner-facing presentation are now physically accepted on the commissioned bedroom Pi. The disposable 9230 scrub/rebuild/rollback rehearsal remains the reversible architecture proof.
 
-PR #9 remains **Draft and unmerged** pending explicit owner approval to leave Draft or merge. That review/merge decision is repository workflow, not an outstanding #93 engineering defect. The richer #89/#90 portable Home presentation/custom-section/title model remains a separate open follow-up.
+PR #9 remains **Draft and unmerged** pending explicit owner approval to leave Draft or merge. That review/merge decision is repository workflow, not an outstanding #93 engineering defect. The richer #89/#90 portable native/Home-v2 transaction remains a separate open follow-up.
 
 #### Accepted transaction foundations
 
@@ -278,7 +289,7 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] `activeTab` post-reset navigation residue classified and excluded on the feature branch.
 - [x] Final production pull/restart physically verified **0 meaningful Reset differences** and the compact zero-change Preview presentation.
 
-Separate follow-up: #89/#90 presentation/custom-section/title portable Backup/Restore remains open until implemented or deliberately deferred. PR #9 remains Draft and unmerged until explicit owner approval.
+Separate follow-up: #89/#90 complete portable Plexamp Backup/Restore remains open at the transaction-integration + physical-acceptance gate. PR #9 remains Draft and unmerged until explicit owner approval.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
@@ -289,7 +300,7 @@ Detailed authority: [`../development/architecture/reset-to-defaults.md`](../deve
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88 and #93 COMPLETE; #89/#90 Home portability follow-up OPEN
+2. **Settings and appliance ownership** — #88 and #93 COMPLETE; #89/#90 v2 transaction/physical acceptance OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
