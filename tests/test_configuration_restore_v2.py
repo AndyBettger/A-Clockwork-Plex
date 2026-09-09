@@ -155,6 +155,32 @@ class ConfigurationRestoreV2Tests(unittest.TestCase):
         )
         self.assertEqual(result["plexamp_headless_detected_change_count"], 0)
 
+    def test_schema_v2_token_ignores_legacy_headless_observer_but_v1_stays_protected(self):
+        current = self.v1_backup()
+        current["plexamp"]["headless_preferences"] = {"cacheSize": 32768}
+        planner = ConfigurationRestorePlanner(
+            current_backup=lambda: deepcopy(current),
+            plexamp_preference_status=lambda: {
+                "restore_ready": True,
+                "installed_version": "4.13.2",
+            },
+        )
+
+        v2 = self.v2_backup()
+        v2["a_clockwork_plex"]["settings"]["dashboard"]["idle_timeout_seconds"] = 321
+        v2_before = planner.plan(v2)["preview_token"]
+        current["plexamp"]["headless_preferences"]["cacheSize"] = 16384
+        v2_after = planner.plan(v2)["preview_token"]
+        self.assertEqual(v2_before, v2_after)
+
+        current["plexamp"]["headless_preferences"]["cacheSize"] = 32768
+        v1 = self.v1_backup()
+        v1["plexamp"]["headless_preferences"] = {"cacheSize": 65536}
+        v1_before = planner.plan(v1)["preview_token"]
+        current["plexamp"]["headless_preferences"]["cacheSize"] = 16384
+        v1_after = planner.plan(v1)["preview_token"]
+        self.assertNotEqual(v1_before, v1_after)
+
     def test_schema_versions_do_not_allow_mixed_plexamp_ownership(self):
         v1 = self.v1_backup()
         v1["plexamp"]["portable_settings"] = {
