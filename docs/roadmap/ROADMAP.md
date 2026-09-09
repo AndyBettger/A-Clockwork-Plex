@@ -71,7 +71,7 @@ Accepted constraints:
 - [x] `playerName` and `audioDeviceUuid` classified nonportable.
 - [x] Plexamp Home browser-local persistence families physically classified without treating the Chromium profile as a backup unit.
 
-### #89 Configuration backup/export — CORE COMPLETE; V2 OWNERS AUTOMATED GREEN, INTEGRATION OPEN
+### #89 Configuration backup/export — CORE COMPLETE; V2 ENVELOPE VALIDATOR AUTOMATED GREEN, CLIENT INTEGRATION OPEN
 
 - [x] Schema-v1 backup/export physically accepted.
 - [x] Export contains normalised ACP settings, logical EQ/mixer, exact eight typed Headless preferences and logical Home order/hidden choices.
@@ -81,11 +81,13 @@ Accepted constraints:
 - [x] Full Home-v2 logical owner implemented for order/hidden/presentation/custom sections/custom titles without exporting source UUIDs, context IDs, library section numbers or raw browser records.
 - [x] Broader native Plexamp settings owner implemented using the proven live settings authority; only classified portable keys are written and global Plexamp Reset is never invoked by portable Restore.
 - [x] Clean post-Reset Home target can derive structure/presentation contexts from live Plexamp server/library state even with zero local Home override records.
-- [x] Automated owner gates passed: native **Tests #4671**; Home-v2/full catalogue **Tests #4675** on `92d2c20afdd4dd8fc6e4734fdccae18411d34102`.
-- [ ] Integrate the automated-green owners into a backward-compatible backup envelope/client path while keeping schema-v1 backups valid.
+- [x] Top-level schema-v2 import envelope is now explicit: `plexamp.portable_settings` + Home-v2 logical browser preferences. Schema-v1 remains accepted and mixed v1/v2 Plexamp ownership is rejected rather than guessed.
+- [x] Schema-v2 validation exposes only safe counts/status, keeps the recursive credential/machine-state rejection, and rejects source-bound Home context including `/library/sections/<id>/...` masquerading as a relative custom query.
+- [x] Automated gates: native **Tests #4671**; Home-v2/full catalogue **Tests #4675**; schema-v2 validator **Tests #4680**; JavaScript query hardening **Tests #4681**; direct Python/JavaScript parity regression **Tests #4682** on `6ee937d16dde6e1ef0d05c55fbd8344ad8c5ba68`.
+- [ ] Assemble new complete schema-v2 exports in the Settings browser from the secret-safe ACP server export + live native portability snapshot + live Home-v2 snapshot, while retaining schema-v1 **import** compatibility.
 - [ ] Physically accept complete commissioned-Pi export after production bridge activation.
 
-### #90 Configuration import/restore — CORE COMPLETE; V2 OWNERS AUTOMATED GREEN, TRANSACTION/PHYSICAL GATE OPEN
+### #90 Configuration import/restore — CORE COMPLETE; V2 VALIDATOR AUTOMATED GREEN, TRANSACTION/PHYSICAL GATE OPEN
 
 - [x] Read-only parse/validate/Preview with paths/counts rather than values.
 - [x] Stale-protected ACP Settings/EQ/mixer restore with reverse rollback.
@@ -96,6 +98,8 @@ Accepted constraints:
 - [x] New native portability owner has fresh schema/target fingerprints plus retained rollback/finalize and touches only classified portable settings.
 - [x] New Home-v2 owner remaps target context/library/fresh custom IDs, verifies logical convergence despite changed physical IDs, and retains exact rollback/finalize.
 - [x] Home-v2 fails closed on active editing, unknown families, malformed wrappers, dangling/wrong-source custom records, invalid presentation/title/query state, unavailable target capability and stale Apply/Rollback.
+- [x] Schema-v2 server validation is backward compatible with v1, rejects ambiguous mixed ownership, validates native/Home logical shapes without reading raw browser state and keeps Preview browser-owned comparison deferred to the live owners.
+- [x] Server and Home-v2 owner now independently reject source-library-bound custom queries; relative `/all?...` style queries remain portable.
 - [ ] Integrate native + Home-v2 + server participants into one reviewed transaction with browser rollback tokens retained until every selected participant commits.
 - [ ] Add mixed-owner injected-failure tests proving later server failure rolls browser owners back in reverse order and success finalizes them only after verification.
 - [ ] Activate the new bridge only after integrated automation is green, then physically revalidate commissioned-Pi **Backup → Reset → Restore**.
