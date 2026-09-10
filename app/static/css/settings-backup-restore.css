@@ -319,3 +319,15 @@ body.mode-settings [data-settings-subpage="advanced:backup"] [data-configuration
     grid-column: 1;
   }
 }
+
+/* Long machine-readable restore paths must shrink and wrap inside the 1280x720 kiosk viewport. */
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-detail-grid > * {
+  min-width: 0;
+}
+
+body.mode-settings [data-settings-subpage="advanced:backup"] .settings-restore-detail-grid li {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
