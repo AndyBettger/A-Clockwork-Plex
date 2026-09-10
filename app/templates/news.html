@@ -2,7 +2,7 @@
 {% set active_page = 'news' %}
 {% block title %}BBC News - A Clockwork Plex{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20260831-news-v3') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20260910-news-v4') }}">
 {% endblock %}
 {% block content %}
 <section class="news-page is-ticker-hidden" aria-label="BBC News">
@@ -47,9 +47,20 @@
 
 <div class="news-detail" data-news-detail hidden role="dialog" aria-modal="true" aria-labelledby="news-detail-title">
   <article class="news-detail-card">
-    <div class="news-detail-meta" data-news-detail-meta></div>
-    <h2 id="news-detail-title" data-news-detail-title>Story details</h2>
-    <p data-news-detail-summary></p>
+    <div class="news-detail-layout">
+      <div class="news-detail-copy">
+        <div class="news-detail-meta" data-news-detail-meta></div>
+        <h2 id="news-detail-title" data-news-detail-title>Story details</h2>
+        <p data-news-detail-summary></p>
+      </div>
+      <aside class="news-detail-handoff" data-news-detail-handoff hidden aria-label="Read full BBC News article on your phone">
+        <div class="news-detail-qr-frame">
+          <img class="news-detail-qr" data-news-detail-qr alt="BBC News article QR code">
+        </div>
+        <strong>Read the full story</strong>
+        <span>Scan with your phone camera. iOS may open BBC News; otherwise the BBC website will open.</span>
+      </aside>
+    </div>
     <div class="news-detail-actions">
       <button class="button" type="button" data-news-detail-close>Close</button>
     </div>
@@ -59,5 +70,5 @@
 {% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/news.js', v='20260831-news-v3') }}"></script>
+<script src="{{ url_for('static', filename='js/news.js', v='20260910-news-v4') }}"></script>
 {% endblock %}
