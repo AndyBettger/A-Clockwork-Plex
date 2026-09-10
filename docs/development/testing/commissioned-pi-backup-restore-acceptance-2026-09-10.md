@@ -54,4 +54,21 @@ The physical reboot checkpoint was added to the live roadmap and this chronologi
 
 The testing classification guard and Development documentation index were updated. **Tests #4710 passed completely** on `0cc6e43affe0e2dd45664bcd7073316277ce2421`, including compile, JavaScript/page/shell checks and the complete unit/regression suite.
 
-**Disposition:** production bridge 1.5.0 installation/reboot precondition is physically accepted and documentation/CI is green. The remaining #89/#90 product gate is the deliberate normal-use configuration → schema-v2 Backup → backup inspection → accepted #93 Reset → schema-v2 Restore → physical/logical convergence cycle.
+## Deliberate pre-backup acceptance specimen — READY
+
+The appliance fast-forwarded cleanly to `59ae3eb8431e682b61d07bdfded5478c047c460e`; the working tree remained clean. Only documentation/test-catalogue files changed from the physically accepted runtime head, so no setup rerun, service restart or reboot was required.
+
+A deliberately conspicuous user-owned configuration was then created for the Backup → Reset → Restore proof:
+
+- A Clockwork Plex daytime theme: **Crimson Glow**;
+- Master EQ: **Bass +2.0 dB, Mid -1.0 dB, Treble +1.5 dB**;
+- persistent output levels: **Music Master 79%, Plexamp 82%, AirPlay 91%, Maximum Alarm Volume 63%**;
+- Plexamp ordinary portable settings were deliberately flipped from their prior state, including **Show Full Player when starting playback**, Autoplay and Loudness Leveling; exact saved booleans will be confirmed from the schema-v2 backup rather than inferred from prior state;
+- Plexamp Home: **Mixes for you** moved to the top;
+- Plexamp Home: **Recent Plays** hidden;
+- Plexamp Home: **Recently Added in Music** presentation changed to **Carousel / Block / 180 px**;
+- Plexamp Home: an **Artist** custom section was added and titled **`ACP Backup Restore Test`**.
+
+The Plexamp UI label physically present on this Headless/kiosk build is **Show Full Player when starting playback**; that is the intended setting. The earlier acceptance instruction used imprecise wording, not a kiosk-mode-specific missing option.
+
+**Disposition:** production bridge 1.5.0 installation/reboot precondition is physically accepted, documentation/CI is green, and the deliberate multi-owner restore specimen is ready. The next gate is schema-v2 backup creation and inspection before any Reset mutation is allowed.
