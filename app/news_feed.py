@@ -15,10 +15,12 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from flask import Flask, jsonify
+import qrcode
+import qrcode.image.svg
+from flask import Flask, Response, jsonify
 
 
-CACHE_SCHEMA_VERSION = 1
+CACHE_SCHEMA_VERSION = 2
 DEFAULT_REFRESH_MINUTES = 15
 DEFAULT_TIMEOUT_SECONDS = 8
 DEFAULT_STALE_HOURS = 6
@@ -50,7 +52,9 @@ BBC_FEEDS: dict[str, dict[str, str]] = {
 DEFAULT_ENABLED_CATEGORIES = tuple(BBC_FEEDS)
 TICKER_SPEEDS = {"slow", "normal", "fast"}
 _SAFE_IMAGE_HOST_SUFFIXES = ("bbc.co.uk", "bbci.co.uk", "bbcimg.co.uk", "bbc.com")
+_SAFE_ARTICLE_HOST_SUFFIXES = ("bbc.co.uk", "bbc.com")
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_STORY_ID_RE = re.compile(r"^[0-9a-f]{20}$")
 
 FetchBytes = Callable[[str, float], bytes]
 ConfigProvider = Callable[[], dict[str, Any]]
@@ -148,6 +152,85 @@ def _safe_image_url(value: Any) -> str | None:
     if not any(host == suffix or host.endswith(f".{suffix}") for suffix in _SAFE_IMAGE_HOST_SUFFIXES):
         return None
     return text
+
+
+def _safe_article_url(value: Any) -> str | None:
+    """Return one canonical BBC News HTTPS article URL or reject it.
+
+    RSS tracking parameters and fragments are deliberately discarded.  The
+    resulting URL is suitable for an iOS Universal Link hand-off while keeping
+    the appliance on the BBC-owned web boundary if the app is unavailable.
+    """
+
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = urlparse(text)
+        port = parsed.port
+    except ValueError:
+        return None
+    host = (parsed.hostname or "").casefold()
+    if parsed.scheme != "https" or not host:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    if port not in {None, 443}:
+        return None
+    if not any(host == suffix or host.endswith(f".{suffix}") for suffix in _SAFE_ARTICLE_HOST_SUFFIXES):
+        return None
+    path = parsed.path or ""
+    if not path.startswith("/news/"):
+        return None
+    return f"https://{host}{path}"
+
+
+def _public_story(item: Any) -> dict[str, Any] | None:
+    """Project one cached story onto the intentionally link-free public API."""
+
+    if not isinstance(item, dict):
+        return None
+    story_id = str(item.get("id") or "").strip().casefold()
+    if not _STORY_ID_RE.fullmatch(story_id):
+        return None
+    return {
+        "id": story_id,
+        "title": item.get("title"),
+        "summary": item.get("summary"),
+        "published_at": item.get("published_at"),
+        "category": item.get("category"),
+    }
+
+
+def _public_feed(feed: Any) -> dict[str, Any]:
+    """Strip private QR hand-off data from a cached feed before JSON output."""
+
+    source = _object(feed)
+    public = {key: deepcopy(value) for key, value in source.items() if key != "items"}
+    items: list[dict[str, Any]] = []
+    for item in source.get("items", []) if isinstance(source.get("items"), list) else []:
+        projected = _public_story(item)
+        if projected is not None:
+            items.append(projected)
+    public["items"] = items
+    return public
+
+
+def render_article_qr_svg(value: Any) -> bytes:
+    """Render a locally generated QR code for one validated BBC News URL."""
+
+    article_url = _safe_article_url(value)
+    if article_url is None:
+        raise ValueError("BBC News article URL is not on the appliance allow-list.")
+    code = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=4,
+    )
+    code.add_data(article_url)
+    code.make(fit=True)
+    image = code.make_image(image_factory=qrcode.image.svg.SvgPathFillImage)
+    return image.to_string()
 
 
 def _feed_ttl(value: Any) -> int | None:
@@ -279,9 +362,10 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
             continue
         summary = _plain_text(_child_text(item, "description"), maximum=1600)
         published_at = _published_iso(_child_text(item, "pubDate"))
+        link = _child_text(item, "link")
         identity_source = (
             _child_text(item, "guid")
-            or _child_text(item, "link")
+            or link
             or f"{title}|{published_at or ''}"
         )
         story_id = hashlib.sha256(identity_source.encode("utf-8", errors="replace")).hexdigest()[:20]
@@ -295,6 +379,7 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
                 "summary": summary,
                 "published_at": published_at,
                 "category": category,
+                "article_url": _safe_article_url(link),
             }
         )
         if len(stories) >= MAX_ITEMS_PER_FEED:
@@ -500,6 +585,8 @@ class BBCNewsFeedService:
                 state["status"] = "stale"
             state["stale"] = stale
             state["label"] = BBC_FEEDS[category]["label"]
+            if state.get("feed"):
+                state["feed"] = _public_feed(state.get("feed"))
             output_categories[category] = state
 
         top_state = _object(_object(stored.get("categories")).get("top"))
@@ -557,6 +644,25 @@ class BBCNewsFeedService:
             },
         }
 
+    def article_url_for(self, story_id: Any) -> str | None:
+        """Resolve one opaque public story id to its private validated BBC URL."""
+
+        candidate = str(story_id or "").strip().casefold()
+        if not _STORY_ID_RE.fullmatch(candidate):
+            return None
+        with self._lock:
+            categories = deepcopy(_object(self._cache.get("categories")))
+        for state in categories.values():
+            feed = _object(_object(state).get("feed"))
+            items = feed.get("items", []) if isinstance(feed.get("items"), list) else []
+            for item in items:
+                if not isinstance(item, dict) or item.get("id") != candidate:
+                    continue
+                article_url = _safe_article_url(item.get("article_url"))
+                if article_url is not None:
+                    return article_url
+        return None
+
     def _worker_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
@@ -574,3 +680,17 @@ def register_news_api(app: Flask, service: BBCNewsFeedService) -> None:
     @app.get("/api/news")
     def api_news():
         return jsonify(service.snapshot())
+
+    @app.get("/api/news/story/<story_id>/qr.svg")
+    def api_news_story_qr(story_id: str):
+        article_url = service.article_url_for(story_id)
+        if article_url is None:
+            return jsonify({"ok": False, "error": "No BBC News article link is available for this story."}), 404
+        try:
+            svg = render_article_qr_svg(article_url)
+        except ValueError:
+            return jsonify({"ok": False, "error": "BBC News article link was rejected."}), 404
+        response = Response(svg, mimetype="image/svg+xml")
+        response.headers["Cache-Control"] = "private, max-age=300"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
