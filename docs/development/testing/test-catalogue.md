@@ -158,6 +158,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### Dashboard, display and Settings UI
 
 - `tests/test_application_state.py` — Exercises persisted/shared application state, atomic updates and runtime-state boundaries.
+- `tests/test_backup_restore_layout.py` — Protects Backup/Restore Preview detail-grid shrink/wrap behaviour and the cache-busted stylesheet so long technical paths stay inside the 1280×720 Settings viewport.
 - `tests/test_configuration_reset_commissioning.py` — Exercises combined ACP + Plexamp commissioning Reset planning, stale-token binding, cross-owner rollback and commissioning-only reset.
 - `tests/test_configuration_backup_restore_v2_orchestrator.py` — Protects dormant schema-v2 Backup/Restore orchestration: secret-safe envelope assembly, read-only combined browser Preview, native→Home→server commit ordering, reverse browser rollback on later failure, stale-target refusal, browser-only restore and post-commit finalize handling.
 - `tests/test_configuration_restore_v2.py` — Protects backward-compatible schema-v2 Restore validation, native/Home logical ownership separation, secret/identity exclusion, value-redacted Preview summaries and rejection of source-bound Home state.
