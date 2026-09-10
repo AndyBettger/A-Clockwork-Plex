@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -81,13 +82,25 @@ class PlexampCommissioningWiringTests(unittest.TestCase):
         self.assertIn("plexamp_commissioning_change_count", text)
         self.assertNotIn("factory-baseline authority", text)
 
-        manifest = BRIDGE_MANIFEST.read_text(encoding="utf-8")
-        self.assertIn('"version": "1.4.0"', manifest)
-        self.assertIn("bounded Plexamp settings/Home reset bridge", manifest)
-        self.assertIn('"js": ["content.js", "reset.js"]', manifest)
-        self.assertIn('"web_accessible_resources"', manifest)
-        self.assertIn('"resources": ["native-reset.js"]', manifest)
-        self.assertNotIn('"world": "MAIN"', manifest)
+        manifest = json.loads(BRIDGE_MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["version"], "1.5.0")
+        self.assertNotIn("permissions", manifest)
+        self.assertNotIn("host_permissions", manifest)
+        self.assertNotIn("background", manifest)
+        self.assertEqual(
+            manifest["content_scripts"][0]["js"],
+            ["content.js", "reset.js", "portability.js"],
+        )
+        self.assertIn("reset.js", manifest["content_scripts"][0]["js"])
+        resources = {
+            name
+            for block in manifest["web_accessible_resources"]
+            for name in block["resources"]
+        }
+        self.assertIn("native-reset.js", resources)
+        self.assertIn("native-portability.js", resources)
+        self.assertIn("home-portability-v2.js", resources)
+        self.assertNotIn("world", manifest["content_scripts"][0])
         home_extension = HOME_EXTENSION.read_text(encoding="utf-8")
         self.assertIn("chrome.runtime.getURL('native-reset.js')", home_extension)
         self.assertIn("installNativeResetBridge(document)", home_extension)

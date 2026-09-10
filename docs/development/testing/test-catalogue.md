@@ -158,7 +158,10 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### Dashboard, display and Settings UI
 
 - `tests/test_application_state.py` — Exercises persisted/shared application state, atomic updates and runtime-state boundaries.
+- `tests/test_backup_restore_layout.py` — Protects Backup/Restore Preview detail-grid shrink/wrap behaviour and the cache-busted stylesheet so long technical paths stay inside the 1280×720 Settings viewport.
 - `tests/test_configuration_reset_commissioning.py` — Exercises combined ACP + Plexamp commissioning Reset planning, stale-token binding, cross-owner rollback and commissioning-only reset.
+- `tests/test_configuration_backup_restore_v2_orchestrator.py` — Protects dormant schema-v2 Backup/Restore orchestration: secret-safe envelope assembly, read-only combined browser Preview, native→Home→server commit ordering, reverse browser rollback on later failure, stale-target refusal, browser-only restore and post-commit finalize handling.
+- `tests/test_configuration_restore_v2.py` — Protects backward-compatible schema-v2 Restore validation, native/Home logical ownership separation, secret/identity exclusion, value-redacted Preview summaries and rejection of source-bound Home state.
 - `tests/test_dashboard_browser_auth_migration.py` — Protects browser-auth/session migration behaviour used by the dashboard kiosk.
 - `tests/test_dashboard_integration_installer.py` — Exercises dashboard/kiosk integration installation and managed file/service wiring.
 - `tests/test_dashboard_kiosk_install_safety.py` — Checks kiosk installation is scoped to the intended desktop user/session and safe paths.
@@ -219,9 +222,12 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_plexamp_commissioning.py` — Protects the narrow loopback-only Plexamp player-name/audio-output commissioning owner, immutable baseline capture, dynamic managed-output resolution, stale-state refusal and rollback.
 - `tests/test_plexamp_home_customization_probe.py` — Protects the disposable-profile Home customisation key-family inventory: bounded namespace, key-names-only reads, no stored values/mutation and loopback-only transport reuse.
 - `tests/test_plexamp_home_hub_probe.py` — Protects the bounded disposable-profile Plexamp effective-Home hub-shape probe: fixed discovery authority, no primitive/sensitive values, no arbitrary expression input and reuse of the loopback-only transport.
+- `tests/test_plexamp_home_portability_v2.py` — Protects dormant Home-v2 logical portability: clean-target context derivation, strict MMKV wrapper handling, custom UUID/query remapping, title/presentation portability, live capability gating, stale refusal and exact rollback without production activation.
+- `tests/test_plexamp_home_portability_v2_transport.py` — Protects the dormant Home-v2 loopback message transport, dashboard validators, origin/nonce gates, apply/rollback/finalize round trips, dual-owner portability injection and production-manifest dormancy.
 - `tests/test_plexamp_home_scrub_rehearsal.py` — Protects the disposable-only full-Home scrub rehearsal: preserved evidence ports refused, exact classified-family scope, active-edit/unknown-family refusal, bounded mode-0600 no-overwrite snapshot, stale checking, per-key scrub only, empty-target restore, exact fingerprint verification and self-rollback on mutation failure.
 - `tests/test_plexamp_home_title_probe.py` — Protects the bounded disposable-profile Home-title matcher: only structurally validated `viewSettings` values are read, only the validated optional `title` field is compared, no stored title/raw value/raw key is emitted, and no arbitrary JavaScript/URL input or storage mutation is exposed.
 - `tests/test_plexamp_local_storage_key_comparison.py` — Protects the two-profile Local Storage key-name comparison: key names only, no values/mutation, bounded delta output, sensitive-name redaction and loopback-only tracer/control transport.
+- `tests/test_plexamp_native_portability.py` — Checks bounded live Plexamp settings portability, constructor-default restoration, stale-target refusal and rollback without touching non-portable runtime or identity state.
 - `tests/test_plexamp_runtime_installer.py` — Exercises pinned Plexamp Headless/Node runtime installation, claim-state handling and service wiring.
 - `tests/test_plexamp_ui_handoff_retirement.py` — Guards retirement of superseded Plexamp UI hand-off artefacts in favour of current screen authority.
 - `tests/test_plexamp_upgrade_preparation_safety.py` — Checks Plexamp upgrade preparation remains non-destructive and does not bypass installer ownership.

@@ -6,6 +6,8 @@ This directory contains the engineering material that is useful when changing, v
 
 - [`architecture/application-state-architecture.md`](architecture/application-state-architecture.md) — playback, screen, Settings, Weather and audio ownership.
 - [`architecture/configuration-backup-ownership.md`](architecture/configuration-backup-ownership.md) — portable backup/restore ownership, secret exclusions and Plexamp preference boundaries.
+- [`architecture/reset-to-defaults.md`](architecture/reset-to-defaults.md) — bounded four-owner Reset transaction, rollback and physically accepted Home-reset semantics.
+- [`architecture/appliance-resilience.md`](architecture/appliance-resilience.md) — queued storage/write hardening and kiosk-safe network-recovery design.
 - [`architecture/touchscreen-text-entry.md`](architecture/touchscreen-text-entry.md) — shared touchscreen keyboard behaviour and the narrow local Plexamp text-entry bridge boundary.
 - [`architecture/bbc-news.md`](architecture/bbc-news.md) — BBC RSS feed/cache authority, safe public story model and planned News presentation boundary.
 - [`architecture/airplay-metadata.md`](architecture/airplay-metadata.md) — Shairport/AirPlay metadata and integration ownership.
@@ -20,6 +22,7 @@ This directory contains the engineering material that is useful when changing, v
 - [`testing/alarm-audio-testing.md`](testing/alarm-audio-testing.md) — scheduled-alarm topology, safety limits and regression checks.
 - [`testing/bbc-news-testing.md`](testing/bbc-news-testing.md) — fixture-based BBC feed/cache regression boundary and later physical UI acceptance scope.
 - [`testing/fresh-appliance-acceptance-runbook.md`](testing/fresh-appliance-acceptance-runbook.md) — formal clean-room/replacement-SD acceptance procedure.
+- [`testing/commissioned-pi-backup-restore-acceptance-2026-09-10.md`](testing/commissioned-pi-backup-restore-acceptance-2026-09-10.md) — chronological commissioned-Pi schema-v2 Backup → Reset → Restore acceptance record for #89/#90.
 
 ## Evidence and investigations
 

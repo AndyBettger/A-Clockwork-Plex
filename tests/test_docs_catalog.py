@@ -49,6 +49,7 @@ DEVELOPMENT_TESTING = {
     "test-catalogue.md",
     "alarm-audio-testing.md",
     "bbc-news-testing.md",
+    "commissioned-pi-backup-restore-acceptance-2026-09-10.md",
     "fresh-appliance-acceptance-runbook.md",
 }
 DEVELOPMENT_EVIDENCE = {
@@ -147,7 +148,6 @@ class DocsCatalogTests(unittest.TestCase):
         self.assertNotIn("install-airplay-metadata-listener.sh", airplay)
         self.assertNotIn("install-shared-audio.sh", alarm)
         self.assertNotIn("known-good direct shared ALSA mixer remains the production audio graph", architecture)
-        self.assertNotIn("Production EQ is the next", architecture)
         self.assertNotIn("Ecowitt remains authoritative", architecture)
         self.assertNotIn("scheduler remains disabled", testing)
         self.assertNotIn("when Node.js is available", testing)
