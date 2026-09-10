@@ -25,12 +25,12 @@ Backup/Restore and Reset are deliberately different. A state family can be safe 
 | Audio routes/CamillaDSP/systemd/sudoers/hardware | Exclude | Recreate from installer/hardware commissioning; #93 preserves topology |
 | Plexamp runtime | Exclude | Reinstall through runtime owner; #93 does not replace runtime |
 | Schema-v1 eight safe Plexamp Headless preferences | Include exact typed allow-list, version-aware | Physically accepted schema-v1 compatibility Restore uses restricted owner; #93 lets Plexamp's own Reset reset them normally |
-| Broader ordinary Plexamp settings personality | Include in production-wired schema-v2 logical model; commissioned-Pi acceptance pending | V2 restores only classified portable keys to saved deviation or constructor default; it never calls global Reset; retained rollback/finalize spans the coordinated transaction |
+| Broader ordinary Plexamp settings personality | Include in physically accepted schema-v2 logical model | V2 restores only classified portable keys to saved deviation or constructor default; it never calls global Reset; retained rollback/finalize spans the coordinated transaction |
 | Plexamp player name/audio output | Exclude from portable backup | Same-appliance #93 commissioning owner restores captured player name + dynamically resolved managed output |
 | Plexamp live player volume | Exclude from portable backup | Runtime/player state; #93 returns live Plexamp music volume to 100% with rollback |
-| Plexamp Home logical order/hidden choices | Include in schema-v1 compatibility and schema-v2 logical models | #90 schema-v1 physically restores target-context choices; v2 remaps logical state; #93 classifies both as durable resettable Home customisation |
-| Plexamp Home per-section presentation (`viewSettings`) | Include in production-wired schema-v2 logical model; commissioned-Pi acceptance pending | #93 clears bounded same-profile presentation; v2 maps validated logical presentation to target-local context |
-| Plexamp Home custom sections/titles | Include in production-wired schema-v2 logical model; commissioned-Pi acceptance pending | V2 serialises logical kind/query/title/presentation and remaps fresh target IDs/context/library with retained rollback |
+| Plexamp Home logical order/hidden choices | Include in schema-v1 compatibility and schema-v2 logical models | #90 schema-v1 physically restores target-context choices; v2 physically remaps logical state; #93 classifies both as durable resettable Home customisation |
+| Plexamp Home per-section presentation (`viewSettings`) | Include in physically accepted schema-v2 logical model | #93 clears bounded same-profile presentation; v2 maps validated logical presentation to target-local context |
+| Plexamp Home custom sections/titles | Include in physically accepted schema-v2 logical model | V2 serialises logical kind/query/title/presentation and remaps fresh target IDs/context/library with retained rollback |
 | Chromium profile wholesale | Never include | Never restore/copy wholesale |
 | Weather/News caches/rainfall history | Exclude | Rebuild/refetch |
 | Alarm/playback runtime | Exclude | Recreate from live state/current time |
@@ -79,7 +79,7 @@ Known nonportable/separately owned fields include:
 
 Observed values from commissioned testing are evidence of state, **not Reset defaults**. Backup/Restore means “restore saved user choices”; Reset means “return choices to defaults defined by their owners”.
 
-### Broader native portability owner — ACTIVE, AUTOMATED GREEN; PHYSICAL ACCEPTANCE PENDING
+### Broader native portability owner — ACTIVE, AUTOMATED GREEN; PHYSICALLY ACCEPTED
 
 The #89/#90 completeness follow-up has a separate bounded page-world owner based on the already-proven live `rootStore.settings` authority.
 
@@ -103,9 +103,10 @@ Automated evidence:
 
 - **Tests #4671** passed the native-owner gate on `eb061cc139acdd6649db2c56cccd062a7a05a614`;
 - **Tests #4701** passed the real Settings integration gate on `bb47c8543ae9fe3d6abd2d4eb38c0d9dd66236ff`;
-- **Tests #4704** passed the production bridge-activation/full-regression gate on `6a212689cd42dd96edcaf4e2869df51cde231689`.
+- **Tests #4704** passed the production bridge-activation/full-regression gate on `6a212689cd42dd96edcaf4e2869df51cde231689`;
+- **Tests #4723** passed the final Restore-layout/catalogue regression on `e42a35d08b3aedbb10aa79a094c9a9ec7a287f94`.
 
-Production bridge **1.5.0** now activates this owner through the bounded portability transport. Automated owner/transport proof is complete; commissioned-Pi Backup → Reset → Restore acceptance is still required before #89/#90 is closed.
+Production bridge **1.5.0** activates this owner through the bounded portability transport. The commissioned Pi physically restored both a deliberate engineering specimen and the owner's real-use configuration, and a fresh Preview of each same backup converged to zero differences.
 
 ## ACP audio portability and Reset relationship
 
@@ -202,7 +203,7 @@ Plexamp 4.13.2 source evidence explains the split:
 
 This closes the clean-target routing problem: after #93 Reset there may be **zero** Home override records, but the v2 owner can derive both target contexts from the live authenticated Plexamp runtime rather than copying source context IDs or requiring a destination specimen.
 
-### Home-v2 logical portability owner — ACTIVE, AUTOMATED GREEN; PHYSICAL ACCEPTANCE PENDING
+### Home-v2 logical portability owner — ACTIVE, AUTOMATED GREEN; PHYSICALLY ACCEPTED
 
 `browser/plexamp-bridge/home-portability-v2.js` implements the bounded logical Home-v2 model and is active through production bridge **1.5.0**.
 
@@ -268,9 +269,10 @@ Automated evidence:
 - **Tests #4674** on `7bcd9efc825998da5d16951ad7f2187d80cee2b4` passed every Home-v2 behavioural case; the sole suite failure was the deliberately missing catalogue entry;
 - **Tests #4675** passed completely on `92d2c20afdd4dd8fc6e4734fdccae18411d34102` after catalogue bookkeeping;
 - **Tests #4701** passed the integrated Settings/controller gate;
-- **Tests #4704** passed the active production-bridge security/full-regression gate.
+- **Tests #4704** passed the active production-bridge security/full-regression gate;
+- **Tests #4714/#4715** passed the target-library Recent Played logical-remap regression and follow-up documentation gate.
 
-Automated Home-v2 proof and production activation are complete. Commissioned-Pi export/restore acceptance remains the final product gate.
+Physical acceptance covered both a deliberately difficult Home specimen and the owner's real Home configuration. The latter contained a 15-entry logical order, 15 presentation records and three custom sections/titles; Reset returned Home to baseline, Restore rebuilt the logical model, and the same backup then Previewed with no Home differences.
 
 ## Production bridge 1.5.0 boundary
 
@@ -322,7 +324,7 @@ Exact rollback restored all five raw records and returned the fingerprint to **`
 
 The same bounded full-Home model subsequently passed the complete production Reset transaction on the commissioned bedroom Pi. After the final `activeTab` runtime-normalisation cleanup, exact head `477bf0fd0cd7090a4d434816611f35673d83851e` was pulled cleanly, the dashboard service restarted successfully, `/api/state` passed, and fresh Reset Preview reported **Already at baselines**, **0 Plexamp settings** and **0 Home** differences. The empty detailed Preview card also stayed hidden as intended.
 
-This proves **Reset ownership**, not cross-installation portability. The production #93 Home owner may clear classified Home state in the current profile with exact rollback; #89/#90 separately maps a logical portable representation and still requires commissioned-Pi Backup → Reset → Restore acceptance.
+This proves **Reset ownership**. #89/#90 independently proved cross-installation-style logical portability by restoring the portable model after Reset and converging to zero differences without copying raw profile state.
 
 ## Why a clean Plexamp profile cannot be copied raw
 
@@ -368,9 +370,9 @@ Existing schema-v1 backups remain supported:
 
 `plexamp.browser_preferences` is optional and merged only after a validated live bridge snapshot. Commissioning state and live Plexamp player volume are intentionally absent.
 
-### Schema-v2 complete portable envelope — PRODUCTION WIRED; PHYSICAL ACCEPTANCE PENDING
+### Schema-v2 complete portable envelope — PRODUCTION WIRED AND PHYSICALLY ACCEPTED
 
-The real Settings owner now assembles schema-v2 by combining the secret-safe server-owned ACP export with the live bounded native and Home-v2 snapshots. The portable Plexamp portion is structurally:
+The real Settings owner assembles schema-v2 by combining the secret-safe server-owned ACP export with the live bounded native and Home-v2 snapshots. The portable Plexamp portion is structurally:
 
 ```json
 {
@@ -419,7 +421,7 @@ The owner-facing flow remains **Preview → choose A Clockwork Plex / Plexamp / 
 
 The schema-v1 Home owner self-rolls back a failed Home mutation but does not retain its previous raw target snapshot across a successful Home step followed by a later server failure. That compatibility behaviour is recorded rather than hidden.
 
-### Schema-v2 complete transaction — IMPLEMENTED, ACTIVE, AUTOMATED GREEN
+### Schema-v2 complete transaction — IMPLEMENTED, ACTIVE, AUTOMATED GREEN AND PHYSICALLY ACCEPTED
 
 The v2 transaction strengthens the cross-owner boundary:
 
@@ -438,28 +440,28 @@ Schema-v2 server stale protection deliberately excludes the legacy Headless obse
 
 This is the same commit-boundary lesson already physically proven by #93 Reset: do not reload or throw away browser rollback state before the whole transaction has committed.
 
+Physical commissioned-Pi acceptance then proved the complete transaction twice: first with an intentionally difficult engineering specimen, then with the owner's real-use configuration. Both Reset stages converged to **Already at baselines** before Restore, both Restore flows completed, and a fresh Preview of the same backup converged to zero portable differences.
+
 ## Checkpoint status
 
 ### #88 ownership audit — COMPLETE
 
 Portable/nonportable boundaries, exact eight-value schema-v1 Headless allow-list and safe Home ownership established.
 
-### #89 configuration backup/export — PRODUCTION BRIDGE ACTIVE AND AUTOMATED GREEN; PHYSICAL GATE OPEN
+### #89 configuration backup/export — COMPLETE
 
-Schema-v1 export of ACP logical settings/EQ/mixer, eight safe Headless preferences and validated Home order/hidden data is physically accepted.
+Schema-v1 export remains physically accepted. Schema-v2 export is also physically accepted: the commissioned Pi produced portable ACP/native/Home-v2 backups without credentials, raw Home records, generated custom UUIDs or source library context. A physical full-order specimen exposed the target-scoped Recent Played identifier; the owner now serialises it as `target-library.music.recent.played` and remaps it on the destination.
 
-The broader native-settings owner, full Home-v2 logical owner, schema-v2 envelope assembly and real Settings Backup action are implemented. Production bridge **1.5.0** activates the bounded owners. **Tests #4704** passed the complete activation/security/full-regression gate and **Tests #4705** passed the subsequent roadmap checkpoint.
+A second real-use backup contained 11 portable native settings, a 15-entry Home order, 15 presentation records and three custom sections/titles and passed the same portability/security inspection.
 
-Remaining product work: physically create and inspect a complete schema-v2 export on the commissioned appliance before Reset.
+### #90 configuration import/restore — COMPLETE
 
-### #90 configuration import/restore — PRODUCTION BRIDGE ACTIVE AND AUTOMATED GREEN; PHYSICAL GATE OPEN
+Schema-v1 compatibility remains accepted with its documented historical cross-owner rollback limitation.
 
-Schema-v1 Preview, target-context order/hidden restore, exact-version Headless restore and guided presentation are physically accepted.
+Schema-v2 is physically accepted end to end. The engineering specimen Restore applied **33 changes** (26 ACP, 6 native Plexamp settings, one logical Home change) and converged to a zero-difference Preview. The second real-use Restore Previewed **30 changes** (18 ACP, 11 native Plexamp settings, one logical Home change), restored both ACP and Plexamp to the owner's preferred state, and the same backup then reported **“No supported portable settings differ from this appliance” / 0 selected**.
 
-The complete v2 **native → Home → ACP/server** retained-rollback transaction is integrated into the real Settings Preview/Review/Confirm flow, schema-v1 compatibility remains intact, and production bridge 1.5.0 exposes the bounded browser participants. Automated stale/failure/reverse-rollback/commit-boundary coverage is green.
-
-Remaining product work: physically validate **Backup → Reset → Restore** on the commissioned appliance using a deliberately recognisable normal-use configuration and verify post-restore convergence.
+The 1280×720 Restore Preview also physically verified the long-path wrapping fix; **Tests #4723** passed the corresponding layout/catalogue regression.
 
 ### #93 Reset relationship — COMPLETE
 
-The full bounded Home Reset model is proven on disposable 9230 and physically accepted end to end on the commissioned bedroom Pi, including final zero-difference convergence after `activeTab` runtime-normalisation and the compact zero-change Preview presentation. Bridge 1.5.0 retains the accepted Reset resources and regression guards; #89/#90 physical portability acceptance remains separate.
+The full bounded Home Reset model is proven on disposable 9230 and physically accepted end to end on the commissioned bedroom Pi, including final zero-difference convergence after `activeTab` runtime-normalisation and the compact zero-change Preview presentation. Bridge 1.5.0 retains the accepted Reset resources and regression guards. #89/#90 logical portability is now separately physically accepted as well.
