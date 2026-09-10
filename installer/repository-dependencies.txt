@@ -10,6 +10,7 @@ appliance-installer.sh
 config.example.json
 requirements.txt
 app/runner.py
+app/plexamp_commissioning.py
 systemd/a-clockwork-plex.service
 
 installer/lib/application_transaction.sh
@@ -58,6 +59,7 @@ scripts/install-airplay-integration.sh
 scripts/install-airplay-hooks.sh
 scripts/launch-dashboard-kiosk.sh
 scripts/nfc-plexamp-mode.sh
+scripts/commission-plexamp.py
 
 scripts/audio/install-direct.sh
 scripts/audio/install-eq.sh

@@ -152,9 +152,10 @@ bash setup.sh
 - commissions the Pi hardware/I2C/DAC path;
 - installs the pinned Plexamp Headless and Node runtime;
 - installs NFC, dashboard/kiosk, alarm-safe audio, EQ, AirPlay and restricted helpers;
-- runs the installer's final appliance verification.
+- runs the installer's final appliance verification;
+- after Plexamp is claimed and the guarded appliance install commits, records the claimed player name as this appliance's local Reset baseline and resolves/verifies the exact **`A Clockwork Plex - Plexamp`** output through Plexamp's loopback settings API.
 
-There is no CamillaDSP session variable to copy or preserve between commands.
+There is no CamillaDSP session variable to copy or preserve between commands. The Plexamp commissioning owner also does not require you to discover or copy an audio-device UUID.
 
 ### If setup asks for a reboot
 
@@ -186,11 +187,13 @@ A new player has no Plex account claim state. When the guarded installer reaches
 
 1. On another device, open `https://plex.tv/claim` and obtain a fresh claim code.
 2. Enter the code into the Plexamp prompt shown by setup.
-3. Enter the player name when requested.
+3. Enter the **player name you want this appliance to return to when Reset to defaults is used**.
 4. Wait for Plexamp to report that it has started successfully.
 5. Press `Ctrl-C` once.
 
-`setup.sh` checks that Plexamp saved its claim state and then resumes the guarded appliance installation automatically. The claim code is entered directly into Plexamp and is never accepted as a setup argument, environment variable or repository value.
+`setup.sh` checks that Plexamp saved its claim state and then resumes the guarded appliance installation automatically. After the guarded install commits, setup captures that claimed player name once as the appliance-local Reset baseline and resolves/verifies the managed `A Clockwork Plex - Plexamp` output. The claim code is entered directly into Plexamp and is never accepted as a setup argument, environment variable or repository value.
+
+Ordinary later `bash setup.sh` runs do **not** silently replace the captured player-name baseline just because you renamed the player in Plexamp. That keeps Reset's target stable.
 
 ### Successful completion
 
@@ -202,6 +205,8 @@ INSTALL_ROUTE=fresh-bootstrap
 PACKAGE_VENV_BASELINE=RETAINED
 APPLICATION_VERIFY=PASS
 ```
+
+Setup should then report that Plexamp's player-name baseline and managed audio output were captured/verified. If the guarded appliance installation commits but that final Plexamp commissioning step fails, stop and diagnose/re-run `bash setup.sh`; do not treat a manual browser output change as a substitute for the supported commissioning owner.
 
 An unexplained non-zero exit is not a cue to install components manually. Stop there and diagnose the failed owner.
 
@@ -217,18 +222,33 @@ After desktop auto-login, the A Clockwork Plex kiosk should start automatically 
 
 ## 6. Finish Plexamp commissioning
 
-Claiming Plexamp Headless from the command line establishes the headless player, but the first browser visit still needs ordinary Plexamp commissioning.
+Claiming Plexamp Headless establishes the headless player, and `setup.sh` now owns the player-name Reset baseline plus managed audio-output selection. The first browser visit still needs ordinary Plex account/library commissioning.
 
 Open the Plexamp surface and:
 
 1. sign into your Plex account if prompted;
 2. select the Plex music library you want this appliance to use;
 3. open Plexamp's audio-output settings;
-4. select **`A Clockwork Plex - Plexamp`** as the audio output.
+4. **verify** the selected output is already **`A Clockwork Plex - Plexamp`**.
 
-Do **not** leave Plexamp on its default **`Follows system output`** choice. The dedicated **A Clockwork Plex - Plexamp** output routes Plexamp through the appliance-managed Music Master/EQ audio path.
+Plexamp must not be left on **`Follows system output`** for the commissioned appliance. The dedicated **A Clockwork Plex - Plexamp** output routes Plexamp through the appliance-managed Music Master/EQ audio path. If successful setup did not leave that output selected, re-run/diagnose `bash setup.sh` rather than making manual GUI selection the second source of commissioning truth.
 
 This is one of the places where VNC is especially useful. A long random password from a password manager is exactly what you should be using and exactly what nobody wants to peck into a 7-inch touchscreen one character at a time. Copy/paste it from the VNC-connected computer instead.
+
+### Existing appliance: one-time commissioning-baseline migration
+
+An appliance installed before the local Plexamp commissioning owner existed has no saved player-name Reset baseline yet. After updating to a release that contains this owner:
+
+1. make sure Plexamp currently has the **player name you actually want Reset to return to**;
+2. make sure Plexamp is running and the managed `A Clockwork Plex - Plexamp` device exists;
+3. run the normal public convergence command once:
+
+```bash
+cd ~/A-Clockwork-Plex
+bash setup.sh
+```
+
+That first successful commissioning pass records the current player name as the local baseline and verifies the managed output. Reset Preview itself never silently adopts a baseline. Future player renames also do not replace it during ordinary repeat setup.
 
 ## 7. First-time A Clockwork Plex configuration
 
@@ -340,7 +360,7 @@ git pull --ff-only
 bash setup.sh
 ```
 
-If `git status` shows unexpected tracked changes, investigate them before pulling rather than forcing the checkout. `setup.sh` rechecks and converges the appliance-owned components after the source update.
+If `git status` shows unexpected tracked changes, investigate them before pulling rather than forcing the checkout. `setup.sh` rechecks and converges the appliance-owned components after the source update. On the first update that introduces the Plexamp commissioning owner, follow the one-time baseline-migration note in section 6 before deliberately renaming the player.
 
 If the appliance was intentionally installed from an immutable release tag, do not treat that tag as a branch and blindly pull it. To move to another published release, fetch tags, explicitly select the newer release/tag and follow that release's notes before running setup.
 

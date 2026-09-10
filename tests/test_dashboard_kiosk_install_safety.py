@@ -46,7 +46,7 @@ class DashboardKioskInstallSafetyTests(unittest.TestCase):
             {"http://localhost:32500/*", "http://127.0.0.1:32500/*"},
         )
         self.assertTrue(scripts[0]["all_frames"])
-        self.assertEqual(scripts[0]["js"], ["content.js"])
+        self.assertEqual(scripts[0]["js"], ["content.js", "reset.js"])
 
     def test_plexamp_bridge_content_has_no_network_or_cookie_authority(self):
         text = BRIDGE_CONTENT.read_text(encoding="utf-8")

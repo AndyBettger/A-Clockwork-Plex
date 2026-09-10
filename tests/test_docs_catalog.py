@@ -41,6 +41,7 @@ DEVELOPMENT_ARCHITECTURE = {
     "configuration-backup-ownership.md",
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
+    "reset-to-defaults.md",
     "touchscreen-text-entry.md",
 }
 DEVELOPMENT_TESTING = {
