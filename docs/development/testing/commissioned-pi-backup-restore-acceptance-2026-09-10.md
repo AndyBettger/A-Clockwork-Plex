@@ -155,3 +155,33 @@ raw library section path absent: PASS
 The portable Home model therefore contains no source Recent Played context/hash and no raw source library section path. This closes the physical export blocker that the first full-order specimen exposed.
 
 **#89 schema-v2 Backup/export physical gate: PASS.** The remaining product gate is #90: accepted #93 Reset followed by schema-v2 Preview → Review → Confirm Restore and post-restore physical/logical convergence.
+
+## Accepted #93 Reset Preview for #90 — PASS (read-only)
+
+With the accepted schema-v2 backup safely retained, the commissioned appliance opened **Settings → Advanced → Reset to defaults** and ran only **Preview reset**. The preview remained read-only and explicitly reported that nothing had changed yet.
+
+Observed owner accounting:
+
+```text
+26 server-owned
+7 Plexamp native settings
+5 Plexamp Home customisation records
+38 selected changes total
+```
+
+The 26 server-owned paths broke down as:
+
+- `audio.eq` — 3;
+- `audio.mixer` — 4;
+- `settings.airplay` — 1;
+- `settings.alarms` — 4;
+- `settings.display` — 3;
+- `settings.weather` — 11.
+
+The native owner reported seven changes: the six ordinary Plexamp setting deviations represented by the accepted backup specimen plus `playerVolume`, which #93 Reset deliberately returns to 100% but portable Restore does not own.
+
+The Home owner reported exactly **5** bounded durable records: **1 order, 1 visibility, 2 presentation/title, 1 custom section**. Plexamp commissioning reported that the captured player-name baseline and managed **A Clockwork Plex - Plexamp** audio output already matched, so no commissioning repair was required.
+
+The Preview presented no warning/incomplete state, kept the documented preserved owners visible, and enabled **Review selected reset**. No mutation had yet occurred.
+
+**Disposition:** the #93 Reset Preview gate for the #90 physical transaction is accepted. The next step is Review → one Confirm & reset, followed by post-Reset commissioning/baseline checks before any Restore mutation.
