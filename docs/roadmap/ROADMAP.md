@@ -18,6 +18,7 @@ Specialist authorities:
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
 - [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and Home completeness;
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and physical/product gate;
+- [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News plus the active article-QR hand-off follow-up;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
 Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not this development roadmap.
@@ -40,7 +41,7 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 ### #85 High-resolution audio feasibility audit — COMPLETE; implementation queued
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete **and integrated into `develop`**, so high-resolution implementation is the next queued product feature.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete **and integrated into `develop`**. High-resolution implementation remains the next major product feature, after the bounded #92 article-QR follow-up completes its physical acceptance gate.
 
 Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
 
@@ -128,12 +129,17 @@ The accepted schema-v1 compatibility flow still applies Home before the later se
 - [x] General Plexamp text fields physically accepted for Home title, Smart Playlist name/description, Home Screen section title and Player Name.
 - [x] Bridge remains permission-free, loopback-only and excludes login/password fields.
 
-### #92 BBC News — COMPLETE
+### #92 BBC News — COMPLETE; ARTICLE QR FOLLOW-UP ACTIVE
 
 - [x] BBC RSS-only feed/cache authority for Top Stories, UK, World, Science and Technology.
-- [x] Public model strips article links/GUIDs; no outbound article navigation.
+- [x] `/api/news` public story model remains link-free; no outbound article navigation from kiosk Chromium.
 - [x] Last-good cache, stale/degraded presentation and Top Stories ticker physically accepted.
 - [x] Settings, News page, touch scrolling, startup/idle-return and Wi-Fi-loss recovery physically accepted.
+- [x] Article hand-off implemented on `feature/news-article-qr`: a strictly validated/canonical BBC News HTTPS URL is retained only in the private cache and resolved through an opaque story id.
+- [x] QR SVG is generated locally on the appliance; no third-party QR service receives the selected article URL and the browser accepts no arbitrary URL-to-QR input.
+- [x] Touch detail modal shows the QR hand-off only after a valid local QR loads; a missing/rejected article link leaves the existing local story detail intact.
+- [x] Automated compile, JavaScript/page/shell checks and full unit/regression suite passed in **Tests #4732** on `4d38a5d0eb8d69d180b1517c2e910fcc454804a1`.
+- [ ] Commissioned 1280×720 + iPhone acceptance: QR presentation/scan, correct BBC article, record actual BBC News-app vs Safari Universal-Link behaviour, verify kiosk Chromium remains on ACP.
 
 ### #93 Reset-to-defaults workflow — COMPLETE
 
@@ -312,7 +318,7 @@ The #89/#90 complete portable Plexamp Backup/Restore follow-up is physically acc
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
-**High-resolution audio is the next implementation area.** Continue to protect the commissioned production SD; destructive route/lifecycle experiments belong on the spare SD.
+**High-resolution audio remains the next major implementation area after the bounded #92 article-QR follow-up is physically accepted.** Continue to protect the commissioned production SD; destructive route/lifecycle experiments belong on the spare SD.
 
 ## Agreed implementation order
 
@@ -321,8 +327,8 @@ Unless deliberately reprioritised:
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE through #93, including schema-v2 Backup/Restore
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
-4. **BBC News** — COMPLETE #92
-5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT
+4. **BBC News** — COMPLETE #92; bounded article-QR follow-up ACTIVE
+5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT after QR acceptance
 6. **Astronomy**
 7. **Appliance resilience**
 8. **Events calendar**
