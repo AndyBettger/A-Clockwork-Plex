@@ -75,6 +75,8 @@ The Plexamp UI label physically present on this Headless/kiosk build is **Show F
 
 The requested 87% Plexamp persistent trim settled and read back as 89% because the calibrated human percentage is mapped through dB onto ALSA softvol's finite raw steps. The confirmed 89% value is therefore the correct portable acceptance target.
 
+The physical Settings control used for AirPlay session-start volume autosaves when the slider is released. An earlier acceptance instruction incorrectly referred to a separate explicit Save action; the observed current UI and the resulting backup prove that no extra Save button is required for this control.
+
 ## Schema-v2 export exercise — BLOCKER FOUND BEFORE RESET
 
 The Settings page successfully reported a **complete schema-v2 backup**, and repeated exports contained the expected logical ACP/native/Home-v2 envelope. The final pre-fix specimen included:
@@ -102,7 +104,7 @@ The exact source-context value is deliberately not recorded here. This identifie
 
 **Reset was deliberately not run.** Physical acceptance correctly stopped at the export boundary rather than testing Restore with a known source-bound backup.
 
-## Target-scoped Recent Played portability fix — AUTOMATED GREEN; PHYSICAL RE-EXPORT PENDING
+## Target-scoped Recent Played portability fix — AUTOMATED GREEN
 
 `browser/plexamp-bridge/home-portability-v2.js` now recognises only the proven target-scoped Recent Played form and requires its embedded context/section to match the live source scope. Export converts that physical identifier to the source-free logical marker:
 
@@ -117,6 +119,39 @@ Implementation commits:
 - `2ac1e0569270c3544ba249c68f89b637cf4482d7` — target-scoped Home hub portability owner fix;
 - `ee66d3356baa38b148f98fc852c7109bfbe3f62b` — regression proving source → logical marker → different target remap and rejection of raw source-bound input.
 
-**Tests #4714 passed completely** on `ee66d3356baa38b148f98fc852c7109bfbe3f62b`, including Python compile, JavaScript/page/shell checks and the complete unit/regression suite.
+**Tests #4714 passed completely** on `ee66d3356baa38b148f98fc852c7109bfbe3f62b`, including Python compile, JavaScript/page/shell checks and the complete unit/regression suite. The documentation follow-up **Tests #4715** also passed completely.
 
-**Disposition:** bridge 1.5.0 installation/reboot remains physically accepted. The first schema-v2 export exercise successfully caught and blocked a real portability leak before Reset. The fix is automated-green; the next gate is to pull the corrected Home-v2 owner onto the commissioned Pi, reload the production kiosk bridge, create a fresh schema-v2 backup and prove that the order contains `target-library.music.recent.played` with no source-context or `/hubs/sections/9` residue. Only then may the accepted #93 Reset → schema-v2 Restore half of the test begin.
+## Post-fix schema-v2 re-export — PASS
+
+The corrected Home-v2 owner was pulled onto the commissioned appliance, Chromium was genuinely restarted through a reboot so the production extension loaded the new JavaScript, and a fresh backup was created from the unchanged recognisable specimen.
+
+Backup `A-Clockwork-Plex-backup-2026-09-10_051035.json` reported:
+
+- top-level schema version **2**;
+- Crimson Glow theme;
+- EQ enabled at **Bass +2.0 dB / Mid -1.0 dB / Treble +1.5 dB**;
+- persistent mixer **Music Master 79% / Plexamp trim 89% / AirPlay trim 93% / Maximum Alarm Volume 63%**;
+- AirPlay session-start volume **74%**;
+- Plexamp 4.13.2 portable deviations remained present;
+- Home order contained **13 logical entries**;
+- `Recent Plays` remained represented as hidden;
+- `Recently Added in Music` retained **Carousel / Block / 180 px** presentation;
+- custom Artist section `ACP Backup Restore Test` retained its portable relative query and title.
+
+Most importantly, the final target-scoped Recent Played row exported as exactly:
+
+```text
+target-library.music.recent.played
+```
+
+The physical inspection then passed all three portability assertions:
+
+```text
+logical Recent Played marker: PASS
+raw target-scoped Recent Played absent: PASS
+raw library section path absent: PASS
+```
+
+The portable Home model therefore contains no source Recent Played context/hash and no raw source library section path. This closes the physical export blocker that the first full-order specimen exposed.
+
+**#89 schema-v2 Backup/export physical gate: PASS.** The remaining product gate is #90: accepted #93 Reset followed by schema-v2 Preview → Review → Confirm Restore and post-restore physical/logical convergence.
