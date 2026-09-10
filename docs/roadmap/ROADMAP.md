@@ -40,7 +40,7 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 ### #85 High-resolution audio feasibility audit — COMPLETE; implementation queued
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation remains queued until the Settings/appliance-ownership track is deliberately closed or its remaining Home follow-ups are explicitly deferred.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete, so high-resolution implementation is the next queued product feature once the accepted feature branches are deliberately promoted/merged through the normal branch workflow.
 
 Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
 
@@ -91,8 +91,9 @@ Accepted constraints:
 - [x] Commissioned-Pi bridge-activation gate passed on `fb5e77c3a3c8caf6e23ab9def68110dd9636be5e`: repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS` (0 failures / 0 warnings), preserved commissioned Weather Underground/EQ/Plexamp state, and a genuine reboot returned a normal dashboard/Plexamp kiosk.
 - [x] Post-reboot production proof confirmed bridge **1.5.0** resources, dedicated `a-clockwork-plex/chromium-profile`, repository `--load-extension` wiring, and **no Chromium remote-debugging flags**; a fresh whole-appliance verifier again passed 0/0.
 - [x] Complete schema-v2 export physically accepted on the commissioned Pi after a full-order specimen exposed and then closed a target-scoped Recent Played portability leak. The accepted re-export carries the logical `target-library.music.recent.played` marker, no source context/hash or raw library-section path, the full 13-entry logical Home order, hidden/presentation/custom-title/custom-section state, six native Plexamp deviations and the deliberate ACP/EQ/mixer/AirPlay specimen.
+- [x] A second real-use export from the owner's preferred configuration also passed structural/portability inspection: schema-v2, 11 native Plexamp deviations, 15-entry logical Home order, 15 presentation records, three custom Home sections/titles, source-free Recent Played remapping and no credential/auth export.
 
-### #90 Configuration import/restore — PRODUCTION BRIDGE ACTIVE AND AUTOMATED GREEN; RESET PREVIEW PHYSICALLY PASSED
+### #90 Configuration import/restore — COMPLETE
 
 - [x] Read-only parse/validate/Preview with paths/counts rather than values.
 - [x] Stale-protected ACP Settings/EQ/mixer restore with reverse rollback.
@@ -114,9 +115,11 @@ Accepted constraints:
 - [x] Commissioned-Pi repeat-install + genuine-reboot precondition passed on `fb5e77c3a3c8caf6e23ab9def68110dd9636be5e`; bridge 1.5.0 is physically loaded by the normal production kiosk with no remote-debugging interface and the post-reboot appliance verifier is green.
 - [x] Canonical schema-v2 physical restore specimen accepted before Reset: Crimson Glow, EQ +2/-1/+1.5 dB, persistent mixer 79/89/93/63%, AirPlay start 74%, six native deviations and full logical Home-v2 state including source-free target-library Recent Played remapping.
 - [x] Accepted #93 Reset Preview physically passed against that specimen: **26 server-owned + 7 Plexamp native + 5 Home = 38 selected changes**, no warning/incomplete state, commissioning already matched the captured player-name baseline and managed output, and Preview remained read-only.
-- [ ] Complete commissioned-Pi **Review → Confirm reset → post-Reset verification → schema-v2 Preview → Review → Confirm restore → convergence**.
+- [x] Commissioned-Pi **Review → Confirm reset → post-Reset verification → schema-v2 Preview → Review → Confirm restore → convergence** passed. Reset returned the appliance to verified baselines while preserving login/library/commissioning; Restore applied **33 changes** (26 ACP + 6 portable Plexamp settings + 1 logical Home change); the same backup then Previewed at **0 changes**.
+- [x] Long Restore technical paths now wrap within the 1280×720 Preview detail column rather than overflowing the viewport; physical follow-up passed and **Tests #4723** passed the corresponding layout/catalogue regression on `e42a35d08b3aedbb10aa79a094c9a9ec7a287f94`.
+- [x] A second real-use round trip using the owner's preferred configuration passed: after verified Reset baselines, the inspected schema-v2 backup Previewed **30 changes** (18 ACP + 11 portable Plexamp settings + 1 logical Home change), Review remained current, Confirm restored both ACP and Plexamp, and the same backup then reported **“No supported portable settings differ” / 0 selected**.
 
-The accepted schema-v1 compatibility flow still applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is deliberately preserved only for old schema-v1 files. **#89 schema-v2 export is now physically accepted; #90 Restore remains open only for the commissioned-Pi destructive Reset → Restore convergence half.**
+The accepted schema-v1 compatibility flow still applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is deliberately preserved only for old schema-v1 files. **Schema-v2 #89 Backup/export and #90 Restore are both physically accepted on the commissioned Pi.**
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -136,7 +139,7 @@ The accepted schema-v1 compatibility flow still applies Home before the later se
 
 The complete four-owner Reset transaction, bounded full Home customisation Reset, post-reset convergence and zero-change owner-facing presentation are now physically accepted on the commissioned bedroom Pi. The disposable 9230 scrub/rebuild/rollback rehearsal remains the reversible architecture proof.
 
-PR #9 remains **Draft and unmerged** pending explicit owner approval to leave Draft or merge. That review/merge decision is repository workflow, not an outstanding #93 engineering defect. The richer #89/#90 portable native/Home-v2 transaction remains a separate open follow-up.
+PR #9 remains **Draft and unmerged** pending explicit owner approval to leave Draft or merge. That review/merge decision is repository workflow, not an outstanding #93 engineering defect. #89/#90 portable native/Home-v2 Backup/Restore is now also physically accepted; PR #10 remains Draft/unmerged pending the same explicit owner workflow decision.
 
 #### Accepted transaction foundations
 
@@ -305,21 +308,21 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] `activeTab` post-reset navigation residue classified and excluded on the feature branch.
 - [x] Final production pull/restart physically verified **0 meaningful Reset differences** and the compact zero-change Preview presentation.
 
-Separate follow-up: #89/#90 complete portable Plexamp Backup/Restore remains open only at the commissioned-Pi physical-acceptance gate. PR #9 remains Draft and unmerged until explicit owner approval.
+The #89/#90 complete portable Plexamp Backup/Restore follow-up is now physically accepted. PR #9 and PR #10 remain Draft/unmerged until explicit owner approval.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
-**Do not begin high-resolution-audio implementation until the Settings/appliance-ownership track is deliberately closed or the remaining Home follow-ups are explicitly deferred.**
+The Settings/appliance-ownership engineering track is now physically closed. High-resolution audio is the next implementation area after the accepted feature branches are deliberately promoted through the normal repository workflow.
 
 ## Agreed implementation order
 
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88, #89 and #93 COMPLETE; #90 v2 commissioned-Pi Restore acceptance OPEN
+2. **Settings and appliance ownership** — COMPLETE through #93, including schema-v2 Backup/Restore
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
-5. **High-resolution Plexamp audio / mixer-EQ path**
+5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT
 6. **Astronomy**
 7. **Appliance resilience**
 8. **Events calendar**
