@@ -191,6 +191,10 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_time_formatting.py` — Checks shared 12/24-hour and date/time formatting used across dashboard surfaces.
 - `tests/test_unified_settings.py` — Core backend tests for Settings snapshot, validation, revision handling and transactional apply.
 
+### News
+
+- `tests/test_news_article_qr.py` — Protects the BBC News article hand-off boundary: canonical BBC News HTTPS URL validation, link-free public snapshots, opaque story-id lookup and local SVG QR generation without arbitrary outbound navigation.
+
 ### Weather
 
 - `tests/test_forecast_range_ui.py` — Checks forecast-range presentation and horizontal scrolling for longer forecast horizons.
