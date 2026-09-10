@@ -4,6 +4,8 @@
 
 Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. The feed/cache/API foundation, touchscreen News page, News Settings workspace, startup/idle integration and stale-cache behaviour have all been exercised on the Raspberry Pi. The final acceptance pass completed across 31 August and 1 September 2026.
 
+A post-#92 article hand-off enhancement is now implemented on `feature/news-article-qr`: tapping a story still opens the existing local detail panel, while a locally generated QR code can hand the validated BBC article address to a phone. Automated validation is required before commissioned-Pi/iPhone acceptance; the original #92 acceptance remains valid independently of this follow-up.
+
 ## Feed authority
 
 A Clockwork Plex uses a fixed allow-list of public BBC News RSS feeds only:
@@ -20,6 +22,8 @@ The appliance does not accept arbitrary feed URLs and does not scrape BBC News a
 
 The commissioned appliance live gate on 31 August 2026 returned all five categories as ready with fresh last-success state and a running worker. A recursive check of the public payload found no `url`, `link` or `guid` keys.
 
+The article-QR follow-up increments the private cache schema because the cache can now retain one additional internal field: a canonicalised BBC News article HTTPS URL. Old cache files are discarded through the existing cache-schema mismatch boundary and rebuilt from RSS. The public API projection deliberately strips this private field again before JSON is returned.
+
 ## Public story model
 
 The public `/api/news` story model exposes only:
@@ -30,9 +34,37 @@ The public `/api/news` story model exposes only:
 - published timestamp;
 - category.
 
-Article URLs and GUID values are not exposed. The browser cannot therefore turn a headline into outbound kiosk navigation without changing the backend contract first.
+Article URLs and GUID values remain absent from `/api/news`. The browser therefore still cannot turn a headline into arbitrary outbound kiosk navigation.
 
-The touchscreen detail panel shows only the same feed-owned title, category, published timestamp and summary. It has no article anchor, no external-navigation action and no full-article scraping. Full BBC article bodies remain outside the supported RSS boundary unless BBC provides a suitable authorised/public syndication source in future.
+The touchscreen detail panel shows the same feed-owned title, category, published timestamp and summary. It has no article anchor, no external-navigation action and no full-article scraping. Full BBC article bodies remain outside the supported RSS boundary unless BBC provides a suitable authorised/public syndication source in future.
+
+## Article QR hand-off
+
+The QR enhancement deliberately keeps article navigation off the kiosk.
+
+At RSS parse time the `<link>` value is considered separately from the opaque story identity. An article link is retained only when all of the following hold:
+
+- scheme is HTTPS;
+- no username/password component is present;
+- no non-standard port is present;
+- hostname is `bbc.co.uk`, `bbc.com`, or a true subdomain of one of those suffixes;
+- path is under `/news/`.
+
+Accepted URLs are canonicalised by dropping query parameters and fragments before storage. This removes RSS tracking parameters and gives the QR a stable ordinary BBC HTTPS address. Deceptive suffixes such as `bbc.co.uk.evil.example`, non-News paths, HTTP links and credential-bearing URLs are rejected.
+
+The private cache may retain this canonical URL, but `/api/news` projects each story back onto the original five-field public model. The browser asks only for:
+
+```text
+/api/news/story/<opaque-story-id>/qr.svg
+```
+
+`BBCNewsFeedService.article_url_for()` resolves that id against the private in-memory/cache state and revalidates the stored URL. The route accepts no URL argument, so it cannot be used as an arbitrary QR-generation service.
+
+QR SVG is generated locally with the Python `qrcode` package using a normal four-module quiet-zone border and medium error correction. No Google Charts, QR SaaS, redirector or other third party receives the selected article URL.
+
+The QR contains the normal canonical BBC HTTPS article address rather than an undocumented BBC custom URL scheme. That keeps the hand-off standards-based: iOS can pass a supported Universal Link to the BBC News app when the installed app/BBC association permits it, otherwise the same address opens normally in the browser. The appliance makes no promise that iOS will always choose the app; that behaviour is an explicit physical-acceptance item.
+
+The detail panel does not reveal an empty QR placeholder. It requests the local SVG only when a story is opened and shows the hand-off panel only after that image has loaded successfully. Missing/rejected links therefore leave the pre-existing title/summary dialog intact.
 
 ## News screen ownership
 
@@ -50,6 +82,7 @@ The normal main navigation includes News alongside Clock, Weather, Plexamp, AirP
 - Top Stories, UK, World, Science and Technology choices filtered by the saved enabled-category model;
 - scrollable headline cards showing category, published time, title and optional feed summary;
 - local feed-detail modal on story tap;
+- optional locally generated article QR hand-off panel inside that modal;
 - explicit ready/degraded/stale/source-time state;
 - theme-aware BBC feed-time pill;
 - Weather-style synchronized vertical scroll rail/thumb while normal touch scrolling remains on the story list;
@@ -57,9 +90,9 @@ The normal main navigation includes News alongside Clock, Weather, Plexamp, AirP
 - ticker-off removes the whole strip and returns its height to the category/story area;
 - theme-variable styling and 1280×720-first geometry.
 
-All story title/summary rendering uses DOM `textContent`; RSS markup is already reduced to plain text server-side. The browser performs no BBC article fetches.
+All story title/summary rendering uses DOM `textContent`; RSS markup is already reduced to plain text server-side. The browser performs no BBC article fetches. The QR image request is looped back to the appliance itself; the phone, not Chromium, follows the encoded BBC address after scanning.
 
-Real BBC feeds can contain repeated entries and older/promotional records further down the source order. The raw cached feed is preserved unchanged. Presentation performs semantic de-duplication by normalised title and preserves the BBC feed order. The main list shows at most the leading 24 unique entries and the ticker at most the leading 12 unique Top Stories; this keeps the touchscreen/ticker focused without rewriting source data.
+Real BBC feeds can contain repeated entries and older/promotional records further down the source order. The raw cached feed is preserved unchanged apart from bounded normalisation/private article-link metadata. Presentation performs semantic de-duplication by normalised title and preserves the BBC feed order. The main list shows at most the leading 24 unique entries and the ticker at most the leading 12 unique Top Stories; this keeps the touchscreen/ticker focused without rewriting source data.
 
 ## BBC branding
 
@@ -87,13 +120,15 @@ At least one category must remain enabled and the default category must be one o
 
 `app/static/js/settings-news.js` contributes a News workspace to the existing Settings shell and registers the `news` domain with the established `ACPUnifiedSettings` transaction owner. It has no network/save path of its own. News preference changes are committed inside the existing one-write Settings transaction and then wake the News background worker. Saving Settings never waits for a BBC network request.
 
-News preferences are included in portable configuration backup/restore; downloaded RSS/cache data is generated runtime state and is excluded.
+News preferences are included in portable configuration backup/restore; downloaded RSS/cache data, including private canonical article-link metadata, is generated runtime state and is excluded.
 
 ## Failure boundary
 
 BBC/network/XML failure must never affect the rest of the appliance. A failed category keeps its previous successful feed when available and records an explicit degraded/stale/error state. The News page labels stale data rather than replacing it with invented content.
 
-A real commissioned-appliance connectivity interruption physically proved this boundary: while Wi-Fi was unavailable, the News page retained cached stories and ticker content, exposed the cached/stale state in the lower-left status pill, and retained the last BBC feed time. Normal fresh updates resumed after Wi-Fi reconnected.
+QR generation is also optional presentation state. A missing/rejected article link or a QR-generation failure must not prevent the story summary dialog from opening and must not affect the News feed/cache worker.
+
+A real commissioned-appliance connectivity interruption physically proved the main News failure boundary: while Wi-Fi was unavailable, the News page retained cached stories and ticker content, exposed the cached/stale state in the lower-left status pill, and retained the last BBC feed time. Normal fresh updates resumed after Wi-Fi reconnected.
 
 The same incident also exposed a separate appliance-storage concern: the Pi root filesystem had previously remounted read-only, causing unrelated ACP state writes to fail. That storage-resilience investigation is intentionally tracked as future appliance work rather than attributed to BBC News.
 
@@ -113,4 +148,14 @@ Checkpoint #92 physical acceptance at 1280×720 confirms:
 - cached/stale presentation during a real Wi-Fi interruption with stories/ticker retained;
 - navigation back to the other dashboard surfaces without regression.
 
-Checkpoint #92 is complete subject only to the normal closing documentation/CI/integration bookkeeping.
+The article-QR follow-up still requires a focused commissioned-appliance acceptance pass:
+
+- detail modal remains usable and comfortably fitted at 1280×720 with QR present;
+- stories lacking a usable link retain the ordinary detail dialog without broken placeholders;
+- QR scans reliably from the Touch Display 2;
+- scanned content resolves to the intended BBC article;
+- on the owner's iPhone, record whether the current BBC News app claims the HTTPS Universal Link or Safari handles it;
+- kiosk Chromium itself never navigates away from ACP;
+- existing cached/stale News behaviour remains intact.
+
+Checkpoint #92 remains complete; the QR enhancement is a bounded post-checkpoint follow-up pending the acceptance items above.
