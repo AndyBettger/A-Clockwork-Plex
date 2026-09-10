@@ -48,4 +48,10 @@ After a real `sudo reboot`:
 - Chromium loaded the repository Plexamp bridge and Plexamp Search bridge through `--load-extension`;
 - no Chromium `--remote-debugging-port` or `--remote-debugging-address` flags were present.
 
-**Disposition:** production bridge 1.5.0 installation/reboot precondition is physically accepted. The remaining #89/#90 product gate is the deliberate normal-use configuration → schema-v2 Backup → backup inspection → accepted #93 Reset → schema-v2 Restore → physical/logical convergence cycle.
+## Documentation / CI checkpoint — PASS
+
+The physical reboot checkpoint was added to the live roadmap and this chronological acceptance record. The first documentation run, Tests #4708, correctly found one catalogue-only omission: this newly created testing record had not yet been added to the deliberately classified `docs/development/testing` set. No functional source, compile, JavaScript/page/shell or portability test failed.
+
+The testing classification guard and Development documentation index were updated. **Tests #4710 passed completely** on `0cc6e43affe0e2dd45664bcd7073316277ce2421`, including compile, JavaScript/page/shell checks and the complete unit/regression suite.
+
+**Disposition:** production bridge 1.5.0 installation/reboot precondition is physically accepted and documentation/CI is green. The remaining #89/#90 product gate is the deliberate normal-use configuration → schema-v2 Backup → backup inspection → accepted #93 Reset → schema-v2 Restore → physical/logical convergence cycle.
