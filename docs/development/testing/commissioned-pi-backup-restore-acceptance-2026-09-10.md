@@ -4,7 +4,7 @@
 
 Physical acceptance for checkpoints #89/#90 schema-v2 portable Backup/Restore on the commissioned `plexamp-bedroom` appliance.
 
-This record is intentionally chronological. PR #10 remains Draft/unmerged until the complete Backup → Reset → Restore cycle passes and the owner explicitly approves promotion/merge.
+This record is intentionally chronological. PR #10 remains Draft/unmerged until the owner explicitly approves promotion/merge.
 
 ## Starting state
 
@@ -44,7 +44,7 @@ After a real `sudo reboot`:
 - content scripts were exactly `content.js`, `reset.js`, `portability.js`;
 - web-accessible resources were exactly `native-reset.js`, `native-portability.js`, `home-portability-v2.js`;
 - manifest contained no `permissions`, `host_permissions` or `background` authority;
-- running Chromium kiosk used `/home/andy/.config/a-clockwork-plex/chromium-profile`;
+- running Chromium kiosk used the dedicated A Clockwork Plex Chromium profile;
 - Chromium loaded the repository Plexamp bridge and Plexamp Search bridge through `--load-extension`;
 - no Chromium `--remote-debugging-port` or `--remote-debugging-address` flags were present.
 
@@ -154,7 +154,7 @@ raw library section path absent: PASS
 
 The portable Home model therefore contains no source Recent Played context/hash and no raw source library section path. This closes the physical export blocker that the first full-order specimen exposed.
 
-**#89 schema-v2 Backup/export physical gate: PASS.** The remaining product gate is #90: accepted #93 Reset followed by schema-v2 Preview → Review → Confirm Restore and post-restore physical/logical convergence.
+**#89 schema-v2 Backup/export physical gate: PASS.**
 
 ## Accepted #93 Reset Preview for #90 — PASS (read-only)
 
@@ -183,8 +183,6 @@ The native owner reported seven changes: the six ordinary Plexamp setting deviat
 The Home owner reported exactly **5** bounded durable records: **1 order, 1 visibility, 2 presentation/title, 1 custom section**. Plexamp commissioning reported that the captured player-name baseline and managed **A Clockwork Plex - Plexamp** audio output already matched, so no commissioning repair was required.
 
 The Preview presented no warning/incomplete state, kept the documented preserved owners visible, and enabled **Review selected reset**. No mutation had yet occurred.
-
-**Disposition:** the #93 Reset Preview gate for the #90 physical transaction is accepted. The next step is Review → one Confirm & reset, followed by post-Reset commissioning/baseline checks before any Restore mutation.
 
 ## Accepted #93 Reset execution for #90 — PASS
 
@@ -232,6 +230,58 @@ The Preview details exposed only technical paths/counts and showed the expected 
 
 **Review selected restore** refreshed the selected work and reported **Ready to confirm** with the same **33 selected changes**. The final confirmation summary showed **26 A Clockwork Plex paths + 6 Plexamp setting changes + 1 Plexamp Home logical change** and stated that browser rollback remains retained through the later ACP stage.
 
-No mutation has yet occurred at this checkpoint.
+## Schema-v2 Restore execution + convergence — PASS
 
-**Disposition:** schema-v2 Restore Preview/Review is physically accepted. The next step is exactly one **Confirm & restore**, followed by post-restore visual/value checks and a fresh convergence Preview before #90 can be closed.
+One **Confirm & restore** applied and verified the 33 selected changes. After the normal reload:
+
+- A Clockwork Plex returned to the deliberate Crimson Glow/EQ/mixer/AirPlay specimen;
+- the broader portable Plexamp settings returned;
+- the custom Home section/title returned;
+- `Recent Plays` returned to hidden;
+- the built-in presentation override returned;
+- the full logical Home order returned;
+- Plexamp remained signed in, on the correct library, with the correct commissioned player name and managed output;
+- Plexamp live player volume remained **100%**, correctly demonstrating that runtime player volume is outside portable Restore ownership.
+
+Selecting the same backup again and running **Preview restore** reported **0 changes** for A Clockwork Plex and Plexamp. This proves logical convergence rather than merely visual similarity.
+
+## 1280×720 Restore Preview wrapping follow-up — PASS
+
+The full Restore Preview exposed a presentation defect: long technical changed paths could overflow the right edge of the 1280×720 Settings viewport. The shared Reset/Restore detail grid was corrected so both columns are shrinkable and long path text can wrap within its own column.
+
+The physical follow-up displayed a deliberately long technical path entirely inside the Preview card, and a later real-use Restore Preview with many long ACP/Plexamp paths also remained inside the viewport. The layout regression module was added to the maintained test catalogue; **Tests #4723 passed completely** on `e42a35d08b3aedbb10aa79a094c9a9ec7a287f94`.
+
+## Real-use Backup → Reset → Restore acceptance — PASS
+
+A second acceptance cycle was then performed using the owner's genuine preferred ACP and Plexamp configuration rather than a synthetic test specimen.
+
+The real-use schema-v2 backup `A-Clockwork-Plex-backup-2026-09-10_215051.json` was inspected before Reset. It contained the intended ACP settings, EQ, alarms/weather choices, **11 portable Plexamp settings**, a **15-entry logical Home order**, **15 presentation records**, and **3 custom Home sections** with their titles and relative library queries. It retained the logical `target-library.music.recent.played` marker and did not contain a raw source library-section path or source Recent Played context. Credentials/authentication remained excluded.
+
+After a full Reset, a fresh Reset Preview again reported **Already at baselines** with **0 Plexamp settings / 0 Home** changes. The same real-use backup then produced this Restore Preview/Review accounting:
+
+```text
+A Clockwork Plex: 18 restorable paths
+Plexamp portable settings: 11 restorable
+Plexamp Home: 1 logical change
+Total selected: 30
+```
+
+Review refreshed the same 30-change plan and reported **Ready to confirm**. One **Confirm & restore** completed successfully. Physical inspection confirmed both A Clockwork Plex and Plexamp returned to the owner's previous preferred settings.
+
+Finally, selecting the **same** `215051` backup and running **Preview restore** reported:
+
+```text
+Backup is valid. No supported portable settings differ from this appliance.
+No changes · 0 selected
+```
+
+This is the final production convergence proof for schema-v2.
+
+## Final disposition — #89/#90 COMPLETE
+
+- **#89 Configuration backup/export: COMPLETE and physically accepted.**
+- **#90 Configuration import/restore: COMPLETE and physically accepted.**
+- Production bridge 1.5.0 remains permission-free, host-permission-free, background-free and loopback-only.
+- Schema-v1 compatibility remains supported with its documented historical rollback limitation.
+- The commissioned-Pi product gate is closed by both the deliberately difficult engineering specimen and a second real-use configuration round trip.
+- PR #10 remains **Draft and unmerged** pending explicit owner approval to promote/merge; that repository decision is no longer an engineering or physical-acceptance blocker.
