@@ -534,6 +534,63 @@ console.log(JSON.stringify({ sourceSnapshot, plan, materialized, before, after: 
         self.assertEqual(payload["materialized"]["status"], "custom-sections-capability-unavailable")
         self.assertEqual(payload["after"], payload["before"])
 
+    def test_target_scoped_recent_played_hub_is_logical_and_remapped(self):
+        payload = self.run_node(
+            r"""
+const sourceRoot = rootStore('sourceServer0123456789abcdef', 9, true);
+const sourceScope = owner.deriveTargetScope(sourceRoot);
+const sourceStorage = new FakeStorage();
+const sourceDynamic = `music.recent.played.${sourceScope.structureContext}./hubs/sections/${sourceScope.section}`;
+write(sourceStorage, `${sourceScope.structureBaseKey}:order`, [
+  'music.recent.added.',
+  sourceDynamic,
+  'music.mixes.',
+]);
+const snapshot = owner.buildPortableSnapshot(sourceStorage, sourceRoot);
+const portableText = JSON.stringify(snapshot.home);
+
+const targetRoot = rootStore('targetServerfedcba9876543210', 42, true);
+const materialized = owner.materializePortableHome(snapshot.home, targetRoot);
+const orderRecord = materialized.records.find((record) => record.key.endsWith(':order'));
+const targetOrder = orderRecord ? JSON.parse(orderRecord.raw)._ : [];
+
+const rawSourceBound = {
+  ...snapshot.home,
+  order: [{ type: 'builtin', id: sourceDynamic }],
+};
+const rejectedRaw = owner.validatePortableHome(rawSourceBound);
+
+console.log(JSON.stringify({
+  snapshot,
+  portableText,
+  materialized,
+  targetOrder,
+  rejectedRaw,
+}));
+"""
+        )
+        self.assertEqual(payload["snapshot"]["status"], "ready")
+        self.assertEqual(
+            payload["snapshot"]["home"]["order"],
+            [
+                {"type": "builtin", "id": "music.recent.added."},
+                {"type": "builtin", "id": "target-library.music.recent.played"},
+                {"type": "builtin", "id": "music.mixes."},
+            ],
+        )
+        self.assertNotIn("sourceServer0123456789abcdef", payload["portableText"])
+        self.assertNotIn("/hubs/sections/9", payload["portableText"])
+        self.assertEqual(payload["materialized"]["status"], "ready")
+        self.assertEqual(
+            payload["targetOrder"],
+            [
+                "music.recent.added.",
+                "music.recent.played.targetServerfedcba9876543210./hubs/sections/42",
+                "music.mixes.",
+            ],
+        )
+        self.assertIsNone(payload["rejectedRaw"])
+
 
 if __name__ == "__main__":
     unittest.main()
