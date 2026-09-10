@@ -185,3 +185,53 @@ The Home owner reported exactly **5** bounded durable records: **1 order, 1 visi
 The Preview presented no warning/incomplete state, kept the documented preserved owners visible, and enabled **Review selected reset**. No mutation had yet occurred.
 
 **Disposition:** the #93 Reset Preview gate for the #90 physical transaction is accepted. The next step is Review → one Confirm & reset, followed by post-Reset commissioning/baseline checks before any Restore mutation.
+
+## Accepted #93 Reset execution for #90 — PASS
+
+The fresh Review remained current and enabled the final confirmation with the same **26 ACP + 7 Plexamp native + 5 Home** reviewed differences. One **Confirm & reset** was then performed.
+
+The completion page reported **40 changes applied**. This is expected rather than a hidden discrepancy with the 38-difference Preview: Plexamp's own native Reset temporarily disturbed both player name and audio output, then the server-side commissioning owner detected and repaired those two temporary differences before commit. Execution accounting was therefore:
+
+```text
+26 ACP/server changes
++ 7 Plexamp native changes
++ 5 Home records
++ 2 commissioning repair writes
+= 40 applied changes
+```
+
+Physical post-Reset inspection passed:
+
+- ACP returned to the default daytime theme;
+- EQ returned to **0 / 0 / 0 dB**;
+- persistent output levels returned to **100%**;
+- Plexamp Home returned to default order/presentation;
+- `ACP Backup Restore Test` disappeared;
+- `Recent Plays` returned;
+- Plexamp remained signed in and on the correct library;
+- commissioned player name remained correct;
+- managed audio output remained **A Clockwork Plex - Plexamp**.
+
+A fresh **Preview reset** after completion reported **Already at baselines**, with **0 Plexamp settings** and **0 Home** customisation changes. This confirms #93 converged fully before any Restore mutation.
+
+## Schema-v2 Restore Preview + Review — PASS (read-only)
+
+The canonical accepted backup `A-Clockwork-Plex-backup-2026-09-10_051035.json` was selected after the zero-baseline proof. **Preview restore** validated the file and reported **33 restorable changes** with both owners selected:
+
+```text
+A Clockwork Plex: 26 restorable paths
+Plexamp: 7 restorable
+  portable settings: 6
+  Home: 1 logical change
+Total selected: 33
+```
+
+The 33-count is intentionally different from Reset's 38 user-visible differences. Portable Restore does not own Plexamp live `playerVolume`, and Home-v2 is represented transactionally as one logical portable owner change rather than five raw browser records.
+
+The Preview details exposed only technical paths/counts and showed the expected changed sections: `audio.eq`, `audio.mixer`, `settings.airplay`, `settings.alarms`, `settings.display`, `settings.weather`, `plexamp.portable_settings` and `plexamp.browser_preferences`.
+
+**Review selected restore** refreshed the selected work and reported **Ready to confirm** with the same **33 selected changes**. The final confirmation summary showed **26 A Clockwork Plex paths + 6 Plexamp setting changes + 1 Plexamp Home logical change** and stated that browser rollback remains retained through the later ACP stage.
+
+No mutation has yet occurred at this checkpoint.
+
+**Disposition:** schema-v2 Restore Preview/Review is physically accepted. The next step is exactly one **Confirm & restore**, followed by post-restore visual/value checks and a fresh convergence Preview before #90 can be closed.
