@@ -1,9 +1,8 @@
 (() => {
   'use strict';
 
-  // Dormant #89/#90 Home-v2 owner. This file is intentionally not loaded by
-  // the production extension manifest until the complete transaction has
-  // automated and commissioned-Pi acceptance.
+  // #89/#90 Home-v2 owner. Production bridge 1.5.0 loads this bounded owner
+  // through portability.js; it remains loopback-only and exposes no generic eval.
 
   const SNAPSHOT_REQUEST_TYPE = 'acp-plexamp-home-portability-snapshot-request-v2';
   const SNAPSHOT_RESPONSE_TYPE = 'acp-plexamp-home-portability-snapshot-response-v2';
@@ -31,6 +30,8 @@
   const SAFE_FINGERPRINT = /^[a-f0-9]{8}$/;
   const SAFE_ROLLBACK_TOKEN = /^[a-f0-9]{32}$/;
   const CUSTOM_HUB_RE = /^custom\.hub\.([A-Za-z0-9_-]{1,64})\.([0-9a-f-]{36})$/i;
+  const TARGET_LIBRARY_RECENT_PLAYED_RE = /^music\.recent\.played\.(.+)\.\/hubs\/sections\/([0-9]{1,10})$/;
+  const TARGET_LIBRARY_RECENT_PLAYED_LOGICAL_ID = 'target-library.music.recent.played';
   const SENSITIVE_NAME = /(token|auth|account|session|cookie|credential|password|secret|claim|machine|clientidentifier|email)/i;
   const PRESENTATION_FIELDS = new Set(['type', 'subtype', 'size', 'limit', 'title']);
 
@@ -176,7 +177,7 @@
     if (role === 'presentation' && terminal === 'viewSettings') {
       return { role, family: 'viewSettings', hub };
     }
-    return { role, family: 'other', hub };
+    return { role, family: 'other', hub: null };
   }
 
   function parseCustomHubIdentifier(value) {
@@ -184,6 +185,20 @@
     const match = value.match(CUSTOM_HUB_RE);
     if (!match || !SAFE_KIND.test(match[1]) || !SAFE_UUID.test(match[2])) return null;
     return { kind: match[1], uuid: match[2].toLowerCase() };
+  }
+
+  function parseTargetLibraryRecentPlayedIdentifier(value) {
+    if (typeof value !== 'string' || value.length > 600) return null;
+    const match = value.match(TARGET_LIBRARY_RECENT_PLAYED_RE);
+    if (!match) return null;
+    const context = match[1];
+    const section = match[2];
+    if (!SAFE_CONTEXT.test(context) || SENSITIVE_NAME.test(context)) return null;
+    return { context, section };
+  }
+
+  function materializeTargetLibraryRecentPlayed(scope) {
+    return `music.recent.played.${scope.structureContext}./hubs/sections/${scope.section}`;
   }
 
   function normalizeQuerySuffix(fullKey, library) {
@@ -281,10 +296,22 @@
     };
   }
 
-  function logicalRef(hub, customById) {
+  function logicalRef(hub, customById, scope) {
     if (customById.has(hub)) return { type: 'custom', ref: customById.get(hub).ref };
     if (parseCustomHubIdentifier(hub)) return null;
-    if (!SAFE_HUB.test(hub) || SENSITIVE_NAME.test(hub)) return null;
+    const targetLibraryRecentPlayed = parseTargetLibraryRecentPlayedIdentifier(hub);
+    if (targetLibraryRecentPlayed) {
+      if (
+        targetLibraryRecentPlayed.context !== scope.structureContext
+        || targetLibraryRecentPlayed.section !== scope.section
+      ) return null;
+      return { type: 'builtin', id: TARGET_LIBRARY_RECENT_PLAYED_LOGICAL_ID };
+    }
+    if (
+      hub === TARGET_LIBRARY_RECENT_PLAYED_LOGICAL_ID
+      || !SAFE_HUB.test(hub)
+      || SENSITIVE_NAME.test(hub)
+    ) return null;
     return { type: 'builtin', id: hub };
   }
 
@@ -345,7 +372,7 @@
       for (const hub of value) {
         if (typeof hub !== 'string' || seen.has(hub)) return { status: 'unsupported-order', home: null };
         seen.add(hub);
-        const ref = logicalRef(hub, customById);
+        const ref = logicalRef(hub, customById, scope);
         if (!ref) return { status: 'dangling-custom-reference', home: null };
         order.push(ref);
       }
@@ -356,7 +383,7 @@
     for (const row of inventory.decoded.filter((item) => item.family === 'hidden')) {
       if (row.value !== true || hiddenSeen.has(row.hub)) return { status: 'unsupported-hidden', home: null };
       hiddenSeen.add(row.hub);
-      const ref = logicalRef(row.hub, customById);
+      const ref = logicalRef(row.hub, customById, scope);
       if (!ref) return { status: 'dangling-custom-reference', home: null };
       hidden.push(ref);
     }
@@ -367,7 +394,7 @@
     for (const row of inventory.decoded.filter((item) => item.family === 'viewSettings')) {
       if (presentationSeen.has(row.hub)) return { status: 'duplicate-presentation', home: null };
       presentationSeen.add(row.hub);
-      const ref = logicalRef(row.hub, customById);
+      const ref = logicalRef(row.hub, customById, scope);
       const settings = validatePresentation(row.value);
       if (!ref || !settings || Object.keys(settings).length === 0) {
         return { status: 'unsupported-view-settings', home: null };
@@ -420,7 +447,12 @@
     if (!plainObject(value)) return null;
     if (value.type === 'builtin') {
       if (Object.keys(value).sort().join(',') !== 'id,type') return null;
-      if (!SAFE_HUB.test(value.id) || SENSITIVE_NAME.test(value.id) || parseCustomHubIdentifier(value.id)) return null;
+      if (
+        !SAFE_HUB.test(value.id)
+        || SENSITIVE_NAME.test(value.id)
+        || parseCustomHubIdentifier(value.id)
+        || parseTargetLibraryRecentPlayedIdentifier(value.id)
+      ) return null;
       return { type: 'builtin', id: value.id };
     }
     if (value.type === 'custom') {
@@ -518,8 +550,12 @@
     return `custom.hub.${kind}.${uuid}`;
   }
 
-  function resolveLogicalRef(ref, customIds) {
-    if (ref.type === 'builtin') return ref.id;
+  function resolveLogicalRef(ref, customIds, scope) {
+    if (ref.type === 'builtin') {
+      return ref.id === TARGET_LIBRARY_RECENT_PLAYED_LOGICAL_ID
+        ? materializeTargetLibraryRecentPlayed(scope)
+        : ref.id;
+    }
     return customIds.get(ref.ref) || null;
   }
 
@@ -558,21 +594,21 @@
     }
 
     if (home.order.length) {
-      const order = home.order.map((ref) => resolveLogicalRef(ref, customIds));
+      const order = home.order.map((ref) => resolveLogicalRef(ref, customIds, scope));
       if (order.some((hub) => !hub || typeof hub !== 'string') || !add(`${scope.structureBaseKey}:order`, order)) {
         return { status: 'serialization-failed', records: [] };
       }
     }
 
     for (const ref of home.hidden) {
-      const hub = resolveLogicalRef(ref, customIds);
+      const hub = resolveLogicalRef(ref, customIds, scope);
       if (!hub || !add(`${scope.structureBaseKey}:${hub}:hidden`, true)) {
         return { status: 'serialization-failed', records: [] };
       }
     }
 
     for (const row of home.presentation) {
-      const hub = resolveLogicalRef(row.target, customIds);
+      const hub = resolveLogicalRef(row.target, customIds, scope);
       if (!hub || !add(`${scope.presentationBaseKey}:${hub}:viewSettings`, row.settings)) {
         return { status: 'serialization-failed', records: [] };
       }
@@ -912,6 +948,7 @@
     locateRootStore,
     materializePortableHome,
     parseCustomHubIdentifier,
+    parseTargetLibraryRecentPlayedIdentifier,
     rollbackPortableHome,
     validatePortableHome,
   };
