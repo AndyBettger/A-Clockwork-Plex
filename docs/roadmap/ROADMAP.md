@@ -71,7 +71,7 @@ Accepted constraints:
 - [x] `playerName` and `audioDeviceUuid` classified nonportable.
 - [x] Plexamp Home browser-local persistence families physically classified without treating the Chromium profile as a backup unit.
 
-### #89 Configuration backup/export — PRODUCTION BRIDGE ACTIVE AND AUTOMATED GREEN; PHYSICAL GATE OPEN
+### #89 Configuration backup/export — COMPLETE
 
 - [x] Schema-v1 backup/export physically accepted.
 - [x] Export contains normalised ACP settings, logical EQ/mixer, exact eight typed Headless preferences and logical Home order/hidden choices.
@@ -90,9 +90,9 @@ Accepted constraints:
 - [x] Automated gates: native **Tests #4671**; Home-v2/full catalogue **Tests #4675**; schema-v2 validator **Tests #4680**; JavaScript query hardening **Tests #4681**; direct Python/JavaScript parity **Tests #4682**; dormant dual-owner transport **Tests #4688**; complete dormant export/transaction orchestration **Tests #4691**; cross-owner v2 stale-token boundary **Tests #4694**; result-counter refinement **Tests #4695**; dedicated Settings-controller contract **Tests #4697**; activated Settings ownership/full suite **Tests #4701** on `bb47c8543ae9fe3d6abd2d4eb38c0d9dd66236ff`; bridge-activation safety/full suite **Tests #4704** on `6a212689cd42dd96edcaf4e2869df51cde231689`.
 - [x] Commissioned-Pi bridge-activation gate passed on `fb5e77c3a3c8caf6e23ab9def68110dd9636be5e`: repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS` (0 failures / 0 warnings), preserved commissioned Weather Underground/EQ/Plexamp state, and a genuine reboot returned a normal dashboard/Plexamp kiosk.
 - [x] Post-reboot production proof confirmed bridge **1.5.0** resources, dedicated `a-clockwork-plex/chromium-profile`, repository `--load-extension` wiring, and **no Chromium remote-debugging flags**; a fresh whole-appliance verifier again passed 0/0.
-- [ ] Physically accept complete schema-v2 export on the commissioned Pi.
+- [x] Complete schema-v2 export physically accepted on the commissioned Pi after a full-order specimen exposed and then closed a target-scoped Recent Played portability leak. The accepted re-export carries the logical `target-library.music.recent.played` marker, no source context/hash or raw library-section path, the full 13-entry logical Home order, hidden/presentation/custom-title/custom-section state, six native Plexamp deviations and the deliberate ACP/EQ/mixer/AirPlay specimen.
 
-### #90 Configuration import/restore — PRODUCTION BRIDGE ACTIVE AND AUTOMATED GREEN; PHYSICAL GATE OPEN
+### #90 Configuration import/restore — PRODUCTION BRIDGE ACTIVE AND AUTOMATED GREEN; RESET PREVIEW PHYSICALLY PASSED
 
 - [x] Read-only parse/validate/Preview with paths/counts rather than values.
 - [x] Stale-protected ACP Settings/EQ/mixer restore with reverse rollback.
@@ -112,9 +112,11 @@ Accepted constraints:
 - [x] Production bridge **1.5.0** loads `portability.js` plus only the bounded `native-portability.js` and `home-portability-v2.js` page-world resources alongside the existing Reset bridge; no extension permissions, host permissions, background authority, DevTools or remote-debug surface were added.
 - [x] **Tests #4704** passed the complete bridge-activation gate on `6a212689cd42dd96edcaf4e2869df51cde231689`: compile, JavaScript/page/shell wiring, activation/security guards, #93 Reset/commissioning regressions and full unit/regression suite all green.
 - [x] Commissioned-Pi repeat-install + genuine-reboot precondition passed on `fb5e77c3a3c8caf6e23ab9def68110dd9636be5e`; bridge 1.5.0 is physically loaded by the normal production kiosk with no remote-debugging interface and the post-reboot appliance verifier is green.
-- [ ] Physically revalidate commissioned-Pi **Backup → Reset → Restore** using a deliberately recognisable normal-use configuration.
+- [x] Canonical schema-v2 physical restore specimen accepted before Reset: Crimson Glow, EQ +2/-1/+1.5 dB, persistent mixer 79/89/93/63%, AirPlay start 74%, six native deviations and full logical Home-v2 state including source-free target-library Recent Played remapping.
+- [x] Accepted #93 Reset Preview physically passed against that specimen: **26 server-owned + 7 Plexamp native + 5 Home = 38 selected changes**, no warning/incomplete state, commissioning already matched the captured player-name baseline and managed output, and Preview remained read-only.
+- [ ] Complete commissioned-Pi **Review → Confirm reset → post-Reset verification → schema-v2 Preview → Review → Confirm restore → convergence**.
 
-The accepted schema-v1 compatibility flow still applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is deliberately preserved only for old schema-v1 files. The real Settings page now owns the complete schema-v2 transaction and production bridge **1.5.0** exposes the bounded native/Home-v2 participants; commissioned-Pi physical acceptance is the remaining #89/#90 product gate.
+The accepted schema-v1 compatibility flow still applies Home before the later server stage and does not retain a browser rollback token across a successful Home write followed by a server failure. That limitation is deliberately preserved only for old schema-v1 files. **#89 schema-v2 export is now physically accepted; #90 Restore remains open only for the commissioned-Pi destructive Reset → Restore convergence half.**
 
 ### #91 Touchscreen Plexamp text entry — COMPLETE
 
@@ -314,7 +316,7 @@ Detailed authority: [`../development/architecture/reset-to-defaults.md`](../deve
 Unless deliberately reprioritised:
 
 1. **Weather** — COMPLETE through #87
-2. **Settings and appliance ownership** — #88 and #93 COMPLETE; #89/#90 v2 commissioned-Pi physical acceptance OPEN
+2. **Settings and appliance ownership** — #88, #89 and #93 COMPLETE; #90 v2 commissioned-Pi Restore acceptance OPEN
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE #92
 5. **High-resolution Plexamp audio / mixer-EQ path**
