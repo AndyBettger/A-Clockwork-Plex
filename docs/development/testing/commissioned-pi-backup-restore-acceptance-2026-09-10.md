@@ -62,13 +62,61 @@ A deliberately conspicuous user-owned configuration was then created for the Bac
 
 - A Clockwork Plex daytime theme: **Crimson Glow**;
 - Master EQ: **Bass +2.0 dB, Mid -1.0 dB, Treble +1.5 dB**;
-- persistent output levels: **Music Master 79%, Plexamp 82%, AirPlay 91%, Maximum Alarm Volume 63%**;
-- Plexamp ordinary portable settings were deliberately flipped from their prior state, including **Show Full Player when starting playback**, Autoplay and Loudness Leveling; exact saved booleans will be confirmed from the schema-v2 backup rather than inferred from prior state;
-- Plexamp Home: **Mixes for you** moved to the top;
+- persistent output levels settled at **Music Master 79%, Plexamp trim 89%, AirPlay trim 93%, Maximum Alarm Volume 63%**;
+- AirPlay session-start volume: **74%**, apply-on-start enabled;
+- Plexamp live player volume deliberately remained a separate runtime value and is not part of portable Backup/Restore;
+- Plexamp ordinary portable settings were deliberately changed, including **Show Full Player when starting playback**, Autoplay and other constructor-default deviations captured by the native-v2 owner;
 - Plexamp Home: **Recent Plays** hidden;
 - Plexamp Home: **Recently Added in Music** presentation changed to **Carousel / Block / 180 px**;
-- Plexamp Home: an **Artist** custom section was added and titled **`ACP Backup Restore Test`**.
+- Plexamp Home: an **Artist** custom section was added and titled **`ACP Backup Restore Test`**;
+- Plexamp Home ordering was then moved far enough to force a complete durable `order` record rather than only custom-section placement.
 
 The Plexamp UI label physically present on this Headless/kiosk build is **Show Full Player when starting playback**; that is the intended setting. The earlier acceptance instruction used imprecise wording, not a kiosk-mode-specific missing option.
 
-**Disposition:** production bridge 1.5.0 installation/reboot precondition is physically accepted, documentation/CI is green, and the deliberate multi-owner restore specimen is ready. The next gate is schema-v2 backup creation and inspection before any Reset mutation is allowed.
+The requested 87% Plexamp persistent trim settled and read back as 89% because the calibrated human percentage is mapped through dB onto ALSA softvol's finite raw steps. The confirmed 89% value is therefore the correct portable acceptance target.
+
+## Schema-v2 export exercise — BLOCKER FOUND BEFORE RESET
+
+The Settings page successfully reported a **complete schema-v2 backup**, and repeated exports contained the expected logical ACP/native/Home-v2 envelope. The final pre-fix specimen included:
+
+- top-level schema version **2**;
+- Crimson Glow theme;
+- EQ **+2.0 / -1.0 / +1.5 dB**;
+- persistent mixer **79 / 89 / 93 / 63%**;
+- AirPlay starting volume **74%**, apply-on-start enabled;
+- Plexamp 4.13.2 native deviations including `audioConversionBitrate`, `autoPlayEnabled`, `cacheSize`, `gridSize`, `sampleRateConversionQuality` and `showFullScreenPlayerOnPlay`;
+- Home-v2 hidden count **1**;
+- Home-v2 presentation count **2**;
+- Home-v2 custom-section count **1**, with portable relative Artist query and title `ACP Backup Restore Test`;
+- after the deliberate second Home move, a complete Home order of **13 entries**.
+
+A recursive inspection found no forbidden credential/auth/player-identity key names.
+
+The full order exposed a previously unrepresented Plexamp identifier family: the final built-in row used a target-scoped Recent Played identifier shaped like:
+
+```text
+music.recent.played.<source-context>./hubs/sections/9
+```
+
+The exact source-context value is deliberately not recorded here. This identifier embeds both target context and the source library section number, contradicting the Home-v2 portability contract that portable files must not carry source context/library identity. The existing browser owner and Python envelope validator had treated it as an ordinary safe-character built-in identifier, so synthetic tests had missed the problem.
+
+**Reset was deliberately not run.** Physical acceptance correctly stopped at the export boundary rather than testing Restore with a known source-bound backup.
+
+## Target-scoped Recent Played portability fix — AUTOMATED GREEN; PHYSICAL RE-EXPORT PENDING
+
+`browser/plexamp-bridge/home-portability-v2.js` now recognises only the proven target-scoped Recent Played form and requires its embedded context/section to match the live source scope. Export converts that physical identifier to the source-free logical marker:
+
+```text
+target-library.music.recent.played
+```
+
+Restore materialises that marker from the destination's live target context and selected library section. A raw target-scoped Recent Played identifier supplied as a supposedly portable logical built-in is rejected by the Home-v2 browser owner.
+
+Implementation commits:
+
+- `2ac1e0569270c3544ba249c68f89b637cf4482d7` — target-scoped Home hub portability owner fix;
+- `ee66d3356baa38b148f98fc852c7109bfbe3f62b` — regression proving source → logical marker → different target remap and rejection of raw source-bound input.
+
+**Tests #4714 passed completely** on `ee66d3356baa38b148f98fc852c7109bfbe3f62b`, including Python compile, JavaScript/page/shell checks and the complete unit/regression suite.
+
+**Disposition:** bridge 1.5.0 installation/reboot remains physically accepted. The first schema-v2 export exercise successfully caught and blocked a real portability leak before Reset. The fix is automated-green; the next gate is to pull the corrected Home-v2 owner onto the commissioned Pi, reload the production kiosk bridge, create a fresh schema-v2 backup and prove that the order contains `target-library.music.recent.played` with no source-context or `/hubs/sections/9` residue. Only then may the accepted #93 Reset → schema-v2 Restore half of the test begin.
