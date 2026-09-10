@@ -40,7 +40,7 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 ### #85 High-resolution audio feasibility audit — COMPLETE; implementation queued
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete, so high-resolution implementation is the next queued product feature once the accepted feature branches are deliberately promoted/merged through the normal branch workflow.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete **and integrated into `develop`**, so high-resolution implementation is the next queued product feature.
 
 Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
 
@@ -139,7 +139,7 @@ The accepted schema-v1 compatibility flow still applies Home before the later se
 
 The complete four-owner Reset transaction, bounded full Home customisation Reset, post-reset convergence and zero-change owner-facing presentation are now physically accepted on the commissioned bedroom Pi. The disposable 9230 scrub/rebuild/rollback rehearsal remains the reversible architecture proof.
 
-PR #9 remains **Draft and unmerged** pending explicit owner approval to leave Draft or merge. That review/merge decision is repository workflow, not an outstanding #93 engineering defect. #89/#90 portable native/Home-v2 Backup/Restore is now also physically accepted; PR #10 remains Draft/unmerged pending the same explicit owner workflow decision.
+Repository integration completed on 10 September 2026 in dependency order: **PR #9** (`feature/reset-defaults`) merged into `develop` as `f6ff3291041f6044a3ea89737a8f06bbdb964736`, then **PR #10** (`feature/backup-restore-completeness`) was retargeted to `develop` and merged as `5baddf318d5ecbe66ca68d16e68819448b2dd6bd`. The resulting `develop` push passed **Tests #4728**.
 
 #### Accepted transaction foundations
 
@@ -308,11 +308,11 @@ The ordering is deliberate: Home must **not** reload immediately after clearing 
 - [x] `activeTab` post-reset navigation residue classified and excluded on the feature branch.
 - [x] Final production pull/restart physically verified **0 meaningful Reset differences** and the compact zero-change Preview presentation.
 
-The #89/#90 complete portable Plexamp Backup/Restore follow-up is now physically accepted. PR #9 and PR #10 remain Draft/unmerged until explicit owner approval.
+The #89/#90 complete portable Plexamp Backup/Restore follow-up is physically accepted and now integrated into `develop` together with #93 Reset. The Settings/appliance-ownership track is therefore closed on the integration branch.
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
-The Settings/appliance-ownership engineering track is now physically closed. High-resolution audio is the next implementation area after the accepted feature branches are deliberately promoted through the normal repository workflow.
+**High-resolution audio is the next implementation area.** Continue to protect the commissioned production SD; destructive route/lifecycle experiments belong on the spare SD.
 
 ## Agreed implementation order
 
