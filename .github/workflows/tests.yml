@@ -171,15 +171,17 @@ jobs:
           grep -q "acp-plexamp-home-reset-plan-request-v1" browser/plexamp-bridge/reset.js
           grep -q "acp-plexamp-home-reset-apply-request-v1" browser/plexamp-bridge/reset.js
           grep -q "viewSettings" browser/plexamp-bridge/reset.js
-          grep -Fq '"version": "1.4.0"' browser/plexamp-bridge/manifest.json
+          grep -Fq '"version": "1.5.0"' browser/plexamp-bridge/manifest.json
           grep -q "acp-plexamp-native-reset-plan-request-v1" app/static/js/plexamp-native-reset-bridge.js
           grep -q "acp-plexamp-native-reset-apply-request-v1" browser/plexamp-bridge/native-reset.js
           grep -q "changed_keys" browser/plexamp-bridge/native-reset.js
           grep -Fq "global.app.rootStore" browser/plexamp-bridge/native-reset.js
           ! grep -q "PRESERVED_PORTABLE_HEADLESS_KEYS" browser/plexamp-bridge/native-reset.js
           grep -q "chrome.runtime.getURL('native-reset.js')" browser/plexamp-bridge/reset.js
-          grep -Fq '"js": ["content.js", "reset.js"]' browser/plexamp-bridge/manifest.json
-          grep -Fq '"resources": ["native-reset.js"]' browser/plexamp-bridge/manifest.json
+          grep -Fq '"js": ["content.js", "reset.js", "portability.js"]' browser/plexamp-bridge/manifest.json
+          grep -Fq '"resources": ["native-reset.js", "native-portability.js", "home-portability-v2.js"]' browser/plexamp-bridge/manifest.json
+          grep -q "native-portability.js" browser/plexamp-bridge/portability.js
+          grep -q "home-portability-v2.js" browser/plexamp-bridge/portability.js
           grep -q "PlexampPreferenceManager" app/runner.py
           grep -q "plexamp_preference_status=plexamp_preferences.status" app/runner.py
           grep -q "plexamp_preference_apply=plexamp_preferences.apply" app/runner.py

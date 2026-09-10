@@ -98,7 +98,7 @@ function mixedSource() {{
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
         return json.loads(result.stdout)
 
-    def test_owner_has_valid_javascript_syntax_and_remains_dormant(self):
+    def test_owner_has_valid_javascript_syntax_and_is_production_activated(self):
         result = subprocess.run(
             ["node", "--check", str(OWNER)],
             cwd=ROOT,
@@ -108,9 +108,15 @@ function mixedSource() {{
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
-        manifest = MANIFEST.read_text(encoding="utf-8")
-        self.assertNotIn("home-portability-v2.js", manifest)
-        self.assertIn('"version": "1.4.0"', manifest)
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["version"], "1.5.0")
+        self.assertIn("portability.js", manifest["content_scripts"][0]["js"])
+        resources = {
+            name
+            for block in manifest["web_accessible_resources"]
+            for name in block["resources"]
+        }
+        self.assertIn("home-portability-v2.js", resources)
 
         source = OWNER.read_text(encoding="utf-8")
         self.assertNotIn("localStorage.clear", source)

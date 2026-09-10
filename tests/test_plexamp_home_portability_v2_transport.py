@@ -36,13 +36,32 @@ class PlexampHomePortabilityV2TransportTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
-    def test_production_manifest_keeps_complete_portability_transport_dormant(self):
+    def test_production_manifest_activates_complete_portability_transport(self):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["version"], "1.4.0")
-        text = MANIFEST.read_text(encoding="utf-8")
-        self.assertNotIn("portability.js", text)
-        self.assertNotIn("native-portability.js", text)
-        self.assertNotIn("home-portability-v2.js", text)
+        self.assertEqual(manifest["version"], "1.5.0")
+        self.assertNotIn("permissions", manifest)
+        self.assertNotIn("host_permissions", manifest)
+        self.assertNotIn("background", manifest)
+
+        scripts = manifest["content_scripts"]
+        self.assertEqual(len(scripts), 1)
+        self.assertEqual(scripts[0]["js"], ["content.js", "reset.js", "portability.js"])
+        self.assertEqual(
+            set(scripts[0]["matches"]),
+            {"http://localhost:32500/*", "http://127.0.0.1:32500/*"},
+        )
+        self.assertTrue(scripts[0]["all_frames"])
+
+        resources = manifest["web_accessible_resources"]
+        self.assertEqual(len(resources), 1)
+        self.assertEqual(
+            set(resources[0]["resources"]),
+            {"native-reset.js", "native-portability.js", "home-portability-v2.js"},
+        )
+        self.assertEqual(
+            set(resources[0]["matches"]),
+            {"http://localhost:32500/*", "http://127.0.0.1:32500/*"},
+        )
 
         loader = PORTABILITY_LOADER.read_text(encoding="utf-8")
         self.assertIn("native-portability.js", loader)
