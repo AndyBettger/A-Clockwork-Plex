@@ -4,7 +4,7 @@
 
 Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. The feed/cache/API foundation, touchscreen News page, News Settings workspace, startup/idle integration and stale-cache behaviour have all been exercised on the Raspberry Pi. The final acceptance pass completed across 31 August and 1 September 2026.
 
-A post-#92 article hand-off enhancement is now implemented on `feature/news-article-qr`: tapping a story still opens the existing local detail panel, while a locally generated QR code can hand the validated BBC article address to a phone. Automated validation is required before commissioned-Pi/iPhone acceptance; the original #92 acceptance remains valid independently of this follow-up.
+The post-#92 article hand-off enhancement on `feature/news-article-qr` is also physically accepted on the commissioned appliance. On 11 September 2026 the normal repeat `bash setup.sh` convergence succeeded, the locally generated QR code rendered and scanned from the Touch Display 2, and the owner's iPhone handed the ordinary BBC HTTPS article link directly to the installed BBC News app rather than Safari. The original #92 acceptance remains valid independently of this bounded follow-up.
 
 ## Feed authority
 
@@ -62,7 +62,7 @@ The private cache may retain this canonical URL, but `/api/news` projects each s
 
 QR SVG is generated locally with the Python `qrcode` package using a normal four-module quiet-zone border and medium error correction. No Google Charts, QR SaaS, redirector or other third party receives the selected article URL.
 
-The QR contains the normal canonical BBC HTTPS article address rather than an undocumented BBC custom URL scheme. That keeps the hand-off standards-based: iOS can pass a supported Universal Link to the BBC News app when the installed app/BBC association permits it, otherwise the same address opens normally in the browser. The appliance makes no promise that iOS will always choose the app; that behaviour is an explicit physical-acceptance item.
+The QR contains the normal canonical BBC HTTPS article address rather than an undocumented BBC custom URL scheme. That keeps the hand-off standards-based: iOS can pass a supported Universal Link to the BBC News app when the installed app/BBC association permits it, otherwise the same address opens normally in the browser. Physical acceptance on the owner's iPhone confirmed that the current installed BBC News app claims this HTTPS hand-off directly.
 
 The detail panel does not reveal an empty QR placeholder. It requests the local SVG only when a story is opened and shows the hand-off panel only after that image has loaded successfully. Missing/rejected links therefore leave the pre-existing title/summary dialog intact.
 
@@ -148,14 +148,13 @@ Checkpoint #92 physical acceptance at 1280×720 confirms:
 - cached/stale presentation during a real Wi-Fi interruption with stories/ticker retained;
 - navigation back to the other dashboard surfaces without regression.
 
-The article-QR follow-up still requires a focused commissioned-appliance acceptance pass:
+The focused article-QR follow-up was physically accepted on 11 September 2026:
 
-- detail modal remains usable and comfortably fitted at 1280×720 with QR present;
-- stories lacking a usable link retain the ordinary detail dialog without broken placeholders;
-- QR scans reliably from the Touch Display 2;
-- scanned content resolves to the intended BBC article;
-- on the owner's iPhone, record whether the current BBC News app claims the HTTPS Universal Link or Safari handles it;
-- kiosk Chromium itself never navigates away from ACP;
-- existing cached/stale News behaviour remains intact.
+- normal repeat `bash setup.sh` convergence completed successfully on the commissioned appliance;
+- the article detail/QR presentation rendered successfully at the production 1280×720 geometry;
+- the QR scanned successfully from the Touch Display 2;
+- the scanned ordinary BBC HTTPS link was claimed by the installed BBC News app on the owner's iPhone rather than opening in Safari;
+- kiosk Chromium retains no article anchor/navigation action; the outbound hand-off remains phone-owned;
+- missing/rejected-link fallback, public-API link stripping and cache/feed failure isolation remain covered by the automated regression suite and the already accepted #92 stale-cache behaviour.
 
-Checkpoint #92 remains complete; the QR enhancement is a bounded post-checkpoint follow-up pending the acceptance items above.
+Checkpoint #92 and its bounded article-QR enhancement are physically accepted. The feature branch can now move to normal integration review without any remaining commissioned-appliance product gate.
