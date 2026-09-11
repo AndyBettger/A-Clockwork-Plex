@@ -135,11 +135,11 @@ The accepted schema-v1 compatibility flow still applies Home before the later se
 - [x] `/api/news` public story model remains link-free; no outbound article navigation from kiosk Chromium.
 - [x] Last-good cache, stale/degraded presentation and Top Stories ticker physically accepted.
 - [x] Settings, News page, touch scrolling, startup/idle-return and Wi-Fi-loss recovery physically accepted.
-- [x] Article hand-off implemented on `feature/news-article-qr`: a strictly validated/canonical BBC News HTTPS URL is retained only in the private cache and resolved through an opaque story id.
+- [x] Article hand-off retains the absolute HTTPS destination supplied by the fixed BBC RSS item in the private cache, using `<link>` first and a valid HTTPS `<guid>` fallback; there is deliberately no `/news/` path restriction.
 - [x] QR SVG is generated locally on the appliance; no third-party QR service receives the selected article URL and the browser accepts no arbitrary URL-to-QR input.
 - [x] Touch detail modal shows the QR hand-off only after a valid local QR loads; a missing/rejected article link leaves the existing local story detail intact.
-- [x] Automated compile, JavaScript/page/shell checks and full unit/regression suite passed in **Tests #4732** on `4d38a5d0eb8d69d180b1517c2e910fcc454804a1`.
-- [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS` (**0 failures / 0 warnings**), the QR rendered and scanned from the Touch Display 2, and the ordinary BBC HTTPS hand-off opened directly in the installed BBC News iOS app rather than Safari; kiosk Chromium retains no article-navigation action.
+- [x] Initial automated compile, JavaScript/page/shell checks and full unit/regression suite passed in **Tests #4732** on `4d38a5d0eb8d69d180b1517c2e910fcc454804a1`; trusted-RSS destination/GUID-fallback refinement passed the complete gate in **Tests #4749** on `40becde8815e5051efc24c61ca50a3abb5806c9c`.
+- [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS` (**0 failures / 0 warnings**), QR codes rendered and scanned from the Touch Display 2, normal BBC News URLs continued to open directly in the installed BBC News iOS app, and the live **“El Niño likely to cause wetter and warmer-than-normal autumn”** BBC Weather destination gained a QR and opened correctly in Chrome; kiosk Chromium retained ACP throughout.
 
 ### #93 Reset-to-defaults workflow — COMPLETE
 
@@ -336,6 +336,19 @@ Unless deliberately reprioritised:
 This priority list is authoritative.
 
 ## Future product backlog
+
+### BBC News configurable sections
+
+Goal: extend the accepted News screen from the fixed five-section starter set to a user-owned ordered set of BBC RSS sections without turning ACP into an unrestricted RSS reader.
+
+- [ ] Preserve Top Stories, UK, World, Science and Technology as the out-of-box defaults.
+- [ ] Provide a friendly built-in catalogue for additional BBC feeds plus an advanced way to add a BBC-owned HTTPS RSS URL that is not yet catalogued.
+- [ ] Validate a candidate feed before saving it, derive a sensible default title, and retain a stable internal section id separate from the displayed label.
+- [ ] Allow sections to be enabled/disabled, reordered and optionally renamed; the default News section must remain one of the enabled entries.
+- [ ] Keep the existing Top Stories ticker source independent initially rather than coupling ticker behaviour to section customisation.
+- [ ] Include logical section configuration in portable Backup/Restore while continuing to exclude downloaded RSS/cache state.
+- [ ] Preserve cache-first/stale behaviour and the accepted link-free public story model/phone-owned QR hand-off boundary.
+- [ ] Add 1280×720 Settings/News physical acceptance for a mixed default + added-section configuration.
 
 ### High-resolution Plexamp audio / mixer-EQ path
 
