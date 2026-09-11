@@ -4,7 +4,7 @@
 
 Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. The feed/cache/API foundation, touchscreen News page, News Settings workspace, startup/idle integration and stale-cache behaviour have all been exercised on the Raspberry Pi. The final acceptance pass completed across 31 August and 1 September 2026.
 
-The post-#92 article hand-off enhancement on `feature/news-article-qr` passed its initial commissioned-appliance acceptance on 11 September 2026: the normal repeat `bash setup.sh` convergence completed successfully and its final appliance verifier reported `APPLIANCE_VERIFY=PASS` with **0 failures / 0 warnings**; the locally generated QR rendered and scanned from the Touch Display 2; and the owner's iPhone handed the ordinary BBC HTTPS article link directly to the installed BBC News app rather than Safari. A later live BBC Science feed specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — exposed that the first implementation was too narrow because BBC legitimately supplied a `/weather/articles/...` destination rather than `/news/...`. The branch now trusts absolute HTTPS destinations supplied by the fixed BBC RSS feeds, with `<link>` first and a valid HTTPS `<guid>` fallback. A focused physical recheck of that Weather specimen remains before PR #11 integration.
+The post-#92 article hand-off enhancement on `feature/news-article-qr` is now also physically accepted. The initial 11 September 2026 commissioned-appliance gate proved normal repeat `bash setup.sh` convergence with `APPLIANCE_VERIFY=PASS` and **0 failures / 0 warnings**, QR rendering/scanning from the Touch Display 2, and direct iOS hand-off of an ordinary BBC News HTTPS article to the installed BBC News app. A later live BBC Science feed specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — exposed that the first `/news/`-only destination rule was too narrow because BBC legitimately supplied a `/weather/articles/...` destination. The refined branch now trusts absolute HTTPS destinations supplied by the fixed BBC RSS feeds, using `<link>` first and a valid HTTPS `<guid>` fallback. The focused physical recheck passed: the Weather specimen gained a QR and opened correctly in Chrome, while normal BBC News article links continued to open directly in the BBC News app. Kiosk Chromium remained on ACP throughout.
 
 ## Feed authority
 
@@ -60,7 +60,7 @@ This broader destination trust does **not** make the appliance a generic URL-to-
 
 QR SVG is generated locally with the Python `qrcode` package using a normal four-module quiet-zone border and medium error correction. No Google Charts, QR SaaS, redirector or other third party receives the selected article URL.
 
-The QR contains the ordinary HTTPS address supplied by the BBC RSS item rather than an undocumented BBC custom URL scheme. That keeps the hand-off standards-based: iOS can pass a supported Universal Link to an installed BBC app when the app/site association permits it, otherwise the same address opens normally in the browser. Initial physical acceptance on the owner's iPhone confirmed that a BBC News article URL was claimed directly by the installed BBC News app.
+The QR contains the ordinary HTTPS address supplied by the BBC RSS item rather than an undocumented BBC custom URL scheme. That keeps the hand-off standards-based: iOS can pass a supported Universal Link to an installed BBC app when the app/site association permits it, otherwise the same address opens normally in the browser. Physical acceptance now confirms both behaviours on the owner's iPhone: BBC News article URLs are claimed directly by the installed BBC News app, while the BBC Weather article specimen opens in Chrome because it is outside the News app's associated URL space.
 
 The detail panel does not reveal an empty QR placeholder. It requests the local SVG only when a story is opened and shows the hand-off panel only after that image has loaded successfully. Missing/rejected links therefore leave the pre-existing title/summary dialog intact.
 
@@ -146,14 +146,15 @@ Checkpoint #92 physical acceptance at 1280×720 confirms:
 - cached/stale presentation during a real Wi-Fi interruption with stories/ticker retained;
 - navigation back to the other dashboard surfaces without regression.
 
-The initial article-QR follow-up acceptance on 11 September 2026 confirmed:
+The article-QR follow-up is physically accepted on the commissioned appliance:
 
-- normal repeat `bash setup.sh` convergence completed successfully on the commissioned appliance and the final verifier reported `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**;
+- normal repeat `bash setup.sh` convergence completed successfully and the final verifier reported `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**;
 - the article detail/QR presentation rendered successfully at the production 1280×720 geometry;
-- a QR scanned successfully from the Touch Display 2;
-- the scanned BBC News HTTPS link was claimed by the installed BBC News app on the owner's iPhone rather than opening in Safari;
-- kiosk Chromium retains no article anchor/navigation action; the outbound hand-off remains phone-owned.
+- QR codes scanned successfully from the Touch Display 2;
+- ordinary BBC News HTTPS article links were claimed by the installed BBC News app on the owner's iPhone;
+- the live **“El Niño likely to cause wetter and warmer-than-normal autumn”** BBC Science-feed specimen gained a QR after the trusted-RSS refinement and its BBC Weather URL opened correctly in Chrome;
+- the differing app/browser destinations therefore reflect iOS Universal Link ownership rather than an ACP routing decision;
+- kiosk Chromium retained the ACP kiosk throughout and still exposes no article anchor or arbitrary URL-to-QR input;
+- missing/unusable-destination fallback, public-API link stripping and cache/feed failure isolation remain covered by the automated regression suite and the already accepted #92 stale-cache behaviour.
 
-A subsequent live feed check found a missing QR for **“El Niño likely to cause wetter and warmer-than-normal autumn”** because its BBC RSS `<link>` is a BBC Weather article outside `/news/`. The trusted-RSS destination refinement now covers that case and adds HTTPS-GUID fallback. The remaining focused gate is to pull the refined branch on the commissioned Pi, let the schema-3 cache rebuild, confirm that exact Weather story now gains a QR, scan it successfully, and verify ACP Chromium remains on the kiosk.
-
-Checkpoint #92 itself remains complete. PR #11 stays Draft until this final QR-destination recheck passes.
+Checkpoint #92 and its bounded article-QR enhancement are physically accepted. PR #11 has no remaining commissioned-appliance product gate and can move to normal integration review when the owner approves merge.
