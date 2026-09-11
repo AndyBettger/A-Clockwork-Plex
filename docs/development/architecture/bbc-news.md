@@ -4,7 +4,7 @@
 
 Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. The feed/cache/API foundation, touchscreen News page, News Settings workspace, startup/idle integration and stale-cache behaviour have all been exercised on the Raspberry Pi. The final acceptance pass completed across 31 August and 1 September 2026.
 
-The post-#92 article hand-off enhancement on `feature/news-article-qr` is also physically accepted on the commissioned appliance. On 11 September 2026 the normal repeat `bash setup.sh` convergence succeeded, the locally generated QR code rendered and scanned from the Touch Display 2, and the owner's iPhone handed the ordinary BBC HTTPS article link directly to the installed BBC News app rather than Safari. The original #92 acceptance remains valid independently of this bounded follow-up.
+The post-#92 article hand-off enhancement on `feature/news-article-qr` is also physically accepted on the commissioned appliance. On 11 September 2026 the normal repeat `bash setup.sh` convergence completed successfully and its final appliance verifier reported `APPLIANCE_VERIFY=PASS` with **0 failures / 0 warnings**. The locally generated QR code rendered and scanned from the Touch Display 2, and the owner's iPhone handed the ordinary BBC HTTPS article link directly to the installed BBC News app rather than Safari. The original #92 acceptance remains valid independently of this bounded follow-up.
 
 ## Feed authority
 
@@ -150,7 +150,7 @@ Checkpoint #92 physical acceptance at 1280×720 confirms:
 
 The focused article-QR follow-up was physically accepted on 11 September 2026:
 
-- normal repeat `bash setup.sh` convergence completed successfully on the commissioned appliance;
+- normal repeat `bash setup.sh` convergence completed successfully on the commissioned appliance and the final verifier reported `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**;
 - the article detail/QR presentation rendered successfully at the production 1280×720 geometry;
 - the QR scanned successfully from the Touch Display 2;
 - the scanned ordinary BBC HTTPS link was claimed by the installed BBC News app on the owner's iPhone rather than opening in Safari;
