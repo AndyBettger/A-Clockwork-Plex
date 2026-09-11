@@ -139,7 +139,7 @@ The accepted schema-v1 compatibility flow still applies Home before the later se
 - [x] QR SVG is generated locally on the appliance; no third-party QR service receives the selected article URL and the browser accepts no arbitrary URL-to-QR input.
 - [x] Touch detail modal shows the QR hand-off only after a valid local QR loads; a missing/rejected article link leaves the existing local story detail intact.
 - [x] Automated compile, JavaScript/page/shell checks and full unit/regression suite passed in **Tests #4732** on `4d38a5d0eb8d69d180b1517c2e910fcc454804a1`.
-- [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: repeat `bash setup.sh` converged, the QR rendered and scanned from the Touch Display 2, and the ordinary BBC HTTPS hand-off opened directly in the installed BBC News iOS app rather than Safari; kiosk Chromium retains no article-navigation action.
+- [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS` (**0 failures / 0 warnings**), the QR rendered and scanned from the Touch Display 2, and the ordinary BBC HTTPS hand-off opened directly in the installed BBC News iOS app rather than Safari; kiosk Chromium retains no article-navigation action.
 
 ### #93 Reset-to-defaults workflow — COMPLETE
 
