@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 10 September 2026  
+**Last updated:** 11 September 2026  
 **Active integration branch:** `develop`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
@@ -18,6 +18,7 @@ Specialist authorities:
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
 - [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and Home completeness;
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and physical/product gate;
+- [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News plus the physically accepted article-QR hand-off follow-up;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
 Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not this development roadmap.
@@ -40,7 +41,7 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 ### #85 High-resolution audio feasibility audit — COMPLETE; implementation queued
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete **and integrated into `develop`**, so high-resolution implementation is the next queued product feature.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. The Settings/appliance-ownership engineering track (#88–#93) is now physically complete **and integrated into `develop`**, and the bounded #92 article-QR follow-up is physically accepted. High-resolution implementation is therefore the next major product feature.
 
 Before production mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The **accepted production SD remains protected**; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
 
@@ -111,7 +112,7 @@ Accepted constraints:
 - [x] Schema-v2 server stale protection no longer fingerprints the legacy Headless observer/capability participant, so legitimate browser-owned native changes before ACP cannot create a false stale conflict; schema-v1 keeps its original Headless stale protection.
 - [x] The automated-green v2 transaction is wired into the real Settings **Preview → choose target → Review → Confirm** path while old schema-v1 backups retain their accepted compatibility path.
 - [x] Production bridge **1.5.0** loads `portability.js` plus only the bounded `native-portability.js` and `home-portability-v2.js` page-world resources alongside the existing Reset bridge; no extension permissions, host permissions, background authority, DevTools or remote-debug surface were added.
-- [x] **Tests #4704** passed the complete bridge-activation gate on `6a212689cd42dd96edcaf4e2869df51cde231689`: compile, JavaScript/page/shell wiring, activation/security guards, #93 Reset/commissioning regressions and full unit/regression suite all green.
+- [x] **Tests #4704** passed the complete bridge-activation gate on `6a212689cd42dd96edcaf4e2869df51cde231689`: compile, JavaScript/page wiring/shell checks, activation/security guards, #93 Reset/commissioning regressions and full unit/regression suite all green.
 - [x] Commissioned-Pi repeat-install + genuine-reboot precondition passed on `fb5e77c3a3c8caf6e23ab9def68110dd9636be5e`; bridge 1.5.0 is physically loaded by the normal production kiosk with no remote-debugging interface and the post-reboot appliance verifier is green.
 - [x] Canonical schema-v2 physical restore specimen accepted before Reset: Crimson Glow, EQ +2/-1/+1.5 dB, persistent mixer 79/89/93/63%, AirPlay start 74%, six native deviations and full logical Home-v2 state including source-free target-library Recent Played remapping.
 - [x] Accepted #93 Reset Preview physically passed against that specimen: **26 server-owned + 7 Plexamp native + 5 Home = 38 selected changes**, no warning/incomplete state, commissioning already matched the captured player-name baseline and managed output, and Preview remained read-only.
@@ -128,12 +129,17 @@ The accepted schema-v1 compatibility flow still applies Home before the later se
 - [x] General Plexamp text fields physically accepted for Home title, Smart Playlist name/description, Home Screen section title and Player Name.
 - [x] Bridge remains permission-free, loopback-only and excludes login/password fields.
 
-### #92 BBC News — COMPLETE
+### #92 BBC News — COMPLETE; ARTICLE QR FOLLOW-UP PHYSICALLY ACCEPTED
 
 - [x] BBC RSS-only feed/cache authority for Top Stories, UK, World, Science and Technology.
-- [x] Public model strips article links/GUIDs; no outbound article navigation.
+- [x] `/api/news` public story model remains link-free; no outbound article navigation from kiosk Chromium.
 - [x] Last-good cache, stale/degraded presentation and Top Stories ticker physically accepted.
 - [x] Settings, News page, touch scrolling, startup/idle-return and Wi-Fi-loss recovery physically accepted.
+- [x] Article hand-off retains the absolute HTTPS destination supplied by the fixed BBC RSS item in the private cache, using `<link>` first and a valid HTTPS `<guid>` fallback; there is deliberately no `/news/` path restriction.
+- [x] QR SVG is generated locally on the appliance; no third-party QR service receives the selected article URL and the browser accepts no arbitrary URL-to-QR input.
+- [x] Touch detail modal shows the QR hand-off only after a valid local QR loads; a missing/rejected article link leaves the existing local story detail intact.
+- [x] Initial automated compile, JavaScript/page/shell checks and full unit/regression suite passed in **Tests #4732** on `4d38a5d0eb8d69d180b1517c2e910fcc454804a1`; trusted-RSS destination/GUID-fallback refinement passed the complete gate in **Tests #4749** on `40becde8815e5051efc24c61ca50a3abb5806c9c`.
+- [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS` (**0 failures / 0 warnings**), QR codes rendered and scanned from the Touch Display 2, normal BBC News URLs continued to open directly in the installed BBC News iOS app, and the live **“El Niño likely to cause wetter and warmer-than-normal autumn”** BBC Weather destination gained a QR and opened correctly in Chrome; kiosk Chromium retained ACP throughout.
 
 ### #93 Reset-to-defaults workflow — COMPLETE
 
@@ -312,7 +318,7 @@ The #89/#90 complete portable Plexamp Backup/Restore follow-up is physically acc
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
-**High-resolution audio is the next implementation area.** Continue to protect the commissioned production SD; destructive route/lifecycle experiments belong on the spare SD.
+**High-resolution audio is the next major implementation area.** Continue to protect the commissioned production SD; destructive route/lifecycle experiments belong on the spare SD.
 
 ## Agreed implementation order
 
@@ -321,7 +327,7 @@ Unless deliberately reprioritised:
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE through #93, including schema-v2 Backup/Restore
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
-4. **BBC News** — COMPLETE #92
+4. **BBC News** — COMPLETE #92, including physically accepted article-QR hand-off
 5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT
 6. **Astronomy**
 7. **Appliance resilience**
@@ -330,6 +336,19 @@ Unless deliberately reprioritised:
 This priority list is authoritative.
 
 ## Future product backlog
+
+### BBC News configurable sections
+
+Goal: extend the accepted News screen from the fixed five-section starter set to a user-owned ordered set of BBC RSS sections without turning ACP into an unrestricted RSS reader.
+
+- [ ] Preserve Top Stories, UK, World, Science and Technology as the out-of-box defaults.
+- [ ] Provide a friendly built-in catalogue for additional BBC feeds plus an advanced way to add a BBC-owned HTTPS RSS URL that is not yet catalogued.
+- [ ] Validate a candidate feed before saving it, derive a sensible default title, and retain a stable internal section id separate from the displayed label.
+- [ ] Allow sections to be enabled/disabled, reordered and optionally renamed; the default News section must remain one of the enabled entries.
+- [ ] Keep the existing Top Stories ticker source independent initially rather than coupling ticker behaviour to section customisation.
+- [ ] Include logical section configuration in portable Backup/Restore while continuing to exclude downloaded RSS/cache state.
+- [ ] Preserve cache-first/stale behaviour and the accepted link-free public story model/phone-owned QR hand-off boundary.
+- [ ] Add 1280×720 Settings/News physical acceptance for a mixed default + added-section configuration.
 
 ### High-resolution Plexamp audio / mixer-EQ path
 

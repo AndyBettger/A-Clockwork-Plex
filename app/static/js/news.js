@@ -4,10 +4,12 @@
   window.__aClockworkPlexNewsLoaded = true;
 
   const API = '/api/news';
+  const ARTICLE_QR_API = '/api/news/story';
   const MAX_VISIBLE_STORIES = 24;
   const MAX_TICKER_STORIES = 12;
   const TICKER_PIXELS_PER_SECOND = Object.freeze({ slow: 30, normal: 45, fast: 65 });
   const SAFE_LOGO_SUFFIXES = ['bbc.co.uk', 'bbci.co.uk', 'bbcimg.co.uk', 'bbc.com'];
+  const STORY_ID_PATTERN = /^[0-9a-f]{20}$/i;
 
   const page = document.querySelector('.news-page');
   const categoryMount = document.querySelector('[data-news-categories]');
@@ -26,12 +28,15 @@
   const detailMeta = document.querySelector('[data-news-detail-meta]');
   const detailTitle = document.querySelector('[data-news-detail-title]');
   const detailSummary = document.querySelector('[data-news-detail-summary]');
+  const detailHandoff = document.querySelector('[data-news-detail-handoff]');
+  const detailQr = document.querySelector('[data-news-detail-qr]');
   const detailClose = document.querySelector('[data-news-detail-close]');
 
   let snapshot = null;
   let activeCategory = null;
   let refreshTimer = null;
   let logoSource = '';
+  let detailStoryId = '';
   let updateStoryScrollbar = () => {};
 
   function text(value) {
@@ -296,17 +301,37 @@
     return parts.join(' · ');
   }
 
+  function prepareArticleQr(story) {
+    detailStoryId = '';
+    if (detailHandoff) detailHandoff.hidden = true;
+    if (!detailQr) return;
+    detailQr.removeAttribute('src');
+    detailQr.removeAttribute('data-story-id');
+    const storyId = text(story?.id).toLowerCase();
+    if (!STORY_ID_PATTERN.test(storyId)) return;
+    detailStoryId = storyId;
+    detailQr.dataset.storyId = storyId;
+    detailQr.src = `${ARTICLE_QR_API}/${encodeURIComponent(storyId)}/qr.svg`;
+  }
+
   function openDetail(story) {
     if (!detail || !detailTitle || !detailSummary || !detailMeta) return;
     detailMeta.textContent = storyMeta(story);
     detailTitle.textContent = text(story.title) || 'BBC News story';
     detailSummary.textContent = text(story.summary) || 'No additional feed summary is available for this story.';
+    prepareArticleQr(story);
     detail.hidden = false;
     detailClose?.focus?.({ preventScroll: true });
   }
 
   function closeDetail() {
     if (detail) detail.hidden = true;
+    detailStoryId = '';
+    if (detailHandoff) detailHandoff.hidden = true;
+    if (detailQr) {
+      detailQr.removeAttribute('src');
+      detailQr.removeAttribute('data-story-id');
+    }
   }
 
   function renderStories() {
@@ -438,6 +463,18 @@
   logo?.addEventListener('error', () => {
     logo.hidden = true;
     if (logoFallback) logoFallback.hidden = false;
+  });
+  detailQr?.addEventListener('load', () => {
+    const loadedStoryId = text(detailQr.dataset.storyId).toLowerCase();
+    if (!loadedStoryId || loadedStoryId !== detailStoryId || detail?.hidden) return;
+    if (detailHandoff) detailHandoff.hidden = false;
+  });
+  detailQr?.addEventListener('error', () => {
+    const failedStoryId = text(detailQr.dataset.storyId).toLowerCase();
+    if (failedStoryId && failedStoryId === detailStoryId && detailHandoff) {
+      detailHandoff.hidden = true;
+    }
+    detailQr.removeAttribute('src');
   });
   detailClose?.addEventListener('click', closeDetail);
   detail?.addEventListener('click', (event) => {

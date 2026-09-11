@@ -15,10 +15,12 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from flask import Flask, jsonify
+import qrcode
+import qrcode.image.svg
+from flask import Flask, Response, jsonify
 
 
-CACHE_SCHEMA_VERSION = 1
+CACHE_SCHEMA_VERSION = 3
 DEFAULT_REFRESH_MINUTES = 15
 DEFAULT_TIMEOUT_SECONDS = 8
 DEFAULT_STALE_HOURS = 6
@@ -51,6 +53,7 @@ DEFAULT_ENABLED_CATEGORIES = tuple(BBC_FEEDS)
 TICKER_SPEEDS = {"slow", "normal", "fast"}
 _SAFE_IMAGE_HOST_SUFFIXES = ("bbc.co.uk", "bbci.co.uk", "bbcimg.co.uk", "bbc.com")
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_STORY_ID_RE = re.compile(r"^[0-9a-f]{20}$")
 
 FetchBytes = Callable[[str, float], bytes]
 ConfigProvider = Callable[[], dict[str, Any]]
@@ -148,6 +151,78 @@ def _safe_image_url(value: Any) -> str | None:
     if not any(host == suffix or host.endswith(f".{suffix}") for suffix in _SAFE_IMAGE_HOST_SUFFIXES):
         return None
     return text
+
+
+def _safe_article_url(value: Any) -> str | None:
+    """Return an absolute HTTPS destination supplied by a trusted RSS item.
+
+    The News service itself fetches only its configured BBC feeds.  Article
+    destinations are therefore treated as feed-owned data rather than browser
+    input: preserve the exact HTTPS URL the feed supplied, while rejecting
+    malformed, relative, credential-bearing or non-HTTPS values.
+    """
+
+    text = str(value or "").strip()
+    if not text or _CONTROL_RE.search(text) or any(character.isspace() for character in text):
+        return None
+    try:
+        parsed = urlparse(text)
+        _ = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme.casefold() != "https" or not parsed.netloc or not parsed.hostname:
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    return text
+
+
+def _public_story(item: Any) -> dict[str, Any] | None:
+    """Project one cached story onto the intentionally link-free public API."""
+
+    if not isinstance(item, dict):
+        return None
+    story_id = str(item.get("id") or "").strip().casefold()
+    if not _STORY_ID_RE.fullmatch(story_id):
+        return None
+    return {
+        "id": story_id,
+        "title": item.get("title"),
+        "summary": item.get("summary"),
+        "published_at": item.get("published_at"),
+        "category": item.get("category"),
+    }
+
+
+def _public_feed(feed: Any) -> dict[str, Any]:
+    """Strip private QR hand-off data from a cached feed before JSON output."""
+
+    source = _object(feed)
+    public = {key: deepcopy(value) for key, value in source.items() if key != "items"}
+    items: list[dict[str, Any]] = []
+    for item in source.get("items", []) if isinstance(source.get("items"), list) else []:
+        projected = _public_story(item)
+        if projected is not None:
+            items.append(projected)
+    public["items"] = items
+    return public
+
+
+def render_article_qr_svg(value: Any) -> bytes:
+    """Render a locally generated QR code for one trusted RSS HTTPS destination."""
+
+    article_url = _safe_article_url(value)
+    if article_url is None:
+        raise ValueError("RSS article URL is not a valid absolute HTTPS destination.")
+    code = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=4,
+    )
+    code.add_data(article_url)
+    code.make(fit=True)
+    image = code.make_image(image_factory=qrcode.image.svg.SvgPathFillImage)
+    return image.to_string()
 
 
 def _feed_ttl(value: Any) -> int | None:
@@ -279,11 +354,9 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
             continue
         summary = _plain_text(_child_text(item, "description"), maximum=1600)
         published_at = _published_iso(_child_text(item, "pubDate"))
-        identity_source = (
-            _child_text(item, "guid")
-            or _child_text(item, "link")
-            or f"{title}|{published_at or ''}"
-        )
+        link = _child_text(item, "link")
+        guid = _child_text(item, "guid")
+        identity_source = guid or link or f"{title}|{published_at or ''}"
         story_id = hashlib.sha256(identity_source.encode("utf-8", errors="replace")).hexdigest()[:20]
         if story_id in seen:
             continue
@@ -295,6 +368,7 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
                 "summary": summary,
                 "published_at": published_at,
                 "category": category,
+                "article_url": _safe_article_url(link) or _safe_article_url(guid),
             }
         )
         if len(stories) >= MAX_ITEMS_PER_FEED:
@@ -500,6 +574,8 @@ class BBCNewsFeedService:
                 state["status"] = "stale"
             state["stale"] = stale
             state["label"] = BBC_FEEDS[category]["label"]
+            if state.get("feed"):
+                state["feed"] = _public_feed(state.get("feed"))
             output_categories[category] = state
 
         top_state = _object(_object(stored.get("categories")).get("top"))
@@ -557,6 +633,25 @@ class BBCNewsFeedService:
             },
         }
 
+    def article_url_for(self, story_id: Any) -> str | None:
+        """Resolve one opaque public story id to its private trusted RSS URL."""
+
+        candidate = str(story_id or "").strip().casefold()
+        if not _STORY_ID_RE.fullmatch(candidate):
+            return None
+        with self._lock:
+            categories = deepcopy(_object(self._cache.get("categories")))
+        for state in categories.values():
+            feed = _object(_object(state).get("feed"))
+            items = feed.get("items", []) if isinstance(feed.get("items"), list) else []
+            for item in items:
+                if not isinstance(item, dict) or item.get("id") != candidate:
+                    continue
+                article_url = _safe_article_url(item.get("article_url"))
+                if article_url is not None:
+                    return article_url
+        return None
+
     def _worker_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
@@ -574,3 +669,17 @@ def register_news_api(app: Flask, service: BBCNewsFeedService) -> None:
     @app.get("/api/news")
     def api_news():
         return jsonify(service.snapshot())
+
+    @app.get("/api/news/story/<story_id>/qr.svg")
+    def api_news_story_qr(story_id: str):
+        article_url = service.article_url_for(story_id)
+        if article_url is None:
+            return jsonify({"ok": False, "error": "No HTTPS article link is available for this story."}), 404
+        try:
+            svg = render_article_qr_svg(article_url)
+        except ValueError:
+            return jsonify({"ok": False, "error": "RSS article link was rejected."}), 404
+        response = Response(svg, mimetype="image/svg+xml")
+        response.headers["Cache-Control"] = "private, max-age=300"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
