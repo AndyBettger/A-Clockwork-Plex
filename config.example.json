@@ -99,6 +99,24 @@
       "technology"
     ],
     "default_category": "top",
+    "feed_order": [
+      "top",
+      "uk",
+      "world",
+      "science",
+      "technology",
+      "england",
+      "scotland",
+      "wales",
+      "northern_ireland",
+      "business",
+      "politics",
+      "health",
+      "education",
+      "entertainment"
+    ],
+    "feed_labels": {},
+    "custom_feeds": [],
     "show_summaries": true,
     "ticker": {
       "enabled": true,
