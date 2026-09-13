@@ -156,7 +156,7 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Final validation-control polish adds explicit spacing below the action row and relabels the successful action to **Check feed and add**. **Tests #4844** passed Python compilation, JavaScript/page/shell checks and the full regression suite on implementation head `a0466bf605515078961e7110f81f9942cd473094`.
 - [x] Commissioned recheck confirmed the final **Check feed and add** label/message spacing is comfortable at 1280×720 and the custom-feed Settings interaction remains usable.
 - [x] Changed-source/cache isolation is physically accepted: a commissioned **Cache Test** custom feed first populated Kent stories, then the same feed record was changed to the Essex source and populated Essex content without presenting stale Kent stories under the replacement source. The temporary feed was then removed.
-- [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
+- [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance: fresh schema-v2 export contains logical News state but no generated RSS/cache state; Reset Preview proposes the default News model without Confirm; Restore Preview recognises the exported News state without Confirm.
 
 Detailed authority and the physical checklist: [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md).
 
