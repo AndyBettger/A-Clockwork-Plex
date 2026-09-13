@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is now active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete, and the first commissioned-appliance pass on 13 September 2026 proved repeat installation plus the enlarged built-in catalogue, rename/reorder/default transaction and saved News rendering. That pass also exposed two bounded presentation follow-ups — the News section rail needed its own touch-scroll region and the feed-editor cards needed more vertical separation — and established the product preference that **News feeds belongs inside Settings → News rather than Advanced**. Those follow-ups are implemented and passed the complete automated gate in **Tests #4774**; the commissioned 1280×720 physical recheck and remaining custom-feed/portability gates are still open. PR #12 must remain draft until those gates pass.
+A bounded post-#92 **configurable sections** follow-up is now active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete. Commissioned-appliance passes on 13 September 2026 have proved repeat installation, the enlarged catalogue, rename/reorder/default behaviour, saved News rendering, the News-owned feed editor/card spacing and a scrollable enlarged rail. A real Europe custom-source candidate also passed **Check feed**. The latest pass showed three final product details still needed correction before continuing the main custom-feed gate: Chromium's native category scrollbar still retained platform arrow buttons rather than matching ACP's story scrollbar, the checked Europe feed kept the generic `Custom BBC feed` label because its useful name lives in the RSS description rather than the generic channel title, and helper copy still referred to an explicit **Save Changes** step that is not part of the current visible workflow. Those refinements are now implemented and passed **Tests #4788** on implementation head `01817c5ced6dbcb7c686b52e2db851ce6905d00c`. The commissioned 1280×720 recheck and remaining custom-feed/portability gates are still open. PR #12 must remain draft until those gates pass.
 
 ## Feed authority
 
@@ -83,7 +83,7 @@ The News page receives the enabled order and a link-free `{id, label}` catalogue
 
 ## Candidate feed validation
 
-New or edited custom sources have a deliberate read-only preflight before the Settings transaction can save them.
+New or edited custom sources have a deliberate read-only preflight before they can become usable through the normal Settings transaction.
 
 The Settings UI calls:
 
@@ -96,13 +96,15 @@ with only the candidate URL. The endpoint:
 1. applies the exact BBC feed-source validator described above;
 2. performs a bounded read of that BBC RSS source;
 3. parses it through the normal RSS parser without changing cache or configuration;
-4. derives a friendly suggested title from the feed title;
+4. derives a friendly suggested label from the feed metadata;
 5. derives a deterministic `custom-<hash>` logical id from the canonical feed URL;
 6. returns only safe validation metadata (`label`, suggested id and story count).
 
+BBC feed metadata is not completely uniform. `_suggest_feed_label()` therefore prefers a useful channel title, strips the normal `BBC News - ` / dash-prefixed branding when present, ignores a generic `BBC News` title, and then applies the same rule to the channel description. The physically encountered Europe feed is the motivating specimen: title `BBC News` plus description `BBC News - Europe` yields the suggested display label **Europe**.
+
 The validation response does **not** echo the source URL. A non-BBC URL is rejected before the network fetcher is called.
 
-The browser marks a custom row as checked only for the exact URL that passed this preflight. Editing the URL clears that state. `Save Changes` refuses to collect the News domain while any custom source is new/changed and unchecked. This gives normal interactive configuration an explicit “does this really look like a BBC News RSS feed?” gate without moving network fetching into the unified Settings commit itself.
+The browser marks a custom row as checked only for the exact URL that passed this preflight. Editing the URL clears that state, so an unchecked new/changed source cannot be accepted into the usable News configuration. The field help deliberately describes **Check feed** itself rather than referring to a separate Save Changes button that is not present in the current visible interaction. This gives normal interactive configuration an explicit “does this really look like a BBC News RSS feed?” gate without moving network fetching into the unified Settings transaction itself.
 
 Portable Restore is intentionally different: it restores an already validated logical ACP configuration through the normal server validator and does not require BBC connectivity during the Restore transaction. The News worker checks/fetches the restored source afterwards using the same source boundary. This preserves offline/cache-first Restore semantics.
 
@@ -168,10 +170,11 @@ The normal navigation includes News alongside Clock, Weather, Plexamp, AirPlay a
 
 ## Touchscreen presentation
 
-`app/templates/news.html`, `app/static/css/news.css`, `app/static/css/news-custom-feeds.css` and `app/static/js/news.js` own the 1280×720-first News presentation:
+`app/templates/news.html`, `app/static/css/news.css`, `app/static/css/news-custom-feeds.css`, `app/static/js/news.js` and `app/static/js/news-category-scrollbar.js` own the 1280×720-first News presentation:
 
 - Settings-style section rail on the left, driven by the saved enabled order and display labels;
 - the section rail has its own bounded vertical touch-scroll region when enabled sections exceed the available height;
+- the section rail now hides Chromium's native scrollbar completely and uses the same ACP custom track/thumb classes and synchronized pointer/keyboard logic as the story-list scrollbar, avoiding platform-specific arrow-button chrome;
 - scrollable headline cards showing section, published time, title and optional feed summary;
 - local detail modal on story tap;
 - optional locally generated article QR hand-off panel;
@@ -203,9 +206,7 @@ Top Stories therefore remains a fetch dependency whenever the ticker is enabled,
 
 The News workspace owns enabled sections, default section, summaries, ticker presentation and the **News feeds** subpage for section rename/order plus the bounded custom BBC RSS editor. The initial software build placed that editor under Advanced; the first commissioned 1280×720 pass established that this is ordinary News configuration, so the feature branch now presents it within Settings → News before the shared Settings navigation binds.
 
-The feed editor list uses deliberate vertical card spacing at 1280×720 so adjacent feed records retain a clear visual boundary.
-
-After a custom source has passed its explicit preflight, `Save Changes` still performs the existing single revisioned Settings transaction. Saving Settings does not wait for the normal background News refresh; it wakes the News worker after the validated configuration commit.
+The feed editor list uses deliberate vertical card spacing at 1280×720 so adjacent feed records retain a clear visual boundary. A new or edited custom source remains unusable until its exact URL has passed **Check feed**; after the preflight succeeds it rejoins the existing single revisioned Settings owner rather than creating a separate custom-feed save mechanism. The News worker is woken after the validated configuration commit rather than making the user wait for the normal refresh interval.
 
 The full logical News configuration is portable ACP state. Portable Backup now carries:
 
@@ -261,32 +262,39 @@ Physical acceptance confirms:
 
 ### Configurable-sections follow-up — physical gate open
 
-First commissioned pass on 13 September 2026, head `2ea286211cb8712553dce3e131598c06b2d6aa4c`:
+Commissioned passes on 13 September 2026 have established:
 
-- [x] `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**;
+- [x] repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings** and preserved commissioned News configuration;
 - [x] the enlarged curated catalogue rendered in Settings at 1280×720;
 - [x] Business could be enabled, renamed to **Business Test**, moved in the saved order and selected as the default section;
 - [x] the News page then opened the renamed Business feed with the saved rail order and correct Business stories;
 - [x] the Top Stories ticker remained visibly independent while Business Test was active;
-- [ ] the larger enabled rail was not fully reachable because the category list itself did not scroll;
-- [ ] feed-editor cards were visually too tightly packed and the editor's initial Advanced placement was rejected in favour of Settings → News.
+- [x] the enlarged category rail became touch-scrollable;
+- [x] **News feeds** moved into Settings → News and its feed cards gained usable vertical separation;
+- [x] the real candidate `https://feeds.bbci.co.uk/news/world/europe/rss.xml` passed **Check feed** on the commissioned appliance;
+- [ ] the physical rail still showed Chromium-native arrow buttons after the first scrollbar styling attempt, so the new shared ACP custom scrollbar mechanism still needs commissioned-screen confirmation;
+- [ ] the same Europe check retained the generic `Custom BBC feed` name because the useful `Europe` identity came from the RSS description; the new title/description fallback still needs commissioned confirmation;
+- [ ] Check-feed helper text referred to an explicit Save Changes step that was not visible in the current Settings workflow; the corrected copy still needs commissioned confirmation.
 
-The branch now contains bounded follow-up styling/placement for those two open presentation findings. Before draft PR #12 may leave draft, the commissioned appliance must still prove:
+Before draft PR #12 may leave draft, the commissioned appliance must still prove:
 
-- the News-owned **News feeds** subpage, feed-card spacing and touch-scrollable section rail at 1280×720;
-- a real BBC-owned News RSS URL can be added using the touch keyboard;
-- **Check feed** validates that source, derives a sensible label/stable id and blocks an unchecked or non-BBC source;
-- a mixed built-in + custom configuration renders stories in the saved rail order;
+- the category rail now uses the same ACP custom track/thumb presentation as the story scrollbar and remains touch-scrollable;
+- rechecking the Europe source derives **Europe** from generic title `BBC News` plus description `BBC News - Europe`;
+- the corrected Check-feed field help accurately matches the visible Settings interaction;
+- a checked custom feed can be enabled and a mixed built-in + custom configuration renders stories in the saved rail order;
 - the Top Stories ticker remains Top Stories regardless of active/default/custom section;
 - a story delivered by the added BBC feed retains the accepted local QR hand-off behaviour when the RSS item supplies a usable HTTPS destination;
+- an unchecked/non-BBC source is rejected;
 - changing a custom source cannot make cache from the old source appear under the new source;
 - portable Backup contains the logical order/labels/custom feed records and Reset/Restore Preview ownership remains truthful;
-- News Settings, touch keyboard and Save/Discard interaction remain usable without 1280×720 overflow.
+- News Settings, touch keyboard and unified update/discard interaction remain usable without 1280×720 overflow.
 
 Automated evidence:
 
 - **Tests #4753** passed the first complete implementation gate on `58e47e800ff13ed98f0834a7f429d958b7927ac0`;
 - **Tests #4765** passed compile, JavaScript/page wiring/shell checks and the full regression suite on physical-test head `2ea286211cb8712553dce3e131598c06b2d6aa4c`;
-- **Tests #4774** passed compile, JavaScript/page wiring/shell checks and the full regression suite on post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`.
+- **Tests #4774** passed compile, JavaScript/page wiring/shell checks and the full regression suite on first post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`;
+- **Tests #4779/#4780** passed the full-feed guidance and first scrollbar-refinement heads;
+- **Tests #4788** passed compile, existing JavaScript/page/shell checks and the full regression suite on `01817c5ced6dbcb7c686b52e2db851ce6905d00c`; the dedicated feature regression additionally invokes `node --check` for `settings-news-placement.js` and `news-category-scrollbar.js`.
 
 Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
