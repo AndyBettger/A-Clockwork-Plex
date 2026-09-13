@@ -25,6 +25,11 @@
     sectionsHelp.textContent = 'Enabled sections appear in this order in the News page’s left-hand menu. At least one section must remain enabled. Rename, reorder or add BBC feeds under News feeds.';
   }
 
+  const feedHelp = feedSubpage.querySelector('.settings-card .settings-card-heading .muted.small');
+  if (feedHelp) {
+    feedHelp.textContent = 'Curated BBC News feeds can be renamed and reordered. You can also add another complete BBC News RSS address, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Only HTTPS BBC News feeds are accepted.';
+  }
+
   const editorList = feedSubpage.querySelector('[data-news-feed-editor-list]');
   editorList?.classList.add('news-feed-editor-list');
   newsPanel.appendChild(feedSubpage);
