@@ -11,12 +11,20 @@
   const BBC_PAGE_HOSTS = new Set(['bbc.co.uk', 'www.bbc.co.uk', 'bbc.com', 'www.bbc.com']);
   const SAFE_PATH_SEGMENT = /^[A-Za-z0-9_-]+$/;
   const DEFAULT_GUIDANCE = 'Paste a BBC News section page URL or a feeds.bbci.co.uk RSS address, then press Check feed. A successful check is required before the custom feed can be used.';
+  const PAGE_HELP = 'Add a custom BBC News section by pasting its normal BBC News page URL, or paste a feeds.bbci.co.uk RSS address directly. Built-in BBC sections keep their standard names and URLs; use Feed order to enable and arrange them.';
+  const ROW_HELP = 'Add and manage custom BBC News sections by page or RSS URL';
+  const FIELD_CAPTION = 'BBC News page or RSS URL';
+  const FIELD_HELP = 'Paste a BBC News section page, for example https://www.bbc.co.uk/news/england/sussex, or a feeds.bbci.co.uk RSS address, then press Check feed.';
   const localStatusByUrl = new Map();
   let activeCheck = null;
   let resettingGlobalMessage = false;
 
   function clean(value) {
     return String(value ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  function setTextIfChanged(node, text) {
+    if (node && node.textContent !== text) node.textContent = text;
   }
 
   function isCustomCard(card) {
@@ -35,12 +43,9 @@
 
   function refreshPageGuidance() {
     const feedHelp = feedSubpage.querySelector('.settings-card .settings-card-heading .muted.small');
-    if (feedHelp) {
-      feedHelp.textContent = 'Add a custom BBC News section by pasting its normal BBC News page URL, or paste a feeds.bbci.co.uk RSS address directly. Built-in BBC sections keep their standard names and URLs; use Feed order to enable and arrange them.';
-    }
+    setTextIfChanged(feedHelp, PAGE_HELP);
     const row = document.querySelector('[data-settings-overview="news"] [data-settings-subpage-target="news:feeds"]');
-    const rowCopy = row?.querySelector('small');
-    if (rowCopy) rowCopy.textContent = 'Add and manage custom BBC News sections by page or RSS URL';
+    setTextIfChanged(row?.querySelector('small'), ROW_HELP);
   }
 
   function bbcNewsPageToFeedUrl(value) {
@@ -71,6 +76,8 @@
     paragraph.className = 'small news-feed-check-status';
     paragraph.dataset.newsFeedCheckStatus = '';
     paragraph.setAttribute('aria-live', 'polite');
+    paragraph.dataset.newsFeedCheckText = status.text;
+    paragraph.dataset.newsFeedCheckError = status.error ? 'true' : 'false';
     if (status.error) {
       const strong = document.createElement('strong');
       strong.textContent = 'Feed check failed: ';
@@ -87,16 +94,24 @@
     const input = urlInput(card);
     if (!field || !input) return;
 
-    const caption = field.querySelector(':scope > span');
-    if (caption) caption.textContent = 'BBC News page or RSS URL';
-    const help = field.querySelector(':scope > small');
-    if (help) {
-      help.textContent = 'Paste a BBC News section page, for example https://www.bbc.co.uk/news/england/sussex, or a feeds.bbci.co.uk RSS address, then press Check feed.';
+    setTextIfChanged(field.querySelector(':scope > span'), FIELD_CAPTION);
+    setTextIfChanged(field.querySelector(':scope > small'), FIELD_HELP);
+
+    const status = localStatusByUrl.get(clean(input.value));
+    const existing = card.querySelector('[data-news-feed-check-status]');
+    if (!status) {
+      existing?.remove();
+      return;
+    }
+    if (
+      existing
+      && existing.dataset.newsFeedCheckText === status.text
+      && existing.dataset.newsFeedCheckError === (status.error ? 'true' : 'false')
+    ) {
+      return;
     }
 
-    card.querySelector('[data-news-feed-check-status]')?.remove();
-    const status = localStatusByUrl.get(clean(input.value));
-    if (!status) return;
+    existing?.remove();
     const actions = card.querySelector('.settings-action-row');
     const local = statusTextNode(status);
     if (actions) actions.insertAdjacentElement('afterend', local);
@@ -126,7 +141,7 @@
         || text.startsWith('Custom feeds must pass a live BBC RSS check')
       ) {
         resettingGlobalMessage = true;
-        globalMessage.textContent = DEFAULT_GUIDANCE;
+        setTextIfChanged(globalMessage, DEFAULT_GUIDANCE);
         resettingGlobalMessage = false;
       }
       return;
@@ -149,7 +164,7 @@
     decorateAllCards();
 
     resettingGlobalMessage = true;
-    globalMessage.textContent = DEFAULT_GUIDANCE;
+    setTextIfChanged(globalMessage, DEFAULT_GUIDANCE);
     resettingGlobalMessage = false;
   }
 
@@ -196,11 +211,15 @@
   const messageObserver = new MutationObserver(localiseValidationMessage);
   messageObserver.observe(globalMessage, { childList: true, characterData: true, subtree: true });
 
+  // settings-news.js replaces/appends whole editor cards as direct children of
+  // editorList. Observe only that boundary. Watching the entire subtree would
+  // see our own caption/help/status decorations and can create a self-sustaining
+  // MutationObserver loop that starves the Settings page event loop.
   const editorObserver = new MutationObserver(() => {
     refreshPageGuidance();
     decorateAllCards();
   });
-  editorObserver.observe(editorList, { childList: true, subtree: true });
+  editorObserver.observe(editorList, { childList: true });
 
   refreshPageGuidance();
   decorateAllCards();
