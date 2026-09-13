@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 13 September 2026  
+**Last updated:** 14 September 2026  
 **Active integration branch:** `develop`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
@@ -122,8 +122,8 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Allow sections to be enabled/disabled and reordered; the default News section must remain enabled. Built-in section names and source URLs are fixed/canonical in the finished UI, while custom-feed display names remain editable.
 - [x] Add **News → News feeds** for bounded custom BBC News sources; the first physical pass established that this belongs with ordinary News configuration rather than under Advanced.
 - [x] Custom source authority remains exact HTTPS `feeds.bbci.co.uk/news/.../rss.xml`; arbitrary hosts, HTTP, credentials, non-News paths and redirect escapes are rejected.
-- [x] Friendly custom-source entry may also accept an ordinary HTTPS BBC News section page on `bbc.co.uk`/`bbc.com`. The browser converts its `/news/...` path to the corresponding `https://feeds.bbci.co.uk/news/.../rss.xml` candidate and then uses the existing strict RSS **Check feed** gate; ACP does not scrape or store BBC page HTML.
-- [x] New/changed custom feeds use a read-only **Check feed** preflight before the custom source can become usable; the server parses the candidate, derives a sensible label and deterministic stable id, and returns no source URL in the validation response.
+- [x] Friendly custom-source entry may also accept an ordinary HTTPS BBC News section page on `bbc.co.uk`/`bbc.com`. The browser converts its `/news/...` path to the corresponding `https://feeds.bbci.co.uk/news/.../rss.xml` candidate and then uses the existing strict RSS **Check feed and add** gate; ACP does not scrape or store BBC page HTML.
+- [x] New/changed custom feeds use a read-only **Check feed and add** preflight before the custom source can become usable; the server parses the candidate, derives a sensible label and deterministic stable id, and returns no source URL in the validation response.
 - [x] A changed source cannot reuse cached content belonging to the previous URL as if it came from the replacement source.
 - [x] `/api/news` remains source-URL/article-link/GUID free; the accepted phone-owned QR boundary remains unchanged.
 - [x] Top Stories remains the independent ticker source even if another section is active/default or Top Stories is hidden from the rail.
@@ -152,7 +152,9 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] That rejection pass exposed one usability fault: Check-feed success/failure was reported in the page-level intro card and could be off-screen. Validation feedback is now rendered beside the custom feed's own Check feed controls instead.
 - [x] Inspection of a live BBC Sussex section page established the useful ordinary-page pattern `/news/england/sussex` → `/news/england/sussex/rss.xml`. The Settings helper now accepts such BBC News page URLs and locally derives the RSS candidate before the unchanged strict server preflight; **Tests #4834** passed Python compilation, JavaScript/page/shell checks and the full regression suite on implementation head `81fd4798d7954baf46e17cbd8f28f22868f6bd67`.
 - [x] The first commissioned load of that helper exposed a browser-runtime regression missed by syntax/unit CI: its subtree `MutationObserver` reacted to the helper's own caption/help/status DOM writes, creating a self-sustaining mutation loop that starved the Settings page event loop. The observer is now restricted to direct editor-card additions/replacements, DOM decoration is idempotent, a dedicated regression assertion prevents restoring subtree observation, and the script cache key was bumped. **Tests #4839** passed compile, JavaScript/page/shell checks and the full regression suite on fix head `708296f0d3d84c0218541c79ad436ec8e93062d6`.
-- [ ] Commissioned recheck confirms Settings loads normally again, local Check-feed feedback and friendly BBC News page URL entry (Sussex is the reference specimen), then completes changed-source/cache correctness and final touch/layout usability.
+- [x] Commissioned recheck confirmed Settings loads normally after the observer fix. Ordinary BBC page URLs physically added **Sussex, Surrey and Hampshire & The Isle of Wight**, each converted to the expected `feeds.bbci.co.uk` RSS source; QR hand-off also works from those custom sections. A non-BBC source still fails locally beside its own controls as intended.
+- [x] Final validation-control polish adds explicit spacing below the action row and relabels the successful action to **Check feed and add**. **Tests #4844** passed Python compilation, JavaScript/page/shell checks and the full regression suite on implementation head `a0466bf605515078961e7110f81f9942cd473094`.
+- [ ] Commissioned recheck confirms the final **Check feed and add** label/message spacing polish, then completes changed-source/cache correctness and final touch/layout usability.
 - [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
 
 Detailed authority and the physical checklist: [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md).
