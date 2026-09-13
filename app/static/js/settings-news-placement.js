@@ -22,12 +22,12 @@
 
   const sectionsHelp = newsPanel.querySelector('[data-settings-subpage="news:sections"] .settings-card .muted.small');
   if (sectionsHelp) {
-    sectionsHelp.textContent = 'Enabled sections appear in this order in the News page’s left-hand menu. At least one section must remain enabled. Rename, reorder or add BBC feeds under News feeds.';
+    sectionsHelp.textContent = 'Choose which BBC News sections are enabled here. Feed order provides the compact drag-to-reorder view, while News feeds owns display names and custom RSS sources.';
   }
 
   const feedHelp = feedSubpage.querySelector('.settings-card .settings-card-heading .muted.small');
   if (feedHelp) {
-    feedHelp.textContent = 'Curated BBC News feeds can be renamed and reordered. You can also add another complete BBC News RSS address, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Only HTTPS BBC News feeds are accepted.';
+    feedHelp.textContent = 'Curated BBC News feeds can be renamed. You can also add another complete BBC News RSS address, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Only HTTPS BBC News feeds are accepted.';
   }
 
   const editorList = feedSubpage.querySelector('[data-news-feed-editor-list]');
