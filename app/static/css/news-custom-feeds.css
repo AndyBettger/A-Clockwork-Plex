@@ -9,6 +9,11 @@
   margin: 0;
 }
 
+.news-feed-check-status {
+  margin: clamp(12px, 1.8vmin, 18px) 0 0;
+  line-height: 1.35;
+}
+
 .news-brand,
 .news-rail-status {
   flex: 0 0 auto;
