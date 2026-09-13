@@ -131,9 +131,12 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] **Tests #4765** passed compile, JavaScript/page/shell and full regression CI on commissioned-test head `2ea286211cb8712553dce3e131598c06b2d6aa4c`.
 - [x] Commissioned-Pi repeat `bash setup.sh` on that head passed with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**.
 - [x] First 1280×720 functional pass proved the enlarged catalogue plus Business enable → **Business Test** rename → reorder → default selection → saved News rendering, with the Top Stories ticker still independent.
-- [x] Physical findings were folded back into the branch: the section rail now has a bounded touch-scroll region, feed-editor cards have explicit vertical separation, and the feed editor is presented within Settings → News.
-- [x] **Tests #4774** passed compile, JavaScript/page wiring/shell and the full regression suite on the post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`.
-- [ ] Commissioned 1280×720 follow-up confirms News-owned feed editor placement/card spacing and the scrollable section rail, then completes custom BBC feed Check/Add, mixed rail rendering, custom-feed story QR, non-BBC rejection, cache-source correctness and touch/layout usability.
+- [x] Physical findings were folded back into the branch: the section rail gained a bounded touch-scroll region, feed-editor cards gained explicit vertical separation, and the feed editor moved into Settings → News.
+- [x] **Tests #4774** passed compile, JavaScript/page wiring/shell and the full regression suite on the first post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`.
+- [x] Commissioned-Pi repeat `bash setup.sh` on follow-up head `8106ab5e91bcc4498cd1fca41959ed231c9e8815` again passed with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings** and preserved the existing commissioned News configuration.
+- [x] Second 1280×720 pass confirmed that the enlarged News rail now scrolls, **News feeds** is correctly owned by Settings → News, and feed-editor cards have useful visual separation.
+- [x] That second pass identified two final presentation-copy refinements: match the rail scrollbar to the existing story-list scrollbar and stop presenting the bare `feeds.bbci.co.uk` host as though it were a useful browser destination. Both are implemented with a full RSS example URL and dedicated regression coverage; **Tests #4779** passed compile, JavaScript/page wiring/shell and the full regression suite on `f783688ddb77b921514d52830ab0bd8188412083`.
+- [ ] Commissioned 1280×720 recheck confirms the matched rail scrollbar and revised full-feed guidance, then completes custom BBC feed Check/Add, mixed rail rendering, custom-feed story QR, non-BBC rejection, cache-source correctness and touch/layout usability.
 - [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
 
 Detailed authority and the physical checklist: [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md).
