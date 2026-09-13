@@ -32,5 +32,20 @@
 
   const editorList = feedSubpage.querySelector('[data-news-feed-editor-list]');
   editorList?.classList.add('news-feed-editor-list');
+
+  function refreshCustomFeedHelp() {
+    feedSubpage.querySelectorAll('.setting-field small').forEach((help) => {
+      const copy = String(help.textContent || '');
+      if (!copy.includes('pass Check feed before Save Changes')) return;
+      help.textContent = 'Enter or change the BBC RSS address, then press Check feed. A successful check is required before this custom feed can be used.';
+    });
+  }
+
+  refreshCustomFeedHelp();
+  if (editorList && 'MutationObserver' in window) {
+    const observer = new MutationObserver(refreshCustomFeedHelp);
+    observer.observe(editorList, { childList: true, subtree: true });
+  }
+
   newsPanel.appendChild(feedSubpage);
 })();
