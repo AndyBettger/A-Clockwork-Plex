@@ -8,6 +8,7 @@ from pathlib import Path
 
 from flask import Flask
 
+from app.configuration_backup import portable_settings
 from app.news_feed import (
     BBC_FEEDS,
     DEFAULT_ENABLED_CATEGORIES,
@@ -343,6 +344,27 @@ class NewsCustomFeedTests(unittest.TestCase):
         self.assertEqual(snapshot["ticker"]["source_category"], "top")
         self.assertEqual([item["title"] for item in snapshot["ticker"]["items"]], ["Top ticker story"])
         self.assertEqual(snapshot["categories"]["business"]["feed"]["items"][0]["title"], "Business page story")
+
+    def test_portable_backup_keeps_logical_news_feed_configuration(self) -> None:
+        news = {
+            "enabled_categories": ["business", "custom-space"],
+            "default_category": "custom-space",
+            "feed_order": ["business", "custom-space", "top"],
+            "feed_labels": {"business": "Money & Business"},
+            "custom_feeds": [
+                {
+                    "id": "custom-space",
+                    "label": "Space",
+                    "url": "https://feeds.bbci.co.uk/news/topics/cp7r8vgl2lgt/rss.xml",
+                }
+            ],
+            "show_summaries": True,
+            "ticker": {"enabled": True, "speed": "normal"},
+        }
+
+        backup_settings = portable_settings({"news": news})
+
+        self.assertEqual(backup_settings["news"], news)
 
 
 if __name__ == "__main__":
