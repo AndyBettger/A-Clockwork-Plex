@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is now active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete, and the first commissioned-appliance pass on 13 September 2026 proved repeat installation plus the enlarged built-in catalogue, rename/reorder/default transaction and saved News rendering. That pass also exposed two bounded presentation follow-ups — the News section rail needed its own touch-scroll region and the feed-editor cards needed more vertical separation — and established the product preference that **News feeds belongs inside Settings → News rather than Advanced**. Those follow-ups are implemented on the feature branch and await exact-head CI/physical recheck. PR #12 must remain draft until the remaining custom-feed and portability physical gates pass.
+A bounded post-#92 **configurable sections** follow-up is now active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete, and the first commissioned-appliance pass on 13 September 2026 proved repeat installation plus the enlarged built-in catalogue, rename/reorder/default transaction and saved News rendering. That pass also exposed two bounded presentation follow-ups — the News section rail needed its own touch-scroll region and the feed-editor cards needed more vertical separation — and established the product preference that **News feeds belongs inside Settings → News rather than Advanced**. Those follow-ups are implemented and passed the complete automated gate in **Tests #4774**; the commissioned 1280×720 physical recheck and remaining custom-feed/portability gates are still open. PR #12 must remain draft until those gates pass.
 
 ## Feed authority
 
@@ -287,6 +287,6 @@ Automated evidence:
 
 - **Tests #4753** passed the first complete implementation gate on `58e47e800ff13ed98f0834a7f429d958b7927ac0`;
 - **Tests #4765** passed compile, JavaScript/page wiring/shell checks and the full regression suite on physical-test head `2ea286211cb8712553dce3e131598c06b2d6aa4c`;
-- the exact post-physical-follow-up branch head must pass the same complete gate before the next commissioned-Pi pull.
+- **Tests #4774** passed compile, JavaScript/page wiring/shell checks and the full regression suite on post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`.
 
 Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
