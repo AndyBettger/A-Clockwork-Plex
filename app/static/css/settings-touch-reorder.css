@@ -73,6 +73,23 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #76c9ff) 56%, transparent), 0 12px 30px rgba(0, 0, 0, 0.22);
 }
 
+/* News feeds is deliberately a custom-source manager. Built-in BBC sections
+   remain available to Feed order as hidden state-owner cards, but are not
+   presented as editable sources here. */
+.news-feed-editor-card.news-built-in-feed-editor {
+  display: none !important;
+}
+
+.news-feed-editor-list.has-no-custom-feeds::before {
+  content: "No custom BBC News feeds have been added yet.";
+  display: block;
+  padding: 18px 20px;
+  border: 1px dashed var(--acp-theme-control-border, rgba(151, 203, 247, 0.24));
+  border-radius: 17px;
+  color: var(--muted, rgba(224, 236, 249, 0.66));
+  background: var(--acp-theme-soft, rgba(255, 255, 255, 0.035));
+}
+
 /* Several shared Settings controls define their own display mode, so native
    [hidden] is not strong enough here. Keep enable/order controls on Feed order. */
 .news-feed-editor-card .setting-toggle[hidden],
