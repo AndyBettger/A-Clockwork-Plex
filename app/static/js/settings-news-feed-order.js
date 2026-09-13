@@ -47,7 +47,6 @@
   newsPanel.appendChild(orderSubpage);
 
   const orderList = orderSubpage.querySelector('[data-news-feed-order-list]');
-  let knownEditorIds = new Set();
   let syncingOrder = false;
 
   function editorCards() {
@@ -178,35 +177,42 @@
   }
 
   function scrollToNewFeed(previousIds) {
+    const newcomer = editorCards().find((card) => !previousIds.has(String(card.dataset.newsFeedEditorId || '')));
+    if (!newcomer) return;
+
+    newcomer.classList.add('is-new-feed');
     window.requestAnimationFrame(() => {
-      decorateEditor();
-      const newcomer = editorCards().find((card) => !previousIds.has(card.dataset.newsFeedEditorId));
-      if (!newcomer) return;
-      newcomer.classList.add('is-new-feed');
-      newcomer.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      window.setTimeout(() => newcomer.classList.remove('is-new-feed'), 1800);
+      const scroller = document.querySelector('.settings-detail');
+      if (scroller) {
+        const scrollerRect = scroller.getBoundingClientRect();
+        const cardRect = newcomer.getBoundingClientRect();
+        const targetTop = scroller.scrollTop + cardRect.top - scrollerRect.top - 12;
+        scroller.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+      } else {
+        newcomer.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
     });
+    window.setTimeout(() => newcomer.classList.remove('is-new-feed'), 1800);
   }
 
   addFeedButton?.addEventListener('click', () => {
-    const previousIds = new Set(knownEditorIds);
+    const previousIds = new Set(editorIds());
     window.setTimeout(() => {
+      decorateEditor();
       scrollToNewFeed(previousIds);
       const message = feedSubpage.querySelector('[data-news-feed-editor-message]');
       if (message && String(message.textContent || '').includes('before Save Changes')) {
         message.textContent = 'Enter a BBC News RSS URL, press Check feed, then optionally rename it. Use Feed order when you want to enable or reposition it.';
       }
     }, 0);
-  });
+  }, { capture: true });
 
   const observer = new MutationObserver(() => {
     decorateEditor();
     if (!syncingOrder) renderOrder();
-    knownEditorIds = new Set(editorIds());
   });
   observer.observe(editorList, { childList: true, subtree: true });
 
   decorateEditor();
   renderOrder();
-  knownEditorIds = new Set(editorIds());
 })();
