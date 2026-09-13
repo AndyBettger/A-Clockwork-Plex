@@ -13,14 +13,14 @@
   const feedRow = newsOverview.querySelector('[data-settings-subpage-target="news:feeds"]');
   if (feedRow) {
     const copy = feedRow.querySelector('small');
-    if (copy) copy.textContent = 'Rename feeds and manage custom BBC RSS sources';
+    if (copy) copy.textContent = 'Add and manage custom BBC News RSS feeds';
   }
 
   if (addFeedButton) addFeedButton.classList.add('news-add-feed-button');
 
   const feedHelp = feedSubpage.querySelector('.settings-card .settings-card-heading .muted.small');
   if (feedHelp) {
-    feedHelp.textContent = 'Rename built-in feeds or add another complete BBC News RSS address, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Use Feed order to enable sections and arrange the News menu.';
+    feedHelp.textContent = 'Add and manage custom BBC News RSS feeds, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Built-in BBC sections keep their standard names and URLs; use Feed order to enable and arrange them.';
   }
 
   const orderRow = document.createElement('button');
@@ -69,10 +69,19 @@
     return card?.querySelector('.settings-card-heading .setting-toggle input[type="checkbox"]') || null;
   }
 
+  function isBuiltInCard(card) {
+    return String(card?.querySelector('.settings-card-heading .muted.small')?.textContent || '').trim() === 'Built-in BBC News feed';
+  }
+
   function decorateEditor() {
     const cards = editorCards();
+    let customCount = 0;
     cards.forEach((card) => {
       card.classList.add('news-feed-editor-card');
+      const builtIn = isBuiltInCard(card);
+      card.classList.toggle('news-built-in-feed-editor', builtIn);
+      if (!builtIn) customCount += 1;
+
       const enabled = card.querySelector('.settings-card-heading .setting-toggle');
       if (enabled) {
         enabled.hidden = true;
@@ -90,6 +99,7 @@
         actions.hidden = visibleButtons.length === 0;
       }
     });
+    editorList.classList.toggle('has-no-custom-feeds', customCount === 0);
   }
 
   function setEnabled(feedId, nextEnabled) {
