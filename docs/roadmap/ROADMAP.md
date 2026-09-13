@@ -112,7 +112,7 @@ Detailed authority: [`../development/architecture/configuration-backup-ownership
 - [x] Initial full automated gate passed in **Tests #4732**; trusted-RSS destination/GUID refinement passed **Tests #4749**.
 - [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: normal BBC News destinations opened the installed BBC News app, the live BBC Weather destination from the Science feed gained a QR and opened correctly in Chrome, and kiosk Chromium remained in ACP.
 
-#### Configurable sections follow-up — SOFTWARE IMPLEMENTED; PHYSICAL GATE OPEN
+#### Configurable sections follow-up — SOFTWARE IMPLEMENTED; PHYSICAL GATE PARTIALLY PASSED
 
 Active branch: `feature/news-custom-feeds`  
 Draft PR: **#12 — Add configurable BBC News feeds**
@@ -120,7 +120,7 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Preserve the original five sections — Top Stories, UK, World, Science & Environment and Technology — as the out-of-box enabled set.
 - [x] Expand the friendly built-in catalogue with England, Scotland, Wales, Northern Ireland, Business, Politics, Health, Education and Entertainment & Arts.
 - [x] Allow sections to be enabled/disabled, reordered and renamed; the default News section must remain enabled.
-- [x] Add **Advanced → News feeds** for bounded custom BBC News RSS sources.
+- [x] Add **News → News feeds** for bounded custom BBC News RSS sources; the first physical pass established that this belongs with ordinary News configuration rather than under Advanced.
 - [x] Custom source boundary is exact HTTPS `feeds.bbci.co.uk/news/.../rss.xml`; arbitrary hosts, HTTP, credentials, non-News paths and redirect escapes are rejected.
 - [x] New/changed custom feeds use a read-only **Check feed** preflight before normal Settings Save; the server parses the candidate, derives a sensible title and deterministic stable id, and returns no source URL in the validation response.
 - [x] A changed source cannot reuse cached content belonging to the previous URL as if it came from the replacement source.
@@ -128,8 +128,12 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Top Stories remains the independent ticker source even if another section is active/default or Top Stories is hidden from the rail.
 - [x] `feed_order`, `feed_labels` and `custom_feeds` now join the portable News Backup/Restore/Reset model; downloaded RSS/cache state remains excluded.
 - [x] **Tests #4753** passed the first complete implementation gate on `58e47e800ff13ed98f0834a7f429d958b7927ac0`.
-- [ ] Exact final branch head passes compile, JavaScript/page/shell and full regression CI after documentation/closure changes.
-- [ ] Commissioned 1280×720 physical acceptance: curated extra section, rename/reorder/default, custom BBC feed Check/Add, mixed rail rendering, Top Stories ticker independence, custom-feed story QR, non-BBC rejection, cache-source correctness and touch/layout usability.
+- [x] **Tests #4765** passed compile, JavaScript/page/shell and full regression CI on commissioned-test head `2ea286211cb8712553dce3e131598c06b2d6aa4c`.
+- [x] Commissioned-Pi repeat `bash setup.sh` on that head passed with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**.
+- [x] First 1280×720 functional pass proved the enlarged catalogue plus Business enable → **Business Test** rename → reorder → default selection → saved News rendering, with the Top Stories ticker still independent.
+- [x] Physical findings were folded back into the branch: the section rail now has a bounded touch-scroll region, feed-editor cards have explicit vertical separation, and the feed editor is presented within Settings → News.
+- [ ] Exact post-physical-follow-up branch head passes compile, JavaScript/page/shell and full regression CI after code/documentation closure changes.
+- [ ] Commissioned 1280×720 follow-up confirms News-owned feed editor placement/card spacing and the scrollable section rail, then completes custom BBC feed Check/Add, mixed rail rendering, custom-feed story QR, non-BBC rejection, cache-source correctness and touch/layout usability.
 - [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
 
 Detailed authority and the physical checklist: [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md).
