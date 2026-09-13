@@ -129,8 +129,18 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("data-news-feed-check-status", self.feed_discovery)
         self.assertIn("actions.insertAdjacentElement('afterend', local)", self.feed_discovery)
         self.assertIn("Feed check failed:", self.feed_discovery)
-        self.assertIn("globalMessage.textContent = DEFAULT_GUIDANCE", self.feed_discovery)
+        self.assertIn("setTextIfChanged(globalMessage, DEFAULT_GUIDANCE)", self.feed_discovery)
         self.assertIn("aria-live", self.feed_discovery)
+
+    def test_feed_discovery_observer_cannot_watch_its_own_card_decorations(self):
+        self.assertIn("function setTextIfChanged(node, text)", self.feed_discovery)
+        self.assertIn("existing.dataset.newsFeedCheckText === status.text", self.feed_discovery)
+        self.assertIn("editorObserver.observe(editorList, { childList: true });", self.feed_discovery)
+        self.assertNotIn(
+            "editorObserver.observe(editorList, { childList: true, subtree: true });",
+            self.feed_discovery,
+        )
+        self.assertIn("self-sustaining", self.feed_discovery)
 
     def test_feed_label_prefers_specific_title_then_specific_description(self):
         self.assertEqual(_suggest_feed_label("BBC News - Space", "Space stories"), "Space")
