@@ -131,6 +131,10 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("Feed check failed:", self.feed_discovery)
         self.assertIn("setTextIfChanged(globalMessage, DEFAULT_GUIDANCE)", self.feed_discovery)
         self.assertIn("aria-live", self.feed_discovery)
+        self.assertIn("const CHECK_BUTTON_LABEL = 'Check feed and add';", self.feed_discovery)
+        self.assertIn("buttonLabel !== 'Check feed' && buttonLabel !== CHECK_BUTTON_LABEL", self.feed_discovery)
+        self.assertIn(".news-feed-check-status {", self.css)
+        self.assertIn("margin: clamp(12px, 1.8vmin, 18px) 0 0;", self.css)
 
     def test_feed_discovery_observer_cannot_watch_its_own_card_decorations(self):
         self.assertIn("function setTextIfChanged(node, text)", self.feed_discovery)
