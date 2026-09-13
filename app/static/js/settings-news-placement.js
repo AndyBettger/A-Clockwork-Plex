@@ -27,7 +27,7 @@
 
   const feedHelp = feedSubpage.querySelector('.settings-card .settings-card-heading .muted.small');
   if (feedHelp) {
-    feedHelp.textContent = 'Add and manage custom BBC News RSS feeds, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Built-in BBC sections keep their standard names and source URLs.';
+    feedHelp.textContent = 'Add and manage custom BBC News RSS feeds, for example https://feeds.bbci.co.uk/news/world/europe/rss.xml. Built-in BBC sections keep their standard names and source URLs. Only HTTPS BBC News feeds are accepted.';
   }
 
   const editorList = feedSubpage.querySelector('[data-news-feed-editor-list]');
