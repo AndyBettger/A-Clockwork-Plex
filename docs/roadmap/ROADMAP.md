@@ -146,6 +146,7 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] **Tests #4807** passed Python compilation, JavaScript/page/shell checks and the full regression suite on follow-up head `e5828a7205394019f4fb6d24e1c8ef46547beec3`.
 - [x] Commissioned recheck on `1e98c49bf8b661a17a5d4de5715d820be487cdbe` confirmed the centred 2×3 grips on both News Feed order and Weather Clock weather cards, confirmed Add BBC feed scrolls to its new editor, and confirmed the duplicate Enabled/Move controls are absent from News feeds.
 - [x] Product simplification agreed after that pass: **News feeds is now custom-source management only**. Built-in feed editor cards are hidden completely there and retain fixed canonical names/URLs; Feed order and Sections remain the places to enable, disable, order and choose the default section. The page shows a friendly empty state when no custom feeds exist.
+- [x] **Tests #4824** passed the full automated gate for the custom-only manager implementation on `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`.
 - [ ] Commissioned 1280×720 recheck confirms the custom-only News feeds page, then completes custom-feed story QR, non-BBC rejection, cache-source correctness and final touch/layout usability.
 - [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
 
