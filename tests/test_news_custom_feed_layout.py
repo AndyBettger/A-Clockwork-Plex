@@ -99,6 +99,7 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
             self.placement,
         )
         self.assertIn("Built-in BBC sections keep their standard names and source URLs.", self.placement)
+        self.assertIn("Only HTTPS BBC News feeds are accepted.", self.placement)
         self.assertNotIn("add another BBC News RSS feed from <code>feeds.bbci.co.uk</code>", self.placement)
 
     def test_feed_check_help_matches_the_automatic_settings_workflow(self):
