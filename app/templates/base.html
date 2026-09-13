@@ -42,7 +42,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-pass-a.css', v='20260809-audio-fader-alignment-v2') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-backup-restore.css', v='20260831-home-restore-feedback-v2-20260910-overflow-v1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-selects.css', v='20260803-night-safe-selects') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/news-custom-feeds.css', v='20260913-news-feed-layout-v1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/news-custom-feeds.css', v='20260914-news-feed-layout-v2') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-touch-reorder.css', v='20260913-touch-order-v3') }}">
   {% endif %}
   {% if active_page | default(state.mode) == 'weather' %}
@@ -110,7 +110,7 @@
   <script src="{{ url_for('static', filename='js/settings-news.js', v='20260913-configurable-news-feeds-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-news-placement.js', v='20260913-news-feed-layout-v4') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-news-feed-order.js', v='20260913-touch-order-v3') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-news-feed-discovery.js', v='20260913-page-url-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-news-feed-discovery.js', v='20260914-page-url-v3') }}"></script>
   {% endif %}
   {% block scripts %}{% endblock %}
   {% if active_page | default(state.mode) != 'settings' %}
