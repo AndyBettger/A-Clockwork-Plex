@@ -194,6 +194,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### News
 
 - `tests/test_news_article_qr.py` — Protects the BBC News article hand-off boundary: canonical BBC News HTTPS URL validation, link-free public snapshots, opaque story-id lookup and local SVG QR generation without arbitrary outbound navigation.
+- `tests/test_news_custom_feed_layout.py` — Protects the physical configurable-News follow-up: News-owned feed-editor placement, deliberate feed-card spacing and a bounded touch-scrollable News section rail.
 
 ### Weather
 

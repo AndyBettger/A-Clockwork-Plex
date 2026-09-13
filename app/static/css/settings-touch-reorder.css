@@ -1,0 +1,160 @@
+/* Shared touch-first ordering controls used by News feeds and Clock weather cards. */
+
+.settings-drag-handle {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--acp-theme-control-border, rgba(157, 210, 255, 0.24));
+  border-radius: 13px;
+  background: var(--acp-theme-soft, rgba(255, 255, 255, 0.07));
+  color: inherit;
+  font: inherit;
+  font-size: 28px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-drag-handle:active,
+.settings-drag-handle.is-dragging {
+  cursor: grabbing;
+  background: color-mix(in srgb, var(--accent, #70beff) 20%, transparent);
+  border-color: var(--accent, #7ecbff);
+}
+
+.touch-sort-row {
+  position: relative;
+  transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.touch-sort-row.is-dragging {
+  z-index: 4;
+  opacity: 0.82;
+  transform: scale(0.992);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #76c9ff) 52%, transparent), 0 10px 28px rgba(0, 0, 0, 0.26);
+}
+
+.news-add-feed-button {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-width: max-content;
+  max-width: none;
+  min-height: 44px;
+  padding: 9px 18px !important;
+  border-radius: 999px !important;
+  white-space: nowrap;
+}
+
+.news-feed-editor-card.is-new-feed {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #76c9ff) 56%, transparent), 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.news-feed-order-list {
+  display: grid;
+  gap: clamp(8px, 1.2vmin, 12px);
+}
+
+.news-feed-order-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: clamp(9px, 1.2vmin, 14px);
+  align-items: center;
+  min-height: 62px;
+  padding: 9px 12px;
+  border: 1px solid var(--acp-theme-control-border, rgba(151, 203, 247, 0.16));
+  border-radius: 17px;
+  background: var(--acp-theme-soft, rgba(255, 255, 255, 0.07));
+}
+
+.news-feed-order-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.news-feed-order-copy strong,
+.news-feed-order-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.news-feed-order-copy strong {
+  font-size: clamp(17px, 2.1vmin, 22px);
+  font-weight: 850;
+}
+
+.news-feed-order-copy small {
+  color: var(--muted, rgba(224, 236, 249, 0.66));
+  font-size: clamp(12px, 1.55vmin, 15px);
+}
+
+.news-feed-enabled-button {
+  min-width: 104px;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid var(--acp-theme-control-border, rgba(151, 203, 247, 0.24));
+  border-radius: 999px;
+  background: var(--acp-theme-soft, rgba(255, 255, 255, 0.07));
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+}
+
+.news-feed-enabled-button[aria-pressed="true"] {
+  border-color: var(--accent, #73c9ff);
+  background: color-mix(in srgb, var(--accent, #53aeed) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #73c9ff) 20%, transparent);
+}
+
+.news-feed-enabled-button[aria-pressed="false"] {
+  color: var(--muted, rgba(224, 236, 249, 0.66));
+}
+
+/* The original Clock-card arrow controls remain as the state owner's fallback,
+   but the visible touch UI now uses a single drag grip and Remove button. */
+.clock-card-row.clock-card-drag-row {
+  grid-template-columns: 44px 32px minmax(0, 1fr) auto;
+}
+
+.clock-card-row.clock-card-drag-row > .clock-card-order-button[hidden] {
+  display: none !important;
+}
+
+.clock-card-drag-row .clock-card-drag-handle {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+}
+
+@media (max-width: 900px), (max-height: 640px) {
+  .news-feed-order-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    min-height: 56px;
+    padding: 7px 9px;
+  }
+
+  .settings-drag-handle {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .news-feed-enabled-button {
+    min-width: 92px;
+    min-height: 38px;
+    padding: 7px 11px;
+  }
+
+  .clock-card-row.clock-card-drag-row {
+    grid-template-columns: 40px 28px minmax(0, 1fr) auto;
+  }
+}
