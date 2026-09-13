@@ -98,7 +98,7 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
             "https://feeds.bbci.co.uk/news/world/europe/rss.xml",
             self.placement,
         )
-        self.assertIn("Only HTTPS BBC News feeds are accepted.", self.placement)
+        self.assertIn("Built-in BBC sections keep their standard names and source URLs.", self.placement)
         self.assertNotIn("add another BBC News RSS feed from <code>feeds.bbci.co.uk</code>", self.placement)
 
     def test_feed_check_help_matches_the_automatic_settings_workflow(self):
@@ -149,6 +149,16 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("display: none !important;", self.touch_css)
         self.assertIn("news-add-feed-button", self.touch_css)
         self.assertIn("grid-template-columns: 44px minmax(0, 1fr) auto", self.touch_css)
+
+    def test_news_feeds_page_only_presents_custom_sources(self):
+        self.assertIn("function isBuiltInCard(card)", self.feed_order)
+        self.assertIn("card.classList.toggle('news-built-in-feed-editor', builtIn);", self.feed_order)
+        self.assertIn("editorList.classList.toggle('has-no-custom-feeds', customCount === 0);", self.feed_order)
+        self.assertIn("Add and manage custom BBC News RSS feeds", self.feed_order)
+        self.assertIn("Built-in BBC sections keep their standard names and URLs", self.feed_order)
+        self.assertIn(".news-feed-editor-card.news-built-in-feed-editor", self.touch_css)
+        self.assertIn(".news-feed-editor-list.has-no-custom-feeds::before", self.touch_css)
+        self.assertIn("No custom BBC News feeds have been added yet.", self.touch_css)
 
     def test_add_feed_captures_old_ids_then_scrolls_the_settings_detail_to_new_card(self):
         self.assertIn("const previousIds = new Set(editorIds());", self.feed_order)
