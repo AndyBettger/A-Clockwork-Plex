@@ -3,6 +3,7 @@
   if (window.__aClockworkPlexSettingsNewsLoaded) return;
   window.__aClockworkPlexSettingsNewsLoaded = true;
 
+  const FEED_VALIDATE_API = '/api/news/feed/validate';
   const BUILT_IN_FEEDS = Object.freeze([
     { id: 'top', label: 'Top Stories', url: 'https://feeds.bbci.co.uk/news/rss.xml' },
     { id: 'uk', label: 'UK', url: 'https://feeds.bbci.co.uk/news/uk/rss.xml' },
@@ -21,6 +22,7 @@
   ]);
   const DEFAULT_ENABLED = Object.freeze(['top', 'uk', 'world', 'science', 'technology']);
   const MAX_CUSTOM_FEEDS = 12;
+  const CUSTOM_ID_PATTERN = /^custom-[a-z0-9][a-z0-9-]{0,47}$/;
 
   const sidebar = document.querySelector('.settings-sidebar-list');
   const detail = document.querySelector('.settings-detail');
@@ -130,7 +132,7 @@
           </div>
           <button class="button settings-secondary" type="button" data-news-add-feed>Add BBC feed</button>
         </div>
-        <p class="muted small" data-news-feed-editor-message>Changes are saved with the rest of Settings. The Top Stories ticker always stays tied to Top Stories.</p>
+        <p class="muted small" data-news-feed-editor-message>Custom feeds must pass a live BBC RSS check before they can be saved. The Top Stories ticker always stays tied to Top Stories.</p>
       </section>
       <div data-news-feed-editor-list></div>
     `;
@@ -247,6 +249,62 @@
     markDirty();
   }
 
+  async function validateCustomFeed(feed) {
+    if (!feed || feed.builtIn || feed.validating) return;
+    const candidate = clean(feed.url);
+    if (!candidate) {
+      setEditorMessage('Enter the BBC RSS URL before checking this feed.');
+      return;
+    }
+    const duplicate = feedState.some((other) => other !== feed && clean(other.url) === candidate);
+    if (duplicate) {
+      setEditorMessage('That BBC RSS URL is already present in the News feed list.');
+      return;
+    }
+
+    feed.validating = true;
+    renderAdvancedEditor();
+    setEditorMessage(`Checking ${candidate}…`);
+    try {
+      const response = await fetch(FEED_VALIDATE_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ url: candidate }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || `Feed check returned HTTP ${response.status}.`);
+      }
+
+      const suggestedId = clean(payload.suggested_id).toLowerCase();
+      if (
+        feed.isNew
+        && CUSTOM_ID_PATTERN.test(suggestedId)
+        && !feedState.some((other) => other !== feed && other.id === suggestedId)
+      ) {
+        feed.id = suggestedId;
+      }
+      feed.isNew = false;
+      feed.url = candidate;
+      feed.validatedUrl = candidate;
+      if (!clean(feed.label) || clean(feed.label) === 'Custom BBC feed') {
+        feed.label = clean(payload.label) || 'Custom BBC feed';
+      }
+      setEditorMessage(
+        `Feed checked successfully${Number.isFinite(Number(payload.story_count)) ? `; ${Number(payload.story_count)} current stories found` : ''}.`
+      );
+      markDirty();
+      renderAllFeedControls();
+    } catch (error) {
+      feed.validatedUrl = '';
+      setEditorMessage(`Feed check failed: ${error.message || 'BBC RSS validation failed.'}`);
+      renderAdvancedEditor();
+    } finally {
+      feed.validating = false;
+    }
+  }
+
   function renderAdvancedEditor() {
     if (!advancedFeedMount) return;
     advancedFeedMount.replaceChildren();
@@ -263,7 +321,9 @@
       title.textContent = displayLabel(feed);
       const source = document.createElement('p');
       source.className = 'muted small';
-      source.textContent = feed.builtIn ? 'Built-in BBC News feed' : 'Custom BBC News feed';
+      if (feed.builtIn) source.textContent = 'Built-in BBC News feed';
+      else if (feed.validatedUrl === clean(feed.url) && feed.validatedUrl) source.textContent = 'Custom BBC News feed · checked';
+      else source.textContent = 'Custom BBC News feed · check required';
       titleWrap.append(title, source);
 
       const enabledLabel = document.createElement('label');
@@ -307,7 +367,7 @@
       const urlHelp = document.createElement('small');
       urlHelp.textContent = feed.builtIn
         ? 'The source URL for a built-in feed is fixed.'
-        : 'Must be an HTTPS BBC News RSS URL on feeds.bbci.co.uk.';
+        : 'Must be an HTTPS BBC News RSS URL on feeds.bbci.co.uk and pass Check feed before Save Changes.';
       urlField.append(urlCaption, urlInput, urlHelp);
       fields.append(labelField, urlField);
 
@@ -328,10 +388,19 @@
 
       actions.append(up, down);
       if (!feed.builtIn) {
+        const check = document.createElement('button');
+        check.type = 'button';
+        check.className = 'button settings-secondary';
+        check.textContent = feed.validating ? 'Checking…' : 'Check feed';
+        check.disabled = feed.validating === true;
+        check.addEventListener('click', () => validateCustomFeed(feed));
+        actions.appendChild(check);
+
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'button settings-secondary';
         remove.textContent = 'Remove';
+        remove.disabled = feed.validating === true;
         remove.addEventListener('click', () => removeFeed(feed.id));
         actions.appendChild(remove);
       }
@@ -356,6 +425,8 @@
       if (!feed.builtIn) {
         urlInput.addEventListener('input', () => {
           feed.url = urlInput.value.trim();
+          if (feed.validatedUrl !== feed.url) feed.validatedUrl = '';
+          source.textContent = 'Custom BBC News feed · check required';
           markDirty();
         });
       }
@@ -425,10 +496,14 @@
     custom.forEach((feed) => {
       const id = clean(feed?.id).toLowerCase();
       if (!id || byId.has(id)) return;
+      const url = clean(feed?.url);
       byId.set(id, {
         id,
         label: clean(feed?.label),
-        url: clean(feed?.url),
+        url,
+        validatedUrl: url,
+        isNew: false,
+        validating: false,
         builtIn: false,
         enabled: enabled.has(id),
       });
@@ -469,10 +544,16 @@
         const label = clean(feed.label);
         if (label && label !== original) feedLabels[feed.id] = label;
       } else {
+        const url = clean(feed.url);
+        if (!url || feed.validatedUrl !== url) {
+          throw new Error(`Check the custom BBC feed “${displayLabel(feed)}” before saving.`);
+        }
+        const label = clean(feed.label);
+        if (!label) throw new Error('Every custom BBC feed needs a display name.');
         customFeeds.push({
           id: feed.id,
-          label: clean(feed.label),
-          url: clean(feed.url),
+          label,
+          url,
         });
       }
     });
@@ -514,11 +595,14 @@
       id,
       label: 'Custom BBC feed',
       url: '',
+      validatedUrl: '',
+      isNew: true,
+      validating: false,
       builtIn: false,
       enabled: false,
     });
     renderAllFeedControls();
-    setEditorMessage('Enter a BBC News RSS URL and a useful display name, then save Settings.');
+    setEditorMessage('Enter a BBC News RSS URL, use Check feed, then optionally rename or enable it before Save Changes.');
     markDirty();
   });
 
