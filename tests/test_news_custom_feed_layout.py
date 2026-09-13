@@ -144,9 +144,26 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("textButton(card, 'Move up')", self.feed_order)
         self.assertIn("up.hidden = true", self.feed_order)
         self.assertIn("enabled.hidden = true", self.feed_order)
-        self.assertIn("scrollIntoView", self.feed_order)
+        self.assertIn(".news-feed-editor-card .setting-toggle[hidden]", self.touch_css)
+        self.assertIn(".news-feed-editor-card .settings-action-row > button[hidden]", self.touch_css)
+        self.assertIn("display: none !important;", self.touch_css)
         self.assertIn("news-add-feed-button", self.touch_css)
         self.assertIn("grid-template-columns: 44px minmax(0, 1fr) auto", self.touch_css)
+
+    def test_add_feed_captures_old_ids_then_scrolls_the_settings_detail_to_new_card(self):
+        self.assertIn("const previousIds = new Set(editorIds());", self.feed_order)
+        self.assertIn("}, { capture: true });", self.feed_order)
+        self.assertIn("document.querySelector('.settings-detail')", self.feed_order)
+        self.assertIn("scroller.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });", self.feed_order)
+        self.assertIn("newcomer.classList.add('is-new-feed')", self.feed_order)
+
+    def test_drag_grip_uses_a_visually_centred_css_dot_matrix(self):
+        self.assertIn('.settings-drag-handle > span[aria-hidden="true"]', self.touch_css)
+        self.assertIn("width: 18px;", self.touch_css)
+        self.assertIn("height: 26px;", self.touch_css)
+        self.assertIn("font-size: 0;", self.touch_css)
+        self.assertIn("radial-gradient(circle at 28% 17%", self.touch_css)
+        self.assertIn("radial-gradient(circle at 72% 83%", self.touch_css)
 
     def test_clock_weather_cards_gain_touch_drag_order_without_replacing_state_owner(self):
         self.assertIn("Choose cards below, then drag the grip", self.clock_drag)
