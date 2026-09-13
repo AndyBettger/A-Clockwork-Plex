@@ -18,6 +18,7 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.news_feed = Path("app/news_feed.py").read_text(encoding="utf-8")
         self.touch_helper = Path("app/static/js/settings-touch-reorder.js").read_text(encoding="utf-8")
         self.feed_order = Path("app/static/js/settings-news-feed-order.js").read_text(encoding="utf-8")
+        self.feed_discovery = Path("app/static/js/settings-news-feed-discovery.js").read_text(encoding="utf-8")
         self.clock_drag = Path("app/static/js/settings-clock-card-drag.js").read_text(encoding="utf-8")
         self.touch_css = Path("app/static/css/settings-touch-reorder.css").read_text(encoding="utf-8")
 
@@ -78,6 +79,7 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
             "app/static/js/news-category-scrollbar.js",
             "app/static/js/settings-touch-reorder.js",
             "app/static/js/settings-news-feed-order.js",
+            "app/static/js/settings-news-feed-discovery.js",
             "app/static/js/settings-clock-card-drag.js",
         ):
             completed = subprocess.run(
@@ -107,6 +109,28 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("copy.includes('pass Check feed before Save Changes')", self.placement)
         self.assertIn("then press Check feed", self.placement)
         self.assertIn("before this custom feed can be used", self.placement)
+
+    def test_bbc_news_page_urls_are_converted_to_the_existing_strict_rss_boundary(self):
+        self.assertIn("settings-news-feed-discovery.js", self.base)
+        self.assertLess(
+            self.base.index("settings-news-feed-order.js"),
+            self.base.index("settings-news-feed-discovery.js"),
+        )
+        self.assertIn("const BBC_PAGE_HOSTS = new Set(['bbc.co.uk', 'www.bbc.co.uk', 'bbc.com', 'www.bbc.com']);", self.feed_discovery)
+        self.assertIn("function bbcNewsPageToFeedUrl(value)", self.feed_discovery)
+        self.assertIn("segments[0].toLowerCase() !== 'news'", self.feed_discovery)
+        self.assertIn("return `https://feeds.bbci.co.uk${feedPath}`;", self.feed_discovery)
+        self.assertIn("input.dispatchEvent(new Event('input', { bubbles: true }));", self.feed_discovery)
+        self.assertIn("BBC News page or RSS URL", self.feed_discovery)
+        self.assertIn("https://www.bbc.co.uk/news/england/sussex", self.feed_discovery)
+
+    def test_feed_validation_feedback_is_local_to_the_custom_feed_card(self):
+        self.assertIn("data.newsFeedCheckStatus", self.feed_discovery.replace("dataset.newsFeedCheckStatus", "data.newsFeedCheckStatus"))
+        self.assertIn("data-news-feed-check-status", self.feed_discovery)
+        self.assertIn("actions.insertAdjacentElement('afterend', local)", self.feed_discovery)
+        self.assertIn("Feed check failed:", self.feed_discovery)
+        self.assertIn("globalMessage.textContent = DEFAULT_GUIDANCE", self.feed_discovery)
+        self.assertIn("aria-live", self.feed_discovery)
 
     def test_feed_label_prefers_specific_title_then_specific_description(self):
         self.assertEqual(_suggest_feed_label("BBC News - Space", "Space stories"), "Space")
