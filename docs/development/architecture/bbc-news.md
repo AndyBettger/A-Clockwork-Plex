@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete and repeated commissioned-appliance passes on 13 September 2026 have proved repeat installation, the enlarged catalogue, order/default behaviour, saved News rendering, the News-owned custom-feed editor, the shared custom category scrollbar and a live Europe custom feed. The Europe source passed **Check feed**, was automatically named **Europe** from its RSS description, was enabled alongside built-in sections and rendered real Europe stories while the ticker remained tied to Top Stories. The compact **News → Feed order** page has also been physically exercised: long-distance drag/edge auto-scroll works, Enabled/Disabled changes are effective, and the same helper correctly reorders Weather → Clock weather cards. The next commissioned recheck confirmed the corrected Add BBC feed auto-scroll/highlight, the centred CSS 2×3 grips on both pages and removal of duplicate Enabled/Move controls from News feeds. Product review then simplified the final Settings contract further: **News feeds is now a custom-source manager only**; built-in BBC sections keep canonical names and source URLs and are managed through Sections/Feed order. **Tests #4824** passed the full automated gate for that simplification on implementation head `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`. Remaining custom-feed/portability checks are still open, so PR #12 remains draft.
+A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Repeated commissioned-appliance passes on 13 September 2026 have now proved repeat installation, the enlarged catalogue, order/default behaviour, custom-feed rendering, touch reordering, the custom-only News feeds manager and its empty state, plus local QR hand-off from the real Europe custom feed. A deliberately non-BBC candidate was also physically rejected. That last pass exposed one remaining usability fault: Check-feed errors were shown in the page-level intro card and could be off-screen. The branch now renders validation feedback beside the relevant custom feed's controls. Inspection of the live BBC Sussex section page also established the useful ordinary-page pattern `/news/england/sussex` → `/news/england/sussex/rss.xml`; the Settings client can therefore accept a normal BBC News section page URL and locally derive the corresponding `feeds.bbci.co.uk` candidate before using the unchanged strict RSS preflight. **Tests #4834** passed the complete automated gate for this refinement on `81fd4798d7954baf46e17cbd8f28f22868f6bd67`. Changed-source/cache correctness and portable Backup/Reset/Restore acceptance remain open, so PR #12 remains draft.
 
 ## Feed authority
 
@@ -36,7 +36,7 @@ Those additional feeds are available to the owner but are **not enabled by defau
 
 ### Custom BBC feed boundary
 
-ACP still does **not** become a general-purpose RSS reader. An advanced custom source is accepted only when `_safe_bbc_feed_url()` proves all of the following:
+ACP still does **not** become a general-purpose RSS reader. A stored/fetched custom source is accepted only when `_safe_bbc_feed_url()` proves all of the following:
 
 - scheme is HTTPS;
 - hostname is exactly `feeds.bbci.co.uk`;
@@ -46,9 +46,11 @@ ACP still does **not** become a general-purpose RSS reader. An advanced custom s
 - path is `/news/rss.xml` or a `/news/.../rss.xml` path;
 - path contains no doubled, current-directory or parent-directory traversal segments.
 
-This intentionally allows BBC-owned topic feeds such as `/news/topics/.../rss.xml` while rejecting arbitrary internet hosts, BBC Sport feeds, HTTP sources and URL tricks intended to escape the News source boundary.
+This intentionally allows BBC-owned topic and local feeds such as `/news/topics/.../rss.xml` and `/news/england/sussex/rss.xml` while rejecting arbitrary internet hosts, BBC Sport feeds, HTTP sources and URL tricks intended to escape the News source boundary.
 
 `fetch_bbc_rss()` uses the same validator before any request. Its redirect handler also validates each redirect target **before urllib follows it**, and the final response URL is validated again. A custom-feed feature therefore cannot be used as an SSRF/open-fetch primitive by entering a BBC-looking URL that redirects elsewhere.
+
+Friendly page entry does not widen that network boundary. `settings-news-feed-discovery.js` may accept an ordinary HTTPS BBC News page on the exact `bbc.co.uk`/`bbc.com` hosts when its path begins `/news` and consists only of bounded safe path segments. It transforms that path locally into the corresponding `https://feeds.bbci.co.uk/.../rss.xml` candidate and dispatches it through the existing Check-feed path. The server never receives the BBC page URL and never fetches or scrapes BBC page HTML. If the derived RSS address does not actually exist, the normal preflight fails and nothing becomes usable.
 
 The appliance still does not scrape BBC article HTML.
 
@@ -67,7 +69,7 @@ ticker.enabled
 ticker.speed
 ```
 
-`feed_order` is the logical ordered list of built-in and custom section ids. Built-in sections have canonical names and fixed source URLs in the finished Settings UI. The `feed_labels` field remains tolerated internally on this in-flight branch so development backups/configurations created before the simplification do not become invalid, but new built-in renames are no longer exposed or needed by normal appliance use. A custom feed stores its own editable display label as part of the bounded logical record:
+`feed_order` is the logical ordered list of built-in and custom section ids. Built-in sections have canonical names and fixed source URLs in the finished Settings UI. The `feed_labels` field remains tolerated internally on this in-flight branch so development backups/configurations created before the simplification do not become invalid, but new built-in renames are no longer exposed or needed by normal appliance use. A custom feed stores its own editable display label and canonical RSS URL as part of the bounded logical record:
 
 ```json
 {
@@ -77,7 +79,7 @@ ticker.speed
 }
 ```
 
-Custom ids are stable configuration identifiers rather than display labels. The default section must be enabled, at least one section must remain enabled, duplicate custom ids are rejected and a custom URL may not duplicate a curated built-in source.
+A friendly BBC page URL is only an input convenience; after Check feed the stored source remains the canonical RSS URL. Custom ids are stable configuration identifiers rather than display labels. The default section must be enabled, at least one section must remain enabled, duplicate custom ids are rejected and a custom URL may not duplicate a curated built-in source.
 
 The News page receives the enabled order and a link-free `{id, label}` catalogue. It does not need the underlying source URL in order to render the section rail.
 
@@ -85,13 +87,15 @@ The News page receives the enabled order and a link-free `{id, label}` catalogue
 
 New or edited custom sources have a deliberate read-only preflight before they can become usable through the normal Settings transaction.
 
-The Settings UI calls:
+For direct RSS entry the Settings UI calls:
 
 ```text
 POST /api/news/feed/validate
 ```
 
-with only the candidate URL. The endpoint:
+with only the candidate RSS URL. If the owner instead pastes an ordinary BBC News section page, the browser first validates that it is HTTPS on an exact BBC News host with a safe `/news/...` path, converts that path to the corresponding `feeds.bbci.co.uk` RSS candidate, and then makes the same request. There is no separate HTML-discovery fetch.
+
+The endpoint:
 
 1. applies the exact BBC feed-source validator described above;
 2. performs a bounded read of that BBC RSS source;
@@ -102,9 +106,9 @@ with only the candidate URL. The endpoint:
 
 BBC feed metadata is not completely uniform. `_suggest_feed_label()` therefore prefers a useful channel title, strips the normal `BBC News - ` / dash-prefixed branding when present, ignores a generic `BBC News` title, and then applies the same rule to the channel description. The physically accepted Europe feed is the motivating specimen: title `BBC News` plus description `BBC News - Europe` yields the display label **Europe**.
 
-The validation response does **not** echo the source URL. A non-BBC URL is rejected before the network fetcher is called.
+The validation response does **not** echo the source URL. A non-BBC RSS URL is rejected before the network fetcher is called; a non-BBC ordinary page URL cannot be converted by the client and therefore reaches the same rejection boundary rather than becoming an arbitrary page fetch.
 
-The browser marks a custom row as checked only for the exact URL that passed this preflight. Editing the URL clears that state, so an unchecked new/changed source cannot be accepted into the usable News configuration. Field help describes **Check feed** itself rather than referring to a separate save step. This gives normal interactive configuration an explicit “does this really look like a BBC News RSS feed?” gate without moving network fetching into the unified Settings transaction itself.
+The browser marks a custom row as checked only for the exact canonical RSS URL that passed this preflight. Editing the URL clears that state, so an unchecked new/changed source cannot be accepted into the usable News configuration. Check progress, success and failure are presented beside the relevant custom feed's own action row rather than only in the page-level intro card. Field help describes **Check feed** itself rather than referring to a separate save step. This gives normal interactive configuration an explicit “does this really look like a BBC News RSS feed?” gate without moving network fetching into the unified Settings transaction itself.
 
 Portable Restore is intentionally different: it restores an already validated logical ACP configuration through the normal server validator and does not require BBC connectivity during the Restore transaction. The News worker checks/fetches the restored source afterwards using the same source boundary. This preserves offline/cache-first Restore semantics.
 
@@ -208,20 +212,20 @@ The News workspace owns enabled sections, default section, summaries, ticker pre
 
 The physical 1280×720 passes then separated the jobs cleanly:
 
-- **News feeds** is a custom-source manager only. Built-in editor cards remain in the DOM as hidden implementation/state-owner records so the pre-existing News transaction and Feed-order adapter can continue to share one model, but CSS removes them completely from this page. Built-in BBC names and URLs are therefore not user-editable. Custom cards retain Display name, BBC RSS URL, **Check feed** and Remove. The Add BBC feed control uses a normal compact Settings-button footprint; after creation the `.settings-detail` scroller moves directly to/highlights the new custom editor. When no custom sources exist the page shows a friendly empty-state message rather than a blank list.
+- **News feeds** is a custom-source manager only. Built-in editor cards remain in the DOM as hidden implementation/state-owner records so the pre-existing News transaction and Feed-order adapter can continue to share one model, but CSS removes them completely from this page. Built-in BBC names and URLs are therefore not user-editable. Custom cards retain Display name, a **BBC News page or RSS URL** field, **Check feed** and Remove. An ordinary BBC News section page is converted locally to its canonical RSS candidate before Check feed; the field then contains the RSS URL that is actually validated/stored. Check status/errors are shown beneath that card's action row. The Add BBC feed control uses a normal compact Settings-button footprint; after creation the `.settings-detail` scroller moves directly to/highlights the new custom editor. When no custom sources exist the page shows a friendly empty-state message rather than a blank list.
 - **Feed order** owns the compact menu-order/enablement view for both built-in and custom feeds. Each row has an explicit touch grip, label/source summary and Enabled/Disabled button. Pointer drag reorders vertically, auto-scroll assists long-distance moves near the viewport edge, and Arrow Up/Down on the grip provides a keyboard fallback. It delegates changes back to the existing News `feedState` owner, so there is still only one logical order and one unified Settings transaction.
 - **Sections** retains the quick checkbox/default-section view and does not edit feed identities.
 
 `app/static/js/settings-touch-reorder.js` is the shared touch-order interaction helper. It is deliberately handle-based rather than making the entire row draggable so ordinary vertical touchscreen scrolling remains available outside the grip. The visual grip is drawn as a fixed CSS 2×3 dot matrix instead of relying on the Braille `⠿` glyph's font metrics, keeping the mark geometrically centred inside the touch target across Chromium/font combinations. The same helper enhances **Weather → Clock weather cards** through `settings-clock-card-drag.js`: visible up/down arrows are replaced by a grip, while `ACPClockCards.applyStoredIds()` remains the actual weather-card state owner and a single `acp:clock-cards-changed` event marks the Weather domain dirty after a committed drag.
 
-A new or edited custom News source remains unusable until its exact URL has passed **Check feed**; after the preflight succeeds it rejoins the existing single revisioned Settings owner rather than creating a separate custom-feed save mechanism. The News worker is woken after the validated configuration commit rather than making the user wait for the normal refresh interval.
+A new or edited custom News source remains unusable until its exact canonical RSS URL has passed **Check feed**; after the preflight succeeds it rejoins the existing single revisioned Settings owner rather than creating a separate custom-feed save mechanism. The News worker is woken after the validated configuration commit rather than making the user wait for the normal refresh interval.
 
 The full logical News configuration is portable ACP state. Portable Backup carries:
 
 - enabled ids;
 - default id;
 - feed order;
-- custom BBC feed logical records, including their editable display names;
+- custom BBC feed logical records, including their editable display names and canonical RSS URLs;
 - the compatibility built-in-label map if present in a development-era configuration, although the finished UI no longer creates such overrides;
 - summary setting;
 - ticker setting/speed.
@@ -234,7 +238,7 @@ RSS downloads/cache/private article hand-off metadata are excluded from Backup/R
 
 BBC/network/XML failure must never affect the rest of the appliance. A failed active section keeps its previous successful feed only when that cache belongs to the same configured source, and records an explicit degraded/stale/error state. The News page labels stale data rather than inventing content.
 
-A failed custom-feed preflight does not change configuration or cache. A missing/rejected article link or QR-generation failure does not prevent the story summary dialog from opening and does not affect the feed worker.
+A failed custom-feed preflight does not change configuration or cache. A friendly page URL that derives to a nonexistent RSS endpoint therefore fails safely at the same gate. A missing/rejected article link or QR-generation failure does not prevent the story summary dialog from opening and does not affect the feed worker.
 
 The previously accepted real Wi-Fi interruption proved the cache-first boundary: cached stories and ticker remained visible with stale/cached status and normal fresh updates resumed after connectivity returned.
 
@@ -288,13 +292,17 @@ Commissioned passes on 13 September 2026 have established:
 - [x] the normal-sized Add BBC feed button is visually accepted;
 - [x] Add BBC feed now scrolls/highlights the newly created custom editor on the commissioned screen;
 - [x] the CSS-drawn 2×3 grips are visually centred on both News Feed order and Clock weather cards;
-- [x] duplicate Enabled/Move controls are absent from News feeds.
+- [x] duplicate Enabled/Move controls are absent from News feeds;
+- [x] the final custom-only News feeds page hides all built-in editors and shows its friendly empty state when Europe is removed;
+- [x] Europe story QR hand-off works from the custom feed;
+- [x] an arbitrary non-BBC custom source is rejected before it can become usable.
+
+That latest rejection test exposed that the result could be off-screen in the page intro. The branch now localises Check-feed progress/success/failure beneath the relevant card. The supplied live Sussex BBC page also demonstrated the predictable page/RSS pair, so friendly page entry has been added without changing the strict server fetch boundary.
 
 Before draft PR #12 may leave draft, the commissioned appliance must still prove:
 
-- the custom-only News feeds page hides every built-in editor, retains the working Add/scroll flow and shows a sensible empty state when no custom sources exist;
-- a story delivered by the added Europe feed retains the accepted local QR hand-off behaviour when the RSS item supplies a usable HTTPS destination;
-- an unchecked/non-BBC source is rejected;
+- local Check-feed success/error feedback remains beside the relevant custom feed at 1280×720;
+- pasting `https://www.bbc.co.uk/news/england/sussex` derives/checks the corresponding Sussex RSS source and produces a usable custom section;
 - changing a custom source cannot make cache from the old source appear under the new source;
 - portable Backup contains the logical order/custom feed records and Reset/Restore Preview ownership remains truthful;
 - News Settings, touch keyboard and unified update/discard interaction remain usable without 1280×720 overflow.
@@ -308,6 +316,7 @@ Automated evidence:
 - **Tests #4788** passed compile, existing JavaScript/page/shell checks and the full regression suite on `01817c5ced6dbcb7c686b52e2db851ce6905d00c`;
 - **Tests #4801** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `92cb656452fb546f20f078d6ee76f0e72b31fc6b`; its dedicated News regression directly syntax-checks the shared touch-reorder helper, News Feed-order client and Clock-card drag enhancer as well as the News placement/scrollbar clients;
 - **Tests #4807** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `e5828a7205394019f4fb6d24e1c8ef46547beec3`, covering explicit new-editor scrolling, centred dot-matrix grip styling and editor-only hidden-control enforcement;
-- **Tests #4824** passed the full automated gate on custom-only News feed manager implementation head `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`, including regression coverage that built-in editor cards are hidden while Feed order still uses the shared underlying records.
+- **Tests #4824** passed the full automated gate on custom-only News feed manager implementation head `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`, including regression coverage that built-in editor cards are hidden while Feed order still uses the shared underlying records;
+- **Tests #4834** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `81fd4798d7954baf46e17cbd8f28f22868f6bd67`, including syntax/contract coverage for friendly BBC page URL conversion and local Check-feed feedback.
 
 Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
