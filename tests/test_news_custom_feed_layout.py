@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+from app.news_feed import _suggest_feed_label
+
 
 class NewsCustomFeedLayoutTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -10,6 +12,8 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.news_template = Path("app/templates/news.html").read_text(encoding="utf-8")
         self.placement = Path("app/static/js/settings-news-placement.js").read_text(encoding="utf-8")
         self.css = Path("app/static/css/news-custom-feeds.css").read_text(encoding="utf-8")
+        self.scrollbar_js = Path("app/static/js/news-category-scrollbar.js").read_text(encoding="utf-8")
+        self.news_feed = Path("app/news_feed.py").read_text(encoding="utf-8")
 
     def test_feed_editor_is_reparented_into_news_before_settings_navigation_binds(self):
         self.assertIn("feedRow.dataset.settingsSubpageTarget = 'news:feeds';", self.placement)
@@ -33,24 +37,32 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("gap: clamp(12px, 1.8vmin, 18px);", self.css)
         self.assertIn(".news-feed-editor-list > .settings-card", self.css)
 
-    def test_news_category_rail_is_touch_scrollable_and_matches_story_scrollbar(self):
-        self.assertIn(".news-category-list {", self.css)
-        self.assertIn("flex: 1 1 auto;", self.css)
-        self.assertIn("min-height: 0;", self.css)
+    def test_news_category_rail_reuses_the_story_custom_scrollbar(self):
+        self.assertIn('class="news-category-scroll"', self.news_template)
+        self.assertIn('id="news-category-list"', self.news_template)
+        self.assertIn(
+            'class="news-story-scrollbar news-category-scrollbar"',
+            self.news_template,
+        )
+        self.assertIn('data-news-category-scrollbar', self.news_template)
+        self.assertIn('data-news-category-scrollbar-thumb', self.news_template)
+        self.assertIn('aria-controls="news-category-list"', self.news_template)
+        self.assertIn("js/news-category-scrollbar.js", self.news_template)
+
+        self.assertIn(".news-category-scroll {", self.css)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) 8px;", self.css)
         self.assertIn("overflow-y: auto;", self.css)
         self.assertIn("overscroll-behavior: contain;", self.css)
         self.assertIn("touch-action: pan-y;", self.css)
-        self.assertIn("scrollbar-gutter: stable;", self.css)
-        self.assertIn(".news-category-list::-webkit-scrollbar {", self.css)
-        self.assertIn("width: 8px;", self.css)
-        self.assertIn(".news-category-list::-webkit-scrollbar-track", self.css)
-        self.assertIn("border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--panel-border));", self.css)
-        self.assertIn(".news-category-list::-webkit-scrollbar-thumb", self.css)
-        self.assertIn("background: linear-gradient(180deg, var(--accent), var(--accent-strong)) padding-box;", self.css)
-        self.assertIn(".news-category-list::-webkit-scrollbar-button", self.css)
+        self.assertIn("scrollbar-width: none;", self.css)
+        self.assertIn(".news-category-list::-webkit-scrollbar", self.css)
         self.assertIn("display: none;", self.css)
-        self.assertIn("css/news-custom-feeds.css", self.news_template)
-        self.assertIn("css/news-custom-feeds.css", self.base)
+
+        self.assertIn("const trackInset = 1;", self.scrollbar_js)
+        self.assertIn("Math.max(42, proportionalHeight)", self.scrollbar_js)
+        self.assertIn("scrollMount.addEventListener('scroll', update", self.scrollbar_js)
+        self.assertIn("scrollbar.classList.add('is-dragging');", self.scrollbar_js)
+        self.assertIn("MutationObserver", self.scrollbar_js)
 
     def test_feed_help_uses_a_complete_rss_example_not_the_bare_feed_host(self):
         self.assertIn("const feedHelp = feedSubpage.querySelector", self.placement)
@@ -60,6 +72,18 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         )
         self.assertIn("Only HTTPS BBC News feeds are accepted.", self.placement)
         self.assertNotIn("add another BBC News RSS feed from <code>feeds.bbci.co.uk</code>", self.placement)
+
+    def test_feed_check_help_matches_the_automatic_settings_workflow(self):
+        self.assertIn("refreshCustomFeedHelp", self.placement)
+        self.assertIn("then press Check feed", self.placement)
+        self.assertIn("before this custom feed can be used", self.placement)
+        self.assertNotIn("before Save Changes", self.placement)
+
+    def test_feed_label_prefers_specific_title_then_specific_description(self):
+        self.assertEqual(_suggest_feed_label("BBC News - Space", "Space stories"), "Space")
+        self.assertEqual(_suggest_feed_label("BBC News", "BBC News - Europe"), "Europe")
+        self.assertEqual(_suggest_feed_label("BBC News", "BBC News"), "Custom BBC feed")
+        self.assertIn('feed.get("feed_description")', self.news_feed)
 
 
 if __name__ == "__main__":
