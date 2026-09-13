@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is now active on `feature/news-custom-feeds` / draft PR #12. Its software implementation is complete enough for automated validation, but it is **not physically accepted yet**. The commissioned-appliance 1280×720 gate remains open and PR #12 must remain draft until that gate passes.
+A bounded post-#92 **configurable sections** follow-up is now active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete, and the first commissioned-appliance pass on 13 September 2026 proved repeat installation plus the enlarged built-in catalogue, rename/reorder/default transaction and saved News rendering. That pass also exposed two bounded presentation follow-ups — the News section rail needed its own touch-scroll region and the feed-editor cards needed more vertical separation — and established the product preference that **News feeds belongs inside Settings → News rather than Advanced**. Those follow-ups are implemented on the feature branch and await exact-head CI/physical recheck. PR #12 must remain draft until the remaining custom-feed and portability physical gates pass.
 
 ## Feed authority
 
@@ -168,9 +168,10 @@ The normal navigation includes News alongside Clock, Weather, Plexamp, AirPlay a
 
 ## Touchscreen presentation
 
-`app/templates/news.html`, `app/static/css/news.css` and `app/static/js/news.js` own the 1280×720-first News presentation:
+`app/templates/news.html`, `app/static/css/news.css`, `app/static/css/news-custom-feeds.css` and `app/static/js/news.js` own the 1280×720-first News presentation:
 
 - Settings-style section rail on the left, driven by the saved enabled order and display labels;
+- the section rail has its own bounded vertical touch-scroll region when enabled sections exceed the available height;
 - scrollable headline cards showing section, published time, title and optional feed summary;
 - local detail modal on story tap;
 - optional locally generated article QR hand-off panel;
@@ -200,7 +201,9 @@ Top Stories therefore remains a fetch dependency whenever the ticker is enabled,
 
 `app/static/js/settings-news.js` registers the `news` domain with the existing `ACPUnifiedSettings` transaction owner. It has no separate save path.
 
-The ordinary News workspace owns enabled sections, default section, summaries and ticker presentation. `Advanced → News feeds` owns section rename/order and the bounded custom BBC RSS editor.
+The News workspace owns enabled sections, default section, summaries, ticker presentation and the **News feeds** subpage for section rename/order plus the bounded custom BBC RSS editor. The initial software build placed that editor under Advanced; the first commissioned 1280×720 pass established that this is ordinary News configuration, so the feature branch now presents it within Settings → News before the shared Settings navigation binds.
+
+The feed editor list uses deliberate vertical card spacing at 1280×720 so adjacent feed records retain a clear visual boundary.
 
 After a custom source has passed its explicit preflight, `Save Changes` still performs the existing single revisioned Settings transaction. Saving Settings does not wait for the normal background News refresh; it wakes the News worker after the validated configuration commit.
 
@@ -258,18 +261,32 @@ Physical acceptance confirms:
 
 ### Configurable-sections follow-up — physical gate open
 
-Before draft PR #12 may leave draft, the commissioned appliance must still prove:
+First commissioned pass on 13 September 2026, head `2ea286211cb8712553dce3e131598c06b2d6aa4c`:
 
-- the larger curated catalogue fits and behaves at 1280×720;
-- enabling a non-default built-in (for example Business), renaming it and reordering it changes the News rail as saved;
-- a different enabled section can be selected as the startup News default;
-- `Advanced → News feeds` can add a real BBC-owned News RSS URL using the touch keyboard;
+- [x] `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**;
+- [x] the enlarged curated catalogue rendered in Settings at 1280×720;
+- [x] Business could be enabled, renamed to **Business Test**, moved in the saved order and selected as the default section;
+- [x] the News page then opened the renamed Business feed with the saved rail order and correct Business stories;
+- [x] the Top Stories ticker remained visibly independent while Business Test was active;
+- [ ] the larger enabled rail was not fully reachable because the category list itself did not scroll;
+- [ ] feed-editor cards were visually too tightly packed and the editor's initial Advanced placement was rejected in favour of Settings → News.
+
+The branch now contains bounded follow-up styling/placement for those two open presentation findings. Before draft PR #12 may leave draft, the commissioned appliance must still prove:
+
+- the News-owned **News feeds** subpage, feed-card spacing and touch-scrollable section rail at 1280×720;
+- a real BBC-owned News RSS URL can be added using the touch keyboard;
 - **Check feed** validates that source, derives a sensible label/stable id and blocks an unchecked or non-BBC source;
 - a mixed built-in + custom configuration renders stories in the saved rail order;
 - the Top Stories ticker remains Top Stories regardless of active/default/custom section;
 - a story delivered by the added BBC feed retains the accepted local QR hand-off behaviour when the RSS item supplies a usable HTTPS destination;
 - changing a custom source cannot make cache from the old source appear under the new source;
 - portable Backup contains the logical order/labels/custom feed records and Reset/Restore Preview ownership remains truthful;
-- Settings/Advanced layouts, touch keyboard and Save/Discard interaction remain usable without 1280×720 overflow.
+- News Settings, touch keyboard and Save/Discard interaction remain usable without 1280×720 overflow.
 
-Until that gate passes, configurable sections are **software implemented / automated-validation stage**, not physically accepted product behaviour.
+Automated evidence:
+
+- **Tests #4753** passed the first complete implementation gate on `58e47e800ff13ed98f0834a7f429d958b7927ac0`;
+- **Tests #4765** passed compile, JavaScript/page wiring/shell checks and the full regression suite on physical-test head `2ea286211cb8712553dce3e131598c06b2d6aa4c`;
+- the exact post-physical-follow-up branch head must pass the same complete gate before the next commissioned-Pi pull.
+
+Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
