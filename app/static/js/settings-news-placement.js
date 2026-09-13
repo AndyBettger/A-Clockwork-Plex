@@ -20,6 +20,11 @@
     back.textContent = '‹ News';
   }
 
+  const sectionsHelp = newsPanel.querySelector('[data-settings-subpage="news:sections"] .settings-card .muted.small');
+  if (sectionsHelp) {
+    sectionsHelp.textContent = 'Enabled sections appear in this order in the News page’s left-hand menu. At least one section must remain enabled. Rename, reorder or add BBC feeds under News feeds.';
+  }
+
   const editorList = feedSubpage.querySelector('[data-news-feed-editor-list]');
   editorList?.classList.add('news-feed-editor-list');
   newsPanel.appendChild(feedSubpage);
