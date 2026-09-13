@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 import qrcode
 import qrcode.image.svg
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, request
 
 
 CACHE_SCHEMA_VERSION = 4
@@ -250,6 +250,15 @@ def _safe_bbc_feed_url(value: Any) -> str | None:
     if "//" in path or "/../" in path or "/./" in path:
         return None
     return f"https://{_SAFE_FEED_HOST}{path}"
+
+
+class _BBCFeedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects before urllib can leave the BBC News RSS boundary."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[override]
+        if _safe_bbc_feed_url(newurl) is None:
+            raise RuntimeError("BBC News redirected outside the approved RSS source boundary.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _public_story(item: Any) -> dict[str, Any] | None:
@@ -571,15 +580,16 @@ def fetch_bbc_rss(url: str, timeout: float) -> bytes:
     safe_url = _safe_bbc_feed_url(url)
     if safe_url is None:
         raise ValueError("BBC News feed URL must be an approved feeds.bbci.co.uk News RSS source.")
-    request = urllib.request.Request(
+    request_object = urllib.request.Request(
         safe_url,
         headers={
             "Accept": "application/rss+xml, application/xml, text/xml;q=0.9",
             "User-Agent": "A-Clockwork-Plex/1 bbc-news",
         },
     )
+    opener = urllib.request.build_opener(_BBCFeedRedirectHandler())
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request_object, timeout=timeout) as response:
             final_url = response.geturl() if hasattr(response, "geturl") else safe_url
             if _safe_bbc_feed_url(final_url) is None:
                 raise RuntimeError("BBC News redirected outside the approved RSS source boundary.")
@@ -658,6 +668,17 @@ def parse_bbc_rss(
         "ttl_minutes": _feed_ttl(_child_text(channel, "ttl")),
         "items": stories,
     }
+
+
+def _suggest_feed_label(value: Any) -> str:
+    title = _plain_text(value, maximum=MAX_FEED_LABEL_LENGTH)
+    for prefix in ("BBC News - ", "BBC News – ", "BBC News — "):
+        if title.casefold().startswith(prefix.casefold()):
+            title = title[len(prefix) :].strip()
+            break
+    if not title or title.casefold() in {"bbc", "bbc news"}:
+        return "Custom BBC feed"
+    return title
 
 
 def _now() -> datetime:
@@ -754,6 +775,27 @@ class BBCNewsFeedService:
     def worker_status(self) -> dict[str, Any]:
         worker = self._worker
         return {"running": bool(worker and worker.is_alive())}
+
+    def validate_feed(self, value: Any) -> dict[str, Any]:
+        """Read and parse one candidate BBC News RSS URL without saving it."""
+
+        safe_url = _safe_bbc_feed_url(value)
+        if safe_url is None:
+            raise ValueError(
+                "Feed must be an HTTPS BBC News RSS URL on feeds.bbci.co.uk."
+            )
+        try:
+            payload = self._fetcher(safe_url, float(DEFAULT_TIMEOUT_SECONDS))
+            feed = parse_bbc_rss(payload, "custom-preview", label="Custom feed")
+        except ValueError as exc:
+            raise RuntimeError(f"BBC News RSS validation failed: {exc}") from exc
+        suggested_id = _custom_feed_id(None, safe_url, strict=True)
+        return {
+            "ok": True,
+            "label": _suggest_feed_label(feed.get("feed_title")),
+            "suggested_id": suggested_id,
+            "story_count": len(feed.get("items", [])),
+        }
 
     def _due(self, now: datetime) -> bool:
         expires_at = _parse_iso(self._cache.get("expires_at"))
@@ -991,6 +1033,21 @@ def register_news_api(app: Flask, service: BBCNewsFeedService) -> None:
     @app.get("/api/news")
     def api_news():
         return jsonify(service.snapshot())
+
+    @app.post("/api/news/feed/validate")
+    def api_news_feed_validate():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"ok": False, "error": "Feed validation requires a JSON object."}), 400
+        try:
+            result = service.validate_feed(payload.get("url"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        except RuntimeError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 502
+        response = jsonify(result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/api/news/story/<story_id>/qr.svg")
     def api_news_story_qr(story_id: str):
