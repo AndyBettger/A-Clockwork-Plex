@@ -132,7 +132,7 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Commissioned-Pi repeat `bash setup.sh` on that head passed with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings**.
 - [x] First 1280×720 functional pass proved the enlarged catalogue plus Business enable → **Business Test** rename → reorder → default selection → saved News rendering, with the Top Stories ticker still independent.
 - [x] Physical findings were folded back into the branch: the section rail now has a bounded touch-scroll region, feed-editor cards have explicit vertical separation, and the feed editor is presented within Settings → News.
-- [ ] Exact post-physical-follow-up branch head passes compile, JavaScript/page/shell and full regression CI after code/documentation closure changes.
+- [x] **Tests #4774** passed compile, JavaScript/page wiring/shell and the full regression suite on the post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`.
 - [ ] Commissioned 1280×720 follow-up confirms News-owned feed editor placement/card spacing and the scrollable section rail, then completes custom BBC feed Check/Add, mixed rail rendering, custom-feed story QR, non-BBC rejection, cache-source correctness and touch/layout usability.
 - [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
 
