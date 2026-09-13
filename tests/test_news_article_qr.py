@@ -72,6 +72,22 @@ GUID_FALLBACK_RSS = b"""<?xml version="1.0" encoding="UTF-8"?>
 </rss>
 """
 
+VALIDATE_RSS = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>BBC News - Space</title>
+    <description>Space stories</description>
+    <item>
+      <title>Validation story</title>
+      <description>Safe test summary.</description>
+      <pubDate>Sat, 12 Sep 2026 19:30:00 GMT</pubDate>
+      <guid>https://www.bbc.co.uk/news/articles/cvalidate</guid>
+      <link>https://www.bbc.co.uk/news/articles/cvalidate</link>
+    </item>
+  </channel>
+</rss>
+"""
+
 
 def _config() -> dict:
     return {
@@ -314,6 +330,41 @@ class NewsCustomFeedTests(unittest.TestCase):
         self.assertNotIn(custom_url, serialised)
         self.assertNotIn("custom_feeds", snapshot["settings"])
         self.assertNotIn("feed_labels", snapshot["settings"])
+
+    def test_feed_validation_endpoint_checks_source_and_derives_label_without_exposing_url(self) -> None:
+        custom_url = "https://feeds.bbci.co.uk/news/topics/cp7r8vgl2lgt/rss.xml"
+        requested: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> bytes:
+            requested.append(url)
+            return VALIDATE_RSS
+
+        with tempfile.TemporaryDirectory() as directory:
+            service = BBCNewsFeedService(
+                _config,
+                Path(directory) / "bbc-news-cache.json",
+                fetcher=fetcher,
+            )
+            app = Flask(__name__)
+            register_news_api(app, service)
+            client = app.test_client()
+
+            response = client.post("/api/news/feed/validate", json={"url": custom_url})
+            payload = response.get_json()
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(payload["label"], "Space")
+            self.assertRegex(payload["suggested_id"], r"^custom-[0-9a-f]{12}$")
+            self.assertEqual(payload["story_count"], 1)
+            self.assertNotIn("url", payload)
+            self.assertEqual(requested, [custom_url])
+
+            rejected = client.post(
+                "/api/news/feed/validate",
+                json={"url": "https://example.com/news/rss.xml"},
+            )
+            self.assertEqual(rejected.status_code, 400)
+            self.assertEqual(requested, [custom_url])
 
     def test_ticker_remains_top_stories_when_other_feeds_are_enabled(self) -> None:
         config = {
