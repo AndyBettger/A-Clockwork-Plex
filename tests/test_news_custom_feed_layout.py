@@ -16,6 +16,10 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.css = Path("app/static/css/news-custom-feeds.css").read_text(encoding="utf-8")
         self.scrollbar_js = Path("app/static/js/news-category-scrollbar.js").read_text(encoding="utf-8")
         self.news_feed = Path("app/news_feed.py").read_text(encoding="utf-8")
+        self.touch_helper = Path("app/static/js/settings-touch-reorder.js").read_text(encoding="utf-8")
+        self.feed_order = Path("app/static/js/settings-news-feed-order.js").read_text(encoding="utf-8")
+        self.clock_drag = Path("app/static/js/settings-clock-card-drag.js").read_text(encoding="utf-8")
+        self.touch_css = Path("app/static/css/settings-touch-reorder.css").read_text(encoding="utf-8")
 
     def test_feed_editor_is_reparented_into_news_before_settings_navigation_binds(self):
         self.assertIn("feedRow.dataset.settingsSubpageTarget = 'news:feeds';", self.placement)
@@ -72,6 +76,9 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         for source in (
             "app/static/js/settings-news-placement.js",
             "app/static/js/news-category-scrollbar.js",
+            "app/static/js/settings-touch-reorder.js",
+            "app/static/js/settings-news-feed-order.js",
+            "app/static/js/settings-clock-card-drag.js",
         ):
             completed = subprocess.run(
                 [node, "--check", source],
@@ -105,6 +112,49 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertEqual(_suggest_feed_label("BBC News", "BBC News - Europe"), "Europe")
         self.assertEqual(_suggest_feed_label("BBC News", "BBC News"), "Custom BBC feed")
         self.assertIn('feed.get("feed_description")', self.news_feed)
+
+    def test_touch_ordering_loads_in_the_required_settings_sequence(self):
+        self.assertIn("settings-touch-reorder.css", self.base)
+        self.assertIn("settings-touch-reorder.js", self.base)
+        self.assertIn("settings-news-feed-order.js", self.base)
+        self.assertIn("settings-clock-card-drag.js", self.base)
+        self.assertLess(
+            self.base.index("settings-touch-reorder.js"),
+            self.base.index("settings-news-feed-order.js"),
+        )
+        self.assertLess(
+            self.base.index("{% block scripts %}"),
+            self.base.index("settings-clock-card-drag.js"),
+        )
+
+    def test_touch_helper_uses_pointer_events_keyboard_fallback_and_auto_scroll(self):
+        self.assertIn("pointerdown", self.touch_helper)
+        self.assertIn("pointermove", self.touch_helper)
+        self.assertIn("setPointerCapture", self.touch_helper)
+        self.assertIn("autoScroll", self.touch_helper)
+        self.assertIn("ArrowUp", self.touch_helper)
+        self.assertIn("ArrowDown", self.touch_helper)
+        self.assertIn("touch-action: none", self.touch_css)
+
+    def test_news_feed_order_is_compact_and_separate_from_feed_editor(self):
+        self.assertIn("news:feed-order", self.feed_order)
+        self.assertIn("Drag the grip to arrange the News menu", self.feed_order)
+        self.assertIn("news-feed-order-row", self.feed_order)
+        self.assertIn("news-feed-enabled-button", self.feed_order)
+        self.assertIn("textButton(card, 'Move up')", self.feed_order)
+        self.assertIn("up.hidden = true", self.feed_order)
+        self.assertIn("enabled.hidden = true", self.feed_order)
+        self.assertIn("scrollIntoView", self.feed_order)
+        self.assertIn("news-add-feed-button", self.touch_css)
+        self.assertIn("grid-template-columns: 44px minmax(0, 1fr) auto", self.touch_css)
+
+    def test_clock_weather_cards_gain_touch_drag_order_without_replacing_state_owner(self):
+        self.assertIn("Choose cards below, then drag the grip", self.clock_drag)
+        self.assertIn("clock-card-order-button", self.clock_drag)
+        self.assertIn("button.hidden = true", self.clock_drag)
+        self.assertIn("ACPClockCards.applyStoredIds(ids)", self.clock_drag)
+        self.assertIn("acp:clock-cards-changed", self.clock_drag)
+        self.assertIn("clock-card-drag-row", self.touch_css)
 
 
 if __name__ == "__main__":
