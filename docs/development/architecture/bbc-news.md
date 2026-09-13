@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Repeated commissioned-appliance passes through 14 September 2026 have proved repeat installation, the enlarged catalogue, order/default behaviour, custom-feed rendering, touch reordering, the custom-only News feeds manager and empty state, local QR hand-off, non-BBC rejection, and friendly ordinary-page URL entry. After the first BBC-page helper build exposed a browser-runtime MutationObserver loop that could starve the Settings page, the bounded observer/idempotent-decoration fix restored normal Settings behaviour. The commissioned appliance has since added **Sussex, Surrey and Hampshire & The Isle of Wight** from ordinary BBC News page URLs, with each input converted locally to the canonical `feeds.bbci.co.uk` RSS source and QR hand-off working from the resulting sections. Validation feedback is now card-local; final polish adds explicit space below the action row and labels the action **Check feed and add**. **Tests #4844** passed the complete automated gate for that polish on `a0466bf605515078961e7110f81f9942cd473094`. Changed-source/cache correctness and portable Backup/Reset/Restore acceptance remain open, so PR #12 remains draft.
+A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Repeated commissioned-appliance passes through 14 September 2026 have now proved repeat installation, the enlarged catalogue, order/default behaviour, custom-feed rendering, touch reordering, the custom-only News feeds manager and empty state, local QR hand-off, non-BBC rejection, friendly ordinary-page URL entry, final validation-control presentation and changed-source/cache isolation. After the first BBC-page helper build exposed a browser-runtime MutationObserver loop that could starve the Settings page, the bounded observer/idempotent-decoration fix restored normal Settings behaviour. The commissioned appliance subsequently added **Sussex, Surrey and Hampshire & The Isle of Wight** from ordinary BBC News page URLs, with each input converted locally to the canonical `feeds.bbci.co.uk` RSS source and QR hand-off working from the resulting sections. A later **Kent → Essex** same-record source replacement physically proved that cached Kent stories were not presented under the Essex replacement source. Only the bounded portable Backup/Reset/Restore ownership acceptance remains open, so PR #12 remains draft.
 
 ## Feed authority
 
@@ -117,6 +117,8 @@ Portable Restore is intentionally different: it restores an already validated lo
 The configurable-source work advances the private cache schema to version 4.
 
 Each cached category state privately remembers the source `feed_url` that produced it. If a configured source changes, a last-good feed belonging to the old URL is not presented as if it came from the replacement source. A newly required section is also considered immediately due when it has no matching cached data, rather than waiting for the global refresh timer.
+
+This source-ownership rule is physically accepted on the commissioned appliance. A temporary custom feed named **Cache Test** first fetched Kent stories; the same custom feed record was then changed to the Essex source. Essex content populated normally and no stale Kent headlines were presented under the replacement source. The temporary feed was removed after the proof.
 
 Source URLs are runtime/private cache metadata. Public snapshots strip `feed_url` before JSON projection.
 
@@ -299,22 +301,21 @@ Commissioned passes through 14 September 2026 have established:
 - [x] the MutationObserver runtime-loop fix restored normal Settings loading/navigation;
 - [x] ordinary BBC page URLs physically added **Sussex, Surrey and Hampshire & The Isle of Wight**, converting to the corresponding canonical RSS URLs;
 - [x] QR hand-off works from those three newly added local custom sections;
-- [x] non-BBC rejection feedback is now physically visible beside the relevant custom-feed controls.
-
-The latest physical screenshot showed that the local validation message sat too close to the action row. The final polish therefore adds explicit spacing and renames the action **Check feed and add**, matching what a successful preflight does from the owner's perspective.
+- [x] non-BBC rejection feedback is now physically visible beside the relevant custom-feed controls;
+- [x] **Check feed and add** plus validation-message spacing are physically comfortable at 1280×720;
+- [x] source replacement is cache-safe: a **Cache Test** custom feed changed in-place from Kent to Essex populated Essex content without showing stale Kent stories under the new source.
 
 Before draft PR #12 may leave draft, the commissioned appliance must still prove:
 
-- the final **Check feed and add** label and validation-message spacing are comfortable at 1280×720;
-- changing a custom source cannot make cache from the old source appear under the new source;
-- portable Backup contains the logical order/custom feed records and Reset/Restore Preview ownership remains truthful;
-- News Settings, touch keyboard and unified update/discard interaction remain usable without 1280×720 overflow.
+- portable Backup contains the logical News order/custom-feed records and excludes generated RSS/cache state;
+- Reset Preview truthfully proposes the default News model, including no custom feeds, without needing to mutate the commissioned appliance;
+- Restore Preview truthfully recognises the exported News state through the existing portable transaction.
 
 Automated evidence:
 
 - **Tests #4753** passed the first complete implementation gate on `58e47e800ff13ed98f0834a7f429d958b7927ac0`;
 - **Tests #4765** passed compile, JavaScript/page wiring/shell checks and the full regression suite on physical-test head `2ea286211cb8712553dce3e131598c06b2d6aa4c`;
-- **Tests #4774** passed compile, JavaScript/page wiring/shell checks and the full regression suite on first post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`;
+- **Tests #4774** passed compile, JavaScript/page wiring/shell and the full regression suite on first post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`;
 - **Tests #4779/#4780** passed the full-feed guidance and first scrollbar-refinement heads;
 - **Tests #4788** passed compile, existing JavaScript/page/shell checks and the full regression suite on `01817c5ced6dbcb7c686b52e2db851ce6905d00c`;
 - **Tests #4801** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `92cb656452fb546f20f078d6ee76f0e72b31fc6b`; its dedicated News regression directly syntax-checks the shared touch-reorder helper, News Feed-order client and Clock-card drag enhancer as well as the News placement/scrollbar clients;
@@ -324,4 +325,4 @@ Automated evidence:
 - **Tests #4839** passed compile, JavaScript/page/shell checks and the full regression suite on the bounded-MutationObserver runtime-fix head `708296f0d3d84c0218541c79ad436ec8e93062d6`;
 - **Tests #4844** passed Python compilation, JavaScript/page/shell checks and the full regression suite on final validation-control polish head `a0466bf605515078961e7110f81f9942cd473094`.
 
-Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
+Until the remaining portable-ownership gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
