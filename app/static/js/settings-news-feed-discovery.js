@@ -10,11 +10,12 @@
 
   const BBC_PAGE_HOSTS = new Set(['bbc.co.uk', 'www.bbc.co.uk', 'bbc.com', 'www.bbc.com']);
   const SAFE_PATH_SEGMENT = /^[A-Za-z0-9_-]+$/;
-  const DEFAULT_GUIDANCE = 'Paste a BBC News section page URL or a feeds.bbci.co.uk RSS address, then press Check feed. A successful check is required before the custom feed can be used.';
+  const CHECK_BUTTON_LABEL = 'Check feed and add';
+  const DEFAULT_GUIDANCE = `Paste a BBC News section page URL or a feeds.bbci.co.uk RSS address, then press ${CHECK_BUTTON_LABEL}. A successful check is required before the custom feed can be used.`;
   const PAGE_HELP = 'Add a custom BBC News section by pasting its normal BBC News page URL, or paste a feeds.bbci.co.uk RSS address directly. Built-in BBC sections keep their standard names and URLs; use Feed order to enable and arrange them.';
   const ROW_HELP = 'Add and manage custom BBC News sections by page or RSS URL';
   const FIELD_CAPTION = 'BBC News page or RSS URL';
-  const FIELD_HELP = 'Paste a BBC News section page, for example https://www.bbc.co.uk/news/england/sussex, or a feeds.bbci.co.uk RSS address, then press Check feed.';
+  const FIELD_HELP = `Paste a BBC News section page, for example https://www.bbc.co.uk/news/england/sussex, or a feeds.bbci.co.uk RSS address, then press ${CHECK_BUTTON_LABEL}.`;
   const localStatusByUrl = new Map();
   let activeCheck = null;
   let resettingGlobalMessage = false;
@@ -97,6 +98,15 @@
     setTextIfChanged(field.querySelector(':scope > span'), FIELD_CAPTION);
     setTextIfChanged(field.querySelector(':scope > small'), FIELD_HELP);
 
+    const actions = card.querySelector('.settings-action-row');
+    const checkButton = Array.from(actions?.querySelectorAll('button') || []).find((button) => {
+      const label = clean(button.textContent);
+      return label === 'Check feed' || label === CHECK_BUTTON_LABEL || label === 'Checking…';
+    });
+    if (checkButton && !checkButton.disabled && clean(checkButton.textContent) === 'Check feed') {
+      setTextIfChanged(checkButton, CHECK_BUTTON_LABEL);
+    }
+
     const status = localStatusByUrl.get(clean(input.value));
     const existing = card.querySelector('[data-news-feed-check-status]');
     if (!status) {
@@ -112,7 +122,6 @@
     }
 
     existing?.remove();
-    const actions = card.querySelector('.settings-action-row');
     const local = statusTextNode(status);
     if (actions) actions.insertAdjacentElement('afterend', local);
     else card.appendChild(local);
@@ -154,7 +163,7 @@
     } else if (text.startsWith('Feed check failed: Feed must be an HTTPS BBC News RSS URL')) {
       localText = 'Feed check failed: enter an HTTPS BBC News section page on bbc.co.uk/bbc.com, or a BBC News RSS URL on feeds.bbci.co.uk.';
     } else if (text === 'Enter the BBC RSS URL before checking this feed.') {
-      localText = 'Feed check failed: enter a BBC News section page or RSS URL before pressing Check feed.';
+      localText = `Feed check failed: enter a BBC News section page or RSS URL before pressing ${CHECK_BUTTON_LABEL}.`;
     }
 
     localStatusByUrl.set(activeCheck.url, {
@@ -170,7 +179,9 @@
 
   feedSubpage.addEventListener('click', (event) => {
     const button = event.target.closest('button');
-    if (!button || clean(button.textContent) !== 'Check feed') return;
+    if (!button) return;
+    const buttonLabel = clean(button.textContent);
+    if (buttonLabel !== 'Check feed' && buttonLabel !== CHECK_BUTTON_LABEL) return;
     const card = button.closest('[data-news-feed-editor-id]');
     const input = urlInput(card);
     if (!card || !input) return;
