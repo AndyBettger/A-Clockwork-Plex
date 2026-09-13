@@ -283,6 +283,7 @@
         && CUSTOM_ID_PATTERN.test(suggestedId)
         && !feedState.some((other) => other !== feed && other.id === suggestedId)
       ) {
+        if (defaultCategory === feed.id) defaultCategory = suggestedId;
         feed.id = suggestedId;
       }
       feed.isNew = false;
@@ -295,13 +296,12 @@
         `Feed checked successfully${Number.isFinite(Number(payload.story_count)) ? `; ${Number(payload.story_count)} current stories found` : ''}.`
       );
       markDirty();
-      renderAllFeedControls();
     } catch (error) {
       feed.validatedUrl = '';
       setEditorMessage(`Feed check failed: ${error.message || 'BBC RSS validation failed.'}`);
-      renderAdvancedEditor();
     } finally {
       feed.validating = false;
+      renderAllFeedControls();
     }
   }
 
