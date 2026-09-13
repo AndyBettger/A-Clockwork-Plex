@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete and repeated commissioned-appliance passes on 13 September 2026 have proved repeat installation, the enlarged catalogue, rename/reorder/default behaviour, saved News rendering, the News-owned custom-feed editor, the shared custom category scrollbar and a live Europe custom feed. The Europe source passed **Check feed**, was automatically named **Europe** from its RSS description, was enabled alongside built-in sections and rendered real Europe stories while the ticker remained tied to Top Stories. The final physical presentation pass requested a more compact ordering workflow: the large feed-editor cards are now add/edit ownership only, while a dedicated **News → Feed order** page exposes compact drag-to-reorder rows and Enabled/Disabled controls. The same touch-reorder helper now also enhances Weather → Clock weather cards. **Tests #4801** passed the complete automated gate on implementation head `92cb656452fb546f20f078d6ee76f0e72b31fc6b`. Commissioned-screen confirmation of those touch-order interactions and the remaining custom-feed/portability checks are still open, so PR #12 remains draft.
+A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete and repeated commissioned-appliance passes on 13 September 2026 have proved repeat installation, the enlarged catalogue, rename/reorder/default behaviour, saved News rendering, the News-owned custom-feed editor, the shared custom category scrollbar and a live Europe custom feed. The Europe source passed **Check feed**, was automatically named **Europe** from its RSS description, was enabled alongside built-in sections and rendered real Europe stories while the ticker remained tied to Top Stories. The compact **News → Feed order** page has now also been physically exercised: long-distance drag/edge auto-scroll works, Enabled/Disabled changes are effective, and the same helper correctly reorders Weather → Clock weather cards. That pass accepted the smaller Add BBC feed button but exposed three last-mile presentation faults: creating a feed did not move the Settings scroller to its new editor, the font-rendered 2×3 grip looked off-centre, and the editor's intended hidden Enabled/Move controls were still visible because shared Settings CSS overrode native `[hidden]`. Those three follow-ups are now fixed and **Tests #4807** passed the complete automated gate on `e5828a7205394019f4fb6d24e1c8ef46547beec3`. A commissioned-screen recheck plus the remaining custom-feed/portability checks are still open, so PR #12 remains draft.
 
 ## Feed authority
 
@@ -208,10 +208,10 @@ The News workspace owns enabled sections, default section, summaries, ticker pre
 
 The physical 1280×720 passes then separated two different jobs that had become crowded together:
 
-- **News feeds** owns feed display-name editing plus custom source Add / Check feed / Remove. Its large editor cards no longer expose order arrows or an Enabled control. The Add BBC feed control uses a normal compact Settings-button footprint, and creating a feed scrolls/highlights the new editor so its location is immediately obvious.
+- **News feeds** owns feed display-name editing plus custom source Add / Check feed / Remove. Its large editor cards deliberately hide order arrows and Enabled state because those controls now belong to Feed order. Shared Settings display rules can override native `[hidden]`, so the feature stylesheet explicitly forces those editor-only hidden controls to `display: none !important`. The Add BBC feed control uses a normal compact Settings-button footprint. Its follow-up listener captures the pre-add editor ids in the event's capture phase, then explicitly scrolls the `.settings-detail` scroller to the newly created/highlighted card after the original News handler has rendered it.
 - **Feed order** owns the compact menu-order/enablement view. Each row has an explicit touch grip, label/source summary and Enabled/Disabled button. Pointer drag reorders vertically, auto-scroll assists long-distance moves near the viewport edge, and Arrow Up/Down on the grip provides a keyboard fallback. It delegates changes back to the existing News `feedState` owner, so there is still only one logical order and one unified Settings transaction.
 
-`app/static/js/settings-touch-reorder.js` is the shared touch-order interaction helper. It is deliberately handle-based rather than making the entire row draggable so ordinary vertical touchscreen scrolling remains available outside the grip. The same helper enhances **Weather → Clock weather cards** through `settings-clock-card-drag.js`: visible up/down arrows are replaced by a grip, while `ACPClockCards.applyStoredIds()` remains the actual weather-card state owner and a single `acp:clock-cards-changed` event marks the Weather domain dirty after a committed drag.
+`app/static/js/settings-touch-reorder.js` is the shared touch-order interaction helper. It is deliberately handle-based rather than making the entire row draggable so ordinary vertical touchscreen scrolling remains available outside the grip. The visual grip is drawn as a fixed CSS 2×3 dot matrix instead of relying on the Braille `⠿` glyph's font metrics, keeping the mark geometrically centred inside the touch target across Chromium/font combinations. The same helper enhances **Weather → Clock weather cards** through `settings-clock-card-drag.js`: visible up/down arrows are replaced by a grip, while `ACPClockCards.applyStoredIds()` remains the actual weather-card state owner and a single `acp:clock-cards-changed` event marks the Weather domain dirty after a committed drag.
 
 A new or edited custom News source remains unusable until its exact URL has passed **Check feed**; after the preflight succeeds it rejoins the existing single revisioned Settings owner rather than creating a separate custom-feed save mechanism. The News worker is woken after the validated configuration commit rather than making the user wait for the normal refresh interval.
 
@@ -281,16 +281,18 @@ Commissioned passes on 13 September 2026 have established:
 - [x] Europe could be enabled and real Europe stories rendered as part of the mixed built-in/custom rail;
 - [x] the Top Stories ticker remained visibly independent while Europe was active;
 - [x] the corrected Check-feed field guidance matched the visible interaction;
-- [ ] the new compact **News → Feed order** drag/enablement page still needs physical confirmation;
-- [ ] the normal-sized Add BBC feed button and automatic scroll/highlight of a newly created feed editor still need physical confirmation;
-- [ ] Weather → Clock weather cards drag ordering still needs physical confirmation.
+- [x] the compact **News → Feed order** page works physically for long-distance drag, including edge auto-scroll;
+- [x] Feed order Enabled/Disabled changes correctly enable and disable optional News sections;
+- [x] Weather → Clock weather cards drag ordering physically changes the configured card order;
+- [x] the normal-sized Add BBC feed button is visually accepted;
+- [ ] the corrected Add BBC feed auto-scroll/highlight still needs commissioned confirmation after the first attempt created the row but left the page stationary;
+- [ ] the centred CSS 2×3 grip and the enforced removal of duplicate Enabled/Move controls from News feeds still need commissioned confirmation.
 
 Before draft PR #12 may leave draft, the commissioned appliance must still prove:
 
-- Feed order drag remains comfortable on the touchscreen, including a long-distance move/auto-scroll, ordinary page scrolling outside the grip and correct saved News-rail order;
-- its Enabled/Disabled control obeys the existing at-least-one-enabled/default-section rules;
-- adding a new source makes the new editor immediately obvious without changing menu order unexpectedly;
-- Clock weather-card drag commits the intended order and preserves the normal Weather/Clock presentation;
+- the new Add flow moves directly to/highlights the new editor while leaving menu order unchanged until Feed order is used;
+- the drag grip is visually centred and comfortable while ordinary page scrolling remains available outside it;
+- News feeds no longer duplicates the Enabled/Move controls owned by Feed order;
 - a story delivered by the added Europe feed retains the accepted local QR hand-off behaviour when the RSS item supplies a usable HTTPS destination;
 - an unchecked/non-BBC source is rejected;
 - changing a custom source cannot make cache from the old source appear under the new source;
@@ -304,6 +306,7 @@ Automated evidence:
 - **Tests #4774** passed compile, JavaScript/page wiring/shell checks and the full regression suite on first post-physical-follow-up implementation/catalogue head `bc2f5b7c7a4e49bec9376fa49e1c73b279051e8a`;
 - **Tests #4779/#4780** passed the full-feed guidance and first scrollbar-refinement heads;
 - **Tests #4788** passed compile, existing JavaScript/page/shell checks and the full regression suite on `01817c5ced6dbcb7c686b52e2db851ce6905d00c`;
-- **Tests #4801** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `92cb656452fb546f20f078d6ee76f0e72b31fc6b`; its dedicated News regression directly syntax-checks the shared touch-reorder helper, News Feed-order client and Clock-card drag enhancer as well as the News placement/scrollbar clients.
+- **Tests #4801** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `92cb656452fb546f20f078d6ee76f0e72b31fc6b`; its dedicated News regression directly syntax-checks the shared touch-reorder helper, News Feed-order client and Clock-card drag enhancer as well as the News placement/scrollbar clients;
+- **Tests #4807** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `e5828a7205394019f4fb6d24e1c8ef46547beec3`, covering explicit new-editor scrolling, centred dot-matrix grip styling and editor-only hidden-control enforcement.
 
 Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
