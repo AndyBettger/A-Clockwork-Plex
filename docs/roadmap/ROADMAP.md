@@ -120,8 +120,9 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Preserve the original five sections — Top Stories, UK, World, Science & Environment and Technology — as the out-of-box enabled set.
 - [x] Expand the friendly built-in catalogue with England, Scotland, Wales, Northern Ireland, Business, Politics, Health, Education and Entertainment & Arts.
 - [x] Allow sections to be enabled/disabled and reordered; the default News section must remain enabled. Built-in section names and source URLs are fixed/canonical in the finished UI, while custom-feed display names remain editable.
-- [x] Add **News → News feeds** for bounded custom BBC News RSS sources; the first physical pass established that this belongs with ordinary News configuration rather than under Advanced.
-- [x] Custom source boundary is exact HTTPS `feeds.bbci.co.uk/news/.../rss.xml`; arbitrary hosts, HTTP, credentials, non-News paths and redirect escapes are rejected.
+- [x] Add **News → News feeds** for bounded custom BBC News sources; the first physical pass established that this belongs with ordinary News configuration rather than under Advanced.
+- [x] Custom source authority remains exact HTTPS `feeds.bbci.co.uk/news/.../rss.xml`; arbitrary hosts, HTTP, credentials, non-News paths and redirect escapes are rejected.
+- [x] Friendly custom-source entry may also accept an ordinary HTTPS BBC News section page on `bbc.co.uk`/`bbc.com`. The browser converts its `/news/...` path to the corresponding `https://feeds.bbci.co.uk/news/.../rss.xml` candidate and then uses the existing strict RSS **Check feed** gate; ACP does not scrape or store BBC page HTML.
 - [x] New/changed custom feeds use a read-only **Check feed** preflight before the custom source can become usable; the server parses the candidate, derives a sensible label and deterministic stable id, and returns no source URL in the validation response.
 - [x] A changed source cannot reuse cached content belonging to the previous URL as if it came from the replacement source.
 - [x] `/api/news` remains source-URL/article-link/GUID free; the accepted phone-owned QR boundary remains unchanged.
@@ -147,7 +148,10 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Commissioned recheck on `1e98c49bf8b661a17a5d4de5715d820be487cdbe` confirmed the centred 2×3 grips on both News Feed order and Weather Clock weather cards, confirmed Add BBC feed scrolls to its new editor, and confirmed the duplicate Enabled/Move controls are absent from News feeds.
 - [x] Product simplification agreed after that pass: **News feeds is now custom-source management only**. Built-in feed editor cards are hidden completely there and retain fixed canonical names/URLs; Feed order and Sections remain the places to enable, disable, order and choose the default section. The page shows a friendly empty state when no custom feeds exist.
 - [x] **Tests #4824** passed the full automated gate for the custom-only manager implementation on `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`.
-- [ ] Commissioned 1280×720 recheck confirms the custom-only News feeds page, then completes custom-feed story QR, non-BBC rejection, cache-source correctness and final touch/layout usability.
+- [x] The next commissioned 1280×720 pass confirmed the custom-only News feeds presentation and empty state, confirmed Europe story QR hand-off still works, and physically proved that a non-BBC custom source is rejected before it can become usable.
+- [x] That rejection pass exposed one usability fault: Check-feed success/failure was reported in the page-level intro card and could be off-screen. Validation feedback is now rendered beside the custom feed's own Check feed controls instead.
+- [x] Inspection of a live BBC Sussex section page established the useful ordinary-page pattern `/news/england/sussex` → `/news/england/sussex/rss.xml`. The Settings helper now accepts such BBC News page URLs and locally derives the RSS candidate before the unchanged strict server preflight; **Tests #4834** passed Python compilation, JavaScript/page/shell checks and the full regression suite on implementation head `81fd4798d7954baf46e17cbd8f28f22868f6bd67`.
+- [ ] Commissioned recheck confirms local Check-feed feedback and friendly BBC News page URL entry (Sussex is the reference specimen), then completes changed-source/cache correctness and final touch/layout usability.
 - [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance.
 
 Detailed authority and the physical checklist: [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md).
