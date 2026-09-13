@@ -75,9 +75,9 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
 
     def test_feed_check_help_matches_the_automatic_settings_workflow(self):
         self.assertIn("refreshCustomFeedHelp", self.placement)
+        self.assertIn("copy.includes('pass Check feed before Save Changes')", self.placement)
         self.assertIn("then press Check feed", self.placement)
         self.assertIn("before this custom feed can be used", self.placement)
-        self.assertNotIn("before Save Changes", self.placement)
 
     def test_feed_label_prefers_specific_title_then_specific_description(self):
         self.assertEqual(_suggest_feed_label("BBC News - Space", "Space stories"), "Space")
