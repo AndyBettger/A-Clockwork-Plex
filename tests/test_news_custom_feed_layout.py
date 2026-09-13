@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -63,6 +65,25 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("scrollMount.addEventListener('scroll', update", self.scrollbar_js)
         self.assertIn("scrollbar.classList.add('is-dragging');", self.scrollbar_js)
         self.assertIn("MutationObserver", self.scrollbar_js)
+
+    def test_news_followup_clients_have_valid_javascript_syntax(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "Node.js is required for JavaScript syntax regression checks")
+        for source in (
+            "app/static/js/settings-news-placement.js",
+            "app/static/js/news-category-scrollbar.js",
+        ):
+            completed = subprocess.run(
+                [node, "--check", source],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(
+                completed.returncode,
+                0,
+                f"JavaScript syntax check failed for {source}:\n{completed.stderr}",
+            )
 
     def test_feed_help_uses_a_complete_rss_example_not_the_bare_feed_host(self):
         self.assertIn("const feedHelp = feedSubpage.querySelector", self.placement)
