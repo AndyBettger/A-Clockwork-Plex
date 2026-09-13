@@ -305,11 +305,11 @@ Commissioned passes through 14 September 2026 have established:
 - [x] **Check feed and add** plus validation-message spacing are physically comfortable at 1280×720;
 - [x] source replacement is cache-safe: a **Cache Test** custom feed changed in-place from Kent to Essex populated Essex content without showing stale Kent stories under the new source.
 
-Before draft PR #12 may leave draft, the commissioned appliance must still prove:
+Before draft PR #12 may leave draft, the commissioned appliance must still prove only the bounded portable-ownership check:
 
-- portable Backup contains the logical News order/custom-feed records and excludes generated RSS/cache state;
-- Reset Preview truthfully proposes the default News model, including no custom feeds, without needing to mutate the commissioned appliance;
-- Restore Preview truthfully recognises the exported News state through the existing portable transaction.
+- a fresh schema-v2 Backup contains the logical News order/custom-feed records and excludes generated RSS/cache/private article state;
+- Reset **Preview** truthfully proposes the default News model, including no custom feeds, without Confirm;
+- Restore **Preview** truthfully recognises the exported News state through the existing portable transaction, again without Confirm.
 
 Automated evidence:
 
