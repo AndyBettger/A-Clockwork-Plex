@@ -670,15 +670,25 @@ def parse_bbc_rss(
     }
 
 
-def _suggest_feed_label(value: Any) -> str:
-    title = _plain_text(value, maximum=MAX_FEED_LABEL_LENGTH)
-    for prefix in ("BBC News - ", "BBC News – ", "BBC News — "):
-        if title.casefold().startswith(prefix.casefold()):
-            title = title[len(prefix) :].strip()
-            break
-    if not title or title.casefold() in {"bbc", "bbc news"}:
-        return "Custom BBC feed"
-    return title
+def _suggest_feed_label(title_value: Any, description_value: Any = None) -> str:
+    """Derive a useful custom-feed label from BBC RSS channel metadata.
+
+    BBC topic feeds are inconsistent: some put the section name in ``title``
+    while others use the generic ``BBC News`` title and put the useful name in
+    ``description`` (for example ``BBC News - Europe``). Prefer an informative
+    title, then fall back to the description, stripping the common BBC News
+    prefix in either case.
+    """
+
+    for value in (title_value, description_value):
+        candidate = _plain_text(value, maximum=MAX_FEED_LABEL_LENGTH)
+        for prefix in ("BBC News - ", "BBC News – ", "BBC News — "):
+            if candidate.casefold().startswith(prefix.casefold()):
+                candidate = candidate[len(prefix) :].strip()
+                break
+        if candidate and candidate.casefold() not in {"bbc", "bbc news"}:
+            return candidate
+    return "Custom BBC feed"
 
 
 def _now() -> datetime:
@@ -792,7 +802,10 @@ class BBCNewsFeedService:
         suggested_id = _custom_feed_id(None, safe_url, strict=True)
         return {
             "ok": True,
-            "label": _suggest_feed_label(feed.get("feed_title")),
+            "label": _suggest_feed_label(
+                feed.get("feed_title"),
+                feed.get("feed_description"),
+            ),
             "suggested_id": suggested_id,
             "story_count": len(feed.get("items", [])),
         }
