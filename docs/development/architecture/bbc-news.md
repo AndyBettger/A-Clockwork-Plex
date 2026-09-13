@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete and repeated commissioned-appliance passes on 13 September 2026 have proved repeat installation, the enlarged catalogue, rename/reorder/default behaviour, saved News rendering, the News-owned custom-feed editor, the shared custom category scrollbar and a live Europe custom feed. The Europe source passed **Check feed**, was automatically named **Europe** from its RSS description, was enabled alongside built-in sections and rendered real Europe stories while the ticker remained tied to Top Stories. The compact **News → Feed order** page has now also been physically exercised: long-distance drag/edge auto-scroll works, Enabled/Disabled changes are effective, and the same helper correctly reorders Weather → Clock weather cards. That pass accepted the smaller Add BBC feed button but exposed three last-mile presentation faults: creating a feed did not move the Settings scroller to its new editor, the font-rendered 2×3 grip looked off-centre, and the editor's intended hidden Enabled/Move controls were still visible because shared Settings CSS overrode native `[hidden]`. Those three follow-ups are now fixed and **Tests #4807** passed the complete automated gate on `e5828a7205394019f4fb6d24e1c8ef46547beec3`. A commissioned-screen recheck plus the remaining custom-feed/portability checks are still open, so PR #12 remains draft.
+A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Software implementation is complete and repeated commissioned-appliance passes on 13 September 2026 have proved repeat installation, the enlarged catalogue, order/default behaviour, saved News rendering, the News-owned custom-feed editor, the shared custom category scrollbar and a live Europe custom feed. The Europe source passed **Check feed**, was automatically named **Europe** from its RSS description, was enabled alongside built-in sections and rendered real Europe stories while the ticker remained tied to Top Stories. The compact **News → Feed order** page has also been physically exercised: long-distance drag/edge auto-scroll works, Enabled/Disabled changes are effective, and the same helper correctly reorders Weather → Clock weather cards. The next commissioned recheck confirmed the corrected Add BBC feed auto-scroll/highlight, the centred CSS 2×3 grips on both pages and removal of duplicate Enabled/Move controls from News feeds. Product review then simplified the final Settings contract further: **News feeds is now a custom-source manager only**; built-in BBC sections keep canonical names and source URLs and are managed through Sections/Feed order. **Tests #4824** passed the full automated gate for that simplification on implementation head `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`. Remaining custom-feed/portability checks are still open, so PR #12 remains draft.
 
 ## Feed authority
 
@@ -67,7 +67,7 @@ ticker.enabled
 ticker.speed
 ```
 
-`feed_order` is the logical ordered list of built-in and custom section ids. Built-in renames are stored separately in `feed_labels`, so ACP never has to mutate the curated catalogue itself. A custom feed is stored as a bounded logical record:
+`feed_order` is the logical ordered list of built-in and custom section ids. Built-in sections have canonical names and fixed source URLs in the finished Settings UI. The `feed_labels` field remains tolerated internally on this in-flight branch so development backups/configurations created before the simplification do not become invalid, but new built-in renames are no longer exposed or needed by normal appliance use. A custom feed stores its own editable display label as part of the bounded logical record:
 
 ```json
 {
@@ -128,7 +128,7 @@ The public `/api/news` story model remains deliberately small:
 - published timestamp;
 - category id.
 
-Article URLs and GUID values are absent. The configurable-feed source URLs, rename map and custom-feed records are also absent from the kiosk News API. `/api/news` exposes only the presentation settings the News screen actually needs plus the link-free category catalogue.
+Article URLs and GUID values are absent. The configurable-feed source URLs, compatibility rename map and custom-feed records are also absent from the kiosk News API. `/api/news` exposes only the presentation settings the News screen actually needs plus the link-free category catalogue.
 
 This preserves the original security boundary: the touchscreen browser cannot turn feed metadata into arbitrary outbound kiosk navigation.
 
@@ -206,10 +206,11 @@ Top Stories therefore remains a fetch dependency whenever the ticker is enabled,
 
 The News workspace owns enabled sections, default section, summaries, ticker presentation, feed order and the bounded custom BBC RSS editor. The first software build placed News feeds under Advanced; physical testing established that it is ordinary News configuration, so the feature branch reparents it into Settings → News before the shared Settings navigation binds.
 
-The physical 1280×720 passes then separated two different jobs that had become crowded together:
+The physical 1280×720 passes then separated the jobs cleanly:
 
-- **News feeds** owns feed display-name editing plus custom source Add / Check feed / Remove. Its large editor cards deliberately hide order arrows and Enabled state because those controls now belong to Feed order. Shared Settings display rules can override native `[hidden]`, so the feature stylesheet explicitly forces those editor-only hidden controls to `display: none !important`. The Add BBC feed control uses a normal compact Settings-button footprint. Its follow-up listener captures the pre-add editor ids in the event's capture phase, then explicitly scrolls the `.settings-detail` scroller to the newly created/highlighted card after the original News handler has rendered it.
-- **Feed order** owns the compact menu-order/enablement view. Each row has an explicit touch grip, label/source summary and Enabled/Disabled button. Pointer drag reorders vertically, auto-scroll assists long-distance moves near the viewport edge, and Arrow Up/Down on the grip provides a keyboard fallback. It delegates changes back to the existing News `feedState` owner, so there is still only one logical order and one unified Settings transaction.
+- **News feeds** is a custom-source manager only. Built-in editor cards remain in the DOM as hidden implementation/state-owner records so the pre-existing News transaction and Feed-order adapter can continue to share one model, but CSS removes them completely from this page. Built-in BBC names and URLs are therefore not user-editable. Custom cards retain Display name, BBC RSS URL, **Check feed** and Remove. The Add BBC feed control uses a normal compact Settings-button footprint; after creation the `.settings-detail` scroller moves directly to/highlights the new custom editor. When no custom sources exist the page shows a friendly empty-state message rather than a blank list.
+- **Feed order** owns the compact menu-order/enablement view for both built-in and custom feeds. Each row has an explicit touch grip, label/source summary and Enabled/Disabled button. Pointer drag reorders vertically, auto-scroll assists long-distance moves near the viewport edge, and Arrow Up/Down on the grip provides a keyboard fallback. It delegates changes back to the existing News `feedState` owner, so there is still only one logical order and one unified Settings transaction.
+- **Sections** retains the quick checkbox/default-section view and does not edit feed identities.
 
 `app/static/js/settings-touch-reorder.js` is the shared touch-order interaction helper. It is deliberately handle-based rather than making the entire row draggable so ordinary vertical touchscreen scrolling remains available outside the grip. The visual grip is drawn as a fixed CSS 2×3 dot matrix instead of relying on the Braille `⠿` glyph's font metrics, keeping the mark geometrically centred inside the touch target across Chromium/font combinations. The same helper enhances **Weather → Clock weather cards** through `settings-clock-card-drag.js`: visible up/down arrows are replaced by a grip, while `ACPClockCards.applyStoredIds()` remains the actual weather-card state owner and a single `acp:clock-cards-changed` event marks the Weather domain dirty after a committed drag.
 
@@ -220,12 +221,12 @@ The full logical News configuration is portable ACP state. Portable Backup carri
 - enabled ids;
 - default id;
 - feed order;
-- built-in display-name overrides;
-- custom BBC feed logical records;
+- custom BBC feed logical records, including their editable display names;
+- the compatibility built-in-label map if present in a development-era configuration, although the finished UI no longer creates such overrides;
 - summary setting;
 - ticker setting/speed.
 
-Restore compares and reapplies those fields through the normal News Settings validator. Reset derives its News target from version-controlled `config.example.json`, returning the appliance to the original five enabled sections, curated default ordering, no renames and no custom feeds.
+Restore compares and reapplies those fields through the normal News Settings validator. Reset derives its News target from version-controlled `config.example.json`, returning the appliance to the original five enabled sections, curated default ordering, canonical built-in names and no custom feeds.
 
 RSS downloads/cache/private article hand-off metadata are excluded from Backup/Restore/Reset portability.
 
@@ -273,8 +274,8 @@ Commissioned passes on 13 September 2026 have established:
 
 - [x] repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings** and preserved commissioned News configuration;
 - [x] the enlarged curated catalogue rendered in Settings at 1280×720;
-- [x] Business could be enabled, renamed to **Business Test**, moved in the saved order and selected as the default section;
-- [x] the News page then opened the renamed Business feed with the saved rail order and correct Business stories;
+- [x] Business could be enabled, temporarily renamed to **Business Test**, moved in the saved order and selected as the default section; it was later returned to canonical **Business** before built-in renaming was removed from the finished UI;
+- [x] the News page opened the selected Business feed with the saved rail order and correct Business stories;
 - [x] the enlarged category rail became touch-scrollable and its ACP custom scrollbar now visually matches the story-list scrollbar without Chromium arrow buttons;
 - [x] **News feeds** moved into Settings → News and its feed cards gained usable vertical separation;
 - [x] the real candidate `https://feeds.bbci.co.uk/news/world/europe/rss.xml` passed **Check feed** and automatically derived **Europe** from title `BBC News` plus description `BBC News - Europe`;
@@ -285,18 +286,17 @@ Commissioned passes on 13 September 2026 have established:
 - [x] Feed order Enabled/Disabled changes correctly enable and disable optional News sections;
 - [x] Weather → Clock weather cards drag ordering physically changes the configured card order;
 - [x] the normal-sized Add BBC feed button is visually accepted;
-- [ ] the corrected Add BBC feed auto-scroll/highlight still needs commissioned confirmation after the first attempt created the row but left the page stationary;
-- [ ] the centred CSS 2×3 grip and the enforced removal of duplicate Enabled/Move controls from News feeds still need commissioned confirmation.
+- [x] Add BBC feed now scrolls/highlights the newly created custom editor on the commissioned screen;
+- [x] the CSS-drawn 2×3 grips are visually centred on both News Feed order and Clock weather cards;
+- [x] duplicate Enabled/Move controls are absent from News feeds.
 
 Before draft PR #12 may leave draft, the commissioned appliance must still prove:
 
-- the new Add flow moves directly to/highlights the new editor while leaving menu order unchanged until Feed order is used;
-- the drag grip is visually centred and comfortable while ordinary page scrolling remains available outside it;
-- News feeds no longer duplicates the Enabled/Move controls owned by Feed order;
+- the custom-only News feeds page hides every built-in editor, retains the working Add/scroll flow and shows a sensible empty state when no custom sources exist;
 - a story delivered by the added Europe feed retains the accepted local QR hand-off behaviour when the RSS item supplies a usable HTTPS destination;
 - an unchecked/non-BBC source is rejected;
 - changing a custom source cannot make cache from the old source appear under the new source;
-- portable Backup contains the logical order/labels/custom feed records and Reset/Restore Preview ownership remains truthful;
+- portable Backup contains the logical order/custom feed records and Reset/Restore Preview ownership remains truthful;
 - News Settings, touch keyboard and unified update/discard interaction remain usable without 1280×720 overflow.
 
 Automated evidence:
@@ -307,6 +307,7 @@ Automated evidence:
 - **Tests #4779/#4780** passed the full-feed guidance and first scrollbar-refinement heads;
 - **Tests #4788** passed compile, existing JavaScript/page/shell checks and the full regression suite on `01817c5ced6dbcb7c686b52e2db851ce6905d00c`;
 - **Tests #4801** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `92cb656452fb546f20f078d6ee76f0e72b31fc6b`; its dedicated News regression directly syntax-checks the shared touch-reorder helper, News Feed-order client and Clock-card drag enhancer as well as the News placement/scrollbar clients;
-- **Tests #4807** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `e5828a7205394019f4fb6d24e1c8ef46547beec3`, covering explicit new-editor scrolling, centred dot-matrix grip styling and editor-only hidden-control enforcement.
+- **Tests #4807** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `e5828a7205394019f4fb6d24e1c8ef46547beec3`, covering explicit new-editor scrolling, centred dot-matrix grip styling and editor-only hidden-control enforcement;
+- **Tests #4824** passed the full automated gate on custom-only News feed manager implementation head `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`, including regression coverage that built-in editor cards are hidden while Feed order still uses the shared underlying records.
 
 Until the remaining gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
