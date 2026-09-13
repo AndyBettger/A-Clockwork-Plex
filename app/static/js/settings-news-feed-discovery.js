@@ -33,6 +33,16 @@
     return urlField(card)?.querySelector('input') || null;
   }
 
+  function refreshPageGuidance() {
+    const feedHelp = feedSubpage.querySelector('.settings-card .settings-card-heading .muted.small');
+    if (feedHelp) {
+      feedHelp.textContent = 'Add a custom BBC News section by pasting its normal BBC News page URL, or paste a feeds.bbci.co.uk RSS address directly. Built-in BBC sections keep their standard names and URLs; use Feed order to enable and arrange them.';
+    }
+    const row = document.querySelector('[data-settings-overview="news"] [data-settings-subpage-target="news:feeds"]');
+    const rowCopy = row?.querySelector('small');
+    if (rowCopy) rowCopy.textContent = 'Add and manage custom BBC News sections by page or RSS URL';
+  }
+
   function bbcNewsPageToFeedUrl(value) {
     const text = clean(value);
     if (!text) return '';
@@ -186,12 +196,17 @@
   const messageObserver = new MutationObserver(localiseValidationMessage);
   messageObserver.observe(globalMessage, { childList: true, characterData: true, subtree: true });
 
-  const editorObserver = new MutationObserver(decorateAllCards);
+  const editorObserver = new MutationObserver(() => {
+    refreshPageGuidance();
+    decorateAllCards();
+  });
   editorObserver.observe(editorList, { childList: true, subtree: true });
 
+  refreshPageGuidance();
   decorateAllCards();
   localiseValidationMessage();
   window.setTimeout(() => {
+    refreshPageGuidance();
     decorateAllCards();
     localiseValidationMessage();
   }, 0);
