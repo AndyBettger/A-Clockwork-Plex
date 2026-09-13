@@ -21,6 +21,24 @@
   -webkit-user-select: none;
 }
 
+/* Draw the 2×3 grip ourselves instead of relying on the Braille glyph's font
+   side-bearings, which made the dots look slightly high/left on Chromium. */
+.settings-drag-handle > span[aria-hidden="true"] {
+  display: block;
+  width: 18px;
+  height: 26px;
+  font-size: 0;
+  line-height: 0;
+  background:
+    radial-gradient(circle at 28% 17%, currentColor 0 2.8px, transparent 3px),
+    radial-gradient(circle at 72% 17%, currentColor 0 2.8px, transparent 3px),
+    radial-gradient(circle at 28% 50%, currentColor 0 2.8px, transparent 3px),
+    radial-gradient(circle at 72% 50%, currentColor 0 2.8px, transparent 3px),
+    radial-gradient(circle at 28% 83%, currentColor 0 2.8px, transparent 3px),
+    radial-gradient(circle at 72% 83%, currentColor 0 2.8px, transparent 3px);
+  background-repeat: no-repeat;
+}
+
 .settings-drag-handle:active,
 .settings-drag-handle.is-dragging {
   cursor: grabbing;
@@ -53,6 +71,14 @@
 
 .news-feed-editor-card.is-new-feed {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #76c9ff) 56%, transparent), 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+/* Several shared Settings controls define their own display mode, so native
+   [hidden] is not strong enough here. Keep enable/order controls on Feed order. */
+.news-feed-editor-card .setting-toggle[hidden],
+.news-feed-editor-card .settings-action-row > button[hidden],
+.news-feed-editor-card .settings-action-row[hidden] {
+  display: none !important;
 }
 
 .news-feed-order-list {
