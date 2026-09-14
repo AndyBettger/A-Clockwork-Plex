@@ -47,7 +47,24 @@ Two audit-tool assumptions were also corrected from this physical run:
 
 The Raspberry Pi DAC Pro is an **I2S** device, so `/proc/asound/Pro/stream0` is not exposed. That USB-style procfs descriptor therefore cannot be used to infer its format/rate limits. Exact hardware capability must be measured while the DAC is temporarily idle.
 
-`scripts/audio/probe-hi-res-dac.py` implements that next bounded gate. Its default invocation is plan-only. `--apply` first verifies the healthy split bus, snapshots the application/CamillaDSP service state, deliberately stops dashboard → AirPlay → Plexamp → CamillaDSP, waits for the DAC to report `closed`, opens `hw:CARD=Pro,DEV=0` non-blocking, and queries exact stereo `RW_INTERLEAVED` constraints for **S16_LE, S24_LE, S24_3LE and S32_LE** at **44.1/48/88.2/96/176.4/192 kHz**. It never calls the ALSA operation that applies hw_params and never starts/writes a playback stream. It then closes the PCM, restores CamillaDSP → Plexamp → AirPlay → dashboard, and re-runs the managed audio verifier. If CamillaDSP cannot return, it attempts the already accepted managed Direct failback and reports the probe as failed rather than pretending the original graph was restored.
+`scripts/audio/probe-hi-res-dac.py` implements that bounded gate. Its default invocation is plan-only. `--apply` first verifies the healthy split bus, snapshots the application/CamillaDSP service state, deliberately stops dashboard → AirPlay → Plexamp → CamillaDSP, waits for the DAC to report `closed`, opens `hw:CARD=Pro,DEV=0` non-blocking, and queries exact stereo `RW_INTERLEAVED` constraints for **S16_LE, S24_LE, S24_3LE and S32_LE** at **44.1/48/88.2/96/176.4/192 kHz**. It never calls the ALSA operation that applies hw_params and never starts/writes a playback stream. It then closes the PCM, restores CamillaDSP → Plexamp → AirPlay → dashboard, and re-runs the managed audio verifier. If CamillaDSP cannot return, it attempts the already accepted managed Direct failback and reports the probe as failed rather than pretending the original graph was restored.
+
+### Physical DAC capability result — 14 September 2026
+
+The guarded probe was physically run on head `b910bdeb82b004c516c6631a9cfd42d0a8e68aca`. The corrected installed-stack audit first passed its own managed audio verifier and confirmed the live split bus remained healthy. The plan-only probe made no changes; the explicit `--apply` run then quiesced the four managed services, reached an idle DAC, queried the exact hardware constraints and restored the original graph successfully.
+
+| ALSA format | 44.1 kHz | 48 kHz | 88.2 kHz | 96 kHz | 176.4 kHz | 192 kHz |
+| --- | --- | --- | --- | --- | --- | --- |
+| `S16_LE` | accepted | accepted | accepted | accepted | accepted | accepted |
+| `S24_LE` | accepted | accepted | accepted | accepted | accepted | accepted |
+| `S24_3LE` | rejected | rejected | rejected | rejected | rejected | rejected |
+| `S32_LE` | accepted | accepted | accepted | accepted | accepted | accepted |
+
+After the query the probe restarted CamillaDSP → Plexamp → AirPlay → dashboard, `verify-audio.sh` passed again, and route state returned to **`split-bus-active` / `split-bus-selected`** with the split route still selected and Direct failback unused. The bounded quiesce/query/restore transaction is therefore physically proven on this appliance.
+
+This closes the hardware-format discovery gate but does **not** yet prove sustained playback, clock stability, bit-perfect behaviour or low-load operation at every accepted rate. It proves that the Raspberry Pi DAC Pro ALSA hardware PCM/driver accepts exact stereo `RW_INTERLEAVED` constraints for `S16_LE`, `S24_LE` and `S32_LE` through 192 kHz. The current 16/44.1 ceiling is therefore in the managed software graph rather than an exposed DAC hardware-format/rate limit.
+
+For the first managed high-resolution processing experiment, **`S32_LE` is the cleanest format candidate**: the DAC accepted it at every target rate, it can carry 24-bit programme precision without packed-24 handling, and the current CamillaDSP configuration model can use the same `S32_LE` spelling as ALSA. `S24_LE` remains a hardware-capable option, but CamillaDSP's ALSA backend names ALSA's padded `S24_LE` representation differently, so the current single `FORMAT` setting must not be changed to `S24_LE` blindly. This is a candidate-selection observation, not yet the final production format decision.
 
 The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observed physical DAC `512` / `4096` values describe different points in the current graph; that difference is recorded rather than treated as an error until the higher-resolution topology is measured.
 
@@ -62,10 +79,10 @@ The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observe
 ## Initial investigation order
 
 1. **Complete:** capture the current read-only installed-stack baseline with `scripts/audio/verify-audio.sh` and `scripts/audio/audit-hi-res-audio.sh`.
-2. **Ready for physical run:** measure the idle physical DAC's exact accepted format/rate combinations with `python3 scripts/audio/probe-hi-res-dac.py --apply` using the guarded quiesce → query → restore transaction above.
-3. Exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record source, processing and DAC behaviour.
+2. **Complete:** measure the idle physical DAC's exact accepted format/rate combinations with `python3 scripts/audio/probe-hi-res-dac.py --apply`; `S16_LE`, `S24_LE` and `S32_LE` were accepted at every tested rate through 192 kHz, `S24_3LE` was rejected, and the original split bus restored cleanly.
+3. **Next physical gate:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record separately what Plexamp requests/decodes, what the ACP processing bus actually runs, and what reaches the physical DAC.
 4. Identify the remaining bottleneck(s): Plexamp output, ALSA virtual devices, CamillaDSP format/rate, mixer/join stages, or DAC constraints.
-5. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility.
+5. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility; `S32_LE` is the first format candidate, not a pre-accepted production choice.
 6. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
 7. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
 8. Expose source format, processing format and final DAC format/rate separately in diagnostics.
