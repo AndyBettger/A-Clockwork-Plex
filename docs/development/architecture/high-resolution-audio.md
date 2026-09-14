@@ -19,7 +19,12 @@ Recovery/safety comes from repository state and controlled checkpoints:
 - keep current configuration backups where a test could deliberately disturb user-owned settings;
 - do not make bit-perfect/native/high-resolution claims until ALSA/DAC state has been measured on the real appliance.
 
-The existing `scripts/audio/preflight-eq.sh` remains the first read-only baseline check before the initial audio-path mutation, but later controlled route/format/lifecycle experiments may be performed directly on the development appliance.
+The historical `scripts/audio/preflight-eq.sh` is **not** the baseline tool for this phase. It is the old pre-EQ-install gate and deliberately expects the managed EQ files to be absent and the previous direct route to be active. Running it against the commissioned managed-EQ installation would therefore fail by design.
+
+For this phase the baseline is:
+
+- `scripts/audio/verify-audio.sh` — verifies the currently installed managed EQ/split-bus contract; and
+- `scripts/audio/audit-hi-res-audio.sh` — a new read-only audit that reports the current installed format/rate settings, ALSA card/PCM state, USB/ALSA DAC capability descriptors, live hw_params, route/EQ status and CamillaDSP process/service state without opening a PCM or mutating the appliance.
 
 ## Non-negotiable constraints
 
@@ -31,7 +36,7 @@ The existing `scripts/audio/preflight-eq.sh` remains the first read-only baselin
 
 ## Initial investigation order
 
-1. Capture the current read-only audio baseline with `scripts/audio/preflight-eq.sh` and current diagnostics.
+1. Capture the current read-only audio baseline with `scripts/audio/verify-audio.sh` and `scripts/audio/audit-hi-res-audio.sh`.
 2. Exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record source, processing and DAC behaviour.
 3. Identify the real bottleneck(s): Plexamp output, ALSA virtual devices, CamillaDSP format/rate, mixer/join stages, or DAC constraints.
 4. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility.
