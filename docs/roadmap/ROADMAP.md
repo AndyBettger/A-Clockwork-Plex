@@ -46,10 +46,11 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation is now active on `feature/hi-res-audio-eq`, branched from the accepted post-PR-#12 `develop` state.
 
-Use `scripts/audio/preflight-eq.sh` as the first **read-only bedroom-Pi baseline** before changing the audio path. The bedroom Pi is the development/test appliance for this work: controlled route, sample-format and lifecycle experiments may be performed directly on it. Recovery is provided by committed feature-branch checkpoints plus the known-good `develop` and `main` rebuild baselines; a separate spare SD card is not a project requirement.
+The historical `scripts/audio/preflight-eq.sh` is the old pre-EQ-install gate and is **not** the baseline for this phase: it intentionally expects the managed EQ files to be absent and the previous direct route to be active. The current installed-stack baseline instead uses read-only `scripts/audio/verify-audio.sh` plus `scripts/audio/audit-hi-res-audio.sh`. The bedroom Pi is the development/test appliance for this work: controlled route, sample-format and lifecycle experiments may be performed directly on it. Recovery is provided by committed feature-branch checkpoints plus the known-good `develop` and `main` rebuild baselines; a separate spare SD card is not a project requirement.
 
 - [x] Created `feature/hi-res-audio-eq` from accepted `develop` after PR #12 merged.
 - [x] Documented the development-appliance/recovery policy in `docs/development/architecture/high-resolution-audio.md`.
+- [x] Added a read-only installed-stack hi-res audit separate from the historical pre-install EQ gate.
 - [ ] Capture the current read-only audio baseline before the first mutation.
 
 Accepted constraints:
