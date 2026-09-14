@@ -51,7 +51,9 @@ The historical `scripts/audio/preflight-eq.sh` is the old pre-EQ-install gate an
 - [x] Created `feature/hi-res-audio-eq` from accepted `develop` after PR #12 merged.
 - [x] Documented the development-appliance/recovery policy in `docs/development/architecture/high-resolution-audio.md`.
 - [x] Added a read-only installed-stack hi-res audit separate from the historical pre-install EQ gate.
-- [ ] Capture the current read-only audio baseline before the first mutation.
+- [x] Captured the first physical read-only baseline on 14 September 2026: `verify-audio.sh` passed; the DAC was live at **S16_LE / 44.1 kHz stereo**; the ALSA split bus, installed profile and CamillaDSP independently fix the current processing path to **S16_LE / 44.1 kHz**; route/EQ/services were healthy and CamillaDSP used about **0.6% CPU** at the snapshot.
+- [x] Recorded two audit corrections from that run: repository verifier scripts must be invoked through `bash`, and loopback procfs inspection must follow card index 7 (`/proc/asound/card7`) rather than the configured module id string. The Raspberry Pi DAC Pro is I2S, so the absent USB-style `/proc/asound/Pro/stream0` descriptor is expected rather than a hardware failure.
+- [ ] Measure the physical DAC's exact format/rate combinations with a guarded idle-DAC capability probe before changing the processing bus.
 
 Accepted constraints:
 
@@ -201,6 +203,7 @@ Goal: materially higher-resolution Plex playback with managed EQ active, plus a 
 
 Active branch: `feature/hi-res-audio-eq`
 
+- [ ] Measure the Raspberry Pi DAC Pro's exact supported format/rate combinations on the real appliance with the audio graph deliberately quiesced and restored.
 - [ ] Physical capability audit with known 16/44.1, 24/48, 24/96 and 24/192 Plex files.
 - [ ] Choose a managed high-resolution bus by measured CPU/stability/latency.
 - [ ] Remove the managed 16/44.1 bottleneck while preserving trims → Music Master → reserve → EQ → limiter → alarm join.

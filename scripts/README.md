@@ -75,6 +75,7 @@ The accepted audio lifecycle lives only in `scripts/audio/`. Normal appliance in
 | File | Purpose | Safety / intended use |
 | --- | --- | --- |
 | `scripts/audio/preflight-eq.sh` | Historical read-only bedroom-Pi validation gate that proves the pinned DAC/direct-baseline/CamillaDSP assumptions before EQ work. | **Read-only diagnostic/acceptance.** Retained intentionally; it is not an installer. |
+| `scripts/audio/audit-hi-res-audio.sh` | Audits the already-installed managed EQ/split-bus path for hi-res development: live ALSA/DAC/loopback state, profile/config format and rate, route/EQ status, services and CamillaDSP process state. | **Read-only developer diagnostic.** Run with `bash scripts/audio/audit-hi-res-audio.sh`; it never opens a PCM or mutates the appliance. |
 | `scripts/audio/install-direct.sh` | Installs/converges the accepted alarm-safe Direct route. | **Guarded mutation.** Normally delegated by the appliance installer. |
 | `scripts/audio/install-eq.sh` | Installs/converges the accepted CamillaDSP split-bus EQ route with captured rollback baseline. | **Guarded mutation.** Normally delegated by the appliance installer. |
 | `scripts/audio/repair-audio.sh` | Repairs an installed managed audio profile while preserving/restoring pre-repair runtime state on failure. | **Guarded mutation.** Recovery tool; inspect its plan/help before activation. |

@@ -24,7 +24,30 @@ The historical `scripts/audio/preflight-eq.sh` is **not** the baseline tool for 
 For this phase the baseline is:
 
 - `scripts/audio/verify-audio.sh` — verifies the currently installed managed EQ/split-bus contract; and
-- `scripts/audio/audit-hi-res-audio.sh` — a new read-only audit that reports the current installed format/rate settings, ALSA card/PCM state, USB/ALSA DAC capability descriptors, live hw_params, route/EQ status and CamillaDSP process/service state without opening a PCM or mutating the appliance.
+- `scripts/audio/audit-hi-res-audio.sh` — a read-only audit that reports the current installed format/rate settings, ALSA card/PCM state, available DAC descriptors, live hw_params, route/EQ status and CamillaDSP process/service state without opening a PCM or mutating the appliance.
+
+## Physically captured baseline — 14 September 2026
+
+The first commissioned-appliance baseline was captured on `feature/hi-res-audio-eq` head `d723b8c44e17b1cca5a97f2a4d697101238b9703` on the Raspberry Pi 5 bedroom test appliance.
+
+- `bash scripts/audio/verify-audio.sh` passed the installed EQ-capable contract before any mutation.
+- The physical DAC is ALSA card **Pro**, `RPi_DAC_Pro`, device 0 (`Raspberry Pi DAC Pro HiFi pcm512x-hifi-0`).
+- The live DAC `hw_params` were **S16_LE, 2 channels, 44100 Hz**, with `period_size=512` and `buffer_size=4096`.
+- The active ACP split route is SHA-256 `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` and fixes its four-channel loopback `dmix` slave to **S16_LE / 44100 Hz**.
+- The installed profile independently fixes `SAMPLE_RATE=44100` and `FORMAT=S16_LE`.
+- The live CamillaDSP configuration independently fixes capture and playback to **S16_LE / 44100 Hz**; capture is four channels from `hw:7,1,0`, playback is stereo to `hw:CARD=Pro,DEV=0`.
+- Route state was healthy `split-bus-active`; Plexamp, Shairport Sync, dashboard, route and CamillaDSP services were active, with the failback service correctly inactive/static.
+- Managed EQ was active with Bass **+2 dB**, Mid **0 dB**, Treble **+2 dB**, permanent music reserve **-6.5 dB** and final limiter **-1 dB**.
+- CamillaDSP was using approximately **0.6% CPU** during the snapshot. That is a useful 44.1 kHz baseline, not evidence that every higher rate will be stable.
+
+Two audit-tool assumptions were also corrected from this physical run:
+
+1. repository shell scripts are intentionally invoked with `bash`, so the audit must not require `verify-audio.sh` itself to have an executable bit before calling it; and
+2. the configured snd-aloop id is `ACP_Loopback`, while the kernel card short name is `ACPLoopback`; the reliable procfs path for the accepted index is `/proc/asound/card7` rather than `/proc/asound/ACP_Loopback`.
+
+The Raspberry Pi DAC Pro is an **I2S** device, so `/proc/asound/Pro/stream0` is not exposed. That USB-style procfs descriptor therefore cannot be used to infer its format/rate limits. Exact hardware capability must be measured with a separate guarded probe while the DAC is temporarily idle.
+
+The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observed physical DAC `512` / `4096` values describe different points in the current graph; that difference is recorded rather than treated as an error until the higher-resolution topology is measured.
 
 ## Non-negotiable constraints
 
@@ -36,14 +59,15 @@ For this phase the baseline is:
 
 ## Initial investigation order
 
-1. Capture the current read-only audio baseline with `scripts/audio/verify-audio.sh` and `scripts/audio/audit-hi-res-audio.sh`.
-2. Exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record source, processing and DAC behaviour.
-3. Identify the real bottleneck(s): Plexamp output, ALSA virtual devices, CamillaDSP format/rate, mixer/join stages, or DAC constraints.
-4. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility.
-5. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
-6. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
-7. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-8. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+1. **Complete:** capture the current read-only installed-stack baseline with `scripts/audio/verify-audio.sh` and `scripts/audio/audit-hi-res-audio.sh`.
+2. Measure the idle physical DAC's exact accepted format/rate combinations without playing programme material, using a guarded quiesce → probe → restore transaction.
+3. Exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record source, processing and DAC behaviour.
+4. Identify the remaining bottleneck(s): Plexamp output, ALSA virtual devices, CamillaDSP format/rate, mixer/join stages, or DAC constraints.
+5. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility.
+6. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
+7. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
+8. Expose source format, processing format and final DAC format/rate separately in diagnostics.
+9. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 

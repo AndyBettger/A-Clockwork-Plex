@@ -16,8 +16,6 @@ ACTIVE_ROUTE=/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf
 CAMILLADSP_CONFIG=/etc/a-clockwork-plex/camilladsp-split-bus.yml
 ROUTE_HELPER=/usr/local/bin/a-clockwork-plex-audio-route
 EQ_HELPER=/usr/local/bin/a-clockwork-plex-audio-eq
-DAC_PROC=/proc/asound/Pro
-LOOPBACK_PROC=/proc/asound/ACP_Loopback
 
 usage() {
     cat <<'EOF_USAGE'
@@ -74,6 +72,12 @@ show_service() {
     printf '%-42s active=%-12s enabled=%s\n' "$unit" "${active:-unknown}" "${enabled:-unknown}"
 }
 
+read_default() {
+    local key="$1"
+    [[ -r "$DEFAULTS" ]] || return 0
+    awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$DEFAULTS"
+}
+
 main() {
     if [[ $# -gt 0 ]]; then
         case "$1" in
@@ -89,6 +93,14 @@ main() {
         esac
     fi
 
+    local dac_card loopback_index dac_proc loopback_proc
+    dac_card="$(read_default DAC_CARD)"
+    loopback_index="$(read_default LOOPBACK_INDEX)"
+    dac_card="${dac_card:-Pro}"
+    loopback_index="${loopback_index:-7}"
+    dac_proc="/proc/asound/$dac_card"
+    loopback_proc="/proc/asound/card$loopback_index"
+
     section 'audit identity'
     printf 'timestamp=%s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
     printf 'user=%s\n' "$(id -un)"
@@ -101,8 +113,8 @@ main() {
     printf 'repo_head=%s\n' "$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
 
     section 'managed audio verification'
-    if [[ -x "$REPO_ROOT/scripts/audio/verify-audio.sh" ]]; then
-        if "$REPO_ROOT/scripts/audio/verify-audio.sh"; then
+    if [[ -f "$REPO_ROOT/scripts/audio/verify-audio.sh" ]]; then
+        if bash "$REPO_ROOT/scripts/audio/verify-audio.sh"; then
             printf 'verify_audio=PASS\n'
         else
             printf 'verify_audio=FAIL\n'
@@ -122,14 +134,22 @@ main() {
         printf 'aplay unavailable\n'
     fi
 
-    section 'DAC advertised USB/ALSA capabilities'
-    show_file "$DAC_PROC/stream0"
+    section 'DAC descriptor availability'
+    show_file "$dac_proc/id"
+    show_file "$dac_proc/pcm0p/info"
+    if [[ -r "$dac_proc/stream0" ]]; then
+        show_file "$dac_proc/stream0"
+    else
+        printf 'stream0 capability descriptor not exposed at %s/stream0 (normal for an I2S/non-USB DAC).\n' "$dac_proc"
+        printf 'Exact hardware format/rate support therefore requires a separate guarded idle-DAC capability probe.\n'
+    fi
 
     section 'live DAC hw_params'
-    show_hw_params_tree "$DAC_PROC"
+    show_hw_params_tree "$dac_proc"
 
     section 'live ACP loopback hw_params'
-    show_hw_params_tree "$LOOPBACK_PROC"
+    printf 'loopback_proc=%s\n' "$loopback_proc"
+    show_hw_params_tree "$loopback_proc"
 
     section 'installed split-bus profile'
     if [[ -r "$DEFAULTS" ]]; then

@@ -8,12 +8,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
+AUDIT = ROOT / "scripts" / "audio" / "audit-hi-res-audio.sh"
 ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
 
 
 class EqAudioPreflightSafetyTests(unittest.TestCase):
     def setUp(self) -> None:
         self.source = PREFLIGHT.read_text(encoding="utf-8")
+        self.audit_source = AUDIT.read_text(encoding="utf-8")
 
     def test_shell_syntax_and_help(self) -> None:
         syntax = subprocess.run(
@@ -92,12 +94,40 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.assertIn("/var/tmp/a-clockwork-plex-eq-preflight.XXXXXX", self.source)
         self.assertNotIn('rm -rf "$EVIDENCE_ROOT"', self.source)
 
-    def test_roadmap_tracks_the_preflight_gate(self) -> None:
+    def test_installed_stack_audit_remains_read_only_and_runnable_via_bash(self) -> None:
+        syntax = subprocess.run(
+            ["bash", "-n", str(AUDIT)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        help_result = subprocess.run(
+            ["bash", str(AUDIT), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("currently installed managed audio path", help_result.stdout)
+        self.assertIn('bash "$REPO_ROOT/scripts/audio/verify-audio.sh"', self.audit_source)
+        self.assertIn('loopback_proc="/proc/asound/card$loopback_index"', self.audit_source)
+        self.assertIn("normal for an I2S/non-USB DAC", self.audit_source)
+        self.assertNotRegex(
+            self.audit_source,
+            re.compile(r"\bsystemctl\s+(?:start|stop|restart|enable|disable|reload)\b"),
+        )
+        self.assertNotIn("aplay -D", self.audit_source)
+        self.assertNotIn("arecord", self.audit_source)
+
+    def test_roadmap_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
         self.assertIn("scripts/audio/preflight-eq.sh", roadmap)
-        self.assertIn("read-only bedroom-Pi validation gate", roadmap)
-        self.assertIn("accepted production SD remains protected", roadmap)
-        self.assertIn("a separate spare SD is the disposable acceptance target", roadmap)
+        self.assertIn("old pre-EQ-install gate", roadmap)
+        self.assertIn("scripts/audio/verify-audio.sh", roadmap)
+        self.assertIn("scripts/audio/audit-hi-res-audio.sh", roadmap)
+        self.assertIn("known-good `develop` and `main` rebuild baselines", roadmap)
+        self.assertIn("a separate spare SD card is not a project requirement", roadmap)
 
 
 if __name__ == "__main__":
