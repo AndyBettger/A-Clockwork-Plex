@@ -212,7 +212,15 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
     }
     news = _pick(
         settings.get("news"),
-        ("enabled_categories", "default_category", "show_summaries", "ticker"),
+        (
+            "enabled_categories",
+            "default_category",
+            "feed_order",
+            "feed_labels",
+            "custom_feeds",
+            "show_summaries",
+            "ticker",
+        ),
     )
     if news:
         result["news"] = news

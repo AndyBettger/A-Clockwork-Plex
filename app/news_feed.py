@@ -17,15 +17,17 @@ from urllib.parse import urlparse
 
 import qrcode
 import qrcode.image.svg
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, request
 
 
-CACHE_SCHEMA_VERSION = 3
+CACHE_SCHEMA_VERSION = 4
 DEFAULT_REFRESH_MINUTES = 15
 DEFAULT_TIMEOUT_SECONDS = 8
 DEFAULT_STALE_HOURS = 6
 MAX_RESPONSE_BYTES = 1_500_000
 MAX_ITEMS_PER_FEED = 40
+MAX_CUSTOM_FEEDS = 12
+MAX_FEED_LABEL_LENGTH = 80
 
 BBC_FEEDS: dict[str, dict[str, str]] = {
     "top": {
@@ -41,19 +43,59 @@ BBC_FEEDS: dict[str, dict[str, str]] = {
         "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
     },
     "science": {
-        "label": "Science",
+        "label": "Science & Environment",
         "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
     },
     "technology": {
         "label": "Technology",
         "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
     },
+    "england": {
+        "label": "England",
+        "url": "https://feeds.bbci.co.uk/news/england/rss.xml",
+    },
+    "scotland": {
+        "label": "Scotland",
+        "url": "https://feeds.bbci.co.uk/news/scotland/rss.xml",
+    },
+    "wales": {
+        "label": "Wales",
+        "url": "https://feeds.bbci.co.uk/news/wales/rss.xml",
+    },
+    "northern_ireland": {
+        "label": "Northern Ireland",
+        "url": "https://feeds.bbci.co.uk/news/northern_ireland/rss.xml",
+    },
+    "business": {
+        "label": "Business",
+        "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+    },
+    "politics": {
+        "label": "Politics",
+        "url": "https://feeds.bbci.co.uk/news/politics/rss.xml",
+    },
+    "health": {
+        "label": "Health",
+        "url": "https://feeds.bbci.co.uk/news/health/rss.xml",
+    },
+    "education": {
+        "label": "Education",
+        "url": "https://feeds.bbci.co.uk/news/education/rss.xml",
+    },
+    "entertainment": {
+        "label": "Entertainment & Arts",
+        "url": "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
+    },
 }
-DEFAULT_ENABLED_CATEGORIES = tuple(BBC_FEEDS)
+DEFAULT_ENABLED_CATEGORIES = ("top", "uk", "world", "science", "technology")
+DEFAULT_FEED_ORDER = tuple(BBC_FEEDS)
 TICKER_SPEEDS = {"slow", "normal", "fast"}
 _SAFE_IMAGE_HOST_SUFFIXES = ("bbc.co.uk", "bbci.co.uk", "bbcimg.co.uk", "bbc.com")
+_SAFE_FEED_HOST = "feeds.bbci.co.uk"
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _STORY_ID_RE = re.compile(r"^[0-9a-f]{20}$")
+_CATEGORY_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+_CUSTOM_FEED_ID_RE = re.compile(r"^custom-[a-z0-9][a-z0-9-]{0,47}$")
 
 FetchBytes = Callable[[str, float], bytes]
 ConfigProvider = Callable[[], dict[str, Any]]
@@ -156,7 +198,7 @@ def _safe_image_url(value: Any) -> str | None:
 def _safe_article_url(value: Any) -> str | None:
     """Return an absolute HTTPS destination supplied by a trusted RSS item.
 
-    The News service itself fetches only its configured BBC feeds.  Article
+    The News service itself fetches only validated BBC feeds. Article
     destinations are therefore treated as feed-owned data rather than browser
     input: preserve the exact HTTPS URL the feed supplied, while rejecting
     malformed, relative, credential-bearing or non-HTTPS values.
@@ -175,6 +217,48 @@ def _safe_article_url(value: Any) -> str | None:
     if parsed.username is not None or parsed.password is not None:
         return None
     return text
+
+
+def _safe_bbc_feed_url(value: Any) -> str | None:
+    """Return a canonical BBC News RSS URL or None.
+
+    User-configurable sources remain deliberately BBC-only. This keeps the
+    fetcher from becoming an arbitrary URL/SSRF endpoint while still allowing
+    additional BBC News section feeds.
+    """
+
+    text = str(value or "").strip()
+    if not text or _CONTROL_RE.search(text) or any(character.isspace() for character in text):
+        return None
+    try:
+        parsed = urlparse(text)
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme.casefold() != "https":
+        return None
+    if parsed.username is not None or parsed.password is not None:
+        return None
+    host = (parsed.hostname or "").casefold().rstrip(".")
+    if host != _SAFE_FEED_HOST or port not in (None, 443):
+        return None
+    if parsed.query or parsed.fragment or parsed.params:
+        return None
+    path = parsed.path or ""
+    if path != "/news/rss.xml" and not (path.startswith("/news/") and path.endswith("/rss.xml")):
+        return None
+    if "//" in path or "/../" in path or "/./" in path:
+        return None
+    return f"https://{_SAFE_FEED_HOST}{path}"
+
+
+class _BBCFeedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects before urllib can leave the BBC News RSS boundary."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[override]
+        if _safe_bbc_feed_url(newurl) is None:
+            raise RuntimeError("BBC News redirected outside the approved RSS source boundary.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _public_story(item: Any) -> dict[str, Any] | None:
@@ -235,15 +319,127 @@ def _feed_ttl(value: Any) -> int | None:
     return max(5, min(120, ttl))
 
 
-def _enabled_categories(value: Any, *, strict: bool = False) -> list[str]:
+def _custom_feed_id(value: Any, url: str, *, strict: bool) -> str | None:
+    candidate = str(value or "").strip().casefold()
+    if not candidate:
+        candidate = f"custom-{hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]}"
+    if not _CUSTOM_FEED_ID_RE.fullmatch(candidate):
+        if strict:
+            raise ValueError("Custom BBC News feed id is invalid.")
+        return None
+    return candidate
+
+
+def _custom_feeds(value: Any, *, strict: bool = False) -> list[dict[str, str]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        if strict:
+            raise ValueError("Custom BBC News feeds must be a list.")
+        return []
+
+    output: list[dict[str, str]] = []
+    seen_ids: set[str] = set()
+    seen_urls = {entry["url"] for entry in BBC_FEEDS.values()}
+    for raw in value:
+        if not isinstance(raw, dict):
+            if strict:
+                raise ValueError("Each custom BBC News feed must be an object.")
+            continue
+        url = _safe_bbc_feed_url(raw.get("url"))
+        if url is None:
+            if strict:
+                raise ValueError("Custom feeds must use a BBC News RSS URL on feeds.bbci.co.uk.")
+            continue
+        feed_id = _custom_feed_id(raw.get("id"), url, strict=strict)
+        if feed_id is None:
+            continue
+        label = _plain_text(raw.get("label"), maximum=MAX_FEED_LABEL_LENGTH)
+        if not label:
+            if strict:
+                raise ValueError("Custom BBC News feeds require a label.")
+            continue
+        if feed_id in BBC_FEEDS or feed_id in seen_ids:
+            if strict:
+                raise ValueError("Custom BBC News feed ids must be unique.")
+            continue
+        if url in seen_urls:
+            if strict:
+                raise ValueError("That BBC News RSS URL is already configured.")
+            continue
+        seen_ids.add(feed_id)
+        seen_urls.add(url)
+        output.append({"id": feed_id, "label": label, "url": url})
+        if len(output) > MAX_CUSTOM_FEEDS:
+            if strict:
+                raise ValueError(f"No more than {MAX_CUSTOM_FEEDS} custom BBC News feeds may be configured.")
+            return output[:MAX_CUSTOM_FEEDS]
+    return output
+
+
+def _feed_labels(value: Any, *, strict: bool = False) -> dict[str, str]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        if strict:
+            raise ValueError("BBC News feed labels must be an object.")
+        return {}
+    output: dict[str, str] = {}
+    for raw_id, raw_label in value.items():
+        feed_id = str(raw_id or "").strip().casefold()
+        if feed_id not in BBC_FEEDS:
+            if strict:
+                raise ValueError(f"Unknown built-in BBC News feed label: {feed_id or 'empty'}")
+            continue
+        label = _plain_text(raw_label, maximum=MAX_FEED_LABEL_LENGTH)
+        if not label:
+            continue
+        if label != BBC_FEEDS[feed_id]["label"]:
+            output[feed_id] = label
+    return output
+
+
+def _feed_order(
+    value: Any,
+    custom: list[dict[str, str]],
+    *,
+    strict: bool = False,
+) -> list[str]:
+    valid = list(DEFAULT_FEED_ORDER) + [item["id"] for item in custom]
+    valid_set = set(valid)
+    ordered: list[str] = []
+    if value is not None and not isinstance(value, list):
+        if strict:
+            raise ValueError("BBC News feed order must be a list.")
+        value = []
+    for raw in value or []:
+        feed_id = str(raw or "").strip().casefold()
+        if feed_id not in valid_set:
+            if strict:
+                raise ValueError(f"Unknown BBC News feed in order: {feed_id or 'empty'}")
+            continue
+        if feed_id not in ordered:
+            ordered.append(feed_id)
+    for feed_id in valid:
+        if feed_id not in ordered:
+            ordered.append(feed_id)
+    return ordered
+
+
+def _enabled_categories(
+    value: Any,
+    allowed_ids: set[str],
+    *,
+    strict: bool = False,
+) -> list[str]:
     if not isinstance(value, list):
         if strict:
             raise ValueError("News categories must be an ordered list.")
-        return list(DEFAULT_ENABLED_CATEGORIES)
+        return [feed_id for feed_id in DEFAULT_ENABLED_CATEGORIES if feed_id in allowed_ids]
     categories: list[str] = []
     for raw in value:
         category = str(raw).strip().casefold()
-        if category not in BBC_FEEDS:
+        if category not in allowed_ids:
             if strict:
                 raise ValueError(f"Unknown BBC News category: {category or 'empty'}")
             continue
@@ -252,23 +448,37 @@ def _enabled_categories(value: Any, *, strict: bool = False) -> list[str]:
     if not categories:
         if strict:
             raise ValueError("At least one BBC News category must remain enabled.")
-        return list(DEFAULT_ENABLED_CATEGORIES)
+        return [feed_id for feed_id in DEFAULT_ENABLED_CATEGORIES if feed_id in allowed_ids]
     return categories
 
 
 def public_news_config(config: dict[str, Any]) -> dict[str, Any]:
     news = _object(config.get("news"))
-    enabled = _enabled_categories(news.get("enabled_categories"))
+    custom = _custom_feeds(news.get("custom_feeds"))
+    labels = _feed_labels(news.get("feed_labels"))
+    order = _feed_order(news.get("feed_order"), custom)
+    allowed = set(order)
+    enabled_requested = _enabled_categories(news.get("enabled_categories"), allowed)
+    enabled_set = set(enabled_requested)
+    enabled = [feed_id for feed_id in order if feed_id in enabled_set]
+    if not enabled:
+        enabled = list(DEFAULT_ENABLED_CATEGORIES)
+
     default_category = str(news.get("default_category") or "top").strip().casefold()
     if default_category not in enabled:
         default_category = enabled[0]
+
     ticker = _object(news.get("ticker"))
     speed = str(ticker.get("speed") or "normal").strip().casefold()
     if speed not in TICKER_SPEEDS:
         speed = "normal"
+
     return {
         "enabled_categories": enabled,
         "default_category": default_category,
+        "feed_order": order,
+        "feed_labels": labels,
+        "custom_feeds": custom,
         "show_summaries": _boolean(news.get("show_summaries"), True),
         "ticker": {
             "enabled": _boolean(ticker.get("enabled"), True),
@@ -277,16 +487,43 @@ def public_news_config(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _news_api_settings(settings: dict[str, Any]) -> dict[str, Any]:
+    """Project Settings-owned News config onto the link-free kiosk API."""
+
+    return {
+        "enabled_categories": deepcopy(settings["enabled_categories"]),
+        "default_category": settings["default_category"],
+        "show_summaries": settings["show_summaries"],
+        "ticker": deepcopy(settings["ticker"]),
+    }
+
+
 def submitted_news_config(config: dict[str, Any], payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("News settings must be a JSON object.")
+
     news = _object(config.get("news"))
-    enabled = _enabled_categories(payload.get("enabled_categories"), strict=True)
-    default_category = str(payload.get("default_category") or news.get("default_category") or "top").strip().casefold()
-    if default_category not in BBC_FEEDS:
+    custom_source = payload.get("custom_feeds", news.get("custom_feeds", []))
+    label_source = payload.get("feed_labels", news.get("feed_labels", {}))
+    order_source = payload.get("feed_order", news.get("feed_order"))
+
+    custom = _custom_feeds(custom_source, strict=True)
+    labels = _feed_labels(label_source, strict=True)
+    order = _feed_order(order_source, custom, strict=order_source is not None)
+    allowed = set(order)
+
+    enabled_raw = _enabled_categories(payload.get("enabled_categories"), allowed, strict=True)
+    enabled_set = set(enabled_raw)
+    enabled = [feed_id for feed_id in order if feed_id in enabled_set]
+
+    default_category = str(
+        payload.get("default_category") or news.get("default_category") or "top"
+    ).strip().casefold()
+    if default_category not in allowed:
         raise ValueError("Default BBC News category is unsupported.")
     if default_category not in enabled:
         raise ValueError("Default BBC News category must also be enabled.")
+
     ticker_payload = payload.get("ticker")
     if not isinstance(ticker_payload, dict):
         raise ValueError("News ticker settings must be a JSON object.")
@@ -298,6 +535,9 @@ def submitted_news_config(config: dict[str, Any], payload: Any) -> dict[str, Any
     updated["news"] = {
         "enabled_categories": enabled,
         "default_category": default_category,
+        "feed_order": order,
+        "feed_labels": labels,
+        "custom_feeds": custom,
         "show_summaries": _boolean(payload.get("show_summaries"), True),
         "ticker": {
             "enabled": _boolean(ticker_payload.get("enabled"), True),
@@ -307,19 +547,52 @@ def submitted_news_config(config: dict[str, Any], payload: Any) -> dict[str, Any
     return updated
 
 
+def _feed_definitions(settings: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    labels = _object(settings.get("feed_labels"))
+    custom_by_id = {
+        item["id"]: item
+        for item in settings.get("custom_feeds", [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    definitions: dict[str, dict[str, Any]] = {}
+    for feed_id in settings.get("feed_order", []):
+        if feed_id in BBC_FEEDS:
+            entry = BBC_FEEDS[feed_id]
+            definitions[feed_id] = {
+                "id": feed_id,
+                "label": str(labels.get(feed_id) or entry["label"]),
+                "url": entry["url"],
+                "built_in": True,
+            }
+            continue
+        custom = custom_by_id.get(feed_id)
+        if custom:
+            definitions[feed_id] = {
+                "id": feed_id,
+                "label": custom["label"],
+                "url": custom["url"],
+                "built_in": False,
+            }
+    return definitions
+
+
 def fetch_bbc_rss(url: str, timeout: float) -> bytes:
-    allowed_urls = {entry["url"] for entry in BBC_FEEDS.values()}
-    if url not in allowed_urls:
-        raise ValueError("BBC News feed URL is not in the appliance allow-list.")
-    request = urllib.request.Request(
-        url,
+    safe_url = _safe_bbc_feed_url(url)
+    if safe_url is None:
+        raise ValueError("BBC News feed URL must be an approved feeds.bbci.co.uk News RSS source.")
+    request_object = urllib.request.Request(
+        safe_url,
         headers={
             "Accept": "application/rss+xml, application/xml, text/xml;q=0.9",
             "User-Agent": "A-Clockwork-Plex/1 bbc-news",
         },
     )
+    opener = urllib.request.build_opener(_BBCFeedRedirectHandler())
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request_object, timeout=timeout) as response:
+            final_url = response.geturl() if hasattr(response, "geturl") else safe_url
+            if _safe_bbc_feed_url(final_url) is None:
+                raise RuntimeError("BBC News redirected outside the approved RSS source boundary.")
             payload = response.read(MAX_RESPONSE_BYTES + 1)
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"BBC News returned HTTP {exc.code}.") from exc
@@ -332,8 +605,14 @@ def fetch_bbc_rss(url: str, timeout: float) -> bytes:
     return payload
 
 
-def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
-    if category not in BBC_FEEDS:
+def parse_bbc_rss(
+    payload: bytes | str,
+    category: str,
+    *,
+    label: str | None = None,
+) -> dict[str, Any]:
+    category_id = str(category or "").strip().casefold()
+    if not _CATEGORY_ID_RE.fullmatch(category_id):
         raise ValueError("Unsupported BBC News category.")
     raw = payload.encode("utf-8") if isinstance(payload, str) else bytes(payload)
     if len(raw) > MAX_RESPONSE_BYTES:
@@ -367,7 +646,7 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
                 "title": title,
                 "summary": summary,
                 "published_at": published_at,
-                "category": category,
+                "category": category_id,
                 "article_url": _safe_article_url(link) or _safe_article_url(guid),
             }
         )
@@ -376,9 +655,11 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
 
     image = _child(channel, "image")
     image_url = _safe_image_url(_child_text(image, "url")) if image is not None else None
+    default_label = BBC_FEEDS.get(category_id, {}).get("label") or category_id
+    display_label = _plain_text(label, maximum=MAX_FEED_LABEL_LENGTH) or default_label
     return {
-        "category": category,
-        "category_label": BBC_FEEDS[category]["label"],
+        "category": category_id,
+        "category_label": display_label,
         "source": "BBC News",
         "feed_title": _plain_text(_child_text(channel, "title"), maximum=120) or "BBC News",
         "feed_description": _plain_text(_child_text(channel, "description"), maximum=400),
@@ -387,6 +668,27 @@ def parse_bbc_rss(payload: bytes | str, category: str) -> dict[str, Any]:
         "ttl_minutes": _feed_ttl(_child_text(channel, "ttl")),
         "items": stories,
     }
+
+
+def _suggest_feed_label(title_value: Any, description_value: Any = None) -> str:
+    """Derive a useful custom-feed label from BBC RSS channel metadata.
+
+    BBC topic feeds are inconsistent: some put the section name in ``title``
+    while others use the generic ``BBC News`` title and put the useful name in
+    ``description`` (for example ``BBC News - Europe``). Prefer an informative
+    title, then fall back to the description, stripping the common BBC News
+    prefix in either case.
+    """
+
+    for value in (title_value, description_value):
+        candidate = _plain_text(value, maximum=MAX_FEED_LABEL_LENGTH)
+        for prefix in ("BBC News - ", "BBC News – ", "BBC News — "):
+            if candidate.casefold().startswith(prefix.casefold()):
+                candidate = candidate[len(prefix) :].strip()
+                break
+        if candidate and candidate.casefold() not in {"bbc", "bbc news"}:
+            return candidate
+    return "Custom BBC feed"
 
 
 def _now() -> datetime:
@@ -484,6 +786,30 @@ class BBCNewsFeedService:
         worker = self._worker
         return {"running": bool(worker and worker.is_alive())}
 
+    def validate_feed(self, value: Any) -> dict[str, Any]:
+        """Read and parse one candidate BBC News RSS URL without saving it."""
+
+        safe_url = _safe_bbc_feed_url(value)
+        if safe_url is None:
+            raise ValueError(
+                "Feed must be an HTTPS BBC News RSS URL on feeds.bbci.co.uk."
+            )
+        try:
+            payload = self._fetcher(safe_url, float(DEFAULT_TIMEOUT_SECONDS))
+            feed = parse_bbc_rss(payload, "custom-preview", label="Custom feed")
+        except ValueError as exc:
+            raise RuntimeError(f"BBC News RSS validation failed: {exc}") from exc
+        suggested_id = _custom_feed_id(None, safe_url, strict=True)
+        return {
+            "ok": True,
+            "label": _suggest_feed_label(
+                feed.get("feed_title"),
+                feed.get("feed_description"),
+            ),
+            "suggested_id": suggested_id,
+            "story_count": len(feed.get("items", [])),
+        }
+
     def _due(self, now: datetime) -> bool:
         expires_at = _parse_iso(self._cache.get("expires_at"))
         return expires_at is None or now >= expires_at
@@ -495,10 +821,31 @@ class BBCNewsFeedService:
             required.append("top")
         return required
 
+    def _missing_required_data(
+        self,
+        settings: dict[str, Any],
+        definitions: dict[str, dict[str, Any]],
+    ) -> bool:
+        with self._lock:
+            categories = deepcopy(_object(self._cache.get("categories")))
+        for category in self._required_categories(settings):
+            definition = definitions.get(category)
+            state = _object(categories.get(category))
+            if not definition:
+                return True
+            if state.get("feed_url") != definition["url"] or not state.get("feed"):
+                return True
+        return False
+
     def refresh(self, *, force: bool = False) -> dict[str, Any]:
         settings = public_news_config(self._load_config())
+        definitions = _feed_definitions(settings)
         now = self._now()
-        if not force and not self._due(now):
+        if (
+            not force
+            and not self._due(now)
+            and not self._missing_required_data(settings, definitions)
+        ):
             return self.snapshot()
 
         required = self._required_categories(settings)
@@ -508,16 +855,31 @@ class BBCNewsFeedService:
             self._cache["last_attempt_at"] = _iso(now)
 
         for category in required:
+            definition = definitions.get(category)
             with self._lock:
                 previous = deepcopy(_object(_object(self._cache.get("categories")).get(category)))
+            if not definition:
+                failures += 1
+                state = {
+                    "status": "error",
+                    "last_attempt_at": _iso(now),
+                    "last_error": "BBC News feed configuration is unavailable.",
+                }
+                with self._lock:
+                    self._cache.setdefault("categories", {})[category] = state
+                continue
+
+            if previous.get("feed_url") != definition["url"]:
+                previous = {}
             try:
-                payload = self._fetcher(BBC_FEEDS[category]["url"], float(DEFAULT_TIMEOUT_SECONDS))
-                feed = parse_bbc_rss(payload, category)
+                payload = self._fetcher(definition["url"], float(DEFAULT_TIMEOUT_SECONDS))
+                feed = parse_bbc_rss(payload, category, label=definition["label"])
             except Exception as exc:
                 failures += 1
                 state = previous
                 state.update(
                     {
+                        "feed_url": definition["url"],
                         "status": "stale" if state.get("feed") else "error",
                         "last_attempt_at": _iso(now),
                         "last_error": str(exc),
@@ -526,6 +888,7 @@ class BBCNewsFeedService:
             else:
                 successes += 1
                 state = {
+                    "feed_url": definition["url"],
                     "status": "ready",
                     "last_attempt_at": _iso(now),
                     "last_success_at": _iso(now),
@@ -559,6 +922,7 @@ class BBCNewsFeedService:
 
     def snapshot(self) -> dict[str, Any]:
         settings = public_news_config(self._load_config())
+        definitions = _feed_definitions(settings)
         required = self._required_categories(settings)
         now = self._now()
         with self._lock:
@@ -567,18 +931,26 @@ class BBCNewsFeedService:
         output_categories: dict[str, Any] = {}
         stale_cutoff = now - timedelta(hours=DEFAULT_STALE_HOURS)
         for category in settings["enabled_categories"]:
+            definition = definitions.get(category)
             state = deepcopy(_object(_object(stored.get("categories")).get(category)))
+            if not definition or state.get("feed_url") != definition["url"]:
+                state = {}
             last_success = _parse_iso(state.get("last_success_at"))
             stale = bool(state.get("feed") and (last_success is None or last_success <= stale_cutoff))
             if stale:
                 state["status"] = "stale"
             state["stale"] = stale
-            state["label"] = BBC_FEEDS[category]["label"]
+            state["label"] = definition["label"] if definition else category
             if state.get("feed"):
                 state["feed"] = _public_feed(state.get("feed"))
+                state["feed"]["category_label"] = state["label"]
+            state.pop("feed_url", None)
             output_categories[category] = state
 
+        top_definition = definitions.get("top")
         top_state = _object(_object(stored.get("categories")).get("top"))
+        if not top_definition or top_state.get("feed_url") != top_definition["url"]:
+            top_state = {}
         top_feed = _object(top_state.get("feed"))
         ticker_items = []
         if settings["ticker"]["enabled"]:
@@ -594,9 +966,14 @@ class BBCNewsFeedService:
                     }
                 )
 
-        required_states = [
-            _object(_object(stored.get("categories")).get(category)) for category in required
-        ]
+        required_states: list[dict[str, Any]] = []
+        for category in required:
+            definition = definitions.get(category)
+            state = _object(_object(stored.get("categories")).get(category))
+            if not definition or state.get("feed_url") != definition["url"]:
+                state = {}
+            required_states.append(state)
+
         has_required_data = any(state.get("feed") for state in required_states)
         any_stale = any(
             state.get("feed")
@@ -619,10 +996,10 @@ class BBCNewsFeedService:
             "last_attempt_at": stored.get("last_attempt_at"),
             "refresh_due": self._due(now),
             "worker": self.worker_status(),
-            "settings": settings,
+            "settings": _news_api_settings(settings),
             "category_catalogue": [
-                {"id": category, "label": details["label"]}
-                for category, details in BBC_FEEDS.items()
+                {"id": feed_id, "label": definition["label"]}
+                for feed_id, definition in definitions.items()
             ],
             "categories": output_categories,
             "ticker": {
@@ -669,6 +1046,21 @@ def register_news_api(app: Flask, service: BBCNewsFeedService) -> None:
     @app.get("/api/news")
     def api_news():
         return jsonify(service.snapshot())
+
+    @app.post("/api/news/feed/validate")
+    def api_news_feed_validate():
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"ok": False, "error": "Feed validation requires a JSON object."}), 400
+        try:
+            result = service.validate_feed(payload.get("url"))
+        except ValueError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        except RuntimeError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 502
+        response = jsonify(result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/api/news/story/<story_id>/qr.svg")
     def api_news_story_qr(story_id: str):
