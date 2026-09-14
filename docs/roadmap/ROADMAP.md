@@ -2,6 +2,7 @@
 
 **Last updated:** 14 September 2026  
 **Active integration branch:** `develop`  
+**Active feature branch:** `feature/hi-res-audio-eq`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
 
@@ -19,6 +20,7 @@ Specialist authorities:
 - [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and Plexamp Home completeness;
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and physical/product gate;
 - [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News, article QR hand-off and configurable sections;
+- [`../development/architecture/high-resolution-audio.md`](../development/architecture/high-resolution-audio.md) — active #85 hi-res/EQ architecture, test-appliance policy and acceptance boundary;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
 Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not this development roadmap.
@@ -40,11 +42,15 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 - [x] GitHub Actions validates `develop` and `main`.
 - [x] Established the feature-branch → `develop` → accepted release model.
 
-### #85 High-resolution audio feasibility audit — COMPLETE; IMPLEMENTATION QUEUED
+### #85 High-resolution audio feasibility audit — COMPLETE; IMPLEMENTATION ACTIVE
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation is the next major product feature. The bounded BBC News configurable-sections follow-up that was deliberately pulled forward has now completed its physical acceptance gate and no longer blocks #85.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation is now active on `feature/hi-res-audio-eq`, branched from the accepted post-PR-#12 `develop` state.
 
-Before any production audio mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The accepted production SD remains protected; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
+Use `scripts/audio/preflight-eq.sh` as the first **read-only bedroom-Pi baseline** before changing the audio path. The bedroom Pi is the development/test appliance for this work: controlled route, sample-format and lifecycle experiments may be performed directly on it. Recovery is provided by committed feature-branch checkpoints plus the known-good `develop` and `main` rebuild baselines; a separate spare SD card is not a project requirement.
+
+- [x] Created `feature/hi-res-audio-eq` from accepted `develop` after PR #12 merged.
+- [x] Documented the development-appliance/recovery policy in `docs/development/architecture/high-resolution-audio.md`.
+- [ ] Capture the current read-only audio baseline before the first mutation.
 
 Accepted constraints:
 
@@ -179,7 +185,7 @@ Unless deliberately reprioritised:
 2. **Settings and appliance ownership** — COMPLETE through #93, including schema-v2 Backup/Restore
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE, including article QR and configurable sections
-5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT
+5. **High-resolution Plexamp audio / mixer-EQ path** — ACTIVE
 6. **Astronomy**
 7. **Appliance resilience**
 8. **Events calendar**
@@ -191,6 +197,8 @@ This priority list is authoritative.
 ### High-resolution Plexamp audio / mixer-EQ path
 
 Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
+
+Active branch: `feature/hi-res-audio-eq`
 
 - [ ] Physical capability audit with known 16/44.1, 24/48, 24/96 and 24/192 Plex files.
 - [ ] Choose a managed high-resolution bus by measured CPU/stability/latency.
@@ -239,5 +247,5 @@ Before promoting the next development cycle to `main`:
 - the clean-room installer/runbook must still pass on supported hardware;
 - repeat `bash setup.sh` must remain safe/idempotent;
 - repository/docs catalogues and this live roadmap must describe the actual shipped state;
-- the accepted production appliance must not be used as the disposable target for destructive audio/storage experiments;
+- materially risky audio/storage experiments must remain isolated to feature branches with a known-good rollback/rebuild path through `develop` or `main`;
 - release version/tag/name is assigned only after final scope and acceptance are known.
