@@ -6,7 +6,7 @@ Checkpoint #92 is physically accepted on the commissioned 1280×720 appliance. T
 
 The article hand-off was physically rechecked on 11 September 2026 after a live BBC Science specimen — **“El Niño likely to cause wetter and warmer-than-normal autumn”** — showed that BBC News RSS can legitimately point at a BBC Weather article. The accepted design therefore trusts syntactically valid absolute HTTPS destinations supplied by the already trusted BBC RSS item, using `<link>` first and a valid HTTPS `<guid>` fallback. Normal BBC News links opened the installed BBC News app on the owner's iPhone; the BBC Weather specimen opened Chrome. Kiosk Chromium remained inside A Clockwork Plex throughout.
 
-A bounded post-#92 **configurable sections** follow-up is active on `feature/news-custom-feeds` / draft PR #12. Repeated commissioned-appliance passes through 14 September 2026 have now proved repeat installation, the enlarged catalogue, order/default behaviour, custom-feed rendering, touch reordering, the custom-only News feeds manager and empty state, local QR hand-off, non-BBC rejection, friendly ordinary-page URL entry, final validation-control presentation and changed-source/cache isolation. After the first BBC-page helper build exposed a browser-runtime MutationObserver loop that could starve the Settings page, the bounded observer/idempotent-decoration fix restored normal Settings behaviour. The commissioned appliance subsequently added **Sussex, Surrey and Hampshire & The Isle of Wight** from ordinary BBC News page URLs, with each input converted locally to the canonical `feeds.bbci.co.uk` RSS source and QR hand-off working from the resulting sections. A later **Kent → Essex** same-record source replacement physically proved that cached Kent stories were not presented under the Essex replacement source. Only the bounded portable Backup/Reset/Restore ownership acceptance remains open, so PR #12 remains draft.
+The bounded post-#92 **configurable sections** follow-up on `feature/news-custom-feeds` / PR #12 has now completed physical acceptance. Repeated commissioned-appliance passes through 14 September 2026 proved repeat installation, the enlarged catalogue, order/default behaviour, custom-feed rendering, touch reordering, the custom-only News feeds manager and empty state, local QR hand-off, non-BBC rejection, friendly ordinary-page URL entry, final validation-control presentation, changed-source/cache isolation and portable Backup/Reset/Restore ownership. After the first BBC-page helper build exposed a browser-runtime MutationObserver loop that could starve the Settings page, the bounded observer/idempotent-decoration fix restored normal Settings behaviour. The commissioned appliance subsequently added **Sussex, Surrey and Hampshire & The Isle of Wight** from ordinary BBC News page URLs, with each input converted locally to the canonical `feeds.bbci.co.uk` RSS source and QR hand-off working from the resulting sections. A later **Kent → Essex** same-record source replacement physically proved that cached Kent stories were not presented under the Essex replacement source. The final read-only portability gate then confirmed a fresh schema-v2 export carries the configured logical News model, Reset Preview proposes exactly the News fields that differ from defaults, and Restore Preview reports no changes against the unchanged live appliance.
 
 ## Feed authority
 
@@ -274,9 +274,9 @@ Physical acceptance confirms:
 - kiosk Chromium remaining in ACP;
 - no article anchor or arbitrary URL-to-QR input in the kiosk.
 
-### Configurable-sections follow-up — physical gate open
+### Configurable-sections follow-up — physically accepted
 
-Commissioned passes through 14 September 2026 have established:
+Commissioned passes through 14 September 2026 established:
 
 - [x] repeat `bash setup.sh` converged with `APPLIANCE_VERIFY=PASS`, **0 failures / 0 warnings** and preserved commissioned News configuration;
 - [x] the enlarged curated catalogue rendered in Settings at 1280×720;
@@ -303,13 +303,12 @@ Commissioned passes through 14 September 2026 have established:
 - [x] QR hand-off works from those three newly added local custom sections;
 - [x] non-BBC rejection feedback is now physically visible beside the relevant custom-feed controls;
 - [x] **Check feed and add** plus validation-message spacing are physically comfortable at 1280×720;
-- [x] source replacement is cache-safe: a **Cache Test** custom feed changed in-place from Kent to Essex populated Essex content without showing stale Kent stories under the new source.
+- [x] source replacement is cache-safe: a **Cache Test** custom feed changed in-place from Kent to Essex populated Essex content without showing stale Kent stories under the new source;
+- [x] a fresh backup made at 01:03 on 14 September was **schema-v2** and contained the live logical News configuration: Business default, the saved enabled/order model, and the Europe, Sussex, Hampshire & Isle of Wight and Surrey custom-feed records with canonical `feeds.bbci.co.uk` RSS URLs;
+- [x] Reset **Preview** remained read-only and reported `settings.news · 4`, with exactly `a_clockwork_plex.settings.news.custom_feeds`, `.default_category`, `.enabled_categories` and `.feed_order` among the technical changed paths;
+- [x] Restore **Preview** of that just-created backup correctly reported **No changes** against the unchanged live appliance, proving the exported News state is recognised by the existing portable transaction without applying anything.
 
-Before draft PR #12 may leave draft, the commissioned appliance must still prove only the bounded portable-ownership check:
-
-- a fresh schema-v2 Backup contains the logical News order/custom-feed records and excludes generated RSS/cache/private article state;
-- Reset **Preview** truthfully proposes the default News model, including no custom feeds, without Confirm;
-- Restore **Preview** truthfully recognises the exported News state through the existing portable transaction, again without Confirm.
+The portable-ownership gate is therefore closed. No destructive Reset or Restore confirmation was required on the commissioned appliance; the broader #89/#90/#93 destructive round-trip had already been physically accepted separately. Generated RSS/cache/private article state remains outside the portable model by design.
 
 Automated evidence:
 
@@ -323,6 +322,7 @@ Automated evidence:
 - **Tests #4824** passed the full automated gate on custom-only News feed manager implementation head `90a4eee0f66c63bf7e3f5ba6272279ac177e2aa0`, including regression coverage that built-in editor cards are hidden while Feed order still uses the shared underlying records;
 - **Tests #4834** passed Python compilation, JavaScript/page/shell checks and the full regression suite on `81fd4798d7954baf46e17cbd8f28f22868f6bd67`, including syntax/contract coverage for friendly BBC page URL conversion and local feed-validation feedback;
 - **Tests #4839** passed compile, JavaScript/page/shell checks and the full regression suite on the bounded-MutationObserver runtime-fix head `708296f0d3d84c0218541c79ad436ec8e93062d6`;
-- **Tests #4844** passed Python compilation, JavaScript/page/shell checks and the full regression suite on final validation-control polish head `a0466bf605515078961e7110f81f9942cd473094`.
+- **Tests #4844** passed Python compilation, JavaScript/page/shell checks and the full regression suite on final validation-control polish head `a0466bf605515078961e7110f81f9942cd473094`;
+- **Tests #4852** passed the full automated gate on the final pre-acceptance documentation head `dc348dc029241241d42e60de5d7e347ed50a4625`.
 
-Until the remaining portable-ownership gate passes, configurable sections are **software implemented / partial physical-acceptance stage**, not fully accepted product behaviour.
+Configurable sections are now **software implemented and physically accepted product behaviour**.
