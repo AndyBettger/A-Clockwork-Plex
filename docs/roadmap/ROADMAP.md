@@ -18,7 +18,7 @@ Specialist authorities:
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
 - [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and Plexamp Home completeness;
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and physical/product gate;
-- [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News, article QR hand-off and the active configurable-sections follow-up;
+- [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News, article QR hand-off and configurable sections;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
 Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not this development roadmap.
@@ -42,7 +42,7 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 
 ### #85 High-resolution audio feasibility audit — COMPLETE; IMPLEMENTATION QUEUED
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation remains the next major product feature, but the bounded BBC News configurable-sections follow-up has deliberately been pulled forward and must close its physical gate first.
+The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation is the next major product feature. The bounded BBC News configurable-sections follow-up that was deliberately pulled forward has now completed its physical acceptance gate and no longer blocks #85.
 
 Before any production audio mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The accepted production SD remains protected; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
 
@@ -96,7 +96,7 @@ Detailed authority: [`../development/architecture/configuration-backup-ownership
 - [x] General Plexamp text fields physically accepted for Home title, Smart Playlist metadata, Home Screen section title and Player Name.
 - [x] Bridge remains permission-free, loopback-only and excludes login/password fields.
 
-### #92 BBC News — CORE + ARTICLE QR COMPLETE; CONFIGURABLE SECTIONS FOLLOW-UP ACTIVE
+### #92 BBC News — CORE + ARTICLE QR + CONFIGURABLE SECTIONS COMPLETE
 
 #### Accepted core
 
@@ -112,10 +112,10 @@ Detailed authority: [`../development/architecture/configuration-backup-ownership
 - [x] Initial full automated gate passed in **Tests #4732**; trusted-RSS destination/GUID refinement passed **Tests #4749**.
 - [x] Commissioned 1280×720 + iPhone acceptance passed on 11 September 2026: normal BBC News destinations opened the installed BBC News app, the live BBC Weather destination from the Science feed gained a QR and opened correctly in Chrome, and kiosk Chromium remained in ACP.
 
-#### Configurable sections follow-up — SOFTWARE IMPLEMENTED; PHYSICAL GATE PARTIALLY PASSED
+#### Configurable sections follow-up — COMPLETE / PHYSICALLY ACCEPTED
 
-Active branch: `feature/news-custom-feeds`  
-Draft PR: **#12 — Add configurable BBC News feeds**
+Implementation branch: `feature/news-custom-feeds`  
+PR: **#12 — Add configurable BBC News feeds**
 
 - [x] Preserve the original five sections — Top Stories, UK, World, Science & Environment and Technology — as the out-of-box enabled set.
 - [x] Expand the friendly built-in catalogue with England, Scotland, Wales, Northern Ireland, Business, Politics, Health, Education and Entertainment & Arts.
@@ -156,7 +156,7 @@ Draft PR: **#12 — Add configurable BBC News feeds**
 - [x] Final validation-control polish adds explicit spacing below the action row and relabels the successful action to **Check feed and add**. **Tests #4844** passed Python compilation, JavaScript/page/shell checks and the full regression suite on implementation head `a0466bf605515078961e7110f81f9942cd473094`.
 - [x] Commissioned recheck confirmed the final **Check feed and add** label/message spacing is comfortable at 1280×720 and the custom-feed Settings interaction remains usable.
 - [x] Changed-source/cache isolation is physically accepted: a commissioned **Cache Test** custom feed first populated Kent stories, then the same feed record was changed to the Essex source and populated Essex content without presenting stale Kent stories under the replacement source. The temporary feed was then removed.
-- [ ] Portable Backup/Reset/Restore ownership receives a bounded physical/read-only acceptance check appropriate to the commissioned appliance: fresh schema-v2 export contains logical News state but no generated RSS/cache state; Reset Preview proposes the default News model without Confirm; Restore Preview recognises the exported News state without Confirm.
+- [x] Portable Backup/Reset/Restore ownership passed the bounded commissioned-appliance read-only gate on 14 September 2026: a fresh **schema-v2** backup contained logical News state including Business as default plus the Europe, Sussex, Hampshire & Isle of Wight and Surrey custom-feed records with canonical BBC RSS URLs; Reset Preview reported **`settings.news · 4`** and exactly `custom_feeds`, `default_category`, `enabled_categories` and `feed_order` as changed News paths without Confirm; Restore Preview of that fresh backup correctly reported **No changes** against the unchanged live appliance. Generated RSS/cache/private article state remains outside the portable model.
 
 Detailed authority and the physical checklist: [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md).
 
@@ -178,8 +178,8 @@ Unless deliberately reprioritised:
 1. **Weather** — COMPLETE through #87
 2. **Settings and appliance ownership** — COMPLETE through #93, including schema-v2 Backup/Restore
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
-4. **BBC News** — core + article QR COMPLETE; configurable-sections follow-up **ACTIVE**
-5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT after #92 follow-up physical closure
+4. **BBC News** — COMPLETE, including article QR and configurable sections
+5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT
 6. **Astronomy**
 7. **Appliance resilience**
 8. **Events calendar**
