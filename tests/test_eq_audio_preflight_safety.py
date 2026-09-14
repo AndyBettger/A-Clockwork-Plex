@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
 AUDIT = ROOT / "scripts" / "audio" / "audit-hi-res-audio.sh"
+PROBE = ROOT / "scripts" / "audio" / "probe-hi-res-dac.py"
 ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
 
 
@@ -16,6 +17,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
     def setUp(self) -> None:
         self.source = PREFLIGHT.read_text(encoding="utf-8")
         self.audit_source = AUDIT.read_text(encoding="utf-8")
+        self.probe_source = PROBE.read_text(encoding="utf-8")
 
     def test_shell_syntax_and_help(self) -> None:
         syntax = subprocess.run(
@@ -119,6 +121,27 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         )
         self.assertNotIn("aplay -D", self.audit_source)
         self.assertNotIn("arecord", self.audit_source)
+
+    def test_guarded_dac_probe_queries_constraints_without_starting_playback(self) -> None:
+        compile(self.probe_source, str(PROBE), "exec")
+        for marker in (
+            'DAC_PCM: Final = "hw:CARD=Pro,DEV=0"',
+            'FORMATS: Final = ("S16_LE", "S24_LE", "S24_3LE", "S32_LE")',
+            'RATES: Final = (44100, 48000, 88200, 96000, 176400, 192000)',
+            "snd_pcm_hw_params_test_rate",
+            "SND_PCM_ACCESS_RW_INTERLEAVED",
+            "wait_dac_closed()",
+            "verify_audio(\"before capability probe\")",
+            "verify_audio(\"after capability probe\")",
+            '"--apply"',
+        ):
+            self.assertIn(marker, self.probe_source)
+        self.assertNotIn("snd_pcm_write", self.probe_source)
+        self.assertNotIn("snd_pcm_start", self.probe_source)
+        self.assertNotIn("lib.snd_pcm_hw_params(pcm", self.probe_source)
+        self.assertIn("APP_STOP_ORDER", self.probe_source)
+        self.assertIn("APP_START_ORDER", self.probe_source)
+        self.assertIn("activate-direct-failback", self.probe_source)
 
     def test_roadmap_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
