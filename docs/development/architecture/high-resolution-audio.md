@@ -70,7 +70,7 @@ For the first managed high-resolution processing experiment, **`S32_LE` is the c
 
 A known **24-bit / 96 kHz** Plex track was played on the commissioned appliance while the managed EQ split bus remained unchanged.
 
-The allow-listed Plexamp preference audit reported `sampleRateMatching = 0`, `sampleRateConversionQuality = 2` and `loudnessLeveling = false`. No matching `BASS:`, `Mixer:`, sample-rate or audio-pipeline messages appeared in the two-minute `journalctl -u plexamp.service` window, so the systemd journal did not expose Plexamp's internal mixer/requested rate for this run.
+The allow-listed Plexamp preference audit reported `sampleRateMatching = 0`, `sampleRateConversionQuality = 2` and `loudnessLeveling = false`. No matching `BASS:`, `Mixer:`, sample-rate or audio-pipeline messages appeared in the two-minute `journalctl -u plexamp.service` window because Plexamp Headless writes its detailed application negotiation to `~/.cache/Plexamp/log` rather than the systemd journal.
 
 While the 24/96 track was actively playing, the live ALSA state was:
 
@@ -79,9 +79,19 @@ While the 24/96 track was actively playing, the live ALSA state was:
 - **physical Raspberry Pi DAC Pro (`/proc/asound/Pro/pcm0p/sub0/hw_params`)**: `RW_INTERLEAVED`, `S16_LE`, 2 channels, **44100 Hz**, `period_size=512`, `buffer_size=4096`;
 - CamillaDSP remained at approximately **0.6% CPU**.
 
-This proves that a 24/96 source currently reaches every externally visible point of the managed ACP graph as **S16_LE / 44.1 kHz**. It does **not** yet prove where the first conversion occurs. The active `pcm.acp_plexamp` path is an ALSA `plug` PCM layered through the Plexamp softvol/master/route chain onto the fixed `acp_dmix` slave. `plug` is allowed to convert format/rate to whatever its slave requires, so the snd-aloop `hw_params` expose the **post-conversion fixed bus**, not necessarily the rate Plexamp originally requested from ALSA.
+The matching Plexamp Headless log then exposed the upstream negotiation precisely:
 
-The next evidence source is therefore Plexamp's own headless log under `~/.cache/Plexamp/log`, which is separate from the systemd journal. If that log still does not expose mixer/output-rate negotiation, the next probe should instrument Plexamp's ALSA client boundary directly rather than infer its request from the fixed downstream `dmix` state.
+- the item was **direct played** as FLAC at about 3 Mbps;
+- `Mixer: Initializing audio pipeline` selected **96000 Hz / 2 channels**;
+- `BASS: Creating a mixer` also selected **96000 Hz / 2 channels**;
+- the decoded/gapless source stream was created at **96000 Hz / 2 channels**;
+- Plexamp identified device **9** as **A Clockwork Plex - Plexamp** and opened it at **44100 Hz**, while explicitly reporting **preferred was 96000, best was 96000**.
+
+That localises the first confirmed rate collapse to the **Plexamp output-device negotiation into the ACP managed ALSA PCM**. Plexamp is not decoding or mixing the 24/96 source down to 44.1 kHz internally: its source stream, audio pipeline and mixer remain at 96 kHz and it prefers a 96 kHz output. The ACP device chain nevertheless opens at 44.1 kHz because `pcm.acp_plexamp` ultimately feeds the fixed 44.1 kHz `acp_dmix` slave.
+
+The exact sample converter implementation at that boundary — BASS output conversion, ALSA `plug`, or cooperation between the two during negotiation — is less important to the appliance contract than the measured cause: the **fixed ACP 44.1 kHz device path forces the 96 kHz Plexamp pipeline onto a 44.1 kHz output**. Removing that managed-device ceiling is therefore the next architecture problem; changing Plexamp's decoder is not.
+
+`sampleRateMatching = 0` also does not prevent Plexamp from constructing a source-rate 96 kHz pipeline or preferring 96 kHz for this source. Its eventual production setting can therefore be decided later when native/bypass behaviour is tested rather than being changed merely to solve the present EQ-active bottleneck.
 
 The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observed physical DAC `512` / `4096` values describe different points in the current graph; that difference is recorded rather than treated as an error until the higher-resolution topology is measured.
 
@@ -97,8 +107,8 @@ The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observe
 
 1. **Complete:** capture the current read-only installed-stack baseline with `scripts/audio/verify-audio.sh` and `scripts/audio/audit-hi-res-audio.sh`.
 2. **Complete:** measure the idle physical DAC's exact accepted format/rate combinations with `python3 scripts/audio/probe-hi-res-dac.py --apply`; `S16_LE`, `S24_LE` and `S32_LE` were accepted at every tested rate through 192 kHz, `S24_3LE` was rejected, and the original split bus restored cleanly.
-3. **In progress:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record separately what Plexamp requests/decodes, what the ACP processing bus actually runs, and what reaches the physical DAC. The first 24/96 snapshot proves the externally visible managed graph remains S16_LE/44.1; Plexamp's own log is the next source for locating the first conversion.
-4. Identify the remaining bottleneck(s): Plexamp output, ALSA virtual devices, CamillaDSP format/rate, mixer/join stages, or DAC constraints.
+3. **In progress:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record separately what Plexamp requests/decodes, what the ACP processing bus actually runs, and what reaches the physical DAC. The 24/96 case is complete: Plexamp direct-plays and internally mixes at 96 kHz, prefers 96 kHz for device 9, but the ACP Plexamp PCM opens at 44.1 kHz and the downstream managed graph remains S16_LE/44.1. Capture the remaining 16/44.1, 24/48 and 24/192 cases before changing the bus.
+4. **Located for 24/96:** the current fixed ACP output-device chain is the rate bottleneck; the remaining source matrix determines whether that behaviour is consistent across the 44.1/48/192 families before selecting the first higher-resolution bus experiment.
 5. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility; `S32_LE` is the first format candidate, not a pre-accepted production choice.
 6. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
 7. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
