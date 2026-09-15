@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 14 September 2026  
+**Last updated:** 15 September 2026  
 **Active integration branch:** `develop`  
 **Active feature branch:** `feature/hi-res-audio-eq`  
 **Stable branch:** `main`  
@@ -54,7 +54,8 @@ The historical `scripts/audio/preflight-eq.sh` is the old pre-EQ-install gate an
 - [x] Captured the first physical read-only baseline on 14 September 2026: `verify-audio.sh` passed; the DAC was live at **S16_LE / 44.1 kHz stereo**; the ALSA split bus, installed profile and CamillaDSP independently fix the current processing path to **S16_LE / 44.1 kHz**; route/EQ/services were healthy and CamillaDSP used about **0.6% CPU** at the snapshot.
 - [x] Recorded two audit corrections from that run: repository verifier scripts must be invoked through `bash`, and loopback procfs inspection must follow card index 7 (`/proc/asound/card7`) rather than the configured module id string. The Raspberry Pi DAC Pro is I2S, so the absent USB-style `/proc/asound/Pro/stream0` descriptor is expected rather than a hardware failure.
 - [x] Physically measured the idle Raspberry Pi DAC Pro on 14 September 2026 with the guarded capability probe: exact stereo `RW_INTERLEAVED` `S16_LE`, `S24_LE` and `S32_LE` constraints were accepted at **44.1/48/88.2/96/176.4/192 kHz**; packed `S24_3LE` was rejected at every tested rate. The probe restored CamillaDSP → Plexamp → AirPlay → dashboard, `verify-audio.sh` passed after restoration, and the route returned to `split-bus-active` without Direct failback.
-- [ ] Exercise known 16/44.1, 24/48, 24/96 and 24/192 Plex material and record separately the Plexamp-requested/source rate, ACP processing format/rate and final physical-DAC format/rate before changing the managed bus.
+- [x] Captured the first known-source playback snapshot on 15 September 2026 with a **24-bit / 96 kHz** Plex track. Plexamp's allow-listed preferences reported `sampleRateMatching = 0` and `sampleRateConversionQuality = 2`; the recent systemd journal exposed no BASS/mixer-rate lines. While the track played, the ACP loopback, CamillaDSP capture and physical DAC all remained **S16_LE / 44.1 kHz**, proving the visible managed graph is still fixed there but not yet locating whether Plexamp or ALSA `plug` performs the first conversion.
+- [ ] Inspect Plexamp's own headless log under `~/.cache/Plexamp/log` for its requested/internal mixer rate, then complete the known 16/44.1, 24/48, 24/96 and 24/192 source matrix before changing the managed bus. If the log is insufficient, instrument Plexamp's ALSA client boundary rather than infer its request from the post-conversion snd-aloop state.
 
 Accepted constraints:
 
@@ -205,7 +206,7 @@ Goal: materially higher-resolution Plex playback with managed EQ active, plus a 
 Active branch: `feature/hi-res-audio-eq`
 
 - [x] Measure the Raspberry Pi DAC Pro's exact supported format/rate combinations on the real appliance with the audio graph deliberately quiesced and restored: `S16_LE`, `S24_LE` and `S32_LE` accept 44.1–192 kHz; packed `S24_3LE` does not. This proves ALSA hardware constraints, not yet sustained hi-res playback.
-- [ ] Physical capability audit with known 16/44.1, 24/48, 24/96 and 24/192 Plex files, recording source/Plexamp, processing-bus and final-DAC format/rate separately.
+- [ ] Complete the known-source playback audit. The first 24/96 run on 15 September 2026 showed the externally visible ACP loopback, CamillaDSP capture and physical DAC all remain `S16_LE / 44.1 kHz`; Plexamp's own requested/internal mixer rate is still to be recovered from its headless log or an ALSA-client-boundary probe.
 - [ ] Choose a managed high-resolution bus by measured CPU/stability/latency; `S32_LE` is the first clean format candidate, not yet the production decision.
 - [ ] Remove the managed 16/44.1 bottleneck while preserving trims → Music Master → reserve → EQ → limiter → alarm join.
 - [ ] Define truthful EQ-active high-resolution and native-bypass behaviour.
