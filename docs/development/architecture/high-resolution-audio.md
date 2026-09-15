@@ -4,7 +4,7 @@
 
 Implementation is active on `feature/hi-res-audio-eq`, branched from the accepted `develop` head after PR #12 merged on 14 September 2026.
 
-The current managed Plexamp/EQ path still uses a fixed **S16_LE / 44100 Hz** shared music path. The goal of this work is to remove that bottleneck where it is technically safe, while preserving the existing appliance ownership model, alarm takeover, AirPlay behaviour, mixer semantics and reliable recovery.
+The current accepted managed Plexamp/EQ baseline still uses a fixed **S16_LE / 44100 Hz** shared music path. The goal of this work is to remove that bottleneck where it is technically safe, while preserving the existing appliance ownership model, alarm takeover, AirPlay behaviour, mixer semantics and reliable recovery.
 
 ## Development appliance policy
 
@@ -89,15 +89,32 @@ CamillaDSP remained approximately **0.6–0.7% CPU** during these 44.1 kHz basel
 
 The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observed physical DAC `512` / `4096` values describe different points in the current graph; that difference is recorded rather than treated as an error until the higher-resolution topology is measured.
 
-## First reversible managed-bus rehearsal
+## Guarded managed-bus rehearsal
 
-`scripts/audio/rehearse-hi-res-bus.py` is the bounded bridge between the completed observation phase and the first actual high-resolution graph test. It deliberately does **not** change the repository profile or claim a production format/rate.
+`scripts/audio/rehearse-hi-res-bus.py` is the bounded bridge between the completed observation phase and actual high-resolution graph tests. It deliberately does **not** change the repository production profile or claim a production format/rate.
 
-The tool supports only two first-pass candidates: **S32_LE / 96 kHz** and **S32_LE / 192 kHz**. Its default invocation is plan-only. An explicit root `--apply --rate 96000|192000` requires the exact accepted repository/installed **S16_LE / 44100** split-route and defaults, runs the normal managed verifier, saves checksum-protected copies of those installed files under `/var/lib/a-clockwork-plex/hi-res-rehearsal/`, stages only the candidate split-route/default values, and then delegates the real service/route transition to the already accepted installed `a-clockwork-plex-audio-route activate-split-bus` owner. That owner regenerates CamillaDSP from the persisted EQ state, quiesces/restarts the application services in the established order and retains Direct failback behaviour if candidate activation fails.
+The tool supports only two first-pass candidates: **S32_LE / 96 kHz** and **S32_LE / 192 kHz**. Its default invocation is plan-only. An explicit root `--apply --rate 96000|192000` requires the exact accepted repository/installed **S16_LE / 44100** split-route and defaults and runs the normal managed verifier before mutation.
 
-A successful candidate is intentionally left active for a deliberate playback test. `--snapshot` is read-only and is intended to be run as the normal project user while the matching known Plex source is playing; it prints the recent Plexamp negotiation, live loopback/Camilla/DAC `hw_params`, route state and CamillaDSP CPU. `--restore` is then run as root to restore the exact saved route/defaults, reactivate the normal split bus and require `verify-audio.sh` to pass before the rehearsal state is removed. If restoration cannot be fully verified, the backup is retained rather than erased.
+The first physical 96 kHz attempt exposed a recovery-persistence weakness rather than an audio-format failure. Candidate activation succeeded, but the Pi was restarted before the intended snapshot/restore. After reboot the candidate route/defaults and `state.json` persisted, while the two original `shutil.copy2` backup files had become zero-length files. Normal restore correctly refused the checksum mismatch. A separate checksum-gated recovery audit proved that the state-recorded original hashes exactly matched the feature-branch accepted profile and that the installed files exactly matched the recorded candidate hashes; recovery then reconstructed only from that checksum-matching repository baseline, reactivated the normal graph, passed `verify-audio.sh`, and archived the failed rehearsal evidence rather than deleting it.
 
-The rehearsal is therefore a temporary development state, not a supported installed profile. Do not run `setup.sh`, repair/convergence, or unrelated audio mutation while a rehearsal state is active. The first 96 kHz rehearsal should be completed and restored before starting the 192 kHz rehearsal.
+The rehearsal transaction was then hardened before another attempt: recovery copies are written atomically through tempfile → flush → `fsync` → replace, their containing directories are `fsync`ed, both backup hashes are verified before `state.json` is committed and before any candidate mutation, state records `durable_backups=true`, a new apply refuses immediately if earlier rehearsal state exists, and the installed candidate files are verified against the state-recorded candidate hashes before route activation. The separate `scripts/audio/recover-hi-res-rehearsal.py` remains the exceptional checksum-gated recovery path if normal restore ever refuses again.
+
+### Physical S32_LE / 96 kHz rehearsal — PASSED, 15 September 2026
+
+The hardened transaction completed its full apply → real playback snapshot → restore cycle on head `31c63208ea38ed0ceb105a25413adb92afdf3c74`.
+
+- plan-only mode described the candidate without mutation and confirmed the durable-backup sequence;
+- `--apply --rate 96000` passed the accepted baseline verifier, installed the candidate route/defaults, returned `split-bus-active / split-bus-selected`, and reported `durable_backups=True`;
+- with the known **24-bit / 96 kHz** Plex source playing, Plexamp device 9 opened at **96000 Hz** with `preferred was 96000, best was 96000`, while its mixer/source stream remained at 96 kHz;
+- the ACP loopback was **S32_LE / 96000 Hz / 4 channels**;
+- CamillaDSP capture was **S32_LE / 96000 Hz / 4 channels**;
+- the physical Raspberry Pi DAC Pro was **S32_LE / 96000 Hz / 2 channels**;
+- the loopback retained `period_size=1024`, `buffer_size=8192`, while CamillaDSP capture and the DAC used `period_size=512`, `buffer_size=4096`;
+- CamillaDSP used approximately **1.2% CPU**, compared with roughly 0.6–0.7% on the accepted 44.1 kHz baseline;
+- `--restore` returned the exact accepted route hash `1bc69f...`, regenerated the accepted CamillaDSP config, and `verify-audio.sh` passed;
+- an independent second verifier pass also succeeded, and the physical DAC was confirmed back at **S16_LE / 44100 Hz**.
+
+This is the first physical proof that the existing managed trims → Music Master → reserve → EQ → limiter → DAC graph can carry a real Plex 24/96 source end-to-end at **S32_LE / 96 kHz** without the former 44.1 kHz output-device collapse. It is not yet the production-bus decision: 192 kHz still needs the same isolated measurement, and the selected candidate must then survive EQ control/bypass, AirPlay, alarm, mixer, latency and recovery acceptance.
 
 ## Non-negotiable constraints
 
@@ -113,12 +130,13 @@ The rehearsal is therefore a temporary development state, not a supported instal
 2. **Complete:** measure the idle physical DAC's exact accepted format/rate combinations with `python3 scripts/audio/probe-hi-res-dac.py --apply`; `S16_LE`, `S24_LE` and `S32_LE` were accepted at every tested rate through 192 kHz, `S24_3LE` was rejected, and the original split bus restored cleanly.
 3. **Complete:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192**. Plexamp remains source-rate internally and prefers 48/96/192 kHz for the managed device, but the current ACP PCM opens at 44.1 kHz and the downstream graph is always S16_LE/44.1.
 4. **Located:** the current fixed ACP output-device chain is the rate/sample-format bottleneck; the decoder/internal Plexamp mixer is not.
-5. **Next physical gate:** use the guarded rehearsal tool to compare **S32_LE / 96 kHz** and **S32_LE / 192 kHz** with matching Plex material, measuring Plexamp device-open rate, loopback/Camilla/DAC format/rate and CamillaDSP CPU. Restore the accepted baseline after each candidate.
-6. After one candidate survives basic Plex playback, extend that candidate's physical gate to EQ changes/bypass, AirPlay, alarm preview/scheduled takeover, mixer controls, latency and recovery before selecting a managed production bus.
-7. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
-8. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
-9. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-10. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+5. **96 kHz complete:** the hardened guarded rehearsal physically carried known 24/96 Plex material end-to-end as **S32_LE / 96 kHz**, with device 9 opening at 96 kHz, CamillaDSP at about 1.2% CPU, and exact restoration back to the accepted S16/44.1 graph.
+6. **Next physical gate:** repeat the same isolated transaction for **S32_LE / 192 kHz** with matching 24/192 Plex material, then compare CPU, stability and latency against 96 kHz before choosing which candidate advances.
+7. After a managed candidate is selected, extend its physical gate to EQ changes/bypass, AirPlay, alarm preview/scheduled takeover, mixer controls, latency and recovery before selecting a production bus.
+8. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
+9. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
+10. Expose source format, processing format and final DAC format/rate separately in diagnostics.
+11. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 
