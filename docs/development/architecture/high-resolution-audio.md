@@ -104,7 +104,7 @@ The rehearsal transaction was then hardened before another attempt: recovery cop
 The hardened transaction completed its full apply → real playback snapshot → restore cycle on head `31c63208ea38ed0ceb105a25413adb92afdf3c74`.
 
 - plan-only mode described the candidate without mutation and confirmed the durable-backup sequence;
-- `--apply --rate 96000` passed the accepted baseline verifier, installed the candidate route/defaults, returned `split-bus-active / split-bus-selected`, and reported `durable_backups=True`;
+- `--apply --rate 96000` passed the accepted baseline verifier, installed the candidate route/defaults, returned `split-bus-active / split-bus-selected`, and the subsequent snapshot reported `durable_backups=True`;
 - with the known **24-bit / 96 kHz** Plex source playing, Plexamp device 9 opened at **96000 Hz** with `preferred was 96000, best was 96000`, while its mixer/source stream remained at 96 kHz;
 - the ACP loopback was **S32_LE / 96000 Hz / 4 channels**;
 - CamillaDSP capture was **S32_LE / 96000 Hz / 4 channels**;
@@ -114,7 +114,7 @@ The hardened transaction completed its full apply → real playback snapshot →
 - `--restore` returned the exact accepted route hash `1bc69f...`, regenerated the accepted CamillaDSP config, and `verify-audio.sh` passed;
 - an independent second verifier pass also succeeded, and the physical DAC was confirmed back at **S16_LE / 44100 Hz**.
 
-This is the first physical proof that the existing managed trims → Music Master → reserve → EQ → limiter → DAC graph can carry a real Plex 24/96 source end-to-end at **S32_LE / 96 kHz** without the former 44.1 kHz output-device collapse. It is not yet the production-bus decision: 192 kHz still needs the same isolated measurement, and the selected candidate must then survive EQ control/bypass, AirPlay, alarm, mixer, latency and recovery acceptance.
+This is the first physical proof that the existing managed split-bus/EQ topology can carry a real Plex 24/96 source end-to-end at **S32_LE / 96 kHz** without the former 44.1 kHz output-device collapse. It does not yet prove every mixer/EQ/alarm/AirPlay semantic at 96 kHz, and it is not yet the production-bus decision: 192 kHz still needs the same isolated measurement, and the selected candidate must then survive EQ control/bypass, AirPlay, alarm, mixer, latency and recovery acceptance.
 
 ## Non-negotiable constraints
 
