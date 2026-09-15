@@ -66,6 +66,23 @@ This closes the hardware-format discovery gate but does **not** yet prove sustai
 
 For the first managed high-resolution processing experiment, **`S32_LE` is the cleanest format candidate**: the DAC accepted it at every target rate, it can carry 24-bit programme precision without packed-24 handling, and the current CamillaDSP configuration model can use the same `S32_LE` spelling as ALSA. `S24_LE` remains a hardware-capable option, but CamillaDSP's ALSA backend names ALSA's padded `S24_LE` representation differently, so the current single `FORMAT` setting must not be changed to `S24_LE` blindly. This is a candidate-selection observation, not yet the final production format decision.
 
+### First known-source playback snapshot — 15 September 2026
+
+A known **24-bit / 96 kHz** Plex track was played on the commissioned appliance while the managed EQ split bus remained unchanged.
+
+The allow-listed Plexamp preference audit reported `sampleRateMatching = 0`, `sampleRateConversionQuality = 2` and `loudnessLeveling = false`. No matching `BASS:`, `Mixer:`, sample-rate or audio-pipeline messages appeared in the two-minute `journalctl -u plexamp.service` window, so the systemd journal did not expose Plexamp's internal mixer/requested rate for this run.
+
+While the 24/96 track was actively playing, the live ALSA state was:
+
+- **Plexamp → ACP loopback (`/proc/asound/card7/pcm0p/sub0/hw_params`)**: `MMAP_INTERLEAVED`, `S16_LE`, 4 channels, **44100 Hz**, `period_size=1024`, `buffer_size=8192`;
+- **CamillaDSP capture (`/proc/asound/card7/pcm1c/sub0/hw_params`)**: `RW_INTERLEAVED`, `S16_LE`, 4 channels, **44100 Hz**, `period_size=512`, `buffer_size=4096`;
+- **physical Raspberry Pi DAC Pro (`/proc/asound/Pro/pcm0p/sub0/hw_params`)**: `RW_INTERLEAVED`, `S16_LE`, 2 channels, **44100 Hz**, `period_size=512`, `buffer_size=4096`;
+- CamillaDSP remained at approximately **0.6% CPU**.
+
+This proves that a 24/96 source currently reaches every externally visible point of the managed ACP graph as **S16_LE / 44.1 kHz**. It does **not** yet prove where the first conversion occurs. The active `pcm.acp_plexamp` path is an ALSA `plug` PCM layered through the Plexamp softvol/master/route chain onto the fixed `acp_dmix` slave. `plug` is allowed to convert format/rate to whatever its slave requires, so the snd-aloop `hw_params` expose the **post-conversion fixed bus**, not necessarily the rate Plexamp originally requested from ALSA.
+
+The next evidence source is therefore Plexamp's own headless log under `~/.cache/Plexamp/log`, which is separate from the systemd journal. If that log still does not expose mixer/output-rate negotiation, the next probe should instrument Plexamp's ALSA client boundary directly rather than infer its request from the fixed downstream `dmix` state.
+
 The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observed physical DAC `512` / `4096` values describe different points in the current graph; that difference is recorded rather than treated as an error until the higher-resolution topology is measured.
 
 ## Non-negotiable constraints
@@ -80,7 +97,7 @@ The configured split-bus `PERIOD_SIZE=1024` / `BUFFER_SIZE=8192` and the observe
 
 1. **Complete:** capture the current read-only installed-stack baseline with `scripts/audio/verify-audio.sh` and `scripts/audio/audit-hi-res-audio.sh`.
 2. **Complete:** measure the idle physical DAC's exact accepted format/rate combinations with `python3 scripts/audio/probe-hi-res-dac.py --apply`; `S16_LE`, `S24_LE` and `S32_LE` were accepted at every tested rate through 192 kHz, `S24_3LE` was rejected, and the original split bus restored cleanly.
-3. **Next physical gate:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record separately what Plexamp requests/decodes, what the ACP processing bus actually runs, and what reaches the physical DAC.
+3. **In progress:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192** and record separately what Plexamp requests/decodes, what the ACP processing bus actually runs, and what reaches the physical DAC. The first 24/96 snapshot proves the externally visible managed graph remains S16_LE/44.1; Plexamp's own log is the next source for locating the first conversion.
 4. Identify the remaining bottleneck(s): Plexamp output, ALSA virtual devices, CamillaDSP format/rate, mixer/join stages, or DAC constraints.
 5. Choose and test a managed higher-resolution processing bus by measured CPU use, latency, stability and alarm/AirPlay compatibility; `S32_LE` is the first format candidate, not a pre-accepted production choice.
 6. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
