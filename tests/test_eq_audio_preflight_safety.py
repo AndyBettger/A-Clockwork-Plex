@@ -11,6 +11,7 @@ PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
 AUDIT = ROOT / "scripts" / "audio" / "audit-hi-res-audio.sh"
 PROBE = ROOT / "scripts" / "audio" / "probe-hi-res-dac.py"
 REHEARSAL = ROOT / "scripts" / "audio" / "rehearse-hi-res-bus.py"
+RECOVERY = ROOT / "scripts" / "audio" / "recover-hi-res-rehearsal.py"
 ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
 
 
@@ -20,6 +21,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.audit_source = AUDIT.read_text(encoding="utf-8")
         self.probe_source = PROBE.read_text(encoding="utf-8")
         self.rehearsal_source = REHEARSAL.read_text(encoding="utf-8")
+        self.recovery_source = RECOVERY.read_text(encoding="utf-8")
 
     def test_shell_syntax_and_help(self) -> None:
         syntax = subprocess.run(
@@ -177,6 +179,36 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.assertIn("original_defaults_sha256", self.rehearsal_source)
         self.assertNotIn("snd_pcm_write", self.rehearsal_source)
         self.assertNotIn("snd_pcm_start", self.rehearsal_source)
+
+    def test_hi_res_rehearsal_recovery_is_checksum_gated_and_preserves_evidence(self) -> None:
+        compile(self.recovery_source, str(RECOVERY), "exec")
+        help_result = subprocess.run(
+            ["python3", str(RECOVERY), "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(help_result.returncode, 0, help_result.stderr)
+        self.assertIn("Checksum-gated recovery", help_result.stdout)
+        for marker in (
+            'PROFILE_ROUTE: Final = PROFILE_ROOT / "split-bus.conf"',
+            'PROFILE_DEFAULTS: Final = PROFILE_ROOT / "a-clockwork-plex-split-bus.defaults"',
+            'originals_match_repository',
+            'installed_route_known',
+            'installed_defaults_known',
+            'recovery_permitted',
+            'atomic_write(INSTALLED_ROUTE, baseline_route, 0o644)',
+            'atomic_write(INSTALLED_DEFAULTS, baseline_defaults, 0o644)',
+            'activate_baseline()',
+            'verify_audio()',
+            'HI_RES_REHEARSAL_RECOVERY=PASS',
+            'archive_rehearsal_state()',
+        ):
+            self.assertIn(marker, self.recovery_source)
+        self.assertIn("READ-ONLY unless --apply is supplied", self.recovery_source)
+        self.assertIn("Recovery evidence remains", self.recovery_source)
+        self.assertNotIn("snd_pcm_write", self.recovery_source)
+        self.assertNotIn("snd_pcm_start", self.recovery_source)
 
     def test_roadmap_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
