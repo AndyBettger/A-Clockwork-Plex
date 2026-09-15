@@ -180,9 +180,11 @@ def write_state(rate: int, candidate_route: str, candidate_defaults: str) -> Non
         raise RuntimeError(
             f"A rehearsal state already exists at {STATE_ROOT}; restore it before starting another."
         )
-    STATE_ROOT.mkdir(parents=True, mode=0o700)
+    STATE_ROOT.mkdir(parents=True, mode=0o755)
     shutil.copy2(INSTALLED_ROUTE, BACKUP_ROUTE)
     shutil.copy2(INSTALLED_DEFAULTS, BACKUP_DEFAULTS)
+    os.chmod(BACKUP_ROUTE, 0o600)
+    os.chmod(BACKUP_DEFAULTS, 0o600)
     payload = {
         "schema_version": 1,
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
