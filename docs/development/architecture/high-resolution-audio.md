@@ -114,7 +114,22 @@ The hardened transaction completed its full apply → real playback snapshot →
 - `--restore` returned the exact accepted route hash `1bc69f...`, regenerated the accepted CamillaDSP config, and `verify-audio.sh` passed;
 - an independent second verifier pass also succeeded, and the physical DAC was confirmed back at **S16_LE / 44100 Hz**.
 
-This is the first physical proof that the existing managed split-bus/EQ topology can carry a real Plex 24/96 source end-to-end at **S32_LE / 96 kHz** without the former 44.1 kHz output-device collapse. It does not yet prove every mixer/EQ/alarm/AirPlay semantic at 96 kHz, and it is not yet the production-bus decision: 192 kHz still needs the same isolated measurement, and the selected candidate must then survive EQ control/bypass, AirPlay, alarm, mixer, latency and recovery acceptance.
+This established the first fully measured high-resolution managed-bus candidate. The existing managed split-bus/EQ topology carried a real Plex 24/96 source end-to-end at **S32_LE / 96 kHz** without the former 44.1 kHz output-device collapse, and the separate 192 kHz comparison was then performed before selecting a candidate for the wider functional gate.
+
+### Physical S32_LE / 192 kHz rehearsal and reboot durability — PASSED, 16 September 2026
+
+The same hardened transaction was run independently at **S32_LE / 192 kHz** with known **24-bit / 192 kHz** Plex material, then deliberately repeated across a real reboot to prove the recovery hardening under the exact interruption class that exposed the original zero-length-backup fault.
+
+- direct 192 kHz rehearsal activated `split-bus-active / split-bus-selected`; the ACP loopback, CamillaDSP capture and physical DAC all ran at **S32_LE / 192000 Hz**, with CamillaDSP using approximately **2.4% CPU**;
+- explicit restore returned the exact accepted split-route and CamillaDSP configuration, `verify-audio.sh` passed, a second independent verifier pass passed, and the physical DAC returned to **S16_LE / 44100 Hz**;
+- the 192 kHz candidate was then activated again and the durable recovery files were hashed before reboot: split-route `1bc69f106768d438d1fdb9d321fdb597ee8c83339c5fa89187935636f9c08bd9` and defaults `f9b852092e2ea8929bcc8f9aa3563ad94abde08160da2b09b9d9f16802ac305f`;
+- the Pi was rebooted **without a manual `sync`**, and both recovery files retained those exact hashes afterwards, closing the earlier zero-length-backup durability defect;
+- after reboot, Plexamp direct-played the known 24/192 source, built its pipeline/mixer/source stream at **192000 Hz**, and device 9 (`A Clockwork Plex - Plexamp`) opened at **192000 Hz** with `preferred was 192000, best was 192000`;
+- after reboot the ACP loopback was **S32_LE / 192000 Hz / 4 channels**, CamillaDSP capture was **S32_LE / 192000 Hz / 4 channels**, and the Raspberry Pi DAC Pro was **S32_LE / 192000 Hz / 2 channels**;
+- CamillaDSP used approximately **2.2% CPU** in the post-reboot snapshot;
+- normal `--restore` succeeded after reboot; the exceptional recovery tool was not required, `verify-audio.sh` passed inside restore and again independently, and the physical DAC was independently confirmed back at **S16_LE / 44100 Hz**.
+
+The two first-pass candidates therefore both work physically with matching Plex material and exact rollback. Measured CamillaDSP load was roughly **1.2% at 96 kHz** and **2.2–2.4% at 192 kHz**; the latter remains a small load on this Raspberry Pi 5. **S32_LE / 192 kHz is the provisional fixed EQ-active managed-bus candidate**, with **S32_LE / 96 kHz retained as the fallback** if the broader functional/stability gate exposes a reason to prefer it. This is not yet a production policy or a bit-perfect claim: lower-rate Plex resampling behaviour, live EQ/bypass, mixer semantics, AirPlay, alarms, latency/long-run stability and recovery still require physical acceptance.
 
 ## Non-negotiable constraints
 
@@ -131,12 +146,13 @@ This is the first physical proof that the existing managed split-bus/EQ topology
 3. **Complete:** exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192**. Plexamp remains source-rate internally and prefers 48/96/192 kHz for the managed device, but the current ACP PCM opens at 44.1 kHz and the downstream graph is always S16_LE/44.1.
 4. **Located:** the current fixed ACP output-device chain is the rate/sample-format bottleneck; the decoder/internal Plexamp mixer is not.
 5. **96 kHz complete:** the hardened guarded rehearsal physically carried known 24/96 Plex material end-to-end as **S32_LE / 96 kHz**, with device 9 opening at 96 kHz, CamillaDSP at about 1.2% CPU, and exact restoration back to the accepted S16/44.1 graph.
-6. **Next physical gate:** repeat the same isolated transaction for **S32_LE / 192 kHz** with matching 24/192 Plex material, then compare CPU, stability and latency against 96 kHz before choosing which candidate advances.
-7. After a managed candidate is selected, extend its physical gate to EQ changes/bypass, AirPlay, alarm preview/scheduled takeover, mixer controls, latency and recovery before selecting a production bus.
-8. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
-9. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
-10. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-11. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+6. **192 kHz + reboot durability complete:** matching 24/192 material physically traversed device 9 → ACP loopback → CamillaDSP → DAC at **S32_LE / 192 kHz**; CamillaDSP used about 2.2–2.4% CPU; fsynced recovery hashes survived an un-synced reboot unchanged; and normal restore returned the accepted S16/44.1 graph with verifier success.
+7. **Provisional managed candidate:** advance **S32_LE / 192 kHz** to the wider functional gate, retaining **S32_LE / 96 kHz** as fallback.
+8. **Next physical gate:** while the 192 kHz candidate is active, measure lower-rate Plex sources and the exact resampling boundary, then exercise live EQ changes/bypass, mixer/source trims and Music Master ownership, AirPlay, alarm preview/scheduled takeover, latency/long-run stability and recovery.
+9. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
+10. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
+11. Expose source format, processing format and final DAC format/rate separately in diagnostics.
+12. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 
