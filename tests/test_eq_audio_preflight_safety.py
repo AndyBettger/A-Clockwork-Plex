@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
 AUDIT = ROOT / "scripts" / "audio" / "audit-hi-res-audio.sh"
 PROBE = ROOT / "scripts" / "audio" / "probe-hi-res-dac.py"
+REHEARSAL = ROOT / "scripts" / "audio" / "rehearse-hi-res-bus.py"
 ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
 
 
@@ -18,6 +19,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.source = PREFLIGHT.read_text(encoding="utf-8")
         self.audit_source = AUDIT.read_text(encoding="utf-8")
         self.probe_source = PROBE.read_text(encoding="utf-8")
+        self.rehearsal_source = REHEARSAL.read_text(encoding="utf-8")
 
     def test_shell_syntax_and_help(self) -> None:
         syntax = subprocess.run(
@@ -142,6 +144,39 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.assertIn("APP_STOP_ORDER", self.probe_source)
         self.assertIn("APP_START_ORDER", self.probe_source)
         self.assertIn("activate-direct-failback", self.probe_source)
+
+    def test_hi_res_bus_rehearsal_is_explicit_reversible_and_guarded(self) -> None:
+        compile(self.rehearsal_source, str(REHEARSAL), "exec")
+        plan = subprocess.run(
+            ["python3", str(REHEARSAL), "--rate", "96000"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(plan.returncode, 0, plan.stderr)
+        self.assertIn("Default mode: plan only", plan.stdout)
+        self.assertIn("Candidate format: S32_LE", plan.stdout)
+        self.assertIn("Candidate rate:   96000", plan.stdout)
+        for marker in (
+            'CANDIDATE_FORMAT: Final = "S32_LE"',
+            "ALLOWED_RATES: Final = (96000, 192000)",
+            'STATE_ROOT: Final = Path("/var/lib/a-clockwork-plex/hi-res-rehearsal")',
+            "ensure_accepted_baseline()",
+            'verify_audio("before hi-res rehearsal")',
+            'activate_split_bus()',
+            'HI_RES_REHEARSAL_ACTIVE',
+            'HI_RES_REHEARSAL_RESTORED',
+            'verify_audio("after hi-res rehearsal restoration")',
+            'The candidate remains active until --restore is run.',
+            'Rehearsal backup is retained',
+        ):
+            self.assertIn(marker, self.rehearsal_source)
+        self.assertIn("shutil.copy2(INSTALLED_ROUTE, BACKUP_ROUTE)", self.rehearsal_source)
+        self.assertIn("shutil.copy2(INSTALLED_DEFAULTS, BACKUP_DEFAULTS)", self.rehearsal_source)
+        self.assertIn("original_route_sha256", self.rehearsal_source)
+        self.assertIn("original_defaults_sha256", self.rehearsal_source)
+        self.assertNotIn("snd_pcm_write", self.rehearsal_source)
+        self.assertNotIn("snd_pcm_start", self.rehearsal_source)
 
     def test_roadmap_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
