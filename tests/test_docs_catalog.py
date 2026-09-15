@@ -41,6 +41,7 @@ DEVELOPMENT_ARCHITECTURE = {
     "configuration-backup-ownership.md",
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
+    "high-resolution-audio.md",
     "reset-to-defaults.md",
     "touchscreen-text-entry.md",
 }

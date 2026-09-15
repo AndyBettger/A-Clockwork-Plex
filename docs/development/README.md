@@ -9,7 +9,8 @@ This directory contains the engineering material that is useful when changing, v
 - [`architecture/reset-to-defaults.md`](architecture/reset-to-defaults.md) — bounded four-owner Reset transaction, rollback and physically accepted Home-reset semantics.
 - [`architecture/appliance-resilience.md`](architecture/appliance-resilience.md) — queued storage/write hardening and kiosk-safe network-recovery design.
 - [`architecture/touchscreen-text-entry.md`](architecture/touchscreen-text-entry.md) — shared touchscreen keyboard behaviour and the narrow local Plexamp text-entry bridge boundary.
-- [`architecture/bbc-news.md`](architecture/bbc-news.md) — BBC RSS feed/cache authority, safe public story model and planned News presentation boundary.
+- [`architecture/bbc-news.md`](architecture/bbc-news.md) — BBC RSS feed/cache authority, safe public story model and configurable News presentation boundary.
+- [`architecture/high-resolution-audio.md`](architecture/high-resolution-audio.md) — active hi-res Plexamp/EQ investigation, measured audio baseline, development-appliance policy and physical acceptance boundary.
 - [`architecture/airplay-metadata.md`](architecture/airplay-metadata.md) — Shairport/AirPlay metadata and integration ownership.
 - [`architecture/fresh-pi-bootstrap-ownership-design.md`](architecture/fresh-pi-bootstrap-ownership-design.md) — constrained hardware/bootstrap ownership and reboot boundaries.
 - [`architecture/full-appliance-installer-design.md`](architecture/full-appliance-installer-design.md) — guarded staged installer and rollback rationale.
