@@ -50,6 +50,14 @@ LOG_PATTERN: Final = re.compile(
 )
 
 
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def sha256_text(text: str) -> str:
+    return sha256_bytes(text.encode("utf-8"))
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -64,6 +72,17 @@ def read_regular(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def atomic_write(path: Path, content: str, mode: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -75,6 +94,7 @@ def atomic_write(path: Path, content: str, mode: int) -> None:
             os.fsync(handle.fileno())
         os.chmod(candidate, mode)
         os.replace(candidate, path)
+        fsync_directory(path.parent)
     finally:
         candidate.unlink(missing_ok=True)
 
@@ -82,7 +102,9 @@ def atomic_write(path: Path, content: str, mode: int) -> None:
 def run(command: list[str], *, check: bool = False) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if check and result.returncode:
-        detail = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
+        detail = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
         raise RuntimeError(detail or f"Command failed: {' '.join(command)}")
     return result
 
@@ -113,6 +135,15 @@ def verify_audio(label: str) -> None:
         raise RuntimeError(f"Managed audio verification failed {label}.")
 
 
+def ensure_no_existing_rehearsal() -> None:
+    if STATE_ROOT.exists():
+        raise RuntimeError(
+            "A rehearsal state already exists. Do not start another candidate. "
+            "Use --snapshot and --restore; if restore refuses, use "
+            "scripts/audio/recover-hi-res-rehearsal.py."
+        )
+
+
 def ensure_accepted_baseline() -> None:
     expected_route = read_regular(PROFILE_ROUTE)
     expected_defaults = read_regular(PROFILE_DEFAULTS)
@@ -120,11 +151,13 @@ def ensure_accepted_baseline() -> None:
     installed_defaults = read_regular(INSTALLED_DEFAULTS)
     if installed_route != expected_route:
         raise RuntimeError(
-            "Installed split-bus route does not match the feature-branch accepted baseline; refusing rehearsal."
+            "Installed split-bus route does not match the feature-branch accepted baseline; "
+            "refusing rehearsal."
         )
     if installed_defaults != expected_defaults:
         raise RuntimeError(
-            "Installed split-bus defaults do not match the feature-branch accepted baseline; refusing rehearsal."
+            "Installed split-bus defaults do not match the feature-branch accepted baseline; "
+            "refusing rehearsal."
         )
     status = read_route_status()
     if not (
@@ -176,37 +209,59 @@ def render_candidate(rate: int) -> tuple[str, str]:
 
 
 def write_state(rate: int, candidate_route: str, candidate_defaults: str) -> None:
-    if STATE_ROOT.exists():
-        raise RuntimeError(
-            f"A rehearsal state already exists at {STATE_ROOT}; restore it before starting another."
-        )
+    ensure_no_existing_rehearsal()
+    original_route = read_regular(INSTALLED_ROUTE)
+    original_defaults = read_regular(INSTALLED_DEFAULTS)
+
     STATE_ROOT.mkdir(parents=True, mode=0o755)
-    shutil.copy2(INSTALLED_ROUTE, BACKUP_ROUTE)
-    shutil.copy2(INSTALLED_DEFAULTS, BACKUP_DEFAULTS)
-    os.chmod(BACKUP_ROUTE, 0o600)
-    os.chmod(BACKUP_DEFAULTS, 0o600)
+    os.chmod(STATE_ROOT, 0o755)
+    fsync_directory(STATE_ROOT.parent)
+
+    # Backups are written atomically and fsynced before any candidate mutation.
+    # This deliberately avoids shutil.copy2 here: the first physical rehearsal
+    # rebooted after apply and both copy2-created backup files came back as
+    # zero-length files while state.json and the candidate files persisted.
+    atomic_write(BACKUP_ROUTE, original_route, 0o600)
+    atomic_write(BACKUP_DEFAULTS, original_defaults, 0o600)
+
+    original_route_hash = sha256_text(original_route)
+    original_defaults_hash = sha256_text(original_defaults)
+    if sha256(BACKUP_ROUTE) != original_route_hash:
+        raise RuntimeError("Durable split-route backup verification failed.")
+    if sha256(BACKUP_DEFAULTS) != original_defaults_hash:
+        raise RuntimeError("Durable defaults backup verification failed.")
+
     payload = {
         "schema_version": 1,
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "candidate_format": CANDIDATE_FORMAT,
         "candidate_rate": rate,
-        "original_route_sha256": sha256(BACKUP_ROUTE),
-        "original_defaults_sha256": sha256(BACKUP_DEFAULTS),
-        "candidate_route_sha256": hashlib.sha256(candidate_route.encode("utf-8")).hexdigest(),
-        "candidate_defaults_sha256": hashlib.sha256(candidate_defaults.encode("utf-8")).hexdigest(),
+        "original_route_sha256": original_route_hash,
+        "original_defaults_sha256": original_defaults_hash,
+        "candidate_route_sha256": sha256_text(candidate_route),
+        "candidate_defaults_sha256": sha256_text(candidate_defaults),
+        "durable_backups": True,
     }
-    atomic_write(STATE_PATH, json.dumps(payload, indent=2, sort_keys=True) + "\n", 0o644)
+    atomic_write(
+        STATE_PATH,
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        0o644,
+    )
+    load_state()
 
 
 def load_state() -> dict[str, Any]:
-    if not STATE_PATH.is_file():
+    if not STATE_PATH.is_file() or STATE_PATH.is_symlink():
         raise RuntimeError(f"No active rehearsal state exists at {STATE_PATH}.")
     try:
         payload = json.loads(STATE_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise RuntimeError("Rehearsal state is invalid JSON; refusing automatic restore.") from exc
+        raise RuntimeError(
+            "Rehearsal state is invalid JSON; refusing automatic restore."
+        ) from exc
     if not isinstance(payload, dict) or payload.get("schema_version") != 1:
         raise RuntimeError("Unsupported rehearsal state; refusing automatic restore.")
+
     for path in (BACKUP_ROUTE, BACKUP_DEFAULTS):
         if not path.is_file() or path.is_symlink():
             raise RuntimeError(f"Rehearsal backup is incomplete: {path}")
@@ -235,28 +290,52 @@ def activate_split_bus() -> dict[str, Any]:
     return status
 
 
-def restore_original_files() -> None:
+def restore_original_files() -> dict[str, Any]:
     state = load_state()
-    atomic_write(INSTALLED_ROUTE, BACKUP_ROUTE.read_text(encoding="utf-8"), 0o644)
-    atomic_write(INSTALLED_DEFAULTS, BACKUP_DEFAULTS.read_text(encoding="utf-8"), 0o644)
+    atomic_write(
+        INSTALLED_ROUTE,
+        BACKUP_ROUTE.read_text(encoding="utf-8"),
+        0o644,
+    )
+    atomic_write(
+        INSTALLED_DEFAULTS,
+        BACKUP_DEFAULTS.read_text(encoding="utf-8"),
+        0o644,
+    )
     if sha256(INSTALLED_ROUTE) != state["original_route_sha256"]:
-        raise RuntimeError("Restored split-bus route checksum does not match the saved baseline.")
+        raise RuntimeError(
+            "Restored split-bus route checksum does not match the saved baseline."
+        )
     if sha256(INSTALLED_DEFAULTS) != state["original_defaults_sha256"]:
-        raise RuntimeError("Restored defaults checksum does not match the saved baseline.")
+        raise RuntimeError(
+            "Restored defaults checksum does not match the saved baseline."
+        )
+    return state
 
 
 def cleanup_state() -> None:
     shutil.rmtree(STATE_ROOT)
+    fsync_directory(STATE_ROOT.parent)
+
+
+def validate_candidate_files(state: dict[str, Any]) -> None:
+    if sha256(INSTALLED_ROUTE) != state.get("candidate_route_sha256"):
+        raise RuntimeError("Installed route does not match the rehearsed candidate.")
+    if sha256(INSTALLED_DEFAULTS) != state.get("candidate_defaults_sha256"):
+        raise RuntimeError("Installed defaults do not match the rehearsed candidate.")
 
 
 def apply(rate: int) -> None:
     require_root()
+    ensure_no_existing_rehearsal()
     ensure_accepted_baseline()
     candidate_route, candidate_defaults = render_candidate(rate)
     write_state(rate, candidate_route, candidate_defaults)
     try:
         atomic_write(INSTALLED_ROUTE, candidate_route, 0o644)
         atomic_write(INSTALLED_DEFAULTS, candidate_defaults, 0o644)
+        state = load_state()
+        validate_candidate_files(state)
         activate_split_bus()
         camilla = read_regular(CAMILLADSP_CONFIG)
         for marker in (
@@ -264,7 +343,9 @@ def apply(rate: int) -> None:
             f"format: {CANDIDATE_FORMAT}",
         ):
             if marker not in camilla:
-                raise RuntimeError(f"Candidate CamillaDSP config is missing {marker!r}.")
+                raise RuntimeError(
+                    f"Candidate CamillaDSP config is missing {marker!r}."
+                )
     except Exception as exc:
         print(f"Candidate activation failed: {exc}", file=sys.stderr)
         try:
@@ -272,12 +353,17 @@ def apply(rate: int) -> None:
             activate_split_bus()
             verify_audio("after failed rehearsal restoration")
             cleanup_state()
-            print("Accepted S16_LE / 44100 graph restored after failed candidate activation.")
+            print(
+                "Accepted S16_LE / 44100 graph restored after failed candidate activation."
+            )
         except Exception as restore_exc:
             raise RuntimeError(
-                f"Candidate activation failed and automatic baseline restoration was incomplete: {restore_exc}"
+                "Candidate activation failed and automatic baseline restoration was "
+                f"incomplete. Rehearsal backup is retained at {STATE_ROOT}: {restore_exc}"
             ) from exc
-        raise RuntimeError("Candidate activation failed; accepted baseline was restored.") from exc
+        raise RuntimeError(
+            "Candidate activation failed; accepted baseline was restored."
+        ) from exc
 
     print()
     print("HI_RES_REHEARSAL_ACTIVE")
@@ -285,6 +371,9 @@ def apply(rate: int) -> None:
     print(f"candidate_rate={rate}")
     print(f"state={STATE_PATH}")
     print("The candidate remains active until --restore is run.")
+    print(
+        "The recovery files have been atomically written, fsynced and checksum-verified."
+    )
     print("Play the matching Plex source, then run --snapshot before restoring.")
     print("If anything behaves unexpectedly, restore immediately.")
 
@@ -302,8 +391,8 @@ def restore() -> None:
         verify_audio("after hi-res rehearsal restoration")
     except Exception as exc:
         raise RuntimeError(
-            "Baseline files were restored but managed split-bus reactivation/verification failed. "
-            f"Rehearsal backup is retained at {STATE_ROOT}: {exc}"
+            "Baseline files were restored but managed split-bus reactivation/verification "
+            f"failed. Rehearsal backup is retained at {STATE_ROOT}: {exc}"
         ) from exc
     cleanup_state()
     print("HI_RES_REHEARSAL_RESTORED")
@@ -347,6 +436,7 @@ def snapshot() -> None:
             state = {}
         print(f"candidate_format={state.get('candidate_format', 'unknown')}")
         print(f"candidate_rate={state.get('candidate_rate', 'unknown')}")
+        print(f"durable_backups={state.get('durable_backups', False)}")
     else:
         print("candidate_state=none")
     try:
@@ -361,7 +451,9 @@ def snapshot() -> None:
     print_hw_params()
     print()
     print("===== CamillaDSP CPU =====")
-    result = run(["ps", "-C", "camilladsp", "-o", "pid=,pcpu=,pmem=,etimes=,args="])
+    result = run(
+        ["ps", "-C", "camilladsp", "-o", "pid=,pcpu=,pmem=,etimes=,args="]
+    )
     print((result.stdout or result.stderr).strip() or "unavailable")
 
 
@@ -376,16 +468,20 @@ def print_plan(rate: int | None) -> None:
     print(f"Allowed rates:    {', '.join(str(value) for value in ALLOWED_RATES)}")
     print()
     print("An --apply run will:")
-    print("  1. require the exact accepted S16_LE / 44100 branch baseline and verify it;")
-    print("  2. save exact installed split-route/defaults backups plus checksums;")
-    print("  3. stage S32_LE at the selected fixed managed-bus rate;")
-    print("  4. use the existing managed route helper to quiesce/restart the graph safely;")
-    print("  5. leave the candidate active for a deliberate playback snapshot;")
-    print("  6. require an explicit --restore to return to the accepted baseline;")
-    print("  7. retain the backup if restoration cannot be fully verified.")
+    print("  1. refuse if any earlier rehearsal state still exists;")
+    print("  2. require the exact accepted S16_LE / 44100 branch baseline and verify it;")
+    print(
+        "  3. atomically write, fsync and checksum-verify exact route/default backups "
+        "before mutation;"
+    )
+    print("  4. stage S32_LE at the selected fixed managed-bus rate;")
+    print("  5. use the existing managed route helper to quiesce/restart the graph safely;")
+    print("  6. leave the candidate active for a deliberate playback snapshot;")
+    print("  7. require an explicit --restore to return to the accepted baseline;")
+    print("  8. retain the backup if restoration cannot be fully verified.")
     print()
-    print(f"Candidate route SHA-256:    {hashlib.sha256(route.encode('utf-8')).hexdigest()}")
-    print(f"Candidate defaults SHA-256: {hashlib.sha256(defaults.encode('utf-8')).hexdigest()}")
+    print(f"Candidate route SHA-256:    {sha256_text(route)}")
+    print(f"Candidate defaults SHA-256: {sha256_text(defaults)}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -393,9 +489,17 @@ def parse_args() -> argparse.Namespace:
         description="Guarded reversible S32_LE/96-or-192 kHz managed-bus rehearsal."
     )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--apply", action="store_true", help="activate a guarded candidate bus")
-    mode.add_argument("--restore", action="store_true", help="restore the saved accepted baseline")
-    mode.add_argument("--snapshot", action="store_true", help="capture current read-only audio evidence")
+    mode.add_argument(
+        "--apply", action="store_true", help="activate a guarded candidate bus"
+    )
+    mode.add_argument(
+        "--restore", action="store_true", help="restore the saved accepted baseline"
+    )
+    mode.add_argument(
+        "--snapshot",
+        action="store_true",
+        help="capture current read-only audio evidence",
+    )
     parser.add_argument(
         "--rate",
         type=int,
