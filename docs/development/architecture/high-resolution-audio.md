@@ -147,7 +147,7 @@ The two first-pass candidates therefore both work physically with matching Plex 
 4. **Located:** the current fixed ACP output-device chain is the rate/sample-format bottleneck; the decoder/internal Plexamp mixer is not.
 5. **96 kHz complete:** the hardened guarded rehearsal physically carried known 24/96 Plex material end-to-end as **S32_LE / 96 kHz**, with device 9 opening at 96 kHz, CamillaDSP at about 1.2% CPU, and exact restoration back to the accepted S16/44.1 graph.
 6. **192 kHz + reboot durability complete:** matching 24/192 material physically traversed device 9 → ACP loopback → CamillaDSP → DAC at **S32_LE / 192 kHz**; CamillaDSP used about 2.2–2.4% CPU; fsynced recovery hashes survived an un-synced reboot unchanged; and normal restore returned the accepted S16/44.1 graph with verifier success.
-7. **Provisional managed candidate:** advance **S32_LE / 192 kHz** to the wider functional gate, retaining **S32_LE / 96 kHz** as fallback.
+7. **Provisional managed candidate:** advance **S32_LE / 192 kHz** to the wider functional gate, retaining **S32_LE / 96 kHz** as fallback. This is explicitly provisional until the wider gate passes.
 8. **Next physical gate:** while the 192 kHz candidate is active, measure lower-rate Plex sources and the exact resampling boundary, then exercise live EQ changes/bypass, mixer/source trims and Music Master ownership, AirPlay, alarm preview/scheduled takeover, latency/long-run stability and recovery.
 9. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
 10. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
