@@ -163,6 +163,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
             'CANDIDATE_FORMAT: Final = "S32_LE"',
             "ALLOWED_RATES: Final = (96000, 192000)",
             'STATE_ROOT: Final = Path("/var/lib/a-clockwork-plex/hi-res-rehearsal")',
+            "ensure_no_existing_rehearsal()",
             "ensure_accepted_baseline()",
             'verify_audio("before hi-res rehearsal")',
             'activate_split_bus()',
@@ -171,10 +172,16 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
             'verify_audio("after hi-res rehearsal restoration")',
             'The candidate remains active until --restore is run.',
             'Rehearsal backup is retained',
+            '"durable_backups": True',
+            "fsync_directory(path.parent)",
+            "atomic_write(BACKUP_ROUTE, original_route, 0o600)",
+            "atomic_write(BACKUP_DEFAULTS, original_defaults, 0o600)",
+            "Durable split-route backup verification failed.",
+            "Durable defaults backup verification failed.",
         ):
             self.assertIn(marker, self.rehearsal_source)
-        self.assertIn("shutil.copy2(INSTALLED_ROUTE, BACKUP_ROUTE)", self.rehearsal_source)
-        self.assertIn("shutil.copy2(INSTALLED_DEFAULTS, BACKUP_DEFAULTS)", self.rehearsal_source)
+        self.assertNotIn("shutil.copy2(INSTALLED_ROUTE, BACKUP_ROUTE)", self.rehearsal_source)
+        self.assertNotIn("shutil.copy2(INSTALLED_DEFAULTS, BACKUP_DEFAULTS)", self.rehearsal_source)
         self.assertIn("original_route_sha256", self.rehearsal_source)
         self.assertIn("original_defaults_sha256", self.rehearsal_source)
         self.assertNotIn("snd_pcm_write", self.rehearsal_source)
