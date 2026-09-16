@@ -131,6 +131,41 @@ The same hardened transaction was run independently at **S32_LE / 192 kHz** with
 
 The two first-pass candidates therefore both work physically with matching Plex material and exact rollback. Measured CamillaDSP load was roughly **1.2% at 96 kHz** and **2.2–2.4% at 192 kHz**; the latter remains a small load on this Raspberry Pi 5. **S32_LE / 192 kHz is the provisional fixed EQ-active managed-bus candidate**, with **S32_LE / 96 kHz retained as the fallback** if the broader functional/stability gate exposes a reason to prefer it. This is explicitly provisional, not yet the production managed-bus policy or a bit-perfect claim: lower-rate Plex resampling behaviour, live EQ/bypass, mixer semantics, AirPlay, alarms, latency/long-run stability and recovery still require physical acceptance.
 
+## AirPlay fixed-192 wider-gate finding — ACTIVE, 16 September 2026
+
+The first AirPlay pass on the provisional **S32_LE / 192 kHz** managed bus acquired ownership successfully, but playback was persistently choppy. Repository tracing corrected an earlier working assumption: **PipeWire is not in the current AirPlay path after Shairport Sync**. `scripts/a-clockwork-plex-shairport-integration.py` sets Shairport's ALSA `output_device` to `acp_airplay`, so the active route is:
+
+```text
+AirPlay sender
+    -> Shairport Sync
+    -> ALSA acp_airplay
+    -> ALSA plug / AirPlay softvol / Music Master
+    -> acp_dmix fixed managed bus
+    -> ALSA loopback
+    -> CamillaDSP
+    -> Raspberry Pi DAC Pro
+```
+
+The guarded rehearsal deliberately changes only managed sample format/rate, so the accepted 44.1 kHz frame counts were retained unchanged at 192 kHz. Their time-domain headroom therefore contracted substantially:
+
+| Setting | Frames | 44.1 kHz duration | 192 kHz duration |
+| --- | ---: | ---: | ---: |
+| ALSA `period_size` | 1024 | ~23.220 ms | ~5.333 ms |
+| ALSA `buffer_size` | 8192 | ~185.760 ms | ~42.667 ms |
+| CamillaDSP `chunksize` | 1024 | ~23.220 ms | ~5.333 ms |
+| CamillaDSP `target_level` | 2048 | ~46.440 ms | ~10.667 ms |
+| CamillaDSP one-queue limit (`chunksize * queuelimit`, q=4) | 4096 | ~92.880 ms | ~21.333 ms |
+
+This makes buffer/timing pressure the first hypothesis to measure. Local Plexamp has already tolerated the current 192 kHz geometry, whereas AirPlay adds sender/network timing and Shairport synchronization before the ALSA rate/format-conversion boundary. CamillaDSP 4.1 documentation recommends **4096** as the starting `chunksize` for 176.4/192 kHz and notes that shorter chunks increase vulnerability to system disruption and buffer underruns; that is a candidate comparison point, not yet an appliance setting.
+
+`scripts/audio/snapshot-airplay-hi-res.py` now provides the bounded evidence capture for the unchanged failing graph. It is read-only: it opens no PCM and changes no service, route, mixer or configuration. While the 192 kHz rehearsal and choppy AirPlay stream are active it records the live loopback/Camilla/DAC `hw_params`, converts configured frame counts to milliseconds, reports a safe allow-list of Shairport timing/output settings and CamillaDSP rate-adjust/resampler settings, and filters recent Shairport/CamillaDSP journals for timing, buffering, synchronization and error clues with IPv4/MAC redaction.
+
+The current test order is deliberately conservative: first capture the failing unchanged geometry; if the evidence supports buffer pressure, compare a fixed-192 candidate whose ALSA/CamillaDSP frame counts preserve sensible time-domain headroom. Only if that remains unsuitable do we add a dynamic sample-rate architecture.
+
+The current CamillaDSP Controller is a credible next candidate rather than a speculative custom mechanism. Its Linux ALSA listener can watch a loopback/device for sample-rate or format changes, and its Adapt provider can update capture format and `capture_samplerate` for a base configuration that contains a resampler while leaving the processing/output `samplerate` fixed. That supports a future shape of source-rate ALSA capture → Controller → asynchronous SRC/rate adjustment → fixed S32_LE/192 kHz processing/output. Parallel rate-specific CamillaDSP instances remain a last-resort topology because they would duplicate routing/lifecycle and shared EQ/volume ownership.
+
+Detailed physical procedure and evidence boundary: [`../testing/airplay-hi-res-buffer-investigation.md`](../testing/airplay-hi-res-buffer-investigation.md).
+
 ## Non-negotiable constraints
 
 - AirPlay behaviour must remain truthful to the received source format and to any resampling actually performed.
@@ -148,11 +183,12 @@ The two first-pass candidates therefore both work physically with matching Plex 
 5. **96 kHz complete:** the hardened guarded rehearsal physically carried known 24/96 Plex material end-to-end as **S32_LE / 96 kHz**, with device 9 opening at 96 kHz, CamillaDSP at about 1.2% CPU, and exact restoration back to the accepted S16/44.1 graph.
 6. **192 kHz + reboot durability complete:** matching 24/192 material physically traversed device 9 → ACP loopback → CamillaDSP → DAC at **S32_LE / 192 kHz**; CamillaDSP used about 2.2–2.4% CPU; fsynced recovery hashes survived an un-synced reboot unchanged; and normal restore returned the accepted S16/44.1 graph with verifier success.
 7. **Provisional managed candidate:** advance **S32_LE / 192 kHz** to the wider functional gate, retaining **S32_LE / 96 kHz** as fallback. This is explicitly provisional until the wider gate passes.
-8. **Next physical gate:** while the 192 kHz candidate is active, measure lower-rate Plex sources and the exact resampling boundary, then exercise live EQ changes/bypass, mixer/source trims and Music Master ownership, AirPlay, alarm preview/scheduled takeover, latency/long-run stability and recovery.
-9. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
-10. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
-11. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-12. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+8. **AirPlay timing gate active:** fixed-192 ownership works but AirPlay is choppy. Capture the unchanged 1024/8192/1024/2048-frame graph with `scripts/audio/snapshot-airplay-hi-res.py`; if evidence supports buffer pressure, compare time-appropriate fixed-192 buffer geometry before changing topology. Only then evaluate Controller Adapt/source-rate capture plus asynchronous SRC if needed.
+9. Finish the wider functional gate: lower-rate Plex resampling truthfulness, live EQ changes/bypass, mixer/source trims and Music Master ownership, alarm preview/scheduled takeover, latency/long-run stability and recovery.
+10. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
+11. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
+12. Expose source format, processing format and final DAC format/rate separately in diagnostics.
+13. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 
