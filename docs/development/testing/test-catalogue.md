@@ -54,6 +54,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### AirPlay, Shairport and playback handoff
 
 - `tests/test_airplay_control_coordination.py` — Coordinates AirPlay lifecycle intent with central playback ownership so source hand-off does not fight the shared authority.
+- `tests/test_airplay_hi_res_snapshot.py` — Checks the read-only high-resolution AirPlay timing snapshot's frame-duration calculations, CamillaDSP scalar extraction and journal-address redaction.
 - `tests/test_airplay_hold_policy.py` — Checks paused-AirPlay hold/lease policy and the release of stale sessions.
 - `tests/test_airplay_integration_installer.py` — Exercises guarded Shairport/AirPlay integration installation, rendered callbacks and managed service wiring.
 - `tests/test_airplay_longform_ui.py` — Protects long-form spoken-audio classification, labels and seek-style AirPlay presentation.

@@ -41,6 +41,7 @@ DEVELOPMENT_ARCHITECTURE = {
     "configuration-backup-ownership.md",
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
+    "high-resolution-audio.md",
     "reset-to-defaults.md",
     "touchscreen-text-entry.md",
 }
@@ -48,6 +49,7 @@ DEVELOPMENT_TESTING = {
     "testing.md",
     "test-catalogue.md",
     "alarm-audio-testing.md",
+    "airplay-hi-res-buffer-investigation.md",
     "bbc-news-testing.md",
     "commissioned-pi-backup-restore-acceptance-2026-09-10.md",
     "fresh-appliance-acceptance-runbook.md",

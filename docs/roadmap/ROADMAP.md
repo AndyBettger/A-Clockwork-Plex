@@ -1,7 +1,8 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 14 September 2026  
+**Last updated:** 16 September 2026  
 **Active integration branch:** `develop`  
+**Active feature branch:** `feature/hi-res-audio-eq`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
 
@@ -16,9 +17,11 @@ Specialist authorities:
 - [`history-through-phase7-checkpoint6.md`](history-through-phase7-checkpoint6.md) — early Phase 7 chronology;
 - [`history-through-checkpoint64.md`](history-through-checkpoint64.md) — pre-consolidation roadmap snapshot;
 - [`../development/testing/fresh-appliance-acceptance-runbook.md`](../development/testing/fresh-appliance-acceptance-runbook.md) — formal clean-room acceptance procedure;
+- [`../development/testing/airplay-hi-res-buffer-investigation.md`](../development/testing/airplay-hi-res-buffer-investigation.md) — active #85 AirPlay/192 kHz timing and buffer investigation;
 - [`../development/architecture/configuration-backup-ownership.md`](../development/architecture/configuration-backup-ownership.md) — #88–#90 portability/restore ownership and Plexamp Home completeness;
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and physical/product gate;
 - [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News, article QR hand-off and configurable sections;
+- [`../development/architecture/high-resolution-audio.md`](../development/architecture/high-resolution-audio.md) — active #85 hi-res/EQ architecture, test-appliance policy and acceptance boundary;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
 Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not this development roadmap.
@@ -40,11 +43,30 @@ Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not 
 - [x] GitHub Actions validates `develop` and `main`.
 - [x] Established the feature-branch → `develop` → accepted release model.
 
-### #85 High-resolution audio feasibility audit — COMPLETE; IMPLEMENTATION QUEUED
+### #85 High-resolution audio feasibility audit — COMPLETE; IMPLEMENTATION ACTIVE
 
-The current managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation is the next major product feature. The bounded BBC News configurable-sections follow-up that was deliberately pulled forward has now completed its physical acceptance gate and no longer blocks #85.
+The current accepted managed EQ and Direct/fallback profiles still use a fixed **S16_LE / 44100 Hz** shared music path. High-resolution implementation is now active on `feature/hi-res-audio-eq`, branched from the accepted post-PR-#12 `develop` state.
 
-Before any production audio mutation, use `scripts/audio/preflight-eq.sh` as the **read-only bedroom-Pi validation gate**. The accepted production SD remains protected; **a separate spare SD is the disposable acceptance target** for destructive route/lifecycle experiments.
+The historical `scripts/audio/preflight-eq.sh` is the old pre-EQ-install gate and is **not** the baseline for this phase: it intentionally expects the managed EQ files to be absent and the previous direct route to be active. The current installed-stack baseline instead uses read-only `scripts/audio/verify-audio.sh` plus `scripts/audio/audit-hi-res-audio.sh`. The bedroom Pi is the development/test appliance for this work: controlled route, sample-format and lifecycle experiments may be performed directly on it. Recovery is provided by committed feature-branch checkpoints plus the known-good `develop` and `main` rebuild baselines; a separate spare SD card is not a project requirement.
+
+- [x] Created `feature/hi-res-audio-eq` from accepted `develop` after PR #12 merged.
+- [x] Documented the development-appliance/recovery policy in `docs/development/architecture/high-resolution-audio.md`.
+- [x] Added a read-only installed-stack hi-res audit separate from the historical pre-install EQ gate.
+- [x] Captured the first physical read-only baseline on 14 September 2026: `verify-audio.sh` passed; the DAC was live at **S16_LE / 44.1 kHz stereo**; the ALSA split bus, installed profile and CamillaDSP independently fix the current processing path to **S16_LE / 44.1 kHz**; route/EQ/services were healthy and CamillaDSP used about **0.6% CPU** at the snapshot.
+- [x] Recorded two audit corrections from that run: repository verifier scripts must be invoked through `bash`, and loopback procfs inspection must follow card index 7 (`/proc/asound/card7`) rather than the configured module id string. The Raspberry Pi DAC Pro is I2S, so the absent USB-style `/proc/asound/Pro/stream0` descriptor is expected rather than a hardware failure.
+- [x] Physically measured the idle Raspberry Pi DAC Pro on 14 September 2026 with the guarded capability probe: exact stereo `RW_INTERLEAVED` `S16_LE`, `S24_LE` and `S32_LE` constraints were accepted at **44.1/48/88.2/96/176.4/192 kHz**; packed `S24_3LE` was rejected at every tested rate. The probe restored CamillaDSP → Plexamp → AirPlay → dashboard, `verify-audio.sh` passed after restoration, and the route returned to `split-bus-active` without Direct failback.
+- [x] Completed the known-source Plex baseline on 15 September 2026 with **16/44.1, 24/48, 24/96 and 24/192** material. The 44.1 kHz control stays 44.1 throughout. For the 48/96/192 sources, Plexamp direct-plays and keeps its source stream/internal mixer at the native rate and explicitly prefers that rate for device 9 (`A Clockwork Plex - Plexamp`), but the managed device opens at **44.1 kHz** and the ACP loopback → CamillaDSP → physical DAC path remains **S16_LE / 44.1 kHz**. The fixed ACP managed output-device chain is therefore the measured rate/sample-format bottleneck; Plexamp's decoder/mixer is not. CamillaDSP remained about **0.6–0.7% CPU** on the accepted 44.1 kHz graph.
+- [x] Added guarded `scripts/audio/rehearse-hi-res-bus.py` for the first reversible managed-bus experiments. It is plan-only by default, supports only **S32_LE / 96 kHz** and **S32_LE / 192 kHz**, requires the exact accepted S16/44.1 baseline before mutation, delegates the service/route transition to the accepted route owner, provides a normal-user read-only snapshot, and requires explicit verified restore.
+- [x] First 96 kHz attempt exposed a reboot/interruption recovery weakness: the candidate and `state.json` persisted but both old `shutil.copy2` recovery files returned as zero-length files. Normal restore correctly refused; checksum-gated recovery reconstructed only from repository baseline files whose hashes exactly matched the recorded originals, restored `split-bus-active`, passed `verify-audio.sh` twice and returned the physical DAC to S16_LE/44.1. The rehearsal tool was hardened with atomic writes, file/directory `fsync`, pre-mutation checksum verification, explicit durable-backup state and candidate-hash verification.
+- [x] Hardened **S32_LE / 96 kHz** rehearsal physically passed on 15 September 2026: with known 24/96 Plex material, device 9 opened at **96000 Hz**, the ACP loopback and CamillaDSP capture were **S32_LE / 96000 Hz / 4 channels**, the Raspberry Pi DAC Pro was **S32_LE / 96000 Hz / 2 channels**, and CamillaDSP used about **1.2% CPU**. Explicit restore returned the exact accepted route, `verify-audio.sh` passed, a second verifier pass also passed, and the DAC was independently confirmed back at **S16_LE / 44100 Hz**.
+- [x] Hardened **S32_LE / 192 kHz** rehearsal physically passed on 16 September 2026: known 24/192 Plex material traversed the ACP loopback, CamillaDSP and Raspberry Pi DAC Pro at **S32_LE / 192000 Hz**. CamillaDSP used about **2.2–2.4% CPU**, and normal restore returned the accepted S16/44.1 graph with verifier success.
+- [x] Deliberate reboot durability repeat passed at 192 kHz: the fsynced split-route/default recovery files retained their exact accepted SHA-256 hashes across a reboot performed without manual `sync`; after boot Plexamp device 9 opened at **192000 Hz** with preferred/best 192000, the full managed path remained S32/192, normal `--restore` worked without the exceptional recovery tool, verification passed twice and the DAC returned to S16/44.1.
+- [x] **Provisional managed candidate:** advance **S32_LE / 192 kHz** to the wider functional gate, retaining **S32_LE / 96 kHz** as fallback if the broader stability/compatibility evidence favours it. This is explicitly provisional until the wider gate passes.
+- [x] First wider-gate AirPlay pass: Shairport acquired the fixed S32_LE/192 kHz managed path but playback was persistently choppy. Repository tracing confirms AirPlay leaves Shairport through ALSA `acp_airplay` → `plug`/softvol/`dmix` → loopback → CamillaDSP; **PipeWire is not in the current AirPlay path**.
+- [ ] **Active AirPlay timing gate:** reproduce the choppy stream with the existing unchanged 192 kHz rehearsal and capture `scripts/audio/snapshot-airplay-hi-res.py`. The 44.1 kHz frame counts were retained at 192 kHz, shrinking `period_size=1024` from ~23.2 ms to ~5.3 ms, `buffer_size=8192` from ~185.8 ms to ~42.7 ms, CamillaDSP `chunksize=1024` from ~23.2 ms to ~5.3 ms and `target_level=2048` from ~46.4 ms to ~10.7 ms.
+- [ ] If that evidence supports buffer pressure, run a controlled fixed-192 comparison with time-appropriate ALSA/CamillaDSP frame counts before changing topology. CamillaDSP 4.1 documents **4096** as the starting chunksize for 176.4/192 kHz.
+- [ ] If a buffered fixed graph remains unsuitable, evaluate **CamillaDSP Controller Adapt** with source-rate ALSA loopback capture plus asynchronous SRC/rate adjustment into a fixed S32_LE/192 kHz processing/output domain. Parallel rate-specific CamillaDSP instances remain a last-resort architecture, not the preferred path.
+- [ ] Wider selected-candidate gate: after the AirPlay timing path is resolved, finish lower-rate Plex/resampling truthfulness, live EQ changes/bypass, Plexamp/source trims and Music Master ownership, alarm preview/scheduled takeover, latency/long-duration stability and recovery before selecting a production managed-bus policy.
 
 Accepted constraints:
 
@@ -179,7 +201,7 @@ Unless deliberately reprioritised:
 2. **Settings and appliance ownership** — COMPLETE through #93, including schema-v2 Backup/Restore
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE, including article QR and configurable sections
-5. **High-resolution Plexamp audio / mixer-EQ path** — NEXT
+5. **High-resolution Plexamp audio / mixer-EQ path** — ACTIVE
 6. **Astronomy**
 7. **Appliance resilience**
 8. **Events calendar**
@@ -192,9 +214,18 @@ This priority list is authoritative.
 
 Goal: materially higher-resolution Plex playback with managed EQ active, plus a measured source-rate-native/bit-perfect path when processing is bypassed and safety permits it.
 
-- [ ] Physical capability audit with known 16/44.1, 24/48, 24/96 and 24/192 Plex files.
-- [ ] Choose a managed high-resolution bus by measured CPU/stability/latency.
-- [ ] Remove the managed 16/44.1 bottleneck while preserving trims → Music Master → reserve → EQ → limiter → alarm join.
+Active branch: `feature/hi-res-audio-eq`
+
+- [x] Measure the Raspberry Pi DAC Pro's exact supported format/rate combinations on the real appliance with the audio graph deliberately quiesced and restored: `S16_LE`, `S24_LE` and `S32_LE` accept 44.1–192 kHz; packed `S24_3LE` does not. This proves ALSA hardware constraints, not yet sustained hi-res playback.
+- [x] Physical capability audit with known **16/44.1, 24/48, 24/96 and 24/192** Plex files: Plexamp remains native-rate through its source stream/mixer and prefers 48/96/192 for the managed device, while the current ACP device opens at 44.1 and the downstream path remains **S16_LE / 44.1 kHz**. The managed ACP output-device chain is the measured bottleneck.
+- [x] **S32_LE / 96 kHz** managed-bus rehearsal physically passed end-to-end with known 24/96 Plex material: device 9, loopback, CamillaDSP and the physical DAC all ran at 96 kHz, CamillaDSP used about 1.2% CPU, and exact restore returned the accepted S16/44.1 graph with verifier success.
+- [x] **S32_LE / 192 kHz** managed-bus rehearsal also physically passed; a deliberate reboot repeat proved the hardened recovery copies remain durable without manual `sync`, device 9 and the full managed path return at 192 kHz after boot, and normal restore still returns the accepted S16/44.1 graph. **192 kHz is the provisional managed candidate; 96 kHz remains the fallback.**
+- [x] First AirPlay test on the fixed 192 kHz candidate acquired the managed path but was persistently choppy; the active AirPlay route is Shairport → ALSA `acp_airplay`/`plug` → fixed `dmix` → loopback → CamillaDSP, not PipeWire.
+- [ ] Capture the unchanged 192 kHz failing graph with `scripts/audio/snapshot-airplay-hi-res.py`, including time-duration geometry, live `hw_params`, selected Shairport timing/output settings and bounded timing/error journals.
+- [ ] If confirmed, compare a time-scaled fixed-192 ALSA/CamillaDSP buffering candidate before introducing dynamic topology; CamillaDSP documents 4096 samples as the 176.4/192 kHz chunksize starting point.
+- [ ] Keep CamillaDSP Controller Adapt as the next architecture candidate if necessary: source-rate ALSA capture, adapted `capture_samplerate`/format, asynchronous SRC + rate adjustment, fixed S32_LE/192 kHz processing/output.
+- [ ] Run the remainder of the wider 192 kHz candidate gate: lower-rate Plex/resampling truthfulness, live EQ/bypass, trims/Music Master, alarm takeover, latency/long-run stability and recovery.
+- [ ] Remove the managed 16/44.1 bottleneck in the production profile while preserving trims → Music Master → reserve → EQ → limiter → alarm join.
 - [ ] Define truthful EQ-active high-resolution and native-bypass behaviour.
 - [ ] Investigate source-rate-native Direct Plexamp across 44.1/48/88.2/96/176.4/192 kHz.
 - [ ] Define deliberate resampling policy for Plexamp and AirPlay sources.
@@ -216,6 +247,7 @@ Goal: materially higher-resolution Plex playback with managed EQ active, plus a 
 
 Detailed design/security constraints: [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md).
 
+- [ ] **System-time/NTP authority:** add an explicit NTP/time-synchronisation setting and health check; verify the Pi is actually synchronized after boot and network recovery, expose truthful synchronized/unsynchronized state, and define sensible configurable/default time sources. This owns wall-clock accuracy for the bedside clock, alarms, timestamps and future astronomy calculations and is deliberately separate from audio sample-clock drift correction.
 - [ ] Investigate intermittent read-only root-filesystem/SD behaviour observed during commissioned-Pi testing.
 - [ ] Reduce avoidable appliance writes where this does not weaken rollback/history/recovery.
 - [ ] Design kiosk-safe Wi-Fi recovery with a bounded temporary NetworkManager-backed recovery AP and local QR/captive-portal-style setup.
@@ -239,5 +271,5 @@ Before promoting the next development cycle to `main`:
 - the clean-room installer/runbook must still pass on supported hardware;
 - repeat `bash setup.sh` must remain safe/idempotent;
 - repository/docs catalogues and this live roadmap must describe the actual shipped state;
-- the accepted production appliance must not be used as the disposable target for destructive audio/storage experiments;
+- materially risky audio/storage experiments must remain isolated to feature branches with a known-good rollback/rebuild path through `develop` or `main`;
 - release version/tag/name is assigned only after final scope and acceptance are known.
