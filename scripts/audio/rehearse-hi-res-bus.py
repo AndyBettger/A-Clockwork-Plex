@@ -36,6 +36,27 @@ CANDIDATE_FORMAT: Final = "S32_LE"
 ALLOWED_RATES: Final = (96000, 192000)
 EXPECTED_BASELINE_RATE: Final = 44100
 EXPECTED_BASELINE_FORMAT: Final = "S16_LE"
+TIMING_PROFILES: Final = ("unchanged", "time-scaled")
+BASELINE_GEOMETRY: Final = {
+    "period_size": 1024,
+    "buffer_size": 8192,
+    "chunksize": 1024,
+    "target_level": 2048,
+}
+TIME_SCALED_GEOMETRY: Final = {
+    96000: {
+        "period_size": 2048,
+        "buffer_size": 16384,
+        "chunksize": 2048,
+        "target_level": 4096,
+    },
+    192000: {
+        "period_size": 4096,
+        "buffer_size": 32768,
+        "chunksize": 4096,
+        "target_level": 8192,
+    },
+}
 
 HW_PARAMS: Final = (
     ("Plexamp -> ACP loopback", Path("/proc/asound/card7/pcm0p/sub0/hw_params")),
@@ -178,7 +199,19 @@ def replace_exact_once(content: str, old: str, new: str, label: str) -> str:
     return content.replace(old, new, 1)
 
 
-def render_candidate(rate: int) -> tuple[str, str]:
+def candidate_geometry(rate: int, timing_profile: str) -> dict[str, int]:
+    if timing_profile == "unchanged":
+        return dict(BASELINE_GEOMETRY)
+    if timing_profile == "time-scaled":
+        geometry = TIME_SCALED_GEOMETRY.get(rate)
+        if geometry is None:
+            raise RuntimeError(f"No time-scaled geometry exists for rate {rate}.")
+        return dict(geometry)
+    raise RuntimeError(f"Unsupported timing profile: {timing_profile}")
+
+
+def render_candidate(rate: int, timing_profile: str = "unchanged") -> tuple[str, str]:
+    geometry = candidate_geometry(rate, timing_profile)
     route = read_regular(PROFILE_ROUTE)
     defaults = read_regular(PROFILE_DEFAULTS)
     route = replace_exact_once(
@@ -205,10 +238,41 @@ def render_candidate(rate: int) -> tuple[str, str]:
         f"FORMAT={CANDIDATE_FORMAT}\n",
         "defaults format",
     )
+    if timing_profile == "time-scaled":
+        route = replace_exact_once(
+            route,
+            f"        period_size {BASELINE_GEOMETRY['period_size']}\n",
+            f"        period_size {geometry['period_size']}\n",
+            "split-route period size",
+        )
+        route = replace_exact_once(
+            route,
+            f"        buffer_size {BASELINE_GEOMETRY['buffer_size']}\n",
+            f"        buffer_size {geometry['buffer_size']}\n",
+            "split-route buffer size",
+        )
+        for key, label in (
+            ("PERIOD_SIZE", "period_size"),
+            ("BUFFER_SIZE", "buffer_size"),
+            ("CHUNKSIZE", "chunksize"),
+            ("TARGET_LEVEL", "target_level"),
+        ):
+            defaults = replace_exact_once(
+                defaults,
+                f"{key}={BASELINE_GEOMETRY[label]}\n",
+                f"{key}={geometry[label]}\n",
+                f"defaults {label}",
+            )
     return route, defaults
 
 
-def write_state(rate: int, candidate_route: str, candidate_defaults: str) -> None:
+def write_state(
+    rate: int,
+    timing_profile: str,
+    geometry: dict[str, int],
+    candidate_route: str,
+    candidate_defaults: str,
+) -> None:
     ensure_no_existing_rehearsal()
     original_route = read_regular(INSTALLED_ROUTE)
     original_defaults = read_regular(INSTALLED_DEFAULTS)
@@ -236,6 +300,11 @@ def write_state(rate: int, candidate_route: str, candidate_defaults: str) -> Non
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "candidate_format": CANDIDATE_FORMAT,
         "candidate_rate": rate,
+        "candidate_timing_profile": timing_profile,
+        "candidate_period_size": geometry["period_size"],
+        "candidate_buffer_size": geometry["buffer_size"],
+        "candidate_chunksize": geometry["chunksize"],
+        "candidate_target_level": geometry["target_level"],
         "original_route_sha256": original_route_hash,
         "original_defaults_sha256": original_defaults_hash,
         "candidate_route_sha256": sha256_text(candidate_route),
@@ -325,12 +394,13 @@ def validate_candidate_files(state: dict[str, Any]) -> None:
         raise RuntimeError("Installed defaults do not match the rehearsed candidate.")
 
 
-def apply(rate: int) -> None:
+def apply(rate: int, timing_profile: str) -> None:
     require_root()
     ensure_no_existing_rehearsal()
     ensure_accepted_baseline()
-    candidate_route, candidate_defaults = render_candidate(rate)
-    write_state(rate, candidate_route, candidate_defaults)
+    geometry = candidate_geometry(rate, timing_profile)
+    candidate_route, candidate_defaults = render_candidate(rate, timing_profile)
+    write_state(rate, timing_profile, geometry, candidate_route, candidate_defaults)
     try:
         atomic_write(INSTALLED_ROUTE, candidate_route, 0o644)
         atomic_write(INSTALLED_DEFAULTS, candidate_defaults, 0o644)
@@ -340,6 +410,8 @@ def apply(rate: int) -> None:
         camilla = read_regular(CAMILLADSP_CONFIG)
         for marker in (
             f"samplerate: {rate}",
+            f"chunksize: {geometry['chunksize']}",
+            f"target_level: {geometry['target_level']}",
             f"format: {CANDIDATE_FORMAT}",
         ):
             if marker not in camilla:
@@ -369,6 +441,11 @@ def apply(rate: int) -> None:
     print("HI_RES_REHEARSAL_ACTIVE")
     print(f"candidate_format={CANDIDATE_FORMAT}")
     print(f"candidate_rate={rate}")
+    print(f"candidate_timing_profile={timing_profile}")
+    print(f"candidate_period_size={geometry['period_size']}")
+    print(f"candidate_buffer_size={geometry['buffer_size']}")
+    print(f"candidate_chunksize={geometry['chunksize']}")
+    print(f"candidate_target_level={geometry['target_level']}")
     print(f"state={STATE_PATH}")
     print("The candidate remains active until --restore is run.")
     print(
@@ -436,6 +513,11 @@ def snapshot() -> None:
             state = {}
         print(f"candidate_format={state.get('candidate_format', 'unknown')}")
         print(f"candidate_rate={state.get('candidate_rate', 'unknown')}")
+        print(f"candidate_timing_profile={state.get('candidate_timing_profile', 'unchanged')}")
+        print(f"candidate_period_size={state.get('candidate_period_size', 'unknown')}")
+        print(f"candidate_buffer_size={state.get('candidate_buffer_size', 'unknown')}")
+        print(f"candidate_chunksize={state.get('candidate_chunksize', 'unknown')}")
+        print(f"candidate_target_level={state.get('candidate_target_level', 'unknown')}")
         print(f"durable_backups={state.get('durable_backups', False)}")
     else:
         print("candidate_state=none")
@@ -457,14 +539,21 @@ def snapshot() -> None:
     print((result.stdout or result.stderr).strip() or "unavailable")
 
 
-def print_plan(rate: int | None) -> None:
+def print_plan(rate: int | None, timing_profile: str) -> None:
     requested = rate if rate is not None else 96000
-    route, defaults = render_candidate(requested)
+    geometry = candidate_geometry(requested, timing_profile)
+    route, defaults = render_candidate(requested, timing_profile)
     print("A Clockwork Plex — guarded hi-res managed-bus rehearsal")
     print()
     print("Default mode: plan only; no files, services, routes or PCMs are changed.")
     print(f"Candidate format: {CANDIDATE_FORMAT}")
     print(f"Candidate rate:   {requested}")
+    print(f"Timing profile:   {timing_profile}")
+    print(
+        "Timing geometry:  "
+        f"period={geometry['period_size']}, buffer={geometry['buffer_size']}, "
+        f"chunk={geometry['chunksize']}, target={geometry['target_level']}"
+    )
     print(f"Allowed rates:    {', '.join(str(value) for value in ALLOWED_RATES)}")
     print()
     print("An --apply run will:")
@@ -506,6 +595,16 @@ def parse_args() -> argparse.Namespace:
         choices=ALLOWED_RATES,
         help="candidate fixed bus rate for plan/apply (96000 or 192000)",
     )
+    parser.add_argument(
+        "--timing-profile",
+        choices=TIMING_PROFILES,
+        default="unchanged",
+        help=(
+            "frame geometry: unchanged preserves the original 44.1 kHz frame counts; "
+            "time-scaled uses power-of-two high-rate values with approximately the "
+            "accepted graph's timing headroom"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -515,7 +614,7 @@ def main() -> int:
         if args.apply:
             if args.rate is None:
                 raise RuntimeError("--apply requires --rate 96000 or --rate 192000.")
-            apply(args.rate)
+            apply(args.rate, args.timing_profile)
         elif args.restore:
             if args.rate is not None:
                 raise RuntimeError("--restore does not accept --rate.")
@@ -525,7 +624,7 @@ def main() -> int:
                 raise RuntimeError("--snapshot does not accept --rate.")
             snapshot()
         else:
-            print_plan(args.rate)
+            print_plan(args.rate, args.timing_profile)
         return 0
     except (RuntimeError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

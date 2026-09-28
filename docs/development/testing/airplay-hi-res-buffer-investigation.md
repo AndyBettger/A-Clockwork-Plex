@@ -52,15 +52,39 @@ CamillaDSP 4.1 documentation recommends a starting `chunksize` of **4096** at 17
 - Shairport/CamillaDSP process/service state; and
 - recent journal lines limited to timing, buffer, resync, ALSA, rate, underrun/overrun and error-related terms. IPv4 and MAC addresses are redacted from those journal lines.
 
-The first physical test keeps the original 1024/8192/1024/2048 frame counts unchanged. This is intentional: establish evidence from the failing graph before changing buffer geometry.
+The first physical test kept the original 1024/8192/1024/2048 frame counts unchanged. This was intentional: establish evidence from the failing graph before changing buffer geometry.
 
-## Candidate follow-up if buffer pressure is confirmed
+## Physical unchanged-geometry capture — CONFIRMED, 29 September 2026
 
-Do **not** adopt this until the unchanged-geometry snapshot has been captured.
+The commissioned bedroom Pi repeated the exact fixed **S32_LE / 192 kHz** rehearsal on branch head `9708da39f09658ca6d232b2903edf0f9a8725a2c`. The accepted 44.1 kHz verifier passed before apply, the candidate activated cleanly, and the same AirPlay source reproduced the choppy playback.
 
-A controlled second candidate can scale the high-rate frame counts so their time durations remain approximately comparable with the accepted 44.1 kHz graph. CamillaDSP's documented 192 kHz starting point of 4096 samples is a natural candidate for `chunksize`; ALSA period/buffer and CamillaDSP `target_level` must be considered together rather than changing one value in isolation.
+The read-only snapshot established:
 
-The comparison should retain the same S32_LE / 192 kHz processing/output rate and the same AirPlay source so the principal variable is timing headroom.
+- configured geometry remained ALSA **1024 / 8192** and CamillaDSP **chunksize 1024 / target_level 2048**, giving only ~5.33 ms chunks and ~10.67 ms target level at 192 kHz;
+- the live ACP dmix/loopback was **S32_LE / 192000 / 4 channels / period 1024 / buffer 8192**;
+- CamillaDSP capture and physical DAC playback were both **S32_LE / 192000**, but ALSA exposed **period 512 / buffer 4096** at those endpoints — about 2.67 ms and 21.33 ms respectively;
+- CamillaDSP had `enable_rate_adjust=true`, `adjust_period=1`, no explicit `capture_samplerate`, and `resampler=null`;
+- CamillaDSP was only about **2.9% CPU**, so the fault is not explained by simple processor saturation;
+- the CamillaDSP journal repeatedly recorded **playback buffer underruns**, **capture read overruns**, **capture stalled / processing stalled**, and later direct playback write underruns while the audible fault was present;
+- the bounded Shairport journal did not expose a corresponding stream/timing error in this capture; and
+- normal `--restore` returned the exact accepted **S16_LE / 44100 Hz** graph and both the internal and independent verifier passes succeeded.
+
+This is strong evidence that the original fixed-192 graph has inadequate time-domain buffering/scheduling headroom. It does not yet prove that buffering is the only AirPlay issue, but it is sufficient to justify the controlled buffer comparison before adding Controller-driven dynamic topology.
+
+## Active follow-up: time-scaled fixed-192 candidate
+
+The second candidate keeps **S32_LE / 192 kHz**, the same source routing, the same EQ/mixer graph, `queuelimit=4`, rate-adjust policy and AirPlay source. Only the frame geometry is increased as one timing-headroom experiment:
+
+| Setting | Unchanged 192 candidate | Time-scaled 192 candidate | Candidate duration |
+| --- | ---: | ---: | ---: |
+| ALSA `period_size` | 1024 | **4096** | ~21.33 ms |
+| ALSA `buffer_size` | 8192 | **32768** | ~170.67 ms |
+| CamillaDSP `chunksize` | 1024 | **4096** | ~21.33 ms |
+| CamillaDSP `target_level` | 2048 | **8192** | ~42.67 ms |
+
+These are deliberately power-of-two values close to the accepted 44.1 kHz graph's time durations. CamillaDSP's documented 176.4/192 kHz starting point is 4096 samples (~22 ms), while the accepted ACP graph historically used a target level of two chunks; the candidate preserves that two-chunk target relationship rather than changing queue policy independently.
+
+The rehearsal tool exposes this only through the explicit `--timing-profile time-scaled` option. Its default `unchanged` profile preserves the already-measured experiment, and the normal exact-backup/restore contract is unchanged.
 
 ## CamillaDSP Controller candidate — deferred until the fixed graph is understood
 
@@ -84,13 +108,14 @@ It is deliberately **not** the first response to the choppy AirPlay result. A fi
 
 Running several preconfigured CamillaDSP capture paths/instances for different AirPlay rates is technically possible to construct, but it duplicates routing/lifecycle ownership, makes shared EQ/volume state harder to keep atomic, and solves a format-negotiation problem in a layer that ALSA plus the Controller are already designed to handle. Keep this only as an architectural fallback, not an implementation target.
 
-## Physical test sequence
+## Next physical test sequence
 
 1. Start from the accepted S16_LE / 44.1 kHz graph and verify it.
-2. Activate the existing guarded **S32_LE / 192 kHz** rehearsal without changing its buffer/frame geometry.
-3. Start the known AirPlay source that reproduced persistent choppiness.
-4. While the fault is audible, run `python3 scripts/audio/snapshot-airplay-hi-res.py` and retain the complete output.
-5. Restore the accepted graph with the existing rehearsal `--restore` path and verify the DAC has returned to S16_LE / 44.1 kHz.
-6. Only after reviewing that evidence decide whether the next comparison is a time-scaled fixed-192 buffer candidate or a source-rate capture/Controller experiment.
+2. Activate **S32_LE / 192 kHz + time-scaled timing geometry** with `sudo python3 scripts/audio/rehearse-hi-res-bus.py --apply --rate 192000 --timing-profile time-scaled`.
+3. Start the same AirPlay source that reproduced persistent choppiness and listen for at least several minutes.
+4. While AirPlay is active, run `python3 scripts/audio/snapshot-airplay-hi-res.py` and retain the complete output whether playback is good or bad.
+5. Restore with `sudo python3 scripts/audio/rehearse-hi-res-bus.py --restore` and independently re-run `bash scripts/audio/verify-audio.sh`.
+6. Compare audible stability, live `hw_params` and CamillaDSP underrun/overrun/stall journal evidence with the unchanged-geometry capture.
+7. Only if the scaled fixed graph remains unsuitable move to source-rate capture plus CamillaDSP Controller/async-SRC architecture.
 
 The acceptance boundary remains appliance reliability first: AirPlay must be stable and truthfully described even though high-resolution processing is primarily a Plexamp requirement.
