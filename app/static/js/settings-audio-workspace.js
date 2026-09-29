@@ -234,7 +234,7 @@
     const labels = {
       master: ['Master', 'Persistent final output default.'],
       plexamp: ['Plexamp trim', 'Downstream of Plexamp’s own volume.'],
-      airplay: ['AirPlay trim', 'Downstream of the iPhone/sender volume.'],
+      airplay: ['AirPlay trim', 'Downstream of the receiver-owned AirPlay live level.'],
       alarm: ['Maximum alarm volume', 'Global ceiling after each alarm’s target and fade.'],
     };
     Object.entries(labels).forEach(([id, values]) => {
