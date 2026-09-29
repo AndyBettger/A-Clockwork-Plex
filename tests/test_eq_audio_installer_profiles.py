@@ -31,17 +31,18 @@ class EqAudioInstallerProfileTests(unittest.TestCase):
         self.assertIn('slave.pcm "acp_alarm_route"', alarm_block)
         self.assertNotIn('slave.pcm "acp_master"', alarm_block)
 
-    def test_airplay_live_stage_exists_in_split_and_direct_routes(self) -> None:
-        for route in (self.split, self.direct):
-            live_start = route.index("pcm.acp_airplay_live_volume")
-            live_end = route.index("pcm.acp_airplay {", live_start)
-            live_block = route[live_start:live_end]
-            self.assertIn('name "A Clockwork AirPlay Live"', live_block)
-            self.assertIn('slave.pcm "acp_airplay_volume"', live_block)
+    def test_split_route_contains_receiver_owned_airplay_live_stage(self) -> None:
+        live_start = self.split.index("pcm.acp_airplay_live_volume")
+        live_end = self.split.index("pcm.acp_airplay {", live_start)
+        live_block = self.split[live_start:live_end]
+        self.assertIn('name "A Clockwork AirPlay Live"', live_block)
+        self.assertIn('slave.pcm "acp_airplay_volume"', live_block)
 
-            airplay_start = route.index("pcm.acp_airplay {", live_end)
-            airplay_block = route[airplay_start: route.index("pcm.acp_alarm_volume", airplay_start)]
-            self.assertIn('slave.pcm "acp_airplay_live_volume"', airplay_block)
+        airplay_start = self.split.index("pcm.acp_airplay {", live_end)
+        airplay_block = self.split[
+            airplay_start:self.split.index("pcm.acp_alarm_volume", airplay_start)
+        ]
+        self.assertIn('slave.pcm "acp_airplay_live_volume"', airplay_block)
 
     def test_direct_failback_keeps_alarm_outside_music_master(self) -> None:
         alarm_start = self.direct.index("pcm.acp_alarm_volume")
