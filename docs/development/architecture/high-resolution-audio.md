@@ -209,7 +209,8 @@ Detailed physical procedure and evidence boundary: [`../testing/airplay-hi-res-b
 20. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
 21. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
 22. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-23. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+23. **Promoted failback/recovery physically accepted:** the normal route owner activated the promoted Direct profile, CamillaDSP stopped, and the DAC opened S16_LE/44.1 at 1024/8192. AirPlay remained clean with receiver-owned Live/Trim/Music Master controls. Normal split-bus activation then restored the production fixed-192 route, restarted CamillaDSP, passed the verifier and returned the live ACP/CamillaDSP/DAC graph to S32_LE/192 kHz; the bounded transition journal filter contained no error/underrun/overrun/XRUN/Broken pipe/stall lines.
+24. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 
