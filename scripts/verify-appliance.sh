@@ -14,7 +14,7 @@ DASHBOARD_URL=http://localhost:8088
 WU_KEY_FILE=
 FAILURES=0
 WARNINGS=0
-DIRECT_SHA256=654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9
+DIRECT_SHA256=0166bd73e3e9a34dbdebff995de9fa6e39d2cd344dca574c891d46dd1a6aacfb
 MIXER_HELPER=/usr/local/bin/a-clockwork-plex-audio-mixer
 WEATHER_SECRET_HELPER="${WEATHER_SECRET_HELPER:-/usr/local/bin/a-clockwork-plex-weather-secret}"
 
