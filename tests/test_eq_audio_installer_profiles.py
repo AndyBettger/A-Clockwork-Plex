@@ -44,12 +44,51 @@ class EqAudioInstallerProfileTests(unittest.TestCase):
         ]
         self.assertIn('slave.pcm "acp_airplay_live_volume"', airplay_block)
 
+    def test_direct_failback_contains_receiver_owned_airplay_live_stage(self) -> None:
+        live_start = self.direct.index("pcm.acp_airplay_live_volume")
+        live_end = self.direct.index("pcm.acp_airplay {", live_start)
+        live_block = self.direct[live_start:live_end]
+        self.assertIn('name "A Clockwork AirPlay Live"', live_block)
+        self.assertIn('slave.pcm "acp_airplay_volume"', live_block)
+
+        airplay_start = self.direct.index("pcm.acp_airplay {", live_end)
+        airplay_block = self.direct[
+            airplay_start:self.direct.index("pcm.acp_alarm_volume", airplay_start)
+        ]
+        self.assertIn('slave.pcm "acp_airplay_live_volume"', airplay_block)
+
     def test_direct_failback_keeps_alarm_outside_music_master(self) -> None:
         alarm_start = self.direct.index("pcm.acp_alarm_volume")
         alarm_end = self.direct.index("pcm.acp_alarm {", alarm_start)
         alarm_block = self.direct[alarm_start:alarm_end]
         self.assertIn('slave.pcm "acp_dmix"', alarm_block)
         self.assertNotIn('slave.pcm "acp_master"', alarm_block)
+
+    def test_split_profile_pins_physically_accepted_192khz_geometry(self) -> None:
+        defaults = (PROFILE / "a-clockwork-plex-split-bus.defaults").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("format S32_LE", self.split)
+        self.assertIn("rate 192000", self.split)
+        self.assertIn("period_size 4096", self.split)
+        self.assertIn("buffer_size 32768", self.split)
+        for value in (
+            "SAMPLE_RATE=192000",
+            "FORMAT=S32_LE",
+            "PERIOD_SIZE=4096",
+            "BUFFER_SIZE=32768",
+            "CHUNKSIZE=4096",
+            "TARGET_LEVEL=12288",
+        ):
+            self.assertIn(value, defaults)
+
+        for value in (
+            "samplerate: 192000",
+            "chunksize: 4096",
+            "target_level: 12288",
+            "format: S32_LE",
+        ):
+            self.assertIn(value, self.camilla)
 
     def test_camilladsp_pipeline_keeps_fixed_headroom_before_bypassable_tone_stage(self) -> None:
         headroom = self.camilla.index("names: [headroom]")
