@@ -98,6 +98,25 @@ The objective evidence matched that listening result:
 
 The A/B evidence therefore supports the original diagnosis: the choppy AirPlay behaviour was caused by inadequate high-rate time-domain buffering/scheduling headroom in the unchanged-frame 192 kHz graph. The fixed-192 architecture remains viable and now advances to the broader functional/stability gate using the time-scaled geometry. These values are still a physically proven candidate rather than the production profile until that wider gate is complete.
 
+## Plex source-rate matrix on the time-scaled fixed-192 graph — PASSED, 29 September 2026
+
+The same physically stable time-scaled candidate was then exercised with the known Plex matrix: **16/44.1, 24/48, 24/96 and 24/192**. All four sources played correctly while the managed bus, CamillaDSP capture and physical DAC remained fixed at **S32_LE / 192000 Hz**.
+
+The Plexamp negotiation evidence shows the intended fixed-processing-domain behaviour:
+
+| Known source | Plexamp source/mixer evidence | Managed output-device evidence | Downstream graph |
+| --- | --- | --- | --- |
+| **16/44.1** | pipeline/mixer/source stream at **44.1 kHz** | Device 9 was already open at 192 kHz from the prior 192 kHz stream, so no fresh reopen line was emitted | loopback → CamillaDSP → DAC remained **S32_LE / 192 kHz** |
+| **24/48** | pipeline/mixer/source stream at **48 kHz** | Device 9 opened **192 kHz**, while Plexamp reported preferred/best **48 kHz** | loopback → CamillaDSP → DAC remained **S32_LE / 192 kHz** |
+| **24/96** | pipeline/mixer/source stream at **96 kHz** | Device 9 opened **192 kHz**, while Plexamp reported preferred/best **96 kHz** | loopback → CamillaDSP → DAC remained **S32_LE / 192 kHz** |
+| **24/192** | pipeline/mixer/source stream at **192 kHz** | Device 9 opened **192 kHz**, preferred/best **192 kHz** | loopback → CamillaDSP → DAC remained **S32_LE / 192 kHz** |
+
+The 44.1 kHz case is not evidence of an unobserved 44.1→192 conversion location by itself because Device 9 was already open at 192 kHz before the track change. Taken together with the fresh 48/96/192 opens and the fixed live downstream state, however, the appliance contract is clear: **Plexamp can keep source-rate decoding/mixing while the ACP managed output remains a fixed 192 kHz processing domain**. The exact implementation boundary performing rate conversion remains intentionally unspecified; it may involve BASS output conversion, ALSA `plug`, or cooperation between them.
+
+CamillaDSP stayed around **1.7–1.8% CPU** during the four-source pass, the same process remained active across the matrix, and exact restore again returned the accepted **S16_LE / 44.1 kHz** graph with both restore-time and independent verifier success.
+
+This closes the lower-rate Plex/resampling-truthfulness part of the wider fixed-192 gate. The truthful product wording for EQ-active playback is therefore **fixed 192 kHz processing/output**, not “native 192 kHz” for lower-rate sources.
+
 ## CamillaDSP Controller candidate — deferred fallback
 
 The current CamillaDSP Controller has direct relevance to the longer-term architecture. On Linux it can monitor an ALSA device for sample-rate/format changes. Its Adapt provider can keep a resampling base configuration and update `capture_samplerate` to the newly detected input rate, while also adapting capture format when configured.
@@ -125,8 +144,8 @@ Running several preconfigured CamillaDSP capture paths/instances for different A
 Keep the same **time-scaled S32_LE / 192 kHz** candidate and move to the remaining wider gate rather than changing topology again.
 
 1. Re-enter the time-scaled 192 kHz rehearsal from the accepted baseline.
-2. Exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192**, recording Plexamp negotiation plus live loopback/Camilla/DAC state so resampling behaviour is described truthfully.
-3. Exercise live EQ changes and bypass, Plexamp/AirPlay source trims and Music Master ownership without changing the fixed graph.
+2. **Complete:** known Plex **16/44.1, 24/48, 24/96 and 24/192** sources all played correctly; Plexamp retained source-rate pipeline/mixer behaviour while the managed device/downstream graph stayed fixed at S32_LE/192 kHz.
+3. **Active next:** exercise live EQ changes and bypass, Plexamp/AirPlay source trims and Music Master ownership without changing the fixed graph.
 4. Exercise alarm preview/scheduled takeover and return-to-music behaviour.
 5. Run a longer mixed-source stability period and inspect CamillaDSP journals for XRUN/stall recovery.
 6. Restore exactly to the accepted 16/44.1 baseline and independently verify.

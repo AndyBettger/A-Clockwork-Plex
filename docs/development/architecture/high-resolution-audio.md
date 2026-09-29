@@ -166,6 +166,8 @@ The controlled time-scaled comparison then physically passed on 29 September 202
 
 That A/B result makes inadequate time-domain buffer/scheduling headroom the supported explanation for the original AirPlay failure and keeps the **fixed S32_LE/192 kHz architecture** as the preferred managed candidate. The time-scaled values are physically proven candidate geometry, not yet the production profile; the remaining wider Plex/EQ/mixer/alarm/long-run gate must pass before production promotion. The ordinary rehearsal default remains the original unchanged-frame profile so the failure remains reproducible.
 
+The fixed-processing-domain interpretation was then physically checked with known **16/44.1, 24/48, 24/96 and 24/192** Plex material on the time-scaled candidate. All four played correctly. Plexamp rebuilt its internal pipeline/mixer/source stream at the source rate; for fresh 48/96/192 transitions Device 9 nevertheless opened at **192000 Hz** while reporting the source rate as its preferred/best rate. In the 44.1 kHz case Device 9 was already open at 192 kHz from the preceding stream and did not emit a fresh reopen line, while the live loopback/Camilla/DAC path remained S32_LE/192 kHz. This establishes the truthful EQ-active contract as a **fixed S32_LE/192 kHz processing/output domain with lower-rate sources resampled before the fixed managed boundary**, without claiming a specific converter implementation that the evidence does not isolate. CamillaDSP stayed around 1.7–1.8% CPU and exact restore again returned the accepted S16/44.1 graph.
+
 The current CamillaDSP Controller remains a credible fallback rather than a speculative custom mechanism. Its Linux ALSA listener can watch a loopback/device for sample-rate or format changes, and its Adapt provider can update capture format and `capture_samplerate` for a base configuration that contains a resampler while leaving the processing/output `samplerate` fixed. That supports a future shape of source-rate ALSA capture → Controller → asynchronous SRC/rate adjustment → fixed S32_LE/192 kHz processing/output. Parallel rate-specific CamillaDSP instances remain a last-resort topology because they would duplicate routing/lifecycle and shared EQ/volume ownership.
 
 Detailed physical procedure and evidence boundary: [`../testing/airplay-hi-res-buffer-investigation.md`](../testing/airplay-hi-res-buffer-investigation.md).
@@ -188,11 +190,12 @@ Detailed physical procedure and evidence boundary: [`../testing/airplay-hi-res-b
 6. **192 kHz + reboot durability complete:** matching 24/192 material physically traversed device 9 → ACP loopback → CamillaDSP → DAC at **S32_LE / 192 kHz**; CamillaDSP used about 2.2–2.4% CPU; fsynced recovery hashes survived an un-synced reboot unchanged; and normal restore returned the accepted S16/44.1 graph with verifier success.
 7. **Provisional managed candidate:** advance **S32_LE / 192 kHz** to the wider functional gate, retaining **S32_LE / 96 kHz** as fallback. This is explicitly provisional until the wider gate passes.
 8. **AirPlay buffer diagnosis complete:** the unchanged-frame 192 kHz graph reproduced choppiness plus repeated underrun/overrun/stall evidence; the otherwise-identical time-scaled 4096/32768 ALSA + 4096/8192 CamillaDSP candidate played the same AirPlay material cleanly twice and produced two clean timing snapshots. Fixed S32_LE/192 kHz therefore remains the preferred architecture; Controller Adapt is deferred unless a later gate requires it.
-9. **Active:** finish the wider fixed-192 functional gate: known 16/44.1, 24/48, 24/96 and 24/192 Plex/resampling truthfulness; live EQ changes/bypass; mixer/source trims and Music Master ownership; alarm preview/scheduled takeover; latency/long-run mixed-source stability; and exact recovery.
-10. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
-11. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
-12. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-13. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+9. **Plex source-rate matrix complete:** known 16/44.1, 24/48, 24/96 and 24/192 material all played correctly; Plexamp retained source-rate pipeline/mixer behaviour while Device 9/downstream processing stayed fixed at S32_LE/192 kHz. This closes lower-rate resampling truthfulness for the managed candidate.
+10. **Active:** continue the wider fixed-192 functional gate with live EQ changes/bypass, mixer/source trims and Music Master ownership, then alarm preview/scheduled takeover, latency/long-run mixed-source stability and exact recovery.
+11. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
+12. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
+13. Expose source format, processing format and final DAC format/rate separately in diagnostics.
+14. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 
