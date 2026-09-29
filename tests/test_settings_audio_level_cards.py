@@ -52,6 +52,8 @@ class SettingsAudioLevelCardTests(unittest.TestCase):
         self.assertIn("Managed split bus · active ALSA route", self.workspace)
         self.assertIn("Direct failback · active ALSA route", self.workspace)
         self.assertIn("Physical DAC · live ALSA hw_params", self.workspace)
+        self.assertIn("Downstream of the receiver-owned AirPlay live level.", self.workspace)
+        self.assertNotIn("Downstream of the iPhone/sender volume.", self.workspace)
         self.assertNotIn("native 192", self.workspace.lower())
         self.assertIn(".audio-path-grid", self.workspace_css)
         self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.workspace_css)
