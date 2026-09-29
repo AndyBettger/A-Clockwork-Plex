@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,48 @@ SPEC.loader.exec_module(HELPER)
 
 
 class AudioMixerScaleTests(unittest.TestCase):
+    def test_managed_split_bus_metadata_overrides_legacy_rate_and_dac(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = root / "a-clockwork-plex-audio"
+            managed = root / "a-clockwork-plex-split-bus"
+            legacy.write_text(
+                "ALSA_CARD=Legacy\n"
+                "ALSA_DEVICE=9\n"
+                "SAMPLE_RATE=44100\n"
+                "CHANNELS=2\n",
+                encoding="utf-8",
+            )
+            managed.write_text(
+                "DAC_CARD=Pro\n"
+                "DAC_DEVICE=0\n"
+                "SAMPLE_RATE=192000\n",
+                encoding="utf-8",
+            )
+
+            config = HELPER.load_config(legacy, managed)
+
+        self.assertEqual(config["ALSA_CARD"], "Pro")
+        self.assertEqual(config["ALSA_DEVICE"], "0")
+        self.assertEqual(config["SAMPLE_RATE"], "192000")
+        self.assertEqual(config["CHANNELS"], "2")
+
+    def test_managed_metadata_absence_preserves_legacy_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = root / "a-clockwork-plex-audio"
+            legacy.write_text(
+                "ALSA_CARD=Pro\n"
+                "ALSA_DEVICE=0\n"
+                "SAMPLE_RATE=44100\n"
+                "CHANNELS=2\n",
+                encoding="utf-8",
+            )
+
+            config = HELPER.load_config(legacy, root / "missing-managed")
+
+        self.assertEqual(config["SAMPLE_RATE"], "44100")
+
     def test_human_percentages_map_to_expected_decibels(self):
         self.assertAlmostEqual(HELPER.loudness_percent_to_db(100), 0.0, places=2)
         self.assertAlmostEqual(HELPER.loudness_percent_to_db(50), -6.02, places=2)

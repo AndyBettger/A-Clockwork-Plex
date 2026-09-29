@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_PATH = Path("/etc/default/a-clockwork-plex-audio")
+MANAGED_CONFIG_PATH = Path("/etc/default/a-clockwork-plex-split-bus")
 MIN_DB = -51.0
 MAX_DB = 0.0
 CHANNELS = {
@@ -25,15 +26,10 @@ def emit(payload: dict[str, Any], code: int = 0) -> None:
     raise SystemExit(code)
 
 
-def load_config() -> dict[str, str]:
-    values = {
-        "ALSA_CARD": "Pro",
-        "ALSA_DEVICE": "0",
-        "SAMPLE_RATE": "44100",
-        "CHANNELS": "2",
-    }
+def _read_key_values(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
     try:
-        lines = CONFIG_PATH.read_text(encoding="utf-8").splitlines()
+        lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
         return values
     for raw in lines:
@@ -41,10 +37,37 @@ def load_config() -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key in values:
-            values[key] = value
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def load_config(
+    config_path: Path = CONFIG_PATH,
+    managed_config_path: Path = MANAGED_CONFIG_PATH,
+) -> dict[str, str]:
+    values = {
+        "ALSA_CARD": "Pro",
+        "ALSA_DEVICE": "0",
+        "SAMPLE_RATE": "44100",
+        "CHANNELS": "2",
+    }
+
+    legacy = _read_key_values(config_path)
+    for key in values:
+        if key in legacy:
+            values[key] = legacy[key]
+
+    # The shared-mixer defaults still own control creation and the stereo
+    # hardware shape, but the selected managed audio profile owns the active
+    # DAC/rate metadata.  In particular, guarded hi-res rehearsals update the
+    # split-bus defaults while deliberately leaving the helper defaults alone.
+    managed = _read_key_values(managed_config_path)
+    if "DAC_CARD" in managed:
+        values["ALSA_CARD"] = managed["DAC_CARD"]
+    if "DAC_DEVICE" in managed:
+        values["ALSA_DEVICE"] = managed["DAC_DEVICE"]
+    if "SAMPLE_RATE" in managed:
+        values["SAMPLE_RATE"] = managed["SAMPLE_RATE"]
     return values
 
 

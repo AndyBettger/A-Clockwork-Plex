@@ -145,10 +145,11 @@ Keep the same **time-scaled S32_LE / 192 kHz** candidate and move to the remaini
 
 1. Re-enter the time-scaled 192 kHz rehearsal from the accepted baseline.
 2. **Complete:** known Plex **16/44.1, 24/48, 24/96 and 24/192** sources all played correctly; Plexamp retained source-rate pipeline/mixer behaviour while the managed device/downstream graph stayed fixed at S32_LE/192 kHz.
-3. **Active next:** exercise live EQ changes and bypass, Plexamp/AirPlay source trims and Music Master ownership without changing the fixed graph.
-4. Exercise alarm preview/scheduled takeover and return-to-music behaviour.
-5. Run a longer mixed-source stability period and inspect CamillaDSP journals for XRUN/stall recovery.
-6. Restore exactly to the accepted 16/44.1 baseline and independently verify.
-7. Only if one of those gates exposes a fixed-graph limitation reconsider Controller Adapt/source-rate capture.
+3. **Plexamp side complete:** Bass changes were audibly effective, Music Master and Plexamp trim behaved correctly, CamillaDSP retained the same PID and the 192 kHz graph stayed clean. The pass also exposed and prompted correction of stale mixer API sample-rate metadata.
+4. **Active next:** repeat the ownership check from the AirPlay side, including EQ/bypass, Music Master and AirPlay trim, without changing the fixed graph.
+5. Exercise alarm preview/scheduled takeover and return-to-music behaviour.
+6. Run a longer mixed-source stability period and inspect CamillaDSP journals for XRUN/stall recovery.
+7. Restore exactly to the accepted 16/44.1 baseline and independently verify.
+8. Only if one of those gates exposes a fixed-graph limitation reconsider Controller Adapt/source-rate capture.
 
 The acceptance boundary remains appliance reliability first: AirPlay must be stable and truthfully described even though high-resolution processing is primarily a Plexamp requirement.
