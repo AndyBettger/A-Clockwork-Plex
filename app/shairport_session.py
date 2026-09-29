@@ -149,6 +149,7 @@ def set_sender_airplay_volume(
         "/usr/bin/busctl",
         "--system",
         "call",
+        "--",
         SHAIRPORT_REMOTE_SERVICE,
         SHAIRPORT_REMOTE_OBJECT,
         SHAIRPORT_REMOTE_INTERFACE,

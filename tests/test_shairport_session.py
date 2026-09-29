@@ -101,6 +101,22 @@ class ShairportSessionStatusTests(unittest.TestCase):
         self.assertEqual(status["volume_percent"], 42)
         self.assertIn("property unavailable", status["sender_error"])
 
+    def test_native_sender_volume_command_protects_negative_db_from_option_parsing(self):
+        commands = []
+
+        def runner(command, **_kwargs):
+            commands.append(command)
+            return self.completed("")
+
+        ok, error = set_sender_airplay_volume(58, runner=runner)
+
+        self.assertTrue(ok)
+        self.assertIsNone(error)
+        self.assertEqual(commands[0][3], "--")
+        self.assertEqual(commands[0][-2], "d")
+        self.assertTrue(commands[0][-1].startswith("-"))
+
+
     def test_native_sender_volume_command_uses_airplay_db_scale(self):
         commands = []
 
@@ -118,6 +134,7 @@ class ShairportSessionStatusTests(unittest.TestCase):
                 "/usr/bin/busctl",
                 "--system",
                 "call",
+                "--",
                 "org.gnome.ShairportSync",
                 "/org/gnome/ShairportSync",
                 "org.gnome.ShairportSync.RemoteControl",
