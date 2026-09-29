@@ -71,7 +71,7 @@ The read-only snapshot established:
 
 This is strong evidence that the original fixed-192 graph has inadequate time-domain buffering/scheduling headroom. It does not yet prove that buffering is the only AirPlay issue, but it is sufficient to justify the controlled buffer comparison before adding Controller-driven dynamic topology.
 
-## Active follow-up: time-scaled fixed-192 candidate
+## Time-scaled fixed-192 candidate — PHYSICALLY PASSED, 29 September 2026
 
 The second candidate keeps **S32_LE / 192 kHz**, the same source routing, the same EQ/mixer graph, `queuelimit=4`, rate-adjust policy and AirPlay source. Only the frame geometry is increased as one timing-headroom experiment:
 
@@ -86,7 +86,19 @@ These are deliberately power-of-two values close to the accepted 44.1 kHz graph'
 
 The rehearsal tool exposes this only through the explicit `--timing-profile time-scaled` option. Its default `unchanged` profile preserves the already-measured experiment, and the normal exact-backup/restore contract is unchanged.
 
-## CamillaDSP Controller candidate — deferred until the fixed graph is understood
+The commissioned Pi then ran this exact time-scaled candidate on branch head `cf705b914c4028facea42e7ce82d76f88ef59efc`. The same audiobook opening/theme section that made the original fault easy to hear was played twice for roughly one to two minutes per pass. Both passes were subjectively clean with **no audible choppiness**.
+
+The objective evidence matched that listening result:
+
+- the candidate activated as **S32_LE / 192000 Hz** with configured ALSA **period 4096 / buffer 32768** and CamillaDSP **chunksize 4096 / target_level 8192**;
+- live ACP dmix used **4096 / 32768**, while CamillaDSP capture and physical DAC playback settled at **2048 / 16384** at 192 kHz;
+- two read-only snapshots, including a later snapshot with the same CamillaDSP process at roughly **207 seconds** elapsed, showed no playback underrun, capture overrun, stalled-processing or write-underrun messages;
+- CamillaDSP CPU was approximately **1.9%**, comfortably below any processor-saturation concern; and
+- exact restore returned the accepted **S16_LE / 44100 Hz** graph, with both the restore-time verifier and a separate independent verifier succeeding.
+
+The A/B evidence therefore supports the original diagnosis: the choppy AirPlay behaviour was caused by inadequate high-rate time-domain buffering/scheduling headroom in the unchanged-frame 192 kHz graph. The fixed-192 architecture remains viable and now advances to the broader functional/stability gate using the time-scaled geometry. These values are still a physically proven candidate rather than the production profile until that wider gate is complete.
+
+## CamillaDSP Controller candidate — deferred fallback
 
 The current CamillaDSP Controller has direct relevance to the longer-term architecture. On Linux it can monitor an ALSA device for sample-rate/format changes. Its Adapt provider can keep a resampling base configuration and update `capture_samplerate` to the newly detected input rate, while also adapting capture format when configured.
 
@@ -102,20 +114,22 @@ Shairport / Plexamp source-rate stream
     -> DAC
 ```
 
-It is deliberately **not** the first response to the choppy AirPlay result. A fixed processing graph has fewer lifecycle transitions and is preferable for an appliance if adequate buffering makes it stable.
+The time-scaled fixed graph has now made AirPlay stable in the bounded physical comparison, so Controller-driven dynamic topology is **not currently required**. Retain it as the next architecture fallback only if the wider fixed-192 gate later exposes source-rate, clocking or long-run behaviour that the fixed graph cannot handle cleanly.
 
 ## Rejected/low-priority alternative: parallel CamillaDSP instances
 
 Running several preconfigured CamillaDSP capture paths/instances for different AirPlay rates is technically possible to construct, but it duplicates routing/lifecycle ownership, makes shared EQ/volume state harder to keep atomic, and solves a format-negotiation problem in a layer that ALSA plus the Controller are already designed to handle. Keep this only as an architectural fallback, not an implementation target.
 
-## Next physical test sequence
+## Next physical gate
 
-1. Start from the accepted S16_LE / 44.1 kHz graph and verify it.
-2. Activate **S32_LE / 192 kHz + time-scaled timing geometry** with `sudo python3 scripts/audio/rehearse-hi-res-bus.py --apply --rate 192000 --timing-profile time-scaled`.
-3. Start the same AirPlay source that reproduced persistent choppiness and listen for at least several minutes.
-4. While AirPlay is active, run `python3 scripts/audio/snapshot-airplay-hi-res.py` and retain the complete output whether playback is good or bad.
-5. Restore with `sudo python3 scripts/audio/rehearse-hi-res-bus.py --restore` and independently re-run `bash scripts/audio/verify-audio.sh`.
-6. Compare audible stability, live `hw_params` and CamillaDSP underrun/overrun/stall journal evidence with the unchanged-geometry capture.
-7. Only if the scaled fixed graph remains unsuitable move to source-rate capture plus CamillaDSP Controller/async-SRC architecture.
+Keep the same **time-scaled S32_LE / 192 kHz** candidate and move to the remaining wider gate rather than changing topology again.
+
+1. Re-enter the time-scaled 192 kHz rehearsal from the accepted baseline.
+2. Exercise known Plex material at **16/44.1, 24/48, 24/96 and 24/192**, recording Plexamp negotiation plus live loopback/Camilla/DAC state so resampling behaviour is described truthfully.
+3. Exercise live EQ changes and bypass, Plexamp/AirPlay source trims and Music Master ownership without changing the fixed graph.
+4. Exercise alarm preview/scheduled takeover and return-to-music behaviour.
+5. Run a longer mixed-source stability period and inspect CamillaDSP journals for XRUN/stall recovery.
+6. Restore exactly to the accepted 16/44.1 baseline and independently verify.
+7. Only if one of those gates exposes a fixed-graph limitation reconsider Controller Adapt/source-rate capture.
 
 The acceptance boundary remains appliance reliability first: AirPlay must be stable and truthfully described even though high-resolution processing is primarily a Plexamp requirement.
