@@ -10,9 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT = ROOT / "scripts" / "audio" / "preflight-eq.sh"
 AUDIT = ROOT / "scripts" / "audio" / "audit-hi-res-audio.sh"
 PROBE = ROOT / "scripts" / "audio" / "probe-hi-res-dac.py"
-REHEARSAL = ROOT / "scripts" / "audio" / "rehearse-hi-res-bus.py"
-RECOVERY = ROOT / "scripts" / "audio" / "recover-hi-res-rehearsal.py"
+SNAPSHOT = ROOT / "scripts" / "audio" / "snapshot-airplay-hi-res.py"
 ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
+RETIRED_REHEARSALS = (
+    ROOT / "scripts" / "audio" / "rehearse-hi-res-bus.py",
+    ROOT / "scripts" / "audio" / "recover-hi-res-rehearsal.py",
+    ROOT / "scripts" / "audio" / "rehearse-direct-failback-airplay.py",
+)
 
 
 class EqAudioPreflightSafetyTests(unittest.TestCase):
@@ -20,8 +24,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.source = PREFLIGHT.read_text(encoding="utf-8")
         self.audit_source = AUDIT.read_text(encoding="utf-8")
         self.probe_source = PROBE.read_text(encoding="utf-8")
-        self.rehearsal_source = REHEARSAL.read_text(encoding="utf-8")
-        self.recovery_source = RECOVERY.read_text(encoding="utf-8")
+        self.snapshot_source = SNAPSHOT.read_text(encoding="utf-8")
 
     def test_shell_syntax_and_help(self) -> None:
         syntax = subprocess.run(
@@ -52,7 +55,7 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         )
         self.assertNotIn("aplay -D", self.source)
         self.assertNotIn("arecord", self.source)
-        self.assertNotIn("source \"$REPO_ROOT/installer/lib/", self.source)
+        self.assertNotIn('source "$REPO_ROOT/installer/lib/', self.source)
         for path in ("/etc/", "/usr/local/", "/var/lib/"):
             self.assertNotRegex(
                 self.source,
@@ -64,16 +67,16 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
             'ALSA_CONFIG_PATH="$config" aplay -L',
             '"$CAMILLADSP_BINARY" --check "$PROFILE/camilladsp-split-bus.yml"',
             '"$CAMILLADSP_BINARY" --check "$rendered"',
-            'systemd-analyze verify',
+            "systemd-analyze verify",
             'SYSTEMD_UNIT_PATH="$unit_dir"',
             'visudo -cf "$rendered"',
-            'ExecStart=/bin/true',
+            "ExecStart=/bin/true",
         ):
             self.assertIn(marker, self.source)
         for pcm in ("acp_dmix", "acp_master", "acp_plexamp", "acp_airplay", "acp_alarm"):
             self.assertIn(pcm, self.source)
 
-    def test_exact_binary_and_direct_baseline_are_pinned(self) -> None:
+    def test_exact_binary_and_legacy_preinstall_direct_baseline_are_pinned(self) -> None:
         self.assertIn(
             "CAMILLADSP_SHA256=e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa",
             self.source,
@@ -135,8 +138,8 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
             "snd_pcm_hw_params_test_rate",
             "SND_PCM_ACCESS_RW_INTERLEAVED",
             "wait_dac_closed()",
-            "verify_audio(\"before capability probe\")",
-            "verify_audio(\"after capability probe\")",
+            'verify_audio("before capability probe")',
+            'verify_audio("after capability probe")',
             '"--apply"',
         ):
             self.assertIn(marker, self.probe_source)
@@ -147,75 +150,18 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
         self.assertIn("APP_START_ORDER", self.probe_source)
         self.assertIn("activate-direct-failback", self.probe_source)
 
-    def test_hi_res_bus_rehearsal_is_explicit_reversible_and_guarded(self) -> None:
-        compile(self.rehearsal_source, str(REHEARSAL), "exec")
-        plan = subprocess.run(
-            ["python3", str(REHEARSAL), "--rate", "96000"],
-            capture_output=True,
-            text=True,
-            check=False,
+    def test_promoted_rehearsal_mutators_are_retired_but_snapshot_remains_read_only(self) -> None:
+        for path in RETIRED_REHEARSALS:
+            with self.subTest(path=path.name):
+                self.assertFalse(path.exists())
+        compile(self.snapshot_source, str(SNAPSHOT), "exec")
+        self.assertIn("READ_ONLY_AIRPLAY_HI_RES_SNAPSHOT_COMPLETE", self.snapshot_source)
+        self.assertNotIn("snd_pcm_write", self.snapshot_source)
+        self.assertNotIn("snd_pcm_start", self.snapshot_source)
+        self.assertNotRegex(
+            self.snapshot_source,
+            re.compile(r"\bsystemctl\s+(?:start|stop|restart|enable|disable|reload)\b"),
         )
-        self.assertEqual(plan.returncode, 0, plan.stderr)
-        self.assertIn("Default mode: plan only", plan.stdout)
-        self.assertIn("Candidate format: S32_LE", plan.stdout)
-        self.assertIn("Candidate rate:   96000", plan.stdout)
-        for marker in (
-            'CANDIDATE_FORMAT: Final = "S32_LE"',
-            "ALLOWED_RATES: Final = (96000, 192000)",
-            'STATE_ROOT: Final = Path("/var/lib/a-clockwork-plex/hi-res-rehearsal")',
-            "ensure_no_existing_rehearsal()",
-            "ensure_accepted_baseline()",
-            'verify_audio("before hi-res rehearsal")',
-            'activate_split_bus()',
-            'HI_RES_REHEARSAL_ACTIVE',
-            'HI_RES_REHEARSAL_RESTORED',
-            'verify_audio("after hi-res rehearsal restoration")',
-            'The candidate remains active until --restore is run.',
-            'Rehearsal backup is retained',
-            '"durable_backups": True',
-            "fsync_directory(path.parent)",
-            "atomic_write(BACKUP_ROUTE, original_route, 0o600)",
-            "atomic_write(BACKUP_DEFAULTS, original_defaults, 0o600)",
-            "Durable split-route backup verification failed.",
-            "Durable defaults backup verification failed.",
-        ):
-            self.assertIn(marker, self.rehearsal_source)
-        self.assertNotIn("shutil.copy2(INSTALLED_ROUTE, BACKUP_ROUTE)", self.rehearsal_source)
-        self.assertNotIn("shutil.copy2(INSTALLED_DEFAULTS, BACKUP_DEFAULTS)", self.rehearsal_source)
-        self.assertIn("original_route_sha256", self.rehearsal_source)
-        self.assertIn("original_defaults_sha256", self.rehearsal_source)
-        self.assertNotIn("snd_pcm_write", self.rehearsal_source)
-        self.assertNotIn("snd_pcm_start", self.rehearsal_source)
-
-    def test_hi_res_rehearsal_recovery_is_checksum_gated_and_preserves_evidence(self) -> None:
-        compile(self.recovery_source, str(RECOVERY), "exec")
-        help_result = subprocess.run(
-            ["python3", str(RECOVERY), "--help"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(help_result.returncode, 0, help_result.stderr)
-        self.assertIn("Checksum-gated recovery", help_result.stdout)
-        for marker in (
-            'PROFILE_ROUTE: Final = PROFILE_ROOT / "split-bus.conf"',
-            'PROFILE_DEFAULTS: Final = PROFILE_ROOT / "a-clockwork-plex-split-bus.defaults"',
-            'originals_match_repository',
-            'installed_route_known',
-            'installed_defaults_known',
-            'recovery_permitted',
-            'atomic_write(INSTALLED_ROUTE, baseline_route, 0o644)',
-            'atomic_write(INSTALLED_DEFAULTS, baseline_defaults, 0o644)',
-            'activate_baseline()',
-            'verify_audio()',
-            'HI_RES_REHEARSAL_RECOVERY=PASS',
-            'archive_rehearsal_state()',
-        ):
-            self.assertIn(marker, self.recovery_source)
-        self.assertIn("READ-ONLY unless --apply is supplied", self.recovery_source)
-        self.assertIn("Recovery evidence remains", self.recovery_source)
-        self.assertNotIn("snd_pcm_write", self.recovery_source)
-        self.assertNotIn("snd_pcm_start", self.recovery_source)
 
     def test_roadmap_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
