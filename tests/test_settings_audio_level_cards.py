@@ -8,6 +8,8 @@ class SettingsAudioLevelCardTests(unittest.TestCase):
     def setUp(self) -> None:
         self.mixer = Path("app/audio_mixer.py").read_text(encoding="utf-8")
         self.css = Path("app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
+        self.workspace = Path("app/static/js/settings-audio-workspace.js").read_text(encoding="utf-8")
+        self.workspace_css = Path("app/static/css/settings-audio-workspace.css").read_text(encoding="utf-8")
 
     def test_music_master_metadata_matches_the_split_bus_contract(self):
         self.assertIn('"label": "Music master"', self.mixer)
@@ -39,6 +41,20 @@ class SettingsAudioLevelCardTests(unittest.TestCase):
         self.assertIn("border-radius: 999px", self.css)
         self.assertIn("min-width: 62px", self.css)
         self.assertIn("min-height: 31px", self.css)
+
+
+    def test_audio_path_card_separates_source_processing_and_dac_truthfully(self):
+        self.assertIn("Audio path", self.workspace)
+        self.assertIn(">Source<", self.workspace)
+        self.assertIn(">Processing<", self.workspace)
+        self.assertIn(">DAC<", self.workspace)
+        self.assertIn("Source format/rate is not reported.", self.workspace)
+        self.assertIn("Managed split bus · active ALSA route", self.workspace)
+        self.assertIn("Direct failback · active ALSA route", self.workspace)
+        self.assertIn("Physical DAC · live ALSA hw_params", self.workspace)
+        self.assertNotIn("native 192", self.workspace.lower())
+        self.assertIn(".audio-path-grid", self.workspace_css)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.workspace_css)
 
 
 if __name__ == "__main__":
