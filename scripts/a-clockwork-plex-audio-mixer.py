@@ -11,6 +11,8 @@ from typing import Any
 
 CONFIG_PATH = Path("/etc/default/a-clockwork-plex-audio")
 MANAGED_CONFIG_PATH = Path("/etc/default/a-clockwork-plex-split-bus")
+ACTIVE_ALSA_CONFIG = Path("/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf")
+ROUTE_STATE_PATH = Path("/var/lib/a-clockwork-plex/split-bus/route-state.json")
 MIN_DB = -51.0
 MAX_DB = 0.0
 PERSISTENT_CHANNELS = {"master", "plexamp", "airplay", "alarm"}
@@ -51,6 +53,7 @@ def load_config(
         "ALSA_CARD": "Pro",
         "ALSA_DEVICE": "0",
         "SAMPLE_RATE": "44100",
+        "FORMAT": "S16_LE",
         "CHANNELS": "2",
     }
 
@@ -70,6 +73,8 @@ def load_config(
         values["ALSA_DEVICE"] = managed["DAC_DEVICE"]
     if "SAMPLE_RATE" in managed:
         values["SAMPLE_RATE"] = managed["SAMPLE_RATE"]
+    if "FORMAT" in managed:
+        values["FORMAT"] = managed["FORMAT"]
     return values
 
 
@@ -85,6 +90,134 @@ def pcm_names() -> set[str]:
         line.strip()
         for line in result.stdout.splitlines()
         if line and not line[0].isspace()
+    }
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _acp_dmix_block(path: Path) -> str:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    start = source.find("pcm.acp_dmix")
+    if start < 0:
+        return ""
+    next_pcm = source.find("\npcm.", start + len("pcm.acp_dmix"))
+    return source[start:] if next_pcm < 0 else source[start:next_pcm]
+
+
+def active_processing_status(path: Path = ACTIVE_ALSA_CONFIG) -> dict[str, Any]:
+    block = _acp_dmix_block(path)
+    format_match = re.search(r"(?m)^\s*format\s+([A-Za-z0-9_]+)\s*$", block)
+    rate_match = re.search(r"(?m)^\s*rate\s+(\d+)\s*$", block)
+    channels_match = re.search(r"(?m)^\s*channels\s+(\d+)\s*$", block)
+    available = bool(block and format_match and rate_match)
+    return {
+        "available": available,
+        "format": format_match.group(1) if format_match else None,
+        "rate_hz": int(rate_match.group(1)) if rate_match else None,
+        "channels": int(channels_match.group(1)) if channels_match else None,
+        "authority": "active-alsa-route",
+        "error": None if available else "Active ACP processing format/rate could not be read.",
+    }
+
+
+def dac_playback_status(
+    card: str,
+    device: str,
+    *,
+    path: Path | None = None,
+) -> dict[str, Any]:
+    hw_path = path or Path(f"/proc/asound/{card}/pcm{device}p/sub0/hw_params")
+    try:
+        source = hw_path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        return {
+            "available": False,
+            "open": False,
+            "format": None,
+            "rate_hz": None,
+            "channels": None,
+            "period_size": None,
+            "buffer_size": None,
+            "authority": "alsa-hw-params",
+            "error": str(exc),
+        }
+    if not source or source == "closed":
+        return {
+            "available": True,
+            "open": False,
+            "format": None,
+            "rate_hz": None,
+            "channels": None,
+            "period_size": None,
+            "buffer_size": None,
+            "authority": "alsa-hw-params",
+            "error": None,
+        }
+
+    def text_value(name: str) -> str | None:
+        match = re.search(rf"(?m)^{re.escape(name)}:\s*([^\s]+)", source)
+        return match.group(1) if match else None
+
+    def int_value(name: str) -> int | None:
+        value = text_value(name)
+        if value is None:
+            return None
+        match = re.match(r"(\d+)", value)
+        return int(match.group(1)) if match else None
+
+    format_value = text_value("format")
+    rate_value = int_value("rate")
+    return {
+        "available": format_value is not None and rate_value is not None,
+        "open": True,
+        "format": format_value,
+        "rate_hz": rate_value,
+        "channels": int_value("channels"),
+        "period_size": int_value("period_size"),
+        "buffer_size": int_value("buffer_size"),
+        "authority": "alsa-hw-params",
+        "error": None if format_value is not None and rate_value is not None
+        else "DAC hw_params did not expose format/rate.",
+    }
+
+
+def audio_path_status(
+    config: dict[str, str],
+    *,
+    active_alsa_path: Path = ACTIVE_ALSA_CONFIG,
+    route_state_path: Path = ROUTE_STATE_PATH,
+    dac_hw_params_path: Path | None = None,
+) -> dict[str, Any]:
+    route_state = _read_json_object(route_state_path)
+    processing = active_processing_status(active_alsa_path)
+    dac = dac_playback_status(
+        config["ALSA_CARD"],
+        config["ALSA_DEVICE"],
+        path=dac_hw_params_path,
+    )
+    return {
+        "route_mode": route_state.get("mode"),
+        "source": {
+            "available": False,
+            "format": None,
+            "rate_hz": None,
+            "authority": "source-observer",
+            "note": (
+                "The current Plexamp/AirPlay runtime observers do not expose a "
+                "trustworthy source format/rate."
+            ),
+        },
+        "processing": processing,
+        "dac": dac,
     }
 
 
@@ -168,6 +301,7 @@ def full_status() -> dict[str, Any]:
     config = load_config()
     card = config["ALSA_CARD"]
     names = pcm_names()
+    audio_path = audio_path_status(config)
     channels: dict[str, dict[str, Any]] = {}
     all_ready = True
     for channel_id, metadata in CHANNELS.items():
@@ -184,8 +318,13 @@ def full_status() -> dict[str, Any]:
         "configured": all_ready,
         "card": card,
         "hardware_pcm": f"hw:CARD={card},DEV={config['ALSA_DEVICE']}",
-        "sample_rate_hz": int(config["SAMPLE_RATE"]),
+        "sample_rate_hz": (
+            audio_path["processing"]["rate_hz"]
+            if audio_path["processing"]["available"]
+            else int(config["SAMPLE_RATE"])
+        ),
         "channels_count": int(config["CHANNELS"]),
+        "audio_path": audio_path,
         "scale": {
             "name": "perceptual-amplitude",
             "minimum_db": MIN_DB,
