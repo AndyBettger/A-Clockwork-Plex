@@ -52,8 +52,18 @@ MIXER_CHANNELS: dict[str, dict[str, Any]] = {
     },
 }
 
+RUNTIME_MIXER_CHANNELS: dict[str, dict[str, Any]] = {
+    **MIXER_CHANNELS,
+    "airplay_live": {
+        "label": "AirPlay live",
+        "control": "A Clockwork AirPlay Live",
+        "pcm": "acp_airplay",
+        "default_percent": 100,
+        "description": "Runtime receiver-side AirPlay level. Never persisted as a calibration trim.",
+    },
+}
+
 DEFAULT_MIXER_HELPER = "/usr/local/bin/a-clockwork-plex-audio-mixer"
-DEFAULT_AIRPLAY_START_PERCENT = 60
 
 
 def _integer(value: Any, fallback: int) -> int:
@@ -97,11 +107,11 @@ class SharedAudioMixer:
                     "available": False,
                     "error": None,
                 }
-                for channel_id, metadata in MIXER_CHANNELS.items()
+                for channel_id, metadata in RUNTIME_MIXER_CHANNELS.items()
             },
             "devices": {
                 channel_id: metadata["pcm"]
-                for channel_id, metadata in MIXER_CHANNELS.items()
+                for channel_id, metadata in RUNTIME_MIXER_CHANNELS.items()
             },
             "scale": {
                 "name": "perceptual-amplitude",
@@ -184,8 +194,10 @@ class SharedAudioMixer:
 
     def set_volume(self, channel: str, percent: Any, *, persist: bool = True) -> dict[str, Any]:
         channel_id = str(channel or "").strip().lower()
-        if channel_id not in MIXER_CHANNELS:
+        if channel_id not in RUNTIME_MIXER_CHANNELS:
             raise ValueError(f"Unknown mixer channel: {channel_id or '-'}")
+        if persist and channel_id not in MIXER_CHANNELS:
+            raise ValueError(f"Mixer channel {channel_id} is runtime-only.")
         level = _integer(percent, -1)
         if not 0 <= level <= 100:
             raise ValueError("Mixer volume must be from 0 to 100 percent.")
@@ -295,42 +307,6 @@ class PlexampVolumeController:
         return status
 
 
-def airplay_defaults() -> dict[str, Any]:
-    config = _dashboard_core.load_config()
-    airplay = config.get("airplay") if isinstance(config, dict) and isinstance(config.get("airplay"), dict) else {}
-    return {
-        "default_volume_percent": _bounded_percent(
-            airplay.get("default_volume_percent"),
-            DEFAULT_AIRPLAY_START_PERCENT,
-        ),
-        "apply_default_volume_on_start": airplay.get("apply_default_volume_on_start", True) is not False,
-    }
-
-
-def save_airplay_defaults(payload: dict[str, Any]) -> dict[str, Any]:
-    current = airplay_defaults()
-    default_percent = _bounded_percent(
-        payload.get("default_volume_percent", current["default_volume_percent"]),
-        current["default_volume_percent"],
-    )
-    apply_on_start = payload.get(
-        "apply_default_volume_on_start",
-        current["apply_default_volume_on_start"],
-    )
-
-    raw_config = _dashboard_core.load_json(_dashboard_core.CONFIG_PATH, {})
-    airplay = raw_config.get("airplay") if isinstance(raw_config.get("airplay"), dict) else {}
-    airplay.update(
-        {
-            "default_volume_percent": default_percent,
-            "apply_default_volume_on_start": bool(apply_on_start),
-        }
-    )
-    raw_config["airplay"] = airplay
-    _dashboard_core.save_json(_dashboard_core.CONFIG_PATH, raw_config)
-    return airplay_defaults()
-
-
 def _plexamp_controller() -> PlexampVolumeController:
     config = _dashboard_core.load_config()
     plexamp = config.get("plexamp") if isinstance(config, dict) and isinstance(config.get("plexamp"), dict) else {}
@@ -359,12 +335,6 @@ def _controller_unavailable() -> dict[str, Any]:
         "authority": "mixer-controller-unbound",
         "available": False,
         "mode": "live-player-aware",
-        "defaults": airplay_defaults(),
-        "airplay_default_application": {
-            "status": "controller-unavailable",
-            "in_progress": False,
-            "last_error": "MixerController has not been bound by app.runner.",
-        },
         "channels": {},
         "mixer": shared_audio_mixer.status(),
         "error": "MixerController has not been bound by app.runner.",
@@ -381,12 +351,6 @@ def set_live_audio_volume(channel: Any, percent: Any) -> dict[str, Any]:
     if mixer_controller is None:
         raise ValueError("MixerController has not been bound by app.runner.")
     return mixer_controller.set_live_percent(channel, percent, reason="legacy-live-audio-api")
-
-
-def _application_status() -> dict[str, Any]:
-    if mixer_controller is None:
-        return _controller_unavailable()["airplay_default_application"]
-    return mixer_controller.application_status()
 
 
 def _register_audio_api() -> None:
@@ -446,45 +410,16 @@ def _register_audio_api() -> None:
                 return jsonify({"ok": False, "error": str(exc)}), 409
             return jsonify({"ok": True, "live": status, "message": "Live audio level changed."})
 
-    if "api_audio_defaults" not in app.view_functions:
-        @app.route("/api/audio/defaults", methods=["GET", "POST"])
-        def api_audio_defaults():
-            if request.method == "GET":
-                return jsonify(
-                    {
-                        "ok": True,
-                        "defaults": airplay_defaults(),
-                        "application": _application_status(),
-                    }
-                )
-            payload = request.get_json(silent=True)
-            if not isinstance(payload, dict):
-                return jsonify({"ok": False, "error": "Audio defaults must be a JSON object."}), 400
-            try:
-                defaults = save_airplay_defaults(payload)
-            except OSError as exc:
-                return jsonify({"ok": False, "error": f"Could not save audio defaults: {exc}"}), 500
-            if mixer_controller is not None:
-                mixer_controller.refresh_defaults("settings-save")
-            return jsonify(
-                {
-                    "ok": True,
-                    "defaults": defaults,
-                    "application": _application_status(),
-                    "message": "AirPlay starting volume saved.",
-                }
-            )
-
     original_airplay_start = app.view_functions.get("api_airplay_start")
-    if original_airplay_start and not getattr(original_airplay_start, "_acp_audio_defaults_wrapped", False):
-        def api_airplay_start_with_audio_default():
+    if original_airplay_start and not getattr(original_airplay_start, "_acp_audio_session_wrapped", False):
+        def api_airplay_start_with_audio_session():
             response = original_airplay_start()
             if mixer_controller is not None:
                 mixer_controller.start_airplay_session("session-start")
             return response
 
-        api_airplay_start_with_audio_default._acp_audio_defaults_wrapped = True  # type: ignore[attr-defined]
-        app.view_functions["api_airplay_start"] = api_airplay_start_with_audio_default
+        api_airplay_start_with_audio_session._acp_audio_session_wrapped = True  # type: ignore[attr-defined]
+        app.view_functions["api_airplay_start"] = api_airplay_start_with_audio_session
 
 
 _register_audio_api()

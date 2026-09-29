@@ -13,10 +13,12 @@ CONFIG_PATH = Path("/etc/default/a-clockwork-plex-audio")
 MANAGED_CONFIG_PATH = Path("/etc/default/a-clockwork-plex-split-bus")
 MIN_DB = -51.0
 MAX_DB = 0.0
+PERSISTENT_CHANNELS = {"master", "plexamp", "airplay", "alarm"}
 CHANNELS = {
     "master": {"control": "A Clockwork Master", "pcm": "acp_master"},
     "plexamp": {"control": "A Clockwork Plexamp", "pcm": "acp_plexamp"},
     "airplay": {"control": "A Clockwork AirPlay", "pcm": "acp_airplay"},
+    "airplay_live": {"control": "A Clockwork AirPlay Live", "pcm": "acp_airplay"},
     "alarm": {"control": "A Clockwork Alarm", "pcm": "acp_alarm"},
 }
 
@@ -204,6 +206,9 @@ def set_volume(channel_id: str, percent_text: str, *, persist: bool) -> dict[str
         emit({"ok": False, "error": "Volume must be an integer."}, 64)
     if not 0 <= percent <= 100:
         emit({"ok": False, "error": "Volume must be from 0 to 100 percent."}, 64)
+
+    if persist and channel_id not in PERSISTENT_CHANNELS:
+        emit({"ok": False, "error": f"Mixer channel {channel_id} is runtime-only."}, 64)
 
     config = load_config()
     card = config["ALSA_CARD"]

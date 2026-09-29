@@ -49,20 +49,6 @@ def airplay_db_to_percent(value: Any) -> int:
     )))
 
 
-def airplay_percent_to_db(value: Any) -> float:
-    try:
-        percent = float(value)
-    except (TypeError, ValueError):
-        raise ValueError("AirPlay volume must be from 0 to 100 percent.") from None
-    if not 0 <= percent <= 100:
-        raise ValueError("AirPlay volume must be from 0 to 100 percent.")
-    if percent <= 0:
-        return AIRPLAY_VOLUME_MUTE_DB
-    return AIRPLAY_VOLUME_MIN_DB + (
-        (AIRPLAY_VOLUME_MAX_DB - AIRPLAY_VOLUME_MIN_DB) * percent / 100
-    )
-
-
 def sender_remote_available(
     *,
     runner: CommandRunner = subprocess.run,
@@ -136,44 +122,6 @@ def sender_airplay_volume(
     if volume is None:
         return None, f"Unexpected Shairport RemoteControl.AirplayVolume value: {result.stdout.strip()}"
     return volume, None
-
-
-def set_sender_airplay_volume(
-    percent: Any,
-    *,
-    runner: CommandRunner = subprocess.run,
-    timeout: float = 1.5,
-) -> tuple[bool, str | None]:
-    db = airplay_percent_to_db(percent)
-    command = [
-        "/usr/bin/busctl",
-        "--system",
-        "call",
-        "--",
-        SHAIRPORT_REMOTE_SERVICE,
-        SHAIRPORT_REMOTE_OBJECT,
-        SHAIRPORT_REMOTE_INTERFACE,
-        "SetAirplayVolume",
-        "d",
-        f"{db:.6f}",
-    ]
-    try:
-        result = runner(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        return False, "Shairport RemoteControl.SetAirplayVolume timed out."
-    except OSError as exc:
-        return False, f"Could not call Shairport RemoteControl.SetAirplayVolume: {exc}"
-
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "").strip()
-        return False, detail or "Shairport RemoteControl.SetAirplayVolume failed."
-    return True, None
 
 
 def shairport_remote_status(
