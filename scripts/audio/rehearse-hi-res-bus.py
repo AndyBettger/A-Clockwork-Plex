@@ -36,7 +36,7 @@ CANDIDATE_FORMAT: Final = "S32_LE"
 ALLOWED_RATES: Final = (96000, 192000)
 EXPECTED_BASELINE_RATE: Final = 44100
 EXPECTED_BASELINE_FORMAT: Final = "S16_LE"
-TIMING_PROFILES: Final = ("unchanged", "time-scaled")
+TIMING_PROFILES: Final = ("unchanged", "time-scaled", "time-scaled-high-target")
 BASELINE_GEOMETRY: Final = {
     "period_size": 1024,
     "buffer_size": 8192,
@@ -55,6 +55,14 @@ TIME_SCALED_GEOMETRY: Final = {
         "buffer_size": 32768,
         "chunksize": 4096,
         "target_level": 8192,
+    },
+}
+TIME_SCALED_HIGH_TARGET_GEOMETRY: Final = {
+    192000: {
+        "period_size": 4096,
+        "buffer_size": 32768,
+        "chunksize": 4096,
+        "target_level": 12288,
     },
 }
 
@@ -207,6 +215,13 @@ def candidate_geometry(rate: int, timing_profile: str) -> dict[str, int]:
         if geometry is None:
             raise RuntimeError(f"No time-scaled geometry exists for rate {rate}.")
         return dict(geometry)
+    if timing_profile == "time-scaled-high-target":
+        geometry = TIME_SCALED_HIGH_TARGET_GEOMETRY.get(rate)
+        if geometry is None:
+            raise RuntimeError(
+                f"No time-scaled-high-target geometry exists for rate {rate}."
+            )
+        return dict(geometry)
     raise RuntimeError(f"Unsupported timing profile: {timing_profile}")
 
 
@@ -238,7 +253,7 @@ def render_candidate(rate: int, timing_profile: str = "unchanged") -> tuple[str,
         f"FORMAT={CANDIDATE_FORMAT}\n",
         "defaults format",
     )
-    if timing_profile == "time-scaled":
+    if timing_profile in {"time-scaled", "time-scaled-high-target"}:
         route = replace_exact_once(
             route,
             f"        period_size {BASELINE_GEOMETRY['period_size']}\n",
@@ -602,7 +617,8 @@ def parse_args() -> argparse.Namespace:
         help=(
             "frame geometry: unchanged preserves the original 44.1 kHz frame counts; "
             "time-scaled uses power-of-two high-rate values with approximately the "
-            "accepted graph's timing headroom"
+            "accepted graph's timing headroom; time-scaled-high-target is a 192 kHz "
+            "A/B candidate that changes only CamillaDSP target_level from 8192 to 12288"
         ),
     )
     return parser.parse_args()

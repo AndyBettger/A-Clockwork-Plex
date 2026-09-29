@@ -83,6 +83,32 @@ class AirplayHiResSnapshotTests(unittest.TestCase):
         self.assertIn("CHUNKSIZE=4096\n", defaults)
         self.assertIn("TARGET_LEVEL=8192\n", defaults)
 
+    def test_time_scaled_high_target_changes_only_192_target_level(self) -> None:
+        baseline = self.rehearsal.candidate_geometry(192000, "time-scaled")
+        candidate = self.rehearsal.candidate_geometry(192000, "time-scaled-high-target")
+
+        self.assertEqual(candidate["period_size"], baseline["period_size"])
+        self.assertEqual(candidate["buffer_size"], baseline["buffer_size"])
+        self.assertEqual(candidate["chunksize"], baseline["chunksize"])
+        self.assertEqual(baseline["target_level"], 8192)
+        self.assertEqual(candidate["target_level"], 12288)
+
+        route, defaults = self.rehearsal.render_candidate(
+            192000, "time-scaled-high-target"
+        )
+        self.assertIn("        period_size 4096\n", route)
+        self.assertIn("        buffer_size 32768\n", route)
+        self.assertIn("PERIOD_SIZE=4096\n", defaults)
+        self.assertIn("BUFFER_SIZE=32768\n", defaults)
+        self.assertIn("CHUNKSIZE=4096\n", defaults)
+        self.assertIn("TARGET_LEVEL=12288\n", defaults)
+
+    def test_time_scaled_high_target_is_deliberately_192_only(self) -> None:
+        with self.assertRaisesRegex(
+            RuntimeError, "No time-scaled-high-target geometry exists for rate 96000"
+        ):
+            self.rehearsal.candidate_geometry(96000, "time-scaled-high-target")
+
     def test_unchanged_timing_profile_preserves_original_frame_counts(self) -> None:
         route, defaults = self.rehearsal.render_candidate(192000, "unchanged")
         self.assertIn("        period_size 1024\n", route)
