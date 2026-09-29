@@ -21,6 +21,7 @@ class FakeRunner:
                 "master": (80, 96, -1.94),
                 "plexamp": (100, 100, 0.0),
                 "airplay": (90, 98, -0.92),
+                "airplay_live": (100, 100, 0.0),
                 "alarm": (75, 95, -2.5),
             }
             payload = {
@@ -125,6 +126,7 @@ class SharedAudioMixerTests(unittest.TestCase):
         self.assertEqual(status["channels"]["master"]["percent"], 80)
         self.assertEqual(status["channels"]["master"]["raw_percent"], 96)
         self.assertEqual(status["channels"]["airplay"]["db"], -0.92)
+        self.assertEqual(status["channels"]["airplay_live"]["percent"], 100)
         self.assertEqual(status["scale"]["name"], "perceptual-amplitude")
         self.assertEqual(status["devices"]["alarm"], "acp_alarm")
         self.assertEqual(runner.commands[0][-1], "status")
@@ -158,6 +160,21 @@ class SharedAudioMixerTests(unittest.TestCase):
 
         live_command = next(command for command in runner.commands if "live" in command)
         self.assertEqual(live_command[-3:], ["live", "master", "64"])
+
+    def test_airplay_live_control_is_runtime_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            helper = Path(directory) / "mixer-helper"
+            helper.write_text("#!/bin/sh\\n", encoding="utf-8")
+            helper.chmod(0o755)
+            runner = FakeRunner()
+            mixer = SharedAudioMixer(helper, runner=runner)
+
+            mixer.set_volume("airplay_live", 64, persist=False)
+            with self.assertRaisesRegex(ValueError, "runtime-only"):
+                mixer.set_volume("airplay_live", 64, persist=True)
+
+        live_command = next(command for command in runner.commands if "live" in command)
+        self.assertEqual(live_command[-3:], ["live", "airplay_live", "64"])
 
     def test_shared_release_never_invokes_legacy_service_helper(self):
         with tempfile.TemporaryDirectory() as directory:

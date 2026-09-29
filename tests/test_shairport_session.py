@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import subprocess
 import unittest
+from pathlib import Path
 
 from app.shairport_session import (
-    AIRPLAY_VOLUME_MUTE_DB,
     airplay_db_to_percent,
-    airplay_percent_to_db,
     parse_busctl_bool,
     parse_busctl_double,
-    set_sender_airplay_volume,
     shairport_remote_status,
 )
 
@@ -30,16 +28,13 @@ class ShairportSessionStatusTests(unittest.TestCase):
         self.assertEqual(parse_busctl_double("d -12.5"), -12.5)
         self.assertIsNone(parse_busctl_double("b true"))
 
-    def test_airplay_volume_scale_maps_slider_linearly_and_zero_to_mute(self):
+    def test_airplay_volume_scale_is_read_only_diagnostic_mapping(self):
         self.assertEqual(airplay_db_to_percent(-30.0), 0)
         self.assertEqual(airplay_db_to_percent(-15.0), 50)
         self.assertEqual(airplay_db_to_percent(0.0), 100)
         self.assertEqual(airplay_db_to_percent(-144.0), 0)
-        self.assertEqual(airplay_percent_to_db(0), AIRPLAY_VOLUME_MUTE_DB)
-        self.assertAlmostEqual(airplay_percent_to_db(50), -15.0, places=6)
-        self.assertAlmostEqual(airplay_percent_to_db(100), 0.0, places=6)
 
-    def test_connected_pause_keeps_sender_available_and_uses_native_volume(self):
+    def test_connected_pause_keeps_sender_available_and_reads_native_volume(self):
         def runner(command, **_kwargs):
             if command[-1] == "Available":
                 return self.completed("b true\n")
@@ -101,48 +96,12 @@ class ShairportSessionStatusTests(unittest.TestCase):
         self.assertEqual(status["volume_percent"], 42)
         self.assertIn("property unavailable", status["sender_error"])
 
-    def test_native_sender_volume_command_protects_negative_db_from_option_parsing(self):
-        commands = []
-
-        def runner(command, **_kwargs):
-            commands.append(command)
-            return self.completed("")
-
-        ok, error = set_sender_airplay_volume(58, runner=runner)
-
-        self.assertTrue(ok)
-        self.assertIsNone(error)
-        self.assertEqual(commands[0][3], "--")
-        self.assertEqual(commands[0][-2], "d")
-        self.assertTrue(commands[0][-1].startswith("-"))
-
-
-    def test_native_sender_volume_command_uses_airplay_db_scale(self):
-        commands = []
-
-        def runner(command, **_kwargs):
-            commands.append(command)
-            return self.completed("")
-
-        ok, error = set_sender_airplay_volume(75, runner=runner)
-
-        self.assertTrue(ok)
-        self.assertIsNone(error)
-        self.assertEqual(
-            commands,
-            [[
-                "/usr/bin/busctl",
-                "--system",
-                "call",
-                "--",
-                "org.gnome.ShairportSync",
-                "/org/gnome/ShairportSync",
-                "org.gnome.ShairportSync.RemoteControl",
-                "SetAirplayVolume",
-                "d",
-                "-7.500000",
-            ]],
+    def test_module_contains_no_sender_volume_writer(self):
+        text = (Path(__file__).resolve().parents[1] / "app" / "shairport_session.py").read_text(
+            encoding="utf-8"
         )
+        self.assertNotIn("SetAirplayVolume", text)
+        self.assertNotIn("set_sender_airplay_volume", text)
 
 
 if __name__ == "__main__":

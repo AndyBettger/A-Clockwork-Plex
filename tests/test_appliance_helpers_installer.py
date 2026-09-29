@@ -495,5 +495,10 @@ class PlexampPreferenceHelperTests(unittest.TestCase):
             self.assertEqual(request["preferences"], {"autoPlayEnabled": True})
 
 
+    def test_helper_primer_requires_receiver_owned_airplay_live_control(self) -> None:
+        source = INSTALLER.read_text(encoding="utf-8")
+        self.assertIn("for pcm in acp_master acp_plexamp acp_airplay acp_alarm", source)
+        self.assertIn('"airplay_live"', source)
+
 if __name__ == "__main__":
     unittest.main()
