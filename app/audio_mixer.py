@@ -121,6 +121,35 @@ class SharedAudioMixer:
                     "10_percent_db": -20.0,
                 },
             },
+            "audio_path": {
+                "route_mode": None,
+                "source": {
+                    "available": False,
+                    "format": None,
+                    "rate_hz": None,
+                    "authority": "source-observer",
+                    "note": "Source format/rate is not reported by the current runtime observer.",
+                },
+                "processing": {
+                    "available": False,
+                    "format": None,
+                    "rate_hz": None,
+                    "channels": None,
+                    "authority": "active-alsa-route",
+                    "error": None,
+                },
+                "dac": {
+                    "available": False,
+                    "open": False,
+                    "format": None,
+                    "rate_hz": None,
+                    "channels": None,
+                    "period_size": None,
+                    "buffer_size": None,
+                    "authority": "alsa-hw-params",
+                    "error": None,
+                },
+            },
             "error": None,
         }
 
@@ -173,6 +202,7 @@ class SharedAudioMixer:
                 "sample_rate_hz": helper.get("sample_rate_hz", 44100),
                 "channels_count": helper.get("channels_count", 2),
                 "scale": helper.get("scale") or payload["scale"],
+                "audio_path": helper.get("audio_path") or payload["audio_path"],
                 "error": helper.get("error"),
             }
         )
