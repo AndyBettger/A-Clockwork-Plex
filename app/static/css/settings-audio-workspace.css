@@ -196,6 +196,51 @@
   margin-top: 2px;
 }
 
+.audio-path-card {
+  display: grid;
+  gap: clamp(12px, 1.7vmin, 18px);
+}
+
+.audio-path-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(9px, 1.4vmin, 14px);
+}
+
+.audio-path-stage {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: clamp(12px, 1.7vmin, 16px);
+  border: 1px solid rgba(143, 211, 255, 0.15);
+  border-radius: 15px;
+  background:
+    linear-gradient(180deg, rgba(143, 211, 255, 0.06), transparent 58%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.audio-path-stage > span {
+  color: var(--muted);
+  font-family: var(--display-font);
+  font-size: clamp(0.72rem, 1.3vmin, 0.84rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.audio-path-stage > strong {
+  color: #bdeaff;
+  font-family: var(--display-font);
+  font-size: clamp(1rem, 2vmin, 1.25rem);
+  line-height: 1.15;
+}
+
+.audio-path-stage > small {
+  color: var(--muted);
+  font-size: clamp(0.7rem, 1.2vmin, 0.8rem);
+  line-height: 1.25;
+}
+
 .audio-airplay-default-card {
   display: grid;
   gap: clamp(12px, 1.7vmin, 18px);
@@ -257,6 +302,10 @@
 @media (max-width: 480px) {
   .audio-mixer-card.is-vertical-console .audio-mixer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audio-path-grid {
+    grid-template-columns: 1fr;
   }
 
   .audio-default-layout {
