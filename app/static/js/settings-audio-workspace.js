@@ -5,12 +5,10 @@
   window.__aClockworkPlexAudioWorkspaceLoaded = true;
 
   const PANEL_ID = 'settings-panel-audio';
-  const DEFAULTS_ENDPOINT = '/api/audio/defaults';
   const MIXER_ENDPOINT = '/api/audio/mixer';
   const MIXER_CHANNELS = ['master', 'plexamp', 'airplay', 'alarm'];
   const byId = (id) => document.getElementById(id);
 
-  let defaultsRequestInFlight = false;
   let mixerPostInFlight = false;
   const mixerDesiredValues = new Map();
   const mixerPendingValues = new Map();
@@ -26,52 +24,6 @@
     link.href = '/static/css/settings-audio-workspace.css';
     link.dataset.audioWorkspaceStyles = 'true';
     document.head.appendChild(link);
-  }
-
-  function installDefaultsCard(panel) {
-    if (byId('audio-airplay-default-card')) {
-      return;
-    }
-    const card = document.createElement('section');
-    card.id = 'audio-airplay-default-card';
-    card.className = 'settings-card audio-airplay-default-card';
-    card.innerHTML = `
-      <div class="settings-card-heading">
-        <div>
-          <h2>AirPlay starting volume</h2>
-          <p class="muted small">The sender volume applied when a new AirPlay session becomes controllable.</p>
-        </div>
-        <span class="settings-chip" id="audio-airplay-default-health">Loading…</span>
-      </div>
-      <div class="audio-default-layout">
-        <label class="setting-toggle">
-          <input id="audio-airplay-apply-default" type="checkbox">
-          <span>
-            <strong>Apply at the start of each session</strong>
-            <small>Keeps a newly connected phone from arriving at an unexpectedly tiny volume.</small>
-          </span>
-        </label>
-        <label class="setting-field audio-default-volume-field">
-          <span>Starting sender volume</span>
-          <div class="audio-default-volume-row">
-            <input id="audio-airplay-default-volume" type="range" min="0" max="100" step="1" value="60">
-            <output id="audio-airplay-default-volume-value" for="audio-airplay-default-volume">60%</output>
-          </div>
-          <small>This is the AirPlay/iPhone volume, not the persistent AirPlay output trim above.</small>
-        </label>
-      </div>
-      <div class="audio-default-actions">
-        <button class="button settings-secondary" id="audio-airplay-default-save" type="button">Save AirPlay default</button>
-        <span class="muted small" id="audio-airplay-default-message">The value is retried briefly while Shairport establishes the remote session.</span>
-      </div>
-    `;
-    panel.appendChild(card);
-
-    const slider = byId('audio-airplay-default-volume');
-    slider?.addEventListener('input', () => {
-      byId('audio-airplay-default-volume-value').textContent = `${Math.round(Number(slider.value) || 0)}%`;
-    });
-    byId('audio-airplay-default-save')?.addEventListener('click', saveDefaults);
   }
 
   function updateMixerReading(channel, percent) {
@@ -308,70 +260,6 @@
     return payload;
   }
 
-  function renderDefaults(defaults) {
-    const volume = Math.max(0, Math.min(100, Number(defaults?.default_volume_percent) || 0));
-    const slider = byId('audio-airplay-default-volume');
-    if (slider) {
-      slider.value = String(volume);
-      slider.disabled = defaultsRequestInFlight;
-    }
-    byId('audio-airplay-default-volume-value').textContent = `${Math.round(volume)}%`;
-    const toggle = byId('audio-airplay-apply-default');
-    if (toggle) {
-      toggle.checked = defaults?.apply_default_volume_on_start !== false;
-      toggle.disabled = defaultsRequestInFlight;
-    }
-    const health = byId('audio-airplay-default-health');
-    if (health) {
-      health.textContent = defaults?.apply_default_volume_on_start === false ? 'Remember only' : 'Applied on connect';
-      health.classList.toggle('is-warning', defaults?.apply_default_volume_on_start === false);
-    }
-  }
-
-  async function loadDefaults() {
-    try {
-      const payload = await requestJson(DEFAULTS_ENDPOINT);
-      renderDefaults(payload.defaults || {});
-    } catch (error) {
-      byId('audio-airplay-default-health').textContent = 'Unavailable';
-      byId('audio-airplay-default-health').classList.add('is-warning');
-      byId('audio-airplay-default-message').textContent = error.message || 'Could not read AirPlay defaults.';
-    }
-  }
-
-  async function saveDefaults() {
-    if (defaultsRequestInFlight) {
-      return;
-    }
-    defaultsRequestInFlight = true;
-    const button = byId('audio-airplay-default-save');
-    if (button) {
-      button.disabled = true;
-      button.textContent = 'Saving…';
-    }
-    byId('audio-airplay-default-message').textContent = 'Saving the AirPlay starting volume…';
-    try {
-      const payload = await requestJson(DEFAULTS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          default_volume_percent: Number(byId('audio-airplay-default-volume')?.value) || 0,
-          apply_default_volume_on_start: Boolean(byId('audio-airplay-apply-default')?.checked),
-        }),
-      });
-      renderDefaults(payload.defaults || {});
-      byId('audio-airplay-default-message').textContent = payload.message || 'AirPlay starting volume saved.';
-    } catch (error) {
-      byId('audio-airplay-default-message').textContent = error.message || 'Could not save AirPlay defaults.';
-    } finally {
-      defaultsRequestInFlight = false;
-      if (button) {
-        button.disabled = false;
-        button.textContent = 'Save AirPlay default';
-      }
-    }
-  }
-
   function suppressPanelContextMenus(panel) {
     panel.addEventListener('contextmenu', (event) => {
       if (event.target.closest('input[type="range"], button')) {
@@ -387,13 +275,11 @@
       window.setTimeout(install, 100);
       return;
     }
-    installDefaultsCard(panel);
     if (!prepareMixerCard(panel)) {
       window.setTimeout(install, 100);
       return;
     }
     suppressPanelContextMenus(panel);
-    loadDefaults();
     window.setInterval(reassertDesiredMixerValues, 80);
   }
 
