@@ -135,6 +135,23 @@ acp_install_sudoers() {
     acp_install_text "$rendered\n" '/etc/sudoers.d/a-clockwork-plex-audio-eq' 0440
 }
 
+acp_install_camilladsp_binary() {
+    local binary="$1" destination
+    destination="$(acp_path '/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp')" || return 1
+
+    # Repair commonly uses the already-installed verified CamillaDSP binary as
+    # its source. GNU install rejects source==destination, so reuse that exact
+    # regular file instead of attempting a self-copy. The caller has already
+    # checksum/version-validated the source before mutation.
+    if [[ -f "$destination" && ! -L "$destination" && "$binary" -ef "$destination" ]]; then
+        acp_run_root chmod 0755 "$destination"
+        return $?
+    fi
+
+    acp_install_file "$binary" \
+        '/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp' 0755
+}
+
 acp_install_audio_files() {
     local binary="$1" project_user="$2" module rendered
     acp_verify_audio_sources || return 1
@@ -161,8 +178,7 @@ acp_install_audio_files() {
             "/usr/local/lib/a-clockwork-plex/audio-eq/audio_eq_camilladsp/$module" 0644 || return 1
     done
 
-    acp_install_file "$binary" \
-        '/usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp' 0755 || return 1
+    acp_install_camilladsp_binary "$binary" || return 1
     acp_install_sudoers "$project_user" || return 1
 
     acp_install_file "$ACP_AUDIO_PROFILE/systemd/a-clockwork-plex-audio-route.service" \
