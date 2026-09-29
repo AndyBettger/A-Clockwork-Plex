@@ -29,8 +29,37 @@ class FakeRunner:
                 "configured": True,
                 "card": "Pro",
                 "hardware_pcm": "hw:CARD=Pro,DEV=0",
-                "sample_rate_hz": 44100,
+                "sample_rate_hz": 192000,
                 "channels_count": 2,
+                "audio_path": {
+                    "route_mode": "split-bus-selected",
+                    "source": {
+                        "available": False,
+                        "format": None,
+                        "rate_hz": None,
+                        "authority": "source-observer",
+                        "note": "Source format/rate is not reported.",
+                    },
+                    "processing": {
+                        "available": True,
+                        "format": "S32_LE",
+                        "rate_hz": 192000,
+                        "channels": 4,
+                        "authority": "active-alsa-route",
+                        "error": None,
+                    },
+                    "dac": {
+                        "available": True,
+                        "open": True,
+                        "format": "S32_LE",
+                        "rate_hz": 192000,
+                        "channels": 2,
+                        "period_size": 2048,
+                        "buffer_size": 16384,
+                        "authority": "alsa-hw-params",
+                        "error": None,
+                    },
+                },
                 "scale": {
                     "name": "perceptual-amplitude",
                     "examples": {"50_percent_db": -6.02},
@@ -129,6 +158,11 @@ class SharedAudioMixerTests(unittest.TestCase):
         self.assertEqual(status["channels"]["airplay_live"]["percent"], 100)
         self.assertEqual(status["scale"]["name"], "perceptual-amplitude")
         self.assertEqual(status["devices"]["alarm"], "acp_alarm")
+        self.assertEqual(status["sample_rate_hz"], 192000)
+        self.assertEqual(status["audio_path"]["processing"]["format"], "S32_LE")
+        self.assertEqual(status["audio_path"]["processing"]["rate_hz"], 192000)
+        self.assertEqual(status["audio_path"]["dac"]["rate_hz"], 192000)
+        self.assertFalse(status["audio_path"]["source"]["available"])
         self.assertEqual(runner.commands[0][-1], "status")
 
     def test_set_volume_is_restricted_to_known_channels_and_percentages(self):
