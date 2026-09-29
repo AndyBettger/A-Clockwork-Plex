@@ -262,12 +262,6 @@ class UnifiedSettingsService:
                     "Bedroom Plexamp",
                     maximum=50,
                 ),
-                "default_volume_percent": _integer(
-                    airplay.get("default_volume_percent"), 60, 0, 100
-                ),
-                "apply_default_volume_on_start": airplay.get(
-                    "apply_default_volume_on_start", True
-                ) is not False,
                 "pause_hold_seconds": _integer(
                     airplay.get("pause_hold_seconds"), 600, 30, 3600
                 ),
@@ -434,16 +428,6 @@ class UnifiedSettingsService:
         airplay.update(
             {
                 "display_name": receiver_name,
-                "default_volume_percent": _integer(
-                    source.get("default_volume_percent"),
-                    airplay.get("default_volume_percent", 60),
-                    0,
-                    100,
-                ),
-                "apply_default_volume_on_start": _boolean(
-                    source.get("apply_default_volume_on_start"),
-                    airplay.get("apply_default_volume_on_start", True) is not False,
-                ),
                 "pause_hold_seconds": _integer(
                     source.get("pause_hold_seconds"),
                     airplay.get("pause_hold_seconds", 600),
@@ -452,6 +436,8 @@ class UnifiedSettingsService:
                 ),
             }
         )
+        airplay.pop("default_volume_percent", None)
+        airplay.pop("apply_default_volume_on_start", None)
 
     def _normalise_plexamp(self, config: dict[str, Any], payload: Any) -> None:
         source = _object(payload)

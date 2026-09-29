@@ -204,8 +204,6 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
             settings.get("airplay"),
             (
                 "receiver_name",
-                "default_volume_percent",
-                "apply_default_volume_on_start",
                 "pause_hold_seconds",
             ),
         ),
