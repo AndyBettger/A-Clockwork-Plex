@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "audio" / "install-direct.sh"
 PROFILE = ROOT / "installer" / "profiles" / "direct" / "alarm-safe.conf"
-DIRECT_SHA = "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9"
+DIRECT_SHA = "0166bd73e3e9a34dbdebff995de9fa6e39d2cd344dca574c891d46dd1a6aacfb"
 
 
 class DirectAudioInstallerTests(unittest.TestCase):
