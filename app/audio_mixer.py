@@ -41,7 +41,7 @@ MIXER_CHANNELS: dict[str, dict[str, Any]] = {
         "control": "A Clockwork AirPlay",
         "pcm": "acp_airplay",
         "default_percent": 100,
-        "description": "Persistent downstream calibration after the AirPlay sender volume.",
+        "description": "Persistent calibration downstream of the receiver-owned AirPlay live level.",
     },
     "alarm": {
         "label": "Maximum alarm volume",
