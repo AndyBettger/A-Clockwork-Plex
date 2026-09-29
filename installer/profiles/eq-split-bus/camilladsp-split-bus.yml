@@ -2,11 +2,11 @@
 title: "A Clockwork Plex EQ-capable split bus"
 description: "Fixed music headroom, bypassable three-band EQ, independent alarm lane, final limiter"
 devices:
-  samplerate: 44100
-  chunksize: 1024
+  samplerate: 192000
+  chunksize: 4096
   queuelimit: 4
   silence_timeout: 0
-  target_level: 2048
+  target_level: 12288
   adjust_period: 1
   enable_rate_adjust: true
   resampler: null
@@ -16,12 +16,12 @@ devices:
     type: Alsa
     channels: 4
     device: "hw:7,1,0"
-    format: S16_LE
+    format: S32_LE
   playback:
     type: Alsa
     channels: 2
     device: "hw:CARD=Pro,DEV=0"
-    format: S16_LE
+    format: S32_LE
 filters:
   bass:
     type: Biquad
