@@ -197,11 +197,12 @@ Detailed physical procedure and evidence boundary: [`../testing/airplay-hi-res-b
 8. **AirPlay buffer diagnosis complete:** the unchanged-frame 192 kHz graph reproduced choppiness plus repeated underrun/overrun/stall evidence; the otherwise-identical time-scaled 4096/32768 ALSA + 4096/8192 CamillaDSP candidate played the same AirPlay material cleanly twice and produced two clean timing snapshots. Fixed S32_LE/192 kHz therefore remains the preferred architecture; Controller Adapt is deferred unless a later gate requires it.
 9. **Plex source-rate matrix complete:** known 16/44.1, 24/48, 24/96 and 24/192 material all played correctly; Plexamp retained source-rate pipeline/mixer behaviour while Device 9/downstream processing stayed fixed at S32_LE/192 kHz. This closes lower-rate resampling truthfulness for the managed candidate.
 10. **Plexamp live-control pass complete:** Bass changes, Music Master and Plexamp trim behaved correctly at fixed S32_LE/192 kHz; CamillaDSP retained the same PID, the graph stayed at 192 kHz, no XRUN/stall/error evidence was logged, and exact recovery passed. A stale mixer API sample-rate field was identified as metadata-only and corrected to follow the managed split-bus profile.
-11. **Active:** complete the AirPlay-side EQ/bypass + Music Master/AirPlay trim ownership check, then alarm preview/scheduled takeover, latency/long-run mixed-source stability and exact recovery.
-12. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
-13. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
-14. Expose source format, processing format and final DAC format/rate separately in diagnostics.
-15. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
+11. **AirPlay-side partial pass:** EQ, Music Master and AirPlay trim all worked at fixed S32_LE/192 kHz, and the mixer rate diagnostic correctly tracked 44.1 → 192 → 44.1 kHz. The main AirPlay sender slider and configured starting volume did not control the iPhone reliably. Inspection found ACP was using Shairport's MPRIS SetVolume request, whose upstream contract does not guarantee the sender applies the request. Two isolated CamillaDSP playback-buffer underrun recoveries were also logged during the longer reconnect/control run, so this gate is not accepted yet.
+12. **Active:** move sender-volume read/write authority to Shairport native RemoteControl AirplayVolume/SetAirplayVolume, retain the existing perceptual browser mapping, keep observed sender state authoritative until a request is confirmed, then repeat slider/default/reconnect and XRUN checks before proceeding to alarms.
+13. Define an EQ-active high-resolution contract separately from a measured native/bypass contract.
+14. Test source-rate-native Direct Plexamp across **44.1/48/88.2/96/176.4/192 kHz** where the hardware and Plexamp path permit it.
+15. Expose source format, processing format and final DAC format/rate separately in diagnostics.
+16. Regression-test EQ active/bypass, route/fallback, AirPlay transitions, alarm takeover and recovery before merge.
 
 ## Acceptance boundary
 

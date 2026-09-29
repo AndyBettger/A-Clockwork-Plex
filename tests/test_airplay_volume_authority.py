@@ -86,6 +86,8 @@ console.log(JSON.stringify({{
         self.assertIn("audio_mixer.bind_mixer_controller(mixer_controller)", text)
         self.assertIn("set_mixer_volume=set_mixer_volume", text)
         self.assertIn("set_plexamp_volume=set_plexamp_volume", text)
+        self.assertIn("set_sender_airplay_volume", text)
+        self.assertNotIn('mpris_call("SetVolume"', text)
         self.assertNotIn("_install_mixer_controller_bridge", text)
 
     def test_starting_volume_policy_is_one_write_per_session(self):

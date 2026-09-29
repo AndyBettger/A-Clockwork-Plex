@@ -12,11 +12,11 @@ from flask import jsonify, request
 try:
     from .mixer_controller import MixerController
     from .playback_coordinator import PlaybackCoordinator
-    from .shairport_session import shairport_remote_status
+    from .shairport_session import set_sender_airplay_volume, shairport_remote_status
 except ImportError:  # Supports direct execution imports.
     from mixer_controller import MixerController
     from playback_coordinator import PlaybackCoordinator
-    from shairport_session import shairport_remote_status
+    from shairport_session import set_sender_airplay_volume, shairport_remote_status
 
 
 StateProvider = Callable[[], dict[str, Any]]
@@ -122,7 +122,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         return shairport_remote_status(dashboard.mpris_remote_status)
 
     def set_airplay_sender_volume(percent: int) -> tuple[bool, str | None]:
-        return dashboard.mpris_call("SetVolume", "d", f"{percent / 100:.4f}")
+        return set_sender_airplay_volume(percent)
 
     def plexamp_status() -> dict[str, Any]:
         return audio_mixer._plexamp_controller().status()

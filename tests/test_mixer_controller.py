@@ -9,7 +9,14 @@ from app.mixer_controller import MixerController
 
 
 class MixerControllerTests(unittest.TestCase):
-    def controller(self, *, observed=20, available=True, apply_default=True):
+    def controller(
+        self,
+        *,
+        observed=20,
+        available=True,
+        apply_default=True,
+        command_updates_remote=True,
+    ):
         remote = {
             "available": available,
             "sender_available": available,
@@ -51,6 +58,8 @@ class MixerControllerTests(unittest.TestCase):
 
         def set_airplay(percent: int):
             airplay_commands.append(percent)
+            if command_updates_remote:
+                remote["volume_percent"] = percent
             return True, None
 
         def set_plexamp(percent: int):
@@ -96,13 +105,16 @@ class MixerControllerTests(unittest.TestCase):
         self.assertEqual(result, "requested")
         self.assertEqual(commands, [60])
         self.assertEqual(state["command_count"], 1)
-        self.assertEqual(state["observed_percent"], 20)
+        self.assertEqual(state["observed_percent"], 60)
         self.assertEqual(state["requested_percent"], 60)
         self.assertEqual(state["effective_percent"], 60)
-        self.assertEqual(state["state_source"], "controller-request")
+        self.assertEqual(state["state_source"], "sender-confirmed")
 
-    def test_stale_baseline_does_not_overwrite_requested_value(self):
-        controller, remote, commands, _plexamp, _mixer = self.controller(observed=35)
+    def test_unconfirmed_request_keeps_observed_sender_value_truthful(self):
+        controller, remote, commands, _plexamp, _mixer = self.controller(
+            observed=35,
+            command_updates_remote=False,
+        )
         controller.start_airplay_session(background=False)
 
         first = controller.airplay_snapshot()
@@ -110,12 +122,16 @@ class MixerControllerTests(unittest.TestCase):
 
         self.assertEqual(commands, [60])
         self.assertEqual(remote["volume_percent"], 35)
-        self.assertEqual(first["effective_percent"], 60)
-        self.assertEqual(second["effective_percent"], 60)
+        self.assertEqual(first["effective_percent"], 35)
+        self.assertEqual(second["effective_percent"], 35)
+        self.assertEqual(second["state_source"], "sender-awaiting-confirmation")
         self.assertTrue(second["request_active"])
 
     def test_sender_confirmation_releases_pending_request(self):
-        controller, remote, commands, _plexamp, _mixer = self.controller(observed=20)
+        controller, remote, commands, _plexamp, _mixer = self.controller(
+            observed=20,
+            command_updates_remote=False,
+        )
         controller.start_airplay_session(background=False)
         remote["volume_percent"] = 60
 
@@ -128,7 +144,10 @@ class MixerControllerTests(unittest.TestCase):
         self.assertFalse(state["request_active"])
 
     def test_newer_sender_change_supersedes_stale_request(self):
-        controller, remote, commands, _plexamp, _mixer = self.controller(observed=20)
+        controller, remote, commands, _plexamp, _mixer = self.controller(
+            observed=20,
+            command_updates_remote=False,
+        )
         controller.start_airplay_session(background=False)
         remote["volume_percent"] = 73
 
@@ -245,7 +264,7 @@ class MixerControllerTests(unittest.TestCase):
         self.assertEqual(plexamp, [42])
         self.assertEqual(mixer, [("airplay", 88, True)])
         self.assertEqual(airplay_changed.get_json()["audio"]["channels"]["airplay"]["effective_percent"], 48)
-        self.assertEqual(remote["volume_percent"], 25)
+        self.assertEqual(remote["volume_percent"], 48)
 
 
 if __name__ == "__main__":

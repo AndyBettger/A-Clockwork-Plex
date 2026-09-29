@@ -146,10 +146,11 @@ Keep the same **time-scaled S32_LE / 192 kHz** candidate and move to the remaini
 1. Re-enter the time-scaled 192 kHz rehearsal from the accepted baseline.
 2. **Complete:** known Plex **16/44.1, 24/48, 24/96 and 24/192** sources all played correctly; Plexamp retained source-rate pipeline/mixer behaviour while the managed device/downstream graph stayed fixed at S32_LE/192 kHz.
 3. **Plexamp side complete:** Bass changes were audibly effective, Music Master and Plexamp trim behaved correctly, CamillaDSP retained the same PID and the 192 kHz graph stayed clean. The pass also exposed and prompted correction of stale mixer API sample-rate metadata.
-4. **Active next:** repeat the ownership check from the AirPlay side, including EQ/bypass, Music Master and AirPlay trim, without changing the fixed graph.
-5. Exercise alarm preview/scheduled takeover and return-to-music behaviour.
-6. Run a longer mixed-source stability period and inspect CamillaDSP journals for XRUN/stall recovery.
-7. Restore exactly to the accepted 16/44.1 baseline and independently verify.
-8. Only if one of those gates exposes a fixed-graph limitation reconsider Controller Adapt/source-rate capture.
+4. **AirPlay-side partial pass / source-volume fault found, 29 September 2026:** EQ was audibly effective, Music Master and AirPlay trim behaved correctly, and the graph stayed S32_LE/192 kHz. The main AirPlay sender-volume slider had no audible effect and the configured starting volume was not applied reliably on reconnect, forcing the sender volume to be raised on the iPhone. The same run physically proved the mixer diagnostic-rate fix (44.1 kHz baseline → 192 kHz candidate → 44.1 kHz restore). It also logged two isolated CamillaDSP playback-buffer underrun recoveries during the longer reconnect/control exercise, so the AirPlay stability gate remains open.
+5. **Active next:** replace ACP's AirPlay sender-volume authority from Shairport's MPRIS SetVolume request to native RemoteControl AirplayVolume/SetAirplayVolume, keep the existing perceptual UI mapping, and rerun live slider + starting-volume + reconnect testing while watching for underruns.
+6. Exercise alarm preview/scheduled takeover and return-to-music behaviour only after the AirPlay sender-volume gate is clean.
+7. Run a longer mixed-source stability period and inspect CamillaDSP journals for XRUN/stall recovery.
+8. Restore exactly to the accepted 16/44.1 baseline and independently verify.
+9. Only if one of those gates exposes a fixed-graph limitation reconsider Controller Adapt/source-rate capture.
 
 The acceptance boundary remains appliance reliability first: AirPlay must be stable and truthfully described even though high-resolution processing is primarily a Plexamp requirement.

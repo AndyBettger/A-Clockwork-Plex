@@ -209,8 +209,12 @@ class MixerController:
                     effective = observed
                     source = "sender-observed-newer"
                 else:
-                    effective = requested
-                    source = "controller-request"
+                    effective = observed
+                    source = (
+                        "sender-awaiting-confirmation"
+                        if observed is not None
+                        else "sender-unreported"
+                    )
             else:
                 effective = observed
                 source = "sender-observed" if observed is not None else "sender-unreported"
