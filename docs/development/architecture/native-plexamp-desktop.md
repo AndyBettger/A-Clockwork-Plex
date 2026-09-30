@@ -51,6 +51,70 @@ A two-player arrangement may still be useful temporarily for discovery, but is
 not the intended visualiser architecture because a remote controller does not
 own the locally decoded audio data required by the visualiser.
 
+## ACP UI rendering decision
+
+The native Plexamp investigation also exposes a separate ACP question: **should
+Chromium continue to render the ACP product surfaces, or should those surfaces
+eventually move into a native UI?**
+
+The current transition implementation is not one uniform rendering model:
+
+- ordinary ACP routes perform full document navigation and therefore have
+  outgoing/incoming page boot choreography;
+- Plexamp is a special persistent iframe/overlay with its own lifecycle;
+- Settings behaves more like an in-document application with tabs/subpages;
+- selected pages have hydration-aware reveal delays;
+- screen projection, playback handoff and manual-surface leases can all influence
+  when a transition is considered complete.
+
+That mixture explains why the accepted transitions can still feel slightly less
+immediate than a single continuously rendered appliance shell even after careful
+optimisation.
+
+### Decision options
+
+Evaluate three architectures rather than framing this as a binary browser/native
+choice:
+
+1. **Current multi-document Chromium** — lowest migration cost, but retains the
+   full-document navigation and mixed lifecycle boundaries that currently make
+   transitions hardest to perfect.
+2. **Single long-lived web surface inside an ACP shell** — keep Flask/HTML/CSS/JS
+   and most current feature code, but migrate top-level ACP navigation toward one
+   continuously loaded application surface. Page changes become in-process
+   surface/state changes rather than browser document replacements.
+3. **Native ACP surfaces** — implement some or all ACP pages in a native animated
+   UI toolkit. If this path proves worthwhile, a declarative scene/state toolkit
+   such as Qt/QML is a stronger fit than traditional widget-style UI because ACP
+   relies heavily on touch, transforms, transitions and fixed 1280x720 appliance
+   composition.
+
+The preferred investigation order is **2 before 3**. The existing Flask APIs,
+settings model, backup/reset ownership, themes, News, Weather, alarms and other
+page logic are valuable working assets. Do not rewrite them merely to solve a
+transition-ownership problem that may disappear once navigation stops causing
+full document replacement.
+
+A native shell may therefore own navigation and animation even if ACP content
+continues to be web-rendered.
+
+### Native rewrite threshold
+
+A full or partial native rewrite is justified only if a prototype demonstrates
+clear practical advantages over a single-document web surface in:
+
+- transition smoothness and input latency;
+- memory/GPU use on the commissioned Pi;
+- touchscreen behaviour;
+- visual consistency with the current ACP look;
+- startup/recovery;
+- implementation complexity;
+- maintainability of Weather/News/Settings/Alarm-rich screens;
+- testability and accessibility.
+
+The existing look and feel is a product requirement regardless of rendering
+technology.
+
 ## Display ownership
 
 ### Preferred first experiment: two compositor workspaces
@@ -70,6 +134,17 @@ than assume labwc merely because it is the current Raspberry Pi OS default.
 
 The current ACP screen changes feel deliberately polished and should not regress
 to an abrupt desktop flash merely because Plexamp becomes native.
+
+Top-level transition ownership should move into the ACP desktop shell so the same
+visual grammar can cover:
+
+- ACP web-surface to ACP web-surface navigation;
+- ACP to native Plexamp workspace changes;
+- native Plexamp back to ACP;
+- alarm-forced presentation.
+
+Content applications should provide readiness/state signals, not each implement
+their own incompatible top-level transition choreography.
 
 Preferred investigation:
 
@@ -96,9 +171,10 @@ the shared owner of UI that must appear above both Chromium and native Plexamp.
 
 Possible responsibilities:
 
-- native version of the existing bottom navigation pill;
-- narrow edge-swipe detector that reveals navigation;
-- transition overlay;
+- bottom home-indicator affordance plus swipe-up navigation surface;
+- cross-application navigation state;
+- transition overlay and optional snapshot-based spatial effects;
+- deterministic ACP/Plexamp workspace switching;
 - optional system-level on-screen keyboard surface.
 
 Explicit non-responsibilities:
@@ -112,36 +188,78 @@ Explicit non-responsibilities:
 The shell should fail open: if it crashes, Chromium/Plexamp audio must continue,
 and there must remain an SSH/VNC recovery path.
 
-## Navigation pill and edge gesture
+## Navigation shell and bottom-edge gesture
 
-The current ACP navigation pill works over the embedded Plexamp UI because both
-belong to Chromium. It cannot literally overlay a separate native Plexamp
-window.
+The preferred end-state is **not** a permanently visible navigation pill.
 
-First-stage migration:
+Use a small iPhone-style horizontal home indicator at the bottom edge to make the
+gesture discoverable without permanently occupying useful content space.
 
-- retain the existing browser pill inside Chromium;
-- show a visually matching ACP-owned overlay pill only while native Plexamp is
-  foreground;
-- tapping it returns to the ACP workspace/navigation.
+Preferred interaction:
 
-Optional later unification:
+1. content is full screen with only the small bottom indicator visible;
+2. swipe upward from the bottom edge;
+3. the ACP desktop shell reveals the navigation surface;
+4. the current content visually recedes enough to establish that navigation is a
+   separate system layer;
+5. the user chooses another ACP surface or native Plexamp;
+6. the shell performs the selected transition;
+7. navigation slides away and the destination returns to full-screen scale.
 
-- one desktop-shell navigation surface across both workspaces;
-- hidden by default;
-- reveal with a bottom- or side-edge swipe.
+### Navigation presentation experiments
 
-The edge gesture must be physically tested for:
+Test two levels of ambition.
 
-- accidental triggers during Plexamp gestures;
-- scrolling conflicts in Settings/News/etc.;
-- visualiser interaction;
-- alarm screens;
-- swipe direction and target width;
-- VNC behaviour.
+**Level A — production-first overlay**
 
-A visible pill remains the fallback if an invisible gesture proves discoverability
-or reliability is worse.
+- current app remains live beneath the shell;
+- shell dims/slightly masks the content and slides navigation in from the bottom;
+- target selection triggers the transition/workspace switch;
+- no compositor modification and no live-window scaling requirement.
+
+**Level B — spatial surface strip / carousel**
+
+Investigate the proposed model where ACP surfaces conceptually form a horizontal
+row. When navigation opens, the active surface appears to shrink/recede and the
+shell can slide toward the selected destination before committing the real page
+or workspace switch.
+
+Do not require the compositor to provide arbitrary live-window scaling. If a
+convincing spatial transition needs a frozen screenshot/texture of the current
+surface, treat that as an optional presentation technique and measure latency,
+GPU cost and failure behaviour. The actual application/workspace remains the
+authority underneath.
+
+A true live Compiz-style window strip would require compositor-level transforms
+that labwc intentionally does not provide as a product API; do not make a custom
+compositor a prerequisite for ACP navigation.
+
+### Cross-application ownership
+
+The bottom indicator and revealed navigation must be visible over both Chromium
+ACP and native Plexamp. Therefore they belong to the ACP desktop shell rather
+than either content application.
+
+During an incremental migration the browser's current HTML pill may remain as a
+fallback, but the target design is one cross-application shell affordance rather
+than two separate navigation implementations.
+
+### Gesture gate
+
+Physically test:
+
+- collision with Plexamp's Home/Library/Search/Settings bar near the bottom edge;
+- ordinary vertical scrolling;
+- touch starts within the narrow home-indicator target;
+- slow/short swipes versus intentional navigation swipes;
+- accidental activation during visualiser interaction;
+- alarms and forced screen changes;
+- screen dim/night behaviour;
+- VNC as a development convenience, without making perfect VNC gesture fidelity
+  a production requirement.
+
+A tap on the home indicator may optionally reveal navigation as an accessibility
+fallback.
 
 ## Touchscreen keyboard
 
