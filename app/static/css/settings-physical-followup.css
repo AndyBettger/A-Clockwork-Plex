@@ -284,6 +284,25 @@ body.mode-settings .settings-hardware-summary {
   margin-top: 10px;
 }
 
+body.mode-settings .settings-audio-path-heading {
+  margin: 14px 2px 8px;
+}
+
+body.mode-settings .settings-audio-path-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body.mode-settings .settings-audio-path-summary .settings-status-reading {
+  min-height: 88px;
+}
+
+body.mode-settings .settings-audio-path-summary .settings-status-reading strong {
+  color: #d8f2ff;
+  font-family: var(--display-font);
+  font-size: clamp(.92rem, 1.55vmin, 1.08rem);
+  line-height: 1.12;
+}
+
 body.mode-settings .settings-hardware-maintenance-note {
   margin: 12px 2px 0;
   padding: 10px 12px;
@@ -344,6 +363,10 @@ body.mode-settings .setting-toggle {
 }
 
 @media (max-width: 760px) {
+  body.mode-settings .settings-audio-path-summary {
+    grid-template-columns: 1fr;
+  }
+
   body.mode-settings.settings-autosave-enabled .settings-save-bar {
     right: 7px;
     width: min(360px, calc(100vw - 205px));
