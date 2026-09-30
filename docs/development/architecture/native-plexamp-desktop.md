@@ -1,6 +1,6 @@
 # Native Plexamp desktop / visualiser migration
 
-**Status:** queued investigation after Astronomy; no production migration authorised  
+**Status:** queued next after #85; Phase A UI foundation precedes Astronomy; no production migration authorised  
 **Roadmap item:** #94  
 **Last updated:** 30 September 2026
 
@@ -206,10 +206,8 @@ Changing browser should be treated as a measured optimisation experiment, not a
 design migration.
 
 Raspberry Pi OS supports Chromium and Firefox as first-class browser choices.
-Current Google Chrome also supports Linux ARM64, so all three can be benchmarked
-on the commissioned hardware if useful.
-
-Compare the same single-document ACP prototype under each engine for:
+Compare the same single-document ACP prototype under Raspberry Pi OS Chromium
+and Firefox for:
 
 - animation frame pacing/jank;
 - touch input latency;
@@ -220,11 +218,11 @@ Compare the same single-document ACP prototype under each engine for:
 - on-screen keyboard behaviour;
 - remote-debug/recovery tooling.
 
-Do not expect Chrome to provide a major architectural advantage over Chromium:
-they share the same Blink/V8 engine family. Firefox is a genuinely different
-engine and therefore the more interesting comparison, but switching away from
-Chromium must justify the cost of requalifying the existing kiosk, autoplay,
-iframe, touch and recovery assumptions.
+Chromium remains the baseline because it is the Raspberry Pi OS-default path
+already qualified by ACP. Firefox is the useful comparison because it is a
+genuinely different rendering engine. Switching away from Chromium must justify
+the cost of requalifying the existing kiosk, autoplay, iframe, touch and recovery
+assumptions.
 
 The likely optimisation order is therefore:
 
@@ -232,7 +230,7 @@ The likely optimisation order is therefore:
 2. ACP component/design-system cleanup;
 3. View Transition API;
 4. measure Chromium;
-5. only then compare Firefox/Chrome if performance still leaves a material gap.
+5. compare Firefox only if performance or interaction still leaves a material gap.
 
 ## Display ownership
 
@@ -439,11 +437,14 @@ Physical gates include:
 
 ## Runtime and resilience boundary
 
-#94 comes **after Astronomy and before the full Appliance Resilience track**.
+#94 begins **after #85 and before Astronomy**. Its Phase A application-shell /
+single-document foundation is accepted before Astronomy starts, so Astronomy is
+not knowingly built in the legacy multi-document model and then migrated.
 
-Reason: native Plexamp may change player process ownership, display switching,
-autostart, crash behaviour and the browser/native boundary. The subsequent
-resilience work should harden the architecture that actually survives #94 rather
+Astronomy may begin once that UI/application-surface contract is stable; it does
+not need to wait for every later native-Plexamp lifecycle gate if those player
+experiments are still continuing. Full Appliance Resilience follows the
+modernisation so it hardens the architecture that actually survives #94 rather
 than fully hardening components that may be retired.
 
 However, #94 itself must still prove minimum resilience before migration:
