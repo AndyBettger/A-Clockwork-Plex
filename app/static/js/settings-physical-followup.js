@@ -446,9 +446,9 @@
     const dac = path?.dac || {};
     summary.innerHTML = `
       <div class="settings-status-reading">
-        <span>Source</span>
-        <strong>${escapeHtml(audioStageLabel(source))}</strong>
-        <small>${escapeHtml(source.note || 'Source format/rate is not reported.')}</small>
+        <span>Source format/rate</span>
+        <strong>${escapeHtml(source?.available === true ? audioStageLabel(source) : 'Not reported')}</strong>
+        <small>${escapeHtml(source.note || 'Plexamp/AirPlay identity is known separately; source format/rate is not reported.')}</small>
       </div>
       <div class="settings-status-reading">
         <span>Processing</span>
@@ -458,7 +458,13 @@
       <div class="settings-status-reading">
         <span>DAC</span>
         <strong>${escapeHtml(audioStageLabel(dac, { dac: true }))}</strong>
-        <small>${escapeHtml(dac?.open === false ? 'Physical DAC is currently closed.' : 'Physical DAC · live ALSA hw_params')}</small>
+        <small>${escapeHtml(
+          dac?.open === false
+            ? 'Physical DAC is currently closed.'
+            : (String(path?.route_mode || '') === 'split-bus-selected'
+              ? 'Managed processing keeps the physical DAC open continuously.'
+              : 'Physical DAC · live ALSA hw_params')
+        )}</small>
       </div>`;
   }
 
