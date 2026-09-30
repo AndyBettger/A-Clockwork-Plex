@@ -45,12 +45,13 @@ class SettingsAudioLevelCardTests(unittest.TestCase):
 
     def test_audio_hardware_page_separates_source_processing_and_dac_truthfully(self):
         self.assertIn("Live audio path", self.physical)
-        self.assertIn("<span>Source</span>", self.physical)
+        self.assertIn("<span>Source format/rate</span>", self.physical)
         self.assertIn("<span>Processing</span>", self.physical)
         self.assertIn("<span>DAC</span>", self.physical)
-        self.assertIn("Source format/rate is not reported.", self.physical)
+        self.assertIn("Plexamp/AirPlay identity is known separately; source format/rate is not reported.", self.physical)
         self.assertIn("Managed split bus · active ALSA route", self.physical)
         self.assertIn("Direct failback · active ALSA route", self.physical)
+        self.assertIn("Managed processing keeps the physical DAC open continuously.", self.physical)
         self.assertIn("Physical DAC · live ALSA hw_params", self.physical)
         self.assertIn("settings-audio-path-summary", self.physical)
         self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.css)
