@@ -22,6 +22,7 @@ Specialist authorities:
 - [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md) — #93 Reset ownership and physical/product gate;
 - [`../development/architecture/bbc-news.md`](../development/architecture/bbc-news.md) — #92 BBC News, article QR hand-off and configurable sections;
 - [`../development/architecture/high-resolution-audio.md`](../development/architecture/high-resolution-audio.md) — active #85 hi-res/EQ architecture, test-appliance policy and acceptance boundary;
+- [`../development/architecture/native-plexamp-desktop.md`](../development/architecture/native-plexamp-desktop.md) — queued #94 native Plexamp/visualiser, desktop-shell, keyboard and workspace migration investigation;
 - [`../development/architecture/appliance-resilience.md`](../development/architecture/appliance-resilience.md) — queued resilience design.
 
 Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not this development roadmap.
@@ -228,6 +229,8 @@ Research notes recorded when queued:
 - Plexamp 4.50.12 is on the stable desktop channel; Flathub's beta repository carries the current stable ARM64 Linux build while the normal Flathub listing still exposes the older 4.13 generation.
 - Plex has stated Plexamp Headless will no longer be supported going forward, making this investigation useful for lifecycle reasons as well as the visualiser.
 - The full Linux Plexamp is explicitly confirmed by Plex to provide visualisers on a Raspberry Pi when playback is local.
+
+Detailed authority: [`../development/architecture/native-plexamp-desktop.md`](../development/architecture/native-plexamp-desktop.md).
 
 ## Agreed implementation order
 
