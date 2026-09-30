@@ -23,6 +23,8 @@ The live WU path derives Hourly Rain and Event Rain when the provider does not s
 
 A live 30 September 2026 storm exposed a useful sanity-check case: Event Rain may legitimately exceed Rain Today, and can exceed Rain This Week only when the event began before the current Monday and has not yet met the reset rule. Inspect persisted event state when that relationship is unexpected.
 
+Maintenance candidate: persist explicit `event_started_at` / last-reset diagnostics so a multi-day Event Rain total can explain its calendar provenance after the rolling 24-hour increment list has aged away. Do not change the accepted reset semantics merely to make totals look more intuitive.
+
 ## Detailed authorities
 
 - `../../development/evidence/weather-physical-followup-2026-08-17.md`
