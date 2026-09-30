@@ -23,7 +23,9 @@ The live WU path derives Hourly Rain and Event Rain when the provider does not s
 
 A live 30 September 2026 storm exposed a useful sanity-check case: Event Rain may legitimately exceed Rain Today, and can exceed Rain This Week only when the event began before the current Monday and has not yet met the reset rule. Inspect persisted event state when that relationship is unexpected.
 
-Maintenance candidate: persist explicit `event_started_at` / last-reset diagnostics so a multi-day Event Rain total can explain its calendar provenance after the rolling 24-hour increment list has aged away. Do not change the accepted reset semantics merely to make totals look more intuitive.
+Maintenance candidate: persist explicit `event_started_at`, `event_last_rain_at` and last-reset diagnostics so a multi-day Event Rain total can explain its calendar provenance after the rolling 24-hour increment list has aged away. Surface the start date/time alongside Event Rain in the Weather UI.
+
+**Live bug identified 30 September 2026:** the derived WU event accumulator currently uses dashboard receipt time for the calendar-day rollover. A poll at `2026-09-30T00:00:04` retained a **1.02 mm** increment which was almost certainly the previous day's still-visible WU daily counter; the later genuine new-day counter drop was treated as a reset/correction but the already-added 1.02 mm was never removed. This explains Event Rain being about 1.0 mm higher than both the retained post-midnight increments and the calendar-week history. Fix the derivation to use the station observation timestamp (`dateutc` converted to local time) as its rainfall chronology, add a guarded rollover regression fixture, and preserve the accepted event reset rule rather than papering over the discrepancy in presentation.
 
 ## Detailed authorities
 
