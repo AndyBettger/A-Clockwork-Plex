@@ -211,6 +211,14 @@ This is deliberately queued **after #85 closes**. It is a feasibility/rehearsal 
 - [ ] Verify alarm takeover/dismissal/manual-resume, AirPlay takeover, Plexamp/AirPlay arbitration and route/failback behaviour with native Plexamp as the local player.
 - [ ] Design a proper display owner for **Chromium dashboard ↔ native Plexamp**. The existing NFC display-switch script is the natural policy boundary, but current dashboard navigation assumes one Chromium kiosk window. Evaluate compositor/window-focus control plus a reliable touchscreen path back to ACP; do not depend on fragile coordinate automation.
 - [ ] Confirm the native app can be raised/focused reliably on the current Raspberry Pi OS desktop/compositor after boot, after screen changes and after an NFC scan. Linux Plexamp 4.50 exposes native MPRIS including `Raise`, which may help one half of the transition; ACP still needs a deterministic way to return Chromium to the foreground.
+- [ ] Verify the workspace/overlay/native-app arrangement through both the physical touchscreen and the existing VNC/remote-support path so development/recovery does not become blind whenever native Plexamp owns the foreground.
+- [ ] Treat touchscreen text entry as a first-class migration gate. The existing ACP on-screen keyboard is browser/DOM-owned and cannot service a separate native Plexamp window. Test the current Raspberry Pi OS Wayland keyboard over native fullscreen Plexamp and Chromium; if it is unreliable, prototype an ACP-owned system-level keyboard surface using the Wayland input/virtual-keyboard path rather than browser-only key injection. Plexamp Search must be fully touch-usable before migration is accepted.
+- [ ] Evaluate a **two-workspace display model** as the preferred first experiment: Chromium/ACP pinned to one compositor workspace and native Plexamp pinned to another, with ACP owning deterministic workspace switching instead of fragile raise/lower races on one desktop. Keep alarm takeover able to force the ACP workspace immediately.
+- [ ] Preserve the current polished screen-change feel. Labwc provides workspaces/desktops and deterministic switching, but not Compiz-style animated workspace effects; investigate an ACP-owned Wayland layer-shell transition surface that can fade/slide between workspaces while the actual compositor switch occurs underneath. Fancy cube/exposé effects are a fun optional experiment, not a reason to replace the supported compositor.
+- [ ] Do **not** adopt an unsupported compositor merely for animation. Raspberry Pi OS has moved to labwc and no longer supports Wayfire as its normal desktop path; any alternative compositor experiment must remain disposable until it proves equal or better reliability.
+- [ ] Reuse the existing ACP navigation-pill language across native Plexamp. The current pill is HTML inside Chromium and cannot literally appear above a separate native window, so prototype an ACP-owned overlay version with the same look/semantics. Start by showing it only over native Plexamp; consider unifying both apps under one shell later if that materially simplifies ownership.
+- [ ] Prototype a **touch edge-swipe reveal** for navigation. A narrow layer-shell edge target could reveal the ACP pill/full navigation over either Chromium or native Plexamp, reducing permanent chrome while preserving an obvious escape path. Test accidental activation, scrolling conflicts, visualisers, Settings and alarm screens before considering it global.
+- [ ] Consider one small **ACP desktop-shell** process as the shared owner of cross-application UI: navigation pill/edge gesture, transition overlay, and possibly the native on-screen keyboard. It must remain independently restartable and must never become an audio or playback authority.
 - [ ] Decide whether an always-available ACP edge handle/overlay is required while native Plexamp is foreground so alarms, Settings and dashboard pages remain reachable without a keyboard.
 - [ ] Audit settings/backup/reset ownership. Current browser bridges and Headless/Home storage contracts must not silently be assumed to apply to the rewritten desktop app; classify native Plexamp identity, preferences, Home customisation and claim state before migration.
 - [ ] Keep Plexamp Headless as rollback until a native-player candidate passes reboot/autostart, NFC, audio, alarms, AirPlay, display switching, backup/reset and longer stability gates.
@@ -230,9 +238,9 @@ Unless deliberately reprioritised:
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE, including article QR and configurable sections
 5. **High-resolution Plexamp audio / mixer-EQ path** — ACTIVE
-6. **Native Plexamp desktop / visualiser migration feasibility** — QUEUED after #85
-7. **Astronomy**
-8. **Appliance resilience**
+6. **Astronomy**
+7. **Native Plexamp desktop / visualiser migration feasibility** — QUEUED after Astronomy
+8. **Appliance resilience** — harden the post-migration runtime
 9. **Events calendar**
 
 This priority list is authoritative.
