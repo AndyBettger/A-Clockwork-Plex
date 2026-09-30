@@ -1,12 +1,16 @@
 # Roadmap documents
 
-The live project roadmap is **[`ROADMAP.md`](ROADMAP.md)**.
+Start with **[`ROADMAP.md`](ROADMAP.md)**.
 
-This started life as an EQ/audio-installer roadmap and then suffered a completely negligible amount of scope creep: full appliance bootstrap, Plexamp ownership, AirPlay, NFC, Weather history, alarms, themes, touchscreen Settings, clean-room acceptance and release hygiene. 😁 The active roadmap therefore uses the much more honest title **A Clockwork Plex Roadmap**.
+The main roadmap is intentionally a compact project dashboard: feature order, status, current focus, branch/release model and links to the detailed feature roadmaps.
 
-Historical snapshots are retained here for chronology:
+## Feature roadmaps
 
-- [`history-through-phase7-checkpoint6.md`](history-through-phase7-checkpoint6.md) — detailed earlier roadmap chronology through Phase 7 checkpoint 6.
-- [`history-through-checkpoint64.md`](history-through-checkpoint64.md) — exact pre-consolidation active-roadmap snapshot through physical checkpoint #64.
+Active, queued and accepted feature-level checklists live under [`features/`](features/README.md). Keeping them separate prevents the project dashboard turning back into an engineering diary.
 
-Those history files are records, not current instructions. Current implementation, release status and future product work belong in `ROADMAP.md`.
+Detailed architecture/testing/evidence belongs under `../development/`, while historical snapshots remain here:
+
+- [`history-through-phase7-checkpoint6.md`](history-through-phase7-checkpoint6.md)
+- [`history-through-checkpoint64.md`](history-through-checkpoint64.md)
+
+History files are records, not current instructions.
