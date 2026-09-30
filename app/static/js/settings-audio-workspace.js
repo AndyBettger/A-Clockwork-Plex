@@ -7,11 +7,9 @@
   const PANEL_ID = 'settings-panel-audio';
   const MIXER_ENDPOINT = '/api/audio/mixer';
   const MIXER_CHANNELS = ['master', 'plexamp', 'airplay', 'alarm'];
-  const AUDIO_PATH_POLL_MS = 2500;
   const byId = (id) => document.getElementById(id);
 
   let mixerPostInFlight = false;
-  let audioPathTimer = null;
   const mixerDesiredValues = new Map();
   const mixerPendingValues = new Map();
   const mixerDebounceTimers = new Map();
@@ -253,117 +251,6 @@
     return true;
   }
 
-  function rateLabel(rate) {
-    const value = Number(rate);
-    if (!Number.isFinite(value) || value <= 0) {
-      return null;
-    }
-    const khz = value / 1000;
-    return `${Number.isInteger(khz) ? khz.toFixed(0) : khz.toFixed(1)} kHz`;
-  }
-
-  function stageLabel(stage, { dac = false } = {}) {
-    if (dac && stage?.available === true && stage?.open === false) {
-      return 'Idle / closed';
-    }
-    if (stage?.available !== true) {
-      return 'Not reported';
-    }
-    const bits = [];
-    if (stage?.format) bits.push(String(stage.format));
-    const rate = rateLabel(stage?.rate_hz);
-    if (rate) bits.push(rate);
-    return bits.length ? bits.join(' · ') : 'Available';
-  }
-
-  function ensureAudioPathCard(panel) {
-    let card = byId('audio-path-card');
-    if (card) {
-      return card;
-    }
-    card = document.createElement('section');
-    card.id = 'audio-path-card';
-    card.className = 'settings-card audio-path-card';
-    card.innerHTML = `
-      <div class="settings-card-heading">
-        <div>
-          <h2>Audio path</h2>
-          <p>Truthful live format/rate diagnostics. Processing and DAC are measured separately; source rate is shown only when a source observer actually reports it.</p>
-        </div>
-      </div>
-      <div class="audio-path-grid">
-        <article class="audio-path-stage">
-          <span>Source</span>
-          <strong id="audio-path-source">Not reported</strong>
-          <small id="audio-path-source-note">Current source observers do not expose a trustworthy format/rate.</small>
-        </article>
-        <article class="audio-path-stage">
-          <span>Processing</span>
-          <strong id="audio-path-processing">Unavailable</strong>
-          <small id="audio-path-processing-note">Active ALSA route</small>
-        </article>
-        <article class="audio-path-stage">
-          <span>DAC</span>
-          <strong id="audio-path-dac">Idle / closed</strong>
-          <small id="audio-path-dac-note">Live ALSA hw_params</small>
-        </article>
-      </div>
-    `;
-    const mixerCard = byId('audio-mixer-card');
-    if (mixerCard?.parentElement === panel) {
-      mixerCard.insertAdjacentElement('afterend', card);
-    } else {
-      panel.appendChild(card);
-    }
-    return card;
-  }
-
-  function renderAudioPath(path) {
-    const source = path?.source || {};
-    const processing = path?.processing || {};
-    const dac = path?.dac || {};
-    const sourceValue = byId('audio-path-source');
-    const sourceNote = byId('audio-path-source-note');
-    const processingValue = byId('audio-path-processing');
-    const processingNote = byId('audio-path-processing-note');
-    const dacValue = byId('audio-path-dac');
-    const dacNote = byId('audio-path-dac-note');
-
-    if (sourceValue) sourceValue.textContent = stageLabel(source);
-    if (sourceNote) sourceNote.textContent = source.note || 'Source format/rate is not reported.';
-    if (processingValue) processingValue.textContent = stageLabel(processing);
-    if (processingNote) {
-      const mode = String(path?.route_mode || '');
-      processingNote.textContent = mode === 'direct-failback'
-        ? 'Direct failback · active ALSA route'
-        : (mode === 'split-bus-selected'
-          ? 'Managed split bus · active ALSA route'
-          : 'Active ALSA route');
-    }
-    if (dacValue) dacValue.textContent = stageLabel(dac, { dac: true });
-    if (dacNote) {
-      dacNote.textContent = dac?.open === false
-        ? 'Physical DAC is currently closed.'
-        : 'Physical DAC · live ALSA hw_params';
-    }
-  }
-
-  async function refreshAudioPath() {
-    const panel = byId(PANEL_ID);
-    if (!panel || panel.hidden || document.hidden) {
-      return;
-    }
-    try {
-      const payload = await requestJson(MIXER_ENDPOINT);
-      renderAudioPath(payload?.mixer?.audio_path || {});
-    } catch (error) {
-      const processingValue = byId('audio-path-processing');
-      const dacValue = byId('audio-path-dac');
-      if (processingValue) processingValue.textContent = 'Unavailable';
-      if (dacValue) dacValue.textContent = 'Unavailable';
-    }
-  }
-
   async function requestJson(endpoint, options = {}) {
     const response = await fetch(endpoint, { cache: 'no-store', ...options });
     const payload = await response.json().catch(() => ({}));
@@ -392,21 +279,12 @@
       window.setTimeout(install, 100);
       return;
     }
-    ensureAudioPathCard(panel);
     suppressPanelContextMenus(panel);
     window.setInterval(reassertDesiredMixerValues, 80);
-    refreshAudioPath();
-    window.clearInterval(audioPathTimer);
-    audioPathTimer = window.setInterval(refreshAudioPath, AUDIO_PATH_POLL_MS);
   }
-
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshAudioPath();
-  });
 
   window.addEventListener('pagehide', () => {
     mixerDebounceTimers.forEach((timer) => window.clearTimeout(timer));
-    window.clearInterval(audioPathTimer);
   });
 
   install();
