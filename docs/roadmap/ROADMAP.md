@@ -196,6 +196,31 @@ Detailed authority and the physical checklist: [`../development/architecture/bbc
 
 Detailed authority: [`../development/architecture/reset-to-defaults.md`](../development/architecture/reset-to-defaults.md).
 
+### #94 Native Plexamp desktop / visualiser migration feasibility — QUEUED INVESTIGATION
+
+Goal: investigate replacing the legacy Plexamp Headless + embedded browser UI with the current ARM64 Linux desktop Plexamp so the bedside appliance can use the native visualisers **without sacrificing NFC launch, the managed ACP audio graph, alarm/AirPlay ownership, recovery or touchscreen navigation**.
+
+This is deliberately queued **after #85 closes**. It is a feasibility/rehearsal track first, not permission to remove the accepted Headless runtime.
+
+- [ ] Install the current supported ARM64 Linux Plexamp **alongside the accepted appliance only in a reversible test boundary**. Prefer the official 4.50.x Flatpak/AppImage path; do not replace the pinned Headless service during discovery.
+- [ ] Confirm the native app can render its visualisers correctly on the commissioned Raspberry Pi GPU/display at the real 1280×720 touchscreen geometry and acceptable CPU/GPU load.
+- [ ] Prove native Plexamp can select the existing ACP virtual output **`acp_plexamp`** (or an equivalently controlled host ALSA endpoint) so the accepted downstream chain remains Plexamp source → Plexamp trim → Music Master → reserve → EQ → limiter → alarm join → DAC. Do not bypass CamillaDSP or invent a second volume authority merely to gain the visualiser.
+- [ ] Classify the Flatpak/AppImage audio boundary on the Pi. The current Linux 4.50 line supports direct ALSA output; prefer direct use of the existing ACP PCM over adding PipeWire/PulseAudio translation unless direct ALSA is physically unsuitable.
+- [ ] Determine whether the native Linux app exposes the same local Plex Companion receiver surface used today by Headless on port 32500, especially `/player/playback/playMedia` and timeline/status endpoints. If compatible, reuse that boundary rather than rewriting NFC media selection.
+- [ ] Run an NFC proof with the existing tag format. A successful scan must launch the intended Plex item in the **native local player**, not a separate Headless instance, and must preserve queue semantics used by ACP playback observation.
+- [ ] Verify alarm takeover/dismissal/manual-resume, AirPlay takeover, Plexamp/AirPlay arbitration and route/failback behaviour with native Plexamp as the local player.
+- [ ] Design a proper display owner for **Chromium dashboard ↔ native Plexamp**. The existing NFC display-switch script is the natural policy boundary, but current dashboard navigation assumes one Chromium kiosk window. Evaluate compositor/window-focus control plus a reliable touchscreen path back to ACP; do not depend on fragile coordinate automation.
+- [ ] Confirm the native app can be raised/focused reliably on the current Raspberry Pi OS desktop/compositor after boot, after screen changes and after an NFC scan. Linux Plexamp 4.50 exposes native MPRIS including `Raise`, which may help one half of the transition; ACP still needs a deterministic way to return Chromium to the foreground.
+- [ ] Decide whether an always-available ACP edge handle/overlay is required while native Plexamp is foreground so alarms, Settings and dashboard pages remain reachable without a keyboard.
+- [ ] Audit settings/backup/reset ownership. Current browser bridges and Headless/Home storage contracts must not silently be assumed to apply to the rewritten desktop app; classify native Plexamp identity, preferences, Home customisation and claim state before migration.
+- [ ] Keep Plexamp Headless as rollback until a native-player candidate passes reboot/autostart, NFC, audio, alarms, AirPlay, display switching, backup/reset and longer stability gates.
+- [ ] Only after physical acceptance decide whether Headless is retired entirely. A two-player design where native Plexamp merely remote-controls Headless is **not the preferred visualiser path**, because Plex visualisers require locally decoded audio data.
+
+Research notes recorded when queued:
+- Plexamp 4.50.12 is on the stable desktop channel; Flathub's beta repository carries the current stable ARM64 Linux build while the normal Flathub listing still exposes the older 4.13 generation.
+- Plex has stated Plexamp Headless will no longer be supported going forward, making this investigation useful for lifecycle reasons as well as the visualiser.
+- The full Linux Plexamp is explicitly confirmed by Plex to provide visualisers on a Raspberry Pi when playback is local.
+
 ## Agreed implementation order
 
 Unless deliberately reprioritised:
@@ -205,9 +230,10 @@ Unless deliberately reprioritised:
 3. **Touchscreen Plexamp text entry** — COMPLETE #91
 4. **BBC News** — COMPLETE, including article QR and configurable sections
 5. **High-resolution Plexamp audio / mixer-EQ path** — ACTIVE
-6. **Astronomy**
-7. **Appliance resilience**
-8. **Events calendar**
+6. **Native Plexamp desktop / visualiser migration feasibility** — QUEUED after #85
+7. **Astronomy**
+8. **Appliance resilience**
+9. **Events calendar**
 
 This priority list is authoritative.
 
