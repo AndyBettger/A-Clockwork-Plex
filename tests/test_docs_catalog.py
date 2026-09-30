@@ -42,6 +42,7 @@ DEVELOPMENT_ARCHITECTURE = {
     "fresh-pi-bootstrap-ownership-design.md",
     "full-appliance-installer-design.md",
     "high-resolution-audio.md",
+    "native-plexamp-desktop.md",
     "reset-to-defaults.md",
     "touchscreen-text-entry.md",
 }
@@ -69,6 +70,18 @@ ROADMAP_FILES = {
     "ROADMAP.md",
     "history-through-phase7-checkpoint6.md",
     "history-through-checkpoint64.md",
+}
+ROADMAP_FEATURE_FILES = {
+    "README.md",
+    "weather.md",
+    "settings-appliance-ownership.md",
+    "touchscreen-text-entry.md",
+    "bbc-news.md",
+    "high-resolution-audio.md",
+    "acp-shell-native-plexamp.md",
+    "astronomy.md",
+    "appliance-resilience.md",
+    "events-calendar.md",
 }
 
 
@@ -103,17 +116,24 @@ class DocsCatalogTests(unittest.TestCase):
             {path.name for path in (DEVELOPMENT / "evidence").iterdir() if path.is_file()},
         )
 
-    def test_roadmap_has_one_live_authority_and_preserved_history(self):
+    def test_roadmap_has_one_project_dashboard_feature_roadmaps_and_preserved_history(self):
         self.assertEqual(
             ROADMAP_FILES,
             {path.name for path in ROADMAP_DIR.iterdir() if path.is_file()},
         )
+        features = ROADMAP_DIR / "features"
+        self.assertTrue(features.is_dir())
+        self.assertEqual(
+            ROADMAP_FEATURE_FILES,
+            {path.name for path in features.iterdir() if path.is_file()},
+        )
         roadmap = (ROADMAP_DIR / "ROADMAP.md").read_text(encoding="utf-8")
         self.assertIn("# A Clockwork Plex Roadmap", roadmap)
-        self.assertIn("Future product backlog", roadmap)
-        self.assertIn("Friendly forecast-location entry", roadmap)
-        self.assertIn("Configuration backup/export", roadmap)
-        self.assertIn("Plexamp Search keyboard/bridge", roadmap)
+        self.assertIn("## Agreed implementation order", roadmap)
+        self.assertIn("## Current focus — #85 high-resolution audio", roadmap)
+        self.assertIn("ACP shell / native Plexamp modernisation", roadmap)
+        self.assertIn("Astronomy", roadmap)
+        self.assertIn("## Branch housekeeping", roadmap)
         self.assertNotIn("# EQ-capable Audio + Full Appliance Installer Roadmap", roadmap)
 
     def test_archive_preserves_the_pre_reorganisation_engineering_tree(self):
