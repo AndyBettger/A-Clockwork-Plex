@@ -11,6 +11,7 @@ This directory contains the engineering material that is useful when changing, v
 - [`architecture/touchscreen-text-entry.md`](architecture/touchscreen-text-entry.md) — shared touchscreen keyboard behaviour and the narrow local Plexamp text-entry bridge boundary.
 - [`architecture/bbc-news.md`](architecture/bbc-news.md) — BBC RSS feed/cache authority, safe public story model and configurable News presentation boundary.
 - [`architecture/high-resolution-audio.md`](architecture/high-resolution-audio.md) — active hi-res Plexamp/EQ investigation, measured audio baseline, development-appliance policy and physical acceptance boundary.
+- [`architecture/native-plexamp-desktop.md`](architecture/native-plexamp-desktop.md) — queued #94 ACP shell, single-document UI, native Plexamp, navigation, keyboard and workspace migration investigation.
 - [`architecture/airplay-metadata.md`](architecture/airplay-metadata.md) — Shairport/AirPlay metadata and integration ownership.
 - [`architecture/fresh-pi-bootstrap-ownership-design.md`](architecture/fresh-pi-bootstrap-ownership-design.md) — constrained hardware/bootstrap ownership and reboot boundaries.
 - [`architecture/full-appliance-installer-design.md`](architecture/full-appliance-installer-design.md) — guarded staged installer and rollback rationale.
