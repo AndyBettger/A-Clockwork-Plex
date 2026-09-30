@@ -115,6 +115,125 @@ clear practical advantages over a single-document web surface in:
 The existing look and feel is a product requirement regardless of rendering
 technology.
 
+## ACP design system and web framework boundary
+
+The rendering investigation should preserve the long-standing separation between
+content, layout and presentation rather than coupling page markup to a framework
+theme.
+
+Model ACP as four layers:
+
+1. **content/data** — weather, news, alarms, settings values and playback state;
+2. **reusable components** — setting row, status card, fader, forecast tile,
+   segmented readout, navigation item and similar product primitives;
+3. **design tokens/system** — colour roles, typography, spacing, radii, border
+   treatment, elevation, touch targets and animation timings;
+4. **application surfaces** — Clock, Weather, News, Settings, Astronomy and other
+   top-level experiences.
+
+Themes should primarily change design tokens. New feature markup should consume
+reusable ACP components rather than inventing one-off card/field framing that
+then needs a second styling pass.
+
+### Material and third-party design systems
+
+Do not adopt Material Web wholesale as the ACP visual identity. Material Design
+is useful as a reference for token/component discipline, interaction states and
+accessibility, but ACP has an established bespoke appearance and fixed appliance
+geometry. The official Material Web Components project is currently in
+maintenance mode, making it a poor new long-term foundation for the product.
+
+If a component framework is introduced, evaluate it as an implementation aid,
+not as the visual design authority. Prefer small primitives that can render ACP's
+own design tokens and markup. Candidate approaches include native Web
+Components/Lit-style custom elements and a compile-time component framework such
+as Svelte; the prototype should justify any framework with lower complexity,
+better reuse or smoother interaction rather than fashion.
+
+### View-transition prototype
+
+The single-document web candidate should explicitly prototype the browser View
+Transition API for top-level ACP surface changes.
+
+Preferred model:
+
+```text
+one ACP document
+    |
+    +-- Clock surface
+    +-- Weather surface
+    +-- News surface
+    +-- Settings surface
+    +-- Astronomy surface
+
+state change -> document.startViewTransition(...) -> DOM surface swap
+```
+
+This removes the current full-document unload/boot/reveal boundary. The browser
+captures the old view and new view for animation while ACP changes application
+state inside one document.
+
+Keep the ACP desktop shell as the transition authority only where navigation
+crosses a process/workspace boundary (for example ACP <-> native Plexamp).
+Within the ACP web surface, browser-native view transitions should be preferred
+over a second competing top-level animation engine.
+
+### Carousel interaction versus page transitions
+
+Treat the spatial row/carousel as a **navigation-mode presentation**, not another
+independent transition system.
+
+When the user swipes up:
+
+1. the shell enters navigation mode and the active surface recedes;
+2. the horizontal surface row/carousel becomes the selection metaphor;
+3. tapping a destination establishes the target/direction;
+4. navigation mode exits;
+5. exactly one destination transition commits.
+
+For ACP-to-ACP changes, the destination commit should normally be a
+same-document View Transition. For ACP-to-native-Plexamp changes, the desktop
+shell performs the workspace/application transition.
+
+Existing transition styles may survive as **destination reveal styles** (fade,
+slide, cover, etc.), but they must be coordinated by one state machine rather
+than running in parallel with the carousel. If the carousel provides the whole
+spatial movement, the destination reveal should be deliberately restrained.
+
+## Browser-engine evaluation
+
+Changing browser should be treated as a measured optimisation experiment, not a
+design migration.
+
+Raspberry Pi OS supports Chromium and Firefox as first-class browser choices.
+Current Google Chrome also supports Linux ARM64, so all three can be benchmarked
+on the commissioned hardware if useful.
+
+Compare the same single-document ACP prototype under each engine for:
+
+- animation frame pacing/jank;
+- touch input latency;
+- memory and GPU usage;
+- startup time;
+- View Transition behaviour;
+- fullscreen/kiosk and Wayland integration;
+- on-screen keyboard behaviour;
+- remote-debug/recovery tooling.
+
+Do not expect Chrome to provide a major architectural advantage over Chromium:
+they share the same Blink/V8 engine family. Firefox is a genuinely different
+engine and therefore the more interesting comparison, but switching away from
+Chromium must justify the cost of requalifying the existing kiosk, autoplay,
+iframe, touch and recovery assumptions.
+
+The likely optimisation order is therefore:
+
+1. single-document ACP surface;
+2. ACP component/design-system cleanup;
+3. View Transition API;
+4. measure Chromium;
+5. only then compare Firefox/Chrome if performance still leaves a material gap.
+
 ## Display ownership
 
 ### Preferred first experiment: two compositor workspaces
