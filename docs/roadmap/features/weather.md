@@ -40,7 +40,7 @@ Use an explicit **inter-event dry period** rather than the 24-hour threshold.
 - After closure, retain a lightweight **Last rain event** summary with start/end and total rather than leaving the user with an unexplained zero.
 - Decide separately whether ACP should eventually own a provider-independent Event Rain definition even when a native Ecowitt `eventrainin` is present; do not silently override native provider data during the first WU-derived fix.
 
-This two-hour model deliberately separates the 30 September/1 October observed pattern into distinct events: yesterday's isolated shower, the ~03:00 shower, the ~07:00 spell and the ~10:30 heavy burst.
+This two-hour model deliberately separates the observed example pattern into distinct events: the previous day's isolated shower, the ~03:00 shower, the ~07:00 spell and the ~10:30 heavy burst.
 
 ### Midnight rollover defect
 
@@ -68,7 +68,3 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - [Weather live-state regression tests](../../../tests/test_weather_live_state.py)
 - [Weather rainfall-history implementation](../../../app/weather_rainfall_history.py)
 
-
-
-- `../../development/evidence/weather-physical-followup-2026-08-17.md`
-- weather implementation/tests under `app/weather_*.py` and `tests/test_weather_*.py`
