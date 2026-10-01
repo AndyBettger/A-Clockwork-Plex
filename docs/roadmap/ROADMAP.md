@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 30 September 2026  
+**Last updated:** 1 October 2026  
 **Active integration branch:** `develop`  
 **Active feature branch:** `feature/hi-res-audio-eq`  
 **Stable branch:** `main`  
@@ -14,7 +14,7 @@ This is the authoritative product order.
 
 | Order | Feature / track | Status | Next boundary | Feature roadmap |
 | ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **COMPLETE** | Maintenance only | [Weather](features/weather.md) |
+| 1 | Weather (#86–#87) | **COMPLETE CORE / MAINTENANCE QUEUED** | Rain-event rollover/definition fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
 | 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
@@ -36,6 +36,14 @@ Astronomy would otherwise be built as another full-document page and then immedi
 4. complete the native Plexamp/player migration and then the full resilience track.
 
 If native Plexamp discovery becomes a long side quest, Astronomy need not wait for every Phase B player/resilience gate once the Phase A application-surface contract is accepted.
+
+## Maintenance queue
+
+These are bounded corrections/improvements to accepted features; they do not change the main feature order.
+
+- **Weather rain events:** fix the WU midnight-rollover double count, change ACP-derived Event Rain from the Ecowitt 24-hour/1 mm rule to a proposed **2-hour inter-event dry gap**, and persist/display event start/end provenance.
+- **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
+- **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
 ## Current focus — #85 high-resolution audio
 
