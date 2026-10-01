@@ -33,4 +33,4 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 
 ## Detailed authority
 
-- `../../development/architecture/native-plexamp-desktop.md`
+- [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
