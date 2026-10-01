@@ -14,4 +14,4 @@ The accepted keyboard is browser/DOM-owned. Native Plexamp cannot reuse it direc
 
 ## Detailed authority
 
-- `../../development/architecture/touchscreen-text-entry.md`
+- [Touchscreen text-entry architecture](../../development/architecture/touchscreen-text-entry.md)
