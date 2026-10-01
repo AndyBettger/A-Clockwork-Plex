@@ -12,6 +12,7 @@ AUDIT = ROOT / "scripts" / "audio" / "audit-hi-res-audio.sh"
 PROBE = ROOT / "scripts" / "audio" / "probe-hi-res-dac.py"
 SNAPSHOT = ROOT / "scripts" / "audio" / "snapshot-airplay-hi-res.py"
 ROADMAP = ROOT / "docs" / "roadmap" / "ROADMAP.md"
+HI_RES_ARCHITECTURE = ROOT / "docs" / "development" / "architecture" / "high-resolution-audio.md"
 RETIRED_REHEARSALS = (
     ROOT / "scripts" / "audio" / "rehearse-hi-res-bus.py",
     ROOT / "scripts" / "audio" / "recover-hi-res-rehearsal.py",
@@ -163,14 +164,17 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
             re.compile(r"\bsystemctl\s+(?:start|stop|restart|enable|disable|reload)\b"),
         )
 
-    def test_roadmap_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
+    def test_hi_res_architecture_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
-        self.assertIn("scripts/audio/preflight-eq.sh", roadmap)
-        self.assertIn("old pre-EQ-install gate", roadmap)
-        self.assertIn("scripts/audio/verify-audio.sh", roadmap)
-        self.assertIn("scripts/audio/audit-hi-res-audio.sh", roadmap)
-        self.assertIn("known-good `develop` and `main` rebuild baselines", roadmap)
-        self.assertIn("a separate spare SD card is not a project requirement", roadmap)
+        architecture = HI_RES_ARCHITECTURE.read_text(encoding="utf-8")
+        self.assertIn("High-resolution Plexamp audio / mixer-EQ", roadmap)
+        self.assertIn("scripts/audio/preflight-eq.sh", architecture)
+        self.assertIn("old pre-EQ-install gate", architecture)
+        self.assertIn("scripts/audio/verify-audio.sh", architecture)
+        self.assertIn("scripts/audio/audit-hi-res-audio.sh", architecture)
+        self.assertIn("`develop` remains the accepted integration rollback point", architecture)
+        self.assertIn("`main` remains the supported stable rebuild baseline", architecture)
+        self.assertIn("A separate spare SD card is **not** required as an acceptance boundary", architecture)
 
 
 if __name__ == "__main__":
