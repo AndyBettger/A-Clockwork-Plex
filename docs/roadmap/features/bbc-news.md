@@ -12,7 +12,7 @@
 
 ## Detailed authorities
 
-- `../../development/architecture/bbc-news.md`
-- `../../development/testing/bbc-news-testing.md`
+- [BBC News architecture](../../development/architecture/bbc-news.md)
+- [BBC News testing](../../development/testing/bbc-news-testing.md)
 
 The historical feature branches are fully merged into `develop`; they carry no commits absent from `develop`.
