@@ -4,7 +4,7 @@
 
 Implementation is active on `feature/hi-res-audio-eq`, branched from the accepted `develop` head after PR #12 merged on 14 September 2026.
 
-The current accepted managed Plexamp/EQ baseline still uses a fixed **S16_LE / 44100 Hz** shared music path. The goal of this work is to remove that bottleneck where it is technically safe, while preserving the existing appliance ownership model, alarm takeover, AirPlay behaviour, mixer semantics and reliable recovery.
+The commissioned managed Plexamp/EQ path is now physically accepted at fixed **S32_LE / 192000 Hz** processing/output. The conservative managed Direct/failback route remains deliberately **S16_LE / 44100 Hz**. The remaining #85 boundary is longer ordinary-use stability evidence plus final CI/docs reconciliation before merge; a later source-rate-native/bit-perfect Direct experiment is explicitly deferred until the post-#94 Plexamp runtime is known.
 
 ## Development appliance policy
 
