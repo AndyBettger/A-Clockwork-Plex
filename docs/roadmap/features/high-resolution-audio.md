@@ -38,5 +38,5 @@ Likewise CamillaDSP Controller Adapt remains a fallback only if later long-run e
 
 ## Detailed authorities
 
-- `../../development/architecture/high-resolution-audio.md`
-- `../../development/testing/airplay-hi-res-buffer-investigation.md`
+- [High-resolution audio architecture](../../development/architecture/high-resolution-audio.md)
+- [AirPlay / hi-res buffer investigation](../../development/testing/airplay-hi-res-buffer-investigation.md)
