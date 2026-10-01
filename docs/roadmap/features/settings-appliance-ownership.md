@@ -13,6 +13,6 @@
 
 ## Detailed authorities
 
-- `../../development/architecture/configuration-backup-ownership.md`
-- `../../development/architecture/reset-to-defaults.md`
-- `../../development/testing/commissioned-pi-backup-restore-acceptance-2026-09-10.md`
+- [Configuration backup ownership](../../development/architecture/configuration-backup-ownership.md)
+- [Reset-to-defaults architecture](../../development/architecture/reset-to-defaults.md)
+- [Commissioned-Pi Backup → Reset → Restore acceptance](../../development/testing/commissioned-pi-backup-restore-acceptance-2026-09-10.md)
