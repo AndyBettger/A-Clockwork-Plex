@@ -15,6 +15,8 @@ Harden the final runtime architecture rather than fully hardening components tha
 - [ ] Define alarm behaviour across time-zone/DST changes: normal alarms remain local wall-clock intentions, while diagnostics expose the actual next resolved occurrence.
 - [ ] System-time/NTP authority and truthful synchronisation health.
 - [ ] Investigate intermittent read-only root-filesystem/SD behaviour.
+- [ ] Track the **1 October 2026** commissioned-Pi mitigation `dtparam=sd_overclock=50` in `/boot/firmware/config.txt`: verify the negotiated MMC mode/clock and observe whether lowering the SD bus speed changes recurrence. Treat it as diagnostic evidence, not a permanent fix claim.
+- [ ] Evaluate an SSD-backed appliance root/runtime as the likely long-term storage option if read-only SD failures continue; also compare a higher-endurance / Raspberry Pi 5-qualified microSD option for users who prefer removable flash.
 - [ ] Reduce avoidable appliance writes without weakening recovery.
 - [ ] Kiosk-safe Wi-Fi recovery AP and local setup flow.
 - [ ] Keep credentials out of query strings, argv, logs and persistent recovery pages.
