@@ -23,7 +23,9 @@ Ship the physically accepted managed EQ path at **S32_LE / 192 kHz** while prese
 
 ## Remaining merge gate
 
-- [ ] Run a longer ordinary mixed-source Plexamp/AirPlay production soak.
+**1 October 2026 ordinary-use evidence:** extended Plexamp listening on the commissioned appliance remained audibly clean. Separate SD-card read-only-root incidents required reboot and are tracked under Appliance Resilience; no audio fault was reported during the listening itself. This counts toward the ordinary-use soak but does not replace the final bounded journal inspection.
+
+- [ ] Complete/close the longer ordinary mixed-source Plexamp/AirPlay production soak with bounded journal evidence.
 - [ ] Inspect the bounded CamillaDSP/Shairport journals for underrun, overrun, XRUN, stall, Broken pipe, error/fail recovery.
 - [ ] Confirm automated CI remains green at the final branch head.
 - [ ] Reconcile docs/catalogues and open the merge to `develop`.
