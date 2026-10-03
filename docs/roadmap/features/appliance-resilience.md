@@ -15,7 +15,9 @@ Harden the final runtime architecture rather than fully hardening components tha
 - [ ] Define alarm behaviour across time-zone/DST changes: normal alarms remain local wall-clock intentions, while diagnostics expose the actual next resolved occurrence.
 - [ ] System-time/NTP authority and truthful synchronisation health.
 - [ ] Investigate intermittent read-only root-filesystem/SD behaviour.
-- [ ] The **1 October 2026** `dtparam=sd_overclock=50` experiment did **not** lower the Pi 5 storage card: `mmc0/mmcblk0` remained SDR104 at 200 MHz; the observed DDR50/50 MHz `mmc1` device is onboard WLAN SDIO. Replace this ineffective experiment with a reversible repository-owned Device Tree overlay that disables SDR104 for the storage controller, then verify the negotiated lower mode before starting the recurrence comparison.
+- [x] The **1 October 2026** `dtparam=sd_overclock=50` experiment did **not** lower the Pi 5 storage card: `mmc0/mmcblk0` remained SDR104 at 200 MHz; the observed DDR50/50 MHz `mmc1` device is onboard WLAN SDIO.
+- [x] **4 October 2026:** after another default-speed read-only-root recurrence, temporary `sdhci.debug_quirks2=4` successfully forced the real storage card to **SD High Speed / 50 MHz / 3.3 V**, confirmed through `/sys/kernel/debug/mmc0/ios`. Treat this as a live stability experiment, not yet the production mechanism.
+- [ ] Replace the global debug quirk with a repository-owned Device Tree overlay applying `no-1-8-v` only to the Pi 5 storage controller; verify it reproduces the 50 MHz storage mode without replacing normal SDHCI platform quirks.
 - [ ] Evaluate an SSD-backed appliance root/runtime as the likely long-term storage option if read-only SD failures continue; also compare a higher-endurance / Raspberry Pi 5-qualified microSD option for users who prefer removable flash.
 - [ ] Reduce avoidable appliance writes without weakening recovery.
 - [ ] Kiosk-safe Wi-Fi recovery AP and local setup flow.
