@@ -17,6 +17,8 @@ Harden the final runtime architecture rather than fully hardening components tha
 - [ ] Investigate intermittent read-only root-filesystem/SD behaviour.
 - [x] The **1 October 2026** `dtparam=sd_overclock=50` experiment did **not** lower the Pi 5 storage card: `mmc0/mmcblk0` remained SDR104 at 200 MHz; the observed DDR50/50 MHz `mmc1` device is onboard WLAN SDIO.
 - [x] **4 October 2026:** after another default-speed read-only-root recurrence, temporary `sdhci.debug_quirks2=4` successfully forced the real storage card to **SD High Speed / 50 MHz / 3.3 V**, confirmed through `/sys/kernel/debug/mmc0/ios`. Treat this as a live stability experiment, not yet the production mechanism.
+- [x] Confirmed the same global debug quirk also forced the WLAN SDIO host (`mmc1`) to SD High Speed / 50 MHz / 3.3 V. AirPlay/networking remained functional, but this reinforces that the final mitigation must target the storage controller only.
+- [ ] On every recovery reboot, inspect the **previous boot** kernel journal (`journalctl -k -b -1`) for the actual MMC/ext4 failure sequence before logs rotate; current-boot logs alone only prove the post-reboot state.
 - [ ] Replace the global debug quirk with a repository-owned Device Tree overlay applying `no-1-8-v` only to the Pi 5 storage controller; verify it reproduces the 50 MHz storage mode without replacing normal SDHCI platform quirks.
 - [ ] Evaluate an SSD-backed appliance root/runtime as the likely long-term storage option if read-only SD failures continue; also compare a higher-endurance / Raspberry Pi 5-qualified microSD option for users who prefer removable flash.
 - [ ] Reduce avoidable appliance writes without weakening recovery.
