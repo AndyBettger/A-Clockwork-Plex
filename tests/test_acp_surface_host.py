@@ -55,15 +55,15 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("register('news'", source)
         self.assertNotIn('register("news"', source)
 
-    def test_first_application_surface_set_is_clock_weather_news_only(self):
+    def test_application_surface_set_includes_physically_accepted_news_and_settings_candidate(self):
         source = APPLICATION_SURFACES.read_text(encoding="utf-8")
 
-        self.assertIn("const surfaces = new Set(['clock', 'weather', 'news'])", source)
+        self.assertIn("const surfaces = new Set(['clock', 'weather', 'news', 'settings'])", source)
         self.assertIn("surfaceHost.register(surface", source)
         self.assertIn("/api/surfaces/", source)
         self.assertIn("record.wrapper.hidden = name !== surface", source)
         self.assertIn("/api/mode/", source)
-        self.assertNotIn("'settings'", source)
+        self.assertIn("'settings'", source)
         self.assertNotIn("'airplay'", source)
 
     def test_surface_document_endpoint_is_read_only_for_mode(self):
@@ -75,7 +75,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn('"clock": "clock.html"', endpoint)
         self.assertIn('"weather": "weather.html"', endpoint)
         self.assertIn('"news": "news.html"', endpoint)
-        self.assertIn("render_template(template)", endpoint)
+        self.assertIn('"settings": "settings.html"', endpoint)
+        self.assertIn("context = settings_page_context(config)", endpoint)
+        self.assertIn("render_template(template, **context)", endpoint)
         self.assertNotIn("set_mode(", endpoint)
 
     def test_surface_host_activation_is_part_of_navigation_busy_state(self):
