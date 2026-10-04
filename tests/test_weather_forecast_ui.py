@@ -130,7 +130,11 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("const scrollbarRefreshers = new Set()", client)
         self.assertIn("function refreshForecastScrollbars()", client)
         self.assertIn("acp:surface-activated", client)
+        self.assertIn("acp:surface-settled", client)
         self.assertIn("acp:weather-grid-refreshed", client)
+        self.assertIn("strip.clientWidth <= 0", client)
+        self.assertIn("rail.clientWidth <= 0", client)
+        self.assertIn("preserve", client.lower())
         self.assertIn("window.requestAnimationFrame", client)
         self.assertIn("window.setTimeout(update, 180)", client)
 
