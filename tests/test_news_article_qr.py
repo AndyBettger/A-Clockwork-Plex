@@ -366,6 +366,41 @@ class NewsCustomFeedTests(unittest.TestCase):
             self.assertEqual(rejected.status_code, 400)
             self.assertEqual(requested, [custom_url])
 
+    def test_manual_refresh_endpoint_bypasses_feed_ttl(self) -> None:
+        responses = [_rss("First cached story"), _rss("Forced fresh story")]
+        requested: list[str] = []
+
+        def fetcher(url: str, _timeout: float) -> bytes:
+            requested.append(url)
+            return responses.pop(0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            service = BBCNewsFeedService(
+                _config,
+                Path(directory) / "bbc-news-cache.json",
+                fetcher=fetcher,
+                now_provider=lambda: datetime(2026, 9, 12, 20, 5, tzinfo=timezone.utc),
+            )
+            first = service.refresh(force=True)
+            self.assertEqual(
+                first["categories"]["top"]["feed"]["items"][0]["title"],
+                "First cached story",
+            )
+
+            app = Flask(__name__)
+            register_news_api(app, service)
+            client = app.test_client()
+            response = client.post("/api/news/refresh")
+            payload = response.get_json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+        self.assertEqual(
+            payload["categories"]["top"]["feed"]["items"][0]["title"],
+            "Forced fresh story",
+        )
+        self.assertEqual(requested, [BBC_FEEDS["top"]["url"], BBC_FEEDS["top"]["url"]])
+
     def test_ticker_remains_top_stories_when_other_feeds_are_enabled(self) -> None:
         config = {
             "news": {
