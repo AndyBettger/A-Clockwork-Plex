@@ -1,0 +1,9 @@
+/* #94 Phase A: mounted ACP application surfaces share one long-lived document. */
+
+.acp-mounted-surface {
+  display: contents;
+}
+
+.acp-mounted-surface[hidden] {
+  display: none !important;
+}
