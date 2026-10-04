@@ -1,6 +1,6 @@
 # Weather
 
-**Status:** COMPLETE through #87; focused maintenance + post-#94 presentation revamp queued  
+**Status:** CORE COMPLETE; rain-event maintenance ACTIVE on `fix/weather-rain-events`; post-#94 presentation revamp queued  
 **Primary implementation:** #86 Friendly forecast-location entry, #87 WU supplemental indoor expiry
 
 ## Accepted scope
@@ -15,28 +15,26 @@
 
 The live WU path derives Hourly Rain and Event Rain when the provider does not supply native values.
 
-### Current implementation
+### Maintenance implementation — 4 October 2026
+
+The focused rain-event correction is implemented on `fix/weather-rain-events` and is awaiting commissioned-appliance acceptance.
 
 - Rain today is the station's live calendar-day total.
 - Rain this week is Monday through today: cached WU daily totals for completed days plus today's live total.
 - Event Rain is independent of calendar day/week and survives midnight.
-- The current derived event follows Ecowitt-compatible semantics: it resets only when the current rain rate is zero, the trailing hour is dry, and the rolling preceding 24 hours contain **less than 1 mm** of rain.
+- ACP-derived Event Rain now uses an explicit **2-hour continuously dry inter-event gap** rather than the former Ecowitt-compatible 24-hour / 1 mm reset rule.
 - Native provider `hourlyrainin` / `eventrainin` values are never replaced.
 
-That Ecowitt-style rule is too sticky for ACP's intended UK use: several distinct showers separated by clear multi-hour dry periods can remain one event merely because more than 1 mm fell somewhere in the preceding 24 hours.
+### ACP-derived event definition
 
-### Proposed ACP-derived event definition
-
-Use an explicit **inter-event dry period** rather than the 24-hour threshold.
-
-- **Recommended default:** **2 hours continuously dry**.
+- **Default:** **2 hours continuously dry**.
 - An event starts with the first positive rain increment after the previous event has closed.
 - An active event survives midnight and calendar week/month boundaries.
 - An event closes when the current rain rate is zero **and** no positive rain increment has occurred for at least the configured dry-gap duration.
 - Remove the preceding-24-hours / 1 mm criterion from ACP's derived event reset rule.
 - Make the dry-gap duration configurable later in Weather Settings; keep 2 hours as the ACP default unless physical use gives a reason to change it.
-- Persist `event_started_at`, `event_last_rain_at`, `event_closed_at`/last-reset diagnostics and the completed event total.
-- While active, show e.g. **Event rain — 8.1 mm · Since 22:39**.
+- Persist active `event_started_at` / `event_last_rain_at`, the completed event total/start/end/closed timestamps, and the configured dry-gap duration.
+- While active, the existing Rain panel now shows **Active rain event** with total and start time.
 - After closure, retain a lightweight **Last rain event** summary with start/end and total rather than leaving the user with an unexplained zero.
 - Decide separately whether ACP should eventually own a provider-independent Event Rain definition even when a native Ecowitt `eventrainin` is present; do not silently override native provider data during the first WU-derived fix.
 
@@ -46,7 +44,7 @@ This two-hour model deliberately separates the observed example pattern into dis
 
 **Live bug identified 30 September 2026:** the derived WU event accumulator currently uses dashboard receipt time for the calendar-day rollover. A poll at `2026-09-30T00:00:04` retained a **1.02 mm** increment which was almost certainly the previous day's still-visible WU daily counter; the later genuine new-day counter drop was treated as a reset/correction but the already-added 1.02 mm was never removed.
 
-Fix the derivation to use the station observation timestamp (`dateutc` converted to local appliance time) as its rainfall chronology and add a guarded midnight-lag regression fixture. Event start/last-rain timestamps must use that same station chronology.
+The derivation now uses the station observation timestamp (`dateutc` converted to local appliance time) as its rainfall chronology, while retaining ACP receipt time separately for diagnostics. Stale/out-of-order station observations cannot move the derived rain counters backwards. Regression coverage includes the observed midnight-lag failure shape, true midnight rollover, two-hour closure, distinct showers after a dry gap, and out-of-order observations.
 
 ## Weather page revamp — queued after #94 Phase A
 
@@ -68,3 +66,15 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - [Weather live-state regression tests](../../../tests/test_weather_live_state.py)
 - [Weather rainfall-history implementation](../../../app/weather_rainfall_history.py)
 
+
+## Acceptance for this maintenance branch
+
+- [x] Station-time chronology implemented.
+- [x] Midnight stale-total regression fixture added.
+- [x] Two-hour inter-event dry gap implemented.
+- [x] Active and last-event provenance persisted.
+- [x] Existing Weather rain panel projects active/last-event provenance for WU-derived events only.
+- [x] Native provider Event Rain ownership preserved.
+- [ ] Final PR CI green at branch head.
+- [ ] Commissioned Pi updated and live WU state checked.
+- [ ] Real-rain behaviour observed when nature eventually cooperates; useful follow-up evidence, but not required to prove the deterministic midnight regression.
