@@ -140,6 +140,7 @@
     document.querySelectorAll(`[data-setting-output="${path}"]`).forEach((output) => {
       const number = Number(value);
       if (path === 'airplay.default_volume_percent') output.textContent = `${Math.round(number || 0)}%`;
+      else if (path === 'display.transition_duration_ms') output.textContent = `${Number.isFinite(number) ? Math.round(number) : 0} ms`;
       else if (path.startsWith('audio.eq.bands.')) output.textContent = `${number > 0 ? '+' : ''}${Number.isFinite(number) ? number.toFixed(1) : '0.0'} dB`;
       else output.textContent = String(value ?? '');
     });
@@ -155,6 +156,7 @@
       renderOutput(path, value);
     });
     updateUnitPreset();
+    window.ACPSettingsRangeTheme?.refresh?.();
   }
 
   function applyClockCards(settings) {
