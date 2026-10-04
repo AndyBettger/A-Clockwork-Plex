@@ -140,8 +140,11 @@ Implementation:
 - [x] Physically test Settings section/subpage controls, touch keyboard/selects and autosave persistence: passed.
 - [x] Physically test Audio Hardware and alarm diagnostics after mounted-surface migration: passed.
 - [x] Confirm AirPlay remains on the intentional full-document fallback: passed; its legacy transition remains intentionally unchanged until AirPlay migration.
-- [~] Retest live configuration projection after the A3 follow-up: transition style/duration and Weather identity settings must take effect without a hard document reload.
-- [~] Retest a hard reload directly on Settings: the obsolete manual Save/Discard bar must not appear during bootstrap.
+- [x] Retest transition style/duration live projection: passed without hard document reload.
+- [x] Retest mounted Weather identity projection: Weather page title/reporting-station name update correctly after autosave without hard reload.
+- [x] Retest a hard reload directly on Settings: obsolete manual Save/Discard bar no longer appears during bootstrap.
+- [x] Repeat Clock/Weather/News ↔ Settings circuit and keyboard interaction: passed.
+- [~] Final A3 retest: Clock weather-panel title must update immediately after Weather identity autosave without a hard reload.
 
 A3 must not weaken Settings transaction/autosave ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
 
@@ -165,3 +168,25 @@ The follow-up removes that implicit reload dependency:
 - the obsolete manual Save/Discard controls are hidden by Settings CSS from first paint instead of waiting for the autosave owner to initialise.
 
 The previous A3 test wording mentioning manual **Save** and **Discard** was stale: the accepted Settings product uses autosave. The corrected physical gate tests autosave persistence and live projection instead.
+
+
+### A3 second physical pass — one Clock projection remains
+
+The second commissioned-Pi pass confirms the main persistent-document correction works:
+
+- transition style and duration apply immediately to subsequent ACP transitions;
+- Weather's detailed page title and reporting-station copy refresh from the saved Weather identity without a hard document reload;
+- direct Settings hard reload no longer flashes the retired Save/Discard transaction bar;
+- repeated Settings round-trips and keyboard interaction remain healthy.
+
+The Clock page still showed the old Weather panel title until document reload. This is a separate mounted-surface refresh gap rather than a Settings persistence failure: `clock-dashboard.js` already reads the current title from `/api/status`, but its old fixed interval had no immediate Settings-save or Clock-reactivation hook.
+
+The A3 follow-up now:
+
+- listens for successful `acp:settings-saved` Weather transactions and refreshes the mounted Clock weather panel immediately;
+- refreshes Clock weather/status whenever Clock becomes active;
+- adopts the newly saved Weather refresh cadence without reloading the document;
+- replaces the old permanently running interval with an active-surface timeout, so hidden Clock no longer polls weather/status unnecessarily;
+- correctly honours a configured refresh cadence of zero as periodic-refresh disabled.
+
+One focused commissioned-Pi retest of the Clock title is required before A3 closes.
