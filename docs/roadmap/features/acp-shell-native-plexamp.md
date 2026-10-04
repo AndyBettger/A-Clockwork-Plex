@@ -144,7 +144,7 @@ Implementation:
 - [x] Retest mounted Weather identity projection: Weather page title/reporting-station name update correctly after autosave without hard reload.
 - [x] Retest a hard reload directly on Settings: obsolete manual Save/Discard bar no longer appears during bootstrap.
 - [x] Repeat Clock/Weather/News ↔ Settings circuit and keyboard interaction: passed.
-- [~] Final A3 retest: Clock weather-panel title must update immediately after Weather identity autosave without a hard reload.
+- [x] Final A3 retest: Clock weather-panel title updates immediately after Weather identity autosave without a hard reload.
 
 A3 must not weaken Settings transaction/autosave ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
 
@@ -185,10 +185,23 @@ The A3 follow-up now:
 
 - listens for successful `acp:settings-saved` Weather transactions and refreshes the mounted Clock weather panel immediately;
 - refreshes Clock weather/status whenever Clock becomes active;
-- adopts the newly saved Weather refresh cadence without reloading the document;
-- replaces the old permanently running interval with an active-surface timeout, so hidden Clock no longer polls weather/status unnecessarily;
-- correctly honours a configured refresh cadence of zero as periodic-refresh disabled.
+- refreshes Clock weather/status without reloading the document;
+- replaces the old permanently running interval with an active-surface timeout, so hidden Clock no longer polls weather/status unnecessarily.
 
-One focused commissioned-Pi retest of the Clock title is required before A3 closes.
+The focused commissioned-Pi retest passed: the Clock weather-panel title now follows Weather identity autosave without a document reload. The Settings → News **Refresh feeds now** follow-up also works physically. Combined A3 Clock-projection and bounded News-refresh candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105** (compile, JavaScript/page/shell checks and full regression suite).
 
-Combined A3 Clock-projection and bounded News-refresh follow-up candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105** (compile, JavaScript/page/shell checks and full regression suite).
+### A3 physical acceptance — COMPLETE
+
+A3 is closed. Settings is now the fourth physically accepted mounted ACP application surface. The accepted persistent-document contract covers transactional autosave, live shell configuration projection, affected-surface invalidation, hidden-surface polling suspension and first-paint-safe enhancement behaviour.
+
+As a post-acceptance cleanup, the former **Dashboard observation refresh** field is retired from Settings and portable configuration. Clock and Weather presentation refresh now use a shell-owned 60-second cadence only while visible, with immediate refresh on activation and relevant Settings changes. Legacy `auto_refresh_seconds` values may remain in old config files but are ignored, so upgrades require no migration.
+
+### A4 — AirPlay migration
+
+A4 should migrate the remaining ACP-owned AirPlay page onto the accepted Surface Host contract without changing AirPlay playback/control authority. The work must preserve AirPlay's live metadata, artwork, mini-clock, playback/volume controls, hold/pause coordination and source-ownership behaviour while removing its current full-document transition boundary.
+
+- [ ] Inspect AirPlay scripts for document-load/pagehide assumptions, timers and observers that need mounted-surface suspend/resume handling.
+- [ ] Register AirPlay only after those lifecycle dependencies are explicit.
+- [ ] Preserve AirPlay control-plane and audio authority unchanged; this is a presentation/navigation migration, not an AirPlay rewrite.
+- [ ] Physically test ACP ↔ AirPlay round-trips, metadata/artwork updates, transport/volume controls, mini-clock, active navigation/footer mode and all configured transition styles.
+- [ ] Keep native Plexamp separate; A4 completes the current ACP-owned top-level browser surface set.
