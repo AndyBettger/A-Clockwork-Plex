@@ -61,7 +61,8 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Implement the first Clock ↔ Weather same-document surface pair with mount-once DOM ownership and lazy destination assets.
 - [x] Replace Weather's timed full-page reload with in-place live updates that preserve vertical and Rain-history scroll position.
 - [~] Clock ↔ Weather physical A1 core passed: faster same-document switching, no page flash/reload, correct mode/navigation, Clock continuity and Weather in-place refresh.
-- [ ] Retest configured View Transition motion and Forecast custom-scrollbar visibility after bounded fixes, then confirm fallback navigation to an unmigrated page.
+- [x] Configured View Transition styles and duration physically accepted on Clock ↔ Weather.
+- [ ] Retest Forecast custom-scrollbar visibility across a second Weather visit after the hidden-geometry/settled-layout fix, then confirm fallback navigation to an unmigrated page.
 - [ ] Converge all ACP-owned surfaces into the long-lived document; native Plexamp remains the intentional separate application/workspace.
 - [ ] Establish the reusable component/design-token boundary.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
