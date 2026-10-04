@@ -4,6 +4,7 @@
 
   let refreshTimer = null;
   let refreshInFlight = false;
+  let settingsRefreshPending = false;
 
   function weatherIsVisible() {
     const active = String(document.body?.dataset?.activePage || '').toLowerCase() === 'weather';
@@ -119,7 +120,9 @@
     refreshInFlight = true;
     try {
       const parsed = await fetchWeatherDocument();
-      return updateFromDocument(parsed);
+      const updated = updateFromDocument(parsed);
+      if (updated) settingsRefreshPending = false;
+      return updated;
     } catch (error) {
       return false;
     } finally {
@@ -148,6 +151,15 @@
     else schedule();
   });
 
+  document.addEventListener('acp:settings-saved', (event) => {
+    const sections = Array.isArray(event?.detail?.sections) ? event.detail.sections : [];
+    if (!sections.includes('weather')) return;
+    settingsRefreshPending = true;
+    if (weatherIsVisible()) {
+      void refresh().finally(schedule);
+    }
+  });
+
   document.addEventListener('visibilitychange', () => {
     if (weatherIsVisible()) activate();
     else schedule();
@@ -159,6 +171,7 @@
     refresh,
     renderWindDirection,
     isRefreshing: () => refreshInFlight,
+    settingsRefreshPending: () => settingsRefreshPending,
   };
 
   if (String(document.body?.dataset?.activePage || '').toLowerCase() === 'weather') {
