@@ -19,7 +19,6 @@
   const numericPaths = new Set([
     'dashboard.idle_timeout_seconds',
     'display.transition_duration_ms',
-    'weather.auto_refresh_seconds',
     'weather.forecast.latitude',
     'weather.forecast.longitude',
     'weather.forecast.forecast_days',
