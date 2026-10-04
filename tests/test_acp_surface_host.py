@@ -96,6 +96,18 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("void refresh().finally(schedule)", source)
         self.assertIn("if (updated) settingsRefreshPending = false", source)
 
+    def test_weather_presentation_refresh_cadence_is_shell_owned(self):
+        source = WEATHER_SURFACE.read_text(encoding="utf-8")
+        settings = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
+        weather = (ROOT / "app" / "templates" / "weather.html").read_text(encoding="utf-8")
+        clock = (ROOT / "app" / "templates" / "clock.html").read_text(encoding="utf-8")
+
+        self.assertIn("PRESENTATION_REFRESH_MS = 60_000", source)
+        self.assertNotIn("refreshMilliseconds()", source)
+        self.assertNotIn("data-refresh-seconds", weather)
+        self.assertNotIn("data-refresh-seconds", clock)
+        self.assertNotIn("weather.auto_refresh_seconds", settings)
+
     def test_same_document_view_transition_uses_configured_acp_motion(self):
         styles = TRANSITION_CSS.read_text(encoding="utf-8")
 
