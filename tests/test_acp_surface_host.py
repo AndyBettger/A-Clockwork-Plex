@@ -10,6 +10,8 @@ HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 APPLICATION_SURFACES = ROOT / "app" / "static" / "js" / "acp-application-surfaces.js"
 WEATHER_SURFACE = ROOT / "app" / "static" / "js" / "weather-surface.js"
+AIRPLAY_LIFECYCLE = ROOT / "app" / "static" / "js" / "airplay-surface-lifecycle.js"
+AIRPLAY_LIVE = ROOT / "app" / "static" / "js" / "airplay-live.js"
 DASHBOARD = ROOT / "app" / "dashboard_core.py"
 TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
 
@@ -56,16 +58,16 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("register('news'", source)
         self.assertNotIn('register("news"', source)
 
-    def test_application_surface_set_includes_physically_accepted_news_and_settings_candidate(self):
+    def test_application_surface_set_includes_physically_accepted_surfaces_and_airplay_candidate(self):
         source = APPLICATION_SURFACES.read_text(encoding="utf-8")
 
-        self.assertIn("const surfaces = new Set(['clock', 'weather', 'news', 'settings'])", source)
+        self.assertIn("const surfaces = new Set(['clock', 'weather', 'news', 'settings', 'airplay'])", source)
         self.assertIn("surfaceHost.register(surface", source)
         self.assertIn("/api/surfaces/", source)
         self.assertIn("record.wrapper.hidden = name !== surface", source)
         self.assertIn("/api/mode/", source)
         self.assertIn("'settings'", source)
-        self.assertNotIn("'airplay'", source)
+        self.assertIn("'airplay'", source)
 
     def test_surface_document_endpoint_is_read_only_for_mode(self):
         source = DASHBOARD.read_text(encoding="utf-8")
@@ -77,9 +79,30 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn('"weather": "weather.html"', endpoint)
         self.assertIn('"news": "news.html"', endpoint)
         self.assertIn('"settings": "settings.html"', endpoint)
+        self.assertIn('"airplay": "airplay.html"', endpoint)
         self.assertIn("context = settings_page_context(config)", endpoint)
         self.assertIn("render_template(template, **context)", endpoint)
         self.assertNotIn("set_mode(", endpoint)
+
+    def test_airplay_surface_lifecycle_distinguishes_mounted_from_visible(self):
+        lifecycle = AIRPLAY_LIFECYCLE.read_text(encoding="utf-8")
+        live = AIRPLAY_LIVE.read_text(encoding="utf-8")
+        template = (ROOT / "app" / "templates" / "airplay.html").read_text(encoding="utf-8")
+
+        self.assertLess(
+            template.index("airplay-surface-lifecycle.js"),
+            template.index("airplay-live.js"),
+        )
+        self.assertIn("dataset?.activePage", lifecycle)
+        self.assertIn("=== 'airplay'", lifecycle)
+        self.assertIn("!document.hidden", lifecycle)
+        self.assertIn("ACPPlexamp?.isVisiblyOpen", lifecycle)
+        self.assertIn("function subscribe(subscriber)", lifecycle)
+        self.assertIn("acp:surface-activated", lifecycle)
+        self.assertIn("acp:surface-settled", lifecycle)
+        self.assertIn("surfaceLifecycle.isVisible()", live)
+        self.assertIn("surfaceLifecycle?.subscribe?.", live)
+        self.assertNotIn("setInterval(refreshStatus", live)
 
     def test_surface_host_activation_is_part_of_navigation_busy_state(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
