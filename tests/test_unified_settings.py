@@ -263,6 +263,29 @@ class UnifiedSettingsTests(unittest.TestCase):
         self.assertTrue(snapshot["capabilities"]["transactional_save"])
         self.assertTrue(snapshot["capabilities"]["actions_are_separate"])
 
+    def test_non_default_motion_values_round_trip_without_fallback(self):
+        service, stored, saves, *_rest = self.build()
+        snapshot = service.snapshot()
+        settings = deepcopy(snapshot["settings"])
+        settings["display"]["transition_style"] = "vertical-lift"
+        settings["display"]["transition_duration_ms"] = 1150
+
+        saved = service.apply({"revision": snapshot["revision"], "settings": settings})
+
+        self.assertEqual(len(saves), 1)
+        self.assertEqual(stored["dashboard"]["transition_style"], "vertical-lift")
+        self.assertEqual(stored["dashboard"]["transition_duration_ms"], 1150)
+        self.assertEqual(saved["settings"]["display"]["transition_style"], "vertical-lift")
+        self.assertEqual(saved["settings"]["display"]["transition_duration_ms"], 1150)
+
+    def test_legacy_none_transition_is_exposed_as_instant(self):
+        service, stored, *_rest = self.build()
+        stored["dashboard"]["transition_style"] = "none"
+
+        snapshot = service.snapshot()
+
+        self.assertEqual(snapshot["settings"]["display"]["transition_style"], "instant")
+
     def test_custom_weather_units_remain_independently_selectable(self):
         service, stored, saves, *_rest = self.build()
         snapshot = service.snapshot()
