@@ -40,13 +40,14 @@
   function restoreMotionControls(card) {
     const style = card.querySelector('[data-setting-path="display.transition_style"]');
     if (style) {
-      const current = style.value;
-      style.replaceChildren(...TRANSITION_OPTIONS.map(([value, label]) => {
+      const current = style.value === 'none' ? 'instant' : style.value;
+      TRANSITION_OPTIONS.forEach(([value, label]) => {
+        if (style.querySelector(`option[value="${value}"]`)) return;
         const option = document.createElement('option');
         option.value = value;
         option.textContent = label;
-        return option;
-      }));
+        style.appendChild(option);
+      });
       if (TRANSITION_OPTIONS.some(([value]) => value === current)) style.value = current;
     }
 
