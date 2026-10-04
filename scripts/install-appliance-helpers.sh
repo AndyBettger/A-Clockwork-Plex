@@ -255,7 +255,7 @@ from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 channels = payload.get("channels") if isinstance(payload, dict) else None
-required = {"master", "plexamp", "airplay", "alarm"}
+required = {"master", "plexamp", "airplay", "airplay_live", "alarm"}
 ok = (
     payload.get("available") is True
     and payload.get("configured") is True

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 
-DIRECT_ROUTE_SHA256 = "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9"
+DIRECT_ROUTE_SHA256 = "0166bd73e3e9a34dbdebff995de9fa6e39d2cd344dca574c891d46dd1a6aacfb"
 LEGACY_DIRECT_SHA256 = "08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9"
 INSTALLER = "appliance-installer.sh"
 
@@ -29,13 +29,18 @@ class DirectAudioProfileTests(unittest.TestCase):
 
         plexamp = re.search(r"pcm\.acp_plexamp_volume \{(.*?)\n\}", source, re.S)
         airplay = re.search(r"pcm\.acp_airplay_volume \{(.*?)\n\}", source, re.S)
+        airplay_live = re.search(r"pcm\.acp_airplay_live_volume \{(.*?)\n\}", source, re.S)
         alarm = re.search(r"pcm\.acp_alarm_volume \{(.*?)\n\}", source, re.S)
 
         self.assertIsNotNone(plexamp)
         self.assertIsNotNone(airplay)
+        self.assertIsNotNone(airplay_live)
         self.assertIsNotNone(alarm)
         self.assertIn('slave.pcm "acp_master"', plexamp.group(1))
         self.assertIn('slave.pcm "acp_master"', airplay.group(1))
+        self.assertIn('slave.pcm "acp_airplay_volume"', airplay_live.group(1))
+        self.assertIn('name "A Clockwork AirPlay Live"', airplay_live.group(1))
+        self.assertIn('slave.pcm "acp_airplay_live_volume"', source)
         self.assertIn('slave.pcm "acp_dmix"', alarm.group(1))
         self.assertNotIn('slave.pcm "acp_master"', alarm.group(1))
 

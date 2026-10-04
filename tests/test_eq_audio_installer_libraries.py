@@ -107,6 +107,26 @@ acp_write_installed_marker
                 'eq-split-bus\n',
             )
 
+    def test_existing_managed_camilladsp_binary_is_reused_without_self_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'rootfs'
+            binary = root / 'usr/local/lib/a-clockwork-plex/camilladsp-4.1.3/camilladsp'
+            binary.parent.mkdir(parents=True)
+            binary.write_text('#!/bin/sh\n', encoding='utf-8')
+            binary.chmod(0o755)
+
+            script = f'''
+source {COMMON!s}
+source {AUDIO!s}
+ACP_ROOT={root!s}
+acp_install_audio_files {binary!s} testuser
+'''
+            result = self.run_bash(script)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(binary.is_file())
+            self.assertEqual(stat.S_IMODE(binary.stat().st_mode), 0o755)
+
     def test_remove_managed_files_preserves_saved_eq_state(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'rootfs'

@@ -12,7 +12,7 @@ INSTALL = ROOT / "scripts" / "audio" / "install-eq.sh"
 UNINSTALL = ROOT / "scripts" / "audio" / "uninstall-eq.sh"
 CAMILLA_HASH = "e04c7a6603e9482bab33c1e18afc41d3c07410b54ba9c246eda69f7e9cbaedfa"
 PHASE6_DIRECT_HASH = "08d000933e132af4fe0d66f1f80fd6ba08d15398b98f5ea986f69709139e74b9"
-ALARM_SAFE_DIRECT_HASH = "654ff170e6a009d50fa7494500ca930093aa22ab6cd10a606a7d7fe14d0493c9"
+ALARM_SAFE_DIRECT_HASH = "0166bd73e3e9a34dbdebff995de9fa6e39d2cd344dca574c891d46dd1a6aacfb"
 
 
 class EqAudioBaselineProfileTests(unittest.TestCase):

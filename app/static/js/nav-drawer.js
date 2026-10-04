@@ -12,7 +12,6 @@
   const SWIPE_THRESHOLD_PX = 24;
   const LIVE_ENDPOINT = '/api/audio/live';
   const MIXER_ENDPOINT = '/api/audio/mixer';
-  const DEFAULTS_ENDPOINT = '/api/audio/defaults';
   const CHANNELS = ['master', 'plexamp', 'airplay', 'alarm'];
 
   let hideTimer = null;
@@ -21,12 +20,7 @@
   let liveGetInFlight = false;
   let liveSetInFlight = false;
   let trimSetInFlight = false;
-  let startSaveInFlight = false;
   let reassertTimer = null;
-  let airplayApplyDefault = true;
-  let airplayStartDesired = null;
-  let airplayStartPending = null;
-  let airplayStartDrag = null;
 
   const liveDebounceTimers = new Map();
   const livePendingValues = new Map();
@@ -65,26 +59,6 @@
     `;
   }
 
-  function airplayStartKnobMarkup() {
-    return `
-      <div class="nav-trim-control nav-start-control">
-        <div
-          class="nav-trim-knob nav-start-knob"
-          id="nav-start-airplay"
-          role="slider"
-          tabindex="0"
-          aria-label="AirPlay starting sender volume"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow="60"
-          aria-valuetext="6.6"
-          data-nav-start-knob
-        ><span aria-hidden="true"></span></div>
-        <output id="nav-start-airplay-value">START 6.6</output>
-      </div>
-    `;
-  }
-
   function faderMarkup(channel, label) {
     return `
       <div class="nav-live-fader">
@@ -99,16 +73,15 @@
     `;
   }
 
-  function sourceChannelMarkup(channel, label, includeStartKnob = false) {
+  function sourceChannelMarkup(channel, label) {
     return `
       <article class="nav-live-channel nav-source-channel" data-nav-live-channel="${channel}">
         <div class="nav-live-channel-heading">
           <strong>${label}</strong>
           <output id="nav-live-${channel}-value" for="nav-live-${channel}">--%</output>
         </div>
-        <div class="nav-source-knobs ${includeStartKnob ? 'has-two-knobs' : ''}">
+        <div class="nav-source-knobs">
           ${trimKnobMarkup(channel, 'Trim')}
-          ${includeStartKnob ? airplayStartKnobMarkup() : ''}
         </div>
         ${faderMarkup(channel, label)}
       </article>
@@ -159,7 +132,7 @@
         <div class="nav-live-grid">
           ${masterChannelMarkup()}
           ${sourceChannelMarkup('plexamp', 'Plexamp')}
-          ${sourceChannelMarkup('airplay', 'AirPlay', true)}
+          ${sourceChannelMarkup('airplay', 'AirPlay')}
         </div>
         <div class="nav-live-message" id="nav-live-message" role="status" hidden></div>
       `;
@@ -175,20 +148,19 @@
     });
 
     panel.addEventListener('contextmenu', (event) => {
-      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob], [data-nav-start-knob]')) {
+      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
         event.preventDefault();
       }
     }, true);
 
     panel.addEventListener('dragstart', (event) => {
-      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob], [data-nav-start-knob]')) {
+      if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
         event.preventDefault();
       }
     }, true);
 
     installFaderInteractions(panel);
     installTrimKnobInteractions(panel);
-    installStartKnobInteraction(panel);
   }
 
   function installFaderInteractions(panel) {
@@ -290,66 +262,6 @@
         event.preventDefault();
         queueTrimChange(channel, next, true, 0);
       });
-    });
-  }
-
-  function installStartKnobInteraction(panel) {
-    const knob = panel.querySelector('[data-nav-start-knob]');
-    if (!knob) {
-      return;
-    }
-
-    knob.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      airplayStartDrag = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        startValue: Number(airplayStartDesired ?? knob.getAttribute('aria-valuenow') ?? 60),
-      };
-      knob.classList.add('is-dragging');
-      knob.setPointerCapture?.(event.pointerId);
-      scheduleHide();
-    });
-
-    knob.addEventListener('pointermove', (event) => {
-      if (!airplayStartDrag || airplayStartDrag.pointerId !== event.pointerId) {
-        return;
-      }
-      event.preventDefault();
-      const directionalPixels = (event.clientX - airplayStartDrag.startX) + (airplayStartDrag.startY - event.clientY);
-      airplayStartDesired = clampPercent(airplayStartDrag.startValue + directionalPixels / 2);
-      setAirplayStartVisual(airplayStartDesired);
-      scheduleHide();
-    });
-
-    const finish = (event) => {
-      if (!airplayStartDrag || airplayStartDrag.pointerId !== event.pointerId) {
-        return;
-      }
-      event.preventDefault();
-      const value = clampPercent(airplayStartDesired ?? knob.getAttribute('aria-valuenow') ?? 60);
-      airplayStartDrag = null;
-      knob.classList.remove('is-dragging');
-      try {
-        knob.releasePointerCapture?.(event.pointerId);
-      } catch (error) {
-      }
-      queueAirplayStartSave(value);
-      scheduleHide();
-    };
-
-    knob.addEventListener('pointerup', finish);
-    knob.addEventListener('pointercancel', finish);
-    knob.addEventListener('keydown', (event) => {
-      const next = keyboardKnobValue(event, Number(airplayStartDesired ?? knob.getAttribute('aria-valuenow') ?? 60));
-      if (next === null) {
-        return;
-      }
-      event.preventDefault();
-      airplayStartDesired = next;
-      setAirplayStartVisual(next);
-      queueAirplayStartSave(next);
     });
   }
 
@@ -468,23 +380,6 @@
     }
   }
 
-  function setAirplayStartVisual(percent) {
-    const value = clampPercent(percent);
-    const knob = document.getElementById('nav-start-airplay');
-    const output = document.getElementById('nav-start-airplay-value');
-    const angle = -135 + (value / 100) * 270;
-    if (knob) {
-      knob.style.setProperty('--knob-angle', `${angle}deg`);
-      knob.setAttribute('aria-valuenow', String(value));
-      knob.setAttribute('aria-valuetext', elevenValue(value));
-      knob.title = `${value}% starting sender volume`;
-    }
-    if (output) {
-      output.textContent = `START ${elevenValue(value)}`;
-      output.title = `${value}%`;
-    }
-  }
-
   function setDesiredLiveValue(channel, percent) {
     const value = clampPercent(percent);
     liveDesiredValues.set(channel, value);
@@ -526,22 +421,6 @@
     });
   }
 
-  function renderAirplayDefaults(live) {
-    const defaults = live?.defaults || {};
-    airplayApplyDefault = defaults.apply_default_volume_on_start !== false;
-    const value = Number(defaults.default_volume_percent);
-    if (!airplayStartDrag && airplayStartDesired === null && Number.isFinite(value)) {
-      setAirplayStartVisual(value);
-    } else if (airplayStartDesired !== null) {
-      setAirplayStartVisual(airplayStartDesired);
-    }
-    const knob = document.getElementById('nav-start-airplay');
-    if (knob) {
-      knob.classList.toggle('is-bypassed', !airplayApplyDefault);
-      knob.setAttribute('aria-description', airplayApplyDefault ? 'Applied when AirPlay connects' : 'Saved but apply-on-connect is disabled');
-    }
-  }
-
   function renderLiveMixer(live) {
     const health = document.getElementById('nav-live-health');
     if (health) {
@@ -565,12 +444,11 @@
     });
 
     renderMixerTrims(live?.mixer || {});
-    renderAirplayDefaults(live);
     if (live?.error) showMessage(live.error, true);
   }
 
   async function refreshLiveMixer() {
-    if (!mixerOpen() || liveGetInFlight || liveSetInFlight || trimSetInFlight || startSaveInFlight) return;
+    if (!mixerOpen() || liveGetInFlight || liveSetInFlight || trimSetInFlight) return;
     liveGetInFlight = true;
     try {
       const payload = await requestJson(LIVE_ENDPOINT);
@@ -664,55 +542,9 @@
     }
   }
 
-  function queueAirplayStartSave(percent) {
-    airplayStartDesired = clampPercent(percent);
-    airplayStartPending = airplayStartDesired;
-    setAirplayStartVisual(airplayStartDesired);
-    drainAirplayStartSave();
-  }
-
-  async function drainAirplayStartSave() {
-    if (startSaveInFlight || airplayStartPending === null) {
-      return;
-    }
-    const value = airplayStartPending;
-    airplayStartPending = null;
-    startSaveInFlight = true;
-    try {
-      const payload = await requestJson(DEFAULTS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          default_volume_percent: value,
-          apply_default_volume_on_start: airplayApplyDefault,
-        }),
-      });
-      const confirmed = Number(payload?.defaults?.default_volume_percent);
-      if (Number.isFinite(confirmed) && airplayStartPending === null) {
-        setAirplayStartVisual(confirmed);
-        window.setTimeout(() => {
-          if (airplayStartPending === null && !airplayStartDrag) {
-            airplayStartDesired = null;
-          }
-        }, 650);
-      }
-      showMessage('');
-    } catch (error) {
-      showMessage(error.message || 'Could not save AirPlay starting volume.', true);
-    } finally {
-      startSaveInFlight = false;
-      if (airplayStartPending !== null) {
-        drainAirplayStartSave();
-      } else {
-        window.setTimeout(refreshLiveMixer, 180);
-      }
-    }
-  }
-
   function reassertDesiredValues() {
     liveDesiredValues.forEach((value, channel) => updateLiveReading(channel, value));
     trimDesiredValues.forEach((value, channel) => setTrimVisual(channel, value));
-    if (airplayStartDesired !== null) setAirplayStartVisual(airplayStartDesired);
   }
 
   installAudioPanel();

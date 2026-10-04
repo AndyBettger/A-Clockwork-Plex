@@ -60,7 +60,6 @@ class SettingsIpadTests(unittest.TestCase):
             "alarms:defaults",
             "alarms:sound",
             "airplay:receiver",
-            "airplay:starting-volume",
             "airplay:handoff",
             "audio:trims",
             "audio:eq",
@@ -122,6 +121,9 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertNotIn('data-setting-path="audio.eq.enabled"', self.template)
         self.assertNotIn('data-setting-path="audio.eq.bands.{{ band }}"', self.template)
         self.assertIn("Production ready", self.client)
+        self.assertNotIn('data-settings-subpage="airplay:starting-volume"', self.template)
+        self.assertNotIn("default_volume_percent", self.template)
+        self.assertNotIn("apply_default_volume_on_start", self.template)
 
     def test_alarm_editor_registers_with_transaction_instead_of_saving_itself(self):
         self.assertIn("registerDomain?.('alarms'", self.alarms)

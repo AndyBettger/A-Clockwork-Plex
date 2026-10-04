@@ -37,6 +37,7 @@ sessioncontrol =
         rendered = module.render_integration(original)
 
         self.assertIn('name = "Bedroom Plexamp";', rendered)
+        self.assertIn('ignore_volume_control = "yes";', rendered)
         self.assertIn('output_device = "acp_airplay";', rendered)
         self.assertIn('mixer_control_name = "ACP AirPlay";', rendered)
         self.assertIn(
@@ -61,6 +62,7 @@ sessioncontrol =
         rendered = module.render_integration(original)
 
         self.assertIn('name = "Office Plexamp";', rendered)
+        self.assertIn('ignore_volume_control = "yes";', rendered)
         self.assertIn("alsa =", rendered)
         self.assertIn("sessioncontrol =", rendered)
         self.assertIn("metadata =", rendered)
@@ -72,6 +74,7 @@ alsa = { output_device = "default"; };
         once = module.render_integration(original)
         twice = module.render_integration(once)
         self.assertEqual(twice, once)
+        self.assertEqual(once.count("ignore_volume_control"), 1)
         self.assertEqual(once.count("output_device"), 1)
         self.assertEqual(once.count("run_this_before_entering_active_state"), 1)
         self.assertEqual(once.count("pipe_name"), 1)
@@ -83,6 +86,7 @@ alsa = { output_device = "default"; };
             end_wrapper="/opt/acp/end",
             metadata_pipe="/run/acp metadata",
         )
+        self.assertIn('ignore_volume_control = "yes";', rendered)
         self.assertIn('run_this_before_entering_active_state = "/opt/acp/start";', rendered)
         self.assertIn('run_this_after_exiting_active_state = "/opt/acp/end";', rendered)
         self.assertIn('pipe_name = "/run/acp metadata";', rendered)
@@ -95,9 +99,7 @@ alsa = { output_device = "default"; };
             original = 'general = {\n    name = "Clock";\n};\n'
             source.write_text(original, encoding="utf-8")
 
-            import subprocess
-
-            result = subprocess.run(
+            result = __import__("subprocess").run(
                 ["python3", str(SCRIPT), "--input", str(source), "--output", str(output)],
                 cwd=ROOT,
                 capture_output=True,
@@ -107,7 +109,9 @@ alsa = { output_device = "default"; };
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(source.read_text(encoding="utf-8"), original)
-            self.assertIn('output_device = "acp_airplay";', output.read_text(encoding="utf-8"))
+            rendered = output.read_text(encoding="utf-8")
+            self.assertIn('ignore_volume_control = "yes";', rendered)
+            self.assertIn('output_device = "acp_airplay";', rendered)
 
 
 if __name__ == "__main__":

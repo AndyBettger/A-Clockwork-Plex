@@ -63,7 +63,7 @@
     const response = await fetch(endpoint, { cache: 'no-store', ...options });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload.ok === false) {
-      throw new Error(payload.error || `AirPlay volume returned ${response.status}.`);
+      throw new Error(payload.error || `AirPlay receiver volume returned ${response.status}.`);
     }
     return payload;
   }
@@ -94,7 +94,7 @@
       render(payload);
     } catch (error) {
       if (detail) {
-        detail.textContent = error.message || 'The AirPlay volume command was not accepted.';
+        detail.textContent = error.message || 'The AirPlay receiver volume command was not accepted.';
       }
     } finally {
       sendInFlight = false;

@@ -866,7 +866,7 @@ def mpris_remote_status() -> dict[str, Any]:
         "can_control": False,
         "can_play": False,
         "can_pause": False,
-        "can_set_volume": True,
+        "can_set_volume": False,
         "error": None,
     }
 
@@ -1129,18 +1129,12 @@ def api_airplay_control():
 
 @app.route("/api/airplay/volume", methods=["POST"])
 def api_airplay_volume():
-    payload = request.get_json(silent=True) or {}
-    raw_value = payload.get("volume_percent", payload.get("volume"))
-    value = parse_float(raw_value)
-    if value is None:
-        return jsonify({"ok": False, "error": "Missing or invalid volume value."}), 400
-
-    # The UI sends 0-100. Accept 0.0-1.0 too, so tests can use either.
-    volume = value / 100 if value > 1 else value
-    volume = max(0.0, min(1.0, volume))
-    ok, error = mpris_call("SetVolume", "d", f"{volume:.4f}")
-    status = mpris_remote_status()
-    return jsonify({"ok": ok, "error": error, "remote": status}), (200 if ok else 502)
+    return jsonify(
+        {
+            "ok": False,
+            "error": "AirPlay sender volume is read-only. Use /api/audio/state for receiver-owned AirPlay volume.",
+        }
+    ), 410
 
 
 @app.route("/api/weather/ecowitt", methods=["GET", "POST"])

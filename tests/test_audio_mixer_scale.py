@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,168 @@ SPEC.loader.exec_module(HELPER)
 
 
 class AudioMixerScaleTests(unittest.TestCase):
+    def test_managed_split_bus_metadata_overrides_legacy_rate_and_dac(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = root / "a-clockwork-plex-audio"
+            managed = root / "a-clockwork-plex-split-bus"
+            legacy.write_text(
+                "ALSA_CARD=Legacy\n"
+                "ALSA_DEVICE=9\n"
+                "SAMPLE_RATE=44100\n"
+                "CHANNELS=2\n",
+                encoding="utf-8",
+            )
+            managed.write_text(
+                "DAC_CARD=Pro\n"
+                "DAC_DEVICE=0\n"
+                "SAMPLE_RATE=192000\n",
+                encoding="utf-8",
+            )
+
+            config = HELPER.load_config(legacy, managed)
+
+        self.assertEqual(config["ALSA_CARD"], "Pro")
+        self.assertEqual(config["ALSA_DEVICE"], "0")
+        self.assertEqual(config["SAMPLE_RATE"], "192000")
+        self.assertEqual(config["CHANNELS"], "2")
+
+    def test_managed_metadata_absence_preserves_legacy_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = root / "a-clockwork-plex-audio"
+            legacy.write_text(
+                "ALSA_CARD=Pro\n"
+                "ALSA_DEVICE=0\n"
+                "SAMPLE_RATE=44100\n"
+                "CHANNELS=2\n",
+                encoding="utf-8",
+            )
+
+            config = HELPER.load_config(legacy, root / "missing-managed")
+
+        self.assertEqual(config["SAMPLE_RATE"], "44100")
+
+
+    def test_active_processing_status_follows_selected_route_not_split_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            split = root / "split.conf"
+            direct = root / "direct.conf"
+            split.write_text(
+                'pcm.acp_dmix {\n'
+                '    type dmix\n'
+                '    slave {\n'
+                '        pcm "hw:CARD=ACP_Loopback,DEV=0"\n'
+                '        format S32_LE\n'
+                '        rate 192000\n'
+                '        channels 4\n'
+                '        period_size 4096\n'
+                '        buffer_size 32768\n'
+                '    }\n'
+                '}\n'
+                'pcm.acp_master { type plug }\n',
+                encoding="utf-8",
+            )
+            direct.write_text(
+                'pcm.acp_dmix {\n'
+                '    type dmix\n'
+                '    slave {\n'
+                '        pcm "hw:CARD=Pro,DEV=0"\n'
+                '        format S16_LE\n'
+                '        rate 44100\n'
+                '        channels 2\n'
+                '        period_size 1024\n'
+                '        buffer_size 8192\n'
+                '    }\n'
+                '}\n'
+                'pcm.acp_master { type plug }\n',
+                encoding="utf-8",
+            )
+
+            split_status = HELPER.active_processing_status(split)
+            direct_status = HELPER.active_processing_status(direct)
+
+        self.assertTrue(split_status["available"])
+        self.assertEqual(split_status["format"], "S32_LE")
+        self.assertEqual(split_status["rate_hz"], 192000)
+        self.assertEqual(split_status["channels"], 4)
+        self.assertTrue(direct_status["available"])
+        self.assertEqual(direct_status["format"], "S16_LE")
+        self.assertEqual(direct_status["rate_hz"], 44100)
+        self.assertEqual(direct_status["channels"], 2)
+
+    def test_dac_playback_status_reports_open_hw_params_and_closed_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hw = root / "hw_params"
+            hw.write_text(
+                "access: RW_INTERLEAVED\n"
+                "format: S32_LE\n"
+                "subformat: STD\n"
+                "channels: 2\n"
+                "rate: 192000 (192000/1)\n"
+                "period_size: 2048\n"
+                "buffer_size: 16384\n",
+                encoding="utf-8",
+            )
+            opened = HELPER.dac_playback_status("Pro", "0", path=hw)
+            hw.write_text("closed\n", encoding="utf-8")
+            closed = HELPER.dac_playback_status("Pro", "0", path=hw)
+
+        self.assertTrue(opened["available"])
+        self.assertTrue(opened["open"])
+        self.assertEqual(opened["format"], "S32_LE")
+        self.assertEqual(opened["rate_hz"], 192000)
+        self.assertEqual(opened["period_size"], 2048)
+        self.assertEqual(opened["buffer_size"], 16384)
+        self.assertTrue(closed["available"])
+        self.assertFalse(closed["open"])
+        self.assertIsNone(closed["rate_hz"])
+
+    def test_audio_path_keeps_source_unknown_and_separates_processing_from_dac(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            route = root / "active.conf"
+            route.write_text(
+                'pcm.acp_dmix {\n'
+                '    slave {\n'
+                '        format S32_LE\n'
+                '        rate 192000\n'
+                '        channels 4\n'
+                '    }\n'
+                '}\n'
+                'pcm.acp_master { type plug }\n',
+                encoding="utf-8",
+            )
+            state = root / "route-state.json"
+            state.write_text(
+                '{"mode":"split-bus-selected"}\n',
+                encoding="utf-8",
+            )
+            hw = root / "hw_params"
+            hw.write_text(
+                "format: S32_LE\nchannels: 2\nrate: 192000 (192000/1)\n"
+                "period_size: 2048\nbuffer_size: 16384\n",
+                encoding="utf-8",
+            )
+            status = HELPER.audio_path_status(
+                {"ALSA_CARD": "Pro", "ALSA_DEVICE": "0"},
+                active_alsa_path=route,
+                route_state_path=state,
+                dac_hw_params_path=hw,
+            )
+
+        self.assertEqual(status["route_mode"], "split-bus-selected")
+        self.assertFalse(status["source"]["available"])
+        self.assertIsNone(status["source"]["rate_hz"])
+        self.assertEqual(status["processing"]["rate_hz"], 192000)
+        self.assertEqual(status["dac"]["rate_hz"], 192000)
+        self.assertNotEqual(
+            status["source"]["authority"],
+            status["processing"]["authority"],
+        )
+
     def test_human_percentages_map_to_expected_decibels(self):
         self.assertAlmostEqual(HELPER.loudness_percent_to_db(100), 0.0, places=2)
         self.assertAlmostEqual(HELPER.loudness_percent_to_db(50), -6.02, places=2)

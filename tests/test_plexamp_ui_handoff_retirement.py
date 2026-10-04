@@ -63,7 +63,8 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
         self.assertNotIn("airplay-default-volume", mixer)
         self.assertIn("bind_mixer_controller", mixer)
         self.assertIn("mixer_controller.start_airplay_session", mixer)
-        self.assertIn("_acp_audio_defaults_wrapped", mixer)
+        self.assertIn("_acp_audio_session_wrapped", mixer)
+        self.assertNotIn("_acp_audio_defaults_wrapped", mixer)
 
     def test_reverse_handoff_is_owned_by_final_production_authority(self):
         authority = PLAYBACK_AUTHORITY.read_text(encoding="utf-8")

@@ -143,6 +143,7 @@ class AirPlayIntegrationInstallerTests(unittest.TestCase):
             text = config.read_text(encoding="utf-8")
             self.assertIn('name = "Bedroom Clock";', text)
             self.assertIn('interpolation = "soxr";', text)
+            self.assertIn('ignore_volume_control = "yes";', text)
             self.assertIn('mixer_control_name = "Master";', text)
             self.assertIn('output_device = "acp_airplay";', text)
             self.assertIn('run_this_before_entering_active_state = "/usr/local/bin/a-clockwork-plex-airplay-start";', text)

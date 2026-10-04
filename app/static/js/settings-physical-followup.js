@@ -4,10 +4,13 @@
   window.__aClockworkPlexSettingsPhysicalFollowupLoaded = true;
 
   const SETTINGS_API = '/api/settings';
+  const AUDIO_MIXER_API = '/api/audio/mixer';
+  const AUDIO_PATH_POLL_MS = 2500;
   const AUTOSAVE_DELAY_MS = 650;
   const TEXT_AUTOSAVE_DELAY_MS = 1100;
   const lastInteractionBySection = new Map();
   let retryTimer = null;
+  let audioPathTimer = null;
 
   function initialise() {
     const form = document.getElementById('settings-unified-form');
@@ -411,6 +414,76 @@
     if (field) field.hidden = true;
   }
 
+  function audioRateLabel(rate) {
+    const value = Number(rate);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    const khz = value / 1000;
+    return `${Number.isInteger(khz) ? khz.toFixed(0) : khz.toFixed(1)} kHz`;
+  }
+
+  function audioStageLabel(stage, { dac = false } = {}) {
+    if (dac && stage?.available === true && stage?.open === false) return 'Idle / closed';
+    if (stage?.available !== true) return 'Not reported';
+    const bits = [];
+    if (stage?.format) bits.push(String(stage.format));
+    const rate = audioRateLabel(stage?.rate_hz);
+    if (rate) bits.push(rate);
+    return bits.length ? bits.join(' · ') : 'Available';
+  }
+
+  function audioProcessingNote(path) {
+    const mode = String(path?.route_mode || '');
+    if (mode === 'direct-failback') return 'Direct failback · active ALSA route';
+    if (mode === 'split-bus-selected') return 'Managed split bus · active ALSA route';
+    return 'Active ALSA route';
+  }
+
+  function renderAudioPathSummary(path) {
+    const summary = document.querySelector('[data-audio-path-summary]');
+    if (!summary) return;
+    const source = path?.source || {};
+    const processing = path?.processing || {};
+    const dac = path?.dac || {};
+    summary.innerHTML = `
+      <div class="settings-status-reading">
+        <span>Source format/rate</span>
+        <strong>${escapeHtml(source?.available === true ? audioStageLabel(source) : 'Not reported')}</strong>
+        <small>${escapeHtml(source.note || 'Plexamp/AirPlay identity is known separately; source format/rate is not reported.')}</small>
+      </div>
+      <div class="settings-status-reading">
+        <span>Processing</span>
+        <strong>${escapeHtml(audioStageLabel(processing))}</strong>
+        <small>${escapeHtml(audioProcessingNote(path))}</small>
+      </div>
+      <div class="settings-status-reading">
+        <span>DAC</span>
+        <strong>${escapeHtml(audioStageLabel(dac, { dac: true }))}</strong>
+        <small>${escapeHtml(
+          dac?.open === false
+            ? 'Physical DAC is currently closed.'
+            : (String(path?.route_mode || '') === 'split-bus-selected'
+              ? 'Managed processing keeps the physical DAC open continuously.'
+              : 'Physical DAC · live ALSA hw_params')
+        )}</small>
+      </div>`;
+  }
+
+  async function refreshAudioPathSummary() {
+    const summary = document.querySelector('[data-audio-path-summary]');
+    const subpage = summary?.closest?.('[data-settings-subpage]');
+    if (!summary || subpage?.hidden || document.hidden) return;
+    try {
+      const response = await fetch(AUDIO_MIXER_API, { cache: 'no-store' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || `Audio mixer returned HTTP ${response.status}.`);
+      }
+      renderAudioPathSummary(payload?.mixer?.audio_path || {});
+    } catch (error) {
+      summary.innerHTML = `<p class="muted">${escapeHtml(error.message || 'Could not read the live audio path.')}</p>`;
+    }
+  }
+
   async function arrangeAudioHardware(authority) {
     const audioPage = document.querySelector('[data-settings-subpage="audio:hardware"] .settings-card');
     const advancedPage = document.querySelector('[data-settings-subpage="advanced:audio"] .settings-card');
@@ -439,6 +512,18 @@
     summary.className = 'settings-status-grid settings-hardware-summary';
     summary.innerHTML = '<p class="muted">Reading the configured audio route…</p>';
     audioPage.appendChild(summary);
+
+    const pathHeading = document.createElement('h4');
+    pathHeading.className = 'settings-subheading settings-audio-path-heading';
+    pathHeading.textContent = 'Live audio path';
+    audioPage.appendChild(pathHeading);
+
+    const pathSummary = document.createElement('div');
+    pathSummary.className = 'settings-status-grid settings-audio-path-summary';
+    pathSummary.dataset.audioPathSummary = 'true';
+    pathSummary.innerHTML = '<p class="muted">Reading the live audio path…</p>';
+    audioPage.appendChild(pathSummary);
+
     const note = document.createElement('p');
     note.className = 'muted small settings-hardware-maintenance-note';
     note.textContent = 'The physical output is intentionally read-only here. Changing it requires a guarded audio-maintenance procedure because Plexamp, AirPlay and alarms share the same ALSA graph.';
@@ -471,6 +556,22 @@
         </div>`;
     } catch (error) {
       summary.innerHTML = `<p class="muted">${escapeHtml(error.message || 'Could not read the configured audio route.')}</p>`;
+    }
+
+    await refreshAudioPathSummary();
+    const hardwareOverview = document.querySelector('[data-settings-subpage-target="audio:hardware"]');
+    if (hardwareOverview && hardwareOverview.dataset.audioPathRefreshOwner !== 'true') {
+      hardwareOverview.dataset.audioPathRefreshOwner = 'true';
+      hardwareOverview.addEventListener('click', () => window.setTimeout(refreshAudioPathSummary, 0));
+    }
+    window.clearInterval(audioPathTimer);
+    audioPathTimer = window.setInterval(refreshAudioPathSummary, AUDIO_PATH_POLL_MS);
+    if (audioPage.dataset.audioPathCleanupOwner !== 'true') {
+      audioPage.dataset.audioPathCleanupOwner = 'true';
+      window.addEventListener('pagehide', () => window.clearInterval(audioPathTimer), { once: true });
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refreshAudioPathSummary();
+      });
     }
   }
 

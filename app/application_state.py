@@ -121,9 +121,6 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
     def authoritative_airplay_status() -> dict[str, Any]:
         return shairport_remote_status(dashboard.mpris_remote_status)
 
-    def set_airplay_sender_volume(percent: int) -> tuple[bool, str | None]:
-        return dashboard.mpris_call("SetVolume", "d", f"{percent / 100:.4f}")
-
     def plexamp_status() -> dict[str, Any]:
         return audio_mixer._plexamp_controller().status()
 
@@ -134,9 +131,7 @@ def build_default_application_state_hub(dashboard: Any) -> ApplicationStateHub:
         return audio_mixer.shared_audio_mixer.set_volume(channel, percent, persist=persist)
 
     mixer_controller = MixerController(
-        load_config=dashboard.load_config,
         airplay_status=authoritative_airplay_status,
-        set_airplay_volume=set_airplay_sender_volume,
         plexamp_status=plexamp_status,
         set_plexamp_volume=set_plexamp_volume,
         mixer_status=audio_mixer.shared_audio_mixer.status,

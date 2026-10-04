@@ -65,6 +65,11 @@ def render_integration(
 ) -> str:
     updated = update_block(
         text,
+        "general",
+        {"ignore_volume_control": quote("yes")},
+    )
+    updated = update_block(
+        updated,
         "alsa",
         {"output_device": quote("acp_airplay")},
     )

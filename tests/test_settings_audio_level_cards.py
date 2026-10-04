@@ -8,6 +8,8 @@ class SettingsAudioLevelCardTests(unittest.TestCase):
     def setUp(self) -> None:
         self.mixer = Path("app/audio_mixer.py").read_text(encoding="utf-8")
         self.css = Path("app/static/css/settings-physical-followup.css").read_text(encoding="utf-8")
+        self.workspace = Path("app/static/js/settings-audio-workspace.js").read_text(encoding="utf-8")
+        self.physical = Path("app/static/js/settings-physical-followup.js").read_text(encoding="utf-8")
 
     def test_music_master_metadata_matches_the_split_bus_contract(self):
         self.assertIn('"label": "Music master"', self.mixer)
@@ -39,6 +41,24 @@ class SettingsAudioLevelCardTests(unittest.TestCase):
         self.assertIn("border-radius: 999px", self.css)
         self.assertIn("min-width: 62px", self.css)
         self.assertIn("min-height: 31px", self.css)
+
+
+    def test_audio_hardware_page_separates_source_processing_and_dac_truthfully(self):
+        self.assertIn("Live audio path", self.physical)
+        self.assertIn("<span>Source format/rate</span>", self.physical)
+        self.assertIn("<span>Processing</span>", self.physical)
+        self.assertIn("<span>DAC</span>", self.physical)
+        self.assertIn("Plexamp/AirPlay identity is known separately; source format/rate is not reported.", self.physical)
+        self.assertIn("Managed split bus · active ALSA route", self.physical)
+        self.assertIn("Direct failback · active ALSA route", self.physical)
+        self.assertIn("Managed processing keeps the physical DAC open continuously.", self.physical)
+        self.assertIn("Physical DAC · live ALSA hw_params", self.physical)
+        self.assertIn("settings-audio-path-summary", self.physical)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", self.css)
+        self.assertNotIn("audio-path-card", self.workspace)
+        self.assertIn("Downstream of the receiver-owned AirPlay live level.", self.workspace)
+        self.assertNotIn("Downstream of the iPhone/sender volume.", self.workspace)
+        self.assertNotIn("native 192", self.physical.lower())
 
 
 if __name__ == "__main__":
