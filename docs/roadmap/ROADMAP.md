@@ -49,12 +49,14 @@ These are bounded corrections/improvements to accepted features; they do not cha
 
 The commissioned managed audio path is physically accepted at **S32_LE / 192 kHz**. Plexamp, AirPlay, EQ controls, receiver-owned AirPlay volume, alarms, promoted Direct failback/recovery and truthful Source/Processing/DAC diagnostics have all passed their relevant physical gates.
 
-### Remaining before merge to `develop`
+### #85 acceptance status
 
-- [ ] Run a longer ordinary mixed Plexamp/AirPlay production stability soak.
-- [ ] Inspect a bounded CamillaDSP/Shairport journal for underrun, overrun, XRUN, stall, Broken pipe and error/fail recovery.
-- [ ] Confirm final CI is green.
-- [ ] Reconcile final docs/catalogues and merge the accepted branch to `develop`.
+- [x] Longer ordinary mixed Plexamp/AirPlay production stability soak completed.
+- [x] Bounded CamillaDSP/Shairport journal inspected.
+- [x] Focused AirPlay reconnect classification passed with no audible issue and no filtered audio errors.
+- [ ] Confirm final CI is green at the final documentation head.
+- [x] Final docs/catalogues reconciled.
+- [ ] Integration into `develop` remains intentionally pending explicit user approval.
 
 A true source-rate-native / bit-perfect Direct bypass is **not** part of this merge gate. The older roadmap mixed that later ambition into #85; it is deferred until #94 settles the future Plexamp runtime.
 
