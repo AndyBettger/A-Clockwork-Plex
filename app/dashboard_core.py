@@ -1088,6 +1088,24 @@ def weather():
     return render_template("weather.html")
 
 
+@app.route("/api/surfaces/<surface>")
+def api_surface_document(surface: str):
+    templates = {
+        "clock": "clock.html",
+        "weather": "weather.html",
+    }
+    template = templates.get(str(surface or "").strip().lower())
+    if not template:
+        return jsonify({"ok": False, "error": "Surface is not available for same-document mounting."}), 404
+    return jsonify(
+        {
+            "ok": True,
+            "surface": str(surface).strip().lower(),
+            "html": render_template(template),
+        }
+    )
+
+
 @app.route("/airplay")
 def airplay():
     set_mode("airplay")
