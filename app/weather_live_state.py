@@ -7,6 +7,7 @@ from typing import Any
 INDOOR_FIELDS = ("tempinf", "humidityin")
 DEFAULT_INDOOR_FRESH_SECONDS = 180
 RAIN_EVENT_DRY_GAP = timedelta(hours=2)
+RAIN_STATE_SCHEMA_VERSION = 2
 RAIN_EPSILON_IN = 0.000001
 
 
@@ -172,16 +173,9 @@ def augment_derived_rain(
 ) -> dict[str, Any]:
     """Add WU-compatible Hourly/Event rain with station-time chronology.
 
-    Weather Underground provides rain rate and the station running daily total
-    but not Ecowitt Hourly Rain or Event Rain fields. Successive daily totals
-    provide rainfall increments. The station observation timestamp (dateutc)
-    is the chronology authority when available, which prevents a stale
-    pre-midnight daily counter from being counted again merely because ACP
-    received it after local midnight.
-
-    ACP-derived Event Rain closes after two continuously dry hours. A new event
-    starts on the first positive rain increment after the previous event has
-    closed. Native hourlyrainin/eventrainin values are never replaced.
+    The current WU daily counter is a counter baseline, not proof that all rain
+    already accumulated today belongs to one event. Fresh/legacy state therefore
+    starts with zero derived Hourly/Event rain and learns subsequent increments.
     """
     result = dict(weather)
     daily = _number(result.get("dailyrainin"))
@@ -190,6 +184,11 @@ def augment_derived_rain(
 
     raw_state = state.get("weather_rain_derived")
     model = dict(raw_state) if isinstance(raw_state, dict) else {}
+    if model.get("schema_version") != RAIN_STATE_SCHEMA_VERSION:
+        # Older state used receipt-time rollover and different event semantics;
+        # its counter/event/increment provenance is not safe to relabel as v2.
+        model = {}
+
     requested_station = str(station_id or "").strip().upper()
     previous_station = str(model.get("station_id") or "").strip().upper()
     if previous_station and requested_station and previous_station != requested_station:
@@ -207,79 +206,71 @@ def augment_derived_rain(
     observed_date = observed_at.date().isoformat()
     current_rate = _number(result.get("rainratein")) or 0.0
 
-    baseline_amount = _number(model.get("baseline_amount_in")) or 0.0
-    baseline_at = _parse_time(model.get("baseline_at"))
     event_total = _number(model.get("event_total_in")) or 0.0
     event_started_at = _parse_time(model.get("event_started_at"))
     event_last_rain_at = _parse_time(model.get("event_last_rain_at"))
+    if event_total > RAIN_EPSILON_IN and event_last_rain_at is None:
+        # Malformed v2 event state cannot prove a dry-gap boundary truthfully.
+        event_total = 0.0
+        event_started_at = None
 
     last_event_total = _number(model.get("last_event_total_in"))
     last_event_started_at = _parse_time(model.get("last_event_started_at"))
     last_event_ended_at = _parse_time(model.get("last_event_ended_at"))
     last_event_closed_at = _parse_time(model.get("last_event_closed_at"))
 
-    # Migrate older persisted state conservatively. The retained increment
-    # history is better provenance than inventing a new timestamp.
-    if event_total > RAIN_EPSILON_IN:
-        if event_started_at is None and increments:
-            event_started_at = _parse_time(increments[0].get("time"))
-        if event_last_rain_at is None:
-            if increments:
-                event_last_rain_at = _parse_time(increments[-1].get("time"))
-            elif baseline_at:
-                event_last_rain_at = baseline_at
+    tracking_started_at = _parse_time(model.get("tracking_started_at")) or effective_at
+    observation_gap = (
+        observed_at - previous_observed_at
+        if previous_observed_at and not stale_observation
+        else timedelta(0)
+    )
+    history_gap = observation_gap >= RAIN_EVENT_DRY_GAP
 
-    if previous_daily is None:
-        # First observation cannot reveal when today earlier rain fell. Keep
-        # it as an event baseline without pretending it all fell this hour.
-        baseline_amount = daily
-        baseline_at = effective_at if daily > RAIN_EPSILON_IN else None
-        event_total = max(event_total, daily)
-        if daily > RAIN_EPSILON_IN and current_rate > RAIN_EPSILON_IN:
-            event_last_rain_at = effective_at
+    if previous_daily is None or history_gap:
+        # First observation, station change, legacy migration or a >=2h
+        # observation gap is a counter rebaseline. Missing history cannot be
+        # assigned to one event without inventing continuity.
         delta = 0.0
     elif stale_observation:
-        # WU may return an older station observation while ACP wall time has
-        # moved on. Never move rainfall counters backwards.
+        # Older station observations may arrive after newer ones; never move
+        # the rain counters backwards or manufacture a rollover.
         delta = 0.0
     elif previous_date and previous_date != observed_date:
-        # The station daily counter has crossed its own calendar boundary.
+        # A continuously observed station-date rollover means the new daily
+        # counter itself is the amount since local midnight.
         delta = daily
     elif daily >= previous_daily:
         delta = daily - previous_daily
     else:
-        # Same-day negative jumps are station correction/reset events, not
-        # negative rainfall. Rebase without manufacturing a rain increment.
+        # Same-day negative changes are station correction/reset events.
         delta = 0.0
 
     def close_event(closed_at: datetime) -> None:
         nonlocal event_total, event_started_at, event_last_rain_at
-        nonlocal baseline_amount, baseline_at
         nonlocal last_event_total, last_event_started_at, last_event_ended_at, last_event_closed_at
-        if event_total <= RAIN_EPSILON_IN:
+        if event_total <= RAIN_EPSILON_IN or event_last_rain_at is None:
+            event_total = 0.0
+            event_started_at = None
+            event_last_rain_at = None
             return
         last_event_total = event_total
         last_event_started_at = event_started_at
-        last_event_ended_at = event_last_rain_at or baseline_at
+        last_event_ended_at = event_last_rain_at
         last_event_closed_at = closed_at
         event_total = 0.0
         event_started_at = None
         event_last_rain_at = None
-        baseline_amount = 0.0
-        baseline_at = None
 
-    dry_anchor = event_last_rain_at or baseline_at
-    if event_total > RAIN_EPSILON_IN and dry_anchor:
-        dry_gap_elapsed = effective_at - dry_anchor >= RAIN_EVENT_DRY_GAP
-        if dry_gap_elapsed and (delta > RAIN_EPSILON_IN or current_rate <= RAIN_EPSILON_IN):
-            close_event(dry_anchor + RAIN_EVENT_DRY_GAP)
+    if event_total > RAIN_EPSILON_IN and event_last_rain_at:
+        dry_gap_elapsed = effective_at - event_last_rain_at >= RAIN_EVENT_DRY_GAP
+        if dry_gap_elapsed and (history_gap or delta > RAIN_EPSILON_IN or current_rate <= RAIN_EPSILON_IN):
+            close_event(event_last_rain_at + RAIN_EVENT_DRY_GAP)
 
     if delta > RAIN_EPSILON_IN:
         increments.append({"time": _iso(effective_at), "amount_in": round(delta, 6)})
         if event_total <= RAIN_EPSILON_IN:
             event_started_at = effective_at
-            baseline_amount = 0.0
-            baseline_at = None
         event_total += delta
         event_last_rain_at = effective_at
 
@@ -295,15 +286,15 @@ def augment_derived_rain(
     persisted_daily = previous_daily if stale_observation and previous_daily is not None else daily
 
     state["weather_rain_derived"] = {
+        "schema_version": RAIN_STATE_SCHEMA_VERSION,
         "station_id": requested_station,
         "chronology_source": "dateutc" if parsed_observed_at else "receipt_time",
+        "tracking_started_at": _iso(tracking_started_at),
         "last_received_at": _iso(now),
         "last_payload_observed_at": _iso(observed_at),
         "last_observed_at": _iso(effective_at),
         "last_date": persisted_date,
         "last_daily_in": round(persisted_daily, 6),
-        "baseline_amount_in": round(baseline_amount, 6),
-        "baseline_at": _iso(baseline_at) if baseline_at else None,
         "increments": increments,
         "event_active": event_total > RAIN_EPSILON_IN,
         "event_total_in": round(max(0.0, event_total), 6),
