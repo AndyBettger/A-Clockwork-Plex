@@ -4,6 +4,7 @@
 
   const card = document.querySelector('.airplay-now-card');
   if (!card) return;
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
 
   /* Centre of the concentric receiving arcs in the 24×24 AirPlay path. */
   const ARC_CENTRE_X = 11.959 / 24;
@@ -15,6 +16,7 @@
   }
 
   function calibrate() {
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     const style = window.getComputedStyle(card);
     const paddingTop = number(style.paddingTop);
     const paddingBottom = number(style.paddingBottom);
@@ -62,6 +64,10 @@
   }
 
   window.addEventListener('resize', calibrate, { passive: true });
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (!visible) return;
+    window.requestAnimationFrame(() => window.requestAnimationFrame(calibrate));
+  });
   window.requestAnimationFrame(calibrate);
   window.setTimeout(calibrate, 180);
   window.setTimeout(calibrate, 800);
