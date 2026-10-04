@@ -52,6 +52,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq.css', v='20260820-eq-bypass-theme-v1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/audio-eq-drawer-layout.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/fader-calibration.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/acp-surfaces.css', v='20261004-clock-weather-v1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/page-transitions.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/plexamp-persistent.css', v='20260730-atomic-plexamp-underlay-handoff') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/daytime-themes.css', v='20260819-curated-themes-v2') }}">
@@ -82,7 +83,7 @@
 
   <footer class="status-bar">
     <span>A Clockwork Plex</span>
-    <span>Mode: {{ state.mode }}</span>
+    <span data-acp-status-mode>Mode: {{ state.mode }}</span>
     <span>{% if state.last_weather_update %}Weather: <span data-acp-datetime="{{ state.last_weather_update }}">{{ state.last_weather_update }}</span>{% else %}Weather: waiting{% endif %}</span>
   </footer>
   <script src="{{ url_for('static', filename='js/segment-display.js', v='20260819-segment-v3') }}"></script>
@@ -97,8 +98,9 @@
   <script src="{{ url_for('static', filename='js/airplay-start-commit.js') }}"></script>
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
   <script src="{{ url_for('static', filename='js/plexamp-persistent.js', v='20260730-atomic-plexamp-underlay-handoff') }}"></script>
-  <script src="{{ url_for('static', filename='js/acp-surface-host.js', v='20261004-phase-a-surface-host-v1') }}"></script>
-  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20261004-phase-a-surface-host-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/acp-surface-host.js', v='20261004-clock-weather-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20261004-clock-weather-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/acp-clock-weather-surfaces.js', v='20261004-clock-weather-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260831-news-route-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
   {% if active_page | default(state.mode) == 'weather' %}
