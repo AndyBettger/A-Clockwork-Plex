@@ -583,3 +583,18 @@ Physical retest closes the first same-document migration gate:
 - News and Settings continue to use the fail-safe full-route fallback.
 
 This establishes the Surface Host contract as suitable for incremental migration of additional ACP-owned application surfaces.
+
+### A2 — News joins the application-surface set
+
+After Clock ↔ Weather A1 acceptance, the pair-specific loader is replaced by the generic `acp-application-surfaces.js` owner. The first registered set is now Clock, Weather and News.
+
+News keeps its existing local `/api/news` ownership and rendered UI logic. The mounted-surface adaptation is lifecycle-only:
+
+- hidden News does not continue useful 60-second refresh work;
+- reactivation fetches one fresh local News snapshot;
+- story/category scroll positions are preserved across routine snapshot renders;
+- story and category custom scrollbars follow the same hidden-geometry / `surface-settled` rule established by Weather;
+- the article-detail / QR modal remains part of the mounted News surface;
+- Settings and AirPlay remain outside the registered set during A2 to preserve a known full-route escape/fallback path.
+
+This is intentionally an incremental migration, not a News redesign.
