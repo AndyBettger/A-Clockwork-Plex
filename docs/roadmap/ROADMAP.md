@@ -42,7 +42,7 @@ If native Plexamp discovery becomes a long side quest, Astronomy need not wait f
 
 These are bounded corrections/improvements to accepted features; they do not change the main feature order.
 
-- **Weather rain events — ACTIVE:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Final CI/live-appliance acceptance remains.
+- **Weather rain events — ACTIVE:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI and commissioned-Pi backend/state migration are accepted; touchscreen Rain-panel presentation remains to be checked.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
@@ -58,8 +58,9 @@ Current branch scope:
 - [x] Persist active/completed rain-event provenance.
 - [x] Project Active/Last rain-event context on the existing Weather rain panel.
 - [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
-- [ ] Confirm final PR CI is green.
-- [ ] Update the commissioned Pi and inspect live WU state/UI.
+- [x] Code-head PR CI green at `cd967a174ba749d264ef1f1858040ae76104bfa3`.
+- [x] Commissioned Pi updated; ACP service restarted cleanly, WU status `ready`, and schema-v2 derived rain state/live chronology accepted.
+- [ ] Inspect the existing Weather Rain panel on the commissioned touchscreen.
 - [ ] Merge after explicit physical acceptance.
 
 Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
