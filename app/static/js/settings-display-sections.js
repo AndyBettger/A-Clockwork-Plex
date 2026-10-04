@@ -156,10 +156,16 @@
     const display = snapshot?.settings?.display;
     if (display) {
       const value = String(display.daytime_theme || 'classic_dark');
-      select.value = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
+      const next = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
         ? value
         : 'classic_dark';
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(select, next);
+      } else {
+        select.value = next;
+      }
       applyDaytimeTheme(select);
+      window.ACPSettingsSelects?.refresh?.();
       return;
     }
     if (attempts > 0) window.setTimeout(() => populateDaytimeTheme(select, attempts - 1), 100);
@@ -169,10 +175,16 @@
     window.setTimeout(() => {
       const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
       const value = String(snapshot?.settings?.display?.daytime_theme || 'classic_dark');
-      select.value = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
+      const next = DAYTIME_THEME_OPTIONS.some(([candidate]) => candidate === value)
         ? value
         : 'classic_dark';
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(select, next);
+      } else {
+        select.value = next;
+      }
       applyDaytimeTheme(select);
+      window.ACPSettingsSelects?.refresh?.();
     }, 0);
   }
 
@@ -189,11 +201,19 @@
     const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
     const display = snapshot?.settings?.display;
     if (display) {
-      idleSelect.value = display.night_dim_style === 'astronomy' ? 'astronomy' : 'classic';
-      activeSelect.value = ['classic', 'astronomy'].includes(display.night_dim_active_style)
+      const idleValue = display.night_dim_style === 'astronomy' ? 'astronomy' : 'classic';
+      const activeValue = ['classic', 'astronomy'].includes(display.night_dim_active_style)
         ? display.night_dim_active_style
         : 'same';
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(idleSelect, idleValue);
+        window.ACPUnifiedSettings.applyControlValue(activeSelect, activeValue);
+      } else {
+        idleSelect.value = idleValue;
+        activeSelect.value = activeValue;
+      }
       applyNightStyles(idleSelect, activeSelect);
+      window.ACPSettingsSelects?.refresh?.();
       return;
     }
     if (attempts > 0) window.setTimeout(() => populateNightStyles(idleSelect, activeSelect, attempts - 1), 100);
