@@ -4,7 +4,7 @@
 
 Implementation on `feature/hi-res-audio-eq` is physically accepted; integration remains pending explicit approval.
 
-The commissioned managed Plexamp/EQ path is now physically accepted at fixed **S32_LE / 192000 Hz** processing/output. The conservative managed Direct/failback route remains deliberately **S16_LE / 44100 Hz**. The remaining #85 boundary is longer ordinary-use stability evidence plus final CI/docs reconciliation before merge; a later source-rate-native/bit-perfect Direct experiment is explicitly deferred until the post-#94 Plexamp runtime is known.
+The commissioned managed Plexamp/EQ path is physically accepted at fixed **S32_LE / 192000 Hz** processing/output. The conservative managed Direct/failback route remains deliberately **S16_LE / 44100 Hz**. Ordinary mixed-source soak, bounded journal review and focused AirPlay reconnect classification are complete; a later source-rate-native/bit-perfect Direct experiment is explicitly deferred until the post-#94 Plexamp runtime is known.
 
 ## Development appliance policy
 
