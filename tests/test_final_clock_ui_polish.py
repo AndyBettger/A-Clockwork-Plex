@@ -131,13 +131,14 @@ class FinalClockUiPolishTests(unittest.TestCase):
 
     def test_clock_colons_share_theme_display_colour_and_rendered_second_cadence(self) -> None:
         template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
+        css = (ROOT / "app/static/css/clock-dashboard.css").read_text(encoding="utf-8")
         client = (ROOT / "app/static/js/clock-colon-sync.js").read_text(encoding="utf-8")
 
-        self.assertIn(".time.is-alpha-clock .digital-colon span", template)
-        self.assertIn("background: var(--acp-theme-display, var(--segment-on));", template)
-        self.assertIn(".time.is-alpha-clock.is-colon-off .digital-colon span", template)
-        self.assertIn("background: var(--segment-off);", template)
-        self.assertIn("animation: none;", template)
+        self.assertIn(".time.is-alpha-clock .digital-colon span", css)
+        self.assertIn("background: var(--acp-theme-display, var(--segment-on));", css)
+        self.assertIn(".time.is-alpha-clock.is-colon-off .digital-colon span", css)
+        self.assertIn("background: var(--segment-off);", css)
+        self.assertIn("animation: none;", css)
         self.assertIn("function displayedSecond()", client)
         self.assertIn("MutationObserver", client)
         self.assertIn("attributeName === 'aria-label'", client)
