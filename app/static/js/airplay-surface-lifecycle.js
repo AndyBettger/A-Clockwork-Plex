@@ -3,6 +3,7 @@
   window.__aClockworkPlexAirPlaySurfaceLifecycleLoaded = true;
 
   const subscribers = new Set();
+  let lastVisible = null;
 
   function isVisible() {
     const active = String(document.body?.dataset?.activePage || '').toLowerCase() === 'airplay';
@@ -10,8 +11,10 @@
     return active && !document.hidden && !plexampOpen;
   }
 
-  function publish() {
+  function publish({ force = false } = {}) {
     const visible = isVisible();
+    if (!force && visible === lastVisible) return;
+    lastVisible = visible;
     for (const subscriber of subscribers) {
       try {
         subscriber(visible);
@@ -31,6 +34,15 @@
   document.addEventListener('acp:surface-settled', (event) => {
     if (String(event?.detail?.surface || '').toLowerCase() === 'airplay') publish();
   });
+
+  if (typeof MutationObserver === 'function' && document.body) {
+    new MutationObserver(() => publish()).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-active-page'],
+    });
+  }
+
+  lastVisible = isVisible();
 
   window.ACPAirPlaySurfaceLifecycle = Object.freeze({
     isVisible,
