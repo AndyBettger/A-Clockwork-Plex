@@ -247,3 +247,5 @@ The code audit covered the currently loaded Settings enhancement owners, includi
 
 One focused physical retest remains: select a non-default Motion style that was formerly Javascript-only (for example Vertical lift), wait for autosave, hard refresh Settings and confirm both the displayed style and subsequent transitions remain unchanged. The user does **not** need to manually retest every Settings value; the broader preservation/dirty-section contracts are regression-covered.
 
+Settings hydration-audit candidate `92af74bbf9ed61d81b5a55ef4092cb5288d1ea01` passed **Tests #5152** (compile, Javascript/page/shell checks and full regression suite).
+
