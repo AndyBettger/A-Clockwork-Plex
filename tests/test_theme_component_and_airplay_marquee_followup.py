@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 AIRPLAY_TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
+CLOCK_DASHBOARD_CSS = ROOT / "app" / "static" / "css" / "clock-dashboard.css"
 COMPONENTS = ROOT / "app" / "static" / "css" / "daytime-theme-components.css"
 FOLLOWUP = ROOT / "app" / "static" / "css" / "daytime-theme-followup.css"
 MARQUEE_CSS = ROOT / "app" / "static" / "css" / "airplay-title-marquee.css"
@@ -160,6 +161,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         colon = CLOCK_COLON.read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
         clock = CLOCK_TEMPLATE.read_text(encoding="utf-8")
+        clock_css = CLOCK_DASHBOARD_CSS.read_text(encoding="utf-8")
 
         self.assertIn("function schedulePreviewExpiry()", dimming)
         self.assertIn("Math.min(previewUntil, requestedUntil)", dimming)
@@ -170,7 +172,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("attributeName === 'aria-label'", colon)
         self.assertIn("second % 2 === 1", colon)
         self.assertNotIn("setTimeout", colon)
-        self.assertIn("var(--acp-theme-display, var(--segment-on))", clock)
+        self.assertIn("var(--acp-theme-display, var(--segment-on))", clock_css)
         self.assertIn("20260820-clock-colon-sync-v2", clock)
 
     def test_title_marquee_reuses_physically_proven_source_scroll_pattern(self) -> None:
