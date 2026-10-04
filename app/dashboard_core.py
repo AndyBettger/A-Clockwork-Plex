@@ -1094,6 +1094,7 @@ def api_surface_document(surface: str):
         "weather": "weather.html",
         "news": "news.html",
         "settings": "settings.html",
+        "airplay": "airplay.html",
     }
     surface_name = str(surface or "").strip().lower()
     template = templates.get(surface_name)
