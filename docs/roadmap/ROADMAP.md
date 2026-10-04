@@ -2,7 +2,7 @@
 
 **Last updated:** 4 October 2026  
 **Active integration branch:** `develop`  
-**Active maintenance branch:** `fix/weather-rain-events`  
+**Active feature branch:** `feature/acp-shell-native-plexamp`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
 
@@ -14,12 +14,12 @@ This is the authoritative product order.
 
 | Order | Feature / track | Status | Next boundary | Feature roadmap |
 | ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE READY FOR MERGE** | Merge accepted rain-event fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
+| 1 | Weather (#86–#87) | **COMPLETE / MAINTENANCE MERGED** | Larger page revamp after #94 Phase A | [Weather](features/weather.md) |
 | 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **NEXT** | Phase A: single-document ACP surface, design system, shell/navigation prototype | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | First same-document surface migration on the new fail-safe surface-host contract | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
@@ -31,8 +31,8 @@ The #94 work is no longer merely “add a Plexamp visualiser”. It includes the
 Astronomy would otherwise be built as another full-document page and then immediately migrated. The efficient boundary is:
 
 1. close and merge #85 — **complete**;
-2. complete the bounded Weather rain-event maintenance branch;
-3. complete **#94 Phase A** — single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
+2. complete the bounded Weather rain-event maintenance branch — **complete / merged**;
+3. complete **#94 Phase A** — **active**: single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
 4. build Astronomy as the first new surface on that foundation;
 5. complete the native Plexamp/player migration and then the full resilience track.
 
@@ -42,40 +42,39 @@ If native Plexamp discovery becomes a long side quest, Astronomy need not wait f
 
 These are bounded corrections/improvements to accepted features; they do not change the main feature order.
 
-- **Weather rain events — ACCEPTED:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI, commissioned-Pi backend/state migration and dry-weather touchscreen presentation are accepted.
+- **Weather rain events — MERGED:** station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage are now in `develop`.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
-## Current focus — Weather rain-event maintenance
+## Current focus — #94 Phase A ACP UI foundation
 
-The #85 audio branch is merged into `develop`. The active bounded maintenance branch is `fix/weather-rain-events`.
+The accepted Weather rain-event fix is merged into `develop`. The active branch is `feature/acp-shell-native-plexamp`.
 
-Current branch scope:
+Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
 
-- [x] Use WU station observation time rather than ACP receipt time for rain-counter chronology.
-- [x] Prevent stale/out-of-order observations from regressing derived rain counters.
-- [x] Replace the old 24-hour / 1 mm derived-event reset with a **2-hour continuously dry gap**.
-- [x] Persist active/completed rain-event provenance.
-- [x] Project Active/Last rain-event context on the existing Weather rain panel.
-- [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
-- [x] Code-head PR CI green at `cd967a174ba749d264ef1f1858040ae76104bfa3`.
-- [x] Commissioned Pi updated; ACP service restarted cleanly, WU status `ready`, and schema-v2 derived rain state/live chronology accepted.
-- [x] Existing Weather Rain panel checked on the commissioned touchscreen; dry-weather gauges correctly show zero with no stale derived event.
-- [ ] Merge after explicit user approval.
+- [x] ACP Surface Host loaded before the legacy page-transition owner.
+- [x] Explicit `prepare() -> commit()` destination lifecycle.
+- [x] Same-document View Transition ownership with a direct fallback.
+- [x] `page-transitions.js` delegates only explicitly registered destinations.
+- [x] Unmigrated Clock/Weather/News/Settings routes still fall through to the accepted full-document navigation path.
+- [x] CI syntax/catalogue coverage added.
+- [ ] Migrate the first real ACP surface pair and compare same-document navigation physically on the commissioned Pi.
+- [ ] Establish the reusable component/design-token boundary.
+- [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
 
-Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
+Do not start the native Plexamp production migration yet. Phase A first proves the ACP application-surface contract; Headless remains the accepted player runtime.
 
-Detailed status: [features/weather.md](features/weather.md).
+Detailed status: [features/acp-shell-native-plexamp.md](features/acp-shell-native-plexamp.md).
 
 ## Branch housekeeping
 
-Current visible branches after the 4 October cleanup:
+Current visible working branches:
 
 - `main` — supported stable release branch.
-- `develop` — accepted integration branch, now including merged #85.
-- `fix/weather-rain-events` — active bounded Weather maintenance branch / PR #14.
+- `develop` — accepted integration branch, including #85 and the merged Weather rain-event maintenance.
+- `feature/acp-shell-native-plexamp` — active #94 branch.
 
-The former #85 and two merged News feature branches have been deleted after their work was confirmed present in `develop`.
+The accepted Weather maintenance branch may be deleted once normal branch housekeeping is performed.
 
 ## Feature roadmaps
 
