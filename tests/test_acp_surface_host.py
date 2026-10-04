@@ -10,6 +10,7 @@ HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 PAIR = ROOT / "app" / "static" / "js" / "acp-clock-weather-surfaces.js"
 DASHBOARD = ROOT / "app" / "dashboard_core.py"
+TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
 
 
 class AcpSurfaceHostTests(unittest.TestCase):
@@ -79,6 +80,25 @@ class AcpSurfaceHostTests(unittest.TestCase):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
 
         self.assertIn("window.ACPSurfaceHost?.isTransitioning?.() === true", transitions)
+
+    def test_same_document_view_transition_uses_configured_acp_motion(self):
+        styles = TRANSITION_CSS.read_text(encoding="utf-8")
+
+        self.assertIn("::view-transition-old(root)", styles)
+        self.assertIn("::view-transition-new(root)", styles)
+        self.assertIn("--acp-transition-duration", styles)
+        for style, outgoing, incoming in (
+            ("grow-fade", "acp-out-grow-fade", "acp-in-grow-fade"),
+            ("crossfade", "acp-out-crossfade", "acp-in-crossfade"),
+            ("horizontal-slide", "acp-out-horizontal-slide", "acp-in-horizontal-slide"),
+            ("vertical-lift", "acp-out-vertical-lift", "acp-in-vertical-lift"),
+            ("cover-reveal", "acp-out-cover-reveal", "acp-in-cover-reveal"),
+            ("zoom", "acp-out-zoom", "acp-in-zoom"),
+            ("blur-dissolve", "acp-out-blur-dissolve", "acp-in-blur-dissolve"),
+        ):
+            self.assertIn(f':root[data-transition-style="{style}"]', styles)
+            self.assertIn(f"--acp-view-transition-old: {outgoing};", styles)
+            self.assertIn(f"--acp-view-transition-new: {incoming};", styles)
 
 
 if __name__ == "__main__":
