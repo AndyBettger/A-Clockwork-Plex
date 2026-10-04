@@ -22,9 +22,9 @@
 .news-rail,
 .news-content,
 .news-ticker {
-  border: 1px solid var(--panel-border);
-  background: var(--panel);
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--acp-color-border);
+  background: var(--acp-color-surface);
+  box-shadow: var(--acp-shadow-content);
 }
 
 .news-rail {
