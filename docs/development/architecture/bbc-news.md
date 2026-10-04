@@ -244,6 +244,9 @@ A failed custom-feed preflight does not change configuration or cache. A friendl
 
 The previously accepted real Wi-Fi interruption proved the cache-first boundary: cached stories and ticker remained visible with stale/cached status and normal fresh updates resumed after connectivity returned.
 
+
+A later real Wi-Fi dropout/reconnect exposed a usability gap rather than a cache-authority failure: after connectivity recovered, the appliance could legitimately remain on cached News until the worker's normal expiry/cadence triggered another attempt. Settings → News therefore now exposes **Refresh feeds now**. It calls a narrow local `POST /api/news/refresh` endpoint which invokes the existing `BBCNewsFeedService.refresh(force=True)` path. It does not introduce a second fetcher, bypass feed-source validation or clear last-good data. The Settings control is disabled while the request is in flight and reports ready/degraded/failure state from the returned normal News snapshot.
+
 ## Physical acceptance
 
 ### Accepted #92 core
