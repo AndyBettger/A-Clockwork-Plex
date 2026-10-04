@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
+PAIR = ROOT / "app" / "static" / "js" / "acp-clock-weather-surfaces.js"
+DASHBOARD = ROOT / "app" / "dashboard_core.py"
 
 
 class AcpSurfaceHostTests(unittest.TestCase):
@@ -49,6 +51,34 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn('register("weather"', source)
         self.assertNotIn("register('news'", source)
         self.assertNotIn('register("news"', source)
+
+    def test_clock_weather_pair_is_the_only_registered_product_pair(self):
+        source = PAIR.read_text(encoding="utf-8")
+
+        self.assertIn("const pair = new Set(['clock', 'weather'])", source)
+        self.assertIn("surfaceHost.register(surface", source)
+        self.assertIn("/api/surfaces/", source)
+        self.assertIn("record.wrapper.hidden = name !== surface", source)
+        self.assertIn("/api/mode/", source)
+        self.assertNotIn("'news'", source)
+        self.assertNotIn("'settings'", source)
+        self.assertNotIn("'airplay'", source)
+
+    def test_surface_document_endpoint_is_read_only_for_mode(self):
+        source = DASHBOARD.read_text(encoding="utf-8")
+        start = source.index('@app.route("/api/surfaces/<surface>")')
+        end = source.index('@app.route("/airplay")', start)
+        endpoint = source[start:end]
+
+        self.assertIn('"clock": "clock.html"', endpoint)
+        self.assertIn('"weather": "weather.html"', endpoint)
+        self.assertIn("render_template(template)", endpoint)
+        self.assertNotIn("set_mode(", endpoint)
+
+    def test_surface_host_activation_is_part_of_navigation_busy_state(self):
+        transitions = TRANSITIONS.read_text(encoding="utf-8")
+
+        self.assertIn("window.ACPSurfaceHost?.isTransitioning?.() === true", transitions)
 
 
 if __name__ == "__main__":
