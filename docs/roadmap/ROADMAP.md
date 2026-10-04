@@ -44,6 +44,7 @@ These are bounded corrections/improvements to accepted features; they do not cha
 
 - **Weather rain events — MERGED:** station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage are now in `develop`.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
+- **BBC News manual refresh:** Settings → News now gains an owner-triggered **Refresh feeds now** action so recovered connectivity does not have to wait for the normal cache TTL/background cadence.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
 ## Current focus — #94 Phase A ACP UI foundation
@@ -64,7 +65,7 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Configured View Transition styles and duration physically accepted on Clock ↔ Weather.
 - [x] Forecast custom-scrollbar visibility survives repeated Weather visits; News and Settings legacy fallback navigation physically accepted at A1.
 - [x] A2 News same-document migration accepted: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership; exact candidate Tests #5087 passed and commissioned-Pi round-trips/transitions are physically accepted.
-- [~] A3 Settings same-document migration: core commissioned-Pi navigation, Settings controls/keyboard, autosave persistence and diagnostics passed. Physical testing exposed two persistent-document follow-ups before closure: autosaved display/Weather configuration was persisted but not projected into the already-running shell until reload, and the retired Save/Discard bar could flash during a full Settings bootstrap. The branch now projects validated Settings back into live dashboard preferences, invalidates mounted Weather after Weather autosave, makes preference reads live-document aware and hides retired save controls from first paint. Follow-up CI/retest required.
+- [~] A3 Settings same-document migration: second commissioned-Pi pass confirms live transition style/duration, mounted Weather identity refresh, first-paint autosave presentation and repeated Settings round-trips now pass. One remaining stale mounted-surface dependency was exposed: the Clock weather-panel title did not refresh after Weather identity autosave until a hard reload. The branch now refreshes Clock weather identity/status immediately after successful Weather autosave and on Clock activation, while suspending Clock weather polling when hidden. Final focused retest pending.
 - [ ] Converge all ACP-owned surfaces into the long-lived document; native Plexamp remains the intentional separate application/workspace.
 - [ ] Establish the reusable component/design-token boundary.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
