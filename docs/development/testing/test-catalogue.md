@@ -207,6 +207,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_weather_forecast_settings.py` — Checks forecast Settings validation, persistence and refresh behaviour.
 - `tests/test_weather_forecast_ui.py` — Protects forecast cards/status attribution and browser-side rendering.
 - `tests/test_weather_live_state.py` — Checks authoritative live-weather projection and freshness/staleness behaviour.
+- `tests/test_weather_rain_event_summary.py` — Checks active/last WU-derived rain-event provenance projection, metric formatting, cross-midnight spans and suppression for native providers.
 - `tests/test_weather_observation_settings.py` — Checks observation-provider configuration defaults, validation and persistence.
 - `tests/test_weather_observation_source_authority.py` — Ensures the selected provider owns outdoor values while only fresh Ecowitt data may supplement WU indoor readings.
 - `tests/test_weather_observation_store.py` — Exercises persisted observation state, freshness timestamps and safe update/expiry behaviour.
