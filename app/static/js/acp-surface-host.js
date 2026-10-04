@@ -105,9 +105,11 @@
         if (prepared.title) document.title = String(prepared.title);
       };
 
+      let transitionFinished = null;
       if (transitionEnabled(options)) {
         const transition = document.startViewTransition(commit);
         await transition.updateCallbackDone;
+        transitionFinished = transition.finished.catch(() => undefined);
       } else {
         commit();
       }
@@ -124,6 +126,14 @@
       }
 
       document.dispatchEvent(new CustomEvent('acp:surface-changed', {
+        detail: { surface, from, source: String(options.source || 'surface-navigation') },
+      }));
+
+      if (transitionFinished) {
+        await transitionFinished;
+      }
+
+      document.dispatchEvent(new CustomEvent('acp:surface-settled', {
         detail: { surface, from, source: String(options.source || 'surface-navigation') },
       }));
 
