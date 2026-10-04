@@ -29,7 +29,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("prepared = await lifecycle.prepare", source)
         self.assertIn("typeof prepared.commit !== 'function'", source)
         self.assertIn("document.startViewTransition(commit)", source)
+        self.assertIn("transition.finished.catch", source)
         self.assertIn("acp:surface-changed", source)
+        self.assertIn("acp:surface-settled", source)
         self.assertIn("surface-not-registered", source)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
