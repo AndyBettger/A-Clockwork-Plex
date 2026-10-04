@@ -146,17 +146,57 @@
     });
   }
 
-  function populateControls(settings) {
-    document.querySelectorAll('[data-setting-path]').forEach((control) => {
+  function ensureSavedSelectOption(control, value) {
+    if (!(control instanceof HTMLSelectElement)) return;
+    const text = String(value ?? '');
+    const options = [...control.options];
+    const matches = options.filter((option) => option.value === text);
+    control.querySelectorAll('option[data-settings-snapshot-value]').forEach((option) => {
+      if (option.value !== text || matches.some((candidate) => candidate !== option)) option.remove();
+    });
+    if (!text || [...control.options].some((option) => option.value === text)) return;
+    const option = document.createElement('option');
+    option.value = text;
+    option.textContent = `Current saved value · ${text}`;
+    option.dataset.settingsSnapshotValue = 'true';
+    control.appendChild(option);
+  }
+
+  function applyControlValue(control, value) {
+    if (!control) return;
+    if (control.type === 'checkbox') {
+      control.checked = value === true;
+      return;
+    }
+    if (value !== undefined && value !== null) {
+      ensureSavedSelectOption(control, value);
+      control.value = String(value);
+      return;
+    }
+    control.value = '';
+  }
+
+  function hydrateControls(root, settings, selector = '[data-setting-path]') {
+    root?.querySelectorAll?.(selector).forEach((control) => {
       const path = control.dataset.settingPath;
       const value = getPath(settings, path);
-      if (control.type === 'checkbox') control.checked = value === true;
-      else if (value !== undefined && value !== null) control.value = String(value);
-      else control.value = '';
+      applyControlValue(control, value);
       renderOutput(path, value);
     });
-    updateUnitPreset();
+  }
+
+  function refreshEnhancedControls(settings) {
+    window.ACPSettingsSelects?.refresh?.();
     window.ACPSettingsRangeTheme?.refresh?.();
+    window.dispatchEvent(new CustomEvent('acp:settings-hydrated', {
+      detail: { settings: clone(settings || {}) },
+    }));
+  }
+
+  function populateControls(settings) {
+    hydrateControls(document, settings);
+    updateUnitPreset();
+    refreshEnhancedControls(settings);
   }
 
   function applyClockCards(settings) {
@@ -199,6 +239,7 @@
     applyClockCards(loadedSettings);
     syncLiveShellSettings(loadedSettings);
     providers.forEach((provider, domain) => provider.apply?.(clone(next.settings[domain])));
+    refreshEnhancedControls(loadedSettings);
     dirtySections.clear();
     renderHealth(next);
     updateDirtyUi();
@@ -209,6 +250,7 @@
     populateControls(loadedSettings);
     applyClockCards(loadedSettings);
     providers.forEach((provider, domain) => provider.apply?.(clone(loadedSettings[domain])));
+    refreshEnhancedControls(loadedSettings);
     dirtySections.clear();
     updateDirtyUi();
   }
@@ -443,10 +485,19 @@
 
   function registerDomain(name, provider) {
     providers.set(name, provider || {});
-    if (snapshot && provider?.apply) provider.apply(clone(snapshot.settings[name]));
+    if (snapshot && provider?.apply) {
+      provider.apply(clone(snapshot.settings[name]));
+      refreshEnhancedControls(snapshot.settings);
+    }
   }
 
-  window.ACPUnifiedSettings = { registerDomain, markDirty, getSnapshot: () => clone(snapshot) };
+  window.ACPUnifiedSettings = {
+    registerDomain,
+    markDirty,
+    getSnapshot: () => clone(snapshot),
+    applyControlValue,
+    hydrateControls,
+  };
 
   sectionButtons.forEach((button) => button.addEventListener('click', () => {
     activateSection(button.dataset.settingsSectionTarget);
