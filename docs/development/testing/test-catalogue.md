@@ -223,6 +223,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 ### ACP shell / navigation
 
+- `tests/test_acp_design_tokens.py` — Protects the #94 Phase A semantic design-token boundary, load order, palette derivation and first migrated shared/application-surface consumers.
 - `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces.
 
 ### Plexamp and NFC
