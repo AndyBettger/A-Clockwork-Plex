@@ -19,7 +19,7 @@ This is the authoritative product order.
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | Physically accept the A3 Settings same-document candidate | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | A4 AirPlay same-document migration | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
@@ -44,7 +44,7 @@ These are bounded corrections/improvements to accepted features; they do not cha
 
 - **Weather rain events — MERGED:** station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage are now in `develop`.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
-- **BBC News manual refresh:** Settings → News now gains an owner-triggered **Refresh feeds now** action so recovered connectivity does not have to wait for the normal cache TTL/background cadence.
+- **BBC News manual refresh — PHYSICALLY ACCEPTED:** Settings → News **Refresh feeds now** successfully forces the existing validated feed service after connectivity recovery instead of waiting for normal cache TTL/background cadence.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
 ## Current focus — #94 Phase A ACP UI foundation
@@ -65,8 +65,8 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Configured View Transition styles and duration physically accepted on Clock ↔ Weather.
 - [x] Forecast custom-scrollbar visibility survives repeated Weather visits; News and Settings legacy fallback navigation physically accepted at A1.
 - [x] A2 News same-document migration accepted: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership; exact candidate Tests #5087 passed and commissioned-Pi round-trips/transitions are physically accepted.
-- [~] A3 Settings same-document migration: second commissioned-Pi pass confirms live transition style/duration, mounted Weather identity refresh, first-paint autosave presentation and repeated Settings round-trips now pass. One remaining stale mounted-surface dependency was exposed: the Clock weather-panel title did not refresh after Weather identity autosave until a hard reload. The branch now refreshes Clock weather identity/status immediately after successful Weather autosave and on Clock activation, while suspending Clock weather polling when hidden. Combined A3/News follow-up candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105**; final focused physical retest pending.
-- [ ] Converge all ACP-owned surfaces into the long-lived document; native Plexamp remains the intentional separate application/workspace.
+- [x] A3 Settings same-document migration physically accepted: Settings round-trips, controls/keyboard, autosave, live transition settings, Weather identity projection, Clock weather-title projection, first-paint behaviour and diagnostics all pass on the commissioned Pi. Combined A3/News follow-up candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105**. The now-obsolete user-facing Dashboard observation refresh control is retired; mounted Clock/Weather presentation refresh uses a shell-owned 60-second cadence while visible plus immediate activation/settings refreshes.
+- [~] Converge all ACP-owned surfaces into the long-lived document: Clock, Weather, News and Settings are accepted; **AirPlay is next**. Native Plexamp remains the intentional separate application/workspace.
 - [ ] Establish the reusable component/design-token boundary.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
 
