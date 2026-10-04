@@ -33,6 +33,7 @@ SCREENSHOT_FILES = {
     "weather-3.png",
 }
 DEVELOPMENT_ARCHITECTURE = {
+    "acp-design-system.md",
     "application-state-architecture.md",
     "airplay-metadata.md",
     "airplay-segment-cell.svg",
