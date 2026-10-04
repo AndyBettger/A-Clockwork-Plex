@@ -14,13 +14,17 @@
   }
 
   function populateControls(settings) {
+    const authority = window.ACPUnifiedSettings;
     document.querySelectorAll('[data-settings-completion-control][data-setting-path]').forEach((control) => {
       const value = getPath(settings, control.dataset.settingPath);
-      if (control.type === 'checkbox') control.checked = value === true;
+      if (authority?.applyControlValue) authority.applyControlValue(control, value);
+      else if (control.type === 'checkbox') control.checked = value === true;
       else if (value !== undefined && value !== null) control.value = String(value);
     });
     updateDimmingOutput();
     applyDimmingPreviewConfiguration();
+    window.ACPSettingsSelects?.refresh?.();
+    window.ACPSettingsRangeTheme?.refresh?.();
     const format = getPath(settings, 'display.clock_format');
     if (format) window.ACPTime?.setFormat?.(format, { announce: false });
   }
