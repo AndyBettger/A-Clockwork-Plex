@@ -113,7 +113,7 @@ These findings reinforce the Surface Host lifecycle model rather than arguing fo
 
 News validates that the Surface Host can own a more stateful content surface than Clock/Weather. The mounted News implementation pauses hidden refresh work, preserves story/category scroll state, defers custom-scrollbar geometry until the surface is settled, and retains article-detail/QR behaviour. Exact A2 candidate `b4e0943038779862816e65f1e291ae2b4ef2e571` passed Tests #5087 and the commissioned appliance physically accepted the News round-trip and transition behaviour.
 
-#### A3 Settings migration — candidate
+#### A3 Settings migration — physically accepted
 
 Settings is the first migrated surface where **transactional UI state must outlive navigation**. It therefore remains mount-once rather than being re-rendered on every visit:
 
@@ -137,6 +137,11 @@ Therefore:
 - server-rendered bootstrap controls that are retired by an enhancement (the old Settings Save/Discard bar) must have a first-paint-safe presentation rather than depending on late JavaScript to hide them.
 
 This keeps autosave persistence authoritative without reintroducing full-document reloads as a hidden configuration-application mechanism.
+
+
+A3 physical acceptance confirms these invariants on the commissioned Pi. The final Clock weather-title follow-up passed without document reload.
+
+The migration also makes the former user-configurable **Dashboard observation refresh** cadence obsolete. Observation acquisition cadence belongs to the observation provider/service, while mounted ACP presentation refresh is shell lifecycle. Clock and Weather therefore use a fixed internal 60-second presentation refresh only while visible, plus immediate activation and relevant-settings refreshes. The retired `weather.auto_refresh_seconds` key is no longer exposed through Unified Settings or portable backup; old stored values are tolerated and ignored for upgrade compatibility.
 
 ## ACP UI rendering decision
 
