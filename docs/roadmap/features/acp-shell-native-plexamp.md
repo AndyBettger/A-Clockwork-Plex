@@ -256,3 +256,22 @@ Commissioned-Pi retest passes. A non-default transition style that previously ex
 
 The Settings hydration audit is therefore closed. The next active Phase A task is the reusable component/design-token boundary.
 
+
+
+### Phase A component/design-system boundary — first slice
+
+The post-A4 Settings hydration gate is closed, so Phase A has moved to the reusable component/design-token boundary.
+
+Implementation candidate:
+
+- [x] Add `app/static/css/acp-design-tokens.css` as a page-agnostic semantic vocabulary between the existing palette authority and application-surface CSS.
+- [x] Keep the accepted palette variables (`--panel`, `--panel-border`, `--text`, `--muted`, `--accent`, `--accent-strong`) authoritative rather than creating a competing colour system.
+- [x] Route shared `.panel`, `.weather-card` and `.button` primitives through semantic tokens with exact accepted values.
+- [x] Route top-level AirPlay, Weather-detail and News container chrome through the same semantic palette/elevation boundary without changing their feature geometry.
+- [x] Add regression coverage for token load order, palette derivation and first migrated consumers.
+- [x] Document component/token ownership and incremental migration rules in [ACP component / design-token architecture](../../development/architecture/acp-design-system.md).
+- [ ] Confirm the exact candidate CI is green.
+- [ ] Perform a representative physical visual sanity pass on Classic Dark plus one non-Classic theme across Clock, Weather, News, Settings and AirPlay.
+- [ ] Continue with the next safe reusable contracts: status pills, ordinary touch rows/buttons, form chrome, modal chrome and custom scrollbars. Keep specialised audio/weather/display geometry component-owned until separately justified.
+
+This is intentionally an **ownership refactor, not a redesign**. Existing theme-closure sheets remain until a migrated component contract fully replaces their job and has been physically accepted.
