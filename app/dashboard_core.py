@@ -667,6 +667,58 @@ def rain_gauges(field_ids: list[str], config: dict[str, Any], weather: dict[str,
     return [gauge for field_id in field_ids if (gauge := rain_gauge(field_id, config, weather))]
 
 
+def rain_event_summary(config: dict[str, Any], state: dict[str, Any]) -> dict[str, str] | None:
+    weather_config = config.get("weather") if isinstance(config.get("weather"), dict) else {}
+    if str(weather_config.get("provider") or "").strip().lower() != "weather_underground":
+        return None
+
+    model = state.get("weather_rain_derived")
+    if not isinstance(model, dict):
+        return None
+
+    def amount_text(value: Any) -> str | None:
+        numeric = parse_float(value)
+        if numeric is None or numeric <= 0:
+            return None
+        return format_rain_mm(inches_to_mm(numeric), config)
+
+    def time_span(start_value: Any, end_value: Any) -> str:
+        start = parse_datetime(start_value)
+        end = parse_datetime(end_value)
+        if start and end:
+            if start.date() == end.date():
+                return f"{start:%H:%M}–{end:%H:%M}"
+            return f"{start:%d/%m %H:%M}–{end:%d/%m %H:%M}"
+        if end:
+            return f"Ended {end:%d/%m %H:%M}"
+        if start:
+            return f"Since {start:%d/%m %H:%M}"
+        return "Timing unavailable"
+
+    if bool(model.get("event_active")):
+        value = amount_text(model.get("event_total_in"))
+        if not value:
+            return None
+        started = parse_datetime(model.get("event_started_at"))
+        detail = f"Since {started:%H:%M}" if started else "Started before ACP could establish an exact time"
+        return {
+            "kind": "active",
+            "label": "Active rain event",
+            "value": value,
+            "detail": detail,
+        }
+
+    value = amount_text(model.get("last_event_total_in"))
+    if not value:
+        return None
+    return {
+        "kind": "last",
+        "label": "Last rain event",
+        "value": value,
+        "detail": time_span(model.get("last_event_started_at"), model.get("last_event_ended_at")),
+    }
+
+
 def weather_compass(config: dict[str, Any], weather: dict[str, Any]) -> dict[str, Any]:
     direction = weather_item("wind_direction", config, weather)
     degrees = direction.get("numeric") if direction else None
@@ -784,6 +836,7 @@ def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: 
         "condition_rows": condition_rows(config, weather, state),
         "atmosphere": weather_items(["solar", "uv", "vpd"], config, weather),
         "rain_today_gauges": rain_gauges(["rain_rate", "hourly_rain", "daily_rain", "event_rain"], config, weather),
+        "rain_event_summary": rain_event_summary(config, state),
         "rain_longer_gauges": rain_gauges(["weekly_rain", "monthly_rain", "yearly_rain", "total_rain"], config, weather),
         "station_status": weather_items(
             ["station_type", "model", "frequency", "upload_interval", "last_station_update", "sensor_battery"],
