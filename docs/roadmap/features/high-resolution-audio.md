@@ -27,8 +27,11 @@ Ship the physically accepted managed EQ path at **S32_LE / 192 kHz** while prese
 
 **4 October 2026 ordinary-use evidence:** AirPlay podcast playback remained clean after reboot into the temporary 50 MHz SD-card mitigation; artwork loaded correctly and the normal ACP/Plexamp presentation was restored. Artwork failure while the root filesystem is read-only remains a useful visible symptom of the separate storage fault, not an audio-path failure.
 
-- [ ] Complete/close the longer ordinary mixed-source Plexamp/AirPlay production soak with bounded journal evidence.
-- [ ] Inspect the bounded CamillaDSP/Shairport journals for underrun, overrun, XRUN, stall, Broken pipe, error/fail recovery.
+**4 October 2026 final-soak capture:** the verifier passed and the production graph was exactly S32_LE/192 kHz with 4096/32768 managed ALSA geometry, CamillaDSP 4096 chunk / 12288 target, capture/DAC 2048/16384, both services active and CamillaDSP ~1.8% CPU. One short CamillaDSP recovery sequence occurred at **01:08:48–01:08:49**: capture overrun/Broken pipe → processing stalled → playback prepare after underrun. No audible glitch was reported and no further errors occurred during the session. User recollection places this at the iPhone AirPlay connection transition. Classify this with one focused production disconnect/reconnect window before closing the gate; do not restart a multi-hour soak unless it reproduces during steady playback.
+
+- [x] Complete the longer ordinary mixed-source Plexamp/AirPlay production soak with bounded journal evidence.
+- [ ] Classify the single isolated AirPlay-transition recovery seen at 01:08:48–01:08:49 with one focused production disconnect/reconnect window. Accept if playback remains audibly clean and the transition does not reproduce as repeated/steady-state XRUN behaviour; investigate further if it does.
+- [x] Inspect the bounded CamillaDSP/Shairport journals for underrun, overrun, XRUN, stall, Broken pipe, error/fail recovery.
 - [ ] Confirm automated CI remains green at the final branch head.
 - [ ] Reconcile docs/catalogues and open the merge to `develop`.
 
