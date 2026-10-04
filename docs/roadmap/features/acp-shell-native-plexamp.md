@@ -97,3 +97,20 @@ Accepted behaviour:
 - unmigrated News and Settings routes continue to fall back safely to the legacy full-document path.
 
 Checkpoint A1 is therefore closed. Subsequent ACP surfaces may now migrate incrementally onto the same Surface Host contract.
+
+### A2 — News migration
+
+A2 extends the accepted Surface Host contract from Clock/Weather to **News**.
+
+Implementation:
+
+- [x] Generalise the pair-specific loader into `acp-application-surfaces.js`.
+- [x] Register Clock, Weather and News as the first mounted ACP application-surface set.
+- [x] Expose News through the existing read-only `/api/surfaces/<surface>` endpoint without calling `set_mode()`.
+- [x] Pause News data refresh work while the mounted News surface is hidden; refresh once when News becomes active again.
+- [x] Preserve story/category scroll positions across routine News data refresh.
+- [x] Make News story/category custom scrollbars ignore hidden zero-height geometry and remeasure on `acp:surface-settled`.
+- [x] Retain article detail / QR handoff logic inside the mounted News DOM.
+- [x] Keep Settings and AirPlay unregistered so their accepted full-document fallback remains available.
+- [ ] Confirm exact A2 branch-head CI is green.
+- [ ] Physically test Clock/Weather ↔ News round-trips, News category/story scrolling, article detail + QR, repeated News visits, and Settings fallback.
