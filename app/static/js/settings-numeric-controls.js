@@ -189,6 +189,7 @@
     [0, 100, 250, 600, 1500].forEach((delay) => {
       window.setTimeout(syncPresetValuesFromSnapshot, delay);
     });
+    window.addEventListener('acp:settings-hydrated', syncPresetValuesFromSnapshot);
   }
 
   install();
