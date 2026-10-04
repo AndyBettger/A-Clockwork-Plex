@@ -14,7 +14,7 @@
   </h1>
 </section>
 
-<section class="weather-detail-page" aria-label="Detailed weather station readings" data-refresh-seconds="{{ config.weather.auto_refresh_seconds | default(60) }}">
+<section class="weather-detail-page" aria-label="Detailed weather station readings">
   {% if weather_detail.condition_rows or weather_detail.station_status %}
     <div class="weather-detail-grid">
       <article class="detail-panel main-conditions-panel">
