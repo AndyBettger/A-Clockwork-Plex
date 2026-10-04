@@ -9,6 +9,7 @@
 - Safe QR hand-off for trusted BBC article destinations.
 - Configurable built-in sections plus bounded custom BBC News RSS feeds.
 - Feed enable/disable/reorder, discovery and physical commissioned-appliance acceptance.
+- Settings → News includes an explicit **Refresh feeds now** maintenance action that bypasses the normal cache TTL when connectivity has just recovered.
 
 ## Detailed authorities
 
