@@ -163,6 +163,19 @@
     if (Array.isArray(cards)) window.ACPClockCards?.applyStoredIds?.(cards);
   }
 
+  function syncLiveShellSettings(settings) {
+    const dashboard = settings?.dashboard || {};
+    const display = settings?.display || {};
+    window.ACPDashboardPreferences?.write?.({
+      startupMode: dashboard.startup_mode,
+      idleReturnMode: dashboard.idle_return_mode,
+      daytimeTheme: display.daytime_theme,
+      transitionStyle: display.transition_style,
+      transitionDurationMs: display.transition_duration_ms,
+      clockFormat: display.clock_format,
+    });
+  }
+
   function collectSettings() {
     const settings = clone(loadedSettings || {});
     document.querySelectorAll('[data-setting-path]').forEach((control) => {
@@ -183,6 +196,7 @@
     loadedSettings = clone(next.settings);
     populateControls(loadedSettings);
     applyClockCards(loadedSettings);
+    syncLiveShellSettings(loadedSettings);
     providers.forEach((provider, domain) => provider.apply?.(clone(next.settings[domain])));
     dirtySections.clear();
     renderHealth(next);
@@ -281,6 +295,7 @@
 
   async function save(confirmAirplayRestart = false) {
     if (saveInFlight || !snapshot || !dirtySections.size) return;
+    const submittedSections = [...dirtySections];
     saveInFlight = true;
     updateDirtyUi();
     if (saveButton) saveButton.textContent = 'Saving…';
@@ -301,6 +316,13 @@
       }
       if (!response.ok || payload.ok === false) throw new Error(payload.error || `Settings returned HTTP ${response.status}.`);
       applySnapshot(payload);
+      document.dispatchEvent(new CustomEvent('acp:settings-saved', {
+        detail: {
+          sections: submittedSections,
+          settings: clone(payload.settings || {}),
+          changed: clone(payload.changed || {}),
+        },
+      }));
       setSaveState('All changes saved', payload.changed?.airplay_receiver_restarted ? 'AirPlay receiver restarted successfully.' : 'The appliance configuration is current.', 'clean');
     } catch (error) {
       setSaveState('Save failed', error.message || 'The configuration was not changed.', 'error');
