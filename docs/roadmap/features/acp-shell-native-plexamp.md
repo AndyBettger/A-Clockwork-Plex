@@ -136,6 +136,32 @@ Implementation:
 - [x] Suspend alarm-diagnostics, lifetime-rainfall and live-audio-path network polling while Settings is not the active ACP surface; refresh again when Settings is reactivated.
 - [x] Keep AirPlay unregistered so the established full-document fallback remains a clean escape path while A3 is proven.
 - [x] A3 implementation passed **Tests #5089**; implementation + documentation candidate `2ca0997b1f063bc6a3a38c09a4d6ea2e04ab1d72` passed **Tests #5091**.
-- [ ] Physically test Clock/Weather/News ↔ Settings round-trips, Settings section/subpage controls, touch keyboard/selects, staged-unsaved state preservation plus Discard, and normal Save behaviour.
+- [x] Physically test Clock/Weather/News ↔ Settings round-trips: same-document navigation/transition ownership passed.
+- [x] Physically test Settings section/subpage controls, touch keyboard/selects and autosave persistence: passed.
+- [x] Physically test Audio Hardware and alarm diagnostics after mounted-surface migration: passed.
+- [x] Confirm AirPlay remains on the intentional full-document fallback: passed; its legacy transition remains intentionally unchanged until AirPlay migration.
+- [~] Retest live configuration projection after the A3 follow-up: transition style/duration and Weather identity settings must take effect without a hard document reload.
+- [~] Retest a hard reload directly on Settings: the obsolete manual Save/Discard bar must not appear during bootstrap.
 
-A3 must not weaken Settings transaction ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
+A3 must not weaken Settings transaction/autosave ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
+
+### A3 first physical pass — core accepted, live-projection follow-up required
+
+Commissioned-Pi testing confirms the mounted Settings architecture itself is healthy:
+
+- Clock/Weather/News ↔ Settings navigation is correct;
+- Settings sections, subpages, touchscreen keyboard and controls work;
+- changes persist through the established autosave owner;
+- Audio Hardware and alarm diagnostics render correctly;
+- AirPlay remains a clean full-document fallback.
+
+The first pass also exposed an architectural dependency left over from multi-document navigation. Autosaved values were correctly written to the server, but some visual/runtime configuration only became authoritative when Flask rendered a new document. In the long-lived ACP document this meant a new transition style/duration, Weather page title or reporting-station name could remain visually stale until a hard reload.
+
+The follow-up removes that implicit reload dependency:
+
+- validated Settings snapshots are projected back into `ACPDashboardPreferences`;
+- dashboard-preference reads prefer the live document state after bootstrap rather than repeatedly falling back to server boot attributes;
+- successful Weather-section autosaves emit an application event that invalidates the mounted Weather view, including the race where the user navigates away before autosave completes;
+- the obsolete manual Save/Discard controls are hidden by Settings CSS from first paint instead of waiting for the autosave owner to initialise.
+
+The previous A3 test wording mentioning manual **Save** and **Discard** was stale: the accepted Settings product uses autosave. The corrected physical gate tests autosave persistence and live projection instead.
