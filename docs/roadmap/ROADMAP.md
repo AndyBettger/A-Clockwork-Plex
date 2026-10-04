@@ -64,7 +64,7 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Configured View Transition styles and duration physically accepted on Clock ↔ Weather.
 - [x] Forecast custom-scrollbar visibility survives repeated Weather visits; News and Settings legacy fallback navigation physically accepted at A1.
 - [x] A2 News same-document migration accepted: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership; exact candidate Tests #5087 passed and commissioned-Pi round-trips/transitions are physically accepted.
-- [~] A3 Settings same-document migration candidate implemented: Settings mounts lazily with its full template context, mounted form/subpage state is preserved across ACP round-trips, and Settings-only network pollers suspend while the surface is hidden. Automated/physical acceptance pending.
+- [~] A3 Settings same-document migration candidate implemented: Settings mounts lazily with its full template context, mounted form/subpage state is preserved across ACP round-trips, and Settings-only network pollers suspend while the surface is hidden. Implementation Tests #5089 passed; implementation + documentation candidate `2ca0997b1f063bc6a3a38c09a4d6ea2e04ab1d72` passed **Tests #5091**. Physical acceptance remains pending.
 - [ ] Converge all ACP-owned surfaces into the long-lived document; native Plexamp remains the intentional separate application/workspace.
 - [ ] Establish the reusable component/design-token boundary.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
