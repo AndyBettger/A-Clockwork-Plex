@@ -200,8 +200,11 @@ As a post-acceptance cleanup, the former **Dashboard observation refresh** field
 
 A4 should migrate the remaining ACP-owned AirPlay page onto the accepted Surface Host contract without changing AirPlay playback/control authority. The work must preserve AirPlay's live metadata, artwork, mini-clock, playback/volume controls, hold/pause coordination and source-ownership behaviour while removing its current full-document transition boundary.
 
-- [ ] Inspect AirPlay scripts for document-load/pagehide assumptions, timers and observers that need mounted-surface suspend/resume handling.
-- [ ] Register AirPlay only after those lifecycle dependencies are explicit.
-- [ ] Preserve AirPlay control-plane and audio authority unchanged; this is a presentation/navigation migration, not an AirPlay rewrite.
-- [ ] Physically test ACP ↔ AirPlay round-trips, metadata/artwork updates, transport/volume controls, mini-clock, active navigation/footer mode and all configured transition styles.
-- [ ] Keep native Plexamp separate; A4 completes the current ACP-owned top-level browser surface set.
+- [x] Audit AirPlay scripts for document-load/pagehide assumptions, timers and observers that need mounted-surface suspend/resume handling.
+- [x] Add a dedicated AirPlay surface-lifecycle helper that distinguishes active AirPlay visibility from a merely mounted DOM, browser-hidden state and the native Plexamp overlay.
+- [x] Register AirPlay as the fifth ACP application surface and expose its read-only surface document without changing mode during preparation.
+- [x] Suspend/resume live metadata/status, coordinator transport/navigation, receiver-volume, adaptive skip-mode, outside-card and mini-clock work with surface visibility; remeasure layout/title presentation on activation.
+- [x] Preserve AirPlay control-plane and audio authority unchanged; no Shairport, playback-coordinator, MPRIS or MixerController ownership moves into the shell.
+- [ ] Confirm exact A4 candidate CI is green.
+- [ ] Physically test ACP ↔ AirPlay round-trips, ready/idle state, live metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, automatic AirPlay projection, native Plexamp overlay return, active navigation/footer mode and configured transition motion.
+- [x] Keep native Plexamp separate; A4 completes the current ordinary ACP-owned top-level browser surface set once physically accepted.
