@@ -5,7 +5,7 @@
   const surfaceHost = window.ACPSurfaceHost;
   const screen = document.querySelector('main.screen');
   const initialSurface = String(document.body?.dataset?.activePage || '').trim().toLowerCase();
-  const surfaces = new Set(['clock', 'weather', 'news']);
+  const surfaces = new Set(['clock', 'weather', 'news', 'settings']);
 
   if (!surfaceHost || !screen || !surfaces.has(initialSurface)) return;
 
