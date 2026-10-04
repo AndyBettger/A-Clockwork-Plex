@@ -21,10 +21,13 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [x] Preserve the existing `window.location.assign()` route path for every unmigrated surface.
 - [x] Add CI syntax checking and repository tests that pin the fail-safe/load-order contract.
 - [ ] Migrate the first real ACP surface pair into the host and physically compare same-document versus legacy navigation on the commissioned Pi.
+- [ ] For the first Clock ↔ Weather migration, replace Weather's current timed `window.location.reload()` with a local snapshot/update controller so a user reading/scanning the Weather surface is never thrown back to the top by background refresh.
 
 **Important:** A0 changes architecture ownership but deliberately changes **no current product route behaviour**. No Clock/Weather/News/Settings surface is registered yet; the accepted multi-document path remains the fallback.
 
 - [ ] Prototype one long-lived ACP web document with top-level application surfaces instead of full document navigation.
+- [ ] Move all ACP-owned top-level surfaces into that long-lived document: Clock, Weather, News, AirPlay, Settings, Astronomy and future application surfaces. Alarm remains ACP-owned as a forced/takeover surface. Native Plexamp is the deliberate cross-application exception.
+- [ ] Replace full-document periodic refreshes with surface-owned live data updates that preserve scroll position, focus, open panels, modal state and horizontal scrollers. Routine data refresh must not trigger a top-level View Transition.
 - [ ] Establish an ACP component/design system: data → reusable components → design tokens → application surfaces.
 - [ ] Prototype browser View Transitions for ACP-to-ACP surface changes.
 - [ ] Prototype the native ACP desktop shell: bottom home indicator, swipe-up navigation, transition/workspace ownership and optional system keyboard.
