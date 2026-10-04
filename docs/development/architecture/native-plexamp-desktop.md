@@ -184,6 +184,9 @@ The Settings boundary is therefore hardened as follows:
 
 This dirty-section rule is the defensive backstop for the entire Settings page: presentation hydration errors remain local rather than becoming cross-section configuration writes.
 
+
+Commissioned-Pi retest confirms the hydration boundary: a formerly Javascript-only transition style and the transition-duration range both survive direct Settings hard reload while remaining authoritative for the live shell. The Settings hydration correction is accepted.
+
 ## ACP UI rendering decision
 
 The native Plexamp investigation also exposes a separate ACP question: **should
