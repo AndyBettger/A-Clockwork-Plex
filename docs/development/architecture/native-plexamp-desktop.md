@@ -97,6 +97,17 @@ The first pair is implemented as a mount-once incremental bridge rather than a t
 
 At this checkpoint only Clock and Weather register with the Surface Host, and only when the initial document itself is Clock or Weather. Entering Weather from News/Settings/AirPlay still uses the accepted full route; broader surface convergence follows only after this pair is physically accepted.
 
+#### First physical result
+
+The commissioned appliance confirms that the mount-once pair is visibly faster and eliminates full-page bootstrap flashes. Weather can refresh in place without resetting the reader's position, and Clock remains live after a round-trip.
+
+The first pass also exposed two browser-lifecycle details that must be owned explicitly in the shell architecture:
+
+- browser View Transition defaults are not ACP product motion; the shell must map ACP's configured transition style/duration to the View Transition snapshots;
+- component geometry measured during a surface commit can be temporarily zero/unstable. Custom controls such as Forecast scrollbars therefore need an explicit post-activation/settled-layout measurement hook rather than assuming first-frame geometry is authoritative.
+
+These findings reinforce the Surface Host lifecycle model rather than arguing for a return to multi-document navigation.
+
 ## ACP UI rendering decision
 
 The native Plexamp investigation also exposes a separate ACP question: **should
