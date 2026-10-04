@@ -158,6 +158,14 @@
             </section>
           {% endif %}
 
+          {% if weather_detail.rain_event_summary %}
+            <section class="rain-event-summary is-{{ weather_detail.rain_event_summary.kind }}">
+              <span>{{ weather_detail.rain_event_summary.label }}</span>
+              <strong>{{ weather_detail.rain_event_summary.value }}</strong>
+              <small>{{ weather_detail.rain_event_summary.detail }}</small>
+            </section>
+          {% endif %}
+
           {% if weather_detail.rain_longer_gauges %}
             <section class="rain-subpanel rain-history-subpanel">
               <h3>Rainy Day Fund</h3>
