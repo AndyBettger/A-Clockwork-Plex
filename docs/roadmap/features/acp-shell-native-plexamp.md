@@ -25,7 +25,7 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [x] Keep screen-projection/manual-lease ownership in front of the visual commit and synchronise logical mode after same-document activation.
 - [x] Preserve the full-document route fallback for News, Settings, AirPlay and all other unmigrated destinations.
 - [x] Implementation CI green at `7eda544e26ea932ba44897fea696cb49e28cccbb`.
-- [~] Physically compare Clock → Weather → Clock on the commissioned Pi: **core behaviour PASSED** — materially snappier, no black flash/full reload, active navigation/mode correct, Clock resumes correctly, Weather live refresh preserves reading position, forecast/wind/rain functionality intact.
+- [x] Physically compare Clock → Weather → Clock on the commissioned Pi: **core behaviour PASSED** — materially snappier, no black flash/full reload, active navigation/mode correct, Clock resumes correctly, Weather live refresh preserves reading position, forecast/wind/rain functionality intact.
 - [x] Configured ACP transition styles physically retested: all styles now visibly differ on Clock ↔ Weather and the configured transition-duration setting is honoured.
 - [x] Forecast Outlook custom horizontal rails physically retested across **first visit → leave Weather → second visit**; both rails remain visible and functional on subsequent visits.
 - [x] Fallback navigation to unmigrated **News** and **Settings** remains correct after the A1 lifecycle fixes.
@@ -112,5 +112,30 @@ Implementation:
 - [x] Make News story/category custom scrollbars ignore hidden zero-height geometry and remeasure on `acp:surface-settled`.
 - [x] Retain article detail / QR handoff logic inside the mounted News DOM.
 - [x] Keep Settings and AirPlay unregistered so their accepted full-document fallback remains available.
-- [ ] Confirm exact A2 branch-head CI is green.
-- [ ] Physically test Clock/Weather ↔ News round-trips, News category/story scrolling, article detail + QR, repeated News visits, and Settings fallback.
+- [x] Exact A2 candidate `b4e0943038779862816e65f1e291ae2b4ef2e571` passed **Tests #5087**.
+- [x] Commissioned-Pi physical acceptance passed: Clock/Weather ↔ News round-trips, News interaction/repeated visits and configured transitions behave correctly; Settings fallback remained intact during the A2 gate.
+
+
+### A2 physical acceptance — COMPLETE
+
+News is now physically accepted as the third mounted ACP application surface. The commissioned appliance confirms that repeated News visits no longer cause a full-document boot, the configured transition choreography remains correct, and the News page remains functionally intact after Clock/Weather round-trips.
+
+Checkpoint A2 is therefore closed.
+
+### A3 — Settings migration
+
+A3 extends the same accepted application-surface contract to **Settings**, while preserving Settings' stronger transaction and UI-state ownership.
+
+Implementation:
+
+- [x] Register Settings alongside Clock, Weather and News in `acp-application-surfaces.js`.
+- [x] Expose Settings through the read-only `/api/surfaces/<surface>` renderer without calling `set_mode()`.
+- [x] Render the mounted Settings document with the normal Settings page context so server-rendered choices are not lost during lazy mounting.
+- [x] Load Settings-only CSS/scripts lazily after the visual commit, when `body[data-active-page="settings"]` is already authoritative.
+- [x] Preserve the mounted Settings DOM across ACP navigation so staged values, active section/subpage and modal/form state are not destroyed by a Clock/Weather/News round-trip.
+- [x] Suspend alarm-diagnostics, lifetime-rainfall and live-audio-path network polling while Settings is not the active ACP surface; refresh again when Settings is reactivated.
+- [x] Keep AirPlay unregistered so the established full-document fallback remains a clean escape path while A3 is proven.
+- [ ] Confirm exact A3 branch-head CI is green.
+- [ ] Physically test Clock/Weather/News ↔ Settings round-trips, Settings section/subpage controls, touch keyboard/selects, staged-unsaved state preservation plus Discard, and normal Save behaviour.
+
+A3 must not weaken Settings transaction ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
