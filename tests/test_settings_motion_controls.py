@@ -7,8 +7,10 @@ from app.settings_unified import VALID_TRANSITIONS
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
 DISPLAY_JS = ROOT / "app" / "static" / "js" / "settings-display-sections.js"
 SETTINGS_IPAD_JS = ROOT / "app" / "static" / "js" / "settings-ipad.js"
+SETTINGS_SELECTS_JS = ROOT / "app" / "static" / "js" / "settings-selects.js"
 PREFERENCES_JS = ROOT / "app" / "static" / "js" / "dashboard-preferences-bootstrap.js"
 
 
@@ -26,9 +28,10 @@ class SettingsMotionControlsTests(unittest.TestCase):
         }
         self.assertTrue(expected.issubset(VALID_TRANSITIONS))
 
-    def test_settings_restores_all_eight_motion_choices_before_custom_selects(self):
+    def test_settings_exposes_all_eight_motion_choices_before_hydration(self):
+        template = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
         source = DISPLAY_JS.read_text(encoding="utf-8")
-        for value in (
+        values = (
             "grow-fade",
             "crossfade",
             "horizontal-slide",
@@ -37,9 +40,26 @@ class SettingsMotionControlsTests(unittest.TestCase):
             "zoom",
             "blur-dissolve",
             "instant",
-        ):
+        )
+        for value in values:
+            self.assertIn(f'<option value="{value}">', template)
             self.assertIn(f"['{value}',", source)
-        self.assertIn("style.replaceChildren", source)
+        self.assertNotIn("style.replaceChildren", source)
+        self.assertIn("style.appendChild(option)", source)
+
+    def test_settings_hydration_preserves_unlisted_saved_select_values(self):
+        client = SETTINGS_IPAD_JS.read_text(encoding="utf-8")
+        selects = SETTINGS_SELECTS_JS.read_text(encoding="utf-8")
+
+        self.assertIn("function ensureSavedSelectOption(control, value)", client)
+        self.assertIn("option.dataset.settingsSnapshotValue = 'true'", client)
+        self.assertIn("Current saved value", client)
+        self.assertIn("function applyControlValue(control, value)", client)
+        self.assertIn("function hydrateControls(root, settings", client)
+        self.assertIn("acp:settings-hydrated", client)
+        self.assertIn("acp:settings-hydrated", selects)
+        self.assertIn("applyControlValue", client)
+        self.assertIn("hydrateControls", client)
 
     def test_transition_duration_is_restored_as_slider_without_default_range_clamp(self):
         source = DISPLAY_JS.read_text(encoding="utf-8")
