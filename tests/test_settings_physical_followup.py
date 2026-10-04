@@ -82,8 +82,14 @@ default
         self.assertIn("form.requestSubmit()", self.client)
         self.assertIn("authority.markDirty =", self.client)
         self.assertIn("keyboard-open", self.client)
-        self.assertIn("settings-save-actions", self.css)
+        self.assertIn("body.mode-settings .settings-save-actions", self.css)
+        self.assertIn("body.mode-settings .settings-save-bar", self.css)
         self.assertIn("display: none !important", self.css)
+        self.assertIn("visibility: hidden", self.css)
+        self.assertIn(
+            "body.mode-settings.settings-autosave-enabled .settings-save-bar.is-dirty",
+            self.css,
+        )
 
     def test_output_trims_reuse_the_calibrated_audio_fader(self):
         self.assertIn("nav-live-fader settings-output-fader", self.client)
