@@ -253,7 +253,9 @@ const fs = require('fs');
     def test_legacy_idle_return_is_not_loaded(self):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("js/screen-projection.js", text)
-        self.assertIn("20260730-playback-generation-transition-serialization", text)
+        self.assertIn("js/acp-surface-host.js", text)
+        self.assertIn("js/page-transitions.js", text)
+        self.assertLess(text.index("js/acp-surface-host.js"), text.index("js/page-transitions.js"))
         self.assertNotIn("js/idle-return.js", text)
 
     def test_navigation_ownership_is_split_once_by_intent(self):
