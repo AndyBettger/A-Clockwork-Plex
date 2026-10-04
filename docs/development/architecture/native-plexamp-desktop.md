@@ -103,7 +103,7 @@ The commissioned appliance confirms that the mount-once pair is visibly faster a
 
 The first pass also exposed two browser-lifecycle details that must be owned explicitly in the shell architecture:
 
-- browser View Transition defaults are not ACP product motion; the shell must map ACP's configured transition style/duration to the View Transition snapshots;
+- browser View Transition defaults are not ACP product motion; the shell maps ACP's configured transition style/duration to the View Transition snapshots. **Physical retest passed all configured styles and duration control**;
 - component geometry measured during a surface commit can be temporarily zero/unstable. Custom controls such as Forecast scrollbars therefore need an explicit post-activation/settled-layout measurement hook rather than assuming first-frame geometry is authoritative.
 
 These findings reinforce the Surface Host lifecycle model rather than arguing for a return to multi-document navigation.
@@ -561,3 +561,14 @@ Headless may be retired only after the native candidate passes:
 - reboot/autostart;
 - crash/recovery;
 - longer ordinary-use stability.
+
+### Settled-layout lifecycle
+
+The first Forecast control regression exposed an important distinction between **activated** and **settled** surfaces. A mounted surface can be logically active while the compositor is still animating old/new View Transition snapshots, and a hidden mounted surface can legitimately report zero-width geometry to ResizeObserver.
+
+The Surface Host therefore exposes two different lifecycle moments:
+
+- `acp:surface-activated` — logical destination is committed and may begin normal application work;
+- `acp:surface-settled` — emitted only after the browser View Transition's `finished` promise resolves, suitable for geometry-dependent controls.
+
+Geometry-dependent components must not interpret zero-width measurements from a hidden mounted surface as authoritative state. Forecast custom scrollbars now preserve their previous visibility while hidden and remeasure on the settled event.
