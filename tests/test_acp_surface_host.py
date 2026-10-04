@@ -9,6 +9,7 @@ BASE = ROOT / "app" / "templates" / "base.html"
 HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 APPLICATION_SURFACES = ROOT / "app" / "static" / "js" / "acp-application-surfaces.js"
+WEATHER_SURFACE = ROOT / "app" / "static" / "js" / "weather-surface.js"
 DASHBOARD = ROOT / "app" / "dashboard_core.py"
 TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
 
@@ -84,6 +85,16 @@ class AcpSurfaceHostTests(unittest.TestCase):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
 
         self.assertIn("window.ACPSurfaceHost?.isTransitioning?.() === true", transitions)
+
+    def test_weather_settings_autosave_invalidates_mounted_weather_surface(self):
+        source = WEATHER_SURFACE.read_text(encoding="utf-8")
+
+        self.assertIn("acp:settings-saved", source)
+        self.assertIn("sections.includes('weather')", source)
+        self.assertIn("settingsRefreshPending = true", source)
+        self.assertIn("if (weatherIsVisible())", source)
+        self.assertIn("void refresh().finally(schedule)", source)
+        self.assertIn("if (updated) settingsRefreshPending = false", source)
 
     def test_same_document_view_transition_uses_configured_acp_motion(self):
         styles = TRANSITION_CSS.read_text(encoding="utf-8")
