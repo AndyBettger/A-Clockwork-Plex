@@ -170,6 +170,20 @@ Commissioned-Pi acceptance confirms the complete AirPlay mounted-surface path, i
 
 A post-A4 Settings finding adds a small but important enhancement rule for the long-lived shell: **when upgrading a hydrated form control to a stricter HTML input type, install its constraints before changing the type and preserve the hydrated value explicitly**. Chromium's range-input sanitisation can otherwise apply default 0–100 bounds during the conversion itself. The Motion duration slider now sets its 0–2000 bounds/50 ms step first, then switches to `type=range`, restores the prior value and exposes a visible numeric output. This prevents presentation enhancement from mutating authoritative Settings data.
 
+
+A second post-A4 finding generalises that rule from ranges to all Settings enhancements: **the server snapshot is authoritative; presentation widgets must be capable of representing that snapshot before they may participate in autosave**. The transition-style select previously gained several valid choices only after Javascript enhancement, so an early snapshot could assign a value the initial native select could not represent and lose it before enhancement.
+
+The Settings boundary is therefore hardened as follows:
+
+- accepted enum choices required for normal operation are present at first paint rather than relying on a later destructive option rebuild;
+- if a backend-normalised saved value falls outside a preset dropdown's convenience choices, hydration adds a temporary current-value option instead of clearing the native select;
+- programmatic hydration explicitly resynchronises custom-select and range presentation;
+- dynamically inserted controls reuse the same hydration authority where practical;
+- full-document Settings entry waits for the first authoritative Settings load (with a bounded fallback) before revealing the page;
+- transactions clone the last authoritative snapshot and read values only from dirty UI sections/providers. Unrelated Settings controls therefore cannot overwrite authoritative values merely because they were temporarily stale or not yet enhanced.
+
+This dirty-section rule is the defensive backstop for the entire Settings page: presentation hydration errors remain local rather than becoming cross-section configuration writes.
+
 ## ACP UI rendering decision
 
 The native Plexamp investigation also exposes a separate ACP question: **should
