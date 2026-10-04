@@ -172,6 +172,14 @@ class WeatherLiveStateTests(unittest.TestCase):
             start + timedelta(minutes=5),
             station_id="ITEST1",
         )
+        closed = augment_derived_rain(
+            state,
+            {"dateutc": "2026-08-18T14:05:00", "dailyrainin": 0.04, "rainratein": 0.0},
+            start + timedelta(hours=2, minutes=5),
+            station_id="ITEST1",
+        )
+        self.assertEqual(closed["eventrainin"], 0.0)
+
         second_shower = augment_derived_rain(
             state,
             {"dateutc": "2026-08-18T14:20:00", "dailyrainin": 0.06, "rainratein": 0.1},
