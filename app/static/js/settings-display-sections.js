@@ -52,13 +52,25 @@
 
     const duration = card.querySelector('[data-setting-path="display.transition_duration_ms"]');
     if (duration) {
-      duration.type = 'range';
+      const currentValue = String(duration.value ?? '').trim();
+
+      // Set the range bounds before changing the input type. Chromium applies
+      // the HTML range defaults (0..100) immediately when type becomes range;
+      // changing type first can therefore clamp an already-hydrated value such
+      // as 800 ms down to 100 ms before max=2000 is applied.
       duration.min = '0';
       duration.max = '2000';
       duration.step = '50';
+      duration.type = 'range';
+
+      if (currentValue !== '' && Number.isFinite(Number(currentValue))) {
+        duration.value = currentValue;
+      }
+
       duration.removeAttribute('inputmode');
       duration.removeAttribute('data-keyboard');
       duration.setAttribute('aria-label', 'Transition duration in milliseconds');
+      window.ACPSettingsRangeTheme?.paint?.(duration);
     }
   }
 
