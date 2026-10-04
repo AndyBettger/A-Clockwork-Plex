@@ -107,6 +107,7 @@ jobs:
           node --check browser/plexamp-bridge/home-portability-v2.js
           node -e "JSON.parse(require('fs').readFileSync('browser/plexamp-bridge/manifest.json', 'utf8'))"
           node --check app/static/js/idle-return.js
+          node --check app/static/js/acp-surface-host.js
           node --check app/static/js/page-transitions.js
           node --check app/static/js/airplay-volume-hold.js
           node --check app/static/js/airplay-volume-v2.js
