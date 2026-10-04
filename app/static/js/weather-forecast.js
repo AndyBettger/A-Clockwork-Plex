@@ -29,6 +29,20 @@
   };
 
   let scrollbarSequence = 0;
+  const scrollbarRefreshers = new Set();
+
+  function refreshForecastScrollbars() {
+    scrollbarRefreshers.forEach((refresh) => refresh());
+    window.requestAnimationFrame(() => {
+      scrollbarRefreshers.forEach((refresh) => refresh());
+      window.requestAnimationFrame(() => {
+        scrollbarRefreshers.forEach((refresh) => refresh());
+      });
+    });
+    window.setTimeout(() => {
+      scrollbarRefreshers.forEach((refresh) => refresh());
+    }, 180);
+  }
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -166,7 +180,13 @@
       observer.observe(strip);
       observer.observe(rail);
     }
+    scrollbarRefreshers.add(update);
     update();
+    window.requestAnimationFrame(() => {
+      update();
+      window.requestAnimationFrame(update);
+    });
+    window.setTimeout(update, 180);
   }
 
   function parseLocalDate(value, dateOnly = false) {
@@ -382,7 +402,16 @@
     panel.appendChild(foot);
     outer.appendChild(panel);
     anchor.insertBefore(outer, anchor.firstChild);
+    refreshForecastScrollbars();
   }
+
+  document.addEventListener('acp:surface-activated', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'weather') {
+      refreshForecastScrollbars();
+    }
+  });
+
+  document.addEventListener('acp:weather-grid-refreshed', refreshForecastScrollbars);
 
   fetch('/api/weather/forecast', { cache: 'no-store' })
     .then((response) => {
