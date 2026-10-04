@@ -71,18 +71,6 @@
       ['45', '45 seconds'],
       ['60', '60 seconds'],
     ]],
-    ['weather.auto_refresh_seconds', [
-      ['0', 'Off'],
-      ['15', '15 seconds'],
-      ['30', '30 seconds'],
-      ['60', '1 minute'],
-      ['120', '2 minutes'],
-      ['300', '5 minutes'],
-      ['600', '10 minutes'],
-      ['900', '15 minutes'],
-      ['1800', '30 minutes'],
-      ['3600', '1 hour'],
-    ]],
     ['airplay.pause_hold_seconds', [
       ['30', '30 seconds'],
       ['60', '1 minute'],
