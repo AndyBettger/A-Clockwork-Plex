@@ -12,6 +12,7 @@ MODE_WATCH = ROOT / "app" / "static" / "js" / "mode-watch.js"
 PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 PLEXAMP_PERSISTENT = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
 WEATHER_TEMPLATE = ROOT / "app" / "templates" / "weather.html"
+WEATHER_SURFACE = ROOT / "app" / "static" / "js" / "weather-surface.js"
 BASE = ROOT / "app" / "templates" / "base.html"
 RUNNER = ROOT / "app" / "runner.py"
 
@@ -233,14 +234,19 @@ const fs = require('fs');
         self.assertIn("function isVisiblyOpen", persistent)
         self.assertIn("lastVisibilityRepair", persistent)
 
-    def test_hidden_weather_refresh_cannot_reload_plexamp_underlay(self):
-        weather = WEATHER_TEMPLATE.read_text(encoding="utf-8")
+    def test_weather_refresh_is_in_place_and_preserves_reading_position(self):
+        template = WEATHER_TEMPLATE.read_text(encoding="utf-8")
+        controller = WEATHER_SURFACE.read_text(encoding="utf-8")
 
-        self.assertIn("refreshOnlyWhenWeatherOwnsTheVisibleSurface", weather)
-        self.assertIn("screen.current_screen === 'weather'", weather)
-        self.assertIn("screen.recommended_screen === 'weather'", weather)
-        self.assertIn("!overlayOpen && weatherOwnsSurface", weather)
-        self.assertNotIn("setTimeout(() => {\n    window.location.reload();", weather)
+        self.assertIn("js/weather-surface.js", template)
+        self.assertNotIn("window.location.reload()", template)
+        self.assertNotIn("window.location.reload()", controller)
+        self.assertIn("function capturePosition()", controller)
+        self.assertIn("function restorePosition(position)", controller)
+        self.assertIn("currentGrid.replaceWith", controller)
+        self.assertIn("page.scrollTop = position.vertical", controller)
+        self.assertIn("rain.scrollLeft = position.rain", controller)
+        self.assertIn("!plexampOpen", controller)
 
     def test_client_cannot_manufacture_repeating_activity(self):
         text = CLIENT.read_text(encoding="utf-8")
