@@ -215,17 +215,35 @@ A4 is closed. AirPlay is now the fifth physically accepted mounted ACP applicati
 
 This completes the ordinary ACP browser-surface convergence portion of Phase A.
 
-### Post-A4 Settings Motion correction — candidate
+### Post-A4 Settings hydration audit — candidate
 
-Physical use after A4 exposed an intermittent transition-duration regression. The backend value and autosave path were not inherently resetting the setting; the race was in the client-side control upgrade:
+Physical use after A4 exposed two related hydration races.
+
+The first affected **Transition duration**:
 
 1. Settings initially renders `display.transition_duration_ms` as a text input.
 2. Unified Settings may hydrate a value such as 800 or 1200 ms before `settings-display-sections.js` upgrades the field.
 3. The old upgrade changed `type` to `range` **before** setting `min=0` and `max=2000`.
 4. Chromium therefore temporarily applied the HTML range defaults (0–100) and could clamp the already-hydrated value into that range.
-5. A later Settings interaction/autosave could persist the clamped value, making the duration appear to have mysteriously reset.
+5. A later Settings interaction/autosave could persist the clamped value.
 
-The correction sets range bounds/step before changing input type, explicitly restores the pre-upgrade value, shows the exact current millisecond value beside the slider and requests a custom-range repaint after Settings hydration. A regression pins the ordering so the browser-default clamp cannot return.
+The duration correction sets range bounds/step before changing input type, explicitly restores the pre-upgrade value, exposes the exact current millisecond value and repaints the range after hydration. Commissioned-Pi retest confirms the duration now remains stable across mounted round-trips and hard reloads.
 
-One focused commissioned-Pi retest is required: set a clearly non-default value (for example 900–1200 ms), leave/re-enter Settings → Display → Motion several times and confirm the displayed value and actual transition timing remain unchanged.
+The retest then exposed the same ownership problem in **Transition style**. The initial HTML only contained Grow and fade, Crossfade and Instant; the remaining accepted styles were added later by Javascript. If the local Settings API hydrated a value such as `vertical-lift` before that enhancement ran, the native select could not represent the value. The later option rebuild then fell back to the first option, **Grow and fade**, and a later autosave could persist that accidental fallback.
+
+The follow-up is deliberately broader than one Motion field:
+
+- all eight accepted transition styles now exist in the initial Settings HTML;
+- Motion enhancement adds missing options non-destructively instead of replacing the select contents;
+- legacy stored `none` is exposed canonically as the UI's `instant` value;
+- the shared Settings hydrator preserves any valid saved select value that is not one of the current preset options by adding a temporary **Current saved value** choice rather than clearing it;
+- custom select presentation receives an explicit `acp:settings-hydrated` signal instead of relying on the two-second safety refresh;
+- dynamically inserted night-dimming, alarm-indicator and rainfall controls use the same hydration authority;
+- numeric preset controls also resynchronise from the authoritative snapshot on hydration;
+- save collection now starts from the authoritative loaded snapshot and rereads **only dirty Settings sections/providers**, preventing an unrelated stale control from overwriting another section;
+- a direct `/settings` document load now participates in the hydration-aware first-paint gate, so template defaults are not deliberately revealed before the Settings API has resolved.
+
+The code audit covered the currently loaded Settings enhancement owners, including Display/Motion, numeric presets, custom selects, Weather observation/rainfall controls, night dimming/interaction, alarm indicator, News provider UI, alarm editor ownership, AirPlay receiver ownership and read-only diagnostic enhancements. Alarm and News domain editors retain their own authoritative model/provider contracts.
+
+One focused physical retest remains: select a non-default Motion style that was formerly Javascript-only (for example Vertical lift), wait for autosave, hard refresh Settings and confirm both the displayed style and subsequent transitions remain unchanged. The user does **not** need to manually retest every Settings value; the broader preservation/dirty-section contracts are regression-covered.
 
