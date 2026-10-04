@@ -17,7 +17,7 @@ The live WU path derives Hourly Rain and Event Rain when the provider does not s
 
 ### Maintenance implementation — 4 October 2026
 
-The focused rain-event correction is implemented on `fix/weather-rain-events` and is awaiting commissioned-appliance acceptance.
+The focused rain-event correction is implemented on `fix/weather-rain-events`. The commissioned Pi has passed the live backend/state migration check; final on-screen Rain-panel acceptance remains.
 
 - Rain today is the station's live calendar-day total.
 - Rain this week is Monday through today: cached WU daily totals for completed days plus today's live total.
@@ -75,6 +75,8 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - [x] Active and last-event provenance persisted.
 - [x] Existing Weather rain panel projects active/last-event provenance for WU-derived events only.
 - [x] Native provider Event Rain ownership preserved.
-- [ ] Final PR CI green at branch head.
-- [ ] Commissioned Pi updated and live WU state checked.
+- [x] Implementation PR CI green at code head `cd967a174ba749d264ef1f1858040ae76104bfa3`.
+- [x] Commissioned Pi updated to the code head; ACP restarted cleanly and WU observation status returned `ready`.
+- [x] Live v2 state migration checked: `chronology_source=dateutc`, 7200-second dry gap, empty increments, zero active event, no legacy event carried forward, and the WU `dateutc` observation projected to appliance-local chronology correctly.
+- [ ] Existing Weather Rain panel visually checked on the commissioned touchscreen after the update.
 - [ ] Real-rain behaviour observed when nature eventually cooperates; useful follow-up evidence, but not required to prove the deterministic midnight regression.
