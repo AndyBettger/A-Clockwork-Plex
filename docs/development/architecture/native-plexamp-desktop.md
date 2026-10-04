@@ -143,6 +143,28 @@ A3 physical acceptance confirms these invariants on the commissioned Pi. The fin
 
 The migration also makes the former user-configurable **Dashboard observation refresh** cadence obsolete. Observation acquisition cadence belongs to the observation provider/service, while mounted ACP presentation refresh is shell lifecycle. Clock and Weather therefore use a fixed internal 60-second presentation refresh only while visible, plus immediate activation and relevant-settings refreshes. The retired `weather.auto_refresh_seconds` key is no longer exposed through Unified Settings or portable backup; old stored values are tolerated and ignored for upgrade compatibility.
 
+#### A4 AirPlay migration — candidate
+
+AirPlay is the first mounted surface whose presentation has several high-frequency clients while the underlying playback/session authorities remain useful even when the page is not visible. A4 therefore separates **AirPlay service authority** from **AirPlay presentation activity**.
+
+`airplay-surface-lifecycle.js` is a presentation-only visibility authority. AirPlay is considered visible only when:
+
+- `body[data-active-page="airplay"]` is authoritative;
+- the browser document is visible;
+- the persistent native Plexamp overlay is not visibly covering ACP.
+
+It publishes only visibility changes, including Plexamp overlay class changes, so unrelated AirPlay body-class updates do not repeatedly reactivate clients.
+
+The mounted AirPlay clients now follow that lifecycle:
+
+- `airplay-live.js` suspends `/api/status` polling and progress/clock presentation ticks while hidden;
+- coordinator transport and navigation clients suspend their 750 ms polling loops;
+- receiver-volume polling and adaptive skip-mode polling suspend while hidden;
+- the segmented mini-clock and outside-card compatibility synchroniser stop their timers while hidden;
+- AirPlay layout and title-marquee measurement skip hidden geometry and explicitly remeasure on activation.
+
+This does **not** move playback authority into the browser. Shairport/session state, playback coordinator commands, MPRIS observation, MixerController receiver volume and screen projection retain their existing owners. The shell only decides when the AirPlay DOM needs presentation work.
+
 ## ACP UI rendering decision
 
 The native Plexamp investigation also exposes a separate ACP question: **should
