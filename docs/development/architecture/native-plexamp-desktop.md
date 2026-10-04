@@ -143,7 +143,7 @@ A3 physical acceptance confirms these invariants on the commissioned Pi. The fin
 
 The migration also makes the former user-configurable **Dashboard observation refresh** cadence obsolete. Observation acquisition cadence belongs to the observation provider/service, while mounted ACP presentation refresh is shell lifecycle. Clock and Weather therefore use a fixed internal 60-second presentation refresh only while visible, plus immediate activation and relevant-settings refreshes. The retired `weather.auto_refresh_seconds` key is no longer exposed through Unified Settings or portable backup; old stored values are tolerated and ignored for upgrade compatibility.
 
-#### A4 AirPlay migration — candidate
+#### A4 AirPlay migration — physically accepted
 
 AirPlay is the first mounted surface whose presentation has several high-frequency clients while the underlying playback/session authorities remain useful even when the page is not visible. A4 therefore separates **AirPlay service authority** from **AirPlay presentation activity**.
 
@@ -164,6 +164,11 @@ The mounted AirPlay clients now follow that lifecycle:
 - AirPlay layout and title-marquee measurement skip hidden geometry and explicitly remeasure on activation.
 
 This does **not** move playback authority into the browser. Shairport/session state, playback coordinator commands, MPRIS observation, MixerController receiver volume and screen projection retain their existing owners. The shell only decides when the AirPlay DOM needs presentation work.
+
+
+Commissioned-Pi acceptance confirms the complete AirPlay mounted-surface path, including manual and automatic entry, hidden-surface catch-up and return from the native Plexamp overlay.
+
+A post-A4 Settings finding adds a small but important enhancement rule for the long-lived shell: **when upgrading a hydrated form control to a stricter HTML input type, install its constraints before changing the type and preserve the hydrated value explicitly**. Chromium's range-input sanitisation can otherwise apply default 0–100 bounds during the conversion itself. The Motion duration slider now sets its 0–2000 bounds/50 ms step first, then switches to `type=range`, restores the prior value and exposes a visible numeric output. This prevents presentation enhancement from mutating authoritative Settings data.
 
 ## ACP UI rendering decision
 
