@@ -64,7 +64,10 @@ class ScreenProjectionUiTests(unittest.TestCase):
 
         self.assertIn("let presentationInFlight = false", transitions)
         self.assertIn("function holdPresentation", transitions)
-        self.assertIn("isPresenting: () => manualClaimInFlight || presentationInFlight || leaving", transitions)
+        self.assertIn("isPresenting: () => (", transitions)
+        self.assertIn("manualClaimInFlight", transitions)
+        self.assertIn("presentationInFlight", transitions)
+        self.assertIn("window.ACPSurfaceHost?.isTransitioning?.() === true", transitions)
         self.assertIn("window.ACPNavigationState?.isPresenting?.()", client)
 
     def test_arrival_marker_remains_only_as_network_fallback(self):
