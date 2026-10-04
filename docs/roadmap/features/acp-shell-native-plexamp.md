@@ -190,3 +190,5 @@ The A3 follow-up now:
 - correctly honours a configured refresh cadence of zero as periodic-refresh disabled.
 
 One focused commissioned-Pi retest of the Clock title is required before A3 closes.
+
+Combined A3 Clock-projection and bounded News-refresh follow-up candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105** (compile, JavaScript/page/shell checks and full regression suite).
