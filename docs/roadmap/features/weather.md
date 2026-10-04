@@ -46,6 +46,19 @@ This two-hour model deliberately separates the observed example pattern into dis
 
 The derivation now uses the station observation timestamp (`dateutc` converted to local appliance time) as its rainfall chronology, while retaining ACP receipt time separately for diagnostics. Stale/out-of-order station observations cannot move the derived rain counters backwards. Regression coverage includes the observed midnight-lag failure shape, true midnight rollover, two-hour closure, distinct showers after a dry gap, and out-of-order observations.
 
+## #94 live-surface integration
+
+The current multi-document Weather page periodically calls `window.location.reload()` while Weather owns the visible surface. This refreshes the values but also resets the user's scroll position and interaction context.
+
+During #94 Clock ↔ Weather migration:
+
+- replace whole-document reload with a Weather surface controller that obtains a current local JSON snapshot/view-model and updates only changed readings;
+- preserve vertical scroll position, Rain/history scrollers, focus and any open detail state across routine updates;
+- fetch current state immediately when Weather becomes active after being hidden, so a long-lived document does not show stale values on return;
+- avoid rebuilding the whole Weather DOM when a small set of readings changes;
+- keep the existing server-side WU observation worker authoritative for remote polling; the browser should consume ACP's local current state rather than independently polling Weather Underground;
+- keep routine Weather data changes separate from navigation motion: no View Transition merely because temperature, rain, pressure or station status changed.
+
 ## Weather page revamp — queued after #94 Phase A
 
 The current Weather feature is functionally accepted, but its presentation should eventually be brought up to the standard planned for Astronomy rather than remaining a largely flat detail page.
