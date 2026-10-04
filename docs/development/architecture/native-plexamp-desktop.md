@@ -77,6 +77,10 @@ Use **Clock ↔ Weather** as the first real surface pair unless code inspection 
 - browser history/manual screen leases;
 - the fixed 1280×720 appliance presentation.
 
+Weather currently refreshes itself with a timed `window.location.reload()`. That must be retired as part of this first migration. The long-lived surface should instead consume an ACP-local Weather view-model/snapshot and patch changed values in place. Returning to Weather after another ACP surface should trigger an immediate snapshot refresh, while routine updates must preserve scroll/focus/open-panel state and must not invoke the top-level navigation transition engine.
+
+The intended eventual browser boundary is one long-lived ACP document containing **all ACP-owned application surfaces** (Clock, Weather, News, AirPlay, Settings, Astronomy, future Events and alarm/takeover presentation). This does not mean one enormous permanently active DOM: surfaces may be lazily prepared, mounted, suspended and resumed behind the Surface Host contract. **Native Plexamp is the deliberate exception** and lives as a separate native application/workspace; the ACP desktop shell owns navigation and transitions across that process boundary.
+
 Do not bring Settings transaction ownership, News modal/scroll lifecycle or Plexamp's persistent overlay into the first same-document experiment.
 
 ## ACP UI rendering decision
