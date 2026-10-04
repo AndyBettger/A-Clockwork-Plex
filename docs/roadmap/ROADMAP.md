@@ -19,7 +19,7 @@ This is the authoritative product order.
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | A4 AirPlay same-document migration | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | Reusable component/design-token boundary, then shell-owned bottom-edge navigation | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
@@ -57,7 +57,7 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Explicit `prepare() -> commit()` destination lifecycle.
 - [x] Same-document View Transition ownership with a direct fallback.
 - [x] `page-transitions.js` delegates only explicitly registered destinations.
-- [x] Unmigrated routes retain the accepted full-document navigation path; AirPlay remains deliberately on that fallback at A3.
+- [x] Unmigrated routes retained the full-document fallback during staged migration; Clock, Weather, News, Settings and AirPlay are now all accepted mounted ACP surfaces.
 - [x] CI syntax/catalogue coverage added.
 - [x] Implement the first Clock ↔ Weather same-document surface pair with mount-once DOM ownership and lazy destination assets.
 - [x] Replace Weather's timed full-page reload with in-place live updates that preserve vertical and Rain-history scroll position.
@@ -67,9 +67,9 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] A2 News same-document migration accepted: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership; exact candidate Tests #5087 passed and commissioned-Pi round-trips/transitions are physically accepted.
 - [x] A3 Settings same-document migration physically accepted: Settings round-trips, controls/keyboard, autosave, live transition settings, Weather identity projection, Clock weather-title projection, first-paint behaviour and diagnostics all pass on the commissioned Pi. Combined A3/News follow-up candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105**.
 - [x] Post-A3 Weather presentation cleanup physically accepted: **Dashboard observation refresh** is removed from Settings; Clock/Weather still activate and refresh normally with their shell-owned visible-surface cadence.
-- [~] A4 AirPlay same-document candidate implemented: AirPlay joins the Surface Host set and its live metadata, coordinator transport/navigation, receiver-volume, skip-mode, mini-clock and presentation timers suspend while the mounted surface is hidden and resume on activation. Candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128**; commissioned-Pi physical acceptance pending.
-- [~] Converge all ACP-owned surfaces into the long-lived document: Clock, Weather, News and Settings are accepted; **AirPlay is next**. Native Plexamp remains the intentional separate application/workspace.
-- [ ] Establish the reusable component/design-token boundary.
+- [x] A4 AirPlay same-document migration physically accepted: manual/automatic AirPlay projection, ready/idle presentation, metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, hidden-surface catch-up, native Plexamp overlay return, active navigation/footer mode and repeated configured transitions all pass on the commissioned Pi. Candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128**.
+- [x] Converge all ordinary ACP-owned browser surfaces into the long-lived document: Clock, Weather, News, Settings and AirPlay are physically accepted. Native Plexamp remains the intentional separate application/workspace.
+- [~] Establish the reusable component/design-token boundary. Before starting that refactor, verify the Settings Motion transition-duration hydration fix: Chromium could clamp an already-loaded duration to the HTML range default 0–100 when the control changed from text to range before its 0–2000 bounds were applied.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
 
 Do not start the native Plexamp production migration yet. Phase A first proves the ACP application-surface contract; Headless remains the accepted player runtime.
