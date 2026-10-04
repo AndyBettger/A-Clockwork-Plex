@@ -41,13 +41,27 @@ class SettingsMotionControlsTests(unittest.TestCase):
             self.assertIn(f"['{value}',", source)
         self.assertIn("style.replaceChildren", source)
 
-    def test_transition_duration_is_restored_as_slider(self):
+    def test_transition_duration_is_restored_as_slider_without_default_range_clamp(self):
         source = DISPLAY_JS.read_text(encoding="utf-8")
-        self.assertIn("duration.type = 'range'", source)
+        self.assertIn("const currentValue = String(duration.value ?? '').trim()", source)
         self.assertIn("duration.min = '0'", source)
         self.assertIn("duration.max = '2000'", source)
         self.assertIn("duration.step = '50'", source)
+        self.assertIn("duration.type = 'range'", source)
+        self.assertIn("duration.value = currentValue", source)
+        self.assertLess(source.index("duration.max = '2000'"), source.index("duration.type = 'range'"))
+        self.assertLess(source.index("duration.step = '50'"), source.index("duration.type = 'range'"))
+        self.assertLess(source.index("duration.type = 'range'"), source.index("duration.value = currentValue"))
         self.assertIn("duration.removeAttribute('data-keyboard')", source)
+
+    def test_transition_duration_has_visible_exact_value_and_hydration_repaint(self):
+        settings = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
+        client = SETTINGS_IPAD_JS.read_text(encoding="utf-8")
+
+        self.assertIn('data-setting-output="display.transition_duration_ms"', settings)
+        self.assertIn("path === 'display.transition_duration_ms'", client)
+        self.assertIn("Math.round(number)", client)
+        self.assertIn("window.ACPSettingsRangeTheme?.refresh?.()", client)
 
     def test_autosaved_display_settings_project_into_long_lived_shell(self):
         source = SETTINGS_IPAD_JS.read_text(encoding="utf-8")
