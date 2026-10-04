@@ -31,7 +31,6 @@ class SettingsNumericControlTests(unittest.TestCase):
             "weather.observations.weather_underground.refresh_seconds",
             "weather.observations.weather_underground.stale_seconds",
             "weather.observations.weather_underground.request_timeout_seconds",
-            "weather.auto_refresh_seconds",
             "airplay.pause_hold_seconds",
         }
         self.assertEqual(number_paths, expected)
@@ -48,7 +47,6 @@ class SettingsNumericControlTests(unittest.TestCase):
             "weather.observations.weather_underground.refresh_seconds",
             "weather.observations.weather_underground.stale_seconds",
             "weather.observations.weather_underground.request_timeout_seconds",
-            "weather.auto_refresh_seconds",
             "airplay.pause_hold_seconds",
         )
         for path in dropdown_paths:
