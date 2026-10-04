@@ -270,7 +270,7 @@ Implementation candidate:
 - [x] Route top-level AirPlay, Weather-detail and News container chrome through the same semantic palette/elevation boundary without changing their feature geometry.
 - [x] Add regression coverage for token load order, palette derivation and first migrated consumers.
 - [x] Document component/token ownership and incremental migration rules in [ACP component / design-token architecture](../../development/architecture/acp-design-system.md).
-- [ ] Confirm the exact candidate CI is green.
+- [x] First component/token slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**.
 - [ ] Perform a representative physical visual sanity pass on Classic Dark plus one non-Classic theme across Clock, Weather, News, Settings and AirPlay.
 - [ ] Continue with the next safe reusable contracts: status pills, ordinary touch rows/buttons, form chrome, modal chrome and custom scrollbars. Keep specialised audio/weather/display geometry component-owned until separately justified.
 
