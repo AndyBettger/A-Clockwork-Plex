@@ -249,3 +249,10 @@ One focused physical retest remains: select a non-default Motion style that was 
 
 Settings hydration-audit candidate `92af74bbf9ed61d81b5a55ef4092cb5288d1ea01` passed **Tests #5152** (compile, Javascript/page/shell checks and full regression suite).
 
+
+### Post-A4 Settings hydration physical acceptance — COMPLETE
+
+Commissioned-Pi retest passes. A non-default transition style that previously existed only after Javascript enhancement now survives autosave and a direct hard reload, the selected style remains visible in Settings, the actual ACP transitions use that style, and the already-fixed duration remains stable.
+
+The Settings hydration audit is therefore closed. The next active Phase A task is the reusable component/design-token boundary.
+
