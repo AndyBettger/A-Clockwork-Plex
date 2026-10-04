@@ -187,6 +187,13 @@ This dirty-section rule is the defensive backstop for the entire Settings page: 
 
 Commissioned-Pi retest confirms the hydration boundary: a formerly Javascript-only transition style and the transition-duration range both survive direct Settings hard reload while remaining authoritative for the live shell. The Settings hydration correction is accepted.
 
+
+#### Phase A component/design-system boundary
+
+With the ordinary ACP browser surfaces and Settings hydration contract accepted, presentation ownership now moves toward a reusable component/design-token layer. The first slice introduces semantic component tokens without changing feature geometry or service ownership. Shared panels/cards/buttons and the top-level Weather, News and AirPlay surface chrome consume the new vocabulary while the existing palette remains authoritative.
+
+Detailed rules and migration inventory: [ACP component / design-token architecture](acp-design-system.md).
+
 ## ACP UI rendering decision
 
 The native Plexamp investigation also exposes a separate ACP question: **should
