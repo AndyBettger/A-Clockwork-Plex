@@ -19,7 +19,7 @@ This is the authoritative product order.
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | First same-document surface migration on the new fail-safe surface-host contract | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | Physically accept the A3 Settings same-document candidate | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
@@ -56,14 +56,15 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Explicit `prepare() -> commit()` destination lifecycle.
 - [x] Same-document View Transition ownership with a direct fallback.
 - [x] `page-transitions.js` delegates only explicitly registered destinations.
-- [x] Unmigrated Clock/Weather/News/Settings routes still fall through to the accepted full-document navigation path.
+- [x] Unmigrated routes retain the accepted full-document navigation path; AirPlay remains deliberately on that fallback at A3.
 - [x] CI syntax/catalogue coverage added.
 - [x] Implement the first Clock ↔ Weather same-document surface pair with mount-once DOM ownership and lazy destination assets.
 - [x] Replace Weather's timed full-page reload with in-place live updates that preserve vertical and Rain-history scroll position.
 - [x] Clock ↔ Weather A1 physically accepted: faster same-document switching, no page flash/reload, correct mode/navigation, Clock continuity, Weather in-place refresh and stable repeated-visit controls.
 - [x] Configured View Transition styles and duration physically accepted on Clock ↔ Weather.
 - [x] Forecast custom-scrollbar visibility survives repeated Weather visits; News and Settings legacy fallback navigation physically accepted at A1.
-- [~] A2 News same-document migration implemented: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership. CI/physical acceptance pending.
+- [x] A2 News same-document migration accepted: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership; exact candidate Tests #5087 passed and commissioned-Pi round-trips/transitions are physically accepted.
+- [~] A3 Settings same-document migration candidate implemented: Settings mounts lazily with its full template context, mounted form/subpage state is preserved across ACP round-trips, and Settings-only network pollers suspend while the surface is hidden. Automated/physical acceptance pending.
 - [ ] Converge all ACP-owned surfaces into the long-lived document; native Plexamp remains the intentional separate application/workspace.
 - [ ] Establish the reusable component/design-token boundary.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
