@@ -2,6 +2,7 @@
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const ALARM_INDICATOR_WITHIN_MS = 12 * 60 * 60 * 1000;
   const segmentDisplay = window.AClockworkSegments;
+  let weatherRefreshTimer = null;
 
   const WEATHER_LABELS_BY_ID = {
     outdoor_temp: 'Outdoor temp',
@@ -323,6 +324,22 @@
     window.AClockworkSegmentReadouts?.refresh?.();
   }
 
+  function clockWeatherIsVisible() {
+    return (
+      String(document.body?.dataset?.activePage || '').toLowerCase() === 'clock'
+      && !document.hidden
+      && window.ACPPlexamp?.isVisiblyOpen?.() !== true
+    );
+  }
+
+  function clockWeatherRefreshMilliseconds() {
+    const panel = document.getElementById('clock-weather-panel');
+    const refreshSeconds = Number(panel?.dataset.refreshSeconds || 60);
+    if (!Number.isFinite(refreshSeconds)) return 60000;
+    if (refreshSeconds <= 0) return 0;
+    return Math.max(15, refreshSeconds) * 1000;
+  }
+
   async function updateClockWeather() {
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
@@ -332,6 +349,12 @@
 
       const status = await response.json();
       updateAlarmAnnunciator(status);
+
+      const panel = document.getElementById('clock-weather-panel');
+      const refreshSeconds = Number(status?.config?.weather?.auto_refresh_seconds);
+      if (panel && Number.isFinite(refreshSeconds)) {
+        panel.dataset.refreshSeconds = String(refreshSeconds);
+      }
 
       const title = status?.config?.weather?.station_name;
       if (title) {
@@ -346,13 +369,22 @@
     }
   }
 
-  function startClockWeatherUpdates() {
-    const panel = document.getElementById('clock-weather-panel');
-    const refreshSeconds = Number(panel?.dataset.refreshSeconds || 60);
-    const refreshMilliseconds = Math.max(15, Number.isFinite(refreshSeconds) ? refreshSeconds : 60) * 1000;
+  function scheduleClockWeatherUpdate() {
+    window.clearTimeout(weatherRefreshTimer);
+    weatherRefreshTimer = null;
+    if (!clockWeatherIsVisible()) return;
 
-    updateClockWeather();
-    window.setInterval(updateClockWeather, refreshMilliseconds);
+    const refreshMilliseconds = clockWeatherRefreshMilliseconds();
+    if (refreshMilliseconds <= 0) return;
+
+    weatherRefreshTimer = window.setTimeout(async () => {
+      await updateClockWeather();
+      scheduleClockWeatherUpdate();
+    }, refreshMilliseconds);
+  }
+
+  function activateClockWeather() {
+    void updateClockWeather().finally(scheduleClockWeatherUpdate);
   }
 
   window.addEventListener('storage', (event) => {
@@ -361,7 +393,31 @@
     }
   });
 
+  document.addEventListener('acp:surface-activated', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'clock') activateClockWeather();
+    else scheduleClockWeatherUpdate();
+  });
+
+  document.addEventListener('acp:settings-saved', (event) => {
+    const sections = Array.isArray(event?.detail?.sections) ? event.detail.sections : [];
+    if (!sections.includes('weather')) return;
+
+    const panel = document.getElementById('clock-weather-panel');
+    const refreshSeconds = Number(event?.detail?.settings?.weather?.auto_refresh_seconds);
+    if (panel && Number.isFinite(refreshSeconds)) {
+      panel.dataset.refreshSeconds = String(refreshSeconds);
+    }
+    void updateClockWeather().finally(scheduleClockWeatherUpdate);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (clockWeatherIsVisible()) activateClockWeather();
+    else scheduleClockWeatherUpdate();
+  });
+
+  window.addEventListener('pagehide', () => window.clearTimeout(weatherRefreshTimer), { once: true });
+
   window.setInterval(updateClock, 1000);
   updateClock();
-  startClockWeatherUpdates();
+  if (clockWeatherIsVisible()) activateClockWeather();
 })();
