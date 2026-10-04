@@ -108,6 +108,9 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('browser/plexamp-bridge/manifest.json', 'utf8'))"
           node --check app/static/js/idle-return.js
           node --check app/static/js/acp-surface-host.js
+          node --check app/static/js/acp-clock-weather-surfaces.js
+          node --check app/static/js/weather-surface.js
+          node --check app/static/js/weather-rain-history-scroll.js
           node --check app/static/js/page-transitions.js
           node --check app/static/js/airplay-volume-hold.js
           node --check app/static/js/airplay-volume-v2.js
