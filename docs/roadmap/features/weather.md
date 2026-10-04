@@ -104,6 +104,7 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - Clock continues updating normally after returning from Weather.
 - Weather forecast, wind direction and Rain controls remain functional.
 - Routine Weather refresh now updates data **without moving the page back to the top**, which is physically accepted.
+- The former user-facing **Dashboard observation refresh** interval is now retired: observation acquisition keeps its provider-owned cadence, while Clock/Weather presentation refresh is a fixed shell-owned 60-second visible-surface cadence with immediate activation/settings refresh.
 - Two presentation defects were identified for immediate follow-up:
   1. same-document motion used Chromium's default dissolve/crossfade regardless of the configured ACP transition style;
   2. Forecast Outlook strips remained horizontally scrollable but their custom rails were hidden, while the Rain rail remained correct.
