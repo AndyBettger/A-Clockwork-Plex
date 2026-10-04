@@ -25,7 +25,9 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [x] Keep screen-projection/manual-lease ownership in front of the visual commit and synchronise logical mode after same-document activation.
 - [x] Preserve the full-document route fallback for News, Settings, AirPlay and all other unmigrated destinations.
 - [x] Implementation CI green at `7eda544e26ea932ba44897fea696cb49e28cccbb`.
-- [ ] Physically compare Clock → Weather → Clock on the commissioned Pi: transition smoothness, correct active navigation/mode, Weather scroll preservation, live refresh, forecast/rain controls and fallback navigation to an unmigrated page.
+- [~] Physically compare Clock → Weather → Clock on the commissioned Pi: **core behaviour PASSED** — materially snappier, no black flash/full reload, active navigation/mode correct, Clock resumes correctly, Weather live refresh preserves reading position, forecast/wind/rain functionality intact.
+- [ ] Retest two bounded A1 presentation follow-ups: configured ACP transition style must drive View Transition motion, and Forecast Outlook custom horizontal rails must remain visible after same-document activation.
+- [ ] Confirm fallback navigation to at least one unmigrated page remains correct after the A1 follow-ups.
 
 **Important:** A0 changes architecture ownership but deliberately changes **no current product route behaviour**. No Clock/Weather/News/Settings surface is registered yet; the accepted multi-document path remains the fallback.
 
@@ -54,3 +56,20 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
+
+### 4 October 2026 A1 physical feedback
+
+The first same-document Clock ↔ Weather test on the commissioned appliance validates the architectural direction:
+
+- transition latency is noticeably lower than the old multi-document route;
+- there is no black frame or page-bootstrap flash;
+- mounted Clock remains live after a Weather round-trip;
+- Weather background data refresh no longer resets vertical position;
+- mode/navigation ownership remains in sync.
+
+Two defects are classified as presentation-lifecycle follow-ups, not architecture blockers:
+
+1. Chromium defaulted to a dissolve because the new View Transition snapshots were not yet mapped to ACP's configured transition-style keyframes.
+2. Forecast strips measured their custom scrollbar geometry too early during first mounted-surface activation and could leave the rails hidden even though horizontal scrolling still worked.
+
+The branch now maps ACP motion preferences onto View Transition root snapshots and explicitly remeasures Forecast rails over settled frames/activation events. Physical retest remains required.
