@@ -206,5 +206,26 @@ A4 should migrate the remaining ACP-owned AirPlay page onto the accepted Surface
 - [x] Suspend/resume live metadata/status, coordinator transport/navigation, receiver-volume, adaptive skip-mode, outside-card and mini-clock work with surface visibility; remeasure layout/title presentation on activation.
 - [x] Preserve AirPlay control-plane and audio authority unchanged; no Shairport, playback-coordinator, MPRIS or MixerController ownership moves into the shell.
 - [x] AirPlay lifecycle candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128** (compile, JavaScript/page/shell checks and full regression suite).
-- [ ] Physically test ACP ↔ AirPlay round-trips, ready/idle state, live metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, automatic AirPlay projection, native Plexamp overlay return, active navigation/footer mode and configured transition motion.
+- [x] Physically test ACP ↔ AirPlay round-trips, ready/idle state, live metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, automatic AirPlay projection, native Plexamp overlay return, active navigation/footer mode and configured transition motion: all passed on the commissioned Pi.
 - [x] Keep native Plexamp separate; A4 completes the current ordinary ACP-owned top-level browser surface set once physically accepted.
+
+### A4 physical acceptance — COMPLETE
+
+A4 is closed. AirPlay is now the fifth physically accepted mounted ACP application surface. Manual navigation, automatic AirPlay projection, playback metadata/artwork, transport and navigation controls, receiver volume, weather/clock glance, hidden-surface catch-up and native-Plexamp-overlay return all behave correctly without reverting to full-document navigation.
+
+This completes the ordinary ACP browser-surface convergence portion of Phase A.
+
+### Post-A4 Settings Motion correction — candidate
+
+Physical use after A4 exposed an intermittent transition-duration regression. The backend value and autosave path were not inherently resetting the setting; the race was in the client-side control upgrade:
+
+1. Settings initially renders `display.transition_duration_ms` as a text input.
+2. Unified Settings may hydrate a value such as 800 or 1200 ms before `settings-display-sections.js` upgrades the field.
+3. The old upgrade changed `type` to `range` **before** setting `min=0` and `max=2000`.
+4. Chromium therefore temporarily applied the HTML range defaults (0–100) and could clamp the already-hydrated value into that range.
+5. A later Settings interaction/autosave could persist the clamped value, making the duration appear to have mysteriously reset.
+
+The correction sets range bounds/step before changing input type, explicitly restores the pre-upgrade value, shows the exact current millisecond value beside the slider and requests a custom-range repaint after Settings hydration. A regression pins the ordering so the browser-default clamp cannot return.
+
+One focused commissioned-Pi retest is required: set a clearly non-default value (for example 900–1200 ms), leave/re-enter Settings → Display → Motion several times and confirm the displayed value and actual transition timing remain unchanged.
+
