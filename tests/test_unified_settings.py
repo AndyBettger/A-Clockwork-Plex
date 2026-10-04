@@ -259,6 +259,7 @@ class UnifiedSettingsTests(unittest.TestCase):
             {"dashboard", "display", "weather", "alarms", "alarm_audio", "airplay", "audio", "plexamp"},
         )
         self.assertEqual(snapshot["settings"]["weather"]["units"]["wind"], "mph")
+        self.assertNotIn("auto_refresh_seconds", snapshot["settings"]["weather"])
         self.assertTrue(snapshot["capabilities"]["transactional_save"])
         self.assertTrue(snapshot["capabilities"]["actions_are_separate"])
 
@@ -281,6 +282,19 @@ class UnifiedSettingsTests(unittest.TestCase):
         self.assertEqual(stored["weather"]["units"]["rain"], "mm")
         self.assertEqual(stored["weather"]["units"]["wind"], "kmh")
         self.assertEqual(saved["settings"]["weather"]["units"]["wind"], "kmh")
+
+    def test_legacy_weather_refresh_value_is_ignored_but_preserved_in_stored_config(self):
+        service, stored, saves, *_rest = self.build()
+        stored["weather"]["auto_refresh_seconds"] = 300
+        snapshot = service.snapshot()
+        self.assertNotIn("auto_refresh_seconds", snapshot["settings"]["weather"])
+
+        settings = deepcopy(snapshot["settings"])
+        settings["weather"]["station_name"] = "Presentation cadence is shell-owned"
+        service.apply({"revision": snapshot["revision"], "settings": settings})
+
+        self.assertEqual(len(saves), 1)
+        self.assertEqual(stored["weather"]["auto_refresh_seconds"], 300)
 
     def test_receiver_name_requires_confirmation_then_updates_real_helper_and_config(self):
         service, stored, saves, _forecast, _eq, shairport, *_rest = self.build()
@@ -519,6 +533,10 @@ class ConfigurationBackupTests(unittest.TestCase):
             backup["a_clockwork_plex"]["settings"]["weather"]["observations"]
             ["weather_underground"]["station_id"],
             "IEXAMPLE1",
+        )
+        self.assertNotIn(
+            "auto_refresh_seconds",
+            backup["a_clockwork_plex"]["settings"]["weather"],
         )
 
         encoded = json.dumps(backup, sort_keys=True)
