@@ -29,6 +29,8 @@
   }
 
   function activeRoute() {
+    const hosted = window.ACPSurfaceHost?.activeRoute?.();
+    if (hosted) return hosted;
     const page = String(document.body.dataset.activePage || '').trim().toLowerCase();
     return page ? `/${page}` : window.location.pathname;
   }
@@ -184,6 +186,14 @@
       })) || 0;
       holdPresentation(duration);
       return;
+    }
+
+    if (!plexampVisiblyOpen() && window.ACPSurfaceHost?.canNavigate?.(target.pathname)) {
+      const result = await window.ACPSurfaceHost.navigate(target.pathname, {
+        ...options,
+        history: true,
+      });
+      if (result?.handled) return;
     }
 
     const overlayOpen = plexampVisiblyOpen();
