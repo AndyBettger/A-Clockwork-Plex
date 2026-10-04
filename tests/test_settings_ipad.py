@@ -109,6 +109,13 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("currentUnitPreset", self.client)
         self.assertIn("markDirty('weather')", self.client)
 
+    def test_autosave_serialises_only_dirty_sections_from_authoritative_snapshot(self):
+        self.assertIn("const settings = clone(loadedSettings || {})", self.client)
+        self.assertIn("if (!dirtySections.has(section)) return", self.client)
+        self.assertIn("if (dirtySections.has('weather'))", self.client)
+        self.assertIn("if (!dirtySections.has(domain)) return", self.client)
+        self.assertIn("settings[domain] = provider.get()", self.client)
+
     def test_receiver_management_and_live_eq_remain_first_class_settings(self):
         self.assertIn('data-setting-path="airplay.receiver_name"', self.template)
         self.assertIn("Save and restart AirPlay", self.template)
