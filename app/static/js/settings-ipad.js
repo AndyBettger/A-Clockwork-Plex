@@ -196,7 +196,7 @@
   function populateControls(settings) {
     hydrateControls(document, settings);
     updateUnitPreset();
-    refreshEnhancedControls(settings);
+    window.ACPSettingsRangeTheme?.refresh?.();
   }
 
   function applyClockCards(settings) {
