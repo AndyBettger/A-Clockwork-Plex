@@ -58,8 +58,9 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] `page-transitions.js` delegates only explicitly registered destinations.
 - [x] Unmigrated Clock/Weather/News/Settings routes still fall through to the accepted full-document navigation path.
 - [x] CI syntax/catalogue coverage added.
-- [ ] Migrate the first real ACP surface pair and compare same-document navigation physically on the commissioned Pi.
-- [ ] In the Clock ↔ Weather migration, replace Weather's timed full-page reload with in-place live updates that preserve scroll and interaction state.
+- [x] Implement the first Clock ↔ Weather same-document surface pair with mount-once DOM ownership and lazy destination assets.
+- [x] Replace Weather's timed full-page reload with in-place live updates that preserve vertical and Rain-history scroll position.
+- [ ] Physically accept Clock ↔ Weather on the commissioned Pi, including transition smoothness, live Weather refresh and the fallback route to an unmigrated page.
 - [ ] Converge all ACP-owned surfaces into the long-lived document; native Plexamp remains the intentional separate application/workspace.
 - [ ] Establish the reusable component/design-token boundary.
 - [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
@@ -76,7 +77,7 @@ Current visible working branches:
 - `develop` — accepted integration branch, including #85 and the merged Weather rain-event maintenance.
 - `feature/acp-shell-native-plexamp` — active #94 branch.
 
-The accepted Weather maintenance branch may be deleted once normal branch housekeeping is performed.
+The accepted Weather maintenance branch has been deleted after merge.
 
 ## Feature roadmaps
 
