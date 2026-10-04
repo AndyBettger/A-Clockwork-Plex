@@ -80,8 +80,19 @@
     }
 
     function update() {
+      if (!strip.isConnected || !rail.isConnected) return;
+
       const metrics = measurements();
-      const scrollable = metrics.maxScroll > 1 && metrics.availableWidth > 0;
+
+      // A mounted Weather surface remains in the document while hidden. During
+      // that state ResizeObserver legitimately sees zero-width geometry. That
+      // is not evidence that the strip stopped being scrollable, so preserve
+      // the last known rail state until the surface is visible again.
+      if (strip.clientWidth <= 0 || rail.clientWidth <= 0 || metrics.availableWidth <= 0) {
+        return;
+      }
+
+      const scrollable = metrics.maxScroll > 1;
       rail.hidden = !scrollable;
       rail.setAttribute('aria-hidden', scrollable ? 'false' : 'true');
       rail.tabIndex = scrollable ? 0 : -1;
@@ -406,6 +417,12 @@
   }
 
   document.addEventListener('acp:surface-activated', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'weather') {
+      refreshForecastScrollbars();
+    }
+  });
+
+  document.addEventListener('acp:surface-settled', (event) => {
     if (String(event?.detail?.surface || '').toLowerCase() === 'weather') {
       refreshForecastScrollbars();
     }
