@@ -2,6 +2,7 @@
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
   const ALARM_INDICATOR_WITHIN_MS = 12 * 60 * 60 * 1000;
   const segmentDisplay = window.AClockworkSegments;
+  const WEATHER_PRESENTATION_REFRESH_MS = 60_000;
   let weatherRefreshTimer = null;
 
   const WEATHER_LABELS_BY_ID = {
@@ -332,14 +333,6 @@
     );
   }
 
-  function clockWeatherRefreshMilliseconds() {
-    const panel = document.getElementById('clock-weather-panel');
-    const refreshSeconds = Number(panel?.dataset.refreshSeconds || 60);
-    if (!Number.isFinite(refreshSeconds)) return 60000;
-    if (refreshSeconds <= 0) return 0;
-    return Math.max(15, refreshSeconds) * 1000;
-  }
-
   async function updateClockWeather() {
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
@@ -349,12 +342,6 @@
 
       const status = await response.json();
       updateAlarmAnnunciator(status);
-
-      const panel = document.getElementById('clock-weather-panel');
-      const refreshSeconds = Number(status?.config?.weather?.auto_refresh_seconds);
-      if (panel && Number.isFinite(refreshSeconds)) {
-        panel.dataset.refreshSeconds = String(refreshSeconds);
-      }
 
       const title = status?.config?.weather?.station_name;
       if (title) {
@@ -374,13 +361,10 @@
     weatherRefreshTimer = null;
     if (!clockWeatherIsVisible()) return;
 
-    const refreshMilliseconds = clockWeatherRefreshMilliseconds();
-    if (refreshMilliseconds <= 0) return;
-
     weatherRefreshTimer = window.setTimeout(async () => {
       await updateClockWeather();
       scheduleClockWeatherUpdate();
-    }, refreshMilliseconds);
+    }, WEATHER_PRESENTATION_REFRESH_MS);
   }
 
   function activateClockWeather() {
@@ -402,11 +386,6 @@
     const sections = Array.isArray(event?.detail?.sections) ? event.detail.sections : [];
     if (!sections.includes('weather')) return;
 
-    const panel = document.getElementById('clock-weather-panel');
-    const refreshSeconds = Number(event?.detail?.settings?.weather?.auto_refresh_seconds);
-    if (panel && Number.isFinite(refreshSeconds)) {
-      panel.dataset.refreshSeconds = String(refreshSeconds);
-    }
     void updateClockWeather().finally(scheduleClockWeatherUpdate);
   });
 
