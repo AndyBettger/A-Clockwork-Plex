@@ -221,12 +221,19 @@
     const settings = clone(loadedSettings || {});
     document.querySelectorAll('[data-setting-path]').forEach((control) => {
       if (control.dataset.settingImmediate === 'true') return;
+      const section = sectionFor(control);
+      if (!dirtySections.has(section)) return;
       setPath(settings, control.dataset.settingPath, controlValue(control));
     });
-    const clockCards = window.ACPClockCards?.storedIds?.()
-      || [...document.querySelectorAll('#clock-card-hidden-inputs input[name="clock_cards"]')].map((input) => input.value);
-    if (settings.weather) settings.weather.clock_cards = clockCards;
+
+    if (dirtySections.has('weather')) {
+      const clockCards = window.ACPClockCards?.storedIds?.()
+        || [...document.querySelectorAll('#clock-card-hidden-inputs input[name="clock_cards"]')].map((input) => input.value);
+      if (settings.weather) settings.weather.clock_cards = clockCards;
+    }
+
     providers.forEach((provider, domain) => {
+      if (!dirtySections.has(domain)) return;
       if (typeof provider.get === 'function') settings[domain] = provider.get();
     });
     return settings;
