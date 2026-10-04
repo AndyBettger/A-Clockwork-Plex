@@ -1,0 +1,147 @@
+(() => {
+  if (window.__aClockworkPlexSurfaceHostLoaded) return;
+  window.__aClockworkPlexSurfaceHostLoaded = true;
+
+  const host = document.querySelector('main.screen');
+  if (!host) return;
+
+  const registry = new Map();
+  let activeSurface = String(document.body.dataset.activePage || '').trim().toLowerCase();
+  let activationInFlight = false;
+
+  function normaliseSurface(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text.replace(/^\/+/, '').split(/[?#]/, 1)[0];
+  }
+
+  function routeFor(surface) {
+    const name = normaliseSurface(surface);
+    return name ? `/${name}` : '/clock';
+  }
+
+  function transitionEnabled(options = {}) {
+    if (options.animate === false) return false;
+    if (typeof document.startViewTransition !== 'function') return false;
+
+    const preferences = window.ACPDashboardPreferences?.read?.() || {};
+    const style = String(
+      preferences.transitionStyle
+      || document.documentElement.dataset.transitionStyle
+      || 'grow-fade',
+    ).toLowerCase();
+    return !['none', 'instant'].includes(style);
+  }
+
+  function updateNavigationState(surface) {
+    const route = routeFor(surface);
+    document.querySelectorAll('.main-nav a[href]').forEach((link) => {
+      let path = '';
+      try {
+        path = new URL(link.href, window.location.href).pathname;
+      } catch (error) {
+        return;
+      }
+      const active = path === route;
+      link.classList.toggle('is-active', active);
+      if (active) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+  }
+
+  function updateBodySurface(surface) {
+    const previous = activeSurface;
+    document.body.dataset.activePage = surface;
+    Array.from(document.body.classList)
+      .filter((name) => name.startsWith('mode-'))
+      .forEach((name) => document.body.classList.remove(name));
+    document.body.classList.add(`mode-${surface}`);
+    activeSurface = surface;
+    updateNavigationState(surface);
+    return previous;
+  }
+
+  function register(surface, lifecycle) {
+    const name = normaliseSurface(surface);
+    if (!name) throw new Error('ACP surface name is required.');
+    if (!lifecycle || typeof lifecycle.prepare !== 'function') {
+      throw new Error(`ACP surface "${name}" must provide prepare().`);
+    }
+    registry.set(name, lifecycle);
+    return () => registry.delete(name);
+  }
+
+  function canNavigate(target) {
+    return registry.has(normaliseSurface(target));
+  }
+
+  async function navigate(target, options = {}) {
+    const surface = normaliseSurface(target);
+    const lifecycle = registry.get(surface);
+    if (!lifecycle) return { handled: false, reason: 'surface-not-registered' };
+    if (activationInFlight) return { handled: true, accepted: false, reason: 'activation-in-flight' };
+    if (surface === activeSurface) return { handled: true, accepted: true, unchanged: true };
+
+    activationInFlight = true;
+    const from = activeSurface;
+    let prepared;
+
+    try {
+      prepared = await lifecycle.prepare({
+        host,
+        surface,
+        from,
+        route: routeFor(surface),
+        options,
+      });
+      if (!prepared || typeof prepared.commit !== 'function') {
+        throw new Error(`ACP surface "${surface}" prepare() did not return commit().`);
+      }
+
+      const commit = () => {
+        prepared.commit({ host, surface, from, options });
+        updateBodySurface(surface);
+        if (prepared.title) document.title = String(prepared.title);
+      };
+
+      if (transitionEnabled(options)) {
+        const transition = document.startViewTransition(commit);
+        await transition.updateCallbackDone;
+      } else {
+        commit();
+      }
+
+      if (options.history !== false) {
+        const route = routeFor(surface);
+        if (window.location.pathname !== route) {
+          window.history.pushState({ acpSurface: surface }, '', route);
+        }
+      }
+
+      document.dispatchEvent(new CustomEvent('acp:surface-changed', {
+        detail: { surface, from, source: String(options.source || 'surface-navigation') },
+      }));
+
+      return { handled: true, accepted: true, surface, from };
+    } catch (error) {
+      console.warn('ACP same-document surface activation failed; caller may use route fallback.', error);
+      return {
+        handled: false,
+        accepted: false,
+        reason: 'activation-failed',
+        error: String(error?.message || error),
+      };
+    } finally {
+      activationInFlight = false;
+    }
+  }
+
+  window.ACPSurfaceHost = {
+    register,
+    canNavigate,
+    navigate,
+    activeSurface: () => activeSurface,
+    activeRoute: () => routeFor(activeSurface),
+    isTransitioning: () => activationInFlight,
+    supportsViewTransitions: () => typeof document.startViewTransition === 'function',
+  };
+})();
