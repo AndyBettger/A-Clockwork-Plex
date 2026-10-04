@@ -49,7 +49,7 @@
   <div class="date is-alpha-date" id="clock-date" aria-label="Current date">{{ now.strftime('%A %-d %B %Y') | upper }}</div>
 </section>
 
-<section class="panel weather-panel" id="clock-weather-panel" data-refresh-seconds="{{ config.weather.auto_refresh_seconds | default(60) }}">
+<section class="panel weather-panel" id="clock-weather-panel">
   <h1 id="clock-weather-title">{{ config.weather.station_name }}</h1>
   <div id="clock-weather-content">
     {% if picked_weather %}
