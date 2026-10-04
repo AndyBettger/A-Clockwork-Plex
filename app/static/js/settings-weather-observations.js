@@ -405,7 +405,14 @@
     const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
     if (!snapshot) return false;
     const savedPeriod = snapshot.settings?.weather?.historical_rainfall?.period;
-    if (rainfallPeriod && savedPeriod && !form.matches(':focus-within')) rainfallPeriod.value = savedPeriod;
+    if (rainfallPeriod && savedPeriod && !form.matches(':focus-within')) {
+      if (window.ACPUnifiedSettings?.applyControlValue) {
+        window.ACPUnifiedSettings.applyControlValue(rainfallPeriod, savedPeriod);
+      } else {
+        rainfallPeriod.value = savedPeriod;
+      }
+      window.ACPSettingsSelects?.refresh?.();
+    }
     updatePanels();
     if (snapshot.revision !== lastRevision) {
       lastRevision = snapshot.revision;
