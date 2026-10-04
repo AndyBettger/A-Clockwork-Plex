@@ -1,7 +1,7 @@
 # High-resolution Plexamp audio / mixer-EQ path
 
 **Issue:** #85  
-**Status:** ACTIVE — final ordinary-use stability soak before merge  
+**Status:** READY FOR MERGE — physical acceptance complete; awaiting explicit merge approval  
 **Branch:** `feature/hi-res-audio-eq`
 
 ## Goal for this branch
@@ -27,13 +27,16 @@ Ship the physically accepted managed EQ path at **S32_LE / 192 kHz** while prese
 
 **4 October 2026 ordinary-use evidence:** AirPlay podcast playback remained clean after reboot into the temporary 50 MHz SD-card mitigation; artwork loaded correctly and the normal ACP/Plexamp presentation was restored. Artwork failure while the root filesystem is read-only remains a useful visible symptom of the separate storage fault, not an audio-path failure.
 
-**4 October 2026 final-soak capture:** the verifier passed and the production graph was exactly S32_LE/192 kHz with 4096/32768 managed ALSA geometry, CamillaDSP 4096 chunk / 12288 target, capture/DAC 2048/16384, both services active and CamillaDSP ~1.8% CPU. One short CamillaDSP recovery sequence occurred at **01:08:48–01:08:49**: capture overrun/Broken pipe → processing stalled → playback prepare after underrun. No audible glitch was reported and no further errors occurred during the session. User recollection places this at the iPhone AirPlay connection transition. Classify this with one focused production disconnect/reconnect window before closing the gate; do not restart a multi-hour soak unless it reproduces during steady playback.
+**4 October 2026 final-soak capture:** the verifier passed and the production graph was exactly S32_LE/192 kHz with 4096/32768 managed ALSA geometry, CamillaDSP 4096 chunk / 12288 target, capture/DAC 2048/16384, both services active and CamillaDSP ~1.8% CPU. One short CamillaDSP recovery sequence occurred at **01:08:48–01:08:49**: capture overrun/Broken pipe → processing stalled → playback prepare after underrun. No audible glitch was reported and no further errors occurred during the session. User recollection placed this at the iPhone AirPlay connection transition.
+
+**4 October 2026 focused reconnect classification — PASSED:** after an intentional disconnect, the iPhone reconnected to AirPlay and played normally for several minutes with **no audible issue**. The bounded Shairport/CamillaDSP filter returned **no** underrun, overrun, XRUN, stall, Broken pipe, error or fail matches, and `verify-audio.sh` passed afterwards. The lone 01:08 recovery cluster is therefore classified as an isolated self-recovered transition event rather than repeated or steady-state instability. The #85 physical stability gate is closed.
 
 - [x] Complete the longer ordinary mixed-source Plexamp/AirPlay production soak with bounded journal evidence.
-- [ ] Classify the single isolated AirPlay-transition recovery seen at 01:08:48–01:08:49 with one focused production disconnect/reconnect window. Accept if playback remains audibly clean and the transition does not reproduce as repeated/steady-state XRUN behaviour; investigate further if it does.
+- [x] Classify the single isolated AirPlay-transition recovery seen at 01:08:48–01:08:49 with one focused production disconnect/reconnect window. The reconnect remained audibly clean and produced no filtered errors.
 - [x] Inspect the bounded CamillaDSP/Shairport journals for underrun, overrun, XRUN, stall, Broken pipe, error/fail recovery.
 - [ ] Confirm automated CI remains green at the final branch head.
-- [ ] Reconcile docs/catalogues and open the merge to `develop`.
+- [x] Reconcile docs/catalogues and open the merge to `develop`.
+- [ ] Merge to `develop` only after explicit user approval.
 
 ## Explicitly deferred from #85
 
