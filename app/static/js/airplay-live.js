@@ -28,6 +28,9 @@
   };
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
+  let statusTimer = null;
+  let tickTimer = null;
 
   let activeStartedAt = null;
   let lastStatusMode = null;
@@ -608,6 +611,7 @@
   }
 
   async function refreshStatus() {
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
       if (!response.ok) {
@@ -705,17 +709,45 @@
     }
   });
 
-  setInterval(refreshStatus, 2000);
-  setInterval(() => {
-    updateMiniClock();
-    updateProgressTick();
-  }, 1000);
-  updateMiniClock();
-  refreshStatus();
+  function stopPresentationTimers() {
+    window.clearTimeout(statusTimer);
+    window.clearTimeout(tickTimer);
+    statusTimer = null;
+    tickTimer = null;
+  }
 
-  window.addEventListener('visibilitychange', () => {
-    if (!document.hidden && lastStatusMode !== 'airplay') {
-      refreshStatus();
-    }
+  function scheduleStatusRefresh() {
+    window.clearTimeout(statusTimer);
+    statusTimer = null;
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    statusTimer = window.setTimeout(async () => {
+      await refreshStatus();
+      scheduleStatusRefresh();
+    }, 2000);
+  }
+
+  function schedulePresentationTick() {
+    window.clearTimeout(tickTimer);
+    tickTimer = null;
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    tickTimer = window.setTimeout(() => {
+      updateMiniClock();
+      updateProgressTick();
+      schedulePresentationTick();
+    }, 1000);
+  }
+
+  function activatePresentation() {
+    updateMiniClock();
+    void refreshStatus().finally(scheduleStatusRefresh);
+    schedulePresentationTick();
+  }
+
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activatePresentation();
+    else stopPresentationTimers();
   });
+
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activatePresentation();
+  window.addEventListener('pagehide', stopPresentationTimers, { once: true });
 })();
