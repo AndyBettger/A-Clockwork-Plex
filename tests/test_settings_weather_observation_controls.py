@@ -29,6 +29,9 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
         self.assertIn('data-observation-provider-panel="ecowitt_push"', source)
         self.assertIn('data-observation-provider-panel="weather_underground"', source)
 
+        self.assertNotIn("Dashboard observation refresh", source)
+        self.assertNotIn('data-setting-path="weather.auto_refresh_seconds"', source)
+
     def test_secret_remains_outside_revisioned_settings_model(self) -> None:
         template = TEMPLATE.read_text(encoding="utf-8")
         presenter = PRESENTER.read_text(encoding="utf-8")
