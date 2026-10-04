@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
-PAIR = ROOT / "app" / "static" / "js" / "acp-clock-weather-surfaces.js"
+APPLICATION_SURFACES = ROOT / "app" / "static" / "js" / "acp-application-surfaces.js"
 DASHBOARD = ROOT / "app" / "dashboard_core.py"
 TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
 
@@ -55,15 +55,14 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("register('news'", source)
         self.assertNotIn('register("news"', source)
 
-    def test_clock_weather_pair_is_the_only_registered_product_pair(self):
-        source = PAIR.read_text(encoding="utf-8")
+    def test_first_application_surface_set_is_clock_weather_news_only(self):
+        source = APPLICATION_SURFACES.read_text(encoding="utf-8")
 
-        self.assertIn("const pair = new Set(['clock', 'weather'])", source)
+        self.assertIn("const surfaces = new Set(['clock', 'weather', 'news'])", source)
         self.assertIn("surfaceHost.register(surface", source)
         self.assertIn("/api/surfaces/", source)
         self.assertIn("record.wrapper.hidden = name !== surface", source)
         self.assertIn("/api/mode/", source)
-        self.assertNotIn("'news'", source)
         self.assertNotIn("'settings'", source)
         self.assertNotIn("'airplay'", source)
 
@@ -75,6 +74,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
 
         self.assertIn('"clock": "clock.html"', endpoint)
         self.assertIn('"weather": "weather.html"', endpoint)
+        self.assertIn('"news": "news.html"', endpoint)
         self.assertIn("render_template(template)", endpoint)
         self.assertNotIn("set_mode(", endpoint)
 
