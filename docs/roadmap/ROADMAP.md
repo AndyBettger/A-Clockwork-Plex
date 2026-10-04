@@ -14,7 +14,7 @@ This is the authoritative product order.
 
 | Order | Feature / track | Status | Next boundary | Feature roadmap |
 | ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE ACTIVE** | Accept rain-event rollover/2-hour-gap fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
+| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE READY FOR MERGE** | Merge accepted rain-event fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
 | 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
@@ -42,7 +42,7 @@ If native Plexamp discovery becomes a long side quest, Astronomy need not wait f
 
 These are bounded corrections/improvements to accepted features; they do not change the main feature order.
 
-- **Weather rain events — ACTIVE:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI and commissioned-Pi backend/state migration are accepted; touchscreen Rain-panel presentation remains to be checked.
+- **Weather rain events — ACCEPTED:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI, commissioned-Pi backend/state migration and dry-weather touchscreen presentation are accepted.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
@@ -60,8 +60,8 @@ Current branch scope:
 - [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
 - [x] Code-head PR CI green at `cd967a174ba749d264ef1f1858040ae76104bfa3`.
 - [x] Commissioned Pi updated; ACP service restarted cleanly, WU status `ready`, and schema-v2 derived rain state/live chronology accepted.
-- [ ] Inspect the existing Weather Rain panel on the commissioned touchscreen.
-- [ ] Merge after explicit physical acceptance.
+- [x] Existing Weather Rain panel checked on the commissioned touchscreen; dry-weather gauges correctly show zero with no stale derived event.
+- [ ] Merge after explicit user approval.
 
 Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
 
