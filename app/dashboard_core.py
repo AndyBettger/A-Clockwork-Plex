@@ -1019,7 +1019,6 @@ def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
 
     weather["station_name"] = form_text("station_name", weather.get("station_name", "Weather or Not"))
     weather["reporting_station_name"] = form_text("reporting_station_name", weather.get("reporting_station_name", "Weather Station Name"))
-    weather["auto_refresh_seconds"] = form_int("auto_refresh_seconds", weather.get("auto_refresh_seconds", 60), 0, 3600)
     weather["display_units"] = form_choice("display_units", str(weather.get("display_units", "metric")), {"metric", "imperial"})
     units["temperature"] = form_choice("unit_temperature", str(units.get("temperature", "c")), {"c", "f"})
     units["pressure"] = form_choice("unit_pressure", str(units.get("pressure", "hpa")), {"hpa", "inhg"})
