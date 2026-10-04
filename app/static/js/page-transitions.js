@@ -233,7 +233,12 @@
   window.ACPPageReady = revealPage;
   window.ACPNavigationState = {
     isLeaving: () => leaving,
-    isPresenting: () => manualClaimInFlight || presentationInFlight || leaving,
+    isPresenting: () => (
+      manualClaimInFlight
+      || presentationInFlight
+      || leaving
+      || window.ACPSurfaceHost?.isTransitioning?.() === true
+    ),
     activeRoute,
     consumeExplicitNavigation,
   };
