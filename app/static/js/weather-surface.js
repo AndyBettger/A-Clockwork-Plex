@@ -32,8 +32,9 @@
       'South-southwest',
       'Southwest',
       'West-southwest',
-      'Northwest',
+      'West',
       'West-northwest',
+      'Northwest',
       'North-northwest',
     ];
     return names[Math.round(degrees / 22.5) % 16] || 'North';
