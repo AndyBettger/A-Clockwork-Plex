@@ -274,6 +274,104 @@ class WeatherLiveStateTests(unittest.TestCase):
         self.assertEqual(model["last_observed_at"], "2026-08-18T12:10:00")
         self.assertEqual(model["last_payload_observed_at"], "2026-08-18T12:09:00")
 
+    def test_legacy_derived_state_is_rebaselined_without_relabelling_old_event(self):
+        state = {
+            "weather_rain_derived": {
+                "station_id": "ITEST1",
+                "last_observed_at": "2026-09-30T23:12:04",
+                "last_date": "2026-09-30",
+                "last_daily_in": 0.42,
+                "increments": [
+                    {"time": "2026-09-30T00:00:04", "amount_in": 0.04},
+                    {"time": "2026-09-30T23:01:00", "amount_in": 0.38},
+                ],
+                "event_total_in": 0.50,
+            }
+        }
+
+        rebased = augment_derived_rain(
+            state,
+            {
+                "dateutc": "2026-10-04T12:00:00",
+                "dailyrainin": 0.20,
+                "rainratein": 0.0,
+            },
+            datetime(2026, 10, 4, 12, 0, 5),
+            station_id="ITEST1",
+        )
+
+        self.assertEqual(rebased["hourlyrainin"], 0.0)
+        self.assertEqual(rebased["eventrainin"], 0.0)
+        model = state["weather_rain_derived"]
+        self.assertEqual(model["schema_version"], 2)
+        self.assertEqual(model["last_daily_in"], 0.20)
+        self.assertEqual(model["increments"], [])
+        self.assertFalse(model["event_active"])
+        self.assertIsNone(model["last_event_total_in"])
+
+    def test_existing_daily_total_is_counter_baseline_not_a_new_event(self):
+        state = {}
+        first = augment_derived_rain(
+            state,
+            {
+                "dateutc": "2026-10-04T12:00:00",
+                "dailyrainin": 0.30,
+                "rainratein": 0.0,
+            },
+            datetime(2026, 10, 4, 12, 0, 3),
+            station_id="ITEST1",
+        )
+        self.assertEqual(first["hourlyrainin"], 0.0)
+        self.assertEqual(first["eventrainin"], 0.0)
+
+        next_bucket = augment_derived_rain(
+            state,
+            {
+                "dateutc": "2026-10-04T12:10:00",
+                "dailyrainin": 0.32,
+                "rainratein": 0.1,
+            },
+            datetime(2026, 10, 4, 12, 10, 2),
+            station_id="ITEST1",
+        )
+        self.assertAlmostEqual(next_bucket["hourlyrainin"], 0.02, places=6)
+        self.assertAlmostEqual(next_bucket["eventrainin"], 0.02, places=6)
+        self.assertEqual(
+            state["weather_rain_derived"]["event_started_at"],
+            "2026-10-04T12:10:00",
+        )
+
+    def test_two_hour_observation_gap_rebaselines_instead_of_joining_unknown_rain(self):
+        state = {}
+        start = datetime(2026, 10, 4, 8, 0, 0)
+        augment_derived_rain(
+            state,
+            {"dateutc": "2026-10-04T08:00:00", "dailyrainin": 0.0},
+            start,
+            station_id="ITEST1",
+        )
+        augment_derived_rain(
+            state,
+            {"dateutc": "2026-10-04T08:10:00", "dailyrainin": 0.05, "rainratein": 0.1},
+            start + timedelta(minutes=10),
+            station_id="ITEST1",
+        )
+
+        after_gap = augment_derived_rain(
+            state,
+            {"dateutc": "2026-10-04T11:00:00", "dailyrainin": 0.20, "rainratein": 0.0},
+            start + timedelta(hours=3),
+            station_id="ITEST1",
+        )
+
+        self.assertEqual(after_gap["hourlyrainin"], 0.0)
+        self.assertEqual(after_gap["eventrainin"], 0.0)
+        model = state["weather_rain_derived"]
+        self.assertAlmostEqual(model["last_event_total_in"], 0.05, places=6)
+        self.assertEqual(model["last_event_ended_at"], "2026-10-04T08:10:00")
+        self.assertEqual(model["last_event_closed_at"], "2026-10-04T10:10:00")
+        self.assertEqual(model["last_daily_in"], 0.20)
+
     def test_native_hourly_and_event_values_are_not_replaced(self):
         state = {}
         weather = augment_derived_rain(
