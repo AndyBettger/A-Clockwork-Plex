@@ -1094,15 +1094,23 @@ def api_surface_document(surface: str):
         "clock": "clock.html",
         "weather": "weather.html",
         "news": "news.html",
+        "settings": "settings.html",
     }
-    template = templates.get(str(surface or "").strip().lower())
+    surface_name = str(surface or "").strip().lower()
+    template = templates.get(surface_name)
     if not template:
         return jsonify({"ok": False, "error": "Surface is not available for same-document mounting."}), 404
+
+    context: dict[str, Any] = {}
+    if surface_name == "settings":
+        config = load_config()
+        context = settings_page_context(config)
+
     return jsonify(
         {
             "ok": True,
-            "surface": str(surface).strip().lower(),
-            "html": render_template(template),
+            "surface": surface_name,
+            "html": render_template(template, **context),
         }
     )
 
