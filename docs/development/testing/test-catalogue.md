@@ -221,6 +221,10 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_wu_application_verifier_handoff.py` — Checks Weather Underground state/secret hand-off into the application verifier.
 - `tests/test_wu_payload_inspector.py` — Exercises WU payload inspection/diagnostics while redacting credentials and sensitive values.
 
+### ACP shell / navigation
+
+- `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces.
+
 ### Plexamp and NFC
 
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
