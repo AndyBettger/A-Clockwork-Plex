@@ -133,7 +133,7 @@ Therefore:
 
 - a successful Settings transaction must project shell-owned values such as transition style/duration, startup/idle ownership, theme and clock format back into the live shell authority;
 - the dashboard preference reader must prefer already-applied live values over immutable server boot attributes after initial bootstrap;
-- surface-owned configuration changes must invalidate or refresh the affected mounted surface after persistence. Weather uses the successful Settings event for this, so a save completing after navigation cannot leave a stale Weather mount indefinitely;
+- surface-owned configuration changes must invalidate or refresh every affected mounted surface after persistence. Weather refreshes its detailed surface from the successful Settings event; Clock also refreshes its weather/status projection immediately and on Clock activation, so a save completing after navigation cannot leave either mounted Weather identity behind;
 - server-rendered bootstrap controls that are retired by an enhancement (the old Settings Save/Discard bar) must have a first-paint-safe presentation rather than depending on late JavaScript to hide them.
 
 This keeps autosave persistence authoritative without reintroducing full-document reloads as a hidden configuration-application mechanism.
