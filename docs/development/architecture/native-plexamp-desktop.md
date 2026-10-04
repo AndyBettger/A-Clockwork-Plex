@@ -1,8 +1,8 @@
 # Native Plexamp desktop / visualiser migration
 
-**Status:** queued next after #85; Phase A UI foundation precedes Astronomy; no production migration authorised  
+**Status:** ACTIVE — Phase A UI foundation; no native Plexamp production migration authorised  
 **Roadmap item:** #94  
-**Last updated:** 30 September 2026
+**Last updated:** 4 October 2026
 
 ## Goal
 
@@ -50,6 +50,34 @@ Plexamp Trim -> Music Master -> reserve -> EQ -> limiter
 A two-player arrangement may still be useful temporarily for discovery, but is
 not the intended visualiser architecture because a remote controller does not
 own the locally decoded audio data required by the visualiser.
+
+## Phase A implementation checkpoint — A0
+
+The first implementation checkpoint introduces a fail-safe same-document surface host without migrating any product surface yet.
+
+Current ownership:
+
+- `app/static/js/acp-surface-host.js` owns the future same-document lifecycle registry and View Transition commit boundary.
+- A destination registers only when it has an explicit asynchronous `prepare()` function that returns a synchronous `commit()` function. This lets data/assets be prepared before the visual transition starts.
+- `page-transitions.js` remains the navigation policy entry point for now, including screen-projection/manual-lease handling and Plexamp special cases.
+- After those policy checks, `page-transitions.js` asks the surface host whether the destination is registered. Registered routes may commit in-document; unregistered routes continue through the existing full-document `window.location.assign()` path.
+- The host updates active-surface body/navigation state and browser history only after a successful commit.
+- If preparation fails, the host returns control so the caller can use the accepted full-route fallback.
+- No Clock, Weather, News or Settings destination is registered at A0, so production navigation is intentionally unchanged.
+
+This seam is the prerequisite for incremental migration. It avoids a flag-day SPA rewrite and provides a measurable rollback boundary for each surface.
+
+### First migration candidate
+
+Use **Clock ↔ Weather** as the first real surface pair unless code inspection exposes a stronger blocker. It exercises:
+
+- Clock hydration/live timers;
+- Weather's data-heavy rendered surface and refresh lifecycle;
+- per-surface CSS/script ownership;
+- browser history/manual screen leases;
+- the fixed 1280×720 appliance presentation.
+
+Do not bring Settings transaction ownership, News modal/scroll lifecycle or Plexamp's persistent overlay into the first same-document experiment.
 
 ## ACP UI rendering decision
 
