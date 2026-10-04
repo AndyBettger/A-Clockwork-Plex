@@ -56,14 +56,20 @@
     const root = document.documentElement;
     const legacy = normaliseMode(root.dataset.legacyDefaultMode || 'clock');
     return {
-      startupMode: normaliseMode(root.dataset.serverStartupMode, legacy),
-      idleReturnMode: normaliseMode(root.dataset.serverIdleReturnMode, legacy),
+      startupMode: normaliseMode(root.dataset.startupMode || root.dataset.serverStartupMode, legacy),
+      idleReturnMode: normaliseMode(root.dataset.idleReturnMode || root.dataset.serverIdleReturnMode, legacy),
       daytimeTheme: normaliseDaytimeTheme(
         root.dataset.daytimeTheme || root.dataset.serverDaytimeTheme || 'classic_dark'
       ),
-      transitionStyle: normaliseStyle(root.dataset.serverTransitionStyle || 'grow-fade'),
-      transitionDurationMs: normaliseDuration(root.dataset.serverTransitionDurationMs || 300),
-      clockFormat: String(root.dataset.serverClockFormat || '24h').toLowerCase() === '12h' ? '12h' : '24h',
+      transitionStyle: normaliseStyle(
+        root.dataset.transitionStyle || root.dataset.serverTransitionStyle || 'grow-fade'
+      ),
+      transitionDurationMs: normaliseDuration(
+        root.dataset.transitionDurationMs || root.dataset.serverTransitionDurationMs || 300
+      ),
+      clockFormat: String(
+        root.dataset.clockFormat || root.dataset.serverClockFormat || '24h'
+      ).toLowerCase() === '12h' ? '12h' : '24h',
     };
   }
 
