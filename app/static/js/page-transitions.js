@@ -127,6 +127,7 @@
     const hydratedFallbacks = {
       airplay: 1500,
       clock: 900,
+      settings: 1800,
     };
 
     if (activePage in hydratedFallbacks) {
