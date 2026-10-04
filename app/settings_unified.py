@@ -235,9 +235,6 @@ class UnifiedSettingsService:
                 "reporting_station_name": _text(
                     weather.get("reporting_station_name"), "Weather Station", maximum=80
                 ),
-                "auto_refresh_seconds": _integer(
-                    weather.get("auto_refresh_seconds"), 60, 0, 3600
-                ),
                 "units": {
                     "temperature": _choice(units.get("temperature"), "c", VALID_TEMPERATURE_UNITS),
                     "pressure": _choice(units.get("pressure"), "hpa", VALID_PRESSURE_UNITS),
@@ -366,9 +363,6 @@ class UnifiedSettingsService:
             source.get("reporting_station_name"),
             weather.get("reporting_station_name", "Weather Station"),
             maximum=80,
-        )
-        weather["auto_refresh_seconds"] = _integer(
-            source.get("auto_refresh_seconds"), weather.get("auto_refresh_seconds", 60), 0, 3600
         )
         submitted_units = _object(source.get("units"))
         units.update(
