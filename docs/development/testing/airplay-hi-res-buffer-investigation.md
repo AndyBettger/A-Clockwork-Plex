@@ -1,6 +1,6 @@
 # AirPlay 192 kHz buffer/timing investigation
 
-**Status:** active physical investigation on `feature/hi-res-audio-eq`  
+**Status:** physical investigation complete; #85 ready for merge pending explicit approval  
 **Started:** 16 September 2026
 
 This note records the bounded investigation that follows the first wider-gate AirPlay result for the provisional **S32_LE / 192 kHz** managed bus.
@@ -162,7 +162,9 @@ The production fixed-192 graph passed `verify-audio.sh` and a 60-minute read-onl
 
 The bounded CamillaDSP journal contained exactly one short recovery cluster at **01:08:48–01:08:49**: capture read overrun / Broken pipe, processing stalled, then playback prepare after underrun. There were no subsequent matches and no audible glitch was noticed. The user recalls that timestamp as the iPhone AirPlay connection transition. This differs materially from the original failing graph, where repeated XRUN/stall messages accompanied audible choppiness over sustained playback.
 
-Do not reopen the multi-hour stability investigation on this evidence alone. Run one focused production AirPlay disconnect/reconnect classification window. If it remains audibly clean and does not produce repeated or steady-state XRUN behaviour, classify the lone soak event as a bounded transition recovery and close the remaining stability gate. If it reproduces repeatedly or appears during untouched playback, investigate before merge.
+A focused production AirPlay disconnect/reconnect classification was then run. After an intentional disconnect, the iPhone reconnected and played normally for several minutes with **no audible issue**. The bounded Shairport/CamillaDSP filter returned **no** underrun, overrun, XRUN, stall, Broken pipe, error or fail matches, and `verify-audio.sh` passed afterwards.
+
+The lone 01:08:48 recovery cluster is therefore classified as an **isolated self-recovered transition event**, not repeated/steady-state instability. Together with the clean long ordinary-use playback, earlier clean candidate transition test, accepted production geometry and post-test verifier success, this closes the #85 production stability gate.
 
 13. **AirPlay disconnect/reconnect sub-gate — PASSED:** on the same 12288-target S32_LE/192 kHz candidate, one deliberate disconnect/reconnect preserved receiver-owned AirPlay Live level and the expected EQ/Trim/Music Master behaviour with no audible chop. The bounded reconnect journal filter produced no underrun/overrun/stall/xrun/Broken pipe/error/fail lines. The subsequent snapshot retained the expected 4096/32768 managed bus, 4096 chunk, 12288 target and 2048/16384 capture/DAC geometry at ~2.2% CPU; its only relevant lines were normal Shairport service/start and CamillaDSP prepared/rate-adjust informational messages. Exact restore returned S16_LE/44.1 and verifier success. **The fixed-192 AirPlay timing/control/transition gate is closed.**
 14. **44.1 kHz managed supporting evidence:** a fresh accepted-baseline playback interval was audibly clean and its bounded CamillaDSP error filter produced no matches. The selected managed path is now fixed 192 kHz, so do not spend another gate on 44.1 split-bus reconnect behaviour.
