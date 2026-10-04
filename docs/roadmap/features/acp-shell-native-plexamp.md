@@ -27,8 +27,8 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [x] Implementation CI green at `7eda544e26ea932ba44897fea696cb49e28cccbb`.
 - [~] Physically compare Clock → Weather → Clock on the commissioned Pi: **core behaviour PASSED** — materially snappier, no black flash/full reload, active navigation/mode correct, Clock resumes correctly, Weather live refresh preserves reading position, forecast/wind/rain functionality intact.
 - [x] Configured ACP transition styles physically retested: all styles now visibly differ on Clock ↔ Weather and the configured transition-duration setting is honoured.
-- [ ] Retest Forecast Outlook custom horizontal rails across **first visit → leave Weather → second visit**. They still disappeared after the second visit even though horizontal scrolling remained functional; the follow-up now ignores hidden-surface zero-width measurements and remeasures on an explicit post-transition `acp:surface-settled` lifecycle event.
-- [ ] Confirm fallback navigation to at least one unmigrated page remains correct after the Forecast-rail retest.
+- [x] Forecast Outlook custom horizontal rails physically retested across **first visit → leave Weather → second visit**; both rails remain visible and functional on subsequent visits.
+- [x] Fallback navigation to unmigrated **News** and **Settings** remains correct after the A1 lifecycle fixes.
 
 **Important:** A0 changes architecture ownership but deliberately changes **no current product route behaviour**. No Clock/Weather/News/Settings surface is registered yet; the accepted multi-document path remains the fallback.
 
@@ -80,3 +80,20 @@ The branch now maps ACP motion preferences onto View Transition root snapshots a
 Physical retest confirms ACP's existing transition-style and transition-duration preferences now drive the same-document View Transition path correctly.
 
 The Forecast custom-scrollbar defect was narrowed further: rails are present on first Weather visit, disappear only after a leave/return cycle, and return after a full document refresh. This proves the strip content remains scrollable and isolates the problem to hidden mounted-surface geometry. The Forecast scrollbar now preserves its last known state when ResizeObserver sees zero-width hidden geometry and performs an authoritative remeasurement after the Surface Host emits `acp:surface-settled` once `transition.finished` resolves.
+
+### A1 physical acceptance — COMPLETE
+
+The Clock ↔ Weather same-document pair is physically accepted on the commissioned appliance.
+
+Accepted behaviour:
+
+- faster/smoother navigation with no full-document boot flash;
+- all configured ACP transition styles and duration control honoured;
+- active navigation/footer Mode ownership correct;
+- Clock remains live after Weather round-trips;
+- Weather refreshes in place without resetting reading position;
+- Forecast rails remain visible and synchronised on first and subsequent visits;
+- Rain controls remain functional;
+- unmigrated News and Settings routes continue to fall back safely to the legacy full-document path.
+
+Checkpoint A1 is therefore closed. Subsequent ACP surfaces may now migrate incrementally onto the same Surface Host contract.
