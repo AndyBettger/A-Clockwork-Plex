@@ -168,7 +168,6 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
         (
             "station_name",
             "reporting_station_name",
-            "auto_refresh_seconds",
             "units",
             "clock_cards",
             "forecast",
