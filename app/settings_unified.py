@@ -65,6 +65,11 @@ def _choice(value: Any, fallback: str, allowed: set[str]) -> str:
     return candidate if candidate in allowed else fallback
 
 
+def _transition_style(value: Any, fallback: str = "grow-fade") -> str:
+    style = _choice(value, fallback, VALID_TRANSITIONS)
+    return "instant" if style == "none" else style
+
+
 def _integer(value: Any, fallback: int, minimum: int, maximum: int) -> int:
     if isinstance(value, bool):
         parsed = fallback
@@ -223,8 +228,8 @@ class UnifiedSettingsService:
                 "clock_format": _choice(
                     dashboard.get("clock_format"), "24h", VALID_CLOCK_FORMATS
                 ),
-                "transition_style": _choice(
-                    dashboard.get("transition_style"), "grow-fade", VALID_TRANSITIONS
+                "transition_style": _transition_style(
+                    dashboard.get("transition_style"), "grow-fade"
                 ),
                 "transition_duration_ms": _integer(
                     dashboard.get("transition_duration_ms"), 300, 0, 2000
@@ -338,10 +343,9 @@ class UnifiedSettingsService:
                     str(dashboard.get("clock_format", "24h")),
                     VALID_CLOCK_FORMATS,
                 ),
-                "transition_style": _choice(
+                "transition_style": _transition_style(
                     source.get("transition_style"),
-                    str(dashboard.get("transition_style", "grow-fade")),
-                    VALID_TRANSITIONS,
+                    _transition_style(dashboard.get("transition_style"), "grow-fade"),
                 ),
                 "transition_duration_ms": _integer(
                     source.get("transition_duration_ms"),
