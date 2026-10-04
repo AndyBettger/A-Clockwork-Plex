@@ -110,6 +110,10 @@
         commit();
       }
 
+      if (typeof prepared.activate === 'function') {
+        await prepared.activate({ host, surface, from, options });
+      }
+
       if (options.history !== false) {
         const route = routeFor(surface);
         if (window.location.pathname !== route) {
