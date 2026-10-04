@@ -67,7 +67,7 @@ Current ownership:
 
 This seam is the prerequisite for incremental migration. It avoids a flag-day SPA rewrite and provides a measurable rollback boundary for each surface.
 
-### First migration candidate
+### First migration candidate — implemented, physical gate pending
 
 Use **Clock ↔ Weather** as the first real surface pair unless code inspection exposes a stronger blocker. It exercises:
 
@@ -82,6 +82,20 @@ Weather currently refreshes itself with a timed `window.location.reload()`. That
 The intended eventual browser boundary is one long-lived ACP document containing **all ACP-owned application surfaces** (Clock, Weather, News, AirPlay, Settings, Astronomy, future Events and alarm/takeover presentation). This does not mean one enormous permanently active DOM: surfaces may be lazily prepared, mounted, suspended and resumed behind the Surface Host contract. **Native Plexamp is the deliberate exception** and lives as a separate native application/workspace; the ACP desktop shell owns navigation and transitions across that process boundary.
 
 Do not bring Settings transaction ownership, News modal/scroll lifecycle or Plexamp's persistent overlay into the first same-document experiment.
+
+#### Clock ↔ Weather implementation shape
+
+The first pair is implemented as a mount-once incremental bridge rather than a template rewrite:
+
+- the initial Clock or Weather content is wrapped as a mounted surface after the shared navigation layer has moved its controls to `body`;
+- the first visit to the other member of the pair fetches ACP's read-only rendered surface document from `/api/surfaces/<surface>`; this endpoint deliberately does not call `set_mode()`;
+- missing destination styles load before commit; missing destination scripts load once after commit, when the destination is the active surface;
+- both Clock and Weather DOM trees remain mounted thereafter and visibility toggles under the Surface Host, preserving their local interaction state;
+- same-document activation synchronises `/api/mode/<surface>` after the visual commit while the existing manual lease/screen-projection policy remains the navigation authority;
+- Weather's former periodic `window.location.reload()` has been retired. A Weather surface controller obtains a fresh ACP-rendered snapshot, replaces only the Weather data grid, preserves vertical and Rain-history scroll positions, leaves the forecast console mounted and rebinds refreshed grid controls;
+- a failed surface preparation/script activation returns to the existing full-route fallback rather than trapping the appliance in a half-migrated state.
+
+At this checkpoint only Clock and Weather register with the Surface Host, and only when the initial document itself is Clock or Weather. Entering Weather from News/Settings/AirPlay still uses the accepted full route; broader surface convergence follows only after this pair is physically accepted.
 
 ## ACP UI rendering decision
 
