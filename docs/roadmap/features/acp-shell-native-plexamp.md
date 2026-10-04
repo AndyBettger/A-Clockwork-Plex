@@ -135,7 +135,7 @@ Implementation:
 - [x] Preserve the mounted Settings DOM across ACP navigation so staged values, active section/subpage and modal/form state are not destroyed by a Clock/Weather/News round-trip.
 - [x] Suspend alarm-diagnostics, lifetime-rainfall and live-audio-path network polling while Settings is not the active ACP surface; refresh again when Settings is reactivated.
 - [x] Keep AirPlay unregistered so the established full-document fallback remains a clean escape path while A3 is proven.
-- [ ] Confirm exact A3 branch-head CI is green.
+- [x] A3 implementation passed **Tests #5089**; implementation + documentation candidate `2ca0997b1f063bc6a3a38c09a4d6ea2e04ab1d72` passed **Tests #5091**.
 - [ ] Physically test Clock/Weather/News ↔ Settings round-trips, Settings section/subpage controls, touch keyboard/selects, staged-unsaved state preservation plus Discard, and normal Save behaviour.
 
 A3 must not weaken Settings transaction ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
