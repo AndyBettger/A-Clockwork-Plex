@@ -1093,6 +1093,7 @@ def api_surface_document(surface: str):
     templates = {
         "clock": "clock.html",
         "weather": "weather.html",
+        "news": "news.html",
     }
     template = templates.get(str(surface or "").strip().lower())
     if not template:
