@@ -108,6 +108,24 @@ The first pass also exposed two browser-lifecycle details that must be owned exp
 
 These findings reinforce the Surface Host lifecycle model rather than arguing for a return to multi-document navigation.
 
+
+#### A2 News migration — physically accepted
+
+News validates that the Surface Host can own a more stateful content surface than Clock/Weather. The mounted News implementation pauses hidden refresh work, preserves story/category scroll state, defers custom-scrollbar geometry until the surface is settled, and retains article-detail/QR behaviour. Exact A2 candidate `b4e0943038779862816e65f1e291ae2b4ef2e571` passed Tests #5087 and the commissioned appliance physically accepted the News round-trip and transition behaviour.
+
+#### A3 Settings migration — candidate
+
+Settings is the first migrated surface where **transactional UI state must outlive navigation**. It therefore remains mount-once rather than being re-rendered on every visit:
+
+- the read-only surface renderer supplies the same Settings template context as the ordinary GET route but never calls `set_mode()`;
+- destination scripts load only after the Surface Host has committed Settings as the active surface, preserving existing `body[data-active-page="settings"]` initialisation guards;
+- staged form values, active section/subpage and local Settings DOM state remain mounted across other ACP surfaces;
+- background Settings diagnostics that previously relied on `pagehide` now also require Settings to be the active ACP surface before polling network endpoints, because hidden mounted surfaces no longer receive a document teardown;
+- reactivation provides an explicit refresh opportunity for those diagnostics;
+- AirPlay remains on the full-document fallback until Settings has passed its physical gate.
+
+This is an important shell invariant: **surface-hidden is an application lifecycle state distinct from browser-hidden and document-unloaded**. Future ACP surfaces with timers, observers or background fetches must account for all three states explicitly.
+
 ## ACP UI rendering decision
 
 The native Plexamp investigation also exposes a separate ACP question: **should
