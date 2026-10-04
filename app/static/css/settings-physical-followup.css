@@ -1,12 +1,12 @@
-body.mode-settings.settings-autosave-enabled .settings-ipad-page {
+body.mode-settings .settings-ipad-page {
   padding-bottom: 0;
 }
 
-body.mode-settings.settings-autosave-enabled .settings-save-actions {
+body.mode-settings .settings-save-actions {
   display: none !important;
 }
 
-body.mode-settings.settings-autosave-enabled .settings-save-bar {
+body.mode-settings .settings-save-bar {
   position: fixed;
   z-index: 210;
   top: 10px;
