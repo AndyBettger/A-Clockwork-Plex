@@ -1,6 +1,6 @@
 # Weather
 
-**Status:** CORE COMPLETE; rain-event maintenance ACCEPTED / READY FOR MERGE on `fix/weather-rain-events`; post-#94 presentation revamp queued  
+**Status:** CORE COMPLETE; rain-event maintenance MERGED; #94 live-surface integration ACTIVE; post-#94 presentation revamp queued  
 **Primary implementation:** #86 Friendly forecast-location entry, #87 WU supplemental indoor expiry
 
 ## Accepted scope
@@ -17,7 +17,7 @@ The live WU path derives Hourly Rain and Event Rain when the provider does not s
 
 ### Maintenance implementation — 4 October 2026
 
-The focused rain-event correction is implemented and physically accepted on `fix/weather-rain-events`. The commissioned Pi passed the live backend/state migration check and the existing Rain-panel dry-weather presentation check.
+The focused rain-event correction is implemented, physically accepted and merged into `develop`. The commissioned Pi passed the live backend/state migration check and the existing Rain-panel dry-weather presentation check.
 
 - Rain today is the station's live calendar-day total.
 - Rain this week is Monday through today: cached WU daily totals for completed days plus today's live total.
@@ -52,10 +52,10 @@ The current multi-document Weather page periodically calls `window.location.relo
 
 During #94 Clock ↔ Weather migration:
 
-- replace whole-document reload with a Weather surface controller that obtains a current local JSON snapshot/view-model and updates only changed readings;
-- preserve vertical scroll position, Rain/history scrollers, focus and any open detail state across routine updates;
-- fetch current state immediately when Weather becomes active after being hidden, so a long-lived document does not show stale values on return;
-- avoid rebuilding the whole Weather DOM when a small set of readings changes;
+- [x] replace whole-document reload with a Weather surface controller that obtains a current ACP-local rendered snapshot and refreshes the Weather data grid in place;
+- [x] preserve vertical scroll position and Rain/history horizontal scroll across routine updates;
+- [x] fetch current state immediately when Weather becomes active after being hidden, so a long-lived document does not show stale values on return;
+- [ ] further reduce DOM replacement so individual readings can be patched without rebuilding the whole Weather grid once the reusable component model is established;
 - keep the existing server-side WU observation worker authoritative for remote polling; the browser should consume ACP's local current state rather than independently polling Weather Underground;
 - keep routine Weather data changes separate from navigation motion: no View Transition merely because temperature, rain, pressure or station status changed.
 
@@ -67,6 +67,8 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - [ ] Use a Settings-like section model so current conditions, rain, temperature/humidity, wind, pressure, solar/UV, station status and historical/records views are discoverable without overloading one screen.
 - [ ] Keep a concise at-a-glance Weather overview, with deeper touch sections rather than forcing every datum onto the first screen.
 - [ ] Add useful graphs rather than decorative charts. Initial candidates: pressure/trend, rainfall rate + accumulation, temperature/humidity, and wind speed/gust/direction.
+- [ ] In the Pressure / Barometer panel, use the currently empty space beside the Relative Pressure card for a compact **12/24-hour pressure-history graph** (simple line or bar trace, visually similar to a small instrument history strip). It should complement rather than replace the textual barometer forecast/trend.
+- [ ] Extend the bounded pressure-history source beyond the current short window only as needed for that graph; prefer 12 h or 24 h selectable/appropriate retention and coordinate the write/downsampling policy with Appliance Resilience.
 - [ ] Investigate a bounded local observation-history store to support graphs and records. Define retention/downsampling, restart/recovery, export and storage-write behaviour before committing to long-term logging.
 - [ ] Coordinate any local history design with Appliance Resilience so useful graphs do not create unnecessary SD-card write amplification.
 - [ ] Reuse the global ACP design system/tokens and graph components so Astronomy and Weather do not invent two unrelated data-visualisation languages.
@@ -93,3 +95,16 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - [x] Live v2 state migration checked: `chronology_source=dateutc`, 7200-second dry gap, empty increments, zero active event, no legacy event carried forward, and the WU `dateutc` observation projected to appliance-local chronology correctly.
 - [x] Existing Weather Rain panel visually checked on the commissioned touchscreen after the update: the four current rain gauges correctly showed zero and no stale derived event was presented.
 - [ ] Real-rain behaviour observed when nature eventually cooperates; useful follow-up evidence only and **not a merge blocker**.
+
+## #94 Clock ↔ Weather physical checkpoint — 4 October 2026
+
+- Same-document Clock → Weather → Clock navigation is materially snappier than the prior full-document route.
+- No black flash, page boot or obvious browser reload was observed.
+- Active navigation state and footer Mode tracking are correct.
+- Clock continues updating normally after returning from Weather.
+- Weather forecast, wind direction and Rain controls remain functional.
+- Routine Weather refresh now updates data **without moving the page back to the top**, which is physically accepted.
+- Two presentation defects were identified for immediate follow-up:
+  1. same-document motion used Chromium's default dissolve/crossfade regardless of the configured ACP transition style;
+  2. Forecast Outlook strips remained horizontally scrollable but their custom rails were hidden, while the Rain rail remained correct.
+- Both defects are bounded to the new same-document presentation lifecycle and are not regressions in Weather data ownership.
