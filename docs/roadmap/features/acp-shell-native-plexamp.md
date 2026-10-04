@@ -20,8 +20,12 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [x] Let `page-transitions.js` delegate only destinations explicitly registered with the surface host.
 - [x] Preserve the existing `window.location.assign()` route path for every unmigrated surface.
 - [x] Add CI syntax checking and repository tests that pin the fail-safe/load-order contract.
-- [ ] Migrate the first real ACP surface pair into the host and physically compare same-document versus legacy navigation on the commissioned Pi.
-- [ ] For the first Clock ↔ Weather migration, replace Weather's current timed `window.location.reload()` with a local snapshot/update controller so a user reading/scanning the Weather surface is never thrown back to the top by background refresh.
+- [x] Implement the first real ACP surface pair: **Clock ↔ Weather** now mount once inside the long-lived document, dynamically loading the other surface's CSS/scripts only when first visited.
+- [x] Replace Weather's timed `window.location.reload()` with an in-place ACP-local refresh controller. The Weather grid refreshes without replacing the document, preserving vertical position and Rain-history horizontal scroll.
+- [x] Keep screen-projection/manual-lease ownership in front of the visual commit and synchronise logical mode after same-document activation.
+- [x] Preserve the full-document route fallback for News, Settings, AirPlay and all other unmigrated destinations.
+- [x] Implementation CI green at `7eda544e26ea932ba44897fea696cb49e28cccbb`.
+- [ ] Physically compare Clock → Weather → Clock on the commissioned Pi: transition smoothness, correct active navigation/mode, Weather scroll preservation, live refresh, forecast/rain controls and fallback navigation to an unmigrated page.
 
 **Important:** A0 changes architecture ownership but deliberately changes **no current product route behaviour**. No Clock/Weather/News/Settings surface is registered yet; the accepted multi-document path remains the fallback.
 
