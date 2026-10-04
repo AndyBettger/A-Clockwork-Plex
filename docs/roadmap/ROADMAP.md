@@ -2,7 +2,7 @@
 
 **Last updated:** 4 October 2026  
 **Active integration branch:** `develop`  
-**Active feature branch:** `feature/hi-res-audio-eq`  
+**Active maintenance branch:** `fix/weather-rain-events`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
 
@@ -14,11 +14,11 @@ This is the authoritative product order.
 
 | Order | Feature / track | Status | Next boundary | Feature roadmap |
 | ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **COMPLETE CORE / MAINTENANCE QUEUED** | Rain-event rollover/definition fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
+| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE ACTIVE** | Accept rain-event rollover/2-hour-gap fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
 | 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
-| 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **READY FOR MERGE** | Physical acceptance complete; explicit approval required before integration | [High-resolution audio](features/high-resolution-audio.md) |
+| 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
 | 6 | ACP shell / native Plexamp modernisation (#94) | **NEXT** | Phase A: single-document ACP surface, design system, shell/navigation prototype | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
@@ -30,10 +30,11 @@ The #94 work is no longer merely “add a Plexamp visualiser”. It includes the
 
 Astronomy would otherwise be built as another full-document page and then immediately migrated. The efficient boundary is:
 
-1. close and merge #85;
-2. complete **#94 Phase A** — single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
-3. build Astronomy as the first new surface on that foundation;
-4. complete the native Plexamp/player migration and then the full resilience track.
+1. close and merge #85 — **complete**;
+2. complete the bounded Weather rain-event maintenance branch;
+3. complete **#94 Phase A** — single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
+4. build Astronomy as the first new surface on that foundation;
+5. complete the native Plexamp/player migration and then the full resilience track.
 
 If native Plexamp discovery becomes a long side quest, Astronomy need not wait for every Phase B player/resilience gate once the Phase A application-surface contract is accepted.
 
@@ -41,38 +42,39 @@ If native Plexamp discovery becomes a long side quest, Astronomy need not wait f
 
 These are bounded corrections/improvements to accepted features; they do not change the main feature order.
 
-- **Weather rain events:** fix the WU midnight-rollover double count, change ACP-derived Event Rain from the Ecowitt 24-hour/1 mm rule to a proposed **2-hour inter-event dry gap**, and persist/display event start/end provenance.
+- **Weather rain events — ACTIVE:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Final CI/live-appliance acceptance remains.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
-## Current focus — #85 high-resolution audio
+## Current focus — Weather rain-event maintenance
 
-The commissioned managed audio path is physically accepted at **S32_LE / 192 kHz**. Plexamp, AirPlay, EQ controls, receiver-owned AirPlay volume, alarms, promoted Direct failback/recovery and truthful Source/Processing/DAC diagnostics have all passed their relevant physical gates.
+The #85 audio branch is merged into `develop`. The active bounded maintenance branch is `fix/weather-rain-events`.
 
-### #85 acceptance status
+Current branch scope:
 
-- [x] Longer ordinary mixed Plexamp/AirPlay production stability soak completed.
-- [x] Bounded CamillaDSP/Shairport journal inspected.
-- [x] Focused AirPlay reconnect classification passed with no audible issue and no filtered audio errors.
-- [ ] Confirm final CI is green at the final documentation head.
-- [x] Final docs/catalogues reconciled.
-- [ ] Integration into `develop` remains intentionally pending explicit user approval.
+- [x] Use WU station observation time rather than ACP receipt time for rain-counter chronology.
+- [x] Prevent stale/out-of-order observations from regressing derived rain counters.
+- [x] Replace the old 24-hour / 1 mm derived-event reset with a **2-hour continuously dry gap**.
+- [x] Persist active/completed rain-event provenance.
+- [x] Project Active/Last rain-event context on the existing Weather rain panel.
+- [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
+- [ ] Confirm final PR CI is green.
+- [ ] Update the commissioned Pi and inspect live WU state/UI.
+- [ ] Merge after explicit physical acceptance.
 
-A true source-rate-native / bit-perfect Direct bypass is **not** part of this merge gate. The older roadmap mixed that later ambition into #85; it is deferred until #94 settles the future Plexamp runtime.
+Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
 
-Detailed status: [features/high-resolution-audio.md](features/high-resolution-audio.md).
+Detailed status: [features/weather.md](features/weather.md).
 
 ## Branch housekeeping
 
-Current long-lived/visible branches:
+Current visible branches after the 4 October cleanup:
 
 - `main` — supported stable release branch.
-- `develop` — accepted integration branch.
-- `feature/hi-res-audio-eq` — active #85 branch.
-- `feature/news-article-qr` — fully contained in `develop`; stale branch name only.
-- `feature/news-custom-feeds` — fully contained in `develop`; stale branch name only.
+- `develop` — accepted integration branch, now including merged #85.
+- `fix/weather-rain-events` — active bounded Weather maintenance branch / PR #14.
 
-The two News feature branches contain **no commits absent from `develop`** and are safe to delete after an explicit branch-cleanup action.
+The former #85 and two merged News feature branches have been deleted after their work was confirmed present in `develop`.
 
 ## Feature roadmaps
 
