@@ -2,6 +2,7 @@
   if (window.__aClockworkPlexWeatherSurfaceLoaded) return;
   window.__aClockworkPlexWeatherSurfaceLoaded = true;
 
+  const PRESENTATION_REFRESH_MS = 60_000;
   let refreshTimer = null;
   let refreshInFlight = false;
   let settingsRefreshPending = false;
@@ -10,13 +11,6 @@
     const active = String(document.body?.dataset?.activePage || '').toLowerCase() === 'weather';
     const plexampOpen = window.ACPPlexamp?.isVisiblyOpen?.() === true;
     return active && !document.hidden && !plexampOpen;
-  }
-
-  function refreshMilliseconds() {
-    const value = Number(document.querySelector('.weather-detail-page')?.dataset.refreshSeconds || 60);
-    const seconds = Number.isFinite(value) ? value : 60;
-    if (seconds <= 0) return 0;
-    return Math.max(15, seconds) * 1000;
   }
 
   function directionName(degrees) {
@@ -132,12 +126,11 @@
 
   function schedule() {
     window.clearTimeout(refreshTimer);
-    const delay = refreshMilliseconds();
-    if (delay <= 0) return;
+    if (!weatherIsVisible()) return;
     refreshTimer = window.setTimeout(async () => {
       if (weatherIsVisible()) await refresh();
       schedule();
-    }, delay);
+    }, PRESENTATION_REFRESH_MS);
   }
 
   function activate() {
