@@ -57,6 +57,8 @@
     document.body.classList.add(`mode-${surface}`);
     activeSurface = surface;
     updateNavigationState(surface);
+    const statusMode = document.querySelector('[data-acp-status-mode]');
+    if (statusMode) statusMode.textContent = `Mode: ${surface}`;
     return previous;
   }
 
