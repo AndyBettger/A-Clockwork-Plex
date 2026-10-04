@@ -572,3 +572,14 @@ The Surface Host therefore exposes two different lifecycle moments:
 - `acp:surface-settled` — emitted only after the browser View Transition's `finished` promise resolves, suitable for geometry-dependent controls.
 
 Geometry-dependent components must not interpret zero-width measurements from a hidden mounted surface as authoritative state. Forecast custom scrollbars now preserve their previous visibility while hidden and remeasure on the settled event.
+
+### Clock ↔ Weather A1 accepted
+
+Physical retest closes the first same-document migration gate:
+
+- configured transition style and duration are authoritative;
+- geometry-dependent Forecast controls survive repeated hide/show cycles using the settled-layout lifecycle;
+- Clock and Weather remain healthy across repeated round-trips;
+- News and Settings continue to use the fail-safe full-route fallback.
+
+This establishes the Surface Host contract as suitable for incremental migration of additional ACP-owned application surfaces.
