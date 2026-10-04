@@ -392,6 +392,10 @@
       applySnapshot(payload);
     } catch (error) {
       setSaveState('Settings unavailable', error.message || 'Could not read the appliance configuration.', 'error');
+    } finally {
+      window.dispatchEvent(new CustomEvent('acp:page-hydrated', {
+        detail: { page: 'settings' },
+      }));
     }
   }
 
