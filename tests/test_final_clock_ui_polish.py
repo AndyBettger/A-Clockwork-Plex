@@ -82,11 +82,12 @@ class FinalClockUiPolishTests(unittest.TestCase):
 
         self.assertIn("acp:settings-saved", client)
         self.assertIn("sections.includes('weather')", client)
-        self.assertIn("event?.detail?.settings?.weather?.auto_refresh_seconds", client)
+        self.assertIn("WEATHER_PRESENTATION_REFRESH_MS = 60_000", client)
         self.assertIn("void updateClockWeather().finally(scheduleClockWeatherUpdate)", client)
         self.assertIn("acp:surface-activated", client)
         self.assertIn("clockWeatherIsVisible()", client)
         self.assertIn("window.clearTimeout(weatherRefreshTimer)", client)
+        self.assertNotIn("auto_refresh_seconds", client)
         self.assertNotIn("window.setInterval(updateClockWeather", client)
 
     def test_clock_alarm_indicator_mode_is_a_unified_setting(self) -> None:
