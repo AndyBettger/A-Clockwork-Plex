@@ -13,6 +13,11 @@ TEMPLATE = ROOT / "app/templates/settings.html"
 BASE = ROOT / "app/templates/base.html"
 NUMERIC_JS = ROOT / "app/static/js/settings-numeric-controls.js"
 DISPLAY_JS = ROOT / "app/static/js/settings-display-sections.js"
+SETTINGS_IPAD_JS = ROOT / "app/static/js/settings-ipad.js"
+COMPLETION_JS = ROOT / "app/static/js/settings-completion.js"
+NIGHT_INTERACTION_JS = ROOT / "app/static/js/settings-night-interaction.js"
+WEATHER_OBSERVATIONS_JS = ROOT / "app/static/js/settings-weather-observations.js"
+CLOCK_CARDS_JS = ROOT / "app/static/js/settings-clock-cards.js"
 THEME_CSS = ROOT / "app/static/css/settings-theme-closure.css"
 
 
@@ -38,6 +43,20 @@ class SettingsNumericControlTests(unittest.TestCase):
             self.assertIn(f"['{path}', [", numeric)
         self.assertIn("duration.type = 'range'", display)
         self.assertNotIn("input.type = 'number'", numeric)
+
+    def test_dynamic_settings_controls_use_shared_snapshot_hydration(self) -> None:
+        client = SETTINGS_IPAD_JS.read_text(encoding="utf-8")
+        completion = COMPLETION_JS.read_text(encoding="utf-8")
+        night = NIGHT_INTERACTION_JS.read_text(encoding="utf-8")
+        weather = WEATHER_OBSERVATIONS_JS.read_text(encoding="utf-8")
+        clock_cards = CLOCK_CARDS_JS.read_text(encoding="utf-8")
+
+        self.assertIn("applyControlValue", client)
+        self.assertIn("hydrateControls", client)
+        self.assertIn("authority?.applyControlValue", completion)
+        self.assertIn("ACPUnifiedSettings?.applyControlValue", night)
+        self.assertIn("ACPUnifiedSettings.applyControlValue(rainfallPeriod", weather)
+        self.assertIn("ACPUnifiedSettings.applyControlValue(select", clock_cards)
 
     def test_human_facing_timings_use_touch_dropdowns_and_keep_420_second_hold(self) -> None:
         source = NUMERIC_JS.read_text(encoding="utf-8")
