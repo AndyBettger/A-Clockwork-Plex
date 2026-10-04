@@ -124,6 +124,16 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("touch-action: none", styles)
         self.assertIn("touch-action: pan-x pan-y", styles)
 
+    def test_custom_scrollbar_remeasures_after_same_document_surface_activation(self):
+        client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")
+
+        self.assertIn("const scrollbarRefreshers = new Set()", client)
+        self.assertIn("function refreshForecastScrollbars()", client)
+        self.assertIn("acp:surface-activated", client)
+        self.assertIn("acp:weather-grid-refreshed", client)
+        self.assertIn("window.requestAnimationFrame", client)
+        self.assertIn("window.setTimeout(update, 180)", client)
+
     def test_settings_location_lookup_stages_existing_forecast_fields(self):
         presenter = Path("app/static/js/settings-weather-location.js").read_text(
             encoding="utf-8"
