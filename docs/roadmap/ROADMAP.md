@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 1 October 2026  
+**Last updated:** 4 October 2026  
 **Active integration branch:** `develop`  
 **Active feature branch:** `feature/hi-res-audio-eq`  
 **Stable branch:** `main`  
@@ -18,7 +18,7 @@ This is the authoritative product order.
 | 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
-| 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **ACTIVE — FINAL GATE** | Longer mixed-source production soak, journal inspection, merge to `develop` | [High-resolution audio](features/high-resolution-audio.md) |
+| 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **READY FOR MERGE** | Physical acceptance complete; explicit approval required before integration | [High-resolution audio](features/high-resolution-audio.md) |
 | 6 | ACP shell / native Plexamp modernisation (#94) | **NEXT** | Phase A: single-document ACP surface, design system, shell/navigation prototype | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
