@@ -312,6 +312,24 @@ Before changing gestures or appearance, navigation ownership is being made real 
 - [x] Keep the current handle, swipe-up/tap behaviour, drawer, Audio mixer, active-state ownership and Plexamp overlay behaviour unchanged for this slice.
 - [x] Add regression coverage proving there is exactly one shell-owned navigation include and no page-owned duplicates.
 - [x] Shell-navigation ownership candidate `e352c40069e652cbae1ced9a02c7443342d896b1` passed **Tests #5191** on rerun attempt 2; the first attempt was cancelled before executing tests.
-- [ ] Physically sanity-check navigation from ACP surfaces and the Plexamp overlay before changing the home-indicator/navigation-mode presentation.
+- [~] Physical sanity-check initially exposed a regression after same-document navigation: the handle still showed touch feedback but tap/swipe stopped opening the drawer, and Audio could disappear until forced refresh. Hardened candidate `9bfe130e75302187df3251847ef1e3784e81e6b5` passed **Tests #5198**; focused commissioned-Pi retest pending.
+
+
+#### Shell-navigation lifecycle hardening
+
+The first structural candidate proved that shell ownership alone was not enough. Physical use showed that persistent controls also need persistent **behavioural ownership**.
+
+The hardened contract is:
+
+- `nav-drawer.js` is one-instance guarded so it cannot silently accumulate duplicate tap/touch handlers in the long-lived document;
+- bottom-handle tap/swipe handling is delegated from `document` and resolves the current `#nav-handle` rather than depending on one captured element instance;
+- swipe-open suppresses the immediately following synthetic click so it cannot reopen-and-close in the same gesture;
+- the Audio button is static `_nav.html` shell markup rather than an opportunistically injected button;
+- Audio mixer setup is idempotent and reruns after `acp:surface-settled`;
+- EQ content, EQ drawer placement and Audio drawer motion also reassert on surface settlement;
+- nav lifecycle APIs forward to the current shell controller rather than holding stale drawer/handle references;
+- asset versions were bumped so the Pi cannot combine the new shell template with an old cached navigation script.
+
+This remains an ownership/lifecycle correction only; the accepted pill/drawer presentation is intentionally unchanged until the retest passes.
 
 Once accepted, the next slice can change the **interaction model**: small home indicator, navigation-mode overlay/recede treatment, then the spatial row/carousel experiment with one committed destination transition.
