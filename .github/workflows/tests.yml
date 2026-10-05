@@ -95,7 +95,6 @@ jobs:
           node --check app/static/js/airplay-layout-v3.js
           node --check app/static/js/airplay-hydration.js
           node --check app/static/js/clock-hydration.js
-          node --check app/static/js/nav-layer.js
           node --check app/static/js/nav-drawer-lifecycle.js
           node --check app/static/js/plexamp-persistent.js
           node --check app/static/js/plexamp-browser-bridge.js
@@ -126,7 +125,8 @@ jobs:
           grep -q 'href="/news"' app/templates/_nav.html
           grep -q "settings-news.js" app/templates/base.html
           grep -q "register_news_ui" app/runner.py
-          grep -q "nav-layer.js" app/templates/base.html
+          grep -Fq '{% include "_nav.html" %}' app/templates/base.html
+          ! grep -q "nav-layer.js" app/templates/base.html
           grep -q "nav-drawer-lifecycle.js" app/templates/base.html
           grep -q "audio-eq.css" app/templates/base.html
           grep -q "audio-eq.js" app/templates/base.html
