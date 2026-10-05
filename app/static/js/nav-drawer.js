@@ -10,6 +10,8 @@
 
   const NORMAL_AUTO_HIDE_MS = 6000;
   const MIXER_AUTO_HIDE_MS = 60000;
+  const NAVIGATION_MODE_TRANSFER_KEY = 'a-clockwork-plex.navigation-mode-transfer';
+  const NAVIGATION_MODE_TRANSFER_MAX_AGE_MS = 15000;
   const SWIPE_THRESHOLD_PX = 24;
   const LIVE_ENDPOINT = '/api/audio/live';
   const MIXER_ENDPOINT = '/api/audio/mixer';
@@ -350,6 +352,22 @@
     scheduleHide();
   }
 
+  function consumeNavigationModeTransfer() {
+    try {
+      const raw = window.sessionStorage.getItem(NAVIGATION_MODE_TRANSFER_KEY);
+      if (!raw) return false;
+      const value = JSON.parse(raw);
+      const age = Date.now() - Number(value?.at || 0);
+      window.sessionStorage.removeItem(NAVIGATION_MODE_TRANSFER_KEY);
+      return age >= 0
+        && age <= NAVIGATION_MODE_TRANSFER_MAX_AGE_MS
+        && String(value?.path || '') === window.location.pathname;
+    } catch (error) {
+      try { window.sessionStorage.removeItem(NAVIGATION_MODE_TRANSFER_KEY); } catch (ignored) {}
+      return false;
+    }
+  }
+
   function hideDrawer() {
     window.clearTimeout(hideTimer);
     setExpanded(false);
@@ -650,5 +668,7 @@
     trimDebounceTimers.forEach((timer) => window.clearTimeout(timer));
   });
 
-  setExpanded(false);
+  const restoreNavigationMode = consumeNavigationModeTransfer();
+  setExpanded(restoreNavigationMode);
+  if (restoreNavigationMode) scheduleHide();
 })();
