@@ -326,8 +326,12 @@
   function setExpanded(expanded) {
     const drawer = drawerNode();
     const handle = handleNode();
+    const backdrop = document.getElementById('nav-backdrop');
+
     document.body.classList.toggle('nav-open', expanded);
+    document.body.classList.toggle('nav-mode', expanded);
     drawer?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    backdrop?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
     handle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     handle?.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
     if (!expanded) closeMixerWithoutScheduling();
@@ -568,6 +572,12 @@
   let touchStartedOnHandle = false;
 
   document.addEventListener('click', (event) => {
+    if (event.target.closest?.('#nav-backdrop')) {
+      event.preventDefault();
+      hideDrawer();
+      return;
+    }
+
     const handle = event.target.closest?.('#nav-handle');
     if (!handle) return;
     event.preventDefault();
