@@ -347,6 +347,22 @@ The first interaction slice addresses the remaining Plexamp boundary and gesture
 - [x] Version both nav CSS and Javascript so the Pi receives the new interaction layer together.
 - [x] Add regression coverage for gesture symmetry, bounded hit geometry and shell-above-Plexamp z-order.
 - [x] Home-indicator gesture candidate `8dffa93a04167ac4806974b2603c6e17f955d42a` passed **Tests #5204**.
-- [ ] Physically test swipe-up from Plexamp, swipe-down dismissal, tap fallback and that the wider invisible target does not obstruct normal Plexamp bottom controls.
+- [~] First physical pass confirmed ACP gestures but showed the 300×30 Plexamp overlay was too wide/tall and intercepted the inner edges of Plexamp Library/Search taps. Refined candidate uses a ~180–200×22 px hit target with a ~140 px visible indicator; physical retest pending.
+
+
+#### Refined Plexamp hit target + AirPlay first-paint correction
+
+The first home-indicator candidate proved swipe reach over the Plexamp iframe, but its invisible target was too greedy. On the commissioned Pi, taps near the inner edges of Plexamp's Library and Search buttons could be intercepted by ACP and open the ACP drawer instead.
+
+The refined contract is:
+
+- the ACP gesture target is reduced from 300×30 px to roughly 180–200 px wide × 22 px high;
+- the visible white home indicator grows to roughly 140 px, so the visible affordance now corresponds much more honestly to the usable swipe zone;
+- ACP remains above the Plexamp iframe only in that narrow bottom-centre strip;
+- swipe-up/open, swipe-down/close and tap fallback remain unchanged.
+
+The same physical pass exposed an unrelated AirPlay first-mount flash: before `/api/status` resolved, the generic player layout briefly showed transport/volume controls and then collapsed into route-ready layout. AirPlay now stages an explicit `airplay-session-unresolved` state before first mounted commit (and on direct AirPlay document load). That unresolved state shares route-ready geometry and hides inactive controls. `airplay-live.js` removes the unresolved class atomically when the authoritative status response applies the real idle/active state.
+
+Combined navigation/AirPlay candidate `735cf5162fa37ef138ab3f2fca18ba97e5d19ee4` passed **Tests #5216**.
 
 After this slice is accepted, continue with the **navigation-mode overlay/recede treatment**, then the spatial row/carousel experiment with exactly one committed destination transition.
