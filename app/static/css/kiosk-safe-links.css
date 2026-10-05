@@ -1,6 +1,6 @@
 a[data-kiosk-safe-link="true"] {
   position: relative;
-  color: var(--accent, #8fd3ff);
+  color: var(--acp-color-accent);
   text-decoration-style: dotted;
   text-underline-offset: 0.18em;
 }
@@ -61,7 +61,7 @@ body.kiosk-link-modal-open {
 .kiosk-link-modal-card {
   width: min(100%, 650px);
   padding: clamp(16px, 3vmin, 26px);
-  border: 1px solid rgba(143, 211, 255, 0.24);
+  border: 1px solid color-mix(in srgb, var(--acp-color-accent) 24%, transparent);
   border-radius: 24px;
   background: #081321;
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.7);
@@ -76,7 +76,7 @@ body.kiosk-link-modal-open {
 
 .kiosk-link-modal-heading h2 {
   margin: 3px 0 0;
-  color: var(--text, #f7f9ff);
+  color: var(--acp-color-text);
 }
 
 .kiosk-link-modal-kicker {
@@ -92,15 +92,15 @@ body.kiosk-link-modal-open {
   min-height: 42px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text, #f7f9ff);
+  background: var(--acp-fill-soft-neutral);
+  color: var(--acp-color-text);
   font: inherit;
   font-size: 1.55rem;
   line-height: 1;
 }
 
 .kiosk-link-modal-card > p {
-  color: var(--muted, #9dafc1);
+  color: var(--acp-color-muted);
 }
 
 .kiosk-link-modal-url {
