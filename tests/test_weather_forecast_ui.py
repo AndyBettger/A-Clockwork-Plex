@@ -107,7 +107,9 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("aria-valuenow", client)
         self.assertIn(".weather-forecast-scrollbar {", styles)
         self.assertIn(".weather-forecast-scrollbar-thumb {", styles)
-        self.assertIn("border-radius: 999px", styles)
+        tokens = Path("app/static/css/acp-design-tokens.css").read_text(encoding="utf-8")
+        self.assertIn("border-radius: var(--acp-radius-pill)", styles)
+        self.assertIn("--acp-radius-pill: 999px", tokens)
         self.assertIn("background: rgba(5, 13, 24, 0.46)", styles)
         self.assertIn("cursor: grab", styles)
 
