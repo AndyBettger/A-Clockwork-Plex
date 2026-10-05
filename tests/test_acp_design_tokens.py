@@ -11,6 +11,12 @@ STYLE = ROOT / "app" / "static" / "css" / "style.css"
 AIRPLAY = ROOT / "app" / "static" / "css" / "airplay.css"
 WEATHER = ROOT / "app" / "static" / "css" / "weather.css"
 NEWS = ROOT / "app" / "static" / "css" / "news.css"
+SETTINGS = ROOT / "app" / "static" / "css" / "settings.css"
+SETTINGS_SELECTS = ROOT / "app" / "static" / "css" / "settings-selects.css"
+SETTINGS_IPAD = ROOT / "app" / "static" / "css" / "settings-ipad.css"
+WEATHER_FORECAST = ROOT / "app" / "static" / "css" / "weather-forecast.css"
+WEATHER_RAIN_HISTORY = ROOT / "app" / "static" / "css" / "weather-rain-history.css"
+KIOSK_LINKS = ROOT / "app" / "static" / "css" / "kiosk-safe-links.css"
 
 
 class AcpDesignTokenBoundaryTests(unittest.TestCase):
@@ -49,6 +55,49 @@ class AcpDesignTokenBoundaryTests(unittest.TestCase):
         self.assertIn("var(--acp-fill-control-neutral)", button)
         self.assertIn("var(--acp-border-control-neutral)", button)
         self.assertIn("var(--acp-color-text)", button)
+
+    def test_second_slice_exposes_form_and_scrollbar_contracts(self):
+        tokens = TOKENS.read_text(encoding="utf-8")
+        settings = SETTINGS.read_text(encoding="utf-8")
+        selects = SETTINGS_SELECTS.read_text(encoding="utf-8")
+        settings_ipad = SETTINGS_IPAD.read_text(encoding="utf-8")
+        news = NEWS.read_text(encoding="utf-8")
+        forecast = WEATHER_FORECAST.read_text(encoding="utf-8")
+        rain = WEATHER_RAIN_HISTORY.read_text(encoding="utf-8")
+        kiosk = KIOSK_LINKS.read_text(encoding="utf-8")
+
+        for token, value in (
+            ("--acp-fill-field-container-neutral", "rgba(255, 255, 255, 0.07)"),
+            ("--acp-field-border-neutral", "rgba(255, 255, 255, 0.18)"),
+            ("--acp-field-fill-neutral", "rgba(0, 0, 0, 0.26)"),
+            ("--acp-field-focus-neutral", "rgba(143, 211, 255, 0.65)"),
+            ("--acp-scrollbar-track-size", "8px"),
+            ("--acp-scrollbar-thumb-size", "4px"),
+            ("--acp-scrollbar-thumb-min", "42px"),
+        ):
+            self.assertIn(f"{token}: {value}", tokens)
+
+        self.assertIn("background: var(--acp-fill-field-container-neutral)", settings)
+        self.assertIn("border: 1px solid var(--acp-field-border-neutral)", settings)
+        self.assertIn("background: var(--acp-field-fill-neutral)", settings)
+        self.assertIn("outline: 2px solid var(--acp-field-focus-neutral)", settings)
+
+        self.assertIn("border: 1px solid var(--acp-field-border-neutral)", selects)
+        self.assertIn("background: var(--acp-field-fill-neutral)", selects)
+        self.assertIn("outline: 2px solid var(--acp-field-focus-neutral)", selects)
+
+        self.assertIn("background: var(--acp-fill-soft-neutral)", settings_ipad)
+        self.assertIn("var(--acp-scrollbar-track-size)", news)
+        self.assertIn("var(--acp-scrollbar-thumb-size)", news)
+        self.assertIn("var(--acp-scrollbar-thumb-min)", news)
+        self.assertIn("var(--acp-scrollbar-track-size)", forecast)
+        self.assertIn("var(--acp-scrollbar-thumb-size)", forecast)
+        self.assertIn("var(--acp-scrollbar-thumb-min)", forecast)
+        self.assertIn("flex: 0 0 var(--acp-scrollbar-track-size)", rain)
+
+        self.assertIn("var(--acp-color-accent)", kiosk)
+        self.assertIn("var(--acp-color-text)", kiosk)
+        self.assertIn("var(--acp-color-muted)", kiosk)
 
     def test_application_surfaces_can_share_palette_tokens_without_geometry_rewrite(self):
         airplay = AIRPLAY.read_text(encoding="utf-8")
