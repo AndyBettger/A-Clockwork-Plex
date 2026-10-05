@@ -34,9 +34,9 @@ body.nav-mode .nav-backdrop {
 
 body.nav-mode .screen,
 body.nav-mode .persistent-plexamp.is-open {
-  scale: 0.965;
-  translate: 0 -10px;
-  border-radius: 22px;
+  scale: 0.84;
+  translate: 0 -28px;
+  border-radius: 28px;
 }
 
 .nav-drawer {
