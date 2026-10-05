@@ -584,10 +584,24 @@
   document.addEventListener('touchend', (event) => {
     if (!touchStartedOnHandle) return;
     const touchEndY = event.changedTouches[0]?.clientY ?? null;
-    if (touchStartY !== null && touchEndY !== null && touchStartY - touchEndY > SWIPE_THRESHOLD_PX) {
+    const deltaY = touchStartY !== null && touchEndY !== null
+      ? touchStartY - touchEndY
+      : 0;
+    const open = document.body.classList.contains('nav-open');
+
+    if (!open && deltaY > SWIPE_THRESHOLD_PX) {
       showDrawer();
       suppressHandleClickUntil = Date.now() + 500;
+    } else if (open && deltaY < -SWIPE_THRESHOLD_PX) {
+      hideDrawer();
+      suppressHandleClickUntil = Date.now() + 500;
     }
+
+    touchStartY = null;
+    touchStartedOnHandle = false;
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
     touchStartY = null;
     touchStartedOnHandle = false;
   }, { passive: true });
