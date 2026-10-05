@@ -346,7 +346,7 @@ The first interaction slice addresses the remaining Plexamp boundary and gesture
 - [x] Suppress the synthetic follow-up click after either swipe direction.
 - [x] Version both nav CSS and Javascript so the Pi receives the new interaction layer together.
 - [x] Add regression coverage for gesture symmetry, bounded hit geometry and shell-above-Plexamp z-order.
-- [ ] Confirm exact candidate CI is green.
+- [x] Home-indicator gesture candidate `8dffa93a04167ac4806974b2603c6e17f955d42a` passed **Tests #5204**.
 - [ ] Physically test swipe-up from Plexamp, swipe-down dismissal, tap fallback and that the wider invisible target does not obstruct normal Plexamp bottom controls.
 
 After this slice is accepted, continue with the **navigation-mode overlay/recede treatment**, then the spatial row/carousel experiment with exactly one committed destination transition.
