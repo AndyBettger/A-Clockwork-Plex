@@ -34,8 +34,10 @@ body.nav-mode .nav-backdrop {
 
 body.nav-mode .screen,
 body.nav-mode .persistent-plexamp.is-open {
-  scale: 0.84;
-  translate: 0 -28px;
+  /* Navigation is modal shell chrome: keep the live app at full size and
+     lift it intact so the drawer occupies the exposed bottom strip. */
+  scale: 1;
+  translate: 0 -90px;
   border-radius: 28px;
 }
 
