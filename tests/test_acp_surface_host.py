@@ -20,6 +20,8 @@ AIRPLAY_LIFECYCLE = ROOT / "app" / "static" / "js" / "airplay-surface-lifecycle.
 AIRPLAY_LIVE = ROOT / "app" / "static" / "js" / "airplay-live.js"
 DASHBOARD = ROOT / "app" / "dashboard_core.py"
 TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
+NAV_CSS = ROOT / "app" / "static" / "css" / "nav.css"
+PLEXAMP_CSS = ROOT / "app" / "static" / "css" / "plexamp-persistent.css"
 
 
 class AcpSurfaceHostTests(unittest.TestCase):
@@ -69,6 +71,30 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("acp:surface-settled", audio_eq)
         self.assertIn("acp:surface-settled", audio_layout)
         self.assertIn("acp:surface-settled", audio_polish)
+
+    def test_home_indicator_gesture_target_supports_cross_app_up_and_down_swipes(self):
+        drawer = NAV_DRAWER.read_text(encoding="utf-8")
+        styles = NAV_CSS.read_text(encoding="utf-8")
+        plexamp = PLEXAMP_CSS.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("const deltaY =", drawer)
+        self.assertIn("!open && deltaY > SWIPE_THRESHOLD_PX", drawer)
+        self.assertIn("open && deltaY < -SWIPE_THRESHOLD_PX", drawer)
+        self.assertIn("document.addEventListener('touchcancel'", drawer)
+
+        self.assertIn("width: min(32vw, 300px)", styles)
+        self.assertIn("min-width: 220px", styles)
+        self.assertIn("height: 30px", styles)
+        self.assertIn("background: transparent", styles)
+        self.assertIn("width: 72px", styles)
+        self.assertIn("pointer-events: none", styles)
+
+        # The shell gesture target must sit above the persistent Plexamp iframe
+        # without becoming a full-width transparent interception layer.
+        self.assertIn("z-index: 90", styles)
+        self.assertIn("z-index: 30", plexamp)
+        self.assertIn("20261005-home-indicator-v1", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
