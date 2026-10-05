@@ -552,6 +552,13 @@ Using individual transform properties is deliberate. ACP page transitions and th
 
 This Level-A treatment is the production fallback even if the later spatial-carousel experiment proves too expensive or visually fragile on the Pi.
 
+
+Physical acceptance also establishes that **navigation mode is shell state, not application state**. An explicit destination change made while navigation is open should keep that shell state regardless of whether the destination is another mounted ACP surface or persistent Plexamp. Plexamp presentation APIs therefore accept a `preserveNavigation` hint for explicit shell navigation. Automatic projection changes intentionally do not use it.
+
+The remaining Plexamp→different-ACP full-document fallback transfers only that presentation state through a short-lived pathname-scoped `sessionStorage` token. The incoming nav owner consumes it before the booting document is revealed, preserving the Level-A visual contract without making navigation persistence a server concern.
+
+The physically observed drawer height also requires a stronger production recede than the first prototype: `0.84` scale with a `28px` upward translation and `28px` radius. This creates a distinct app-card boundary above ordinary navigation rather than placing the drawer over live page content.
+
 ## Touchscreen keyboard
 
 The existing ACP Search keyboard is browser/DOM-owned and therefore cannot type
