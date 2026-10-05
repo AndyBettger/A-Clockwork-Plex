@@ -127,7 +127,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("scale var(--acp-transition-in-duration)", plexamp)
         self.assertIn("translate var(--acp-transition-in-duration)", plexamp)
         self.assertIn("border-radius var(--acp-transition-in-duration)", plexamp)
-        self.assertIn("20261005-nav-mode-v1", base)
+        self.assertIn("20261005-nav-mode-v2", base)
 
     def test_navigation_mode_persists_across_manual_plexamp_handoffs(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
