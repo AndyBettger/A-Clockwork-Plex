@@ -34,13 +34,7 @@
     wrapper.className = `acp-mounted-surface acp-mounted-surface-${initialSurface}`;
     wrapper.dataset.acpSurface = initialSurface;
 
-    const nodes = [...screen.childNodes]
-      .filter((node) => !(
-        node.nodeType === Node.ELEMENT_NODE
-        && ['nav-drawer', 'nav-handle'].includes(node.id)
-      ));
-
-    nodes.forEach((node) => wrapper.appendChild(node));
+    [...screen.childNodes].forEach((node) => wrapper.appendChild(node));
     screen.appendChild(wrapper);
     mounted.set(initialSurface, {
       surface: initialSurface,
@@ -127,12 +121,6 @@
     wrapper.hidden = true;
 
     [...parsedScreen.childNodes].forEach((node) => {
-      if (
-        node.nodeType === Node.ELEMENT_NODE
-        && ['nav-drawer', 'nav-handle'].includes(node.id)
-      ) {
-        return;
-      }
       wrapper.appendChild(document.importNode(node, true));
     });
 
