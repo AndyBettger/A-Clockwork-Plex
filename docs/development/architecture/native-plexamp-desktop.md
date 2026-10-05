@@ -537,6 +537,21 @@ Physically test:
 A tap on the home indicator may optionally reveal navigation as an accessibility
 fallback.
 
+
+### Production-first navigation mode
+
+The refined home-indicator/cross-iframe gesture contract is physically accepted. Before attempting the Level-B spatial carousel, the shell now implements the Level-A treatment described above:
+
+- the active application remains live;
+- a shell backdrop sits above content but below navigation;
+- opening navigation slightly recedes the active ACP surface or Plexamp layer using individual CSS `scale` and `translate` properties;
+- the backdrop dims the content and owns outside-tap dismissal;
+- drawer buttons and destination switching remain unchanged.
+
+Using individual transform properties is deliberate. ACP page transitions and the persistent Plexamp handoff already use the `transform` property; navigation mode must compose with those systems rather than replace their animation value. Plexamp's transition list therefore explicitly includes `scale`, `translate` and `border-radius` so the recede animates consistently.
+
+This Level-A treatment is the production fallback even if the later spatial-carousel experiment proves too expensive or visually fragile on the Pi.
+
 ## Touchscreen keyboard
 
 The existing ACP Search keyboard is browser/DOM-owned and therefore cannot type
