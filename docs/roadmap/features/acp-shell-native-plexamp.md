@@ -293,3 +293,9 @@ With the first slice physically accepted, the next bounded migration covers ordi
 - [ ] Perform a bounded visual/interaction sanity pass on Settings fields/selects, News category/story/status UI, Weather forecast/rain rails and the kiosk-safe link dialog.
 
 Specialised warning/error/success paint, Settings alarm/audio controls, Weather gauge/compass presentation and media-specific AirPlay geometry remain component-owned.
+
+### Component/design-system physical acceptance — COMPLETE
+
+The reusable token/component boundary is now sufficient for the shell work: ordinary palette aliases, panel/card/button primitives, form/select chrome, ordinary touch rows, status-pill geometry, custom-scrollbar geometry and kiosk-modal semantic colours are physically accepted. Further componentisation should now be demand-driven by real reuse rather than continuing as a CSS-cleanup project in its own right.
+
+The next Phase A task is **shell-owned bottom-edge navigation**.
