@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
+NAV_TEMPLATE = ROOT / "app" / "templates" / "_nav.html"
 HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 APPLICATION_SURFACES = ROOT / "app" / "static" / "js" / "acp-application-surfaces.js"
@@ -23,6 +24,21 @@ class AcpSurfaceHostTests(unittest.TestCase):
         transitions_index = base.index("js/page-transitions.js")
 
         self.assertLess(host_index, transitions_index)
+
+    def test_primary_navigation_is_owned_once_by_the_base_shell(self):
+        base = BASE.read_text(encoding="utf-8")
+        navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
+        loader = APPLICATION_SURFACES.read_text(encoding="utf-8")
+
+        self.assertEqual(base.count('{% include "_nav.html" %}'), 1)
+        self.assertIn('id="nav-drawer"', navigation)
+        self.assertIn('id="nav-handle"', navigation)
+        self.assertNotIn("js/nav-layer.js", base)
+        self.assertNotIn("['nav-drawer', 'nav-handle']", loader)
+
+        for name in ("clock", "weather", "news", "settings", "airplay", "plexamp"):
+            template = (ROOT / "app" / "templates" / f"{name}.html").read_text(encoding="utf-8")
+            self.assertNotIn('{% include "_nav.html" %}', template)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
