@@ -160,6 +160,14 @@
   }
 
   function commitSurface(surface) {
+    if (
+      surface === 'airplay'
+      && !document.body.classList.contains('airplay-session-active')
+      && !document.body.classList.contains('airplay-session-idle')
+    ) {
+      document.body.classList.add('airplay-session-unresolved');
+    }
+
     mounted.forEach((record, name) => {
       record.wrapper.hidden = name !== surface;
     });
