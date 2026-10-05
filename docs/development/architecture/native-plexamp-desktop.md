@@ -513,6 +513,11 @@ Physical testing of that ownership slice exposed a second requirement: persisten
 
 The shell also one-instance guards `nav-drawer.js`; this prevents duplicate long-lived listeners from turning one tap into multiple open/close toggles. Asset versioning is part of the boundary because a persistent shell cannot safely mix a newly rendered template with a stale cached behaviour owner.
 
+
+Commissioned-Pi retest accepts that lifecycle contract. One cross-application input boundary remains important: pointer/touch events originating inside the persistent Plexamp iframe do not bubble into the ACP document. The shell must therefore own a real hit target above the iframe for any bottom-edge gesture it expects to work while Plexamp is visible.
+
+The home-indicator slice uses a small visible bar inside a wider but shallow ACP-owned button. The hit region is intentionally bounded (300 px maximum width, 30 px high) so it improves swipe acquisition without becoming a large transparent layer that steals Plexamp controls. Swipe-up opens, swipe-down closes, and tap remains a fallback.
+
 ### Gesture gate
 
 Physically test:
