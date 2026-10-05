@@ -220,7 +220,7 @@ body.mode-settings .screen {
   padding: 10px 13px;
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 15px;
-  background: rgba(255, 255, 255, .055);
+  background: var(--acp-fill-soft-neutral);
 }
 
 .settings-subpage-row:hover,
@@ -244,7 +244,7 @@ body.mode-settings .screen {
   justify-self: start;
   padding: 5px 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--acp-radius-pill);
   background: rgba(143, 211, 255, .1);
   color: var(--accent);
   font: inherit;
