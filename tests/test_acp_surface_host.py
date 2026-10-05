@@ -122,6 +122,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # existing transform-based View Transitions/Plexamp handoff.
         self.assertIn("scale: 1", styles)
         self.assertIn("translate: 0 0", styles)
+        self.assertIn("scale var(--acp-transition-in-duration)", plexamp)
+        self.assertIn("translate var(--acp-transition-in-duration)", plexamp)
+        self.assertIn("border-radius var(--acp-transition-in-duration)", plexamp)
         self.assertIn("20261005-nav-mode-v1", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
