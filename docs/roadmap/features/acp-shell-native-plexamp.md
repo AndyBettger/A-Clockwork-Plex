@@ -311,7 +311,7 @@ Before changing gestures or appearance, navigation ownership is being made real 
 - [x] Simplify `acp-application-surfaces.js`: mounted surfaces no longer need special filtering to discard duplicate `nav-drawer` / `nav-handle` nodes.
 - [x] Keep the current handle, swipe-up/tap behaviour, drawer, Audio mixer, active-state ownership and Plexamp overlay behaviour unchanged for this slice.
 - [x] Add regression coverage proving there is exactly one shell-owned navigation include and no page-owned duplicates.
-- [ ] Confirm exact candidate CI is green.
+- [x] Shell-navigation ownership candidate `e352c40069e652cbae1ced9a02c7443342d896b1` passed **Tests #5191** on rerun attempt 2; the first attempt was cancelled before executing tests.
 - [ ] Physically sanity-check navigation from ACP surfaces and the Plexamp overlay before changing the home-indicator/navigation-mode presentation.
 
 Once accepted, the next slice can change the **interaction model**: small home indicator, navigation-mode overlay/recede treatment, then the spatial row/carousel experiment with one committed destination transition.
