@@ -19,7 +19,7 @@ This is the authoritative product order.
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | Reusable component/design-token boundary, then shell-owned bottom-edge navigation | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | Shell-owned bottom-edge navigation | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
 | 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
 | 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
@@ -70,7 +70,7 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] A4 AirPlay same-document migration physically accepted: manual/automatic AirPlay projection, ready/idle presentation, metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, hidden-surface catch-up, native Plexamp overlay return, active navigation/footer mode and repeated configured transitions all pass on the commissioned Pi. Candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128**.
 - [x] Converge all ordinary ACP-owned browser surfaces into the long-lived document: Clock, Weather, News, Settings and AirPlay are physically accepted. Native Plexamp remains the intentional separate application/workspace.
 - [x] Establish the reusable component/design-token boundary for the ordinary ACP shell primitives. **Both bounded token slices are physically accepted:** Classic Dark and a non-Classic theme remain visually stable across Clock, Weather, News, Settings and AirPlay; Settings fields/selects, News touch/status UI, Weather/News/Rain custom scrollbars and the kiosk-safe dialog all pass commissioned-Pi checks. First-slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**; second-slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179** and docs-synchronised head `7dea1d736f4e28ca0d0efcdf8d35911ea6f9e152` passed **Tests #5180**. The next active Phase A boundary is shell-owned bottom-edge navigation.
-- [ ] Prototype shell-owned bottom-edge navigation after the web-surface contract is proven.
+- [~] Prototype shell-owned bottom-edge navigation. First ownership slice moves `_nav.html` into `base.html`, removes page-owned nav includes and the obsolete `nav-layer.js` relocation shim, and simplifies mounted-surface loading so navigation is no longer page content. Physical behaviour should remain unchanged before the gesture/presentation model is altered.
 
 Do not start the native Plexamp production migration yet. Phase A first proves the ACP application-surface contract; Headless remains the accepted player runtime.
 
