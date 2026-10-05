@@ -82,6 +82,8 @@
       src="{{ config.plexamp.url | default('http://localhost:32500') }}" title="Plexamp" allow="autoplay"></iframe>
   </section>
 
+  {% include "_nav.html" %}
+
   <footer class="status-bar">
     <span>A Clockwork Plex</span>
     <span data-acp-status-mode>Mode: {{ state.mode }}</span>
@@ -89,7 +91,6 @@
   </footer>
   <script src="{{ url_for('static', filename='js/segment-display.js', v='20260819-segment-v3') }}"></script>
   <script src="{{ url_for('static', filename='js/segment-readouts.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/nav-layer.js') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer.js', v='20260929-receiver-volume-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer-lifecycle.js') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-eq.js', v='20260810-single-eq-presenter') }}"></script>
