@@ -114,3 +114,5 @@ The second slice extends the boundary to ordinary interaction chrome:
 - Kiosk-safe modal ordinary text/accent paint uses semantic palette aliases; modal layout, surface fill and elevation remain specialised.
 
 This illustrates the migration rule: **share stable semantics and geometry only where the existing contracts are already equivalent; do not create fake reuse by normalising visibly different components.**
+
+Commissioned-Pi physical checking accepts the second slice across Settings, News, Weather/Rain, the kiosk-safe dialog and a non-Classic daytime theme. The component/token boundary is therefore considered established for Phase A. Additional tokenisation should be justified by an actual new shared component (for example shell navigation) rather than pursued as broad cosmetic cleanup.
