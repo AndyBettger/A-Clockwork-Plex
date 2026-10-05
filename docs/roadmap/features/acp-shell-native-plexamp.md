@@ -271,7 +271,25 @@ Implementation candidate:
 - [x] Add regression coverage for token load order, palette derivation and first migrated consumers.
 - [x] Document component/token ownership and incremental migration rules in [ACP component / design-token architecture](../../development/architecture/acp-design-system.md).
 - [x] First component/token slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**.
-- [ ] Perform a representative physical visual sanity pass on Classic Dark plus one non-Classic theme across Clock, Weather, News, Settings and AirPlay.
+- [x] Representative commissioned-Pi visual sanity pass accepted: Classic Dark plus a non-Classic theme remain stable across Clock, Weather, News, Settings and AirPlay; ordinary buttons, Clock Weather cards and main News/AirPlay/Weather panels show no visual regression.
 - [ ] Continue with the next safe reusable contracts: status pills, ordinary touch rows/buttons, form chrome, modal chrome and custom scrollbars. Keep specialised audio/weather/display geometry component-owned until separately justified.
 
 This is intentionally an **ownership refactor, not a redesign**. Existing theme-closure sheets remain until a migrated component contract fully replaces their job and has been physically accepted.
+
+
+### Component/design-system boundary — second slice
+
+With the first slice physically accepted, the next bounded migration covers ordinary interaction chrome while preserving all accepted values:
+
+- [x] Add shared form-control tokens for field border/fill/focus and field radius.
+- [x] Keep the Settings field-container 7% neutral fill separate from the existing 8% card fill so tokenisation does not subtly change the accepted presentation.
+- [x] Route native Settings fields and custom in-document select triggers through the same form-control tokens.
+- [x] Route ordinary Settings subpage rows and News category/story touch surfaces through neutral component fills while preserving their existing geometry and active/focus states.
+- [x] Route News/Weather status-pill radius and semantic foreground/border ownership through component/palette aliases without changing warning/stale states.
+- [x] Give News vertical and Weather/Rain horizontal custom scrollbars one shared geometry contract: 8 px track, 4 px thumb and 42 px minimum thumb.
+- [x] Route ordinary kiosk-safe modal text/accent chrome through semantic colour tokens; retain its existing modal geometry/background/elevation.
+- [x] Extend static regression coverage across form, touch, modal and scrollbar consumers.
+- [ ] Confirm exact candidate CI is green.
+- [ ] Perform a bounded visual/interaction sanity pass on Settings fields/selects, News category/story/status UI, Weather forecast/rain rails and the kiosk-safe link dialog.
+
+Specialised warning/error/success paint, Settings alarm/audio controls, Weather gauge/compass presentation and media-specific AirPlay geometry remain component-owned.
