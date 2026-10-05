@@ -347,7 +347,7 @@ The first interaction slice addresses the remaining Plexamp boundary and gesture
 - [x] Version both nav CSS and Javascript so the Pi receives the new interaction layer together.
 - [x] Add regression coverage for gesture symmetry, bounded hit geometry and shell-above-Plexamp z-order.
 - [x] Home-indicator gesture candidate `8dffa93a04167ac4806974b2603c6e17f955d42a` passed **Tests #5204**.
-- [~] First physical pass confirmed ACP gestures but showed the 300×30 Plexamp overlay was too wide/tall and intercepted the inner edges of Plexamp Library/Search taps. Refined candidate uses a ~180–200×22 px hit target with a ~140 px visible indicator; physical retest pending.
+- [x] Refined home-indicator physical retest accepted: Plexamp Library/Search taps including inner edges are no longer intercepted; swipe-up/open, swipe-down/close and tap fallback all work from Plexamp; Audio remains stable.
 
 
 #### Refined Plexamp hit target + AirPlay first-paint correction
@@ -365,4 +365,23 @@ The same physical pass exposed an unrelated AirPlay first-mount flash: before `/
 
 Combined navigation/AirPlay candidate `735cf5162fa37ef138ab3f2fca18ba97e5d19ee4` passed **Tests #5216**.
 
-After this slice is accepted, continue with the **navigation-mode overlay/recede treatment**, then the spatial row/carousel experiment with exactly one committed destination transition.
+The refined home-indicator and AirPlay first-paint slice is now physically accepted. Idle AirPlay first mount no longer flashes playback controls or visibly rejiggles.
+
+#### Navigation-mode overlay/recede — Level A candidate
+
+The next slice implements the production-first navigation treatment before attempting the spatial carousel:
+
+- [x] Add a shell-owned backdrop between live application content and navigation chrome.
+- [x] Keep the active ACP surface or Plexamp iframe live underneath rather than snapshotting/reloading it.
+- [x] When navigation opens, apply a small 0.965 recede scale, 10 px upward translation and rounded edge treatment to the active application.
+- [x] Use CSS individual `scale` / `translate` properties so navigation-mode motion can coexist with ACP's transform-based View Transitions and Plexamp handoff animations.
+- [x] Extend Plexamp's own transition list so its recede animates smoothly rather than snapping.
+- [x] Dim the live application with a shell scrim while keeping the drawer/indicator above it.
+- [x] Make tapping the scrim dismiss navigation.
+- [x] Respect reduced-motion preference.
+- [x] Keep current drawer/buttons, Audio panel, gesture semantics and destination transition behaviour unchanged.
+- [x] Add regression coverage for z-order, backdrop dismissal, recede geometry, reduced motion and Plexamp transition coexistence.
+- [ ] Confirm exact candidate CI is green.
+- [ ] Physically test ACP and Plexamp recede/dim/open/close behaviour, backdrop dismissal and Audio drawer interaction.
+
+Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
