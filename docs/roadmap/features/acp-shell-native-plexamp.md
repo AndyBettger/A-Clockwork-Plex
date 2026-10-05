@@ -289,7 +289,7 @@ With the first slice physically accepted, the next bounded migration covers ordi
 - [x] Give News vertical and Weather/Rain horizontal custom scrollbars one shared geometry contract: 8 px track, 4 px thumb and 42 px minimum thumb.
 - [x] Route ordinary kiosk-safe modal text/accent chrome through semantic colour tokens; retain its existing modal geometry/background/elevation.
 - [x] Extend static regression coverage across form, touch, modal and scrollbar consumers.
-- [ ] Confirm exact candidate CI is green.
+- [x] Second component/token slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179**.
 - [ ] Perform a bounded visual/interaction sanity pass on Settings fields/selects, News category/story/status UI, Weather forecast/rain rails and the kiosk-safe link dialog.
 
 Specialised warning/error/success paint, Settings alarm/audio controls, Weather gauge/compass presentation and media-specific AirPlay geometry remain component-owned.
