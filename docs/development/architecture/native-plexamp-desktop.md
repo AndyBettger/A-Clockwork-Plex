@@ -504,6 +504,11 @@ During an incremental migration the browser's current HTML pill may remain as a
 fallback, but the target design is one cross-application shell affordance rather
 than two separate navigation implementations.
 
+
+The first browser-shell ownership slice removes one historical ambiguity. `_nav.html` is now rendered once by `base.html`, outside `main.screen`, rather than being included by every page and moved into `<body>` by `nav-layer.js`. Mounted application surfaces therefore contain application content only; primary navigation is persistent shell chrome. The relocation shim is removed.
+
+This slice deliberately retains the accepted handle/drawer interaction so structural ownership can be physically accepted independently from the later home-indicator/navigation-mode presentation.
+
 ### Gesture gate
 
 Physically test:
