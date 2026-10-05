@@ -64,7 +64,7 @@
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/touch-keyboard.css', v='20260831-shared-plexamp-search-v1') }}">
 </head>
-<body class="mode-{{ state.mode }} acp-page-booting"
+<body class="mode-{{ state.mode }} acp-page-booting{% if active_page | default(state.mode) == 'airplay' %} airplay-session-unresolved{% endif %}"
   data-active-page="{{ active_page | default(state.mode) }}"
   data-default-mode="{{ config.dashboard.default_mode | default('clock') }}"
   data-startup-mode="{{ config.dashboard.startup_mode | default(config.dashboard.default_mode) | default('clock') }}"
