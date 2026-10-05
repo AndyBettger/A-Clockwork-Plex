@@ -272,7 +272,7 @@ Implementation candidate:
 - [x] Document component/token ownership and incremental migration rules in [ACP component / design-token architecture](../../development/architecture/acp-design-system.md).
 - [x] First component/token slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**.
 - [x] Representative commissioned-Pi visual sanity pass accepted: Classic Dark plus a non-Classic theme remain stable across Clock, Weather, News, Settings and AirPlay; ordinary buttons, Clock Weather cards and main News/AirPlay/Weather panels show no visual regression.
-- [ ] Continue with the next safe reusable contracts: status pills, ordinary touch rows/buttons, form chrome, modal chrome and custom scrollbars. Keep specialised audio/weather/display geometry component-owned until separately justified.
+- [x] Continue with the next safe reusable contracts: status pills, ordinary touch rows/buttons, form chrome, modal chrome and custom scrollbars. Keep specialised audio/weather/display geometry component-owned until separately justified.
 
 This is intentionally an **ownership refactor, not a redesign**. Existing theme-closure sheets remain until a migrated component contract fully replaces their job and has been physically accepted.
 
@@ -290,7 +290,7 @@ With the first slice physically accepted, the next bounded migration covers ordi
 - [x] Route ordinary kiosk-safe modal text/accent chrome through semantic colour tokens; retain its existing modal geometry/background/elevation.
 - [x] Extend static regression coverage across form, touch, modal and scrollbar consumers.
 - [x] Second component/token slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179**.
-- [ ] Perform a bounded visual/interaction sanity pass on Settings fields/selects, News category/story/status UI, Weather forecast/rain rails and the kiosk-safe link dialog.
+- [x] Perform a bounded visual/interaction sanity pass on Settings fields/selects, News category/story/status UI, Weather forecast/rain rails and the kiosk-safe link dialog: accepted on the commissioned Pi, including a non-Classic theme.
 
 Specialised warning/error/success paint, Settings alarm/audio controls, Weather gauge/compass presentation and media-specific AirPlay geometry remain component-owned.
 
@@ -299,3 +299,19 @@ Specialised warning/error/success paint, Settings alarm/audio controls, Weather 
 The reusable token/component boundary is now sufficient for the shell work: ordinary palette aliases, panel/card/button primitives, form/select chrome, ordinary touch rows, status-pill geometry, custom-scrollbar geometry and kiosk-modal semantic colours are physically accepted. Further componentisation should now be demand-driven by real reuse rather than continuing as a CSS-cleanup project in its own right.
 
 The next Phase A task is **shell-owned bottom-edge navigation**.
+
+
+### Shell-owned bottom-edge navigation — ownership slice
+
+Before changing gestures or appearance, navigation ownership is being made real rather than simulated:
+
+- [x] Render `_nav.html` once from `base.html`, alongside the persistent shell layers.
+- [x] Remove `_nav.html` from Clock, Weather, News, Settings, AirPlay and Plexamp page templates.
+- [x] Remove the obsolete `nav-layer.js` DOM-relocation shim that moved page-owned navigation out of `<main>`.
+- [x] Simplify `acp-application-surfaces.js`: mounted surfaces no longer need special filtering to discard duplicate `nav-drawer` / `nav-handle` nodes.
+- [x] Keep the current handle, swipe-up/tap behaviour, drawer, Audio mixer, active-state ownership and Plexamp overlay behaviour unchanged for this slice.
+- [x] Add regression coverage proving there is exactly one shell-owned navigation include and no page-owned duplicates.
+- [ ] Confirm exact candidate CI is green.
+- [ ] Physically sanity-check navigation from ACP surfaces and the Plexamp overlay before changing the home-indicator/navigation-mode presentation.
+
+Once accepted, the next slice can change the **interaction model**: small home indicator, navigation-mode overlay/recede treatment, then the spatial row/carousel experiment with one committed destination transition.
