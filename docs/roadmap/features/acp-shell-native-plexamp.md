@@ -382,6 +382,26 @@ The next slice implements the production-first navigation treatment before attem
 - [x] Keep current drawer/buttons, Audio panel, gesture semantics and destination transition behaviour unchanged.
 - [x] Add regression coverage for z-order, backdrop dismissal, recede geometry, reduced motion and Plexamp transition coexistence.
 - [x] Level-A navigation-mode candidate `5ca3214cd942784025a6e39ed5c26ddd48a683b7` passed **Tests #5226**.
-- [ ] Physically test ACP and Plexamp recede/dim/open/close behaviour, backdrop dismissal and Audio drawer interaction.
+- [~] ACP-side Level-A physical behaviour passes: recede/dim/open/close, backdrop dismissal and Audio are correct. Follow-up candidate `d11bfd3f3574dda86a14bfdb1f3dbdccb5c913ac` passed **Tests #5233** and addresses the remaining Plexamp boundary consistency plus deeper recede; focused retest pending.
+
+
+
+#### Level-A Plexamp consistency / deeper recede follow-up
+
+Physical testing confirmed the Level-A visual model but found two refinements:
+
+- ACP→ACP destination changes preserve the open drawer and receded new surface, while entering/leaving Plexamp still closed the drawer because `plexamp-persistent.js` explicitly called the nav lifecycle hide path.
+- The original `0.965 / -10px` recede was too subtle for the current drawer height; the drawer still covered the lower portion of the live page.
+
+The follow-up contract is:
+
+- explicit manual shell navigation preserves `nav-open/nav-mode` across ACP→Plexamp and Plexamp→ACP;
+- automatic screen-projection changes do **not** inherit an open drawer;
+- Plexamp `show`, `hide` and `prepareNavigation` accept a presentation-only `preserveNavigation` option;
+- Plexamp→the already-underlying ACP surface preserves nav without a reload;
+- Plexamp→a different ACP surface carries a short-lived pathname-scoped `sessionStorage` navigation-mode token through the existing full-document fallback; `nav-drawer.js` restores the drawer before the booting document is revealed;
+- the live application recedes to `0.84`, lifts `28px`, and uses a `28px` radius so its bottom edge sits above the ordinary navigation drawer rather than beneath it.
+
+Candidate `d11bfd3f3574dda86a14bfdb1f3dbdccb5c913ac` passed **Tests #5233**.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
