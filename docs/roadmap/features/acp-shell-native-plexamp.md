@@ -382,7 +382,7 @@ The next slice implements the production-first navigation treatment before attem
 - [x] Keep current drawer/buttons, Audio panel, gesture semantics and destination transition behaviour unchanged.
 - [x] Add regression coverage for z-order, backdrop dismissal, recede geometry, reduced motion and Plexamp transition coexistence.
 - [x] Level-A navigation-mode candidate `5ca3214cd942784025a6e39ed5c26ddd48a683b7` passed **Tests #5226**.
-- [~] ACP-side Level-A physical behaviour passes: recede/dim/open/close, backdrop dismissal and Audio are correct. Follow-up candidate `d11bfd3f3574dda86a14bfdb1f3dbdccb5c913ac` passed **Tests #5233** and addresses the remaining Plexamp boundary consistency plus deeper recede; focused retest pending.
+- [~] Level-A shell-state preservation now passes physically across ACP↔Plexamp, normal auto-hide still closes navigation, Audio is unchanged, and the deeper recede clears the drawer. The remaining work is visual refinement: full-scale lift candidate `1600e053bd18283a0de2016062fc6289ee6803d4` keeps the live application at 100% size and moves it upward instead of shrinking it; focused retest pending.
 
 
 
@@ -403,5 +403,21 @@ The follow-up contract is:
 - the live application recedes to `0.84`, lifts `28px`, and uses a `28px` radius so its bottom edge sits above the ordinary navigation drawer rather than beneath it.
 
 Candidate `d11bfd3f3574dda86a14bfdb1f3dbdccb5c913ac` passed **Tests #5233**.
+
+The 6 October physical retest passes that cross-application contract. Manual ACP→Plexamp and Plexamp→ACP navigation keeps the drawer visible, including the different-ACP full-document path; auto-hide still works and Audio behaves as before. The `0.84 / -28px` geometry also succeeds at its original job: the live application's bottom edge clears the drawer.
+
+#### Level-A full-scale lift refinement
+
+The accepted clearance exposed a presentation trade-off rather than another ownership bug. On the 1280×720 appliance, scaling the entire live surface to 84% makes text and controls noticeably smaller, and the cross-document restore path can briefly show the destination at 100% before the recede scale applies.
+
+The bounded refinement keeps the same shell state, backdrop, drawer and handoff logic but changes only the live-surface geometry:
+
+- keep `scale: 1` throughout navigation mode;
+- lift the active ACP surface or Plexamp layer by `90px`;
+- retain the dim backdrop and rounded live-surface edge;
+- intentionally allow the top 90 px to move out of the viewport while navigation is modal, because the background application is contextual rather than the active interaction target;
+- restore the application to its exact normal geometry when navigation closes.
+
+This preserves normal-size typography/controls and makes the revealed bottom strip belong visually to the shell rather than creating a miniature application card. Candidate `1600e053bd18283a0de2016062fc6289ee6803d4`; focused physical visual retest pending.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
