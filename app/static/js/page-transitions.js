@@ -11,7 +11,6 @@
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
   const explicitNavigationMaxAgeMs = 15000;
   const navigationModeTransferKey = 'a-clockwork-plex.navigation-mode-transfer';
-  const navigationModeTransferMaxAgeMs = 15000;
   const leasableRoutes = new Set(['/airplay', '/clock', '/news', '/plexamp', '/settings', '/weather']);
 
   function sameOriginTarget(url) {
@@ -51,6 +50,10 @@
   function navigationModeOpen() {
     return document.body.classList.contains('nav-open')
       && document.body.classList.contains('nav-mode');
+  }
+
+  function shouldPreserveNavigation(options = {}) {
+    return !isAutomaticNavigation(options) && navigationModeOpen();
   }
 
   function rememberNavigationMode(target) {
@@ -201,7 +204,7 @@
       const duration = Number(window.ACPPlexamp.show({
         updateMode: false,
         manual: false,
-        preserveNavigation: navigationModeOpen(),
+        preserveNavigation: shouldPreserveNavigation(options),
         source: String(options.source || 'navigation-link'),
       })) || 0;
       holdPresentation(duration);
@@ -223,7 +226,7 @@
         const duration = Number(window.ACPPlexamp.hide?.({
           updateMode: false,
           targetMode: mode,
-          preserveNavigation: navigationModeOpen(),
+          preserveNavigation: shouldPreserveNavigation(options),
           source: String(options.source || 'navigation-link'),
         })) || 0;
         holdPresentation(duration);
@@ -231,7 +234,7 @@
       }
 
       leaving = true;
-      const preserveNavigation = navigationModeOpen();
+      const preserveNavigation = shouldPreserveNavigation(options);
       if (preserveNavigation) rememberNavigationMode(target);
       const delay = Number(
         window.ACPPlexamp.prepareNavigation?.({ preserveNavigation })
@@ -242,7 +245,7 @@
     }
 
     leaving = true;
-    if (navigationModeOpen()) rememberNavigationMode(target);
+    if (shouldPreserveNavigation(options)) rememberNavigationMode(target);
     const delay = outgoingDelay();
     if (delay <= 0) {
       window.location.assign(target.href);
