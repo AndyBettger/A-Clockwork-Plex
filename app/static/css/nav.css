@@ -1,3 +1,44 @@
+/* Phase A navigation mode: the application remains live underneath while
+   shell chrome takes focus. Use individual transform properties so this can
+   coexist with page-transition and Plexamp show/hide transforms. */
+.nav-backdrop {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(2, 5, 10, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--acp-transition-in-duration) ease,
+    background var(--acp-transition-in-duration) ease;
+}
+
+body.nav-mode .nav-backdrop {
+  background: rgba(2, 5, 10, 0.34);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.screen,
+.persistent-plexamp {
+  scale: 1;
+  translate: 0 0;
+  transition:
+    scale var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
+    translate var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
+    border-radius var(--acp-transition-in-duration) ease;
+  transform-origin: 50% 46%;
+}
+
+body.nav-mode .screen,
+body.nav-mode .persistent-plexamp.is-open {
+  scale: 0.965;
+  translate: 0 -10px;
+  border-radius: 22px;
+}
+
 .nav-drawer {
   position: fixed;
   z-index: 80;
@@ -507,6 +548,14 @@ body.nav-open.nav-audio-open .nav-handle {
 
 body.nav-open .nav-handle span {
   background: rgba(247, 249, 255, 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-backdrop,
+  .screen,
+  .persistent-plexamp {
+    transition-duration: 1ms !important;
+  }
 }
 
 @media (max-height: 680px), (max-width: 860px) {
