@@ -577,6 +577,7 @@
       lastTrackKey = trackKey;
     }
 
+    document.body.classList.remove('airplay-session-unresolved');
     document.body.classList.toggle('airplay-session-active', isActive);
     document.body.classList.toggle('airplay-session-idle', !isActive);
     document.body.classList.toggle('airplay-metadata-active', hasDisplayMetadata);
