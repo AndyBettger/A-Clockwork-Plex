@@ -10,6 +10,8 @@
   let presentationTimer = null;
   const explicitNavigationKey = 'a-clockwork-plex.explicit-navigation';
   const explicitNavigationMaxAgeMs = 15000;
+  const navigationModeTransferKey = 'a-clockwork-plex.navigation-mode-transfer';
+  const navigationModeTransferMaxAgeMs = 15000;
   const leasableRoutes = new Set(['/airplay', '/clock', '/news', '/plexamp', '/settings', '/weather']);
 
   function sameOriginTarget(url) {
@@ -44,6 +46,22 @@
 
   function isAutomaticNavigation(options = {}) {
     return options.automatic === true || options.source === 'screen-projection';
+  }
+
+  function navigationModeOpen() {
+    return document.body.classList.contains('nav-open')
+      && document.body.classList.contains('nav-mode');
+  }
+
+  function rememberNavigationMode(target) {
+    if (!navigationModeOpen() || !target || target.pathname === '/alarm') return;
+    try {
+      window.sessionStorage.setItem(navigationModeTransferKey, JSON.stringify({
+        path: target.pathname,
+        at: Date.now(),
+      }));
+    } catch (error) {
+    }
   }
 
   function preserveNightInteraction(options = {}) {
@@ -183,6 +201,7 @@
       const duration = Number(window.ACPPlexamp.show({
         updateMode: false,
         manual: false,
+        preserveNavigation: navigationModeOpen(),
         source: String(options.source || 'navigation-link'),
       })) || 0;
       holdPresentation(duration);
@@ -204,6 +223,7 @@
         const duration = Number(window.ACPPlexamp.hide?.({
           updateMode: false,
           targetMode: mode,
+          preserveNavigation: navigationModeOpen(),
           source: String(options.source || 'navigation-link'),
         })) || 0;
         holdPresentation(duration);
@@ -211,8 +231,10 @@
       }
 
       leaving = true;
+      const preserveNavigation = navigationModeOpen();
+      if (preserveNavigation) rememberNavigationMode(target);
       const delay = Number(
-        window.ACPPlexamp.prepareNavigation?.()
+        window.ACPPlexamp.prepareNavigation?.({ preserveNavigation })
         ?? outgoingDelay()
       );
       window.setTimeout(() => window.location.assign(target.href), Math.max(0, delay));
@@ -220,6 +242,7 @@
     }
 
     leaving = true;
+    if (navigationModeOpen()) rememberNavigationMode(target);
     const delay = outgoingDelay();
     if (delay <= 0) {
       window.location.assign(target.href);
