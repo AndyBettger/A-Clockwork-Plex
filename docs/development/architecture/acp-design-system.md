@@ -98,3 +98,19 @@ Each migration slice must keep:
 - mounted-surface lifecycle behaviour unchanged.
 
 Static regression tests pin token load order and the first migrated primitives. Physical checking should compare representative surfaces/themes rather than requiring every page component to be exhaustively inspected after each token-only refactor.
+
+
+## Second bounded migration
+
+The first token slice is physically accepted on the commissioned Pi in both Classic Dark and a non-Classic daytime theme.
+
+The second slice extends the boundary to ordinary interaction chrome:
+
+- Settings native fields and ACP custom-select triggers share field border/fill/focus/radius tokens.
+- Settings field containers retain their original 7% white neutral fill through a dedicated token rather than being flattened into the 8% generic card fill.
+- Settings subpage rows and News touch surfaces consume neutral component fill tokens while their geometry remains local.
+- News and Weather status badges use the shared pill radius and semantic palette aliases; warning/stale colours remain component semantics.
+- News, Weather Forecast and Rain History custom rails share only geometry (8 px track, 4 px thumb, 42 px minimum thumb). Their accepted page/theme colour treatment remains local.
+- Kiosk-safe modal ordinary text/accent paint uses semantic palette aliases; modal layout, surface fill and elevation remain specialised.
+
+This illustrates the migration rule: **share stable semantics and geometry only where the existing contracts are already equivalent; do not create fake reuse by normalising visibly different components.**
