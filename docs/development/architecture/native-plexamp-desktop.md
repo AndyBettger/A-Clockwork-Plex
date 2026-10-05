@@ -509,6 +509,10 @@ The first browser-shell ownership slice removes one historical ambiguity. `_nav.
 
 This slice deliberately retains the accepted handle/drawer interaction so structural ownership can be physically accepted independently from the later home-indicator/navigation-mode presentation.
 
+Physical testing of that ownership slice exposed a second requirement: persistent shell DOM needs persistent **behavioural** ownership too. A shell control must not depend on a listener bound once to a particular element instance if later application-surface work can leave that instance stale. The navigation handle therefore uses delegated document-level tap/touch handling and resolves the current shell node on demand. The shell Audio button is static markup, while its dynamic mixer/EQ internals are idempotently reasserted after `acp:surface-settled`.
+
+The shell also one-instance guards `nav-drawer.js`; this prevents duplicate long-lived listeners from turning one tap into multiple open/close toggles. Asset versioning is part of the boundary because a persistent shell cannot safely mix a newly rendered template with a stale cached behaviour owner.
+
 ### Gesture gate
 
 Physically test:
