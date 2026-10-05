@@ -80,7 +80,7 @@ body.kiosk-link-modal-open {
 }
 
 .kiosk-link-modal-kicker {
-  color: var(--accent, #8fd3ff);
+  color: var(--acp-color-accent);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -110,7 +110,7 @@ body.kiosk-link-modal-open {
   overflow: auto;
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.35);
-  color: var(--accent, #8fd3ff);
+  color: var(--acp-color-accent);
   font-size: clamp(0.74rem, 1.8vmin, 0.92rem);
   overflow-wrap: anywhere;
   white-space: normal;
