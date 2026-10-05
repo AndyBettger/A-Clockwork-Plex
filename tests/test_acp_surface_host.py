@@ -7,6 +7,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 NAV_TEMPLATE = ROOT / "app" / "templates" / "_nav.html"
+NAV_DRAWER = ROOT / "app" / "static" / "js" / "nav-drawer.js"
+NAV_LIFECYCLE = ROOT / "app" / "static" / "js" / "nav-drawer-lifecycle.js"
+AUDIO_EQ = ROOT / "app" / "static" / "js" / "audio-eq.js"
+AUDIO_EQ_LAYOUT = ROOT / "app" / "static" / "js" / "audio-eq-drawer-layout.js"
+AUDIO_POLISH = ROOT / "app" / "static" / "js" / "audio-polish.js"
 HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 APPLICATION_SURFACES = ROOT / "app" / "static" / "js" / "acp-application-surfaces.js"
@@ -39,6 +44,31 @@ class AcpSurfaceHostTests(unittest.TestCase):
         for name in ("clock", "weather", "news", "settings", "airplay", "plexamp"):
             template = (ROOT / "app" / "templates" / f"{name}.html").read_text(encoding="utf-8")
             self.assertNotIn('{% include "_nav.html" %}', template)
+
+    def test_shell_navigation_interactions_survive_surface_dom_changes(self):
+        navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
+        drawer = NAV_DRAWER.read_text(encoding="utf-8")
+        lifecycle = NAV_LIFECYCLE.read_text(encoding="utf-8")
+        audio_eq = AUDIO_EQ.read_text(encoding="utf-8")
+        audio_layout = AUDIO_EQ_LAYOUT.read_text(encoding="utf-8")
+        audio_polish = AUDIO_POLISH.read_text(encoding="utf-8")
+
+        self.assertIn('id="nav-audio-button"', navigation)
+        self.assertIn("__aClockworkPlexNavDrawerLoaded", drawer)
+        self.assertIn("document.addEventListener('click'", drawer)
+        self.assertIn("event.target.closest?.('#nav-handle')", drawer)
+        self.assertIn("document.addEventListener('touchstart'", drawer)
+        self.assertIn("document.addEventListener('touchend'", drawer)
+        self.assertIn("suppressHandleClickUntil", drawer)
+        self.assertIn("ACPNavDrawerController", drawer)
+        self.assertIn("acp:surface-settled", drawer)
+        self.assertNotIn("handle.addEventListener('click'", drawer)
+
+        self.assertIn("ACPNavDrawerController", lifecycle)
+        self.assertIn("ensureAudioPanel", lifecycle)
+        self.assertIn("acp:surface-settled", audio_eq)
+        self.assertIn("acp:surface-settled", audio_layout)
+        self.assertIn("acp:surface-settled", audio_polish)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
