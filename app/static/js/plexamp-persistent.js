@@ -97,7 +97,7 @@
 
     ++generation;
     clearLifecycleTimers();
-    window.ACPNavDrawer?.hide?.();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
     guardMode();
     shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
     shell.classList.add('is-open');
@@ -154,7 +154,7 @@
 
     const token = ++generation;
     clearLifecycleTimers();
-    window.ACPNavDrawer?.hide?.();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
     setNavState(true);
     guardMode();
     shell.classList.remove('is-handoff-hidden');
@@ -207,7 +207,7 @@
 
     const token = ++generation;
     clearLifecycleTimers();
-    window.ACPNavDrawer?.hide?.();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
 
     if (!shell.classList.contains('is-open')) {
       finishHideVisual();
@@ -230,12 +230,12 @@
     return profile.outgoing + profile.incoming;
   }
 
-  function prepareNavigation() {
+  function prepareNavigation(options = {}) {
     const profile = transitionProfile();
     ++generation;
     clearLifecycleTimers();
     window.clearTimeout(frameReadyTimer);
-    window.ACPNavDrawer?.hide?.();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
     guardMode(LONG_MODE_GUARD_MS);
 
     shell.classList.remove('is-handoff-hidden', 'is-closing');
