@@ -24,7 +24,8 @@
 
 .airplay-glyph-wrap,
 body.airplay-metadata-active .airplay-glyph-wrap,
-body.airplay-session-idle .airplay-glyph-wrap {
+body.airplay-session-idle .airplay-glyph-wrap ,
+body.airplay-session-unresolved .airplay-glyph-wrap {
   align-self: center !important;
   justify-self: start !important;
   display: grid !important;
@@ -40,7 +41,8 @@ body.airplay-session-idle .airplay-glyph-wrap {
 
 .airplay-artwork,
 body.airplay-metadata-active .airplay-artwork,
-body.airplay-session-idle .airplay-artwork {
+body.airplay-session-idle .airplay-artwork ,
+body.airplay-session-unresolved .airplay-artwork {
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
@@ -49,7 +51,8 @@ body.airplay-session-idle .airplay-artwork {
 }
 
 .airplay-glyph,
-body.airplay-session-idle .airplay-glyph {
+body.airplay-session-idle .airplay-glyph ,
+body.airplay-session-unresolved .airplay-glyph {
   width: 100% !important;
   height: 100% !important;
   margin: 0 !important;
@@ -58,7 +61,8 @@ body.airplay-session-idle .airplay-glyph {
 
 .airplay-copy,
 body.airplay-metadata-active .airplay-copy,
-body.airplay-session-idle .airplay-copy {
+body.airplay-session-idle .airplay-copy ,
+body.airplay-session-unresolved .airplay-copy {
   align-self: stretch !important;
   justify-self: stretch !important;
   width: 100% !important;
