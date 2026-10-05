@@ -22,6 +22,7 @@
 
   /* Reusable neutral chrome. */
   --acp-fill-card-neutral: rgba(255, 255, 255, 0.08);
+  --acp-fill-field-container-neutral: rgba(255, 255, 255, 0.07);
   --acp-fill-soft-neutral: rgba(255, 255, 255, 0.055);
   --acp-fill-control-neutral: rgba(255, 255, 255, 0.12);
   --acp-fill-control-hover-neutral: rgba(255, 255, 255, 0.22);
