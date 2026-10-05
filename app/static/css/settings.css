@@ -109,7 +109,7 @@ body.keyboard-open .settings-page {
   gap: 5px;
   padding: clamp(8px, 1.35vmin, 12px);
   border-radius: 15px;
-  background: var(--acp-fill-card-neutral);
+  background: var(--acp-fill-field-container-neutral);
 }
 
 .setting-field.wide {
