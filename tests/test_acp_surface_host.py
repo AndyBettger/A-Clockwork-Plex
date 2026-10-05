@@ -96,6 +96,34 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("z-index: 30", plexamp)
         self.assertIn("20261005-home-indicator-v2", base)
 
+    def test_navigation_mode_recedes_live_surface_under_shell_backdrop(self):
+        navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
+        drawer = NAV_DRAWER.read_text(encoding="utf-8")
+        styles = NAV_CSS.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn('id="nav-backdrop"', navigation)
+        self.assertIn("classList.toggle('nav-mode', expanded)", drawer)
+        self.assertIn("document.getElementById('nav-backdrop')", drawer)
+        self.assertIn("event.target.closest?.('#nav-backdrop')", drawer)
+
+        self.assertIn(".nav-backdrop", styles)
+        self.assertIn("z-index: 70", styles)
+        self.assertIn("body.nav-mode .nav-backdrop", styles)
+        self.assertIn("background: rgba(2, 5, 10, 0.34)", styles)
+        self.assertIn("body.nav-mode .screen", styles)
+        self.assertIn("body.nav-mode .persistent-plexamp.is-open", styles)
+        self.assertIn("scale: 0.965", styles)
+        self.assertIn("translate: 0 -10px", styles)
+        self.assertIn("border-radius: 22px", styles)
+        self.assertIn("prefers-reduced-motion", styles)
+
+        # Individual transform properties deliberately coexist with ACP's
+        # existing transform-based View Transitions/Plexamp handoff.
+        self.assertIn("scale: 1", styles)
+        self.assertIn("translate: 0 0", styles)
+        self.assertIn("20261005-nav-mode-v1", base)
+
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
 
