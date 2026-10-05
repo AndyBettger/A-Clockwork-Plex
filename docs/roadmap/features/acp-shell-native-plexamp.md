@@ -312,7 +312,7 @@ Before changing gestures or appearance, navigation ownership is being made real 
 - [x] Keep the current handle, swipe-up/tap behaviour, drawer, Audio mixer, active-state ownership and Plexamp overlay behaviour unchanged for this slice.
 - [x] Add regression coverage proving there is exactly one shell-owned navigation include and no page-owned duplicates.
 - [x] Shell-navigation ownership candidate `e352c40069e652cbae1ced9a02c7443342d896b1` passed **Tests #5191** on rerun attempt 2; the first attempt was cancelled before executing tests.
-- [~] Physical sanity-check initially exposed a regression after same-document navigation: the handle still showed touch feedback but tap/swipe stopped opening the drawer, and Audio could disappear until forced refresh. Hardened candidate `9bfe130e75302187df3251847ef1e3784e81e6b5` passed **Tests #5198**; focused commissioned-Pi retest pending.
+- [x] Hardened lifecycle retest accepted on the commissioned Pi: repeated mounted-surface navigation no longer requires forced refresh, tap/swipe reopen correctly on ACP surfaces, Audio remains present, mixer/EQ works and Plexamp→ACP handoff is stable. Remaining issue is specifically swipe initiation over the Plexamp iframe.
 
 
 #### Shell-navigation lifecycle hardening
@@ -330,6 +330,23 @@ The hardened contract is:
 - nav lifecycle APIs forward to the current shell controller rather than holding stale drawer/handle references;
 - asset versions were bumped so the Pi cannot combine the new shell template with an old cached navigation script.
 
-This remains an ownership/lifecycle correction only; the accepted pill/drawer presentation is intentionally unchanged until the retest passes.
+The ownership/lifecycle correction is now physically accepted.
 
-Once accepted, the next slice can change the **interaction model**: small home indicator, navigation-mode overlay/recede treatment, then the spatial row/carousel experiment with one committed destination transition.
+#### Home-indicator gesture slice
+
+The first interaction slice addresses the remaining Plexamp boundary and gesture symmetry:
+
+- [x] Replace the dark 116×30 navigation pill presentation with a small iPhone-style home indicator.
+- [x] Keep the real button/gesture target wider than the visible bar so touch can begin on ACP-owned shell chrome even when Plexamp's iframe fills the display.
+- [x] Bound that invisible target to 300 px maximum width × 30 px high so it does not become a large transparent interception layer over Plexamp controls.
+- [x] Keep shell z-order above persistent Plexamp so the gesture target is reachable from the native-player overlay.
+- [x] Closed + swipe up opens navigation.
+- [x] Open + swipe down closes navigation.
+- [x] Tap remains as a fallback.
+- [x] Suppress the synthetic follow-up click after either swipe direction.
+- [x] Version both nav CSS and Javascript so the Pi receives the new interaction layer together.
+- [x] Add regression coverage for gesture symmetry, bounded hit geometry and shell-above-Plexamp z-order.
+- [ ] Confirm exact candidate CI is green.
+- [ ] Physically test swipe-up from Plexamp, swipe-down dismissal, tap fallback and that the wider invisible target does not obstruct normal Plexamp bottom controls.
+
+After this slice is accepted, continue with the **navigation-mode overlay/recede treatment**, then the spatial row/carousel experiment with exactly one committed destination transition.
