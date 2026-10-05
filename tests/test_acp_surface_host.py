@@ -94,12 +94,13 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261005-home-indicator-v2", base)
+        self.assertIn("20261005-nav-mode-v1", base)
 
     def test_navigation_mode_recedes_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
         styles = NAV_CSS.read_text(encoding="utf-8")
+        plexamp = PLEXAMP_CSS.read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
 
         self.assertIn('id="nav-backdrop"', navigation)
