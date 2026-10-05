@@ -27,10 +27,21 @@
   --acp-fill-control-hover-neutral: rgba(255, 255, 255, 0.22);
   --acp-border-control-neutral: rgba(255, 255, 255, 0.20);
 
+  /* Ordinary form controls. */
+  --acp-field-border-neutral: rgba(255, 255, 255, 0.18);
+  --acp-field-fill-neutral: rgba(0, 0, 0, 0.26);
+  --acp-field-focus-neutral: rgba(143, 211, 255, 0.65);
+
+  /* Custom scrollbar geometry shared by vertical and horizontal rails. */
+  --acp-scrollbar-track-size: 8px;
+  --acp-scrollbar-thumb-size: 4px;
+  --acp-scrollbar-thumb-min: 42px;
+
   /* Geometry. */
   --acp-radius-panel: clamp(18px, 3vmin, 28px);
   --acp-radius-card: clamp(14px, 2.4vmin, 18px);
   --acp-radius-control: 14px;
+  --acp-radius-field: 12px;
   --acp-radius-pill: 999px;
 
   /* Elevation. */
