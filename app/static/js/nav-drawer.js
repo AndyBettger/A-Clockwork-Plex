@@ -1,11 +1,12 @@
 (() => {
-  const drawer = document.getElementById('nav-drawer');
-  const handle = document.getElementById('nav-handle');
-  const mainNav = drawer?.querySelector('.main-nav');
+  if (window.__aClockworkPlexNavDrawerLoaded) return;
+  window.__aClockworkPlexNavDrawerLoaded = true;
 
-  if (!drawer || !handle || !mainNav) {
-    return;
-  }
+  const drawerNode = () => document.getElementById('nav-drawer');
+  const handleNode = () => document.getElementById('nav-handle');
+  const mainNavNode = () => drawerNode()?.querySelector('.main-nav');
+
+  if (!drawerNode() || !handleNode() || !mainNavNode()) return;
 
   const NORMAL_AUTO_HIDE_MS = 6000;
   const MIXER_AUTO_HIDE_MS = 60000;
@@ -104,6 +105,10 @@
   }
 
   function installAudioPanel() {
+    const drawer = drawerNode();
+    const mainNav = mainNavNode();
+    if (!drawer || !mainNav) return false;
+
     let audioButton = document.getElementById('nav-audio-button');
     if (!audioButton) {
       audioButton = document.createElement('button');
@@ -139,13 +144,19 @@
       drawer.appendChild(panel);
     }
 
-    audioButton.addEventListener('click', () => {
-      const opening = panel.hidden;
-      setMixerOpen(opening);
-      if (opening) {
-        refreshLiveMixer();
-      }
-    });
+    if (audioButton.dataset.navAudioInstalled !== 'true') {
+      audioButton.dataset.navAudioInstalled = 'true';
+      audioButton.addEventListener('click', () => {
+        const currentPanel = document.getElementById('nav-live-mixer');
+        if (!currentPanel) return;
+        const opening = currentPanel.hidden;
+        setMixerOpen(opening);
+        if (opening) refreshLiveMixer();
+      });
+    }
+
+    if (panel.dataset.navMixerInteractionsInstalled === 'true') return true;
+    panel.dataset.navMixerInteractionsInstalled = 'true';
 
     panel.addEventListener('contextmenu', (event) => {
       if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
@@ -161,6 +172,7 @@
 
     installFaderInteractions(panel);
     installTrimKnobInteractions(panel);
+    return true;
   }
 
   function installFaderInteractions(panel) {
@@ -312,10 +324,12 @@
   }
 
   function setExpanded(expanded) {
+    const drawer = drawerNode();
+    const handle = handleNode();
     document.body.classList.toggle('nav-open', expanded);
-    drawer.setAttribute('aria-hidden', expanded ? 'false' : 'true');
-    handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    handle.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
+    drawer?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    handle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    handle?.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
     if (!expanded) closeMixerWithoutScheduling();
   }
 
@@ -550,28 +564,59 @@
   installAudioPanel();
   reassertTimer = window.setInterval(reassertDesiredValues, 90);
 
-  handle.addEventListener('click', () => {
+  let suppressHandleClickUntil = 0;
+  let touchStartedOnHandle = false;
+
+  document.addEventListener('click', (event) => {
+    const handle = event.target.closest?.('#nav-handle');
+    if (!handle) return;
+    event.preventDefault();
+    if (Date.now() < suppressHandleClickUntil) return;
     if (document.body.classList.contains('nav-open')) hideDrawer();
     else showDrawer();
   });
 
-  handle.addEventListener('touchstart', (event) => {
-    touchStartY = event.changedTouches[0]?.clientY ?? null;
+  document.addEventListener('touchstart', (event) => {
+    touchStartedOnHandle = Boolean(event.target.closest?.('#nav-handle'));
+    touchStartY = touchStartedOnHandle ? (event.changedTouches[0]?.clientY ?? null) : null;
   }, { passive: true });
 
-  handle.addEventListener('touchend', (event) => {
+  document.addEventListener('touchend', (event) => {
+    if (!touchStartedOnHandle) return;
     const touchEndY = event.changedTouches[0]?.clientY ?? null;
     if (touchStartY !== null && touchEndY !== null && touchStartY - touchEndY > SWIPE_THRESHOLD_PX) {
       showDrawer();
+      suppressHandleClickUntil = Date.now() + 500;
     }
     touchStartY = null;
+    touchStartedOnHandle = false;
   }, { passive: true });
 
-  drawer.addEventListener('pointerdown', scheduleHide);
-  drawer.addEventListener('focusin', scheduleHide);
+  document.addEventListener('pointerdown', (event) => {
+    if (event.target.closest?.('#nav-drawer')) scheduleHide();
+  });
+  document.addEventListener('focusin', (event) => {
+    if (event.target.closest?.('#nav-drawer')) scheduleHide();
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') hideDrawer();
+  });
+
+  document.addEventListener('acp:surface-settled', () => {
+    installAudioPanel();
+    const expanded = document.body.classList.contains('nav-open');
+    setExpanded(expanded);
+  });
+
+  window.ACPNavDrawerController = Object.freeze({
+    show: showDrawer,
+    hide: hideDrawer,
+    toggle: () => {
+      if (document.body.classList.contains('nav-open')) hideDrawer();
+      else showDrawer();
+    },
+    ensureAudioPanel: installAudioPanel,
   });
 
   window.addEventListener('pagehide', () => {
