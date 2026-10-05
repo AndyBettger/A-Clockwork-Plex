@@ -83,18 +83,18 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("open && deltaY < -SWIPE_THRESHOLD_PX", drawer)
         self.assertIn("document.addEventListener('touchcancel'", drawer)
 
-        self.assertIn("width: min(32vw, 300px)", styles)
-        self.assertIn("min-width: 220px", styles)
-        self.assertIn("height: 30px", styles)
+        self.assertIn("width: min(22vw, 200px)", styles)
+        self.assertIn("min-width: 180px", styles)
+        self.assertIn("height: 22px", styles)
         self.assertIn("background: transparent", styles)
-        self.assertIn("width: 72px", styles)
+        self.assertIn("width: 140px", styles)
         self.assertIn("pointer-events: none", styles)
 
         # The shell gesture target must sit above the persistent Plexamp iframe
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261005-home-indicator-v1", base)
+        self.assertIn("20261005-home-indicator-v2", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
