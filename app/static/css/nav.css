@@ -457,9 +457,9 @@ body.nav-audio-open .nav-drawer {
   z-index: 90;
   left: 50%;
   bottom: max(0px, env(safe-area-inset-bottom));
-  width: min(32vw, 300px);
-  min-width: 220px;
-  height: 30px;
+  width: min(22vw, 200px);
+  min-width: 180px;
+  height: 22px;
   display: grid;
   place-items: end center;
   padding: 0 0 6px;
@@ -475,7 +475,7 @@ body.nav-audio-open .nav-drawer {
 
 .nav-handle span {
   display: block;
-  width: 72px;
+  width: 140px;
   height: 5px;
   border-radius: var(--acp-radius-pill);
   background: rgba(247, 249, 255, 0.74);
@@ -596,14 +596,14 @@ body.nav-open .nav-handle span {
   }
 
   .nav-handle {
-    width: min(38vw, 280px);
-    min-width: 200px;
-    height: 28px;
-    padding-bottom: 5px;
+    width: min(26vw, 190px);
+    min-width: 170px;
+    height: 20px;
+    padding-bottom: 4px;
   }
 
   .nav-handle span {
-    width: 66px;
+    width: 128px;
     height: 4px;
   }
 
