@@ -381,7 +381,7 @@ The next slice implements the production-first navigation treatment before attem
 - [x] Respect reduced-motion preference.
 - [x] Keep current drawer/buttons, Audio panel, gesture semantics and destination transition behaviour unchanged.
 - [x] Add regression coverage for z-order, backdrop dismissal, recede geometry, reduced motion and Plexamp transition coexistence.
-- [ ] Confirm exact candidate CI is green.
+- [x] Level-A navigation-mode candidate `5ca3214cd942784025a6e39ed5c26ddd48a683b7` passed **Tests #5226**.
 - [ ] Physically test ACP and Plexamp recede/dim/open/close behaviour, backdrop dismissal and Audio drawer interaction.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
