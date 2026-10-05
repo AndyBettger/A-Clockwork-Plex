@@ -57,7 +57,7 @@
 }
 
 .weather-forecast-scrollbar.rain-history-scrollbar {
-  flex: 0 0 8px;
+  flex: 0 0 var(--acp-scrollbar-track-size);
   margin-top: clamp(4px, 0.7vmin, 6px);
 }
 
