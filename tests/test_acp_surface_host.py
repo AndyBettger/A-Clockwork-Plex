@@ -22,6 +22,7 @@ DASHBOARD = ROOT / "app" / "dashboard_core.py"
 TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
 NAV_CSS = ROOT / "app" / "static" / "css" / "nav.css"
 PLEXAMP_CSS = ROOT / "app" / "static" / "css" / "plexamp-persistent.css"
+PLEXAMP_JS = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
 
 
 class AcpSurfaceHostTests(unittest.TestCase):
@@ -94,7 +95,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261005-nav-mode-v1", base)
+        self.assertIn("20261005-nav-mode-v2", base)
 
     def test_navigation_mode_recedes_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -114,9 +115,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("background: rgba(2, 5, 10, 0.34)", styles)
         self.assertIn("body.nav-mode .screen", styles)
         self.assertIn("body.nav-mode .persistent-plexamp.is-open", styles)
-        self.assertIn("scale: 0.965", styles)
-        self.assertIn("translate: 0 -10px", styles)
-        self.assertIn("border-radius: 22px", styles)
+        self.assertIn("scale: 0.84", styles)
+        self.assertIn("translate: 0 -28px", styles)
+        self.assertIn("border-radius: 28px", styles)
         self.assertIn("prefers-reduced-motion", styles)
 
         # Individual transform properties deliberately coexist with ACP's
@@ -127,6 +128,28 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("translate var(--acp-transition-in-duration)", plexamp)
         self.assertIn("border-radius var(--acp-transition-in-duration)", plexamp)
         self.assertIn("20261005-nav-mode-v1", base)
+
+    def test_navigation_mode_persists_across_manual_plexamp_handoffs(self):
+        transitions = TRANSITIONS.read_text(encoding="utf-8")
+        plexamp = PLEXAMP_JS.read_text(encoding="utf-8")
+        drawer = NAV_DRAWER.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("function shouldPreserveNavigation(options = {})", transitions)
+        self.assertIn("!isAutomaticNavigation(options) && navigationModeOpen()", transitions)
+        self.assertIn("preserveNavigation: shouldPreserveNavigation(options)", transitions)
+        self.assertIn("rememberNavigationMode(target)", transitions)
+        self.assertIn("prepareNavigation?.({ preserveNavigation })", transitions)
+
+        self.assertIn("options.preserveNavigation !== true", plexamp)
+        self.assertIn("function prepareNavigation(options = {})", plexamp)
+
+        self.assertIn("a-clockwork-plex.navigation-mode-transfer", drawer)
+        self.assertIn("function consumeNavigationModeTransfer()", drawer)
+        self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
+        self.assertIn("setExpanded(restoreNavigationMode)", drawer)
+
+        self.assertIn("20261005-nav-mode-v2", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
