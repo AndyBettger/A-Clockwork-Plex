@@ -516,7 +516,9 @@ The shell also one-instance guards `nav-drawer.js`; this prevents duplicate long
 
 Commissioned-Pi retest accepts that lifecycle contract. One cross-application input boundary remains important: pointer/touch events originating inside the persistent Plexamp iframe do not bubble into the ACP document. The shell must therefore own a real hit target above the iframe for any bottom-edge gesture it expects to work while Plexamp is visible.
 
-The home-indicator slice uses a small visible bar inside a wider but shallow ACP-owned button. The hit region is intentionally bounded (300 px maximum width, 30 px high) so it improves swipe acquisition without becoming a large transparent layer that steals Plexamp controls. Swipe-up opens, swipe-down closes, and tap remains a fallback.
+The first home-indicator pass confirmed the cross-iframe approach, but physical testing showed 300×30 px was still large enough to intercept the inner edges of Plexamp Library/Search taps. The accepted design rule is therefore stricter: the ACP-owned region should be only modestly wider than the visible indicator and as shallow as reliable touch acquisition allows. The refined candidate uses roughly 180–200×22 px around a roughly 140 px visible bar. Swipe-up opens, swipe-down closes, and tap remains a fallback.
+
+AirPlay also needs an explicit first-paint state in the long-lived shell. A newly mounted AirPlay surface is now staged as `airplay-session-unresolved` before it becomes visible. That state deliberately shares route-ready geometry and hides transport controls until the authoritative status response changes the body to idle or active. Direct AirPlay document loads receive the same unresolved class from the server template. This prevents asynchronous state resolution from visibly reflowing a false generic-player first frame.
 
 ### Gesture gate
 
