@@ -109,12 +109,27 @@
       };
 
       let transitionFinished = null;
+      const spatialCommitDirection = options.spatialCommitDirection === 'forward'
+        ? 'forward'
+        : '';
       if (transitionEnabled(options)) {
+        if (spatialCommitDirection) {
+          document.documentElement.dataset.acpSpatialCommit = spatialCommitDirection;
+        }
         const transition = document.startViewTransition(commit);
         await transition.updateCallbackDone;
-        transitionFinished = transition.finished.catch(() => undefined);
+        transitionFinished = transition.finished
+          .catch(() => undefined)
+          .finally(() => {
+            if (spatialCommitDirection) {
+              delete document.documentElement.dataset.acpSpatialCommit;
+            }
+          });
       } else {
         await commit();
+        if (spatialCommitDirection) {
+          delete document.documentElement.dataset.acpSpatialCommit;
+        }
       }
 
       if (typeof prepared.activate === 'function') {

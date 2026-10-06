@@ -238,7 +238,37 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261006-current-route-noop-v6", base)
+        self.assertIn("20261006-spatial-b0-v1", base)
+
+    def test_spatial_row_b0_is_bounded_to_clock_to_weather_and_commits_once(self):
+        transitions = TRANSITIONS.read_text(encoding="utf-8")
+        host = HOST.read_text(encoding="utf-8")
+        styles = TRANSITION_CSS.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("function spatialPrototypeDirection", transitions)
+        self.assertIn("activeRoute() === '/clock' && target?.pathname === '/weather'", transitions)
+        self.assertIn("navigationModeOpen()", transitions)
+        self.assertIn("!options.spatialCommitDirection", transitions)
+        self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
+        self.assertIn("window.ACPNavDrawerController", transitions)
+        self.assertIn("navigationTransitionDurationMs", transitions)
+        self.assertIn("spatialCommitDirection", transitions)
+
+        self.assertIn("options.spatialCommitDirection === 'forward'", host)
+        self.assertIn("dataset.acpSpatialCommit = spatialCommitDirection", host)
+        self.assertIn("delete document.documentElement.dataset.acpSpatialCommit", host)
+        self.assertEqual(host.count("document.startViewTransition(commit)"), 1)
+
+        self.assertIn(':root[data-acp-spatial-commit="forward"]', styles)
+        self.assertIn("--acp-view-transition-old: acp-out-spatial-forward", styles)
+        self.assertIn("--acp-view-transition-new: acp-in-spatial-forward", styles)
+        self.assertIn("@keyframes acp-in-spatial-forward", styles)
+        self.assertIn("@keyframes acp-out-spatial-forward", styles)
+        self.assertIn("translateX(34vw) scale(.94)", styles)
+        self.assertIn("translateX(-34vw) scale(.94)", styles)
+
+        self.assertIn("20261006-spatial-b0-v1", base)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
         source = TRANSITIONS.read_text(encoding="utf-8")

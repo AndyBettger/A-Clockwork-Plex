@@ -53,7 +53,39 @@
   }
 
   function shouldPreserveNavigation(options = {}) {
-    return !isAutomaticNavigation(options) && navigationModeOpen();
+    return !isAutomaticNavigation(options)
+      && !options.spatialCommitDirection
+      && navigationModeOpen();
+  }
+
+  function spatialPrototypeDirection(target, mainNavLink = false) {
+    if (!mainNavLink || !navigationModeOpen() || plexampVisiblyOpen()) return '';
+    return activeRoute() === '/clock' && target?.pathname === '/weather'
+      ? 'forward'
+      : '';
+  }
+
+  function navigationTransitionDuration() {
+    const current = preferences();
+    const value = Number(current.navigationTransitionDurationMs);
+    if (!Number.isFinite(value)) return 180;
+    return Math.max(0, Math.min(1000, value));
+  }
+
+  async function exitNavigationForSpatialCommit(direction) {
+    if (!direction || !navigationModeOpen()) return;
+    const controller = window.ACPNavDrawerController;
+    if (typeof controller?.hide !== 'function') return;
+
+    presentationInFlight = true;
+    controller.hide();
+    const duration = navigationTransitionDuration();
+    if (duration > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, duration + 24));
+    } else {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    }
+    presentationInFlight = false;
   }
 
   function rememberNavigationMode(target) {
@@ -194,6 +226,11 @@
       if (!accepted || leaving) return;
     }
 
+    if (options.spatialCommitDirection) {
+      await exitNavigationForSpatialCommit(options.spatialCommitDirection);
+      if (leaving) return;
+    }
+
     if (target.pathname === '/alarm' || options.immediate) {
       leaving = true;
       window.location.assign(target.href);
@@ -287,8 +324,13 @@
       return;
     }
 
+    const spatialCommitDirection = spatialPrototypeDirection(target, mainNavLink);
+
     event.preventDefault();
-    void navigate(target.href, { source: 'navigation-link' });
+    void navigate(target.href, {
+      source: 'navigation-link',
+      ...(spatialCommitDirection ? { spatialCommitDirection } : {}),
+    });
   });
 
   window.addEventListener('pagehide', () => {
