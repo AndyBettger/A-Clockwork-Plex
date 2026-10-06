@@ -298,6 +298,33 @@
     return document.body.classList.contains('nav-audio-open');
   }
 
+  function syncNavigationRevealHeight() {
+    const drawer = drawerNode();
+    const mainNav = mainNavNode();
+    if (!drawer || !mainNav) return;
+
+    const style = window.getComputedStyle(drawer);
+    const pixels = (value) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const drawerChrome =
+      pixels(style.paddingTop)
+      + pixels(style.paddingBottom)
+      + pixels(style.borderTopWidth)
+      + pixels(style.borderBottomWidth);
+    const bottomOffset = pixels(style.bottom);
+    const mainNavHeight = mainNav.getBoundingClientRect().height;
+    const revealHeight = Math.ceil(mainNavHeight + drawerChrome + bottomOffset);
+
+    if (revealHeight > 0) {
+      document.documentElement.style.setProperty(
+        '--acp-navigation-reveal-height',
+        `${revealHeight}px`,
+      );
+    }
+  }
+
   function closeMixerWithoutScheduling() {
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
@@ -330,6 +357,7 @@
     const handle = handleNode();
     const backdrop = document.getElementById('nav-backdrop');
 
+    if (expanded) syncNavigationRevealHeight();
     document.body.classList.toggle('nav-open', expanded);
     document.body.classList.toggle('nav-mode', expanded);
     drawer?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
@@ -584,6 +612,7 @@
   }
 
   installAudioPanel();
+  syncNavigationRevealHeight();
   reassertTimer = window.setInterval(reassertDesiredValues, 90);
 
   let suppressHandleClickUntil = 0;
@@ -647,9 +676,12 @@
 
   document.addEventListener('acp:surface-settled', () => {
     installAudioPanel();
+    syncNavigationRevealHeight();
     const expanded = document.body.classList.contains('nav-open');
     setExpanded(expanded);
   });
+
+  window.addEventListener('resize', syncNavigationRevealHeight);
 
   window.ACPNavDrawerController = Object.freeze({
     show: showDrawer,
