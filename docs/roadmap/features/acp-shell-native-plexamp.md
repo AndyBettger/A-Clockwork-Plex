@@ -468,8 +468,20 @@ Candidate `eeca5a4fc6e5be87f0801008cb94e50cadbf6e40` therefore:
 
 The first code head correctly changed production behaviour but caused **Tests #5247** to fail on one regression assertion that still expected the retired same-URL early-return string. Updating that regression to express the new Plexamp-safe contract produced candidate `eeca5a4fc6e5be87f0801008cb94e50cadbf6e40`, which passed the full maintained suite as **Tests #5248**; documentation head `2982de64c41c1492948a1e2937cf80fe82d503a6` then passed **Tests #5249**.
 
-Because the physical requirement is explicitly that page, indicator and navigation behave like **one piece of paper**, the final follow-up also removes the drawer's independent opacity transition. Candidate `dc434d7a9e94604e167c2dc401d1dc42914aef1c` keeps the drawer fully present for the whole measured slide, using delayed visibility only after the close completes, so there is no separate fade that can make a correctly positioned drawer still appear to lag. It passed the full maintained suite as **Tests #5250**. Focused physical acceptance of the unified three-part sheet and current-route no-op is pending.
+Because the physical requirement is explicitly that page, indicator and navigation behave like **one piece of paper**, the final follow-up also removes the drawer's independent opacity transition. Candidate `dc434d7a9e94604e167c2dc401d1dc42914aef1c` keeps the drawer fully present for the whole measured slide, using delayed visibility only after the close completes, so there is no separate fade that can make a correctly positioned drawer still appear to lag. It passed the full maintained suite as **Tests #5250**, and documentation-synchronised head `94b2985c9f1c23e3adab9b2f3ef3350c81b20e63` passed **Tests #5251**.
+
+### Level-A navigation physical acceptance — COMPLETE
+
+The final commissioned-Pi retest passes all five focused gates:
+
+- **one-sheet motion:** live ACP/Plexamp surface, white home indicator and ordinary nav drawer remain visually attached throughout both open and close, including the deliberately slow 1000 ms timing test;
+- **Plexamp parity:** the same sheet motion works over Plexamp without regressing its persistent-overlay handoff;
+- **current-route no-op:** tapping the already-active Clock, Weather, News, AirPlay or Settings button produces no transition, no black document reload and leaves navigation open;
+- **Plexamp current destination:** the existing Plexamp-specific current-destination behaviour remains correct;
+- **Audio overlay:** the accepted translucent mixer still fades/lifts over the current surface and remains independent of Navigation transition timing.
+
+Together with the preceding accepted AirPlay hydration, ACP↔Plexamp shell-state, auto-hide and backdrop tests, **Level A is closed**. The production baseline is therefore a full-scale live surface with measured bottom-edge reveal, shell-owned navigation timing, a persistent home indicator/nav assembly, and Audio as an application-duration overlay.
 
 The Audio overlay motion is intentionally **not yet a transition-style preset**. It is a one-sided component overlay animation (opacity + 18 px lift + 0.985→1 scale) over a still-live translucent background, whereas the Motion style list controls old/new whole-application View Transition snapshots. It is closest in character to Grow and fade but has a different compositing contract. A page-transition analogue can be considered after Level A is closed rather than mixing a new style into this acceptance gate.
 
-Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
+The next active Phase A slice is the **spatial row/carousel experiment with exactly one committed destination transition**. Keep the experiment bounded: prove one spatial destination movement against the accepted Level-A shell before generalising it across every destination or starting native Plexamp production migration.
