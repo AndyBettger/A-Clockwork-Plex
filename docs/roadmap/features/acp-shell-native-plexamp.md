@@ -594,16 +594,58 @@ Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` keeps the accepted edge-loc
 
 The extra frames are intentional. The old-root image used by the View Transition is a compositor capture; the test must ensure the full-size Clock surface has actually survived the Level-A transform handoff and reached a paint opportunity before Chromium is asked to photograph it.
 
-Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` passed the full maintained suite as **Tests #5258**.
+Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` passed the full maintained suite as **Tests #5258**, with documentation head `754a2a7d979dd2c556557ba0e0b947b789f61c93` passing **Tests #5259**.
 
-Physical B0-v3 gate:
+#### B0 v3 repeated physical pass — REJECTED
 
-- [ ] Repeat Clock → Weather from open navigation at least several times; the outgoing Clock side should never be white/blank.
-- [ ] Clock and Weather should remain edge-locked at the moving seam on every run.
-- [ ] There must still be exactly one destination commit and no Cover Reveal, black frame, reload or second Weather reveal.
-- [ ] Weather→Clock and unrelated destinations must remain unchanged.
-- [ ] The added settle barrier should not create an objectionable pause between nav finishing and spatial movement beginning.
+The stronger nav-settle barrier did **not** cure the white outgoing surface. In 20 consecutive commissioned-Pi Clock→Weather transitions:
 
-Do not add reverse direction or further destinations until this exact movement is physically judged useful and repeatable.
+- **1/20** showed Clock correctly;
+- **19/20** showed the outgoing Clock region as a plain white rectangle;
+- Weather still followed the correct edge-locked path;
+- there was still exactly one destination movement and no reload/double-reveal regression.
+
+Because the failure became more frequent after adding extra post-nav settle time, the evidence no longer supports a simple "snapshot requested too early" explanation. The unreliable component is the **old-root View Transition texture itself** on this Pi/browser path. Continuing to add arbitrary delay would therefore be cargo-cult timing rather than an architecture fix.
+
+#### B0 v4 — live-DOM spatial strip
+
+The experiment now stops asking Chromium to provide an outgoing root snapshot.
+
+Candidate `114b945f4bc132bbc14922eac045e582330703cd` keeps the accepted B0 selection policy and one-destination lifecycle, but changes the presentation engine only for this bounded Clock→Weather path:
+
+1. after navigation has closed, clone the currently mounted **live Clock DOM** from `main.screen`;
+2. preserve the current body background on that outgoing clone so it is visually self-contained;
+3. place the real live `main.screen` one viewport to the right;
+4. commit Weather into the real mounted surface;
+5. animate the outgoing Clock clone `0 → -100vw` and the live Weather host `+100vw → 0` with the same configured application Transition duration/easing;
+6. remove the temporary Clock clone and return the real screen to normal geometry;
+7. continue the normal Surface Host activation/history/settled lifecycle.
+
+This is intentionally **not** a second general transition framework. The Surface Host exposes a lifecycle hook (`prepared.spatialCommit`) for the one B0 relation; all ordinary ACP destination transitions still use `document.startViewTransition()`. If B0 is rejected, Level A remains unchanged.
+
+Important side effect: the home indicator remains real shell chrome rather than being baked into a moving root screenshot. That is closer to the intended desktop-shell ownership model.
+
+Automated coverage verifies:
+
+- the B0 policy remains restricted to Clock→Weather from open navigation;
+- the spatial path calls `prepared.spatialCommit` instead of root View Transition snapshot animation;
+- the outgoing layer is a DOM clone of the current mounted screen;
+- the incoming layer is the real live mounted Weather surface;
+- both use exact `±100vw` edge-lock motion;
+- cleanup always removes the temporary layer and inline transform;
+- the retired `data-acp-spatial-commit` root keyframes are gone.
+
+Candidate `114b945f4bc132bbc14922eac045e582330703cd` passed the full maintained suite as **Tests #5260**.
+
+Physical B0-v4 gate:
+
+- [ ] Repeat Clock→Weather at least 10–20 times; the outgoing Clock surface must be present on every run.
+- [ ] Clock and Weather must remain joined at the moving seam with no white gap.
+- [ ] The home indicator should remain stationary as shell chrome while content moves.
+- [ ] There must still be one destination movement only, with no Cover Reveal, black frame, reload or second Weather appearance.
+- [ ] Weather→Clock and all unrelated destinations must remain unchanged.
+- [ ] Weather must settle fully live/interactable after the strip completes.
+
+Do not add reverse direction or further destinations until the live-DOM B0 path passes physically.
 
 

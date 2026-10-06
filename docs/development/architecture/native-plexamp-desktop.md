@@ -362,7 +362,20 @@ Because the two snapshots move equal distances with identical timing, the old sn
 
 The second B0 physical pass exposed a separate boundary: **snapshot readiness after navigation-sheet motion**. A nominal timeout equal to the navigation CSS duration is insufficient evidence that Chromium has painted the live surface's post-transform texture. On the Raspberry Pi the View Transition could occasionally capture the outgoing Clock root as blank/white even though Weather then followed the correct edge-locked trajectory. The architecture must therefore wait on a rendered-state signal rather than elapsed wall-clock time.
 
-For B0 v3, the navigation policy attaches to `main.screen` before closing the Level-A sheet and waits for the real `translate` `transitionend`/`transitioncancel` event. A timeout remains only as a failure escape. Once the transform is complete, ACP waits two `requestAnimationFrame` turns and performs a layout read between them before starting the destination View Transition. This creates a bounded **CSS transition → layout/paint opportunity → View Transition capture** handoff instead of assuming those compositor stages have completed because a timer expired.
+For B0 v3, the navigation policy attached to `main.screen` before closing the Level-A sheet and waited for the real `translate` `transitionend`/`transitioncancel` event, followed by two animation frames and a layout read. Repeated physical testing rejected that approach: 19 of 20 old-root captures were still white. The architecture therefore treats this as an unreliable **browser snapshot primitive** for the Pi spatial case rather than as a scheduling bug.
+
+B0 v4 deliberately changes only the spatial presentation primitive. The mounted-surface model already keeps the outgoing ACP DOM alive, so the experiment can use that real DOM instead of asking Chromium to photograph the root:
+
+- clone the current `main.screen` while Clock is still the visible mounted surface;
+- make the clone non-interactive and copy the body background onto it;
+- position the real live `main.screen` at `+100vw`;
+- commit Weather into the real screen;
+- use Web Animations to move the Clock clone to `-100vw` and Weather to `0` with identical timing;
+- remove the clone and inline transform in a `finally` cleanup.
+
+The Surface Host supports this through an optional `prepared.spatialCommit` lifecycle hook. The hook receives the normal `commit` callback, so logical surface ownership, body mode, navigation state, history, activation and settled events remain centralized in the existing host. Ordinary ACP transitions still use the View Transition API exactly as before.
+
+This live-DOM strip has two architectural advantages beyond avoiding the blank texture: it uses the same mounted-surface objects the future carousel would actually own, and shell chrome such as the home indicator remains a real fixed shell layer rather than becoming part of a frozen root image.
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
 
