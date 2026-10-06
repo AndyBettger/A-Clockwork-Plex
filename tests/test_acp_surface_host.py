@@ -238,7 +238,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-b0-v2", base)
+        self.assertIn("20261007-spatial-b0-v3", base)
 
     def test_spatial_row_b0_is_bounded_to_clock_to_weather_and_commits_once(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -254,6 +254,15 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("window.ACPNavDrawerController", transitions)
         self.assertIn("navigationTransitionDurationMs", transitions)
         self.assertIn("spatialCommitDirection", transitions)
+        self.assertIn("function waitForNavigationSheetClosed", transitions)
+        self.assertIn("event.propertyName !== 'translate'", transitions)
+        self.assertIn("transitionend", transitions)
+        self.assertIn("transitioncancel", transitions)
+        self.assertIn("window.requestAnimationFrame(() =>", transitions)
+        self.assertIn("liveSurface?.getBoundingClientRect()", transitions)
+        self.assertIn("const settled = waitForNavigationSheetClosed(duration)", transitions)
+        self.assertIn("await settled", transitions)
+        self.assertNotIn("duration + 24", transitions)
 
         self.assertIn("options.spatialCommitDirection === 'forward'", host)
         self.assertIn("dataset.acpSpatialCommit = spatialCommitDirection", host)
@@ -275,7 +284,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("opacity:", spatial)
         self.assertNotIn("scale(", spatial)
 
-        self.assertIn("20261007-spatial-b0-v2", base)
+        self.assertIn("20261007-spatial-b0-v3", base)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
         source = TRANSITIONS.read_text(encoding="utf-8")

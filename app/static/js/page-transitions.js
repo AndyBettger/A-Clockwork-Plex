@@ -71,19 +71,56 @@
     return Math.max(0, Math.min(1000, value));
   }
 
+  function waitForNavigationSheetClosed(duration) {
+    const liveSurface = document.querySelector('main.screen');
+    const fallbackMs = Math.max(80, Number(duration) || 0) + 180;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timer = null;
+
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        liveSurface?.removeEventListener('transitionend', onTransitionEnd);
+        liveSurface?.removeEventListener('transitioncancel', onTransitionEnd);
+        window.clearTimeout(timer);
+
+        // View Transition snapshots are compositor captures. Give Chromium two
+        // complete paint opportunities after the navigation transform has
+        // actually settled before asking it to photograph the outgoing surface.
+        window.requestAnimationFrame(() => {
+          liveSurface?.getBoundingClientRect();
+          window.requestAnimationFrame(resolve);
+        });
+      };
+
+      const onTransitionEnd = (event) => {
+        if (event.target !== liveSurface || event.propertyName !== 'translate') return;
+        finish();
+      };
+
+      if (!liveSurface || duration <= 0) {
+        finish();
+        return;
+      }
+
+      liveSurface.addEventListener('transitionend', onTransitionEnd);
+      liveSurface.addEventListener('transitioncancel', onTransitionEnd);
+      timer = window.setTimeout(finish, fallbackMs);
+    });
+  }
+
   async function exitNavigationForSpatialCommit(direction) {
     if (!direction || !navigationModeOpen()) return;
     const controller = window.ACPNavDrawerController;
     if (typeof controller?.hide !== 'function') return;
 
     presentationInFlight = true;
-    controller.hide();
     const duration = navigationTransitionDuration();
-    if (duration > 0) {
-      await new Promise((resolve) => window.setTimeout(resolve, duration + 24));
-    } else {
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    }
+    const settled = waitForNavigationSheetClosed(duration);
+    controller.hide();
+    await settled;
     presentationInFlight = false;
   }
 
