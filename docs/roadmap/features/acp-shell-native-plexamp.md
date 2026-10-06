@@ -410,12 +410,18 @@ The 6 October physical retest passes that cross-application contract. Manual ACP
 
 Commissioned-Pi testing confirms the full-scale direction is visually better than the 0.84 recede: typography and controls stay at their normal size and the shell feels like it is temporarily borrowing display space rather than shrinking the application.
 
-The first full-scale candidate used a 90 px lift. Physical feedback shows that this is too large at 1280×720, leaving an unnecessarily wide dark gap between the live page content and the home indicator. The active refinement therefore:
+The first full-scale candidate used a 90 px lift. Physical feedback showed that this was too large; the next 28 px candidate moved too little and allowed the ordinary drawer to cover the bottom of the live page again. The visual target is now explicit: the top edge of the ordinary navigation drawer should meet the bottom edge of the lifted live surface, making the drawer appear attached beneath the page rather than floating over it.
+
+The active refinement therefore:
 
 - keeps `scale: 1` throughout navigation mode;
-- reduces the active ACP/Plexamp lift to `28px`;
-- retains the dim backdrop and rounded live-surface edge;
-- restores the application to its exact normal geometry when navigation closes.
+- removes the guessed fixed lift;
+- measures the ordinary navigation strip at runtime from the main-nav row height, drawer vertical padding/borders and the drawer's bottom inset;
+- writes that measurement to `--acp-navigation-reveal-height`;
+- lifts ACP and Plexamp by exactly that measured amount;
+- recalculates on navigation open, surface settlement and viewport resize;
+- deliberately measures only the ordinary main-nav row, so opening the large Audio mixer does not suddenly shove the background application almost off-screen;
+- retains the dim backdrop, rounded live-surface edge and exact normal geometry restoration when navigation closes.
 
 The same pass also separates two previously mixed timing authorities. Before this refinement, the drawer/indicator themselves used a fixed 180 ms transition, while the backdrop and live-surface lift used `--acp-transition-in-duration`, derived from the ordinary Display → Motion page-transition duration. Navigation now has one dedicated timing contract:
 
@@ -427,6 +433,6 @@ The same pass also separates two previously mixed timing authorities. Before thi
 
 The setting is live-projected into the long-lived shell, included in portable configuration backup and defaults to 180 ms on existing configs that do not yet contain the key.
 
-Final implementation head `0e748b5ce5269c4181bf078298a5fbdef40e0dc9` passed **Tests #5241** (full maintained gate). Focused physical retest of the 28 px lift and independent navigation-duration control is pending.
+The 28 px candidate plus independent navigation timing passed **Tests #5241/#5242**. Physical testing accepts the independent Navigation transition duration, ACP↔Plexamp preservation, auto-hide and Audio behaviour; only the 28 px geometry failed visually because the drawer again covered live content. Runtime-measured geometry candidate `97b3b5f9323853b3f05699140740c53f5094b4e6`; focused physical retest pending.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
