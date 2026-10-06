@@ -349,12 +349,16 @@ The first carousel experiment intentionally implements **one relation only: Cloc
 
 B0 does not build a second transition engine. Navigation policy marks that one selection with `spatialCommitDirection: "forward"` after manual-screen ownership has accepted Weather. The shell then exits navigation and waits for the configured Navigation transition duration. Once the Level-A sheet has returned to its closed state, the existing Surface Host performs its normal single `document.startViewTransition(commit)`.
 
-For that one View Transition, the host temporarily exposes `data-acp-spatial-commit="forward"` on the document root. CSS maps the old/new root snapshots to a deliberately larger spatial pair than the normal Horizontal slide style:
+For that one View Transition, the host temporarily exposes `data-acp-spatial-commit="forward"` on the document root. The first visual candidate used `±34vw`, 0.94 scale and opacity depth cues. Physical testing rejected that composition: because the snapshots no longer tiled the viewport, the incoming Weather edge exposed the white root background and the outgoing Clock read as a faded backing layer, producing an **overlay** metaphor rather than a row.
 
-- old Clock: `0 → -34vw`, `1 → 0.94` scale, reduced opacity;
-- new Weather: `+34vw → 0`, `0.94 → 1` scale, increasing opacity;
+B0 v2 therefore uses an edge-lock invariant instead of depth effects:
+
+- old Clock: `translateX(0) → translateX(-100vw)`, full scale/full opacity;
+- new Weather: `translateX(100vw) → translateX(0)`, full scale/full opacity;
 - duration: existing application `transition_duration_ms`;
-- easing: the existing ACP destination-transition cubic-bezier.
+- easing: the same ACP destination-transition cubic-bezier for both snapshots.
+
+Because the two snapshots move equal distances with identical timing, the old snapshot's right edge and the new snapshot's left edge are coincident at every animation fraction. The viewport is always covered by one or the other snapshot and the document background cannot become part of the visual transition.
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
 

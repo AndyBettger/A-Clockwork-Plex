@@ -519,21 +519,51 @@ Implementation rules:
 - the navigation sheet is allowed to finish its accepted close motion before the destination snapshot is taken, using `display.navigation_transition_duration_ms`;
 - the Surface Host still calls `document.startViewTransition(commit)` exactly once;
 - only for that one commit, `data-acp-spatial-commit="forward"` overrides the configured View Transition keyframes;
-- the B0 destination motion is intentionally obvious for evaluation: outgoing Clock moves `-34vw` and scales to `0.94`; incoming Weather starts at `+34vw / 0.94`; the configured **application Transition duration** remains authoritative;
+- the first B0 destination motion used outgoing `-34vw / 0.94` and incoming `+34vw / 0.94`; commissioned-Pi testing rejected that visual composition because it reads as Weather sliding over a faded/washed Clock backing and exposes the white document root at the incoming edge rather than as two neighbouring surfaces;
 - the temporary spatial dataset is removed after the transition and also in the Surface Host fail-safe `finally` path;
 - the accepted Level-A shell remains the production fallback if B0 feels gimmicky, janks on the Pi or proves too visually busy.
 
 The first implementation head `34969583305a4867f3e47a6da258ee4bf7db67c1` failed **Tests #5253** only because two static regression assertions expected the pre-B0 source spelling for navigation preservation and `transition.finished.catch`. Production behaviour was not the failing condition. Compatibility/cleanup head `60412c433ef8539e9c776fb228f47234e33878af` preserves those accepted contracts, adds fail-safe spatial-dataset cleanup and passed the full maintained suite as **Tests #5254**.
 
-Physical B0 gate:
+#### B0 first physical pass — lifecycle passes, spatial presentation rejected
 
-- [ ] From Clock, open navigation and select Weather: navigation should first leave cleanly, followed by one clearly spatial Clock→Weather move.
-- [ ] The spatial motion should read as **adjacent surfaces in a horizontal row**, not merely as the existing short Horizontal slide style.
-- [ ] There must be no double transition, black frame, intermediate full-page reload or second Weather reveal.
-- [ ] Weather must settle normally with forecast/rain controls intact and nav closed.
-- [ ] Weather→Clock must remain the ordinary configured transition for this experiment.
-- [ ] Clock→News/AirPlay/Settings/Plexamp must remain ordinary accepted behaviour.
-- [ ] Repeating Clock→Weather several times must not leave `data-acp-spatial-commit` stuck or change later transition styles.
+The commissioned-Pi result cleanly separates the architecture from the animation choice:
+
+- [x] Clock → Weather selection first dismisses navigation.
+- [x] Exactly one destination movement occurs.
+- [x] No Cover Reveal follows it; there is no black frame, full-document reload or second Weather appearance.
+- [x] Weather → Clock remains the ordinary configured transition.
+- [x] Clock → News/AirPlay/Settings/Plexamp remain ordinary accepted behaviour.
+- [ ] **Row metaphor:** failed. The old Clock surface becomes a pale/grey backing and Weather visibly slides over it rather than both pages reading as a continuous horizontal strip.
+
+The captured transition frame explains the failure. With the incoming Weather snapshot translated by `34vw` and scaled to `0.94`, its left edge begins at approximately `34vw + 3vw = 37vw`. The screenshot shows almost exactly that much pure white document background before the Weather snapshot begins. Scale and opacity therefore introduced empty canvas/overlay cues—the opposite of the intended neighbouring-surface metaphor.
+
+#### B0 v2 — edge-locked strip
+
+Candidate `eb5cd5950152f9336dc5a0ac8b32bcf58fce4c95` keeps the existing one-commit lifecycle but simplifies the spatial composition to the strongest possible row invariant:
+
+```text
+Clock                       Weather
+|<------ 100vw ------>|<------ 100vw ------>|
+              ↓ same animation fraction
+Clock shifts left one viewport while Weather shifts in
+from exactly one viewport to the right.
+```
+
+- no spatial opacity change;
+- no spatial scale change;
+- outgoing Clock: `translateX(0) → translateX(-100vw)`;
+- incoming Weather: `translateX(100vw) → translateX(0)`;
+- identical configured application Transition duration and easing for both snapshots;
+- the old right edge and new left edge therefore remain coincident throughout the movement, preventing the root background from opening between them.
+
+Physical B0-v2 gate:
+
+- [ ] Clock should remain fully recognisable while sliding left; it must not wash out grey/white.
+- [ ] Weather should appear immediately adjacent to Clock at a moving vertical seam, not float over the top of it.
+- [ ] No white/root-background gap should appear between the two snapshots.
+- [ ] The result should now read as moving one position along a horizontal row.
+- [ ] The already-passed one-commit/no-reload/ordinary-other-destinations behaviour must remain intact.
 
 Do not add reverse direction or further destinations until this exact movement is physically judged useful.
 
