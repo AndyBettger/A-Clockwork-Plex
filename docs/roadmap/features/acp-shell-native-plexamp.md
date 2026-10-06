@@ -447,6 +447,27 @@ Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` makes three bounded follow-
 
 The reported screenshot with AirPlay on the left and News still visible on the right is partly expected: with **Cover reveal** and a 2000 ms Transition duration, the old News snapshot remains visible while the new snapshot uncovers it. The genuine defect is visible *inside* the incoming AirPlay half: the mini-clock is still only its four static colon dots and the layout subsequently reflows after hydration. The pre-snapshot gate targets that defect without changing what Cover reveal is supposed to look like.
 
-Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` passed the full maintained suite as **Tests #5245**. Focused physical acceptance of indicator synchronisation, Audio-overlay presentation and AirPlay first-entry stability is pending.
+Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` passed the full maintained suite as **Tests #5245**, with documentation-synchronised head `515027990df2db89ff361ffaae17ef0b68acada2` passing **Tests #5246**.
+
+The next commissioned-Pi pass accepts most of that slice:
+
+- the **home indicator now moves exactly with the live page**, including at the intentionally slow 1000 ms Navigation transition duration;
+- the **Audio overlay is physically accepted**: the normal bottom nav remains in place, the mixer fades/lifts over the live surface, the translucent glass treatment looks correct over both Plexamp and AirPlay, and changing ordinary Transition duration changes the overlay timing while Navigation duration remains independent;
+- the **AirPlay pre-snapshot hydration gate is accepted** on first and repeated visits: the segmented mini-clock/weather/status geometry is stable during Cover reveal, with no later vertical correction;
+- the existing ACP/Plexamp and Audio round-trips remain healthy.
+
+The same slow-motion test makes the remaining drawer mismatch obvious. The page and indicator now share the measured distance and shell easing, but the nav drawer itself still starts from `calc(100% + 18px)` and uses generic `ease`. On opening the page/indicator therefore reach their destination first and wait for the drawer; on closing the page visibly moves down behind a drawer that is still catching up. The intended physical model is stricter: **live page, white indicator and ordinary nav bar are one sheet**. Their vertical deltas must be equal in magnitude and driven by the same easing/duration at every animation frame.
+
+A separate interaction defect was also exposed: tapping the nav button for the **already-active ACP page** did not enter the Surface Host at all. The global link interceptor returned early for the same URL without calling `preventDefault()`, so Chromium performed a normal document navigation. That explains the black screen flash, page reappearance and lost nav state. Plexamp does not show the defect because its route is presentation-owned, and Audio is a button/overlay rather than an anchor.
+
+Candidate `eeca5a4fc6e5be87f0801008cb94e50cadbf6e40` therefore:
+
+- gives the nav drawer a closed offset of exactly `--acp-navigation-reveal-height` and the same `cubic-bezier(.16, .84, .24, 1)` as the page/indicator;
+- changes the drawer from its historical transform path to the same individual `translate` contract used by the live surface assembly;
+- treats an already-active ACP main-nav destination as an explicit consumed no-op, preventing the browser default reload and leaving navigation open.
+
+The first code head correctly changed production behaviour but caused **Tests #5247** to fail on one regression assertion that still expected the retired same-URL early-return string. Updating that regression to express the new Plexamp-safe contract produced candidate `eeca5a4fc6e5be87f0801008cb94e50cadbf6e40`, which passed the full maintained suite as **Tests #5248**. Focused physical acceptance of the unified three-part sheet and current-route no-op is pending.
+
+The Audio overlay motion is intentionally **not yet a transition-style preset**. It is a one-sided component overlay animation (opacity + 18 px lift + 0.985→1 scale) over a still-live translucent background, whereas the Motion style list controls old/new whole-application View Transition snapshots. It is closest in character to Grow and fade but has a different compositing contract. A page-transition analogue can be considered after Level A is closed rather than mixing a new style into this acceptance gate.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
