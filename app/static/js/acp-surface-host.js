@@ -99,10 +99,13 @@
         throw new Error(`ACP surface "${surface}" prepare() did not return commit().`);
       }
 
-      const commit = () => {
+      const commit = async () => {
         prepared.commit({ host, surface, from, options });
         updateBodySurface(surface);
         if (prepared.title) document.title = String(prepared.title);
+        if (typeof prepared.beforeSnapshot === 'function') {
+          await prepared.beforeSnapshot({ host, surface, from, options });
+        }
       };
 
       let transitionFinished = null;
@@ -111,7 +114,7 @@
         await transition.updateCallbackDone;
         transitionFinished = transition.finished.catch(() => undefined);
       } else {
-        commit();
+        await commit();
       }
 
       if (typeof prepared.activate === 'function') {

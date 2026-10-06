@@ -129,8 +129,8 @@
       panel = document.createElement('section');
       panel.id = 'nav-live-mixer';
       panel.className = 'nav-live-mixer';
-      panel.hidden = true;
       panel.setAttribute('aria-label', 'Audio mixer');
+      panel.setAttribute('aria-hidden', 'true');
       panel.innerHTML = `
         <header class="nav-live-mixer-heading">
           <strong>Audio mixer</strong>
@@ -143,7 +143,7 @@
         </div>
         <div class="nav-live-message" id="nav-live-message" role="status" hidden></div>
       `;
-      drawer.appendChild(panel);
+      document.body.appendChild(panel);
     }
 
     if (audioButton.dataset.navAudioInstalled !== 'true') {
@@ -151,7 +151,7 @@
       audioButton.addEventListener('click', () => {
         const currentPanel = document.getElementById('nav-live-mixer');
         if (!currentPanel) return;
-        const opening = currentPanel.hidden;
+        const opening = !mixerOpen();
         setMixerOpen(opening);
         if (opening) refreshLiveMixer();
       });
@@ -329,7 +329,7 @@
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.remove('nav-audio-open');
-    if (panel) panel.hidden = true;
+    if (panel) panel.setAttribute('aria-hidden', 'true');
     if (button) {
       button.setAttribute('aria-expanded', 'false');
       button.classList.remove('is-active');
@@ -342,7 +342,7 @@
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.toggle('nav-audio-open', open);
-    if (panel) panel.hidden = !open;
+    if (panel) panel.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (button) {
       button.setAttribute('aria-expanded', open ? 'true' : 'false');
       button.classList.toggle('is-active', open);
@@ -619,6 +619,9 @@
   let touchStartedOnHandle = false;
 
   document.addEventListener('click', (event) => {
+    const destination = event.target.closest?.('#nav-drawer a.nav-button');
+    if (destination && mixerOpen()) closeMixerWithoutScheduling();
+
     if (event.target.closest?.('#nav-backdrop')) {
       event.preventDefault();
       hideDrawer();
@@ -664,10 +667,10 @@
   }, { passive: true });
 
   document.addEventListener('pointerdown', (event) => {
-    if (event.target.closest?.('#nav-drawer')) scheduleHide();
+    if (event.target.closest?.('#nav-drawer, #nav-live-mixer')) scheduleHide();
   });
   document.addEventListener('focusin', (event) => {
-    if (event.target.closest?.('#nav-drawer')) scheduleHide();
+    if (event.target.closest?.('#nav-drawer, #nav-live-mixer')) scheduleHide();
   });
 
   document.addEventListener('keydown', (event) => {

@@ -159,14 +159,19 @@
     }
   }
 
+  function markAirPlayUnresolved() {
+    document.body.classList.remove(
+      'airplay-session-active',
+      'airplay-session-idle',
+      'airplay-metadata-active',
+      'airplay-remote-paused',
+      'airplay-remote-playing',
+    );
+    document.body.classList.add('airplay-session-unresolved');
+  }
+
   function commitSurface(surface) {
-    if (
-      surface === 'airplay'
-      && !document.body.classList.contains('airplay-session-active')
-      && !document.body.classList.contains('airplay-session-idle')
-    ) {
-      document.body.classList.add('airplay-session-unresolved');
-    }
+    if (surface === 'airplay') markAirPlayUnresolved();
 
     mounted.forEach((record, name) => {
       record.wrapper.hidden = name !== surface;
@@ -177,20 +182,39 @@
     surfaceHost.register(surface, {
       async prepare() {
         const record = await ensureMounted(surface);
+        let activatedBeforeSnapshot = false;
+
+        const publishActivation = (options = {}) => {
+          document.dispatchEvent(new CustomEvent('acp:surface-activated', {
+            detail: {
+              surface,
+              source: String(options.source || 'application-surface'),
+            },
+          }));
+        };
+
         return {
           title: record.title,
           commit() {
             commitSurface(surface);
           },
+          async beforeSnapshot({ options = {} } = {}) {
+            if (surface !== 'airplay') return;
+
+            // AirPlay's segmented glance row and measured hero geometry are
+            // script-owned. Load and settle them before View Transition captures
+            // the incoming snapshot so the transition never freezes raw markup.
+            await ensureScripts(record.scripts);
+            const ready = window.ACPAirPlayHydration?.waitForReady?.(1400)
+              || Promise.resolve();
+            publishActivation(options);
+            activatedBeforeSnapshot = true;
+            await ready;
+          },
           async activate({ options = {} } = {}) {
             await ensureScripts(record.scripts);
             await syncLogicalMode(surface);
-            document.dispatchEvent(new CustomEvent('acp:surface-activated', {
-              detail: {
-                surface,
-                source: String(options.source || 'application-surface'),
-              },
-            }));
+            if (!activatedBeforeSnapshot) publishActivation(options);
           },
         };
       },

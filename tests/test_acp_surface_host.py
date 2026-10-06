@@ -11,7 +11,6 @@ NAV_DRAWER = ROOT / "app" / "static" / "js" / "nav-drawer.js"
 NAV_LIFECYCLE = ROOT / "app" / "static" / "js" / "nav-drawer-lifecycle.js"
 AUDIO_EQ = ROOT / "app" / "static" / "js" / "audio-eq.js"
 AUDIO_EQ_LAYOUT = ROOT / "app" / "static" / "js" / "audio-eq-drawer-layout.js"
-AUDIO_POLISH = ROOT / "app" / "static" / "js" / "audio-polish.js"
 HOST = ROOT / "app" / "static" / "js" / "acp-surface-host.js"
 TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 APPLICATION_SURFACES = ROOT / "app" / "static" / "js" / "acp-application-surfaces.js"
@@ -54,7 +53,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         lifecycle = NAV_LIFECYCLE.read_text(encoding="utf-8")
         audio_eq = AUDIO_EQ.read_text(encoding="utf-8")
         audio_layout = AUDIO_EQ_LAYOUT.read_text(encoding="utf-8")
-        audio_polish = AUDIO_POLISH.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
 
         self.assertIn('id="nav-audio-button"', navigation)
         self.assertIn("__aClockworkPlexNavDrawerLoaded", drawer)
@@ -71,7 +70,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("ensureAudioPanel", lifecycle)
         self.assertIn("acp:surface-settled", audio_eq)
         self.assertIn("acp:surface-settled", audio_layout)
-        self.assertIn("acp:surface-settled", audio_polish)
+        self.assertNotIn("js/audio-polish.js", base)
 
     def test_home_indicator_gesture_target_supports_cross_app_up_and_down_swipes(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -95,7 +94,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261006-nav-drawer-height-v5", base)
+        self.assertIn("20261006-nav-audio-overlay-v6", base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -136,6 +135,20 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("window.addEventListener('resize', syncNavigationRevealHeight)", drawer)
         self.assertIn("prefers-reduced-motion", styles)
 
+        # The visible home indicator is physically attached to the live surface:
+        # same measured distance and same easing, with no historical fixed offset.
+        self.assertIn("translate: -50% 0", styles)
+        self.assertIn(
+            "translate: -50% calc(0px - var(--acp-navigation-reveal-height, 74px))",
+            styles,
+        )
+        self.assertIn(
+            "translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1)",
+            styles,
+        )
+        self.assertNotIn("translate(-50%, -64px)", styles)
+        self.assertNotIn("translate(-50%, -56px)", styles)
+
         # Individual transform properties deliberately coexist with ACP's
         # existing transform-based View Transitions/Plexamp handoff.
         self.assertIn("scale: 1", styles)
@@ -146,7 +159,24 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261006-nav-drawer-height-v5", base)
+        self.assertIn("20261006-nav-audio-overlay-v6", base)
+
+    def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
+        drawer = NAV_DRAWER.read_text(encoding="utf-8")
+        styles = NAV_CSS.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("body.nav-audio-open .nav-live-mixer", styles)
+        self.assertIn("position: fixed", styles)
+        self.assertIn("z-index: 78", styles)
+        self.assertIn("var(--acp-transition-duration)", styles)
+        self.assertNotIn("body.nav-audio-open .nav-drawer", styles)
+        self.assertIn("document.body.appendChild(panel)", drawer)
+        self.assertIn("const opening = !mixerOpen()", drawer)
+        self.assertIn("panel.setAttribute('aria-hidden'", drawer)
+        self.assertNotIn("panel.hidden =", drawer)
+        self.assertIn("#nav-drawer, #nav-live-mixer", drawer)
+        self.assertNotIn("js/audio-polish.js", base)
 
     def test_navigation_mode_persists_across_manual_plexamp_handoffs(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -168,7 +198,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261006-nav-drawer-height-v5", base)
+        self.assertIn("20261006-nav-audio-overlay-v6", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
@@ -178,6 +208,10 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("prepared = await lifecycle.prepare", source)
         self.assertIn("typeof prepared.commit !== 'function'", source)
         self.assertIn("document.startViewTransition(commit)", source)
+        self.assertIn("const commit = async () =>", source)
+        self.assertIn("typeof prepared.beforeSnapshot === 'function'", source)
+        self.assertIn("await prepared.beforeSnapshot", source)
+        self.assertIn("await commit()", source)
         self.assertIn("transition.finished.catch", source)
         self.assertIn("acp:surface-changed", source)
         self.assertIn("acp:surface-settled", source)

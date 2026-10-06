@@ -11,7 +11,7 @@
 
     const panel = document.getElementById('nav-live-mixer');
     const audioButton = document.getElementById('nav-audio-button');
-    if (panel) panel.hidden = true;
+    if (panel) panel.setAttribute('aria-hidden', 'true');
     if (audioButton) {
       audioButton.setAttribute('aria-expanded', 'false');
       audioButton.classList.remove('is-active');
