@@ -427,6 +427,6 @@ The same pass also separates two previously mixed timing authorities. Before thi
 
 The setting is live-projected into the long-lived shell, included in portable configuration backup and defaults to 180 ms on existing configs that do not yet contain the key.
 
-Implementation head `2b6e41b319776bb30de24e01ee182a4ccd978b04`; focused physical retest pending.
+Final implementation head `0e748b5ce5269c4181bf078298a5fbdef40e0dc9` passed **Tests #5241** (full maintained gate). Focused physical retest of the 28 px lift and independent navigation-duration control is pending.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
