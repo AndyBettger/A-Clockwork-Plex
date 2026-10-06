@@ -276,8 +276,17 @@
     if (link.target && link.target !== '_self') return;
     const target = sameOriginTarget(link.href);
     if (!target) return;
-    if (target.href === window.location.href && !plexampVisiblyOpen()) return;
-    if (!link.closest('.main-nav') && !link.hasAttribute('data-page-transition')) return;
+    const mainNavLink = Boolean(link.closest('.main-nav'));
+    if (!mainNavLink && !link.hasAttribute('data-page-transition')) return;
+
+    // A selected ACP destination is already the live mounted surface. Consume
+    // the click rather than allowing the browser's default same-URL navigation
+    // to hard-reload the document (which would black-flash and discard nav mode).
+    if (mainNavLink && !plexampVisiblyOpen() && target.pathname === activeRoute()) {
+      event.preventDefault();
+      return;
+    }
+
     event.preventDefault();
     void navigate(target.href, { source: 'navigation-link' });
   });

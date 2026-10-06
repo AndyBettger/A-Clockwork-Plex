@@ -94,7 +94,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261006-nav-audio-overlay-v6", base)
+        self.assertIn("20261006-nav-assembly-v7", base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -146,6 +146,13 @@ class AcpSurfaceHostTests(unittest.TestCase):
             "translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1)",
             styles,
         )
+        self.assertIn(
+            "translate: -50% var(--acp-navigation-reveal-height, 74px)",
+            styles,
+        )
+        self.assertIn("body.nav-open .nav-drawer", styles)
+        self.assertIn("translate: -50% 0", styles)
+        self.assertNotIn("transform: translate(-50%, calc(100% + 18px))", styles)
         self.assertNotIn("translate(-50%, -64px)", styles)
         self.assertNotIn("translate(-50%, -56px)", styles)
 
@@ -159,7 +166,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261006-nav-audio-overlay-v6", base)
+        self.assertIn("20261006-nav-assembly-v7", base)
 
     def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -198,7 +205,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261006-nav-audio-overlay-v6", base)
+        self.assertIn("20261006-nav-assembly-v7", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
@@ -216,6 +223,19 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("acp:surface-changed", source)
         self.assertIn("acp:surface-settled", source)
         self.assertIn("surface-not-registered", source)
+
+    def test_clicking_current_acp_nav_destination_is_consumed_without_reload(self):
+        source = TRANSITIONS.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("const mainNavLink = Boolean(link.closest('.main-nav'))", source)
+        self.assertIn(
+            "if (mainNavLink && !plexampVisiblyOpen() && target.pathname === activeRoute())",
+            source,
+        )
+        self.assertIn("event.preventDefault();\n      return;", source)
+        self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
+        self.assertIn("20261006-current-route-noop-v6", base)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
         source = TRANSITIONS.read_text(encoding="utf-8")
