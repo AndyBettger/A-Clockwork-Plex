@@ -94,7 +94,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261006-nav-assembly-v7", base)
+        self.assertIn("20261006-nav-sheet-v8", base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -152,6 +152,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("body.nav-open .nav-drawer", styles)
         self.assertIn("translate: -50% 0", styles)
+        self.assertIn("visibility: hidden", styles)
+        self.assertIn("visibility: visible", styles)
+        self.assertNotIn("opacity: 0;\n  pointer-events: none;\n  transition:\n    translate", styles)
         self.assertNotIn("transform: translate(-50%, calc(100% + 18px))", styles)
         self.assertNotIn("translate(-50%, -64px)", styles)
         self.assertNotIn("translate(-50%, -56px)", styles)
@@ -166,7 +169,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261006-nav-assembly-v7", base)
+        self.assertIn("20261006-nav-sheet-v8", base)
 
     def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -205,7 +208,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261006-nav-assembly-v7", base)
+        self.assertIn("20261006-nav-sheet-v8", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")

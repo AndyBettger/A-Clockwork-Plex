@@ -62,18 +62,19 @@ body.nav-mode .persistent-plexamp.is-open {
      height is drawer height + bottom inset, so moving by that same distance as
      the live surface keeps both edges physically joined throughout the motion. */
   translate: -50% var(--acp-navigation-reveal-height, 74px);
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transition:
     translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
-    opacity var(--acp-navigation-transition-duration) ease,
-    border-radius var(--acp-navigation-transition-duration) ease;
+    border-radius var(--acp-navigation-transition-duration) ease,
+    visibility 0s linear var(--acp-navigation-transition-duration);
 }
 
 body.nav-open .nav-drawer {
   translate: -50% 0;
-  opacity: 1;
+  visibility: visible;
   pointer-events: auto;
+  transition-delay: 0s;
 }
 
 .main-nav {
