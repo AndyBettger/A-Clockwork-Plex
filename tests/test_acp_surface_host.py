@@ -131,7 +131,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("scale var(--acp-navigation-transition-duration)", plexamp)
         self.assertIn("translate var(--acp-navigation-transition-duration)", plexamp)
         self.assertIn("border-radius var(--acp-navigation-transition-duration)", plexamp)
-        self.assertIn("opacity var(--acp-transition-in-duration)", plexamp)
+        self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
+        self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
+        self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
         self.assertIn("20261006-nav-motion-v4", base)
 
     def test_navigation_mode_persists_across_manual_plexamp_handoffs(self):

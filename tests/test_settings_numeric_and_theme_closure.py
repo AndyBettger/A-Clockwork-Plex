@@ -32,6 +32,7 @@ class SettingsNumericControlTests(unittest.TestCase):
         expected = {
             "dashboard.idle_timeout_seconds",
             "display.transition_duration_ms",
+            "display.navigation_transition_duration_ms",
             "weather.observations.ecowitt_push.fresh_seconds",
             "weather.observations.weather_underground.refresh_seconds",
             "weather.observations.weather_underground.stale_seconds",
@@ -39,7 +40,10 @@ class SettingsNumericControlTests(unittest.TestCase):
             "airplay.pause_hold_seconds",
         }
         self.assertEqual(number_paths, expected)
-        for path in expected - {"display.transition_duration_ms"}:
+        for path in expected - {
+            "display.transition_duration_ms",
+            "display.navigation_transition_duration_ms",
+        }:
             self.assertIn(f"['{path}', [", numeric)
         self.assertIn("duration.type = 'range'", display)
         self.assertNotIn("input.type = 'number'", numeric)

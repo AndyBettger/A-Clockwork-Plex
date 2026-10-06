@@ -5,6 +5,7 @@
 .persistent-plexamp {
   --plexamp-hidden-transform: translateY(12px) scale(.985);
   --plexamp-hidden-filter: blur(0);
+  --plexamp-app-transition-in-duration: var(--acp-transition-in-duration);
   --plexamp-hidden-clip: inset(0 0 0 0);
   position: fixed;
   z-index: 30;
@@ -21,14 +22,14 @@
   transform-origin: 50% 50%;
   backface-visibility: hidden;
   transition:
-    opacity var(--acp-transition-in-duration) ease,
-    transform var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    filter var(--acp-transition-in-duration) ease,
-    clip-path var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
+    opacity var(--plexamp-app-transition-in-duration) ease,
+    transform var(--plexamp-app-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
+    filter var(--plexamp-app-transition-in-duration) ease,
+    clip-path var(--plexamp-app-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
     scale var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
     translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
     border-radius var(--acp-navigation-transition-duration) ease,
-    visibility 0s linear var(--acp-transition-in-duration);
+    visibility 0s linear var(--plexamp-app-transition-in-duration);
 }
 
 html[data-transition-style="none"] .persistent-plexamp,
@@ -59,6 +60,10 @@ html[data-transition-style="blur-dissolve"] .persistent-plexamp {
 }
 
 html[data-transition-style="none"] .persistent-plexamp {
+  --plexamp-app-transition-in-duration: 0ms;
+}
+
+html[data-transition-style="none"] .persistent-plexamp.is-closing {
   transition-duration: 0ms !important;
   transition-delay: 0ms !important;
 }
@@ -71,10 +76,10 @@ html[data-transition-style="none"] .persistent-plexamp {
   filter: blur(0);
   clip-path: inset(0 0 0 0);
   transition:
-    opacity var(--acp-transition-in-duration) ease,
-    transform var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    filter var(--acp-transition-in-duration) ease,
-    clip-path var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
+    opacity var(--plexamp-app-transition-in-duration) ease,
+    transform var(--plexamp-app-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
+    filter var(--plexamp-app-transition-in-duration) ease,
+    clip-path var(--plexamp-app-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
     scale var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
     translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
     border-radius var(--acp-navigation-transition-duration) ease,
