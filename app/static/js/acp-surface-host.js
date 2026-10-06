@@ -118,13 +118,11 @@
         }
         const transition = document.startViewTransition(commit);
         await transition.updateCallbackDone;
-        transitionFinished = transition.finished
-          .catch(() => undefined)
-          .finally(() => {
-            if (spatialCommitDirection) {
-              delete document.documentElement.dataset.acpSpatialCommit;
-            }
-          });
+        transitionFinished = transition.finished.catch(() => undefined).finally(() => {
+          if (spatialCommitDirection) {
+            delete document.documentElement.dataset.acpSpatialCommit;
+          }
+        });
       } else {
         await commit();
         if (spatialCommitDirection) {
@@ -165,6 +163,7 @@
         error: String(error?.message || error),
       };
     } finally {
+      delete document.documentElement.dataset.acpSpatialCommit;
       activationInFlight = false;
     }
   }

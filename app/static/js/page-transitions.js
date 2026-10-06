@@ -53,9 +53,8 @@
   }
 
   function shouldPreserveNavigation(options = {}) {
-    return !isAutomaticNavigation(options)
-      && !options.spatialCommitDirection
-      && navigationModeOpen();
+    const ordinaryManualNavigation = !isAutomaticNavigation(options) && navigationModeOpen();
+    return ordinaryManualNavigation && !options.spatialCommitDirection;
   }
 
   function spatialPrototypeDirection(target, mainNavLink = false) {
