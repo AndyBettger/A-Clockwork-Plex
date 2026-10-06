@@ -557,14 +557,53 @@ from exactly one viewport to the right.
 - identical configured application Transition duration and easing for both snapshots;
 - the old right edge and new left edge therefore remain coincident throughout the movement, preventing the root background from opening between them.
 
-Physical B0-v2 gate:
+#### B0 v2 second physical pass — row geometry works, outgoing snapshot races
 
-- [ ] Clock should remain fully recognisable while sliding left; it must not wash out grey/white.
-- [ ] Weather should appear immediately adjacent to Clock at a moving vertical seam, not float over the top of it.
-- [ ] No white/root-background gap should appear between the two snapshots.
-- [ ] The result should now read as moving one position along a horizontal row.
-- [ ] The already-passed one-commit/no-reload/ordinary-other-destinations behaviour must remain intact.
+The edge-locked geometry is a material improvement:
 
-Do not add reverse direction or further destinations until this exact movement is physically judged useful.
+- [x] when the outgoing Clock snapshot is valid, Clock and Weather move together with a continuous vertical seam;
+- [x] Weather no longer looks like an overlay floating over a grey Clock card;
+- [x] the one-commit/no-reload/no-second-reveal behaviour remains intact;
+- [x] reverse and unrelated destinations remain on their accepted configured transitions;
+- [ ] **snapshot consistency:** intermittent failure remains. On many runs the region that should contain the outgoing Clock snapshot is solid white while Weather still follows the correct edge-locked path.
+
+The paired screenshots are diagnostically useful. In the good frame, the left region contains the expected right-hand portion of Clock while Weather begins exactly at the moving seam. In the bad frame, Weather begins at essentially the same seam position but the entire outgoing region is white. This means the `±100vw` geometry is doing what it should; the problem is that Chromium sometimes receives/captures a blank old root texture before the spatial animation begins.
+
+B0's navigation-exit boundary was timer based:
+
+```text
+hide navigation
+      ↓
+wait navigation duration + 24 ms
+      ↓
+startViewTransition()
+```
+
+That is not a strong enough compositor/paint contract on the Pi. CSS transition duration describes animation timing, not proof that the final composited application texture has been painted and is ready for a View Transition snapshot.
+
+#### B0 v3 — compositor-settled snapshot barrier
+
+Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` keeps the accepted edge-locked animation but strengthens the handoff:
+
+1. install a listener on `main.screen` **before** closing navigation;
+2. close the accepted Level-A sheet;
+3. wait for the live surface's actual `translate` `transitionend` (or `transitioncancel`);
+4. retain a conservative timeout only as a fail-safe;
+5. after the CSS transition has really ended, wait for **two requestAnimationFrame turns**, with a `getBoundingClientRect()` layout read between them;
+6. only then call the Surface Host / `document.startViewTransition()`.
+
+The extra frames are intentional. The old-root image used by the View Transition is a compositor capture; the test must ensure the full-size Clock surface has actually survived the Level-A transform handoff and reached a paint opportunity before Chromium is asked to photograph it.
+
+Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` passed the full maintained suite as **Tests #5258**.
+
+Physical B0-v3 gate:
+
+- [ ] Repeat Clock → Weather from open navigation at least several times; the outgoing Clock side should never be white/blank.
+- [ ] Clock and Weather should remain edge-locked at the moving seam on every run.
+- [ ] There must still be exactly one destination commit and no Cover Reveal, black frame, reload or second Weather reveal.
+- [ ] Weather→Clock and unrelated destinations must remain unchanged.
+- [ ] The added settle barrier should not create an objectionable pause between nav finishing and spatial movement beginning.
+
+Do not add reverse direction or further destinations until this exact movement is physically judged useful and repeatable.
 
 

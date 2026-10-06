@@ -358,7 +358,11 @@ B0 v2 therefore uses an edge-lock invariant instead of depth effects:
 - duration: existing application `transition_duration_ms`;
 - easing: the same ACP destination-transition cubic-bezier for both snapshots.
 
-Because the two snapshots move equal distances with identical timing, the old snapshot's right edge and the new snapshot's left edge are coincident at every animation fraction. The viewport is always covered by one or the other snapshot and the document background cannot become part of the visual transition.
+Because the two snapshots move equal distances with identical timing, the old snapshot's right edge and the new snapshot's left edge are coincident at every animation fraction. Physical testing confirms that geometric invariant when both root snapshots are valid.
+
+The second B0 physical pass exposed a separate boundary: **snapshot readiness after navigation-sheet motion**. A nominal timeout equal to the navigation CSS duration is insufficient evidence that Chromium has painted the live surface's post-transform texture. On the Raspberry Pi the View Transition could occasionally capture the outgoing Clock root as blank/white even though Weather then followed the correct edge-locked trajectory. The architecture must therefore wait on a rendered-state signal rather than elapsed wall-clock time.
+
+For B0 v3, the navigation policy attaches to `main.screen` before closing the Level-A sheet and waits for the real `translate` `transitionend`/`transitioncancel` event. A timeout remains only as a failure escape. Once the transform is complete, ACP waits two `requestAnimationFrame` turns and performs a layout read between them before starting the destination View Transition. This creates a bounded **CSS transition → layout/paint opportunity → View Transition capture** handoff instead of assuming those compositor stages have completed because a timer expired.
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
 
