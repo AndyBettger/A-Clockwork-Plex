@@ -238,7 +238,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261006-spatial-b0-v1", base)
+        self.assertIn("20261007-spatial-b0-v2", base)
 
     def test_spatial_row_b0_is_bounded_to_clock_to_weather_and_commits_once(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -265,10 +265,17 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--acp-view-transition-new: acp-in-spatial-forward", styles)
         self.assertIn("@keyframes acp-in-spatial-forward", styles)
         self.assertIn("@keyframes acp-out-spatial-forward", styles)
-        self.assertIn("translateX(34vw) scale(.94)", styles)
-        self.assertIn("translateX(-34vw) scale(.94)", styles)
+        self.assertIn("from { transform: translateX(100vw); }", styles)
+        self.assertIn("to { transform: translateX(-100vw); }", styles)
+        self.assertNotIn("translateX(34vw) scale(.94)", styles)
+        self.assertNotIn("translateX(-34vw) scale(.94)", styles)
+        spatial_start = styles.index("@keyframes acp-in-spatial-forward")
+        spatial_end = styles.index("@media (prefers-reduced-motion: reduce)", spatial_start)
+        spatial = styles[spatial_start:spatial_end]
+        self.assertNotIn("opacity:", spatial)
+        self.assertNotIn("scale(", spatial)
 
-        self.assertIn("20261006-spatial-b0-v1", base)
+        self.assertIn("20261007-spatial-b0-v2", base)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
         source = TRANSITIONS.read_text(encoding="utf-8")

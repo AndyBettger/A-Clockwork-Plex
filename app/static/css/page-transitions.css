@@ -209,12 +209,12 @@ html[data-transition-style="blur-dissolve"] body.acp-page-leaving .screen {
 }
 
 @keyframes acp-in-spatial-forward {
-  from { opacity: .52; transform: translateX(34vw) scale(.94); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateX(100vw); }
+  to { transform: translateX(0); }
 }
 @keyframes acp-out-spatial-forward {
-  from { opacity: 1; transform: none; }
-  to { opacity: .34; transform: translateX(-34vw) scale(.94); }
+  from { transform: translateX(0); }
+  to { transform: translateX(-100vw); }
 }
 
 @media (prefers-reduced-motion: reduce) {
