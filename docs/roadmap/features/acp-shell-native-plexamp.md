@@ -408,16 +408,25 @@ The 6 October physical retest passes that cross-application contract. Manual ACP
 
 #### Level-A full-scale lift refinement
 
-The accepted clearance exposed a presentation trade-off rather than another ownership bug. On the 1280×720 appliance, scaling the entire live surface to 84% makes text and controls noticeably smaller, and the cross-document restore path can briefly show the destination at 100% before the recede scale applies.
+Commissioned-Pi testing confirms the full-scale direction is visually better than the 0.84 recede: typography and controls stay at their normal size and the shell feels like it is temporarily borrowing display space rather than shrinking the application.
 
-The bounded refinement keeps the same shell state, backdrop, drawer and handoff logic but changes only the live-surface geometry:
+The first full-scale candidate used a 90 px lift. Physical feedback shows that this is too large at 1280×720, leaving an unnecessarily wide dark gap between the live page content and the home indicator. The active refinement therefore:
 
-- keep `scale: 1` throughout navigation mode;
-- lift the active ACP surface or Plexamp layer by `90px`;
-- retain the dim backdrop and rounded live-surface edge;
-- intentionally allow the top 90 px to move out of the viewport while navigation is modal, because the background application is contextual rather than the active interaction target;
-- restore the application to its exact normal geometry when navigation closes.
+- keeps `scale: 1` throughout navigation mode;
+- reduces the active ACP/Plexamp lift to `28px`;
+- retains the dim backdrop and rounded live-surface edge;
+- restores the application to its exact normal geometry when navigation closes.
 
-This preserves normal-size typography/controls and makes the revealed bottom strip belong visually to the shell rather than creating a miniature application card. Candidate `1600e053bd18283a0de2016062fc6289ee6803d4`; focused physical visual retest pending.
+The same pass also separates two previously mixed timing authorities. Before this refinement, the drawer/indicator themselves used a fixed 180 ms transition, while the backdrop and live-surface lift used `--acp-transition-in-duration`, derived from the ordinary Display → Motion page-transition duration. Navigation now has one dedicated timing contract:
+
+- Settings → Display → Motion exposes **Navigation transition duration**;
+- stored as `dashboard.navigation_transition_duration_ms` and surfaced as `display.navigation_transition_duration_ms`;
+- default 180 ms, range 0–1000 ms in 20 ms steps;
+- controls the navigation drawer, home indicator, dim backdrop and ACP/Plexamp lift/rounding;
+- ordinary application-surface transition style/duration remains independent.
+
+The setting is live-projected into the long-lived shell, included in portable configuration backup and defaults to 180 ms on existing configs that do not yet contain the key.
+
+Implementation head `2b6e41b319776bb30de24e01ee182a4ccd978b04`; focused physical retest pending.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.

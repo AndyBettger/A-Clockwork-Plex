@@ -559,7 +559,9 @@ The remaining Plexamp→different-ACP full-document fallback transfers only that
 
 The `0.84 / -28px` follow-up physically proves the required clearance: the live application's bottom edge can sit above ordinary navigation while shell state survives the Plexamp boundary. It also shows that an app-card scale is not necessary for the production treatment. At 1280×720, shrinking the whole application to 84% costs useful legibility and makes cross-document restore more visibly expose the moment when recede geometry is applied.
 
-The production refinement therefore keeps the live surface at `scale: 1` and uses a `90px` upward translation with the same dim backdrop and rounded edge treatment. The drawer occupies the newly exposed bottom strip while the top 90 px intentionally moves outside the viewport for the short-lived modal navigation state. This keeps typography and controls at their normal size, preserves all existing shell-state/handoff ownership, and reduces the visual penalty of the remaining cross-document first-paint timing.
+The full-scale experiment confirms `scale: 1` is the better production model, but its initial `-90px` translation over-corrects: the page content sits visibly too far above the home indicator. The production refinement therefore uses a much smaller `-28px` translation with the same dim backdrop and rounded edge treatment. The goal is not to expose a full drawer-height void; it is to make the shell boundary obvious while keeping the contextual live application visually close to the navigation affordance.
+
+Navigation motion also owns an independent timing authority. Application-surface changes continue to use `transition_duration_ms` and the selected transition style. Opening/closing navigation instead uses `navigation_transition_duration_ms` (default 180 ms) through `--acp-navigation-transition-duration` for the drawer, indicator, backdrop and ACP/Plexamp lift/rounding. This avoids a long page-transition preference making a small shell gesture feel sluggish, while still keeping every part of the navigation reveal synchronized.
 
 ## Touchscreen keyboard
 
