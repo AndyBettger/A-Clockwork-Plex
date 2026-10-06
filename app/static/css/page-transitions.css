@@ -121,14 +121,6 @@ html[data-transition-style="blur-dissolve"] body.acp-page-leaving .screen {
   --acp-view-transition-new: acp-in-blur-dissolve;
 }
 
-/* Level-B B0: one deliberately bounded spatial-row commit. The prototype is
-   only selected by the navigation policy for Clock -> Weather while navigation
-   mode is open; all other destinations continue to use the configured style. */
-:root[data-acp-spatial-commit="forward"] {
-  --acp-view-transition-old: acp-out-spatial-forward;
-  --acp-view-transition-new: acp-in-spatial-forward;
-}
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: var(--acp-transition-duration);
@@ -206,15 +198,6 @@ html[data-transition-style="blur-dissolve"] body.acp-page-leaving .screen {
 @keyframes acp-out-blur-dissolve {
   from { opacity: 1; filter: blur(0); transform: none; }
   to { opacity: 0; filter: blur(12px); transform: scale(1.008); }
-}
-
-@keyframes acp-in-spatial-forward {
-  from { transform: translateX(100vw); }
-  to { transform: translateX(0); }
-}
-@keyframes acp-out-spatial-forward {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100vw); }
 }
 
 @media (prefers-reduced-motion: reduce) {

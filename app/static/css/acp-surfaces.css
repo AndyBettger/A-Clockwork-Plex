@@ -7,3 +7,30 @@
 .acp-mounted-surface[hidden] {
   display: none !important;
 }
+
+
+/* Level-B B0 v4: live-DOM spatial strip. The outgoing surface is a temporary
+   clone of the actual mounted Clock DOM, not a browser View Transition texture.
+   Keep shell chrome (home indicator/navigation) above it. */
+body.acp-spatial-live-commit {
+  overflow: hidden;
+}
+
+.acp-spatial-outgoing-live-clone {
+  position: fixed !important;
+  z-index: 40;
+  inset: 0;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  translate: 0 0 !important;
+  scale: 1 !important;
+  border-radius: 0 !important;
+  pointer-events: none !important;
+  will-change: transform;
+  transition: none !important;
+}
+
+body.acp-spatial-live-commit > main.screen {
+  will-change: transform;
+}

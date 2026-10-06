@@ -178,9 +178,101 @@
     });
   }
 
+  function applicationTransitionDurationMs() {
+    const value = String(
+      window.getComputedStyle(document.documentElement)
+        .getPropertyValue('--acp-transition-duration')
+        || '300ms',
+    ).trim();
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) return 300;
+    if (value.endsWith('s') && !value.endsWith('ms')) return Math.max(0, parsed * 1000);
+    return Math.max(0, parsed);
+  }
+
+  function nextFrame() {
+    return new Promise((resolve) => window.requestAnimationFrame(resolve));
+  }
+
+  function copyBodyBackground(target) {
+    const style = window.getComputedStyle(document.body);
+    [
+      'background-color',
+      'background-image',
+      'background-position',
+      'background-size',
+      'background-repeat',
+      'background-origin',
+      'background-clip',
+    ].forEach((property) => {
+      target.style.setProperty(property, style.getPropertyValue(property));
+    });
+  }
+
+  async function spatialForwardLiveCommit(commit) {
+    const outgoing = screen.cloneNode(true);
+    outgoing.classList.add('acp-spatial-outgoing-live-clone');
+    outgoing.setAttribute('aria-hidden', 'true');
+    outgoing.inert = true;
+    copyBodyBackground(outgoing);
+
+    document.body.classList.add('acp-spatial-live-commit');
+    document.body.appendChild(outgoing);
+
+    const duration = applicationTransitionDurationMs();
+    let outgoingAnimation = null;
+    let incomingAnimation = null;
+
+    try {
+      // Put the live host exactly one viewport to the right before swapping its
+      // visible mounted surface. The clone is a DOM copy of the real outgoing
+      // Clock surface, so this path does not depend on Chromium's root snapshot.
+      screen.style.transform = 'translateX(100vw)';
+      await commit();
+
+      // Establish both live layers before movement begins.
+      screen.getBoundingClientRect();
+      outgoing.getBoundingClientRect();
+      await nextFrame();
+
+      if (duration <= 0) return;
+
+      const timing = {
+        duration,
+        easing: 'cubic-bezier(.16, .84, .24, 1)',
+        fill: 'both',
+      };
+      outgoingAnimation = outgoing.animate(
+        [
+          { transform: 'translateX(0)' },
+          { transform: 'translateX(-100vw)' },
+        ],
+        timing,
+      );
+      incomingAnimation = screen.animate(
+        [
+          { transform: 'translateX(100vw)' },
+          { transform: 'translateX(0)' },
+        ],
+        timing,
+      );
+
+      await Promise.all([
+        outgoingAnimation.finished.catch(() => undefined),
+        incomingAnimation.finished.catch(() => undefined),
+      ]);
+    } finally {
+      outgoingAnimation?.cancel();
+      incomingAnimation?.cancel();
+      screen.style.transform = '';
+      outgoing.remove();
+      document.body.classList.remove('acp-spatial-live-commit');
+    }
+  }
+
   surfaces.forEach((surface) => {
     surfaceHost.register(surface, {
-      async prepare() {
+      async prepare({ from } = {}) {
         const record = await ensureMounted(surface);
         let activatedBeforeSnapshot = false;
 
@@ -197,6 +289,13 @@
           title: record.title,
           commit() {
             commitSurface(surface);
+          },
+          async spatialCommit({ direction, commit } = {}) {
+            if (direction !== 'forward' || from !== 'clock' || surface !== 'weather') {
+              await commit();
+              return;
+            }
+            await spatialForwardLiveCommit(commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
             if (surface !== 'airplay') return;

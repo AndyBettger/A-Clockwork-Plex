@@ -19,9 +19,8 @@
     return name ? `/${name}` : '/clock';
   }
 
-  function transitionEnabled(options = {}) {
+  function motionEnabled(options = {}) {
     if (options.animate === false) return false;
-    if (typeof document.startViewTransition !== 'function') return false;
 
     const preferences = window.ACPDashboardPreferences?.read?.() || {};
     const style = String(
@@ -30,6 +29,11 @@
       || 'grow-fade',
     ).toLowerCase();
     return !['none', 'instant'].includes(style);
+  }
+
+  function transitionEnabled(options = {}) {
+    return motionEnabled(options)
+      && typeof document.startViewTransition === 'function';
   }
 
   function updateNavigationState(surface) {
@@ -112,22 +116,29 @@
       const spatialCommitDirection = options.spatialCommitDirection === 'forward'
         ? 'forward'
         : '';
-      if (transitionEnabled(options)) {
-        if (spatialCommitDirection) {
-          document.documentElement.dataset.acpSpatialCommit = spatialCommitDirection;
-        }
+
+      if (
+        spatialCommitDirection
+        && motionEnabled(options)
+        && typeof prepared.spatialCommit === 'function'
+      ) {
+        // Level-B spatial motion uses the two already-mounted live surfaces.
+        // Do not ask Chromium for a root View Transition snapshot here: on the
+        // commissioned Pi the old-root texture is intermittently blank/white.
+        await prepared.spatialCommit({
+          host,
+          surface,
+          from,
+          options,
+          direction: spatialCommitDirection,
+          commit,
+        });
+      } else if (transitionEnabled(options)) {
         const transition = document.startViewTransition(commit);
         await transition.updateCallbackDone;
-        transitionFinished = transition.finished.catch(() => undefined).finally(() => {
-          if (spatialCommitDirection) {
-            delete document.documentElement.dataset.acpSpatialCommit;
-          }
-        });
+        transitionFinished = transition.finished.catch(() => undefined);
       } else {
         await commit();
-        if (spatialCommitDirection) {
-          delete document.documentElement.dataset.acpSpatialCommit;
-        }
       }
 
       if (typeof prepared.activate === 'function') {
@@ -163,7 +174,6 @@
         error: String(error?.message || error),
       };
     } finally {
-      delete document.documentElement.dataset.acpSpatialCommit;
       activationInFlight = false;
     }
   }
