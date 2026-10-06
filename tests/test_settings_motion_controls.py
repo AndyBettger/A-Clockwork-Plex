@@ -61,25 +61,33 @@ class SettingsMotionControlsTests(unittest.TestCase):
         self.assertIn("applyControlValue", client)
         self.assertIn("hydrateControls", client)
 
-    def test_transition_duration_is_restored_as_slider_without_default_range_clamp(self):
+    def test_page_and_navigation_durations_are_restored_as_independent_sliders(self):
         source = DISPLAY_JS.read_text(encoding="utf-8")
+        settings = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn("['display.transition_duration_ms', '2000', '50'", source)
+        self.assertIn("['display.navigation_transition_duration_ms', '1000', '20'", source)
         self.assertIn("const currentValue = String(duration.value ?? '').trim()", source)
         self.assertIn("duration.min = '0'", source)
-        self.assertIn("duration.max = '2000'", source)
-        self.assertIn("duration.step = '50'", source)
+        self.assertIn("duration.max = maximum", source)
+        self.assertIn("duration.step = step", source)
         self.assertIn("duration.type = 'range'", source)
         self.assertIn("duration.value = currentValue", source)
-        self.assertLess(source.index("duration.max = '2000'"), source.index("duration.type = 'range'"))
-        self.assertLess(source.index("duration.step = '50'"), source.index("duration.type = 'range'"))
+        self.assertLess(source.index("duration.max = maximum"), source.index("duration.type = 'range'"))
+        self.assertLess(source.index("duration.step = step"), source.index("duration.type = 'range'"))
         self.assertLess(source.index("duration.type = 'range'"), source.index("duration.value = currentValue"))
         self.assertIn("duration.removeAttribute('data-keyboard')", source)
+
+        self.assertIn('data-setting-path="display.navigation_transition_duration_ms"', settings)
+        self.assertIn('data-setting-output="display.navigation_transition_duration_ms"', settings)
 
     def test_transition_duration_has_visible_exact_value_and_hydration_repaint(self):
         settings = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
         client = SETTINGS_IPAD_JS.read_text(encoding="utf-8")
 
         self.assertIn('data-setting-output="display.transition_duration_ms"', settings)
-        self.assertIn("path === 'display.transition_duration_ms'", client)
+        self.assertIn('data-setting-output="display.navigation_transition_duration_ms"', settings)
+        self.assertIn("'display.transition_duration_ms', 'display.navigation_transition_duration_ms'", client)
         self.assertIn("Math.round(number)", client)
         self.assertIn("window.ACPSettingsRangeTheme?.refresh?.()", client)
 
@@ -89,6 +97,7 @@ class SettingsMotionControlsTests(unittest.TestCase):
         self.assertIn("window.ACPDashboardPreferences?.write?.({", source)
         self.assertIn("transitionStyle: display.transition_style", source)
         self.assertIn("transitionDurationMs: display.transition_duration_ms", source)
+        self.assertIn("navigationTransitionDurationMs: display.navigation_transition_duration_ms", source)
         self.assertIn("syncLiveShellSettings(loadedSettings)", source)
         self.assertIn("acp:settings-saved", source)
 
@@ -96,6 +105,11 @@ class SettingsMotionControlsTests(unittest.TestCase):
         source = PREFERENCES_JS.read_text(encoding="utf-8")
         self.assertIn("root.dataset.transitionStyle || root.dataset.serverTransitionStyle", source)
         self.assertIn("root.dataset.transitionDurationMs || root.dataset.serverTransitionDurationMs", source)
+        self.assertIn(
+            "root.dataset.navigationTransitionDurationMs || root.dataset.serverNavigationTransitionDurationMs",
+            source,
+        )
+        self.assertIn("--acp-navigation-transition-duration", source)
         self.assertIn("root.dataset.clockFormat || root.dataset.serverClockFormat", source)
         self.assertIn("root.dataset.startupMode || root.dataset.serverStartupMode", source)
         self.assertIn("root.dataset.idleReturnMode || root.dataset.serverIdleReturnMode", source)

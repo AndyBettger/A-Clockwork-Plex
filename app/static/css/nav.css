@@ -1,6 +1,10 @@
 /* Phase A navigation mode: the application remains live underneath while
-   shell chrome takes focus. Use individual transform properties so this can
-   coexist with page-transition and Plexamp show/hide transforms. */
+   shell chrome takes focus. Navigation reveal/hide motion deliberately owns a
+   separate duration from application-surface transitions. */
+:root {
+  --acp-navigation-transition-duration: 180ms;
+}
+
 .nav-backdrop {
   position: fixed;
   z-index: 70;
@@ -11,8 +15,8 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    opacity var(--acp-transition-in-duration) ease,
-    background var(--acp-transition-in-duration) ease;
+    opacity var(--acp-navigation-transition-duration) ease,
+    background var(--acp-navigation-transition-duration) ease;
 }
 
 body.nav-mode .nav-backdrop {
@@ -26,9 +30,9 @@ body.nav-mode .nav-backdrop {
   scale: 1;
   translate: 0 0;
   transition:
-    scale var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    translate var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    border-radius var(--acp-transition-in-duration) ease;
+    scale var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    border-radius var(--acp-navigation-transition-duration) ease;
   transform-origin: 50% 46%;
 }
 
@@ -37,7 +41,7 @@ body.nav-mode .persistent-plexamp.is-open {
   /* Navigation is modal shell chrome: keep the live app at full size and
      lift it intact so the drawer occupies the exposed bottom strip. */
   scale: 1;
-  translate: 0 -90px;
+  translate: 0 -28px;
   border-radius: 28px;
 }
 
@@ -56,7 +60,10 @@ body.nav-mode .persistent-plexamp.is-open {
   transform: translate(-50%, calc(100% + 18px));
   opacity: 0;
   pointer-events: none;
-  transition: transform 180ms ease, opacity 180ms ease, border-radius 180ms ease;
+  transition:
+    transform var(--acp-navigation-transition-duration) ease,
+    opacity var(--acp-navigation-transition-duration) ease,
+    border-radius var(--acp-navigation-transition-duration) ease;
 }
 
 body.nav-open .nav-drawer {
@@ -511,7 +518,9 @@ body.nav-audio-open .nav-drawer {
   background: transparent;
   color: var(--text);
   transform: translateX(-50%);
-  transition: transform 180ms ease, opacity 180ms ease;
+  transition:
+    transform var(--acp-navigation-transition-duration) ease,
+    opacity var(--acp-navigation-transition-duration) ease;
   opacity: 0.82;
   touch-action: none;
 }
@@ -523,7 +532,10 @@ body.nav-audio-open .nav-drawer {
   border-radius: var(--acp-radius-pill);
   background: rgba(247, 249, 255, 0.74);
   box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
-  transition: width 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  transition:
+    width var(--acp-navigation-transition-duration) ease,
+    background var(--acp-navigation-transition-duration) ease,
+    box-shadow var(--acp-navigation-transition-duration) ease;
   pointer-events: none;
 }
 
@@ -555,7 +567,10 @@ body.nav-open .nav-handle span {
 @media (prefers-reduced-motion: reduce) {
   .nav-backdrop,
   .screen,
-  .persistent-plexamp {
+  .persistent-plexamp,
+  .nav-drawer,
+  .nav-handle,
+  .nav-handle span {
     transition-duration: 1ms !important;
   }
 }

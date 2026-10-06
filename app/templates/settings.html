@@ -107,7 +107,12 @@
               <label class="setting-field">
                 <span>Transition duration</span>
                 <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.transition_duration_ms">
-                <small>Current: <output data-setting-output="display.transition_duration_ms">—</output> · range 0–2000 ms.</small>
+                <small>Application-surface transitions. Current: <output data-setting-output="display.transition_duration_ms">—</output> · range 0–2000 ms.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation transition duration</span>
+                <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_transition_duration_ms">
+                <small>Drawer, indicator, dimming and live-page lift. Current: <output data-setting-output="display.navigation_transition_duration_ms">—</output> · range 0–1000 ms.</small>
               </label>
             </div>
           </section>
@@ -333,7 +338,7 @@
 
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings-ipad.js', v='20260802-unified-settings') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-ipad.js', v='20261006-nav-motion-v1') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-weather-observations.js', v='20260810-observation-providers') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-alarms.js', v='20260802-unified-settings') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-advanced.js', v='20260908-zero-preview-parent-v2') }}"></script>

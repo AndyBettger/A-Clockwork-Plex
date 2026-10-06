@@ -52,6 +52,12 @@
     return Math.round(Math.max(0, Math.min(2000, numeric)) / 50) * 50;
   }
 
+  function normaliseNavigationDuration(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 180;
+    return Math.round(Math.max(0, Math.min(1000, numeric)) / 20) * 20;
+  }
+
   function read() {
     const root = document.documentElement;
     const legacy = normaliseMode(root.dataset.legacyDefaultMode || 'clock');
@@ -66,6 +72,9 @@
       ),
       transitionDurationMs: normaliseDuration(
         root.dataset.transitionDurationMs || root.dataset.serverTransitionDurationMs || 300
+      ),
+      navigationTransitionDurationMs: normaliseNavigationDuration(
+        root.dataset.navigationTransitionDurationMs || root.dataset.serverNavigationTransitionDurationMs || 180
       ),
       clockFormat: String(
         root.dataset.clockFormat || root.dataset.serverClockFormat || '24h'
@@ -83,6 +92,7 @@
   function apply(preferences = read()) {
     const root = document.documentElement;
     const duration = normaliseDuration(preferences.transitionDurationMs);
+    const navigationDuration = normaliseNavigationDuration(preferences.navigationTransitionDurationMs);
     const outgoing = Math.round(duration * 0.36);
     const incoming = Math.max(0, duration - outgoing);
 
@@ -91,8 +101,10 @@
     root.dataset.daytimeTheme = normaliseDaytimeTheme(preferences.daytimeTheme);
     root.dataset.transitionStyle = normaliseStyle(preferences.transitionStyle);
     root.dataset.transitionDurationMs = String(duration);
+    root.dataset.navigationTransitionDurationMs = String(navigationDuration);
     root.dataset.clockFormat = preferences.clockFormat === '12h' ? '12h' : '24h';
     root.style.setProperty('--acp-transition-duration', `${duration}ms`);
+    root.style.setProperty('--acp-navigation-transition-duration', `${navigationDuration}ms`);
     root.style.setProperty('--acp-transition-out-duration', `${outgoing}ms`);
     root.style.setProperty('--acp-transition-in-duration', `${incoming}ms`);
     mirrorClockFormat(root.dataset.clockFormat);
@@ -102,6 +114,7 @@
       daytimeTheme: root.dataset.daytimeTheme,
       transitionStyle: root.dataset.transitionStyle,
       transitionDurationMs: duration,
+      navigationTransitionDurationMs: navigationDuration,
       clockFormat: root.dataset.clockFormat,
     };
   }
@@ -114,6 +127,9 @@
       daytimeTheme: normaliseDaytimeTheme(partial.daytimeTheme ?? current.daytimeTheme),
       transitionStyle: normaliseStyle(partial.transitionStyle ?? current.transitionStyle),
       transitionDurationMs: normaliseDuration(partial.transitionDurationMs ?? current.transitionDurationMs),
+      navigationTransitionDurationMs: normaliseNavigationDuration(
+        partial.navigationTransitionDurationMs ?? current.navigationTransitionDurationMs
+      ),
       clockFormat: String(partial.clockFormat ?? current.clockFormat).toLowerCase() === '12h' ? '12h' : '24h',
     });
     window.dispatchEvent(new CustomEvent('acp:dashboard-preferences-changed', { detail: next }));
@@ -142,6 +158,7 @@
     normaliseDaytimeTheme,
     normaliseStyle,
     normaliseDuration,
+    normaliseNavigationDuration,
   };
 
   /* The server's root route redirects to /clock. A redirected /clock is therefore

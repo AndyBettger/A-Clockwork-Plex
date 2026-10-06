@@ -19,6 +19,7 @@
   const numericPaths = new Set([
     'dashboard.idle_timeout_seconds',
     'display.transition_duration_ms',
+    'display.navigation_transition_duration_ms',
     'weather.forecast.latitude',
     'weather.forecast.longitude',
     'weather.forecast.forecast_days',
@@ -140,7 +141,9 @@
     document.querySelectorAll(`[data-setting-output="${path}"]`).forEach((output) => {
       const number = Number(value);
       if (path === 'airplay.default_volume_percent') output.textContent = `${Math.round(number || 0)}%`;
-      else if (path === 'display.transition_duration_ms') output.textContent = `${Number.isFinite(number) ? Math.round(number) : 0} ms`;
+      else if (['display.transition_duration_ms', 'display.navigation_transition_duration_ms'].includes(path)) {
+        output.textContent = `${Number.isFinite(number) ? Math.round(number) : 0} ms`;
+      }
       else if (path.startsWith('audio.eq.bands.')) output.textContent = `${number > 0 ? '+' : ''}${Number.isFinite(number) ? number.toFixed(1) : '0.0'} dB`;
       else output.textContent = String(value ?? '');
     });
@@ -213,6 +216,7 @@
       daytimeTheme: display.daytime_theme,
       transitionStyle: display.transition_style,
       transitionDurationMs: display.transition_duration_ms,
+      navigationTransitionDurationMs: display.navigation_transition_duration_ms,
       clockFormat: display.clock_format,
     });
   }

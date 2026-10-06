@@ -234,6 +234,9 @@ class UnifiedSettingsService:
                 "transition_duration_ms": _integer(
                     dashboard.get("transition_duration_ms"), 300, 0, 2000
                 ),
+                "navigation_transition_duration_ms": _integer(
+                    dashboard.get("navigation_transition_duration_ms"), 180, 0, 1000
+                ),
             },
             "weather": {
                 "station_name": _text(weather.get("station_name"), "Weather or Not", maximum=80),
@@ -352,6 +355,12 @@ class UnifiedSettingsService:
                     dashboard.get("transition_duration_ms", 300),
                     0,
                     2000,
+                ),
+                "navigation_transition_duration_ms": _integer(
+                    source.get("navigation_transition_duration_ms"),
+                    dashboard.get("navigation_transition_duration_ms", 180),
+                    0,
+                    1000,
                 ),
             }
         )

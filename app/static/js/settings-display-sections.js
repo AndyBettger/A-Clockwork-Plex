@@ -51,17 +51,21 @@
       if (TRANSITION_OPTIONS.some(([value]) => value === current)) style.value = current;
     }
 
-    const duration = card.querySelector('[data-setting-path="display.transition_duration_ms"]');
-    if (duration) {
+    const durationFields = [
+      ['display.transition_duration_ms', '2000', '50', 'Transition duration in milliseconds'],
+      ['display.navigation_transition_duration_ms', '1000', '20', 'Navigation transition duration in milliseconds'],
+    ];
+    durationFields.forEach(([path, maximum, step, label]) => {
+      const duration = card.querySelector(`[data-setting-path="${path}"]`);
+      if (!duration) return;
       const currentValue = String(duration.value ?? '').trim();
 
       // Set the range bounds before changing the input type. Chromium applies
       // the HTML range defaults (0..100) immediately when type becomes range;
-      // changing type first can therefore clamp an already-hydrated value such
-      // as 800 ms down to 100 ms before max=2000 is applied.
+      // changing type first can therefore clamp an already-hydrated value.
       duration.min = '0';
-      duration.max = '2000';
-      duration.step = '50';
+      duration.max = maximum;
+      duration.step = step;
       duration.type = 'range';
 
       if (currentValue !== '' && Number.isFinite(Number(currentValue))) {
@@ -70,9 +74,9 @@
 
       duration.removeAttribute('inputmode');
       duration.removeAttribute('data-keyboard');
-      duration.setAttribute('aria-label', 'Transition duration in milliseconds');
+      duration.setAttribute('aria-label', label);
       window.ACPSettingsRangeTheme?.paint?.(duration);
-    }
+    });
   }
 
   function openSubpage(panel, overview, key) {
@@ -245,7 +249,7 @@
       row('display:clock', 'Clock', '12/24-hour presentation'),
       row('display:night', 'Night dimming', 'Idle and interaction brightness'),
       row('display:theme', 'Theme', 'Daytime palette and night appearance'),
-      row('display:motion', 'Motion', 'Transition style and duration'),
+      row('display:motion', 'Motion', 'Page and navigation transition timing'),
     ];
     overview.append(...rows);
 

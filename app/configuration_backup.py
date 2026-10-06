@@ -147,6 +147,7 @@ def portable_settings(settings: dict[str, Any]) -> dict[str, Any]:
             "clock_format",
             "transition_style",
             "transition_duration_ms",
+            "navigation_transition_duration_ms",
             "daytime_theme",
             "alarm_indicator_mode",
             "night_dim_enabled",
