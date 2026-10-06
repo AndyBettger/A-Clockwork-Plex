@@ -343,6 +343,25 @@ slide, cover, etc.), but they must be coordinated by one state machine rather
 than running in parallel with the carousel. If the carousel provides the whole
 spatial movement, the destination reveal should be deliberately restrained.
 
+### Level-B B0 bounded spatial commit
+
+The first carousel experiment intentionally implements **one relation only: Clock → Weather from open navigation**. Clock and Weather are already the oldest physically accepted mounted-surface pair, so they isolate spatial presentation from surface-lifecycle risk.
+
+B0 does not build a second transition engine. Navigation policy marks that one selection with `spatialCommitDirection: "forward"` after manual-screen ownership has accepted Weather. The shell then exits navigation and waits for the configured Navigation transition duration. Once the Level-A sheet has returned to its closed state, the existing Surface Host performs its normal single `document.startViewTransition(commit)`.
+
+For that one View Transition, the host temporarily exposes `data-acp-spatial-commit="forward"` on the document root. CSS maps the old/new root snapshots to a deliberately larger spatial pair than the normal Horizontal slide style:
+
+- old Clock: `0 → -34vw`, `1 → 0.94` scale, reduced opacity;
+- new Weather: `+34vw → 0`, `0.94 → 1` scale, increasing opacity;
+- duration: existing application `transition_duration_ms`;
+- easing: the existing ACP destination-transition cubic-bezier.
+
+The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
+
+This first movement is intentionally asymmetric. Weather→Clock and every other destination remain on the accepted configured-transition path. That asymmetry is a test boundary, not the intended final product: only after physical evaluation proves the row metaphor useful should the shell gain a real ordered destination model, reverse direction and additional adjacent surfaces.
+
+The B0 success question is therefore qualitative as well as technical: does the larger horizontal/depth movement make it feel as though Clock and Weather occupy neighbouring positions, while remaining smooth enough on the commissioned Pi and avoiding the sense that navigation itself caused two separate page changes? If not, Level A remains the accepted production treatment.
+
 ## Browser-engine evaluation
 
 Changing browser should be treated as a measured optimisation experiment, not a

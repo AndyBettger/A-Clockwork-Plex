@@ -484,4 +484,57 @@ Together with the preceding accepted AirPlay hydration, ACP↔Plexamp shell-stat
 
 The Audio overlay motion is intentionally **not yet a transition-style preset**. It is a one-sided component overlay animation (opacity + 18 px lift + 0.985→1 scale) over a still-live translucent background, whereas the Motion style list controls old/new whole-application View Transition snapshots. It is closest in character to Grow and fade but has a different compositing contract. A page-transition analogue can be considered after Level A is closed rather than mixing a new style into this acceptance gate.
 
-The next active Phase A slice is the **spatial row/carousel experiment with exactly one committed destination transition**. Keep the experiment bounded: prove one spatial destination movement against the accepted Level-A shell before generalising it across every destination or starting native Plexamp production migration.
+Level-A documentation head `02af155ea2d536e774f5ef07a7c745ff80315f5c` passed **Tests #5252**.
+
+### Level-B B0 — one bounded spatial-row commit
+
+The first Level-B experiment is deliberately **not** a general carousel implementation. It proves one adjacent destination movement against the accepted Level-A shell before adding bidirectional ordering, snapshots or cross-application work.
+
+B0 is restricted to this exact path:
+
+```text
+Clock + navigation open
+        |
+        | tap Weather
+        v
+manual Weather lease accepted
+        |
+        v
+Level-A navigation sheet closes
+(using Navigation transition duration)
+        |
+        v
+ONE same-document View Transition
+Clock  <----------------  Weather
+        |
+        v
+Weather settled full-screen
+```
+
+Implementation rules:
+
+- only the main-nav **Clock → Weather** path while navigation mode is already open receives `spatialCommitDirection: "forward"`;
+- direct Clock→Weather navigation, Weather→Clock, all other ACP destinations, Plexamp and automatic screen projection remain unchanged;
+- spatial selection deliberately opts out of Level-A's "preserve open navigation across destination changes" rule because the Level-B model says selection exits navigation before destination commit;
+- the navigation sheet is allowed to finish its accepted close motion before the destination snapshot is taken, using `display.navigation_transition_duration_ms`;
+- the Surface Host still calls `document.startViewTransition(commit)` exactly once;
+- only for that one commit, `data-acp-spatial-commit="forward"` overrides the configured View Transition keyframes;
+- the B0 destination motion is intentionally obvious for evaluation: outgoing Clock moves `-34vw` and scales to `0.94`; incoming Weather starts at `+34vw / 0.94`; the configured **application Transition duration** remains authoritative;
+- the temporary spatial dataset is removed after the transition and also in the Surface Host fail-safe `finally` path;
+- the accepted Level-A shell remains the production fallback if B0 feels gimmicky, janks on the Pi or proves too visually busy.
+
+The first implementation head `34969583305a4867f3e47a6da258ee4bf7db67c1` failed **Tests #5253** only because two static regression assertions expected the pre-B0 source spelling for navigation preservation and `transition.finished.catch`. Production behaviour was not the failing condition. Compatibility/cleanup head `60412c433ef8539e9c776fb228f47234e33878af` preserves those accepted contracts, adds fail-safe spatial-dataset cleanup and passed the full maintained suite as **Tests #5254**.
+
+Physical B0 gate:
+
+- [ ] From Clock, open navigation and select Weather: navigation should first leave cleanly, followed by one clearly spatial Clock→Weather move.
+- [ ] The spatial motion should read as **adjacent surfaces in a horizontal row**, not merely as the existing short Horizontal slide style.
+- [ ] There must be no double transition, black frame, intermediate full-page reload or second Weather reveal.
+- [ ] Weather must settle normally with forecast/rain controls intact and nav closed.
+- [ ] Weather→Clock must remain the ordinary configured transition for this experiment.
+- [ ] Clock→News/AirPlay/Settings/Plexamp must remain ordinary accepted behaviour.
+- [ ] Repeating Clock→Weather several times must not leave `data-acp-spatial-commit` stuck or change later transition styles.
+
+Do not add reverse direction or further destinations until this exact movement is physically judged useful.
+
+
