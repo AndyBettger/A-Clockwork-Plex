@@ -25,9 +25,9 @@
     transform var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
     filter var(--acp-transition-in-duration) ease,
     clip-path var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    scale var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    translate var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    border-radius var(--acp-transition-in-duration) ease,
+    scale var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    border-radius var(--acp-navigation-transition-duration) ease,
     visibility 0s linear var(--acp-transition-in-duration);
 }
 
@@ -75,9 +75,9 @@ html[data-transition-style="none"] .persistent-plexamp {
     transform var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
     filter var(--acp-transition-in-duration) ease,
     clip-path var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    scale var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    translate var(--acp-transition-in-duration) cubic-bezier(.16, .84, .24, 1),
-    border-radius var(--acp-transition-in-duration) ease,
+    scale var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    border-radius var(--acp-navigation-transition-duration) ease,
     visibility 0s linear 0s;
 }
 

@@ -128,9 +128,10 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # existing transform-based View Transitions/Plexamp handoff.
         self.assertIn("scale: 1", styles)
         self.assertIn("translate: 0 0", styles)
-        self.assertIn("scale var(--acp-transition-in-duration)", plexamp)
-        self.assertIn("translate var(--acp-transition-in-duration)", plexamp)
-        self.assertIn("border-radius var(--acp-transition-in-duration)", plexamp)
+        self.assertIn("scale var(--acp-navigation-transition-duration)", plexamp)
+        self.assertIn("translate var(--acp-navigation-transition-duration)", plexamp)
+        self.assertIn("border-radius var(--acp-navigation-transition-duration)", plexamp)
+        self.assertIn("opacity var(--acp-transition-in-duration)", plexamp)
         self.assertIn("20261006-nav-motion-v4", base)
 
     def test_navigation_mode_persists_across_manual_plexamp_handoffs(self):
