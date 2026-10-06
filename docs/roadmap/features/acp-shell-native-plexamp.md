@@ -433,6 +433,20 @@ The same pass also separates two previously mixed timing authorities. Before thi
 
 The setting is live-projected into the long-lived shell, included in portable configuration backup and defaults to 180 ms on existing configs that do not yet contain the key.
 
-The 28 px candidate plus independent navigation timing passed **Tests #5241/#5242**. Physical testing accepts the independent Navigation transition duration, ACP↔Plexamp preservation, auto-hide and Audio behaviour; only the 28 px geometry failed visually because the drawer again covered live content. Runtime-measured geometry candidate `97b3b5f9323853b3f05699140740c53f5094b4e6`; focused physical retest pending.
+The 28 px candidate plus independent navigation timing passed **Tests #5241/#5242**. Physical testing accepts the independent Navigation transition duration, ACP↔Plexamp preservation, auto-hide and the existing Audio controls; only the 28 px geometry failed visually because the drawer again covered live content. Runtime-measured geometry candidate `97b3b5f9323853b3f05699140740c53f5094b4e6` then passed **Tests #5243**, with docs-synchronised head `27d32c16101761787d416c1bc9370a2499294b60` passing **Tests #5244**.
+
+The 6 October physical retest accepts the **measured live-surface reveal height**: the page now rises by the right amount and the drawer no longer covers it. It also accepts the dedicated Navigation transition duration, ordinary destination switching, ACP↔Plexamp handling, normal auto-hide and Audio functionality. One visual mismatch remains in the home indicator itself: it still follows the historical fixed `64px/56px` path with generic `ease`, while the page follows the measured reveal height with the shell cubic-bezier. At a deliberately slow 1000 ms navigation duration this looks like the indicator is dragging through resistance rather than being attached to the page.
+
+#### Indicator parity, Audio overlay and AirPlay snapshot hydration
+
+Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` makes three bounded follow-ups:
+
+- **Home indicator:** uses the same `--acp-navigation-reveal-height`, duration and `cubic-bezier(.16, .84, .24, 1)` as the live ACP/Plexamp surface. The fixed `-64px/-56px` offsets are removed, so the visible indicator should now move as part of the page/nav assembly rather than lagging it.
+- **Audio:** the ordinary nav drawer no longer grows upward into a special Audio layout. Selecting Audio leaves the nav in its normal bottom position and opens the existing mixer as a fixed overlay above the current application surface. The mixer is shell-owned, remains above the dim backdrop but below ordinary navigation, and its reveal/hide uses the configured **application Transition duration** (`--acp-transition-duration`), deliberately independent of Navigation transition duration. The old `audio-polish.js` fixed 225/300/320 ms motion owner is retired to avoid two animation authorities fighting.
+- **AirPlay first snapshot:** the Surface Host now supports an optional async `beforeSnapshot` hook inside the View Transition update callback. AirPlay marks each entry unresolved, loads/activates its surface scripts, waits for the reusable AirPlay hydration authority to report a settled status/segmented glance row, and only then lets Chromium capture the incoming snapshot. The existing `activate` stage remains the post-commit logical-mode owner.
+
+The reported screenshot with AirPlay on the left and News still visible on the right is partly expected: with **Cover reveal** and a 2000 ms Transition duration, the old News snapshot remains visible while the new snapshot uncovers it. The genuine defect is visible *inside* the incoming AirPlay half: the mini-clock is still only its four static colon dots and the layout subsequently reflows after hydration. The pre-snapshot gate targets that defect without changing what Cover reveal is supposed to look like.
+
+Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` passed the full maintained suite as **Tests #5245**. Focused physical acceptance of indicator synchronisation, Audio-overlay presentation and AirPlay first-entry stability is pending.
 
 Only after Level A is accepted should Phase A proceed to the **spatial row/carousel experiment with exactly one committed destination transition**.
