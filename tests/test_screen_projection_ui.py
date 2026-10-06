@@ -192,7 +192,11 @@ const fs = require('fs');
         transitions = PAGE_TRANSITIONS.read_text(encoding="utf-8")
 
         self.assertIn("function plexampVisiblyOpen", transitions)
-        self.assertIn("target.href === window.location.href && !plexampVisiblyOpen()", transitions)
+        self.assertIn(
+            "mainNavLink && !plexampVisiblyOpen() && target.pathname === activeRoute()",
+            transitions,
+        )
+        self.assertIn("event.preventDefault();", transitions)
         self.assertIn("target.pathname === activeRoute()", transitions)
         self.assertIn("window.ACPPlexamp.hide", transitions)
         self.assertIn("updateMode: false", transitions)
