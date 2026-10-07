@@ -1053,7 +1053,7 @@ Implementation:
 - `bf5aa2c205a5dca5d72d6cfe52ae984bc2788a1a` removes the Spatial-row pre-transition navigation-close wait so the shell stays present.
 - `5a8a3bad117635459db9260050e215c3fc483e16` makes the shell a non-animated named View Transition layer above page snapshots, adds Overlay/Lift presentation ownership and enlarges/re-shapes the controls/drawer.
 - `9597f55b29c26bd234c5efc7ee8b1a1280490b73` aligns the final control size/radii with ACP design tokens; regression alignment follows through `eb00e963ebe8aa6b5185c56fdd8bc2b885501bef`.
-- Intermediate CI reds during the setting/cache/test sequence were stale regression expectations; the first fully aligned implementation passed **Tests #5333**. Final radius-aligned CI is still running.
+- Intermediate CI reds during the setting/cache/test sequence were stale regression expectations; the first fully aligned implementation passed **Tests #5333**, the final larger-control/radius treatment passed **Tests #5334**, and its aligned regression head passed **Tests #5335**. Roadmap/documentation sync then passed **Tests #5336–#5337**. Physical acceptance of the refinement is pending.
 
 Focused refinement physical gate:
 
