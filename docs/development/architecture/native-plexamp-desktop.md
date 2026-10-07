@@ -751,7 +751,7 @@ Physical gates include:
 single-document foundation is accepted before Astronomy starts, so Astronomy is
 not knowingly built in the legacy multi-document model and then migrated.
 
-Astronomy may begin once that UI/application-surface contract is stable; it does
+Astronomy may begin once the accepted Phase-A shell contract is complete, including the B5 utility-cluster/navigation topology, B6 terminal Plexamp workspace semantics and B7 night-clock anti-burn-in motion gate. It still does
 not need to wait for every later native-Plexamp lifecycle gate if those player
 experiments are still continuing. Full Appliance Resilience follows the
 modernisation so it hardens the architecture that actually survives #94 rather
