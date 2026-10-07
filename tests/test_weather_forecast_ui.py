@@ -75,6 +75,7 @@ class WeatherForecastUiTests(unittest.TestCase):
         self.assertIn("touch-action: pan-x pan-y", styles)
         self.assertIn("scroll-snap-type", styles)
         self.assertIn("body[data-active-page=\"weather\"]", styles)
+        self.assertIn('.acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]', styles)
 
     def test_unknown_daily_conditions_are_hidden_without_relabelling_later_days(self):
         client = Path("app/static/js/weather-forecast.js").read_text(encoding="utf-8")

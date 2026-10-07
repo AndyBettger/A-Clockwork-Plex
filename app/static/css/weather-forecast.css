@@ -1,4 +1,7 @@
-body[data-active-page="weather"] .weather-forecast-console {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-console {
   width: min(100%, 1120px);
   margin: 0 auto clamp(8px, 1.4vmin, 14px);
   padding: 0;
@@ -268,7 +271,10 @@ body[data-active-page="weather"] .weather-forecast-console {
 }
 
 @media (max-height: 620px), (max-width: 860px) {
-  body[data-active-page="weather"] .weather-forecast-console {
+  :is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-console {
     margin-bottom: 8px;
   }
 
