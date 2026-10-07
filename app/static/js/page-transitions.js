@@ -239,20 +239,44 @@
 
     const overlayOpen = plexampVisiblyOpen();
     if (overlayOpen) {
+      const preserveNavigation = shouldPreserveNavigation(options);
+      const mode = target.pathname.slice(1) || 'clock';
+
       if (target.pathname === activeRoute()) {
-        const mode = target.pathname.slice(1) || 'clock';
         const duration = Number(window.ACPPlexamp.hide?.({
           updateMode: false,
           targetMode: mode,
-          preserveNavigation: shouldPreserveNavigation(options),
+          preserveNavigation,
           source: String(options.source || 'navigation-link'),
         })) || 0;
         holdPresentation(duration);
         return;
       }
 
+      // Mounted ACP destinations can be committed underneath the persistent
+      // Plexamp layer before Plexamp reveals them. Keep the shell/navigation
+      // DOM alive instead of falling back to a full document navigation, which
+      // visibly closes and recreates the nav (most obvious on Settings).
+      if (window.ACPSurfaceHost?.canNavigate?.(target.pathname)) {
+        const result = await window.ACPSurfaceHost.navigate(target.pathname, {
+          ...options,
+          animate: false,
+          history: true,
+          source: String(options.source || 'plexamp-mounted-handoff'),
+        });
+        if (result?.handled) {
+          const duration = Number(window.ACPPlexamp.hide?.({
+            updateMode: false,
+            targetMode: mode,
+            preserveNavigation,
+            source: String(options.source || 'navigation-link'),
+          })) || 0;
+          holdPresentation(duration);
+          return;
+        }
+      }
+
       leaving = true;
-      const preserveNavigation = shouldPreserveNavigation(options);
       if (preserveNavigation) rememberNavigationMode(target);
       const delay = Number(
         window.ACPPlexamp.prepareNavigation?.({ preserveNavigation })
