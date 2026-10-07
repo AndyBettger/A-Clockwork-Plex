@@ -11,6 +11,8 @@
     "transition_style": "grow-fade",
     "transition_duration_ms": 300,
     "navigation_transition_duration_ms": 180,
+    "navigation_inactivity_seconds": 6,
+    "navigation_presentation": "overlay",
     "daytime_theme": "classic_dark",
     "night_dim_enabled": false,
     "night_dim_start": "22:00",
