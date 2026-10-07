@@ -637,15 +637,49 @@ Automated coverage verifies:
 
 Candidate `114b945f4bc132bbc14922eac045e582330703cd` passed the full maintained suite as **Tests #5260**.
 
-Physical B0-v4 gate:
+#### B0 v4 physical pass — live-DOM mechanism ACCEPTED
 
-- [ ] Repeat Clock→Weather at least 10–20 times; the outgoing Clock surface must be present on every run.
-- [ ] Clock and Weather must remain joined at the moving seam with no white gap.
-- [ ] The home indicator should remain stationary as shell chrome while content moves.
-- [ ] There must still be one destination movement only, with no Cover Reveal, black frame, reload or second Weather appearance.
-- [ ] Weather→Clock and all unrelated destinations must remain unchanged.
-- [ ] Weather must settle fully live/interactable after the strip completes.
+The commissioned-Pi retest accepts the new presentation primitive:
 
-Do not add reverse direction or further destinations until the live-DOM B0 path passes physically.
+- [x] repeated Clock→Weather runs consistently keep the outgoing Clock surface present;
+- [x] Clock and Weather remain joined at the moving seam with no white snapshot failure;
+- [x] the home indicator remains shell-owned rather than baked into a root texture;
+- [x] there is still one destination movement only, with no Cover Reveal, black frame, reload or second Weather appearance;
+- [x] Weather settles fully live/interactable;
+- [x] the same mechanism remains visually coherent after changing daytime theme, including Crimson Glow.
+
+The mechanism is therefore good enough to keep. The next issue is **policy**, not rendering.
+
+#### B0 v5 — integrate Spatial row into the custom Transition style system
+
+Physical feedback correctly identifies that an always-on spatial Clock→Weather path would silently override the user's selected Transition style. B0 was allowed to do that temporarily to prove the mechanism, but production motion policy must remain user-owned.
+
+The architecture is now:
+
+- **Transition style remains authoritative.**
+- Existing values—Grow and fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom, Blur dissolve and Instant—retain their existing behaviour.
+- A new explicit **Spatial row (prototype)** choice opts into the Level-B live-DOM navigation model.
+- The bounded live-DOM B0 path activates only when:
+  - navigation is open;
+  - Clock is the active ACP surface;
+  - Weather is selected from the main nav;
+  - the configured Transition style is `spatial-row`.
+- With any other selected style, Clock→Weather uses that ordinary configured style exactly as before.
+- While Spatial row remains incomplete, unsupported relations use the accepted **Horizontal slide** View Transition as a temporary fallback. This avoids inventing a half-implemented reverse carousel while still keeping the setting valid and predictable.
+- Transition **duration** continues to apply to Spatial row's live-DOM movement.
+- Navigation transition duration still owns only the drawer/page/indicator sheet opening and closing.
+
+Candidate `24ead76bc2245332354637c5c301f7dac938beb2` adds `spatial-row` to frontend preference normalisation, Unified Settings validation, the Motion selector and the transition-style fallback mapping. It passed the full maintained suite as **Tests #5262**.
+
+Physical B0-v5 gate:
+
+- [ ] Leave Transition style on Cover reveal (or another existing style) and verify Clock→Weather no longer uses the spatial strip.
+- [ ] Select **Spatial row (prototype)** and verify Clock→Weather from open navigation uses the accepted live-DOM strip.
+- [ ] Change away from Spatial row again and confirm the selected ordinary style immediately regains authority.
+- [ ] While Spatial row is selected, Weather→Clock and unrelated destinations should use the temporary Horizontal slide fallback without reloads or broken state.
+- [ ] Transition duration should still control the live-DOM Spatial row speed.
+- [ ] Theme changes must remain independent of transition-style choice.
+
+Do not add reverse direction or further destinations until this style-policy boundary is physically accepted.
 
 

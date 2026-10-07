@@ -375,7 +375,23 @@ B0 v4 deliberately changes only the spatial presentation primitive. The mounted-
 
 The Surface Host supports this through an optional `prepared.spatialCommit` lifecycle hook. The hook receives the normal `commit` callback, so logical surface ownership, body mode, navigation state, history, activation and settled events remain centralized in the existing host. Ordinary ACP transitions still use the View Transition API exactly as before.
 
-This live-DOM strip has two architectural advantages beyond avoiding the blank texture: it uses the same mounted-surface objects the future carousel would actually own, and shell chrome such as the home indicator remains a real fixed shell layer rather than becoming part of a frozen root image.
+This live-DOM strip has two architectural advantages beyond avoiding the blank texture: it uses the same mounted-surface objects the future carousel would actually own, and shell chrome such as the home indicator remains a real fixed shell layer rather than becoming part of a frozen root image. Commissioned-Pi testing accepts this mechanism across repeated runs and theme changes.
+
+### Transition-style ownership for spatial navigation
+
+A spatial compositor must not silently replace the user's chosen application Transition style. The B0 hard override was a test harness, not an acceptable production policy.
+
+The Motion setting is therefore the policy selector, while individual styles are free to use different rendering backends:
+
+- Grow/fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom and Blur dissolve continue to use the existing View Transition implementation;
+- Instant continues to suppress decorative application movement;
+- **Spatial row** uses the live-DOM mounted-surface strip where that relation has been implemented.
+
+This keeps the user-facing model simple: **one Transition style setting, one Transition duration setting**. The implementation technology is an internal concern. Selecting Cover reveal must mean Cover reveal even when the destination was chosen from shell navigation; selecting Spatial row explicitly opts into spatial navigation semantics.
+
+During B0 only Clock→Weather from open navigation has a true live-DOM Spatial-row implementation. Other relations under the prototype Spatial-row setting temporarily map to Horizontal slide. That fallback is intentionally visible in documentation and must disappear as the ordered/bidirectional row model expands; it is not the final spatial-navigation contract.
+
+This policy also clarifies automatic projection: the destination mechanism should obey the selected application Transition style unless a product-critical event (for example alarm takeover) explicitly bypasses decorative animation.
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
 
