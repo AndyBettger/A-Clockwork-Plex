@@ -419,6 +419,8 @@ The application Transition duration remains the duration of the complete movemen
 
 Intermediate layers are DOM surfaces, not screenshots. The compositor temporarily renders the already-mounted intermediate under its own presentation body state, captures its DOM plus computed root layout/background, stamps its local surface context, and restores the real source synchronously before paint. This extends the established rule that simultaneously visible surfaces carry their own layout and presentation identity even while global body state belongs to the selected destination.
 
+Commissioned-Pi testing accepts the staged three-surface model, including 200vw Clock↔News traversal within one configured total duration and no intermediate logical activation. B4 extends the ACP row to `['clock', 'weather', 'news', 'airplay']`. The row intentionally contains ACP browser application surfaces only: Plexamp remains a separate compositor/workspace boundary and Audio remains a shell overlay. AirPlay's active-page-scoped non-Classic pulse/screen paint also consumes the outgoing `data-acp-surface-context="airplay"` contract so it can remain visually AirPlay after the live body has committed another ACP destination.
+
 ## Browser-engine evaluation
 
 Changing browser should be treated as a measured optimisation experiment, not a

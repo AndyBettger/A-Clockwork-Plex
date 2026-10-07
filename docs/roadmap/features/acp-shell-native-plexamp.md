@@ -916,18 +916,62 @@ The initial direct-handoff candidate `205908549f11f1682d077c4df28029f917dd2592` 
 
 Focused B3-v2 physical gate:
 
-- [ ] Clock → News shows Weather physically between them as one continuous leftward strip.
-- [ ] News → Clock shows Weather physically between them as the exact reverse strip.
-- [ ] Weather passes through without becoming the logical active destination or causing a second settle/navigation event.
-- [ ] The configured Transition duration is the duration of the **complete** Clock↔News movement; it must not take twice as long as configured.
-- [ ] The three moving surfaces remain edge-locked with no white gaps, overlaps, fade/overlay or internal reflow.
-- [ ] Clock and News settle fully live/interactable after long jumps.
-- [ ] Existing Clock↔Weather and Weather↔News movements remain unchanged.
-- [ ] Selecting a non-Spatial transition still restores that configured style for Clock↔News.
-- [ ] AirPlay, Settings and Plexamp remain outside the row and unchanged.
+- [x] Clock → News shows Weather physically between them as one continuous leftward strip.
+- [x] News → Clock shows Weather physically between them as the exact reverse strip.
+- [x] Weather passes through without becoming the logical active destination or causing a second settle/navigation event.
+- [x] The configured Transition duration is the duration of the **complete** Clock↔News movement; it does not take twice as long as configured.
+- [x] The three moving surfaces remain edge-locked with no white gaps, overlaps, fade/overlay or internal reflow.
+- [x] Clock and News settle fully live/interactable after long jumps.
+- [x] Existing Clock↔Weather and Weather↔News movements remain unchanged.
+- [x] Selecting a non-Spatial transition restores that configured style for Clock↔News.
+- [x] AirPlay, Settings and Plexamp remain outside the B3 row and unchanged.
 
-A separate News status correction travels with this candidate: the rail status pill now prefers the **active category's** state over the overall service state. One failed enabled feed can still make the service snapshot globally degraded, but a freshly successful Top Stories page should remain **News ready** rather than incorrectly showing **Cached news** with a warning border.
+### Level-B B3 physical acceptance — COMPLETE
 
-Do not add a fourth row member until the staged B3 semantics and News status correction are physically accepted.
+The commissioned Pi accepts the literal staged-row model. Non-adjacent ACP surfaces now visibly traverse their real neighbours while retaining a single logical destination commit and one configured total duration.
+
+The accompanying News status correction is also accepted: the rail pill describes the active category rather than inheriting an unrelated feed's degraded state. A real active-feed warning deliberately remains semantic rather than theme decorative:
+
+- **News ready** follows the selected daytime palette;
+- **Cached news / Stale cache** remains amber/yellow under Green Phosphor, Crimson Glow and other themes;
+- that warning colour is intentional because it communicates degraded freshness rather than surface identity.
+
+#### B4 — add AirPlay as the fourth ACP row member
+
+The ACP browser-surface row now expands to:
+
+```text
+Clock  <---->  Weather  <---->  News  <---->  AirPlay
+```
+
+This row is an **ACP application-surface order**, not a literal copy of every bottom-nav button. Plexamp is the deliberate cross-application workspace exception and Audio is a shell overlay, so neither belongs between News and AirPlay in the browser-surface strip.
+
+B4 keeps the accepted B3 semantics unchanged:
+
+- News↔AirPlay is a normal adjacent 100vw strip;
+- Clock/Weather↔AirPlay long jumps visibly traverse every intermediate ACP row member;
+- the configured Transition duration still covers the entire movement once;
+- only AirPlay is logically committed when it is the selected destination;
+- AirPlay's existing pre-snapshot/hydration authority remains responsible for stable segmented-clock/glance geometry before it starts entering;
+- leaving AirPlay uses the same outgoing DOM-clone contract as Clock/Weather/News.
+
+Because AirPlay has a few non-Classic theme rules scoped through `body[data-active-page="airplay"]`, B4 extends those rules to `[data-acp-surface-context="airplay"]` as well. This prevents an outgoing AirPlay clone from dropping back to Classic/cyan pulse and screen-border paint when the global body switches to News/Weather/Clock.
+
+Candidate `9be2934e329ffaeb69d94e9cbfedda09bf8644d5` extends both spatial-row authorities to `['clock','weather','news','airplay']` and adds the outgoing AirPlay theme-context selectors.
+
+Focused B4 physical gate:
+
+- [ ] News → AirPlay moves as one adjacent full-viewport strip with AirPlay already hydrated/stable while entering.
+- [ ] AirPlay → News is the exact reverse, with AirPlay theme/pulse/border colours remaining stable while leaving.
+- [ ] Clock → AirPlay visibly traverses Weather then News before AirPlay arrives, with no pause at either intermediate surface.
+- [ ] AirPlay → Clock visibly traverses News then Weather in reverse.
+- [ ] A deliberately slow Transition duration applies once to the complete 300vw Clock↔AirPlay movement.
+- [ ] All four moving surfaces remain edge-locked with no gaps, overlap, fade or internal reflow.
+- [ ] AirPlay controls/status remain live after arrival and after returning from another row surface.
+- [ ] Existing Clock↔Weather↔News behaviour remains unchanged.
+- [ ] Cover reveal (or another non-Spatial style) still performs its ordinary direct destination transition.
+- [ ] Plexamp and Audio behaviour remain unchanged.
+
+Do not add Settings as a fifth row member until AirPlay passes this gate.
 
 

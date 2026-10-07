@@ -242,6 +242,8 @@ The feed service exposes both an **overall** snapshot status and per-category st
 
 The News page rail pill has a narrower job: it describes the section the owner is currently reading. It therefore prefers the active category's `status` and `stale` fields, falling back to the overall service status only when category state is unavailable. This prevents an unrelated feed failure from labelling a freshly refreshed Top Stories/UK/etc. section **Cached news** and applying warning chrome. The global degraded state is not discarded; it simply no longer overrides healthy active-section presentation.
 
+Status colour is semantic rather than purely thematic. A healthy active feed uses the current daytime accent, while cached/stale/error states retain warning/error chrome independent of the selected palette. This is intentional: a stale feed under Green Phosphor must not look healthy merely because green is the selected decorative theme.
+
 ## Failure boundary
 
 BBC/network/XML failure must never affect the rest of the appliance. A failed active section keeps its previous successful feed only when that cache belongs to the same configured source, and records an explicit degraded/stale/error state. The News page labels stale data rather than inventing content.
