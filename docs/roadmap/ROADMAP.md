@@ -80,7 +80,6 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
   - [ ] **B7 — night-clock anti-burn-in bouncing cluster.** Add an optional transform-driven mode where time, date and alarm indicator move as one rigid group, reflect from safe-area edges and use an independent speed setting.
   - [ ] **Astronomy starts after B5–B7 are physically accepted**, using the reserved order `Clock ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`.
 
-  Detailed implementation history, superseded experiments, commit IDs and physical gates remain in [features/acp-shell-native-plexamp.md](features/acp-shell-native-plexamp.md).
 
 Do not start the native Plexamp production migration yet. Phase A first proves the ACP application-surface contract; Headless remains the accepted player runtime.
 
