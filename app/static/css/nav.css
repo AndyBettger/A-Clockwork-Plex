@@ -3,10 +3,12 @@
    separate duration from application-surface transitions. */
 :root {
   --acp-navigation-transition-duration: 180ms;
+  --acp-nav-control-size: clamp(52px, 7.6vmin, 60px);
 }
 
 .nav-backdrop {
   position: fixed;
+  view-transition-name: acp-nav-backdrop;
   z-index: 70;
   inset: 0;
   padding: 0;
@@ -36,25 +38,26 @@ body.nav-mode .nav-backdrop {
   transform-origin: 50% 46%;
 }
 
-body.nav-mode .screen,
-body.nav-mode .persistent-plexamp.is-open {
-  /* Navigation is modal shell chrome: keep the live app at full size and
-     lift it by the measured ordinary drawer strip so the drawer reads as
-     attached beneath the page rather than floating over live content. */
+html[data-navigation-presentation="lift"] body.nav-mode .screen,
+html[data-navigation-presentation="lift"] body.nav-mode .persistent-plexamp.is-open {
+  /* Optional legacy/alternate treatment: lift the live workspace by the
+     measured shell height. Overlay mode leaves content in place while the
+     shell sits above page/workspace transitions. */
   scale: 1;
   translate: 0 calc(0px - var(--acp-navigation-reveal-height, 74px));
-  border-radius: 28px;
+  border-radius: 22px;
 }
 
 .nav-drawer {
   position: fixed;
   z-index: 80;
+  view-transition-name: acp-nav-drawer;
   left: 50%;
   bottom: max(8px, env(safe-area-inset-bottom));
   width: min(calc(100vw - 20px), 940px);
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
+  border-radius: 22px;
   background: rgba(6, 12, 22, 0.91);
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(14px);
@@ -107,23 +110,29 @@ body.nav-open .nav-drawer {
 }
 
 .nav-button {
-  min-width: clamp(72px, 10.5vmin, 110px);
+  min-width: clamp(84px, 12.5vmin, 128px);
+  height: var(--acp-nav-control-size);
+  display: inline-grid;
+  place-items: center;
+  padding: 0 clamp(12px, 2vmin, 18px);
+  border-radius: 14px;
   text-align: center;
 }
 
 .nav-utility-button {
-  width: clamp(44px, 6.6vmin, 52px);
-  height: clamp(42px, 6.1vmin, 48px);
-  min-width: 0;
+  width: var(--acp-nav-control-size);
+  height: var(--acp-nav-control-size);
+  min-width: var(--acp-nav-control-size);
   display: grid;
   place-items: center;
   padding: 0;
+  border-radius: 50%;
   line-height: 1;
 }
 
 .nav-utility-icon {
-  width: clamp(22px, 3.5vmin, 28px);
-  height: clamp(22px, 3.5vmin, 28px);
+  width: clamp(24px, 3.8vmin, 30px);
+  height: clamp(24px, 3.8vmin, 30px);
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -573,6 +582,7 @@ body.nav-audio-open .nav-live-mixer {
 .nav-handle {
   position: fixed;
   z-index: 90;
+  view-transition-name: acp-nav-handle;
   left: 50%;
   bottom: max(0px, env(safe-area-inset-bottom));
   width: min(22vw, 200px);
@@ -627,6 +637,26 @@ body.nav-open .nav-handle span {
   background: rgba(247, 249, 255, 0.92);
 }
 
+/* Persistent shell chrome is excluded from the root page snapshot and gets its
+   own non-animated View Transition layers. Page transitions therefore happen
+   behind the live-looking navigation instead of painting over it. */
+::view-transition-group(acp-nav-backdrop),
+::view-transition-group(acp-nav-drawer),
+::view-transition-group(acp-nav-handle),
+::view-transition-old(acp-nav-backdrop),
+::view-transition-new(acp-nav-backdrop),
+::view-transition-old(acp-nav-drawer),
+::view-transition-new(acp-nav-drawer),
+::view-transition-old(acp-nav-handle),
+::view-transition-new(acp-nav-handle) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+::view-transition-group(acp-nav-backdrop) { z-index: 70; }
+::view-transition-group(acp-nav-drawer) { z-index: 80; }
+::view-transition-group(acp-nav-handle) { z-index: 90; }
+
 @media (prefers-reduced-motion: reduce) {
   .nav-backdrop,
   .screen,
@@ -660,20 +690,20 @@ body.nav-open .nav-handle span {
   }
 
   .nav-button {
-    min-width: 62px;
-    padding-inline: 7px;
+    min-width: 76px;
+    padding-inline: 9px;
   }
 
   .nav-utility-button {
-    width: 42px;
-    height: 40px;
-    min-width: 42px;
+    width: var(--acp-nav-control-size);
+    height: var(--acp-nav-control-size);
+    min-width: var(--acp-nav-control-size);
     padding: 0;
   }
 
   .nav-utility-icon {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
   }
 
   .nav-live-mixer {
