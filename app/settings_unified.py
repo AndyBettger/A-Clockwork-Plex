@@ -43,6 +43,7 @@ VALID_TRANSITIONS = {
     "cover-reveal",
     "zoom",
     "blur-dissolve",
+    "spatial-row",
 }
 VALID_TEMPERATURE_UNITS = {"c", "f"}
 VALID_PRESSURE_UNITS = {"hpa", "inhg"}

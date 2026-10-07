@@ -121,6 +121,13 @@ html[data-transition-style="blur-dissolve"] body.acp-page-leaving .screen {
   --acp-view-transition-new: acp-in-blur-dissolve;
 }
 
+/* While Level-B is still bounded to Clock -> Weather, unsupported spatial-row
+   relations fall back to the accepted Horizontal slide presentation. */
+:root[data-transition-style="spatial-row"] {
+  --acp-view-transition-old: acp-out-horizontal-slide;
+  --acp-view-transition-new: acp-in-horizontal-slide;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: var(--acp-transition-duration);

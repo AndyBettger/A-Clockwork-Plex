@@ -28,6 +28,7 @@
     'cover-reveal',
     'zoom',
     'blur-dissolve',
+    'spatial-row',
   ]);
 
   function normaliseMode(value, fallback = 'clock') {

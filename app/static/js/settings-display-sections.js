@@ -22,6 +22,7 @@
     ['cover-reveal', 'Cover reveal'],
     ['zoom', 'Zoom'],
     ['blur-dissolve', 'Blur dissolve'],
+    ['spatial-row', 'Spatial row (prototype)'],
     ['instant', 'Instant'],
   ];
 

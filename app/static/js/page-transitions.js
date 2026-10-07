@@ -59,6 +59,7 @@
 
   function spatialPrototypeDirection(target, mainNavLink = false) {
     if (!mainNavLink || !navigationModeOpen() || plexampVisiblyOpen()) return '';
+    if (String(preferences().transitionStyle || '').toLowerCase() !== 'spatial-row') return '';
     return activeRoute() === '/clock' && target?.pathname === '/weather'
       ? 'forward'
       : '';

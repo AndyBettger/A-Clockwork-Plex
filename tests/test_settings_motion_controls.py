@@ -24,11 +24,12 @@ class SettingsMotionControlsTests(unittest.TestCase):
             "cover-reveal",
             "zoom",
             "blur-dissolve",
+            "spatial-row",
             "instant",
         }
         self.assertTrue(expected.issubset(VALID_TRANSITIONS))
 
-    def test_settings_exposes_all_eight_motion_choices_before_hydration(self):
+    def test_settings_exposes_all_nine_motion_choices_before_hydration(self):
         template = SETTINGS_TEMPLATE.read_text(encoding="utf-8")
         source = DISPLAY_JS.read_text(encoding="utf-8")
         values = (
@@ -39,6 +40,7 @@ class SettingsMotionControlsTests(unittest.TestCase):
             "cover-reveal",
             "zoom",
             "blur-dissolve",
+            "spatial-row",
             "instant",
         )
         for value in values:

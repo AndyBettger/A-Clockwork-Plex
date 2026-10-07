@@ -238,7 +238,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-live-v4", base)
+        self.assertIn("20261007-spatial-style-v5", base)
 
     def test_spatial_row_b0_uses_live_dom_strip_not_root_snapshot(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -249,6 +249,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
 
         self.assertIn("function spatialPrototypeDirection", transitions)
+        self.assertIn("preferences().transitionStyle", transitions)
+        self.assertIn("'spatial-row'", transitions)
         self.assertIn("activeRoute() === '/clock' && target?.pathname === '/weather'", transitions)
         self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
 
@@ -279,7 +281,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-live-v4", base)
+        self.assertIn("20261007-spatial-style-v5", base)
 
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
@@ -390,6 +392,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
             ("cover-reveal", "acp-out-cover-reveal", "acp-in-cover-reveal"),
             ("zoom", "acp-out-zoom", "acp-in-zoom"),
             ("blur-dissolve", "acp-out-blur-dissolve", "acp-in-blur-dissolve"),
+            ("spatial-row", "acp-out-horizontal-slide", "acp-in-horizontal-slide"),
         ):
             self.assertIn(f':root[data-transition-style="{style}"]', styles)
             self.assertIn(f"--acp-view-transition-old: {outgoing};", styles)
