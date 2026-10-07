@@ -238,7 +238,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-b1-v1", base)
+        self.assertIn("20261007-spatial-b1-v2", base)
 
     def test_spatial_row_b1_is_ordered_and_bidirectional_for_clock_weather(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -258,6 +258,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
 
         self.assertIn("function motionEnabled", host)
+        self.assertIn("['forward', 'reverse'].includes(options.spatialCommitDirection)", host)
         self.assertIn("typeof prepared.spatialCommit === 'function'", host)
         self.assertIn("await prepared.spatialCommit", host)
         self.assertIn("document.startViewTransition(commit)", host)
@@ -301,7 +302,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-b1-v1", base)
+        self.assertIn("20261007-spatial-b1-v2", base)
 
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):

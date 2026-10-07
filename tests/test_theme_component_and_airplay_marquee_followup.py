@@ -51,6 +51,8 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
             self.assertIn(selector, css)
         self.assertIn("linear-gradient(90deg, var(--accent), var(--accent-strong))", css)
         self.assertIn("linear-gradient(180deg, var(--accent-strong), var(--accent))", css)
+        self.assertIn(".weather-forecast-status:not(.is-stale)", css)
+        self.assertIn("color: var(--accent-strong);", css)
 
     def test_airplay_ready_pulse_beats_pinned_cyan_rule(self) -> None:
         css = FOLLOWUP.read_text(encoding="utf-8")

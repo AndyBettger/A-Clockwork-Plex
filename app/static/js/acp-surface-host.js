@@ -113,8 +113,8 @@
       };
 
       let transitionFinished = null;
-      const spatialCommitDirection = options.spatialCommitDirection === 'forward'
-        ? 'forward'
+      const spatialCommitDirection = ['forward', 'reverse'].includes(options.spatialCommitDirection)
+        ? options.spatialCommitDirection
         : '';
 
       if (

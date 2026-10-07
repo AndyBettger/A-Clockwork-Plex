@@ -73,6 +73,11 @@ body[data-active-page="weather"] .weather-forecast-status {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-status:not(.is-stale) {
+  color: var(--accent-strong);
+}
+
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body[data-active-page="weather"] .weather-forecast-scrollbar {
   border-color: var(--acp-theme-control-border);
   background: var(--acp-theme-surface);
