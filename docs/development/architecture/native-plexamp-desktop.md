@@ -409,7 +409,11 @@ B0's asymmetric Clock→Weather test boundary is closed, and B1's commissioned-P
 
 B2 extends the order to `['clock', 'weather', 'news']`. The direction function remains index-based and the spatial compositor remains **adjacent-only**: an absolute index delta of one receives the live-DOM strip; larger jumps continue through the ordinary Spatial-row fallback. This deliberately separates two architectural questions—whether a third mounted surface can participate safely, and how non-adjacent jumps should eventually look—rather than solving both at once.
 
-For B2 the valid spatial edges are therefore Clock↔Weather and Weather↔News. Clock↔News is still a logical row relationship but not yet a live-DOM spatial edge. If the three-member slice is accepted, the next design decision can address long jumps (single directional jump versus staged traversal versus another restrained reveal) with real physical evidence rather than assumption.
+For B2 the valid spatial edges were Clock↔Weather and Weather↔News; commissioned-Pi testing accepted that three-member adjacent model.
+
+B3 resolves long jumps with a **single directional handoff**. Row indices determine only direction, not proportional travel distance: any distinct pair of implemented row members uses the same one-viewport live-DOM strip. Thus Clock→News is one forward handoff and News→Clock one reverse handoff. ACP intentionally does not animate through Weather as an intermediate stop: staged traversal would make one user selection produce two application movements, extend total motion time and visually suggest Weather became an active destination when it did not. Logical destination commit remains singular.
+
+This keeps spatial semantics simple enough to extend later: the row owns ordering/direction; the compositor owns a constant viewport handoff; application lifecycle commits only the selected destination.
 
 ## Browser-engine evaluation
 

@@ -879,8 +879,44 @@ Focused B2 physical gate:
 
 The commissioned Pi now accepts the three-member adjacent row `Clock ↔ Weather ↔ News`. Both new Weather↔News directions are edge-locked and fully interactive, Weather preserves its outgoing layout/theme context, Clock↔Weather remains unchanged, and non-adjacent Clock↔News deliberately stays on the bounded fallback.
 
-A small **News page theme-polish defect** was noticed during this acceptance pass but is independent of spatial movement: the **News ready** and **BBC feed date/time** pill borders look cyan/light-blue under non-Classic palettes. Their backgrounds already use the active `--accent`, but their border mixes still reference the older `--acp-color-accent` token. Candidate `1d41fbfbbea7f2e02abab2a5352c889ec3c2ee0e` moves those two ordinary borders to `--accent` mixed with `--panel-border`, preserves the warning status override, and passed the full maintained suite as **Tests #5278**.
+The small **News page theme-polish defect** found during B2 is now physically accepted: the **News ready** and **BBC feed date/time** pill borders follow the active daytime palette rather than retaining the legacy cyan/light-blue accent. Candidate `1d41fbfbbea7f2e02abab2a5352c889ec3c2ee0e` passed **Tests #5278**, and documentation head `2dc809d2120fe5a694287b5274192ac4a3a9f3ab` passed **Tests #5279**.
 
-Do not open the next Level-B expansion until that small News theme correction is physically checked.
+#### B3 — directional long jumps within the three-surface row
+
+B2 deliberately left Clock↔News on the short Horizontal-slide fallback because they are two indices apart. The next slice resolves only that semantic question.
+
+The chosen B3 rule is **directional, distance-independent handoff**:
+
+```text
+Clock  <---->  Weather  <---->  News
+
+Clock → News : forward one-viewport handoff
+News → Clock : reverse one-viewport handoff
+```
+
+The row order still determines left/right direction, but visual travel distance is always one viewport. ACP does **not** stage the intermediate Weather surface, because that would create two visible page changes for one navigation choice and reintroduce the double-movement feeling that Level-B has deliberately avoided.
+
+Implementation details:
+
+- navigation still requires Spatial row to be explicitly selected and the drawer to be open;
+- any two distinct members of `['/clock','/weather','/news']` now yield forward/reverse from their indices;
+- the application-surface compositor mirrors the same rule for `['clock','weather','news']`;
+- the existing live-DOM outgoing clone, layout freeze, source presentation context, duration/easing and single destination commit are unchanged;
+- AirPlay, Settings and Plexamp remain outside this B3 row.
+
+Candidate `205908549f11f1682d077c4df28029f917dd2592` removes the adjacency-only guard and otherwise leaves the accepted B2 compositor untouched.
+
+Focused B3 physical gate:
+
+- [ ] Clock → News performs one full-viewport forward strip, with no intermediate Weather appearance.
+- [ ] News → Clock performs the exact reverse one-viewport strip.
+- [ ] Both long jumps keep the moving seam joined with no white gap, fade/overlay or internal reflow.
+- [ ] Clock and News settle fully live/interactable after long jumps.
+- [ ] Existing Clock↔Weather and Weather↔News movements remain unchanged.
+- [ ] Transition duration controls long and adjacent handoffs identically.
+- [ ] Selecting a non-Spatial transition still restores that configured style for Clock↔News.
+- [ ] AirPlay, Settings and Plexamp remain outside the row and unchanged.
+
+Do not add a fourth row member until B3 long-jump semantics are physically accepted.
 
 
