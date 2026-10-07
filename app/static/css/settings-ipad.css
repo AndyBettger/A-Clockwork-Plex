@@ -145,8 +145,8 @@ body.mode-settings .screen {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ffe99c;
-  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+  background: var(--accent-strong);
+  box-shadow: 0 0 10px var(--acp-theme-glow, rgba(143, 211, 255, .5));
 }
 
 .settings-chevron {
@@ -386,7 +386,7 @@ body.mode-settings .screen {
 }
 
 .settings-save-bar.is-dirty {
-  border-color: rgba(255, 233, 156, .34);
+  border-color: var(--accent);
 }
 
 .settings-save-bar.is-error {
