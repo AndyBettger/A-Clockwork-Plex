@@ -269,14 +269,23 @@ class UnifiedSettingsTests(unittest.TestCase):
         settings = deepcopy(snapshot["settings"])
         settings["display"]["transition_style"] = "vertical-lift"
         settings["display"]["transition_duration_ms"] = 1150
+        settings["display"]["navigation_transition_duration_ms"] = 420
+        settings["display"]["navigation_inactivity_seconds"] = 14
+        settings["display"]["navigation_presentation"] = "lift"
 
         saved = service.apply({"revision": snapshot["revision"], "settings": settings})
 
         self.assertEqual(len(saves), 1)
         self.assertEqual(stored["dashboard"]["transition_style"], "vertical-lift")
         self.assertEqual(stored["dashboard"]["transition_duration_ms"], 1150)
+        self.assertEqual(stored["dashboard"]["navigation_transition_duration_ms"], 420)
+        self.assertEqual(stored["dashboard"]["navigation_inactivity_seconds"], 14)
+        self.assertEqual(stored["dashboard"]["navigation_presentation"], "lift")
         self.assertEqual(saved["settings"]["display"]["transition_style"], "vertical-lift")
         self.assertEqual(saved["settings"]["display"]["transition_duration_ms"], 1150)
+        self.assertEqual(saved["settings"]["display"]["navigation_transition_duration_ms"], 420)
+        self.assertEqual(saved["settings"]["display"]["navigation_inactivity_seconds"], 14)
+        self.assertEqual(saved["settings"]["display"]["navigation_presentation"], "lift")
 
     def test_legacy_none_transition_is_exposed_as_instant(self):
         service, stored, *_rest = self.build()
