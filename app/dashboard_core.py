@@ -1045,7 +1045,7 @@ def settings_page_context(config: dict[str, Any], saved: bool = False, error: st
         "settings_error": error,
         "clock_card_options": [{"id": field_id, "label": clock_card_option_label(field_id)} for field_id in CLOCK_CARD_FIELD_IDS],
         "mode_options": [
-            {"id": "clock", "label": "Clock"},
+            {"id": "clock", "label": "Home"},
             {"id": "weather", "label": "Weather"},
             {"id": "plexamp", "label": "Plexamp"},
             {"id": "airplay", "label": "AirPlay"},
