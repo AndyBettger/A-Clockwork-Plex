@@ -248,9 +248,10 @@
     return toIndex > fromIndex ? 'forward' : 'reverse';
   }
 
-  async function spatialLiveCommit(direction, commit) {
+  async function spatialLiveCommit(direction, from, commit) {
     const outgoing = screen.cloneNode(true);
     outgoing.classList.add('acp-spatial-outgoing-live-clone');
+    outgoing.dataset.acpSurfaceContext = String(from || '');
     outgoing.setAttribute('aria-hidden', 'true');
     outgoing.inert = true;
     copyBodyBackground(outgoing);
@@ -338,7 +339,7 @@
               await commit();
               return;
             }
-            await spatialLiveCommit(direction, commit);
+            await spatialLiveCommit(direction, from, commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
             if (surface !== 'airplay') return;

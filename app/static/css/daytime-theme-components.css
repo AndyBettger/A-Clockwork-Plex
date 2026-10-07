@@ -20,9 +20,15 @@ body:not([data-active-page="plexamp"]) {
    Weather console, forecast/rain rails and gauges
    ------------------------------------------------------------------------- */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-panel,
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-panel,
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .detail-panel {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .detail-panel {
   border-color: var(--panel-border);
   background:
     linear-gradient(120deg, var(--acp-theme-soft), transparent 44%),
@@ -30,13 +36,19 @@ body[data-active-page="weather"] .detail-panel {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] :is(.weather-forecast-panel, .detail-panel)::before {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) :is(.weather-forecast-panel, .detail-panel)::before {
   background: var(--accent);
   box-shadow: 0 0 12px var(--acp-theme-glow);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] :is(
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) :is(
   .conditions-table-wrap,
   .station-table-wrap,
   .rain-subpanel,
@@ -50,7 +62,10 @@ body[data-active-page="weather"] :is(
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] :is(
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) :is(
   .conditions-table thead th,
   .station-table th,
   .mini-reading > span,
@@ -64,21 +79,33 @@ body[data-active-page="weather"] :is(
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-detail-title-mode,
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-detail-title-mode,
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-status {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-status {
   border-color: var(--acp-theme-control-border);
   background: var(--acp-theme-soft);
   box-shadow: inset 0 0 16px var(--acp-theme-soft);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-status:not(.is-stale) {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-status:not(.is-stale) {
   color: var(--accent-strong);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-scrollbar {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-scrollbar {
   border-color: var(--acp-theme-control-border);
   background: var(--acp-theme-surface);
   box-shadow:
@@ -87,56 +114,86 @@ body[data-active-page="weather"] .weather-forecast-scrollbar {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-scrollbar:focus-visible {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-scrollbar:focus-visible {
   box-shadow:
     0 0 0 2px var(--acp-theme-control-border),
     inset 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-scrollbar-thumb {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-scrollbar-thumb {
   border-color: var(--acp-theme-control-border);
   background: linear-gradient(90deg, var(--accent), var(--accent-strong));
   box-shadow: 0 0 8px var(--acp-theme-glow);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-scrollbar-thumb:hover,
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-scrollbar-thumb:hover,
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-scrollbar.is-dragging .weather-forecast-scrollbar-thumb {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-scrollbar.is-dragging .weather-forecast-scrollbar-thumb {
   background: linear-gradient(90deg, var(--accent-strong), var(--accent));
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-card.is-today {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-card.is-today {
   border-color: var(--acp-theme-control-border);
   background: linear-gradient(145deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.045));
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .weather-forecast-icon {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-icon {
   text-shadow: 0 0 14px var(--acp-theme-glow);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .rain-gauge-card {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .rain-gauge-card {
   background: linear-gradient(135deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.035));
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .rain-gauge {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .rain-gauge {
   border-color: var(--acp-theme-control-border);
   background: rgba(255, 255, 255, 0.055);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .rain-gauge span {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .rain-gauge span {
   background: linear-gradient(180deg, var(--accent-strong), var(--accent));
   box-shadow: 0 0 12px var(--acp-theme-glow);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .compass {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .compass {
   border-color: var(--acp-theme-control-border);
   background:
     repeating-radial-gradient(circle, transparent 0 19%, var(--acp-theme-soft) 20% 20.7%, transparent 21% 39%),
@@ -147,39 +204,60 @@ body[data-active-page="weather"] .compass {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .compass-ring {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .compass-ring {
   border-color: var(--acp-theme-control-border);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .compass-arrow {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .compass-arrow {
   background: var(--accent-strong);
   box-shadow: 0 0 18px var(--acp-theme-glow);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .wind-direction-word .alpha-segment {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .wind-direction-word .alpha-segment {
   fill: var(--segment-off);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .wind-direction-word .alpha-segment.is-on {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .wind-direction-word .alpha-segment.is-on {
   fill: var(--accent);
   filter: drop-shadow(0 0 1.35px var(--acp-theme-glow));
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .barometer-reading-card::after {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .barometer-reading-card::after {
   border-color: var(--acp-theme-control-border);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .barometer-reading-card.is-relative {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .barometer-reading-card.is-relative {
   background: linear-gradient(135deg, var(--acp-theme-soft), rgba(255, 255, 255, 0.035));
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .barometer-forecast-card {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .barometer-forecast-card {
   border-color: var(--acp-theme-control-border);
   background:
     linear-gradient(90deg, var(--acp-theme-soft), transparent 42%),
@@ -187,7 +265,10 @@ body[data-active-page="weather"] .barometer-forecast-card {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .barometer-forecast-graphic {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .barometer-forecast-graphic {
   border-color: var(--acp-theme-control-border);
   background: radial-gradient(circle, var(--acp-theme-soft), rgba(255, 255, 255, 0.025));
   box-shadow:
@@ -196,12 +277,18 @@ body[data-active-page="weather"] .barometer-forecast-graphic {
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] :is(.tone-falling, .tone-low, .tone-settled, .tone-rising) .barometer-forecast-graphic {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) :is(.tone-falling, .tone-low, .tone-settled, .tone-rising) .barometer-forecast-graphic {
   background: radial-gradient(circle, var(--acp-theme-soft), rgba(255, 255, 255, 0.025));
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="weather"] .trend-pill {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .trend-pill {
   border-color: var(--acp-theme-control-border);
   background: var(--acp-theme-surface);
 }
