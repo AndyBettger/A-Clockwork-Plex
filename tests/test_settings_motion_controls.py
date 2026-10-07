@@ -69,6 +69,7 @@ class SettingsMotionControlsTests(unittest.TestCase):
 
         self.assertIn("['display.transition_duration_ms', '2000', '50'", source)
         self.assertIn("['display.navigation_transition_duration_ms', '1000', '20'", source)
+        self.assertIn("['display.navigation_inactivity_seconds', '30', '1'", source)
         self.assertIn("const currentValue = String(duration.value ?? '').trim()", source)
         self.assertIn("duration.min = '0'", source)
         self.assertIn("duration.max = maximum", source)
@@ -82,6 +83,11 @@ class SettingsMotionControlsTests(unittest.TestCase):
 
         self.assertIn('data-setting-path="display.navigation_transition_duration_ms"', settings)
         self.assertIn('data-setting-output="display.navigation_transition_duration_ms"', settings)
+        self.assertIn('data-setting-path="display.navigation_inactivity_seconds"', settings)
+        self.assertIn('data-setting-output="display.navigation_inactivity_seconds"', settings)
+        self.assertIn('data-setting-path="display.navigation_presentation"', settings)
+        self.assertIn('<option value="overlay">Overlay content</option>', settings)
+        self.assertIn('<option value="lift">Lift content</option>', settings)
 
     def test_transition_duration_has_visible_exact_value_and_hydration_repaint(self):
         settings = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
@@ -89,7 +95,10 @@ class SettingsMotionControlsTests(unittest.TestCase):
 
         self.assertIn('data-setting-output="display.transition_duration_ms"', settings)
         self.assertIn('data-setting-output="display.navigation_transition_duration_ms"', settings)
+        self.assertIn('data-setting-output="display.navigation_inactivity_seconds"', settings)
         self.assertIn("'display.transition_duration_ms', 'display.navigation_transition_duration_ms'", client)
+        self.assertIn("path === 'display.navigation_inactivity_seconds'", client)
+        self.assertIn("seconds <= 0 ? 'Never'", client)
         self.assertIn("Math.round(number)", client)
         self.assertIn("window.ACPSettingsRangeTheme?.refresh?.()", client)
 
@@ -100,6 +109,8 @@ class SettingsMotionControlsTests(unittest.TestCase):
         self.assertIn("transitionStyle: display.transition_style", source)
         self.assertIn("transitionDurationMs: display.transition_duration_ms", source)
         self.assertIn("navigationTransitionDurationMs: display.navigation_transition_duration_ms", source)
+        self.assertIn("navigationInactivitySeconds: display.navigation_inactivity_seconds", source)
+        self.assertIn("navigationPresentation: display.navigation_presentation", source)
         self.assertIn("syncLiveShellSettings(loadedSettings)", source)
         self.assertIn("acp:settings-saved", source)
 
@@ -111,6 +122,16 @@ class SettingsMotionControlsTests(unittest.TestCase):
             "root.dataset.navigationTransitionDurationMs || root.dataset.serverNavigationTransitionDurationMs",
             source,
         )
+        self.assertIn(
+            "root.dataset.navigationInactivitySeconds || root.dataset.serverNavigationInactivitySeconds",
+            source,
+        )
+        self.assertIn(
+            "root.dataset.navigationPresentation || root.dataset.serverNavigationPresentation",
+            source,
+        )
+        self.assertIn("normaliseNavigationInactivity", source)
+        self.assertIn("normaliseNavigationPresentation", source)
         self.assertIn("--acp-navigation-transition-duration", source)
         self.assertIn("root.dataset.clockFormat || root.dataset.serverClockFormat", source)
         self.assertIn("root.dataset.startupMode || root.dataset.serverStartupMode", source)
