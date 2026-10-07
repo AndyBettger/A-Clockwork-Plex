@@ -572,6 +572,35 @@ A true live Compiz-style window strip would require compositor-level transforms
 that labwc intentionally does not provide as a product API; do not make a custom
 compositor a prerequisite for ACP navigation.
 
+#### Accepted topology refinement after Level-B B4
+
+Physical acceptance of the four-surface browser strip changes the abstraction boundary. The spatial order is no longer defined as “all mounted ACP pages”; it becomes a **shell-owned workspace topology**.
+
+Current target topology:
+
+```text
+Clock  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
+```
+
+Future topology once Astronomy is implemented:
+
+```text
+Clock  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
+```
+
+Renderer ownership is intentionally heterogeneous:
+
+- Clock, Weather, Astronomy, News and AirPlay are ACP/Chromium application surfaces;
+- Plexamp is the terminal media workspace, represented by the persistent browser player during migration and by the native Wayland application later;
+- Settings is a mounted ACP utility workspace but **not** part of the spatial row;
+- Audio is a shell overlay and **not** a workspace position.
+
+The shell therefore owns ordering, direction and navigation semantics above `ACPSurfaceHost`. Browser-only staged-strip mechanics may remain an implementation detail for ACP↔ACP travel, while Plexamp uses an endpoint adapter appropriate to its current renderer. Native Plexamp migration must preserve the same terminal index rather than inventing a new navigation order.
+
+This separation is useful because native migration can replace only the Plexamp renderer/transition backend while leaving user muscle memory, left/right meaning and long-jump topology unchanged.
+
+Navigation presentation follows the same semantic split. Ordinary workspace destinations remain the primary row. Audio and Settings form a separated right-edge utility cluster using scalable inline SVG controls: a speaker-with-waves icon for appliance audio and a cog for Settings. Icon controls retain full touch targets, `currentColor` theme ownership and accessible names.
+
 ### Cross-application ownership
 
 The bottom indicator and revealed navigation must be visible over both Chromium
