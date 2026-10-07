@@ -579,21 +579,23 @@ Physical acceptance of the four-surface browser strip changes the abstraction bo
 Current target topology:
 
 ```text
-Clock  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
+Home  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
 ```
 
 Future topology once Astronomy is implemented:
 
 ```text
-Clock  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
+Home  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
 ```
 
 Renderer ownership is intentionally heterogeneous:
 
-- Clock, Weather, Astronomy, News and AirPlay are ACP/Chromium application surfaces;
+- Home, Weather, Astronomy, News and AirPlay are ACP/Chromium application surfaces;
 - Plexamp is the terminal media workspace, represented by the persistent browser player during migration and by the native Wayland application later;
 - Settings is a mounted ACP utility workspace but **not** part of the spatial row;
 - Audio is a shell overlay and **not** a workspace position.
+
+The user-facing first workspace is **Home**. Its established internal surface/state identifier remains `clock` and its route remains `/clock`; this is a presentation rename, not a migration of persisted configuration or API identifiers.
 
 The shell therefore owns ordering, direction and navigation semantics above `ACPSurfaceHost`. Browser-only staged-strip mechanics may remain an implementation detail for ACP↔ACP travel, while Plexamp uses an endpoint adapter appropriate to its current renderer. Native Plexamp migration must preserve the same terminal index rather than inventing a new navigation order.
 
