@@ -95,6 +95,13 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("acp:surface-settled", self.scrollbar_js)
         self.assertIn("window.ACPNewsCategoryScrollbar", self.scrollbar_js)
 
+    def test_news_status_pill_describes_active_section(self):
+        self.assertIn(
+            "const overall = text(state.status || snapshot?.status || 'empty').toLowerCase();",
+            self.news_client,
+        )
+        self.assertIn("js/news.js', v='20261007-news-status-v5'", self.news_template)
+
     def test_news_followup_clients_have_valid_javascript_syntax(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "Node.js is required for JavaScript syntax regression checks")

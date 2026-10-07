@@ -247,34 +247,114 @@
     return toIndex > fromIndex ? 'forward' : 'reverse';
   }
 
-  async function spatialLiveCommit(direction, from, commit) {
-    const outgoing = screen.cloneNode(true);
-    outgoing.classList.add('acp-spatial-outgoing-live-clone');
-    outgoing.dataset.acpSurfaceContext = String(from || '');
-    outgoing.setAttribute('aria-hidden', 'true');
-    outgoing.inert = true;
-    copyBodyBackground(outgoing);
-    freezeOutgoingScreenLayout(outgoing);
+  function spatialSurfacePath(from, to) {
+    const fromIndex = spatialSurfaceOrder.indexOf(String(from || ''));
+    const toIndex = spatialSurfaceOrder.indexOf(String(to || ''));
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return [];
+
+    const step = toIndex > fromIndex ? 1 : -1;
+    const path = [];
+    for (let index = fromIndex; ; index += step) {
+      path.push(spatialSurfaceOrder[index]);
+      if (index === toIndex) break;
+    }
+    return path;
+  }
+
+  function captureBodyPresentationState() {
+    return {
+      activePage: document.body.dataset.activePage,
+      modes: Array.from(document.body.classList).filter((name) => name.startsWith('mode-')),
+    };
+  }
+
+  function applyBodyPresentationSurface(surface) {
+    document.body.dataset.activePage = String(surface || '');
+    Array.from(document.body.classList)
+      .filter((name) => name.startsWith('mode-'))
+      .forEach((name) => document.body.classList.remove(name));
+    document.body.classList.add(`mode-${surface}`);
+  }
+
+  function restoreBodyPresentationState(state) {
+    if (state.activePage) document.body.dataset.activePage = state.activePage;
+    else delete document.body.dataset.activePage;
+
+    Array.from(document.body.classList)
+      .filter((name) => name.startsWith('mode-'))
+      .forEach((name) => document.body.classList.remove(name));
+    state.modes.forEach((name) => document.body.classList.add(name));
+  }
+
+  function prepareSpatialLayer(layer, surface) {
+    layer.classList.add('acp-spatial-outgoing-live-clone');
+    layer.dataset.acpSurfaceContext = String(surface || '');
+    layer.setAttribute('aria-hidden', 'true');
+    layer.inert = true;
+    copyBodyBackground(layer);
+    freezeOutgoingScreenLayout(layer);
+    return layer;
+  }
+
+  function cloneCurrentSpatialLayer(surface) {
+    return prepareSpatialLayer(screen.cloneNode(true), surface);
+  }
+
+  function cloneMountedSpatialLayer(surface, restoreSurface) {
+    const bodyState = captureBodyPresentationState();
+    try {
+      // Render the intermediate mounted surface synchronously under its own body
+      // presentation context, capture its real DOM/layout/background, then
+      // restore the true source before the browser gets a paint opportunity.
+      commitSurface(surface);
+      applyBodyPresentationSurface(surface);
+      screen.getBoundingClientRect();
+      return prepareSpatialLayer(screen.cloneNode(true), surface);
+    } finally {
+      commitSurface(restoreSurface);
+      restoreBodyPresentationState(bodyState);
+    }
+  }
+
+  async function spatialLiveCommit(direction, from, to, commit) {
+    const path = spatialSurfacePath(from, to);
+    if (path.length < 2) {
+      await commit();
+      return;
+    }
+
+    const intermediateSurfaces = path.slice(1, -1);
+    for (const surface of intermediateSurfaces) {
+      await ensureMounted(surface);
+    }
+
+    const layers = [cloneCurrentSpatialLayer(from)];
+    intermediateSurfaces.forEach((surface) => {
+      layers.push(cloneMountedSpatialLayer(surface, from));
+    });
 
     document.body.classList.add('acp-spatial-live-commit');
-    document.body.appendChild(outgoing);
+    layers.forEach((layer) => document.body.appendChild(layer));
 
     const duration = applicationTransitionDurationMs();
-    let outgoingAnimation = null;
-    let incomingAnimation = null;
-
-    const incomingOffset = direction === 'reverse' ? '-100vw' : '100vw';
-    const outgoingOffset = direction === 'reverse' ? '100vw' : '-100vw';
+    const distance = path.length - 1;
+    const directionSign = direction === 'reverse' ? -1 : 1;
+    const animations = [];
 
     try {
-      // Put the live destination exactly one viewport beyond the outgoing
-      // surface in row order before swapping the mounted surface.
-      screen.style.transform = `translateX(${incomingOffset})`;
+      // The row is spatially literal: each intermediate page occupies its own
+      // neighbouring viewport. A two-position jump therefore moves the whole
+      // strip by 200vw, while the configured duration remains the duration of
+      // the complete movement rather than being applied once per page.
+      layers.forEach((layer, index) => {
+        layer.style.transform = `translateX(${directionSign * index * 100}vw)`;
+      });
+      screen.style.transform = `translateX(${directionSign * distance * 100}vw)`;
+
       await commit();
 
-      // Establish both live layers before movement begins.
       screen.getBoundingClientRect();
-      outgoing.getBoundingClientRect();
+      layers.forEach((layer) => layer.getBoundingClientRect());
       await nextFrame();
 
       if (duration <= 0) return;
@@ -284,30 +364,34 @@
         easing: 'cubic-bezier(.16, .84, .24, 1)',
         fill: 'both',
       };
-      outgoingAnimation = outgoing.animate(
-        [
-          { transform: 'translateX(0)' },
-          { transform: `translateX(${outgoingOffset})` },
-        ],
-        timing,
-      );
-      incomingAnimation = screen.animate(
-        [
-          { transform: `translateX(${incomingOffset})` },
-          { transform: 'translateX(0)' },
-        ],
-        timing,
-      );
 
-      await Promise.all([
-        outgoingAnimation.finished.catch(() => undefined),
-        incomingAnimation.finished.catch(() => undefined),
-      ]);
+      layers.forEach((layer, index) => {
+        const start = directionSign * index * 100;
+        const end = start - (directionSign * distance * 100);
+        animations.push(layer.animate(
+          [
+            { transform: `translateX(${start}vw)` },
+            { transform: `translateX(${end}vw)` },
+          ],
+          timing,
+        ));
+      });
+
+      animations.push(screen.animate(
+        [
+          { transform: `translateX(${directionSign * distance * 100}vw)` },
+          { transform: 'translateX(0)' },
+        ],
+        timing,
+      ));
+
+      await Promise.all(
+        animations.map((animation) => animation.finished.catch(() => undefined)),
+      );
     } finally {
-      outgoingAnimation?.cancel();
-      incomingAnimation?.cancel();
+      animations.forEach((animation) => animation.cancel());
       screen.style.transform = '';
-      outgoing.remove();
+      layers.forEach((layer) => layer.remove());
       document.body.classList.remove('acp-spatial-live-commit');
     }
   }
@@ -338,7 +422,7 @@
               await commit();
               return;
             }
-            await spatialLiveCommit(direction, from, commit);
+            await spatialLiveCommit(direction, from, surface, commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
             if (surface !== 'airplay') return;

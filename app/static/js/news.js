@@ -266,7 +266,10 @@
 
   function renderStatus() {
     const state = snapshot?.categories?.[activeCategory] || {};
-    const overall = text(snapshot?.status || state.status || 'empty').toLowerCase();
+    // The rail pill describes the section currently on screen. A different
+    // enabled feed may have failed and make snapshot.status "degraded" even
+    // while this section refreshed successfully, so prefer the section state.
+    const overall = text(state.status || snapshot?.status || 'empty').toLowerCase();
     const warning = ['degraded', 'stale', 'error'].includes(overall) || state.stale === true;
 
     if (statusPill) {
