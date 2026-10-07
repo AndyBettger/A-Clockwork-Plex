@@ -867,14 +867,20 @@ Candidate `35f22445be5d7ca7ce93a646c245e1be0a4dec41` extends both the navigation
 
 Focused B2 physical gate:
 
-- [ ] Weather → News moves forward as one full-viewport edge-locked strip.
-- [ ] News → Weather moves in the exact reverse direction.
-- [ ] Weather keeps its selected theme and forecast geometry while leaving for News.
-- [ ] News retains its category/story/ticker layout and remains fully interactive after arriving and after returning from Weather.
-- [ ] Clock↔Weather remains unchanged.
-- [ ] Clock→News and News→Clock remain on the temporary Horizontal-slide fallback for this slice.
-- [ ] Transition duration and non-Spatial style ownership continue to behave exactly as accepted.
+- [x] Weather → News moves forward as one full-viewport edge-locked strip.
+- [x] News → Weather moves in the exact reverse direction.
+- [x] Weather keeps its selected theme and forecast geometry while leaving for News.
+- [x] News retains its category/story/ticker layout and remains fully interactive after arriving and after returning from Weather.
+- [x] Clock↔Weather remains unchanged.
+- [x] Clock→News and News→Clock remain on the temporary Horizontal-slide fallback for this slice.
+- [x] Transition duration and non-Spatial style ownership continue to behave exactly as accepted.
 
-Do not add a fourth row member or long-jump spatial semantics until this three-member adjacent-row slice passes physically.
+### Level-B B2 physical acceptance — COMPLETE
+
+The commissioned Pi now accepts the three-member adjacent row `Clock ↔ Weather ↔ News`. Both new Weather↔News directions are edge-locked and fully interactive, Weather preserves its outgoing layout/theme context, Clock↔Weather remains unchanged, and non-adjacent Clock↔News deliberately stays on the bounded fallback.
+
+A small **News page theme-polish defect** was noticed during this acceptance pass but is independent of spatial movement: the **News ready** and **BBC feed date/time** pill borders look cyan/light-blue under non-Classic palettes. Their backgrounds already use the active `--accent`, but their border mixes still reference the older `--acp-color-accent` token. Candidate `1d41fbfbbea7f2e02abab2a5352c889ec3c2ee0e` moves those two ordinary borders to `--accent` mixed with `--panel-border`, preserves the warning status override, and passed the full maintained suite as **Tests #5278**.
+
+Do not open the next Level-B expansion until that small News theme correction is physically checked.
 
 
