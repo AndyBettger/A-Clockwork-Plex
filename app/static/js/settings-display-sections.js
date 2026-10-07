@@ -241,9 +241,9 @@
 
     const header = panel.querySelector('.settings-detail-header');
     const headerCopy = header?.querySelector('p');
-    if (headerCopy) headerCopy.textContent = 'Clock presentation, night behaviour, theme and movement between appliance surfaces.';
+    if (headerCopy) headerCopy.textContent = 'Home clock presentation, night behaviour, theme and movement between appliance surfaces.';
     const sidebarCopy = document.querySelector('[data-settings-section-target="display"] small');
-    if (sidebarCopy) sidebarCopy.textContent = 'Clock, night and theme';
+    if (sidebarCopy) sidebarCopy.textContent = 'Home clock, night and theme';
 
     const overview = make('div', 'settings-subpage-overview');
     overview.dataset.settingsOverview = 'display';
