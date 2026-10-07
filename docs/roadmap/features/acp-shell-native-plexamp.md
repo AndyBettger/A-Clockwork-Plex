@@ -981,6 +981,85 @@ Focused B4 physical gate:
 - [x] Cover reveal (or another non-Spatial style) still performs its ordinary direct destination transition.
 - [x] Plexamp and Audio behaviour remain unchanged.
 
-**B4 gate complete.** The next bounded slice is **B5 — decide whether Settings should become the fifth ACP spatial-row member**. Do not add it mechanically: first verify that Settings' substantially different, scroll-heavy/workspace-style layout behaves sensibly as an intermediate physical surface and that its settings lifecycle has no activation side effects when staged for a long jump.
+**B4 gate complete.**
 
+#### B5 — separate workspace navigation from shell utilities
+
+Product review after B4 changes the navigation model rather than adding Settings mechanically as a fifth row member.
+
+The bottom sheet now has two semantic groups:
+
+```text
+WORKSPACES                                      UTILITIES
+Clock   Weather   News   AirPlay   Plexamp      [Audio] [Settings]
+```
+
+The utility controls should be visually separated toward the right-hand edge rather than styled as ordinary page pills:
+
+- **Settings** uses a modern inline SVG cog icon.
+- **Audio** uses a modern inline SVG speaker-with-waves icon rather than a musical note, because the control owns appliance-wide mixer/EQ/audio behaviour rather than only music playback.
+- SVGs use a stable `viewBox`, `currentColor` and CSS sizing so they scale cleanly with the navigation treatment and themes.
+- icon-only controls retain full touch targets and explicit accessible names/labels;
+- Settings remains a mounted ACP application surface for lifecycle/state preservation, but it is **not** a member of the spatial workspace row;
+- Audio remains the accepted shell overlay and is likewise **not** a spatial row member.
+
+This changes presentation and navigation semantics only; it must not weaken Settings autosave/state preservation or Audio overlay ownership.
+
+#### B6 — promote the row from browser surfaces to shell workspaces
+
+The accepted B4 compositor proved a literal ACP browser-surface strip. Before native Plexamp migration, generalise that product concept into a **shell-owned workspace order** whose positions are independent of renderer technology.
+
+Current target order:
+
+```text
+Clock  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
+```
+
+Reserved future order once Astronomy is implemented:
+
+```text
+Clock  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
+```
+
+The distinction is deliberate:
+
+- Clock/Weather/News/AirPlay/Astronomy are ACP browser application surfaces;
+- Plexamp is the terminal media workspace;
+- today Plexamp is represented by the persistent browser player layer;
+- later it becomes the native Wayland Plexamp application;
+- **its row position, navigation direction and shell choreography do not change when the renderer changes**.
+
+This should make native Plexamp migration easier: the shell first owns a stable workspace index/order, then the Phase-B migration replaces only the Plexamp endpoint implementation and cross-application transition backend. Do not force native Plexamp into `ACPSurfaceHost` merely to satisfy the spatial metaphor; introduce/retain a shell/workspace abstraction above browser-surface and native-application implementations.
+
+B6 physical gates should prove:
+
+- AirPlay↔Plexamp behaves as an adjacent workspace movement with the same left/right spatial meaning as the ACP row;
+- Clock/Weather/News↔Plexamp long jumps preserve literal intermediate workspace order and one configured overall movement duration where technically appropriate;
+- reverse Plexamp→ACP navigation mirrors the same topology;
+- the home indicator/navigation utility cluster remains shell-owned above both implementations;
+- automatic Plexamp projection does not masquerade as a user-requested multi-workspace traversal;
+- later native Plexamp can inherit the same terminal slot without changing button order or navigation direction.
+
+#### B7 — night-clock anti-burn-in bouncing cluster — final Phase-A polish before Astronomy
+
+Replace/extend the existing simple night burn-in shift with an optional continuous **bouncing cluster** mode inspired by classic screen-saver motion.
+
+The moving object is one rigid visual group containing:
+
+- the time;
+- the date row;
+- the alarm indicator/symbol when present.
+
+Required behaviour:
+
+- the group travels continuously within the safe visible night-clock area;
+- edge collisions use ordinary specular reflection: the incident component reverses at the boundary so the cluster visibly “bounces” rather than jumping to a new random location;
+- time/date/alarm retain their internal spacing and move together;
+- a **Night burn-in motion speed** setting controls the travel speed independently of page/navigation transition duration;
+- preserve the existing static/periodic-shift behaviour as a fallback or selectable motion style until the bouncing mode is physically accepted;
+- use transform-based motion and recalculate bounds safely after viewport/layout/alarm-indicator changes without allowing any part of the cluster to leave the visible area;
+- respect reduced-motion/accessibility policy and all existing night dim/wake behaviour;
+- physically accept long-running 1280×720 motion for smoothness, edge reflection, no clipping, no obvious repeated short loop and no interference with alarm takeover/navigation.
+
+**Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Clock ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
