@@ -238,7 +238,7 @@
     });
   }
 
-  const spatialSurfaceOrder = ['clock', 'weather', 'news'];
+  const spatialSurfaceOrder = ['clock', 'weather', 'news', 'airplay'];
 
   function spatialSurfaceDirection(from, to) {
     const fromIndex = spatialSurfaceOrder.indexOf(String(from || ''));

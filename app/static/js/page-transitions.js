@@ -57,7 +57,7 @@
     return ordinaryManualNavigation && !options.spatialCommitDirection;
   }
 
-  const spatialRowRoutes = ['/clock', '/weather', '/news'];
+  const spatialRowRoutes = ['/clock', '/weather', '/news', '/airplay'];
 
   function spatialPrototypeDirection(target, mainNavLink = false) {
     if (!mainNavLink || !navigationModeOpen() || plexampVisiblyOpen()) return '';

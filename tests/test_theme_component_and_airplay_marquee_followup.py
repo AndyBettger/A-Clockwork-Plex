@@ -68,6 +68,11 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("linear-gradient(180deg, var(--accent-strong), var(--accent))", css)
         self.assertIn(".weather-forecast-status:not(.is-stale)", css)
         self.assertIn("color: var(--accent-strong);", css)
+        self.assertIn('[data-acp-surface-context="airplay"] .airplay-pulse', css)
+        self.assertIn('[data-acp-surface-context="airplay"] .airplay-screen', css)
+
+        followup = FOLLOWUP.read_text(encoding="utf-8")
+        self.assertIn('[data-acp-surface-context="airplay"] .airplay-glyph .airplay-pulse', followup)
         self.assertIn('.acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]', css)
         self.assertNotIn(
             'html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])\nbody[data-active-page="weather"]',

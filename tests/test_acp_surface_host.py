@@ -238,9 +238,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-b3-v2", base)
+        self.assertIn("20261007-spatial-b4-v1", base)
 
-    def test_spatial_row_b3_stages_intermediate_surfaces_with_one_total_duration(self):
+    def test_spatial_row_b4_adds_airplay_as_fourth_acp_surface(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
         host = HOST.read_text(encoding="utf-8")
         surfaces = APPLICATION_SURFACES.read_text(encoding="utf-8")
@@ -248,7 +248,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         surface_styles = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
 
-        self.assertIn("const spatialRowRoutes = ['/clock', '/weather', '/news']", transitions)
+        self.assertIn("const spatialRowRoutes = ['/clock', '/weather', '/news', '/airplay']", transitions)
         self.assertIn("function spatialPrototypeDirection", transitions)
         self.assertIn("preferences().transitionStyle", transitions)
         self.assertIn("'spatial-row'", transitions)
@@ -267,7 +267,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("document.startViewTransition(commit)", host)
         self.assertNotIn("dataset.acpSpatialCommit", host)
 
-        self.assertIn("const spatialSurfaceOrder = ['clock', 'weather', 'news']", surfaces)
+        self.assertIn("const spatialSurfaceOrder = ['clock', 'weather', 'news', 'airplay']", surfaces)
         self.assertIn("function spatialSurfaceDirection", surfaces)
         self.assertIn("return toIndex > fromIndex ? 'forward' : 'reverse'", surfaces)
         self.assertNotIn("Math.abs(toIndex - fromIndex) !== 1", surfaces)
@@ -309,7 +309,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-b3-v2", base)
+        self.assertIn("20261007-spatial-b4-v1", base)
 
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):

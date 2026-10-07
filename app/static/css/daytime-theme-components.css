@@ -297,13 +297,17 @@ html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
    AirPlay route-ready signal animation
    ------------------------------------------------------------------------- */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="airplay"] .airplay-pulse {
+body[data-active-page="airplay"] .airplay-pulse,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+[data-acp-surface-context="airplay"] .airplay-pulse {
   border-color: var(--accent);
   box-shadow: 0 0 22px var(--acp-theme-soft);
 }
 
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="airplay"] .airplay-screen {
+body[data-active-page="airplay"] .airplay-screen,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+[data-acp-surface-context="airplay"] .airplay-screen {
   border-color: var(--accent);
   box-shadow: 0 0 32px var(--acp-theme-glow), inset 0 0 30px var(--acp-theme-soft);
 }
