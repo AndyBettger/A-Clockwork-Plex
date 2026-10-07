@@ -217,10 +217,13 @@
 
     // The destination commit changes body.mode-* / data-active-page before the
     // outgoing layer has finished travelling. Some surface CSS intentionally
-    // changes main.screen geometry by body mode (Weather changes the grid row
-    // template). Freeze the outgoing screen's *current* computed layout so the
-    // Clock clone cannot relayout into Weather geometry mid-animation.
+    // changes main.screen geometry by body mode: Weather changes the grid row
+    // template and AirPlay changes the screen from grid to block. Freeze the
+    // outgoing screen's *current* computed formatting so a travelling clone
+    // cannot relayout merely because the live destination changed body mode.
     [
+      'display',
+      'overflow',
       'grid-template-rows',
       'grid-template-columns',
       'grid-auto-flow',
