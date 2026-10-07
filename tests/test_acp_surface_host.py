@@ -90,7 +90,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("font-size: clamp(1.02rem, 2.55vmin, 1.18rem)", styles)
         self.assertIn('href="/clock">Home</a>', navigation)
         self.assertNotIn('href="/clock">Clock</a>', navigation)
-        self.assertIn("rgba(6, 12, 22, 0.72)", styles)
+        self.assertIn("rgba(6, 12, 22, 0.42)", styles)
 
         self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
         self.assertIn("nav-utility-button nav-audio-button", drawer)
