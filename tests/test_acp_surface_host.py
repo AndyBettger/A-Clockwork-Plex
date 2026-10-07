@@ -47,6 +47,47 @@ class AcpSurfaceHostTests(unittest.TestCase):
             template = (ROOT / "app" / "templates" / f"{name}.html").read_text(encoding="utf-8")
             self.assertNotIn('{% include "_nav.html" %}', template)
 
+    def test_b5_navigation_separates_workspaces_from_svg_utilities(self):
+        navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
+        styles = NAV_CSS.read_text(encoding="utf-8")
+        drawer = NAV_DRAWER.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn('class="nav-workspaces"', navigation)
+        self.assertIn('role="group" aria-label="Workspaces"', navigation)
+        self.assertIn('class="nav-utilities"', navigation)
+        self.assertIn('role="group" aria-label="Utilities"', navigation)
+
+        workspace = navigation[navigation.index('class="nav-workspaces"'):navigation.index('class="nav-utilities"')]
+        self.assertLess(workspace.index('href="/clock"'), workspace.index('href="/weather"'))
+        self.assertLess(workspace.index('href="/weather"'), workspace.index('href="/news"'))
+        self.assertLess(workspace.index('href="/news"'), workspace.index('href="/airplay"'))
+        self.assertLess(workspace.index('href="/airplay"'), workspace.index('href="/plexamp"'))
+        self.assertNotIn('href="/settings"', workspace)
+        self.assertNotIn('id="nav-audio-button"', workspace)
+
+        utilities = navigation[navigation.index('class="nav-utilities"'):]
+        self.assertIn('id="nav-audio-button"', utilities)
+        self.assertIn('href="/settings"', utilities)
+        self.assertIn('aria-label="Audio"', utilities)
+        self.assertIn('aria-label="Settings"', utilities)
+        self.assertGreaterEqual(utilities.count('class="nav-utility-icon"'), 2)
+        self.assertIn('viewBox="0 0 24 24"', utilities)
+
+        self.assertIn(".nav-workspaces", styles)
+        self.assertIn(".nav-utilities", styles)
+        self.assertIn("margin-inline-start: auto", styles)
+        self.assertIn("border-inline-start: 1px solid var(--acp-border-control-neutral)", styles)
+        self.assertIn(".nav-utility-button", styles)
+        self.assertIn(".nav-utility-icon", styles)
+        self.assertIn("stroke: currentColor", styles)
+        self.assertIn("vector-effect: non-scaling-stroke", styles)
+
+        self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
+        self.assertIn("nav-utility-button nav-audio-button", drawer)
+        self.assertIn("20261007-nav-utilities-v9", base)
+        self.assertIn("20261007-nav-utilities-v7", base)
+
     def test_shell_navigation_interactions_survive_surface_dom_changes(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -94,7 +135,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261006-nav-sheet-v8", base)
+        self.assertIn("20261007-nav-utilities-v9", base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -169,7 +210,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261006-nav-sheet-v8", base)
+        self.assertIn("20261007-nav-utilities-v9", base)
 
     def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -208,7 +249,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261006-nav-sheet-v8", base)
+        self.assertIn("20261007-nav-utilities-v9", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
