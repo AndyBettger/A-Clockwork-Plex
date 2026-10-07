@@ -88,6 +88,11 @@ class SettingsMotionControlsTests(unittest.TestCase):
         self.assertIn('data-setting-path="display.navigation_presentation"', settings)
         self.assertIn('<option value="overlay">Overlay content</option>', settings)
         self.assertIn('<option value="lift">Lift content</option>', settings)
+        self.assertLess(
+            settings.index('data-setting-path="display.navigation_presentation"'),
+            settings.index('data-setting-path="display.navigation_transition_duration_ms"'),
+        )
+        self.assertIn("Home clock presentation", settings)
 
     def test_transition_duration_has_visible_exact_value_and_hydration_repaint(self):
         settings = (ROOT / "app" / "templates" / "settings.html").read_text(encoding="utf-8")
