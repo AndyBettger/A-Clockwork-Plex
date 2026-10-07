@@ -1,6 +1,6 @@
 # Astronomy
 
-**Status:** QUEUED — first new content surface after the #94 UI foundation is accepted
+**Status:** QUEUED — first new content surface after #94 Phase-A shell closure (B5–B7) is physically accepted
 
 ## Goal
 
@@ -22,6 +22,18 @@ Build a touch-first astronomy surface using deterministic local/offline calculat
 ## Architecture dependency
 
 Build Astronomy as an application surface on the accepted post-#94 UI foundation rather than adding another legacy full-document page that immediately needs migration.
+
+Astronomy begins only after the remaining Phase-A shell closure is physically accepted:
+
+- B5 — separated right-edge Audio/Settings SVG utility cluster;
+- B6 — shell-owned workspace topology with Plexamp as the terminal workspace slot;
+- B7 — night-clock anti-burn-in bouncing-cluster motion and speed control.
+
+Its reserved spatial position is **between Weather and News**, giving the future workspace order:
+
+`Clock ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`
+
+This position is part of the shell topology before Astronomy implementation begins, so adding the page must not require another navigation-order redesign.
 
 ## Related authority
 
