@@ -959,18 +959,25 @@ Because AirPlay has a few non-Classic theme rules scoped through `body[data-acti
 
 Candidate `9be2934e329ffaeb69d94e9cbfedda09bf8644d5` extends both spatial-row authorities to `['clock','weather','news','airplay']` and adds the outgoing AirPlay theme-context selectors. It passed the full maintained suite as **Tests #5286**.
 
+The first commissioned-Pi B4 pass is **mostly successful but not accepted**. News→AirPlay, total-duration ownership, edge-locked multi-surface travel, endpoint interactivity, the accepted Clock↔Weather↔News row, non-Spatial transition ownership, Plexamp and Audio all pass. Two departure/entry presentation defects remain:
+
+1. **AirPlay departure state corruption.** When AirPlay was the source, B4's intermediate-surface capture called the real `commitSurface()` while temporarily showing News/Weather and again while restoring AirPlay. Restoring AirPlay therefore ran `markAirPlayUnresolved()`, stripping the live now-playing/session classes before the outgoing clone was secured. The observed result exactly matches this path: controls disappear, route-ready copy appears and the artwork/copy geometry changes before the horizontal movement begins.
+2. **Clock→AirPlay pre-motion vertical hitch.** After the navigation sheet closes, the Clock presentation visibly shifts before the long spatial movement begins. Other spatial destinations do not show the same visible hitch. This remains a focused physical retest item rather than being assumed fixed by the AirPlay-state correction.
+
+B4-v2 candidate `c8e2790d449eb6c99e5e632b18b2197fdda1d138` separates presentation-only staging from logical activation with `presentMountedSurface()`. Intermediate captures and restoration now change only which mounted wrapper is visible; they never invoke `commitSurface()`, so an outgoing AirPlay session cannot be marked unresolved merely because the compositor is assembling the strip. Regression guard `a805f274750bc6bd3a3e0c9a976cbda7cfae0a64`, cache-bust head `c1317b2dd3d9e107848d21d329c127504c816a4d` and aligned test head `22dc15b5a1270de6f7b045654e373e526a430058` follow. Physical retest and CI are pending.
+
 Focused B4 physical gate:
 
-- [ ] News → AirPlay moves as one adjacent full-viewport strip with AirPlay already hydrated/stable while entering.
-- [ ] AirPlay → News is the exact reverse, with AirPlay theme/pulse/border colours remaining stable while leaving.
-- [ ] Clock → AirPlay visibly traverses Weather then News before AirPlay arrives, with no pause at either intermediate surface.
-- [ ] AirPlay → Clock visibly traverses News then Weather in reverse.
-- [ ] A deliberately slow Transition duration applies once to the complete 300vw Clock↔AirPlay movement.
-- [ ] All four moving surfaces remain edge-locked with no gaps, overlap, fade or internal reflow.
-- [ ] AirPlay controls/status remain live after arrival and after returning from another row surface.
-- [ ] Existing Clock↔Weather↔News behaviour remains unchanged.
-- [ ] Cover reveal (or another non-Spatial style) still performs its ordinary direct destination transition.
-- [ ] Plexamp and Audio behaviour remain unchanged.
+- [x] News → AirPlay moves as one adjacent full-viewport strip with AirPlay already hydrated/stable while entering.
+- [ ] AirPlay → News is the exact reverse **without changing the outgoing AirPlay session/geometry before movement**; first pass failed because staging marked AirPlay unresolved.
+- [ ] Clock → AirPlay visibly traverses Weather then News before AirPlay arrives **without a pre-motion vertical hitch after navigation closes**; row traversal itself passes.
+- [ ] AirPlay → Clock visibly traverses News then Weather in reverse **while preserving the exact active/idle source presentation until movement starts**.
+- [x] A deliberately slow Transition duration applies once to the complete 300vw Clock↔AirPlay movement.
+- [x] All four moving surfaces remain edge-locked with no gaps, overlap, fade or internal reflow once movement begins.
+- [x] AirPlay controls/status remain live after arrival and after returning from another row surface.
+- [x] Existing Clock↔Weather↔News behaviour remains unchanged.
+- [x] Cover reveal (or another non-Spatial style) still performs its ordinary direct destination transition.
+- [x] Plexamp and Audio behaviour remain unchanged.
 
 Do not add Settings as a fifth row member until AirPlay passes this gate.
 
