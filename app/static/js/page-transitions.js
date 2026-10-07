@@ -67,9 +67,9 @@
     const targetIndex = spatialRowRoutes.indexOf(String(target?.pathname || ''));
     if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) return '';
 
-    // Row order determines direction, not animation distance. A non-adjacent
-    // destination still performs one edge-locked viewport handoff in the
-    // correct direction rather than staging intermediate pages.
+    // Row order determines direction and logical distance. The compositor
+    // stages intermediate row members for non-adjacent destinations while the
+    // selected destination remains the only logical navigation commit.
     return targetIndex > currentIndex ? 'forward' : 'reverse';
   }
 

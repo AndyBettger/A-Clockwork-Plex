@@ -255,7 +255,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("spatialRowRoutes.indexOf(activeRoute())", transitions)
         self.assertIn("targetIndex > currentIndex ? 'forward' : 'reverse'", transitions)
         self.assertNotIn("Math.abs(targetIndex - currentIndex) !== 1", transitions)
-        self.assertIn("Row order determines direction, not animation distance.", transitions)
+        self.assertIn("The compositor", transitions)
+        self.assertIn("stages intermediate row members", transitions)
         self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
         self.assertIn("'/news'", transitions)
 
