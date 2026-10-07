@@ -84,9 +84,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("vector-effect: non-scaling-stroke", styles)
         self.assertIn("--acp-nav-control-size", styles)
         self.assertIn("height: var(--acp-nav-control-size)", styles)
-        self.assertIn("border-radius: 14px", styles)
+        self.assertIn("border-radius: var(--acp-radius-control)", styles)
         self.assertIn("border-radius: 50%", styles)
-        self.assertIn("border-radius: 22px", styles)
+        self.assertIn("border-radius: var(--acp-radius-card)", styles)
 
         self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
         self.assertIn("nav-utility-button nav-audio-button", drawer)
