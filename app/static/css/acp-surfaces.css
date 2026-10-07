@@ -23,7 +23,9 @@ body.acp-spatial-live-commit {
   margin: 0 !important;
   width: 100vw !important;
   height: 100dvh !important;
-  translate: 0 0 !important;
+  /* Do not force translate back to 0 here. In Lift presentation the spatial
+     clone must share the live screen's shell-owned vertical offset; otherwise
+     the outgoing page visibly drops before its horizontal row movement starts. */
   scale: 1 !important;
   border-radius: 0 !important;
   pointer-events: none !important;
