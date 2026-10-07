@@ -33,6 +33,7 @@ ScreenModeSetter = Callable[[str], Any]
 
 VALID_MODES = {"clock", "weather", "plexamp", "airplay"}
 VALID_CLOCK_FORMATS = {"12h", "24h"}
+VALID_NAVIGATION_PRESENTATIONS = {"overlay", "lift"}
 VALID_TRANSITIONS = {
     "grow-fade",
     "crossfade",
@@ -238,6 +239,14 @@ class UnifiedSettingsService:
                 "navigation_transition_duration_ms": _integer(
                     dashboard.get("navigation_transition_duration_ms"), 180, 0, 1000
                 ),
+                "navigation_inactivity_seconds": _integer(
+                    dashboard.get("navigation_inactivity_seconds"), 6, 0, 30
+                ),
+                "navigation_presentation": _choice(
+                    dashboard.get("navigation_presentation"),
+                    "overlay",
+                    VALID_NAVIGATION_PRESENTATIONS,
+                ),
             },
             "weather": {
                 "station_name": _text(weather.get("station_name"), "Weather or Not", maximum=80),
@@ -362,6 +371,17 @@ class UnifiedSettingsService:
                     dashboard.get("navigation_transition_duration_ms", 180),
                     0,
                     1000,
+                ),
+                "navigation_inactivity_seconds": _integer(
+                    source.get("navigation_inactivity_seconds"),
+                    dashboard.get("navigation_inactivity_seconds", 6),
+                    0,
+                    30,
+                ),
+                "navigation_presentation": _choice(
+                    source.get("navigation_presentation"),
+                    str(dashboard.get("navigation_presentation", "overlay")),
+                    VALID_NAVIGATION_PRESENTATIONS,
                 ),
             }
         )
