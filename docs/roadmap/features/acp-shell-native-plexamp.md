@@ -904,7 +904,7 @@ Implementation details:
 - the existing live-DOM outgoing clone, layout freeze, source presentation context, duration/easing and single destination commit are unchanged;
 - AirPlay, Settings and Plexamp remain outside this B3 row.
 
-Candidate `205908549f11f1682d077c4df28029f917dd2592` removes the adjacency-only guard and otherwise leaves the accepted B2 compositor untouched.
+Candidate `205908549f11f1682d077c4df28029f917dd2592` removes the adjacency-only guard and otherwise leaves the accepted B2 compositor untouched. It passed the full maintained suite as **Tests #5280**.
 
 Focused B3 physical gate:
 
