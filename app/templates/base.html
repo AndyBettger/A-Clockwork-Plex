@@ -8,6 +8,8 @@
   data-server-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
   data-server-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
   data-server-navigation-transition-duration-ms="{{ config.dashboard.navigation_transition_duration_ms | default(180) }}"
+  data-server-navigation-inactivity-seconds="{{ config.dashboard.navigation_inactivity_seconds | default(6) }}"
+  data-server-navigation-presentation="{{ config.dashboard.navigation_presentation | default('overlay') }}"
   data-night-dim-enabled="{{ 'true' if config.dashboard.night_dim_enabled | default(false) else 'false' }}"
   data-night-dim-start="{{ config.dashboard.night_dim_start | default('22:00') }}"
   data-night-dim-end="{{ config.dashboard.night_dim_end | default('07:00') }}"
@@ -27,13 +29,13 @@
     html.acp-document-booting, html.acp-document-booting body { background: #02040a; }
     html.acp-document-booting body { visibility: hidden !important; }
   </style>
-  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20261007-spatial-style-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard-preferences-bootstrap.js', v='20261007-nav-shell-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/acp-time.js', v='20260802-global-clock-format-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/display-dimming.js', v='20260820-preview-timing-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/kiosk-safe-links.js', v='20260802-kiosk-address-panel') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/acp-design-tokens.css', v='20261004-phase-a-v1') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css', v='20261007-nav-utilities-v9') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/nav.css', v='20261007-nav-shell-v10') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/typography.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/display-dimming.css', v='20260802-night-navigation-state') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk-safe-links.css', v='20260803-night-treated-kiosk-dialog') }}">
@@ -74,7 +76,9 @@
   data-clock-format="{{ config.dashboard.clock_format | default('24h') }}"
   data-transition-style="{{ config.dashboard.transition_style | default('grow-fade') }}"
   data-transition-duration-ms="{{ config.dashboard.transition_duration_ms | default(300) }}"
-  data-navigation-transition-duration-ms="{{ config.dashboard.navigation_transition_duration_ms | default(180) }}">
+  data-navigation-transition-duration-ms="{{ config.dashboard.navigation_transition_duration_ms | default(180) }}"
+  data-navigation-inactivity-seconds="{{ config.dashboard.navigation_inactivity_seconds | default(6) }}"
+  data-navigation-presentation="{{ config.dashboard.navigation_presentation | default('overlay') }}">
   <div id="acp-night-dim-overlay" aria-hidden="true"></div>
   <main class="screen">{% block content %}{% endblock %}</main>
 
@@ -93,7 +97,7 @@
   </footer>
   <script src="{{ url_for('static', filename='js/segment-display.js', v='20260819-segment-v3') }}"></script>
   <script src="{{ url_for('static', filename='js/segment-readouts.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/nav-drawer.js', v='20261007-nav-utilities-v7') }}"></script>
+  <script src="{{ url_for('static', filename='js/nav-drawer.js', v='20261007-nav-shell-v8') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer-lifecycle.js', v='20261005-shell-nav-lifecycle-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-eq.js', v='20261005-shell-nav-lifecycle-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-eq-drawer-layout.js', v='20261005-shell-nav-lifecycle-v2') }}"></script>
@@ -102,7 +106,7 @@
   <script src="{{ url_for('static', filename='js/fader-calibration.js') }}"></script>
   <script src="{{ url_for('static', filename='js/plexamp-persistent.js', v='20261006-nav-drawer-height-v5') }}"></script>
   <script src="{{ url_for('static', filename='js/acp-surface-host.js', v='20261007-spatial-b1-v2') }}"></script>
-  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20261007-spatial-b3-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/page-transitions.js', v='20261007-nav-shell-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/acp-application-surfaces.js', v='20261007-spatial-b4-v3') }}"></script>
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260831-news-route-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
@@ -128,7 +132,7 @@
   <script src="{{ url_for('static', filename='js/settings-weather-location.js', v='20260823-forecast-location-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-physical-followup.js', v='20260802-physical-followup-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-completion.js', v='20260823-about-release-metadata-v1') }}"></script>
-  <script src="{{ url_for('static', filename='js/settings-display-sections.js', v='20261007-spatial-style-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings-display-sections.js', v='20261007-nav-shell-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-night-interaction.js', v='20260802-short-night-duration') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-pass-a.js', v='20260830-stale-restore-detail-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/settings-numeric-controls.js', v='20260820-numeric-controls-v3') }}"></script>
