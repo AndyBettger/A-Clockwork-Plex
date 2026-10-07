@@ -82,11 +82,16 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn(".nav-utility-icon", styles)
         self.assertIn("stroke: currentColor", styles)
         self.assertIn("vector-effect: non-scaling-stroke", styles)
+        self.assertIn("--acp-nav-control-size", styles)
+        self.assertIn("height: var(--acp-nav-control-size)", styles)
+        self.assertIn("border-radius: 14px", styles)
+        self.assertIn("border-radius: 50%", styles)
+        self.assertIn("border-radius: 22px", styles)
 
         self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
         self.assertIn("nav-utility-button nav-audio-button", drawer)
-        self.assertIn("20261007-nav-utilities-v9", base)
-        self.assertIn("20261007-nav-utilities-v7", base)
+        self.assertIn("20261007-nav-shell-v10", base)
+        self.assertIn("20261007-nav-shell-v8", base)
 
     def test_shell_navigation_interactions_survive_surface_dom_changes(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -135,7 +140,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261007-nav-utilities-v9", base)
+        self.assertIn("20261007-nav-shell-v10", base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -153,12 +158,12 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("z-index: 70", styles)
         self.assertIn("body.nav-mode .nav-backdrop", styles)
         self.assertIn("background: rgba(2, 5, 10, 0.34)", styles)
-        self.assertIn("body.nav-mode .screen", styles)
-        self.assertIn("body.nav-mode .persistent-plexamp.is-open", styles)
+        self.assertIn('html[data-navigation-presentation="lift"] body.nav-mode .screen', styles)
+        self.assertIn('html[data-navigation-presentation="lift"] body.nav-mode .persistent-plexamp.is-open', styles)
         self.assertIn("scale: 1", styles)
         self.assertNotIn("scale: 0.84", styles)
         self.assertIn("translate: 0 calc(0px - var(--acp-navigation-reveal-height, 74px))", styles)
-        self.assertIn("border-radius: 28px", styles)
+        self.assertIn("border-radius: 22px", styles)
         self.assertIn("--acp-navigation-transition-duration: 180ms", styles)
         self.assertIn("var(--acp-navigation-transition-duration)", styles)
         self.assertNotIn("translate: 0 -28px", styles)
@@ -175,6 +180,13 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("if (expanded) syncNavigationRevealHeight()", drawer)
         self.assertIn("window.addEventListener('resize', syncNavigationRevealHeight)", drawer)
         self.assertIn("prefers-reduced-motion", styles)
+        self.assertIn("view-transition-name: acp-nav-backdrop", styles)
+        self.assertIn("view-transition-name: acp-nav-drawer", styles)
+        self.assertIn("view-transition-name: acp-nav-handle", styles)
+        self.assertIn("::view-transition-group(acp-nav-drawer)", styles)
+        self.assertIn("animation: none !important", styles)
+        self.assertIn('data-server-navigation-presentation="{{ config.dashboard.navigation_presentation | default(\'overlay\') }}"', base)
+        self.assertIn('data-server-navigation-inactivity-seconds="{{ config.dashboard.navigation_inactivity_seconds | default(6) }}"', base)
 
         # The visible home indicator is physically attached to the live surface:
         # same measured distance and same easing, with no historical fixed offset.
@@ -210,7 +222,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261007-nav-utilities-v9", base)
+        self.assertIn("20261007-nav-shell-v10", base)
 
     def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -227,6 +239,12 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("panel.setAttribute('aria-hidden'", drawer)
         self.assertNotIn("panel.hidden =", drawer)
         self.assertIn("#nav-drawer, #nav-live-mixer", drawer)
+        self.assertIn("function navigationInactivitySeconds()", drawer)
+        self.assertIn("if (mixerOpen()) return", drawer)
+        self.assertIn("if (seconds <= 0) return", drawer)
+        self.assertIn("seconds * 1000", drawer)
+        self.assertNotIn("MIXER_AUTO_HIDE_MS", drawer)
+        self.assertNotIn("NORMAL_AUTO_HIDE_MS", drawer)
         self.assertNotIn("js/audio-polish.js", base)
 
     def test_navigation_mode_persists_across_manual_plexamp_handoffs(self):
@@ -249,7 +267,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261007-nav-utilities-v9", base)
+        self.assertIn("20261007-nav-shell-v10", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
@@ -298,7 +316,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("Math.abs(targetIndex - currentIndex) !== 1", transitions)
         self.assertIn("The compositor", transitions)
         self.assertIn("stages intermediate row members", transitions)
-        self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
+        self.assertNotIn("exitNavigationForSpatialCommit", transitions)
+        self.assertIn("Navigation is persistent shell chrome", transitions)
         self.assertIn("'/news'", transitions)
 
         self.assertIn("function motionEnabled", host)
