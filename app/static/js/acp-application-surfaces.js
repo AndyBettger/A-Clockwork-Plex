@@ -209,12 +209,42 @@
     });
   }
 
+  function freezeOutgoingScreenLayout(target) {
+    const style = window.getComputedStyle(screen);
+
+    // The destination commit changes body.mode-* / data-active-page before the
+    // outgoing layer has finished travelling. Some surface CSS intentionally
+    // changes main.screen geometry by body mode (Weather changes the grid row
+    // template). Freeze the outgoing screen's *current* computed layout so the
+    // Clock clone cannot relayout into Weather geometry mid-animation.
+    [
+      'grid-template-rows',
+      'grid-template-columns',
+      'grid-auto-flow',
+      'grid-auto-rows',
+      'grid-auto-columns',
+      'align-content',
+      'justify-content',
+      'align-items',
+      'justify-items',
+      'row-gap',
+      'column-gap',
+      'padding-top',
+      'padding-right',
+      'padding-bottom',
+      'padding-left',
+    ].forEach((property) => {
+      target.style.setProperty(property, style.getPropertyValue(property));
+    });
+  }
+
   async function spatialForwardLiveCommit(commit) {
     const outgoing = screen.cloneNode(true);
     outgoing.classList.add('acp-spatial-outgoing-live-clone');
     outgoing.setAttribute('aria-hidden', 'true');
     outgoing.inert = true;
     copyBodyBackground(outgoing);
+    freezeOutgoingScreenLayout(outgoing);
 
     document.body.classList.add('acp-spatial-live-commit');
     document.body.appendChild(outgoing);

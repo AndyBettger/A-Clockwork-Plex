@@ -238,7 +238,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-style-v5", base)
+        self.assertIn("20261007-spatial-layout-v6", base)
 
     def test_spatial_row_b0_uses_live_dom_strip_not_root_snapshot(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -264,6 +264,16 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const outgoing = screen.cloneNode(true)", surfaces)
         self.assertIn("acp-spatial-outgoing-live-clone", surfaces)
         self.assertIn("copyBodyBackground(outgoing)", surfaces)
+        self.assertIn("function freezeOutgoingScreenLayout", surfaces)
+        self.assertIn("'grid-template-rows'", surfaces)
+        self.assertIn("'grid-template-columns'", surfaces)
+        self.assertIn("'row-gap'", surfaces)
+        self.assertIn("'padding-top'", surfaces)
+        self.assertIn("freezeOutgoingScreenLayout(outgoing)", surfaces)
+        self.assertLess(
+            surfaces.index("freezeOutgoingScreenLayout(outgoing)"),
+            surfaces.index("await commit()", surfaces.index("async function spatialForwardLiveCommit")),
+        )
         self.assertIn("screen.style.transform = 'translateX(100vw)'", surfaces)
         self.assertIn("await commit()", surfaces)
         self.assertIn("{ transform: 'translateX(-100vw)' }", surfaces)
@@ -281,7 +291,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-style-v5", base)
+        self.assertIn("20261007-spatial-layout-v6", base)
 
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
