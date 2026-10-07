@@ -389,7 +389,7 @@ The Motion setting is therefore the policy selector, while individual styles are
 
 This keeps the user-facing model simple: **one Transition style setting, one Transition duration setting**. The implementation technology is an internal concern. Selecting Cover reveal must mean Cover reveal even when the destination was chosen from shell navigation; selecting Spatial row explicitly opts into spatial navigation semantics.
 
-During B0 only Clock→Weather from open navigation has a true live-DOM Spatial-row implementation. Other relations under the prototype Spatial-row setting temporarily map to Horizontal slide. That fallback is intentionally visible in documentation and must disappear as the ordered/bidirectional row model expands; it is not the final spatial-navigation contract.
+B0 proved Clock→Weather physically. B1 introduces the first actual ordered row with two members: `['clock', 'weather']`. Navigation derives forward/reverse direction from the current and target indices, and the application-surface compositor validates the same relation independently before animating. Both directions therefore use one direction-neutral live-DOM primitive rather than separate page-specific effects. Destinations outside the currently implemented row continue to map to Horizontal slide while Spatial row is selected; that fallback remains temporary and must disappear as the ordered model expands.
 
 The live-DOM compositor must also preserve **per-surface layout context** across the handoff. The Surface Host changes global body mode/data-active-page as part of committing the destination; destination CSS may legitimately style `main.screen` itself. For example, Weather changes the screen grid from `minmax(0, 1fr) auto auto` to `auto minmax(0, 1fr) auto`. If the outgoing clone remains dependent on global body selectors, it can relayout into destination geometry before leaving the viewport.
 
@@ -399,9 +399,7 @@ This policy also clarifies automatic projection: the destination mechanism shoul
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
 
-This first movement is intentionally asymmetric. Weather→Clock and every other destination remain on the accepted configured-transition path. That asymmetry is a test boundary, not the intended final product: only after physical evaluation proves the row metaphor useful should the shell gain a real ordered destination model, reverse direction and additional adjacent surfaces.
-
-The B0 success question is therefore qualitative as well as technical: does the larger horizontal/depth movement make it feel as though Clock and Weather occupy neighbouring positions, while remaining smooth enough on the commissioned Pi and avoiding the sense that navigation itself caused two separate page changes? If not, Level A remains the accepted production treatment.
+B0's asymmetric Clock→Weather test boundary is now closed: commissioned-Pi testing accepts the live-DOM row metaphor and its layout/style ownership. B1's architectural question is narrower—does the same ordered pair remain coherent when traversed in reverse without introducing a second code path or direction-specific geometry bug? Only after that two-member contract is physically accepted should a third surface be inserted into the order.
 
 ## Browser-engine evaluation
 

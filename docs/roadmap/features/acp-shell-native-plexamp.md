@@ -716,13 +716,58 @@ Candidate `646fe343b760879704804f73e0126cc061170494` passed the full maintained 
 
 Focused physical B0-v6 gate:
 
-- [ ] Compare stationary Clock with the first frame of Clock→Weather: time, date, alarm icon and weather panel must retain exactly the same vertical geometry when movement begins.
-- [ ] Clock should then translate left without any internal reflow.
-- [ ] Weather should still adopt its normal detailed-layout geometry while entering from the right.
-- [ ] The seam must remain edge-locked and the previously accepted theme/style-selection behaviour must remain intact.
+- [x] Stationary Clock and the first moving frame retain the same time/date/alarm/weather-panel geometry.
+- [x] Clock translates left without internal reflow.
+- [x] Weather adopts its normal detailed-layout geometry while entering from the right.
+- [x] The seam remains edge-locked and the accepted theme/style-selection behaviour remains intact.
 
-Initial commissioned-Pi retest of v6 reports the Clock→Weather movement is **working better**, supporting the outgoing-layout diagnosis. This is a positive partial result rather than full acceptance, so the four-point B0-v6 physical gate remains open.
+### Level-B B0 physical acceptance — COMPLETE
 
-Do not add reverse direction or further destinations until this geometry-freeze retest passes completely.
+B0 now proves the key spatial-row mechanism on the commissioned Pi: explicit style opt-in, live-DOM rather than unreliable old-root snapshots, one committed destination lifecycle, edge-locked viewport motion, per-surface outgoing layout preservation, theme independence and correct Transition-duration ownership.
+
+The accepted implementation lineage is:
+
+- live-DOM pivot `114b945f4bc132bbc14922eac045e582330703cd` / **Tests #5260**;
+- explicit Spatial-row style `24ead76bc2245332354637c5c301f7dac938beb2` / **Tests #5262**;
+- outgoing-layout freeze `646fe343b760879704804f73e0126cc061170494` / **Tests #5264**;
+- final docs/status heads **#5265–#5266** green.
+
+#### B1 — ordered, bidirectional Clock ↔ Weather row
+
+The next experiment adds the smallest real row model rather than another special-case reverse animation. The row order is currently:
+
+```text
+Clock  <---->  Weather
+index 0         index 1
+```
+
+Navigation derives direction from those indices:
+
+- Clock → Weather = **forward**;
+- Weather → Clock = **reverse**;
+- only adjacent implemented row members receive the live-DOM Spatial-row compositor;
+- all other destinations under Spatial row continue to use the documented Horizontal-slide fallback.
+
+The application-surface compositor mirrors the same two-item order and validates the requested direction against the actual outgoing/incoming pair. The existing live-DOM path is now direction-neutral:
+
+- **forward:** outgoing `0 → -100vw`, incoming `+100vw → 0`;
+- **reverse:** outgoing `0 → +100vw`, incoming `-100vw → 0`;
+- both preserve the outgoing surface's computed layout before destination body-mode changes;
+- both use the configured application Transition duration/easing;
+- both retain the same Surface Host commit/activate/history/settled ownership.
+
+Candidate `d8b74c0d83036544d6b352c33768bfdc1c46ff8c` implements B1 and passed the full maintained suite as **Tests #5267**.
+
+Focused physical B1 gate:
+
+- [ ] Clock → Weather still looks exactly like the accepted B0 movement.
+- [ ] Weather → Clock now performs the mirrored Spatial-row movement: Weather leaves right while Clock enters from the left.
+- [ ] The moving seam remains joined in both directions with no white gap, overlap or internal page reflow.
+- [ ] Clock and Weather both settle fully live/interactable after their respective incoming movements.
+- [ ] Transition duration affects both directions equally.
+- [ ] Selecting any non-Spatial transition restores the normal configured style in both directions.
+- [ ] News/AirPlay/Settings/Plexamp remain outside the ordered row for B1 and keep their existing Spatial-row fallback/accepted behaviour.
+
+Do not add News or any further row member until this two-surface bidirectional model passes physically.
 
 
