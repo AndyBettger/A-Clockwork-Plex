@@ -92,7 +92,7 @@
 
   <footer class="status-bar">
     <span>A Clockwork Plex</span>
-    <span data-acp-status-mode>Mode: {{ state.mode }}</span>
+    <span data-acp-status-mode>Mode: {% if state.mode == 'clock' %}Home{% elif state.mode == 'airplay' %}AirPlay{% elif state.mode == 'plexamp' %}Plexamp{% else %}{{ state.mode | capitalize }}{% endif %}</span>
     <span>{% if state.last_weather_update %}Weather: <span data-acp-datetime="{{ state.last_weather_update }}">{{ state.last_weather_update }}</span>{% else %}Weather: waiting{% endif %}</span>
   </footer>
   <script src="{{ url_for('static', filename='js/segment-display.js', v='20260819-segment-v3') }}"></script>
