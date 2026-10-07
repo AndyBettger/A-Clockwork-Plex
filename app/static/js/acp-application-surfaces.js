@@ -244,7 +244,6 @@
     const fromIndex = spatialSurfaceOrder.indexOf(String(from || ''));
     const toIndex = spatialSurfaceOrder.indexOf(String(to || ''));
     if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return '';
-    if (Math.abs(toIndex - fromIndex) !== 1) return '';
     return toIndex > fromIndex ? 'forward' : 'reverse';
   }
 

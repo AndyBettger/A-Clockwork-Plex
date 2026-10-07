@@ -66,8 +66,10 @@
     const currentIndex = spatialRowRoutes.indexOf(activeRoute());
     const targetIndex = spatialRowRoutes.indexOf(String(target?.pathname || ''));
     if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) return '';
-    if (Math.abs(targetIndex - currentIndex) !== 1) return '';
 
+    // Row order determines direction, not animation distance. A non-adjacent
+    // destination still performs one edge-locked viewport handoff in the
+    // correct direction rather than staging intermediate pages.
     return targetIndex > currentIndex ? 'forward' : 'reverse';
   }
 

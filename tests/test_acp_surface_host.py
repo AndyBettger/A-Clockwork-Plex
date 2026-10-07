@@ -238,9 +238,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-b2-v1", base)
+        self.assertIn("20261007-spatial-b3-v1", base)
 
-    def test_spatial_row_b2_adds_news_as_third_adjacent_surface(self):
+    def test_spatial_row_b3_uses_order_direction_for_long_jumps(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
         host = HOST.read_text(encoding="utf-8")
         surfaces = APPLICATION_SURFACES.read_text(encoding="utf-8")
@@ -254,7 +254,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("'spatial-row'", transitions)
         self.assertIn("spatialRowRoutes.indexOf(activeRoute())", transitions)
         self.assertIn("targetIndex > currentIndex ? 'forward' : 'reverse'", transitions)
-        self.assertIn("Math.abs(targetIndex - currentIndex) !== 1", transitions)
+        self.assertNotIn("Math.abs(targetIndex - currentIndex) !== 1", transitions)
+        self.assertIn("Row order determines direction, not animation distance.", transitions)
         self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
         self.assertIn("'/news'", transitions)
 
@@ -268,6 +269,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const spatialSurfaceOrder = ['clock', 'weather', 'news']", surfaces)
         self.assertIn("function spatialSurfaceDirection", surfaces)
         self.assertIn("return toIndex > fromIndex ? 'forward' : 'reverse'", surfaces)
+        self.assertNotIn("Math.abs(toIndex - fromIndex) !== 1", surfaces)
         self.assertIn("async function spatialLiveCommit(direction, from, commit)", surfaces)
         self.assertIn("const outgoing = screen.cloneNode(true)", surfaces)
         self.assertIn("outgoing.dataset.acpSurfaceContext = String(from || '')", surfaces)
@@ -304,7 +306,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-b2-v1", base)
+        self.assertIn("20261007-spatial-b3-v1", base)
 
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
