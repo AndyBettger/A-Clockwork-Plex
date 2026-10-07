@@ -170,12 +170,15 @@
     document.body.classList.add('airplay-session-unresolved');
   }
 
-  function commitSurface(surface) {
-    if (surface === 'airplay') markAirPlayUnresolved();
-
+  function presentMountedSurface(surface) {
     mounted.forEach((record, name) => {
       record.wrapper.hidden = name !== surface;
     });
+  }
+
+  function commitSurface(surface) {
+    if (surface === 'airplay') markAirPlayUnresolved();
+    presentMountedSurface(surface);
   }
 
   function applicationTransitionDurationMs() {
@@ -303,15 +306,16 @@
   function cloneMountedSpatialLayer(surface, restoreSurface) {
     const bodyState = captureBodyPresentationState();
     try {
-      // Render the intermediate mounted surface synchronously under its own body
-      // presentation context, capture its real DOM/layout/background, then
-      // restore the true source before the browser gets a paint opportunity.
-      commitSurface(surface);
+      // Intermediate row members are presentation-only captures. Never call
+      // commitSurface() here: restoring an AirPlay source through the real
+      // commit path marks its session unresolved and destroys the exact
+      // now-playing/route-ready geometry that the outgoing clone must preserve.
+      presentMountedSurface(surface);
       applyBodyPresentationSurface(surface);
       screen.getBoundingClientRect();
       return prepareSpatialLayer(screen.cloneNode(true), surface);
     } finally {
-      commitSurface(restoreSurface);
+      presentMountedSurface(restoreSurface);
       restoreBodyPresentationState(bodyState);
     }
   }
