@@ -957,7 +957,7 @@ B4 keeps the accepted B3 semantics unchanged:
 
 Because AirPlay has a few non-Classic theme rules scoped through `body[data-active-page="airplay"]`, B4 extends those rules to `[data-acp-surface-context="airplay"]` as well. This prevents an outgoing AirPlay clone from dropping back to Classic/cyan pulse and screen-border paint when the global body switches to News/Weather/Clock.
 
-Candidate `9be2934e329ffaeb69d94e9cbfedda09bf8644d5` extends both spatial-row authorities to `['clock','weather','news','airplay']` and adds the outgoing AirPlay theme-context selectors.
+Candidate `9be2934e329ffaeb69d94e9cbfedda09bf8644d5` extends both spatial-row authorities to `['clock','weather','news','airplay']` and adds the outgoing AirPlay theme-context selectors. It passed the full maintained suite as **Tests #5286**.
 
 Focused B4 physical gate:
 
