@@ -405,7 +405,11 @@ This policy also clarifies automatic projection: the destination mechanism shoul
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.
 
-B0's asymmetric Clock→Weather test boundary is now closed: commissioned-Pi testing accepts the live-DOM row metaphor and its layout/style ownership. B1's architectural question is narrower—does the same ordered pair remain coherent when traversed in reverse without introducing a second code path or direction-specific geometry bug? Only after that two-member contract is physically accepted should a third surface be inserted into the order.
+B0's asymmetric Clock→Weather test boundary is closed, and B1's commissioned-Pi acceptance confirms the same live-DOM primitive is coherent in both directions. The ordered-row model can therefore expand one adjacent member at a time.
+
+B2 extends the order to `['clock', 'weather', 'news']`. The direction function remains index-based and the spatial compositor remains **adjacent-only**: an absolute index delta of one receives the live-DOM strip; larger jumps continue through the ordinary Spatial-row fallback. This deliberately separates two architectural questions—whether a third mounted surface can participate safely, and how non-adjacent jumps should eventually look—rather than solving both at once.
+
+For B2 the valid spatial edges are therefore Clock↔Weather and Weather↔News. Clock↔News is still a logical row relationship but not yet a live-DOM spatial edge. If the three-member slice is accepted, the next design decision can address long jumps (single directional jump versus staged traversal versus another restrained reveal) with real physical evidence rather than assumption.
 
 ## Browser-engine evaluation
 

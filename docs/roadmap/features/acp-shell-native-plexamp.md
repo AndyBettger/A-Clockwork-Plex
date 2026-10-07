@@ -832,14 +832,49 @@ Focused B1-v3 retest:
 
 The outgoing Weather surface now carries enough local identity to remain visually Weather after the live document has already committed Clock. The commissioned-Pi retest confirms that the custom forecast rails no longer lose their daytime-theme palette during the reverse handoff. This closes the theme/presentation-context defect that followed the earlier layout-context fix.
 
-The remaining B1 acceptance work is now about the **two-way row as a whole**, not Weather styling:
+The remaining B1 acceptance work was about the **two-way row as a whole**, not Weather styling:
 
-- [ ] confirm no seam gap/overlap or internal reflow in either direction over repeated runs;
-- [ ] confirm both incoming surfaces settle fully live/interactable;
-- [ ] confirm Transition duration affects forward and reverse equally;
-- [ ] confirm choosing a non-Spatial transition restores that configured style in both directions;
-- [ ] confirm News/AirPlay/Settings/Plexamp remain outside the B1 row and retain their documented fallback/accepted behaviour.
+- [x] no seam gap/overlap or internal reflow appears in either direction over repeated runs;
+- [x] both incoming surfaces settle fully live/interactable;
+- [x] Transition duration affects forward and reverse equally;
+- [x] choosing a non-Spatial transition restores that configured style in both directions;
+- [x] News/AirPlay/Settings/Plexamp remain outside the B1 row and retain their documented fallback/accepted behaviour.
 
-Do not add News or any further row member until those remaining B1 checks pass physically.
+### Level-B B1 physical acceptance — COMPLETE
+
+The commissioned Pi now accepts the full two-member ordered row: Clock↔Weather is symmetric, edge-locked, theme/layout-context safe, duration-owned and opt-in through the existing Transition style system.
+
+#### B2 — add News as the third adjacent row member
+
+The next step expands only one position in the existing navigation order:
+
+```text
+Clock  <---->  Weather  <---->  News
+  0               1              2
+```
+
+B2 intentionally keeps **adjacency** as the spatial-commit rule:
+
+- Clock↔Weather remains the accepted B1 live-DOM strip;
+- Weather→News is a new **forward** live-DOM strip;
+- News→Weather is the mirrored **reverse** live-DOM strip;
+- Clock↔News is non-adjacent, so for B2 it deliberately keeps the documented Horizontal-slide fallback rather than inventing long-jump behaviour;
+- AirPlay, Settings and Plexamp remain outside this row slice.
+
+News is a good third member because it is already a physically accepted mounted ACP surface and its primary page styling is token/local-component based rather than depending on a body-mode screen-grid override. The existing compositor still freezes the outgoing root-screen geometry and stamps source-surface presentation context, so Weather retains its accepted layout/theme identity when leaving for News.
+
+Candidate `35f22445be5d7ca7ce93a646c245e1be0a4dec41` extends both the navigation row and compositor row from `['clock','weather']` to `['clock','weather','news']` while keeping the adjacent-only guard, and passed the full maintained suite as **Tests #5276**.
+
+Focused B2 physical gate:
+
+- [ ] Weather → News moves forward as one full-viewport edge-locked strip.
+- [ ] News → Weather moves in the exact reverse direction.
+- [ ] Weather keeps its selected theme and forecast geometry while leaving for News.
+- [ ] News retains its category/story/ticker layout and remains fully interactive after arriving and after returning from Weather.
+- [ ] Clock↔Weather remains unchanged.
+- [ ] Clock→News and News→Clock remain on the temporary Horizontal-slide fallback for this slice.
+- [ ] Transition duration and non-Spatial style ownership continue to behave exactly as accepted.
+
+Do not add a fourth row member or long-jump spatial semantics until this three-member adjacent-row slice passes physically.
 
 
