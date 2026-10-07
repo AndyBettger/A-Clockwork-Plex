@@ -57,6 +57,7 @@ During #94 Clock ↔ Weather migration:
 - [x] fetch current state immediately when Weather becomes active after being hidden, so a long-lived document does not show stale values on return;
 - [ ] further reduce DOM replacement so individual readings can be patched without rebuilding the whole Weather grid once the reusable component model is established;
 - keep the existing server-side WU observation worker authoritative for remote polling; the browser should consume ACP's local current state rather than independently polling Weather Underground;
+- [x] keep the forecast availability pill theme-owned: non-stale **Forecast Ready** text follows the selected daytime accent instead of retaining Classic cyan, while stale state remains a semantic warning colour;
 - keep routine Weather data changes separate from navigation motion: no View Transition merely because temperature, rain, pressure or station status changed.
 
 ## Weather page revamp — queued after #94 Phase A

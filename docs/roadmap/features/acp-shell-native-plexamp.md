@@ -760,14 +760,42 @@ Candidate `d8b74c0d83036544d6b352c33768bfdc1c46ff8c` implements B1 and passed th
 
 Focused physical B1 gate:
 
-- [ ] Clock → Weather still looks exactly like the accepted B0 movement.
-- [ ] Weather → Clock now performs the mirrored Spatial-row movement: Weather leaves right while Clock enters from the left.
+- [x] Clock → Weather still looks exactly like the accepted B0 movement.
+- [ ] Weather → Clock performs the mirrored Spatial-row movement: Weather leaves right while Clock enters from the left.
 - [ ] The moving seam remains joined in both directions with no white gap, overlap or internal page reflow.
 - [ ] Clock and Weather both settle fully live/interactable after their respective incoming movements.
 - [ ] Transition duration affects both directions equally.
 - [ ] Selecting any non-Spatial transition restores the normal configured style in both directions.
 - [ ] News/AirPlay/Settings/Plexamp remain outside the ordered row for B1 and keep their existing Spatial-row fallback/accepted behaviour.
 
-Do not add News or any further row member until this two-surface bidirectional model passes physically.
+#### B1 first physical pass — reverse direction was discarded by the host
+
+The screenshots initially look like a compositor problem because Weather fades away while Clock becomes visible underneath, with only a very short lateral movement. The code path explains that exact visual:
+
+1. navigation's ordered-row logic correctly derives `reverse` for Weather → Clock;
+2. `page-transitions.js` passes `spatialCommitDirection: "reverse"`;
+3. the Surface Host still contained the older B0 normaliser:
+   ```js
+   options.spatialCommitDirection === 'forward' ? 'forward' : ''
+   ```
+4. `reverse` was therefore converted to an empty direction **before** the application-surface `spatialCommit` hook;
+5. the host fell back to its ordinary View Transition path;
+6. because the selected style is Spatial row and unsupported relations still temporarily map to Horizontal slide, Chromium ran `acp-out-horizontal-slide` / `acp-in-horizontal-slide`: only ±4–5vw plus an opacity fade.
+
+That is precisely the fade/overlay effect captured in the physical screenshots. The live-DOM reverse compositor itself had not actually been exercised.
+
+Candidate `8a3b300a7e9d55807aaa3d76993689260f5356ac` changes the Surface Host direction contract to accept both `forward` and `reverse`, with regression coverage so a future refactor cannot silently collapse reverse back to the fallback path. It passed the full maintained suite as **Tests #5269**.
+
+The same physical pass exposed a separate small theme defect on Weather: `.weather-forecast-status` had theme-owned border/background but its text still inherited `var(--acp-color-accent)`, leaving **Forecast Ready** cyan under Amber Terminal and Crimson Glow. The correction gives **non-stale** forecast status text `var(--accent-strong)` in the non-Classic theme layer; `.is-stale` deliberately keeps its semantic warning colour.
+
+Focused retest:
+
+- [ ] With Spatial row selected, Weather → Clock must now use the full live-DOM reverse strip, not the short fading Horizontal-slide fallback.
+- [ ] Weather must travel right while Clock enters from the left, joined at one moving seam.
+- [ ] No opacity fade, overlay-like blending, white gap or internal reflow should appear.
+- [ ] Forecast Ready should follow the selected daytime theme in Amber/Crimson (and other non-Classic palettes); stale-warning colour must remain semantic.
+- [ ] Clock → Weather must remain unchanged.
+
+Do not add News or any further row member until this corrected two-surface bidirectional model passes physically.
 
 
