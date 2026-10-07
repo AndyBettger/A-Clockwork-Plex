@@ -62,7 +62,10 @@
     activeSurface = surface;
     updateNavigationState(surface);
     const statusMode = document.querySelector('[data-acp-status-mode]');
-    if (statusMode) statusMode.textContent = `Mode: ${surface}`;
+    const displayName = surface === 'clock'
+      ? 'Home'
+      : surface.charAt(0).toUpperCase() + surface.slice(1);
+    if (statusMode) statusMode.textContent = `Mode: ${displayName}`;
     return previous;
   }
 
