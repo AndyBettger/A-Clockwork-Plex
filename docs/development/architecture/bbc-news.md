@@ -236,6 +236,12 @@ Restore compares and reapplies those fields through the normal News Settings val
 
 RSS downloads/cache/private article hand-off metadata are excluded from Backup/Restore/Reset portability.
 
+## Visible status ownership
+
+The feed service exposes both an **overall** snapshot status and per-category status. The overall status remains useful for maintenance/Settings because one failed enabled source should make the service globally degraded even when other sources refreshed successfully.
+
+The News page rail pill has a narrower job: it describes the section the owner is currently reading. It therefore prefers the active category's `status` and `stale` fields, falling back to the overall service status only when category state is unavailable. This prevents an unrelated feed failure from labelling a freshly refreshed Top Stories/UK/etc. section **Cached news** and applying warning chrome. The global degraded state is not discarded; it simply no longer overrides healthy active-section presentation.
+
 ## Failure boundary
 
 BBC/network/XML failure must never affect the rest of the appliance. A failed active section keeps its previous successful feed only when that cache belongs to the same configured source, and records an explicit degraded/stale/error state. The News page labels stale data rather than inventing content.

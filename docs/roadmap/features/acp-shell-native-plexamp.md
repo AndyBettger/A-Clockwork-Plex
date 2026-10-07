@@ -881,42 +881,53 @@ The commissioned Pi now accepts the three-member adjacent row `Clock ↔ Weather
 
 The small **News page theme-polish defect** found during B2 is now physically accepted: the **News ready** and **BBC feed date/time** pill borders follow the active daytime palette rather than retaining the legacy cyan/light-blue accent. Candidate `1d41fbfbbea7f2e02abab2a5352c889ec3c2ee0e` passed **Tests #5278**, and documentation head `2dc809d2120fe5a694287b5274192ac4a3a9f3ab` passed **Tests #5279**.
 
-#### B3 — directional long jumps within the three-surface row
+#### B3 — staged long jumps across the visible spatial row
 
-B2 deliberately left Clock↔News on the short Horizontal-slide fallback because they are two indices apart. The next slice resolves only that semantic question.
+B2 deliberately left Clock↔News on the short Horizontal-slide fallback because they are two positions apart. The first B3 code candidate removed that guard and used one direct viewport handoff. Although technically clean, physical/product review rejects that **model** before acceptance: Spatial row should communicate that these surfaces occupy real neighbouring positions, whereas a direct Clock→News handoff is visually little different from an ordinary reveal style.
 
-The chosen B3 rule is **directional, distance-independent handoff**:
+The revised B3 rule is therefore **literal row traversal with one logical destination**:
 
 ```text
 Clock  <---->  Weather  <---->  News
 
-Clock → News : forward one-viewport handoff
-News → Clock : reverse one-viewport handoff
+Clock → News : Clock | Weather | News strip moves left by 200vw
+News → Clock : News | Weather | Clock strip moves right by 200vw
 ```
 
-The row order still determines left/right direction, but visual travel distance is always one viewport. ACP does **not** stage the intermediate Weather surface, because that would create two visible page changes for one navigation choice and reintroduce the double-movement feeling that Level-B has deliberately avoided.
+Important semantics:
 
-Implementation details:
+- Weather is visibly present between Clock and News during the motion;
+- Weather is **not** logically activated, added to browser history or published as a destination event;
+- only the selected destination is committed by the Surface Host;
+- the configured Transition duration applies once to the **whole 200vw movement**, not once per viewport;
+- adjacent one-position movements remain 100vw and otherwise unchanged;
+- the same easing, outgoing layout freeze and per-surface presentation-context rules remain authoritative.
 
-- navigation still requires Spatial row to be explicitly selected and the drawer to be open;
-- any two distinct members of `['/clock','/weather','/news']` now yield forward/reverse from their indices;
-- the application-surface compositor mirrors the same rule for `['clock','weather','news']`;
-- the existing live-DOM outgoing clone, layout freeze, source presentation context, duration/easing and single destination commit are unchanged;
-- AirPlay, Settings and Plexamp remain outside this B3 row.
+To do that without bringing back unreliable Chromium root snapshots, the compositor now builds a temporary DOM strip:
 
-Candidate `205908549f11f1682d077c4df28029f917dd2592` removes the adjacency-only guard and otherwise leaves the accepted B2 compositor untouched. It passed the full maintained suite as **Tests #5280**.
+1. clone/freeze the real outgoing surface;
+2. ensure any intermediate row member is mounted;
+3. synchronously present that intermediate under its own temporary body mode, clone its real DOM/layout/background, then restore the true source before a paint can occur;
+4. place the final live destination at its row distance;
+5. animate every layer together for one configured duration;
+6. remove temporary layers and leave only the selected destination live.
 
-Focused B3 physical gate:
+The initial direct-handoff candidate `205908549f11f1682d077c4df28029f917dd2592` passed **Tests #5280** but is superseded by this product decision. Staged-strip candidate `f8e8fea368fefb46f9ed2739a586aaceb84e9232` passed **Tests #5283**; comment/regression alignment head `f84ecd625a4d8a0aab1bfa582147797d3c4fc3b4` passed **Tests #5284**.
 
-- [ ] Clock → News performs one full-viewport forward strip, with no intermediate Weather appearance.
-- [ ] News → Clock performs the exact reverse one-viewport strip.
-- [ ] Both long jumps keep the moving seam joined with no white gap, fade/overlay or internal reflow.
+Focused B3-v2 physical gate:
+
+- [ ] Clock → News shows Weather physically between them as one continuous leftward strip.
+- [ ] News → Clock shows Weather physically between them as the exact reverse strip.
+- [ ] Weather passes through without becoming the logical active destination or causing a second settle/navigation event.
+- [ ] The configured Transition duration is the duration of the **complete** Clock↔News movement; it must not take twice as long as configured.
+- [ ] The three moving surfaces remain edge-locked with no white gaps, overlaps, fade/overlay or internal reflow.
 - [ ] Clock and News settle fully live/interactable after long jumps.
 - [ ] Existing Clock↔Weather and Weather↔News movements remain unchanged.
-- [ ] Transition duration controls long and adjacent handoffs identically.
 - [ ] Selecting a non-Spatial transition still restores that configured style for Clock↔News.
 - [ ] AirPlay, Settings and Plexamp remain outside the row and unchanged.
 
-Do not add a fourth row member until B3 long-jump semantics are physically accepted.
+A separate News status correction travels with this candidate: the rail status pill now prefers the **active category's** state over the overall service state. One failed enabled feed can still make the service snapshot globally degraded, but a freshly successful Top Stories page should remain **News ready** rather than incorrectly showing **Cached news** with a warning border.
+
+Do not add a fourth row member until the staged B3 semantics and News status correction are physically accepted.
 
 

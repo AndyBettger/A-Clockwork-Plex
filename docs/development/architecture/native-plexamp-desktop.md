@@ -411,9 +411,13 @@ B2 extends the order to `['clock', 'weather', 'news']`. The direction function r
 
 For B2 the valid spatial edges were Clock↔Weather and Weather↔News; commissioned-Pi testing accepted that three-member adjacent model.
 
-B3 resolves long jumps with a **single directional handoff**. Row indices determine only direction, not proportional travel distance: any distinct pair of implemented row members uses the same one-viewport live-DOM strip. Thus Clock→News is one forward handoff and News→Clock one reverse handoff. ACP intentionally does not animate through Weather as an intermediate stop: staged traversal would make one user selection produce two application movements, extend total motion time and visually suggest Weather became an active destination when it did not. Logical destination commit remains singular.
+The first B3 implementation tried a distance-independent one-viewport jump for all row members. It was mechanically simple and passed CI, but product review rejected the metaphor before physical acceptance: a mode called **Spatial row** should actually expose the intermediate neighbour on a non-adjacent jump.
 
-This keeps spatial semantics simple enough to extend later: the row owns ordering/direction; the compositor owns a constant viewport handoff; application lifecycle commits only the selected destination.
+B3 v2 therefore separates **visual row traversal** from **logical application activation**. Row indices determine both direction and visual distance. A Clock→News jump across two indices constructs a temporary three-layer strip at 0/+100/+200vw (mirrored for reverse) and moves the entire strip by 200vw in one animation. Weather visibly crosses the viewport, but the Surface Host still performs only one logical commit—to News. No intermediate history entry, mode sync, activation event or settled event is published for Weather.
+
+The application Transition duration remains the duration of the complete movement regardless of row distance. This is intentionally different from chaining two ordinary transitions: chaining would double the configured duration and introduce a stop/easing restart at the intermediate page. The single strip preserves one continuous gesture and one destination lifecycle.
+
+Intermediate layers are DOM surfaces, not screenshots. The compositor temporarily renders the already-mounted intermediate under its own presentation body state, captures its DOM plus computed root layout/background, stamps its local surface context, and restores the real source synchronously before paint. This extends the established rule that simultaneously visible surfaces carry their own layout and presentation identity even while global body state belongs to the selected destination.
 
 ## Browser-engine evaluation
 
