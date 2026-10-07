@@ -1017,14 +1017,56 @@ B5 deliberately changes **visible nav order only** for Plexamp. The accepted Spa
 
 Focused B5 physical gate:
 
-- [ ] Navigation opens with workspace pills grouped together on the left/centre and a clearly separated Audio/Settings utility cluster near the right edge.
-- [ ] Visible workspace order is `Clock, Weather, News, AirPlay, Plexamp` without crowding, wrapping or overlap at 1280×720.
-- [ ] Audio shows a clean speaker-with-waves SVG and Settings a clean cog SVG; both remain sharp at normal scale and under VNC.
-- [ ] Utility icons inherit Classic Dark and at least one non-Classic daytime theme correctly, including active/open state.
-- [ ] Audio icon opens/closes the existing mixer overlay exactly as before and its active state follows the overlay.
-- [ ] Settings icon enters the existing mounted Settings surface; repeated return preserves Settings state/autosave behaviour.
-- [ ] Workspace buttons retain current navigation behaviour; B5 must not accidentally give Plexamp Spatial-row semantics before B6.
-- [ ] Home-indicator reveal height, page/drawer sheet motion and auto-hide remain unchanged despite the nested nav groups.
+- [x] Navigation opens with workspace pills grouped together on the left/centre and a clearly separated Audio/Settings utility cluster near the right edge.
+- [x] Visible workspace order is `Clock, Weather, News, AirPlay, Plexamp` without crowding, wrapping or overlap at 1280×720.
+- [x] Audio shows a clean speaker-with-waves SVG and Settings a clean cog SVG; both remain sharp at normal scale and under VNC.
+- [x] Utility icons inherit Classic Dark and at least one non-Classic daytime theme correctly, including active/open state.
+- [x] Audio icon opens/closes the existing mixer overlay exactly as before and its active state follows the overlay.
+- [x] Settings icon enters the existing mounted Settings surface; repeated return preserves Settings state/autosave behaviour.
+- [x] Workspace buttons retain current navigation behaviour; B5 has not given Plexamp Spatial-row semantics before B6.
+- [x] Home-indicator reveal height, page/drawer sheet motion and auto-hide remain healthy with the nested nav groups.
+
+**B5 utility-cluster core is physically accepted.** Product review of that accepted layout immediately identified a shell-presentation refinement before B6.
+
+##### B5 refinement — persistent navigation above workspace transitions
+
+The navigation bar is shell chrome, not page content. It should therefore remain visually above destination transitions until its own inactivity policy hides it.
+
+Refined contract:
+
+- ordinary View Transitions occur **behind** navigation rather than painting over/dimming the drawer;
+- Spatial-row transitions likewise start immediately behind an open navigation bar instead of first waiting for navigation to slide away;
+- **Overlay content** is the new default navigation presentation: opening navigation leaves the current workspace in place and overlays/dims it;
+- **Lift content** remains available as a Display → Motion option, retaining the accepted measured live-page lift for users who prefer it;
+- the existing **Navigation transition duration** remains the authority for drawer/indicator/backdrop motion (and the optional page lift);
+- add **Navigation inactivity time** under Display → Motion as a 0–30 second slider in 1-second steps; `0` means **Never auto-hide**;
+- while the Audio mixer is open, navigation inactivity auto-hide is suspended regardless of the configured timeout;
+- workspace and utility controls gain a roughly 15–20% larger touch target and one shared control height; workspace pills become rounded rectangles while Audio/Settings retain compact circular icon controls;
+- the drawer itself uses the normal ACP card radius rather than a pill/half-circle end treatment.
+
+Implementation:
+
+- `deaf1f29f80f5f027437db2f43436d13659abe0a` adds persisted `navigation_presentation` and `navigation_inactivity_seconds` settings.
+- `8d4ee1c98ba2f8d7e45ad4453d7202d46ec895e4` / `df68650242f2a9f7158f5a187cd80aed8aea9f6a` add the Motion controls and slider restoration.
+- `8ce79f4591fcce6b3ed4cc57ebe5161c20d0336b` / `6b746b0eb081cbf1a3360dcdf887a1abbaed9486` project the settings into the long-lived shell.
+- `ee9f7ee1e9734524da4b0c857f4c99df66758709` replaces the fixed 6/60-second timers with the user-owned inactivity timeout and makes Audio suspend auto-hide.
+- `bf5aa2c205a5dca5d72d6cfe52ae984bc2788a1a` removes the Spatial-row pre-transition navigation-close wait so the shell stays present.
+- `5a8a3bad117635459db9260050e215c3fc483e16` makes the shell a non-animated named View Transition layer above page snapshots, adds Overlay/Lift presentation ownership and enlarges/re-shapes the controls/drawer.
+- `9597f55b29c26bd234c5efc7ee8b1a1280490b73` aligns the final control size/radii with ACP design tokens; regression alignment follows through `eb00e963ebe8aa6b5185c56fdd8bc2b885501bef`.
+- Intermediate CI reds during the setting/cache/test sequence were stale regression expectations; the first fully aligned implementation passed **Tests #5333**. Final radius-aligned CI is still running.
+
+Focused refinement physical gate:
+
+- [ ] With Cover reveal (and one other ordinary transition), navigation remains visually above and unchanged while the page transition runs behind it.
+- [ ] Spatial row begins immediately behind the still-open navigation bar; it no longer waits for navigation to close first.
+- [ ] Default **Overlay content** leaves the live page at its normal vertical position while opening/closing navigation.
+- [ ] **Lift content** remains selectable and still uses the measured reveal height without gaps/overlap.
+- [ ] Navigation transition duration still controls shell open/close timing independently of application Transition duration.
+- [ ] Navigation inactivity values behave correctly at `0` (never), a short test value such as `3` seconds, and a normal value; interaction resets the timer.
+- [ ] Audio remains open indefinitely while the mixer is active; closing Audio resumes the configured inactivity timeout.
+- [ ] Enlarged workspace and utility controls share one height, are comfortably touchable, do not wrap at 1280×720, and retain correct theme/active states.
+- [ ] Drawer and workspace-button corner radii now read as ACP rounded rectangles rather than a pill-ended bar.
+
 #### B6 — promote the row from browser surfaces to shell workspaces
 
 The accepted B4 compositor proved a literal ACP browser-surface strip. Before native Plexamp migration, generalise that product concept into a **shell-owned workspace order** whose positions are independent of renderer technology.
