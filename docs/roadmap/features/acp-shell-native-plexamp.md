@@ -790,12 +790,44 @@ The same physical pass exposed a separate small theme defect on Weather: `.weath
 
 Focused retest:
 
-- [ ] With Spatial row selected, Weather → Clock must now use the full live-DOM reverse strip, not the short fading Horizontal-slide fallback.
-- [ ] Weather must travel right while Clock enters from the left, joined at one moving seam.
-- [ ] No opacity fade, overlay-like blending, white gap or internal reflow should appear.
-- [ ] Forecast Ready should follow the selected daytime theme in Amber/Crimson (and other non-Classic palettes); stale-warning colour must remain semantic.
-- [ ] Clock → Weather must remain unchanged.
+- [x] With Spatial row selected, Weather → Clock now uses the full live-DOM reverse strip rather than the short fading Horizontal-slide fallback.
+- [x] Weather travels right while Clock enters from the left.
+- [ ] The moving seam/no-gap/no-internal-reflow contract still needs one final explicit acceptance pass after the styling correction below.
+- [x] Forecast Ready follows the selected daytime theme; stale-warning colour remains semantic.
+- [x] Clock → Weather remains unchanged.
+- [ ] The outgoing Weather surface must retain its selected theme colours—including both forecast scroll rails—for the entire reverse movement.
 
-Do not add News or any further row member until this corrected two-surface bidirectional model passes physically.
+#### B1 second physical pass — outgoing Weather lost global theme context
+
+The reverse compositor is now genuinely running, but the screenshots expose a different class of problem: while Weather is stationary its custom forecast scrollbar is Crimson/Green as expected; the instant the reverse slide begins, the outgoing Weather scrollbar changes to Classic cyan.
+
+This is the styling equivalent of the earlier Clock layout leak. The live outgoing layer is a clone of `main.screen`, but the normal destination commit changes the **global** document state to Clock before that Weather clone has left the viewport. Weather's non-Classic component rules were scoped like:
+
+```css
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar-thumb { ... }
+```
+
+Once `body[data-active-page]` becomes `clock`, those selectors stop applying to the still-visible outgoing Weather clone. Its markup then falls back to the base forecast CSS, whose historical default is cyan. Clock→Weather does not show the bug because Weather is the **incoming** live destination and therefore owns the global Weather state throughout its entrance.
+
+The compositor now gives each outgoing clone an explicit local presentation identity:
+
+```text
+data-acp-surface-context="weather"
+```
+
+Weather's non-Classic component selectors accept either the live global Weather body state **or** an outgoing clone carrying Weather context. That preserves the selected palette without freezing pixels or copying dozens of computed colour values. Candidate `5ca3ad46c511451fa8aa971332d33f7779b5046a` implements the theme-context contract and passed **Tests #5271**.
+
+A follow-up audit found the forecast console itself also had two active-page-scoped layout rules. Candidate `5a0b5313f593d92d949fba6989e93cda0d74b6e7` extends those rules to the same outgoing Weather context, preventing width/margin changes during the reverse handoff as well. **Tests #5272** found only a stale cache-bust expectation in `test_weather_forecast_ui.py`; candidate `a8d7ffc24b26b4543406049f73dc79e1aa6c7e61` updates that assertion and passed the full maintained suite as **Tests #5273**.
+
+Focused B1-v3 retest:
+
+- [ ] Under Crimson Glow, Weather's forecast rails remain Crimson from stationary state through the entire Weather→Clock slide.
+- [ ] Repeat under Green Phosphor (or another non-Classic palette); the rails must remain that palette rather than cyan.
+- [ ] Weather geometry remains stable while leaving—no forecast-console width/margin jump.
+- [ ] Reverse movement remains full-viewport and edge-locked, with no fade/overlay regression.
+- [ ] Clock→Weather remains unchanged.
+
+Do not add News or any further row member until this two-surface styling-context contract passes physically.
 
 
