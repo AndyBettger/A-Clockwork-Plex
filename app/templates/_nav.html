@@ -2,14 +2,32 @@
   aria-label="Close navigation" aria-hidden="true"></button>
 <nav class="nav-drawer" id="nav-drawer" aria-label="Main navigation" aria-hidden="true">
   <section class="button-row main-nav">
-    <a class="button nav-button {% if active_page == 'clock' %}is-active{% endif %}" href="/clock">Clock</a>
-    <a class="button nav-button {% if active_page == 'weather' %}is-active{% endif %}" href="/weather">Weather</a>
-    <a class="button nav-button {% if active_page == 'news' %}is-active{% endif %}" href="/news">News</a>
-    <a class="button nav-button {% if active_page == 'plexamp' %}is-active{% endif %}" href="/plexamp">Plexamp</a>
-    <a class="button nav-button {% if active_page == 'airplay' %}is-active{% endif %}" href="/airplay">AirPlay</a>
-    <button id="nav-audio-button" class="button nav-button nav-audio-button" type="button"
-      aria-controls="nav-live-mixer" aria-expanded="false">Audio</button>
-    <a class="button nav-button {% if active_page == 'settings' %}is-active{% endif %}" href="/settings">Settings</a>
+    <div class="nav-workspaces" role="group" aria-label="Workspaces">
+      <a class="button nav-button {% if active_page == 'clock' %}is-active{% endif %}" href="/clock">Clock</a>
+      <a class="button nav-button {% if active_page == 'weather' %}is-active{% endif %}" href="/weather">Weather</a>
+      <a class="button nav-button {% if active_page == 'news' %}is-active{% endif %}" href="/news">News</a>
+      <a class="button nav-button {% if active_page == 'airplay' %}is-active{% endif %}" href="/airplay">AirPlay</a>
+      <a class="button nav-button {% if active_page == 'plexamp' %}is-active{% endif %}" href="/plexamp">Plexamp</a>
+    </div>
+
+    <div class="nav-utilities" role="group" aria-label="Utilities">
+      <button id="nav-audio-button" class="button nav-button nav-utility-button nav-audio-button" type="button"
+        aria-label="Audio" title="Audio" aria-controls="nav-live-mixer" aria-expanded="false">
+        <svg class="nav-utility-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 9.25h3.25L11.5 5.5v13l-4.25-3.75H4z"></path>
+          <path d="M15 8.25a5 5 0 0 1 0 7.5"></path>
+          <path d="M17.75 5.5a8.75 8.75 0 0 1 0 13"></path>
+        </svg>
+      </button>
+
+      <a class="button nav-button nav-utility-button nav-settings-button {% if active_page == 'settings' %}is-active{% endif %}"
+        href="/settings" aria-label="Settings" title="Settings">
+        <svg class="nav-utility-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9.6 3.35 10.2 2h3.6l.6 1.35 1.55.65 1.38-.53 2.55 2.55-.53 1.38L20 8.95l1.35.6v3.6L20 13.75l-.65 1.55.53 1.38-2.55 2.55-1.38-.53-1.55.65-.6 1.35h-3.6l-.6-1.35-1.55-.65-1.38.53-2.55-2.55.53-1.38L4 13.75l-1.35-.6v-3.6L4 8.95l.65-1.55-.53-1.38 2.55-2.55 1.38.53z"></path>
+          <circle cx="12" cy="11.35" r="3.1"></circle>
+        </svg>
+      </a>
+    </div>
   </section>
 </nav>
 <button class="nav-handle" id="nav-handle" type="button" aria-controls="nav-drawer" aria-expanded="false" aria-label="Show navigation">
