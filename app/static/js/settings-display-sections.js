@@ -55,6 +55,7 @@
     const durationFields = [
       ['display.transition_duration_ms', '2000', '50', 'Transition duration in milliseconds'],
       ['display.navigation_transition_duration_ms', '1000', '20', 'Navigation transition duration in milliseconds'],
+      ['display.navigation_inactivity_seconds', '30', '1', 'Navigation inactivity time in seconds'],
     ];
     durationFields.forEach(([path, maximum, step, label]) => {
       const duration = card.querySelector(`[data-setting-path="${path}"]`);
