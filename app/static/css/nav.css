@@ -176,7 +176,7 @@ body.nav-open .nav-drawer {
   border-radius: 24px;
   background:
     linear-gradient(135deg, rgba(131, 216, 255, 0.075), transparent 46%),
-    rgba(6, 12, 22, 0.72);
+    rgba(6, 12, 22, 0.42);
   box-shadow: 0 24px 90px rgba(0, 0, 0, 0.52);
   backdrop-filter: blur(18px);
   opacity: 0;
