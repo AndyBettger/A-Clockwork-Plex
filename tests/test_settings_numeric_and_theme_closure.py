@@ -33,6 +33,7 @@ class SettingsNumericControlTests(unittest.TestCase):
             "dashboard.idle_timeout_seconds",
             "display.transition_duration_ms",
             "display.navigation_transition_duration_ms",
+            "display.navigation_inactivity_seconds",
             "weather.observations.ecowitt_push.fresh_seconds",
             "weather.observations.weather_underground.refresh_seconds",
             "weather.observations.weather_underground.stale_seconds",
@@ -43,6 +44,7 @@ class SettingsNumericControlTests(unittest.TestCase):
         for path in expected - {
             "display.transition_duration_ms",
             "display.navigation_transition_duration_ms",
+            "display.navigation_inactivity_seconds",
         }:
             self.assertIn(f"['{path}', [", numeric)
         self.assertIn("duration.type = 'range'", display)
