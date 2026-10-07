@@ -238,7 +238,17 @@
     });
   }
 
-  async function spatialForwardLiveCommit(commit) {
+  const spatialSurfaceOrder = ['clock', 'weather'];
+
+  function spatialSurfaceDirection(from, to) {
+    const fromIndex = spatialSurfaceOrder.indexOf(String(from || ''));
+    const toIndex = spatialSurfaceOrder.indexOf(String(to || ''));
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return '';
+    if (Math.abs(toIndex - fromIndex) !== 1) return '';
+    return toIndex > fromIndex ? 'forward' : 'reverse';
+  }
+
+  async function spatialLiveCommit(direction, commit) {
     const outgoing = screen.cloneNode(true);
     outgoing.classList.add('acp-spatial-outgoing-live-clone');
     outgoing.setAttribute('aria-hidden', 'true');
@@ -253,11 +263,13 @@
     let outgoingAnimation = null;
     let incomingAnimation = null;
 
+    const incomingOffset = direction === 'reverse' ? '-100vw' : '100vw';
+    const outgoingOffset = direction === 'reverse' ? '100vw' : '-100vw';
+
     try {
-      // Put the live host exactly one viewport to the right before swapping its
-      // visible mounted surface. The clone is a DOM copy of the real outgoing
-      // Clock surface, so this path does not depend on Chromium's root snapshot.
-      screen.style.transform = 'translateX(100vw)';
+      // Put the live destination exactly one viewport beyond the outgoing
+      // surface in row order before swapping the mounted surface.
+      screen.style.transform = `translateX(${incomingOffset})`;
       await commit();
 
       // Establish both live layers before movement begins.
@@ -275,13 +287,13 @@
       outgoingAnimation = outgoing.animate(
         [
           { transform: 'translateX(0)' },
-          { transform: 'translateX(-100vw)' },
+          { transform: `translateX(${outgoingOffset})` },
         ],
         timing,
       );
       incomingAnimation = screen.animate(
         [
-          { transform: 'translateX(100vw)' },
+          { transform: `translateX(${incomingOffset})` },
           { transform: 'translateX(0)' },
         ],
         timing,
@@ -321,11 +333,12 @@
             commitSurface(surface);
           },
           async spatialCommit({ direction, commit } = {}) {
-            if (direction !== 'forward' || from !== 'clock' || surface !== 'weather') {
+            const expectedDirection = spatialSurfaceDirection(from, surface);
+            if (!expectedDirection || direction !== expectedDirection) {
               await commit();
               return;
             }
-            await spatialForwardLiveCommit(commit);
+            await spatialLiveCommit(direction, commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
             if (surface !== 'airplay') return;

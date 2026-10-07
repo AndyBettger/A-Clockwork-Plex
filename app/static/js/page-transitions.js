@@ -57,12 +57,18 @@
     return ordinaryManualNavigation && !options.spatialCommitDirection;
   }
 
+  const spatialRowRoutes = ['/clock', '/weather'];
+
   function spatialPrototypeDirection(target, mainNavLink = false) {
     if (!mainNavLink || !navigationModeOpen() || plexampVisiblyOpen()) return '';
     if (String(preferences().transitionStyle || '').toLowerCase() !== 'spatial-row') return '';
-    return activeRoute() === '/clock' && target?.pathname === '/weather'
-      ? 'forward'
-      : '';
+
+    const currentIndex = spatialRowRoutes.indexOf(activeRoute());
+    const targetIndex = spatialRowRoutes.indexOf(String(target?.pathname || ''));
+    if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) return '';
+    if (Math.abs(targetIndex - currentIndex) !== 1) return '';
+
+    return targetIndex > currentIndex ? 'forward' : 'reverse';
   }
 
   function navigationTransitionDuration() {

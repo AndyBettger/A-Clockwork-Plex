@@ -238,9 +238,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-layout-v6", base)
+        self.assertIn("20261007-spatial-b1-v1", base)
 
-    def test_spatial_row_b0_uses_live_dom_strip_not_root_snapshot(self):
+    def test_spatial_row_b1_is_ordered_and_bidirectional_for_clock_weather(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
         host = HOST.read_text(encoding="utf-8")
         surfaces = APPLICATION_SURFACES.read_text(encoding="utf-8")
@@ -248,10 +248,13 @@ class AcpSurfaceHostTests(unittest.TestCase):
         surface_styles = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
 
+        self.assertIn("const spatialRowRoutes = ['/clock', '/weather']", transitions)
         self.assertIn("function spatialPrototypeDirection", transitions)
         self.assertIn("preferences().transitionStyle", transitions)
         self.assertIn("'spatial-row'", transitions)
-        self.assertIn("activeRoute() === '/clock' && target?.pathname === '/weather'", transitions)
+        self.assertIn("spatialRowRoutes.indexOf(activeRoute())", transitions)
+        self.assertIn("targetIndex > currentIndex ? 'forward' : 'reverse'", transitions)
+        self.assertIn("Math.abs(targetIndex - currentIndex) !== 1", transitions)
         self.assertIn("await exitNavigationForSpatialCommit(options.spatialCommitDirection)", transitions)
 
         self.assertIn("function motionEnabled", host)
@@ -260,7 +263,10 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("document.startViewTransition(commit)", host)
         self.assertNotIn("dataset.acpSpatialCommit", host)
 
-        self.assertIn("async function spatialForwardLiveCommit", surfaces)
+        self.assertIn("const spatialSurfaceOrder = ['clock', 'weather']", surfaces)
+        self.assertIn("function spatialSurfaceDirection", surfaces)
+        self.assertIn("return toIndex > fromIndex ? 'forward' : 'reverse'", surfaces)
+        self.assertIn("async function spatialLiveCommit", surfaces)
         self.assertIn("const outgoing = screen.cloneNode(true)", surfaces)
         self.assertIn("acp-spatial-outgoing-live-clone", surfaces)
         self.assertIn("copyBodyBackground(outgoing)", surfaces)
@@ -272,17 +278,21 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("freezeOutgoingScreenLayout(outgoing)", surfaces)
         self.assertLess(
             surfaces.index("freezeOutgoingScreenLayout(outgoing)"),
-            surfaces.index("await commit()", surfaces.index("async function spatialForwardLiveCommit")),
+            surfaces.index("await commit()", surfaces.index("async function spatialLiveCommit")),
         )
-        self.assertIn("screen.style.transform = 'translateX(100vw)'", surfaces)
+        self.assertIn("const incomingOffset = direction === 'reverse' ? '-100vw' : '100vw'", surfaces)
+        self.assertIn("const outgoingOffset = direction === 'reverse' ? '100vw' : '-100vw'", surfaces)
+        self.assertIn("screen.style.transform = `translateX(${incomingOffset})`", surfaces)
         self.assertIn("await commit()", surfaces)
-        self.assertIn("{ transform: 'translateX(-100vw)' }", surfaces)
-        self.assertIn("{ transform: 'translateX(100vw)' }", surfaces)
+        self.assertIn("{ transform: `translateX(${outgoingOffset})` }", surfaces)
+        self.assertIn("{ transform: `translateX(${incomingOffset})` }", surfaces)
         self.assertIn("{ transform: 'translateX(0)' }", surfaces)
         self.assertIn("Promise.all", surfaces)
         self.assertIn("screen.style.transform = ''", surfaces)
         self.assertIn("outgoing.remove()", surfaces)
-        self.assertIn("direction !== 'forward' || from !== 'clock' || surface !== 'weather'", surfaces)
+        self.assertIn("const expectedDirection = spatialSurfaceDirection(from, surface)", surfaces)
+        self.assertIn("direction !== expectedDirection", surfaces)
+        self.assertIn("await spatialLiveCommit(direction, commit)", surfaces)
 
         self.assertIn(".acp-spatial-outgoing-live-clone", surface_styles)
         self.assertIn("z-index: 40", surface_styles)
@@ -291,7 +301,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-layout-v6", base)
+        self.assertIn("20261007-spatial-b1-v1", base)
 
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
