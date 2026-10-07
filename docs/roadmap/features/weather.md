@@ -58,7 +58,7 @@ During #94 Clock ↔ Weather migration:
 - [ ] further reduce DOM replacement so individual readings can be patched without rebuilding the whole Weather grid once the reusable component model is established;
 - keep the existing server-side WU observation worker authoritative for remote polling; the browser should consume ACP's local current state rather than independently polling Weather Underground;
 - [x] keep the forecast availability pill theme-owned: non-stale **Forecast Ready** text follows the selected daytime accent instead of retaining Classic cyan, while stale state remains a semantic warning colour;
-- [ ] preserve Weather's full palette while it is the **outgoing** live surface in Spatial-row navigation: forecast rails and active-page-scoped forecast layout now consume the compositor's local Weather surface context rather than reverting to base cyan/geometry when global body state switches to Clock; physical retest pending;
+- [x] preserve Weather's full palette while it is the **outgoing** live surface in Spatial-row navigation: forecast rails and active-page-scoped forecast layout consume the compositor's local Weather surface context rather than reverting to base cyan/geometry when global body state switches to Clock; physically confirmed under Crimson Glow and Green Phosphor during Weather→Clock;
 - keep routine Weather data changes separate from navigation motion: no View Transition merely because temperature, rain, pressure or station status changed.
 
 ## Weather page revamp — queued after #94 Phase A

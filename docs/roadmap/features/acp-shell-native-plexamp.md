@@ -822,12 +822,24 @@ A follow-up audit found the forecast console itself also had two active-page-sco
 
 Focused B1-v3 retest:
 
-- [ ] Under Crimson Glow, Weather's forecast rails remain Crimson from stationary state through the entire Weather→Clock slide.
-- [ ] Repeat under Green Phosphor (or another non-Classic palette); the rails must remain that palette rather than cyan.
-- [ ] Weather geometry remains stable while leaving—no forecast-console width/margin jump.
-- [ ] Reverse movement remains full-viewport and edge-locked, with no fade/overlay regression.
-- [ ] Clock→Weather remains unchanged.
+- [x] Under Crimson Glow, Weather's forecast rails remain Crimson from stationary state through the entire Weather→Clock slide.
+- [x] Under Green Phosphor, the rails remain Green rather than reverting to cyan.
+- [x] Forecast Ready and the other Weather theme accents remain palette-owned while the page is leaving.
+- [x] The reverse movement continues to use the full live-DOM strip rather than the fade fallback.
+- [x] Clock→Weather remains unchanged.
 
-Do not add News or any further row member until this two-surface styling-context contract passes physically.
+### B1-v3 outgoing presentation-context acceptance — COMPLETE
+
+The outgoing Weather surface now carries enough local identity to remain visually Weather after the live document has already committed Clock. The commissioned-Pi retest confirms that the custom forecast rails no longer lose their daytime-theme palette during the reverse handoff. This closes the theme/presentation-context defect that followed the earlier layout-context fix.
+
+The remaining B1 acceptance work is now about the **two-way row as a whole**, not Weather styling:
+
+- [ ] confirm no seam gap/overlap or internal reflow in either direction over repeated runs;
+- [ ] confirm both incoming surfaces settle fully live/interactable;
+- [ ] confirm Transition duration affects forward and reverse equally;
+- [ ] confirm choosing a non-Spatial transition restores that configured style in both directions;
+- [ ] confirm News/AirPlay/Settings/Plexamp remain outside the B1 row and retain their documented fallback/accepted behaviour.
+
+Do not add News or any further row member until those remaining B1 checks pass physically.
 
 
