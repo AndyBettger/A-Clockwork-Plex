@@ -1005,6 +1005,26 @@ The utility controls should be visually separated toward the right-hand edge rat
 
 This changes presentation and navigation semantics only; it must not weaken Settings autosave/state preservation or Audio overlay ownership.
 
+B5 implementation candidate:
+
+- `be9351567e81a0f308681c343bc94d7e10ebdc5b` splits `_nav.html` into explicit `nav-workspaces` and `nav-utilities` groups and places the visible workspace controls in the intended order `Clock → Weather → News → AirPlay → Plexamp`.
+- `4ee212c6013993a7fc4b1a95593ba433a69cefb6` adds the right-edge utility layout, divider, compact touch targets and scalable `currentColor` SVG treatment.
+- `fef4860c4bac75ee5b6bcb932e91b5c724af71ca` updates the defensive Audio-button installer so a missing runtime control is recreated inside the utility group rather than inserted into the wrong parent.
+- `5600301dceee5460704fe82c92d20c5448346764` bumps the shell navigation asset versions. Its **Tests #5315** failure is the expected transient stale-marker assertion before the next commit updates the regression fixture.
+- `27723265773c03274b1d8a77917990e650c4ce6d` aligns regression coverage for grouping, visible order, inline SVG/accessibility ownership and the new asset markers; it passed the full maintained suite as **Tests #5316**.
+
+B5 deliberately changes **visible nav order only** for Plexamp. The accepted Spatial-row engine remains `Clock ↔ Weather ↔ News ↔ AirPlay` until B6; Plexamp does not gain spatial traversal merely because its button now occupies the intended terminal visual position.
+
+Focused B5 physical gate:
+
+- [ ] Navigation opens with workspace pills grouped together on the left/centre and a clearly separated Audio/Settings utility cluster near the right edge.
+- [ ] Visible workspace order is `Clock, Weather, News, AirPlay, Plexamp` without crowding, wrapping or overlap at 1280×720.
+- [ ] Audio shows a clean speaker-with-waves SVG and Settings a clean cog SVG; both remain sharp at normal scale and under VNC.
+- [ ] Utility icons inherit Classic Dark and at least one non-Classic daytime theme correctly, including active/open state.
+- [ ] Audio icon opens/closes the existing mixer overlay exactly as before and its active state follows the overlay.
+- [ ] Settings icon enters the existing mounted Settings surface; repeated return preserves Settings state/autosave behaviour.
+- [ ] Workspace buttons retain current navigation behaviour; B5 must not accidentally give Plexamp Spatial-row semantics before B6.
+- [ ] Home-indicator reveal height, page/drawer sheet motion and auto-hide remain unchanged despite the nested nav groups.
 #### B6 — promote the row from browser surfaces to shell workspaces
 
 The accepted B4 compositor proved a literal ACP browser-surface strip. Before native Plexamp migration, generalise that product concept into a **shell-owned workspace order** whose positions are independent of renderer technology.
