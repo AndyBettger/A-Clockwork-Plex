@@ -91,6 +91,11 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn('href="/clock">Home</a>', navigation)
         self.assertNotIn('href="/clock">Clock</a>', navigation)
         self.assertIn("rgba(6, 12, 22, 0.42)", styles)
+        dashboard = DASHBOARD.read_text(encoding="utf-8")
+        self.assertIn('{"id": "clock", "label": "Home"}', dashboard)
+        self.assertIn("state.mode == 'clock' %}Home", base)
+        self.assertIn("surface === 'clock'\n      ? 'Home'", HOST.read_text(encoding="utf-8"))
+        self.assertIn('@app.route("/clock")', dashboard)
 
         self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
         self.assertIn("nav-utility-button nav-audio-button", drawer)
