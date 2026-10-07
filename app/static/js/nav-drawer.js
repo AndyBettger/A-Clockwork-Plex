@@ -8,8 +8,6 @@
 
   if (!drawerNode() || !handleNode() || !mainNavNode()) return;
 
-  const NORMAL_AUTO_HIDE_MS = 6000;
-  const MIXER_AUTO_HIDE_MS = 60000;
   const NAVIGATION_MODE_TRANSFER_KEY = 'a-clockwork-plex.navigation-mode-transfer';
   const NAVIGATION_MODE_TRANSFER_MAX_AGE_MS = 15000;
   const SWIPE_THRESHOLD_PX = 24;
@@ -307,6 +305,16 @@
     return document.body.classList.contains('nav-audio-open');
   }
 
+  function navigationInactivitySeconds() {
+    const preferences = window.ACPDashboardPreferences?.read?.() || {};
+    const raw = preferences.navigationInactivitySeconds
+      ?? document.documentElement.dataset.navigationInactivitySeconds
+      ?? 6;
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return 6;
+    return Math.round(Math.max(0, Math.min(30, numeric)));
+  }
+
   function syncNavigationRevealHeight() {
     const drawer = drawerNode();
     const mainNav = mainNavNode();
@@ -378,10 +386,11 @@
 
   function scheduleHide() {
     window.clearTimeout(hideTimer);
-    hideTimer = window.setTimeout(
-      () => setExpanded(false),
-      mixerOpen() ? MIXER_AUTO_HIDE_MS : NORMAL_AUTO_HIDE_MS,
-    );
+    hideTimer = null;
+    if (mixerOpen()) return;
+    const seconds = navigationInactivitySeconds();
+    if (seconds <= 0) return;
+    hideTimer = window.setTimeout(() => setExpanded(false), seconds * 1000);
   }
 
   function showDrawer() {
@@ -629,7 +638,10 @@
 
   document.addEventListener('click', (event) => {
     const destination = event.target.closest?.('#nav-drawer a.nav-button');
-    if (destination && mixerOpen()) closeMixerWithoutScheduling();
+    if (destination && mixerOpen()) {
+      closeMixerWithoutScheduling();
+      scheduleHide();
+    }
 
     if (event.target.closest?.('#nav-backdrop')) {
       event.preventDefault();
@@ -694,6 +706,9 @@
   });
 
   window.addEventListener('resize', syncNavigationRevealHeight);
+  window.addEventListener('acp:dashboard-preferences-changed', () => {
+    if (document.body.classList.contains('nav-open')) scheduleHide();
+  });
 
   window.ACPNavDrawerController = Object.freeze({
     show: showDrawer,
