@@ -11,6 +11,7 @@ BASE = ROOT / "app" / "templates" / "base.html"
 AIRPLAY_TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
 CLOCK_DASHBOARD_CSS = ROOT / "app" / "static" / "css" / "clock-dashboard.css"
+NEWS_CSS = ROOT / "app" / "static" / "css" / "news.css"
 COMPONENTS = ROOT / "app" / "static" / "css" / "daytime-theme-components.css"
 FOLLOWUP = ROOT / "app" / "static" / "css" / "daytime-theme-followup.css"
 MARQUEE_CSS = ROOT / "app" / "static" / "css" / "airplay-title-marquee.css"
@@ -37,6 +38,20 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn('body:not([data-active-page="plexamp"])', css)
         self.assertIn('body:not([data-active-page="plexamp"])', followup)
         self.assertIn("semantic", followup.lower())
+
+    def test_news_status_pill_borders_follow_active_theme(self) -> None:
+        css = NEWS_CSS.read_text(encoding="utf-8")
+        status_start = css.index(".news-status-pill {")
+        source_start = css.index(".news-source-pill {")
+        status_block = css[status_start:css.index("}", status_start) + 1]
+        source_block = css[source_start:css.index("}", source_start) + 1]
+
+        self.assertIn("var(--accent) 52%", status_block)
+        self.assertIn("var(--panel-border)", status_block)
+        self.assertNotIn("var(--acp-color-accent)", status_block)
+        self.assertIn("var(--accent) 38%", source_block)
+        self.assertIn("var(--panel-border)", source_block)
+        self.assertNotIn("var(--acp-color-accent)", source_block)
 
     def test_weather_legacy_accents_follow_theme_variables(self) -> None:
         css = COMPONENTS.read_text(encoding="utf-8")
