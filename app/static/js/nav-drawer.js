@@ -116,12 +116,21 @@
       audioButton = document.createElement('button');
       audioButton.id = 'nav-audio-button';
       audioButton.type = 'button';
-      audioButton.className = 'button nav-button nav-audio-button';
-      audioButton.textContent = 'Audio';
+      audioButton.className = 'button nav-button nav-utility-button nav-audio-button';
+      audioButton.setAttribute('aria-label', 'Audio');
+      audioButton.setAttribute('title', 'Audio');
       audioButton.setAttribute('aria-controls', 'nav-live-mixer');
       audioButton.setAttribute('aria-expanded', 'false');
-      const settingsLink = mainNav.querySelector('a[href="/settings"]');
-      mainNav.insertBefore(audioButton, settingsLink || null);
+      audioButton.innerHTML = `
+        <svg class="nav-utility-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 9.25h3.25L11.5 5.5v13l-4.25-3.75H4z"></path>
+          <path d="M15 8.25a5 5 0 0 1 0 7.5"></path>
+          <path d="M17.75 5.5a8.75 8.75 0 0 1 0 13"></path>
+        </svg>
+      `;
+      const utilityGroup = mainNav.querySelector('.nav-utilities') || mainNav;
+      const settingsLink = utilityGroup.querySelector('a[href="/settings"]');
+      utilityGroup.insertBefore(audioButton, settingsLink || null);
     }
 
     let panel = document.getElementById('nav-live-mixer');
