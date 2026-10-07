@@ -721,6 +721,8 @@ Focused physical B0-v6 gate:
 - [ ] Weather should still adopt its normal detailed-layout geometry while entering from the right.
 - [ ] The seam must remain edge-locked and the previously accepted theme/style-selection behaviour must remain intact.
 
-Do not add reverse direction or further destinations until this geometry-freeze retest passes.
+Initial commissioned-Pi retest of v6 reports the Clock→Weather movement is **working better**, supporting the outgoing-layout diagnosis. This is a positive partial result rather than full acceptance, so the four-point B0-v6 physical gate remains open.
+
+Do not add reverse direction or further destinations until this geometry-freeze retest passes completely.
 
 
