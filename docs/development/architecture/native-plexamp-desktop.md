@@ -391,6 +391,10 @@ This keeps the user-facing model simple: **one Transition style setting, one Tra
 
 During B0 only Clock→Weather from open navigation has a true live-DOM Spatial-row implementation. Other relations under the prototype Spatial-row setting temporarily map to Horizontal slide. That fallback is intentionally visible in documentation and must disappear as the ordered/bidirectional row model expands; it is not the final spatial-navigation contract.
 
+The live-DOM compositor must also preserve **per-surface layout context** across the handoff. The Surface Host changes global body mode/data-active-page as part of committing the destination; destination CSS may legitimately style `main.screen` itself. For example, Weather changes the screen grid from `minmax(0, 1fr) auto auto` to `auto minmax(0, 1fr) auto`. If the outgoing clone remains dependent on global body selectors, it can relayout into destination geometry before leaving the viewport.
+
+For B0 the compositor therefore snapshots the outgoing screen's computed **layout properties, not its pixels**: grid templates/auto tracks, alignment, gaps and padding are copied inline onto the temporary outgoing DOM layer before the destination commit. The old surface keeps its old geometry while remaining DOM-rendered and theme-correct; the incoming real screen immediately adopts the destination mode. This distinction is important for any future ordered carousel: adjacent surfaces must carry their own layout context rather than all inheriting whichever global body mode is currently authoritative.
+
 This policy also clarifies automatic projection: the destination mechanism should obey the selected application Transition style unless a product-critical event (for example alarm takeover) explicitly bypasses decorative animation.
 
 The attribute is presentation-only and is removed after the transition, with a `finally` cleanup if the transition path fails. It does not alter logical surface order, history, leases, Weather lifecycle or persisted settings.

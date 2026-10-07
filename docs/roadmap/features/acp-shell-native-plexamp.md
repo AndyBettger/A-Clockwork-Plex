@@ -673,13 +673,54 @@ Candidate `24ead76bc2245332354637c5c301f7dac938beb2` adds `spatial-row` to front
 
 Physical B0-v5 gate:
 
-- [ ] Leave Transition style on Cover reveal (or another existing style) and verify Clock→Weather no longer uses the spatial strip.
-- [ ] Select **Spatial row (prototype)** and verify Clock→Weather from open navigation uses the accepted live-DOM strip.
-- [ ] Change away from Spatial row again and confirm the selected ordinary style immediately regains authority.
+- [x] Selecting another ordinary Transition style restores that configured transition rather than silently invoking Spatial row.
+- [x] Selecting **Spatial row (prototype)** opts Clock→Weather into the accepted live-DOM strip.
+- [x] Changing away from Spatial row immediately returns authority to the selected ordinary style.
 - [ ] While Spatial row is selected, Weather→Clock and unrelated destinations should use the temporary Horizontal slide fallback without reloads or broken state.
-- [ ] Transition duration should still control the live-DOM Spatial row speed.
-- [ ] Theme changes must remain independent of transition-style choice.
+- [x] Transition duration continues to control the live-DOM Spatial row speed.
+- [x] Theme changes remain independent of transition-style choice.
 
-Do not add reverse direction or further destinations until this style-policy boundary is physically accepted.
+Candidate `24ead76bc2245332354637c5c301f7dac938beb2` passed **Tests #5262**, with documentation head `41a05786fabd2998d83cc84f634c4526fd207051` passing **Tests #5263**.
+
+#### B0 v6 — freeze the outgoing surface geometry
+
+A new physical screenshot comparison exposed a small but real jank at the start of the spatial movement: the outgoing Clock's large time/date block jumps upward as soon as the strip begins, even though the stationary full-screen Clock was correctly laid out immediately beforehand.
+
+This is not an animation-distance bug. It comes from **global destination CSS leaking into the outgoing live clone**:
+
+```css
+/* base Clock/main-screen geometry */
+.screen {
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
+/* destination Weather geometry */
+body.mode-weather .screen {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+```
+
+The spatial compositor clones `main.screen` while Clock is active, but the normal Surface Host commit then changes `body.mode-clock` to `body.mode-weather` before the outgoing clone has finished travelling. Because the clone is still a `.screen`, Weather's screen rule immediately reflows the clone into Weather row geometry. The Clock weather panel happens to retain approximately the same vertical boundary, while the flexible hero row changes position, which is why the time/date visibly jump upward in the captured transition frame.
+
+Candidate `646fe343b760879704804f73e0126cc061170494` fixes this without hard-coding Clock dimensions. Before the destination commit, ACP copies the outgoing screen's **computed layout contract** onto the clone as inline values:
+
+- grid template rows/columns;
+- grid auto-flow/auto tracks;
+- alignment;
+- row/column gaps;
+- screen padding.
+
+The outgoing layer is therefore layout-frozen in its real pre-transition geometry while the incoming live `main.screen` remains free to adopt Weather's destination-specific layout. This is the correct ownership boundary for a two-surface compositor: the old surface keeps its old geometry for the duration of the handoff; the new surface uses new geometry immediately.
+
+Candidate `646fe343b760879704804f73e0126cc061170494` passed the full maintained suite as **Tests #5264**.
+
+Focused physical B0-v6 gate:
+
+- [ ] Compare stationary Clock with the first frame of Clock→Weather: time, date, alarm icon and weather panel must retain exactly the same vertical geometry when movement begins.
+- [ ] Clock should then translate left without any internal reflow.
+- [ ] Weather should still adopt its normal detailed-layout geometry while entering from the right.
+- [ ] The seam must remain edge-locked and the previously accepted theme/style-selection behaviour must remain intact.
+
+Do not add reverse direction or further destinations until this geometry-freeze retest passes.
 
 
