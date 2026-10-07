@@ -113,7 +113,20 @@
               <label class="setting-field">
                 <span>Navigation transition duration</span>
                 <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_transition_duration_ms">
-                <small>Drawer, indicator, dimming and live-page lift. Current: <output data-setting-output="display.navigation_transition_duration_ms">—</output> · range 0–1000 ms.</small>
+                <small>Drawer, indicator and dimming animation speed; also controls the optional live-page lift. Current: <output data-setting-output="display.navigation_transition_duration_ms">—</output> · range 0–1000 ms.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation presentation</span>
+                <select data-setting-path="display.navigation_presentation">
+                  <option value="overlay">Overlay content</option>
+                  <option value="lift">Lift content</option>
+                </select>
+                <small>Overlay keeps navigation above page transitions. Lift content raises the live workspace while navigation is open.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation inactivity time</span>
+                <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_inactivity_seconds">
+                <small>How long navigation stays open after the last interaction. Current: <output data-setting-output="display.navigation_inactivity_seconds">—</output> · 0 means never auto-hide; range 0–30 s.</small>
               </label>
             </div>
           </section>
