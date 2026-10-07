@@ -737,7 +737,7 @@ The accepted implementation lineage is:
 The next experiment adds the smallest real row model rather than another special-case reverse animation. The row order is currently:
 
 ```text
-Clock  <---->  Weather
+Home  <---->  Weather
 index 0         index 1
 ```
 
@@ -849,7 +849,7 @@ The commissioned Pi now accepts the full two-member ordered row: Clock↔Weather
 The next step expands only one position in the existing navigation order:
 
 ```text
-Clock  <---->  Weather  <---->  News
+Home  <---->  Weather  <---->  News
   0               1              2
 ```
 
@@ -888,7 +888,7 @@ B2 deliberately left Clock↔News on the short Horizontal-slide fallback because
 The revised B3 rule is therefore **literal row traversal with one logical destination**:
 
 ```text
-Clock  <---->  Weather  <---->  News
+Home  <---->  Weather  <---->  News
 
 Clock → News : Clock | Weather | News strip moves left by 200vw
 News → Clock : News | Weather | Clock strip moves right by 200vw
@@ -941,7 +941,7 @@ The accompanying News status correction is also accepted: the rail pill describe
 The ACP browser-surface row now expands to:
 
 ```text
-Clock  <---->  Weather  <---->  News  <---->  AirPlay
+Home  <---->  Weather  <---->  News  <---->  AirPlay
 ```
 
 This row is an **ACP application-surface order**, not a literal copy of every bottom-nav button. Plexamp is the deliberate cross-application workspace exception and Audio is a shell overlay, so neither belongs between News and AirPlay in the browser-surface strip.
@@ -1053,19 +1053,29 @@ Implementation:
 - `bf5aa2c205a5dca5d72d6cfe52ae984bc2788a1a` removes the Spatial-row pre-transition navigation-close wait so the shell stays present.
 - `5a8a3bad117635459db9260050e215c3fc483e16` makes the shell a non-animated named View Transition layer above page snapshots, adds Overlay/Lift presentation ownership and enlarges/re-shapes the controls/drawer.
 - `9597f55b29c26bd234c5efc7ee8b1a1280490b73` aligns the final control size/radii with ACP design tokens; regression alignment follows through `eb00e963ebe8aa6b5185c56fdd8bc2b885501bef`.
-- Intermediate CI reds during the setting/cache/test sequence were stale regression expectations; the first fully aligned implementation passed **Tests #5333**, the final larger-control/radius treatment passed **Tests #5334**, and its aligned regression head passed **Tests #5335**. Roadmap/documentation sync then passed **Tests #5336–#5337**. Physical acceptance of the refinement is pending.
+- Intermediate CI reds during the setting/cache/test sequence were stale regression expectations; the first fully aligned implementation passed **Tests #5333**, the final larger-control/radius treatment passed **Tests #5334**, and its aligned regression head passed **Tests #5335**. Roadmap/documentation sync then passed **Tests #5336–#5337**.
+- The first commissioned-Pi follow-up confirms the persistent-shell model is substantially correct. Ordinary transitions, Spatial-row shell persistence, Overlay mode, inactivity ownership and Audio timeout suspension all pass. Two real edge cases were found: Lift+Spatial forced the outgoing clone down before horizontal movement, and Plexamp→Settings still used the legacy full-document handoff. Touch sizing passed but the workspace labels wanted more visual weight.
+- Follow-up implementation removes the clone's forced zero translate (`3861a2b2d360a2b895ef274b225788d7261dd714`), keeps mounted ACP destinations including Settings inside the live shell when leaving Plexamp (`ea868dc141de484c24d7c279f252e6f3cf199bc2`), reorders the Motion controls and adopts **Home** as the human-facing name for the internal `clock` workspace, themes pending/saving Settings state instead of using warning yellow, enlarges nav labels without changing their padding/gaps, and brings Classic Dark Audio glass in line with the other themes. The aligned behavioural/regression head passed **Tests #5349**; the final transparency-only polish is pending its CI rerun.
 
 Focused refinement physical gate:
 
-- [ ] With Cover reveal (and one other ordinary transition), navigation remains visually above and unchanged while the page transition runs behind it.
-- [ ] Spatial row begins immediately behind the still-open navigation bar; it no longer waits for navigation to close first.
-- [ ] Default **Overlay content** leaves the live page at its normal vertical position while opening/closing navigation.
-- [ ] **Lift content** remains selectable and still uses the measured reveal height without gaps/overlap.
-- [ ] Navigation transition duration still controls shell open/close timing independently of application Transition duration.
-- [ ] Navigation inactivity values behave correctly at `0` (never), a short test value such as `3` seconds, and a normal value; interaction resets the timer.
-- [ ] Audio remains open indefinitely while the mixer is active; closing Audio resumes the configured inactivity timeout.
-- [ ] Enlarged workspace and utility controls share one height, are comfortably touchable, do not wrap at 1280×720, and retain correct theme/active states.
-- [ ] Drawer and workspace-button corner radii now read as ACP rounded rectangles rather than a pill-ended bar.
+- [~] With Cover reveal (and another ordinary transition), navigation remains visually above and unchanged while the page transition runs behind it. ACP workspaces and Plexamp pass; the Plexamp→Settings close/reopen exception has been fixed in code and needs one retest.
+- [x] Spatial row begins immediately behind the still-open navigation bar; it no longer waits for navigation to close first.
+- [x] Default **Overlay content** leaves the live page at its normal vertical position while opening/closing navigation.
+- [~] **Lift content** remains selectable and uses the measured reveal height. Physical testing exposed a Spatial-only outgoing-page drop caused by a forced clone translate; the fix is committed and needs retest.
+- [x] Navigation transition/inactivity ownership behaves independently of application Transition duration in the tested shell flows.
+- [x] Navigation inactivity values, including `0 = Never`, behave correctly and shell interaction resets the timer.
+- [x] Audio remains open while the mixer is active; closing Audio resumes the configured inactivity timeout.
+- [~] Enlarged workspace and utility controls share one height, are comfortably touchable and do not wrap at 1280×720. The height is accepted; label size has been increased while preserving the accepted horizontal padding and inter-button gaps, pending visual retest.
+- [x] Drawer and workspace-button corner radii read as ACP rounded rectangles rather than a pill-ended bar.
+
+Additional B5 presentation polish from this gate:
+
+- Settings → Display → Motion places its two choice controls in one column: **Transition style** above **Navigation presentation**, with the two duration sliders opposite them.
+- “changed / pending / saving” Settings chrome follows the selected theme accent; semantic failure remains red and warning colours remain reserved for actual warnings.
+- Classic Dark Audio uses the same glass/translucency idea as the coloured daytime themes rather than an almost-opaque navy sheet.
+- the primary `clock` workspace is now presented to users as **Home**. Internal route/state identifiers remain `/clock` / `clock` for compatibility.
+- possible workspace SVG treatment is being evaluated separately before implementation: Home, Weather and News can use semantic symbols while AirPlay/Plexamp can use recognisable product marks; Audio and Settings retain their accepted utility icons.
 
 #### B6 — promote the row from browser surfaces to shell workspaces
 
@@ -1074,18 +1084,18 @@ The accepted B4 compositor proved a literal ACP browser-surface strip. Before na
 Current target order:
 
 ```text
-Clock  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
+Home  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
 ```
 
 Reserved future order once Astronomy is implemented:
 
 ```text
-Clock  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
+Home  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
 ```
 
 The distinction is deliberate:
 
-- Clock/Weather/News/AirPlay/Astronomy are ACP browser application surfaces;
+- Home/Weather/News/AirPlay/Astronomy are ACP browser application surfaces;
 - Plexamp is the terminal media workspace;
 - today Plexamp is represented by the persistent browser player layer;
 - later it becomes the native Wayland Plexamp application;
@@ -1096,7 +1106,7 @@ This should make native Plexamp migration easier: the shell first owns a stable 
 B6 physical gates should prove:
 
 - AirPlay↔Plexamp behaves as an adjacent workspace movement with the same left/right spatial meaning as the ACP row;
-- Clock/Weather/News↔Plexamp long jumps preserve literal intermediate workspace order and one configured overall movement duration where technically appropriate;
+- Home/Weather/News↔Plexamp long jumps preserve literal intermediate workspace order and one configured overall movement duration where technically appropriate;
 - reverse Plexamp→ACP navigation mirrors the same topology;
 - the home indicator/navigation utility cluster remains shell-owned above both implementations;
 - automatic Plexamp projection does not masquerade as a user-requested multi-workspace traversal;
@@ -1123,5 +1133,5 @@ Required behaviour:
 - respect reduced-motion/accessibility policy and all existing night dim/wake behaviour;
 - physically accept long-running 1280×720 motion for smoothness, edge reflection, no clipping, no obvious repeated short loop and no interference with alarm takeover/navigation.
 
-**Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Clock ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
+**Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
