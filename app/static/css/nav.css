@@ -116,6 +116,7 @@ body.nav-open .nav-drawer {
   place-items: center;
   padding: 0 clamp(12px, 2vmin, 18px);
   border-radius: var(--acp-radius-control);
+  font-size: clamp(1.02rem, 2.55vmin, 1.18rem);
   text-align: center;
 }
 
@@ -174,8 +175,8 @@ body.nav-open .nav-drawer {
   border: 1px solid rgba(131, 216, 255, 0.2);
   border-radius: 24px;
   background:
-    linear-gradient(135deg, rgba(131, 216, 255, 0.065), transparent 46%),
-    rgba(6, 12, 22, 0.96);
+    linear-gradient(135deg, rgba(131, 216, 255, 0.075), transparent 46%),
+    rgba(6, 12, 22, 0.72);
   box-shadow: 0 24px 90px rgba(0, 0, 0, 0.52);
   backdrop-filter: blur(18px);
   opacity: 0;
