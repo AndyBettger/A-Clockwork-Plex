@@ -20,6 +20,7 @@
     'dashboard.idle_timeout_seconds',
     'display.transition_duration_ms',
     'display.navigation_transition_duration_ms',
+    'display.navigation_inactivity_seconds',
     'weather.forecast.latitude',
     'weather.forecast.longitude',
     'weather.forecast.forecast_days',
@@ -144,6 +145,10 @@
       else if (['display.transition_duration_ms', 'display.navigation_transition_duration_ms'].includes(path)) {
         output.textContent = `${Number.isFinite(number) ? Math.round(number) : 0} ms`;
       }
+      else if (path === 'display.navigation_inactivity_seconds') {
+        const seconds = Number.isFinite(number) ? Math.round(number) : 0;
+        output.textContent = seconds <= 0 ? 'Never' : `${seconds} s`;
+      }
       else if (path.startsWith('audio.eq.bands.')) output.textContent = `${number > 0 ? '+' : ''}${Number.isFinite(number) ? number.toFixed(1) : '0.0'} dB`;
       else output.textContent = String(value ?? '');
     });
@@ -217,6 +222,8 @@
       transitionStyle: display.transition_style,
       transitionDurationMs: display.transition_duration_ms,
       navigationTransitionDurationMs: display.navigation_transition_duration_ms,
+      navigationInactivitySeconds: display.navigation_inactivity_seconds,
+      navigationPresentation: display.navigation_presentation,
       clockFormat: display.clock_format,
     });
   }
