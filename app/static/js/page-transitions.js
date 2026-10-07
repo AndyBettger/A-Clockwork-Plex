@@ -53,8 +53,7 @@
   }
 
   function shouldPreserveNavigation(options = {}) {
-    const ordinaryManualNavigation = !isAutomaticNavigation(options) && navigationModeOpen();
-    return ordinaryManualNavigation && !options.spatialCommitDirection;
+    return !isAutomaticNavigation(options) && navigationModeOpen();
   }
 
   const spatialRowRoutes = ['/clock', '/weather', '/news', '/airplay'];
@@ -71,66 +70,6 @@
     // stages intermediate row members for non-adjacent destinations while the
     // selected destination remains the only logical navigation commit.
     return targetIndex > currentIndex ? 'forward' : 'reverse';
-  }
-
-  function navigationTransitionDuration() {
-    const current = preferences();
-    const value = Number(current.navigationTransitionDurationMs);
-    if (!Number.isFinite(value)) return 180;
-    return Math.max(0, Math.min(1000, value));
-  }
-
-  function waitForNavigationSheetClosed(duration) {
-    const liveSurface = document.querySelector('main.screen');
-    const fallbackMs = Math.max(80, Number(duration) || 0) + 180;
-
-    return new Promise((resolve) => {
-      let settled = false;
-      let timer = null;
-
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        liveSurface?.removeEventListener('transitionend', onTransitionEnd);
-        liveSurface?.removeEventListener('transitioncancel', onTransitionEnd);
-        window.clearTimeout(timer);
-
-        // View Transition snapshots are compositor captures. Give Chromium two
-        // complete paint opportunities after the navigation transform has
-        // actually settled before asking it to photograph the outgoing surface.
-        window.requestAnimationFrame(() => {
-          liveSurface?.getBoundingClientRect();
-          window.requestAnimationFrame(resolve);
-        });
-      };
-
-      const onTransitionEnd = (event) => {
-        if (event.target !== liveSurface || event.propertyName !== 'translate') return;
-        finish();
-      };
-
-      if (!liveSurface || duration <= 0) {
-        finish();
-        return;
-      }
-
-      liveSurface.addEventListener('transitionend', onTransitionEnd);
-      liveSurface.addEventListener('transitioncancel', onTransitionEnd);
-      timer = window.setTimeout(finish, fallbackMs);
-    });
-  }
-
-  async function exitNavigationForSpatialCommit(direction) {
-    if (!direction || !navigationModeOpen()) return;
-    const controller = window.ACPNavDrawerController;
-    if (typeof controller?.hide !== 'function') return;
-
-    presentationInFlight = true;
-    const duration = navigationTransitionDuration();
-    const settled = waitForNavigationSheetClosed(duration);
-    controller.hide();
-    await settled;
-    presentationInFlight = false;
   }
 
   function rememberNavigationMode(target) {
@@ -271,11 +210,8 @@
       if (!accepted || leaving) return;
     }
 
-    if (options.spatialCommitDirection) {
-      await exitNavigationForSpatialCommit(options.spatialCommitDirection);
-      if (leaving) return;
-    }
-
+    // Navigation is persistent shell chrome. Spatial and ordinary page
+    // transitions run behind it; inactivity owns when the shell hides.
     if (target.pathname === '/alarm' || options.immediate) {
       leaving = true;
       window.location.assign(target.href);
