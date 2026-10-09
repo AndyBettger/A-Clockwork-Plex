@@ -22,6 +22,7 @@ TRANSITION_CSS = ROOT / "app" / "static" / "css" / "page-transitions.css"
 NAV_CSS = ROOT / "app" / "static" / "css" / "nav.css"
 PLEXAMP_CSS = ROOT / "app" / "static" / "css" / "plexamp-persistent.css"
 PLEXAMP_JS = ROOT / "app" / "static" / "js" / "plexamp-persistent.js"
+WORKSPACE_TOPOLOGY = ROOT / "app" / "static" / "js" / "workspace-topology.js"
 
 
 class AcpSurfaceHostTests(unittest.TestCase):
@@ -31,6 +32,42 @@ class AcpSurfaceHostTests(unittest.TestCase):
         transitions_index = base.index("js/page-transitions.js")
 
         self.assertLess(host_index, transitions_index)
+
+    def test_b6_shell_workspace_topology_is_authoritative_above_renderers(self):
+        base = BASE.read_text(encoding="utf-8")
+        topology = WORKSPACE_TOPOLOGY.read_text(encoding="utf-8")
+        surfaces = APPLICATION_SURFACES.read_text(encoding="utf-8")
+        transitions = TRANSITIONS.read_text(encoding="utf-8")
+
+        topology_index = base.index("js/workspace-topology.js")
+        self.assertLess(topology_index, base.index("js/plexamp-persistent.js"))
+        self.assertLess(topology_index, base.index("js/page-transitions.js"))
+        self.assertLess(topology_index, base.index("js/acp-application-surfaces.js"))
+
+        expected_order = [
+            "id: 'clock'",
+            "id: 'weather'",
+            "id: 'news'",
+            "id: 'airplay'",
+            "id: 'plexamp'",
+        ]
+        positions = [topology.index(value) for value in expected_order]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("label: 'Home'", topology)
+        self.assertIn("renderer: 'acp'", topology)
+        self.assertIn("renderer: 'plexamp'", topology)
+        self.assertIn("'astronomy'", topology)
+        self.assertIn("function direction(from, to)", topology)
+        self.assertIn("function path(from, to)", topology)
+        self.assertIn("function acpSurfaceOrder()", topology)
+
+        self.assertIn("window.ACPWorkspaceTopology?.acpSurfaceOrder?.() || []", surfaces)
+        self.assertNotIn("const spatialSurfaceOrder = ['clock', 'weather', 'news', 'airplay']", surfaces)
+
+        self.assertIn("const topology = window.ACPWorkspaceTopology", transitions)
+        self.assertIn("topology?.path?.(activeRoute()", transitions)
+        self.assertIn("entry.renderer !== 'acp'", transitions)
+        self.assertNotIn("const spatialRowRoutes =", transitions)
 
     def test_primary_navigation_is_owned_once_by_the_base_shell(self):
         base = BASE.read_text(encoding="utf-8")
