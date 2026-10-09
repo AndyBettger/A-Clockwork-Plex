@@ -1066,7 +1066,7 @@ Focused refinement physical gate:
 - [x] Navigation transition/inactivity ownership behaves independently of application Transition duration in the tested shell flows.
 - [x] Navigation inactivity values, including `0 = Never`, behave correctly and shell interaction resets the timer.
 - [x] Audio remains open while the mixer is active; closing Audio resumes the configured inactivity timeout.
-- [~] Enlarged workspace and utility controls share one height, are comfortably touchable and do not wrap at 1280×720. The second typography pass is better but still reads slightly small on the commissioned display; workspace label size has therefore been increased by a further ~15% while preserving the accepted height, horizontal padding and inter-button gaps. One visual retest remains.
+- [x] Enlarged workspace and utility controls share one height, are comfortably touchable and do not wrap at 1280×720. The final ~15% workspace-label increase is physically accepted with the existing height, horizontal padding and inter-button gaps unchanged.
 - [x] Drawer and workspace-button corner radii read as ACP rounded rectangles rather than a pill-ended bar.
 
 Additional B5 presentation polish from this gate:
@@ -1076,9 +1076,13 @@ Additional B5 presentation polish from this gate:
 - Classic Dark Audio uses the same glass/translucency idea as the coloured daytime themes rather than an almost-opaque navy sheet.
 - the primary `clock` workspace is now presented to users as **Home**. Internal route/state identifiers remain `/clock` / `clock` for compatibility.
 - possible workspace SVG treatment is being evaluated separately before implementation: Home, Weather and News can use semantic symbols while AirPlay/Plexamp can use recognisable product marks; Audio and Settings retain their accepted utility icons.
-- the October 9 focused Pi retest passed the Lift+Spatial fix, Plexamp→Settings shell persistence, Motion layout, themed save-state chrome and Classic Dark Audio glass. Only workspace label size remained open; the final candidate increases the label clamp from `1.02rem/2.55vmin/1.18rem` to `1.17rem/2.9vmin/1.36rem` (about 15%). The final label-size implementation/regression head passed **Tests #5357**; only the visual Pi check remains.
+- the October 9 focused Pi retest passed the Lift+Spatial fix, Plexamp→Settings shell persistence, Motion layout, themed save-state chrome and Classic Dark Audio glass. Only workspace label size remained open; the final candidate increases the label clamp from `1.02rem/2.55vmin/1.18rem` to `1.17rem/2.9vmin/1.36rem` (about 15%). The final label-size implementation/regression head passed **Tests #5357** and the commissioned-Pi visual retest is accepted. **B5 is physically complete.**
+
+**B5 PHYSICALLY ACCEPTED — 2026-10-09.**
 
 #### B6 — promote the row from browser surfaces to shell workspaces
+
+**Status: ACTIVE.**
 
 The accepted B4 compositor proved a literal ACP browser-surface strip. Before native Plexamp migration, generalise that product concept into a **shell-owned workspace order** whose positions are independent of renderer technology.
 
