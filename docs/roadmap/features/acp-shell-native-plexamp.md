@@ -1106,6 +1106,44 @@ The distinction is deliberate:
 - later it becomes the native Wayland Plexamp application;
 - **its row position, navigation direction and shell choreography do not change when the renderer changes**.
 
+##### B6a — shell-owned topology authority
+
+The first B6 slice is structural rather than visual:
+
+- new `workspace-topology.js` owns the live order `clock → weather → news → airplay → plexamp`, presentation label **Home**, route mapping and renderer ownership;
+- the same authority records the future reserved order `clock → weather → astronomy → news → airplay → plexamp` without making Astronomy routable early;
+- the ACP live-DOM compositor derives its ACP-only order from this shell authority instead of carrying a private four-item array;
+- `page-transitions.js` uses the same topology for direction/path decisions;
+- renderer ownership is explicit (`acp` vs `plexamp`), so Plexamp does not have to masquerade as an `ACPSurfaceHost` surface.
+
+Candidate chain: `90477c75971a580cb1f6b933cb23395df2af21aa` → `34f4ab39314866a64d48462a2263b0dde6b56cf8` → `d4bf62237dec8c1947c7f41b3cf5985f628fe939` → `283dd435127f9875524ed69c6b62f7c4dec47922`. The first topology CI run (**Tests #5364**) was an expected stale B4 regression assertion against the removed hard-coded row; the aligned regression is included in the following B6b candidate.
+
+##### B6b — adjacent AirPlay ↔ Plexamp renderer boundary
+
+The second slice makes only the adjacent cross-renderer boundary spatial:
+
+- explicit Spatial-row navigation from AirPlay to Plexamp animates the live AirPlay screen `0 → -100vw` while the persistent Plexamp layer moves `+100vw → 0`;
+- Plexamp → AirPlay is the exact reverse: Plexamp `0 → +100vw`, AirPlay `-100vw → 0`;
+- both use the full application Transition duration once, with the accepted Spatial easing;
+- navigation remains persistent shell chrome above both moving renderers;
+- Plexamp iframe/process state is not recreated; the persistent player layer itself moves;
+- if AirPlay is not already the mounted underlay when returning from Plexamp, it is committed/hydrated first without animation, then participates as the incoming adjacent workspace;
+- non-Spatial styles continue through the accepted Plexamp transition backend unchanged;
+- **long jumps involving Plexamp are deliberately not spatial yet**. Home/Weather/News ↔ Plexamp remain on the accepted ordinary backend until B6c stages the intermediate ACP workspaces.
+
+Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp renderer adapter), `003a60cfb9d69c73a7402e2ced0ea61487389c52` (navigation routing), `e9d2a643770905298c5abbab01d9804b214d3580` (asset versions), and `6faf264ffdbee69d429c3fa5629c45bc2bdb2f0f` (aligned topology/adjacent regression). Automated gate **Tests #5368** is running.
+
+Focused B6b physical gate:
+
+- [ ] AirPlay → Plexamp is one clean adjacent 100vw movement with both live surfaces visible edge-to-edge and no fade/gap.
+- [ ] Plexamp → AirPlay is the exact reverse.
+- [ ] A slow Transition duration applies once to the complete AirPlay↔Plexamp movement.
+- [ ] Open navigation remains fixed above both moving workspaces.
+- [ ] Plexamp playback/UI state remains continuous before, during and after the movement.
+- [ ] AirPlay live/ready state remains correct after returning from Plexamp.
+- [ ] Cover reveal (or another non-Spatial style) still uses the existing ordinary Plexamp transition.
+- [ ] Home/Weather/News → Plexamp still use ordinary transition behaviour for now; no fake partial spatial long jump is introduced.
+
 This should make native Plexamp migration easier: the shell first owns a stable workspace index/order, then the Phase-B migration replaces only the Plexamp endpoint implementation and cross-application transition backend. Do not force native Plexamp into `ACPSurfaceHost` merely to satisfy the spatial metaphor; introduce/retain a shell/workspace abstraction above browser-surface and native-application implementations.
 
 B6 physical gates should prove:
