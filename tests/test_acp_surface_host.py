@@ -66,7 +66,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
 
         self.assertIn("const topology = window.ACPWorkspaceTopology", transitions)
         self.assertIn("topology?.path?.(activeRoute()", transitions)
-        self.assertIn("entry.renderer !== 'acp'", transitions)
+        self.assertIn("path.every((entry) => entry.renderer === 'acp')", transitions)
+        self.assertIn("adjacentCrossRenderer", transitions)
         self.assertNotIn("const spatialRowRoutes =", transitions)
 
     def test_primary_navigation_is_owned_once_by_the_base_shell(self):
@@ -347,7 +348,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261007-spatial-b4-v3", base)
+        self.assertIn("20261009-b6-topology-v1", base)
 
     def test_spatial_row_b4_adds_airplay_as_fourth_acp_surface(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -357,18 +358,16 @@ class AcpSurfaceHostTests(unittest.TestCase):
         surface_styles = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
 
-        self.assertIn("const spatialRowRoutes = ['/clock', '/weather', '/news', '/airplay']", transitions)
         self.assertIn("function spatialPrototypeDirection", transitions)
         self.assertIn("preferences().transitionStyle", transitions)
         self.assertIn("'spatial-row'", transitions)
-        self.assertIn("spatialRowRoutes.indexOf(activeRoute())", transitions)
-        self.assertIn("targetIndex > currentIndex ? 'forward' : 'reverse'", transitions)
+        self.assertIn("const topology = window.ACPWorkspaceTopology", transitions)
+        self.assertIn("const fromRoute = visibleWorkspaceRoute()", transitions)
+        self.assertIn("topology?.path?.(fromRoute, toRoute)", transitions)
+        self.assertIn("path.every((entry) => entry.renderer === 'acp')", transitions)
         self.assertNotIn("Math.abs(targetIndex - currentIndex) !== 1", transitions)
-        self.assertIn("The compositor", transitions)
-        self.assertIn("stages intermediate row members", transitions)
         self.assertNotIn("exitNavigationForSpatialCommit", transitions)
         self.assertIn("Navigation is persistent shell chrome", transitions)
-        self.assertIn("'/news'", transitions)
 
         self.assertIn("function motionEnabled", host)
         self.assertIn("['forward', 'reverse'].includes(options.spatialCommitDirection)", host)
@@ -377,7 +376,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("document.startViewTransition(commit)", host)
         self.assertNotIn("dataset.acpSpatialCommit", host)
 
-        self.assertIn("const spatialSurfaceOrder = ['clock', 'weather', 'news', 'airplay']", surfaces)
+        self.assertIn("const spatialSurfaceOrder = window.ACPWorkspaceTopology?.acpSurfaceOrder?.() || []", surfaces)
         self.assertIn("function spatialSurfaceDirection", surfaces)
         self.assertIn("return toIndex > fromIndex ? 'forward' : 'reverse'", surfaces)
         self.assertNotIn("Math.abs(toIndex - fromIndex) !== 1", surfaces)
@@ -432,8 +431,36 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261007-spatial-b4-v3", base)
+        self.assertIn("20261009-b6-topology-v1", base)
 
+
+    def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
+        base = BASE.read_text(encoding="utf-8")
+        transitions = TRANSITIONS.read_text(encoding="utf-8")
+        plexamp = PLEXAMP_JS.read_text(encoding="utf-8")
+
+        self.assertIn("function visibleWorkspaceRoute()", transitions)
+        self.assertIn("const adjacentCrossRenderer = path.length === 2", transitions)
+        self.assertIn("entry.renderer === 'plexamp'", transitions)
+        self.assertIn("window.ACPPlexamp.spatialShow", transitions)
+        self.assertIn("window.ACPPlexamp.spatialHide", transitions)
+        self.assertIn("options.spatialCommitDirection === 'forward'", transitions)
+        self.assertIn("options.spatialCommitDirection === 'reverse'", transitions)
+        self.assertIn("path?.('/plexamp', target.pathname)?.length === 2", transitions)
+
+        self.assertIn("function spatialDurationMs()", plexamp)
+        self.assertIn("function spatialShow(options = {})", plexamp)
+        self.assertIn("function spatialHide(options = {})", plexamp)
+        self.assertIn("translateX(100vw)", plexamp)
+        self.assertIn("translateX(-100vw)", plexamp)
+        self.assertIn("cubic-bezier(.16, .84, .24, 1)", plexamp)
+        self.assertIn("spatialAnimations", plexamp)
+        self.assertIn("spatialShow,", plexamp)
+        self.assertIn("spatialHide,", plexamp)
+        self.assertIn("preserveNavigation", plexamp)
+
+        self.assertIn("20261009-b6-adjacent-v1", base)
+        self.assertIn("20261009-b6-topology-v1", base)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
         source = TRANSITIONS.read_text(encoding="utf-8")
