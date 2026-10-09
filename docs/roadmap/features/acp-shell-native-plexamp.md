@@ -1076,7 +1076,7 @@ Additional B5 presentation polish from this gate:
 - Classic Dark Audio uses the same glass/translucency idea as the coloured daytime themes rather than an almost-opaque navy sheet.
 - the primary `clock` workspace is now presented to users as **Home**. Internal route/state identifiers remain `/clock` / `clock` for compatibility.
 - possible workspace SVG treatment is being evaluated separately before implementation: Home, Weather and News can use semantic symbols while AirPlay/Plexamp can use recognisable product marks; Audio and Settings retain their accepted utility icons.
-- the October 9 focused Pi retest passed the Lift+Spatial fix, Plexamp→Settings shell persistence, Motion layout, themed save-state chrome and Classic Dark Audio glass. Only workspace label size remained open; the final candidate increases the label clamp from `1.02rem/2.55vmin/1.18rem` to `1.17rem/2.9vmin/1.36rem` (about 15%).
+- the October 9 focused Pi retest passed the Lift+Spatial fix, Plexamp→Settings shell persistence, Motion layout, themed save-state chrome and Classic Dark Audio glass. Only workspace label size remained open; the final candidate increases the label clamp from `1.02rem/2.55vmin/1.18rem` to `1.17rem/2.9vmin/1.36rem` (about 15%). The final label-size implementation/regression head passed **Tests #5357**; only the visual Pi check remains.
 
 #### B6 — promote the row from browser surfaces to shell workspaces
 
