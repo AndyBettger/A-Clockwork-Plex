@@ -56,20 +56,19 @@
     return !isAutomaticNavigation(options) && navigationModeOpen();
   }
 
-  const spatialRowRoutes = ['/clock', '/weather', '/news', '/airplay'];
-
   function spatialPrototypeDirection(target, mainNavLink = false) {
     if (!mainNavLink || !navigationModeOpen() || plexampVisiblyOpen()) return '';
     if (String(preferences().transitionStyle || '').toLowerCase() !== 'spatial-row') return '';
 
-    const currentIndex = spatialRowRoutes.indexOf(activeRoute());
-    const targetIndex = spatialRowRoutes.indexOf(String(target?.pathname || ''));
-    if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) return '';
+    const topology = window.ACPWorkspaceTopology;
+    const path = topology?.path?.(activeRoute(), String(target?.pathname || '')) || [];
+    if (path.length < 2) return '';
 
-    // Row order determines direction and logical distance. The compositor
-    // stages intermediate row members for non-adjacent destinations while the
-    // selected destination remains the only logical navigation commit.
-    return targetIndex > currentIndex ? 'forward' : 'reverse';
+    // B6 makes the shell topology authoritative before changing renderer
+    // behaviour. The existing live-DOM compositor still owns ACP-only paths;
+    // Plexamp joins the same path through a renderer adapter in the next slice.
+    if (path.some((entry) => entry.renderer !== 'acp')) return '';
+    return topology.direction(activeRoute(), String(target?.pathname || ''));
   }
 
   function rememberNavigationMode(target) {
