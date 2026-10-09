@@ -15,6 +15,7 @@
   let frameReadyTimer = null;
   let phaseTimer = null;
   let cleanupTimer = null;
+  let spatialAnimations = [];
   let lifecycle = 'hidden';
   let generation = 0;
   let modeGuardUntil = 0;
@@ -50,6 +51,33 @@
     shell.dataset.lifecycle = next;
   }
 
+  function spatialDurationMs() {
+    const value = String(
+      window.getComputedStyle(document.documentElement)
+        .getPropertyValue('--acp-transition-duration')
+        || '300ms',
+    ).trim();
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed)) return 300;
+    if (value.endsWith('s') && !value.endsWith('ms')) return Math.max(0, parsed * 1000);
+    return Math.max(0, parsed);
+  }
+
+  function clearSpatialStyles(screen) {
+    if (screen) {
+      screen.style.transform = '';
+      screen.style.willChange = '';
+    }
+    shell.style.transition = '';
+    shell.style.transform = '';
+    shell.style.opacity = '';
+    shell.style.visibility = '';
+    shell.style.pointerEvents = '';
+    shell.style.filter = '';
+    shell.style.clipPath = '';
+    shell.style.willChange = '';
+  }
+
   function setNavState(open) {
     const underlying = `/${String(document.body.dataset.activePage || 'clock').toLowerCase()}`;
     navLinks().forEach((link) => {
@@ -73,6 +101,9 @@
     window.clearTimeout(cleanupTimer);
     phaseTimer = null;
     cleanupTimer = null;
+    spatialAnimations.forEach((animation) => animation.cancel());
+    spatialAnimations = [];
+    clearSpatialStyles(document.querySelector('.screen'));
   }
 
   function scheduleFrameReady() {
@@ -194,6 +225,135 @@
     return outgoing + profile.incoming;
   }
 
+  function spatialShow(options = {}) {
+    if (isVisiblyOpen() && lifecycle === 'open') return 0;
+
+    const screen = document.querySelector('.screen');
+    if (!screen) return show(options);
+
+    const token = ++generation;
+    clearLifecycleTimers();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
+    setNavState(true);
+    guardMode();
+    scheduleFrameReady();
+
+    const duration = spatialDurationMs();
+    const body = document.body;
+
+    shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
+    shell.classList.add('is-open');
+    shell.setAttribute('aria-hidden', 'false');
+    body.classList.remove('acp-page-leaving', 'acp-plexamp-opening');
+    body.classList.add('plexamp-overlay-open');
+    setLifecycle(duration > 0 ? 'opening-spatial' : 'open');
+
+    shell.style.transition = 'none';
+    shell.style.opacity = '1';
+    shell.style.visibility = 'visible';
+    shell.style.pointerEvents = 'none';
+    shell.style.filter = 'none';
+    shell.style.clipPath = 'inset(0 0 0 0)';
+    shell.style.transform = 'translateX(100vw)';
+    shell.style.willChange = 'transform';
+    screen.style.willChange = 'transform';
+
+    if (duration <= 0) {
+      clearSpatialStyles(screen);
+      setLifecycle('open');
+      return 0;
+    }
+
+    const timing = {
+      duration,
+      easing: 'cubic-bezier(.16, .84, .24, 1)',
+      fill: 'both',
+    };
+    const screenAnimation = screen.animate(
+      [{ transform: 'translateX(0)' }, { transform: 'translateX(-100vw)' }],
+      timing,
+    );
+    const plexampAnimation = shell.animate(
+      [{ transform: 'translateX(100vw)' }, { transform: 'translateX(0)' }],
+      timing,
+    );
+    spatialAnimations = [screenAnimation, plexampAnimation];
+
+    Promise.all(spatialAnimations.map((animation) => animation.finished.catch(() => undefined)))
+      .then(() => {
+        if (token !== generation) return;
+        spatialAnimations.forEach((animation) => animation.cancel());
+        spatialAnimations = [];
+        clearSpatialStyles(screen);
+        setLifecycle('open');
+      });
+
+    return duration;
+  }
+
+  function spatialHide(options = {}) {
+    const screen = document.querySelector('.screen');
+    if (!screen || !shell.classList.contains('is-open')) return hide(options);
+
+    const token = ++generation;
+    clearLifecycleTimers();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
+    guardMode();
+
+    const duration = spatialDurationMs();
+    document.body.classList.remove('acp-page-leaving', 'acp-plexamp-opening');
+    document.body.classList.add('plexamp-overlay-open');
+    shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
+    shell.classList.add('is-open');
+    shell.setAttribute('aria-hidden', 'false');
+    setLifecycle(duration > 0 ? 'closing-spatial' : 'hidden');
+
+    shell.style.transition = 'none';
+    shell.style.opacity = '1';
+    shell.style.visibility = 'visible';
+    shell.style.pointerEvents = 'none';
+    shell.style.filter = 'none';
+    shell.style.clipPath = 'inset(0 0 0 0)';
+    shell.style.transform = 'translateX(0)';
+    shell.style.willChange = 'transform';
+    screen.style.transform = 'translateX(-100vw)';
+    screen.style.willChange = 'transform';
+
+    if (duration <= 0) {
+      finishHideVisual();
+      clearSpatialStyles(screen);
+      setLifecycle('hidden');
+      return 0;
+    }
+
+    const timing = {
+      duration,
+      easing: 'cubic-bezier(.16, .84, .24, 1)',
+      fill: 'both',
+    };
+    const plexampAnimation = shell.animate(
+      [{ transform: 'translateX(0)' }, { transform: 'translateX(100vw)' }],
+      timing,
+    );
+    const screenAnimation = screen.animate(
+      [{ transform: 'translateX(-100vw)' }, { transform: 'translateX(0)' }],
+      timing,
+    );
+    spatialAnimations = [plexampAnimation, screenAnimation];
+
+    Promise.all(spatialAnimations.map((animation) => animation.finished.catch(() => undefined)))
+      .then(() => {
+        if (token !== generation) return;
+        finishHideVisual();
+        spatialAnimations.forEach((animation) => animation.cancel());
+        spatialAnimations = [];
+        clearSpatialStyles(screen);
+        setLifecycle('hidden');
+      });
+
+    return duration;
+  }
+
   function hide(options = {}) {
     const profile = transitionProfile();
 
@@ -278,6 +438,8 @@
   window.ACPPlexamp = {
     show,
     hide,
+    spatialShow,
+    spatialHide,
     ensureVisible,
     prepareNavigation,
     isOpen,
