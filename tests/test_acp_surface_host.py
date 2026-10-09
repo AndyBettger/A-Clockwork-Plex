@@ -65,7 +65,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("const spatialSurfaceOrder = ['clock', 'weather', 'news', 'airplay']", surfaces)
 
         self.assertIn("const topology = window.ACPWorkspaceTopology", transitions)
-        self.assertIn("topology?.path?.(activeRoute()", transitions)
+        self.assertIn("const fromRoute = visibleWorkspaceRoute()", transitions)
+        self.assertIn("topology?.path?.(fromRoute, toRoute)", transitions)
         self.assertIn("path.every((entry) => entry.renderer === 'acp')", transitions)
         self.assertIn("adjacentCrossRenderer", transitions)
         self.assertNotIn("const spatialRowRoutes =", transitions)
@@ -308,7 +309,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("window.ACPSurfaceHost?.canNavigate?.(target.pathname)", transitions)
         self.assertIn("animate: false", transitions)
         self.assertIn("'plexamp-mounted-handoff'", transitions)
-        self.assertIn("window.ACPPlexamp.hide?.({", transitions)
+        self.assertIn("const hidePlexamp = spatialAdjacent", transitions)
+        self.assertIn("? window.ACPPlexamp.spatialHide", transitions)
+        self.assertIn(": window.ACPPlexamp.hide", transitions)
 
         self.assertIn("options.preserveNavigation !== true", plexamp)
         self.assertIn("function prepareNavigation(options = {})", plexamp)
