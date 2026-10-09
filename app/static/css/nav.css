@@ -116,7 +116,7 @@ body.nav-open .nav-drawer {
   place-items: center;
   padding: 0 clamp(12px, 2vmin, 18px);
   border-radius: var(--acp-radius-control);
-  font-size: clamp(1.02rem, 2.55vmin, 1.18rem);
+  font-size: clamp(1.17rem, 2.9vmin, 1.36rem);
   text-align: center;
 }
 
