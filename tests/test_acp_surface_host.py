@@ -87,7 +87,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("border-radius: var(--acp-radius-control)", styles)
         self.assertIn("border-radius: 50%", styles)
         self.assertIn("border-radius: var(--acp-radius-card)", styles)
-        self.assertIn("font-size: clamp(1.02rem, 2.55vmin, 1.18rem)", styles)
+        self.assertIn("font-size: clamp(1.17rem, 2.9vmin, 1.36rem)", styles)
         self.assertIn('href="/clock">Home</a>', navigation)
         self.assertNotIn('href="/clock">Clock</a>', navigation)
         self.assertIn("rgba(6, 12, 22, 0.42)", styles)
@@ -99,7 +99,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
 
         self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
         self.assertIn("nav-utility-button nav-audio-button", drawer)
-        self.assertIn("20261007-b5-followup-v2", base)
+        self.assertIn("20261009-b5-labels-v3", base)
         self.assertIn("20261007-nav-shell-v8", base)
 
     def test_shell_navigation_interactions_survive_surface_dom_changes(self):
@@ -149,7 +149,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261007-b5-followup-v2", base)
+        self.assertIn("20261009-b5-labels-v3", base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -231,7 +231,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261007-b5-followup-v2", base)
+        self.assertIn("20261009-b5-labels-v3", base)
 
     def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -280,7 +280,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261007-b5-followup-v2", base)
+        self.assertIn("20261009-b5-labels-v3", base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
