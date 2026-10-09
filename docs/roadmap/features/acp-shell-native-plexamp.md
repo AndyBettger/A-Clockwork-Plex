@@ -1131,7 +1131,7 @@ The second slice makes only the adjacent cross-renderer boundary spatial:
 - non-Spatial styles continue through the accepted Plexamp transition backend unchanged;
 - **long jumps involving Plexamp are deliberately not spatial yet**. Home/Weather/News ↔ Plexamp remain on the accepted ordinary backend until B6c stages the intermediate ACP workspaces.
 
-Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp renderer adapter), `003a60cfb9d69c73a7402e2ced0ea61487389c52` (navigation routing), `e9d2a643770905298c5abbab01d9804b214d3580` (asset versions), and `6faf264ffdbee69d429c3fa5629c45bc2bdb2f0f` (aligned topology/adjacent regression). Automated gate **Tests #5368** is running.
+Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp renderer adapter), `003a60cfb9d69c73a7402e2ced0ea61487389c52` (navigation routing), `e9d2a643770905298c5abbab01d9804b214d3580` (asset versions), and `6faf264ffdbee69d429c3fa5629c45bc2bdb2f0f` (aligned topology/adjacent regression). The first combined run **Tests #5368** exposed only two stale static assertions from the topology/handoff refactor; aligned regression head `7619686be2b12a1439f154d9e5c12b84aa3ddfa2` passes the full maintained suite as **Tests #5370**. Focused commissioned-Pi acceptance is pending.
 
 Focused B6b physical gate:
 
