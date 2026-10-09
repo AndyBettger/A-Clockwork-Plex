@@ -56,19 +56,30 @@
     return !isAutomaticNavigation(options) && navigationModeOpen();
   }
 
+  function visibleWorkspaceRoute() {
+    return plexampVisiblyOpen() ? '/plexamp' : activeRoute();
+  }
+
   function spatialPrototypeDirection(target, mainNavLink = false) {
-    if (!mainNavLink || !navigationModeOpen() || plexampVisiblyOpen()) return '';
+    if (!mainNavLink || !navigationModeOpen()) return '';
     if (String(preferences().transitionStyle || '').toLowerCase() !== 'spatial-row') return '';
 
     const topology = window.ACPWorkspaceTopology;
-    const path = topology?.path?.(activeRoute(), String(target?.pathname || '')) || [];
+    const fromRoute = visibleWorkspaceRoute();
+    const toRoute = String(target?.pathname || '');
+    const path = topology?.path?.(fromRoute, toRoute) || [];
     if (path.length < 2) return '';
 
-    // B6 makes the shell topology authoritative before changing renderer
-    // behaviour. The existing live-DOM compositor still owns ACP-only paths;
-    // Plexamp joins the same path through a renderer adapter in the next slice.
-    if (path.some((entry) => entry.renderer !== 'acp')) return '';
-    return topology.direction(activeRoute(), String(target?.pathname || ''));
+    const acpOnly = path.every((entry) => entry.renderer === 'acp');
+    const adjacentCrossRenderer = path.length === 2
+      && path.some((entry) => entry.renderer === 'plexamp')
+      && path.some((entry) => entry.renderer === 'acp');
+
+    // B6b commissions only the adjacent AirPlay↔Plexamp boundary. Longer
+    // Plexamp paths remain on the accepted ordinary transition backend until
+    // the intermediate-workspace strip is added in the next bounded slice.
+    if (!acpOnly && !adjacentCrossRenderer) return '';
+    return topology.direction(fromRoute, toRoute);
   }
 
   function rememberNavigationMode(target) {
@@ -218,7 +229,13 @@
     }
 
     if (target.pathname === '/plexamp' && window.ACPPlexamp) {
-      const duration = Number(window.ACPPlexamp.show({
+      const spatialAdjacent = options.spatialCommitDirection === 'forward'
+        && window.ACPWorkspaceTopology?.path?.(visibleWorkspaceRoute(), '/plexamp')?.length === 2
+        && typeof window.ACPPlexamp.spatialShow === 'function';
+      const showPlexamp = spatialAdjacent
+        ? window.ACPPlexamp.spatialShow
+        : window.ACPPlexamp.show;
+      const duration = Number(showPlexamp({
         updateMode: false,
         manual: false,
         preserveNavigation: shouldPreserveNavigation(options),
@@ -242,7 +259,13 @@
       const mode = target.pathname.slice(1) || 'clock';
 
       if (target.pathname === activeRoute()) {
-        const duration = Number(window.ACPPlexamp.hide?.({
+        const spatialAdjacent = options.spatialCommitDirection === 'reverse'
+          && window.ACPWorkspaceTopology?.path?.('/plexamp', target.pathname)?.length === 2
+          && typeof window.ACPPlexamp.spatialHide === 'function';
+        const hidePlexamp = spatialAdjacent
+          ? window.ACPPlexamp.spatialHide
+          : window.ACPPlexamp.hide;
+        const duration = Number(hidePlexamp({
           updateMode: false,
           targetMode: mode,
           preserveNavigation,
@@ -264,7 +287,13 @@
           source: String(options.source || 'plexamp-mounted-handoff'),
         });
         if (result?.handled) {
-          const duration = Number(window.ACPPlexamp.hide?.({
+          const spatialAdjacent = options.spatialCommitDirection === 'reverse'
+            && window.ACPWorkspaceTopology?.path?.('/plexamp', target.pathname)?.length === 2
+            && typeof window.ACPPlexamp.spatialHide === 'function';
+          const hidePlexamp = spatialAdjacent
+            ? window.ACPPlexamp.spatialHide
+            : window.ACPPlexamp.hide;
+          const duration = Number(hidePlexamp({
             updateMode: false,
             targetMode: mode,
             preserveNavigation,
