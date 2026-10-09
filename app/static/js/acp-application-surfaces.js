@@ -244,7 +244,7 @@
     });
   }
 
-  const spatialSurfaceOrder = ['clock', 'weather', 'news', 'airplay'];
+  const spatialSurfaceOrder = window.ACPWorkspaceTopology?.acpSurfaceOrder?.() || [];
 
   function spatialSurfaceDirection(from, to) {
     const fromIndex = spatialSurfaceOrder.indexOf(String(from || ''));
