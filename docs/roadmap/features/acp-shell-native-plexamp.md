@@ -1348,7 +1348,7 @@ V5 narrows the fix to the actual failing layer:
 - this locally reproduces the normal astronomy red multiply treatment on the one named snapshot that sits above the page overlay, without introducing any full-screen overlay snapshot;
 - the independent live-DOM Spatial strip retains its accepted dark/black safety canvas and requires no nav tint because its persistent nav is already physically correct.
 
-Implementation head after cleanup is `9949442191f3a544411fcfec594bc557eeeef474`; **Tests #5452** is the current automated gate.
+Implementation/cleanup head `9949442191f3a544411fcfec594bc557eeeef474` passes the complete maintained suite as **Tests #5452**. Focused commissioned-Pi verification of edge bounce and ordinary-transition nav snapshot tint remains the B7 closure gate.
 
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
