@@ -391,7 +391,7 @@ This keeps the user-facing model simple: **one Transition style setting, one Tra
 
 The astronomy-night exception is deliberate shell ownership, not a second user-visible transition mode. Commissioned-Pi testing showed that Chromium's named persistent-navigation View Transition snapshot is painted above the live astronomy multiply overlay and repeatedly exposes captured daytime pixels. Recolouring that frozen snapshot proved unreliable and one overlay-as-snapshot experiment produced full-screen red frames. The architectural direction is therefore to avoid creating the snapshot at all: clone only the outgoing ACP `main.screen`, commit the mounted destination beneath it, animate outgoing/incoming screen layers with the selected style, and leave navigation/backdrop/handle/night overlay live. Settings inherits the same fallback when Spatial row is selected because Settings is a utility surface rather than a row member.
 
-**Physical acceptance:** the commissioned Pi passes this model across the ordinary transition styles and the Settings fallback under Spatial row. The navigation remains in astronomy-night presentation for the full transition while only application content moves underneath it, and repeated stress testing no longer produces the earlier white, solid-red or travelling-rectangle artefacts. The zero-margin 40 px/s night-clock cluster is also accepted. This closes B7 and satisfies the Phase-A prerequisite for Astronomy.
+**Physical acceptance:** the commissioned Pi passes this model across the ordinary transition styles and the Settings fallback under Spatial row. The navigation remains in astronomy-night presentation for the full transition while only application content moves underneath it, and repeated stress testing no longer produces the earlier white, solid-red or travelling-rectangle artefacts. The zero-margin 40 px/s night-clock cluster is also accepted. This closes B7 and Phase A, allowing #94 to move into **Phase B native Linux Plexamp**; Astronomy remains queued until that migration is physically accepted.
 
 B0 proved Clock→Weather physically. B1 introduces the first actual ordered row with two members: `['clock', 'weather']`. Navigation derives forward/reverse direction from the current and target indices, and the application-surface compositor validates the same relation independently before animating. Both directions therefore use one direction-neutral live-DOM primitive rather than separate page-specific effects. Destinations outside the currently implemented row continue to map to Horizontal slide while Spatial row is selected; that fallback remains temporary and must disappear as the ordered model expands.
 
@@ -778,11 +778,13 @@ Physical gates include:
 single-document foundation is accepted before Astronomy starts, so Astronomy is
 not knowingly built in the legacy multi-document model and then migrated.
 
-Astronomy may begin once the accepted Phase-A shell contract is complete, including the B5 utility-cluster/navigation topology, B6 terminal Plexamp workspace semantics and B7 night-clock anti-burn-in motion gate. It still does
-not need to wait for every later native-Plexamp lifecycle gate if those player
-experiments are still continuing. Full Appliance Resilience follows the
-modernisation so it hardens the architecture that actually survives #94 rather
-than fully hardening components that may be retired.
+Phase A establishes the application-shell contract first. Phase B then completes
+the native Linux Plexamp migration on that accepted shell. **Astronomy begins
+only after the native-player migration is physically accepted**, so #94 remains
+one coherent modernisation track rather than being split around a new product
+surface. Full Appliance Resilience follows the modernisation/Astronomy work so
+it hardens the architecture that actually survives #94 rather than fully
+hardening components that may be retired.
 
 However, #94 itself must still prove minimum resilience before migration:
 
