@@ -97,11 +97,11 @@
         </label>
         <label class="setting-field" data-night-burn-in-speed-field>
           <span>Night burn-in motion speed</span>
-          <input type="range" min="1" max="20" step="1" value="6"
+          <input type="range" min="5" max="120" step="5" value="40"
             data-settings-completion-control
             data-setting-path="display.night_burn_in_speed_px_per_second"
             data-night-burn-in-speed>
-          <output data-night-burn-in-speed-output>6 px/s</output>
+          <output data-night-burn-in-speed-output>40 px/s</output>
           <small>Controls continuous Bouncing speed only; page and navigation transition timing are independent.</small>
         </label>
       </div>
@@ -144,7 +144,7 @@
       night_clock_mode: path('display.night_clock_mode')?.checked === true,
       night_burn_in_motion: path('display.night_burn_in_motion')?.value || 'periodic',
       night_burn_in_speed_px_per_second: Number(
-        path('display.night_burn_in_speed_px_per_second')?.value || 6,
+        path('display.night_burn_in_speed_px_per_second')?.value || 40,
       ),
       night_burn_in_shift: (path('display.night_burn_in_motion')?.value || 'periodic') !== 'off',
     };
@@ -156,7 +156,7 @@
     if (output) output.textContent = `${Math.round(value)}%`;
 
     const mode = path('display.night_burn_in_motion')?.value || 'periodic';
-    const speed = Number(path('display.night_burn_in_speed_px_per_second')?.value || 6);
+    const speed = Number(path('display.night_burn_in_speed_px_per_second')?.value || 40);
     const speedControl = path('display.night_burn_in_speed_px_per_second');
     const speedField = document.querySelector('[data-night-burn-in-speed-field]');
     const speedOutput = document.querySelector('[data-night-burn-in-speed-output]');
