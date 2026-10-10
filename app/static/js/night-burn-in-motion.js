@@ -47,7 +47,7 @@
 
   function normaliseSpeed(value) {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? clamp(parsed, 5, 120) : 40;
+    return Number.isFinite(parsed) ? clamp(parsed, 1, 120) : 40;
   }
 
   function setPosition(nextX, nextY) {
