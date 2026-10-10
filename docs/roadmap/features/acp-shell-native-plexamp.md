@@ -1135,14 +1135,17 @@ Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp render
 
 Focused B6b physical gate:
 
-- [ ] AirPlay → Plexamp is one clean adjacent 100vw movement with both live surfaces visible edge-to-edge and no fade/gap.
-- [ ] Plexamp → AirPlay is the exact reverse.
-- [ ] A slow Transition duration applies once to the complete AirPlay↔Plexamp movement.
-- [ ] Open navigation remains fixed above both moving workspaces.
-- [ ] Plexamp playback/UI state remains continuous before, during and after the movement.
-- [ ] AirPlay live/ready state remains correct after returning from Plexamp.
-- [ ] Cover reveal (or another non-Spatial style) still uses the existing ordinary Plexamp transition.
-- [ ] Home/Weather/News → Plexamp still use ordinary transition behaviour for now; no fake partial spatial long jump is introduced.
+**10 October 2026 commissioned-Pi result:** all eight visual/behavioural checks pass. A separate audio-continuity issue prevents B6b sign-off: Plexamp music is clean while the UI is idle, but brief glitches are audible during page transitions and while navigating between Settings sections/subpages. Because Settings internal navigation is primarily synchronous panel hide/show + layout/paint rather than the B6b spatial animation, investigation is treating this as a wider UI-load / real-time-audio interaction rather than assuming the new AirPlay↔Plexamp adapter is solely responsible.
+
+
+- [x] AirPlay → Plexamp is one clean adjacent 100vw movement with both live surfaces visible edge-to-edge and no fade/gap.
+- [x] Plexamp → AirPlay is the exact reverse.
+- [x] A slow Transition duration applies once to the complete AirPlay↔Plexamp movement.
+- [x] Open navigation remains fixed above both moving workspaces.
+- [~] Plexamp playback/UI state remains logically continuous, but the commissioned Pi exposes brief audible glitches during UI-heavy activity. Idle playback is clean; glitches have been heard during page transitions and while navigating Settings. Audio continuity therefore remains an open acceptance gate.
+- [x] AirPlay live/ready state remains correct after returning from Plexamp.
+- [x] Cover reveal (or another non-Spatial style) still uses the existing ordinary Plexamp transition.
+- [x] Home/Weather/News → Plexamp still use ordinary transition behaviour for now; no fake partial spatial long jump is introduced.
 
 This should make native Plexamp migration easier: the shell first owns a stable workspace index/order, then the Phase-B migration replaces only the Plexamp endpoint implementation and cross-application transition backend. Do not force native Plexamp into `ACPSurfaceHost` merely to satisfy the spatial metaphor; introduce/retain a shell/workspace abstraction above browser-surface and native-application implementations.
 
