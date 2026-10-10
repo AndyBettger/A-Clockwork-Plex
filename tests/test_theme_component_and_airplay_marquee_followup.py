@@ -193,7 +193,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("function schedulePreviewExpiry()", dimming)
         self.assertIn("Math.min(previewUntil, requestedUntil)", dimming)
         self.assertIn("if (previewing()) return;", dimming)
-        self.assertIn("20261010-b7-bounce-v1", base)
+        self.assertIn("20261010-b7-followup-v2", base)
         self.assertIn("function displayedSecond()", colon)
         self.assertIn("MutationObserver", colon)
         self.assertIn("attributeName === 'aria-label'", colon)
