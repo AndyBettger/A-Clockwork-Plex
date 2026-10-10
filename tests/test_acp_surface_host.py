@@ -309,9 +309,10 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("window.ACPSurfaceHost?.canNavigate?.(target.pathname)", transitions)
         self.assertIn("animate: false", transitions)
         self.assertIn("'plexamp-mounted-handoff'", transitions)
-        self.assertIn("const hidePlexamp = spatialAdjacent", transitions)
-        self.assertIn("? window.ACPPlexamp.spatialHide", transitions)
-        self.assertIn(": window.ACPPlexamp.hide", transitions)
+        self.assertIn("const hidePlexamp = spatialRequested", transitions)
+        self.assertIn("window.ACPPlexamp.spatialHidePath", transitions)
+        self.assertIn("window.ACPPlexamp.spatialHide", transitions)
+        self.assertIn("window.ACPPlexamp.hide", transitions)
 
         self.assertIn("options.preserveNavigation !== true", plexamp)
         self.assertIn("function prepareNavigation(options = {})", plexamp)
@@ -475,6 +476,8 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("await ensureScripts(record.scripts)", surfaces)
         self.assertIn("refreshForSpatialPreview", surfaces)
         self.assertIn("waitForReady?.(700)", surfaces)
+        self.assertIn("calibrateForSpatialPreview", surfaces)
+        self.assertIn("measureForSpatialPreview", surfaces)
         clone_start = surfaces.index("async function cloneMountedSpatialLayer")
         clone_end = surfaces.index("async function spatialLiveCommit", clone_start)
         clone_block = surfaces[clone_start:clone_end]
