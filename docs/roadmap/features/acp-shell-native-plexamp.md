@@ -1298,5 +1298,22 @@ The follow-up directly addresses the physical findings:
 
 The first follow-up implementation passed the full suite as **Tests #5417**; the migration-safe speed-scale refinement on implementation head `9e56da66d36299d890e816c4d2c2fc0ac481a4f6` passes the full suite as **Tests #5421**.
 
+**10 October 2026 second commissioned-Pi pass:** the wider speed range is physically useful and **40 px/s feels suitable as the normal/default value**. The inactive alarm bell is now visible as intended. The rebased bell, however, sits inside the clock face over the seconds rather than just outside it, and the visible edge clearance still feels too generous even though it is now symmetrical. The segment glow is not part of `getBoundingClientRect()` collision geometry, so it is retained. Astronomy-night navigation is still wrong during ordinary ACP page transitions: named nav snapshots temporarily appear in the selected daytime palette until the transition ends and the document overlay resumes. One additional brief full-white transition flash was also observed but was not reproducible or tied to a specific route.
+
+##### B7 follow-up v3 — visible bounds + transition-top-layer night safety
+
+The next focused candidate addresses those remaining findings:
+
+- the alarm bell remains anchored to the compact night Clock cluster but is moved just above/slightly outside its top-right corner rather than over the seconds;
+- the cluster remains the single translated object, while collision bounds are measured from the **visible union of time + date + alarm bell** so wrapper whitespace cannot create a fake margin;
+- the deliberate edge safety margin is reduced from 20 px to **10 px**;
+- the segment glow is retained because CSS shadows/filters do not affect the geometric bounding boxes used by the collision engine;
+- `#acp-night-dim-overlay` now has its own named View Transition layer with a z-index above the persistent navigation snapshots, so the exact night treatment remains above navigation during ordinary ACP transitions instead of disappearing beneath the transition top layer;
+- night style is mirrored onto the document root so transition pseudo-elements can preserve astronomy multiply behaviour;
+- the View Transition canvas, root group, root image-pair and root old/new snapshots all receive explicit dark backing (`#02040a`, black when night-active);
+- the separate live-DOM Spatial-row path also receives explicit dark/black backing, covering both transition implementations against a transient white browser canvas.
+
+Implementation/regression head is `2828f17e56306849844f4305016fc12c4e11a0f5`; **Tests #5434** is the automated gate for this follow-up.
+
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
