@@ -31,30 +31,6 @@ html.acp-night-document-active::view-transition-new(root) {
   background: #000;
 }
 
-/* The night overlay must remain above named persistent-shell snapshots. Without
-   its own transition layer Chromium places nav snapshots above the document's
-   multiply overlay for the duration of the transition, briefly exposing the
-   daytime palette. Use the incoming overlay snapshot only to avoid double
-   dimming when old/new snapshots are identical. */
-::view-transition-group(acp-night-dim-overlay) {
-  z-index: 2147483000;
-  animation: none !important;
-}
-
-::view-transition-old(acp-night-dim-overlay) {
-  opacity: 0;
-  animation: none !important;
-}
-
-::view-transition-new(acp-night-dim-overlay) {
-  animation: none !important;
-  mix-blend-mode: normal;
-}
-
-html.acp-night-style-astronomy::view-transition-new(acp-night-dim-overlay) {
-  mix-blend-mode: multiply;
-}
-
 /* The root marker is installed synchronously in <head>, before body content can
    paint. This closes the tiny first-paint gap that a body-only class can leave. */
 html.acp-document-booting body {
