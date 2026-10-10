@@ -10,6 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "display-dimming.js"
 MOTION = ROOT / "app" / "static" / "js" / "night-burn-in-motion.js"
 STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
+PAGE_STYLE = ROOT / "app" / "static" / "css" / "page-transitions.css"
+CLOCK_STYLE = ROOT / "app" / "static" / "css" / "clock-dashboard.css"
+CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
 BASE = ROOT / "app" / "templates" / "base.html"
 PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 SETTINGS = ROOT / "app" / "static" / "js" / "settings-completion.js"
@@ -100,7 +103,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("root.style.backgroundColor = '#000'", client)
         self.assertIn("html.acp-night-no-transition", style)
         self.assertIn("transition: none !important", style)
-        self.assertIn("20261010-b7-bounce-v1", base)
+        self.assertIn("20261010-b7-followup-v2", base)
 
     def test_plexamp_iframe_activity_uses_linux_input_monitor(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -188,14 +191,16 @@ class DisplayDimmingTests(unittest.TestCase):
 
         self.assertIn("window.ACPNightBurnInMotion", client)
         self.assertIn("burnInMode: 'periodic'", client)
-        self.assertIn("burnInSpeedPxPerSecond: 6", client)
+        self.assertIn("burnInSpeedPxPerSecond: 40", client)
         self.assertIn("updateBurnInMotion(clockModeActive)", client)
         self.assertIn("acp:surface-activated", client)
         self.assertIn("acp:surface-settled", client)
 
-        for selector in ("#clock-time", "#clock-date", "#clock-alarm-annunciator"):
-            self.assertIn(selector, motion)
-            self.assertIn(selector, style)
+        self.assertIn("#clock-burn-in-cluster", motion)
+        self.assertIn("#clock-burn-in-cluster", style)
+        self.assertNotIn("'#clock-time'", motion)
+        self.assertNotIn("'#clock-date'", motion)
+        self.assertNotIn("'#clock-alarm-annunciator'", motion)
         self.assertIn("requestAnimationFrame(tick)", motion)
         self.assertIn("function reflectedStep", motion)
         self.assertIn("velocityX *= -1", motion)
@@ -217,9 +222,32 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn('value="periodic">Periodic shift', settings)
         self.assertIn('value="bounce">Bouncing', settings)
         self.assertIn('data-setting-path="display.night_burn_in_speed_px_per_second"', settings)
-        self.assertIn('min="1" max="20" step="1"', settings)
+        self.assertIn('min="5" max="120" step="5"', settings)
         self.assertIn("_NIGHT_BURN_IN_MOTIONS", backend)
         self.assertIn('{"off", "periodic", "bounce"}', backend)
+
+    def test_b7_followup_rebases_alarm_and_guards_night_shell(self):
+        style = STYLE.read_text(encoding="utf-8")
+        page_style = PAGE_STYLE.read_text(encoding="utf-8")
+        clock_style = CLOCK_STYLE.read_text(encoding="utf-8")
+        clock_template = CLOCK_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn('id="clock-burn-in-cluster"', clock_template)
+        self.assertIn(".clock-burn-in-cluster", clock_style)
+        self.assertIn("display: contents", clock_style)
+        self.assertIn("body.acp-night-clock-mode .clock-burn-in-cluster", clock_style)
+        self.assertIn("body.acp-night-clock-mode .clock-alarm-annunciator", clock_style)
+
+        self.assertIn(".clock-alarm-annunciator:not(.is-active)", style)
+        self.assertIn("opacity: 0.30", style)
+        self.assertIn(".nav-drawer", style)
+        self.assertIn("rgb(255, 64, 64)", style)
+        self.assertIn(":not(.nav-drawer)", style)
+
+        self.assertIn("html::view-transition", page_style)
+        self.assertIn("background: #02040a", page_style)
+        self.assertIn("html.acp-night-document-active::view-transition", page_style)
+        self.assertIn("background: #000", page_style)
 
     def test_b7_legacy_burn_in_boolean_remains_compatible(self):
         client = CLIENT.read_text(encoding="utf-8")
