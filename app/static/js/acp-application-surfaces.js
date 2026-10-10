@@ -306,7 +306,8 @@
     return prepareSpatialLayer(screen.cloneNode(true), surface);
   }
 
-  function cloneMountedSpatialLayer(surface, restoreSurface) {
+  async function cloneMountedSpatialLayer(surface, restoreSurface) {
+    const record = await ensureMounted(surface);
     const bodyState = captureBodyPresentationState();
     try {
       // Intermediate row members are presentation-only captures. Never call
@@ -315,11 +316,19 @@
       // now-playing/route-ready geometry that the outgoing clone must preserve.
       presentMountedSurface(surface);
       applyBodyPresentationSurface(surface);
+
+      if (surface === 'airplay') {
+        await ensureScripts(record.scripts);
+        await window.ACPAirPlayLive?.refreshForSpatialPreview?.();
+        await (window.ACPAirPlayHydration?.waitForReady?.(700) || Promise.resolve());
+      }
+
       screen.getBoundingClientRect();
       return prepareSpatialLayer(screen.cloneNode(true), surface);
     } finally {
       presentMountedSurface(restoreSurface);
       restoreBodyPresentationState(bodyState);
+      window.ACPAirPlaySurfaceLifecycle?.publish?.({ force: true });
     }
   }
 
