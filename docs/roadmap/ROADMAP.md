@@ -84,7 +84,7 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 
 Headless remains the accepted rollback/player runtime until every native-player gate passes.
 
-**Phase-A checklist reconciliation:** the detailed #94 roadmap has been audited after B7 acceptance. All implemented shell/surface/theme/touch/transition objectives are complete. The only original A0 investigation not actually performed is the planned Chromium-vs-Firefox commissioned-Pi benchmark; it is now recorded explicitly as a **non-gating unresolved decision**, not silently left as an unchecked Phase-A acceptance item. Native-player startup/recovery and Search/text-entry gates belong to Phase B.
+**Phase-A checklist reconciliation:** the detailed #94 roadmap has been audited after B7 acceptance. All implemented shell/surface/theme/touch/transition objectives are complete. The planned Chromium-vs-Firefox commissioned-Pi benchmark was never performed and is now explicitly **retired as superseded by the physically accepted Chromium baseline**; it is not a Phase-A acceptance gap. Reconsider the browser only if Phase B exposes a concrete browser-level reason. Native-player startup/recovery and Search/text-entry gates belong to Phase B.
 
 Detailed status: [features/acp-shell-native-plexamp.md](features/acp-shell-native-plexamp.md).
 
