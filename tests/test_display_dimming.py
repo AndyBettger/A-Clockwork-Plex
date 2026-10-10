@@ -103,7 +103,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("root.style.backgroundColor = '#000'", client)
         self.assertIn("html.acp-night-no-transition", style)
         self.assertIn("transition: none !important", style)
-        self.assertIn("20261010-b7-followup-v2", base)
+        self.assertIn("20261010-b7-followup-v3", base)
 
     def test_plexamp_iframe_activity_uses_linux_input_monitor(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -196,11 +196,10 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("acp:surface-activated", client)
         self.assertIn("acp:surface-settled", client)
 
-        self.assertIn("#clock-burn-in-cluster", motion)
         self.assertIn("#clock-burn-in-cluster", style)
-        self.assertNotIn("'#clock-time'", motion)
-        self.assertNotIn("'#clock-date'", motion)
-        self.assertNotIn("'#clock-alarm-annunciator'", motion)
+        for selector in ("#clock-time", "#clock-date", "#clock-alarm-annunciator"):
+            self.assertIn(selector, motion)
+        self.assertIn("const SAFE_MARGIN_PX = 10", motion)
         self.assertIn("requestAnimationFrame(tick)", motion)
         self.assertIn("function reflectedStep", motion)
         self.assertIn("velocityX *= -1", motion)
@@ -244,9 +243,16 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("rgb(255, 64, 64)", style)
         self.assertIn(":not(.nav-drawer)", style)
 
+        self.assertIn("view-transition-name: acp-night-dim-overlay", style)
         self.assertIn("html::view-transition", page_style)
+        self.assertIn("::view-transition-group(acp-night-dim-overlay)", page_style)
+        self.assertIn("z-index: 2147483000", page_style)
+        self.assertIn("html.acp-night-style-astronomy::view-transition-new(acp-night-dim-overlay)", page_style)
+        self.assertIn("html::view-transition-group(root)", page_style)
+        self.assertIn("html::view-transition-image-pair(root)", page_style)
         self.assertIn("background: #02040a", page_style)
         self.assertIn("html.acp-night-document-active::view-transition", page_style)
+        self.assertIn("html.acp-night-document-active::view-transition-group(root)", page_style)
         self.assertIn("background: #000", page_style)
 
     def test_b7_legacy_burn_in_boolean_remains_compatible(self):
