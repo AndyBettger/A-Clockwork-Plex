@@ -1131,7 +1131,7 @@ The second slice makes only the adjacent cross-renderer boundary spatial:
 - non-Spatial styles continue through the accepted Plexamp transition backend unchanged;
 - **long jumps involving Plexamp are deliberately not spatial yet**. Home/Weather/News ↔ Plexamp remain on the accepted ordinary backend until B6c stages the intermediate ACP workspaces.
 
-Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp renderer adapter), `003a60cfb9d69c73a7402e2ced0ea61487389c52` (navigation routing), `e9d2a643770905298c5abbab01d9804b214d3580` (asset versions), and `6faf264ffdbee69d429c3fa5629c45bc2bdb2f0f` (aligned topology/adjacent regression). The first combined run **Tests #5368** exposed only two stale static assertions from the topology/handoff refactor; aligned regression head `7619686be2b12a1439f154d9e5c12b84aa3ddfa2` passes the full maintained suite as **Tests #5370**. Focused commissioned-Pi acceptance is pending.
+Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp renderer adapter), `003a60cfb9d69c73a7402e2ced0ea61487389c52` (navigation routing), `e9d2a643770905298c5abbab01d9804b214d3580` (asset versions), and `6faf264ffdbee69d429c3fa5629c45bc2bdb2f0f` (aligned topology/adjacent regression). The first combined run **Tests #5368** exposed only two stale static assertions from the topology/handoff refactor; aligned regression head `7619686be2b12a1439f154d9e5c12b84aa3ddfa2` passes the full maintained suite as **Tests #5370**. Commissioned-Pi acceptance is complete.
 
 Focused B6b physical gate:
 
@@ -1150,6 +1150,57 @@ Focused B6b physical gate:
 - [x] Home/Weather/News → Plexamp still use ordinary transition behaviour for now; no fake partial spatial long jump is introduced.
 
 **B6b PHYSICALLY ACCEPTED — 2026-10-10.** All eight visual/behavioural checks pass and the suspected audio issue is not reproducible under targeted stress.
+
+##### B6c — literal long-jump traversal to/from Plexamp
+
+B6c extends the accepted shell topology beyond the adjacent AirPlay↔Plexamp boundary without making Plexamp an ACP browser surface.
+
+For a forward long jump such as `Home → Plexamp`:
+
+```text
+Home → Weather → News → AirPlay → Plexamp
+```
+
+the source plus intermediate ACP workspaces are captured as presentation-only live-DOM layers in their literal row positions, while the **real persistent Plexamp layer** occupies the terminal slot. The entire strip moves once across the configured Transition duration.
+
+Reverse traversal mirrors the same topology. For example `Plexamp → Home` stages AirPlay, News and Weather between the live Plexamp source and the committed live Home destination, then moves the complete strip right in one movement.
+
+Important lifecycle rules:
+
+- the accepted adjacent `spatialShow()` / `spatialHide()` path remains intact; long jumps use separate `spatialShowPath()` / `spatialHidePath()` renderer adapters;
+- ACP intermediate workspaces are presentation-only captures and are never logically activated;
+- AirPlay is now allowed to be an **intermediate** workspace, so its script-owned status is refreshed while its wrapper is still hidden, then its measured layout is synchronously calibrated during the capture window;
+- the real AirPlay wrapper is never left visible across an `await`, preventing a pre-transition flash;
+- Home/Weather/News/AirPlay capture layers remain inert and are removed after travel;
+- the persistent Plexamp iframe/player itself moves; it is not cloned/reloaded;
+- one configured application Transition duration owns the full multi-workspace journey;
+- navigation remains persistent shell chrome above the moving strip;
+- automatic projection and non-Spatial transition styles retain their accepted existing paths.
+
+Key implementation chain:
+
+- `9e2eadce98bb6deba98775d63ea0e4284c9a2bc4` adds presentation-only AirPlay preview refresh;
+- `c2a2e233f24fce8b001fca87f971e40a6f48e218` exposes ACP staged-strip capture;
+- `e12bd0e14f114835487be506ade9195f09ee2d7b` adds long-path Plexamp renderer adapters;
+- `05f084d44de5b356b5e05abcbbe30ce73d707039` routes long Spatial requests through those adapters;
+- `eb7a7bcae4cf2e4393598f673e136899a0c1b6ef` keeps AirPlay hidden while awaiting preview hydration;
+- `73c1dd73f6145c9d8e5068d9dcf6ab342f39e381` adds synchronous AirPlay layout/marquee preview calibration;
+- final regression/cache alignment is through `f10ee196629051d449a624075727fcf1c28793a2`.
+
+Intermediate **Tests #5384/#5390** reds were stale static expectations only; the final aligned B6c head passes the complete maintained suite as **Tests #5391**.
+
+Focused B6c physical gate:
+
+- [ ] Home → Plexamp visibly traverses Weather → News → AirPlay → Plexamp in that exact order.
+- [ ] Weather → Plexamp traverses News → AirPlay → Plexamp; News → Plexamp traverses AirPlay → Plexamp.
+- [ ] Plexamp → Home is the exact reverse: Plexamp → AirPlay → News → Weather → Home.
+- [ ] Plexamp → Weather and Plexamp → News preserve the corresponding shortened reverse paths.
+- [ ] One slow Transition duration applies to the **entire** long journey, not once per workspace.
+- [ ] Intermediate AirPlay is presentation-correct on the **first** long jump, including route-ready/now-playing geometry, with no pre-transition flash.
+- [ ] Open navigation remains fixed above the complete long strip.
+- [ ] Plexamp playback/UI state survives long jumps exactly as it did for the accepted adjacent boundary.
+- [ ] Lift and Overlay navigation presentations both retain correct vertical geometry during the long strip.
+- [ ] Cover reveal (or another non-Spatial style) continues to use the ordinary Plexamp transition; automatic projection also remains non-Spatial.
 
 This should make native Plexamp migration easier: the shell first owns a stable workspace index/order, then the Phase-B migration replaces only the Plexamp endpoint implementation and cross-application transition backend. Do not force native Plexamp into `ACPSurfaceHost` merely to satisfy the spatial metaphor; introduce/retain a shell/workspace abstraction above browser-surface and native-application implementations.
 
