@@ -611,8 +611,8 @@
     }
   }
 
-  async function refreshStatus() {
-    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+  async function refreshStatus({ force = false } = {}) {
+    if (!force && surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
       if (!response.ok) {
@@ -750,5 +750,14 @@
   });
 
   if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activatePresentation();
+
+  // B6 long-jump staging sometimes needs a presentation-correct AirPlay clone
+  // while AirPlay is not the logical destination (and may be covered by
+  // Plexamp). This refreshes presentation state only; it does not claim mode,
+  // publish activation or change navigation ownership.
+  window.ACPAirPlayLive = Object.freeze({
+    refreshForSpatialPreview: () => refreshStatus({ force: true }),
+  });
+
   window.addEventListener('pagehide', stopPresentationTimers, { once: true });
 })();
