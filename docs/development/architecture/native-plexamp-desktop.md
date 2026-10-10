@@ -373,7 +373,7 @@ B0 v4 deliberately changes only the spatial presentation primitive. The mounted-
 - use Web Animations to move the Clock clone to `-100vw` and Weather to `0` with identical timing;
 - remove the clone and inline transform in a `finally` cleanup.
 
-The Surface Host supports this through an optional `prepared.spatialCommit` lifecycle hook. The hook receives the normal `commit` callback, so logical surface ownership, body mode, navigation state, history, activation and settled events remain centralized in the existing host. Ordinary ACP transitions still use the View Transition API exactly as before.
+The Surface Host supports this through an optional `prepared.spatialCommit` lifecycle hook. The hook receives the normal `commit` callback, so logical surface ownership, body mode, navigation state, history, activation and settled events remain centralized in the existing host. Ordinary daytime ACP transitions may still use the View Transition API, but the host is now free to choose a surface-only live compositor when shell chrome must remain genuinely live rather than becoming a browser snapshot.
 
 This live-DOM strip has two architectural advantages beyond avoiding the blank texture: it uses the same mounted-surface objects the future carousel would actually own, and shell chrome such as the home indicator remains a real fixed shell layer rather than becoming part of a frozen root image. Commissioned-Pi testing accepts this mechanism across repeated runs and theme changes.
 
@@ -383,11 +383,13 @@ A spatial compositor must not silently replace the user's chosen application Tra
 
 The Motion setting is therefore the policy selector, while individual styles are free to use different rendering backends:
 
-- Grow/fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom and Blur dissolve continue to use the existing View Transition implementation;
+- Grow/fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom and Blur dissolve keep their existing visual semantics; by day they may use Chromium View Transitions, while astronomy-night mounted ACP transitions use a surface-only live-DOM/Web Animations compositor so persistent shell chrome and the night treatment remain real DOM above the moving content;
 - Instant continues to suppress decorative application movement;
 - **Spatial row** uses the live-DOM mounted-surface strip where that relation has been implemented.
 
 This keeps the user-facing model simple: **one Transition style setting, one Transition duration setting**. The implementation technology is an internal concern. Selecting Cover reveal must mean Cover reveal even when the destination was chosen from shell navigation; selecting Spatial row explicitly opts into spatial navigation semantics.
+
+The astronomy-night exception is deliberate shell ownership, not a second user-visible transition mode. Commissioned-Pi testing showed that Chromium's named persistent-navigation View Transition snapshot is painted above the live astronomy multiply overlay and repeatedly exposes captured daytime pixels. Recolouring that frozen snapshot proved unreliable and one overlay-as-snapshot experiment produced full-screen red frames. The architectural direction is therefore to avoid creating the snapshot at all: clone only the outgoing ACP `main.screen`, commit the mounted destination beneath it, animate outgoing/incoming screen layers with the selected style, and leave navigation/backdrop/handle/night overlay live. Settings inherits the same fallback when Spatial row is selected because Settings is a utility surface rather than a row member.
 
 B0 proved Clock→Weather physically. B1 introduces the first actual ordered row with two members: `['clock', 'weather']`. Navigation derives forward/reverse direction from the current and target indices, and the application-surface compositor validates the same relation independently before animating. Both directions therefore use one direction-neutral live-DOM primitive rather than separate page-specific effects. Destinations outside the currently implemented row continue to map to Horizontal slide while Spatial row is selected; that fallback remains temporary and must disappear as the ordered model expands.
 
