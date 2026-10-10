@@ -30,18 +30,22 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [x] Forecast Outlook custom horizontal rails physically retested across **first visit → leave Weather → second visit**; both rails remain visible and functional on subsequent visits.
 - [x] Fallback navigation to unmigrated **News** and **Settings** remains correct after the A1 lifecycle fixes.
 
-**Important:** A0 changes architecture ownership but deliberately changes **no current product route behaviour**. No Clock/Weather/News/Settings surface is registered yet; the accepted multi-document path remains the fallback.
+**Historical A0 starting point:** A0 changed architecture ownership without changing product-route behaviour. At that point no Clock/Weather/News/Settings surface was registered and the accepted multi-document path remained the fallback. That statement describes the starting checkpoint, not the current state.
 
-- [ ] Prototype one long-lived ACP web document with top-level application surfaces instead of full document navigation.
-- [ ] Move all ACP-owned top-level surfaces into that long-lived document: Clock, Weather, News, AirPlay, Settings, Astronomy and future application surfaces. Alarm remains ACP-owned as a forced/takeover surface. Native Plexamp is the deliberate cross-application exception.
-- [ ] Replace full-document periodic refreshes with surface-owned live data updates that preserve scroll position, focus, open panels, modal state and horizontal scrollers. Routine data refresh must not trigger a top-level View Transition.
-- [ ] Establish an ACP component/design system: data → reusable components → design tokens → application surfaces.
-- [ ] Prototype browser View Transitions for ACP-to-ACP surface changes.
-- [ ] Prototype the native ACP desktop shell: bottom home indicator, swipe-up navigation, transition/workspace ownership and optional system keyboard.
-- [ ] Prototype the spatial row/carousel as navigation mode, with exactly one committed destination transition.
-- [ ] Benchmark Chromium and Firefox on the commissioned Pi; keep Chromium unless Firefox shows a meaningful appliance-level advantage.
-- [ ] Preserve the existing ACP look and themes.
-- [ ] Physically accept touch, transition smoothness, startup/recovery and 1280×720 presentation.
+### Phase A closure reconciliation
+
+The original A0 planning list was left unchecked as the implementation evolved through A1–A4 and B0–B7. Reconciled against the accepted implementation and commissioned-Pi evidence:
+
+- [x] Establish one long-lived ACP web document with mounted top-level application surfaces instead of routine full-document navigation.
+- [x] Move the **current implemented ACP-owned surfaces** into that document: Home/Clock, Weather, News, Settings and AirPlay. Alarm remains an ACP-owned forced/takeover surface; Plexamp remains the deliberate cross-application terminal workspace. Astronomy and future surfaces inherit this contract when implemented rather than being prerequisites for closing Phase A.
+- [x] Replace legacy full-document refresh behaviour on the migrated surfaces with surface-owned live updates/lifecycle work that preserves relevant scroll position, open UI and mounted state. Future surfaces must follow the same rule.
+- [x] Establish the ACP component/design-token boundary used by the accepted shell and application surfaces; both bounded theme/token slices were physically accepted.
+- [x] Prove ACP-to-ACP transition ownership. Chromium View Transitions remain available where appropriate; Spatial and astronomy-night paths now use accepted live-DOM/live-screen compositors where browser snapshots are the wrong ownership model.
+- [x] Establish the shell-owned bottom navigation/home-indicator model: swipe/tap navigation, persistent shell ownership, utility controls, transition/workspace ownership and Settings text-entry behaviour are physically accepted. The earlier OS-level kiosk keyboard experiments were rejected; **native Plexamp Search/text entry remains a Phase-B gate**, not an unfinished Phase-A shell item.
+- [x] Prove the Spatial row/carousel navigation model with one logical destination commit, literal intermediate traversal and the accepted terminal Plexamp workspace semantics.
+- [~] **Chromium vs Firefox benchmark — NOT PERFORMED.** This planned comparison was never run on the commissioned Pi. Chromium subsequently became the heavily exercised/physically accepted browser baseline through A1–A4 and B0–B7. Keep this as an explicit non-gating decision: either retire the comparison as superseded by the accepted Chromium baseline or run a bounded benchmark later if Phase B exposes a browser-level reason to reconsider.
+- [x] Preserve the existing ACP visual identity and themes across the migrated surfaces, shell, Audio and Settings controls.
+- [x] Physically accept Phase-A touch behaviour, transition smoothness and 1280×720 presentation. **Native-player reboot/autostart/crash recovery remains explicitly in Phase B** and is not claimed as a completed Phase-A gate.
 
 ## Phase B — native Plexamp
 
