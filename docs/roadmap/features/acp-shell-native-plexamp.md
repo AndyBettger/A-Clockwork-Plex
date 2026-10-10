@@ -1247,7 +1247,7 @@ The first B7 candidate preserves the old anti-burn-in implementation as an expli
 Settings → Display → Night dimming now exposes:
 
 - **Anti-burn-in motion:** Off / Periodic shift / Bouncing;
-- **Night burn-in motion speed:** 1–20 px/s, default 6 px/s, enabled only for Bouncing.
+- **Night burn-in motion speed:** originally 1–20 px/s/default 6; after the first physical pass the range is **1–120 px/s** with fresh/default value **40 px/s**, enabled only for Bouncing. Existing saved values such as 6 px/s remain valid and are not silently migrated.
 
 The saved mode is `display.night_burn_in_motion`; speed is `display.night_burn_in_speed_px_per_second`. The legacy `night_burn_in_shift` boolean remains mirrored for older configuration/client compatibility. Existing configurations with the old checkbox off migrate to **Off**; existing enabled configurations migrate to **Periodic shift**. Fresh example configuration remains Periodic until Bouncing is physically accepted.
 
@@ -1257,8 +1257,9 @@ Runtime ownership is split cleanly:
 - `night-burn-in-motion.js` owns movement only;
 - Periodic shift preserves the accepted nine-position ±4 px pattern on the existing five-minute cadence;
 - Bouncing uses `requestAnimationFrame`, an initial non-axis-aligned vector and pixels-per-second velocity;
-- the time, date and alarm annunciator receive the same CSS individual `translate`, so they move as a rigid visual group while retaining their own existing transforms;
-- the union of all three live bounding boxes defines safe movement limits with a viewport margin;
+- the first candidate gave time, date and alarm annunciator the same CSS individual `translate`, proving rigid movement but exposing that the alarm was still positioned against the viewport-sized Clock hero;
+- the follow-up introduces a layout-transparent daytime `#clock-burn-in-cluster` which becomes the real positioned/bounded object only in very-dark Clock mode; the alarm is then anchored inside the cluster's top-right corner and one `translate` moves the entire group;
+- the real cluster box defines safe movement limits with a viewport margin, eliminating the remote alarm-annunciator "outrigger" that artificially collapsed the available travel area;
 - a collision reflects only the velocity component normal to that edge, giving ordinary specular reflection;
 - bounds are recalculated through `ResizeObserver`/viewport resize and the position is clamped back inside the safe area;
 - long renderer stalls are capped to a 50 ms motion step so resume cannot teleport the cluster through an edge;
@@ -1270,16 +1271,32 @@ Implementation/regression chain is aligned through `1637f17d54e7b21fc6f9cb02ded7
 
 Focused B7 physical gate:
 
-- [ ] Off leaves the night Clock stationary.
-- [ ] Periodic shift retains the previously accepted subtle five-minute behaviour.
-- [ ] Bouncing moves time, date and alarm annunciator together with no change in their relative spacing.
-- [ ] Left/right/top/bottom collisions visibly reflect the appropriate movement component rather than jump, reverse both axes unnecessarily or clip.
-- [ ] At 1280×720 no part of the time/date/alarm group leaves the safe visible area.
-- [ ] Changing the speed from a high test value (for example 20 px/s) to the normal 6 px/s is clearly reflected and persists after save/reload.
+**10 October 2026 first commissioned-Pi pass:** partial acceptance. Rigid motion, persistence, Off/Periodic fallback, navigation stop/resume and Alarm takeover all worked. The first safe-bounds implementation was technically correct but the annunciator was anchored to the viewport-sized hero, making it a remote top-right outlier; this produced a very large top/right exclusion and tiny vertical travel. The 20 px/s ceiling also felt too slow, the inactive night annunciator was effectively invisible, named navigation transition layers could show the selected daytime palette above the astronomy overlay, and one or two brief full-white transition flashes were observed.
+
+- [x] Off leaves the night Clock stationary.
+- [x] Periodic shift retains the previously accepted subtle five-minute behaviour.
+- [x] Bouncing moves time, date and alarm annunciator together with no change in their relative spacing.
+- [~] Left/right/top/bottom reflection worked, but the first candidate's alarm geometry made the usable bounds visibly wrong; retest the rebased cluster.
+- [~] No clipping was reported, but 1280×720 safe-area acceptance must be repeated with the corrected cluster geometry.
+- [~] Speed changes persisted correctly, but 20 px/s was still slow and 6 px/s was "positively snail like"; retest the widened 1–120 px/s scale (40 px/s fresh/default, saved legacy values preserved).
 - [ ] Entering the configured night interaction state stops/resets the motion; when the interaction timeout expires on Home, motion resumes safely.
-- [ ] Navigating away from Home stops the motion; returning to Home during an eligible idle night state resumes it without a jump outside the safe area.
-- [ ] Alarm takeover remains fully visible and is not moved/dimmed by the burn-in engine.
-- [ ] A several-minute run is smooth, has no obvious short repeated loop, and does not introduce audio/UI glitches.
+- [x] Navigating away from Home stops the motion; returning to Home during an eligible idle night state resumes it safely.
+- [x] Alarm takeover remains fully visible and is not moved/dimmed by the burn-in engine; dismissing the Alarm returned directly to the eligible bouncing Clock without falsely replaying the dismissal as night interaction.
+- [~] Several-minute operation remained stable until the normal three-minute idle policy projected the actively-playing Plexamp workspace; repeat smoothness/loop observation at a useful speed after the geometry fix.
+
+##### B7 follow-up candidate — cluster geometry + dark-room shell closure
+
+The follow-up directly addresses the physical findings:
+
+- `#clock-burn-in-cluster` is `display: contents` in normal/daytime layout, preserving the accepted Clock geometry, and becomes a centred positioned flex container only in very-dark Clock mode;
+- the alarm annunciator is rebased to that cluster's top-right corner, taking advantage of the naturally empty area above the smaller seconds readout instead of sitting near the viewport corner;
+- the bounce engine now moves/bounds that single cluster rather than maintaining three independent translated targets;
+- inactive alarm indication is explicitly lifted to a visible-but-dimmer night level throughout the active night treatment, while a scheduled alarm retains the stronger active state;
+- Bouncing speed is 1–120 px/s with 1 px/s steps and a fresh/default value of 40 px/s; existing saved values are preserved exactly;
+- astronomy-night shell chrome receives an explicit red/dark palette before named View Transition capture, preventing persistent nav snapshots from revealing the selected daytime theme above the multiply overlay;
+- the View Transition top layer now has an explicit `#02040a` canvas, switching to black whenever the document night treatment is active, so a transient Chromium snapshot gap cannot expose the browser's white default canvas.
+
+The first follow-up implementation passed the full suite as **Tests #5417**; the migration-safe speed-scale refinement on implementation head `9e56da66d36299d890e816c4d2c2fc0ac481a4f6` passes the full suite as **Tests #5421**.
 
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
