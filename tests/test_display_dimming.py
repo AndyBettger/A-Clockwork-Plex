@@ -222,7 +222,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn('value="periodic">Periodic shift', settings)
         self.assertIn('value="bounce">Bouncing', settings)
         self.assertIn('data-setting-path="display.night_burn_in_speed_px_per_second"', settings)
-        self.assertIn('min="5" max="120" step="5"', settings)
+        self.assertIn('min="1" max="120" step="1"', settings)
         self.assertIn("_NIGHT_BURN_IN_MOTIONS", backend)
         self.assertIn('{"off", "periodic", "bounce"}', backend)
 
