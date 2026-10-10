@@ -58,9 +58,23 @@ body[data-active-page="alarm"] > :not(#acp-night-dim-overlay) {
   filter: none !important;
 }
 
-body.acp-night-clock-mode .clock-hero {
-  transform: translate(var(--acp-night-shift-x), var(--acp-night-shift-y));
-  transition: transform 1200ms ease;
+body.acp-night-clock-mode #clock-time,
+body.acp-night-clock-mode #clock-date,
+body.acp-night-clock-mode #clock-alarm-annunciator {
+  translate: var(--acp-night-motion-x, 0px) var(--acp-night-motion-y, 0px);
+}
+
+body.acp-night-clock-mode.acp-night-burn-periodic #clock-time,
+body.acp-night-clock-mode.acp-night-burn-periodic #clock-date,
+body.acp-night-clock-mode.acp-night-burn-periodic #clock-alarm-annunciator {
+  transition: translate 1200ms ease;
+}
+
+body.acp-night-clock-mode.acp-night-burn-bounce #clock-time,
+body.acp-night-clock-mode.acp-night-burn-bounce #clock-date,
+body.acp-night-clock-mode.acp-night-burn-bounce #clock-alarm-annunciator {
+  transition: none;
+  will-change: translate;
 }
 
 body.acp-night-clock-mode #clock-weather-panel,
@@ -79,7 +93,9 @@ body.acp-night-clock-mode .clock-hero {
 @media (prefers-reduced-motion: reduce) {
   #acp-night-dim-overlay,
   body.acp-night-style-astronomy.acp-night-dim-active > :not(#acp-night-dim-overlay),
-  body.acp-night-clock-mode .clock-hero {
+  body.acp-night-clock-mode #clock-time,
+  body.acp-night-clock-mode #clock-date,
+  body.acp-night-clock-mode #clock-alarm-annunciator {
     transition: none;
   }
 }
