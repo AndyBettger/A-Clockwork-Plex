@@ -229,6 +229,221 @@
     return outgoing + profile.incoming;
   }
 
+  async function spatialShowPath(options = {}) {
+    const path = Array.isArray(options.path) ? options.path : [];
+    if (path.length <= 2) return spatialShow(options);
+
+    const capture = window.ACPApplicationSurfaces?.captureSpatialLayers;
+    const screen = window.ACPApplicationSurfaces?.screen?.() || document.querySelector('.screen');
+    if (typeof capture !== 'function' || !screen) return show(options);
+
+    const sourceSurface = String(path[0]?.id || '').toLowerCase();
+    const stagedSurfaces = path.slice(0, -1).map((entry) => String(entry?.id || '').toLowerCase());
+
+    const token = ++generation;
+    clearLifecycleTimers();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
+    guardMode(LONG_MODE_GUARD_MS);
+
+    const layers = await capture(stagedSurfaces, sourceSurface, { currentFirst: true });
+    if (token !== generation) {
+      layers.forEach((layer) => layer.remove());
+      return 0;
+    }
+
+    spatialLayers = layers;
+    document.body.classList.add('acp-spatial-live-commit');
+    spatialLayers.forEach((layer) => document.body.appendChild(layer));
+
+    setNavState(true);
+    scheduleFrameReady();
+
+    const duration = spatialDurationMs();
+    const distance = path.length - 1;
+    const body = document.body;
+
+    shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
+    shell.classList.add('is-open');
+    shell.setAttribute('aria-hidden', 'false');
+    body.classList.remove('acp-page-leaving', 'acp-plexamp-opening');
+    body.classList.add('plexamp-overlay-open');
+    setLifecycle(duration > 0 ? 'opening-spatial-path' : 'open');
+
+    shell.style.transition = 'none';
+    shell.style.opacity = '1';
+    shell.style.visibility = 'visible';
+    shell.style.pointerEvents = 'none';
+    shell.style.filter = 'none';
+    shell.style.clipPath = 'inset(0 0 0 0)';
+    shell.style.transform = `translateX(${distance * 100}vw)`;
+    shell.style.willChange = 'transform';
+
+    spatialLayers.forEach((layer, index) => {
+      layer.style.transform = `translateX(${index * 100}vw)`;
+    });
+
+    if (duration <= 0) {
+      spatialLayers.forEach((layer) => layer.remove());
+      spatialLayers = [];
+      body.classList.remove('acp-spatial-live-commit');
+      clearSpatialStyles(screen);
+      setLifecycle('open');
+      return 0;
+    }
+
+    const timing = {
+      duration,
+      easing: 'cubic-bezier(.16, .84, .24, 1)',
+      fill: 'both',
+    };
+
+    spatialAnimations = spatialLayers.map((layer, index) => {
+      const start = index * 100;
+      const end = start - (distance * 100);
+      return layer.animate(
+        [
+          { transform: `translateX(${start}vw)` },
+          { transform: `translateX(${end}vw)` },
+        ],
+        timing,
+      );
+    });
+    spatialAnimations.push(shell.animate(
+      [
+        { transform: `translateX(${distance * 100}vw)` },
+        { transform: 'translateX(0)' },
+      ],
+      timing,
+    ));
+
+    Promise.all(spatialAnimations.map((animation) => animation.finished.catch(() => undefined)))
+      .then(() => {
+        if (token !== generation) return;
+        spatialAnimations.forEach((animation) => animation.cancel());
+        spatialAnimations = [];
+        spatialLayers.forEach((layer) => layer.remove());
+        spatialLayers = [];
+        body.classList.remove('acp-spatial-live-commit');
+        clearSpatialStyles(screen);
+        setLifecycle('open');
+      });
+
+    return duration;
+  }
+
+  async function spatialHidePath(options = {}) {
+    const path = Array.isArray(options.path) ? options.path : [];
+    if (path.length <= 2) return spatialHide(options);
+
+    const capture = window.ACPApplicationSurfaces?.captureSpatialLayers;
+    const screen = window.ACPApplicationSurfaces?.screen?.() || document.querySelector('.screen');
+    if (typeof capture !== 'function' || !screen || !shell.classList.contains('is-open')) {
+      return hide(options);
+    }
+
+    const targetSurface = String(path[path.length - 1]?.id || '').toLowerCase();
+    const stagedSurfaces = path.slice(1, -1).map((entry) => String(entry?.id || '').toLowerCase());
+
+    const token = ++generation;
+    clearLifecycleTimers();
+    if (options.preserveNavigation !== true) window.ACPNavDrawer?.hide?.();
+    guardMode(LONG_MODE_GUARD_MS);
+
+    const layers = await capture(stagedSurfaces, targetSurface);
+    if (token !== generation) {
+      layers.forEach((layer) => layer.remove());
+      return 0;
+    }
+
+    spatialLayers = layers;
+    document.body.classList.add('acp-spatial-live-commit');
+    spatialLayers.forEach((layer) => document.body.appendChild(layer));
+
+    const duration = spatialDurationMs();
+    const distance = path.length - 1;
+
+    document.body.classList.remove('acp-page-leaving', 'acp-plexamp-opening');
+    document.body.classList.add('plexamp-overlay-open');
+    shell.classList.remove('is-handoff-hidden', 'is-closing', 'is-route-leaving');
+    shell.classList.add('is-open');
+    shell.setAttribute('aria-hidden', 'false');
+    setLifecycle(duration > 0 ? 'closing-spatial-path' : 'hidden');
+
+    shell.style.transition = 'none';
+    shell.style.opacity = '1';
+    shell.style.visibility = 'visible';
+    shell.style.pointerEvents = 'none';
+    shell.style.filter = 'none';
+    shell.style.clipPath = 'inset(0 0 0 0)';
+    shell.style.transform = 'translateX(0)';
+    shell.style.willChange = 'transform';
+
+    spatialLayers.forEach((layer, index) => {
+      layer.style.transform = `translateX(${-(index + 1) * 100}vw)`;
+    });
+    screen.style.transform = `translateX(${-distance * 100}vw)`;
+    screen.style.willChange = 'transform';
+
+    if (duration <= 0) {
+      finishHideVisual();
+      spatialLayers.forEach((layer) => layer.remove());
+      spatialLayers = [];
+      document.body.classList.remove('acp-spatial-live-commit');
+      clearSpatialStyles(screen);
+      setLifecycle('hidden');
+      return 0;
+    }
+
+    const timing = {
+      duration,
+      easing: 'cubic-bezier(.16, .84, .24, 1)',
+      fill: 'both',
+    };
+
+    spatialAnimations = [
+      shell.animate(
+        [
+          { transform: 'translateX(0)' },
+          { transform: `translateX(${distance * 100}vw)` },
+        ],
+        timing,
+      ),
+      ...spatialLayers.map((layer, index) => {
+        const start = -(index + 1) * 100;
+        const end = start + (distance * 100);
+        return layer.animate(
+          [
+            { transform: `translateX(${start}vw)` },
+            { transform: `translateX(${end}vw)` },
+          ],
+          timing,
+        );
+      }),
+      screen.animate(
+        [
+          { transform: `translateX(${-distance * 100}vw)` },
+          { transform: 'translateX(0)' },
+        ],
+        timing,
+      ),
+    ];
+
+    Promise.all(spatialAnimations.map((animation) => animation.finished.catch(() => undefined)))
+      .then(() => {
+        if (token !== generation) return;
+        finishHideVisual();
+        spatialAnimations.forEach((animation) => animation.cancel());
+        spatialAnimations = [];
+        spatialLayers.forEach((layer) => layer.remove());
+        spatialLayers = [];
+        document.body.classList.remove('acp-spatial-live-commit');
+        clearSpatialStyles(screen);
+        setLifecycle('hidden');
+      });
+
+    return duration;
+  }
+
   function spatialShow(options = {}) {
     if (isVisiblyOpen() && lifecycle === 'open') return 0;
 
@@ -444,6 +659,8 @@
     hide,
     spatialShow,
     spatialHide,
+    spatialShowPath,
+    spatialHidePath,
     ensureVisible,
     prepareNavigation,
     isOpen,
