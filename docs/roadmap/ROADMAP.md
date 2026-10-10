@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 7 October 2026  
+**Last updated:** 10 October 2026  
 **Active integration branch:** `develop`  
 **Active feature branch:** `feature/acp-shell-native-plexamp`  
 **Stable branch:** `main`  
@@ -70,8 +70,8 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
 - [x] Post-A3 Weather presentation cleanup physically accepted: **Dashboard observation refresh** is removed from Settings; Clock/Weather still activate and refresh normally with their shell-owned visible-surface cadence.
 - [x] A4 AirPlay same-document migration physically accepted: manual/automatic AirPlay projection, ready/idle presentation, metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, hidden-surface catch-up, native Plexamp overlay return, active navigation/footer mode and repeated configured transitions all pass on the commissioned Pi. Candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128**.
 - [x] Converge all ordinary ACP-owned browser surfaces into the long-lived document: Clock, Weather, News, Settings and AirPlay are physically accepted. Native Plexamp remains the intentional separate application/workspace.
-- [x] Establish the reusable component/design-token boundary for the ordinary ACP shell primitives. **Both bounded token slices are physically accepted:** Classic Dark and a non-Classic theme remain visually stable across Clock, Weather, News, Settings and AirPlay; Settings fields/selects, News touch/status UI, Weather/News/Rain custom scrollbars and the kiosk-safe dialog all pass commissioned-Pi checks. First-slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**; second-slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179** and docs-synchronised head `7dea1d736f4e28ca0d0efcdf8d35911ea6f9e152` passed **Tests #5180**. The next active Phase A boundary is shell-owned bottom-edge navigation.
-- [~] Complete the shell-owned bottom-edge navigation and spatial workspace model:
+- [x] Establish the reusable component/design-token boundary for the ordinary ACP shell primitives. **Both bounded token slices are physically accepted:** Classic Dark and a non-Classic theme remain visually stable across Clock, Weather, News, Settings and AirPlay; Settings fields/selects, News touch/status UI, Weather/News/Rain custom scrollbars and the kiosk-safe dialog all pass commissioned-Pi checks. First-slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**; second-slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179** and docs-synchronised head `7dea1d736f4e28ca0d0efcdf8d35911ea6f9e152` passed **Tests #5180**. That component/design-token boundary is physically accepted; shell-owned navigation and the later B5–B7 closure are also now complete.
+- [x] Complete the shell-owned bottom-edge navigation and spatial workspace model:
   - [x] **Level A — production navigation shell accepted.** Home-indicator gestures, measured page/drawer movement, dim/backdrop behaviour, ACP↔Plexamp shell-state preservation, current-route no-op handling, Audio overlay ownership and AirPlay pre-snapshot hydration are physically accepted. Acceptance head `02af155ea2d536e774f5ef07a7c745ff80315f5c` passed **Tests #5252**.
   - [x] **B0–B1 — Clock ↔ Weather spatial row accepted.** The unreliable root-snapshot experiment was replaced by a live-DOM strip; outgoing layout/presentation is frozen correctly and both directions use one full-viewport movement with the configured total duration.
   - [x] **B2–B3 — News added and literal long-jump traversal accepted.** `Clock ↔ Weather ↔ News` behaves as a true ordered row; non-adjacent jumps visibly pass through intermediate surfaces without logically activating them, and semantic News warning chrome remains intentionally theme-independent.
@@ -83,6 +83,8 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
   - [ ] **Astronomy follows native Plexamp acceptance**, using the already-reserved order `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`.
 
 Headless remains the accepted rollback/player runtime until every native-player gate passes.
+
+**Phase-A checklist reconciliation:** the detailed #94 roadmap has been audited after B7 acceptance. All implemented shell/surface/theme/touch/transition objectives are complete. The only original A0 investigation not actually performed is the planned Chromium-vs-Firefox commissioned-Pi benchmark; it is now recorded explicitly as a **non-gating unresolved decision**, not silently left as an unchecked Phase-A acceptance item. Native-player startup/recovery and Search/text-entry gates belong to Phase B.
 
 Detailed status: [features/acp-shell-native-plexamp.md](features/acp-shell-native-plexamp.md).
 
