@@ -15,20 +15,39 @@ html.acp-document-booting {
 /* Chromium renders View Transitions in a top layer above the document. Give
    that layer an explicit dark canvas so a transient snapshot gap can never
    reveal the browser's default white page, especially in a dark room. */
-html::view-transition,
-html::view-transition-group(root),
-html::view-transition-image-pair(root),
-html::view-transition-old(root),
-html::view-transition-new(root) {
+html::view-transition {
   background: #02040a;
 }
 
-html.acp-night-document-active::view-transition,
-html.acp-night-document-active::view-transition-group(root),
-html.acp-night-document-active::view-transition-image-pair(root),
-html.acp-night-document-active::view-transition-old(root),
-html.acp-night-document-active::view-transition-new(root) {
+html.acp-night-document-active::view-transition {
   background: #000;
+}
+
+/* Keep the safety colour stationary. Backgrounds on old/new snapshot pseudos
+   move with their transition animations and can appear as travelling dark
+   rectangles when snapshot transparency is exposed. */
+html.acp-night-document-active body {
+  background-color: #000 !important;
+}
+
+/* Persistent nav is a named View Transition layer above the normal astronomy
+   multiply overlay. Tint only the temporary drawer snapshot here. The group
+   supplies the same pure-red backing as the document overlay; the incoming
+   drawer image multiplies against it. Hiding the old copy avoids double
+   multiplication while keeping the destination active button visible. */
+html.acp-night-document-active.acp-night-style-astronomy::view-transition-group(acp-nav-drawer) {
+  background: rgb(255, 0, 0);
+  border-radius: var(--acp-radius-card);
+  overflow: hidden;
+}
+
+html.acp-night-document-active.acp-night-style-astronomy::view-transition-old(acp-nav-drawer) {
+  opacity: 0;
+}
+
+html.acp-night-document-active.acp-night-style-astronomy::view-transition-new(acp-nav-drawer) {
+  opacity: 1;
+  mix-blend-mode: multiply !important;
 }
 
 /* The root marker is installed synchronously in <head>, before body content can
