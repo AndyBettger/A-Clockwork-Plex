@@ -57,6 +57,8 @@ The original A0 planning list was left unchecked as the implementation evolved t
 - Plexamp Desktop 4.50.x now officially provides native Linux ARM64 AppImage and Flatpak builds. The latest stable release verified for this checkpoint is **4.50.19**; 4.50.20 remains on the beta channel.
 - Start Phase B on the **stable** desktop build. Do not replace or disable Headless: it remains the accepted rollback/player runtime throughout discovery.
 - Do not freeze AppImage versus Flatpak before testing the commissioned Pi. The first gate is a non-destructive platform/audio preflight, followed by a reversible side-by-side launch.
+
+**11 October 2026 Flatpak installation note — pending retest.** The commissioned Pi is Debian 13 ARM64 with labwc/Wayland, a host-visible `acp_plexamp` ALSA PCM, and active Headless/NFC/CamillaDSP services. Installing Flatpak 1.16.6 and adding only `flathub-beta` succeeded, but the initial Plexamp install failed with `org.gnome.Platform/aarch64/50 which was not found`. GNOME Platform 50 is published on main Flathub; add the `flathub` remote as well, then retry the beta-remote Plexamp installation. **Installation, launch and audio-device compatibility remain unverified; do not claim those gates complete.**
 - Plexamp 4.50.12 added direct ALSA-device access to the Linux Flatpak, but the ACP-specific requirement is stronger: the chosen package must see and drive the managed `acp_plexamp` PCM without bypassing ACP mixer/EQ ownership. That must be physically proven before package choice is accepted.
 
 - [ ] Install current ARM64 Linux Plexamp reversibly alongside the accepted runtime.
