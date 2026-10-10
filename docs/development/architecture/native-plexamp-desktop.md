@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE — Phase A UI foundation; no native Plexamp production migration authorised  
 **Roadmap item:** #94  
-**Last updated:** 4 October 2026
+**Last updated:** 10 October 2026
 
 ## Goal
 
@@ -390,6 +390,8 @@ The Motion setting is therefore the policy selector, while individual styles are
 This keeps the user-facing model simple: **one Transition style setting, one Transition duration setting**. The implementation technology is an internal concern. Selecting Cover reveal must mean Cover reveal even when the destination was chosen from shell navigation; selecting Spatial row explicitly opts into spatial navigation semantics.
 
 The astronomy-night exception is deliberate shell ownership, not a second user-visible transition mode. Commissioned-Pi testing showed that Chromium's named persistent-navigation View Transition snapshot is painted above the live astronomy multiply overlay and repeatedly exposes captured daytime pixels. Recolouring that frozen snapshot proved unreliable and one overlay-as-snapshot experiment produced full-screen red frames. The architectural direction is therefore to avoid creating the snapshot at all: clone only the outgoing ACP `main.screen`, commit the mounted destination beneath it, animate outgoing/incoming screen layers with the selected style, and leave navigation/backdrop/handle/night overlay live. Settings inherits the same fallback when Spatial row is selected because Settings is a utility surface rather than a row member.
+
+**Physical acceptance:** the commissioned Pi passes this model across the ordinary transition styles and the Settings fallback under Spatial row. The navigation remains in astronomy-night presentation for the full transition while only application content moves underneath it, and repeated stress testing no longer produces the earlier white, solid-red or travelling-rectangle artefacts. The zero-margin 40 px/s night-clock cluster is also accepted. This closes B7 and satisfies the Phase-A prerequisite for Astronomy.
 
 B0 proved Clock→Weather physically. B1 introduces the first actual ordered row with two members: `['clock', 'weather']`. Navigation derives forward/reverse direction from the current and target indices, and the application-surface compositor validates the same relation independently before animating. Both directions therefore use one direction-neutral live-DOM primitive rather than separate page-specific effects. Destinations outside the currently implemented row continue to map to Horizontal slide while Spatial row is selected; that fallback remains temporary and must disappear as the ordered model expands.
 
