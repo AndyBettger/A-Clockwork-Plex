@@ -15,7 +15,7 @@
     nightClockMode: true,
     burnInShift: true,
     burnInMode: 'periodic',
-    burnInSpeedPxPerSecond: 6,
+    burnInSpeedPxPerSecond: 40,
     style: 'classic',
     activeStyle: 'same',
   };
@@ -109,8 +109,8 @@
       burnInSpeedPxPerSecond: number(
         source.burnInSpeedPxPerSecond ?? source.night_burn_in_speed_px_per_second,
         fallback.burnInSpeedPxPerSecond,
-        1,
-        20,
+        5,
+        120,
       ),
       style: style(source.style ?? source.night_dim_style, fallback.style),
       activeStyle: style(
