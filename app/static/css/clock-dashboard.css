@@ -55,8 +55,11 @@ body.acp-night-clock-mode .clock-burn-in-cluster {
 }
 
 body.acp-night-clock-mode .clock-alarm-annunciator {
-  top: clamp(2px, 0.65vmin, 6px);
-  right: clamp(2px, 0.65vmin, 8px);
+  /* Sit just above/outside the smaller seconds readout rather than occupying
+     the clock face itself. The B7 bounds engine measures this visible glyph
+     together with time/date, so the entire group still remains screen-safe. */
+  top: clamp(-56px, -6.5vmin, -42px);
+  right: clamp(-12px, -0.8vw, -5px);
 }
 
 .clock-alarm-annunciator {
