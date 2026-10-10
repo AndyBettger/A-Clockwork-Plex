@@ -1,13 +1,13 @@
 # ACP shell / native Plexamp modernisation
 
 **Issue:** #94  
-**Status:** ACTIVE — Phase A UI foundation on `feature/acp-shell-native-plexamp`
+**Status:** ACTIVE — Phase B native Linux Plexamp on `feature/acp-shell-native-plexamp`; Phase A physically accepted
 
 ## Why this moves before Astronomy
 
 Astronomy is a rich new application surface. Building it in the current multi-document navigation model and immediately migrating it would be avoidable rework.
 
-#94 therefore starts with the UI foundation first. Astronomy may begin once that foundation is physically accepted; it does not need to wait for every final native-Plexamp lifecycle/resilience gate if the application-surface contract is already stable.
+#94 therefore starts with the UI foundation first, then completes the native Linux Plexamp migration on top of that accepted shell. Astronomy keeps its reserved workspace slot but begins only after the native-player migration is physically accepted.
 
 ## Phase A — ACP UI foundation
 
@@ -44,6 +44,8 @@ Astronomy is a rich new application surface. Building it in the current multi-do
 - [ ] Physically accept touch, transition smoothness, startup/recovery and 1280×720 presentation.
 
 ## Phase B — native Plexamp
+
+**Status: ACTIVE — next implementation boundary after Phase-A physical acceptance.**
 
 - [ ] Install current ARM64 Linux Plexamp reversibly alongside the accepted runtime.
 - [ ] Confirm visualisers on the real Pi/display and measure CPU/GPU cost.
@@ -1374,5 +1376,5 @@ Implementation/regression head `4b2ae0835307183a900a64155a9308abea86d259` passes
 
 The synchronized architecture/docs head `4aa5c10bd5be6f9fc619007e64f84397a15f75d3` passes **Tests #5462**.
 
-**B5–B7 are now all physically accepted. Astronomy is unblocked.** Its reserved workspace position remains between Weather and News, giving `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
+**B5–B7 are now all physically accepted, closing Phase A. Phase B native Linux Plexamp is next.** Astronomy remains reserved between Weather and News, giving `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`, but implementation waits until the native-player migration is physically accepted.
 
