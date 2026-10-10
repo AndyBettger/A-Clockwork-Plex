@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE — Phase B native Linux Plexamp migration; Phase A physically accepted; Headless remains the accepted rollback runtime  
 **Roadmap item:** #94  
-**Last updated:** 10 October 2026
+**Last updated:** 11 October 2026
 
 ## Goal
 
@@ -27,13 +27,13 @@ rollback until a native-player candidate passes all physical gates.
 Plexamp's 4.50 desktop rebuild changes the practical starting point for this work:
 official Linux ARM64 desktop builds now exist as both AppImage and Flatpak. The
 latest stable release verified at this checkpoint is **4.50.19**; the 4.50.20
-series is still beta and is not the initial appliance candidate.
+series is still beta and is not a production acceptance candidate; it was nevertheless installed for strictly bounded discovery after the Flathub beta remote changed upstream.
 
 The first commissioned-Pi step is therefore discovery rather than replacement:
 
 1. record OS/architecture/session/runtime state and the accepted Headless service;
 2. record the host ALSA view, especially `acp_plexamp`;
-3. launch one stable native ARM64 package side-by-side without changing autostart;
+3. launch one native ARM64 package side-by-side without changing autostart (the initial Flatpak discovery install is 4.50.20-beta.22; require a suitable stable candidate before production acceptance);
 4. prove visual presentation and whether the package can address `acp_plexamp`;
 5. only then choose the packaging/runtime integration path.
 
@@ -42,6 +42,15 @@ generic physical DAC appearing in its picker is not sufficient acceptance. ACP's
 named managed PCM and downstream trim/Music Master/EQ/limiter ownership must stay
 authoritative. AppImage remains a valid comparison if sandboxing hides or alters
 that boundary.
+
+### 11 October 2026 Phase-B installation evidence
+
+- Commissioned board: **Raspberry Pi 5 Model B Rev 1.1**, Debian 13 ARM64, labwc/Wayland, Chromium kiosk.
+- Accepted baseline: Headless `plexamp.service`, ACP dashboard, CamillaDSP and NFC listener confirmed active after install. Host `aplay -L` exposes `acp_plexamp`; DAC Pro and ACP loopback remain enumerated.
+- PipeWire presents only `Dummy Output`; do not accept PipeWire output as proof of managed ACP audio.
+- Initial `flathub-beta` install failed to resolve `org.gnome.Platform/aarch64/50` until the main `flathub` remote was added. Final installation completed with GNOME Platform 50, system Flatpak ID `com.plexamp.Plexamp`, ARM64 beta branch.
+- Installed Plexamp **4.50.20-beta.22** (Flatpak commit `b2b1645ac82777cba8169910b3107c997ecda71cc9f5e3451cef1009a5023d65`). As Plex confirmed 7 October, its Flathub beta remote now delivers Plexamp betas, not stable builds (https://forums.plex.tv/t/plexamp-flatpak-linux-beta-not-updating/944063/2). The old assumption that the remote guarantees stable builds is superseded.
+- **Only packaging/side-by-side installation has passed.** The next gate is read-only Flatpak sandbox ALSA and Wayland-session inspection, followed by controlled manual launch with no changes to Headless, ACP browser autostart, or audio graph. Beta can be used for discovery but not yet for production acceptance.
 
 ## Preferred player architecture
 
