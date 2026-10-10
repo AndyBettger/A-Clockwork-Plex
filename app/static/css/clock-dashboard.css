@@ -39,7 +39,8 @@
   position: relative;
 }
 
-.clock-burn-in-cluster {
+.clock-burn-in-cluster,
+.clock-time-row {
   display: contents;
 }
 
@@ -54,12 +55,18 @@ body.acp-night-clock-mode .clock-burn-in-cluster {
   max-width: calc(100vw - 40px);
 }
 
+body.acp-night-clock-mode .clock-time-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(8px, 1.2vmin, 14px);
+}
+
 body.acp-night-clock-mode .clock-alarm-annunciator {
-  /* Sit just above/outside the smaller seconds readout rather than occupying
-     the clock face itself. The B7 bounds engine measures this visible glyph
-     together with time/date, so the entire group still remains screen-safe. */
-  top: clamp(-56px, -6.5vmin, -42px);
-  right: clamp(-12px, -0.8vw, -5px);
+  position: static;
+  flex: 0 0 auto;
+  margin: 0;
+  align-self: flex-start;
 }
 
 .clock-alarm-annunciator {
