@@ -174,7 +174,7 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                     else "off",
                 ),
                 "night_burn_in_speed_px_per_second": _base._integer(
-                    dashboard.get("night_burn_in_speed_px_per_second"), 40, 5, 120
+                    dashboard.get("night_burn_in_speed_px_per_second"), 40, 1, 120
                 ),
                 "night_dim_style": _night_style(
                     dashboard.get("night_dim_style"), "classic"
@@ -264,7 +264,7 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 "night_burn_in_speed_px_per_second": _base._integer(
                     source.get("night_burn_in_speed_px_per_second"),
                     dashboard.get("night_burn_in_speed_px_per_second", 40),
-                    5,
+                    1,
                     120,
                 ),
                 "night_dim_style": _night_style(
