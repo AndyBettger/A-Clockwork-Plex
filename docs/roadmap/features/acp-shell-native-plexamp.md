@@ -1333,5 +1333,22 @@ V4 removes the failed overlay-as-View-Transition-layer approach entirely:
 
 Implementation/regression head `90021e616a110f7da75e8381ef3e84fbd331efc9` passes the complete maintained suite as **Tests #5444**. Focused Pi verification of bell placement, night nav capture and transition-flash closure remains required.
 
+**10 October 2026 fourth commissioned-Pi pass:** the new flex-row bell placement passes physically. The user requested the remaining 10 px collision margin be removed so the visible cluster bounces at the actual viewport edge. The v4 overlay regression is gone — no bright-red transition screen was seen — but the nav drawer still appears in its daytime palette during **every ordinary ACP View Transition** tested, except the separate Plexamp/Audio paths. Under Spatial row, ACP workspace transitions correctly keep the nav red; only Settings and return-from-Settings show the daytime nav because Settings deliberately falls back to the ordinary View Transition backend. This cleanly isolates the remaining nav issue to the named `acp-nav-drawer` View Transition snapshot rather than night state, Spatial composition or Plexamp. No white/red full-screen flash was reported in this round.
+
+##### B7 follow-up v5 — edge bounce + nav-snapshot-only tint
+
+V5 narrows the fix to the actual failing layer:
+
+- `SAFE_MARGIN_PX` is now **0**, so collision bounds are the visible time/date/bell union against the real viewport edge;
+- the failed late live-nav closure stylesheet is no longer loaded and has been removed from the repository;
+- the night overlay remains an ordinary part of the root/page snapshot and is never promoted into its own View Transition layer;
+- the dark safety colour is kept only on the **stationary** View Transition canvas plus the night document background;
+- dark backgrounds are removed from the animated root old/new/image-pair snapshot pseudos, because their motion can expose the backing as a travelling dark/red rectangular slab;
+- only the temporary `acp-nav-drawer` snapshot is night-treated: its View Transition group gets a clipped pure-red backing, the old drawer copy is hidden, and the incoming drawer snapshot uses `mix-blend-mode: multiply`;
+- this locally reproduces the normal astronomy red multiply treatment on the one named snapshot that sits above the page overlay, without introducing any full-screen overlay snapshot;
+- the independent live-DOM Spatial strip retains its accepted dark/black safety canvas and requires no nav tint because its persistent nav is already physically correct.
+
+Implementation head after cleanup is `9949442191f3a544411fcfec594bc557eeeef474`; **Tests #5452** is the current automated gate.
+
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
