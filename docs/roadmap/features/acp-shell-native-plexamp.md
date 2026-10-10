@@ -1368,7 +1368,11 @@ V6 removes the failing object from Chromium's snapshot compositor rather than tr
 - the failed frozen-nav snapshot tint CSS is removed;
 - the stationary dark View Transition/document safety canvas remains for daytime/other View Transition use, while the already accepted Spatial live-strip dark backing remains intact.
 
-Implementation/regression head `4b2ae0835307183a900a64155a9308abea86d259` passes the complete maintained suite as **Tests #5460**. Focused commissioned-Pi verification of ordinary night transitions and Settings fallback is now the only remaining B7 closure gate.
+Implementation/regression head `4b2ae0835307183a900a64155a9308abea86d259` passes the complete maintained suite as **Tests #5460**.
 
-**Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
+**10 October 2026 final commissioned-Pi B7 acceptance:** every focused v6 check passes. Non-Spatial astronomy-night transitions preserve the live red navigation while the selected application transition animates underneath it; Crossfade/Zoom and the other ordinary styles retain their intended presentation; Spatial workspace travel remains unchanged; Settings fallback under Spatial now also preserves the live red shell; repeated abuse produced no white screen, red screen or moving rectangular artefact. The zero-margin 40 px/s time/date/alarm cluster was already physically accepted in the previous round. B7 is therefore **physically accepted and complete**.
+
+The synchronized architecture/docs head `4aa5c10bd5be6f9fc619007e64f84397a15f75d3` passes **Tests #5462**.
+
+**B5–B7 are now all physically accepted. Astronomy is unblocked.** Its reserved workspace position remains between Weather and News, giving `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
