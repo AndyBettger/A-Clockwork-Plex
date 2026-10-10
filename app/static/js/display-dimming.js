@@ -362,6 +362,8 @@
     document.body.classList.toggle('acp-night-dim-active', active);
     document.body.classList.toggle('acp-night-style-classic', selectedStyle === 'classic');
     document.body.classList.toggle('acp-night-style-astronomy', selectedStyle === 'astronomy');
+    document.documentElement.classList.toggle('acp-night-style-classic', selectedStyle === 'classic');
+    document.documentElement.classList.toggle('acp-night-style-astronomy', selectedStyle === 'astronomy');
     document.body.classList.toggle('acp-night-interacting', active && interactionActive);
     const clockModeActive = active
       && !interactionActive
