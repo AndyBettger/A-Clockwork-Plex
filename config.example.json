@@ -22,6 +22,8 @@
     "night_dim_wake_seconds": 30,
     "night_clock_mode": true,
     "night_burn_in_shift": true,
+    "night_burn_in_motion": "periodic",
+    "night_burn_in_speed_px_per_second": 6,
     "night_dim_style": "classic",
     "night_dim_active_style": "same"
   },
