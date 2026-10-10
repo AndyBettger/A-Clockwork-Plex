@@ -112,9 +112,9 @@ body.acp-night-clock-mode.acp-night-burn-bounce #clock-burn-in-cluster {
   will-change: translate;
 }
 
-body.acp-night-clock-mode .clock-alarm-annunciator:not(.is-active) {
+body.acp-night-dim-active .clock-alarm-annunciator:not(.is-active) {
   color: var(--segment-on);
-  opacity: 0.30;
+  opacity: 0.36;
   filter: drop-shadow(0 0 1.4px currentColor);
 }
 
