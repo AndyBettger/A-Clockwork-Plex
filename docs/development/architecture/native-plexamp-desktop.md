@@ -22,6 +22,27 @@ A Clockwork Plex that are already physically accepted:
 This is a rehearsal-first migration. The accepted Headless runtime remains the
 rollback until a native-player candidate passes all physical gates.
 
+## Phase B entry point — 10 October 2026
+
+Plexamp's 4.50 desktop rebuild changes the practical starting point for this work:
+official Linux ARM64 desktop builds now exist as both AppImage and Flatpak. The
+latest stable release verified at this checkpoint is **4.50.19**; the 4.50.20
+series is still beta and is not the initial appliance candidate.
+
+The first commissioned-Pi step is therefore discovery rather than replacement:
+
+1. record OS/architecture/session/runtime state and the accepted Headless service;
+2. record the host ALSA view, especially `acp_plexamp`;
+3. launch one stable native ARM64 package side-by-side without changing autostart;
+4. prove visual presentation and whether the package can address `acp_plexamp`;
+5. only then choose the packaging/runtime integration path.
+
+The Linux Flatpak gained direct ALSA-device access in Plexamp 4.50.12, but a
+generic physical DAC appearing in its picker is not sufficient acceptance. ACP's
+named managed PCM and downstream trim/Music Master/EQ/limiter ownership must stay
+authoritative. AppImage remains a valid comparison if sandboxing hides or alters
+that boundary.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
