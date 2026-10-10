@@ -1191,16 +1191,18 @@ Intermediate **Tests #5384/#5390** reds were stale static expectations only; the
 
 Focused B6c physical gate:
 
-- [ ] Home → Plexamp visibly traverses Weather → News → AirPlay → Plexamp in that exact order.
-- [ ] Weather → Plexamp traverses News → AirPlay → Plexamp; News → Plexamp traverses AirPlay → Plexamp.
-- [ ] Plexamp → Home is the exact reverse: Plexamp → AirPlay → News → Weather → Home.
-- [ ] Plexamp → Weather and Plexamp → News preserve the corresponding shortened reverse paths.
-- [ ] One slow Transition duration applies to the **entire** long journey, not once per workspace.
-- [ ] Intermediate AirPlay is presentation-correct on the **first** long jump, including route-ready/now-playing geometry, with no pre-transition flash.
-- [ ] Open navigation remains fixed above the complete long strip.
-- [ ] Plexamp playback/UI state survives long jumps exactly as it did for the accepted adjacent boundary.
-- [ ] Lift and Overlay navigation presentations both retain correct vertical geometry during the long strip.
-- [ ] Cover reveal (or another non-Spatial style) continues to use the ordinary Plexamp transition; automatic projection also remains non-Spatial.
+**10 October 2026 commissioned-Pi result:** clean sweep. All ten long-jump checks pass, including literal forward/reverse order, shortened paths, one total duration, first-pass AirPlay staging, persistent navigation, Lift/Overlay geometry, Plexamp state continuity and non-Spatial fallback. No audio glitches were heard during this stress test. **B6c is physically accepted.**
+
+- [x] Home → Plexamp visibly traverses Weather → News → AirPlay → Plexamp in that exact order.
+- [x] Weather → Plexamp traverses News → AirPlay → Plexamp; News → Plexamp traverses AirPlay → Plexamp.
+- [x] Plexamp → Home is the exact reverse: Plexamp → AirPlay → News → Weather → Home.
+- [x] Plexamp → Weather and Plexamp → News preserve the corresponding shortened reverse paths.
+- [x] One slow Transition duration applies to the **entire** long journey, not once per workspace.
+- [x] Intermediate AirPlay is presentation-correct on the **first** long jump, including route-ready/now-playing geometry, with no pre-transition flash.
+- [x] Open navigation remains fixed above the complete long strip.
+- [x] Plexamp playback/UI state survives long jumps exactly as it did for the accepted adjacent boundary; the commissioned-Pi retest also produced no audio glitches.
+- [x] Lift and Overlay navigation presentations both retain correct vertical geometry during the long strip.
+- [x] Cover reveal (or another non-Spatial style) continues to use the ordinary Plexamp transition; automatic projection also remains non-Spatial.
 
 This should make native Plexamp migration easier: the shell first owns a stable workspace index/order, then the Phase-B migration replaces only the Plexamp endpoint implementation and cross-application transition backend. Do not force native Plexamp into `ACPSurfaceHost` merely to satisfy the spatial metaphor; introduce/retain a shell/workspace abstraction above browser-surface and native-application implementations.
 
@@ -1213,7 +1215,11 @@ B6 physical gates should prove:
 - automatic Plexamp projection does not masquerade as a user-requested multi-workspace traversal;
 - later native Plexamp can inherit the same terminal slot without changing button order or navigation direction.
 
+**B6 PHYSICALLY ACCEPTED — 2026-10-10.** The shell-owned topology `Home ↔ Weather ↔ News ↔ AirPlay ↔ Plexamp` is now physically proven across ACP↔ACP, adjacent ACP↔Plexamp and long cross-renderer traversal, while preserving native-Plexamp renderer independence.
+
 #### B7 — night-clock anti-burn-in bouncing cluster — final Phase-A polish before Astronomy
+
+**Status: ACTIVE.**
 
 Replace/extend the existing simple night burn-in shift with an optional continuous **bouncing cluster** mode inspired by classic screen-saver motion.
 
