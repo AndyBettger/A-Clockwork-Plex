@@ -62,7 +62,12 @@ body.acp-night-clock-mode .clock-time-row {
   gap: clamp(8px, 1.2vmin, 14px);
 }
 
+body.acp-night-clock-mode #clock-time {
+  order: 1;
+}
+
 body.acp-night-clock-mode .clock-alarm-annunciator {
+  order: 2;
   position: static;
   flex: 0 0 auto;
   margin: 0;
