@@ -13,6 +13,7 @@ html.acp-night-document-active {
   position: fixed;
   inset: 0;
   z-index: 2147483000;
+  view-transition-name: acp-night-dim-overlay;
   pointer-events: none;
   opacity: 0;
   background: #000;
