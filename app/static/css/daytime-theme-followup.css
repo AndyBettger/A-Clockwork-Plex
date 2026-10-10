@@ -51,7 +51,9 @@ body:not([data-active-page="plexamp"]) :is(.kiosk-link-modal-close, .kiosk-link-
    specificity here so geometry stays fixed while colour belongs to the theme.
    ------------------------------------------------------------------------- */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="airplay"] .airplay-glyph .airplay-pulse {
+body[data-active-page="airplay"] .airplay-glyph .airplay-pulse,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+[data-acp-surface-context="airplay"] .airplay-glyph .airplay-pulse {
   border-color: var(--accent-strong) !important;
   box-shadow: 0 0 28px var(--acp-theme-glow) !important;
 }

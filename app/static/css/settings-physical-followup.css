@@ -1,12 +1,12 @@
-body.mode-settings.settings-autosave-enabled .settings-ipad-page {
+body.mode-settings .settings-ipad-page {
   padding-bottom: 0;
 }
 
-body.mode-settings.settings-autosave-enabled .settings-save-actions {
+body.mode-settings .settings-save-actions {
   display: none !important;
 }
 
-body.mode-settings.settings-autosave-enabled .settings-save-bar {
+body.mode-settings .settings-save-bar {
   position: fixed;
   z-index: 210;
   top: 10px;
@@ -69,8 +69,8 @@ body.mode-settings .settings-subpage-dirty-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ffe99c;
-  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+  background: var(--accent-strong);
+  box-shadow: 0 0 10px var(--acp-theme-glow, rgba(143, 211, 255, .5));
 }
 
 body.mode-settings .settings-subpage-dirty-dot[hidden] {
@@ -78,7 +78,7 @@ body.mode-settings .settings-subpage-dirty-dot[hidden] {
 }
 
 body.mode-settings .settings-subpage-row.is-dirty {
-  border-color: rgba(255, 233, 156, .28);
+  border-color: var(--accent);
 }
 
 body.mode-settings .setting-field,
@@ -89,7 +89,7 @@ body.mode-settings .settings-card {
 }
 
 body.mode-settings .settings-option-dirty {
-  box-shadow: inset 0 0 0 1px rgba(255, 233, 156, .27);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 body.mode-settings .settings-option-dirty::after {
@@ -101,8 +101,8 @@ body.mode-settings .settings-option-dirty::after {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ffe99c;
-  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+  background: var(--accent-strong);
+  box-shadow: 0 0 10px var(--acp-theme-glow, rgba(143, 211, 255, .5));
   pointer-events: none;
 }
 

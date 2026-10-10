@@ -1,7 +1,77 @@
+.time.is-alpha-clock {
+    --alpha-display-h: clamp(120px, 36vmin, 267px);
+  }
+
+  .date.is-alpha-date {
+    --alpha-display-h: clamp(31px, 8.25vmin, 63px);
+  }
+
+  .time.is-alpha-clock .digital-colon {
+    animation: none;
+    opacity: 1;
+  }
+
+  .time.is-alpha-clock .digital-colon span {
+    background: var(--acp-theme-display, var(--segment-on));
+    box-shadow:
+      0 0 6px var(--acp-theme-display-glow, rgba(255, 255, 255, 0.34)),
+      0 0 14px var(--acp-theme-soft, rgba(255, 255, 255, 0.13));
+  }
+
+  .time.is-alpha-clock.is-colon-off .digital-colon span {
+    background: var(--segment-off);
+    box-shadow: none;
+  }
+
+  @media (max-height: 520px), (max-width: 860px) {
+    .time.is-alpha-clock {
+      --alpha-display-h: clamp(92px, 33vw, 168px);
+    }
+
+    .date.is-alpha-date {
+      --alpha-display-h: clamp(24px, 7.2vw, 42px);
+    }
+  }
+
 /* Clock dashboard weather-card layout, segmented sensor readouts and LCD annunciators. */
 
 .clock-hero {
   position: relative;
+}
+
+.clock-burn-in-cluster,
+.clock-time-row {
+  display: contents;
+}
+
+body.acp-night-clock-mode .clock-burn-in-cluster {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  align-self: center;
+  width: max-content;
+  max-width: calc(100vw - 40px);
+}
+
+body.acp-night-clock-mode .clock-time-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(8px, 1.2vmin, 14px);
+}
+
+body.acp-night-clock-mode #clock-time {
+  order: 1;
+}
+
+body.acp-night-clock-mode .clock-alarm-annunciator {
+  order: 2;
+  position: static;
+  flex: 0 0 auto;
+  margin: 0;
+  align-self: flex-start;
 }
 
 .clock-alarm-annunciator {

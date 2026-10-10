@@ -4,14 +4,14 @@
 {% set receiver_airplay_name = configured_airplay_name | replace(' Plexamp', '') %}
 {% block title %}AirPlay - A Clockwork Plex{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay.css', v='20261005-first-paint-v1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-controls.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-nowplaying.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-nowplaying.css', v='20261005-first-paint-v1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-mini-clock.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-width-fixes.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-glance-tuning.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-layout-v3.css', v='20260731-metadata-pending-glyph') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-title-marquee.css', v='20260819-longform-title-v3') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-glance-tuning.css', v='20261005-first-paint-v1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-layout-v3.css', v='20261005-first-paint-v1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/airplay-title-marquee.css', v='20261005-first-paint-v1') }}">
 {% endblock %}
 {% block content %}
 <section class="airplay-page" aria-label="AirPlay active screen" data-configured-receiver-name="{{ configured_airplay_name }}" data-receiver-name="{{ receiver_airplay_name }}">
@@ -66,11 +66,11 @@
     <article class="airplay-info-card is-live is-barometer"><span id="airplay-barometer-label">Barometer</span><strong id="airplay-barometer-now">Waiting</strong><p id="airplay-barometer-detail">Pressure data pending</p></article>
   </section>
 </section>
-{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/airplay-live.js') }}"></script>
-<script src="{{ url_for('static', filename='js/airplay-title-marquee.js', v='20260819-longform-title-v3') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-surface-lifecycle.js', v='20261004-a4-v1') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-live.js', v='20261010-b6-preview-v1') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-title-marquee.js', v='20261010-b6-preview-v2') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-playback-state.js', v='20260726-authority-paint') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-outside-card.js') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-receiver-name.js') }}"></script>
@@ -79,6 +79,6 @@
 <script src="{{ url_for('static', filename='js/airplay-navigation-state.js', v='20260726-navigation-authority') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-volume-v2.js', v='20260929-receiver-volume-v1') }}"></script>
 <script src="{{ url_for('static', filename='js/airplay-mini-clock.js') }}"></script>
-<script src="{{ url_for('static', filename='js/airplay-layout-v3.js') }}"></script>
-<script src="{{ url_for('static', filename='js/airplay-hydration.js') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-layout-v3.js', v='20261010-b6-preview-v2') }}"></script>
+<script src="{{ url_for('static', filename='js/airplay-hydration.js', v='20261006-snapshot-hydration-v2') }}"></script>
 {% endblock %}

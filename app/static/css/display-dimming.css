@@ -1,8 +1,8 @@
 :root {
   --acp-night-dim-opacity: 0;
   --acp-night-brightness: 0.18;
-  --acp-night-shift-x: 0px;
-  --acp-night-shift-y: 0px;
+  --acp-night-motion-x: 0px;
+  --acp-night-motion-y: 0px;
 }
 
 html.acp-night-document-active {
@@ -30,9 +30,50 @@ body.acp-night-style-astronomy #acp-night-dim-overlay {
   mix-blend-mode: multiply;
 }
 
-body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) > :not(#acp-night-dim-overlay) {
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) > :not(#acp-night-dim-overlay):not(.nav-backdrop):not(.nav-drawer):not(.nav-handle):not(.nav-live-mixer) {
   filter: grayscale(1) brightness(var(--acp-night-brightness));
   transition: filter 220ms ease;
+}
+
+/* Persistent shell chrome is captured into independent View Transition layers.
+   Give it a native astronomy-night palette before capture so those top-layer
+   snapshots never expose the selected daytime theme above the red overlay. */
+body.acp-night-style-astronomy.acp-night-dim-active .nav-drawer,
+body.acp-night-style-astronomy.acp-night-dim-active .nav-live-mixer,
+body.acp-night-style-astronomy.acp-night-dim-active .nav-handle {
+  filter: brightness(var(--acp-night-brightness));
+}
+
+body.acp-night-style-astronomy.acp-night-dim-active .nav-drawer {
+  border-color: rgba(255, 58, 58, 0.28);
+  background: rgba(20, 0, 0, 0.96);
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.62);
+}
+
+body.acp-night-style-astronomy.acp-night-dim-active .nav-button {
+  color: rgb(255, 92, 92);
+  background: rgba(96, 0, 0, 0.62);
+  border-color: rgba(255, 72, 72, 0.24);
+  box-shadow: none;
+}
+
+body.acp-night-style-astronomy.acp-night-dim-active .nav-button.is-active,
+body.acp-night-style-astronomy.acp-night-dim-active .nav-button.is-active:hover,
+body.acp-night-style-astronomy.acp-night-dim-active .nav-button.is-active:active {
+  color: #1a0000;
+  background: rgb(255, 64, 64);
+  border-color: rgb(255, 64, 64);
+  box-shadow: 0 0 18px rgba(255, 48, 48, 0.26);
+}
+
+body.acp-night-style-astronomy.acp-night-dim-active .nav-utilities {
+  border-inline-start-color: rgba(255, 72, 72, 0.24);
+}
+
+body.acp-night-style-astronomy.acp-night-dim-active .nav-handle span,
+body.acp-night-style-astronomy.acp-night-dim-active.nav-open .nav-handle span {
+  background: rgba(255, 64, 64, 0.88);
+  box-shadow: 0 0 16px rgba(255, 32, 32, 0.24);
 }
 
 body.acp-night-dim-active #acp-night-dim-overlay {
@@ -58,9 +99,23 @@ body[data-active-page="alarm"] > :not(#acp-night-dim-overlay) {
   filter: none !important;
 }
 
-body.acp-night-clock-mode .clock-hero {
-  transform: translate(var(--acp-night-shift-x), var(--acp-night-shift-y));
-  transition: transform 1200ms ease;
+body.acp-night-clock-mode #clock-burn-in-cluster {
+  translate: var(--acp-night-motion-x, 0px) var(--acp-night-motion-y, 0px);
+}
+
+body.acp-night-clock-mode.acp-night-burn-periodic #clock-burn-in-cluster {
+  transition: translate 1200ms ease;
+}
+
+body.acp-night-clock-mode.acp-night-burn-bounce #clock-burn-in-cluster {
+  transition: none;
+  will-change: translate;
+}
+
+body.acp-night-dim-active .clock-alarm-annunciator:not(.is-active) {
+  color: var(--segment-on);
+  opacity: 0.36;
+  filter: drop-shadow(0 0 1.4px currentColor);
 }
 
 body.acp-night-clock-mode #clock-weather-panel,
@@ -79,7 +134,7 @@ body.acp-night-clock-mode .clock-hero {
 @media (prefers-reduced-motion: reduce) {
   #acp-night-dim-overlay,
   body.acp-night-style-astronomy.acp-night-dim-active > :not(#acp-night-dim-overlay),
-  body.acp-night-clock-mode .clock-hero {
+  body.acp-night-clock-mode #clock-burn-in-cluster {
     transition: none;
   }
 }

@@ -3,7 +3,7 @@
 {% block title %}Settings - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v='20260802-unified-settings') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-ipad.css', v='20260802-split-view') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-ipad.css', v='20261007-b5-followup-v2') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-alarms.css') }}">
 {% endblock %}
 {% block content %}
@@ -26,7 +26,7 @@
         <nav class="settings-sidebar-list">
           {% for item in [
             ('general', 'General', 'Startup and idle'),
-            ('display', 'Display', 'Clock and motion'),
+            ('display', 'Display', 'Home clock and motion'),
             ('weather', 'Weather', 'Station and forecast'),
             ('alarms', 'Alarms', 'Schedule and sound'),
             ('airplay', 'AirPlay', 'Receiver and handoff'),
@@ -74,7 +74,7 @@
         </div>
 
         <div class="settings-detail-panel" data-settings-section="display" hidden>
-          <header class="settings-detail-header"><div><h2>Display</h2><p>Clock presentation and movement between appliance surfaces.</p></div></header>
+          <header class="settings-detail-header"><div><h2>Display</h2><p>Home clock presentation and movement between appliance surfaces.</p></div></header>
           <section class="settings-card">
             <h3>Clock</h3>
             <div class="settings-grid two-col">
@@ -84,7 +84,7 @@
                   <option value="24h">24-hour</option>
                   <option value="12h">12-hour</option>
                 </select>
-                <small>Used by the Clock and the AirPlay glance clock.</small>
+                <small>Used by Home and the AirPlay glance clock.</small>
               </label>
             </div>
           </section>
@@ -96,22 +96,46 @@
                 <select data-setting-path="display.transition_style">
                   <option value="grow-fade">Grow and fade</option>
                   <option value="crossfade">Crossfade</option>
+                  <option value="horizontal-slide">Horizontal slide</option>
+                  <option value="vertical-lift">Vertical lift</option>
+                  <option value="cover-reveal">Cover reveal</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="blur-dissolve">Blur dissolve</option>
+                  <option value="spatial-row">Spatial row (prototype)</option>
                   <option value="instant">Instant</option>
                 </select>
               </label>
               <label class="setting-field">
                 <span>Transition duration</span>
                 <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.transition_duration_ms">
-                <small>Milliseconds; 0–2000.</small>
+                <small>Application-surface transitions. Current: <output data-setting-output="display.transition_duration_ms">—</output> · range 0–2000 ms.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation presentation</span>
+                <select data-setting-path="display.navigation_presentation">
+                  <option value="overlay">Overlay content</option>
+                  <option value="lift">Lift content</option>
+                </select>
+                <small>Overlay keeps navigation above page transitions. Lift content raises the live workspace while navigation is open.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation transition duration</span>
+                <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_transition_duration_ms">
+                <small>Drawer, indicator and dimming animation speed; also controls the optional live-page lift. Current: <output data-setting-output="display.navigation_transition_duration_ms">—</output> · range 0–1000 ms.</small>
+              </label>
+              <label class="setting-field">
+                <span>Navigation inactivity time</span>
+                <input type="text" inputmode="none" data-keyboard="number" data-setting-path="display.navigation_inactivity_seconds">
+                <small>How long navigation stays open after the last interaction. Current: <output data-setting-output="display.navigation_inactivity_seconds">—</output> · 0 means never auto-hide; range 0–30 s.</small>
               </label>
             </div>
           </section>
         </div>
 
         <div class="settings-detail-panel" data-settings-section="weather" hidden>
-          <header class="settings-detail-header"><div><h2>Weather</h2><p>Local observations, online forecasts and Clock summaries.</p></div></header>
+          <header class="settings-detail-header"><div><h2>Weather</h2><p>Local observations, online forecasts and Home summaries.</p></div></header>
           <div class="settings-subpage-overview" data-settings-overview="weather">
-            {% for item in [('station','Station','Observation provider and station identity'),('units','Units','Presets with full custom control'),('forecast','Online forecast','Open-Meteo location and cache'),('clock-cards','Clock weather cards','Choose and order compact readings')] %}
+            {% for item in [('station','Station','Observation provider and station identity'),('units','Units','Presets with full custom control'),('forecast','Online forecast','Open-Meteo location and cache'),('clock-cards','Home weather cards','Choose and order compact readings')] %}
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="weather:{{ item[0] }}"><span><strong>{{ item[1] }}</strong><small>{{ item[2] }}</small></span><span>›</span></button>
             {% endfor %}
           </div>
@@ -160,7 +184,6 @@
               <div class="settings-grid two-col">
                 <label class="setting-field"><span>Weather page title</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.station_name"></label>
                 <label class="setting-field"><span>Reporting station name</span><input autocomplete="off" inputmode="none" data-keyboard="text" data-setting-path="weather.reporting_station_name"></label>
-                <label class="setting-field"><span>Dashboard observation refresh</span><input type="text" inputmode="none" data-keyboard="number" data-setting-path="weather.auto_refresh_seconds"><small>Browser refresh cadence in seconds; 0 disables periodic screen refresh.</small></label>
               </div>
             </section>
           </section>
@@ -203,7 +226,7 @@
           <section class="settings-subpage" data-settings-subpage="weather:clock-cards" hidden>
             <button class="settings-back" type="button" data-settings-back="weather">‹ Weather</button>
             <section class="settings-card" data-clock-card-settings>
-              <h3>Clock weather cards</h3>
+              <h3>Home weather cards</h3>
               <p class="muted small">Choose cards and use the arrows to set their order.</p>
               <div class="clock-card-order" id="clock-card-order" aria-live="polite"></div>
               <div id="clock-card-hidden-inputs"></div>
@@ -327,10 +350,9 @@
 
 <div class="touch-keyboard" id="touch-keyboard" aria-hidden="true"><div class="touch-keyboard-header"><span id="touch-keyboard-label">Keyboard</span><button type="button" class="touch-keyboard-command" data-action="done">Done</button></div><div class="touch-keyboard-quick" id="touch-keyboard-quick"></div><div class="touch-keyboard-keys" id="touch-keyboard-keys"></div></div>
 
-{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings-ipad.js', v='20260802-unified-settings') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-ipad.js', v='20261007-b5-followup-v1') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-weather-observations.js', v='20260810-observation-providers') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-alarms.js', v='20260802-unified-settings') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-advanced.js', v='20260908-zero-preview-parent-v2') }}"></script>

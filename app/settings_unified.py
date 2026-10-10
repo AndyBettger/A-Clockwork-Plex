@@ -33,6 +33,7 @@ ScreenModeSetter = Callable[[str], Any]
 
 VALID_MODES = {"clock", "weather", "plexamp", "airplay"}
 VALID_CLOCK_FORMATS = {"12h", "24h"}
+VALID_NAVIGATION_PRESENTATIONS = {"overlay", "lift"}
 VALID_TRANSITIONS = {
     "grow-fade",
     "crossfade",
@@ -43,6 +44,7 @@ VALID_TRANSITIONS = {
     "cover-reveal",
     "zoom",
     "blur-dissolve",
+    "spatial-row",
 }
 VALID_TEMPERATURE_UNITS = {"c", "f"}
 VALID_PRESSURE_UNITS = {"hpa", "inhg"}
@@ -63,6 +65,11 @@ def _text(value: Any, fallback: str = "", *, maximum: int = 240) -> str:
 def _choice(value: Any, fallback: str, allowed: set[str]) -> str:
     candidate = str(value if value is not None else fallback).strip().lower()
     return candidate if candidate in allowed else fallback
+
+
+def _transition_style(value: Any, fallback: str = "grow-fade") -> str:
+    style = _choice(value, fallback, VALID_TRANSITIONS)
+    return "instant" if style == "none" else style
 
 
 def _integer(value: Any, fallback: int, minimum: int, maximum: int) -> int:
@@ -223,20 +230,28 @@ class UnifiedSettingsService:
                 "clock_format": _choice(
                     dashboard.get("clock_format"), "24h", VALID_CLOCK_FORMATS
                 ),
-                "transition_style": _choice(
-                    dashboard.get("transition_style"), "grow-fade", VALID_TRANSITIONS
+                "transition_style": _transition_style(
+                    dashboard.get("transition_style"), "grow-fade"
                 ),
                 "transition_duration_ms": _integer(
                     dashboard.get("transition_duration_ms"), 300, 0, 2000
+                ),
+                "navigation_transition_duration_ms": _integer(
+                    dashboard.get("navigation_transition_duration_ms"), 180, 0, 1000
+                ),
+                "navigation_inactivity_seconds": _integer(
+                    dashboard.get("navigation_inactivity_seconds"), 6, 0, 30
+                ),
+                "navigation_presentation": _choice(
+                    dashboard.get("navigation_presentation"),
+                    "overlay",
+                    VALID_NAVIGATION_PRESENTATIONS,
                 ),
             },
             "weather": {
                 "station_name": _text(weather.get("station_name"), "Weather or Not", maximum=80),
                 "reporting_station_name": _text(
                     weather.get("reporting_station_name"), "Weather Station", maximum=80
-                ),
-                "auto_refresh_seconds": _integer(
-                    weather.get("auto_refresh_seconds"), 60, 0, 3600
                 ),
                 "units": {
                     "temperature": _choice(units.get("temperature"), "c", VALID_TEMPERATURE_UNITS),
@@ -341,16 +356,32 @@ class UnifiedSettingsService:
                     str(dashboard.get("clock_format", "24h")),
                     VALID_CLOCK_FORMATS,
                 ),
-                "transition_style": _choice(
+                "transition_style": _transition_style(
                     source.get("transition_style"),
-                    str(dashboard.get("transition_style", "grow-fade")),
-                    VALID_TRANSITIONS,
+                    _transition_style(dashboard.get("transition_style"), "grow-fade"),
                 ),
                 "transition_duration_ms": _integer(
                     source.get("transition_duration_ms"),
                     dashboard.get("transition_duration_ms", 300),
                     0,
                     2000,
+                ),
+                "navigation_transition_duration_ms": _integer(
+                    source.get("navigation_transition_duration_ms"),
+                    dashboard.get("navigation_transition_duration_ms", 180),
+                    0,
+                    1000,
+                ),
+                "navigation_inactivity_seconds": _integer(
+                    source.get("navigation_inactivity_seconds"),
+                    dashboard.get("navigation_inactivity_seconds", 6),
+                    0,
+                    30,
+                ),
+                "navigation_presentation": _choice(
+                    source.get("navigation_presentation"),
+                    str(dashboard.get("navigation_presentation", "overlay")),
+                    VALID_NAVIGATION_PRESENTATIONS,
                 ),
             }
         )
@@ -366,9 +397,6 @@ class UnifiedSettingsService:
             source.get("reporting_station_name"),
             weather.get("reporting_station_name", "Weather Station"),
             maximum=80,
-        )
-        weather["auto_refresh_seconds"] = _integer(
-            source.get("auto_refresh_seconds"), weather.get("auto_refresh_seconds", 60), 0, 3600
         )
         submitted_units = _object(source.get("units"))
         units.update(

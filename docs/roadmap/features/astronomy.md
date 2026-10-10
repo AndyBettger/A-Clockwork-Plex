@@ -1,6 +1,6 @@
 # Astronomy
 
-**Status:** QUEUED — first new content surface after the #94 UI foundation is accepted
+**Status:** QUEUED — follows physically accepted #94 native Linux Plexamp migration
 
 ## Goal
 
@@ -22,6 +22,20 @@ Build a touch-first astronomy surface using deterministic local/offline calculat
 ## Architecture dependency
 
 Build Astronomy as an application surface on the accepted post-#94 UI foundation rather than adding another legacy full-document page that immediately needs migration.
+
+The Phase-A shell dependency is satisfied and physically accepted:
+
+- B5 — separated right-edge Audio/Settings SVG utility cluster — **accepted**;
+- B6 — shell-owned workspace topology with Plexamp as the terminal workspace slot — **accepted**;
+- B7 — night-clock anti-burn-in bouncing motion plus night-safe live-screen transition ownership — **accepted**.
+
+The remaining prerequisite is #94 Phase B: native Linux Plexamp must be physically accepted in the terminal Plexamp workspace before Astronomy implementation begins.
+
+Its reserved spatial position is **between Weather and News**, giving the future workspace order:
+
+`Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`
+
+This position is part of the shell topology before Astronomy implementation begins, so adding the page must not require another navigation-order redesign.
 
 ## Related authority
 

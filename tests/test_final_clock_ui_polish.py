@@ -77,6 +77,19 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertIn("rgba(247, 249, 255, 0.055)", style)
         self.assertIn("pointer-events: none;", style)
 
+    def test_clock_weather_identity_refreshes_after_settings_autosave(self) -> None:
+        client = (ROOT / "app/static/js/clock-dashboard.js").read_text(encoding="utf-8")
+
+        self.assertIn("acp:settings-saved", client)
+        self.assertIn("sections.includes('weather')", client)
+        self.assertIn("WEATHER_PRESENTATION_REFRESH_MS = 60_000", client)
+        self.assertIn("void updateClockWeather().finally(scheduleClockWeatherUpdate)", client)
+        self.assertIn("acp:surface-activated", client)
+        self.assertIn("clockWeatherIsVisible()", client)
+        self.assertIn("window.clearTimeout(weatherRefreshTimer)", client)
+        self.assertNotIn("auto_refresh_seconds", client)
+        self.assertNotIn("window.setInterval(updateClockWeather", client)
+
     def test_clock_alarm_indicator_mode_is_a_unified_setting(self) -> None:
         settings_client = (ROOT / "app/static/js/settings-clock-cards.js").read_text(
             encoding="utf-8"
@@ -131,13 +144,14 @@ class FinalClockUiPolishTests(unittest.TestCase):
 
     def test_clock_colons_share_theme_display_colour_and_rendered_second_cadence(self) -> None:
         template = (ROOT / "app/templates/clock.html").read_text(encoding="utf-8")
+        css = (ROOT / "app/static/css/clock-dashboard.css").read_text(encoding="utf-8")
         client = (ROOT / "app/static/js/clock-colon-sync.js").read_text(encoding="utf-8")
 
-        self.assertIn(".time.is-alpha-clock .digital-colon span", template)
-        self.assertIn("background: var(--acp-theme-display, var(--segment-on));", template)
-        self.assertIn(".time.is-alpha-clock.is-colon-off .digital-colon span", template)
-        self.assertIn("background: var(--segment-off);", template)
-        self.assertIn("animation: none;", template)
+        self.assertIn(".time.is-alpha-clock .digital-colon span", css)
+        self.assertIn("background: var(--acp-theme-display, var(--segment-on));", css)
+        self.assertIn(".time.is-alpha-clock.is-colon-off .digital-colon span", css)
+        self.assertIn("background: var(--segment-off);", css)
+        self.assertIn("animation: none;", css)
         self.assertIn("function displayedSecond()", client)
         self.assertIn("MutationObserver", client)
         self.assertIn("attributeName === 'aria-label'", client)
@@ -158,7 +172,7 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertIn("if (previewing()) return;", client)
         self.assertIn("acp:display-night-preview-ended", client)
         self.assertIn("clearPreviewTimer();", client)
-        self.assertIn("20260820-preview-timing-v1", template)
+        self.assertIn("20261010-b7-live-screen-v6", template)
 
 
 if __name__ == "__main__":

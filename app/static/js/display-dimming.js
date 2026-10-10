@@ -14,6 +14,8 @@
     wakeSeconds: 30,
     nightClockMode: true,
     burnInShift: true,
+    burnInMode: 'periodic',
+    burnInSpeedPxPerSecond: 40,
     style: 'classic',
     activeStyle: 'same',
   };
@@ -47,6 +49,11 @@
     return allowed.includes(candidate) ? candidate : fallback;
   }
 
+  function burnInMode(value, fallback = 'periodic') {
+    const candidate = String(value || '').trim().toLowerCase();
+    return ['off', 'periodic', 'bounce'].includes(candidate) ? candidate : fallback;
+  }
+
   function booleanValue(source, modernKey, legacyKey, fallback) {
     if (Object.prototype.hasOwnProperty.call(source, modernKey)) return source[modernKey] === true;
     if (Object.prototype.hasOwnProperty.call(source, legacyKey)) return source[legacyKey] === true;
@@ -54,6 +61,21 @@
   }
 
   function normalise(source = {}, fallback = defaults) {
+    const legacyShift = booleanValue(
+      source,
+      'burnInShift',
+      'night_burn_in_shift',
+      fallback.burnInShift,
+    );
+    const explicitMode = source.burnInMode ?? source.night_burn_in_motion;
+    const fallbackMode = burnInMode(
+      fallback.burnInMode,
+      fallback.burnInShift === false ? 'off' : 'periodic',
+    );
+    const resolvedMode = explicitMode === undefined || explicitMode === null || explicitMode === ''
+      ? (legacyShift ? fallbackMode : 'off')
+      : burnInMode(explicitMode, fallbackMode);
+
     return {
       enabled: booleanValue(source, 'enabled', 'night_dim_enabled', fallback.enabled),
       start: time(source.start ?? source.night_dim_start, fallback.start),
@@ -82,11 +104,13 @@
         'night_clock_mode',
         fallback.nightClockMode,
       ),
-      burnInShift: booleanValue(
-        source,
-        'burnInShift',
-        'night_burn_in_shift',
-        fallback.burnInShift,
+      burnInShift: resolvedMode !== 'off',
+      burnInMode: resolvedMode,
+      burnInSpeedPxPerSecond: number(
+        source.burnInSpeedPxPerSecond ?? source.night_burn_in_speed_px_per_second,
+        fallback.burnInSpeedPxPerSecond,
+        1,
+        120,
       ),
       style: style(source.style ?? source.night_dim_style, fallback.style),
       activeStyle: style(
@@ -108,6 +132,8 @@
       night_dim_wake_seconds: root.dataset.nightDimWakeSeconds,
       night_clock_mode: root.dataset.nightClockMode === 'true',
       night_burn_in_shift: root.dataset.nightBurnInShift === 'true',
+      night_burn_in_motion: root.dataset.nightBurnInMotion,
+      night_burn_in_speed_px_per_second: root.dataset.nightBurnInSpeedPxPerSecond,
       night_dim_style: root.dataset.nightDimStyle,
       night_dim_active_style: root.dataset.nightDimActiveStyle,
     });
@@ -259,11 +285,23 @@
     return interactionUntil;
   }
 
-  function updateBurnInShift(active) {
+  function updateBurnInMotion(clockModeActive) {
+    if (window.ACPNightBurnInMotion?.update) {
+      window.ACPNightBurnInMotion.update({
+        active: clockModeActive,
+        mode: settings.burnInMode,
+        speed: settings.burnInSpeedPxPerSecond,
+      });
+      return;
+    }
+
+    // Safe compatibility fallback if an old cached document misses the B7
+    // motion engine: retain the accepted periodic shift rather than disabling
+    // burn-in protection.
     const root = document.documentElement;
-    if (!active || interacting() || !settings.burnInShift) {
-      root.style.removeProperty('--acp-night-shift-x');
-      root.style.removeProperty('--acp-night-shift-y');
+    if (!clockModeActive || settings.burnInMode === 'off') {
+      root.style.removeProperty('--acp-night-motion-x');
+      root.style.removeProperty('--acp-night-motion-y');
       return;
     }
     const phase = Math.floor(Date.now() / 300000) % 9;
@@ -272,8 +310,8 @@
       [4, 1], [-4, -1], [1, -4], [-1, 4],
     ];
     const [x, y] = offsets[phase];
-    root.style.setProperty('--acp-night-shift-x', `${x}px`);
-    root.style.setProperty('--acp-night-shift-y', `${y}px`);
+    root.style.setProperty('--acp-night-motion-x', `${x}px`);
+    root.style.setProperty('--acp-night-motion-y', `${y}px`);
   }
 
   function applyDocumentNightBackground(active) {
@@ -324,15 +362,15 @@
     document.body.classList.toggle('acp-night-dim-active', active);
     document.body.classList.toggle('acp-night-style-classic', selectedStyle === 'classic');
     document.body.classList.toggle('acp-night-style-astronomy', selectedStyle === 'astronomy');
+    document.documentElement.classList.toggle('acp-night-style-classic', selectedStyle === 'classic');
+    document.documentElement.classList.toggle('acp-night-style-astronomy', selectedStyle === 'astronomy');
     document.body.classList.toggle('acp-night-interacting', active && interactionActive);
-    document.body.classList.toggle(
-      'acp-night-clock-mode',
-      active
-        && !interactionActive
-        && settings.nightClockMode
-        && document.body.dataset.activePage === 'clock',
-    );
-    updateBurnInShift(active);
+    const clockModeActive = active
+      && !interactionActive
+      && settings.nightClockMode
+      && document.body.dataset.activePage === 'clock';
+    document.body.classList.toggle('acp-night-clock-mode', clockModeActive);
+    updateBurnInMotion(clockModeActive);
     return status();
   }
 
@@ -384,6 +422,8 @@
     root.dataset.nightDimWakeSeconds = String(settings.wakeSeconds);
     root.dataset.nightClockMode = String(settings.nightClockMode);
     root.dataset.nightBurnInShift = String(settings.burnInShift);
+    root.dataset.nightBurnInMotion = settings.burnInMode;
+    root.dataset.nightBurnInSpeedPxPerSecond = String(settings.burnInSpeedPxPerSecond);
     root.dataset.nightDimStyle = settings.style;
     root.dataset.nightDimActiveStyle = settings.activeStyle;
     return refresh();
@@ -472,6 +512,8 @@
     window.addEventListener('focus', restoreAndRefresh);
     window.addEventListener('pageshow', restoreAndRefresh);
     window.addEventListener('acp:dashboard-preferences-changed', refresh);
+    document.addEventListener('acp:surface-activated', refresh);
+    document.addEventListener('acp:surface-settled', refresh);
     refreshInterval = window.setInterval(refresh, 15000);
     activityInterval = window.setInterval(pollLinuxInputActivity, 1000);
     pollLinuxInputActivity();
@@ -502,5 +544,6 @@
     if (interactionTimer) window.clearTimeout(interactionTimer);
     clearPreviewTimer();
     if (bootTransitionTimer) window.clearTimeout(bootTransitionTimer);
+    window.ACPNightBurnInMotion?.stop?.();
   }, { once: true });
 })();

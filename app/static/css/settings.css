@@ -109,7 +109,7 @@ body.keyboard-open .settings-page {
   gap: 5px;
   padding: clamp(8px, 1.35vmin, 12px);
   border-radius: 15px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--acp-fill-field-container-neutral);
 }
 
 .setting-field.wide {
@@ -134,17 +134,17 @@ body.keyboard-open .settings-page {
   width: 100%;
   min-width: 0;
   padding: clamp(8px, 1.45vmin, 12px) clamp(9px, 1.6vmin, 13px);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.26);
-  color: var(--text);
+  border-radius: var(--acp-radius-field);
+  border: 1px solid var(--acp-field-border-neutral);
+  background: var(--acp-field-fill-neutral);
+  color: var(--acp-color-text);
   font: inherit;
   font-size: clamp(0.92rem, 2.5vmin, 1.12rem);
 }
 
 .setting-field input:focus,
 .setting-field select:focus {
-  outline: 2px solid rgba(143, 211, 255, 0.65);
+  outline: 2px solid var(--acp-field-focus-neutral);
   outline-offset: 2px;
 }
 
@@ -178,7 +178,7 @@ body.keyboard-open .settings-page {
   min-width: 0;
   min-height: 42px;
   padding: clamp(8px, 1.35vmin, 12px);
-  border-radius: 999px;
+  border-radius: var(--acp-radius-pill);
   background: rgba(143, 211, 255, 0.08);
   border: 1px solid rgba(143, 211, 255, 0.12);
   color: var(--text);

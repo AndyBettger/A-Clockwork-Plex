@@ -1,8 +1,8 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 4 October 2026  
+**Last updated:** 10 October 2026  
 **Active integration branch:** `develop`  
-**Active maintenance branch:** `fix/weather-rain-events`  
+**Active feature branch:** `feature/acp-shell-native-plexamp`  
 **Stable branch:** `main`  
 **Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
 
@@ -14,14 +14,14 @@ This is the authoritative product order.
 
 | Order | Feature / track | Status | Next boundary | Feature roadmap |
 | ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE READY FOR MERGE** | Merge accepted rain-event fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
+| 1 | Weather (#86–#87) | **COMPLETE / MAINTENANCE MERGED** | Larger page revamp after #94 Phase A | [Weather](features/weather.md) |
 | 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **NEXT** | Phase A: single-document ACP surface, design system, shell/navigation prototype | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
-| 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
-| 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE B** | Native Linux Plexamp migration on the accepted Phase-A shell | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 7 | Astronomy | **QUEUED** | First new product surface after native Linux Plexamp is physically accepted | [Astronomy](features/astronomy.md) |
+| 8 | Appliance resilience | **QUEUED** | Harden the accepted post-#94 runtime after Astronomy | [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
 
 ### Why #94 now precedes Astronomy
@@ -31,51 +31,72 @@ The #94 work is no longer merely “add a Plexamp visualiser”. It includes the
 Astronomy would otherwise be built as another full-document page and then immediately migrated. The efficient boundary is:
 
 1. close and merge #85 — **complete**;
-2. complete the bounded Weather rain-event maintenance branch;
-3. complete **#94 Phase A** — single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
-4. build Astronomy as the first new surface on that foundation;
-5. complete the native Plexamp/player migration and then the full resilience track.
+2. complete the bounded Weather rain-event maintenance branch — **complete / merged**;
+3. complete **#94 Phase A** — **complete / physically accepted**: single long-lived ACP web surface, component/design system, navigation shell, Spatial topology and night-transition ownership;
+4. complete **#94 Phase B** — migrate to native Linux Plexamp while preserving ACP audio, NFC, alarms/AirPlay, shell navigation, rollback and appliance recovery;
+5. build Astronomy as the first new ACP content surface after the native-player migration is physically accepted;
+6. continue with the full Appliance Resilience track.
 
-If native Plexamp discovery becomes a long side quest, Astronomy need not wait for every Phase B player/resilience gate once the Phase A application-surface contract is accepted.
+Astronomy deliberately keeps its reserved shell position during Phase B, but it does not begin until the native Linux Plexamp migration has passed its physical acceptance gates.
 
 ## Maintenance queue
 
 These are bounded corrections/improvements to accepted features; they do not change the main feature order.
 
-- **Weather rain events — ACCEPTED:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI, commissioned-Pi backend/state migration and dry-weather touchscreen presentation are accepted.
+- **Weather rain events — MERGED:** station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage are now in `develop`.
 - **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
+- **BBC News manual refresh — PHYSICALLY ACCEPTED:** Settings → News **Refresh feeds now** successfully forces the existing validated feed service after connectivity recovery instead of waiting for normal cache TTL/background cadence.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
-## Current focus — Weather rain-event maintenance
+## Current focus — #94 Phase B native Linux Plexamp
 
-The #85 audio branch is merged into `develop`. The active bounded maintenance branch is `fix/weather-rain-events`.
+The accepted Weather rain-event fix is merged into `develop`. The active branch is `feature/acp-shell-native-plexamp`. **Phase A is now physically accepted; the next active boundary is Phase B native Linux Plexamp migration.**
 
-Current branch scope:
+Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
 
-- [x] Use WU station observation time rather than ACP receipt time for rain-counter chronology.
-- [x] Prevent stale/out-of-order observations from regressing derived rain counters.
-- [x] Replace the old 24-hour / 1 mm derived-event reset with a **2-hour continuously dry gap**.
-- [x] Persist active/completed rain-event provenance.
-- [x] Project Active/Last rain-event context on the existing Weather rain panel.
-- [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
-- [x] Code-head PR CI green at `cd967a174ba749d264ef1f1858040ae76104bfa3`.
-- [x] Commissioned Pi updated; ACP service restarted cleanly, WU status `ready`, and schema-v2 derived rain state/live chronology accepted.
-- [x] Existing Weather Rain panel checked on the commissioned touchscreen; dry-weather gauges correctly show zero with no stale derived event.
-- [ ] Merge after explicit user approval.
+- [x] ACP Surface Host loaded before the legacy page-transition owner.
+- [x] Explicit `prepare() -> commit()` destination lifecycle.
+- [x] Same-document View Transition ownership with a direct fallback.
+- [x] `page-transitions.js` delegates only explicitly registered destinations.
+- [x] Unmigrated routes retained the full-document fallback during staged migration; Clock, Weather, News, Settings and AirPlay are now all accepted mounted ACP surfaces.
+- [x] CI syntax/catalogue coverage added.
+- [x] Implement the first Clock ↔ Weather same-document surface pair with mount-once DOM ownership and lazy destination assets.
+- [x] Replace Weather's timed full-page reload with in-place live updates that preserve vertical and Rain-history scroll position.
+- [x] Clock ↔ Weather A1 physically accepted: faster same-document switching, no page flash/reload, correct mode/navigation, Clock continuity, Weather in-place refresh and stable repeated-visit controls.
+- [x] Configured View Transition styles and duration physically accepted on Clock ↔ Weather.
+- [x] Forecast custom-scrollbar visibility survives repeated Weather visits; News and Settings legacy fallback navigation physically accepted at A1.
+- [x] A2 News same-document migration accepted: generic application-surface loader, hidden-refresh suspension, preserved News scroll state and settled-layout scrollbar ownership; exact candidate Tests #5087 passed and commissioned-Pi round-trips/transitions are physically accepted.
+- [x] A3 Settings same-document migration physically accepted: Settings round-trips, controls/keyboard, autosave, live transition settings, Weather identity projection, Clock weather-title projection, first-paint behaviour and diagnostics all pass on the commissioned Pi. Combined A3/News follow-up candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105**.
+- [x] Post-A3 Weather presentation cleanup physically accepted: **Dashboard observation refresh** is removed from Settings; Clock/Weather still activate and refresh normally with their shell-owned visible-surface cadence.
+- [x] A4 AirPlay same-document migration physically accepted: manual/automatic AirPlay projection, ready/idle presentation, metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, hidden-surface catch-up, native Plexamp overlay return, active navigation/footer mode and repeated configured transitions all pass on the commissioned Pi. Candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128**.
+- [x] Converge all ordinary ACP-owned browser surfaces into the long-lived document: Clock, Weather, News, Settings and AirPlay are physically accepted. Native Plexamp remains the intentional separate application/workspace.
+- [x] Establish the reusable component/design-token boundary for the ordinary ACP shell primitives. **Both bounded token slices are physically accepted:** Classic Dark and a non-Classic theme remain visually stable across Clock, Weather, News, Settings and AirPlay; Settings fields/selects, News touch/status UI, Weather/News/Rain custom scrollbars and the kiosk-safe dialog all pass commissioned-Pi checks. First-slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**; second-slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179** and docs-synchronised head `7dea1d736f4e28ca0d0efcdf8d35911ea6f9e152` passed **Tests #5180**. That component/design-token boundary is physically accepted; shell-owned navigation and the later B5–B7 closure are also now complete.
+- [x] Complete the shell-owned bottom-edge navigation and spatial workspace model:
+  - [x] **Level A — production navigation shell accepted.** Home-indicator gestures, measured page/drawer movement, dim/backdrop behaviour, ACP↔Plexamp shell-state preservation, current-route no-op handling, Audio overlay ownership and AirPlay pre-snapshot hydration are physically accepted. Acceptance head `02af155ea2d536e774f5ef07a7c745ff80315f5c` passed **Tests #5252**.
+  - [x] **B0–B1 — Clock ↔ Weather spatial row accepted.** The unreliable root-snapshot experiment was replaced by a live-DOM strip; outgoing layout/presentation is frozen correctly and both directions use one full-viewport movement with the configured total duration.
+  - [x] **B2–B3 — News added and literal long-jump traversal accepted.** `Clock ↔ Weather ↔ News` behaves as a true ordered row; non-adjacent jumps visibly pass through intermediate surfaces without logically activating them, and semantic News warning chrome remains intentionally theme-independent.
+  - [x] **B4 — AirPlay added and physically accepted.** `Clock ↔ Weather ↔ News ↔ AirPlay` passes adjacent and long-jump tests. AirPlay staging no longer corrupts session state, and travelling clones retain their computed screen format so no pre-motion vertical reflow occurs. Automated coverage is green through **Tests #5302**.
+  - [x] **B5 — utility cluster + persistent shell physically accepted.** The commissioned-Pi gate now passes persistent navigation above ordinary/Spatial transitions, Overlay and Lift presentations, inactivity timing, Audio timeout suspension, Plexamp→Settings shell persistence, themed pending/saving Settings chrome, Classic Dark Audio glass, ACP rounded-rectangle geometry and the final larger workspace typography. Automated coverage is green through **Tests #5357**.
+  - [x] **B6 — shell-owned workspace topology + Plexamp endpoint physically accepted.** `Home ↔ Weather ↔ News ↔ AirPlay ↔ Plexamp` is now physically proven across adjacent and long Spatial traversal, including literal intermediate ordering, reverse paths, one total duration, first-pass AirPlay staging, persistent navigation, Lift/Overlay geometry, Plexamp state continuity and ordinary non-Spatial fallback. The long-path code head passed **Tests #5391** and the synchronized docs/architecture head passed **Tests #5394**. The earlier suspected audio glitch remains monitor-only; the final B6 stress run produced no glitches.
+  - [x] **B7 — night-clock anti-burn-in + night transition closure physically accepted.** The commissioned Pi now passes the complete B7 gate: rigid time/date/alarm bouncing, inactive-bell visibility, 40 px/s preferred default, zero-margin viewport reflection, alarm takeover/dismissal, idle/projection behaviour, all ordinary night transition styles with the live-screen compositor, Spatial workspace transitions, Settings fallback under Spatial, persistent red night navigation, and repeated stress testing with no white/red/slab transition artefacts. The accepted v6 implementation head `4b2ae0835307183a900a64155a9308abea86d259` passes **Tests #5460**; synchronized architecture/docs head `4aa5c10bd5be6f9fc619007e64f84397a15f75d3` passes **Tests #5462**.
+  - [ ] **NEXT — Phase B native Linux Plexamp migration.** Install and prove the native ARM64 Plexamp alongside Headless, then migrate the accepted terminal Plexamp workspace only after audio, NFC, search/text entry, alarm/AirPlay arbitration, reboot/autostart, rollback and remote-support gates pass.
+  - [ ] **Astronomy follows native Plexamp acceptance**, using the already-reserved order `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`.
 
-Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
+Headless remains the accepted rollback/player runtime until every native-player gate passes.
 
-Detailed status: [features/weather.md](features/weather.md).
+**Phase-A checklist reconciliation:** the detailed #94 roadmap has been audited after B7 acceptance. All implemented shell/surface/theme/touch/transition objectives are complete. The planned Chromium-vs-Firefox commissioned-Pi benchmark was never performed and is now explicitly **retired as superseded by the physically accepted Chromium baseline**; it is not a Phase-A acceptance gap. Reconsider the browser only if Phase B exposes a concrete browser-level reason. Native-player startup/recovery and Search/text-entry gates belong to Phase B.
+
+Detailed status: [features/acp-shell-native-plexamp.md](features/acp-shell-native-plexamp.md).
 
 ## Branch housekeeping
 
-Current visible branches after the 4 October cleanup:
+Current visible working branches:
 
 - `main` — supported stable release branch.
-- `develop` — accepted integration branch, now including merged #85.
-- `fix/weather-rain-events` — active bounded Weather maintenance branch / PR #14.
+- `develop` — accepted integration branch, including #85 and the merged Weather rain-event maintenance.
+- `feature/acp-shell-native-plexamp` — active #94 branch.
 
-The former #85 and two merged News feature branches have been deleted after their work was confirmed present in `develop`.
+The accepted Weather maintenance branch has been deleted after merge.
 
 ## Feature roadmaps
 

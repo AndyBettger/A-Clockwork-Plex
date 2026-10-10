@@ -20,6 +20,7 @@
   const STATE_URL = '/api/playback/state';
   const COMMAND_URL = '/api/playback/command';
   const POLL_MS = 750;
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
 
   let commandPending = false;
   let connected = false;
@@ -85,6 +86,7 @@
   }
 
   async function refresh() {
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     try {
       const response = await fetch(STATE_URL, { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -124,18 +126,36 @@
     }
   }
 
+  function stopPolling() {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+
+  function schedulePolling() {
+    stopPolling();
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    refreshTimer = window.setTimeout(async () => {
+      await refresh();
+      schedulePolling();
+    }, POLL_MS);
+  }
+
+  function activate() {
+    void refresh().finally(schedulePolling);
+  }
+
   backButton.addEventListener('click', () => sendNavigation('previous'));
   forwardButton.addEventListener('click', () => sendNavigation('next'));
 
-  refreshTimer = window.setInterval(refresh, POLL_MS);
-  window.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refresh();
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activate();
+    else stopPolling();
   });
   window.addEventListener('pagehide', () => {
-    window.clearInterval(refreshTimer);
+    stopPolling();
     for (const observer of observers) observer.disconnect();
-  });
+  }, { once: true });
 
   window.AirPlayNavigationStateClient = Object.freeze({ refresh });
-  refresh();
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activate();
 })();

@@ -8,7 +8,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "display-dimming.js"
+MOTION = ROOT / "app" / "static" / "js" / "night-burn-in-motion.js"
 STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
+PAGE_STYLE = ROOT / "app" / "static" / "css" / "page-transitions.css"
+CLOCK_STYLE = ROOT / "app" / "static" / "css" / "clock-dashboard.css"
+CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
 BASE = ROOT / "app" / "templates" / "base.html"
 PAGE_TRANSITIONS = ROOT / "app" / "static" / "js" / "page-transitions.js"
 SETTINGS = ROOT / "app" / "static" / "js" / "settings-completion.js"
@@ -25,6 +29,7 @@ class DisplayDimmingTests(unittest.TestCase):
             self.skipTest("Node.js is not installed.")
         for path in (
             CLIENT,
+            MOTION,
             PAGE_TRANSITIONS,
             SETTINGS,
             DISPLAY_SECTIONS,
@@ -98,7 +103,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("root.style.backgroundColor = '#000'", client)
         self.assertIn("html.acp-night-no-transition", style)
         self.assertIn("transition: none !important", style)
-        self.assertIn("night-navigation-state", base)
+        self.assertIn("20261010-b7-live-screen-v6", base)
 
     def test_plexamp_iframe_activity_uses_linux_input_monitor(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -162,6 +167,8 @@ class DisplayDimmingTests(unittest.TestCase):
             "night_dim_wake_seconds",
             "night_clock_mode",
             "night_burn_in_shift",
+            "night_burn_in_motion",
+            "night_burn_in_speed_px_per_second",
         ):
             self.assertIn(key, settings + interaction)
             self.assertIn(key, backend)
@@ -169,10 +176,116 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("night_dim_style", backend)
         self.assertIn("night_dim_active_style", backend)
 
+    def test_b7_bouncing_cluster_uses_reflected_transform_motion(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        motion = MOTION.read_text(encoding="utf-8")
+        style = STYLE.read_text(encoding="utf-8")
+        settings = SETTINGS.read_text(encoding="utf-8")
+        backend = BACKEND.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("night-burn-in-motion.js", base)
+        self.assertLess(base.index("night-burn-in-motion.js"), base.index("display-dimming.js"))
+        self.assertIn("data-night-burn-in-motion", base)
+        self.assertIn("data-night-burn-in-speed-px-per-second", base)
+
+        self.assertIn("window.ACPNightBurnInMotion", client)
+        self.assertIn("burnInMode: 'periodic'", client)
+        self.assertIn("burnInSpeedPxPerSecond: 40", client)
+        self.assertIn("updateBurnInMotion(clockModeActive)", client)
+        self.assertIn("acp:surface-activated", client)
+        self.assertIn("acp:surface-settled", client)
+
+        self.assertIn("#clock-burn-in-cluster", style)
+        for selector in ("#clock-time", "#clock-date", "#clock-alarm-annunciator"):
+            self.assertIn(selector, motion)
+        self.assertIn("const SAFE_MARGIN_PX = 0", motion)
+        self.assertIn("requestAnimationFrame(tick)", motion)
+        self.assertIn("function reflectedStep", motion)
+        self.assertIn("velocityX *= -1", motion)
+        self.assertIn("velocityY *= -1", motion)
+        self.assertIn("SAFE_MARGIN_PX", motion)
+        self.assertIn("getBoundingClientRect()", motion)
+        self.assertIn("prefers-reduced-motion: reduce", motion)
+        self.assertIn("return 'periodic'", motion)
+        self.assertIn("--acp-night-motion-x", motion)
+        self.assertIn("--acp-night-motion-y", motion)
+
+        self.assertIn("translate: var(--acp-night-motion-x", style)
+        self.assertIn("acp-night-burn-periodic", style)
+        self.assertIn("acp-night-burn-bounce", style)
+        self.assertNotIn("--acp-night-shift-x", style)
+        self.assertNotIn("transform: translate(var(--acp-night-shift", style)
+
+        self.assertIn('data-setting-path="display.night_burn_in_motion"', settings)
+        self.assertIn('value="periodic">Periodic shift', settings)
+        self.assertIn('value="bounce">Bouncing', settings)
+        self.assertIn('data-setting-path="display.night_burn_in_speed_px_per_second"', settings)
+        self.assertIn('min="1" max="120" step="1"', settings)
+        self.assertIn("_NIGHT_BURN_IN_MOTIONS", backend)
+        self.assertIn('{"off", "periodic", "bounce"}', backend)
+
+    def test_b7_followup_rebases_alarm_and_guards_night_shell(self):
+        style = STYLE.read_text(encoding="utf-8")
+        page_style = PAGE_STYLE.read_text(encoding="utf-8")
+        clock_style = CLOCK_STYLE.read_text(encoding="utf-8")
+        clock_template = CLOCK_TEMPLATE.read_text(encoding="utf-8")
+
+        self.assertIn('id="clock-burn-in-cluster"', clock_template)
+        self.assertIn('class="clock-time-row"', clock_template)
+        self.assertIn(".clock-burn-in-cluster", clock_style)
+        self.assertIn(".clock-time-row", clock_style)
+        self.assertIn("display: contents", clock_style)
+        self.assertIn("body.acp-night-clock-mode .clock-burn-in-cluster", clock_style)
+        self.assertIn("body.acp-night-clock-mode .clock-time-row", clock_style)
+        self.assertIn("align-items: flex-start", clock_style)
+        self.assertIn("body.acp-night-clock-mode #clock-time", clock_style)
+        self.assertIn("order: 1", clock_style)
+        self.assertIn("body.acp-night-clock-mode .clock-alarm-annunciator", clock_style)
+        self.assertIn("order: 2", clock_style)
+        self.assertIn("position: static", clock_style)
+
+        self.assertIn("body.acp-night-dim-active .clock-alarm-annunciator:not(.is-active)", style)
+        self.assertIn("opacity: 0.36", style)
+        self.assertIn(":not(.nav-drawer)", style)
+
+        self.assertNotIn("view-transition-name: acp-night-dim-overlay", style)
+        self.assertNotIn("::view-transition-group(acp-night-dim-overlay)", page_style)
+        self.assertIn("html::view-transition", page_style)
+        self.assertIn("background: #02040a", page_style)
+        self.assertIn("html.acp-night-document-active::view-transition", page_style)
+        self.assertIn("background: #000", page_style)
+        self.assertNotIn("html::view-transition-group(root)", page_style)
+        self.assertNotIn("html::view-transition-image-pair(root)", page_style)
+        self.assertNotIn("html::view-transition-old(root)", page_style)
+        self.assertNotIn("html::view-transition-new(root)", page_style)
+
+        self.assertNotIn("background: rgb(255, 0, 0)", page_style)
+        self.assertNotIn("mix-blend-mode: multiply !important", page_style)
+
+        surfaces = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
+        self.assertIn("body.acp-spatial-live-commit", surfaces)
+        self.assertIn("html.acp-night-document-active body.acp-spatial-live-commit", surfaces)
+        self.assertIn("background: #000", surfaces)
+
+    def test_b7_legacy_burn_in_boolean_remains_compatible(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        backend = BACKEND.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+
+        self.assertIn("night_burn_in_shift", client)
+        self.assertIn("night_burn_in_shift", backend)
+        self.assertIn('dashboard["night_burn_in_shift"] = dashboard["night_burn_in_motion"] != "off"', backend)
+        self.assertIn("root.dataset.nightBurnInShift", client)
+        self.assertIn("root.dataset.nightBurnInMotion", client)
+        self.assertIn("default('')", base)
+
     def test_base_loads_global_dimming_before_page_content_and_settings_patch_last(self):
         text = BASE.read_text(encoding="utf-8")
+        self.assertIn("night-burn-in-motion.js", text)
         self.assertIn("display-dimming.js", text)
         self.assertIn("display-dimming.css", text)
+        self.assertNotIn("night-shell-closure.css", text)
         self.assertIn("acp-night-dim-overlay", text)
         self.assertIn("settings-night-interaction.js", text)
         self.assertLess(text.index("display-dimming.js"), text.index("<body"))

@@ -109,6 +109,13 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("currentUnitPreset", self.client)
         self.assertIn("markDirty('weather')", self.client)
 
+    def test_autosave_serialises_only_dirty_sections_from_authoritative_snapshot(self):
+        self.assertIn("const settings = clone(loadedSettings || {})", self.client)
+        self.assertIn("if (!dirtySections.has(section)) return", self.client)
+        self.assertIn("if (dirtySections.has('weather'))", self.client)
+        self.assertIn("if (!dirtySections.has(domain)) return", self.client)
+        self.assertIn("settings[domain] = provider.get()", self.client)
+
     def test_receiver_management_and_live_eq_remain_first_class_settings(self):
         self.assertIn('data-setting-path="airplay.receiver_name"', self.template)
         self.assertIn("Save and restart AirPlay", self.template)
@@ -195,8 +202,10 @@ class SettingsIpadTests(unittest.TestCase):
         self.assertIn("window.ACPUnifiedSettings.registerDomain('news'", self.news_settings)
         self.assertIn("window.ACPUnifiedSettings?.markDirty?.('news')", self.news_settings)
         self.assertIn("const FEED_VALIDATE_API = '/api/news/feed/validate';", self.news_settings)
-        self.assertEqual(self.news_settings.count("fetch("), 1)
+        self.assertIn("const NEWS_REFRESH_API = '/api/news/refresh';", self.news_settings)
+        self.assertEqual(self.news_settings.count("fetch("), 2)
         self.assertIn("fetch(FEED_VALIDATE_API", self.news_settings)
+        self.assertIn("fetch(NEWS_REFRESH_API", self.news_settings)
         self.assertIn("method: 'POST'", self.news_settings)
         self.assertIn("cache: 'no-store'", self.news_settings)
         self.assertNotIn("'/api/settings'", self.news_settings)

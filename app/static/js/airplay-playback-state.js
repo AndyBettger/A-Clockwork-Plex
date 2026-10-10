@@ -29,8 +29,10 @@
   const STATE_URL = '/api/playback/state';
   const COMMAND_URL = '/api/playback/command';
   const POLL_MS = 750;
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
 
   let commandPending = false;
+  let refreshTimer = null;
 
   function normaliseState(value) {
     const state = String(value || '').trim().toLowerCase();
@@ -82,6 +84,7 @@
   }
 
   async function refresh() {
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     try {
       const response = await fetch(STATE_URL, { cache: 'no-store' });
       if (!response.ok) {
@@ -126,14 +129,31 @@
     }
   }
 
+  function stopPolling() {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+
+  function schedulePolling() {
+    stopPolling();
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    refreshTimer = window.setTimeout(async () => {
+      await refresh();
+      schedulePolling();
+    }, POLL_MS);
+  }
+
+  function activate() {
+    void refresh().finally(schedulePolling);
+  }
+
   button.addEventListener('click', sendExplicitCommand);
-  window.setInterval(refresh, POLL_MS);
-  window.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      refresh();
-    }
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activate();
+    else stopPolling();
   });
 
   window.AirPlayPlaybackStateClient = Object.freeze({ refresh });
-  refresh();
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activate();
+  window.addEventListener('pagehide', stopPolling, { once: true });
 })();
