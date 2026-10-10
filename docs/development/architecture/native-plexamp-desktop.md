@@ -601,6 +601,10 @@ The shell therefore owns ordering, direction and navigation semantics above `ACP
 
 This separation is useful because native migration can replace only the Plexamp renderer/transition backend while leaving user muscle memory, left/right meaning and long-jump topology unchanged.
 
+B6 proves that renderer independence in two stages. The adjacent AirPlay↔Plexamp boundary uses the live ACP screen plus the real persistent Plexamp layer. Long jumps then compose a literal strip from **presentation-only ACP clones plus the real endpoint renderer**. For example, Home→Plexamp stages Home/Weather/News/AirPlay at successive 100vw positions and places the persistent Plexamp layer in the terminal slot; Plexamp→Home mirrors the same topology with Plexamp live at the source, AirPlay/News/Weather as staged intermediates and live Home as the committed destination.
+
+Intermediate ACP captures never become logical navigation destinations. Script-owned AirPlay state is refreshed while its wrapper remains hidden, then the wrapper is exposed only synchronously for body-mode/layout calibration and cloning before being restored. This preserves accurate ready/now-playing geometry without a pre-transition flash or a false mode claim. The same shell topology contract can later substitute native Wayland Plexamp for the persistent browser layer: only the terminal renderer adapter changes.
+
 Navigation presentation follows the same semantic split. Ordinary workspace destinations remain the primary row. Audio and Settings form a separated right-edge utility cluster using scalable inline SVG controls: a speaker-with-waves icon for appliance audio and a cog for Settings. Icon controls retain full touch targets, `currentColor` theme ownership and accessible names.
 
 ### Cross-application ownership
