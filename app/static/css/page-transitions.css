@@ -15,12 +15,44 @@ html.acp-document-booting {
 /* Chromium renders View Transitions in a top layer above the document. Give
    that layer an explicit dark canvas so a transient snapshot gap can never
    reveal the browser's default white page, especially in a dark room. */
-html::view-transition {
+html::view-transition,
+html::view-transition-group(root),
+html::view-transition-image-pair(root),
+html::view-transition-old(root),
+html::view-transition-new(root) {
   background: #02040a;
 }
 
-html.acp-night-document-active::view-transition {
+html.acp-night-document-active::view-transition,
+html.acp-night-document-active::view-transition-group(root),
+html.acp-night-document-active::view-transition-image-pair(root),
+html.acp-night-document-active::view-transition-old(root),
+html.acp-night-document-active::view-transition-new(root) {
   background: #000;
+}
+
+/* The night overlay must remain above named persistent-shell snapshots. Without
+   its own transition layer Chromium places nav snapshots above the document's
+   multiply overlay for the duration of the transition, briefly exposing the
+   daytime palette. Use the incoming overlay snapshot only to avoid double
+   dimming when old/new snapshots are identical. */
+::view-transition-group(acp-night-dim-overlay) {
+  z-index: 2147483000;
+  animation: none !important;
+}
+
+::view-transition-old(acp-night-dim-overlay) {
+  opacity: 0;
+  animation: none !important;
+}
+
+::view-transition-new(acp-night-dim-overlay) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+html.acp-night-style-astronomy::view-transition-new(acp-night-dim-overlay) {
+  mix-blend-mode: multiply;
 }
 
 /* The root marker is installed synchronously in <head>, before body content can
