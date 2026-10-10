@@ -68,7 +68,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const fromRoute = visibleWorkspaceRoute()", transitions)
         self.assertIn("topology?.path?.(fromRoute, toRoute)", transitions)
         self.assertIn("path.every((entry) => entry.renderer === 'acp')", transitions)
-        self.assertIn("adjacentCrossRenderer", transitions)
+        self.assertIn("terminalPlexampPath", transitions)
         self.assertNotIn("const spatialRowRoutes =", transitions)
 
     def test_primary_navigation_is_owned_once_by_the_base_shell(self):
@@ -351,7 +351,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         )
         self.assertIn("event.preventDefault();\n      return;", source)
         self.assertNotIn("target.href === window.location.href && !plexampVisiblyOpen()", source)
-        self.assertIn("20261009-b6-topology-v1", base)
+        self.assertIn("20261010-b6-long-v1", base)
 
     def test_spatial_row_b4_adds_airplay_as_fourth_acp_surface(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
@@ -400,7 +400,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("marks its session unresolved", clone_block)
         self.assertIn("async function spatialLiveCommit(direction, from, to, commit)", surfaces)
         self.assertIn("const layers = [cloneCurrentSpatialLayer(from)]", surfaces)
-        self.assertIn("layers.push(cloneMountedSpatialLayer(surface, from))", surfaces)
+        self.assertIn("layers.push(await cloneMountedSpatialLayer(surface, from))", surfaces)
         self.assertIn("copyBodyBackground(layer)", surfaces)
         self.assertIn("function freezeOutgoingScreenLayout", surfaces)
         self.assertIn("'display'", surfaces)
@@ -434,22 +434,20 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertNotIn("@keyframes acp-in-spatial-forward", styles)
         self.assertNotIn("@keyframes acp-out-spatial-forward", styles)
 
-        self.assertIn("20261009-b6-topology-v1", base)
+        self.assertIn("20261010-b6-long-v1", base)
 
 
     def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
-        base = BASE.read_text(encoding="utf-8")
         transitions = TRANSITIONS.read_text(encoding="utf-8")
         plexamp = PLEXAMP_JS.read_text(encoding="utf-8")
 
         self.assertIn("function visibleWorkspaceRoute()", transitions)
-        self.assertIn("const adjacentCrossRenderer = path.length === 2", transitions)
+        self.assertIn("terminalPlexampPath", transitions)
         self.assertIn("entry.renderer === 'plexamp'", transitions)
         self.assertIn("window.ACPPlexamp.spatialShow", transitions)
         self.assertIn("window.ACPPlexamp.spatialHide", transitions)
         self.assertIn("options.spatialCommitDirection === 'forward'", transitions)
         self.assertIn("options.spatialCommitDirection === 'reverse'", transitions)
-        self.assertIn("path?.('/plexamp', target.pathname)?.length === 2", transitions)
 
         self.assertIn("function spatialDurationMs()", plexamp)
         self.assertIn("function spatialShow(options = {})", plexamp)
@@ -462,8 +460,44 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("spatialHide,", plexamp)
         self.assertIn("preserveNavigation", plexamp)
 
-        self.assertIn("20261009-b6-adjacent-v1", base)
-        self.assertIn("20261009-b6-topology-v1", base)
+
+    def test_b6c_long_plexamp_paths_stage_literal_intermediate_workspaces(self):
+        base = BASE.read_text(encoding="utf-8")
+        airplay = (ROOT / "app" / "static" / "js" / "airplay-live.js").read_text(encoding="utf-8")
+        surfaces = APPLICATION_SURFACES.read_text(encoding="utf-8")
+        transitions = TRANSITIONS.read_text(encoding="utf-8")
+        plexamp = PLEXAMP_JS.read_text(encoding="utf-8")
+
+        self.assertIn("refreshForSpatialPreview", airplay)
+        self.assertIn("refreshStatus({ force: true })", airplay)
+
+        self.assertIn("async function cloneMountedSpatialLayer", surfaces)
+        self.assertIn("await ensureScripts(record.scripts)", surfaces)
+        self.assertIn("refreshForSpatialPreview", surfaces)
+        self.assertIn("waitForReady?.(700)", surfaces)
+        self.assertIn("async function captureSpatialLayers", surfaces)
+        self.assertIn("captureSpatialLayers,", surfaces)
+        self.assertIn("screen: () => screen", surfaces)
+
+        self.assertIn("async function spatialShowPath(options = {})", plexamp)
+        self.assertIn("async function spatialHidePath(options = {})", plexamp)
+        self.assertIn("path.slice(0, -1)", plexamp)
+        self.assertIn("path.slice(1, -1)", plexamp)
+        self.assertIn("distance = path.length - 1", plexamp)
+        self.assertIn("currentFirst: true", plexamp)
+        self.assertIn("opening-spatial-path", plexamp)
+        self.assertIn("closing-spatial-path", plexamp)
+        self.assertIn("spatialShowPath,", plexamp)
+        self.assertIn("spatialHidePath,", plexamp)
+
+        self.assertIn("workspacePath.length > 2", transitions)
+        self.assertIn("window.ACPPlexamp.spatialShowPath", transitions)
+        self.assertIn("window.ACPPlexamp.spatialHidePath", transitions)
+        self.assertIn("path: workspacePath", transitions)
+        self.assertIn("await showPlexamp", transitions)
+        self.assertIn("await hidePlexamp", transitions)
+
+        self.assertIn("20261010-b6-long-v1", base)
 
     def test_page_navigation_delegates_only_registered_routes_and_keeps_route_fallback(self):
         source = TRANSITIONS.read_text(encoding="utf-8")
