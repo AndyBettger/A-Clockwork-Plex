@@ -308,6 +308,16 @@
 
   async function cloneMountedSpatialLayer(surface, restoreSurface) {
     const record = await ensureMounted(surface);
+
+    // Hydrate script-owned AirPlay presentation while its mounted wrapper is
+    // still hidden. Never expose a real intermediate surface across an await:
+    // that could paint a pre-transition flash before the staged strip exists.
+    if (surface === 'airplay') {
+      await ensureScripts(record.scripts);
+      await window.ACPAirPlayLive?.refreshForSpatialPreview?.();
+      await (window.ACPAirPlayHydration?.waitForReady?.(700) || Promise.resolve());
+    }
+
     const bodyState = captureBodyPresentationState();
     try {
       // Intermediate row members are presentation-only captures. Never call
@@ -316,13 +326,6 @@
       // now-playing/route-ready geometry that the outgoing clone must preserve.
       presentMountedSurface(surface);
       applyBodyPresentationSurface(surface);
-
-      if (surface === 'airplay') {
-        await ensureScripts(record.scripts);
-        await window.ACPAirPlayLive?.refreshForSpatialPreview?.();
-        await (window.ACPAirPlayHydration?.waitForReady?.(700) || Promise.resolve());
-      }
-
       screen.getBoundingClientRect();
       return prepareSpatialLayer(screen.cloneNode(true), surface);
     } finally {
