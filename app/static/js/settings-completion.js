@@ -97,7 +97,7 @@
         </label>
         <label class="setting-field" data-night-burn-in-speed-field>
           <span>Night burn-in motion speed</span>
-          <input type="range" min="5" max="120" step="5" value="40"
+          <input type="range" min="1" max="120" step="1" value="40"
             data-settings-completion-control
             data-setting-path="display.night_burn_in_speed_px_per_second"
             data-night-burn-in-speed>
