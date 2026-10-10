@@ -52,6 +52,7 @@ _DAYTIME_THEMES = {
 }
 _NIGHT_STYLES = {"classic", "astronomy"}
 _NIGHT_ACTIVE_STYLES = {"same", *_NIGHT_STYLES}
+_NIGHT_BURN_IN_MOTIONS = {"off", "periodic", "bounce"}
 _ALARM_INDICATOR_MODES = {"within_12h", "any_future"}
 _MAX_CLOCK_CARD_SLOTS = 8
 _CLOCK_CARD_SLOT_GROUPS = {
@@ -84,6 +85,11 @@ def _night_style(value: Any, fallback: str, *, active: bool = False) -> str:
     allowed = _NIGHT_ACTIVE_STYLES if active else _NIGHT_STYLES
     candidate = str(value if value is not None else fallback).strip().lower()
     return candidate if candidate in allowed else fallback
+
+
+def _night_burn_in_motion(value: Any, fallback: str = "periodic") -> str:
+    candidate = str(value if value is not None else fallback).strip().lower()
+    return candidate if candidate in _NIGHT_BURN_IN_MOTIONS else fallback
 
 
 def _alarm_indicator_mode(value: Any, fallback: str = "within_12h") -> str:
@@ -161,6 +167,15 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 "night_burn_in_shift": _base._boolean(
                     dashboard.get("night_burn_in_shift"), True
                 ),
+                "night_burn_in_motion": _night_burn_in_motion(
+                    dashboard.get("night_burn_in_motion"),
+                    "periodic"
+                    if _base._boolean(dashboard.get("night_burn_in_shift"), True)
+                    else "off",
+                ),
+                "night_burn_in_speed_px_per_second": _base._integer(
+                    dashboard.get("night_burn_in_speed_px_per_second"), 6, 1, 20
+                ),
                 "night_dim_style": _night_style(
                     dashboard.get("night_dim_style"), "classic"
                 ),
@@ -237,6 +252,21 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                     source.get("night_burn_in_shift"),
                     _base._boolean(dashboard.get("night_burn_in_shift"), True),
                 ),
+                "night_burn_in_motion": _night_burn_in_motion(
+                    source.get("night_burn_in_motion"),
+                    _night_burn_in_motion(
+                        dashboard.get("night_burn_in_motion"),
+                        "periodic"
+                        if _base._boolean(dashboard.get("night_burn_in_shift"), True)
+                        else "off",
+                    ),
+                ),
+                "night_burn_in_speed_px_per_second": _base._integer(
+                    source.get("night_burn_in_speed_px_per_second"),
+                    dashboard.get("night_burn_in_speed_px_per_second", 6),
+                    1,
+                    20,
+                ),
                 "night_dim_style": _night_style(
                     source.get("night_dim_style"),
                     _night_style(dashboard.get("night_dim_style"), "classic"),
@@ -250,6 +280,7 @@ class UnifiedSettingsService(_base.UnifiedSettingsService):
                 ),
             }
         )
+        dashboard["night_burn_in_shift"] = dashboard["night_burn_in_motion"] != "off"
 
     def _normalise_weather(self, config: dict[str, Any], payload: Any) -> None:
         super()._normalise_weather(config, payload)
