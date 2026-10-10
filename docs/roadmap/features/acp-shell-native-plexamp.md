@@ -1240,5 +1240,46 @@ Required behaviour:
 - respect reduced-motion/accessibility policy and all existing night dim/wake behaviour;
 - physically accept long-running 1280×720 motion for smoothness, edge reflection, no clipping, no obvious repeated short loop and no interference with alarm takeover/navigation.
 
+##### B7 candidate — reflected night Clock motion
+
+The first B7 candidate preserves the old anti-burn-in implementation as an explicit mode rather than silently replacing it.
+
+Settings → Display → Night dimming now exposes:
+
+- **Anti-burn-in motion:** Off / Periodic shift / Bouncing;
+- **Night burn-in motion speed:** 1–20 px/s, default 6 px/s, enabled only for Bouncing.
+
+The saved mode is `display.night_burn_in_motion`; speed is `display.night_burn_in_speed_px_per_second`. The legacy `night_burn_in_shift` boolean remains mirrored for older configuration/client compatibility. Existing configurations with the old checkbox off migrate to **Off**; existing enabled configurations migrate to **Periodic shift**. Fresh example configuration remains Periodic until Bouncing is physically accepted.
+
+Runtime ownership is split cleanly:
+
+- `display-dimming.js` decides whether the Clock is currently eligible for night anti-burn-in motion (scheduled/preview night state, not interacting, Clock visible, no Alarm takeover);
+- `night-burn-in-motion.js` owns movement only;
+- Periodic shift preserves the accepted nine-position ±4 px pattern on the existing five-minute cadence;
+- Bouncing uses `requestAnimationFrame`, an initial non-axis-aligned vector and pixels-per-second velocity;
+- the time, date and alarm annunciator receive the same CSS individual `translate`, so they move as a rigid visual group while retaining their own existing transforms;
+- the union of all three live bounding boxes defines safe movement limits with a viewport margin;
+- a collision reflects only the velocity component normal to that edge, giving ordinary specular reflection;
+- bounds are recalculated through `ResizeObserver`/viewport resize and the position is clamped back inside the safe area;
+- long renderer stalls are capped to a 50 ms motion step so resume cannot teleport the cluster through an edge;
+- `prefers-reduced-motion: reduce` automatically substitutes Periodic shift for continuous Bouncing;
+- same-document surface activation/settling immediately starts or stops motion instead of waiting for the 15-second night-state refresh;
+- leaving night Clock mode, interaction/wake state, document hiding or page teardown stops continuous motion safely.
+
+Implementation/regression chain is aligned through `1637f17d54e7b21fc6f9cb02ded7867ba8c1ca7d`; the complete maintained suite passes as **Tests #5405**.
+
+Focused B7 physical gate:
+
+- [ ] Off leaves the night Clock stationary.
+- [ ] Periodic shift retains the previously accepted subtle five-minute behaviour.
+- [ ] Bouncing moves time, date and alarm annunciator together with no change in their relative spacing.
+- [ ] Left/right/top/bottom collisions visibly reflect the appropriate movement component rather than jump, reverse both axes unnecessarily or clip.
+- [ ] At 1280×720 no part of the time/date/alarm group leaves the safe visible area.
+- [ ] Changing the speed from a high test value (for example 20 px/s) to the normal 6 px/s is clearly reflected and persists after save/reload.
+- [ ] Entering the configured night interaction state stops/resets the motion; when the interaction timeout expires on Home, motion resumes safely.
+- [ ] Navigating away from Home stops the motion; returning to Home during an eligible idle night state resumes it without a jump outside the safe area.
+- [ ] Alarm takeover remains fully visible and is not moved/dimmed by the burn-in engine.
+- [ ] A several-minute run is smooth, has no obvious short repeated loop, and does not introduce audio/UI glitches.
+
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
