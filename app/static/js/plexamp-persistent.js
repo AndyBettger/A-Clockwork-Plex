@@ -16,6 +16,7 @@
   let phaseTimer = null;
   let cleanupTimer = null;
   let spatialAnimations = [];
+  let spatialLayers = [];
   let lifecycle = 'hidden';
   let generation = 0;
   let modeGuardUntil = 0;
@@ -103,6 +104,9 @@
     cleanupTimer = null;
     spatialAnimations.forEach((animation) => animation.cancel());
     spatialAnimations = [];
+    spatialLayers.forEach((layer) => layer.remove());
+    spatialLayers = [];
+    document.body.classList.remove('acp-spatial-live-commit');
     clearSpatialStyles(document.querySelector('.screen'));
   }
 
