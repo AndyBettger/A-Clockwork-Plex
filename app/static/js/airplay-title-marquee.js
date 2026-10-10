@@ -36,8 +36,8 @@
     shell.style.removeProperty('--airplay-scroll-duration');
   }
 
-  function measure({ force = false } = {}) {
-    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+  function measure({ force = false, allowHidden = false } = {}) {
+    if (!allowHidden && surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     const text = String(title.textContent || '').trim();
     const width = shell.clientWidth;
 
@@ -79,5 +79,10 @@
     if (visible) window.requestAnimationFrame(() => measure({ force: true }));
     else clearFrames();
   });
+
+  window.ACPAirPlayTitleMarquee = Object.freeze({
+    measureForSpatialPreview: () => measure({ force: true, allowHidden: true }),
+  });
+
   measure({ force: true });
 })();
