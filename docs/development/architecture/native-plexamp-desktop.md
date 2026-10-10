@@ -1,6 +1,6 @@
 # Native Plexamp desktop / visualiser migration
 
-**Status:** ACTIVE — Phase A UI foundation; no native Plexamp production migration authorised  
+**Status:** ACTIVE — Phase B native Linux Plexamp migration; Phase A physically accepted; Headless remains the accepted rollback runtime  
 **Roadmap item:** #94  
 **Last updated:** 10 October 2026
 
