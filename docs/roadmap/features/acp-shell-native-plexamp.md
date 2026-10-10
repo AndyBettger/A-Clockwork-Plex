@@ -1313,7 +1313,7 @@ The next focused candidate addresses those remaining findings:
 - the View Transition canvas, root group, root image-pair and root old/new snapshots all receive explicit dark backing (`#02040a`, black when night-active);
 - the separate live-DOM Spatial-row path also receives explicit dark/black backing, covering both transition implementations against a transient white browser canvas.
 
-Implementation/regression head is `2828f17e56306849844f4305016fc12c4e11a0f5`; **Tests #5434** is the automated gate for this follow-up.
+Implementation/regression head `2828f17e56306849844f4305016fc12c4e11a0f5` passes the complete maintained suite as **Tests #5434**. Focused commissioned-Pi retest remains the B7 closure gate.
 
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
