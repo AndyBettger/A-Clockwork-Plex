@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 10 October 2026  
+**Last updated:** 11 October 2026  
 **Active integration branch:** `develop`  
 **Active feature branch:** `feature/acp-shell-native-plexamp`  
 **Stable branch:** `main`  
@@ -51,6 +51,8 @@ These are bounded corrections/improvements to accepted features; they do not cha
 ## Current focus — #94 Phase B native Linux Plexamp
 
 The accepted Weather rain-event fix is merged into `develop`. The active branch is `feature/acp-shell-native-plexamp`. **Phase A is now physically accepted; the next active boundary is Phase B native Linux Plexamp migration.**
+
+**11 October Phase-B package gate:** Raspberry Pi 5 Model B Rev 1.1 / Debian 13 ARM64 confirmed. Native Plexamp Flatpak **4.50.20-beta.22** installed successfully side-by-side after adding the main Flathub runtime remote; Headless, ACP, CamillaDSP and NFC service states remain active. This is an **installation-only** pass, not native-player acceptance. The beta repository now follows actual beta builds; use this package for discovery while retaining a stable production-release gate. Next: Flatpak ALSA sandbox and labwc session inspection, then a controlled manual GUI launch without autostart/audio changes.
 
 Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
 
