@@ -12,6 +12,17 @@ html.acp-document-booting {
   background: #02040a;
 }
 
+/* Chromium renders View Transitions in a top layer above the document. Give
+   that layer an explicit dark canvas so a transient snapshot gap can never
+   reveal the browser's default white page, especially in a dark room. */
+html::view-transition {
+  background: #02040a;
+}
+
+html.acp-night-document-active::view-transition {
+  background: #000;
+}
+
 /* The root marker is installed synchronously in <head>, before body content can
    paint. This closes the tiny first-paint gap that a body-only class can leave. */
 html.acp-document-booting body {
