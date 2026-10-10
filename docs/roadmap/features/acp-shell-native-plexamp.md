@@ -51,6 +51,14 @@ The original A0 planning list was left unchecked as the implementation evolved t
 
 **Status: ACTIVE — next implementation boundary after Phase-A physical acceptance.**
 
+### 10 October 2026 Phase-B entry point
+
+- The Chromium-vs-Firefox comparison is retired as superseded by the physically accepted Chromium baseline; browser reconsideration is now evidence-driven only.
+- Plexamp Desktop 4.50.x now officially provides native Linux ARM64 AppImage and Flatpak builds. The latest stable release verified for this checkpoint is **4.50.19**; 4.50.20 remains on the beta channel.
+- Start Phase B on the **stable** desktop build. Do not replace or disable Headless: it remains the accepted rollback/player runtime throughout discovery.
+- Do not freeze AppImage versus Flatpak before testing the commissioned Pi. The first gate is a non-destructive platform/audio preflight, followed by a reversible side-by-side launch.
+- Plexamp 4.50.12 added direct ALSA-device access to the Linux Flatpak, but the ACP-specific requirement is stronger: the chosen package must see and drive the managed `acp_plexamp` PCM without bypassing ACP mixer/EQ ownership. That must be physically proven before package choice is accepted.
+
 - [ ] Install current ARM64 Linux Plexamp reversibly alongside the accepted runtime.
 - [ ] Confirm visualisers on the real Pi/display and measure CPU/GPU cost.
 - [ ] Prove native Plexamp can feed the accepted `acp_plexamp` ALSA boundary without bypassing ACP audio ownership.
