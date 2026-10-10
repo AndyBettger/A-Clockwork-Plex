@@ -15,8 +15,8 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  function calibrate() {
-    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+  function calibrate({ allowHidden = false } = {}) {
+    if (!allowHidden && surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     const style = window.getComputedStyle(card);
     const paddingTop = number(style.paddingTop);
     const paddingBottom = number(style.paddingBottom);
@@ -68,6 +68,10 @@
     if (!visible) return;
     window.requestAnimationFrame(() => window.requestAnimationFrame(calibrate));
   });
+  window.ACPAirPlayLayoutV3 = Object.freeze({
+    calibrateForSpatialPreview: () => calibrate({ allowHidden: true }),
+  });
+
   window.requestAnimationFrame(calibrate);
   window.setTimeout(calibrate, 180);
   window.setTimeout(calibrate, 800);
