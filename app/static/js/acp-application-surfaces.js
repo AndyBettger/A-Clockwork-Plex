@@ -339,6 +339,143 @@
     }
   }
 
+  function applicationTransitionStyle() {
+    return String(
+      window.ACPDashboardPreferences?.read?.().transitionStyle
+      || document.documentElement.dataset.transitionStyle
+      || 'grow-fade',
+    ).trim().toLowerCase();
+  }
+
+  function ordinaryTransitionFrames(style) {
+    const resolved = style === 'spatial-row' ? 'horizontal-slide' : style;
+    const frames = {
+      'grow-fade': {
+        outgoing: [
+          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: 'translateY(-7px) scale(.985)' },
+        ],
+        incoming: [
+          { opacity: 0, transform: 'translateY(10px) scale(.976)' },
+          { opacity: 1, transform: 'none' },
+        ],
+      },
+      crossfade: {
+        outgoing: [{ opacity: 1 }, { opacity: 0 }],
+        incoming: [{ opacity: 0 }, { opacity: 1 }],
+      },
+      'horizontal-slide': {
+        outgoing: [
+          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: 'translateX(-4vw)' },
+        ],
+        incoming: [
+          { opacity: 0, transform: 'translateX(5vw)' },
+          { opacity: 1, transform: 'none' },
+        ],
+      },
+      'vertical-lift': {
+        outgoing: [
+          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: 'translateY(-4vh)' },
+        ],
+        incoming: [
+          { opacity: 0, transform: 'translateY(5vh)' },
+          { opacity: 1, transform: 'none' },
+        ],
+      },
+      'cover-reveal': {
+        outgoing: [
+          { opacity: 1, clipPath: 'inset(0 0 0 0 round 0)' },
+          { opacity: 0.15, clipPath: 'inset(0 0 0 100% round 22px)' },
+        ],
+        incoming: [
+          { opacity: 0.65, clipPath: 'inset(0 100% 0 0 round 22px)' },
+          { opacity: 1, clipPath: 'inset(0 0 0 0 round 0)' },
+        ],
+      },
+      zoom: {
+        outgoing: [
+          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: 'scale(1.045)' },
+        ],
+        incoming: [
+          { opacity: 0, transform: 'scale(.91)' },
+          { opacity: 1, transform: 'none' },
+        ],
+      },
+      'blur-dissolve': {
+        outgoing: [
+          { opacity: 1, filter: 'blur(0)', transform: 'none' },
+          { opacity: 0, filter: 'blur(12px)', transform: 'scale(1.008)' },
+        ],
+        incoming: [
+          { opacity: 0, filter: 'blur(14px)', transform: 'scale(.992)' },
+          { opacity: 1, filter: 'blur(0)', transform: 'none' },
+        ],
+      },
+    };
+    return frames[resolved] || frames['grow-fade'];
+  }
+
+  function applyInitialFrame(target, frame) {
+    Object.entries(frame || {}).forEach(([property, value]) => {
+      if (property === 'clipPath') target.style.clipPath = value;
+      else target.style[property] = String(value);
+    });
+  }
+
+  function clearOrdinaryTransitionStyles(target) {
+    ['opacity', 'transform', 'filter', 'clipPath'].forEach((property) => {
+      target.style[property] = '';
+    });
+  }
+
+  async function ordinaryLiveCommit(from, commit) {
+    const outgoing = cloneCurrentSpatialLayer(from);
+    const frames = ordinaryTransitionFrames(applicationTransitionStyle());
+    const duration = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      ? 1
+      : applicationTransitionDurationMs();
+    const timing = {
+      duration,
+      easing: 'cubic-bezier(.16, .84, .24, 1)',
+      fill: 'both',
+    };
+    const animations = [];
+
+    document.body.classList.add('acp-spatial-live-commit');
+    document.body.appendChild(outgoing);
+
+    try {
+      // Hide/stage the real screen underneath the exact outgoing clone before
+      // committing the new mounted surface. Persistent shell chrome and the
+      // night overlay never enter a browser snapshot and therefore remain live.
+      applyInitialFrame(screen, frames.incoming[0]);
+      await commit();
+
+      screen.getBoundingClientRect();
+      outgoing.getBoundingClientRect();
+      await nextFrame();
+
+      if (duration <= 0) {
+        clearOrdinaryTransitionStyles(screen);
+        return;
+      }
+
+      animations.push(outgoing.animate(frames.outgoing, timing));
+      animations.push(screen.animate(frames.incoming, timing));
+      await Promise.all(
+        animations.map((animation) => animation.finished.catch(() => undefined)),
+      );
+    } finally {
+      animations.forEach((animation) => animation.cancel());
+      clearOrdinaryTransitionStyles(screen);
+      outgoing.remove();
+      document.body.classList.remove('acp-spatial-live-commit');
+    }
+  }
+
   async function spatialLiveCommit(direction, from, to, commit) {
     const path = spatialSurfacePath(from, to);
     if (path.length < 2) {
@@ -446,6 +583,9 @@
               return;
             }
             await spatialLiveCommit(direction, from, surface, commit);
+          },
+          async liveCommit({ commit } = {}) {
+            await ordinaryLiveCommit(from, commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
             if (surface !== 'airplay') return;
