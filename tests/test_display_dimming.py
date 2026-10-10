@@ -255,6 +255,11 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("html.acp-night-document-active::view-transition-group(root)", page_style)
         self.assertIn("background: #000", page_style)
 
+        surfaces = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
+        self.assertIn("body.acp-spatial-live-commit", surfaces)
+        self.assertIn("html.acp-night-document-active body.acp-spatial-live-commit", surfaces)
+        self.assertIn("background: #000", surfaces)
+
     def test_b7_legacy_burn_in_boolean_remains_compatible(self):
         client = CLIENT.read_text(encoding="utf-8")
         backend = BACKEND.read_text(encoding="utf-8")
