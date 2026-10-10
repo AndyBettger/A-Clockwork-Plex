@@ -326,6 +326,10 @@
       // now-playing/route-ready geometry that the outgoing clone must preserve.
       presentMountedSurface(surface);
       applyBodyPresentationSurface(surface);
+      if (surface === 'airplay') {
+        window.ACPAirPlayLayoutV3?.calibrateForSpatialPreview?.();
+        window.ACPAirPlayTitleMarquee?.measureForSpatialPreview?.();
+      }
       screen.getBoundingClientRect();
       return prepareSpatialLayer(screen.cloneNode(true), surface);
     } finally {
