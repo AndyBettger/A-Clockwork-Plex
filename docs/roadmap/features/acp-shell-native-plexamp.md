@@ -1315,5 +1315,23 @@ The next focused candidate addresses those remaining findings:
 
 Implementation/regression head `2828f17e56306849844f4305016fc12c4e11a0f5` passes the complete maintained suite as **Tests #5434**. Focused commissioned-Pi retest remains the B7 closure gate.
 
+**10 October 2026 third commissioned-Pi pass:** the 10 px/visible-child bounds are improved and the inactive bell remains correct. The bell still needs one final placement adjustment: it should sit immediately to the right of the seconds with its top aligned to the hours/minutes. The v3 named-overlay experiment is rejected: ordinary ACP transitions displayed a bright full-screen red frame, and one transition from around AirPlay showed a darker red snapshot region moving down the screen while the red shell remained visible. Spatial-row transitions did **not** show the red frame, confirming that the regression is specific to the View Transition overlay composition rather than the live-DOM strip. The old daytime-nav leak was not seen in this round.
+
+##### B7 follow-up v4 — real night nav capture, no overlay snapshot
+
+V4 removes the failed overlay-as-View-Transition-layer approach entirely:
+
+- `#acp-night-dim-overlay` is once again an ordinary part of the page/root snapshot; it has no `view-transition-name`, so Chromium cannot isolate the pure-red multiply layer as an opaque top-layer image;
+- the dedicated `acp-night-dim-overlay` transition pseudo rules are removed;
+- the previously added dark safety backing remains on the View Transition canvas, root group/image-pair/old/new snapshots and the independent live-DOM Spatial strip, preserving protection against a white browser canvas;
+- the nav itself is now given a **real computed astronomy-night palette before snapshot capture** by a new late-loading `night-shell-closure.css`;
+- that closure stylesheet loads after all daytime theme/component styles and uses a higher-specificity night-state selector, fixing the actual cascade problem that let daytime nav colours survive underneath the document overlay;
+- Plexamp is deliberately excluded from the late ACP nav override because its accepted transition path was already correct;
+- the night Clock now has a `.clock-time-row`: it is layout-transparent during normal/daytime presentation, but in very-dark Clock mode it becomes a flex row with the time first and the alarm annunciator second;
+- the bell is therefore a normal layout sibling directly to the **right of the seconds**, top-aligned with the main time instead of being absolutely guessed into place;
+- the bounce engine still measures visible time/date/bell geometry with the accepted 10 px safe margin and keeps 40 px/s as the physically preferred fresh/default speed.
+
+Implementation/regression head `90021e616a110f7da75e8381ef3e84fbd331efc9` passes the complete maintained suite as **Tests #5444**. Focused Pi verification of bell placement, night nav capture and transition-flash closure remains required.
+
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
