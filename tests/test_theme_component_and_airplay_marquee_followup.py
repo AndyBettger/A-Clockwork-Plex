@@ -212,7 +212,8 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("estimatedOverflow", marquee)
         self.assertIn("airplay-source-scroll", css)
         self.assertIn("translateX", css) if False else None
-        self.assertIn("20260819-longform-title-v3", template)
+        self.assertIn("20261010-b6-preview-v2", template)
+        self.assertIn("measureForSpatialPreview", marquee)
         self.assertNotIn("text-indent", css)
 
     def test_changed_javascript_has_valid_syntax(self) -> None:
