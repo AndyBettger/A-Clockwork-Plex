@@ -1,8 +1,8 @@
 :root {
   --acp-night-dim-opacity: 0;
   --acp-night-brightness: 0.18;
-  --acp-night-shift-x: 0px;
-  --acp-night-shift-y: 0px;
+  --acp-night-motion-x: 0px;
+  --acp-night-motion-y: 0px;
 }
 
 html.acp-night-document-active {
