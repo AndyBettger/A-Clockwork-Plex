@@ -49,7 +49,7 @@
       <div class="settings-card-heading">
         <div>
           <h3>Night dimming</h3>
-          <p class="muted small">A red astronomy-style night overlay with touch-to-wake. The Alarm screen always remains fully visible.</p>
+          <p class="muted small">Scheduled night-safe brightness, appearance and optional anti-burn-in motion. The Alarm screen always remains fully visible.</p>
         </div>
         <span class="settings-chip" data-night-dim-status>Off</span>
       </div>
@@ -86,9 +86,23 @@
           <input type="checkbox" data-settings-completion-control data-setting-path="display.night_clock_mode">
           <span><strong>Very-dark Clock mode</strong><small>Temporarily hides Weather and the footer during the dim schedule.</small></span>
         </label>
-        <label class="setting-toggle">
-          <input type="checkbox" data-settings-completion-control data-setting-path="display.night_burn_in_shift">
-          <span><strong>Subtle burn-in shift</strong><small>Moves the night Clock by a few pixels every five minutes.</small></span>
+        <label class="setting-field">
+          <span>Anti-burn-in motion</span>
+          <select data-settings-completion-control data-setting-path="display.night_burn_in_motion" data-night-burn-in-motion>
+            <option value="off">Off</option>
+            <option value="periodic">Periodic shift</option>
+            <option value="bounce">Bouncing</option>
+          </select>
+          <small>Periodic keeps the accepted five-minute pixel shift; Bouncing continuously reflects the Clock cluster from the safe screen edges.</small>
+        </label>
+        <label class="setting-field" data-night-burn-in-speed-field>
+          <span>Night burn-in motion speed</span>
+          <input type="range" min="1" max="20" step="1" value="6"
+            data-settings-completion-control
+            data-setting-path="display.night_burn_in_speed_px_per_second"
+            data-night-burn-in-speed>
+          <output data-night-burn-in-speed-output>6 px/s</output>
+          <small>Controls continuous Bouncing speed only; page and navigation transition timing are independent.</small>
         </label>
       </div>
       <div class="settings-action-row">
@@ -113,9 +127,9 @@
       applyDimmingPreviewConfiguration();
       window.ACPDisplayDimming?.preview?.(8);
       const message = card.querySelector('[data-night-dim-message]');
-      if (message) message.textContent = 'Previewing the selected red night level for eight seconds. Touch the screen to wake it.';
+      if (message) message.textContent = 'Previewing the selected night state for eight seconds. Touch the screen to enter the configured interaction state.';
       window.setTimeout(() => {
-        if (message) message.textContent = 'First touch wakes the screen without activating the control beneath it.';
+        if (message) message.textContent = 'A touch switches to the configured active night level and performs the selected action.';
       }, 8300);
     });
   }
@@ -128,7 +142,11 @@
       night_dim_level_percent: Number(path('display.night_dim_level_percent')?.value || 18),
       night_dim_wake_seconds: Number(path('display.night_dim_wake_seconds')?.value || 30),
       night_clock_mode: path('display.night_clock_mode')?.checked === true,
-      night_burn_in_shift: path('display.night_burn_in_shift')?.checked === true,
+      night_burn_in_motion: path('display.night_burn_in_motion')?.value || 'periodic',
+      night_burn_in_speed_px_per_second: Number(
+        path('display.night_burn_in_speed_px_per_second')?.value || 6,
+      ),
+      night_burn_in_shift: (path('display.night_burn_in_motion')?.value || 'periodic') !== 'off',
     };
   }
 
@@ -136,6 +154,16 @@
     const value = Number(path('display.night_dim_level_percent')?.value || 18);
     const output = document.querySelector('[data-night-dim-level]');
     if (output) output.textContent = `${Math.round(value)}%`;
+
+    const mode = path('display.night_burn_in_motion')?.value || 'periodic';
+    const speed = Number(path('display.night_burn_in_speed_px_per_second')?.value || 6);
+    const speedControl = path('display.night_burn_in_speed_px_per_second');
+    const speedField = document.querySelector('[data-night-burn-in-speed-field]');
+    const speedOutput = document.querySelector('[data-night-burn-in-speed-output]');
+    if (speedOutput) speedOutput.textContent = `${Math.round(speed)} px/s`;
+    if (speedControl) speedControl.disabled = mode !== 'bounce';
+    if (speedField) speedField.classList.toggle('is-disabled', mode !== 'bounce');
+    window.ACPSettingsRangeTheme?.paint?.(speedControl);
   }
 
   function applyDimmingPreviewConfiguration() {
