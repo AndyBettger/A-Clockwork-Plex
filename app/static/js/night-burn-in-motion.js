@@ -1,10 +1,15 @@
 (() => {
   if (window.ACPNightBurnInMotion) return;
 
+  // The cluster is the one translated object, but collision geometry follows
+  // the actually visible children. This avoids invisible wrapper whitespace
+  // becoming an artificial screen margin while still including the alarm glyph.
   const TARGET_SELECTORS = [
-    '#clock-burn-in-cluster',
+    '#clock-time',
+    '#clock-date',
+    '#clock-alarm-annunciator',
   ];
-  const SAFE_MARGIN_PX = 20;
+  const SAFE_MARGIN_PX = 10;
   const PERIODIC_INTERVAL_MS = 300000;
   const PERIODIC_OFFSETS = [
     [0, 0],
