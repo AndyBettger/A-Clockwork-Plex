@@ -103,7 +103,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("root.style.backgroundColor = '#000'", client)
         self.assertIn("html.acp-night-no-transition", style)
         self.assertIn("transition: none !important", style)
-        self.assertIn("20261010-b7-followup-v5", base)
+        self.assertIn("20261010-b7-live-screen-v6", base)
 
     def test_plexamp_iframe_activity_uses_linux_input_monitor(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -260,12 +260,8 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertNotIn("html::view-transition-old(root)", page_style)
         self.assertNotIn("html::view-transition-new(root)", page_style)
 
-        self.assertIn("::view-transition-group(acp-nav-drawer)", page_style)
-        self.assertIn("background: rgb(255, 0, 0)", page_style)
-        self.assertIn("::view-transition-old(acp-nav-drawer)", page_style)
-        self.assertIn("opacity: 0", page_style)
-        self.assertIn("::view-transition-new(acp-nav-drawer)", page_style)
-        self.assertIn("mix-blend-mode: multiply !important", page_style)
+        self.assertNotIn("background: rgb(255, 0, 0)", page_style)
+        self.assertNotIn("mix-blend-mode: multiply !important", page_style)
 
         surfaces = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
         self.assertIn("body.acp-spatial-live-commit", surfaces)
