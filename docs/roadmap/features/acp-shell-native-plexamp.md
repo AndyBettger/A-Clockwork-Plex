@@ -43,7 +43,7 @@ The original A0 planning list was left unchecked as the implementation evolved t
 - [x] Prove ACP-to-ACP transition ownership. Chromium View Transitions remain available where appropriate; Spatial and astronomy-night paths now use accepted live-DOM/live-screen compositors where browser snapshots are the wrong ownership model.
 - [x] Establish the shell-owned bottom navigation/home-indicator model: swipe/tap navigation, persistent shell ownership, utility controls, transition/workspace ownership and Settings text-entry behaviour are physically accepted. The earlier OS-level kiosk keyboard experiments were rejected; **native Plexamp Search/text entry remains a Phase-B gate**, not an unfinished Phase-A shell item.
 - [x] Prove the Spatial row/carousel navigation model with one logical destination commit, literal intermediate traversal and the accepted terminal Plexamp workspace semantics.
-- [~] **Chromium vs Firefox benchmark — NOT PERFORMED.** This planned comparison was never run on the commissioned Pi. Chromium subsequently became the heavily exercised/physically accepted browser baseline through A1–A4 and B0–B7. Keep this as an explicit non-gating decision: either retire the comparison as superseded by the accepted Chromium baseline or run a bounded benchmark later if Phase B exposes a browser-level reason to reconsider.
+- [x] **Chromium vs Firefox benchmark — RETIRED / SUPERSEDED.** The planned comparison was never run on the commissioned Pi. Chromium subsequently became the heavily exercised and physically accepted browser baseline through A1–A4 and B0–B7, so a benchmark for its own sake no longer has useful acceptance value. Reconsider Firefox only if Phase B exposes a concrete browser-level problem that Chromium cannot satisfy.
 - [x] Preserve the existing ACP visual identity and themes across the migrated surfaces, shell, Audio and Settings controls.
 - [x] Physically accept Phase-A touch behaviour, transition smoothness and 1280×720 presentation. **Native-player reboot/autostart/crash recovery remains explicitly in Phase B** and is not claimed as a completed Phase-A gate.
 
@@ -1225,7 +1225,7 @@ B6 physical gates should prove:
 
 #### B7 — night-clock anti-burn-in bouncing cluster — final Phase-A polish before Astronomy
 
-**Status: ACTIVE.**
+**Status: COMPLETE — physically accepted 10 October 2026.**
 
 Replace/extend the existing simple night burn-in shift with an optional continuous **bouncing cluster** mode inspired by classic screen-saver motion.
 
