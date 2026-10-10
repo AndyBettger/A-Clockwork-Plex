@@ -65,15 +65,26 @@ body.acp-night-clock-mode #clock-alarm-annunciator {
 }
 
 body.acp-night-clock-mode.acp-night-burn-periodic #clock-time,
-body.acp-night-clock-mode.acp-night-burn-periodic #clock-date,
-body.acp-night-clock-mode.acp-night-burn-periodic #clock-alarm-annunciator {
+body.acp-night-clock-mode.acp-night-burn-periodic #clock-date {
   transition: translate 1200ms ease;
 }
 
+body.acp-night-clock-mode.acp-night-burn-periodic #clock-alarm-annunciator {
+  transition:
+    translate 1200ms ease,
+    color 160ms linear,
+    filter 160ms linear,
+    opacity 160ms linear;
+}
+
 body.acp-night-clock-mode.acp-night-burn-bounce #clock-time,
-body.acp-night-clock-mode.acp-night-burn-bounce #clock-date,
-body.acp-night-clock-mode.acp-night-burn-bounce #clock-alarm-annunciator {
+body.acp-night-clock-mode.acp-night-burn-bounce #clock-date {
   transition: none;
+  will-change: translate;
+}
+
+body.acp-night-clock-mode.acp-night-burn-bounce #clock-alarm-annunciator {
+  transition: color 160ms linear, filter 160ms linear, opacity 160ms linear;
   will-change: translate;
 }
 
