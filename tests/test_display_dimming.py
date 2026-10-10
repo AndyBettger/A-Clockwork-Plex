@@ -10,7 +10,6 @@ ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "app" / "static" / "js" / "display-dimming.js"
 MOTION = ROOT / "app" / "static" / "js" / "night-burn-in-motion.js"
 STYLE = ROOT / "app" / "static" / "css" / "display-dimming.css"
-NIGHT_SHELL_STYLE = ROOT / "app" / "static" / "css" / "night-shell-closure.css"
 PAGE_STYLE = ROOT / "app" / "static" / "css" / "page-transitions.css"
 CLOCK_STYLE = ROOT / "app" / "static" / "css" / "clock-dashboard.css"
 CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
@@ -104,7 +103,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("root.style.backgroundColor = '#000'", client)
         self.assertIn("html.acp-night-no-transition", style)
         self.assertIn("transition: none !important", style)
-        self.assertIn("20261010-b7-followup-v4", base)
+        self.assertIn("20261010-b7-followup-v5", base)
 
     def test_plexamp_iframe_activity_uses_linux_input_monitor(self):
         text = CLIENT.read_text(encoding="utf-8")
@@ -200,7 +199,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("#clock-burn-in-cluster", style)
         for selector in ("#clock-time", "#clock-date", "#clock-alarm-annunciator"):
             self.assertIn(selector, motion)
-        self.assertIn("const SAFE_MARGIN_PX = 10", motion)
+        self.assertIn("const SAFE_MARGIN_PX = 0", motion)
         self.assertIn("requestAnimationFrame(tick)", motion)
         self.assertIn("function reflectedStep", motion)
         self.assertIn("velocityX *= -1", motion)
@@ -232,8 +231,6 @@ class DisplayDimmingTests(unittest.TestCase):
         clock_style = CLOCK_STYLE.read_text(encoding="utf-8")
         clock_template = CLOCK_TEMPLATE.read_text(encoding="utf-8")
 
-        night_shell = NIGHT_SHELL_STYLE.read_text(encoding="utf-8")
-
         self.assertIn('id="clock-burn-in-cluster"', clock_template)
         self.assertIn('class="clock-time-row"', clock_template)
         self.assertIn(".clock-burn-in-cluster", clock_style)
@@ -255,17 +252,20 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertNotIn("view-transition-name: acp-night-dim-overlay", style)
         self.assertNotIn("::view-transition-group(acp-night-dim-overlay)", page_style)
         self.assertIn("html::view-transition", page_style)
-        self.assertIn("html::view-transition-group(root)", page_style)
-        self.assertIn("html::view-transition-image-pair(root)", page_style)
         self.assertIn("background: #02040a", page_style)
         self.assertIn("html.acp-night-document-active::view-transition", page_style)
-        self.assertIn("html.acp-night-document-active::view-transition-group(root)", page_style)
         self.assertIn("background: #000", page_style)
+        self.assertNotIn("html::view-transition-group(root)", page_style)
+        self.assertNotIn("html::view-transition-image-pair(root)", page_style)
+        self.assertNotIn("html::view-transition-old(root)", page_style)
+        self.assertNotIn("html::view-transition-new(root)", page_style)
 
-        self.assertIn("html.acp-night-document-active.acp-night-style-astronomy", night_shell)
-        self.assertIn('body.acp-night-dim-active.acp-night-style-astronomy:not([data-active-page="plexamp"]) .nav-drawer', night_shell)
-        self.assertIn("rgb(255, 64, 64)", night_shell)
-        self.assertIn(".nav-button.is-active", night_shell)
+        self.assertIn("::view-transition-group(acp-nav-drawer)", page_style)
+        self.assertIn("background: rgb(255, 0, 0)", page_style)
+        self.assertIn("::view-transition-old(acp-nav-drawer)", page_style)
+        self.assertIn("opacity: 0", page_style)
+        self.assertIn("::view-transition-new(acp-nav-drawer)", page_style)
+        self.assertIn("mix-blend-mode: multiply !important", page_style)
 
         surfaces = (ROOT / "app" / "static" / "css" / "acp-surfaces.css").read_text(encoding="utf-8")
         self.assertIn("body.acp-spatial-live-commit", surfaces)
@@ -289,8 +289,7 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("night-burn-in-motion.js", text)
         self.assertIn("display-dimming.js", text)
         self.assertIn("display-dimming.css", text)
-        self.assertIn("night-shell-closure.css", text)
-        self.assertGreater(text.index("night-shell-closure.css"), text.index("daytime-theme-followup.css"))
+        self.assertNotIn("night-shell-closure.css", text)
         self.assertIn("acp-night-dim-overlay", text)
         self.assertIn("settings-night-interaction.js", text)
         self.assertLess(text.index("display-dimming.js"), text.index("<body"))
