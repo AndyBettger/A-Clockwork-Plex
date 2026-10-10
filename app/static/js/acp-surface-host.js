@@ -36,6 +36,13 @@
       && typeof document.startViewTransition === 'function';
   }
 
+  function nightLiveTransitionEnabled(options = {}, prepared = null) {
+    if (!motionEnabled(options) || typeof prepared?.liveCommit !== 'function') return false;
+    const root = document.documentElement;
+    return root.classList.contains('acp-night-document-active')
+      && root.classList.contains('acp-night-style-astronomy');
+  }
+
   function updateNavigationState(surface) {
     const route = routeFor(surface);
     document.querySelectorAll('.main-nav a[href]').forEach((link) => {
@@ -136,6 +143,11 @@
           direction: spatialCommitDirection,
           commit,
         });
+      } else if (nightLiveTransitionEnabled(options, prepared)) {
+        // Chromium's named nav View Transition snapshot is painted above the
+        // live astronomy overlay on the commissioned Pi. Keep shell chrome
+        // genuinely live at night and animate only the ACP screen underneath.
+        await prepared.liveCommit({ host, surface, from, options, commit });
       } else if (transitionEnabled(options)) {
         const transition = document.startViewTransition(commit);
         await transition.updateCallbackDone;
