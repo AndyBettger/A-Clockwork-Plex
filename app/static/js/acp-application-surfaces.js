@@ -345,9 +345,9 @@
     }
 
     const layers = [cloneCurrentSpatialLayer(from)];
-    intermediateSurfaces.forEach((surface) => {
-      layers.push(cloneMountedSpatialLayer(surface, from));
-    });
+    for (const surface of intermediateSurfaces) {
+      layers.push(await cloneMountedSpatialLayer(surface, from));
+    }
 
     document.body.classList.add('acp-spatial-live-commit');
     layers.forEach((layer) => document.body.appendChild(layer));
@@ -474,8 +474,25 @@
     });
   });
 
+  async function captureSpatialLayers(surfacesToCapture, restoreSurface, options = {}) {
+    const requested = Array.isArray(surfacesToCapture)
+      ? surfacesToCapture.map((value) => String(value || '').toLowerCase()).filter(Boolean)
+      : [];
+    const currentFirst = options.currentFirst === true;
+    const layers = [];
+
+    for (let index = 0; index < requested.length; index += 1) {
+      const surface = requested[index];
+      if (index === 0 && currentFirst) layers.push(cloneCurrentSpatialLayer(surface));
+      else layers.push(await cloneMountedSpatialLayer(surface, restoreSurface));
+    }
+    return layers;
+  }
+
   window.ACPApplicationSurfaces = {
     mounted: (surface) => mounted.has(String(surface || '').toLowerCase()),
     surfaces: () => [...mounted.keys()],
+    captureSpatialLayers,
+    screen: () => screen,
   };
 })();
