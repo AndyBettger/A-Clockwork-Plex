@@ -172,7 +172,7 @@ class FinalClockUiPolishTests(unittest.TestCase):
         self.assertIn("if (previewing()) return;", client)
         self.assertIn("acp:display-night-preview-ended", client)
         self.assertIn("clearPreviewTimer();", client)
-        self.assertIn("20261010-b7-bounce-v1", template)
+        self.assertIn("20261010-b7-followup-v2", template)
 
 
 if __name__ == "__main__":
