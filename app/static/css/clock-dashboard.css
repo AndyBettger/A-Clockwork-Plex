@@ -39,6 +39,26 @@
   position: relative;
 }
 
+.clock-burn-in-cluster {
+  display: contents;
+}
+
+body.acp-night-clock-mode .clock-burn-in-cluster {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  align-self: center;
+  width: max-content;
+  max-width: calc(100vw - 40px);
+}
+
+body.acp-night-clock-mode .clock-alarm-annunciator {
+  top: clamp(2px, 0.65vmin, 6px);
+  right: clamp(2px, 0.65vmin, 8px);
+}
+
 .clock-alarm-annunciator {
   position: absolute;
   z-index: 1;
