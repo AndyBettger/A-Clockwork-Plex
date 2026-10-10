@@ -14,6 +14,11 @@
    Keep shell chrome (home indicator/navigation) above it. */
 body.acp-spatial-live-commit {
   overflow: hidden;
+  background: #02040a;
+}
+
+html.acp-night-document-active body.acp-spatial-live-commit {
+  background: #000;
 }
 
 .acp-spatial-outgoing-live-clone {
@@ -23,6 +28,7 @@ body.acp-spatial-live-commit {
   margin: 0 !important;
   width: 100vw !important;
   height: 100dvh !important;
+  background-color: #02040a;
   /* Do not force translate back to 0 here. In Lift presentation the spatial
      clone must share the live screen's shell-owned vertical offset; otherwise
      the outgoing page visibly drops before its horizontal row movement starts. */
@@ -35,4 +41,9 @@ body.acp-spatial-live-commit {
 
 body.acp-spatial-live-commit > main.screen {
   will-change: transform;
+}
+
+
+html.acp-night-document-active .acp-spatial-outgoing-live-clone {
+  background-color: #000;
 }
