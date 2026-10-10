@@ -1350,5 +1350,25 @@ V5 narrows the fix to the actual failing layer:
 
 Implementation/cleanup head `9949442191f3a544411fcfec594bc557eeeef474` passes the complete maintained suite as **Tests #5452**. Focused commissioned-Pi verification of edge bounce and ordinary-transition nav snapshot tint remains the B7 closure gate.
 
+**10 October 2026 fifth commissioned-Pi pass:** the zero-margin bounce is physically accepted — the Clock/date/bell group now reaches and reflects from the visible viewport edges cleanly and looks right. No white screen, red screen or travelling rectangular transition artefact was seen. The remaining failure is now singular and fully reproducible: the navigation drawer still appears in its daytime palette for every **ordinary ACP View Transition**, including Settings when Spatial row is selected. True Spatial workspace transitions remain correct. The v5 attempt to recolour only the named drawer snapshot therefore does not solve Chromium's captured-pixel behaviour and is retired.
+
+##### B7 follow-up v6 — live-screen ordinary night transitions
+
+V6 removes the failing object from Chromium's snapshot compositor rather than trying to recolour it:
+
+- astronomy-night ACP transitions no longer use `document.startViewTransition()` when a mounted-surface live compositor is available;
+- `ACPSurfaceHost` detects active astronomy-night treatment and routes ordinary transitions through the surface lifecycle's `liveCommit()`;
+- the outgoing **ACP screen only** is cloned as an inert presentation layer; the real destination mounted surface is committed underneath it;
+- the real navigation drawer, handle, backdrop and night overlay remain live DOM for the entire movement and therefore cannot expose a frozen daytime-theme nav snapshot;
+- `ordinaryLiveCommit()` reproduces the existing transition styles with Web Animations: grow/fade, crossfade, horizontal slide, vertical lift, cover reveal, zoom and blur dissolve;
+- when Spatial row is selected for a non-row destination such as Settings, the accepted fallback remains Horizontal slide, but it now uses the live-screen compositor at night;
+- true Spatial row workspace transitions continue to use the already accepted literal-row compositor unchanged;
+- Plexamp and Audio continue on their separate accepted renderer/overlay paths;
+- reduced-motion still collapses the live-screen animation to a 1 ms presentation;
+- the failed frozen-nav snapshot tint CSS is removed;
+- the stationary dark View Transition/document safety canvas remains for daytime/other View Transition use, while the already accepted Spatial live-strip dark backing remains intact.
+
+Implementation/regression head `4b2ae0835307183a900a64155a9308abea86d259` passes the complete maintained suite as **Tests #5460**. Focused commissioned-Pi verification of ordinary night transitions and Settings fallback is now the only remaining B7 closure gate.
+
 **Astronomy does not start until B5–B7 are physically accepted.** Its reserved workspace position is between Weather and News so the eventual row becomes `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp` without another navigation-model redesign.
 
