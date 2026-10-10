@@ -475,6 +475,14 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("await ensureScripts(record.scripts)", surfaces)
         self.assertIn("refreshForSpatialPreview", surfaces)
         self.assertIn("waitForReady?.(700)", surfaces)
+        clone_start = surfaces.index("async function cloneMountedSpatialLayer")
+        clone_end = surfaces.index("async function spatialLiveCommit", clone_start)
+        clone_block = surfaces[clone_start:clone_end]
+        self.assertLess(
+            clone_block.index("await ensureScripts(record.scripts)"),
+            clone_block.index("presentMountedSurface(surface)"),
+        )
+        self.assertIn("Never expose a real intermediate surface across an await", clone_block)
         self.assertIn("async function captureSpatialLayers", surfaces)
         self.assertIn("captureSpatialLayers,", surfaces)
         self.assertIn("screen: () => screen", surfaces)
