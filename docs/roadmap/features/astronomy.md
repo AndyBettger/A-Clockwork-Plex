@@ -1,6 +1,6 @@
 # Astronomy
 
-**Status:** NEXT — #94 Phase-A shell closure (B5–B7) is physically accepted; Astronomy is unblocked
+**Status:** QUEUED — follows physically accepted #94 native Linux Plexamp migration
 
 ## Goal
 
@@ -23,13 +23,13 @@ Build a touch-first astronomy surface using deterministic local/offline calculat
 
 Build Astronomy as an application surface on the accepted post-#94 UI foundation rather than adding another legacy full-document page that immediately needs migration.
 
-The Phase-A shell dependency is now satisfied and physically accepted:
+The Phase-A shell dependency is satisfied and physically accepted:
 
 - B5 — separated right-edge Audio/Settings SVG utility cluster — **accepted**;
 - B6 — shell-owned workspace topology with Plexamp as the terminal workspace slot — **accepted**;
 - B7 — night-clock anti-burn-in bouncing motion plus night-safe live-screen transition ownership — **accepted**.
 
-Astronomy is therefore the next new ACP-owned application surface.
+The remaining prerequisite is #94 Phase B: native Linux Plexamp must be physically accepted in the terminal Plexamp workspace before Astronomy implementation begins.
 
 Its reserved spatial position is **between Weather and News**, giving the future workspace order:
 
