@@ -163,7 +163,7 @@
     if (speedOutput) speedOutput.textContent = `${Math.round(speed)} px/s`;
     if (speedControl) speedControl.disabled = mode !== 'bounce';
     if (speedField) speedField.classList.toggle('is-disabled', mode !== 'bounce');
-    window.ACPSettingsRangeTheme?.paint?.(speedControl);
+    if (speedControl) window.ACPSettingsRangeTheme?.paint?.(speedControl);
   }
 
   function applyDimmingPreviewConfiguration() {
