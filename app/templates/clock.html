@@ -3,7 +3,7 @@
 {% block title %}Home - A Clockwork Plex{% endblock %}
 {% block head %}
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/clock-dashboard.css', v='20260818-alarm-annunciator-balanced') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/clock-dashboard.css', v='20261010-b7-cluster-v2') }}">
 {% endblock %}
 {% block content %}
 {% macro composite_card(card_id, label, columns) -%}
@@ -30,6 +30,7 @@
 {%- endmacro %}
 
 <section class="hero clock-hero">
+  <div class="clock-burn-in-cluster" id="clock-burn-in-cluster">
   <div class="clock-alarm-annunciator" id="clock-alarm-annunciator" role="img" aria-label="Alarm indicator inactive" data-active="false" data-mode="within_12h">
     <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
       <g class="clock-alarm-annunciator-glyph" transform="rotate(20 32 32)">
@@ -47,6 +48,7 @@
     <span class="digital-group clock-seconds" id="clock-seconds"></span>
   </div>
   <div class="date is-alpha-date" id="clock-date" aria-label="Current date">{{ now.strftime('%A %-d %B %Y') | upper }}</div>
+  </div>
 </section>
 
 <section class="panel weather-panel" id="clock-weather-panel">
