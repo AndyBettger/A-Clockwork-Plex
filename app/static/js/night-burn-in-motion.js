@@ -2,9 +2,7 @@
   if (window.ACPNightBurnInMotion) return;
 
   const TARGET_SELECTORS = [
-    '#clock-time',
-    '#clock-date',
-    '#clock-alarm-annunciator',
+    '#clock-burn-in-cluster',
   ];
   const SAFE_MARGIN_PX = 20;
   const PERIODIC_INTERVAL_MS = 300000;
@@ -23,7 +21,7 @@
 
   let requestedActive = false;
   let requestedMode = 'periodic';
-  let requestedSpeed = 6;
+  let requestedSpeed = 40;
   let effectiveMode = 'off';
   let frame = null;
   let lastTimestamp = null;
@@ -49,7 +47,7 @@
 
   function normaliseSpeed(value) {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? clamp(parsed, 1, 20) : 6;
+    return Number.isFinite(parsed) ? clamp(parsed, 5, 120) : 40;
   }
 
   function setPosition(nextX, nextY) {
