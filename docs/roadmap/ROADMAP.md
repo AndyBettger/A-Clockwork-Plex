@@ -19,9 +19,9 @@ This is the authoritative product order.
 | 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
 | 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
 | 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE A** | Shell-owned bottom-edge navigation | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
-| 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
-| 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
+| 6 | ACP shell / native Plexamp modernisation (#94) | **ACTIVE — PHASE B** | Native Linux Plexamp migration on the accepted Phase-A shell | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
+| 7 | Astronomy | **QUEUED** | First new product surface after native Linux Plexamp is physically accepted | [Astronomy](features/astronomy.md) |
+| 8 | Appliance resilience | **QUEUED** | Harden the accepted post-#94 runtime after Astronomy | [Resilience](features/appliance-resilience.md) |
 | 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
 
 ### Why #94 now precedes Astronomy
@@ -32,11 +32,12 @@ Astronomy would otherwise be built as another full-document page and then immedi
 
 1. close and merge #85 — **complete**;
 2. complete the bounded Weather rain-event maintenance branch — **complete / merged**;
-3. complete **#94 Phase A** — **active**: single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
-4. build Astronomy as the first new surface on that foundation;
-5. complete the native Plexamp/player migration and then the full resilience track.
+3. complete **#94 Phase A** — **complete / physically accepted**: single long-lived ACP web surface, component/design system, navigation shell, Spatial topology and night-transition ownership;
+4. complete **#94 Phase B** — migrate to native Linux Plexamp while preserving ACP audio, NFC, alarms/AirPlay, shell navigation, rollback and appliance recovery;
+5. build Astronomy as the first new ACP content surface after the native-player migration is physically accepted;
+6. continue with the full Appliance Resilience track.
 
-If native Plexamp discovery becomes a long side quest, Astronomy need not wait for every Phase B player/resilience gate once the Phase A application-surface contract is accepted.
+Astronomy deliberately keeps its reserved shell position during Phase B, but it does not begin until the native Linux Plexamp migration has passed its physical acceptance gates.
 
 ## Maintenance queue
 
@@ -47,9 +48,9 @@ These are bounded corrections/improvements to accepted features; they do not cha
 - **BBC News manual refresh — PHYSICALLY ACCEPTED:** Settings → News **Refresh feeds now** successfully forces the existing validated feed service after connectivity recovery instead of waiting for normal cache TTL/background cadence.
 - **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
 
-## Current focus — #94 Phase A ACP UI foundation
+## Current focus — #94 Phase B native Linux Plexamp
 
-The accepted Weather rain-event fix is merged into `develop`. The active branch is `feature/acp-shell-native-plexamp`.
+The accepted Weather rain-event fix is merged into `develop`. The active branch is `feature/acp-shell-native-plexamp`. **Phase A is now physically accepted; the next active boundary is Phase B native Linux Plexamp migration.**
 
 Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
 
@@ -78,10 +79,10 @@ Checkpoint A0 establishes the migration seam without changing current product-ro
   - [x] **B5 — utility cluster + persistent shell physically accepted.** The commissioned-Pi gate now passes persistent navigation above ordinary/Spatial transitions, Overlay and Lift presentations, inactivity timing, Audio timeout suspension, Plexamp→Settings shell persistence, themed pending/saving Settings chrome, Classic Dark Audio glass, ACP rounded-rectangle geometry and the final larger workspace typography. Automated coverage is green through **Tests #5357**.
   - [x] **B6 — shell-owned workspace topology + Plexamp endpoint physically accepted.** `Home ↔ Weather ↔ News ↔ AirPlay ↔ Plexamp` is now physically proven across adjacent and long Spatial traversal, including literal intermediate ordering, reverse paths, one total duration, first-pass AirPlay staging, persistent navigation, Lift/Overlay geometry, Plexamp state continuity and ordinary non-Spatial fallback. The long-path code head passed **Tests #5391** and the synchronized docs/architecture head passed **Tests #5394**. The earlier suspected audio glitch remains monitor-only; the final B6 stress run produced no glitches.
   - [x] **B7 — night-clock anti-burn-in + night transition closure physically accepted.** The commissioned Pi now passes the complete B7 gate: rigid time/date/alarm bouncing, inactive-bell visibility, 40 px/s preferred default, zero-margin viewport reflection, alarm takeover/dismissal, idle/projection behaviour, all ordinary night transition styles with the live-screen compositor, Spatial workspace transitions, Settings fallback under Spatial, persistent red night navigation, and repeated stress testing with no white/red/slab transition artefacts. The accepted v6 implementation head `4b2ae0835307183a900a64155a9308abea86d259` passes **Tests #5460**; synchronized architecture/docs head `4aa5c10bd5be6f9fc619007e64f84397a15f75d3` passes **Tests #5462**.
-  - [ ] **NEXT — Astronomy**, using the already-reserved order `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`. B5–B7 are now physically accepted, so the Astronomy application surface is officially unblocked.
+  - [ ] **NEXT — Phase B native Linux Plexamp migration.** Install and prove the native ARM64 Plexamp alongside Headless, then migrate the accepted terminal Plexamp workspace only after audio, NFC, search/text entry, alarm/AirPlay arbitration, reboot/autostart, rollback and remote-support gates pass.
+  - [ ] **Astronomy follows native Plexamp acceptance**, using the already-reserved order `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`.
 
-
-Do not start the native Plexamp production migration yet. Phase A first proves the ACP application-surface contract; Headless remains the accepted player runtime.
+Headless remains the accepted rollback/player runtime until every native-player gate passes.
 
 Detailed status: [features/acp-shell-native-plexamp.md](features/acp-shell-native-plexamp.md).
 
