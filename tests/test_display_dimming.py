@@ -238,8 +238,8 @@ class DisplayDimmingTests(unittest.TestCase):
         self.assertIn("body.acp-night-clock-mode .clock-burn-in-cluster", clock_style)
         self.assertIn("body.acp-night-clock-mode .clock-alarm-annunciator", clock_style)
 
-        self.assertIn(".clock-alarm-annunciator:not(.is-active)", style)
-        self.assertIn("opacity: 0.30", style)
+        self.assertIn("body.acp-night-dim-active .clock-alarm-annunciator:not(.is-active)", style)
+        self.assertIn("opacity: 0.36", style)
         self.assertIn(".nav-drawer", style)
         self.assertIn("rgb(255, 64, 64)", style)
         self.assertIn(":not(.nav-drawer)", style)
