@@ -9,7 +9,7 @@
     '#clock-date',
     '#clock-alarm-annunciator',
   ];
-  const SAFE_MARGIN_PX = 10;
+  const SAFE_MARGIN_PX = 0;
   const PERIODIC_INTERVAL_MS = 300000;
   const PERIODIC_OFFSETS = [
     [0, 0],
