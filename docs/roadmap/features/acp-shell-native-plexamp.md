@@ -71,6 +71,22 @@ The original A0 planning list was left unchecked as the implementation evolved t
 - [x] **B1 isolated custom PCM visibility + native picker discovery — PHYSICALLY ACCEPTED (11 October):** No pre-existing private Plexamp ALSA config was present. Copied the host `99-a-clockwork-plex-shared.conf` into `~/.var/app/com.plexamp.Plexamp/config/alsa/asoundrc` with `install -m 644` under the existing Flatpak app-specific config, without broad permissions, global Flatpak override, or changes to host ALSA. Host and copy SHA-256 match (`9de505b8e9ef326558fd317f22afaba2006d056efb0c34c79457c43ec9881fec`). Flatpak reports `XDG_CONFIG_HOME=/home/andy/.var/app/com.plexamp.Plexamp/config` and confirms the definition is readable. Native Plexamp's on-Pi Audio Device picker **visibly lists `A Clockwork Plex - Plexamp`** together with ACP Music master, AirPlay, and independent alarm ceiling, plus generic devices. Three WayVNC screenshots evidence list visibility. This establishes **device listing only**, not correct playback/output/softvol/EQ/4-channel loopback handling or native-source arbitration. The private test copy is disposable and must eventually become safely installer-maintained; do not merge into production by accident.
 
 
+### 11 October 2026 B2 repeat audible glitch — verified XRUN/stall evidence
+
+After the earlier single 02:15:34 playback recovery warning, the user reported another audible glitch while running native Plexamp. CamillaDSP journal now includes a **cluster**:
+- `02:25:50.894368` — capture read overrun: ALSA `snd_pcm_readi` failed, `Broken pipe (32)`;
+- `02:25:51.064187` — capture stalled and processing stalled;
+- `02:25:51.401370` — playback buffer underrun recovery;
+- `02:26:00.699863` — another playback buffer underrun recovery.
+
+Kernel audio/MMC/throttle grep gave no matches; firmware `throttled=0x0`, temperature 66.4°C; live loopback `S32_LE/192000/4ch` with `period_size=4096`, `buffer_size=32768`. This verifies a real managed-graph XRUN/stall rather than an exclusively subjective audio click. The reported audible event has not been timestamped to the millisecond, and the data do not yet establish *why* the graph was disrupted. Process `ps %CPU` values were lifetime averages, not point-of-failure telemetry.
+
+**Next diagnostic boundary (no configuration mutation):**
+- [ ] Read live CamillaDSP `chunksize`, `target_level`, `queuelimit` and source-format geometry; the promoted #85 profile expected 4096 / 12288 / 4, with capture/DAC 2048/16384.
+- [ ] Two settled, individually journal-bounded native-playback intervals using the same track: visualiser not displayed versus visualiser displayed. Note audible glitches, UI activity and VNC connection status. Avoid including playback start/stop transitions in the settled windows.
+- [ ] If the visualiser changes failure frequency, examine rendering/WayVNC scheduling and GPU acceleration; if both fail, isolate native player/ALSA PCM delivery from CamillaDSP and compare with accepted Headless source.
+- [ ] Do not raise buffers, set RT scheduling, alter Flatpak/audio device permissions or modify ACP audio-service ownership until the evidence supports an isolated change. Preserve Headless rollback.
+
 ### 11 October 2026 B2 follow-up: fullscreen, PCM and volume evidence
 
 - [x] **Device/audio routing corroborated:** native Plexamp plays through ACP Plexamp softvol, Music Master and CamillaDSP EQ; visualisers render. Subsequent playback contained no further **audible** glitches.
