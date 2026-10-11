@@ -74,6 +74,14 @@ First real native Plexamp Flatpak playback into `acp_plexamp` produces audible m
 
 **Immediate bounded investigation:** (1) compare constant-format music for 30–60 seconds with the native visualiser inactive/active at fixed ACP settings, noting audible glitch timing and VNC status; (2) capture CamillaDSP XRUN/error journal, kernel audio/MMC events, Pi throttling/temperature and process loads; (3) compare `amixer -c Pro sget "A Clockwork Plexamp"` before/after moving native player's slider, without changing mixer ownership. No rate/buffer/GPU/Flatpak override changes until evidence supports one. Fullscreen is a separate compositor-presentation gate: labwc's standard Alt+Space `client-menu` exposes `ToggleFullscreen`; production should later use a Plexamp-specific window rule or shell workspace integration, not a global kiosk alteration.
 
+### 11 October 2026 B2 follow-up — fullscreen and audio stability
+
+The native player continues to render visualisers and play through ACP Trim/Music Master/EQ; no more audible glitches were reported. Read-only diagnostic evidence did capture **one** CamillaDSP playback-buffer underrun recovery at 02:15:34. No kernel ALSA/MMC/throttle events matched, Pi throttling was `0x0`, temperature 64.8°C, and loopback parameters stayed `S32_LE, 192 kHz, 4ch, 4096/32768`. This is new evidence relative to the earlier B6 Headless/Chromium nonreproducible glitch and does not establish its cause; only one warning and later clean playback were observed. Do not change buffers without a repeatable timed correlation.
+
+The native Plexamp volume slider has no audible effect and did not move `amixer -c Pro sget 'A Clockwork Plexamp'` (255/255, 100%, 0 dB before/after). This confirms it does not manipulate the ACP softvol, not that any specific alternative gain backend is active. Retain working ACP controls pending policy decision.
+
+A WayVNC screenshot after attempted fullscreen shows Plexamp full-width but below an ACP-colored strip at the top, suggesting `Maximize` constrained to the panel's usable area instead of compositor `ToggleFullscreen` (hypothesis, not yet proven). Labwc supports both actions. Next: nonpersistent `wlrctl toplevel find app_id:com.plexamp.Plexamp` then `wlrctl toplevel fullscreen` only if matched; avoid modifying the system panel, kiosk or global compositor margins. If compositor fullscreen still leaves a strip, inspect native-client geometry and full-screen state before adding a Plexamp-only rule.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
