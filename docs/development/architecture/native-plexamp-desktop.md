@@ -90,6 +90,16 @@ The kernel journal audio/MMC/throttle filter was empty, `vcgencmd get_throttled=
 
 Use two non-mutating, settled 60–90 second native Plexamp windows on the same track: visualiser inactive versus active (while keeping output, VNC and ACP mixer settings constant). Bound the CamillaDSP journal separately to each start/end timestamp. If only the active visualiser generates timed XRUNs, pursue display GPU/WebKit/WayVNC load and thread scheduling; if the issue persists in both, compare native and Headless source behaviour on the accepted PCM. Keep `acp_plexamp` and stable service ownership; do not alter the production audio geometry or introduce aggressive scheduling without measured justification.
 
+### 11 October 2026 B2 clean short A/B and exact accepted timing confirmation
+
+The user clarified that the original upper-bar fullscreen symptom was due to **Maximise** rather than true fullscreen, so no global Raspberry Pi panel reservation changes are warranted. Treat a dedicated compositor-fullscreen application rule as a later scoped integration detail, not a current defect fix.
+
+The legacy read-only timing snapshot `scripts/audio/snapshot-airplay-hi-res.py --no-journal` shows the currently accepted production audio geometry *unchanged*: `S32_LE` / 192 kHz, 4-channel dmix `4096/32768`, capture `2048/16384` (4ch), DAC `2048/16384` (2ch), CamillaDSP `chunksize=4096`, `target_level=12288` (64ms), `queuelimit=4`, `adjust_period=1`, `enable_rate_adjust=true`. The active CamillaDSP PID remained 925 in the snapshot. No new buffer-size tuning is supported by this measurement.
+
+Two short native-player sessions with the same material were fully clean to the ear and CamillaDSP's bounded XRUN log: visualiser **inactive** 02:35:44–02:38:44, then **active** 02:39:15–02:42:15, both 180 seconds. However the user has separately heard audio discontinuities with visualisers **off**; prior confirmed capture-overrun/stall/playback-underrun cluster at 02:25:50–02:26:00 remains a real failure. This rules out the simplistic assertion that visualisers alone trigger every interruption, but does not prove WebKit, VNC, scheduling or source rate are irrelevant.
+
+**Next decision gate:** longer bounded no-interaction native-versus-Headless playback (same track, only one playing, matched ACP route and processing), with per-run timestamps and CamillaDSP journal rather than changing buffers based on a clean six-minute test. If a native-only difference emerges, separate its PCM output behavior from WebKit/WayVNC compute competition; if XRUNs occur on both player sources, investigate the shared ALSA loopback/CamillaDSP path. Preserve rollback and all existing production ownership until evidence is actionable.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
