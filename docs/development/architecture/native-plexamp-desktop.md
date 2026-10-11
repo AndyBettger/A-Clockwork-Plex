@@ -58,6 +58,14 @@ that boundary.
 
 No production release, touchscreen Search, login/player identity, playback, visualiser, NFC, alarm/AirPlay or native-shell integration gate has passed. Headless remains authoritative. Beta can be used for discovery but not yet for production acceptance.
 
+### 11 October 2026 native Flatpak ALSA device discovery accepted
+
+The application-specific config test did not find a pre-existing `~/.var/app/com.plexamp.Plexamp/config/alsa/asoundrc` or `config/asound.conf`. A byte-for-byte copy of `/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf` was installed at the first path, with matching SHA-256 `9de505b8e9ef326558fd317f22afaba2006d056efb0c34c79457c43ec9881fec`. The sandbox uses `XDG_CONFIG_HOME=/home/andy/.var/app/com.plexamp.Plexamp/config`, retains `ALSA_CONFIG_PATH=/usr/share/alsa/alsa-flatpak.conf`, and can read `pcm.acp_plexamp` through its existing optional user-config hook.
+
+The native Plexamp 4.50.20-beta.22 GUI **physically shows** `A Clockwork Plex - Plexamp` in its Audio Device selector, along with ACP Music master, AirPlay and Alarm ceiling outputs. Separate scroll-position screenshots also show PipeWire, OSS, DAC Pro and raw Loopback devices. This closes **named ALSA PCM discovery**, not audio playback or processing acceptance. The next bounded gate is to select exclusively the Plexamp-specific PCM, pause but not stop Headless, ensure no active alarm or AirPlay override, then test low-volume native music while checking ACP's trim/master/EQ and CamillaDSP path. A display name alone does not prove that ALSA device opening, softvol controls, shared dmix IPC, hardware access, or downstream processing work correctly.
+
+The private config file is an **experimental copy** of the host policy. Before final migration, own its installation/update/removal in ACP's setup path (and handle any pre-existing user configuration), avoid divergence, and address the brittle `hw:7,0,0` card-number dependency as part of runtime recovery/robustness. Headless continues as the accepted player and rollback.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
