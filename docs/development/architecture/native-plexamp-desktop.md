@@ -82,6 +82,14 @@ The native Plexamp volume slider has no audible effect and did not move `amixer 
 
 A WayVNC screenshot after attempted fullscreen shows Plexamp full-width but below an ACP-colored strip at the top, suggesting `Maximize` constrained to the panel's usable area instead of compositor `ToggleFullscreen` (hypothesis, not yet proven). Labwc supports both actions. Next: nonpersistent `wlrctl toplevel find app_id:com.plexamp.Plexamp` then `wlrctl toplevel fullscreen` only if matched; avoid modifying the system panel, kiosk or global compositor margins. If compositor fullscreen still leaves a strip, inspect native-client geometry and full-screen state before adding a Plexamp-only rule.
 
+### 11 October 2026 follow-up — audible glitch with CamillaDSP capture/processing stall
+
+A second audible native Plexamp glitch was accompanied by **fresh XRUN evidence**: CamillaDSP at 02:25:50.894 logged ALSA `snd_pcm_readi` capture overrun (`Broken pipe (32)`); at 02:25:51.064 logged capture/processing stalled; at 02:25:51.401 playback-buffer underrun; and at 02:26:00.699 a second playback underrun recovery. This is not the earlier B6 Headless monitor-only unexplained click. It also differs from the initial single 02:15:34 recovery warning. It demonstrates managed-graph discontinuity but does not uniquely implicate native decoding, graphical load, buffers, dmix capture, scheduling or the sandbox. Audible-event correlation is approximate rather than instrumented.
+
+The kernel journal audio/MMC/throttle filter was empty, `vcgencmd get_throttled=0x0`, Pi temperature 66.4°C. Live loopback maintained `S32_LE/192 kHz/4 channels`, period 4096 and buffer 32768. Snapshot `ps %CPU` values indicate concurrent Chromium/WebKit/WayVNC activity but are not instantaneous XRUN measurements. Historical #85 A/B tests established that the accepted production CamillaDSP configuration should have `chunksize=4096`, `target_level=12288`, `queuelimit=4` with live capture/DAC 2048/16384. Confirm those **current** values using the existing read-only `scripts/audio/snapshot-airplay-hi-res.py --no-journal` before proposing changes.
+
+Use two non-mutating, settled 60–90 second native Plexamp windows on the same track: visualiser inactive versus active (while keeping output, VNC and ACP mixer settings constant). Bound the CamillaDSP journal separately to each start/end timestamp. If only the active visualiser generates timed XRUNs, pursue display GPU/WebKit/WayVNC load and thread scheduling; if the issue persists in both, compare native and Headless source behaviour on the accepted PCM. Keep `acp_plexamp` and stable service ownership; do not alter the production audio geometry or introduce aggressive scheduling without measured justification.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
