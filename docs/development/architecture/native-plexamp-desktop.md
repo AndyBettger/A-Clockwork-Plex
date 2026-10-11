@@ -66,6 +66,14 @@ The native Plexamp 4.50.20-beta.22 GUI **physically shows** `A Clockwork Plex - 
 
 The private config file is an **experimental copy** of the host policy. Before final migration, own its installation/update/removal in ACP's setup path (and handle any pre-existing user configuration), avoid divergence, and address the brittle `hw:7,0,0` card-number dependency as part of runtime recovery/robustness. Headless continues as the accepted player and rollback.
 
+### 11 October 2026 native playback / visualiser commissioning result
+
+First real native Plexamp Flatpak playback into `acp_plexamp` produces audible music. **ACP Plexamp Trim, Music Master and EQ respond audibly**. This supports that native audio opens the PCM and traverses the intended ACP softvol/mixer/DSP graph, not a direct physical DAC selection. Native visualisers are rendered and functional, but GPU acceleration/load have not been measured.
+
+**B2 audio stability is not accepted:** intermittent audible glitches were heard; no simultaneous CamillaDSP journal, process-load, throttling or ALSA hardware-parameter capture was yet provided. The native Plexamp volume slider visibly moves but does not alter audible level; its relationship to output backend, software-gain/bit-perfect policy, system volume and the accepted ACP softvol control is unknown. A previous Headless/Chromium UI-load glitch was monitor-only with no reproduction/XRUN evidence; do not assume it is the same mechanism as the current native-player problem.
+
+**Immediate bounded investigation:** (1) compare constant-format music for 30–60 seconds with the native visualiser inactive/active at fixed ACP settings, noting audible glitch timing and VNC status; (2) capture CamillaDSP XRUN/error journal, kernel audio/MMC events, Pi throttling/temperature and process loads; (3) compare `amixer -c Pro sget "A Clockwork Plexamp"` before/after moving native player's slider, without changing mixer ownership. No rate/buffer/GPU/Flatpak override changes until evidence supports one. Fullscreen is a separate compositor-presentation gate: labwc's standard Alt+Space `client-menu` exposes `ToggleFullscreen`; production should later use a Plexamp-specific window rule or shell workspace integration, not a global kiosk alteration.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
