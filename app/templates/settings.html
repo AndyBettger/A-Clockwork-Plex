@@ -321,11 +321,24 @@
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:audio"><span><strong>Audio hardware</strong><small>DAC and shared-mixer path</small></span><span>›</span></button>
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:authorities"><span><strong>Playback and screen authority</strong><small>Read-only ownership diagnostics</small></span><span>›</span></button>
             <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:services"><span><strong>Service status</strong><small>Plexamp, Shairport and forecast</small></span><span>›</span></button>
+            <button class="settings-subpage-row" type="button" data-settings-subpage-target="advanced:keyboard"><span><strong>Keyboard trial</strong><small>Try one Wayland keyboard for ACP and Plexamp</small></span><span>›</span></button>
           </div>
           <section class="settings-subpage" data-settings-subpage="advanced:alarm" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><div id="settings-advanced-alarm-diagnostics"></div></section>
           <section class="settings-subpage" data-settings-subpage="advanced:audio" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><section class="settings-card"><h3>Alarm audio hardware</h3><div class="settings-grid two-col"><label class="setting-toggle"><input type="checkbox" data-setting-path="alarm_audio.shared_mixer_enabled"><span>Use shared ALSA mixer</span></label><label class="setting-field"><span>Physical DAC</span><input inputmode="none" data-keyboard="text" data-setting-path="alarm_audio.hardware_device"></label><label class="setting-field"><span>Alarm PCM</span><input readonly data-setting-path="alarm_audio.alsa_device"></label><label class="setting-field"><span>Test duration</span><select data-setting-path="alarm_audio.test_duration_seconds"><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="12">12 seconds</option><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></label></div><div class="settings-action-row"><button class="button" type="button" data-action="alarm-audio-test">Test tone now</button><button class="button settings-secondary" type="button" data-action="alarm-audio-stop">Stop alarm audio</button><span class="muted small" data-alarm-audio-message></span></div></section></section>
           <section class="settings-subpage" data-settings-subpage="advanced:authorities" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><section class="settings-card"><h3>Playback and screen authority</h3><pre class="settings-json-status" data-authority-status>Loading…</pre><button class="button settings-secondary" type="button" data-action="refresh-authorities">Refresh</button></section></section>
           <section class="settings-subpage" data-settings-subpage="advanced:services" hidden><button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button><section class="settings-card"><h3>Service status</h3><div class="settings-status-grid" data-service-status><p class="muted">Loading…</p></div><button class="button settings-secondary" type="button" data-action="refresh-services">Refresh</button></section></section>
+          <section class="settings-subpage" data-settings-subpage="advanced:keyboard" hidden>
+            <button class="settings-back" type="button" data-settings-back="advanced">‹ Advanced</button>
+            <section class="settings-card">
+              <h3>On-screen keyboard — native trial</h3>
+              <p class="muted small">Test the compositor-level Squeekboard without ACP opening its second HTML keyboard. This only selects the browser's input mode; it does not launch, install or stop Squeekboard.</p>
+              <p class="muted small" data-osk-trial-status role="status">Using the existing ACP keyboard. System keyboard trial is off.</p>
+              <div class="settings-action-row">
+                <button type="button" class="button settings-secondary" data-osk-trial-toggle aria-pressed="false">Try system keyboard</button>
+              </div>
+              <p class="muted small">The trial resets after five minutes or when this browser tab closes. If the system keyboard isn't running or input doesn't work, tap <strong>Restore ACP keyboard</strong>. Existing specialised time, numeric and URL quick-entry layouts remain available in ACP mode.</p>
+            </section>
+          </section>
         </div>
 
         <div class="settings-detail-panel" data-settings-section="about" hidden>
@@ -357,6 +370,6 @@
 <script src="{{ url_for('static', filename='js/settings-alarms.js', v='20260802-unified-settings') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-advanced.js', v='20260908-zero-preview-parent-v2') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-clock-cards.js') }}"></script>
-<script src="{{ url_for('static', filename='js/settings-keyboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-keyboard.js', v='20261012-native-osk-session-trial-v1') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-about.js', v='20260831-home-restore-feedback-v2') }}"></script>
 {% endblock %}
