@@ -76,7 +76,15 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
                 self.assertIn(expected, presenter)
         self.assertIn("[data-wu-commissioning] [hidden]", layout)
         self.assertIn("display: none !important", layout)
-        self.assertIn("20261012-wu-replace-tap-v2", template)
+        self.assertIn("20261012-wu-geometry-probe-v1", template)
+        self.assertIn('WU KEYBOARD GEOMETRY PROBE v1 - NO SECRETS', presenter)
+        self.assertIn('installCredentialKeyboardProbe(block)', presenter)
+        self.assertIn("input.closest('.settings-detail')", presenter)
+        self.assertIn('detail.scrollHeight - detail.clientHeight', presenter)
+        probe = presenter.split('function installCredentialKeyboardProbe(block)', 1)[1].split('function installCredentialControls()', 1)[0]
+        self.assertNotIn('input.value', probe)
+        self.assertNotIn('fetch(', probe)
+        self.assertNotIn('requestJson(', probe)
         self.assertNotIn("elements.input?.focus()", presenter)
         self.assertIn("detail.scrollBy({ top: fieldBottom - bottom + 16", presenter)
 
