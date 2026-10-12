@@ -226,6 +226,12 @@ The first dedicated [ARM64 build #3](https://github.com/AndyBettger/A-Clockwork-
 
 The maintained Raspberry Pi `src/outputs.rs` declares `pub name: Option<String>`, and the matching newer test fixture uses `name: None`. Accordingly the CI-only preparation now applies a **second, test-fixture-only compatibility correction** limited to the known old `Application::get_preferred_height_and_arrangement(&OutputState { ... scale, }),` initialisers, with a strict match count and provenance. This is explicitly not part of the runtime layer patch, which remains the independently SHA-verified *single change* to `src/panel.c`. It allows keeping the vendor tests enabled; no `nocheck`/test suppression is proposed. Another isolated CI run must prove whether that correction suffices. Any built ELF still requires target ABI review and guarded input-method handover before use.
 
+### 12 October 2026 — test-only fixture scanner and ARM64 run #5
+
+The second ARM64 [run #4](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197421672) failed closed while trying to identify the old Rust `OutputState` test fixture in the source tree; it did **not** install the large dependency closure or produce a candidate binary. The CI staging helper now parses only the vendor `#[cfg(test)]` module, uses balanced braces to find actual `OutputState` constructions and inserts a missing optional `name: None` on the test-only scale field with a strict 1–3 repair gate. Its unit tests passed on the branch as GitHub Tests #5567, retaining the complete Debian `dh_auto_test` build chain. The source runtime modification remains exactly the SHA-verified `TOP→OVERLAY` in `src/panel.c`.
+
+A third off-device [ARM64 run #5](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197809476) reached the Debian Trixie arm64 builder; verdict and artifacts await inspection. Temporary PR triggering was removed after launch, so subsequent Phase-B commits do not consume builder time unexpectedly. No build binaries have been installed on the target Pi.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
