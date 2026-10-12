@@ -8,11 +8,17 @@ APP_BRANCH="beta"
 
 usage() {
   cat <<'HELP'
-Usage: bash scripts/launch-native-plexamp.sh
+Usage: bash scripts/launch-native-plexamp.sh [--fullscreen]
 
 Launch the already-installed Plexamp desktop Flatpak in the active labwc/Wayland
 session, including when invoked from SSH. The application runs in the background
 and writes output to ~/.cache/a-clockwork-plex/native-plexamp.log.
+
+--fullscreen  Ask labwc to put native Plexamp into genuine fullscreen using
+              wlrctl. Requires wlrctl to be installed and the native window's
+              app_id to be com.plexamp.Plexamp. Fullscreen currently hides the
+              Raspberry Pi OS on-screen keyboard; default remains windowed
+              until touch-only text entry is solved.
 
 This is a Phase-B manual discovery helper. It does not change ACP, Headless,
 autostart, Flatpak permissions, or audio settings.
@@ -26,15 +32,17 @@ fail() {
   exit 1
 }
 
-case "${1:-}" in
-  -h|--help) usage; exit 0 ;;
-  "") ;;
-  *) usage >&2; exit 2 ;;
-esac
+fullscreen=false
 if (( $# > 1 )); then
   usage >&2
   exit 2
 fi
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  --fullscreen) fullscreen=true ;;
+  "") ;;
+  *) usage >&2; exit 2 ;;
+esac
 
 if (( EUID == 0 )); then
   fail "Run as your normal desktop user, not root (no sudo)."
@@ -47,9 +55,19 @@ flatpak info "$APP_ID" "$APP_BRANCH" >/dev/null 2>&1 || \
 
 # Do not launch another native player if one is already running. This check
 # deliberately does not match or affect the separate Headless Node service.
+already_running=false
 if flatpak ps --columns=application 2>/dev/null | grep -Fxq "$APP_ID"; then
-  printf 'ACP native Plexamp: already running; not starting another instance.\n'
-  exit 0
+  already_running=true
+  if [[ "$fullscreen" == false ]]; then
+    printf 'ACP native Plexamp: already running; not starting another instance.\n'
+    exit 0
+  fi
+fi
+
+if [[ "$fullscreen" == true ]]; then
+  command -v wlrctl >/dev/null 2>&1 || \
+    fail "--fullscreen requires wlrctl (install with: sudo apt install wlrctl). No changes made."
+  command -v timeout >/dev/null 2>&1 || fail "--fullscreen requires the timeout command."
 fi
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -91,6 +109,24 @@ log_dir="${XDG_CACHE_HOME:-$HOME/.cache}/a-clockwork-plex"
 mkdir -p -- "$log_dir"
 log_file="$log_dir/native-plexamp.log"
 
-printf 'ACP native Plexamp: requesting launch on %s (Flatpak %s).\n' "$WAYLAND_DISPLAY" "$APP_BRANCH"
-nohup flatpak run --branch="$APP_BRANCH" "$APP_ID" >>"$log_file" 2>&1 </dev/null &
-printf 'ACP native Plexamp: launch requested; output: %s\n' "$log_file"
+if [[ "$already_running" == false ]]; then
+  printf 'ACP native Plexamp: requesting launch on %s (Flatpak %s).\n' "$WAYLAND_DISPLAY" "$APP_BRANCH"
+  nohup flatpak run --branch="$APP_BRANCH" "$APP_ID" >>"$log_file" 2>&1 </dev/null &
+  printf 'ACP native Plexamp: launch requested; output: %s\n' "$log_file"
+else
+  printf 'ACP native Plexamp: already running; using existing instance.\n'
+fi
+
+if [[ "$fullscreen" == true ]]; then
+  # Wait for the actual native window, not the Chromium kiosk/Headless process.
+  # Foreign-toplevel fullscreen is an idempotent request, not a toggle.
+  match="app_id:$APP_ID"
+  if ! timeout 20s wlrctl toplevel waitfor "$match"; then
+    fail "Native Plexamp window not found as $match within 20 seconds. Check the actual app_id; no other window was changed."
+  fi
+  if ! wlrctl toplevel fullscreen "$match"; then
+    fail "Could not request fullscreen for $match; Plexamp itself remains running."
+  fi
+  printf 'ACP native Plexamp: fullscreen requested for %s.\n' "$match"
+  printf 'Note: the Pi OS keyboard is currently hidden in true fullscreen; touch Search is not yet accepted.\n'
+fi
