@@ -513,11 +513,12 @@ body.keyboard-open .settings-save-bar {
   }
 }
 
-/* Phase-B experimental compositor OSK: Squeekboard overlays Chromium rather
-   than resizing visualViewport. Keep the Settings scroll pane wholly above
-   the keyboard only while a local field has focus. ACP mode is unchanged. */
-html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-ipad-page {
-  padding-bottom: calc(70px + clamp(245px, 44vh, 330px));
+/* Phase-B experimental compositor OSK: the Wayland keyboard sits above the
+   normal Settings scroll area without resizing Chromium's viewport. Leave
+   the outer shell at full size, and add scrolling room INSIDE its detail
+   panel only while a local field is focused. No enormous blank gap. */
+html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-detail-panel:not([hidden]) {
+  padding-bottom: calc(14px + clamp(245px, 44vh, 330px));
 }
 
 html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-save-bar {

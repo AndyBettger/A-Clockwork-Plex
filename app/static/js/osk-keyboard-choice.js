@@ -22,8 +22,8 @@
   let revealTimer = null;
 
   // Squeekboard is a compositor overlay: it does not reduce Chromium's
-  // visualViewport. Reserve room in the Settings scroll pane only while an
-  // actual local input is focused, and scroll that input above the overlay.
+  // visualViewport. Give the Settings detail SCROLLER room for the obscured
+  // content, not the whole Settings page (which created a large blank gap).
   const nativeFields = 'input[data-keyboard], input[data-osk-probe]';
   function clearFocusedField() {
     document.body?.classList?.remove('native-osk-field-focused');
@@ -40,8 +40,14 @@
     const bounds = pane.getBoundingClientRect();
     const field = input.getBoundingClientRect();
     const gap = 16;
-    if (field.bottom > bounds.bottom - gap) {
-      pane.scrollTop += field.bottom - bounds.bottom + gap;
+    // The overlay keyboard does not reduce visualViewport on this labwc
+    // session. Only the part of Settings above the real keyboard is visible.
+    // Scrolling the existing detail pane avoids shrinking the entire shell.
+    const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 720;
+    const keyboardHeight = Math.min(330, Math.max(245, viewportHeight * 0.44));
+    const visibleBottom = Math.min(bounds.bottom, viewportHeight - keyboardHeight);
+    if (field.bottom > visibleBottom - gap) {
+      pane.scrollTop += field.bottom - visibleBottom + gap;
     } else if (field.top < bounds.top + gap) {
       pane.scrollTop -= bounds.top + gap - field.top;
     }
@@ -54,7 +60,8 @@
       return;
     }
     document.body?.classList?.add('native-osk-field-focused');
-    // First reveal after reflow; repeat after the CSS/OSK entrance animation.
+    // Reveal after scroll-padding is available; repeat once the compositor
+    // keyboard has finished entering (it does not send a resize event).
     window.requestAnimationFrame?.(revealFocusedField);
     if (revealTimer !== null) window.clearTimeout(revealTimer);
     revealTimer = window.setTimeout(() => {

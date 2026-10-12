@@ -71,13 +71,15 @@ class KeyboardChoiceContracts(unittest.TestCase):
         mode = MODE.read_text(encoding="utf-8")
         layout = (ROOT / "app/static/css/settings-ipad.css").read_text(encoding="utf-8")
         self.assertIn("native-osk-field-focused", mode)
-        self.assertIn("field.bottom - bounds.bottom + gap", mode)
+        self.assertIn("field.bottom - visibleBottom + gap", mode)
+        self.assertIn("Math.min(bounds.bottom, viewportHeight - keyboardHeight)", mode)
         self.assertIn("window.setTimeout(syncFocusedField, 0)", mode)
         self.assertIn("originalTypes.delete(input)", mode)
         self.assertIn("input.dataset.keyboard === 'number'", mode)
         self.assertIn("input.setAttribute('type', 'number')", mode)
-        self.assertIn('body.mode-settings.native-osk-field-focused .settings-ipad-page', layout)
-        self.assertIn("padding-bottom: calc(70px + clamp(245px, 44vh, 330px))", layout)
+        self.assertIn('body.mode-settings.native-osk-field-focused .settings-detail-panel:not([hidden])', layout)
+        self.assertIn("padding-bottom: calc(14px + clamp(245px, 44vh, 330px))", layout)
+        self.assertNotIn("native-osk-field-focused .settings-ipad-page", layout)
 
     @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
     def test_browser_session_state_and_hints_in_node(self):
@@ -229,7 +231,7 @@ assert.strictEqual(window.ACPKeyboardChoice.setNative(true), true);
 assert.strictEqual(input.type, 'number', 'physical numeric-purpose result applied in trial');
 assert.strictEqual(input.getAttribute('inputmode'), 'numeric');
 assert.strictEqual(classes.has('native-osk-field-focused'), true);
-assert.ok(pane.scrollTop > 0, 'hidden field scrolled within Settings detail pane');
+assert.ok(pane.scrollTop > 230 && pane.scrollTop < 270, 'scroll field above keyboard while outer shell remains full height');
 document.activeElement = null;
 listeners.focusout();
 const blurTimer = timers.find(t => t.ms === 0);
