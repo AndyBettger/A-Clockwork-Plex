@@ -112,7 +112,8 @@ const controls = {
   '[data-action="test-wu-connection"]': test
 };
 const context = {
-  assert, wuPanel: {querySelector: name => controls[name]},
+  assert, field, input, label, save, cancel, remove, classes,
+  wuPanel: {querySelector: name => controls[name]},
   document: {activeElement: input},
   window: {ACPTouchKeyboard: {close: () => { keyboardCloses++; }}}
 };
