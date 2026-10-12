@@ -148,6 +148,12 @@ The browser-owned ACP keyboard and system Squeekboard are distinct. In native Pl
 
 **Next physical gate:** gather *read-only* installed Squeekboard version/vendor and its launch ownership (desktop autostart vs user service), along with labwc version. Only then select a reversible proof: ideally a session-scoped separately built overlay-capable keyboard (not replacing `/usr/bin/squeekboard` or modifying global services), with explicit restoration and a checksheet for full-screen Search/Shift/Backspace/Done, VNC, ACP return, and system lock surfaces. If a separate instance conflicts with input-method ownership, fail closed and prefer a bounded, explicitly approved package-level rehearsal with backup/rollback. None of this changes native Plexamp audio or Headless runtime.
 
+### 12 October 2026 — commissioned Pi keyboard package/startup ownership
+
+Read-only Pi output fixes the runtime at **labwc `0.9.8-1+rpt1` arm64** and **Squeekboard `1.43.1-1+rpt1` arm64**, the Raspberry Pi OS-patched Trixie package (repository `archive.raspberrypi.com/debian`, priority 500), not Debian's baseline `1.43.1-1`. Running keyboard is `/usr/bin/squeekboard`, PID 1484, parent PID 1439. There is **no** `squeekboard.service` under `systemctl --user`; scanned XDG references show `/etc/xdg/autostart/squeekboard.desktop`. This strongly suggests the desktop autostart owner, but the file and parent must be read before we assume its activation semantics. The Raspberry Pi repository exposes exact source/distro files and the corresponding binary package for future recovery (https://archive.raspberrypi.org/debian/pool/main/s/squeekboard/).
+
+A community report/build targets this exact version and Raspberry Pi 5/labwc, changing the Squeekboard layer from `TOP` to `OVERLAY` (https://github.com/CaputoDavide93/Squeekboard-Overlay-Patch). Its system-wide installation mechanism and permanently privileged overlay stacking are not an acceptable unreviewed rollout on ACP. First inspect desktop `Exec`, process lineage and binary hash plus available build dependencies, then consider a source-matched **isolated executable** with a scoped manual handover and guaranteed stock restart. Squeekboard may own a singleton D-Bus/input-method interface, so running two instances concurrently must not be assumed safe. No system package, service, compositor or ACP kiosk/audio mutation has occurred.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
