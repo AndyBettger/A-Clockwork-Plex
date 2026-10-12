@@ -108,6 +108,12 @@ During the native Flatpak's SSH-launched session, **nine** `ALSA lib ... snd_ctl
 
 **Next:** a brief read-only comparison of ALSA PCM vs CTL lookup only if useful, then continue native Plexamp's touchscreen keyboard, NFC Companion, workspace/window and alarm/AirPlay gates on the isolated side-by-side candidate. The experiment does not authorise retiring Headless, changing audio defaults or changing service autostart.
 
+### 12 October 2026 — physically confirmed PCM versus CTL
+
+The commissioned Pi confirms `amixer -D acp_plexamp scontrols` fails with `Invalid CTL acp_plexamp` because the host defines a PCM playback path but no identically named ALSA CTL object. `amixer -D hw:Pro scontrols` works and lists the separate ACP Plexamp, Master, AirPlay/Live and Alarm virtual softvol controls **plus** broader card controls including Analogue/Digital and DSP Program. This explains the non-fatal named-CTL diagnostic; it does not establish why Plexamp's native volume slider fails to change audible gain. Do not alias `ctl.acp_plexamp` blindly to the entire DAC control surface. Preserve accepted control separation.
+
+Native touchscreen Search/OSK is the next isolated acceptance boundary: the ACP Chrome DOM keyboard is not directly usable by a native Wayland app. Test physical touch and WayVNC first; collect OSK/Wayland facts if missing before altering compositor, autostart, audio or Headless.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
