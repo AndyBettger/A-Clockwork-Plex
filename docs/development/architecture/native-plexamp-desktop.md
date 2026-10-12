@@ -154,6 +154,12 @@ Read-only Pi output fixes the runtime at **labwc `0.9.8-1+rpt1` arm64** and **Sq
 
 A community report/build targets this exact version and Raspberry Pi 5/labwc, changing the Squeekboard layer from `TOP` to `OVERLAY` (https://github.com/CaputoDavide93/Squeekboard-Overlay-Patch). Its system-wide installation mechanism and permanently privileged overlay stacking are not an acceptable unreviewed rollout on ACP. First inspect desktop `Exec`, process lineage and binary hash plus available build dependencies, then consider a source-matched **isolated executable** with a scoped manual handover and guaranteed stock restart. Squeekboard may own a singleton D-Bus/input-method interface, so running two instances concurrently must not be assumed safe. No system package, service, compositor or ACP kiosk/audio mutation has occurred.
 
+### 12 October 2026 — `sbtest` wrapper and exact vendor executable baseline
+
+`/etc/xdg/autostart/squeekboard.desktop` was read directly and its `Exec` points to **`/usr/bin/sbtest`** rather than the keyboard binary. `ps` confirms shell PID 1439 as `/bin/sh /usr/bin/sbtest` (PPID 1), parent of running keyboard PID 1484. No user autostart override exists. The vendor `/usr/bin/squeekboard` is a regular root-owned executable, SHA-256 **`2ad3ef3750c26b94427deb7423041293c1ae658027261a38623373af1a243338`**. This is a rollback identification record, not a claim of a saved backup. Squeekboard is not installed as an active `squeekboard.service` user unit in this session.
+
+Local build tools present: Meson, Ninja, GCC. The required Rust compiler and Cargo are **not installed**. Squeekboard uses Rust/Cargo in its build chain (upstream README: https://github.com/raspberrypi-ui/squeekboard). The next *strictly read-only* inspection is `/usr/bin/sbtest` plus its package owner, because a vendor launch wrapper may supervise/restart the keyboard automatically. A side-by-side overlay executable must avoid conflict with the keyboard's D-Bus/input-method ownership; no safe live substitution is established until the wrapper is understood. Do not change the system-wide executable or XDG startup and do not install build tools for a test whose lifecycle is not yet designed.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
