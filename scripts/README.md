@@ -68,6 +68,12 @@ These files are source material for installed services, restricted helpers or ap
 | `scripts/nfc-plexamp-mode.sh` | Small NFC playback-mode bridge used by the installed NFC integration. | **Runtime/helper.** Called by the NFC path, not normal manual navigation. |
 | `scripts/launch-dashboard-kiosk.sh` | Starts Chromium with the dedicated A Clockwork Plex kiosk profile after the dashboard is reachable. | **Runtime/helper.** Installed/autostarted by dashboard integration. |
 
+## Manual Phase-B native Plexamp launcher
+
+| File | Purpose | Safety / intended use |
+| --- | --- | --- |
+| `scripts/launch-native-plexamp.sh` | Launches the **already installed** ARM64 Plexamp Flatpak into the existing labwc/Wayland session, including from SSH. Backgrounds the application, checks for an existing instance, and writes a private log under `~/.cache/a-clockwork-plex/native-plexamp.log`. | **Manual development launch only.** Use `bash scripts/launch-native-plexamp.sh` as the ordinary user (no sudo); `--help` explains usage. The current `beta` branch is deliberately pinned for #94 discovery. Never installs Flatpak, changes autostart/audio, restarts Headless, or replaces `setup.sh`. |
+
 ## Supported audio lifecycle
 
 The accepted audio lifecycle lives only in `scripts/audio/`. Normal appliance installation still goes through `setup.sh`; these commands exist for the guarded audio component lifecycle, recovery and formal verification.
