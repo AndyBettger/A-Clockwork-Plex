@@ -126,6 +126,13 @@ These are retained because they solve specific recovery/migration jobs that are 
 
 | File | Purpose | Safety / intended use |
 | --- | --- | --- |
+| `scripts/ci/prepare-squeekboard-overlay-source.py` | Downloads and checks the Raspberry Pi `1.43.1-1+rpt1` source package, extracts the six vendor patches and proves the commissioned Pi's exact original and patched `src/panel.c` SHA-256 values. | **Off-device disposable ARM64 builder only**; called from the dedicated GitHub Actions job, never by `setup.sh`. No system package deployment or keyboard process changes. |
+| `scripts/ci/build-squeekboard-overlay-arm64.sh` | Installs vendor build dependencies inside a disposable Debian Trixie ARM64 container, compiles using the vendor Debian/Meson/Cargo rules as an unprivileged user, exports only a **test-only** Debian package, executable and ABI/dependency manifest. | **Never execute on the commissioned Pi.** Requires GitHub Actions, Docker-container marker and ARM64; `CARGO_NET_OFFLINE=true`; never copies, installs or starts the experimental OSK on a device. Run is triggered by `.github/workflows/squeekboard-overlay-arm64.yml` only. |
+
+## Native Plexamp on-screen keyboard discovery
+
+| File | Purpose | Safety / intended use |
+| --- | --- | --- |
 | `scripts/plan-squeekboard-build-deps.py` | Validates the commissioned Pi's staged Squeekboard `1.43.1-1+rpt1` panel SHA-256, overlay-layer marker, source provenance and vendor `debian/control` before asking APT's dependency solver which packages the exact source would need. | **Read-only APT simulation.** Run `python3 scripts/plan-squeekboard-build-deps.py` without sudo. Calls only `apt-get --simulate -o APT::Install-Recommends=false satisfy <Build-Depends>`; does not update repositories, install/build a package, alter the keyboard/desktop, or change audio/Headless. Review possible upgrades/removals before planning any installation. |
 
 | File | Purpose | Safety / intended use |
