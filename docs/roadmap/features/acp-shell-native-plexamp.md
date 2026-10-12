@@ -149,6 +149,13 @@ Next physical gates:
 - [x] Refuses root, missing Flatpak/install and absent desktop session; no sudo, autostart, kiosk compositor or audio mutation. Local `bash -n`, help and mock Flatpak/Wayland-session/duplicate-launch tests passed.
 - [ ] Commissioned-Pi physical acceptance: after `git pull --ff-only`, use the manual launcher from SSH, confirm native Plexamp opens visibly in labwc/WayVNC and Headless/ACP remain healthy; then continue touch-only native Search/OSK gate.
 
+### 12 October 2026 — native launcher preflight correction
+
+- [x] Commissioned-Pi first launch attempt identified a **script-only false-negative:** `flatpak info --branch=beta com.plexamp.Plexamp` is invalid for the `info` subcommand, so the launcher incorrectly reported that the beta was not installed and never started Plexamp. The app itself remains installed and previously verified.
+- [x] Corrected to `flatpak info "$APP_ID" "$APP_BRANCH"`, matching Flatpak's documented `info [OPTIONS] NAME [BRANCH]` signature; retained the correct `flatpak run --branch=beta` for launching.
+- [x] Strengthened tests: fake Flatpak `info` refuses non-positional/incorrect arguments, and an additional non-skipped regression checks the exact intended syntax. The previous dummy `info` stub indiscriminately returned success, which allowed the bug through.
+- [ ] Confirm normal `git pull --ff-only` and `bash scripts/launch-native-plexamp.sh` on commissioned Pi; verify the SSH shell returns and native app appears via WayVNC. Do not reinstall the Flatpak or change Headless/ALSA.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
