@@ -40,7 +40,9 @@ if (( EUID == 0 )); then
   fail "Run as your normal desktop user, not root (no sudo)."
 fi
 command -v flatpak >/dev/null 2>&1 || fail "Flatpak is not installed."
-flatpak info --branch="$APP_BRANCH" "$APP_ID" >/dev/null 2>&1 || \
+# Unlike flatpak run, flatpak info accepts BRANCH as a positional argument.
+# Both per-user and system-wide installations are searched by default.
+flatpak info "$APP_ID" "$APP_BRANCH" >/dev/null 2>&1 || \
   fail "Plexamp $APP_BRANCH Flatpak is not installed for this user/system."
 
 # Do not launch another native player if one is already running. This check
