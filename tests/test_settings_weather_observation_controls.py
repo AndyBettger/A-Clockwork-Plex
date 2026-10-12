@@ -76,7 +76,9 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
                 self.assertIn(expected, presenter)
         self.assertIn("[data-wu-commissioning] [hidden]", layout)
         self.assertIn("display: none !important", layout)
-        self.assertIn("20261012-wu-credential-gate-v1", template)
+        self.assertIn("20261012-wu-replace-tap-v2", template)
+        self.assertNotIn("elements.input?.focus()", presenter)
+        self.assertIn("detail.scrollBy({ top: fieldBottom - bottom + 16", presenter)
 
     @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
     def test_credential_editor_states_in_node_vm(self) -> None:
