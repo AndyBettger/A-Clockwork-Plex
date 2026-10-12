@@ -490,3 +490,9 @@ body.keyboard-open .touch-keyboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Dynamic WU commissioning: Settings cards/buttons otherwise override the
+   default HTML [hidden] user-agent rule with author-level grid/flex display. */
+[data-wu-commissioning] [hidden] {
+  display: none !important;
+}
