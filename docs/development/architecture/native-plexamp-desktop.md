@@ -202,6 +202,14 @@ To avoid `apt-get build-dep squeekboard` accidentally selecting a different dist
 
 The branch's GitHub Tests #5532 completed **successfully** after repairing the stale Phase-A title and the test catalogue. This new helper's own CI is separate and still awaiting results. No built keyboard exists; the eventual timed stock-keyboard restoration plan remains a prerequisite for a live OSK swap.
 
+### 12 October 2026 — constrained ARM64 builder decision after Pi APT dry run
+
+The existing Pi source staging and APT simulation both passed without any package mutation. Crucially, **the full vendor build dependency closure is excessive for production**: 355 proposed new packages and 31 upgrades, zero removals, 192 unchanged. Among the proposed upgrades are the Pi's graphics/compositor and input foundations (Mesa GL/DRI/EGL/GBM, GTK3, GLib, Wayland-adjacent xkbcommon) used by both accepted Chromium ACP and the native Plexamp proof. Do not install this dependency set on the live Pi for a one-line keyboard-layer patch. The simulation output does not state download/disk totals.
+
+The exact `debian/rules` uses Debian's Meson-based `dh` pipeline, stores Rust crates in `debian/cargo` by setting `CARGO_HOME`, sets Debian hardening and deterministic `RUSTFLAGS`, and drops `Cargo.lock` when building architecture packages. This supports a repeatable distro-crate-based build. The preferred next implementation is an **off-device, disposable native ARM64** Docker container (`debian:trixie`) on a GitHub-hosted `ubuntu-24.04-arm` runner (https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax). Compile the pinned Raspberry Pi package sources and the already physically verified `TOP→OVERLAY` patch in that isolated container, export the test-only `.deb`, binary ELF build ID, package dependency list, file hash and provenance. Reproducibility is not automatic: Debian container libraries may differ from Raspberry Pi patched libraries, so validate link dependencies on the *target Pi* before any one-instance keyboard runtime swap; a compiled artifact is not evidence of touchscreen support.
+
+**Hard boundaries:** no `apt-get satisfy` or broad dependency upgrades on the Pi, no third-party unaudited patch installer, no replacing `/usr/bin/squeekboard`, no `dpkg -i` of compiled `.deb`, no autostart/compositor change, no concurrent Squeekboard input-method clients, and no retirement of working Headless. A future test must first have a proven timed original-keyboard recovery command scoped to the existing labwc Wayland/DBus session and physical Search/OSK/WayVNC acceptance. CI Tests #5538 are green for the prior source staging/preflight code, but the container builder does **not** exist or pass yet.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
