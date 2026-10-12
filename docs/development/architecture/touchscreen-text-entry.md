@@ -9,6 +9,14 @@ A Clockwork Plex needs dependable touch-only text entry inside the embedded Plex
 
 The existing ACP Settings touchscreen keyboard is the presentation baseline. Plexamp remains a separate local surface inside the persistent iframe, so cross-surface text entry reuses the deliberately narrow localhost content-bridge pattern already accepted for Plexamp Home backup/restore.
 
+## 12 October 2026 — proposed OS-wide Squeekboard consolidation (#94 Phase B)
+
+The accepted #91 browser DOM keyboard remains the physically proven fallback. During Phase B, an isolated `1.43.1-1+rpt1` Raspberry Pi Squeekboard rebuilt with Wayland layer `OVERLAY` has now **physically displayed and typed above genuine fullscreen native Plexamp**. The user confirmed Shift, numbers, punctuation and dismissal/accessible modal actions in true fullscreen; after the guarded three-minute test the original distro keyboard was restored without installation.
+
+It is attractive to use **one** ACP-managed Wayland OSK for both native Plexamp and ACP Chromium, but this is **not automatic**: #91's keyboard is a JavaScript DOM overlay with ACP CSS tokens, specialised Settings layouts (number, decimal, time, URL and quick-entry keys), and a narrowly scoped Headless Plexamp text-field content bridge. The current Chromium kiosk does not explicitly pin an Ozone Wayland backend; OS-level text-input focus/visibility and actual text injection into ACP Settings and its embedded Headless player must be physically proved before deactivating the existing accepted keyboard. Preserve opt-in fallback and do not show both OSK and DOM overlays simultaneously.
+
+Squeekboard's GTK CSS resources live outside browser CSS variables, so ACP theme matching requires a private palette-to-GTK stylesheet bridge, with a bounded app-specific CSS provider, dark/colour themes and scheduled dim/night mode handled explicitly (including eventual Astronomy red). Avoid global GTK styling. The current experimental log shows the local `gb` layouts missing and falling back to `us_wide`, a British keyboard fidelity gap to resolve without overwriting distro resources. Never remove or regress the accepted #91 flow while evaluating OS-wide keyboard ownership.
+
 ## Shared keyboard baseline
 
 `app/static/js/settings-keyboard.js` is the shared interaction implementation. Settings continues to use its existing keyboard markup and script include; non-Settings dashboard documents load the same client from `base.html`, where it creates the same keyboard shell lazily only when needed.
