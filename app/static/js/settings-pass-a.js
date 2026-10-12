@@ -102,7 +102,31 @@
   function keyboardHeight() {
     const keyboard = document.getElementById('touch-keyboard');
     if (!keyboard || !document.body.classList.contains('keyboard-open')) return 0;
-    const height = Math.ceil(keyboard.getBoundingClientRect().height);
+    const bounds = keyboard.getBoundingClientRect();
+    // The Pi's real keyboard-open geometry shows that the outer element can
+    // report a 53px box while its visible keys extend far above that box.
+    // Measure the rendered keyboard contents, not merely the wrapper height.
+    const tops = Number.isFinite(bounds.top) ? [bounds.top] : [];
+    const selectors = [
+      '.touch-keyboard-header',
+      '.touch-keyboard-quick:not([hidden])',
+      '.touch-keyboard-keys',
+      '.touch-key-row',
+    ];
+    selectors.forEach((selector) => {
+      keyboard.querySelectorAll?.(selector).forEach((element) => {
+        const part = element.getBoundingClientRect();
+        if (Number.isFinite(part.top) && part.height > 0) tops.push(part.top);
+      });
+    });
+    const viewportHeight = window.innerHeight;
+    const upperEdge = tops.length ? Math.min(...tops) : viewportHeight;
+    const measuredHeight = Math.max(
+      bounds.height || 0,
+      keyboard.scrollHeight || 0,
+      viewportHeight - upperEdge,
+    );
+    const height = Math.ceil(Math.min(viewportHeight, Math.max(0, measuredHeight)));
     document.documentElement.style.setProperty('--settings-keyboard-height', `${height}px`);
     return height;
   }
