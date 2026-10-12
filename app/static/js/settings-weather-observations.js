@@ -261,6 +261,7 @@
     return {
       input: wuPanel?.querySelector('[data-wu-api-key]'),
       field: wuPanel?.querySelector('[data-wu-api-key-field]'),
+      grid: wuPanel?.querySelector('[data-wu-credential-grid]'),
       label: wuPanel?.querySelector('[data-wu-credential-status]'),
       message: wuPanel?.querySelector('[data-wu-credential-message]'),
       save: wuPanel?.querySelector('[data-action="save-wu-api-key"]'),
@@ -275,13 +276,14 @@
       credentialConfigured = configured;
       credentialStatusKnown = true;
     }
-    const { field, input, label, save, cancel, remove, test } = credentialElements();
+    const { field, grid, input, label, save, cancel, remove, test } = credentialElements();
     const editing = credentialStatusKnown && (!credentialConfigured || credentialEditing);
     if (label) label.textContent = !credentialStatusKnown
       ? 'Checking…' : credentialConfigured ? 'Configured' : 'Not configured';
     // Status never returns a secret. Entry is allowed only once we know the
     // configured state or the user has deliberately opened Replace.
     if (field) field.hidden = !editing;
+    grid?.classList.toggle('is-credential-locked', !editing);
     if (input) {
       if (!editing) {
         if (document.activeElement === input) input.blur();
@@ -350,7 +352,7 @@
     const block = document.createElement('div');
     block.dataset.wuCommissioning = 'true';
     block.innerHTML = `
-      <div class="settings-grid two-col">
+      <div class="settings-grid two-col" data-wu-credential-grid>
         <label class="setting-field" data-wu-api-key-field hidden>
           <span>API key</span>
           <input type="password" inputmode="none" autocomplete="new-password" spellcheck="false" data-keyboard="text" data-wu-api-key disabled>
