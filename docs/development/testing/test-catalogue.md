@@ -228,6 +228,8 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 ### Plexamp and NFC
 
+- `tests/test_squeekboard_build_dependency_plan.py` — Confirms vendor source/control parsing and source-provenance guards, and limits the proposed build dependencies operation to an APT dry run without package/keyboard mutation.
+
 - `tests/test_native_plexamp_launcher.py` — Protects the manual native Flatpak SSH launcher, scoped fullscreen matching, missing-session handling and duplicate-launch safety.
 - `tests/test_prepare_squeekboard_overlay.py` — Protects non-installing vendor Squeekboard source staging, strict SHA-256 descriptor requirements, one-shot TOP→OVERLAY patching and refusal of overwrite/root execution.
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
