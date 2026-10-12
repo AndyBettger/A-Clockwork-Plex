@@ -39,11 +39,14 @@ class SqueekboardCiBuilderTests(unittest.TestCase):
     def test_known_vendor_scaling_fixture_is_repaired_only_in_test_initialiser(self):
         builder = load()
         fixture = (
+            "#[cfg(test)]\n"
+            "pub mod test {\n"
             "fn scaling_test_base() {\n"
             "  Application::get_preferred_height_and_arrangement(&OutputState {\n"
             "                    current_mode: None,\n"
             "                    scale,\n"
             "                }),\n"
+            "}\n"
             "}\n"
         )
         corrected, count = builder.repair_scaling_test_fixture(fixture)
