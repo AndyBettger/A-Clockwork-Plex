@@ -254,6 +254,10 @@ The next opt-in tool, `scripts/try-squeekboard-overlay.py`, is **not an installe
 
 First physical gate is just `--plan`, then a separately user-initiated `--start` when native Plexamp already fullscreen and touchscreen/WayVNC are available. Only a successful visibility, typing and exact restoration trial can advance from runtime ABI to actual OSK acceptance.
 
+### 12 October 2026 — timed OSK restore order / no-concurrent-input-method hardening
+
+The commissioned Pi returned an actual **PLAN PASS** for the isolated OSK trial, confirming unchanged original keyboard/Wayland session and pinned successful ARM64 artifact. Before letting the user execute `--start`, a recovery concurrency audit identified a potential lock inversion: the timer's early `systemctl stop trial.service` could block on the worker's own restoration lock, deadlocking against the worker's `finally`. Recovery now stops the worker **before** acquiring `restore.lock`, and the transient unit explicitly uses systemd `KillMode=control-group` with `TimeoutStopSec=5s` so its candidate child is included in cleanup. A path-exact, owner-checked `/proc` scan ensures zero test ELF processes remain before vendor `sbtest` is restarted; otherwise recovery refuses to overlap input methods rather than hide the failure. This reduces, but does not eliminate, live-test risks (user systemd/labwc crash, broken compositor, unexpected process behaviour). All production components remain unchanged; the first physical full-screen touchscreen test is still to come.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
