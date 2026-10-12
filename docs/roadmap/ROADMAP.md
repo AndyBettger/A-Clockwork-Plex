@@ -66,6 +66,8 @@ The accepted Weather rain-event fix is merged into `develop`. The active branch 
 
 **12 October ALSA CTL verification:** `amixer -D acp_plexamp scontrols` reproduces `Invalid CTL acp_plexamp` and mixer-attach failure, while `amixer -D hw:Pro scontrols` lists the distinct ACP Plexamp, Master, AirPlay, AirPlay Live and Alarm softvol controls plus unrelated card-level controls. The custom `pcm.acp_plexamp` works; `ctl.acp_plexamp` is missing. This explains that particular log warning, **not** necessarily Plexamp's inactive volume slider. Do not alias the entire DAC control surface just to silence it. Next Phase B gate: native Wayland Plexamp touch-only Search/keyboard, while Headless and ACP audio remain unchanged.
 
+**12 October #94 Phase B developer convenience:** Added `scripts/launch-native-plexamp.sh` as a bounded manual launcher for the currently installed Plexamp ARM64 Flatpak **beta discovery** build. It finds an existing Wayland socket and desktop D-Bus from SSH, refuses root/no-session/missing package, prevents duplicate Flatpak launches, backgrounds the player and logs to `~/.cache/a-clockwork-plex/native-plexamp.log`. There is **no autostart, compositor, Headless or audio-routing change**; touchscreen Search and full native integration remain physical gates. Shell syntax and mocked launch/duplicate-handling tests passed locally; commissioned-Pi launch still requires testing.
+
 Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
 
 - [x] ACP Surface Host loaded before the legacy page-transition owner.
