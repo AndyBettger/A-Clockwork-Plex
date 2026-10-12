@@ -496,3 +496,8 @@ body.keyboard-open .touch-keyboard {
 [data-wu-commissioning] [hidden] {
   display: none !important;
 }
+
+/* With the editor hidden, let the remaining status card fill the row. */
+[data-wu-commissioning] [data-wu-credential-grid].is-credential-locked {
+  grid-template-columns: minmax(0, 1fr);
+}
