@@ -68,6 +68,8 @@ The accepted Weather rain-event fix is merged into `develop`. The active branch 
 
 **12 October #94 Phase B developer convenience:** Added `scripts/launch-native-plexamp.sh` as a bounded manual launcher for the currently installed Plexamp ARM64 Flatpak **beta discovery** build. It finds an existing Wayland socket and desktop D-Bus from SSH, refuses root/no-session/missing package, prevents duplicate Flatpak launches, backgrounds the player and logs to `~/.cache/a-clockwork-plex/native-plexamp.log`. There is **no autostart, compositor, Headless or audio-routing change**; touchscreen Search and full native integration remain physical gates. Shell syntax and mocked launch/duplicate-handling tests passed locally; commissioned-Pi launch still requires testing.
 
+**12 October Phase B native-launcher bugfix:** First commissioned-Pi run of `bash scripts/launch-native-plexamp.sh` failed its *preflight* with `Plexamp beta Flatpak is not installed for this user/system`, despite the Flatpak actually being installed and previously proven. Cause: the helper mistakenly used `flatpak info --branch=beta`, a flag valid for `flatpak run` but **not** `flatpak info`. Fixed to `flatpak info com.plexamp.Plexamp beta` (documented positional branch argument), preserving the beta-only discovery scope. Tightened the mock Flatpak test so wrong subcommand arguments fail, plus a separate always-running static regression assertion. No Pi Flatpak reinstallation or service/audio changes required; corrected launch awaits physical retest.
+
 Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
 
 - [x] ACP Surface Host loaded before the legacy page-transition owner.
