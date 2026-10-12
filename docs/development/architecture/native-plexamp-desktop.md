@@ -160,6 +160,24 @@ A community report/build targets this exact version and Raspberry Pi 5/labwc, ch
 
 Local build tools present: Meson, Ninja, GCC. The required Rust compiler and Cargo are **not installed**. Squeekboard uses Rust/Cargo in its build chain (upstream README: https://github.com/raspberrypi-ui/squeekboard). The next *strictly read-only* inspection is `/usr/bin/sbtest` plus its package owner, because a vendor launch wrapper may supervise/restart the keyboard automatically. A side-by-side overlay executable must avoid conflict with the keyboard's D-Bus/input-method ownership; no safe live substitution is established until the wrapper is understood. Do not change the system-wide executable or XDG startup and do not install build tools for a test whose lifecycle is not yet designed.
 
+### 12 October 2026 — `sbtest` source establishes one-shot lifecycle
+
+The Pi's exact `/usr/bin/sbtest` is:
+
+```sh
+#!/bin/sh
+if [ -e /usr/share/squeekboard/output ] ; then
+. /usr/share/squeekboard/output
+fi
+if libinput list-devices | grep Capabilities | grep -qw touch ; then
+ /usr/bin/squeekboard
+fi
+```
+
+This 186-byte vendor script is package-owned by `squeekboard`. It launches the keyboard **once** and waits for the child, explaining why its parent PID 1439 remains in `S` state while `squeekboard` PID 1484 is `Sl`. There is no restart loop inside `sbtest`; do not infer that the desktop environment cannot separately restart a crashed process. The optional `/usr/share/squeekboard/output` is sourced and still needs read-only inspection before replicating the launch context. There is no user-level Squeekboard service, and the XDG autostart entry remains package-owned.
+
+The Raspberry Pi Debian repository publicly offers the **version-matched** 1.43.1 base source, `1.43.1-1+rpt1` packaging patch and source descriptor together with the vendor arm64 package (https://archive.raspberrypi.org/debian/pool/main/s/squeekboard/). That makes it possible to target the installed vendor source rather than GitHub HEAD, although this does not yet prove that a recompiled binary is identical to the installed package. The planned experiment is a **sidecar build with one panel-layer change only**, retaining `/usr/bin/squeekboard`, system packages, `/etc/xdg/autostart` and accepted Chromium. Before a manual, never-simultaneous runtime switch, create a bounded watchdog/rollback path able to restore `/usr/bin/sbtest` in the established Wayland/D-Bus session after failure, and do not install any build dependencies without a deliberate user-approved step. The primary input gate is the contents (or absence) of the optional `output` file.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
