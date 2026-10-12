@@ -15,10 +15,10 @@ session, including when invoked from SSH. The application runs in the background
 and writes output to ~/.cache/a-clockwork-plex/native-plexamp.log.
 
 --fullscreen  Ask labwc to put native Plexamp into genuine fullscreen using
-              wlrctl. Requires wlrctl to be installed and the native window's
-              app_id to be com.plexamp.Plexamp. Fullscreen currently hides the
-              Raspberry Pi OS on-screen keyboard; default remains windowed
-              until touch-only text entry is solved.
+              wlrctl. Identifies the actual Wayland window; refuses ambiguous
+              matches or Chromium windows. Fullscreen currently hides the Pi OS
+              Squeekboard keyboard, so default remains windowed until touch-only
+              text entry is solved.
 
 This is a Phase-B manual discovery helper. It does not change ACP, Headless,
 autostart, Flatpak permissions, or audio settings.
@@ -67,7 +67,7 @@ fi
 if [[ "$fullscreen" == true ]]; then
   command -v wlrctl >/dev/null 2>&1 || \
     fail "--fullscreen requires wlrctl (install with: sudo apt install wlrctl). No changes made."
-  command -v timeout >/dev/null 2>&1 || fail "--fullscreen requires the timeout command."
+  # Polling is bounded by the shell, so the launcher needs no timeout binary.
 fi
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
@@ -118,15 +118,59 @@ else
 fi
 
 if [[ "$fullscreen" == true ]]; then
-  # Wait for the actual native window, not the Chromium kiosk/Headless process.
-  # Foreign-toplevel fullscreen is an idempotent request, not a toggle.
-  match="app_id:$APP_ID"
-  if ! timeout 20s wlrctl toplevel waitfor "$match"; then
-    fail "Native Plexamp window not found as $match within 20 seconds. Check the actual app_id; no other window was changed."
+  # Flatpak's installation ID and the application's Wayland app_id can differ.
+  # Find a real toplevel before altering anything. wlrctl 0.2.2 implements
+  # "toplevel list" even though its Debian man page does not list the action.
+  match=""
+  last_listing=""
+  deadline=$((SECONDS + 20))
+  while (( SECONDS < deadline )); do
+    if wlrctl toplevel find "app_id:$APP_ID" >/dev/null 2>&1; then
+      match="app_id:$APP_ID"
+      break
+    fi
+
+    if listing="$(wlrctl toplevel list 2>/dev/null)"; then
+      last_listing="$listing"
+      candidate=""
+      count=0
+      while IFS= read -r line; do
+        [[ "$line" == *": Plexamp" ]] || continue
+        window_id="${line%: Plexamp}"
+        [[ -n "$window_id" && "$window_id" != "$line" ]] || continue
+        # An exact Plexamp title alone is not enough to target a browser.
+        case "${window_id,,}" in
+          *chromium*|*chrome*|*firefox*) continue ;;
+        esac
+        count=$((count + 1))
+        candidate="$window_id"
+      done <<< "$listing"
+
+      if (( count > 1 )); then
+        fail "Multiple windows titled Plexamp; refusing an ambiguous fullscreen request. Run: wlrctl toplevel list"
+      fi
+      if (( count == 1 )) && \
+        wlrctl toplevel find "app_id:$candidate" "title:Plexamp" >/dev/null 2>&1; then
+        match="app_id:$candidate"
+        title_match="title:Plexamp"
+        break
+      fi
+    fi
+    sleep 0.25
+  done
+
+  if [[ -z "$match" ]]; then
+    printf 'ACP native Plexamp: available Wayland windows:\n%s\n' "$last_listing" >&2
+    fail "Couldn't identify a unique native Plexamp window within 20 seconds; no window was changed."
   fi
-  if ! wlrctl toplevel fullscreen "$match"; then
-    fail "Could not request fullscreen for $match; Plexamp itself remains running."
+
+  if [[ -n "${title_match:-}" ]]; then
+    if ! wlrctl toplevel fullscreen "$match" "$title_match"; then
+      fail "Could not request fullscreen for $match ($title_match); native Plexamp remains running."
+    fi
+  elif ! wlrctl toplevel fullscreen "$match"; then
+    fail "Could not request fullscreen for $match; native Plexamp remains running."
   fi
   printf 'ACP native Plexamp: fullscreen requested for %s.\n' "$match"
-  printf 'Note: the Pi OS keyboard is currently hidden in true fullscreen; touch Search is not yet accepted.\n'
+  printf 'Note: Squeekboard is currently hidden in true fullscreen; touch Search is not yet accepted.\n'
 fi
