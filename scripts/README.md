@@ -122,6 +122,12 @@ These are retained because they solve specific recovery/migration jobs that are 
 | `scripts/prepare-plexamp-upgrade-rehearsal.sh` | Captures a read-only Plexamp/audio/device evidence bundle before a future controlled Plexamp upgrade rehearsal. | **Read-only.** `bash scripts/prepare-plexamp-upgrade-rehearsal.sh [--plexamp-dir PATH] [--lab-root PATH]`; it does not download, upgrade or stop services. |
 | `scripts/set-airplay-hold-seconds.py` | CLI fallback for inspecting/changing the persisted AirPlay paused-session hold (15–420 seconds). | **Configuration mutation when a value is supplied.** Prefer Settings for normal use. `python3 scripts/set-airplay-hold-seconds.py` shows the current value; add an integer to set it, then follow the script's restart instruction. |
 
+## Native Plexamp on-screen keyboard discovery
+
+| File | Purpose | Safety / intended use |
+| --- | --- | --- |
+| `scripts/prepare-squeekboard-overlay.py` | Fetches **exact** Raspberry Pi Squeekboard `1.43.1-1+rpt1` source descriptor and tarballs via HTTPS, validates SHA-256/size entries, extracts via `dpkg-source`, then makes exactly one `TOP` → `OVERLAY` change in `src/panel.c`, recording a provenance manifest under the user's cache. Requires that the installed stock executable still matches the commissioned Pi SHA-256. | **Developer staging only; no system mutation.** `python3 scripts/prepare-squeekboard-overlay.py --plan` is offline/read-only; `--prepare` downloads and writes **only** in `~/.cache/a-clockwork-plex/squeekboard-overlay-1.43.1-1+rpt1`, refusing an existing destination. Does **not** install build dependencies, compile, run or stop Squeekboard, edit XDG/labwc, or alter audio/Headless. No `sudo`. Actual build and live single-instance handover require a separately reviewed procedure and watchdog rollback. |
+
 ## Developer tooling
 
 | File | Purpose | Invocation |
