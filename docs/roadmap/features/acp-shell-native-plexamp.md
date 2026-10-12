@@ -182,6 +182,14 @@ Next physical gates:
 - [ ] **Candidate B — borderless maximised native Plexamp:** compare an app-specific server-decoration-free maximised window and the stock working OSK, without changing ACP Chromium. This avoids true-fullscreen stacking but currently leaves the Raspberry Pi panel work-area strip and needs a separate layout solution (labwc window-rule docs: https://github.com/labwc/labwc/blob/master/docs/labwc-config.5.scd).
 - [ ] **Physical gate:** ensure native Plexamp Search text insertion, Backspace, Shift, Done/dismiss, repeated focus and return to ACP all work with a keyboard *visibly above* the intended full-display player before enabling full-screen by default or retiring Headless.
 
+### 12 October 2026 — exact Pi OS Squeekboard package and autostart inventory
+
+- [x] **Installed versions:** `labwc 0.9.8-1+rpt1 arm64`; `squeekboard 1.43.1-1+rpt1 arm64`.
+- [x] **Supplier and package recovery:** `apt-cache policy squeekboard` shows Raspberry Pi's Trixie repository `http://archive.raspberrypi.com/debian` at priority 500 with installed/candidate `1.43.1-1+rpt1`; Debian Trixie offers `1.43.1-1` as an alternative. The Pi repository contains its matching source tarball, distro revision and arm64 package; a return to vendor binary should be possible if a separate experimental build is abandoned, but no package manager operation is required yet. <https://archive.raspberrypi.org/debian/pool/main/s/squeekboard/>.
+- [x] **Process owner evidence:** PID 1484 runs `/usr/bin/squeekboard`, parent PID 1439. `systemctl --user show squeekboard.service` reports `LoadState=not-found` and `ActiveState=inactive`. Grep found only `/etc/xdg/autostart/squeekboard.desktop` in examined desktop autostart directories. This is consistent with XDG session autostart; the entry's `Exec` and parent's identity need direct read-only confirmation.
+- [ ] **Narrow source/rollback probe:** inspect `/etc/xdg/autostart/squeekboard.desktop`, PID 1439 process and actual binary symlink/sha256; check user `~/.config/autostart` override and whether `meson/ninja/rustc/cargo` are already installed. This is needed before any build or transition attempt, without stopping the working OSK.
+- [ ] **Scoped test design:** prefer a separate source-matched `1.43.1-1+rpt1` overlay-capable build with locally identifiable executable over replacing system `/usr/bin/squeekboard`. Determine if its D-Bus/input-method ownership requires a short stop/restart of stock Squeekboard, and build a rollback guard before any such switch. Don't run unreviewed third-party `sudo` builders or modify global packaged XDG startup. Keep fullscreen Plexamp manual while touch-only search is blocked.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
