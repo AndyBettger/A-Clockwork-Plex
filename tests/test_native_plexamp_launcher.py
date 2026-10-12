@@ -24,6 +24,11 @@ class NativePlexampLauncherTests(unittest.TestCase):
         self.assertIn("Flatpak", result.stdout)
         self.assertIn("Headless", result.stdout)
 
+    def test_flatpak_info_uses_positional_branch_not_run_flag(self):
+        text = LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn('flatpak info "$APP_ID" "$APP_BRANCH"', text)
+        self.assertNotIn("flatpak info --branch=", text)
+
     @unittest.skipIf(os.geteuid() == 0, "desktop-session mocks require a non-root test user")
     def test_launch_from_ssh_and_already_running(self):
         with tempfile.TemporaryDirectory(prefix="acp-native-launcher-") as td:
@@ -37,7 +42,7 @@ class NativePlexampLauncherTests(unittest.TestCase):
             flatpak.write_text(
                 "#!/bin/sh\n"
                 'case "$1" in\n'
-                '  info) exit 0 ;;\n'
+                '  info) if [ "$#" -eq 3 ] && [ "$2" = com.plexamp.Plexamp ] && [ "$3" = beta ]; then exit 0; fi; exit 64 ;;\n'
                 '  ps) if [ "${MOCK_RUNNING:-}" = 1 ]; then printf "%s\\n" com.plexamp.Plexamp; fi; exit 0 ;;\n'
                 '  run) printf "%s\\n" "$WAYLAND_DISPLAY|$XDG_RUNTIME_DIR|$DBUS_SESSION_BUS_ADDRESS|$*" > "$MOCK_APP_RUN"; exit 0 ;;\n'
                 '  *) exit 20 ;;\n'
