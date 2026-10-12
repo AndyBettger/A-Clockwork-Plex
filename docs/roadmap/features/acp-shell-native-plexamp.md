@@ -279,6 +279,14 @@ Next physical gates:
 - [ ] **Immediate target-Pi read-only gate:** inventory installed versions for `libc6`, `libglib2.0-0t64`, `libgtk-3-0t64`, `libgnome-desktop-3-20t64`, `libfeedback-0.0-0`, `libwayland-client0`, `libxkbcommon0`, `raspi-config` and relevant `dpkg --compare-versions` floors. Do not copy/start candidate yet.
 - [ ] **Next controlled Wayland gate:** prepare reliable timed watchdog restoration of original `/usr/bin/sbtest` and exactly-one-OSK ownership before manual launching the uninstalled candidate; test real fullscreen native Plexamp Search, typed characters/Backspace/Shift, keyboard dismissal, return to ACP and WayVNC. Preserve all current services/audio and stock XDG entry.
 
+### 12 October 2026 — target-Pi runtime version gate passed, ELF resolver gate remains
+
+- [x] **Actual installed version floors:** `getconf GNU_LIBC_VERSION` returns `glibc 2.41`, above ELF's `GLIBC_2.39`. Installed `libc6:arm64 2.41-12+rpt1+deb13u3`, `libglib2.0-0t64:arm64 2.84.4-3~deb13u3`, `libgtk-3-0t64:arm64 1:3.24.49-3+rpt8`, `libgnome-desktop-3-20t64:arm64 44.3-3`, `libfeedback-0.0-0:arm64 0.8.2-1`, `libwayland-client0:arm64 1.24.0-2~bpo13+1~rpt1`, `libxkbcommon0:arm64 1.7.0-2`, `raspi-config 20260730` meet the candidate package's corresponding declared floors. No APT operation was performed.
+- [x] Artifact `readelf -d` report lists 18 direct ELF libraries including `libgnome-desktop-3.so.20`, `libfeedback-0.0.so.0`, `libglib-2.0.so.0`, GTK3/GDK3, Wayland and `ld-linux-aarch64.so.1`. Versioned ELF dependencies are not equivalent to proven runtime symbol resolution.
+- [x] Added `scripts/inspect-squeekboard-overlay-artifact.py`: non-running, normal-user ARM64 preflight pins experimental ELF/.deb hashes and sizes, refuses unexpected ELF NEEDED names/RPATH, checks all Debian Depends against installed package versions and available direct SONAMEs against `ldconfig -p`. No `dpkg -i`, sudo, keyboard process manipulation or system configuration change. Is a **preflight**, not keyboard acceptance.
+- [ ] **Next Pi gate:** transfer the successful CI ZIP to the Pi (not yet performed), run the checker, investigate any missing runtime libraries without broad APT upgrades; only then stage test binary and pre-arm a trusted timeout/rescue guard.
+- [ ] **Physical OSK gate:** exactly-one-input-method handover, true fullscreen Plexamp Search/keyboard visibility, insertion, Backspace, Shift, dismiss, WayVNC and ACP return must all pass before default full-screen activation.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
