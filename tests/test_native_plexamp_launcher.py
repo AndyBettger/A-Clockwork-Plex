@@ -69,7 +69,7 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 'printf "%s\\n" "$*" >> "$MOCK_WLRCTL_CALLS"\n'
                 'case "$*" in\n'
                 '  "toplevel find app_id:com.plexamp.Plexamp") exit 1 ;;\n'
-                '  "toplevel list") printf "%s\\n" "chromium: ACP" "chromium: Plexamp" "net.plexamp.Desktop: Plexamp"; exit 0 ;;\n'
+                '  "toplevel list") printf "%s\\n" "chromium: ACP" "chromium: Plexamp" "net.plexamp.Desktop: Plexamp"; if [ "${MOCK_AMBIGUOUS:-}" = 1 ]; then printf "%s\\n" "other.player: Plexamp"; fi; exit 0 ;;\n'
                 '  "toplevel find app_id:net.plexamp.Desktop title:Plexamp") exit 0 ;;\n'
                 '  "toplevel fullscreen app_id:net.plexamp.Desktop title:Plexamp") exit 0 ;;\n'
                 '  *) exit 23 ;;\n'
@@ -156,6 +156,20 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 self.assertIn(
                     "toplevel fullscreen app_id:net.plexamp.Desktop title:Plexamp",
                     calls.read_text(encoding="utf-8"),
+                )
+
+                calls.unlink()
+                result = subprocess.run(
+                    ["bash", str(LAUNCHER), "--fullscreen"],
+                    env=dict(env, MOCK_RUNNING="1", MOCK_AMBIGUOUS="1"),
+                    capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Multiple windows titled Plexamp", result.stderr)
+                self.assertNotIn(
+                    "toplevel fullscreen",
+                    calls.read_text(encoding="utf-8"),
+                    "Ambiguous window matches must never be fullscreened",
                 )
 
 
