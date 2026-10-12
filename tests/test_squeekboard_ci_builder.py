@@ -39,17 +39,17 @@ class SqueekboardCiBuilderTests(unittest.TestCase):
     def test_known_vendor_scaling_fixture_is_repaired_only_in_test_initialiser(self):
         builder = load()
         fixture = (
-            "fn scaling_test_base() {\\n"
-            "  Application::get_preferred_height_and_arrangement(&OutputState {\\n"
-            "                    current_mode: None,\\n"
-            "                    scale,\\n"
-            "                }),\\n"
-            "}\\n"
+            "fn scaling_test_base() {\n"
+            "  Application::get_preferred_height_and_arrangement(&OutputState {\n"
+            "                    current_mode: None,\n"
+            "                    scale,\n"
+            "                }),\n"
+            "}\n"
         )
         corrected, count = builder.repair_scaling_test_fixture(fixture)
         self.assertEqual(1, count)
-        self.assertIn("scale,\\n                    name: None,\\n", corrected)
-        self.assertEqual(fixture, corrected.replace("                    name: None,\\n", ""))
+        self.assertIn("scale,\n                    name: None,\n", corrected)
+        self.assertEqual(fixture, corrected.replace("                    name: None,\n", ""))
         with self.assertRaises(RuntimeError):
             builder.repair_scaling_test_fixture(corrected)
         with self.assertRaises(RuntimeError):
