@@ -222,6 +222,15 @@ Next physical gates:
 - [x] **CI hygiene regression identified and repaired:** GitHub Tests #5528 failed due to omitted test-module catalogue entries for `test_native_plexamp_launcher.py` and `test_prepare_squeekboard_overlay.py`, plus stale Phase-A title assertion in `test_docs_catalog.py`. Code and documentation catalogues were corrected on this branch; follow-up CI not yet proven green. The source preparation itself succeeded physically and was not the cause of the CI failure.
 - [ ] **Next read-only build preflight:** inspect `PROVENANCE.txt`, `src/panel.c` layer line(s), staged `debian/control` and `dpkg-checkbuilddeps` output. Do not assume Debian baseline build dependencies equal Raspberry Pi's `+rpt1` package. User's Pi has Meson, Ninja, GCC but no `rustc` or `cargo`. No build, installer, keyboard replacement or live handover approved yet.
 
+### 12 October 2026 — panel provenance and vendor build requirements physically checked
+
+- [x] **Source provenance gate:** original `src/panel.c` SHA-256 `2983685254b5d5b81ce36d9277172a041502737450dee416a6f805b82d51c203`, modified SHA-256 `61d977ba7d7805f58dc57126b2fa410c6115af172889724f3e55cd444d9df916`. Confirmed `src/panel.c:82` contains exactly the intended `"layer", ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,`.
+- [x] **Vendor Build-Depends inspected from the staged source:** packages include `cargo`, `rustc`, `debhelper-compat (= 13)`, development libraries for GTK3/GLib/Wayland, `libfeedback-dev`, `libgnome-desktop-3-dev`, `python3-ruamel.yaml` and Debian-versioned `librust-*-dev` dependencies. `dpkg-checkbuilddeps` reports substantial unmet dependencies, not a compiler error. Existing `meson --version=1.7.0`, `ninja --version=1.12.1`. Build must preserve vendor's Debian offline-crate usage, not blindly run `cargo` against the public registry.
+- [x] **GitHub Tests #5532 green** after fixing the two earlier hygiene regressions (stale Phase A title assertion and missing test modules).
+- [x] Added `scripts/plan-squeekboard-build-deps.py`: first validates actual staged source SHA-256, single overlay-layer substitution, provenance and source `debian/control`, then invokes **only** `apt-get --simulate -o APT::Install-Recommends=false satisfy "<vendor Build-Depends>"`. Does not install, refresh APT indexes, compile or change the running OSK; four isolated tests passed locally.
+- [ ] **Next Pi gate:** pull changes and run `python3 scripts/plan-squeekboard-build-deps.py`. Inspect proposed package **new installs, upgrades, removals and download/disk size**. Do not approve live apt transactions automatically. APT simulation may propose unrelated upgrades; explicitly avoid accepting those without a reason.
+- [ ] **Later:** inspect staged `debian/rules` and `debian/cargo/config` to pin fully offline version-matched build mechanics before first compilation. Next live OSK handover still requires a rollback guard and physical touchscreen acceptance.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
