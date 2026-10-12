@@ -29,6 +29,25 @@ def source_helper():
     return module
 
 
+def repair_scaling_test_fixture(source: str) -> tuple[str, int]:
+    """Repair only the vendor Rust test fixtures missing OutputState.name.
+
+    The packaged 1.43.1 source has an Option<String> name field but retains
+    scaling-test initialisers without that field; normal lib compilation works,
+    while cargo test --no-run fails with E0063. This never changes runtime logic.
+    """
+    anchor = "Application::get_preferred_height_and_arrangement(&OutputState {"
+    old = "                    scale,\\n                }),".replace("\\\\n", "\\n")
+    new = "                    scale,\\n                    name: None,\\n                }),".replace("\\\\n", "\\n")
+    count = source.count(anchor)
+    if count not in (1, 2) or source.count(old) != count or source.count(new) != 0:
+        raise RuntimeError("Unexpected vendor scaling test fixture; refusing extra source changes")
+    changed = source.replace(old, new)
+    if changed.count("name: None,") - source.count("name: None,") != count:
+        raise RuntimeError("Unexpected number of vendor test fixture repairs")
+    return changed, count
+
+
 def stage_source(destination: Path, *, helper=None) -> None:
     if destination.exists() or destination.is_symlink():
         raise RuntimeError(f"Destination exists: {destination}")
@@ -62,12 +81,19 @@ def stage_source(destination: Path, *, helper=None) -> None:
         panel.write_text(helper.patch_panel_text(panel.read_text(encoding="utf-8")), encoding="utf-8")
         if helper.sha256(panel) != AFTER_SHA256:
             raise RuntimeError("Patched panel.c hash differs from commissioned Pi result")
+        # Only affects #[cfg(test)] scaling fixtures, not the keyboard itself.
+        state = source / "src/state.rs"
+        original_state = state.read_text(encoding="utf-8")
+        repaired_state, repaired_count = repair_scaling_test_fixture(original_state)
+        state.write_text(repaired_state, encoding="utf-8")
         (scratch / "PROVENANCE.txt").write_text(
             f"Source descriptor: {helper.BASE_URL}{helper.DSC_NAME}\n"
             f"Vendor version: {PI_VERSION}\n"
             f"Original src/panel.c SHA-256: {BEFORE_SHA256}\n"
             f"Modified src/panel.c SHA-256: {AFTER_SHA256}\n"
             "One edit: TOP -> OVERLAY; Raspberry Pi Debian patches applied by dpkg-source.\n"
+            f"CI-only vendor Rust scaling-test fixture initialisers repaired: {repaired_count} (name: None).\\n".replace("\\\\n", "\\n")
+            "Only test fixtures changed additionally; no runtime logic changed.\\n".replace("\\\\n", "\\n")
             "SHA-256 checked against descriptor fetched via HTTPS; unsigned .dsc not independently GPG-verified.\n"
             "TEST-ONLY ARM64 BUILD: do not install on Pi before ABI review and a timed recovery plan.\n",
             encoding="utf-8",
