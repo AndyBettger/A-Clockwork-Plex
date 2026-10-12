@@ -30,22 +30,55 @@ def source_helper():
 
 
 def repair_scaling_test_fixture(source: str) -> tuple[str, int]:
-    """Repair only the vendor Rust test fixtures missing OutputState.name.
+    """Restore missing OutputState.name only in vendor Rust test initialisers.
 
-    The packaged 1.43.1 source has an Option<String> name field but retains
-    scaling-test initialisers without that field; normal lib compilation works,
-    while cargo test --no-run fails with E0063. This never changes runtime logic.
+    The original vendor archive mixes correctly populated output states with
+    older #[cfg(test)] initialisers that omit an Option<String> name field.
+    Parse each test-only constructor's curly braces, not brittle indentation.
+    No non-test source or keyboard runtime logic is touched.
     """
-    anchor = "Application::get_preferred_height_and_arrangement(&OutputState {"
-    old = "                    scale,\n                }),"
-    new = "                    scale,\n                    name: None,\n                }),"
-    count = source.count(anchor)
-    if count not in (1, 2) or source.count(old) != count or source.count(new) != 0:
-        raise RuntimeError("Unexpected vendor scaling test fixture; refusing extra source changes")
-    changed = source.replace(old, new)
-    if changed.count("name: None,") - source.count("name: None,") != count:
-        raise RuntimeError("Unexpected number of vendor test fixture repairs")
-    return changed, count
+    import re
+
+    marker = "#[cfg(test)]"
+    if source.count(marker) != 1:
+        raise RuntimeError("Unexpected Rust test module count")
+    prefix, tests = source.split(marker, 1)
+    if "pub mod test" not in tests:
+        raise RuntimeError("Expected vendor Rust test module missing")
+    matches = list(re.finditer(r"\\bOutputState\\s*\\{", tests))
+    if not 1 <= len(matches) <= 4:
+        raise RuntimeError("Unexpected number of Rust OutputState test initialisers")
+
+    repairs = []
+    for match in matches:
+        begin = tests.index("{", match.start())
+        depth = 0
+        end = -1
+        for index in range(begin, len(tests)):
+            if tests[index] == "{":
+                depth += 1
+            elif tests[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = index
+                    break
+        if end < 0:
+            raise RuntimeError("Unclosed OutputState test initializer")
+        body = tests[begin + 1:end]
+        if re.search(r"(?m)^\\s*name\\s*:", body):
+            continue
+        scale_fields = list(re.finditer(r"(?m)^([ \\t]*)scale(?:\\s*:\\s*\\d+)?\\s*,[ \\t]*$", body))
+        if len(scale_fields) != 1:
+            raise RuntimeError("Cannot identify expected test-only OutputState scale field")
+        scale = scale_fields[0]
+        indent = scale.group(1)
+        repairs.append((begin + 1 + scale.end(), "\\n" + indent + "name: None,"))
+
+    if not 1 <= len(repairs) <= 3:
+        raise RuntimeError("Unexpected vendor test fixture repair count")
+    for position, new_text in reversed(repairs):
+        tests = tests[:position] + new_text + tests[position:]
+    return prefix + marker + tests, len(repairs)
 
 
 def stage_source(destination: Path, *, helper=None) -> None:
