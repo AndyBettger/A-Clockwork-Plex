@@ -114,6 +114,8 @@
 
     window.clearTimeout(revealTimer);
     revealTimer = window.setTimeout(() => {
+      // A delayed reveal from a previous field must not scroll the next one.
+      if (target !== activeKeyboardTarget || !document.body.classList.contains('keyboard-open')) return;
       const height = keyboardHeight();
       const detailRect = detail.getBoundingClientRect();
       const targetRect = (target.closest('.setting-field, .setting-toggle, label') || target).getBoundingClientRect();
@@ -123,12 +125,12 @@
       if (targetRect.bottom > visibleBottom) {
         detail.scrollBy({
           top: targetRect.bottom - visibleBottom + 18,
-          behavior: 'smooth',
+          behavior: 'auto',
         });
       } else if (targetRect.top < visibleTop) {
         detail.scrollBy({
           top: targetRect.top - visibleTop - 10,
-          behavior: 'smooth',
+          behavior: 'auto',
         });
       }
     }, 90);
@@ -143,6 +145,11 @@
       if (!target) return;
       activeKeyboardTarget = target;
       revealKeyboardTarget(target);
+      // A newly unhidden field can gain focus while the keyboard is still
+      // animating. Recheck after its 170ms entrance without resizing Settings.
+      window.setTimeout(() => {
+        if (activeKeyboardTarget === target) revealKeyboardTarget(target);
+      }, 210);
     }, true);
 
     document.addEventListener('pointerdown', (event) => {

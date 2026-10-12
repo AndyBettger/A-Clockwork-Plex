@@ -74,6 +74,22 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("_MAX_CLOCK_CARD_SLOTS = 8", backend)
         self.assertIn("Clock weather cards support at most", backend)
 
+    def test_custom_keyboard_panel_has_real_scroll_reach_for_dynamic_password(self):
+        style = STYLE.read_text(encoding="utf-8")
+        client = CLIENT.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        credential = (ROOT / "app/static/js/settings-weather-observations.js").read_text(encoding="utf-8")
+        self.assertIn("body.mode-settings.keyboard-open .settings-detail-panel:not([hidden])", style)
+        self.assertIn("padding-bottom: calc(var(--settings-keyboard-height, 300px) + 24px)", style)
+        self.assertIn("if (target !== activeKeyboardTarget", client)
+        self.assertIn("behavior: 'auto'", client)
+        self.assertIn("window.setTimeout(() => {", client)
+        self.assertIn("}, 210);", client)
+        self.assertIn("revealKeyboardTarget(target)", client)
+        self.assertIn("elements.input?.focus()", credential)
+        self.assertIn("20261012-keyboard-scroll-reach-v1", base)
+        self.assertNotIn("body.keyboard-open .settings-ipad-page", style)
+
     def test_keyboard_scrolls_the_real_settings_detail_owner(self):
         client = CLIENT.read_text(encoding="utf-8")
         style = STYLE.read_text(encoding="utf-8")
