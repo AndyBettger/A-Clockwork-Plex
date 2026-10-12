@@ -114,6 +114,10 @@ The commissioned Pi confirms `amixer -D acp_plexamp scontrols` fails with `Inval
 
 Native touchscreen Search/OSK is the next isolated acceptance boundary: the ACP Chrome DOM keyboard is not directly usable by a native Wayland app. Test physical touch and WayVNC first; collect OSK/Wayland facts if missing before altering compositor, autostart, audio or Headless.
 
+### 12 October 2026 — bounded manual native-player launch path
+
+`scripts/launch-native-plexamp.sh` is a Phase-B-only operator convenience for the currently installed ARM64 Flatpak (`com.plexamp.Plexamp`, `beta`). Invoked as `bash scripts/launch-native-plexamp.sh` by the normal desktop user, including over SSH, it validates installation and avoids duplicate native instances, resolves the existing user Wayland socket and session D-Bus, uses `nohup flatpak run --branch=beta` to detach from SSH and saves output privately to `~/.cache/a-clockwork-plex/native-plexamp.log`. It cannot start its own Wayland session, change compositor/window focus/fullscreen, install the Flatpak or alter ACP Headless, audio, kiosk startup, alarms or NFC. Use `flatpak kill com.plexamp.Plexamp` only when deliberately closing the **native** player, not the Headless service. The branch pin is intentionally temporary for discovery; the accepted production release/runtime owner is still undecided. Script syntax and mock launcher tests passed locally; physical use on the commissioned Pi remains unverified.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
