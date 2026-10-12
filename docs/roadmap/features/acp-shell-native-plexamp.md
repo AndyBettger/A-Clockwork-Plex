@@ -190,6 +190,14 @@ Next physical gates:
 - [ ] **Narrow source/rollback probe:** inspect `/etc/xdg/autostart/squeekboard.desktop`, PID 1439 process and actual binary symlink/sha256; check user `~/.config/autostart` override and whether `meson/ninja/rustc/cargo` are already installed. This is needed before any build or transition attempt, without stopping the working OSK.
 - [ ] **Scoped test design:** prefer a separate source-matched `1.43.1-1+rpt1` overlay-capable build with locally identifiable executable over replacing system `/usr/bin/squeekboard`. Determine if its D-Bus/input-method ownership requires a short stop/restart of stock Squeekboard, and build a rollback guard before any such switch. Don't run unreviewed third-party `sudo` builders or modify global packaged XDG startup. Keep fullscreen Plexamp manual while touch-only search is blocked.
 
+### 12 October 2026 — vendor keyboard entry point is `sbtest`, source hash preserved
+
+- [x] XDG autostart content verified: `/etc/xdg/autostart/squeekboard.desktop` has `Exec=/usr/bin/sbtest`, `Terminal=false`, `Type=Application`, `NoDisplay=true`. Running PID 1439 is `/bin/sh /usr/bin/sbtest` (PPID 1), with Squeekboard child PID 1484. The desktop is starting a **wrapper**, not calling the OSK executable directly.
+- [x] No user override at `~/.config/autostart/squeekboard.desktop`. The original `/usr/bin/squeekboard` is a regular root-owned executable (17,174,992 bytes; file mtime 18 March 2025) with SHA-256 `2ad3ef3750c26b94427deb7423041293c1ae658027261a38623373af1a243338` for later recovery verification. No changes made to it.
+- [x] Tool availability: `meson`, `ninja`, `gcc` installed; **`rustc` and `cargo` missing**. Squeekboard is a mixed Rust/C build; any source-matched experimental overlay candidate will require an explicitly planned toolchain, not simply a one-line C patch and Meson build.
+- [ ] **Immediate read-only gate:** inspect `sed -n '1,240p' /usr/bin/sbtest`, `dpkg -S /usr/bin/sbtest`, and its process supervision behavior. Do not stop/kill Squeekboard, build/install an overlaid .deb, or edit XDG autostart before determining if the script re-spawns the stock keyboard. If the vendor wrapper supervises process exits, plan an explicit rollback/ownership handoff.
+- [ ] After exact wrapper behavior is known, decide between a separately built, **non-installed** overlay-capable Squeekboard binary (subject to D-Bus/Wayland singleton ownership) and a reversible window-layout alternative. Retain the vendor binary and current runtime until the test is explicitly bounded and recoverable.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
