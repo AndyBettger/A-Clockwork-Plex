@@ -67,7 +67,7 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
             "Cancel replacement",
             "Replacement cancelled. The saved key is unchanged.",
             "if (!key.trim())",
-            "The existing key remains active until the replacement is saved.",
+            "The existing key remains active until a replacement is saved.",
             "renderCredentialStatus(); // Fail closed",
             'data-wu-api-key-field hidden',
             'data-keyboard="text" data-wu-api-key disabled',
