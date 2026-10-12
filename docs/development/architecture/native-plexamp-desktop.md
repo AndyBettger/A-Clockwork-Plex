@@ -210,6 +210,12 @@ The exact `debian/rules` uses Debian's Meson-based `dh` pipeline, stores Rust cr
 
 **Hard boundaries:** no `apt-get satisfy` or broad dependency upgrades on the Pi, no third-party unaudited patch installer, no replacing `/usr/bin/squeekboard`, no `dpkg -i` of compiled `.deb`, no autostart/compositor change, no concurrent Squeekboard input-method clients, and no retirement of working Headless. A future test must first have a proven timed original-keyboard recovery command scoped to the existing labwc Wayland/DBus session and physical Search/OSK/WayVNC acceptance. CI Tests #5538 are green for the prior source staging/preflight code, but the container builder does **not** exist or pass yet.
 
+### 12 October 2026 — reproducible ARM64 test binary boundary
+
+A dedicated repository CI candidate now prepares the exact Raspberry Pi vendor `squeekboard 1.43.1-1+rpt1` tarballs from the pinned HTTPS archive and verifies all source descriptor checksum/size entries. It uses the existing `scripts/prepare-squeekboard-overlay.py`'s pure download/patch parsing to avoid mismatched staging logic, while **requiring** the known commissioned-Pi `src/panel.c` SHA-256 both before and after the sole `ZWLR_LAYER_SHELL_V1_LAYER_TOP→OVERLAY` edit. The standard GitHub-hosted `ubuntu-24.04-arm` job runs a Debian Trixie container where the large Rust/GTK/Wayland APT dependency closure is disposable. Debian/Meson/Cargo architecture packaging runs as non-root, with `CARGO_NET_OFFLINE=true` and bounded parallelism. The build exports unsigned test-only `arm64` package, extracted ELF, original/patched source provenance, dependency and ABI manifest plus logs via Actions artifact; no script or action can deploy to the Pi. We do **not** claim that an arbitrary Debian Trixie-built ELF is ABI-compatible with Raspberry Pi OS; target-library comparison is a later physical read-only gate.
+
+The builder refuses execution outside a Github Actions Docker container on ARM64; it has no `setup.sh` integration, physical Pi package mutation, service/autostart write, or concurrent OSK activation. The build artifact is test-only and not automatically used by ACP's installer. Success must be confirmed from actual GitHub Actions logs/artifact (not just unit tests). The unsigned vendor source descriptor is hash-verified but not independently GPG authenticated.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
