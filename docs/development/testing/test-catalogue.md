@@ -228,6 +228,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 ### Plexamp and NFC
 
+- `tests/test_squeekboard_overlay_abi.py` — Checks experimental ARM64 ZIP file hashes, direct shared-library inventories, Debian runtime version floors, and refusal to inspect as root/non-ARM64 without executing the keyboard.
 - `tests/test_squeekboard_ci_builder.py` — Guards the disposable ARM64 Squeekboard builder's pinned source hashes, container/architecture preflight, offline Cargo boundary and artifact-only workflow.
 
 ### Plexamp and NFC
