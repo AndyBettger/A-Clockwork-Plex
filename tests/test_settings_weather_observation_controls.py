@@ -174,6 +174,65 @@ assert.ok(keyboardCloses > 0, 'hiding editor dismisses ACP custom keyboard');
         # success; Node's VM console output is not a reliable test oracle.
         self.assertEqual(run.returncode, 0, run.stderr)
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_replace_click_reveals_field_without_opening_osk(self) -> None:
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('app/static/js/settings-weather-observations.js', 'utf8');
+const begin = source.indexOf("    elements.save?.addEventListener('click', async () => {");
+const end = source.indexOf("    elements.cancel?.addEventListener('click', () => {", begin);
+assert.ok(begin >= 0 && end > begin);
+let focused = 0;
+let keyboardOpened = 0;
+let sent = 0;
+let movement = null;
+const detail = {
+  getBoundingClientRect: () => ({top: 140, bottom: 600}),
+  scrollBy: args => { movement = args; }
+};
+const field = {
+  hidden: true,
+  closest: selector => selector === '.settings-detail' ? detail : null,
+  getBoundingClientRect: () => ({top: 548, bottom: 672})
+};
+const input = {
+  value: '',
+  focus: () => { focused++; keyboardOpened++; }
+};
+const message = {textContent: ''};
+const handlers = {};
+const elements = {
+  input, field, message,
+  save: {addEventListener: (type, fn) => { handlers[type] = fn; }}
+};
+const context = {
+  elements, window: {requestAnimationFrame: fn => fn()},
+  credentialStatusKnown: true, credentialConfigured: true,
+  credentialEditing: false, credentialBusy: false,
+  renderCredentialStatus: () => { field.hidden = !context.credentialEditing; },
+  requestJson: async () => { sent++; throw Error('must never POST on Replace click'); }
+};
+vm.runInNewContext(source.slice(begin, end), context);
+(async () => {
+  await handlers.click();
+  assert.strictEqual(context.credentialEditing, true);
+  assert.strictEqual(field.hidden, false, 'replacement input revealed');
+  assert.strictEqual(focused, 0, 'Replace does not focus the hidden/new input');
+  assert.strictEqual(keyboardOpened, 0, 'Replace does not open the DOM keyboard');
+  assert.strictEqual(sent, 0, 'existing secret not replaced or removed');
+  assert.ok(String(message.textContent).includes('Tap the new API key field'));
+  assert.strictEqual(movement.top, 88, 'scroll editor into normal visible area');
+  assert.strictEqual(movement.behavior, 'auto');
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+        run = subprocess.run(
+            ["node", "-e", javascript], cwd=Path(__file__).resolve().parents[1],
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+
     def test_commissioning_uses_dedicated_credential_and_test_endpoints(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
 
