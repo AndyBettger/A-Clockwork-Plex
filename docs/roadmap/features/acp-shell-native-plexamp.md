@@ -255,6 +255,13 @@ Next physical gates:
 - [x] Workflow used temporary, narrowly scoped same-repo PR trigger to start once because adding the workflow with a push trigger alone did not register a separate build on the feature-branch commit. Following job start, removed temporary PR/push triggers, leaving `workflow_dispatch` only; current in-flight #3 continues on its original SHA. New ordinary PR pushes do not rerun the large builder. The workflow may require default-branch presence for future dispatch; do not claim a new manual run can be started from GitHub UI in this feature branch without verification.
 - [ ] **Current gate:** inspect actual build #3 conclusion, logs, artifacts and `readelf`/package `Depends`; only then decide whether any CI-only correction and intentional manual retry is necessary. Do not ship/install package or change accepted Pi keyboard, Headless or compositor.
 
+### 12 October 2026 — run #3 test fixture failure and guarded fix
+
+- [x] **First test-only ARM64 build failed only at Rust unit-test compilation:** [run #3](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38196515161) successfully bootstrapped Debian Trixie arm64 dependencies and compiled `rs` library, then `cargo.sh test --no-run` raised E0063 `missing field name in initializer of outputs::OutputState` at `src/state.rs:852`. `dh_auto_test` failed and **no .deb/ELF artifact** was exported. The uploaded diagnostic-only archive #11723219236 holds build log/dependency manifest/provenance; this is a real CI build failure, not Pi failure.
+- [x] **Upstream source comparison:** the Raspberry Pi maintained `src/outputs.rs` defines `name: Option<String>` and its fixed `application_with_fake_output` fixture sets `name: None`. The Pi archive retains one or two older *scaling-test-only* initializers without the field. This is unrelated to the compositor layer patch.
+- [x] **Guarded test-fixture-only repair:** update the dedicated `scripts/ci/prepare-squeekboard-overlay-source.py` to require exact scaling-test construction pattern/count and insert `name: None,` only there. If unexpected/previously changed, fail closed. Preserve the original source package and sole runtime-layer source change; record extra change transparently in provenance. Keep vendor `dh_auto_test` active rather than using `DEB_BUILD_OPTIONS=nocheck`. Added a narrow regression proving the fixture repair changes only the intended initializers.
+- [ ] **Second isolated ARM64 CI build:** deliberately retrigger same-repo-only candidate, then inspect logs and actual artifact. No broad APT installation or component mutation on the commissioned Pi.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
