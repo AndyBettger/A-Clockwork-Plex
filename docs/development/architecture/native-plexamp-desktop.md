@@ -216,6 +216,10 @@ A dedicated repository CI candidate now prepares the exact Raspberry Pi vendor `
 
 The builder refuses execution outside a Github Actions Docker container on ARM64; it has no `setup.sh` integration, physical Pi package mutation, service/autostart write, or concurrent OSK activation. The build artifact is test-only and not automatically used by ACP's installer. Success must be confirmed from actual GitHub Actions logs/artifact (not just unit tests). The unsigned vendor source descriptor is hash-verified but not independently GPG authenticated.
 
+### 12 October 2026 — ARM64 CI run provenance and non-recurrence
+
+The user approved an off-device ARM64 build. GitHub **Squeekboard Overlay ARM64 (test-only)** [run #3](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38196515161) was started on the Phase-B branch and verified to have reached the ephemeral Debian Trixie ARM64 container's build step. The earlier newly authored workflow push did not appear as a separate run, so an explicitly same-repository-only PR event was temporarily allowed; after the build started, both push and PR auto-triggers were deleted to prevent accidental repeats. The repository [Tests #5549](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38196515178) passed. As of this entry the binary build outcome, package artifact and ABI compatibility are unconfirmed. No external device install path exists in the builder. The workflow is manual-dispatch-only, and `workflow_dispatch` on a non-default feature branch may not be discoverable until the workflow also exists on the default branch; future retry mechanism is deliberately not presumed available.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
