@@ -126,6 +126,7 @@ These are retained because they solve specific recovery/migration jobs that are 
 
 | File | Purpose | Safety / intended use |
 | --- | --- | --- |
+| `scripts/try-squeekboard-overlay.py` | Opt-in **user-scoped, timed native OSK trial** with a staged SHA-256-verified ELF, transient systemd user trial service and a separately armed rescue timer. Restores stock `/usr/bin/sbtest` as its own user unit. | `--plan ZIP` is diagnostic. `--start ZIP` is a deliberately disruptive **180-second** physical experiment, with independent rescue at **240 seconds**. Must have one original OSK and an active labwc/Wayland session; no `sudo`, system package modifications, desktop/autostart changes, or Headless/audio changes. For unexpected issues, `systemctl --user start acp-squeekboard-overlay-restore.service` requests early restore. **Do not run `--start` until `--plan` passes and user is ready at the touchscreen.** |
 | `scripts/inspect-squeekboard-overlay-artifact.py` | Read-only target-Pi inspection of the successful ARM64 Squeekboard run #5 ZIP: pinned executable and .deb SHA-256/size, AArch64 ELF, package version/dependencies, every direct SONAME and target ldconfig cache. | Run as normal Pi user with an already downloaded ZIP. **No executable launch, package installation, service/autostart or keyboard process changes**. This is only a package/SONAME preflight, not proof of dynamic symbol compatibility or Wayland text entry. |
 
 | File | Purpose | Safety / intended use |
