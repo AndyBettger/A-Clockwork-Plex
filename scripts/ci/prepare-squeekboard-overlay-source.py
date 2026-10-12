@@ -45,7 +45,7 @@ def repair_scaling_test_fixture(source: str) -> tuple[str, int]:
     prefix, tests = source.split(marker, 1)
     if "pub mod test" not in tests:
         raise RuntimeError("Expected vendor Rust test module missing")
-    matches = list(re.finditer(r"\\bOutputState\\s*\\{", tests))
+    matches = list(re.finditer(r"\bOutputState\s*\{", tests))
     if not 1 <= len(matches) <= 4:
         raise RuntimeError("Unexpected number of Rust OutputState test initialisers")
 
@@ -65,14 +65,14 @@ def repair_scaling_test_fixture(source: str) -> tuple[str, int]:
         if end < 0:
             raise RuntimeError("Unclosed OutputState test initializer")
         body = tests[begin + 1:end]
-        if re.search(r"(?m)^\\s*name\\s*:", body):
+        if re.search(r"(?m)^\s*name\s*:", body):
             continue
-        scale_fields = list(re.finditer(r"(?m)^([ \\t]*)scale(?:\\s*:\\s*\\d+)?\\s*,[ \\t]*$", body))
+        scale_fields = list(re.finditer(r"(?m)^([ \t]*)scale(?:\s*:\s*\d+)?\s*,[ \t]*$", body))
         if len(scale_fields) != 1:
             raise RuntimeError("Cannot identify expected test-only OutputState scale field")
         scale = scale_fields[0]
         indent = scale.group(1)
-        repairs.append((begin + 1 + scale.end(), "\\n" + indent + "name: None,"))
+        repairs.append((begin + 1 + scale.end(), "\n" + indent + "name: None,"))
 
     if not 1 <= len(repairs) <= 3:
         raise RuntimeError("Unexpected vendor test fixture repair count")
