@@ -365,16 +365,18 @@
     row.appendChild(toggle);
 
     const output = document.createElement('pre');
-    output.dataset.wuKeyboardProbeOutput = '20261012-wu-layout-probe-v1';
+    output.dataset.wuKeyboardProbeOutput = '20261013-wu-layout-probe-v2';
     output.setAttribute('aria-live', 'off');
     output.hidden = true;
     Object.assign(output.style, {
-      position: 'fixed', zIndex: '9900', top: '110px', right: '18px',
-      width: 'min(640px, calc(100vw - 36px))', maxHeight: '380px',
-      overflow: 'hidden', boxSizing: 'border-box', padding: '12px',
-      borderRadius: '10px', border: '2px solid #8fd3ff',
+      // On the Pi kiosk CSS pixels are scaled. This compact position keeps
+      // the actual key field uncovered during touch/WayVNC focus tests.
+      position: 'fixed', zIndex: '9900', top: '6px', right: '8px',
+      width: 'min(425px, calc(100vw - 16px))', maxHeight: '198px',
+      overflow: 'hidden', boxSizing: 'border-box', padding: '7px 9px',
+      borderRadius: '8px', border: '2px solid #8fd3ff',
       background: 'rgba(3, 9, 19, .97)', color: '#e4f3ff',
-      font: '16px/1.5 monospace', whiteSpace: 'pre-wrap',
+      font: '11px/1.25 monospace', whiteSpace: 'pre-wrap',
       pointerEvents: 'none'
     });
     document.body.appendChild(output);
@@ -394,20 +396,27 @@
       const keyboardRect = rect(kb);
       const keyboardOpen = document.body.classList.contains('keyboard-open');
       const paneMax = detail ? Math.max(0, detail.scrollHeight - detail.clientHeight) : NaN;
+      const rootStyle = document.documentElement.style.getPropertyValue('--settings-keyboard-height');
+      const computed = detail ? window.getComputedStyle(detail) : null;
+      const panel = input.closest('.settings-detail-panel');
+      const panelStyle = panel ? window.getComputedStyle(panel) : null;
       output.textContent = [
-        'WU KEYBOARD GEOMETRY PROBE v1 - NO SECRETS',
-        'Editor hidden=' + field.hidden + ' disabled=' + input.disabled +
-          ' focused=' + (document.activeElement === input),
-        'Events: ' + lastEvent + ' | focuses=' + focusCount + ' pointers=' + pointerCount,
-        'ACP keyboard-open=' + keyboardOpen +
-          ' | active= ' + (document.activeElement === input ? 'API input' : document.activeElement?.tagName || 'none'),
-        'Pane scrollTop=' + number(detail?.scrollTop) + ' max=' + number(paneMax) +
-          ' client=' + number(detail?.clientHeight) + ' total=' + number(detail?.scrollHeight),
-        'Pane top/bottom=' + number(paneRect?.top) + '/' + number(paneRect?.bottom),
-        'Input top/bottom=' + number(inputRect?.top) + '/' + number(inputRect?.bottom),
-        'Field top/bottom=' + number(fieldRect?.top) + '/' + number(fieldRect?.bottom),
-        'Keyboard top/height=' + number(keyboardRect?.top) + '/' + number(keyboardRect?.height),
-        'Input clearance=' + number((keyboardRect?.top ?? NaN) - (inputRect?.bottom ?? NaN)),
+        'WU KEYBOARD GEOMETRY v2 - NO SECRETS',
+        'hidden=' + field.hidden + ' disabled=' + input.disabled + ' focus=' +
+          (document.activeElement === input) + ' event=' + lastEvent,
+        'focus#=' + focusCount + ' tap#=' + pointerCount +
+          ' kbdOpen=' + keyboardOpen + ' modeSettings=' +
+          document.body.classList.contains('mode-settings'),
+        'pane scroll=' + number(detail?.scrollTop) + '/' + number(paneMax) +
+          ' size=' + number(detail?.clientHeight) + '/' + number(detail?.scrollHeight),
+        'pane top/bottom=' + number(paneRect?.top) + '/' + number(paneRect?.bottom),
+        'input top/bottom=' + number(inputRect?.top) + '/' + number(inputRect?.bottom) +
+          ' fieldBottom=' + number(fieldRect?.bottom),
+        'kbd top/height=' + number(keyboardRect?.top) + '/' + number(keyboardRect?.height) +
+          ' inputGap=' + number((keyboardRect?.top ?? NaN) - (inputRect?.bottom ?? NaN)),
+        'CSS kbHeight=' + (rootStyle || '(unset)') +
+          ' panePad=' + (computed?.paddingBottom || 'n/a') +
+          ' panelPad=' + (panelStyle?.paddingBottom || 'n/a'),
       ].join('\n');
     }
     input.addEventListener('focusin', () => { focusCount++; lastEvent = 'input focusin'; update(); });
