@@ -88,7 +88,7 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("revealKeyboardTarget(target)", client)
         self.assertIn("Tap the new API key field to start typing.", credential)
         self.assertNotIn("elements.input?.focus()", credential)
-        self.assertIn("20261012-keyboard-scroll-reach-v1", base)
+        self.assertIn("20261013-keyboard-visual-bounds-v2", base)
         self.assertNotIn("body.keyboard-open .settings-ipad-page", style)
 
     @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
