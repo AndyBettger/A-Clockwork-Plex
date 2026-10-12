@@ -90,6 +90,69 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("20261012-keyboard-scroll-reach-v1", base)
         self.assertNotIn("body.keyboard-open .settings-ipad-page", style)
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_actual_settings_keyboard_reveal_scrolls_dynamic_bottom_field(self):
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('app/static/js/settings-pass-a.js', 'utf8');
+const start = source.indexOf('  function keyboardHeight() {');
+const end = source.indexOf('  function installKeyboardVisibility() {', start);
+assert.ok(start >= 0 && end > start, 'real keyboard visibility functions available');
+const methods = source.slice(start, end);
+class HTMLElement {}
+const target = new HTMLElement();
+const pane = {
+  offset: 0,
+  getBoundingClientRect: () => ({top: 130, bottom: 640}),
+  scrollBy: ({top, behavior}) => {
+    assert.strictEqual(behavior, 'auto');
+    pane.offset = Math.min(380, Math.max(0, pane.offset + top));
+  }
+};
+const wholeField = {
+  getBoundingClientRect: () => ({top: 555 - pane.offset, bottom: 685 - pane.offset})
+};
+target.closest = selector => selector === '.settings-detail' ? pane :
+  selector === '.setting-field, .setting-toggle, label' ? wholeField : null;
+const classes = {contains: name => name === 'keyboard-open'};
+let assignedHeight = null;
+const document = {
+  body: {classList: classes},
+  getElementById: id => id === 'touch-keyboard'
+    ? {getBoundingClientRect: () => ({height: 310})} : null,
+  documentElement: {style: {setProperty: (name, height) => {
+    if (name === '--settings-keyboard-height') assignedHeight = height;
+  }}}
+};
+const window = {
+  innerHeight: 720, clearTimeout: () => {},
+  setTimeout: fn => {fn(); return 1;}
+};
+vm.runInNewContext(`
+let activeKeyboardTarget = target;
+let revealTimer = null;
+${methods}
+revealKeyboardTarget(target);
+assert.ok(pane.offset >= 290, 'reveals content well above the overlay');
+assert.ok(wholeField.getBoundingClientRect().bottom <= window.innerHeight - 310 - 12,
+  'complete dynamic label and editor above the keyboard');
+assert.strictEqual(assignedHeight, '310px');
+// A delayed callback must never scroll the previously focused input.
+pane.offset = 0;
+activeKeyboardTarget = new HTMLElement();
+revealKeyboardTarget(target);
+assert.strictEqual(pane.offset, 0, 'no stale field scrolling');
+`, {assert, target, pane, wholeField, HTMLElement, window, document,
+    get assignedHeight() {return assignedHeight;}});
+"""
+        run = subprocess.run(
+            ["node", "-e", javascript],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+
     def test_keyboard_scrolls_the_real_settings_detail_owner(self):
         client = CLIENT.read_text(encoding="utf-8")
         style = STYLE.read_text(encoding="utf-8")
