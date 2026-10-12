@@ -194,6 +194,14 @@ Before constructing any binary, the staged `debian/control` is the exact source 
 
 GitHub Tests #5528 failure was traced to two **repository hygiene assertions**, not staging logic: unlisted new test modules in `docs/development/testing/test-catalogue.md` and a stale Phase-A roadmap heading asserted by `tests/test_docs_catalog.py`. Both have been updated to the current branch; no green CI result is claimed until a new run completes.
 
+### 12 October 2026 — exact overlay source SHA and APT simulation boundary
+
+The commissioned Pi's staged `src/panel.c` is consistent with the narrowly patched build: source SHA-256 before modification `2983685254b5d5b81ce36d9277172a041502737450dee416a6f805b82d51c203`; after modification `61d977ba7d7805f58dc57126b2fa410c6115af172889724f3e55cd444d9df916`; overlay enum is present at line 82. `meson 1.7.0` and `ninja 1.12.1` are installed, but `dpkg-checkbuilddeps` reports a large missing closure: Rust/Cargo, Debian packaging helpers, GTK/GLib/Wayland development headers and packaged Rust crate sources. Debian's offline Rust-crate packaging model is desirable for repeatability; the exact vendor `debian/rules` and Cargo configuration must be read before choosing Meson build invocation (see https://wiki.debian.org/Gnome/Rust_Packaging).
+
+To avoid `apt-get build-dep squeekboard` accidentally selecting a different distro/version's source requirements, `scripts/plan-squeekboard-build-deps.py` reads the **staged Raspberry Pi** `debian/control` Source stanza and asks `apt-get --simulate -o APT::Install-Recommends=false satisfy "<Build-Depends>"` directly, as supported by Debian APT's dependency-solver interface (https://manpages.debian.org/trixie/apt/apt-get.8.en.html). It rejects invalid provenance, any change to the accepted panel SHA-256 or missing overlay marker. It does **not** modify system packages, APT indices, keyboard processes, labwc configuration, audio or Headless. Review solver output for proposed upgrades/removals before any install authorization; the dry run does not grant permission for a real transaction or a full build. Local unit tests check the guard and APT simulation invocation, but the Pi-specific APT dry run remains untested.
+
+The branch's GitHub Tests #5532 completed **successfully** after repairing the stale Phase-A title and the test catalogue. This new helper's own CI is separate and still awaiting results. No built keyboard exists; the eventual timed stock-keyboard restoration plan remains a prerequisite for a live OSK swap.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
