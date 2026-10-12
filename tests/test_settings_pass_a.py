@@ -86,7 +86,8 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("window.setTimeout(() => {", client)
         self.assertIn("}, 210);", client)
         self.assertIn("revealKeyboardTarget(target)", client)
-        self.assertIn("elements.input?.focus()", credential)
+        self.assertIn("Tap the new API key field to start typing.", credential)
+        self.assertNotIn("elements.input?.focus()", credential)
         self.assertIn("20261012-keyboard-scroll-reach-v1", base)
         self.assertNotIn("body.keyboard-open .settings-ipad-page", style)
 
