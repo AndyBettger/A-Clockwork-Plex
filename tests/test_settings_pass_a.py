@@ -154,6 +154,52 @@ assert.strictEqual(pane.offset, 0, 'no stale field scrolling');
         )
         self.assertEqual(run.returncode, 0, run.stderr)
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_keyboard_height_uses_visible_key_content_when_wrapper_is_short(self):
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const script = fs.readFileSync('app/static/js/settings-pass-a.js', 'utf8');
+const begin = script.indexOf('  function keyboardHeight() {');
+const end = script.indexOf('  function revealKeyboardTarget(', begin);
+assert.ok(begin >= 0 && end > begin);
+const rows = [
+  {getBoundingClientRect: () => ({top: 332, height: 34})},
+  {getBoundingClientRect: () => ({top: 376, height: 34})}
+];
+const keyboard = {
+  getBoundingClientRect: () => ({top: 427, height: 53}),
+  scrollHeight: 53,
+  querySelectorAll: selector => selector === '.touch-key-row' ? rows : []
+};
+let lastHeight = '';
+const document = {
+  body: {classList: {contains: name => name === 'keyboard-open'}},
+  getElementById: name => name === 'touch-keyboard' ? keyboard : null,
+  documentElement: {style: {setProperty: (name, value) => {
+    assert.strictEqual(name, '--settings-keyboard-height');
+    lastHeight = value;
+  }}}
+};
+const window = {innerHeight: 480};
+const height = vm.runInNewContext(
+  `${script.slice(begin, end)} keyboardHeight();`,
+  {window, document}
+);
+assert.strictEqual(height, 148,
+  'keyboard reserves visible rows from y=332 to viewport bottom at 480');
+assert.strictEqual(lastHeight, '148px',
+  'the measured 53px wrapper must not dictate scroll clearance');
+console.log('Keyboard overflow geometry: PASS');
+"""
+        run = subprocess.run(
+            ["node", "-e", javascript], cwd=ROOT,
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("Keyboard overflow geometry: PASS", run.stdout)
+
     def test_keyboard_scrolls_the_real_settings_detail_owner(self):
         client = CLIENT.read_text(encoding="utf-8")
         style = STYLE.read_text(encoding="utf-8")
