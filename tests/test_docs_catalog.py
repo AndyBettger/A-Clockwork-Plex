@@ -131,7 +131,7 @@ class DocsCatalogTests(unittest.TestCase):
         roadmap = (ROADMAP_DIR / "ROADMAP.md").read_text(encoding="utf-8")
         self.assertIn("# A Clockwork Plex Roadmap", roadmap)
         self.assertIn("## Agreed implementation order", roadmap)
-        self.assertIn("## Current focus — #94 Phase A ACP UI foundation", roadmap)
+        self.assertIn("## Current focus — #94 Phase B native Linux Plexamp", roadmap)
         self.assertIn("High-resolution Plexamp audio / mixer-EQ (#85)", roadmap)
         self.assertIn("**COMPLETE / MERGED**", roadmap)
         self.assertIn("ACP shell / native Plexamp modernisation", roadmap)
