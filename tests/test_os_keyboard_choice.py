@@ -163,5 +163,95 @@ console.log('Native OSK opt-in, hints, restore and timeout: PASS');
         self.assertIn("PASS", p.stdout)
 
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_numeric_mode_focus_reveal_and_reversible_type_in_node(self):
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const script = fs.readFileSync('app/static/js/osk-keyboard-choice.js', 'utf8');
+let now = 100000;
+const timers = [];
+const listeners = {};
+const storage = new Map();
+const classes = new Set();
+const attrs = new Map([['inputmode', 'none'], ['type', 'text']]);
+const pane = {
+  scrollTop: 0,
+  getBoundingClientRect: () => ({top: 80, bottom: 500})
+};
+const input = {
+  dataset: {keyboard: 'number'},
+  type: 'text',
+  matches: selector => ['input[data-keyboard]', 'input[data-keyboard], input[data-osk-probe]'].includes(selector),
+  closest: selector => selector === '.settings-detail' ? pane : null,
+  getBoundingClientRect: () => ({top: 600, bottom: 640}),
+  getAttribute: name => attrs.has(name) ? attrs.get(name) : null,
+  setAttribute: (name, value) => {
+    attrs.set(name, value);
+    if (name === 'type') input.type = value;
+  },
+  removeAttribute: name => {
+    attrs.delete(name);
+    if (name === 'type') input.type = 'text';
+  }
+};
+const document = {
+  readyState: 'complete',
+  activeElement: input,
+  body: {
+    classList: {
+      add: name => classes.add(name),
+      remove: name => classes.delete(name)
+    }
+  },
+  documentElement: {dataset: {}},
+  querySelectorAll: selector => selector === 'input[data-keyboard]' ? [input] : [],
+  addEventListener: (name, fn) => { listeners[name] = fn; }
+};
+const window = {
+  sessionStorage: {
+    getItem: key => storage.has(key) ? storage.get(key) : null,
+    setItem: (key, value) => storage.set(key, value),
+    removeItem: key => storage.delete(key)
+  },
+  setTimeout: (fn, ms) => { timers.push({fn, ms}); return timers.length; },
+  clearTimeout: () => {},
+  requestAnimationFrame: fn => { fn(); return 1; },
+  dispatchEvent: () => {}
+};
+vm.runInNewContext(script, {
+  window, document, Date: {now: () => now},
+  CustomEvent: class { constructor(name, opts) { this.type = name; this.detail = opts.detail; } }
+});
+assert.strictEqual(input.type, 'text', 'accepted ACP field unchanged initially');
+assert.strictEqual(window.ACPKeyboardChoice.setNative(true), true);
+assert.strictEqual(input.type, 'number', 'physical numeric-purpose result applied in trial');
+assert.strictEqual(input.getAttribute('inputmode'), 'numeric');
+assert.strictEqual(classes.has('native-osk-field-focused'), true);
+assert.ok(pane.scrollTop > 0, 'hidden field scrolled within Settings detail pane');
+document.activeElement = null;
+listeners.focusout();
+const blurTimer = timers.find(t => t.ms === 0);
+assert.ok(blurTimer);
+blurTimer.fn();
+assert.strictEqual(classes.has('native-osk-field-focused'), false, 'blur removes native reserve');
+document.activeElement = input;
+listeners.focusin({target: input});
+assert.strictEqual(classes.has('native-osk-field-focused'), true);
+window.ACPKeyboardChoice.setNative(false);
+assert.strictEqual(input.type, 'text', 'ACP mode restores original numeric field type');
+assert.strictEqual(input.getAttribute('inputmode'), 'none', 'ACP keyboard suppression restored');
+assert.strictEqual(classes.has('native-osk-field-focused'), false, 'mode restore releases pane');
+console.log('Native number type, pane focus reveal, blur and fallback: PASS');
+"""
+        result = subprocess.run(
+            ["node", "-e", javascript],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
