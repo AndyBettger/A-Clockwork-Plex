@@ -37,8 +37,8 @@ def repair_scaling_test_fixture(source: str) -> tuple[str, int]:
     while cargo test --no-run fails with E0063. This never changes runtime logic.
     """
     anchor = "Application::get_preferred_height_and_arrangement(&OutputState {"
-    old = "                    scale,\\n                }),".replace("\\\\n", "\\n")
-    new = "                    scale,\\n                    name: None,\\n                }),".replace("\\\\n", "\\n")
+    old = "                    scale,\n                }),"
+    new = "                    scale,\n                    name: None,\n                }),"
     count = source.count(anchor)
     if count not in (1, 2) or source.count(old) != count or source.count(new) != 0:
         raise RuntimeError("Unexpected vendor scaling test fixture; refusing extra source changes")
@@ -92,8 +92,8 @@ def stage_source(destination: Path, *, helper=None) -> None:
             f"Original src/panel.c SHA-256: {BEFORE_SHA256}\n"
             f"Modified src/panel.c SHA-256: {AFTER_SHA256}\n"
             "One edit: TOP -> OVERLAY; Raspberry Pi Debian patches applied by dpkg-source.\n"
-            f"CI-only vendor Rust scaling-test fixture initialisers repaired: {repaired_count} (name: None).\\n".replace("\\\\n", "\\n")
-            "Only test fixtures changed additionally; no runtime logic changed.\\n".replace("\\\\n", "\\n")
+            f"CI-only vendor Rust scaling-test fixture initialisers repaired: {repaired_count} (name: None).\n"
+            "Only test fixtures changed additionally; no runtime logic changed.\n"
             "SHA-256 checked against descriptor fetched via HTTPS; unsigned .dsc not independently GPG-verified.\n"
             "TEST-ONLY ARM64 BUILD: do not install on Pi before ABI review and a timed recovery plan.\n",
             encoding="utf-8",
