@@ -47,6 +47,10 @@ The original A0 planning list was left unchecked as the implementation evolved t
 - [x] Preserve the existing ACP visual identity and themes across the migrated surfaces, shell, Audio and Settings controls.
 - [x] Physically accept Phase-A touch behaviour, transition smoothness and 1280×720 presentation. **Native-player reboot/autostart/crash recovery remains explicitly in Phase B** and is not claimed as a completed Phase-A gate.
 
+### Stage C1 — native OSK field-visibility experiment (12 October, pending physical retest)
+
+The real diagnostic HTML `type=number` field raised Squeekboard's dedicated numeric layout on the commissioned Pi, confirming an OSK purpose path unavailable to ordinary `type=text` numeric-hinted fields. The native overlay still hid the focused field, because a compositor-level Wayland layer surface does not resize the Chromium viewport. An opt-in-only browser candidate now temporarily uses `type=number` for genuine integer setting fields and restores original attributes when ACP mode resumes; it also reserves bottom space only on active Settings input focus and scrolls the `.settings-detail` pane to reveal the focused field. Never change real time, decimal or URL type for this test; the custom ACP keyboard remains the default and is fully retained. Verify the field reveal, dismiss/restore, same-tab five-minute expiry and unsaved probes on the real Pi before marking Stage C1 accepted. Do not alter the bounded 180s/240s native overlay process tests, vendor keyboard or native Plexamp production ownership.
+
 ## Phase B — native Plexamp
 
 **Status: ACTIVE — next implementation boundary after Phase-A physical acceptance.**

@@ -512,3 +512,25 @@ body.keyboard-open .settings-save-bar {
     justify-content: flex-end;
   }
 }
+
+/* Phase-B experimental compositor OSK: Squeekboard overlays Chromium rather
+   than resizing visualViewport. Keep the Settings scroll pane wholly above
+   the keyboard only while a local field has focus. ACP mode is unchanged. */
+html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-ipad-page {
+  padding-bottom: calc(70px + clamp(245px, 44vh, 330px));
+}
+
+html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-save-bar {
+  bottom: clamp(245px, 44vh, 330px);
+}
+
+/* Hide Chromium spinner buttons only on reversible native-trial numbers. */
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-inner-spin-button,
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

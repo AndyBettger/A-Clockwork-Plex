@@ -17,7 +17,51 @@
     url: 'url',
   });
   const originalHints = new WeakMap();
+  const originalTypes = new WeakMap();
   let expiryTimer = null;
+  let revealTimer = null;
+
+  // Squeekboard is a compositor overlay: it does not reduce Chromium's
+  // visualViewport. Reserve room in the Settings scroll pane only while an
+  // actual local input is focused, and scroll that input above the overlay.
+  const nativeFields = 'input[data-keyboard], input[data-osk-probe]';
+  function clearFocusedField() {
+    document.body?.classList?.remove('native-osk-field-focused');
+    if (revealTimer !== null) window.clearTimeout(revealTimer);
+    revealTimer = null;
+  }
+
+  function revealFocusedField() {
+    if (!nativeMode()) return;
+    const input = document.activeElement;
+    if (!input?.matches?.(nativeFields)) return;
+    const pane = input.closest?.('.settings-detail');
+    if (!pane?.getBoundingClientRect || !input.getBoundingClientRect) return;
+    const bounds = pane.getBoundingClientRect();
+    const field = input.getBoundingClientRect();
+    const gap = 16;
+    if (field.bottom > bounds.bottom - gap) {
+      pane.scrollTop += field.bottom - bounds.bottom + gap;
+    } else if (field.top < bounds.top + gap) {
+      pane.scrollTop -= bounds.top + gap - field.top;
+    }
+  }
+
+  function syncFocusedField() {
+    const input = document.activeElement;
+    if (!nativeMode() || !input?.matches?.(nativeFields) || !input.closest?.('.settings-detail')) {
+      clearFocusedField();
+      return;
+    }
+    document.body?.classList?.add('native-osk-field-focused');
+    // First reveal after reflow; repeat after the CSS/OSK entrance animation.
+    window.requestAnimationFrame?.(revealFocusedField);
+    if (revealTimer !== null) window.clearTimeout(revealTimer);
+    revealTimer = window.setTimeout(() => {
+      revealTimer = null;
+      revealFocusedField();
+    }, 210);
+  }
 
   function savedExpiry() {
     try {
@@ -42,6 +86,12 @@
       if (original === null) input.removeAttribute('inputmode');
       else input.setAttribute('inputmode', original);
       originalHints.delete(input);
+      if (originalTypes.has(input)) {
+        const type = originalTypes.get(input);
+        if (type === null) input.removeAttribute('type');
+        else input.setAttribute('type', type);
+        originalTypes.delete(input);
+      }
     });
   }
 
@@ -49,6 +99,14 @@
     if (!nativeMode() || !input?.matches?.('input[data-keyboard]')) return;
     if (!originalHints.has(input)) {
       originalHints.set(input, input.getAttribute('inputmode'));
+    }
+    // Physical numeric probe: type=number sends Squeekboard the digits
+    // purpose whereas type=text + inputmode=numeric was still QWERTY.
+    // Convert only native-trial integer fields, never time/decimal/URL, and
+    // restore the original text input when returning to ACP's keyboard.
+    if (input.dataset.keyboard === 'number' && input.type === 'text') {
+      originalTypes.set(input, input.getAttribute('type'));
+      input.setAttribute('type', 'number');
     }
     input.setAttribute('inputmode', hints[input.dataset.keyboard] || 'text');
   }
@@ -77,8 +135,12 @@
   function notify() {
     document.documentElement.dataset.acpKeyboardChoice = nativeMode() ? 'native' : 'acp';
     if (nativeMode()) prepareInputs();
-    else restoreInputHints();
+    else {
+      clearFocusedField();
+      restoreInputHints();
+    }
     updateControls();
+    if (nativeMode()) syncFocusedField();
     window.dispatchEvent(new CustomEvent('acp:keyboard-choice-changed', {
       detail: { native: nativeMode() },
     }));
@@ -125,7 +187,15 @@
   document.addEventListener('pointerdown', (event) => {
     prepareInput(event.target?.closest?.('input[data-keyboard]'));
   }, true);
-  document.addEventListener('focusin', (event) => prepareInput(event.target), true);
+  document.addEventListener('focusin', (event) => {
+    prepareInput(event.target);
+    syncFocusedField();
+  }, true);
+  document.addEventListener('focusout', () => {
+    // New focus (including an adjacent numeric field) settles on the next
+    // tick; never leave the Settings pane shrunk after the input blurs.
+    window.setTimeout(syncFocusedField, 0);
+  }, true);
 
   document.addEventListener('click', (event) => {
     const toggle = event.target?.closest?.('[data-osk-trial-toggle]');

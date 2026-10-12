@@ -61,9 +61,23 @@ class KeyboardChoiceContracts(unittest.TestCase):
         self.assertIn('type="text" inputmode="numeric"', settings)
         self.assertIn('type="number" inputmode="numeric"', settings)
         self.assertIn("panel.hidden = !enabled", MODE.read_text(encoding="utf-8"))
+        self.assertIn("native-osk-reveal-v2", base)
+        self.assertIn("native-osk-reveal-v2", settings)
         self.assertIn("separately started Squeekboard trial lasts up to 180 seconds", MODE.read_text(encoding="utf-8"))
         self.assertNotIn('data-setting-path="osk', settings)
         self.assertIn('html[data-acp-keyboard-choice="native"] .touch-keyboard', STYLE.read_text(encoding="utf-8"))
+
+    def test_native_only_scroll_reserve_and_numeric_rollback_contract(self):
+        mode = MODE.read_text(encoding="utf-8")
+        layout = (ROOT / "app/static/css/settings-ipad.css").read_text(encoding="utf-8")
+        self.assertIn("native-osk-field-focused", mode)
+        self.assertIn("field.bottom - bounds.bottom + gap", mode)
+        self.assertIn("window.setTimeout(syncFocusedField, 0)", mode)
+        self.assertIn("originalTypes.delete(input)", mode)
+        self.assertIn("input.dataset.keyboard === 'number'", mode)
+        self.assertIn("input.setAttribute('type', 'number')", mode)
+        self.assertIn('body.mode-settings.native-osk-field-focused .settings-ipad-page', layout)
+        self.assertIn("padding-bottom: calc(70px + clamp(245px, 44vh, 330px))", layout)
 
     @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
     def test_browser_session_state_and_hints_in_node(self):

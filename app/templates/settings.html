@@ -3,7 +3,7 @@
 {% block title %}Settings - A Clockwork Plex{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css', v='20260802-unified-settings') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-ipad.css', v='20261007-b5-followup-v2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings-ipad.css', v='20261012-native-osk-reveal-v2') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-alarms.css') }}">
 {% endblock %}
 {% block content %}
@@ -336,10 +336,10 @@
               <div class="settings-action-row">
                 <button type="button" class="button settings-secondary" data-osk-trial-toggle aria-pressed="false">Try system keyboard</button>
               </div>
-              <p class="muted small">The browser's native-keyboard selection lasts up to five minutes, but the independently launched experimental Squeekboard runs for only 180 seconds <em>from the SSH command</em>. It may therefore stop earlier than this selection. If input stops working, tap <strong>Restore ACP keyboard</strong>. Existing specialised time, numeric and URL quick-entry layouts remain available in ACP mode.</p>
+              <p class="muted small">The browser's native-keyboard selection lasts up to five minutes, but the independently launched experimental Squeekboard runs for only 180 seconds <em>from the SSH command</em>. It may therefore stop earlier than this selection. If input stops working, tap <strong>Restore ACP keyboard</strong>. Native integer fields temporarily use HTML number input; time, decimal and URL inputs retain their previous behaviour. Existing specialised time, numeric and URL quick-entry layouts remain available in ACP mode.</p>
               <div data-osk-native-probes hidden>
                 <h4>Numeric layout diagnostic — temporary fields</h4>
-                <p class="muted small">These fields do not save settings. Test both while the system keyboard is running: Squeekboard supports numeric layouts, but Chromium may send a normal-text request for some HTML inputs. Do not alter real setting values to investigate.</p>
+                <p class="muted small">These fields do not save settings. Test both while the system keyboard is running: The native number field raised the digits keypad during physical testing. ACP now tries that HTML type only for real integer settings while this temporary trial is active; ordinary ACP mode is unchanged. These probes remain unsaved.</p>
                 <div class="settings-grid two-col">
                   <label class="setting-field"><span>Text field with numeric hint</span><input type="text" inputmode="numeric" autocomplete="off" data-osk-probe="numeric-text" placeholder="1234"><small>Same HTML input type used by ACP numeric settings.</small></label>
                   <label class="setting-field"><span>Native number field</span><input type="number" inputmode="numeric" autocomplete="off" data-osk-probe="numeric-number" placeholder="1234"><small>Diagnostic only; may show desktop number controls.</small></label>
@@ -378,6 +378,6 @@
 <script src="{{ url_for('static', filename='js/settings-alarms.js', v='20260802-unified-settings') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-advanced.js', v='20260908-zero-preview-parent-v2') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-clock-cards.js') }}"></script>
-<script src="{{ url_for('static', filename='js/settings-keyboard.js', v='20261012-native-osk-session-trial-v1') }}"></script>
+<script src="{{ url_for('static', filename='js/settings-keyboard.js', v='20261012-native-osk-reveal-v2') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-about.js', v='20260831-home-restore-feedback-v2') }}"></script>
 {% endblock %}
