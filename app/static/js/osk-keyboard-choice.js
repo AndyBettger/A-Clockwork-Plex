@@ -66,8 +66,11 @@
     });
     document.querySelectorAll?.('[data-osk-trial-status]').forEach((label) => {
       label.textContent = enabled
-        ? 'Trial active in this browser tab. The ACP keyboard is hidden; the Squeekboard OVERLAY trial must be running. Automatically reverts within five minutes.'
+        ? 'Native keyboard selected for this browser tab. The separately started Squeekboard trial lasts up to 180 seconds from its SSH launch; this browser choice expires after five minutes. Restore ACP keyboard if native input stops.'
         : 'Using the existing ACP keyboard. System keyboard trial is off.';
+    });
+    document.querySelectorAll?.('[data-osk-native-probes]').forEach((panel) => {
+      panel.hidden = !enabled;
     });
   }
 
