@@ -393,8 +393,22 @@
       if (credentialConfigured && !credentialEditing) {
         credentialEditing = true;
         renderCredentialStatus();
-        elements.message.textContent = 'Enter the replacement key. The existing key remains active until the replacement is saved.';
-        elements.input?.focus();
+        elements.message.textContent = 'Tap the new API key field to start typing. The existing key remains active until a replacement is saved.';
+        // Revealing a previously hidden field and focusing it in the same
+        // button handler opens ACP's custom keyboard before Settings can
+        // establish a useful scroll position. Deliberately let the user tap
+        // the now-visible field, like every other Settings text input.
+        const detail = elements.field?.closest('.settings-detail');
+        if (detail) {
+          window.requestAnimationFrame(() => {
+            if (!credentialEditing || elements.field.hidden) return;
+            const bottom = detail.getBoundingClientRect().bottom;
+            const fieldBottom = elements.field.getBoundingClientRect().bottom;
+            if (fieldBottom > bottom - 16) {
+              detail.scrollBy({ top: fieldBottom - bottom + 16, behavior: 'auto' });
+            }
+          });
+        }
         return;
       }
       const key = String(elements.input?.value || '');
