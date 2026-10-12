@@ -17,6 +17,14 @@ It is attractive to use **one** ACP-managed Wayland OSK for both native Plexamp 
 
 Squeekboard's GTK CSS resources live outside browser CSS variables, so ACP theme matching requires a private palette-to-GTK stylesheet bridge, with a bounded app-specific CSS provider, dark/colour themes and scheduled dim/night mode handled explicitly (including eventual Astronomy red). Avoid global GTK styling. The current experimental log shows the local `gb` layouts missing and falling back to `us_wide`, a British keyboard fidelity gap to resolve without overwriting distro resources. Never remove or regress the accepted #91 flow while evaluating OS-wide keyboard ownership.
 
+## 12 October 2026 — Phase B Stage C1 voluntary native OSK trial inside Chromium
+
+The accepted #91 keyboard remains the default. The user physically demonstrated that the new compositor `OVERLAY` Squeekboard already appears inside ACP Settings/Chromium but **simultaneously triggers ACP's legacy DOM keyboard** when a `data-keyboard` text field is focused. The problem is a duplicate-input overlay, not a lack of Wayland text-input events in this Chromium Settings case.
+
+A reversible single-tab trial choice now lives at **Settings → Advanced → Keyboard trial**. `app/static/js/osk-keyboard-choice.js` owns a five-minute sessionStorage expiry, a tappable enable/restore control and restoration of inputmode attributes when trial mode ends. The selection is loaded before `settings-keyboard.js` on every ACP page, including Settings. Native mode exposes explicit input hints to Squeekboard in place of older ACP `inputmode=none`, suppresses the HTML keyboard for local and allow-listed Headless Plexamp focus messages, and uses a CSS last-resort hide guard against double-overlay. Input and message-validation code and the custom keyboard remain present/unchanged for fallback mode; no storage or network authority is added. This UI switch **does not start Squeekboard**: native mode is only useful while the independently guarded 180s system keyboard trial is active, or later if ACP explicitly owns a running compatible OSK. No behaviour survives browser-tab closure; the previous mode returns after five minutes (or a tap on Restore).
+
+Focus parity, specialised number/decimal/time/URL layout usability, Headless iframe focus and browser auto-save behaviour still require physical Pi proof before decommissioning the DOM implementation. Native GTK theme palette and missing `gb`/British layout also remain future tasks. This is a preparation feature, **not** completed OSK consolidation or default appliance startup.
+
 ## Shared keyboard baseline
 
 `app/static/js/settings-keyboard.js` is the shared interaction implementation. Settings continues to use its existing keyboard markup and script include; non-Settings dashboard documents load the same client from `base.html`, where it creates the same keyboard shell lazily only when needed.
