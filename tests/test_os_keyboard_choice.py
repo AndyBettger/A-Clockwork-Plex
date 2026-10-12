@@ -55,6 +55,13 @@ class KeyboardChoiceContracts(unittest.TestCase):
         self.assertIn('data-settings-subpage="advanced:keyboard"', settings)
         self.assertIn('data-osk-trial-toggle', settings)
         self.assertIn('data-osk-trial-status', settings)
+        self.assertIn('data-osk-native-probes hidden', settings)
+        self.assertIn('data-osk-probe="numeric-text"', settings)
+        self.assertIn('data-osk-probe="numeric-number"', settings)
+        self.assertIn('type="text" inputmode="numeric"', settings)
+        self.assertIn('type="number" inputmode="numeric"', settings)
+        self.assertIn("panel.hidden = !enabled", MODE.read_text(encoding="utf-8"))
+        self.assertIn("separately started Squeekboard trial lasts up to 180 seconds", MODE.read_text(encoding="utf-8"))
         self.assertNotIn('data-setting-path="osk', settings)
         self.assertIn('html[data-acp-keyboard-choice="native"] .touch-keyboard', STYLE.read_text(encoding="utf-8"))
 
@@ -82,6 +89,7 @@ const button = {
   setAttribute: (key, value) => attrs.set('button-'+key, value)
 };
 const label = {textContent: ''};
+const probePanel = {hidden: true};
 const document = {
   readyState: 'complete',
   documentElement: {dataset: {}},
@@ -89,6 +97,7 @@ const document = {
     if (selector === 'input[data-keyboard]') return [input];
     if (selector === '[data-osk-trial-toggle]') return [button];
     if (selector === '[data-osk-trial-status]') return [label];
+    if (selector === '[data-osk-native-probes]') return [probePanel];
     return [];
   },
   addEventListener: (key, callback) => handlers[key] = callback
@@ -111,16 +120,19 @@ const ctx = {
 vm.runInNewContext(script, ctx);
 assert.strictEqual(window.ACPKeyboardChoice.isNative(), false, 'ACP keyboard default');
 assert.strictEqual(label.textContent.includes('existing ACP keyboard'), true);
+assert.strictEqual(probePanel.hidden, true);
 assert.strictEqual(input.getAttribute('inputmode'), 'none');
 assert.strictEqual(window.ACPKeyboardChoice.setNative(true), true);
 assert.strictEqual(window.ACPKeyboardChoice.isNative(), true);
 assert.strictEqual(input.getAttribute('inputmode'), 'text');
 assert.strictEqual(document.documentElement.dataset.acpKeyboardChoice, 'native');
+assert.strictEqual(probePanel.hidden, false, 'native-only purpose probes visible');
 assert.strictEqual(attrs.get('button-aria-pressed'), 'true');
 window.ACPKeyboardChoice.setNative(false);
 assert.strictEqual(window.ACPKeyboardChoice.isNative(), false);
 assert.strictEqual(input.getAttribute('inputmode'), 'none');
 assert.strictEqual(document.documentElement.dataset.acpKeyboardChoice, 'acp');
+assert.strictEqual(probePanel.hidden, true, 'probes hidden after restoring ACP');
 window.ACPKeyboardChoice.setNative(true);
 now += 300010;
 expiredCallback();
