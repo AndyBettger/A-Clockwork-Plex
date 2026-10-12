@@ -1,0 +1,45 @@
+name: Squeekboard Overlay ARM64 (test-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/acp-shell-native-plexamp
+    paths:
+      - .github/workflows/squeekboard-overlay-arm64.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-squeekboard-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 75
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Prepare disposable container checkout tools
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git bash
+
+      - name: Check out pinned feature branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build test-only overlay keyboard and inspect binary
+        run: bash scripts/ci/build-squeekboard-overlay-arm64.sh
+
+      - name: Upload experimental package and inspection reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: squeekboard-overlay-arm64-test-only
+          path: artifacts/squeekboard-overlay/
+          if-no-files-found: warn
+          retention-days: 7
