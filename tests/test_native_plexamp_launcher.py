@@ -24,6 +24,17 @@ class NativePlexampLauncherTests(unittest.TestCase):
         self.assertIn("Flatpak", result.stdout)
         self.assertIn("Headless", result.stdout)
 
+    def test_fullscreen_is_opt_in_and_scoped(self):
+        script = LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn('case "${1:-}" in', script)
+        self.assertIn('--fullscreen) fullscreen=true', script)
+        self.assertIn('if [[ "$fullscreen" == true ]]', script)
+        self.assertIn('timeout 20s wlrctl toplevel waitfor "$match"', script)
+        self.assertIn('wlrctl toplevel fullscreen "$match"', script)
+        self.assertIn('match="app_id:$APP_ID"', script)
+        self.assertNotIn("pkill chromium", script)
+        self.assertNotIn("systemctl stop plexamp", script)
+
     def test_flatpak_info_uses_positional_branch_not_run_flag(self):
         text = LAUNCHER.read_text(encoding="utf-8")
         self.assertIn('flatpak info "$APP_ID" "$APP_BRANCH"', text)
@@ -49,6 +60,18 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 'esac\n', encoding="utf-8"
             )
             flatpak.chmod(0o755)
+            wlrctl = bin_dir / "wlrctl"
+            wlrctl.write_text(
+                "#!/bin/sh\n"
+                'printf "%s\\n" "$*" >> "$MOCK_WLRCTL_CALLS"\n'
+                'case "$*" in\n'
+                '  "toplevel waitfor app_id:com.plexamp.Plexamp") exit 0 ;;\n'
+                '  "toplevel fullscreen app_id:com.plexamp.Plexamp") exit 0 ;;\n'
+                '  *) exit 23 ;;\n'
+                'esac\n',
+                encoding="utf-8",
+            )
+            wlrctl.chmod(0o755)
             env = os.environ.copy()
             env.update({
                 "HOME": str(base),
@@ -56,6 +79,7 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 "XDG_CACHE_HOME": str(base / "cache"),
                 "PATH": f"{bin_dir}:{env['PATH']}",
                 "MOCK_APP_RUN": str(app_run),
+                "MOCK_WLRCTL_CALLS": str(base / "wlrctl-calls.txt"),
             })
             env.pop("WAYLAND_DISPLAY", None)  # SSH case
             env.pop("DBUS_SESSION_BUS_ADDRESS", None)
@@ -89,6 +113,43 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 self.assertIn("unix:path=", line)
                 self.assertIn("run --branch=beta com.plexamp.Plexamp", line)
                 self.assertTrue((base / "cache/a-clockwork-plex/native-plexamp.log").exists())
+
+                calls = base / "wlrctl-calls.txt"
+                self.assertFalse(calls.exists(), "Ordinary launch must not change window state")
+                app_run.unlink()
+                result = subprocess.run(
+                    ["bash", str(LAUNCHER), "--fullscreen"],
+                    env=env, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("fullscreen requested", result.stdout)
+                for _ in range(100):
+                    if app_run.exists():
+                        break
+                    time.sleep(0.02)
+                self.assertTrue(app_run.exists(), "Fullscreen launch must start player")
+                self.assertEqual(
+                    calls.read_text(encoding="utf-8").splitlines(),
+                    [
+                        "toplevel waitfor app_id:com.plexamp.Plexamp",
+                        "toplevel fullscreen app_id:com.plexamp.Plexamp",
+                    ],
+                )
+                calls.unlink()
+                app_run.unlink()
+
+                result = subprocess.run(
+                    ["bash", str(LAUNCHER), "--fullscreen"],
+                    env=dict(env, MOCK_RUNNING="1"),
+                    capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("already running; using existing instance", result.stdout)
+                self.assertFalse(app_run.exists(), "Do not launch duplicate player")
+                self.assertIn(
+                    "toplevel fullscreen app_id:com.plexamp.Plexamp",
+                    calls.read_text(encoding="utf-8"),
+                )
 
 
 if __name__ == "__main__":
