@@ -142,6 +142,13 @@ Next physical gates:
 - [ ] Prove alarm/AirPlay arbitration, Direct failback, reboot/autostart and rollback.
 - [ ] Keep Headless until every native-player gate passes.
 
+### 12 October 2026 — native Plexamp SSH launch helper
+
+- [x] Added manual `bash scripts/launch-native-plexamp.sh` helper to the #94 feature branch. It runs as the desktop user and targets the currently installed `com.plexamp.Plexamp` Flatpak `beta` branch, retaining the discovery-only release policy.
+- [x] Determines the actual existing `XDG_RUNTIME_DIR`, usable Wayland socket (preferring `wayland-0`) and user session D-Bus; returns the SSH prompt immediately, writes a private launcher log, and avoids launching a duplicate native instance.
+- [x] Refuses root, missing Flatpak/install and absent desktop session; no sudo, autostart, kiosk compositor or audio mutation. Local `bash -n`, help and mock Flatpak/Wayland-session/duplicate-launch tests passed.
+- [ ] Commissioned-Pi physical acceptance: after `git pull --ff-only`, use the manual launcher from SSH, confirm native Plexamp opens visibly in labwc/WayVNC and Headless/ACP remain healthy; then continue touch-only native Search/OSK gate.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
