@@ -363,7 +363,7 @@ process.stdout.write(JSON.stringify(payload));
         self.assertIn("settings-pass-a.js", base)
         self.assertIn("20260802-kiosk-address-panel", base)
         self.assertIn("touch-keyboard.css", base)
-        self.assertIn("20261012-native-osk-scroll-v3", base)
+        self.assertIn("20261012-native-osk-all-fields-v4", base)
 
     def test_external_navigation_is_forbidden_from_the_kiosk_client(self):
         client = SAFE_LINKS.read_text(encoding="utf-8")

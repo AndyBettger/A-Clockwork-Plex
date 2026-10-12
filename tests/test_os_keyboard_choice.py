@@ -61,7 +61,7 @@ class KeyboardChoiceContracts(unittest.TestCase):
         self.assertIn('type="text" inputmode="numeric"', settings)
         self.assertIn('type="number" inputmode="numeric"', settings)
         self.assertIn("panel.hidden = !enabled", MODE.read_text(encoding="utf-8"))
-        self.assertIn("native-osk-scroll-v3", base)
+        self.assertIn("native-osk-all-fields-v4", base)
         self.assertIn("native-osk-scroll-v3", settings)
         self.assertIn("separately started Squeekboard trial lasts up to 180 seconds", MODE.read_text(encoding="utf-8"))
         self.assertNotIn('data-setting-path="osk', settings)
@@ -71,6 +71,9 @@ class KeyboardChoiceContracts(unittest.TestCase):
         mode = MODE.read_text(encoding="utf-8")
         layout = (ROOT / "app/static/css/settings-ipad.css").read_text(encoding="utf-8")
         self.assertIn("native-osk-field-focused", mode)
+        self.assertIn('input[type="password"]', mode)
+        self.assertIn("input.disabled || input.readOnly", mode)
+        self.assertIn('data-wu-api-key', (ROOT / "app/static/js/settings-weather-observations.js").read_text(encoding="utf-8"))
         self.assertIn("field.bottom - visibleBottom + gap", mode)
         self.assertIn("Math.min(bounds.bottom, viewportHeight - keyboardHeight)", mode)
         self.assertIn("window.setTimeout(syncFocusedField, 0)", mode)
@@ -185,7 +188,7 @@ const pane = {
 const input = {
   dataset: {keyboard: 'number'},
   type: 'text',
-  matches: selector => ['input[data-keyboard]', 'input[data-keyboard], input[data-osk-probe]'].includes(selector),
+  matches: selector => selector === 'input[data-keyboard]' || selector.includes('input[type="number"]'),
   closest: selector => selector === '.settings-detail' ? pane : null,
   getBoundingClientRect: () => ({top: 600, bottom: 640}),
   getAttribute: name => attrs.has(name) ? attrs.get(name) : null,
@@ -245,7 +248,30 @@ window.ACPKeyboardChoice.setNative(false);
 assert.strictEqual(input.type, 'text', 'ACP mode restores original numeric field type');
 assert.strictEqual(input.getAttribute('inputmode'), 'none', 'ACP keyboard suppression restored');
 assert.strictEqual(classes.has('native-osk-field-focused'), false, 'mode restore releases pane');
-console.log('Native number type, pane focus reveal, blur and fallback: PASS');
+const secret = {
+  type: 'password', disabled: false, readOnly: false,
+  matches: selector => selector.includes('input[type="password"]'),
+  closest: selector => selector === '.settings-detail' ? pane : null,
+  getBoundingClientRect: () => ({top: 610, bottom: 660})
+};
+document.activeElement = secret;
+const beforeSecretScroll = pane.scrollTop;
+window.ACPKeyboardChoice.setNative(true);
+assert.strictEqual(classes.has('native-osk-field-focused'), true, 'unmarked password receives focus reserve');
+assert.ok(pane.scrollTop > beforeSecretScroll, 'dynamic password field scrolls clear of OSK');
+assert.strictEqual(secret.type, 'password', 'no change to secret input type');
+window.ACPKeyboardChoice.setNative(false);
+assert.strictEqual(classes.has('native-osk-field-focused'), false, 'password restore clears reserve');
+const checkbox = {
+  type: 'checkbox', disabled: false, readOnly: false,
+  matches: () => false,
+  closest: selector => selector === '.settings-detail' ? pane : null
+};
+document.activeElement = checkbox;
+window.ACPKeyboardChoice.setNative(true);
+assert.strictEqual(classes.has('native-osk-field-focused'), false, 'non-text controls excluded');
+window.ACPKeyboardChoice.setNative(false);
+console.log('Number, dynamic password, non-text filter and ACP fallback: PASS');
 """
         result = subprocess.run(
             ["node", "-e", javascript],

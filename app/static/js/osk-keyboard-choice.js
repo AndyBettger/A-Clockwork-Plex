@@ -24,7 +24,10 @@
   // Squeekboard is a compositor overlay: it does not reduce Chromium's
   // visualViewport. Give the Settings detail SCROLLER room for the obscured
   // content, not the whole Settings page (which created a large blank gap).
-  const nativeFields = 'input[data-keyboard], input[data-osk-probe]';
+  // Include ordinary editable fields generated at runtime, including the
+  // Weather Underground password field without data-keyboard. Exclude
+  // checkboxes, sliders and buttons that must not trigger focus scrolling.
+  const nativeFields = 'input:not([type]), input[type="text"], input[type="password"], input[type="number"], input[type="email"], input[type="search"], input[type="url"], input[type="tel"], textarea';
   function clearFocusedField() {
     document.body?.classList?.remove('native-osk-field-focused');
     if (revealTimer !== null) window.clearTimeout(revealTimer);
@@ -34,7 +37,7 @@
   function revealFocusedField() {
     if (!nativeMode()) return;
     const input = document.activeElement;
-    if (!input?.matches?.(nativeFields)) return;
+    if (!input?.matches?.(nativeFields) || input.disabled || input.readOnly) return;
     const pane = input.closest?.('.settings-detail');
     if (!pane?.getBoundingClientRect || !input.getBoundingClientRect) return;
     const bounds = pane.getBoundingClientRect();
@@ -55,7 +58,7 @@
 
   function syncFocusedField() {
     const input = document.activeElement;
-    if (!nativeMode() || !input?.matches?.(nativeFields) || !input.closest?.('.settings-detail')) {
+    if (!nativeMode() || !input?.matches?.(nativeFields) || input.disabled || input.readOnly || !input.closest?.('.settings-detail')) {
       clearFocusedField();
       return;
     }

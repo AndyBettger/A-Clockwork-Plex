@@ -1146,3 +1146,7 @@ News keeps its existing local `/api/news` ownership and rendered UI logic. The m
 - Settings and AirPlay remain outside the registered set during A2 to preserve a known full-route escape/fallback path.
 
 This is intentionally an incremental migration, not a News redesign.
+
+### 12 October 2026 — native OSK overlay scroll owner
+
+Wayland Squeekboard draws above the Chromium kiosk but does not resize its visual viewport. The first outer-page-padding workaround was rejected after it collapsed Settings vertically; the accepted visual design keeps the outer shell at normal height and scrolls only the detail pane above the estimated native OSK top. Six physical screenshots show this works for native text/number probes and News URL, but *not yet* the WU password field: the field is dynamically injected without ACP's `data-keyboard` marker. The opt-in native trial now recognises standard editable HTML text/password/number/email/search/url/tel inputs and textareas, excludes non-editable controls, and does not inspect credential values. Await Pi acceptance of this final field case. The original ACP custom keyboard remains the default, the system keyboard trial is bounded, and native Plexamp/audio/Headless services are unaffected.
