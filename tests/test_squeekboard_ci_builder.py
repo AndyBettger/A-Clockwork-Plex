@@ -36,6 +36,25 @@ class SqueekboardCiBuilderTests(unittest.TestCase):
             builder.AFTER_SHA256,
         )
 
+    def test_known_vendor_scaling_fixture_is_repaired_only_in_test_initialiser(self):
+        builder = load()
+        fixture = (
+            "fn scaling_test_base() {\\n"
+            "  Application::get_preferred_height_and_arrangement(&OutputState {\\n"
+            "                    current_mode: None,\\n"
+            "                    scale,\\n"
+            "                }),\\n"
+            "}\\n"
+        )
+        corrected, count = builder.repair_scaling_test_fixture(fixture)
+        self.assertEqual(1, count)
+        self.assertIn("scale,\\n                    name: None,\\n", corrected)
+        self.assertEqual(fixture, corrected.replace("                    name: None,\\n", ""))
+        with self.assertRaises(RuntimeError):
+            builder.repair_scaling_test_fixture(corrected)
+        with self.assertRaises(RuntimeError):
+            builder.repair_scaling_test_fixture("pub fn other_test() {}")
+
     def test_source_staging_never_overwrites_existing_destination(self):
         builder = load()
         with tempfile.TemporaryDirectory() as tmp:
@@ -70,7 +89,7 @@ class SqueekboardCiBuilderTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertNotIn(bad, body)
 
-    def test_workflow_has_narrow_push_trigger_and_no_deploy(self):
+    def test_workflow_is_manual_only_and_has_no_device_actions(self):
         content = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("ubuntu-24.04-arm", content)
         self.assertIn("debian:trixie", content)
