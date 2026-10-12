@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE — Phase B native Linux Plexamp migration; Phase A physically accepted; Headless remains the accepted rollback runtime  
 **Roadmap item:** #94  
-**Last updated:** 11 October 2026
+**Last updated:** 12 October 2026
 
 ## Goal
 
@@ -99,6 +99,14 @@ The legacy read-only timing snapshot `scripts/audio/snapshot-airplay-hi-res.py -
 Two short native-player sessions with the same material were fully clean to the ear and CamillaDSP's bounded XRUN log: visualiser **inactive** 02:35:44–02:38:44, then **active** 02:39:15–02:42:15, both 180 seconds. However the user has separately heard audio discontinuities with visualisers **off**; prior confirmed capture-overrun/stall/playback-underrun cluster at 02:25:50–02:26:00 remains a real failure. This rules out the simplistic assertion that visualisers alone trigger every interruption, but does not prove WebKit, VNC, scheduling or source rate are irrelevant.
 
 **Next decision gate:** longer bounded no-interaction native-versus-Headless playback (same track, only one playing, matched ACP route and processing), with per-run timestamps and CamillaDSP journal rather than changing buffers based on a clean six-minute test. If a native-only difference emerges, separate its PCM output behavior from WebKit/WayVNC compute competition; if XRUNs occur on both player sources, investigate the shared ALSA loopback/CamillaDSP path. Preserve rollback and all existing production ownership until evidence is actionable.
+
+### 12 October 2026 native/Headless comparison and ALSA PCM-versus-CTL boundary
+
+Two bounded listening windows were physically completed with no CamillaDSP XRUN/stall/error matches: **native Plexamp 00:37:27–00:47:27** and **Headless Plexamp 00:51:47–01:01:47** on 12 October (Pi local time). The user noted only one possible tiny native click, not confidently an audio discontinuity (potential heater click), and no corresponding log anomaly. Combined with the clean 3-minute no-visualiser and 3-minute with-visualiser runs, these are **26 minutes** of positive bounded evidence, not enough to erase earlier confirmed capture overrun / processing stall / playback underrun faults or declare final stability acceptance. Preserve the accepted S32_LE/192 kHz geometry and continue observing ordinary playback and native startup/shutdown separately.
+
+During the native Flatpak's SSH-launched session, **nine** `ALSA lib ... snd_ctl_open_noupdate Invalid CTL acp_plexamp` lines were visible. The current ACP configuration creates `pcm.acp_plexamp` (a plug over Plexamp-specific softvol and the ACP managed split-bus) but **does not** create a `ctl.acp_plexamp` control object. Libasound has separate `pcm.NAME` and `ctl.NAME` namespaces (ALSA's official `doc/asoundrc.txt` defines them independently). Native backend control-name probing is the leading explanation; the successful PCM test demonstrates that the warning is not fatal to sample playback. The native slider's lack of effect, and the unchanged `amixer -c Pro` ACP softvol reading, may be related but **causation is unproven**. A naive `ctl.acp_plexamp` alias to `hw:Pro` could expose controls affecting the entire physical DAC, including the independent alarm lane; do not install that alias without defining and testing the desired volume ownership. A future solution may require native-source software gain control or explicit ACP Trim integration, not simply a CTL alias.
+
+**Next:** a brief read-only comparison of ALSA PCM vs CTL lookup only if useful, then continue native Plexamp's touchscreen keyboard, NFC Companion, workspace/window and alarm/AirPlay gates on the isolated side-by-side candidate. The experiment does not authorise retiring Headless, changing audio defaults or changing service autostart.
 
 ## Preferred player architecture
 
