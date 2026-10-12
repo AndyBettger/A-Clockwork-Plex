@@ -29,9 +29,12 @@ class NativePlexampLauncherTests(unittest.TestCase):
         self.assertIn('case "${1:-}" in', script)
         self.assertIn('--fullscreen) fullscreen=true', script)
         self.assertIn('if [[ "$fullscreen" == true ]]', script)
-        self.assertIn('timeout 20s wlrctl toplevel waitfor "$match"', script)
+        self.assertIn("wlrctl toplevel list", script)
+        self.assertIn('wlrctl toplevel find "app_id:$candidate" "title:Plexamp"', script)
+        self.assertIn('wlrctl toplevel fullscreen "$match" "$title_match"', script)
         self.assertIn('wlrctl toplevel fullscreen "$match"', script)
-        self.assertIn('match="app_id:$APP_ID"', script)
+        self.assertIn("count > 1", script)
+        self.assertIn('case "${window_id,,}"', script)
         self.assertNotIn("pkill chromium", script)
         self.assertNotIn("systemctl stop plexamp", script)
 
@@ -65,8 +68,10 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 "#!/bin/sh\n"
                 'printf "%s\\n" "$*" >> "$MOCK_WLRCTL_CALLS"\n'
                 'case "$*" in\n'
-                '  "toplevel waitfor app_id:com.plexamp.Plexamp") exit 0 ;;\n'
-                '  "toplevel fullscreen app_id:com.plexamp.Plexamp") exit 0 ;;\n'
+                '  "toplevel find app_id:com.plexamp.Plexamp") exit 1 ;;\n'
+                '  "toplevel list") printf "%s\\n" "chromium: ACP" "chromium: Plexamp" "net.plexamp.Desktop: Plexamp"; exit 0 ;;\n'
+                '  "toplevel find app_id:net.plexamp.Desktop title:Plexamp") exit 0 ;;\n'
+                '  "toplevel fullscreen app_id:net.plexamp.Desktop title:Plexamp") exit 0 ;;\n'
                 '  *) exit 23 ;;\n'
                 'esac\n',
                 encoding="utf-8",
@@ -131,8 +136,10 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 self.assertEqual(
                     calls.read_text(encoding="utf-8").splitlines(),
                     [
-                        "toplevel waitfor app_id:com.plexamp.Plexamp",
-                        "toplevel fullscreen app_id:com.plexamp.Plexamp",
+                        "toplevel find app_id:com.plexamp.Plexamp",
+                        "toplevel list",
+                        "toplevel find app_id:net.plexamp.Desktop title:Plexamp",
+                        "toplevel fullscreen app_id:net.plexamp.Desktop title:Plexamp",
                     ],
                 )
                 calls.unlink()
@@ -147,7 +154,7 @@ class NativePlexampLauncherTests(unittest.TestCase):
                 self.assertIn("already running; using existing instance", result.stdout)
                 self.assertFalse(app_run.exists(), "Do not launch duplicate player")
                 self.assertIn(
-                    "toplevel fullscreen app_id:com.plexamp.Plexamp",
+                    "toplevel fullscreen app_id:net.plexamp.Desktop title:Plexamp",
                     calls.read_text(encoding="utf-8"),
                 )
 
