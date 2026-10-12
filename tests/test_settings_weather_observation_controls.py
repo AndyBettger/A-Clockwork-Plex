@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -74,6 +76,95 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
         self.assertIn("[data-wu-commissioning] [hidden]", layout)
         self.assertIn("display: none !important", layout)
         self.assertIn("20261012-wu-credential-gate-v1", template)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_credential_editor_states_in_node_vm(self) -> None:
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('app/static/js/settings-weather-observations.js', 'utf8');
+const begin = source.indexOf('  function credentialElements() {');
+const end = source.indexOf('  async function requestJson(', begin);
+assert.ok(begin > 0 && end > begin);
+const calls = {};
+const button = () => ({disabled: false, hidden: false, textContent: ''});
+const field = {hidden: false};
+let blurs = 0;
+const input = {value: 'should-not-appear', disabled: false, blur: () => {blurs++;}};
+const label = {textContent: ''}, save = button(), cancel = button(),
+      remove = button(), test = button();
+const classes = new Set();
+const grid = {classList: {toggle: (key, enabled) => {
+  if (enabled) classes.add(key);
+  else classes.delete(key);
+}}};
+const controls = {
+  '[data-wu-api-key]': input,
+  '[data-wu-api-key-field]': field,
+  '[data-wu-credential-grid]': grid,
+  '[data-wu-credential-status]': label,
+  '[data-wu-credential-message]': {textContent: ''},
+  '[data-action="save-wu-api-key"]': save,
+  '[data-action="cancel-wu-key-edit"]': cancel,
+  '[data-action="remove-wu-api-key"]': remove,
+  '[data-action="test-wu-connection"]': test
+};
+const context = {
+  assert, wuPanel: {querySelector: name => controls[name]},
+  document: {activeElement: input}
+};
+const code = `
+let credentialConfigured = false;
+let credentialStatusKnown = false;
+let credentialEditing = false;
+let credentialBusy = false;
+${source.slice(begin, end)}
+renderCredentialStatus();
+assert.strictEqual(field.hidden, true, 'status unknown: input hidden');
+assert.strictEqual(input.disabled, true, 'status unknown: input disabled');
+assert.strictEqual(save.disabled, true, 'status unknown: action disabled');
+assert.strictEqual(label.textContent, 'Checking…');
+renderCredentialStatus(true);
+assert.strictEqual(field.hidden, true, 'configured: no empty password field');
+assert.strictEqual(input.value, '', 'existing secret is never read or displayed');
+assert.strictEqual(save.textContent, 'Replace API key');
+assert.strictEqual(remove.disabled, false);
+assert.strictEqual(cancel.hidden, true);
+assert.strictEqual(classes.has('is-credential-locked'), true);
+credentialEditing = true;
+renderCredentialStatus();
+assert.strictEqual(field.hidden, false, 'replace deliberately opens editor');
+assert.strictEqual(input.disabled, false);
+assert.strictEqual(save.textContent, 'Save replacement');
+assert.strictEqual(cancel.hidden, false);
+input.value = 'unsent';
+credentialEditing = false;
+renderCredentialStatus();
+assert.strictEqual(input.value, '', 'cancel/re-hide clears unsent key');
+assert.strictEqual(field.hidden, true);
+assert.strictEqual(save.textContent, 'Replace API key');
+assert.strictEqual(credentialConfigured, true, 'cancel preserves configured state');
+renderCredentialStatus(false);
+assert.strictEqual(field.hidden, false, 'after removal: allow new credential');
+assert.strictEqual(input.disabled, false);
+assert.strictEqual(save.textContent, 'Set API key');
+assert.strictEqual(remove.disabled, true);
+assert.strictEqual(classes.has('is-credential-locked'), false);
+credentialBusy = true;
+renderCredentialStatus();
+assert.strictEqual(input.disabled, true);
+assert.strictEqual(save.disabled, true);
+console.log('WU status, replace, cancel, removal and busy UI: PASS');
+`;
+vm.runInNewContext(code, context);
+"""
+        run = subprocess.run(
+            ["node", "-e", javascript],
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("PASS", run.stdout)
 
     def test_commissioning_uses_dedicated_credential_and_test_endpoints(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
