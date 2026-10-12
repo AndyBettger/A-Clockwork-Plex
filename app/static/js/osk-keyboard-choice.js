@@ -72,6 +72,7 @@
   }
 
   function notify() {
+    document.documentElement.dataset.acpKeyboardChoice = nativeMode() ? 'native' : 'acp';
     if (nativeMode()) prepareInputs();
     else restoreInputHints();
     updateControls();
