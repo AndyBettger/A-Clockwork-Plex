@@ -82,6 +82,24 @@ def vendor_pids() -> list[int]:
     return found
 
 
+def candidate_pids(path: Path) -> list[int]:
+    """Enumerate only this trial's exact ELF; never target other processes."""
+    expected = str(path)
+    found: list[int] = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid != os.getuid():
+                continue
+            link = os.readlink(entry / "exe")
+        except (OSError, PermissionError):
+            continue
+        if link in (expected, expected + " (deleted)"):
+            found.append(int(entry.name))
+    return found
+
+
 def check_baseline() -> tuple[int, dict[str, str]]:
     if os.geteuid() == 0 or platform.machine().lower() != "aarch64":
         raise TrialError("Use ordinary user on the commissioned ARM64 Pi (never sudo)")
@@ -159,13 +177,29 @@ def unit_environment(env: dict[str, str]) -> list[str]:
 
 
 def restore_stock(state_path: Path, *, stop_trial: bool) -> None:
-    # Recovery must not depend on the experimental candidate still existing.
+    # Never depend on the experimental binary still existing on disk.
     state = read_state(state_path, require_candidate=False)
-    # Timer and worker can both attempt restore; lock prevents duplicate OSKs.
+    candidate = Path(state["candidate"])
+    if stop_trial:
+        # IMPORTANT: stop the worker OUTSIDE the restoration lock. If the
+        # worker is in its own finally/restore path, taking the lock first
+        # would deadlock systemctl stop against the worker waiting for it.
+        stop = run("systemctl", "--user", "stop", TRIAL_UNIT + ".service", timeout=12)
+        if stop.returncode != 0 and unit_active(TRIAL_UNIT + ".service"):
+            raise TrialError("Trial service did not stop; preserving single-OSK safety")
+    # Timer and worker can both attempt restoration. Serialize ONLY restore.
     with (state_path.parent / "restore.lock").open("a+b") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        if stop_trial:
-            run("systemctl", "--user", "stop", TRIAL_UNIT + ".service", timeout=12)
+        # systemd transient worker must use KillMode=control-group, so
+        # stopping it terminates its experimental child too. Check instead
+        # of assuming this. Never spawn stock while a candidate still exists.
+        for _ in range(20):
+            active = candidate_pids(candidate)
+            if not active:
+                break
+            time.sleep(0.25)
+        else:
+            raise TrialError("Experimental keyboard still running; refusing to overlap with stock")
         pids = vendor_pids()
         if len(pids) > 1:
             raise TrialError("More than one vendor keyboard; refusing extra launch")
@@ -183,7 +217,7 @@ def restore_stock(state_path: Path, *, stop_trial: bool) -> None:
             raise TrialError("Could not start vendor OSK user service: " + result.stderr.strip())
         for _ in range(40):
             time.sleep(0.25)
-            if len(vendor_pids()) == 1:
+            if len(vendor_pids()) == 1 and not candidate_pids(candidate):
                 print("Original Squeekboard restored.", flush=True)
                 return
         raise TrialError("Restore service launched but original keyboard not detected")
@@ -246,6 +280,8 @@ def start(archive: Path) -> None:
     trial_command = [
         "systemd-run", "--user", "--collect", "--no-block",
         "--unit=" + TRIAL_UNIT,
+        "--property=KillMode=control-group",
+        "--property=TimeoutStopSec=5s",
         *unit_environment(env), sys.executable, script, "--worker", str(state_path),
     ]
     started = run(*trial_command)
