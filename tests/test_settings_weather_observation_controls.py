@@ -55,6 +55,8 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
             "credentialEditing = false",
             "const editing = credentialStatusKnown && (!credentialConfigured || credentialEditing)",
             "field.hidden = !editing",
+            "grid?.classList.toggle('is-credential-locked', !editing)",
+            'data-wu-credential-grid',
             "input.disabled = !editing || credentialBusy",
             "if (document.activeElement === input) input.blur()",
             "credentialEditing = true",
