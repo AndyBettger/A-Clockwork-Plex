@@ -130,6 +130,14 @@ To simplify manually reproducing the compositor state, the Phase-B helper now ac
 
 Next investigate an **overlay-layer** on-screen keyboard (possible newer `wvkbd` implementations support a `--wayland-layer overlay` option, but the installed Pi build and integration must be checked), versus an ACP-owned borderless, non-fullscreen workspace preserving keyboard layering. Avoid blindly installing an unofficial system-wide patched Squeekboard: overlay layers can cover system security surfaces and the appliance needs scoped lifecycle ownership. Existing ACP DOM keyboard cannot input directly to native WebKit.
 
+### 12 October 2026 — actual Wayland identity versus Flatpak ID
+
+The commissioned Pi installed Debian `wlrctl 0.2.2-2`. The first manual `--fullscreen` attempt found that the Flatpak instance existed but **no** foreign toplevel matched `app_id:com.plexamp.Plexamp` during 20 seconds. This is **not** evidence that the native player failed to launch; the prior launcher and manual GUI proofs remain accepted. The root cause of the unsuccessful match is not yet proven; a different actual Wayland app ID is the leading explanation.
+
+Inspection of the Debian wlrctl 0.2.2 source shows it implements an otherwise-undocumented `toplevel list` action that prints `app_id: title` for every known foreign toplevel. The revised manual helper first tries the configured Flatpak identifier, then queries the real compositor and finds only a single **exact-title `Plexamp`** window whose app ID is nonblank and is not Chromium/Chrome/Firefox. It makes a separate `wlrctl toplevel find app_id:<discovered> title:Plexamp` check before issuing the corresponding `fullscreen` action. If no unique match appears, it fails closed and emits the window inventory. This is still an opt-in test, not a new labwc window rule, kiosk alteration or stable release commitment. Source-derived behavior: https://sources.debian.org/src/wlrctl/0.2.2-2/toplevel.c.
+
+The OSK inventory identifies `/usr/bin/squeekboard` running as PID 1484, while `wvkbd-mobintl` is absent. Squeekboard is visible and functional above windowed native Plexamp but **not** above compositor-fullscreen Plexamp; this matches the already investigated Chromium kiosk/labwc stacking behavior. Investigate the actual Squeekboard/labwc layer capabilities (or a borderless non-fullscreen workspace) rather than reinstalling another OSK without an explicit bounded hypothesis. Retain the working Headless and default windowed launch.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
