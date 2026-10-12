@@ -226,6 +226,8 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_acp_design_tokens.py` — Protects the #94 Phase A semantic design-token boundary, load order, palette derivation and first migrated shared/application-surface consumers.
 - `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces.
 
+- `tests/test_os_keyboard_choice.py` — Protects the five-minute browser-session native OSK trial switch, original input hint restoration, Advanced UI wiring and non-regression of the accepted ACP HTML keyboard.
+
 ### Plexamp and NFC
 
 - `tests/test_squeekboard_overlay_trial.py` — Guards the Pi's voluntary three-minute OSK trial, independent four-minute rollback timer, session ownership, no-overlap, exact SHA fingerprints, and restoration without the candidate file.
