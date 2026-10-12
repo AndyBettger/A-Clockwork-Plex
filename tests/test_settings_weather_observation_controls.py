@@ -46,6 +46,33 @@ class SettingsWeatherObservationControlsTests(unittest.TestCase):
         self.assertIn('write-only', presenter)
         self.assertIn("elements.input.value = ''", presenter)
 
+    def test_configured_secret_stays_hidden_until_replace(self) -> None:
+        presenter = PRESENTER.read_text(encoding="utf-8")
+        layout = Path("app/static/css/settings.css").read_text(encoding="utf-8")
+        template = TEMPLATE.read_text(encoding="utf-8")
+        for expected in (
+            "credentialStatusKnown = false",
+            "credentialEditing = false",
+            "const editing = credentialStatusKnown && (!credentialConfigured || credentialEditing)",
+            "field.hidden = !editing",
+            "input.disabled = !editing || credentialBusy",
+            "if (document.activeElement === input) input.blur()",
+            "credentialEditing = true",
+            "Save replacement",
+            "Cancel replacement",
+            "Replacement cancelled. The saved key is unchanged.",
+            "if (!key.trim())",
+            "The existing key remains active until the replacement is saved.",
+            "renderCredentialStatus(); // Fail closed",
+            'data-wu-api-key-field hidden',
+            'data-keyboard="text" data-wu-api-key disabled',
+        ):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, presenter)
+        self.assertIn("[data-wu-commissioning] [hidden]", layout)
+        self.assertIn("display: none !important", layout)
+        self.assertIn("20261012-wu-credential-gate-v1", template)
+
     def test_commissioning_uses_dedicated_credential_and_test_endpoints(self) -> None:
         presenter = PRESENTER.read_text(encoding="utf-8")
 
