@@ -248,6 +248,13 @@ Next physical gates:
 - [ ] **GitHub build gate:** create and run restricted `.github/workflows/squeekboard-overlay-arm64.yml` on GitHub ARM64 standard runner with Debian Trixie container. The workflow exists only on the Phase-B feature branch; check GitHub runner availability, dependency closure, build outcome and artifact data before calling it passed.
 - [ ] **Post-build risk review:** inspect .deb `Depends`, `readelf -d/-V`, package contents, and compare the resulting binary's needed runtime libraries to the target Pi **without executing/installing it**. No keyboard process switch, autostart change or accepted Headless replacement yet.
 
+### 12 October 2026 — approved disposable ARM64 CI run started
+
+- [x] User approved creation and execution of an isolated test-only ARM64 GitHub Actions builder. Workflow `.github/workflows/squeekboard-overlay-arm64.yml` exists on Phase-B branch and run **#3**, <https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38196515161>, entered the Docker/container checkout and build stage; artifact/compile success was **not** yet known when this was recorded.
+- [x] Existing ACP regression **Tests #5549 green** on the builder-launch commit.
+- [x] Workflow used temporary, narrowly scoped same-repo PR trigger to start once because adding the workflow with a push trigger alone did not register a separate build on the feature-branch commit. Following job start, removed temporary PR/push triggers, leaving `workflow_dispatch` only; current in-flight #3 continues on its original SHA. New ordinary PR pushes do not rerun the large builder. The workflow may require default-branch presence for future dispatch; do not claim a new manual run can be started from GitHub UI in this feature branch without verification.
+- [ ] **Current gate:** inspect actual build #3 conclusion, logs, artifacts and `readelf`/package `Depends`; only then decide whether any CI-only correction and intentional manual retry is necessary. Do not ship/install package or change accepted Pi keyboard, Headless or compositor.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
