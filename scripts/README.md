@@ -68,6 +68,8 @@ These files are source material for installed services, restricted helpers or ap
 | `scripts/nfc-plexamp-mode.sh` | Small NFC playback-mode bridge used by the installed NFC integration. | **Runtime/helper.** Called by the NFC path, not normal manual navigation. |
 | `scripts/launch-dashboard-kiosk.sh` | Starts Chromium with the dedicated A Clockwork Plex kiosk profile after the dashboard is reachable. | **Runtime/helper.** Installed/autostarted by dashboard integration. |
 
+**12 October physical OSK update:** the opt-in, separately built Squeekboard `OVERLAY` prototype has now been seen and used above true fullscreen native Plexamp Search and an Add-dialog input. The standard distro keyboard remains `TOP` and **does not** overlay fullscreen; no global replacement, auto-start or installation of the test executable has occurred. The trial restored a single original Squeekboard process afterwards. The native launcher is still windowed by default to keep the unmodified appliance touch-friendly until keyboard ownership is integrated safely.
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
