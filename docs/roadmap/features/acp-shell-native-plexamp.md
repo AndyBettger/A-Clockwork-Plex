@@ -262,6 +262,13 @@ Next physical gates:
 - [x] **Guarded test-fixture-only repair:** update the dedicated `scripts/ci/prepare-squeekboard-overlay-source.py` to require exact scaling-test construction pattern/count and insert `name: None,` only there. If unexpected/previously changed, fail closed. Preserve the original source package and sole runtime-layer source change; record extra change transparently in provenance. Keep vendor `dh_auto_test` active rather than using `DEB_BUILD_OPTIONS=nocheck`. Added a narrow regression proving the fixture repair changes only the intended initializers.
 - [ ] **Second isolated ARM64 CI build:** deliberately retrigger same-repo-only candidate, then inspect logs and actual artifact. No broad APT installation or component mutation on the commissioned Pi.
 
+### 12 October 2026 — second source-stage attempt, third CI builder launched
+
+- [x] **Run #4 failed closed at source preparation:** [run #4](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197421672) extracted the authentic vendor patch set but refused an over-specific missing-`OutputState.name` test fixture replacement before installing Rust dependencies. No binary/package artifact was produced. This was a CI preflight rejection, not a Pi/audio issue.
+- [x] **Safer test-only fixture correction:** the CI prep parser now restricts itself to `#[cfg(test)]`, recognises balanced Rust `OutputState { ... }` test initialisers, and inserts `name: None` only where missing; limited to 1–3 insertions and 1–4 test initialisers with strict validation, preserving the independently pinned runtime panel SHA-256. The custom Python regression test passes in **Tests #5567**. The vendor's Rust test suite remains enabled in the next build.
+- [x] **Third isolated candidate launched:** [ARM64 run #5](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197809476) was accepted by GitHub and reached build stage; actual build/packaging verdict not established at this checkpoint. Temp same-repository PR trigger was removed immediately after run start; workflow is manual-only.
+- [ ] **Next gate:** inspect #5 conclusion, full logs, any exported test-only `.deb`/ELF and package ABI report. Do not assume a successful artifact until confirmed. The Pi keyboard, native Plexamp/Headless, Wayland compositor and installed library versions remain unchanged.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
