@@ -164,6 +164,14 @@ Next physical gates:
 - [x] **Scoped fullscreen launch option implemented (awaiting Pi command test):** `bash scripts/launch-native-plexamp.sh --fullscreen` asks `wlrctl` to fullscreen only `app_id:com.plexamp.Plexamp`, waiting for a newly launched window or handling an already-running instance. If `wlrctl` or matching app_id is missing it reports an actionable failure rather than changing global compositor settings. Default remains windowed for working OSK. Separate regression coverage verifies command scoping and prevents launching duplicates.
 - [ ] **Next OSK investigation:** read-only inventory of active `squeekboard` / `wvkbd` process, installed version/flags and labwc layer capability; evaluate overlay-layer OSK or kiosk-like borderless/windowed workspace only if compatible with touch-only Search and ACP shell navigation. Do not patch package binaries, add `sudo` autostart or change Chromium kiosk during discovery.
 
+### 12 October 2026 — resolve native full-screen window identity safely
+
+- [x] Real Pi attempted `bash scripts/launch-native-plexamp.sh --fullscreen` with Debian `wlrctl 0.2.2-2` installed. Flatpak reported a running native instance but `wlrctl toplevel waitfor app_id:com.plexamp.Plexamp` timed out; no window was altered. This invalidates the assumption that the Flatpak installation ID equals the labwc foreign-toplevel `app_id`.
+- [x] Checked the Debian `wlrctl` **0.2.2 source**: `wlrctl toplevel list` prints actual `app_id: title` and supports exact `app_id` plus `title` matches, despite the manual not listing the `toplevel list` action. Avoid shelling out to unrelated window tools or guessing XWayland identifiers.
+- [x] Revised `scripts/launch-native-plexamp.sh --fullscreen` to query the live compositor, prefer an actual Flatpak-ID toplevel when present, or select **one and only one** non-Chromium/Firefox toplevel with exactly `Plexamp` title, then confirm a conjunction of discovered app ID and title before requesting fullscreen. Poll is bounded to 20 seconds; no matches or multiple candidates fail closed with diagnostics. Mock tests include the differing-app-id case, Chromium with a `Plexamp` title and ambiguous duplicate window exclusion.
+- [ ] **Commissioned-Pi re-test required**; retain plain windowed launch for touch Search until the fullscreen Squeekboard overlay problem is solved.
+- [x] OSK inventory: the active keyboard is **`/usr/bin/squeekboard` (PID 1484)**; `wvkbd-mobintl` is **not installed**. Earlier labwc/Chromium full-screen keyboard stacking issue remains relevant; do not repeat the unproductive keyboard installations. Next inspect whether Squeekboard's surface layer can be changed under labwc or whether ACP's workspace can emulate full display in non-fullscreen mode without sacrificing input.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
