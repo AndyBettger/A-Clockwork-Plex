@@ -97,10 +97,7 @@ class SqueekboardCiBuilderTests(unittest.TestCase):
         self.assertIn("ubuntu-24.04-arm", content)
         self.assertIn("debian:trixie", content)
         self.assertIn("on:", content)
-        if "pull_request:" in content:
-            self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", content)
-            self.assertIn("github.head_ref == 'feature/acp-shell-native-plexamp'", content)
-            self.assertIn("squeekboard-overlay-arm64.yml", content)
+        self.assertNotIn("pull_request:", content)
         self.assertNotIn("  push:", content)
         self.assertIn("workflow_dispatch:", content)
         self.assertIn("actions/upload-artifact@v4", content)
