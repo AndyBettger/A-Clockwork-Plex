@@ -240,6 +240,12 @@ Artifact contents: `squeekboard-overlay-arm64` AArch64 ELF PIE 17,109,456 bytes,
 
 **Do not deploy now.** Never run `dpkg -i` on the production appliance or replace packaged `/usr/bin/squeekboard`. A future proof requires a read-only target package/ABI inventory, then a **pre-armed timeout/rollback guard** to restore the single stock Squeekboard instance in the correct Wayland/DBus session after stopping candidate/timeout/SSH loss. Test only the standalone executable, not its Debian package; all old ACP/Headless audio and compositor settings must remain unchanged. Even though the off-device tests passed, touchscreen full-screen OSK/WayVNC acceptance is entirely open. Normal ACP Tests #5574 green and off-device build workflow manual-only.
 
+### 12 October 2026 — commissioned Pi matches overlay candidate package version floors
+
+The Pi's read-only runtime inventory establishes `glibc 2.41` versus the candidate's highest required `GLIBC_2.39`, `libglib2.0-0t64 2.84.4` versus `>=2.83.0`, `libgtk-3-0t64 3.24.49` versus `>=3.23.1`, GNOME Desktop 44.3, libfeedback 0.8.2, Wayland 1.24, xkbcommon 1.7 and raspi-config 20260730, all above the **built artifact's** declared lower bounds. These versions come from the user's actual `dpkg-query`, not from a projected APT transaction. The source build produced an unsigned test-only executable, so this is a **package ABI version preflight**, not runtime Wayland or input-method acceptance.
+
+Added a stricter read-only `scripts/inspect-squeekboard-overlay-artifact.py` for the target Pi. Given an independently transferred ZIP from [successful build #5](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197809476), it checks both actual ZIP contents against pinned SHA-256 and byte sizes, confirms AArch64 ELF and package `1.43.1-1+rpt1`, checks every `.deb` `Depends` expression through installed `dpkg` versions (including the gsettings-backend alternative), and verifies 18 direct ELF library names against `ldconfig -p` (including loader path). It extracts only to a disposable mode-nonexecutable temporary directory, never runs either ELF or package and never touches active Squeekboard/ACP. This does **not** verify all ELF symbol relocations or Wayland protocol ownership; any subsequent runtime attempt requires the separately pre-armed watchdog and explicit timed restore of stock `sbtest` in the correct desktop environment.
+
 ## Preferred player architecture
 
 The preferred experiment is **native Plexamp as the real local decoder/player**,
