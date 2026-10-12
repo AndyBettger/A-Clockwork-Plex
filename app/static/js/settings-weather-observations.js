@@ -286,7 +286,10 @@
     grid?.classList.toggle('is-credential-locked', !editing);
     if (input) {
       if (!editing) {
-        if (document.activeElement === input) input.blur();
+        if (document.activeElement === input) {
+          input.blur();
+          window.ACPTouchKeyboard?.close?.();
+        }
         input.value = '';
       }
       input.disabled = !editing || credentialBusy;
