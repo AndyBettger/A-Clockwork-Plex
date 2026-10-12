@@ -295,6 +295,12 @@ Next physical gates:
 - [ ] **Next Pi gate:** pull the branch and run `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip`. Review its output and repository CI before `--start`; this step does not alter the keyboard.
 - [ ] **Then physically test (requires user ready at VNC/touchscreen):** prelaunch fullscreen native Plexamp, run `--start` from SSH, type Search/Backspace/Shift, dismiss, observe keyboard overlay and ACP return. It is a deliberately disruptive, short user-initiated OSK process swap; emergency early restore: `systemctl --user start acp-squeekboard-overlay-restore.service`. The independent timer is a recovery aid, **not** protection against OS crash/session shutdown, and the user must be able to SSH back in for manual recovery. Verify one stock OSK is restored afterward. Phase B acceptance remains pending.
 
+### 12 October 2026 — full Pi PLAN PASS; strengthen failback before start
+
+- [x] User's actual `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip` completed with **PLAN PASS**: 17 runtime dependency expressions, 18 ELF SONAMEs, both artifact hashes/metadata, single original OSK, session sockets and user systemd manager present. Zero keyboard/session mutations.
+- [x] Final trial safety review and fix: backup `restore_stock` stops the trial transient service **outside** its inter-process restoration lock, preventing a deadlock if the worker is simultaneously entering its own `finally`. The trial transient service explicitly sets `KillMode=control-group` and `TimeoutStopSec=5s` so stopping it also terminates the experiment child. Recovery scans `/proc/PID/exe` for **only the exact private staged candidate** and refuses to start original `/usr/bin/sbtest` until zero experimental PIDs remain; no generic `pkill` or broad process signalling. Dedicated tests cover lock ordering, refusal to overlap and explicit cgroup service properties.
+- [ ] **First live test still pending**: complete green CI for the hardening, pull changes, re-run `--plan`, then user initiates `--start` only with touchscreen/SSH and fullscreen native Plexamp ready. Observe overlay keyboard, actual typing and independent restoration. No default/native-service migration approved.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
