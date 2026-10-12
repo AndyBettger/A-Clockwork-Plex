@@ -93,6 +93,8 @@ class KeyboardTrialTests(unittest.TestCase):
         self.assertEqual(len(commands), 2)
         self.assertIn("--on-active=240s", commands[0])
         self.assertIn("--unit=" + self.s.TRIAL_UNIT, commands[1])
+        self.assertIn("--property=KillMode=control-group", commands[1])
+        self.assertIn("--property=TimeoutStopSec=5s", commands[1])
 
     def test_timer_failure_prevents_trial_service_start(self):
         with mock.patch.object(
@@ -103,6 +105,57 @@ class KeyboardTrialTests(unittest.TestCase):
             with self.assertRaisesRegex(self.s.TrialError, "rollback timer"):
                 self.s.start(Path("candidate.zip"))
             self.assertEqual(runner.call_count, 1)
+
+    def test_restore_stops_trial_before_lock_and_checks_candidate_is_gone(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / "trial-abc"
+            folder.mkdir()
+            state = folder / "state.json"
+            state.write_text(json.dumps({
+                "schema": 1, "env": {"WAYLAND_DISPLAY": "wayland-0"},
+                "candidate": str(folder / "squeekboard-overlay-arm64"),
+                "stock_unit": "acp-squeekboard-stock-abc",
+            }))
+            calls = []
+            def fake_run(*args, **_kwargs):
+                calls.append(args)
+                return mock.Mock(returncode=0, stderr="")
+            with mock.patch.object(self.s, "ROOT", root), \
+                 mock.patch.object(self.s, "run", side_effect=fake_run), \
+                 mock.patch.object(self.s, "unit_active", return_value=False), \
+                 mock.patch.object(self.s, "candidate_pids", return_value=[]) as check, \
+                 mock.patch.object(self.s, "vendor_pids", side_effect=[[], [9876]]):
+                self.s.restore_stock(state, stop_trial=True)
+            self.assertEqual(calls[0][:3], ("systemctl", "--user", "stop"))
+            self.assertEqual(calls[1][:3], ("systemd-run", "--user", "--collect"))
+            self.assertTrue(check.called)
+
+    def test_recovery_never_starts_stock_while_candidate_still_exists(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / "trial-abc"
+            folder.mkdir()
+            state = folder / "state.json"
+            state.write_text(json.dumps({
+                "schema": 1, "env": {"WAYLAND_DISPLAY": "wayland-0"},
+                "candidate": str(folder / "squeekboard-overlay-arm64"),
+                "stock_unit": "acp-squeekboard-stock-abc",
+            }))
+            with mock.patch.object(self.s, "ROOT", root), \
+                 mock.patch.object(self.s, "candidate_pids", return_value=[999]), \
+                 mock.patch.object(self.s, "vendor_pids") as stock, \
+                 mock.patch.object(self.s, "run") as command, \
+                 mock.patch.object(self.s.time, "sleep"):
+                with self.assertRaisesRegex(self.s.TrialError, "still running"):
+                    self.s.restore_stock(state, stop_trial=False)
+                stock.assert_not_called()
+                command.assert_not_called()
+
+    def test_exact_candidate_pid_enumeration_does_not_kill_any_process(self):
+        with mock.patch.object(self.s.os, "kill") as killer:
+            self.assertEqual(self.s.candidate_pids(Path("/no/such/overlay")), [])
+            killer.assert_not_called()
 
     def test_source_never_installs_or_changes_global_keyboard(self):
         body = SCRIPT.read_text(encoding="utf-8")
