@@ -16,9 +16,11 @@ and writes output to ~/.cache/a-clockwork-plex/native-plexamp.log.
 
 --fullscreen  Ask labwc to put native Plexamp into genuine fullscreen using
               wlrctl. Identifies the actual Wayland window; refuses ambiguous
-              matches or Chromium windows. Fullscreen currently hides the Pi OS
-              Squeekboard keyboard, so default remains windowed until touch-only
-              text entry is solved.
+              matches or Chromium windows. The stock Raspberry Pi Squeekboard
+              sits below fullscreen, but the independently built OVERLAY-layer
+              prototype has physically displayed above fullscreen Plexamp.
+              Its timed trial is accepted for visibility, not yet production
+              startup or installer integration; default stays windowed.
 
 This is a Phase-B manual discovery helper. It does not change ACP, Headless,
 autostart, Flatpak permissions, or audio settings.
@@ -172,5 +174,5 @@ if [[ "$fullscreen" == true ]]; then
     fail "Could not request fullscreen for $match; native Plexamp remains running."
   fi
   printf 'ACP native Plexamp: fullscreen requested for %s.\n' "$match"
-  printf 'Note: Squeekboard is currently hidden in true fullscreen; touch Search is not yet accepted.\n'
+  printf 'Note: stock Squeekboard stays behind fullscreen; the tested OVERLAY variant is not yet configured as the default keyboard.\n'
 fi
