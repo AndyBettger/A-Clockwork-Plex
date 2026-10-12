@@ -95,6 +95,7 @@ const input = {value: 'should-not-appear', disabled: false, blur: () => {blurs++
 const label = {textContent: ''}, save = button(), cancel = button(),
       remove = button(), test = button();
 const classes = new Set();
+let keyboardCloses = 0;
 const grid = {classList: {toggle: (key, enabled) => {
   if (enabled) classes.add(key);
   else classes.delete(key);
@@ -112,7 +113,8 @@ const controls = {
 };
 const context = {
   assert, wuPanel: {querySelector: name => controls[name]},
-  document: {activeElement: input}
+  document: {activeElement: input},
+  window: {ACPTouchKeyboard: {close: () => { keyboardCloses++; }}}
 };
 const code = `
 let credentialConfigured = false;
@@ -158,6 +160,7 @@ assert.strictEqual(save.disabled, true);
 console.log('WU status, replace, cancel, removal and busy UI: PASS');
 `;
 vm.runInNewContext(code, context);
+assert.ok(keyboardCloses > 0, 'hiding editor dismisses ACP custom keyboard');
 """
         run = subprocess.run(
             ["node", "-e", javascript],
