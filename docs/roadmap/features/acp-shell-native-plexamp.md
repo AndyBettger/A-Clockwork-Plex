@@ -156,6 +156,14 @@ Next physical gates:
 - [x] Strengthened tests: fake Flatpak `info` refuses non-positional/incorrect arguments, and an additional non-skipped regression checks the exact intended syntax. The previous dummy `info` stub indiscriminately returned success, which allowed the bug through.
 - [ ] Confirm normal `git pull --ff-only` and `bash scripts/launch-native-plexamp.sh` on commissioned Pi; verify the SSH shell returns and native app appears via WayVNC. Do not reinstall the Flatpak or change Headless/ALSA.
 
+### 12 October 2026 — SSH launcher physically passed; native OSK fullscreen blocker
+
+- [x] **One-command native launcher physical pass:** after the corrected Flatpak-info preflight, `bash scripts/launch-native-plexamp.sh` successfully opened the native Flatpak visible in WayVNC and left Headless and ACP intact.
+- [x] **Native windowed Search and OS keyboard pass:** Pi OS automatically displayed its on-screen keyboard when native Plexamp Search was focused in windowed mode; the user typed `test` and the Plex server returned matching results. Keyboard and search were visible/usable via WayVNC as well as the Pi screen.
+- [ ] **Native genuine-fullscreen Search keyboard visibility BLOCKED:** after switching native Plexamp to true fullscreen, search results remained available but the OS keyboard no longer appeared in front of the window (screenshots supplied). This matches our July Wayland/labwc experiments where both `wvkbd-mobintl` and Squeekboard were hidden behind Chromium's true fullscreen/kiosk surface. Do not repeat failed unmodified keyboard installs or call windowed success fullscreen acceptance.
+- [x] **Scoped fullscreen launch option implemented (awaiting Pi command test):** `bash scripts/launch-native-plexamp.sh --fullscreen` asks `wlrctl` to fullscreen only `app_id:com.plexamp.Plexamp`, waiting for a newly launched window or handling an already-running instance. If `wlrctl` or matching app_id is missing it reports an actionable failure rather than changing global compositor settings. Default remains windowed for working OSK. Separate regression coverage verifies command scoping and prevents launching duplicates.
+- [ ] **Next OSK investigation:** read-only inventory of active `squeekboard` / `wvkbd` process, installed version/flags and labwc layer capability; evaluate overlay-layer OSK or kiosk-like borderless/windowed workspace only if compatible with touch-only Search and ACP shell navigation. Do not patch package binaries, add `sudo` autostart or change Chromium kiosk during discovery.
+
 ## Detailed authority
 
 - [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
