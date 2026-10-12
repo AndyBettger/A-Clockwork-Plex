@@ -72,7 +72,7 @@ These files are source material for installed services, restricted helpers or ap
 
 | File | Purpose | Safety / intended use |
 | --- | --- | --- |
-| `scripts/launch-native-plexamp.sh` | Launches the **already installed** ARM64 Plexamp Flatpak into the existing labwc/Wayland session, including from SSH. Backgrounds the application, checks for an existing instance, and writes a private log under `~/.cache/a-clockwork-plex/native-plexamp.log`. | **Manual development launch only.** Use `bash scripts/launch-native-plexamp.sh` as the ordinary user (no sudo); `--help` explains usage. The current `beta` branch is deliberately pinned for #94 discovery. Never installs Flatpak, changes autostart/audio, restarts Headless, or replaces `setup.sh`. |
+| `scripts/launch-native-plexamp.sh` | Launches the **already installed** ARM64 Plexamp Flatpak into the existing labwc/Wayland session, including from SSH. Backgrounds the application, checks for an existing instance, and writes a private log under `~/.cache/a-clockwork-plex/native-plexamp.log`. | **Manual development launch only.** Use `bash scripts/launch-native-plexamp.sh` as the ordinary user (no sudo); `--fullscreen` optionally targets the native Wayland window through `wlrctl` (requires `sudo apt install wlrctl` if not present), waits up to 20 seconds for `app_id:com.plexamp.Plexamp`, and deliberately leaves the default windowed because the Pi OS keyboard hides under true fullscreen. `--help` explains usage. The current `beta` branch is deliberately pinned for #94 discovery. Never installs Flatpak, changes autostart/audio, restarts Headless, or replaces `setup.sh`. |
 
 ## Supported audio lifecycle
 
