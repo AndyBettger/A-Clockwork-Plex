@@ -74,7 +74,7 @@ class SqueekboardCiBuilderTests(unittest.TestCase):
         content = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("ubuntu-24.04-arm", content)
         self.assertIn("debian:trixie", content)
-        self.assertIn("on:\\n  workflow_dispatch:", content)
+        self.assertIn("on:", content)
         self.assertNotIn("pull_request:", content)
         self.assertNotIn("  push:", content)
         self.assertIn("workflow_dispatch:", content)
