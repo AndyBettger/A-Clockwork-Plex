@@ -98,11 +98,44 @@ class GTKStyleHotReloadProbeTests(unittest.TestCase):
 
     def test_no_invalidate_variant_passes_flag_only_to_test_child(self):
         text = SOURCE.read_text(encoding="utf-8")
-        self.assertIn('actions.add_argument("--without-invalidate"', text)
+        self.assertIn('parser.add_argument("--without-invalidate"', text)
+        self.assertNotIn('actions.add_argument("--without-invalidate"', text)
         self.assertIn('manual_invalidate=not args.without_invalidate', text)
         self.assertIn('["--without-invalidate"] if args.without_invalidate else []', text)
         self.assertIn('provider.load_from_resource(original.RESOURCE)', text)
         self.assertIn('context.get_color(Gtk.StateFlags.NORMAL)', text)
+
+    def test_combined_cli_flags_are_accepted_without_running_gtk(self):
+        """Real argparse + parent branch, but mock subprocess; no GTK/OSK touched."""
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(probe.Path, "home", return_value=Path(tmp)), \
+             mock.patch.object(probe.os, "geteuid", return_value=1000), \
+             mock.patch.object(probe.sys, "argv", [
+                 "probe-squeekboard-gtk-hot-style.py",
+                 "--probe", "--without-invalidate",
+             ]), \
+             mock.patch.object(probe.subprocess, "run",
+                               return_value=mock.Mock(
+                                   returncode=0, stdout="", stderr=""
+                               )) as runner:
+            self.assertEqual(probe.main(), 0)
+            runner.assert_called_once()
+            cmd = runner.call_args.args[0]
+            self.assertIn("--_child", cmd)
+            self.assertIn("--without-invalidate", cmd)
+            self.assertIn("G_RESOURCE_OVERLAYS", runner.call_args.kwargs["env"])
+
+    def test_child_cli_accepts_without_invalidate_as_modifier(self):
+        with mock.patch.object(probe.os, "geteuid", return_value=1000), \
+             mock.patch.object(probe.sys, "argv", [
+                 "probe-squeekboard-gtk-hot-style.py",
+                 "--_child", "/not-used/style.css", "--without-invalidate",
+             ]), \
+             mock.patch.object(probe, "child", return_value=7) as child:
+            self.assertEqual(probe.main(), 7)
+            child.assert_called_once_with(
+                Path("/not-used/style.css"), manual_invalidate=False
+            )
 
     def test_never_restarts_or_rethemes_the_actual_keyboard(self):
         text = SOURCE.read_text(encoding="utf-8")
