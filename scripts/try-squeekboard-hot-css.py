@@ -63,15 +63,6 @@ def load_theme_validator():
     return module
 
 
-def load_resource_probe():
-    path = Path(__file__).resolve().with_name("probe-squeekboard-resource-overlay.py")
-    spec = importlib.util.spec_from_file_location("acp_c2_resource_probe", path)
-    if not spec or not spec.loader:
-        raise TrialError("GLib resource overlay inspector is unavailable")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
 
 def load_compact_number_stage():
     path = Path(__file__).resolve().with_name("stage-squeekboard-compact-number.py")
@@ -97,22 +88,6 @@ def verified_compact_keyboard_dir() -> str:
         raise TrialError("Compact numeric layout verification failed: " + str(exc)) from exc
     return str(compact.ROOT / "keyboards")
 
-
-def verified_resource_override(theme: str) -> str:
-    """Prove all private CSS bytes before the trial's timer/stock handover.
-
-    This is a *candidate-only* environment override, never a stock OSK change.
-    No resource files are created or modified by the trial controller.
-    """
-    probe = load_resource_probe()
-    try:
-        expected = probe.samples()
-        if theme not in expected:
-            raise TrialError("Unknown ACP Squeekboard resource palette")
-        probe.verify_stage(expected)
-        return probe.trial_override(theme)
-    except (probe.OverlayError, OSError, ValueError) as exc:
-        raise TrialError("GLib resource overlay stage verification failed: " + str(exc)) from exc
 
 
 def load_c3_stage():
@@ -300,8 +275,20 @@ def read_state(path: Path, *, require_candidate: bool = True) -> dict:
         raise TrialError("Unknown C3 state schema")
     if not isinstance(value.get("stock_pid"), int) or value["stock_pid"] <= 0:
         raise TrialError("Invalid stored stock keyboard PID")
-    if value.get("env") != session_environment():
-        raise TrialError("Unexpected stock environment")
+    # Stock restoration is independent of the CSS stage, the currently
+    # working Wayland socket, and the current session environment. Inspect
+    # ONLY the exact stored allowlisted values; do not fail before trying to
+    # relaunch vendor sbtest merely because the keyboard has vanished.
+    runtime = Path("/run/user") / str(os.getuid())
+    expected_stock_env = {
+        "XDG_RUNTIME_DIR": str(runtime),
+        "WAYLAND_DISPLAY": "wayland-0",
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(runtime / "bus"),
+        "XDG_SESSION_TYPE": "wayland",
+        "HOME": str(Path.home()),
+    }
+    if value.get("env") != expected_stock_env:
+        raise TrialError("Unexpected stored stock-only restore environment")
     # Recovery must succeed even if the separate CSS stage has disappeared.
     # Thus: compare ONLY fixed strings, never re-read staged CSS in --restore.
     style = load_c3_stage()
