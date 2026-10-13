@@ -225,10 +225,10 @@ def prepare(
     archive: Path, *, modify: bool, uk_theme: str | None = None,
     resource_overlay: bool = False, compact_number: bool = False,
 ) -> tuple[int, dict[str, str], Path | None]:
-    if resource_overlay and not uk_theme:
-        raise TrialError("Resource overlay requires --uk-theme")
     if compact_number and (not resource_overlay or not uk_theme):
         raise TrialError("Compact number requires both --uk-theme and --resource-overlay")
+    if resource_overlay and not uk_theme:
+        raise TrialError("Resource overlay requires --uk-theme")
     pid, env = check_baseline()
     load_inspector().inspect(archive)
     if unit_active(TRIAL_UNIT + ".service") or unit_active(ROLLBACK_UNIT + ".timer"):
@@ -481,12 +481,12 @@ def main() -> int:
     try:
         if args.uk_theme and not (args.plan or args.start):
             raise TrialError("--uk-theme is only allowed with --plan or --start")
-        if args.resource_overlay and (not args.uk_theme or not (args.plan or args.start)):
-            raise TrialError("--resource-overlay requires --uk-theme and --plan/--start")
         if args.compact_number and (
             not args.resource_overlay or not args.uk_theme or not (args.plan or args.start)
         ):
             raise TrialError("--compact-number requires --uk-theme, --resource-overlay and --plan/--start")
+        if args.resource_overlay and (not args.uk_theme or not (args.plan or args.start)):
+            raise TrialError("--resource-overlay requires --uk-theme and --plan/--start")
         if args.plan:
             prepare(
                 args.plan, modify=False, uk_theme=args.uk_theme,
