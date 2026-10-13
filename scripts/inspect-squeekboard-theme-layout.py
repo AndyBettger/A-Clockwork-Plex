@@ -18,7 +18,10 @@ import sys
 REPO = Path(__file__).resolve().parents[1]
 VENDOR = Path("/usr/bin/squeekboard")
 ACCEPTED_SHA256 = "2ad3ef3750c26b94427deb7423041293c1ae658027261a38623373af1a243338"
-SYSTEM_LAYOUTS = (Path("/usr/share/squeekboard/keyboards"),
+# Squeekboard 1.43.x's layout loader defaults to /usr/share/misc/squeekboard/keyboards.
+# Keep the previously probed directories for completeness; layouts can also be embedded.
+SYSTEM_LAYOUTS = (Path("/usr/share/misc/squeekboard/keyboards"),
+                  Path("/usr/share/squeekboard/keyboards"),
                   Path("/usr/local/share/squeekboard/keyboards"))
 USER_LAYOUT = Path.home() / ".local/share/squeekboard/keyboards"
 LAYOUT_NAMES = (
@@ -85,6 +88,17 @@ def inspect() -> None:
     else:
         print("Vendor binary: not found")
     print("Squeekboard process: " + probe("pgrep", "-a", "-x", "squeekboard"))
+    # The package may compile YAML layouts into the binary even if the on-disk
+    # search directory is absent. Check the actual package inventory as well.
+    package_files = probe("dpkg-query", "-L", "squeekboard")
+    if package_files.startswith("("):
+        print("Package layout YAML inventory: " + package_files)
+    else:
+        yaml_paths = [p for p in package_files.splitlines()
+                      if p.endswith(".yaml") and "/keyboards/" in p]
+        print("Package layout YAML inventory: " +
+              (", ".join(yaml_paths[:20]) if yaml_paths else
+               "(none on disk; keyboard layouts may be embedded in the binary)"))
     print("GNOME input source(s): " +
           probe("gsettings", "get", "org.gnome.desktop.input-sources", "sources"))
     print("GNOME XKB options: " +
@@ -94,6 +108,7 @@ def inspect() -> None:
     print("Host XKB setup: " + probe("localectl", "status").replace("\n", "; "))
     for directory in (*SYSTEM_LAYOUTS, USER_LAYOUT):
         print("Layouts " + str(directory) + ": " + layouts_in(directory))
+    print("Layout override mechanism: SQUEEKBOARD_KEYBOARDSDIR (candidate process only)")
     print("Default GTK3 user stylesheet: " +
           gtk_css_state(Path.home() / ".config/gtk-3.0/gtk.css"))
     print("ACP daytime theme IDs: " + acp_palettes())
