@@ -44,7 +44,7 @@ class StageSqueekboardUkThemeTests(unittest.TestCase):
         candidate = stage.layout(NORMAL, "us.yaml")
         self.assertIn('@ # £ % & - _ + ( )', candidate)
         self.assertIn('© ® $ € ¥ ^ ° * { }', candidate)
-        self.assertIn(r'\\"', candidate)
+        self.assertIn(chr(92) + chr(34), candidate)
         self.assertIn('colon:', candidate)
         self.assertNotIn('@ # $ % &', candidate)
 
