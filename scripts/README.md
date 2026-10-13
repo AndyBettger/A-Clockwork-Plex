@@ -72,6 +72,12 @@ These files are source material for installed services, restricted helpers or ap
 
 **12 October physical OSK update:** the opt-in, separately built Squeekboard `OVERLAY` prototype has now been seen and used above true fullscreen native Plexamp Search and an Add-dialog input. The standard distro keyboard remains `TOP` and **does not** overlay fullscreen; no global replacement, auto-start or installation of the test executable has occurred. The trial restored a single original Squeekboard process afterwards. The native launcher is still windowed by default to keep the unmodified appliance touch-friendly until keyboard ownership is integrated safely.
 
+### Stage C2 — read-only native GTK3 palette probe
+
+| File | Purpose | Safety / intended use |
+| --- | --- | --- |
+| `scripts/inspect-squeekboard-gtk-cascade.py` | Connects a short-lived **invisible** GTK3/Wayland client to the existing desktop and tests the staged Midnight Blue `sq_view sq_button` text-colour rule in three contexts: automatic private `XDG_CONFIG_HOME/gtk-3.0/gtk.css` loading, explicitly registered user-priority screen CSS, and explicitly registered user-priority context CSS. The XDG override exists **only inside a disposable child process**, and the probe does not invoke Squeekboard. | **Read-only developer diagnostic.** As the Pi user: `python3 scripts/inspect-squeekboard-gtk-cascade.py --probe`. No keyboard swap, package install, system/global GTK modification, service action or window is requested. Synthetic `GtkWidgetPath` matching is not actual renderer acceptance. |
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
