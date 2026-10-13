@@ -56,8 +56,11 @@ def source_module():
 def palettes() -> dict[str, bytes]:
     """Require the entire accepted C2 stage to match freshly generated ACP CSS."""
     source = source_module()
-    expected = source.samples()
-    source.verify_stage(expected)
+    try:
+        expected = source.samples()
+        source.verify_stage(expected)
+    except (source.OverlayError, OSError, RuntimeError, ValueError) as exc:
+        raise CSSStageError("Accepted C2 stage validation failed: " + str(exc)) from exc
     if len(expected) != 23 or DEFAULT_PALETTE not in expected:
         raise CSSStageError("Expected 23 validated ACP styles including Classic Dark")
     return {name: css.encode("utf-8") for name, css in expected.items()}
