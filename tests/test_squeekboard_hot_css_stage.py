@@ -161,7 +161,7 @@ class C3PrivateHotCSSStageTests(unittest.TestCase):
         vivid = c3["midnight_blue"]
         self.assertTrue(vivid.startswith(raw))  # never edits accepted C2 bytes
         self.assertIn(b"background: #2864a0;", vivid)
-        self.assertIn(b"background: #0b2345;", vivid)
+        self.assertIn(b"background-color: #0b2345;", vivid)
         self.assertIn(b"border: 1px solid #78bfff;", vivid)
         self.assertIn(b"sq_view #Return { background: #78bfff;", vivid)
         self.assertEqual(vivid.count(b"resource:///sm/puri/squeekboard/common.css"), 1)
