@@ -238,6 +238,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_squeekboard_gtk_hot_style.py` — Checks same-context GTK CSS-provider colour reload and the independent no-invalidate CLI option.
 - `tests/test_squeekboard_hot_css_source_patch.py` — Tests the source-only candidate GTK widget CSS directory watcher, exact reversible insertions and fail-closed vendor anchors.
 - `tests/test_squeekboard_hot_css_source_audit.py` — Audits reversible C source changes, hashes, read-only diff output and incompatible/symlinked source rejection.
+- `tests/test_squeekboard_hot_css_trial.py` — Guards independent C3 180s trial/240s rescue, dual C2/C3 overlap refusal, source/binary hash gate, Classic Dark first paint, CSS env exclusion from stock restore, and safe failure paths.
 - `tests/test_squeekboard_hot_css_stage.py` — Checks C3-only 0700 private hot-CSS staging, Classic Dark default, SHA-exact 23-palette selection, atomic file replacement, refusal of unexpected changes/symlinks/hardlinks, and no C2/OSK mutation.
 - `tests/test_squeekboard_hot_css_artifact.py` — Protects the exact C3 GitHub ZIP/package/ELF SHA-256s, pinned source attestation, tamper/extra-member rejection, and read-only target-Pi ABI inspection independent of accepted C2 trial.
 - `tests/test_squeekboard_hot_css_arm64_build.py` — Guards source-hash-locked disposable C3 ARM64 candidate compilation, distinct artifacts and refusal to run off-device builder on Pi.
