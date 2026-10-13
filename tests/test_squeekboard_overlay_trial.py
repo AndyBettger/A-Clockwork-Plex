@@ -28,6 +28,72 @@ class KeyboardTrialTests(unittest.TestCase):
         self.assertEqual(self.s.TRIAL_SECONDS, 180)
         self.assertGreater(self.s.ROLLBACK_SECONDS, self.s.TRIAL_SECONDS + 15)
 
+    def test_private_uk_theme_paths_are_verified_and_opt_in_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "squeekboard-c2-uk-theme-v1"
+            root.mkdir()
+            palette = "midnight_blue"
+            generation = mock.Mock(DEST=root, styles=lambda: {palette: "css"})
+            checker = mock.Mock(generator=lambda: generation, validate=mock.Mock())
+            with mock.patch.object(self.s, "load_theme_validator", return_value=checker):
+                overrides = self.s.candidate_style_environment(palette)
+                self.assertEqual(overrides["SQUEEKBOARD_KEYBOARDSDIR"],
+                                 str(root / "keyboards"))
+                self.assertEqual(overrides["XDG_CONFIG_HOME"],
+                                 str(root / "themes" / palette))
+                checker.validate.assert_called_once()
+                with self.assertRaisesRegex(self.s.TrialError, "Unknown ACP"):
+                    self.s.candidate_style_environment("untrusted-theme")
+                self.assertEqual(checker.validate.call_count, 1)
+
+    def test_plan_checks_uk_stage_without_installing_or_interrupting(self):
+        with mock.patch.object(self.s, "check_baseline", return_value=(1484, {})), \\
+             mock.patch.object(self.s, "load_inspector") as inspector, \\
+             mock.patch.object(self.s, "unit_active", return_value=False), \\
+             mock.patch.object(self.s, "candidate_style_environment",
+                               return_value={"SQUEEKBOARD_KEYBOARDSDIR": "/safe/gb",
+                                             "XDG_CONFIG_HOME": "/safe/theme"}) as verify, \\
+             mock.patch.object(self.s, "tempfile") as temporary:
+            _pid, env, state = self.s.prepare(
+                Path("source.zip"), modify=False, uk_theme="midnight_blue"
+            )
+            self.assertIsNone(state)
+            self.assertEqual(env, {})
+            verify.assert_called_once_with("midnight_blue")
+            inspector.return_value.inspect.assert_called_once()
+            temporary.mkdtemp.assert_not_called()
+
+    def test_recovery_has_no_candidate_theme_or_keyboard_override(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            folder = root / "trial-abc"
+            folder.mkdir()
+            state_path = folder / "state.json"
+            state_path.write_text(json.dumps({
+                "schema": 1,
+                "env": {"WAYLAND_DISPLAY": "wayland-0"},
+                "trial_env": {"SQUEEKBOARD_KEYBOARDSDIR": "/trial/gb",
+                              "XDG_CONFIG_HOME": "/trial/theme"},
+                "stock_pid": 123,
+                "candidate": str(folder / "squeekboard-overlay-arm64"),
+                "stock_unit": "acp-squeekboard-stock-abc",
+            }))
+            calls = []
+            def fake_run(*args, **_kwargs):
+                calls.append(args)
+                return mock.Mock(returncode=0, stderr="")
+            with mock.patch.object(self.s, "ROOT", root), \\
+                 mock.patch.object(self.s, "read_state", return_value=json.loads(state_path.read_text())), \\
+                 mock.patch.object(self.s, "run", side_effect=fake_run), \\
+                 mock.patch.object(self.s, "candidate_pids", return_value=[]), \\
+                 mock.patch.object(self.s, "vendor_pids", side_effect=[[], [9876]]), \\
+                 mock.patch.object(self.s.time, "sleep"):
+                self.s.restore_stock(state_path, stop_trial=False)
+            command = next(c for c in calls if c[:1] == ("systemd-run",))
+            self.assertTrue(any("--setenv=WAYLAND_DISPLAY=wayland-0" in x for x in command))
+            self.assertFalse(any("SQUEEKBOARD_KEYBOARDSDIR" in x or "XDG_CONFIG_HOME" in x
+                                 for x in command))
+
     def test_plan_does_not_stage_or_start_services(self):
         with mock.patch.object(self.s, "check_baseline", return_value=(1484, {})), \
              mock.patch.object(self.s, "load_inspector") as inspector, \
