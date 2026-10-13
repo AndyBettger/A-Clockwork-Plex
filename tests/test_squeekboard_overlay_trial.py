@@ -32,7 +32,7 @@ class KeyboardTrialTests(unittest.TestCase):
             gen = mock.Mock(DEST=root, styles=lambda: {theme: "CSS"})
             checker = mock.Mock(generator=lambda: gen, validate=mock.Mock())
             resource = mock.Mock(
-                samples=lambda: {theme: "resource css"},
+                samples=mock.Mock(return_value={theme: "resource css"}),
                 verify_stage=mock.Mock(),
                 trial_override=lambda name: "/sm/puri/squeekboard=/safe/" + name,
             )
@@ -40,7 +40,7 @@ class KeyboardTrialTests(unittest.TestCase):
                  mock.patch.object(self.s, "load_resource_probe", return_value=resource):
                 unchanged = self.s.candidate_style_environment(theme)
                 self.assertNotIn("G_RESOURCE_OVERLAYS", unchanged)
-                resource.samples.assert_not_called() if isinstance(resource.samples, mock.Mock) else None
+                resource.samples.assert_not_called()
                 overridden = self.s.candidate_style_environment(
                     theme, resource_overlay=True
                 )
