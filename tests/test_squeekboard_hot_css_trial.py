@@ -40,7 +40,7 @@ class C3TimedTrialTests(unittest.TestCase):
              mock.patch.object(trial, "unit_active", return_value=False), \
              mock.patch.object(trial, "candidate_style_environment",
                                return_value={"ACP_SQUEEKBOARD_CSS_DIR": "/private"}), \
-             mock.patch.object(trial.ROOT, "mkdir") as create:
+             mock.patch.object(Path, "mkdir") as create:
             pid, env, state = trial.prepare(Path("/my/private.zip"), modify=False)
         self.assertEqual(pid, 1432)
         self.assertEqual(env["WAYLAND_DISPLAY"], "wayland-0")
