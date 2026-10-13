@@ -90,6 +90,9 @@ Agreed priority: finish the native keyboard *before* returning to the native Lin
 - [ ] **C2e physical acceptance:** Verify day selection and scheduled/previewed night, active/idle dimming, readable red astronomy, GB punctuation, signed-decimal/time, touchscreen, WayVNC, fullscreen ordering, and complete automatic rollback to the stock keyboard. Then resume native Plexamp integration.
 
 
+**13 October C2a Pi discovery:** Pi accepted vendor Squeekboard 1.43.1-1+rpt1 with hash match and one stock process. GNOME input is already `('xkb','gb')`, X11 layout `gb`, locale `en_GB.UTF-8`, GTK theme PiXonyx, and user GTK3 CSS absent. Layout-directory inventory first checked two incorrect candidate system directories; upstream `src/data/loading.rs` actually uses `/usr/share/misc/squeekboard/keyboards` by default and supports `SQUEEKBOARD_KEYBOARDSDIR` for private test layouts, with `us` fallback available as compiled resource. Fixed the read-only inventory and package YAML report. **Next diagnostic gate:** verify this precise directory/package layout inventory once on Pi. Do not change global input sources or claim GB labels without a physical YAML/browser test; the user wants ACP-selected day/night palette matching live, not an unrelated static GTK skin.
+
+
 ## Phase B — native Plexamp
 
 **Status: ACTIVE — next implementation boundary after Phase-A physical acceptance.**
