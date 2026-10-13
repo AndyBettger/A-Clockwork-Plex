@@ -45,6 +45,18 @@ class SqueekboardThemeInventoryTests(unittest.TestCase):
              mock.patch.object(Path, "is_file", return_value=True):
             self.assertIn("contents not read", inventory.gtk_css_state(Path("/tmp/gtk.css")))
 
+    def test_uses_the_real_vendor_layout_directory(self):
+        names = [str(path) for path in inventory.SYSTEM_LAYOUTS]
+        self.assertIn("/usr/share/misc/squeekboard/keyboards", names)
+        self.assertNotIn("/usr/share/misc/squeekboard/keyboards", [str(inventory.USER_LAYOUT)])
+
+    def test_missing_external_layouts_do_not_imply_no_builtin_layouts(self):
+        # The known Squeekboard resource loader embeds fallbacks in its binary.
+        text = FILE.read_text(encoding="utf-8")
+        self.assertIn("keyboard layouts may be embedded in the binary", text)
+        self.assertIn("SQUEEKBOARD_KEYBOARDSDIR", text)
+        self.assertIn('probe("dpkg-query", "-L", "squeekboard")', text)
+
     def test_reports_real_acp_palette_ids(self):
         palettes = inventory.acp_palettes()
         for name in ("classic_dark", "midnight_blue", "amber_terminal",
