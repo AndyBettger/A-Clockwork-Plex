@@ -24,6 +24,116 @@ class KeyboardTrialTests(unittest.TestCase):
     def setUp(self):
         self.s = load()
 
+    def test_resource_css_is_verified_only_for_explicit_opt_in(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "squeekboard-c2-uk-theme-v1"
+            root.mkdir()
+            theme = "midnight_blue"
+            gen = mock.Mock(DEST=root, styles=lambda: {theme: "CSS"})
+            checker = mock.Mock(generator=lambda: gen, validate=mock.Mock())
+            resource = mock.Mock(
+                samples=lambda: {theme: "resource css"},
+                verify_stage=mock.Mock(),
+                trial_override=lambda name: "/sm/puri/squeekboard=/safe/" + name,
+            )
+            with mock.patch.object(self.s, "load_theme_validator", return_value=checker), \
+                 mock.patch.object(self.s, "load_resource_probe", return_value=resource):
+                unchanged = self.s.candidate_style_environment(theme)
+                self.assertNotIn("G_RESOURCE_OVERLAYS", unchanged)
+                resource.samples.assert_not_called() if isinstance(resource.samples, mock.Mock) else None
+                overridden = self.s.candidate_style_environment(
+                    theme, resource_overlay=True
+                )
+                self.assertEqual(
+                    overridden["G_RESOURCE_OVERLAYS"],
+                    "/sm/puri/squeekboard=/safe/midnight_blue",
+                )
+                self.assertEqual(set(overridden), {
+                    "SQUEEKBOARD_KEYBOARDSDIR", "XDG_CONFIG_HOME", "G_RESOURCE_OVERLAYS"
+                })
+                resource.verify_stage.assert_called_once_with({theme: "resource css"})
+
+    def test_overlay_fail_closed_before_start_and_never_creates_trial(self):
+        with mock.patch.object(self.s, "check_baseline") as stock, \
+             mock.patch.object(self.s, "load_inspector") as elf, \
+             mock.patch.object(self.s, "tempfile") as temporary:
+            with self.assertRaisesRegex(self.s.TrialError, "requires --uk-theme"):
+                self.s.prepare(
+                    Path("artifact.zip"), modify=True, resource_overlay=True
+                )
+            stock.assert_not_called()
+            elf.assert_not_called()
+            temporary.mkdtemp.assert_not_called()
+
+    def test_resource_overlay_plan_checks_stage_before_creating_trial(self):
+        candidate_env = {
+            "SQUEEKBOARD_KEYBOARDSDIR": "/safe/layouts",
+            "XDG_CONFIG_HOME": "/safe/theme",
+            "G_RESOURCE_OVERLAYS": "/sm/puri/squeekboard=/safe/resource",
+        }
+        with mock.patch.object(self.s, "check_baseline", return_value=(111, {})), \
+             mock.patch.object(self.s, "load_inspector") as inspector, \
+             mock.patch.object(self.s, "unit_active", return_value=False), \
+             mock.patch.object(self.s, "candidate_style_environment",
+                               return_value=candidate_env) as style, \
+             mock.patch.object(self.s, "tempfile") as temporary:
+            _pid, _env, state = self.s.prepare(
+                Path("artifact.zip"), modify=False, uk_theme="midnight_blue",
+                resource_overlay=True,
+            )
+            self.assertIsNone(state)
+            style.assert_called_once_with("midnight_blue", resource_overlay=True)
+            inspector.return_value.inspect.assert_called_once()
+            temporary.mkdtemp.assert_not_called()
+
+    def test_read_state_accepts_only_matching_theme_and_resource_path(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "trials"
+            trial = root / "trial-abc"
+            trial.mkdir(parents=True)
+            state = trial / "state.json"
+            layout_root = Path(temp) / "layouts"
+            resource_root = Path(temp) / "resource"
+            theme = "midnight_blue"
+            gen = mock.Mock(DEST=layout_root, styles=lambda: {theme: "CSS"})
+            checker = mock.Mock(generator=lambda: gen)
+            resource = mock.Mock(ROOT=resource_root, RESOURCE_PREFIX="/sm/puri/squeekboard")
+            data = {
+                "schema": 1,
+                "env": {"WAYLAND_DISPLAY": "wayland-0"},
+                "stock_pid": 123,
+                "candidate": str(trial / "squeekboard-overlay-arm64"),
+                "stock_unit": "acp-squeekboard-stock-abc",
+                "trial_env": {
+                    "SQUEEKBOARD_KEYBOARDSDIR": str(layout_root / "keyboards"),
+                    "XDG_CONFIG_HOME": str(layout_root / "themes" / theme),
+                    "G_RESOURCE_OVERLAYS":
+                        "/sm/puri/squeekboard=" + str(resource_root / "palettes" / theme),
+                },
+            }
+            with mock.patch.object(self.s, "ROOT", root), \
+                 mock.patch.object(self.s, "load_theme_validator", return_value=checker), \
+                 mock.patch.object(self.s, "load_resource_probe", return_value=resource):
+                state.write_text(json.dumps(data))
+                # On restoration the private theme files may be missing. Only
+                # allowlisted paths, not CSS availability, may gate recovery.
+                self.assertEqual(
+                    self.s.read_state(state, require_candidate=False)["stock_pid"], 123
+                )
+                data["trial_env"]["G_RESOURCE_OVERLAYS"] = (
+                    "/sm/puri/squeekboard=/tmp/unapproved"
+                )
+                state.write_text(json.dumps(data))
+                with self.assertRaisesRegex(self.s.TrialError, "outside the pinned stage"):
+                    self.s.read_state(state, require_candidate=False)
+                data["trial_env"]["G_RESOURCE_OVERLAYS"] = (
+                    "/sm/puri/squeekboard=" + str(resource_root / "palettes" / theme)
+                )
+                data["trial_env"]["XDG_CONFIG_HOME"] = str(layout_root / "themes" / "classic_dark")
+                state.write_text(json.dumps(data))
+                with self.assertRaises(self.s.TrialError):
+                    self.s.read_state(state, require_candidate=False)
+
     def test_timeout_is_bounded_and_backup_outlasts_trial(self):
         self.assertEqual(self.s.TRIAL_SECONDS, 180)
         self.assertGreater(self.s.ROLLBACK_SECONDS, self.s.TRIAL_SECONDS + 15)
@@ -73,7 +183,9 @@ class KeyboardTrialTests(unittest.TestCase):
                 "schema": 1,
                 "env": {"WAYLAND_DISPLAY": "wayland-0"},
                 "trial_env": {"SQUEEKBOARD_KEYBOARDSDIR": "/trial/gb",
-                              "XDG_CONFIG_HOME": "/trial/theme"},
+                              "XDG_CONFIG_HOME": "/trial/theme",
+                              "G_RESOURCE_OVERLAYS":
+                                  "/sm/puri/squeekboard=/trial/resource"},
                 "stock_pid": 123,
                 "candidate": str(folder / "squeekboard-overlay-arm64"),
                 "stock_unit": "acp-squeekboard-stock-abc",
@@ -91,8 +203,10 @@ class KeyboardTrialTests(unittest.TestCase):
                 self.s.restore_stock(state_path, stop_trial=False)
             command = next(c for c in calls if c[:1] == ("systemd-run",))
             self.assertTrue(any("--setenv=WAYLAND_DISPLAY=wayland-0" in x for x in command))
-            self.assertFalse(any("SQUEEKBOARD_KEYBOARDSDIR" in x or "XDG_CONFIG_HOME" in x
-                                 for x in command))
+            self.assertFalse(any(
+                "SQUEEKBOARD_KEYBOARDSDIR" in x or "XDG_CONFIG_HOME" in x
+                or "G_RESOURCE_OVERLAYS" in x for x in command
+            ))
 
     def test_plan_does_not_stage_or_start_services(self):
         with mock.patch.object(self.s, "check_baseline", return_value=(1484, {})), \
