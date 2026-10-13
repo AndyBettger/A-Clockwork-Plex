@@ -47,12 +47,12 @@ class KeyboardTrialTests(unittest.TestCase):
                 self.assertEqual(checker.validate.call_count, 1)
 
     def test_plan_checks_uk_stage_without_installing_or_interrupting(self):
-        with mock.patch.object(self.s, "check_baseline", return_value=(1484, {})), \\
-             mock.patch.object(self.s, "load_inspector") as inspector, \\
-             mock.patch.object(self.s, "unit_active", return_value=False), \\
+        with mock.patch.object(self.s, "check_baseline", return_value=(1484, {})), \
+             mock.patch.object(self.s, "load_inspector") as inspector, \
+             mock.patch.object(self.s, "unit_active", return_value=False), \
              mock.patch.object(self.s, "candidate_style_environment",
                                return_value={"SQUEEKBOARD_KEYBOARDSDIR": "/safe/gb",
-                                             "XDG_CONFIG_HOME": "/safe/theme"}) as verify, \\
+                                             "XDG_CONFIG_HOME": "/safe/theme"}) as verify, \
              mock.patch.object(self.s, "tempfile") as temporary:
             _pid, env, state = self.s.prepare(
                 Path("source.zip"), modify=False, uk_theme="midnight_blue"
@@ -82,11 +82,11 @@ class KeyboardTrialTests(unittest.TestCase):
             def fake_run(*args, **_kwargs):
                 calls.append(args)
                 return mock.Mock(returncode=0, stderr="")
-            with mock.patch.object(self.s, "ROOT", root), \\
-                 mock.patch.object(self.s, "read_state", return_value=json.loads(state_path.read_text())), \\
-                 mock.patch.object(self.s, "run", side_effect=fake_run), \\
-                 mock.patch.object(self.s, "candidate_pids", return_value=[]), \\
-                 mock.patch.object(self.s, "vendor_pids", side_effect=[[], [9876]]), \\
+            with mock.patch.object(self.s, "ROOT", root), \
+                 mock.patch.object(self.s, "read_state", return_value=json.loads(state_path.read_text())), \
+                 mock.patch.object(self.s, "run", side_effect=fake_run), \
+                 mock.patch.object(self.s, "candidate_pids", return_value=[]), \
+                 mock.patch.object(self.s, "vendor_pids", side_effect=[[], [9876]]), \
                  mock.patch.object(self.s.time, "sleep"):
                 self.s.restore_stock(state_path, stop_trial=False)
             command = next(c for c in calls if c[:1] == ("systemd-run",))
