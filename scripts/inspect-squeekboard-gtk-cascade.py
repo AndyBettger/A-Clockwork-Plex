@@ -56,6 +56,7 @@ def child(css: Path, expected: str) -> int:
     try:
         import gi
         gi.require_version("Gtk", "3.0")
+        gi.require_version("Gdk", "3.0")
         from gi.repository import Gdk, Gtk
     except (ImportError, ValueError, RuntimeError) as exc:
         print("GTK3 Python bindings unavailable:", exc)
