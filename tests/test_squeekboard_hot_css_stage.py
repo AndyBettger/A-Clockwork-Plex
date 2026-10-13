@@ -137,6 +137,64 @@ class C3PrivateHotCSSStageTests(unittest.TestCase):
                 stage.palettes()
         fake_source.verify_stage.assert_called_once()
 
+    def test_c3_midnight_blue_is_visibly_distinct_but_c2_unchanged(self):
+        """C3-only stronger blue keys; retain exact upstream resource import."""
+        raw = (
+            COM + "sq_view { background-color: #06101f; color: #eef7ff; }\n"
+            + "sq_view sq_button { background: rgba(20, 49, 77, 0.82); }\n"
+        ).encode()
+        palette_samples = {f"other_{i}": "immutable" for i in range(21)}
+        palette_samples.update({
+            "classic_dark": (COM + "sq_view { color: #ffffff; }\n"),
+            "midnight_blue": raw.decode(),
+        })
+        validator = mock.Mock()
+        validator.samples.return_value = palette_samples
+        with mock.patch.object(stage, "source_module", return_value=validator):
+            c3 = stage.palettes()
+        validator.verify_stage.assert_called_once_with(palette_samples)
+        self.assertEqual(len(c3), 23)
+        self.assertEqual(c3["classic_dark"], palette_samples["classic_dark"].encode())
+        for name, original in palette_samples.items():
+            if name != "midnight_blue":
+                self.assertEqual(c3[name], original.encode())
+        vivid = c3["midnight_blue"]
+        self.assertTrue(vivid.startswith(raw))  # never edits accepted C2 bytes
+        self.assertIn(b"background: #2864a0;", vivid)
+        self.assertIn(b"background: #0b2345;", vivid)
+        self.assertIn(b"border: 1px solid #78bfff;", vivid)
+        self.assertIn(b"sq_view #Return { background: #78bfff;", vivid)
+        self.assertEqual(vivid.count(b"resource:///sm/puri/squeekboard/common.css"), 1)
+        # The new fill must be MUCH more blue/bright than the former muted key.
+        old = (20, 49, 77)
+        new = (0x28, 0x64, 0xa0)
+        self.assertGreater(sum(abs(a - b) for a, b in zip(old, new)), 130)
+        self.assertNotIn(b"ACP C3 candidate-only", raw)
+
+    def test_c3_midnight_blue_fails_closed_on_changed_source(self):
+        good = (
+            COM + "sq_view { background-color: #06101f; color: #eef7ff; }\n"
+        ).encode()
+        for bad in (
+            good.replace(b"#06101f", b"#000000"),
+            good.replace(b"common.css", b"other.css"),
+            good + good,
+            stage.c3_midnight_blue(good),
+        ):
+            with self.subTest(bad=bad[:70]), \
+                 self.assertRaisesRegex(stage.CSSStageError, "source changed"):
+                stage.c3_midnight_blue(bad)
+
+    def test_c3_vivid_palette_matches_accepted_acp_midnight_tokens(self):
+        daytime = (ROOT / "app/static/css/daytime-themes.css").read_text()
+        self.assertIn('html[data-daytime-theme="midnight_blue"]', daytime)
+        self.assertIn("--accent: #78bfff;", daytime)
+        self.assertIn("--acp-theme-bg-start: #16385f;", daytime)
+        self.assertIn("--text: #eef7ff;", daytime)
+        self.assertIn(b"#78bfff", stage.MIDNIGHT_BLUE_C3_TUNING)
+        self.assertIn(b"#16385f", stage.MIDNIGHT_BLUE_C3_TUNING)
+
+
     def test_only_future_candidate_process_receives_environment_strings(self):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(stage, "ROOT", Path(tmp) / "cache" / "c3"):
