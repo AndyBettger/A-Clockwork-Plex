@@ -54,11 +54,40 @@ def load_theme_validator():
     return module
 
 
-def candidate_style_environment(theme: str) -> dict[str, str]:
-    """Check exact pinned staged files before touching the stock keyboard.
+def load_resource_probe():
+    path = Path(__file__).resolve().with_name("probe-squeekboard-resource-overlay.py")
+    spec = importlib.util.spec_from_file_location("acp_c2_resource_probe", path)
+    if not spec or not spec.loader:
+        raise TrialError("GLib resource overlay inspector is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-    Do not export either variable to the recovery service; only to the
-    separately verified experimental ELF, using a single selected palette.
+
+def verified_resource_override(theme: str) -> str:
+    """Prove all private CSS bytes before the trial's timer/stock handover.
+
+    This is a *candidate-only* environment override, never a stock OSK change.
+    No resource files are created or modified by the trial controller.
+    """
+    probe = load_resource_probe()
+    try:
+        expected = probe.samples()
+        if theme not in expected:
+            raise TrialError("Unknown ACP Squeekboard resource palette")
+        probe.verify_stage(expected)
+        return probe.trial_override(theme)
+    except (probe.OverlayError, OSError, ValueError) as exc:
+        raise TrialError("GLib resource overlay stage verification failed: " + str(exc)) from exc
+
+
+def candidate_style_environment(
+    theme: str, *, resource_overlay: bool = False
+) -> dict[str, str]:
+    """Verify pinned layouts and theme; pass overrides ONLY to candidate ELF.
+
+    The stock-restoration unit receives the original desktop environment and
+    must never receive XDG, GB-keymap or G_RESOURCE_OVERLAYS trial overrides.
     """
     checker = load_theme_validator()
     gen = checker.generator()
@@ -71,10 +100,13 @@ def candidate_style_environment(theme: str) -> dict[str, str]:
     root = gen.DEST.resolve(strict=True)
     if root.is_symlink() or not root.is_dir():
         raise TrialError("Unsafe Stage C2 root")
-    return {
+    result = {
         "SQUEEKBOARD_KEYBOARDSDIR": str(root / "keyboards"),
         "XDG_CONFIG_HOME": str(root / "themes" / theme),
     }
+    if resource_overlay:
+        result["G_RESOURCE_OVERLAYS"] = verified_resource_override(theme)
+    return result
 
 
 def run(*args: str, check: bool = False, timeout: int = 15) -> subprocess.CompletedProcess[str]:
@@ -159,12 +191,20 @@ def verify_candidate(path: Path) -> None:
         raise TrialError("Candidate executable missing or hash mismatch")
 
 
-def prepare(archive: Path, *, modify: bool, uk_theme: str | None = None) -> tuple[int, dict[str, str], Path | None]:
+def prepare(
+    archive: Path, *, modify: bool, uk_theme: str | None = None,
+    resource_overlay: bool = False,
+) -> tuple[int, dict[str, str], Path | None]:
+    if resource_overlay and not uk_theme:
+        raise TrialError("Resource overlay requires --uk-theme")
     pid, env = check_baseline()
     load_inspector().inspect(archive)
     if unit_active(TRIAL_UNIT + ".service") or unit_active(ROLLBACK_UNIT + ".timer"):
         raise TrialError("A trial or rescue timer is already running; refusing to overlap")
-    trial_env = candidate_style_environment(uk_theme) if uk_theme else {}
+    if resource_overlay:
+        trial_env = candidate_style_environment(uk_theme, resource_overlay=True)
+    else:
+        trial_env = candidate_style_environment(uk_theme) if uk_theme else {}
     if not modify:
         return pid, env, None
     ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -198,8 +238,10 @@ def read_state(path: Path, *, require_candidate: bool = True) -> dict:
     if value.get("schema") != 1 or not isinstance(value.get("env"), dict):
         raise TrialError("Invalid trial state")
     overrides = value.get("trial_env", {})
+    old_keys = {"SQUEEKBOARD_KEYBOARDSDIR", "XDG_CONFIG_HOME"}
+    new_keys = old_keys | {"G_RESOURCE_OVERLAYS"}
     if not isinstance(overrides, dict) or set(overrides) not in (
-        set(), {"SQUEEKBOARD_KEYBOARDSDIR", "XDG_CONFIG_HOME"}
+        set(), old_keys, new_keys
     ):
         raise TrialError("Invalid candidate-only keyboard theme environment")
     if overrides:
@@ -212,6 +254,24 @@ def read_state(path: Path, *, require_candidate: bool = True) -> dict:
             overrides.get("XDG_CONFIG_HOME") not in palettes
         ):
             raise TrialError("Candidate keyboard paths are outside the pinned stage")
+        if "G_RESOURCE_OVERLAYS" in overrides:
+            # The independent rescue must remain possible even when test CSS
+            # disappears; validate only a fixed allowlisted string here, never
+            # read private files from the rescue/restore path.
+            probe = load_resource_probe()
+            allowed = {
+                probe.RESOURCE_PREFIX + "=" + str(probe.ROOT / "palettes" / name)
+                for name in gen.styles()
+            }
+            if overrides["G_RESOURCE_OVERLAYS"] not in allowed:
+                raise TrialError("Candidate resource overlay is outside the pinned stage")
+            selected = overrides["XDG_CONFIG_HOME"]
+            selected_name = Path(selected).name
+            if overrides["G_RESOURCE_OVERLAYS"] != (
+                probe.RESOURCE_PREFIX + "=" +
+                str(probe.ROOT / "palettes" / selected_name)
+            ):
+                raise TrialError("Resource overlay and GTK palette differ")
     candidate = Path(value.get("candidate", ""))
     if candidate != path.parent / "squeekboard-overlay-arm64":
         raise TrialError("Candidate must be in same isolated trial folder")
@@ -314,8 +374,14 @@ def worker(state_path: Path) -> None:
         restore_stock(state_path, stop_trial=False)
 
 
-def start(archive: Path, *, uk_theme: str | None = None) -> None:
-    _, env, state_path = prepare(archive, modify=True, uk_theme=uk_theme)
+def start(
+    archive: Path, *, uk_theme: str | None = None,
+    resource_overlay: bool = False,
+) -> None:
+    _, env, state_path = prepare(
+        archive, modify=True, uk_theme=uk_theme,
+        resource_overlay=resource_overlay,
+    )
     assert state_path is not None
     script = str(Path(__file__).resolve())
     # Rescue timer is independent of trial service AND SSH.
@@ -357,20 +423,35 @@ def main() -> int:
         "--uk-theme", metavar="PALETTE",
         help="Use verified private British YAML and this ACP palette ONLY in experimental OSK",
     )
+    parser.add_argument(
+        "--resource-overlay", action="store_true",
+        help="Opt-in verified private GResource CSS ONLY for experimental OSK; "
+             "requires --uk-theme and --plan/--start",
+    )
     args = parser.parse_args()
     try:
         if args.uk_theme and not (args.plan or args.start):
             raise TrialError("--uk-theme is only allowed with --plan or --start")
+        if args.resource_overlay and (not args.uk_theme or not (args.plan or args.start)):
+            raise TrialError("--resource-overlay requires --uk-theme and --plan/--start")
         if args.plan:
-            prepare(args.plan, modify=False, uk_theme=args.uk_theme)
+            prepare(
+                args.plan, modify=False, uk_theme=args.uk_theme,
+                resource_overlay=args.resource_overlay,
+            )
             print("PLAN PASS: stock OSK and verified artifact present; user timer manager available.")
             print(f"Test: {TRIAL_SECONDS}s; separate systemd rescue timer: {ROLLBACK_SECONDS}s.")
             print("No keyboard/process/configuration changes made.")
             if args.uk_theme:
                 print("UK keyboards and ACP palette verified: " + args.uk_theme)
                 print("Only the experimental OSK would receive override paths.")
+            if args.resource_overlay:
+                print("PRIVATE GLib resource CSS: VERIFIED (candidate only; no system or stock changes).")
         elif args.start:
-            start(args.start, uk_theme=args.uk_theme)
+            start(
+                args.start, uk_theme=args.uk_theme,
+                resource_overlay=args.resource_overlay,
+            )
         elif args.worker:
             worker(args.worker)
         else:
