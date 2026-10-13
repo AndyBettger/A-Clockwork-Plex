@@ -52,8 +52,21 @@ def layout(source: str, filename: str) -> str:
                           "@ # £ % & - _ + ( )", filename)
     source = replace_once(source, "© ® £ € ¥ ^ ° * { }",
                           "© ® $ € ¥ ^ ° * { }", filename)
-    if '\\"' not in source or "colon:" not in source:
-        raise StagingError("Quotation/colon key absent in " + filename)
+    # Pi-packaged YAML may omit a separate `buttons: colon:` definition:
+    # the `colon` key in the symbol view can resolve through its keysym.
+    # Validate the actual visible row instead of requiring an optional
+    # mapping definition. Fail closed if any required punctuation is missing.
+    symbol_rows = [line for line in source.splitlines()
+                   if "show_symbols" in line and "BackSpace" in line]
+    if len(symbol_rows) != 1:
+        raise StagingError("Expected one quotation/colon symbols row in " + filename)
+    row = symbol_rows[0]
+    if "colon" not in row.split():
+        raise StagingError("Colon key missing from symbols row in " + filename)
+    if "'" not in row.split():
+        raise StagingError("Apostrophe key missing from symbols row in " + filename)
+    if r'\\"' not in row and "quotedbl" not in row.split():
+        raise StagingError("Double-quote key missing from symbols row in " + filename)
     return source
 
 
