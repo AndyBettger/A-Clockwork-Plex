@@ -78,6 +78,12 @@ These files are source material for installed services, restricted helpers or ap
 | --- | --- | --- |
 | `scripts/inspect-squeekboard-gtk-cascade.py` | Connects a short-lived **invisible** GTK3/Wayland client to the existing desktop and tests the staged Midnight Blue `sq_view sq_button` text-colour rule in three contexts: automatic private `XDG_CONFIG_HOME/gtk-3.0/gtk.css` loading, explicitly registered user-priority screen CSS, and explicitly registered user-priority context CSS. The XDG override exists **only inside a disposable child process**, and the probe does not invoke Squeekboard. | **Read-only developer diagnostic.** As the Pi user: `python3 scripts/inspect-squeekboard-gtk-cascade.py --probe`. No keyboard swap, package install, system/global GTK modification, service action or window is requested. Synthetic `GtkWidgetPath` matching is not actual renderer acceptance. |
 
+### Stage C2 — candidate-local GResource palette styling
+
+| File | Purpose | Safety / intended use |
+| --- | --- | --- |
+| `scripts/probe-squeekboard-resource-overlay.py` | Create a *private non-overwriting* cache of all 23 exact ACP stylesheet samples as alternative `/sm/puri/squeekboard/style.css` resources, with the vendor `common.css` import left intact. `--probe` verifies in a separate Gio client that `G_RESOURCE_OVERLAYS` substitutes the requested resource and preserves its exact contents without requiring or invoking the keyboard. | **Offline developer trial.** `--plan` verifies pinned theme stage and checks destination; `--stage` writes **only** a new private cache tree; `--probe` verifies the existing stage using a child-only environment override, never system GTK. No keyboard process, service, package, desktop, audio, Headless or NFC change. Do not use an OSK resource overlay until the Pi's probe passes and the guarded trial controller is explicitly updated. |
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
