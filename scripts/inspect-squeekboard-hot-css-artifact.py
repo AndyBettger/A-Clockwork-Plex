@@ -113,7 +113,7 @@ def checked_archive(artifact: Path) -> dict[str, bytes]:
     for term in (
         "C3 hot-CSS candidate only. NEVER install this .deb on the commissioned Pi.",
         "Architecture: arm64", "Version: " + EXPECTED_VERSION,
-        "SHA-256",
+        "Hash of new C3 candidate .deb and ELF:",
         EXPECTED_FILES["squeekboard-c3-hot-css-arm64"][1],
         EXPECTED_FILES["squeekboard-c3-hot-css-arm64.deb"][1],
     ):
