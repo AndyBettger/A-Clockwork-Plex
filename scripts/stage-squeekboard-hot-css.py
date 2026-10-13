@@ -53,6 +53,37 @@ def source_module():
     return result
 
 
+
+# The accepted C2 styles are immutable and must continue to validate byte for
+# byte. This is a C3-ONLY, additive visual tuning of Midnight Blue based on the
+# established ACP daytime palette: deep blue background, brighter blue keys,
+# and the exact ACP accent. The original common.css resource import remains.
+# Other 22 palette bytes, including Classic Dark, are left untouched.
+MIDNIGHT_BLUE_SOURCE_ANCHOR = (
+    b"sq_view { background-color: #06101f; color: #eef7ff; }\\n"
+)
+MIDNIGHT_BLUE_C3_TUNING = (
+    b"\\n/* ACP C3 candidate-only Midnight Blue contrast tuning; not C2/global GTK */\\n"
+    b"sq_view { background-color: #0b2345; color: #eef7ff; }\\n"
+    b"sq_view sq_button { background: #2864a0; color: #eef7ff; "
+    b"border: 1px solid #78bfff; border-radius: 6px; }\\n"
+    b"sq_view sq_button.special, sq_view sq_button.altline, "
+    b"sq_view sq_button.wide { background: #16385f; color: #eef7ff; }\\n"
+    b"sq_view sq_button:active, sq_view sq_button.locked, "
+    b"sq_view sq_button.latched { background: #b9e0ff; color: #06101f; }\\n"
+    b"sq_view #Return { background: #78bfff; color: #06101f; }\\n"
+)
+
+
+def c3_midnight_blue(accepted: bytes) -> bytes:
+    """Enhance only the verified ACP Midnight Blue C2 source, never overwrite it."""
+    if (not isinstance(accepted, bytes)
+            or accepted.count(MIDNIGHT_BLUE_SOURCE_ANCHOR) != 1
+            or b"@import url(\\\"resource:///sm/puri/squeekboard/common.css\\\");\\n" not in accepted
+            or b"ACP C3 candidate-only Midnight Blue" in accepted):
+        raise CSSStageError("Accepted Midnight Blue source changed; refusing C3 tuning")
+    return accepted + MIDNIGHT_BLUE_C3_TUNING
+
 def palettes() -> dict[str, bytes]:
     """Require the entire accepted C2 stage to match freshly generated ACP CSS."""
     source = source_module()
@@ -63,7 +94,9 @@ def palettes() -> dict[str, bytes]:
         raise CSSStageError("Accepted C2 stage validation failed: " + str(exc)) from exc
     if len(expected) != 23 or DEFAULT_PALETTE not in expected:
         raise CSSStageError("Expected 23 validated ACP styles including Classic Dark")
-    return {name: css.encode("utf-8") for name, css in expected.items()}
+    output = {name: css.encode("utf-8") for name, css in expected.items()}
+    output["midnight_blue"] = c3_midnight_blue(output["midnight_blue"])
+    return output
 
 
 def _directory(path: Path, *, private: bool = False) -> None:
