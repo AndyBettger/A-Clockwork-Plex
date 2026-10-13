@@ -230,6 +230,15 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 ### Plexamp and NFC
 
+- `tests/test_squeekboard_resource_overlay.py` — Guards private GResource stylesheet inventory, overlay mapping verification, symlink refusal and candidate-only CSS injection.
+- `tests/test_squeekboard_gtk_cascade.py` — Proves the isolated GTK3 CSS cascade probe uses synthetic key contexts and never alters Squeekboard or global GTK.
+- `tests/test_squeekboard_compact_number.py` — Guards private centred British numeric layout, symmetric margins, seven exact files and accepted v1 preservation.
+- `tests/test_squeekboard_acp_theme_contract.py` — Checks Classic Dark fallback and all 23 existing ACP day/classic-night/astronomy-night palette selections.
+- `tests/test_squeekboard_live_css_lookup.py` — Guards disposable same-process GLib resource relookup and atomic stylesheet replacement without contacting the OSK.
+- `tests/test_squeekboard_gtk_hot_style.py` — Checks same-context GTK CSS-provider colour reload and the independent no-invalidate CLI option.
+- `tests/test_squeekboard_hot_css_source_patch.py` — Tests the source-only candidate GTK widget CSS directory watcher, exact reversible insertions and fail-closed vendor anchors.
+- `tests/test_squeekboard_hot_css_source_audit.py` — Audits reversible C source changes, hashes, read-only diff output and incompatible/symlinked source rejection.
+- `tests/test_squeekboard_hot_css_ci_audit.py` — Restricts real Debian source audit to ARM64 disposable GitHub CI, separated from the accepted executable builder.
 - `tests/test_squeekboard_uk_theme_validation.py` — Guards read-only post-stage candidate/manifests, expected layouts and palette contents, symlink/tamper rejection, and optional parser disclosure without installing packages or changing OSK state.
 - `tests/test_squeekboard_uk_theme_stage.py` — Checks vendor-keymap GBP, apostrophe/quote, signed-decimal and time symbols; ACP-derived palette/night CSS; private staging/overwrite refusal and absence of runtime keyboard commands.
 - `tests/test_squeekboard_theme_inventory.py` — Proves the UK/theme preflight only invokes read-only process/package/GSettings commands, reports known layout filenames without reading private file contents, and lists ACP's actual day palette identifiers.
