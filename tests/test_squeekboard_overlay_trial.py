@@ -134,6 +134,162 @@ class KeyboardTrialTests(unittest.TestCase):
                 with self.assertRaises(self.s.TrialError):
                     self.s.read_state(state, require_candidate=False)
 
+    def test_compact_layout_explicitly_requires_both_theme_flags(self):
+        with mock.patch.object(self.s, "check_baseline") as baseline, \
+             mock.patch.object(self.s, "load_inspector") as inspector, \
+             mock.patch.object(self.s, "tempfile") as temporary:
+            for kwargs in (
+                {"compact_number": True},
+                {"compact_number": True, "uk_theme": "midnight_blue"},
+                {"compact_number": True, "resource_overlay": True},
+            ):
+                with self.subTest(kwargs=kwargs), \
+                     self.assertRaisesRegex(self.s.TrialError, "requires both"):
+                    self.s.prepare(Path("candidate.zip"), modify=True, **kwargs)
+            baseline.assert_not_called()
+            inspector.assert_not_called()
+            temporary.mkdtemp.assert_not_called()
+
+    def test_compact_candidate_only_and_accepted_v1_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "stable"
+            root.mkdir()
+            compact_path = str(Path(tmp) / "compact/keyboards")
+            theme = "midnight_blue"
+            generator = mock.Mock(DEST=root, styles=lambda: {theme: "CSS"})
+            checker = mock.Mock(generator=lambda: generator, validate=mock.Mock())
+            with mock.patch.object(self.s, "load_theme_validator", return_value=checker), \
+                 mock.patch.object(self.s, "verified_resource_override",
+                                   return_value="/sm/puri/squeekboard=/private/theme"), \
+                 mock.patch.object(self.s, "verified_compact_keyboard_dir",
+                                   return_value=compact_path) as compact:
+                accepted = self.s.candidate_style_environment(
+                    theme, resource_overlay=True
+                )
+                compact.assert_not_called()
+                self.assertEqual(
+                    accepted["SQUEEKBOARD_KEYBOARDSDIR"], str(root / "keyboards")
+                )
+                alternative = self.s.candidate_style_environment(
+                    theme, resource_overlay=True, compact_number=True
+                )
+                compact.assert_called_once_with()
+                self.assertEqual(
+                    alternative["SQUEEKBOARD_KEYBOARDSDIR"], compact_path
+                )
+                self.assertEqual(
+                    alternative["XDG_CONFIG_HOME"], accepted["XDG_CONFIG_HOME"]
+                )
+                self.assertEqual(
+                    alternative["G_RESOURCE_OVERLAYS"],
+                    accepted["G_RESOURCE_OVERLAYS"],
+                )
+                with self.assertRaisesRegex(self.s.TrialError, "requires resource-overlay"):
+                    self.s.candidate_style_environment(theme, compact_number=True)
+
+    def test_compact_private_files_must_verify_before_trial_creates_state(self):
+        compact = mock.Mock()
+        compact.CompactError = type("CompactError", (Exception,), {})
+        compact.input_layouts.return_value = {"number/gb.yaml": "original"}
+        compact.expected_layouts.return_value = (
+            {"number/gb.yaml": "modified"}, 356.57, 160.456
+        )
+        compact.ROOT = Path("/private/compact")
+        compact.verify.side_effect = compact.CompactError("tampered")
+        with mock.patch.object(self.s, "load_compact_number_stage", return_value=compact):
+            with self.assertRaisesRegex(self.s.TrialError, "verification failed"):
+                self.s.verified_compact_keyboard_dir()
+        compact.verify.assert_called_once()
+
+    def test_compact_plan_is_read_only_and_uses_compact_environment(self):
+        env = {
+            "SQUEEKBOARD_KEYBOARDSDIR": "/private/compact/keyboards",
+            "XDG_CONFIG_HOME": "/private/accepted/themes/midnight_blue",
+            "G_RESOURCE_OVERLAYS": "/sm/puri/squeekboard=/private/css/midnight_blue",
+        }
+        with mock.patch.object(self.s, "check_baseline", return_value=(123, {})), \
+             mock.patch.object(self.s, "load_inspector") as inspector, \
+             mock.patch.object(self.s, "unit_active", return_value=False), \
+             mock.patch.object(self.s, "candidate_style_environment",
+                               return_value=env) as candidate, \
+             mock.patch.object(self.s, "tempfile") as temporary:
+            pid, baseline, state = self.s.prepare(
+                Path("candidate.zip"), modify=False, uk_theme="midnight_blue",
+                resource_overlay=True, compact_number=True,
+            )
+            self.assertEqual(pid, 123)
+            self.assertEqual(baseline, {})
+            self.assertIsNone(state)
+            candidate.assert_called_once_with(
+                "midnight_blue", resource_overlay=True, compact_number=True
+            )
+            inspector.return_value.inspect.assert_called_once()
+            temporary.mkdtemp.assert_not_called()
+
+    def test_state_allows_compact_with_matching_palette_without_needing_stage_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "trial-root"
+            trial = root / "trial-test123"
+            trial.mkdir(parents=True)
+            state_path = trial / "state.json"
+            stable_root = Path(temp) / "stable"
+            compact_root = Path(temp) / "compact-not-on-disk"
+            resource_root = Path(temp) / "resource"
+            generation = mock.Mock(
+                DEST=stable_root, styles=lambda: {"midnight_blue": "css"}
+            )
+            theme_checker = mock.Mock(generator=lambda: generation)
+            compact = mock.Mock(ROOT=compact_root)
+            resource = mock.Mock(
+                ROOT=resource_root, RESOURCE_PREFIX="/sm/puri/squeekboard"
+            )
+            data = {
+                "schema": 1,
+                "stock_pid": 123,
+                "env": {"WAYLAND_DISPLAY": "wayland-0"},
+                "candidate": str(trial / "squeekboard-overlay-arm64"),
+                "stock_unit": "acp-squeekboard-stock-test123",
+                "trial_env": {
+                    "SQUEEKBOARD_KEYBOARDSDIR": str(compact_root / "keyboards"),
+                    "XDG_CONFIG_HOME": str(stable_root / "themes/midnight_blue"),
+                    "G_RESOURCE_OVERLAYS": "/sm/puri/squeekboard=" +
+                        str(resource_root / "palettes/midnight_blue"),
+                },
+            }
+            with mock.patch.object(self.s, "ROOT", root), \
+                 mock.patch.object(self.s, "load_theme_validator",
+                                   return_value=theme_checker), \
+                 mock.patch.object(self.s, "load_compact_number_stage",
+                                   return_value=compact), \
+                 mock.patch.object(self.s, "load_resource_probe",
+                                   return_value=resource):
+                state_path.write_text(json.dumps(data))
+                self.assertEqual(
+                    self.s.read_state(state_path, require_candidate=False)["stock_pid"],
+                    123,
+                )
+                compact.verify.assert_not_called()
+                data["trial_env"].pop("G_RESOURCE_OVERLAYS")
+                state_path.write_text(json.dumps(data))
+                with self.assertRaisesRegex(self.s.TrialError, "candidate-only CSS"):
+                    self.s.read_state(state_path, require_candidate=False)
+                data["trial_env"]["G_RESOURCE_OVERLAYS"] = (
+                    "/sm/puri/squeekboard=" +
+                    str(resource_root / "palettes/midnight_blue")
+                )
+                data["trial_env"]["SQUEEKBOARD_KEYBOARDSDIR"] = "/tmp/untrusted"
+                state_path.write_text(json.dumps(data))
+                with self.assertRaisesRegex(self.s.TrialError, "outside the pinned stage"):
+                    self.s.read_state(state_path, require_candidate=False)
+
+    def test_compact_test_does_not_modify_trial_timeouts_or_stock_recovery(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("TRIAL_SECONDS = 180", source)
+        self.assertIn("ROLLBACK_SECONDS = 240", source)
+        self.assertIn('parser.add_argument(\n        "--compact-number"', source)
+        self.assertNotIn("dpkg -i", source)
+        self.assertNotIn("apt-get install", source)
+
     def test_timeout_is_bounded_and_backup_outlasts_trial(self):
         self.assertEqual(self.s.TRIAL_SECONDS, 180)
         self.assertGreater(self.s.ROLLBACK_SECONDS, self.s.TRIAL_SECONDS + 15)
