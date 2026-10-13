@@ -120,6 +120,14 @@ Pi proved `scripts/probe-squeekboard-gtk-hot-style.py --probe` reloads an alread
 
 **CLI correction for Stage C3 `--without-invalidate`:** the earlier version of the synthetic GTK test incorrectly made `--probe` and `--without-invalidate` mutually exclusive, producing an immediate argparse error despite 8/8 unit tests passing on Pi. This is fixed by defining `--probe`/internal `--_child` as alternative operations and `--without-invalidate` as an independent option. `tests/test_squeekboard_gtk_hot_style.py` now adds two real-argument-parsing regressions with mocked process/child execution (**10 tests**). Rerun those tests before `python3 scripts/probe-squeekboard-gtk-hot-style.py --probe --without-invalidate`. This is still a disposable synthetic-process resource/style-context test, not a running keyboard change; physical result PENDING.
 
+### Stage C3 — candidate-only Squeekboard widget CSS watcher (SOURCE PROTOTYPE)
+
+The commissioned Pi passed **10/10** GTK hot CSS tests, and the disposable Wayland synthetic key context changed computed colours #123456 → #abcdef when the **same provider** loaded the changed resource *without* calling deprecated Gtk.StyleContext.invalidate. The next pure source-only experiment is `scripts/ci/patch-squeekboard-hot-css.py`; it is **not executed, built, installed, imported or staged** by the previously accepted CI builder or Pi trial script. Its `patch_keyboard_source()` transforms only a **known-shaped** `eek/eek-gtk-keyboard.c` snippet for a *future disposable CI compilation*. In the future candidate, opt-in `ACP_SQUEEKBOARD_CSS_DIR` would watch a **private, writable trial-only CSS directory** (not any accepted readonly staged palette), respond to atomic `style.css` swap on GTK's own main loop, reload the current GtkCssProvider from its GResource overlay and queue a redraw of the existing widget, with safe watcher cleanup on disposal. No OSK restart, layout replacement or GTK global setting changes. Test only the source helper for now:
+
+`python3 -m unittest discover -s tests -p 'test_squeekboard_hot_css_source_patch.py' -v`
+
+Seven safety tests should pass. Actual pinned Debian vendor source compatibility/compilation and UI repaint are **not verified**. Do NOT execute the helper as an installer; it has no apply/deploy CLI. The accepted v1 static ARM64 ELF, private compact UK layout, 23 theme styles and independent 180/240-second rescue remain unmodified. Next engineer separate disposable CI integration and a trial-only writable CSS copy; never edit the accepted staged resources to force a theme change.
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
