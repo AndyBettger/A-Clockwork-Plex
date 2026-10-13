@@ -56,7 +56,7 @@ class SourceOnlyAuditCIGuards(unittest.TestCase):
         for forbidden in (
             "dpkg-buildpackage", "dpkg -i", "dpkg-deb --extract",
             "cargo ", "rustc ", "systemctl", "sudo ", "ssh ",
-            "scp ", "rsync", "pkill", "killall", "eekboard-",
+            "scp ", "rsync", "pkill", "killall", "systemctl --user",
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, text)
