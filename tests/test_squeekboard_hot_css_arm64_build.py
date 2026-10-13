@@ -15,6 +15,7 @@ HELPER = ROOT / "scripts/ci/apply-squeekboard-hot-css-build-patch.py"
 BUILDER = ROOT / "scripts/ci/build-squeekboard-hot-css-arm64.sh"
 OLD_BUILDER = ROOT / "scripts/ci/build-squeekboard-overlay-arm64.sh"
 OLD_WORKFLOW = ROOT / ".github/workflows/squeekboard-overlay-arm64.yml"
+C3_WORKFLOW = ROOT / ".github/workflows/squeekboard-hot-css-arm64.yml"
 FIXTURE = ROOT / "tests/test_squeekboard_hot_css_source_patch.py"
 PATCHER = ROOT / "scripts/ci/patch-squeekboard-hot-css.py"
 
@@ -112,6 +113,26 @@ class C3CompilerGateTests(unittest.TestCase):
                     "ssh ", "scp ", "rsync"):
             with self.subTest(bad=bad):
                 self.assertNotIn(bad, text)
+
+    def test_new_workflow_never_deploys_or_triggers_on_regular_commits(self):
+        text = C3_WORKFLOW.read_text()
+        for required in (
+            "ubuntu-24.04-arm", "debian:trixie", "workflow_dispatch:",
+            "feature/acp-shell-native-plexamp",
+            ".github/workflows/squeekboard-hot-css-arm64.yml",
+            "scripts/ci/build-squeekboard-hot-css-arm64.sh",
+            "squeekboard-c3-hot-css-arm64-test-only", "contents: read",
+            "actions/upload-artifact@v4", "paths:",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, text)
+        for disallowed in (
+            "pull_request:", "branches: [main]", "dpkg -i ",
+            "ssh ", "scp ", "rsync", "sudo ",
+            "scripts/ci/build-squeekboard-overlay-arm64.sh",
+        ):
+            with self.subTest(disallowed=disallowed):
+                self.assertNotIn(disallowed, text)
 
     def test_off_device_helper_never_manages_keyboard_or_accepted_source(self):
         s = HELPER.read_text()
