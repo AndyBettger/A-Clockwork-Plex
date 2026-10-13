@@ -132,7 +132,7 @@ def candidate_style_environment() -> dict[str, str]:
             "XDG_CONFIG_HOME": str(root / "themes" / "classic_dark"),
             **values,
         }
-    except (checker.CheckError, OSError, ValueError, RuntimeError) as exc:
+    except (checker.CheckError, c3.CSSStageError, OSError, ValueError, RuntimeError) as exc:
         raise TrialError("C3 accepted-theme preflight failed: " + str(exc)) from exc
 
 
@@ -234,8 +234,9 @@ def prepare(archive: Path, *, modify: bool) -> tuple[int, dict[str, str], Path |
     if ROOT.is_symlink():
         raise TrialError("C3 trial root symlink refused")
     ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if ROOT.is_symlink() or ROOT.stat().st_uid != os.getuid():
-        raise TrialError("C3 trial root owner/path changed")
+    if (ROOT.is_symlink() or ROOT.stat().st_uid != os.getuid()
+            or (ROOT.stat().st_mode & 0o777) != 0o700):
+        raise TrialError("C3 trial root owner/path/mode changed")
     location = Path(tempfile.mkdtemp(prefix="trial-", dir=ROOT))
     location.chmod(0o700)
     inspector = load_inspector()
