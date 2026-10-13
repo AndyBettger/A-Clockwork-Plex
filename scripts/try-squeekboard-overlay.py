@@ -64,6 +64,31 @@ def load_resource_probe():
     return module
 
 
+def load_compact_number_stage():
+    path = Path(__file__).resolve().with_name("stage-squeekboard-compact-number.py")
+    spec = importlib.util.spec_from_file_location("acp_c2_compact_number", path)
+    if not spec or not spec.loader:
+        raise TrialError("Compact-number stage inspector is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def verified_compact_keyboard_dir() -> str:
+    """Validate the *new* private layout before any OSK is interrupted.
+
+    The original accepted GB layout is never edited or replaced. Restoration
+    deliberately does not depend on this new stage continuing to exist.
+    """
+    compact = load_compact_number_stage()
+    try:
+        expected, _width, _side = compact.expected_layouts(compact.input_layouts())
+        compact.verify(expected)
+    except (compact.CompactError, OSError, ValueError) as exc:
+        raise TrialError("Compact numeric layout verification failed: " + str(exc)) from exc
+    return str(compact.ROOT / "keyboards")
+
+
 def verified_resource_override(theme: str) -> str:
     """Prove all private CSS bytes before the trial's timer/stock handover.
 
@@ -82,13 +107,16 @@ def verified_resource_override(theme: str) -> str:
 
 
 def candidate_style_environment(
-    theme: str, *, resource_overlay: bool = False
+    theme: str, *, resource_overlay: bool = False,
+    compact_number: bool = False,
 ) -> dict[str, str]:
     """Verify pinned layouts and theme; pass overrides ONLY to candidate ELF.
 
     The stock-restoration unit receives the original desktop environment and
     must never receive XDG, GB-keymap or G_RESOURCE_OVERLAYS trial overrides.
     """
+    if compact_number and not resource_overlay:
+        raise TrialError("Compact numeric layout requires resource-overlay theme")
     checker = load_theme_validator()
     gen = checker.generator()
     if theme not in gen.styles():
@@ -106,6 +134,8 @@ def candidate_style_environment(
     }
     if resource_overlay:
         result["G_RESOURCE_OVERLAYS"] = verified_resource_override(theme)
+    if compact_number:
+        result["SQUEEKBOARD_KEYBOARDSDIR"] = verified_compact_keyboard_dir()
     return result
 
 
@@ -193,15 +223,21 @@ def verify_candidate(path: Path) -> None:
 
 def prepare(
     archive: Path, *, modify: bool, uk_theme: str | None = None,
-    resource_overlay: bool = False,
+    resource_overlay: bool = False, compact_number: bool = False,
 ) -> tuple[int, dict[str, str], Path | None]:
     if resource_overlay and not uk_theme:
         raise TrialError("Resource overlay requires --uk-theme")
+    if compact_number and (not resource_overlay or not uk_theme):
+        raise TrialError("Compact number requires both --uk-theme and --resource-overlay")
     pid, env = check_baseline()
     load_inspector().inspect(archive)
     if unit_active(TRIAL_UNIT + ".service") or unit_active(ROLLBACK_UNIT + ".timer"):
         raise TrialError("A trial or rescue timer is already running; refusing to overlap")
-    if resource_overlay:
+    if compact_number:
+        trial_env = candidate_style_environment(
+            uk_theme, resource_overlay=True, compact_number=True,
+        )
+    elif resource_overlay:
         trial_env = candidate_style_environment(uk_theme, resource_overlay=True)
     else:
         trial_env = candidate_style_environment(uk_theme) if uk_theme else {}
@@ -249,11 +285,19 @@ def read_state(path: Path, *, require_candidate: bool = True) -> dict:
         gen = checker.generator()
         root = gen.DEST.resolve()
         keyboard = str(root / "keyboards")
+        # State validation must work for both pre-C2 accepted layouts and the
+        # new compact alternative. No reading or verifying the optional compact
+        # files here: the independent stock restoration must always be possible.
+        compact = load_compact_number_stage()
+        compact_keyboard = str(compact.ROOT / "keyboards")
         palettes = {str(root / "themes" / name) for name in gen.styles()}
-        if overrides.get("SQUEEKBOARD_KEYBOARDSDIR") != keyboard or (
+        selected_keyboard = overrides.get("SQUEEKBOARD_KEYBOARDSDIR")
+        if selected_keyboard not in (keyboard, compact_keyboard) or (
             overrides.get("XDG_CONFIG_HOME") not in palettes
         ):
             raise TrialError("Candidate keyboard paths are outside the pinned stage")
+        if selected_keyboard == compact_keyboard and "G_RESOURCE_OVERLAYS" not in overrides:
+            raise TrialError("Compact layout must retain the candidate-only CSS resource")
         if "G_RESOURCE_OVERLAYS" in overrides:
             # The independent rescue must remain possible even when test CSS
             # disappears; validate only a fixed allowlisted string here, never
@@ -376,11 +420,11 @@ def worker(state_path: Path) -> None:
 
 def start(
     archive: Path, *, uk_theme: str | None = None,
-    resource_overlay: bool = False,
+    resource_overlay: bool = False, compact_number: bool = False,
 ) -> None:
     _, env, state_path = prepare(
         archive, modify=True, uk_theme=uk_theme,
-        resource_overlay=resource_overlay,
+        resource_overlay=resource_overlay, compact_number=compact_number,
     )
     assert state_path is not None
     script = str(Path(__file__).resolve())
@@ -428,16 +472,26 @@ def main() -> int:
         help="Opt-in verified private GResource CSS ONLY for experimental OSK; "
              "requires --uk-theme and --plan/--start",
     )
+    parser.add_argument(
+        "--compact-number", action="store_true",
+        help="Use separately staged compact numeric GB layout ONLY in experimental OSK; "
+             "requires --uk-theme, --resource-overlay, and --plan/--start",
+    )
     args = parser.parse_args()
     try:
         if args.uk_theme and not (args.plan or args.start):
             raise TrialError("--uk-theme is only allowed with --plan or --start")
         if args.resource_overlay and (not args.uk_theme or not (args.plan or args.start)):
             raise TrialError("--resource-overlay requires --uk-theme and --plan/--start")
+        if args.compact_number and (
+            not args.resource_overlay or not args.uk_theme or not (args.plan or args.start)
+        ):
+            raise TrialError("--compact-number requires --uk-theme, --resource-overlay and --plan/--start")
         if args.plan:
             prepare(
                 args.plan, modify=False, uk_theme=args.uk_theme,
                 resource_overlay=args.resource_overlay,
+                compact_number=args.compact_number,
             )
             print("PLAN PASS: stock OSK and verified artifact present; user timer manager available.")
             print(f"Test: {TRIAL_SECONDS}s; separate systemd rescue timer: {ROLLBACK_SECONDS}s.")
@@ -447,10 +501,13 @@ def main() -> int:
                 print("Only the experimental OSK would receive override paths.")
             if args.resource_overlay:
                 print("PRIVATE GLib resource CSS: VERIFIED (candidate only; no system or stock changes).")
+            if args.compact_number:
+                print("COMPACT NUMERIC PRIVATE STAGE: VERIFIED (candidate only; accepted v1 untouched).")
         elif args.start:
             start(
                 args.start, uk_theme=args.uk_theme,
                 resource_overlay=args.resource_overlay,
+                compact_number=args.compact_number,
             )
         elif args.worker:
             worker(args.worker)
