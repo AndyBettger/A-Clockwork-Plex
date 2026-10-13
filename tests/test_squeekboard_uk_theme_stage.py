@@ -60,10 +60,11 @@ class StageSqueekboardUkThemeTests(unittest.TestCase):
 
     def test_symbol_row_must_keep_apostrophe_quote_and_colon(self):
         without_button = NORMAL.replace('    colon:\n        text: ":"\n', '')
+        quote = chr(92) + chr(34)
         for before, after, expected in (
             (" ' colon ;", " ' semicolon ;", "Colon key"),
-            (" \\" ' colon", " \\" colon", "Apostrophe key"),
-            (" \\" ' colon", " quotedbl_removed ' colon", "Double-quote key"),
+            (f" {quote} ' colon", f" {quote} colon", "Apostrophe key"),
+            (f" {quote} ' colon", " quotedbl_removed ' colon", "Double-quote key"),
         ):
             with self.subTest(key=expected):
                 invalid = without_button.replace(before, after)
