@@ -69,9 +69,10 @@ class C3TimedTrialTests(unittest.TestCase):
         layout.input_layouts.return_value = {}
         layout.verify.return_value = None
         generator = mock.Mock(DEST=Path("/accepted/c2"))
-        gen = mock.Mock(generator=lambda: generator, validate=mock.Mock())
+        gen = mock.Mock(generator=lambda: generator, validate=mock.Mock(), CheckError=ValueError)
         stage = mock.Mock(ROOT=Path("/candidate/c3"), RESOURCE_PREFIX="/sm/puri/squeekboard",
-                          DEFAULT_PALETTE="classic_dark", palettes=lambda: {"classic_dark": b"css"},
+                          DEFAULT_PALETTE="classic_dark", CSSStageError=ValueError,
+                          palettes=lambda: {"classic_dark": b"css"},
                           inspect=lambda css: "classic_dark")
         stage.resource_environment.return_value = {
             "G_RESOURCE_OVERLAYS": "/sm/puri/squeekboard=/candidate/c3",
@@ -91,9 +92,9 @@ class C3TimedTrialTests(unittest.TestCase):
 
     def test_c3_requires_classic_dark_initially(self):
         generator = mock.Mock(DEST=Path("/accepted/c2"))
-        gen = mock.Mock(generator=lambda: generator, validate=mock.Mock())
+        gen = mock.Mock(generator=lambda: generator, validate=mock.Mock(), CheckError=ValueError)
         stage = mock.Mock(ROOT=Path("/candidate/c3"), RESOURCE_PREFIX="/sm/puri/squeekboard",
-                          DEFAULT_PALETTE="classic_dark")
+                          DEFAULT_PALETTE="classic_dark", CSSStageError=ValueError)
         stage.palettes.return_value = {"classic_dark": b"a", "midnight_blue": b"b"}
         stage.inspect.return_value = "midnight_blue"
         with mock.patch.object(trial, "load_theme_validator", return_value=gen), \
