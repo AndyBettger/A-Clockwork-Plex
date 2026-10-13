@@ -44,6 +44,39 @@ def load_inspector():
     return module
 
 
+def load_theme_validator():
+    path = Path(__file__).resolve().with_name("validate-squeekboard-uk-theme-stage.py")
+    spec = importlib.util.spec_from_file_location("acp_c2_uk_stage_check", path)
+    if not spec or not spec.loader:
+        raise TrialError("UK/ACP stage validator is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def candidate_style_environment(theme: str) -> dict[str, str]:
+    """Check exact pinned staged files before touching the stock keyboard.
+
+    Do not export either variable to the recovery service; only to the
+    separately verified experimental ELF, using a single selected palette.
+    """
+    checker = load_theme_validator()
+    gen = checker.generator()
+    if theme not in gen.styles():
+        raise TrialError("Unknown ACP Squeekboard theme: " + theme)
+    try:
+        checker.validate()
+    except checker.CheckError as exc:
+        raise TrialError("UK/theme stage verification failed: " + str(exc)) from exc
+    root = gen.DEST.resolve(strict=True)
+    if root.is_symlink() or not root.is_dir():
+        raise TrialError("Unsafe Stage C2 root")
+    return {
+        "SQUEEKBOARD_KEYBOARDSDIR": str(root / "keyboards"),
+        "XDG_CONFIG_HOME": str(root / "themes" / theme),
+    }
+
+
 def run(*args: str, check: bool = False, timeout: int = 15) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, text=True, capture_output=True, check=check, timeout=timeout)
 
@@ -126,11 +159,12 @@ def verify_candidate(path: Path) -> None:
         raise TrialError("Candidate executable missing or hash mismatch")
 
 
-def prepare(archive: Path, *, modify: bool) -> tuple[int, dict[str, str], Path | None]:
+def prepare(archive: Path, *, modify: bool, uk_theme: str | None = None) -> tuple[int, dict[str, str], Path | None]:
     pid, env = check_baseline()
     load_inspector().inspect(archive)
     if unit_active(TRIAL_UNIT + ".service") or unit_active(ROLLBACK_UNIT + ".timer"):
         raise TrialError("A trial or rescue timer is already running; refusing to overlap")
+    trial_env = candidate_style_environment(uk_theme) if uk_theme else {}
     if not modify:
         return pid, env, None
     ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -147,6 +181,7 @@ def prepare(archive: Path, *, modify: bool) -> tuple[int, dict[str, str], Path |
         "stock_pid": pid,
         "candidate": str(candidate),
         "env": env,
+        "trial_env": trial_env,
         "stock_unit": "acp-squeekboard-stock-" + location.name.replace("trial-", ""),
         "created_at": time.time(),
     }
@@ -162,6 +197,21 @@ def read_state(path: Path, *, require_candidate: bool = True) -> dict:
     value = json.loads(path.read_text(encoding="utf-8"))
     if value.get("schema") != 1 or not isinstance(value.get("env"), dict):
         raise TrialError("Invalid trial state")
+    overrides = value.get("trial_env", {})
+    if not isinstance(overrides, dict) or set(overrides) not in (
+        set(), {"SQUEEKBOARD_KEYBOARDSDIR", "XDG_CONFIG_HOME"}
+    ):
+        raise TrialError("Invalid candidate-only keyboard theme environment")
+    if overrides:
+        checker = load_theme_validator()
+        gen = checker.generator()
+        root = gen.DEST.resolve()
+        keyboard = str(root / "keyboards")
+        palettes = {str(root / "themes" / name) for name in gen.styles()}
+        if overrides.get("SQUEEKBOARD_KEYBOARDSDIR") != keyboard or (
+            overrides.get("XDG_CONFIG_HOME") not in palettes
+        ):
+            raise TrialError("Candidate keyboard paths are outside the pinned stage")
     candidate = Path(value.get("candidate", ""))
     if candidate != path.parent / "squeekboard-overlay-arm64":
         raise TrialError("Candidate must be in same isolated trial folder")
@@ -240,7 +290,7 @@ def worker(state_path: Path) -> None:
         else:
             raise TrialError("Original keyboard did not exit; refusing candidate launch")
         log = (state_path.parent / "candidate.log").open("ab")
-        environment = dict(os.environ, **state["env"])
+        environment = dict(os.environ, **state["env"], **state.get("trial_env", {}))
         try:
             candidate_process = subprocess.Popen(
                 [state["candidate"]], env=environment, stdin=subprocess.DEVNULL,
@@ -264,8 +314,8 @@ def worker(state_path: Path) -> None:
         restore_stock(state_path, stop_trial=False)
 
 
-def start(archive: Path) -> None:
-    _, env, state_path = prepare(archive, modify=True)
+def start(archive: Path, *, uk_theme: str | None = None) -> None:
+    _, env, state_path = prepare(archive, modify=True, uk_theme=uk_theme)
     assert state_path is not None
     script = str(Path(__file__).resolve())
     # Rescue timer is independent of trial service AND SSH.
@@ -303,15 +353,24 @@ def main() -> int:
     group.add_argument("--start", type=Path, metavar="ZIP")
     group.add_argument("--worker", type=Path, metavar="STATE", help=argparse.SUPPRESS)
     group.add_argument("--restore", type=Path, metavar="STATE", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--uk-theme", metavar="PALETTE",
+        help="Use verified private British YAML and this ACP palette ONLY in experimental OSK",
+    )
     args = parser.parse_args()
     try:
+        if args.uk_theme and not (args.plan or args.start):
+            raise TrialError("--uk-theme is only allowed with --plan or --start")
         if args.plan:
-            prepare(args.plan, modify=False)
+            prepare(args.plan, modify=False, uk_theme=args.uk_theme)
             print("PLAN PASS: stock OSK and verified artifact present; user timer manager available.")
             print(f"Test: {TRIAL_SECONDS}s; separate systemd rescue timer: {ROLLBACK_SECONDS}s.")
             print("No keyboard/process/configuration changes made.")
+            if args.uk_theme:
+                print("UK keyboards and ACP palette verified: " + args.uk_theme)
+                print("Only the experimental OSK would receive override paths.")
         elif args.start:
-            start(args.start)
+            start(args.start, uk_theme=args.uk_theme)
         elif args.worker:
             worker(args.worker)
         else:
