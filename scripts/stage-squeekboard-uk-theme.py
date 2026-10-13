@@ -33,40 +33,61 @@ def replace_once(source: str, before: str, after: str, label: str) -> str:
     return source.replace(before, after, 1)
 
 
+def _validate_punctuation_row(source: str, filename: str) -> None:
+    """Validate the actual vendor YAML symbols row, not guessed key aliases.
+
+    Raspberry Pi Squeekboard 1.43.1-1+rpt1 writes the colon key as literal
+    ':' in YAML, while some upstream revisions use the alias 'colon'.
+    The double quote is YAML-escaped as \" (or can be a quotedbl alias).
+    """
+    rows = [line for line in source.splitlines()
+            if "show_symbols" in line and "BackSpace" in line]
+    if len(rows) != 1:
+        raise StagingError("Expected exactly one symbols row in " + filename)
+    row_match = re.fullmatch(r'\s*-\s*"(.+)"\s*', rows[0])
+    if row_match is None:
+        raise StagingError("Symbols row is not a double-quoted YAML list in " + filename)
+    keys = row_match.group(1).split()
+    if ":" not in keys and "colon" not in keys:
+        raise StagingError("Colon (:) key missing from symbols row in " + filename)
+    if "'" not in keys and "apostrophe" not in keys:
+        raise StagingError("Apostrophe key missing from symbols row in " + filename)
+    if r'\"' not in keys and "quotedbl" not in keys:
+        raise StagingError("Double-quote key missing from symbols row in " + filename)
+
+
 def layout(source: str, filename: str) -> str:
     if "views:" not in source or "buttons:" not in source:
         raise StagingError("Invalid source keyboard: " + filename)
     if filename.startswith("pin/"):
         return source
     if filename.startswith("number/"):
-        source = replace_once(source, "1 2 3 parenleft parenright",
-                              "1 2 3 period colon", filename)
-        if re.search(r"(?m)^    (?:period|colon):", source):
-            raise StagingError("Numeric key definitions changed")
-        # Preserve minus and plus from the vendor's original numeric layout.
-        return source.rstrip() + '\n    period:\n        text: "."\n    colon:\n        text: ":"\n'
+        # The commissioned Pi's 1.43.1-1+rpt1 layout uses literal
+        # ( 1 2 3 ), not the older "1 2 3 parenleft parenright" syntax.
+        # Literal '.' and ':' also appear in the Pi's other stock keymaps.
+        if source.count("( 1 2 3 )") == 1:
+            source = replace_once(source, "( 1 2 3 )", ". 1 2 3 :", filename)
+            if " 7 8 9 -" not in source or " 4 5 6 +" not in source:
+                raise StagingError("Pi numeric signed-key rows changed in " + filename)
+            return source
+        if source.count("1 2 3 parenleft parenright") == 1:
+            source = replace_once(source, "1 2 3 parenleft parenright",
+                                  "1 2 3 period colon", filename)
+            if re.search(r"(?m)^    (?:period|colon):", source):
+                raise StagingError("Numeric key definitions changed")
+            return source.rstrip() + '\n    period:\n        text: "."\n    colon:\n        text: ":"\n'
+        raise StagingError("Unrecognised numeric key row in " + filename)
+
     if filename.startswith("terminal/"):
-        return replace_once(source, "* # $ / & - _ + ( )",
-                            "* # £ / & - _ + ( )", filename)
-    source = replace_once(source, "@ # $ % & - _ + ( )",
-                          "@ # £ % & - _ + ( )", filename)
-    source = replace_once(source, "© ® £ € ¥ ^ ° * { }",
-                          "© ® $ € ¥ ^ ° * { }", filename)
-    # Pi-packaged YAML may omit a separate `buttons: colon:` definition:
-    # the `colon` key in the symbol view can resolve through its keysym.
-    # Validate the actual visible row instead of requiring an optional
-    # mapping definition. Fail closed if any required punctuation is missing.
-    symbol_rows = [line for line in source.splitlines()
-                   if "show_symbols" in line and "BackSpace" in line]
-    if len(symbol_rows) != 1:
-        raise StagingError("Expected one quotation/colon symbols row in " + filename)
-    row = symbol_rows[0]
-    if "colon" not in row.split():
-        raise StagingError("Colon key missing from symbols row in " + filename)
-    if "'" not in row.split():
-        raise StagingError("Apostrophe key missing from symbols row in " + filename)
-    if r'\"' not in row and "quotedbl" not in row.split():
-        raise StagingError("Double-quote key missing from symbols row in " + filename)
+        # Pi terminal: "\\ * # $ / & - + ( ) _";
+        # upstream terminal: "* # $ / & - _ + ( )".
+        source = replace_once(source, " # $ ", " # £ ", filename)
+    else:
+        source = replace_once(source, "@ # $ % & - _ + ( )",
+                              "@ # £ % & - _ + ( )", filename)
+    # Preserve access to dollars on the symbols view in every text purpose.
+    source = replace_once(source, "© ® £ €", "© ® $ €", filename)
+    _validate_punctuation_row(source, filename)
     return source
 
 
