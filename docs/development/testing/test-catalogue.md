@@ -238,6 +238,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_squeekboard_gtk_hot_style.py` — Checks same-context GTK CSS-provider colour reload and the independent no-invalidate CLI option.
 - `tests/test_squeekboard_hot_css_source_patch.py` — Tests the source-only candidate GTK widget CSS directory watcher, exact reversible insertions and fail-closed vendor anchors.
 - `tests/test_squeekboard_hot_css_source_audit.py` — Audits reversible C source changes, hashes, read-only diff output and incompatible/symlinked source rejection.
+- `tests/test_squeekboard_hot_css_arm64_build.py` — Guards source-hash-locked disposable C3 ARM64 candidate compilation, distinct artifacts and refusal to run off-device builder on Pi.
 - `tests/test_squeekboard_hot_css_ci_audit.py` — Restricts real Debian source audit to ARM64 disposable GitHub CI, separated from the accepted executable builder.
 - `tests/test_squeekboard_uk_theme_validation.py` — Guards read-only post-stage candidate/manifests, expected layouts and palette contents, symlink/tamper rejection, and optional parser disclosure without installing packages or changing OSK state.
 - `tests/test_squeekboard_uk_theme_stage.py` — Checks vendor-keymap GBP, apostrophe/quote, signed-decimal and time symbols; ACP-derived palette/night CSS; private staging/overwrite refusal and absence of runtime keyboard commands.
