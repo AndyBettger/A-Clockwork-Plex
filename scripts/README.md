@@ -88,6 +88,14 @@ These files are source material for installed services, restricted helpers or ap
 
 The existing `scripts/try-squeekboard-overlay.py` gained an **explicit, candidate-only** `--resource-overlay` option, which is invalid without `--uk-theme PALETTE`. Always verify with the non-mutating `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay` first. The runner verifies the pinned ARM64 archive, original Squeekboard SHA-256, the entire staged GB/GTK3 source and all 23 private GLib CSS resources before any keyboard can stop. The separate 180-second trial and 240-second independent restore remain intact, with the vendor `/usr/bin/sbtest` recovery explicitly unaffected by candidate-only environment variables. After a successful plan, the physical `--start` command uses the same flags; do not run it without WayVNC/touch available and an agreed original-keyboard rollback check. Never install the test-only .deb, change XDG autostart or copy styles to the normal user's global GTK configuration. Native Plexamp, Headless, CamillaDSP and NFC remain unchanged.
 
+### Stage C2 — private numeric keypad width experiment
+
+| File | Purpose | Safety / intended use |
+| --- | --- | --- |
+| `scripts/stage-squeekboard-compact-number.py` | Inspect the previously accepted seven GB YAML layouts, estimate proportional numeric panel size using the existing outlines, and generate a **new** complete private keyboard directory with only `number/gb.yaml` amended by symmetric side margins. The original layouts and previously accepted CSS resources are never overwritten. | **Developer offline experiment.** Run `--plan`, then `--stage` (creates only an isolated new cache folder), then `--check`. Does not run an OSK or integrate the new directory into the guarded trial. The real 5-column keypad width is unverified until separately authorised touchscreen trial; do not set `SQUEEKBOARD_KEYBOARDSDIR` manually. |
+
+**Theme default decision:** once dynamic ACP/Squeekboard theme matching is physically accepted, unconfigured/fallback palette will be **Classic Dark (`classic_dark`)**, not the temporary Midnight Blue test colour. Follow selected ACP daytime and night modes without interrupting active input.
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
