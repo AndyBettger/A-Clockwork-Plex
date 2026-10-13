@@ -40,6 +40,88 @@ buttons:
 
 
 class StageSqueekboardUkThemeTests(unittest.TestCase):
+    def test_commissioned_pi_default_and_wide_use_literal_colon(self):
+        # Verbatim rows from the Pi's installed 1.43.1-1+rpt1 layouts.
+        for name in ("us.yaml", "us_wide.yaml", "email/us.yaml", "url/us.yaml"):
+            with self.subTest(name=name):
+                vendor = r'''---
+views:
+    base:
+        - "q w e r t y u i o p"
+        - "show_upper z x c v b n m BackSpace"
+    numbers:
+        - "1 2 3 4 5 6 7 8 9 0"
+        - "@ # $ % & - _ + ( )"
+        - "show_symbols , \" ' : ; ! ? BackSpace"
+    symbols:
+        - "© ® £ € ¥ ^ ° * { }"
+buttons:
+    space:
+        text: " "
+'''
+                candidate = stage.layout(vendor, name)
+                self.assertIn("show_symbols", candidate)
+                self.assertIn(r'\"', candidate)
+                self.assertIn(" ' : ; ", candidate)
+                self.assertIn("@ # £ % &", candidate)
+                self.assertIn("© ® $ €", candidate)
+
+    def test_commissioned_pi_number_layout_supports_decimal_and_time(self):
+        vendor = '''---
+views:
+    base:
+        - "( 1 2 3 )"
+        - "# 4 5 6 +"
+        - "* 7 8 9 -"
+        - "BackSpace 0 space Return"
+buttons:
+    space:
+        text: " "
+'''
+        candidate = stage.layout(vendor, "number/us.yaml")
+        self.assertIn('". 1 2 3 :"', candidate)
+        self.assertIn('"# 4 5 6 +"', candidate)
+        self.assertIn('"* 7 8 9 -"', candidate)
+        self.assertNotIn("parenleft", candidate)
+
+    def test_commissioned_pi_terminal_symbols_and_currency(self):
+        vendor = r'''---
+views:
+    numbers:
+        - "1 2 3 4 5 6 7 8 9 0"
+        - "\\ * # $ / & - + ( ) _"
+        - "show_symbols , \" ' : ; ! ? BackSpace"
+    symbols:
+        - "\\ © ® £ € ¥ ^ ° { } _"
+buttons:
+    Return:
+        keysym: "Return"
+'''
+        candidate = stage.layout(vendor, "terminal/us.yaml")
+        self.assertIn("# £ / & - + ( ) _", candidate)
+        self.assertIn("© ® $ €", candidate)
+        self.assertIn(" ' : ; ", candidate)
+        self.assertIn(r'\"', candidate)
+
+    def test_commissioned_pi_literal_colon_must_not_be_silently_discarded(self):
+        vendor = r'''---
+views:
+    numbers:
+        - "@ # $ % & - _ + ( )"
+        - "show_symbols , \" ' : ; ! ? BackSpace"
+    symbols:
+        - "© ® £ € ¥ ^ ° * { }"
+buttons:
+    space:
+        text: " "
+'''
+        bad = vendor.replace(" ' : ;", " ' ;")
+        with self.assertRaisesRegex(stage.StagingError, "Colon"):
+            stage.layout(bad, "us.yaml")
+        bad = vendor.replace(r'\"', "missing_quote")
+        with self.assertRaisesRegex(stage.StagingError, "Double-quote"):
+            stage.layout(bad, "us.yaml")
+
     def test_uk_currency_position_and_dollar_not_lost(self):
         candidate = stage.layout(NORMAL, "us.yaml")
         self.assertIn('@ # £ % & - _ + ( )', candidate)
@@ -62,7 +144,7 @@ class StageSqueekboardUkThemeTests(unittest.TestCase):
         without_button = NORMAL.replace('    colon:\n        text: ":"\n', '')
         quote = chr(92) + chr(34)
         for before, after, expected in (
-            (" ' colon ;", " ' semicolon ;", "Colon key"),
+            (" ' colon ;", " ' semicolon ;", "Colon"),
             (f" {quote} ' colon", f" {quote} colon", "Apostrophe key"),
             (f" {quote} ' colon", " quotedbl_removed ' colon", "Double-quote key"),
         ):
