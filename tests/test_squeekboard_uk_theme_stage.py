@@ -69,7 +69,7 @@ class StageSqueekboardUkThemeTests(unittest.TestCase):
         self.assertIn("#ffbc4d", examples["amber_terminal"])
         self.assertIn("#050000", examples["astronomy_night_idle"])
         self.assertIn("astronomy_night_active", examples)
-        self.assertIn("classic_dark_night_idle", examples)
+        self.assertIn("classic_dark_night_classic_idle", examples)
 
     def test_stage_stays_in_private_new_folder_and_does_not_overwrite(self):
         with tempfile.TemporaryDirectory() as temporary:
