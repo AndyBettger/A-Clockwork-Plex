@@ -8,7 +8,9 @@ a throwaway CSS resource, reloads *that same provider*, then reads the
 existing context's computed text colour again.
 
 No window, keyboard, global GTK setting, service or accepted ACP palette
-is touched. This is NOT a running Squeekboard paint/focus test.
+is touched. --without-invalidate tests automatic provider-driven recalculation
+without Gtk.StyleContext.invalidate (deprecated). This is NOT a real
+Squeekboard paint/focus test.
 """
 from __future__ import annotations
 
@@ -41,7 +43,7 @@ def colour(rgba) -> str:
     )
 
 
-def child(css: Path) -> int:
+def child(css: Path, *, manual_invalidate: bool = True) -> int:
     original = resource_probe()
     if (
         css.name != "style.css"
@@ -87,7 +89,10 @@ def child(css: Path) -> int:
         # Reuse the *same provider and same context*, rather than creating
         # a new one, to check GTK's colour cascade invalidation on reload.
         provider.load_from_resource(original.RESOURCE)
-        context.invalidate()
+        if manual_invalidate:
+            # Legacy comparison only. Modern GTK3 providers should invalidate
+            # dependent styles automatically when their rules are reloaded.
+            context.invalidate()
         after = colour(context.get_color(Gtk.StateFlags.NORMAL))
     except Exception as exc:
         print("GTK3 in-place CSS check blocked:", type(exc).__name__, str(exc)[:300])
@@ -95,6 +100,7 @@ def child(css: Path) -> int:
 
     print("Emulated style path: sq_view sq_button")
     print("Same context and same provider before/after: YES")
+    print("Explicit deprecated context.invalidate() used:", "YES" if manual_invalidate else "NO")
     print("Computed initial key text colour:", before,
           "PASS" if before == EXPECTED_BEFORE else "FAIL")
     print("Computed reloaded key text colour:", after,
@@ -122,13 +128,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     actions = parser.add_mutually_exclusive_group(required=True)
     actions.add_argument("--probe", action="store_true", help="Run disposable GTK3 style-context test")
+    actions.add_argument("--without-invalidate", action="store_true",
+                         help="Test whether reloading provider alone refreshes an existing style context")
     actions.add_argument("--_child", type=Path, metavar="CSS", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if os.geteuid() == 0:
         print("Never run via sudo or as root.", file=sys.stderr)
         return 2
     if args._child is not None:
-        return child(args._child)
+        return child(args._child, manual_invalidate=not args.without_invalidate)
     try:
         source = resource_probe()
         parent = Path.home() / ".cache/a-clockwork-plex"
@@ -139,9 +147,12 @@ def main() -> int:
             css = directory / "style.css"
             css.write_bytes(source.A)
             print("=== ACP DISPOSABLE GTK3 IN-PLACE STYLE CHECK ===")
+            if args.without_invalidate:
+                print("Automatic provider-driven style update (no deprecated invalidate)")
             print("Private, automatically cleaned CSS:", css)
             response = subprocess.run(
-                [sys.executable, str(Path(__file__).resolve()), "--_child", str(css)],
+                [sys.executable, str(Path(__file__).resolve()), "--_child", str(css)]
+                + (["--without-invalidate"] if args.without_invalidate else []),
                 env=isolated_environment(directory), capture_output=True,
                 text=True, timeout=20, check=False,
             )
