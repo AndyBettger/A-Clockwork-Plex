@@ -230,6 +230,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 ### Plexamp and NFC
 
+- `tests/test_squeekboard_uk_theme_validation.py` — Guards read-only post-stage candidate/manifests, expected layouts and palette contents, symlink/tamper rejection, and optional parser disclosure without installing packages or changing OSK state.
 - `tests/test_squeekboard_uk_theme_stage.py` — Checks vendor-keymap GBP, apostrophe/quote, signed-decimal and time symbols; ACP-derived palette/night CSS; private staging/overwrite refusal and absence of runtime keyboard commands.
 - `tests/test_squeekboard_theme_inventory.py` — Proves the UK/theme preflight only invokes read-only process/package/GSettings commands, reports known layout filenames without reading private file contents, and lists ACP's actual day palette identifiers.
 - `tests/test_squeekboard_overlay_trial.py` — Guards the Pi's voluntary three-minute OSK trial, independent four-minute rollback timer, session ownership, no-overlap, exact SHA fingerprints, and restoration without the candidate file.
