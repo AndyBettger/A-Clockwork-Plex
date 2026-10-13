@@ -128,9 +128,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     actions = parser.add_mutually_exclusive_group(required=True)
     actions.add_argument("--probe", action="store_true", help="Run disposable GTK3 style-context test")
-    actions.add_argument("--without-invalidate", action="store_true",
-                         help="Test whether reloading provider alone refreshes an existing style context")
     actions.add_argument("--_child", type=Path, metavar="CSS", help=argparse.SUPPRESS)
+    # This switches behaviour within EITHER operation, not a new operation.
+    # Do not put it in the mutually exclusive --probe/--_child group.
+    parser.add_argument("--without-invalidate", action="store_true",
+                        help="Test whether reloading provider alone refreshes an existing style context")
     args = parser.parse_args()
     if os.geteuid() == 0:
         print("Never run via sudo or as root.", file=sys.stderr)
