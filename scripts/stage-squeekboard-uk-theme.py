@@ -65,7 +65,7 @@ def layout(source: str, filename: str) -> str:
         raise StagingError("Colon key missing from symbols row in " + filename)
     if "'" not in row.split():
         raise StagingError("Apostrophe key missing from symbols row in " + filename)
-    if r'\\"' not in row and "quotedbl" not in row.split():
+    if r'\"' not in row and "quotedbl" not in row.split():
         raise StagingError("Double-quote key missing from symbols row in " + filename)
     return source
 
