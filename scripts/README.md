@@ -84,6 +84,10 @@ These files are source material for installed services, restricted helpers or ap
 | --- | --- | --- |
 | `scripts/probe-squeekboard-resource-overlay.py` | Create a *private non-overwriting* cache of all 23 exact ACP stylesheet samples as alternative `/sm/puri/squeekboard/style.css` resources, with the vendor `common.css` import left intact. `--probe` verifies in a separate Gio client that `G_RESOURCE_OVERLAYS` substitutes the requested resource and preserves its exact contents without requiring or invoking the keyboard. | **Offline developer trial.** `--plan` verifies pinned theme stage and checks destination; `--stage` writes **only** a new private cache tree; `--probe` verifies the existing stage using a child-only environment override, never system GTK. No keyboard process, service, package, desktop, audio, Headless or NFC change. Do not use an OSK resource overlay until the Pi's probe passes and the guarded trial controller is explicitly updated. |
 
+### Guarded Squeekboard resource CSS trial (Phase B / C2)
+
+The existing `scripts/try-squeekboard-overlay.py` gained an **explicit, candidate-only** `--resource-overlay` option, which is invalid without `--uk-theme PALETTE`. Always verify with the non-mutating `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay` first. The runner verifies the pinned ARM64 archive, original Squeekboard SHA-256, the entire staged GB/GTK3 source and all 23 private GLib CSS resources before any keyboard can stop. The separate 180-second trial and 240-second independent restore remain intact, with the vendor `/usr/bin/sbtest` recovery explicitly unaffected by candidate-only environment variables. After a successful plan, the physical `--start` command uses the same flags; do not run it without WayVNC/touch available and an agreed original-keyboard rollback check. Never install the test-only .deb, change XDG autostart or copy styles to the normal user's global GTK configuration. Native Plexamp, Headless, CamillaDSP and NFC remain unchanged.
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
