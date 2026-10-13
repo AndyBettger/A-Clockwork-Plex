@@ -1,6 +1,6 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 12 October 2026  
+**Last updated:** 13 October 2026  
 **Active integration branch:** `develop`  
 **Active feature branch:** `feature/acp-shell-native-plexamp`  
 **Stable branch:** `main`  
@@ -141,6 +141,10 @@ The accepted Weather rain-event fix is merged into `develop`. The active branch 
 
 
 **13 October #94 ACP keyboard / WU API-key editor physically PASSED; diagnostic removed:** The user's final forced-refresh WayVNC screenshot shows ACP's custom touchscreen keyboard scrolls the focused WU replacement field completely clear. Earlier screenshots after pulling `1348a08` still measured the stale 54px keyboard height, but following a hard Chromium Settings refresh the new rendered-keys implementation reported `CSS kbHeight=178px`, pane scroll `998/1425`, input bottom `217px`, keyboard top `303px` and **86px actual clearance**. Strong evidence of a stale cached JS asset explains the apparent failed intermediate run. The replace action now opens a blank field without immediately opening keyboard, a deliberate field tap opens it, and Done/Cancel retain the configured write-only credential without deleting/sending a key (those controls were verified in the preceding round). The temporary WU geometry diagnostics button, overlay and polling were removed and a regression now checks their absence; the Settings presenter URL has a new cache version. Treat the original ACP DOM-keyboard/WU edit positioning as physically accepted and move back to the scoped native Plexamp and Squeekboard work. The *native Squeekboard* focus/scroll experimental gate was separately accepted; GB/signed-decimal/time layouts, themes, managed OSK lifecycle, Plexamp fullscreen and audio are still open. No Headless, audio, NFC or credential endpoint changes.
+
+
+
+**13 October #94 priority — UK Squeekboard layout and ACP-matched themes before further native Plexamp integration:** After physical acceptance of ACP's keyboard and removal of the temporary WU diagnostic, user has requested that the *new Wayland Squeekboard* use a British English layout and follow the selected ACP daytime palette, classic night dim and astronomy-red night style before returning to native Plexamp integration. This is Phase-B keyboard work, **not yet physically tested**. Squeekboard 1.43.1-1+rpt1 is a separate GTK3/Wayland process using YAML keyboard layouts; it does not inherit Chromium CSS variables. Plan to stage GB layouts and a GTK CSS palette renderer in isolated, user-owned data/config scoped **only** to the bounded test binary, then validate a live ACP theme/night-state bridge without restarting keyboard mid-entry. Do not overwrite global \`~/.config/gtk-3.0/gtk.css\` or XKB/GSettings and never compromise the vendor \`sbtest\` restoration or the 180s/240s rescue trial. Accept only after real touch/WayVNC checks of UK \`£\`, \`@\`, quotation marks and apostrophes; signed-decimal/time/URL purposes; all daytime themes and scheduled Classic/astronomy/interaction night changes; fullscreen coverage, one keyboard process, and verified rollback. **C2a read-only discovery staged:** \`python3 scripts/inspect-squeekboard-theme-layout.py --inspect\` inventories the actual package, input sources, available keyboard layout filenames, GTK theme and existing user GTK CSS presence (without reading its contents). No runtime keyboard, credentials, audio, Headless or NFC changes.
 
 
 Checkpoint A0 establishes the migration seam without changing current product-route behaviour:
