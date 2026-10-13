@@ -193,6 +193,33 @@ def candidate_pids(path: Path) -> list[int]:
     return found
 
 
+def orphan_trial_keyboard_pids() -> list[int]:
+    """Refuse a second keyboard even if old user units/timers are inactive.
+
+    A stalled C2 or C3 candidate might outlive its systemd trial service.
+    Only inspect /proc metadata for own-user processes; never kill any here.
+    """
+    trial_roots = (
+        Path.home() / ".cache/a-clockwork-plex/osk-overlay-trials",
+        ROOT,
+    )
+    candidates = {"squeekboard-overlay-arm64", CANDIDATE_FILENAME}
+    found: list[int] = []
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        try:
+            if proc.stat().st_uid != os.getuid():
+                continue
+            exe = os.readlink(proc / "exe").removesuffix(" (deleted)")
+            path = Path(exe)
+        except (OSError, PermissionError, ValueError):
+            continue
+        if path.name in candidates and any(path.is_relative_to(r) for r in trial_roots):
+            found.append(int(proc.name))
+    return sorted(found)
+
+
 def check_baseline() -> tuple[int, dict[str, str]]:
     if os.geteuid() == 0 or platform.machine().lower() != "aarch64":
         raise TrialError("Use ordinary user on the commissioned ARM64 Pi (never sudo)")
@@ -228,6 +255,8 @@ def prepare(archive: Path, *, modify: bool) -> tuple[int, dict[str, str], Path |
                  C2_TRIAL_UNIT + ".service", C2_ROLLBACK_UNIT + ".timer"):
         if unit_active(unit):
             raise TrialError("Existing C2/C3 keyboard trial/rescue active: " + unit)
+    if orphan_trial_keyboard_pids():
+        raise TrialError("Orphan C2/C3 trial keyboard process detected; refusing overlap")
     trial_env = candidate_style_environment()
     if not modify:
         return pid, env, None
