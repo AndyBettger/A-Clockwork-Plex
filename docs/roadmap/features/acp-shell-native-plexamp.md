@@ -190,6 +190,9 @@ Agreed priority: finish the native keyboard *before* returning to the native Lin
 , `@`, quotes and apostrophe; `number/gb` adds direct decimal `.` and time `:` without dropping signed minus or vendor editing actions. GTK3 sample style sheets for seven ACP themes, per-theme classic night idle/active and astronomy-red idle/active derive colours from actual daytime CSS tokens; they are **offline examples**, not live synchronized yet. Real Pi YAML validation, GTK CSS priority/appearance, dynamic day/night update while typing and guarded overlay rollback remain open. Only after those physical checks close C2 and resume native Plexamp integration.
 
 
+**13 October Pi C2b preflight FAIL (safe, no stage) → corrected pending retest:** `--plan` at commit `6cb9025` rejected the installed `us.yaml` with `Quotation/colon key absent in us.yaml`. The script already found the main currency/symbol rows, but its final check also incorrectly required an optional explicit `buttons: colon:` mapping, rather than validating that the `show_symbols` keyboard row itself supplies `colon`, apostrophe and double quotation mark keys. We now verify those visible row tokens separately, with specific failure messages, and retain strict checks for malformed vendor layouts and unexpected model/version/hash. Added focused CI regressions for Pi-style layouts without a separate colon mapping, and for required symbols being missing. The user's choice not to run `--stage` was correct; offline YAML and theme sample generation remain **not physically validated**. Next: pull and run only `--plan`, then `--stage` **only if** it passes; keep timed overlay/native theme matching out of scope until later.
+
+
 ## Phase B — native Plexamp
 
 **Status: ACTIVE — next implementation boundary after Phase-A physical acceptance.**
