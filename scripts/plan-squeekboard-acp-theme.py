@@ -8,8 +8,9 @@ Design authority: app/static/js/display-dimming.js ACPDisplayDimming.status()
 
 This resolver NEVER predicts night mode from wall time or swaps a running OSK.
 It selects one of the 23 previously staged ACP palettes. The future theme
-bridge must sample actual runtime status, wait for a safe input boundary, and
-use a separately tested process-local resource mechanism.
+bridge must sample actual runtime status and reapply CSS IN PLACE when night
+starts/ends even if Squeekboard is focused (also handle idle/active night
+interaction changes). Never restart a focused keyboard or alter system GTK.
 """
 from __future__ import annotations
 
