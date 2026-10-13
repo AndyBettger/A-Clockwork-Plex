@@ -63,6 +63,16 @@ class C3TimedTrialTests(unittest.TestCase):
                     trial.prepare(Path("/fake.zip"), modify=False)
                 style.assert_not_called()
 
+    def test_orphan_experimental_keyboard_refuses_handover(self):
+        with mock.patch.object(trial, "check_baseline", return_value=(1, {})), \
+             mock.patch.object(trial, "load_inspector", return_value=mock.Mock()), \
+             mock.patch.object(trial, "unit_active", return_value=False), \
+             mock.patch.object(trial, "orphan_trial_keyboard_pids", return_value=[4321]), \
+             mock.patch.object(trial, "candidate_style_environment") as style:
+            with self.assertRaisesRegex(trial.TrialError, "Orphan C2/C3"):
+                trial.prepare(Path("/test.zip"), modify=False)
+            style.assert_not_called()
+
     def test_private_c3_environment_contains_only_four_candidate_overrides(self):
         layout = mock.Mock(ROOT=Path("/accepted/c2-compact"))
         layout.expected_layouts.return_value = ({}, 1, 1)
