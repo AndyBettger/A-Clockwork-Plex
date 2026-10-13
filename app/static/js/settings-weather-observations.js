@@ -349,92 +349,6 @@
     }
   }
 
-  // Temporary on-screen geometry probe for the exact Pi/browser viewport.
-  // No input.value, credential body, API response or secret is inspected.
-  // User must explicitly enable the probe; it never sends diagnostics away.
-  function installCredentialKeyboardProbe(block) {
-    const row = block.querySelector('.settings-action-row');
-    const input = block.querySelector('[data-wu-api-key]');
-    const field = block.querySelector('[data-wu-api-key-field]');
-    if (!row || !input || !field) return;
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'button settings-secondary';
-    toggle.dataset.wuKeyboardProbeToggle = 'true';
-    toggle.textContent = 'Show keyboard layout diagnostics';
-    row.appendChild(toggle);
-
-    const output = document.createElement('pre');
-    output.dataset.wuKeyboardProbeOutput = '20261013-wu-layout-probe-v2';
-    output.setAttribute('aria-live', 'off');
-    output.hidden = true;
-    Object.assign(output.style, {
-      // On the Pi kiosk CSS pixels are scaled. This compact position keeps
-      // the actual key field uncovered during touch/WayVNC focus tests.
-      position: 'fixed', zIndex: '9900', top: '6px', right: '8px',
-      width: 'min(425px, calc(100vw - 16px))', maxHeight: '198px',
-      overflow: 'hidden', boxSizing: 'border-box', padding: '7px 9px',
-      borderRadius: '8px', border: '2px solid #8fd3ff',
-      background: 'rgba(3, 9, 19, .97)', color: '#e4f3ff',
-      font: '11px/1.25 monospace', whiteSpace: 'pre-wrap',
-      pointerEvents: 'none'
-    });
-    document.body.appendChild(output);
-    let timer = null;
-    let lastEvent = 'none';
-    let focusCount = 0;
-    let pointerCount = 0;
-    const number = value => Number.isFinite(value) ? String(Math.round(value)) : 'n/a';
-    const rect = element => element?.getBoundingClientRect?.() || null;
-    function update() {
-      if (output.hidden) return;
-      const detail = input.closest('.settings-detail');
-      const kb = document.getElementById('touch-keyboard');
-      const fieldRect = rect(field);
-      const inputRect = rect(input);
-      const paneRect = rect(detail);
-      const keyboardRect = rect(kb);
-      const keyboardOpen = document.body.classList.contains('keyboard-open');
-      const paneMax = detail ? Math.max(0, detail.scrollHeight - detail.clientHeight) : NaN;
-      const rootStyle = document.documentElement.style.getPropertyValue('--settings-keyboard-height');
-      const computed = detail ? window.getComputedStyle(detail) : null;
-      const panel = input.closest('.settings-detail-panel');
-      const panelStyle = panel ? window.getComputedStyle(panel) : null;
-      output.textContent = [
-        'WU KEYBOARD GEOMETRY v2 - NO SECRETS',
-        'hidden=' + field.hidden + ' disabled=' + input.disabled + ' focus=' +
-          (document.activeElement === input) + ' event=' + lastEvent,
-        'focus#=' + focusCount + ' tap#=' + pointerCount +
-          ' kbdOpen=' + keyboardOpen + ' modeSettings=' +
-          document.body.classList.contains('mode-settings'),
-        'pane scroll=' + number(detail?.scrollTop) + '/' + number(paneMax) +
-          ' size=' + number(detail?.clientHeight) + '/' + number(detail?.scrollHeight),
-        'pane top/bottom=' + number(paneRect?.top) + '/' + number(paneRect?.bottom),
-        'input top/bottom=' + number(inputRect?.top) + '/' + number(inputRect?.bottom) +
-          ' fieldBottom=' + number(fieldRect?.bottom),
-        'kbd top/height=' + number(keyboardRect?.top) + '/' + number(keyboardRect?.height) +
-          ' inputGap=' + number((keyboardRect?.top ?? NaN) - (inputRect?.bottom ?? NaN)),
-        'CSS kbHeight=' + (rootStyle || '(unset)') +
-          ' panePad=' + (computed?.paddingBottom || 'n/a') +
-          ' panelPad=' + (panelStyle?.paddingBottom || 'n/a'),
-      ].join('\n');
-    }
-    input.addEventListener('focusin', () => { focusCount++; lastEvent = 'input focusin'; update(); });
-    input.addEventListener('pointerdown', () => { pointerCount++; lastEvent = 'input pointerdown'; update(); });
-    toggle.addEventListener('click', () => {
-      const next = output.hidden;
-      output.hidden = !next;
-      toggle.textContent = next ? 'Hide keyboard layout diagnostics' : 'Show keyboard layout diagnostics';
-      if (timer !== null) window.clearInterval(timer);
-      timer = next ? window.setInterval(update, 150) : null;
-      update();
-    });
-    window.addEventListener('pagehide', () => {
-      if (timer !== null) window.clearInterval(timer);
-      timer = null;
-    }, { once: true });
-  }
-
   function installCredentialControls() {
     if (!wuPanel || wuPanel.querySelector('[data-wu-commissioning]')) return;
 
@@ -461,7 +375,6 @@
         <span class="muted small" data-wu-credential-message></span>
       </div>`;
     wuPanel.appendChild(block);
-    installCredentialKeyboardProbe(block);
 
     [...form.querySelectorAll('.setting-field')].forEach((field) => {
       const title = field.querySelector('span');
