@@ -96,6 +96,10 @@ The existing `scripts/try-squeekboard-overlay.py` gained an **explicit, candidat
 
 **Theme default decision:** once dynamic ACP/Squeekboard theme matching is physically accepted, unconfigured/fallback palette will be **Classic Dark (`classic_dark`)**, not the temporary Midnight Blue test colour. Follow selected ACP daytime and night modes without interrupting active input.
 
+### Compact numeric-keypad guarded trial gate
+
+After `scripts/stage-squeekboard-compact-number.py --stage` and `--check` have prepared and verified an *independent* private v2 keyboard tree, use the existing guarded OSK trial's non-disruptive `--plan` with the additional explicit `--compact-number` flag. It **requires both** `--uk-theme midnight_blue` and `--resource-overlay` (with a `--plan` or `--start` request). A normal command without `--compact-number` continues using the physically accepted v1 full-width layout. With the flag, the runner verifies the entire new private seven-YAML inventory and its exact layout bytes before creating trial state or interrupting the stock keyboard. Only the experimental OSK receives the alternate keymap path, while stock `/usr/bin/sbtest` recovery remains free of all trial-specific XDG/GLib/keymap variables. The independent rescue still runs after 240s, the trial ends at 180s. After successful Pi tests and plan, arrange WayVNC/touch before any short-lived `--start` experiment. Do not manually export `SQUEEKBOARD_KEYBOARDSDIR`, install packages, touch accepted v1 or edit autostart.
+
 ## Manual Phase-B native Plexamp launcher
 
 | File | Purpose | Safety / intended use |
