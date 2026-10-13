@@ -48,6 +48,29 @@ class StageSqueekboardUkThemeTests(unittest.TestCase):
         self.assertIn('colon:', candidate)
         self.assertNotIn('@ # $ % &', candidate)
 
+    def test_vendor_colon_keysym_need_not_have_explicit_button_override(self):
+        # A Pi vendor keyboard can render the colon keysym directly without
+        # defining a redundant `buttons: colon:` mapping.
+        without_button = NORMAL.replace('    colon:\n        text: ":"\n', '')
+        self.assertNotIn('    colon:', without_button)
+        result = stage.layout(without_button, "us.yaml")
+        self.assertIn("@ # £ % & - _ + ( )", result)
+        self.assertIn("show_symbols", result)
+        self.assertIn("colon", result)
+
+    def test_symbol_row_must_keep_apostrophe_quote_and_colon(self):
+        without_button = NORMAL.replace('    colon:\n        text: ":"\n', '')
+        for before, after, expected in (
+            (" ' colon ;", " ' semicolon ;", "Colon key"),
+            (" \\" ' colon", " \\" colon", "Apostrophe key"),
+            (" \\" ' colon", " quotedbl_removed ' colon", "Double-quote key"),
+        ):
+            with self.subTest(key=expected):
+                invalid = without_button.replace(before, after)
+                self.assertNotEqual(invalid, without_button)
+                with self.assertRaisesRegex(stage.StagingError, expected):
+                    stage.layout(invalid, "us.yaml")
+
     def test_number_layout_provides_decimal_and_time_without_losing_minus(self):
         candidate = stage.layout(NUMBER, "number/us.yaml")
         self.assertIn("1 2 3 period colon", candidate)
