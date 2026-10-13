@@ -67,6 +67,43 @@ class GTKStyleHotReloadProbeTests(unittest.TestCase):
         self.assertIn("context.invalidate()", text)
         self.assertIn("original.atomic_replace(css, original.B)", text)
 
+    def test_invalidate_only_on_explicit_legacy_branch(self):
+        import ast
+        module = ast.parse(SOURCE.read_text(encoding="utf-8"))
+        child = next(
+            node for node in module.body
+            if isinstance(node, ast.FunctionDef) and node.name == "child"
+        )
+        invocations = [
+            node for node in ast.walk(child)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "invalidate"
+        ]
+        self.assertEqual(len(invocations), 1)
+        conditional = [
+            node for node in ast.walk(child)
+            if isinstance(node, ast.If)
+            and isinstance(node.test, ast.Name)
+            and node.test.id == "manual_invalidate"
+        ]
+        self.assertEqual(len(conditional), 1)
+        self.assertIn(invocations[0], list(ast.walk(conditional[0])))
+        # Conservative existing probe is default; new automatic variant is opt-in.
+        self.assertEqual(
+            next(arg.value for arg in child.args.kw_defaults
+                 if isinstance(arg, ast.Constant)),
+            True,
+        )
+
+    def test_no_invalidate_variant_passes_flag_only_to_test_child(self):
+        text = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('actions.add_argument("--without-invalidate"', text)
+        self.assertIn('manual_invalidate=not args.without_invalidate', text)
+        self.assertIn('["--without-invalidate"] if args.without_invalidate else []', text)
+        self.assertIn('provider.load_from_resource(original.RESOURCE)', text)
+        self.assertIn('context.get_color(Gtk.StateFlags.NORMAL)', text)
+
     def test_never_restarts_or_rethemes_the_actual_keyboard(self):
         text = SOURCE.read_text(encoding="utf-8")
         for forbidden in (
