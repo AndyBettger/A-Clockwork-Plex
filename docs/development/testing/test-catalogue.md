@@ -230,6 +230,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 ### Plexamp and NFC
 
+- `tests/test_squeekboard_theme_inventory.py` — Proves the UK/theme preflight only invokes read-only process/package/GSettings commands, reports known layout filenames without reading private file contents, and lists ACP's actual day palette identifiers.
 - `tests/test_squeekboard_overlay_trial.py` — Guards the Pi's voluntary three-minute OSK trial, independent four-minute rollback timer, session ownership, no-overlap, exact SHA fingerprints, and restoration without the candidate file.
 - `tests/test_squeekboard_overlay_abi.py` — Checks experimental ARM64 ZIP file hashes, direct shared-library inventories, Debian runtime version floors, and refusal to inspect as root/non-ARM64 without executing the keyboard.
 - `tests/test_squeekboard_ci_builder.py` — Guards the disposable ARM64 Squeekboard builder's pinned source hashes, container/architecture preflight, offline Cargo boundary and artifact-only workflow.
