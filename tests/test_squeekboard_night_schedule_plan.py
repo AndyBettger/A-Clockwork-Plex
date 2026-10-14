@@ -132,7 +132,7 @@ class C3ReadOnlyScheduleParityTests(unittest.TestCase):
         self.assertIn("return current >= start || current < end", js)
         self.assertIn("return !alarmVisible() && (scheduledNow() || previewing())", js)
         self.assertIn('ZoneInfo("Europe/London")', module)
-        self.assertIn("return current >= start or current < end", module)
+        self.assertIn("scheduled = current >= start or current < end", module)
         self.assertNotIn("systemctl", module)
         self.assertNotIn("subprocess", module)
         self.assertNotIn("style.css", module)
