@@ -78,6 +78,7 @@
     'acp:dashboard-preferences-changed',
     'acp:display-night-interaction',
     'acp:display-night-interaction-ended',
+    'acp:display-night-preview-started',
     'acp:display-night-preview-ended',
     'acp:surface-activated',
     'acp:surface-settled',
