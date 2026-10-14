@@ -15,6 +15,7 @@ try:
         validate_submitted_alarm_config,
     )
     from .alarm_runtime import ActiveAlarmScheduler
+    from . import squeekboard_theme_sync as c3_theme_sync
 except ImportError:  # Supports direct execution with: python app/main.py
     import dashboard_core as core
     from alarm_audio import AlarmAudioManager, normalise_audio_settings
@@ -25,6 +26,7 @@ except ImportError:  # Supports direct execution with: python app/main.py
         validate_submitted_alarm_config,
     )
     from alarm_runtime import ActiveAlarmScheduler
+    import squeekboard_theme_sync as c3_theme_sync
 
 # Re-export the established application helpers for compatibility with existing
 # imports, then replace only the alarm-aware functions below.
@@ -461,6 +463,28 @@ def api_alarm_audio_stop():
     response = audio_payload()
     response["message"] = "Alarm audio stopped and previous services were restored where possible."
     return jsonify(response)
+
+
+
+@app.route("/api/osk/c3/theme-sync/status", methods=["GET"])
+def api_c3_theme_sync_status():
+    if not c3_theme_sync.local_browser_request(request, mutation=False):
+        return jsonify({"ok": False, "error": "C3 theme sync is local-browser only"}), 403
+    return jsonify({"ok": True, **c3_theme_sync.status()})
+
+
+@app.route("/api/osk/c3/theme-sync", methods=["POST"])
+def api_c3_theme_sync():
+    if not c3_theme_sync.local_browser_request(request, mutation=True):
+        return jsonify({"ok": False, "error": "C3 theme sync requires local same-origin JSON"}), 403
+    payload = request.get_json(silent=True)
+    try:
+        return jsonify({"ok": True, **c3_theme_sync.apply(payload)})
+    except c3_theme_sync.SyncError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except (OSError, ValueError, RuntimeError) as exc:
+        app.logger.warning("C3 trial-only theme sync refused: %s", exc)
+        return jsonify({"ok": False, "error": "C3 trial sync refused; inspect private stage"}), 409
 
 
 if __name__ == "__main__":
