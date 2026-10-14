@@ -107,6 +107,34 @@ class C3ThemeSyncTests(unittest.TestCase):
         self.assertFalse(result["changed"])
         self.assertNotIn(mock.call("stage-squeekboard-hot-css.py"), load.mock_calls)
 
+    def test_user_manager_query_isolated_from_dashboard_system_service_env(self):
+        """A system service has no reliable inherited user D-Bus environment."""
+        original = os.environ.copy()
+        completed = mock.Mock(returncode=0)
+        with mock.patch.object(bridge.os, "geteuid", return_value=1000), \
+             mock.patch.object(Path, "is_socket", return_value=True), \
+             mock.patch.object(bridge.subprocess, "run",
+                               return_value=completed) as run:
+            self.assertTrue(bridge.user_unit_active("acp-squeekboard-c3-trial.service"))
+            env = run.call_args.kwargs["env"]
+            runtime = "/run/user/" + str(os.getuid())
+            self.assertEqual(env["XDG_RUNTIME_DIR"], runtime)
+            self.assertEqual(env["DBUS_SESSION_BUS_ADDRESS"],
+                             "unix:path=" + runtime + "/bus")
+            self.assertEqual(run.call_args.args[0],
+                             ("systemctl", "--user", "is-active", "--quiet",
+                              "acp-squeekboard-c3-trial.service"))
+            self.assertFalse(bridge.user_unit_active("untrusted.service"))
+            self.assertEqual(run.call_count, 1)
+        self.assertEqual(os.environ, original)
+
+    def test_missing_user_bus_fails_closed_without_running_systemctl(self):
+        with mock.patch.object(bridge.os, "geteuid", return_value=1000), \
+             mock.patch.object(Path, "is_socket", return_value=False), \
+             mock.patch.object(bridge.subprocess, "run") as run:
+            self.assertFalse(bridge.user_unit_active("acp-squeekboard-c3-trial.service"))
+            run.assert_not_called()
+
     def test_opted_in_trial_requires_both_units_and_one_valid_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -128,11 +156,13 @@ class C3ThemeSyncTests(unittest.TestCase):
                 vendor_pids=mock.Mock(return_value=[]),
             )
             with mock.patch.object(bridge, "load_script", return_value=mock_trial), \
-                 mock.patch.object(bridge.os, "geteuid", return_value=1000):
+                 mock.patch.object(bridge.os, "geteuid", return_value=1000), \
+                 mock.patch.object(bridge, "user_unit_active",
+                                   side_effect=lambda u: "c3-" in u) as units:
                 self.assertEqual(bridge.opted_in_trial(), state)
-                mock_trial.unit_active = mock.Mock(return_value=False)
+                units.side_effect = lambda u: False
                 self.assertIsNone(bridge.opted_in_trial())
-                mock_trial.unit_active = mock.Mock(side_effect=lambda u: "c3-" in u)
+                units.side_effect = lambda u: "c3-" in u
                 mock_trial.candidate_pids.return_value = []
                 self.assertIsNone(bridge.opted_in_trial())
                 mock_trial.candidate_pids.return_value = [2345]
