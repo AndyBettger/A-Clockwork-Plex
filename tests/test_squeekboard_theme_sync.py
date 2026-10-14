@@ -237,6 +237,28 @@ class C3ThemeSyncTests(unittest.TestCase):
                     "SQUEEKBOARD_KEYBOARDSDIR", ".focus(", "document.activeElement"):
             self.assertNotIn(bad, source)
 
+    def test_eight_second_night_preview_triggers_immediate_c3_sync(self):
+        """Do not wait for 5s polling to notice a short 8s preview window."""
+        dimming = (ROOT / "app/static/js/display-dimming.js").read_text()
+        watcher = (ROOT / "app/static/js/osk-theme-sync.js").read_text()
+        base = (ROOT / "app/templates/base.html").read_text()
+        self.assertIn("function preview(seconds = 8)", dimming)
+        preview = dimming.split("function preview(seconds = 8)", 1)[1].split(
+            "function configure(", 1
+        )[0]
+        self.assertIn("schedulePreviewExpiry();", preview)
+        self.assertIn("refresh();", preview)
+        self.assertIn("acp:display-night-preview-started", preview)
+        self.assertIn("detail: status()", preview)
+        self.assertLess(preview.index("refresh();"),
+                        preview.index("acp:display-night-preview-started"))
+        self.assertIn("'acp:display-night-preview-started'", watcher)
+        self.assertIn("'acp:display-night-preview-ended'", watcher)
+        self.assertIn("window.addEventListener(event, tick)", watcher)
+        self.assertIn("20261014-c3-preview-event-v1", base)
+        self.assertIn("20261014-c3-preview-event-v2", base)
+
+
     def test_server_routes_and_trial_opt_in_are_explicit(self):
         api = (ROOT / "app/main.py").read_text()
         runner = (ROOT / "scripts/try-squeekboard-hot-css.py").read_text()
