@@ -14,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import sys
 import time
 from typing import Any
@@ -102,16 +103,51 @@ def validated_payload(raw: Any) -> tuple[str, dict[str, Any]]:
     return decision.palette, night
 
 
+
+def user_unit_active(name: str) -> bool:
+    """Query the Pi user's systemd manager even from ACP's *system* service.
+
+    systemd User=andy does not guarantee XDG_RUNTIME_DIR/DBUS_SESSION_BUS_ADDRESS
+    are inherited. Pin these for this one read-only child; NEVER change the
+    process-wide environment or start/stop any unit.
+    """
+    allowed = frozenset((
+        "acp-squeekboard-c3-trial.service",
+        "acp-squeekboard-c3-restore.timer",
+        "acp-squeekboard-overlay-trial.service",
+        "acp-squeekboard-overlay-restore.timer",
+    ))
+    if name not in allowed or os.geteuid() == 0:
+        return False
+    runtime = Path("/run/user") / str(os.getuid())
+    if not (runtime / "bus").is_socket():
+        return False
+    env = os.environ.copy()
+    env.update({
+        "XDG_RUNTIME_DIR": str(runtime),
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(runtime / "bus"),
+        "HOME": str(Path.home()),
+    })
+    try:
+        check = subprocess.run(
+            ("systemctl", "--user", "is-active", "--quiet", name),
+            env=env, capture_output=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return check.returncode == 0
+
+
 def opted_in_trial():
     """Read-only positive proof of ONE still-running, opted-in C3 trial."""
     if os.geteuid() == 0:
         return None
     try:
         trial = load_script("try-squeekboard-hot-css.py")
-        if (not trial.unit_active(trial.TRIAL_UNIT + ".service")
-                or not trial.unit_active(trial.ROLLBACK_UNIT + ".timer")
-                or trial.unit_active(trial.C2_TRIAL_UNIT + ".service")
-                or trial.unit_active(trial.C2_ROLLBACK_UNIT + ".timer")):
+        if (not user_unit_active(trial.TRIAL_UNIT + ".service")
+                or not user_unit_active(trial.ROLLBACK_UNIT + ".timer")
+                or user_unit_active(trial.C2_TRIAL_UNIT + ".service")
+                or user_unit_active(trial.C2_ROLLBACK_UNIT + ".timer")):
             return None
         active = []
         for path in trial.ROOT.glob("trial-*/state.json"):
@@ -135,7 +171,9 @@ def opted_in_trial():
         if len(active) != 1:
             return None
         return active[0]
-    except (OSError, ValueError, RuntimeError, KeyError, json.JSONDecodeError):
+    except Exception:
+        # This is an opt-in safety gate: a failed hash, missing state,
+        # user-bus problem or unexpected validation error must fail CLOSED.
         return None
 
 
