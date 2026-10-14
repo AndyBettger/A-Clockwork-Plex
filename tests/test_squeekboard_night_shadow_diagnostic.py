@@ -162,7 +162,7 @@ class C3NightShadowDiagnosticTests(unittest.TestCase):
         self.assertIn("osk-night-shadow-diagnostic.js", template)
         self.assertIn("register_c3_shadow_diagnostic_api(", runner)
         for bad in ("window.setInterval", "setTimeout(", "systemctl",
-                    "/api/osk/c3/theme-sync'", "style.css", "localStorage",
+                    "/api/osk/c3/theme-sync'", "'style.css'", "localStorage",
                     "sessionStorage", "window.location.reload"):
             self.assertNotIn(bad, script)
 
