@@ -408,6 +408,11 @@
     scheduleInteractionExpiry();
     schedulePreviewExpiry();
     refresh();
+    // C3's opt-in palette watcher needs a deterministic start signal for the
+    // short eight-second preview; it must not wait for its next 5s poll.
+    window.dispatchEvent(new CustomEvent('acp:display-night-preview-started', {
+      detail: status(),
+    }));
     return status();
   }
 
