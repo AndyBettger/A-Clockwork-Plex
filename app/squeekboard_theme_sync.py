@@ -58,11 +58,16 @@ def local_browser_request(req, *, mutation: bool) -> bool:
         peer = ipaddress.ip_address(req.remote_addr)
     except (ValueError, TypeError):
         return False
-    if not peer.is_loopback or req.host.split(":")[0].strip("[]").lower() not in ALLOWED_HOSTS:
-        # IPv6 [::1] is parsed separately below, not by naive split.
-        if not peer.is_loopback or req.host.split(":")[0].strip("[]").lower() not in ("localhost", "127.0.0.1"):
-            if not (peer == ipaddress.ip_address("::1") and req.host.startswith("[::1]")):
-                return False
+    # The kiosk uses a loopback URL. Never trust a reverse proxy on localhost
+    # as proof that an external browser is local.
+    host = req.host.lower()
+    valid_host = (host in ALLOWED_HOSTS
+                  or (host.rsplit(":", 1)[0] in ("localhost", "127.0.0.1")
+                      and host.rsplit(":", 1)[-1].isdigit())
+                  or host == "[::1]"
+                  or (host.startswith("[::1]:") and host[6:].isdigit()))
+    if not peer.is_loopback or not valid_host:
+        return False
     if req.headers.get("X-Forwarded-Host") or req.headers.get("Forwarded"):
         return False
     if mutation:
@@ -70,7 +75,8 @@ def local_browser_request(req, *, mutation: bool) -> bool:
             return False
         if req.headers.get("Sec-Fetch-Site") not in (None, "same-origin"):
             return False
-        if req.mimetype != "application/json" or (req.content_length or 0) > MAX_BODY:
+        if (req.mimetype != "application/json" or req.content_length is None
+                or req.content_length > MAX_BODY):
             return False
     return True
 
