@@ -352,6 +352,23 @@ def unit_environment(env: dict[str, str]) -> list[str]:
     return ["--setenv=" + key + "=" + value for key, value in sorted(env.items())]
 
 
+def reset_private_theme_after_stock(state: dict) -> None:
+    """Best-effort C3-only cleanup AFTER stock has been confirmed running.
+
+    Failure must NEVER jeopardise the original vendor keyboard recovery.
+    The independent 240s rescue does not require CSS files to exist.
+    """
+    if state.get("theme_sync") is not True:
+        return
+    try:
+        stage = load_c3_stage()
+        selected, changed = stage.select(stage.palettes(), stage.DEFAULT_PALETTE)
+        if changed:
+            print("C3 private trial CSS reset to Classic Dark (stock already restored).", flush=True)
+    except Exception as exc:
+        print("C3 private CSS reset deferred; stock OSK is restored: " + str(exc), flush=True)
+
+
 def restore_stock(state_path: Path, *, stop_trial: bool) -> None:
     # Never depend on the experimental binary still existing on disk.
     state = read_state(state_path, require_candidate=False)
@@ -381,6 +398,7 @@ def restore_stock(state_path: Path, *, stop_trial: bool) -> None:
             raise TrialError("More than one vendor keyboard; refusing extra launch")
         if len(pids) == 1:
             print("Original Squeekboard is already running; nothing to restore.", flush=True)
+            reset_private_theme_after_stock(state)
             return
         print("Restoring vendor /usr/bin/sbtest in an independent user unit...", flush=True)
         command = [
@@ -395,6 +413,7 @@ def restore_stock(state_path: Path, *, stop_trial: bool) -> None:
             time.sleep(0.25)
             if len(vendor_pids()) == 1 and not candidate_pids(candidate):
                 print("Original Squeekboard restored.", flush=True)
+                reset_private_theme_after_stock(state)
                 return
         raise TrialError("Restore service launched but original keyboard not detected")
 
