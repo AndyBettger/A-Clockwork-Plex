@@ -68,7 +68,9 @@ def local_browser_request(req, *, mutation: bool) -> bool:
                   or (host.startswith("[::1]:") and host[6:].isdigit()))
     if not peer.is_loopback or not valid_host:
         return False
-    if req.headers.get("X-Forwarded-Host") or req.headers.get("Forwarded"):
+    if any(req.headers.get(header) for header in ("X-Forwarded-Host",
+                                                   "X-Forwarded-For",
+                                                   "X-Forwarded-Proto", "Forwarded")):
         return False
     if mutation:
         if req.headers.get("Origin") != req.scheme + "://" + req.host:
