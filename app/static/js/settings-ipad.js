@@ -19,7 +19,8 @@
   const numericPaths = new Set([
     'dashboard.idle_timeout_seconds',
     'display.transition_duration_ms',
-    'weather.auto_refresh_seconds',
+    'display.navigation_transition_duration_ms',
+    'display.navigation_inactivity_seconds',
     'weather.forecast.latitude',
     'weather.forecast.longitude',
     'weather.forecast.forecast_days',
@@ -141,21 +142,69 @@
     document.querySelectorAll(`[data-setting-output="${path}"]`).forEach((output) => {
       const number = Number(value);
       if (path === 'airplay.default_volume_percent') output.textContent = `${Math.round(number || 0)}%`;
+      else if (['display.transition_duration_ms', 'display.navigation_transition_duration_ms'].includes(path)) {
+        output.textContent = `${Number.isFinite(number) ? Math.round(number) : 0} ms`;
+      }
+      else if (path === 'display.navigation_inactivity_seconds') {
+        const seconds = Number.isFinite(number) ? Math.round(number) : 0;
+        output.textContent = seconds <= 0 ? 'Never' : `${seconds} s`;
+      }
       else if (path.startsWith('audio.eq.bands.')) output.textContent = `${number > 0 ? '+' : ''}${Number.isFinite(number) ? number.toFixed(1) : '0.0'} dB`;
       else output.textContent = String(value ?? '');
     });
   }
 
-  function populateControls(settings) {
-    document.querySelectorAll('[data-setting-path]').forEach((control) => {
+  function ensureSavedSelectOption(control, value) {
+    if (!(control instanceof HTMLSelectElement)) return;
+    const text = String(value ?? '');
+    const options = [...control.options];
+    const matches = options.filter((option) => option.value === text);
+    control.querySelectorAll('option[data-settings-snapshot-value]').forEach((option) => {
+      if (option.value !== text || matches.some((candidate) => candidate !== option)) option.remove();
+    });
+    if (!text || [...control.options].some((option) => option.value === text)) return;
+    const option = document.createElement('option');
+    option.value = text;
+    option.textContent = `Current saved value · ${text}`;
+    option.dataset.settingsSnapshotValue = 'true';
+    control.appendChild(option);
+  }
+
+  function applyControlValue(control, value) {
+    if (!control) return;
+    if (control.type === 'checkbox') {
+      control.checked = value === true;
+      return;
+    }
+    if (value !== undefined && value !== null) {
+      ensureSavedSelectOption(control, value);
+      control.value = String(value);
+      return;
+    }
+    control.value = '';
+  }
+
+  function hydrateControls(root, settings, selector = '[data-setting-path]') {
+    root?.querySelectorAll?.(selector).forEach((control) => {
       const path = control.dataset.settingPath;
       const value = getPath(settings, path);
-      if (control.type === 'checkbox') control.checked = value === true;
-      else if (value !== undefined && value !== null) control.value = String(value);
-      else control.value = '';
+      applyControlValue(control, value);
       renderOutput(path, value);
     });
+  }
+
+  function refreshEnhancedControls(settings) {
+    window.ACPSettingsSelects?.refresh?.();
+    window.ACPSettingsRangeTheme?.refresh?.();
+    window.dispatchEvent(new CustomEvent('acp:settings-hydrated', {
+      detail: { settings: clone(settings || {}) },
+    }));
+  }
+
+  function populateControls(settings) {
+    hydrateControls(document, settings);
     updateUnitPreset();
+    window.ACPSettingsRangeTheme?.refresh?.();
   }
 
   function applyClockCards(settings) {
@@ -163,16 +212,39 @@
     if (Array.isArray(cards)) window.ACPClockCards?.applyStoredIds?.(cards);
   }
 
+  function syncLiveShellSettings(settings) {
+    const dashboard = settings?.dashboard || {};
+    const display = settings?.display || {};
+    window.ACPDashboardPreferences?.write?.({
+      startupMode: dashboard.startup_mode,
+      idleReturnMode: dashboard.idle_return_mode,
+      daytimeTheme: display.daytime_theme,
+      transitionStyle: display.transition_style,
+      transitionDurationMs: display.transition_duration_ms,
+      navigationTransitionDurationMs: display.navigation_transition_duration_ms,
+      navigationInactivitySeconds: display.navigation_inactivity_seconds,
+      navigationPresentation: display.navigation_presentation,
+      clockFormat: display.clock_format,
+    });
+  }
+
   function collectSettings() {
     const settings = clone(loadedSettings || {});
     document.querySelectorAll('[data-setting-path]').forEach((control) => {
       if (control.dataset.settingImmediate === 'true') return;
+      const section = sectionFor(control);
+      if (!dirtySections.has(section)) return;
       setPath(settings, control.dataset.settingPath, controlValue(control));
     });
-    const clockCards = window.ACPClockCards?.storedIds?.()
-      || [...document.querySelectorAll('#clock-card-hidden-inputs input[name="clock_cards"]')].map((input) => input.value);
-    if (settings.weather) settings.weather.clock_cards = clockCards;
+
+    if (dirtySections.has('weather')) {
+      const clockCards = window.ACPClockCards?.storedIds?.()
+        || [...document.querySelectorAll('#clock-card-hidden-inputs input[name="clock_cards"]')].map((input) => input.value);
+      if (settings.weather) settings.weather.clock_cards = clockCards;
+    }
+
     providers.forEach((provider, domain) => {
+      if (!dirtySections.has(domain)) return;
       if (typeof provider.get === 'function') settings[domain] = provider.get();
     });
     return settings;
@@ -183,7 +255,9 @@
     loadedSettings = clone(next.settings);
     populateControls(loadedSettings);
     applyClockCards(loadedSettings);
+    syncLiveShellSettings(loadedSettings);
     providers.forEach((provider, domain) => provider.apply?.(clone(next.settings[domain])));
+    refreshEnhancedControls(loadedSettings);
     dirtySections.clear();
     renderHealth(next);
     updateDirtyUi();
@@ -194,6 +268,7 @@
     populateControls(loadedSettings);
     applyClockCards(loadedSettings);
     providers.forEach((provider, domain) => provider.apply?.(clone(loadedSettings[domain])));
+    refreshEnhancedControls(loadedSettings);
     dirtySections.clear();
     updateDirtyUi();
   }
@@ -281,6 +356,7 @@
 
   async function save(confirmAirplayRestart = false) {
     if (saveInFlight || !snapshot || !dirtySections.size) return;
+    const submittedSections = [...dirtySections];
     saveInFlight = true;
     updateDirtyUi();
     if (saveButton) saveButton.textContent = 'Saving…';
@@ -301,6 +377,13 @@
       }
       if (!response.ok || payload.ok === false) throw new Error(payload.error || `Settings returned HTTP ${response.status}.`);
       applySnapshot(payload);
+      document.dispatchEvent(new CustomEvent('acp:settings-saved', {
+        detail: {
+          sections: submittedSections,
+          settings: clone(payload.settings || {}),
+          changed: clone(payload.changed || {}),
+        },
+      }));
       setSaveState('All changes saved', payload.changed?.airplay_receiver_restarted ? 'AirPlay receiver restarted successfully.' : 'The appliance configuration is current.', 'clean');
     } catch (error) {
       setSaveState('Save failed', error.message || 'The configuration was not changed.', 'error');
@@ -320,6 +403,10 @@
       applySnapshot(payload);
     } catch (error) {
       setSaveState('Settings unavailable', error.message || 'Could not read the appliance configuration.', 'error');
+    } finally {
+      window.dispatchEvent(new CustomEvent('acp:page-hydrated', {
+        detail: { page: 'settings' },
+      }));
     }
   }
 
@@ -420,10 +507,19 @@
 
   function registerDomain(name, provider) {
     providers.set(name, provider || {});
-    if (snapshot && provider?.apply) provider.apply(clone(snapshot.settings[name]));
+    if (snapshot && provider?.apply) {
+      provider.apply(clone(snapshot.settings[name]));
+      refreshEnhancedControls(snapshot.settings);
+    }
   }
 
-  window.ACPUnifiedSettings = { registerDomain, markDirty, getSnapshot: () => clone(snapshot) };
+  window.ACPUnifiedSettings = {
+    registerDomain,
+    markDirty,
+    getSnapshot: () => clone(snapshot),
+    applyControlValue,
+    hydrateControls,
+  };
 
   sectionButtons.forEach((button) => button.addEventListener('click', () => {
     activateSection(button.dataset.settingsSectionTarget);

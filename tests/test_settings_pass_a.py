@@ -74,6 +74,132 @@ class SettingsPassATests(unittest.TestCase):
         self.assertIn("_MAX_CLOCK_CARD_SLOTS = 8", backend)
         self.assertIn("Clock weather cards support at most", backend)
 
+    def test_custom_keyboard_panel_has_real_scroll_reach_for_dynamic_password(self):
+        style = STYLE.read_text(encoding="utf-8")
+        client = CLIENT.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        credential = (ROOT / "app/static/js/settings-weather-observations.js").read_text(encoding="utf-8")
+        self.assertIn("body.mode-settings.keyboard-open .settings-detail-panel:not([hidden])", style)
+        self.assertIn("padding-bottom: calc(var(--settings-keyboard-height, 300px) + 24px)", style)
+        self.assertIn("if (target !== activeKeyboardTarget", client)
+        self.assertIn("behavior: 'auto'", client)
+        self.assertIn("window.setTimeout(() => {", client)
+        self.assertIn("}, 210);", client)
+        self.assertIn("revealKeyboardTarget(target)", client)
+        self.assertIn("Tap the new API key field to start typing.", credential)
+        self.assertNotIn("elements.input?.focus()", credential)
+        self.assertIn("20261013-keyboard-visual-bounds-v2", base)
+        self.assertNotIn("body.keyboard-open .settings-ipad-page", style)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_actual_settings_keyboard_reveal_scrolls_dynamic_bottom_field(self):
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('app/static/js/settings-pass-a.js', 'utf8');
+const start = source.indexOf('  function keyboardHeight() {');
+const end = source.indexOf('  function installKeyboardVisibility() {', start);
+assert.ok(start >= 0 && end > start, 'real keyboard visibility functions available');
+const methods = source.slice(start, end);
+class HTMLElement {}
+const target = new HTMLElement();
+const pane = {
+  offset: 0,
+  getBoundingClientRect: () => ({top: 130, bottom: 640}),
+  scrollBy: ({top, behavior}) => {
+    assert.strictEqual(behavior, 'auto');
+    pane.offset = Math.min(380, Math.max(0, pane.offset + top));
+  }
+};
+const wholeField = {
+  getBoundingClientRect: () => ({top: 555 - pane.offset, bottom: 685 - pane.offset})
+};
+target.closest = selector => selector === '.settings-detail' ? pane :
+  selector === '.setting-field, .setting-toggle, label' ? wholeField : null;
+const classes = {contains: name => name === 'keyboard-open'};
+let assignedHeight = null;
+const document = {
+  body: {classList: classes},
+  getElementById: id => id === 'touch-keyboard'
+    ? {getBoundingClientRect: () => ({height: 310})} : null,
+  documentElement: {style: {setProperty: (name, height) => {
+    if (name === '--settings-keyboard-height') assignedHeight = height;
+  }}}
+};
+const window = {
+  innerHeight: 720, clearTimeout: () => {},
+  setTimeout: fn => {fn(); return 1;}
+};
+vm.runInNewContext(`
+let activeKeyboardTarget = target;
+let revealTimer = null;
+${methods}
+revealKeyboardTarget(target);
+assert.ok(pane.offset >= 290, 'reveals content well above the overlay');
+assert.ok(wholeField.getBoundingClientRect().bottom <= window.innerHeight - 310 - 12,
+  'complete dynamic label and editor above the keyboard');
+assert.strictEqual(assignedHeight, '310px');
+// A delayed callback must never scroll the previously focused input.
+pane.offset = 0;
+activeKeyboardTarget = new HTMLElement();
+revealKeyboardTarget(target);
+assert.strictEqual(pane.offset, 0, 'no stale field scrolling');
+`, {assert, target, pane, wholeField, HTMLElement, window, document,
+    get assignedHeight() {return assignedHeight;}});
+"""
+        run = subprocess.run(
+            ["node", "-e", javascript],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_keyboard_height_uses_visible_key_content_when_wrapper_is_short(self):
+        javascript = r"""
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const script = fs.readFileSync('app/static/js/settings-pass-a.js', 'utf8');
+const begin = script.indexOf('  function keyboardHeight() {');
+const end = script.indexOf('  function revealKeyboardTarget(', begin);
+assert.ok(begin >= 0 && end > begin);
+const rows = [
+  {getBoundingClientRect: () => ({top: 332, height: 34})},
+  {getBoundingClientRect: () => ({top: 376, height: 34})}
+];
+const keyboard = {
+  getBoundingClientRect: () => ({top: 427, height: 53}),
+  scrollHeight: 53,
+  querySelectorAll: selector => selector === '.touch-key-row' ? rows : []
+};
+let lastHeight = '';
+const document = {
+  body: {classList: {contains: name => name === 'keyboard-open'}},
+  getElementById: name => name === 'touch-keyboard' ? keyboard : null,
+  documentElement: {style: {setProperty: (name, value) => {
+    assert.strictEqual(name, '--settings-keyboard-height');
+    lastHeight = value;
+  }}}
+};
+const window = {innerHeight: 480};
+const height = vm.runInNewContext(
+  `${script.slice(begin, end)} keyboardHeight();`,
+  {window, document}
+);
+assert.strictEqual(height, 148,
+  'keyboard reserves visible rows from y=332 to viewport bottom at 480');
+assert.strictEqual(lastHeight, '148px',
+  'the measured 53px wrapper must not dictate scroll clearance');
+console.log('Keyboard overflow geometry: PASS');
+"""
+        run = subprocess.run(
+            ["node", "-e", javascript], cwd=ROOT,
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("Keyboard overflow geometry: PASS", run.stdout)
+
     def test_keyboard_scrolls_the_real_settings_detail_owner(self):
         client = CLIENT.read_text(encoding="utf-8")
         style = STYLE.read_text(encoding="utf-8")
@@ -363,7 +489,7 @@ process.stdout.write(JSON.stringify(payload));
         self.assertIn("settings-pass-a.js", base)
         self.assertIn("20260802-kiosk-address-panel", base)
         self.assertIn("touch-keyboard.css", base)
-        self.assertIn("20260831-shared-plexamp-search-v1", base)
+        self.assertIn("20261012-native-osk-all-fields-v4", base)
 
     def test_external_navigation_is_forbidden_from_the_kiosk_client(self):
         client = SAFE_LINKS.read_text(encoding="utf-8")

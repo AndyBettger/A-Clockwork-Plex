@@ -221,8 +221,46 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_wu_application_verifier_handoff.py` — Checks Weather Underground state/secret hand-off into the application verifier.
 - `tests/test_wu_payload_inspector.py` — Exercises WU payload inspection/diagnostics while redacting credentials and sensitive values.
 
+### ACP shell / navigation
+
+- `tests/test_acp_design_tokens.py` — Protects the #94 Phase A semantic design-token boundary, load order, palette derivation and first migrated shared/application-surface consumers.
+- `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces.
+
+- `tests/test_os_keyboard_choice.py` — Protects the five-minute browser-session native OSK trial switch, original input hint restoration, Advanced UI wiring and non-regression of the accepted ACP HTML keyboard.
+
 ### Plexamp and NFC
 
+- `tests/test_squeekboard_resource_overlay.py` — Guards private GResource stylesheet inventory, overlay mapping verification, symlink refusal and candidate-only CSS injection.
+- `tests/test_squeekboard_gtk_cascade.py` — Proves the isolated GTK3 CSS cascade probe uses synthetic key contexts and never alters Squeekboard or global GTK.
+- `tests/test_squeekboard_compact_number.py` — Guards private centred British numeric layout, symmetric margins, seven exact files and accepted v1 preservation.
+- `tests/test_squeekboard_acp_theme_contract.py` — Checks Classic Dark fallback and all 23 existing ACP day/classic-night/astronomy-night palette selections.
+- `tests/test_squeekboard_live_css_lookup.py` — Guards disposable same-process GLib resource relookup and atomic stylesheet replacement without contacting the OSK.
+- `tests/test_squeekboard_gtk_hot_style.py` — Checks same-context GTK CSS-provider colour reload and the independent no-invalidate CLI option.
+- `tests/test_squeekboard_hot_css_source_patch.py` — Tests the source-only candidate GTK widget CSS directory watcher, exact reversible insertions and fail-closed vendor anchors.
+- `tests/test_squeekboard_hot_css_source_audit.py` — Audits reversible C source changes, hashes, read-only diff output and incompatible/symlinked source rejection.
+- `tests/test_squeekboard_night_shadow_diagnostic.py` — Local-loopback, strict same-origin, manual one-shot C3 night shadow diagnostics; Flask route reads only saved night settings, alarm-screen status and Linux-input sequence while an explicitly URL-opted-in Settings button supplies live browser night state; tests reject malformed/proxied/LAN requests and assert no CSS writes, OSK ownership, timers, retention or global polling.
+- `tests/test_squeekboard_night_shadow_compare.py` — Offline read-only snapshot comparator between ACP browser night status and Python schedule/alarm/Linux-input evidence; classifies exact parity, settings drift, alarm-presentation uncertainty, short time-boundary ambiguity and missing input. Never owns/writes C3 CSS, alarm state, dashboard timers or vendor keyboard.
+- `tests/test_squeekboard_night_observation_plan.py` — Read-only browser-vs-server alarm-screen evidence (including inconsistent/missing presentation), exact Linux input sequence baseline/advance/reset/preview suppression and schedule gates, validated interaction deadlines and contract checks against current ACP JavaScript/input/alarm runtime; explicitly no CSS, services, keyboard processes or runtime integration.
+- `tests/test_squeekboard_night_schedule_plan.py` — Read-only Python parity against ACP's live JavaScript local-wall-clock night scheduling: exact start/end semantics, overnight/full-day windows, Europe/London DST folds/skips, explicit preview and alarm suppression, strict invalid-state refusal and no Squeekboard/service/CSS writes. No production Python scheduler has been installed.
+- `tests/test_squeekboard_theme_sync.py` — Verifies C3 theme-sync loopback/same-origin JSON policy, exact daytime/night payload schema, reuse of the 23-palette planner, explicit 180s trial opt-in and live PID/timer gate, idempotent private-file-only CSS updates, symlinked-lock refusal, browser event wiring and default-disabled preservation of stock/C2.
+- `tests/test_squeekboard_hot_css_trial.py` — Guards independent C3 180s trial/240s rescue, dual C2/C3 overlap refusal, source/binary hash gate, Classic Dark first paint, CSS env exclusion from stock restore, and safe failure paths.
+- `tests/test_squeekboard_hot_css_stage.py` — Checks C3-only 0700 private hot-CSS staging, Classic Dark default, 23 allowlisted IDs and SHA-exact source verification, candidate-only higher-contrast Midnight Blue override preserving original C2 bytes, atomic file replacement, rejection of unexpected changes/symlinks/hardlinks, and no stock/C2 OSK mutation.
+- `tests/test_squeekboard_hot_css_artifact.py` — Protects the exact C3 GitHub ZIP/package/ELF SHA-256s, pinned source attestation, tamper/extra-member rejection, and read-only target-Pi ABI inspection independent of accepted C2 trial.
+- `tests/test_squeekboard_hot_css_arm64_build.py` — Guards source-hash-locked disposable C3 ARM64 candidate compilation, distinct artifacts and refusal to run off-device builder on Pi.
+- `tests/test_squeekboard_hot_css_ci_audit.py` — Restricts real Debian source audit to ARM64 disposable GitHub CI, separated from the accepted executable builder.
+- `tests/test_squeekboard_uk_theme_validation.py` — Guards read-only post-stage candidate/manifests, expected layouts and palette contents, symlink/tamper rejection, and optional parser disclosure without installing packages or changing OSK state.
+- `tests/test_squeekboard_uk_theme_stage.py` — Checks vendor-keymap GBP, apostrophe/quote, signed-decimal and time symbols; ACP-derived palette/night CSS; private staging/overwrite refusal and absence of runtime keyboard commands.
+- `tests/test_squeekboard_theme_inventory.py` — Proves the UK/theme preflight only invokes read-only process/package/GSettings commands, reports known layout filenames without reading private file contents, and lists ACP's actual day palette identifiers.
+- `tests/test_squeekboard_overlay_trial.py` — Guards the Pi's voluntary three-minute OSK trial, independent four-minute rollback timer, session ownership, no-overlap, exact SHA fingerprints, and restoration without the candidate file.
+- `tests/test_squeekboard_overlay_abi.py` — Checks experimental ARM64 ZIP file hashes, direct shared-library inventories, Debian runtime version floors, and refusal to inspect as root/non-ARM64 without executing the keyboard.
+- `tests/test_squeekboard_ci_builder.py` — Guards the disposable ARM64 Squeekboard builder's pinned source hashes, container/architecture preflight, offline Cargo boundary and artifact-only workflow.
+
+### Plexamp and NFC
+
+- `tests/test_squeekboard_build_dependency_plan.py` — Confirms vendor source/control parsing and source-provenance guards, and limits the proposed build dependencies operation to an APT dry run without package/keyboard mutation.
+
+- `tests/test_native_plexamp_launcher.py` — Protects the manual native Flatpak SSH launcher, scoped fullscreen matching, missing-session handling and duplicate-launch safety.
+- `tests/test_prepare_squeekboard_overlay.py` — Protects non-installing vendor Squeekboard source staging, strict SHA-256 descriptor requirements, one-shot TOP→OVERLAY patching and refusal of overwrite/root execution.
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
 - `tests/test_nfc_python_dependency_check.py` — Checks the dedicated NFC Python environment contains the required importable dependencies.
 - `tests/test_plexamp_browser_storage_probe.py` — Protects the disposable-profile browser-storage metadata inventory: Web Storage key names/families only, IndexedDB database/object-store metadata only, no stored values/records/transactions, bounded sensitive-name redaction and loopback-only transport reuse.

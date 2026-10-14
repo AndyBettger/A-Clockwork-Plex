@@ -29,6 +29,20 @@
   };
 
   let scrollbarSequence = 0;
+  const scrollbarRefreshers = new Set();
+
+  function refreshForecastScrollbars() {
+    scrollbarRefreshers.forEach((refresh) => refresh());
+    window.requestAnimationFrame(() => {
+      scrollbarRefreshers.forEach((refresh) => refresh());
+      window.requestAnimationFrame(() => {
+        scrollbarRefreshers.forEach((refresh) => refresh());
+      });
+    });
+    window.setTimeout(() => {
+      scrollbarRefreshers.forEach((refresh) => refresh());
+    }, 180);
+  }
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -66,8 +80,19 @@
     }
 
     function update() {
+      if (!strip.isConnected || !rail.isConnected) return;
+
       const metrics = measurements();
-      const scrollable = metrics.maxScroll > 1 && metrics.availableWidth > 0;
+
+      // A mounted Weather surface remains in the document while hidden. During
+      // that state ResizeObserver legitimately sees zero-width geometry. That
+      // is not evidence that the strip stopped being scrollable, so preserve
+      // the last known rail state until the surface is visible again.
+      if (strip.clientWidth <= 0 || rail.clientWidth <= 0 || metrics.availableWidth <= 0) {
+        return;
+      }
+
+      const scrollable = metrics.maxScroll > 1;
       rail.hidden = !scrollable;
       rail.setAttribute('aria-hidden', scrollable ? 'false' : 'true');
       rail.tabIndex = scrollable ? 0 : -1;
@@ -166,7 +191,13 @@
       observer.observe(strip);
       observer.observe(rail);
     }
+    scrollbarRefreshers.add(update);
     update();
+    window.requestAnimationFrame(() => {
+      update();
+      window.requestAnimationFrame(update);
+    });
+    window.setTimeout(update, 180);
   }
 
   function parseLocalDate(value, dateOnly = false) {
@@ -382,7 +413,22 @@
     panel.appendChild(foot);
     outer.appendChild(panel);
     anchor.insertBefore(outer, anchor.firstChild);
+    refreshForecastScrollbars();
   }
+
+  document.addEventListener('acp:surface-activated', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'weather') {
+      refreshForecastScrollbars();
+    }
+  });
+
+  document.addEventListener('acp:surface-settled', (event) => {
+    if (String(event?.detail?.surface || '').toLowerCase() === 'weather') {
+      refreshForecastScrollbars();
+    }
+  });
+
+  document.addEventListener('acp:weather-grid-refreshed', refreshForecastScrollbars);
 
   fetch('/api/weather/forecast', { cache: 'no-store' })
     .then((response) => {

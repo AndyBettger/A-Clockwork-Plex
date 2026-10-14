@@ -1,14 +1,15 @@
 (() => {
-  const drawer = document.getElementById('nav-drawer');
-  const handle = document.getElementById('nav-handle');
-  const mainNav = drawer?.querySelector('.main-nav');
+  if (window.__aClockworkPlexNavDrawerLoaded) return;
+  window.__aClockworkPlexNavDrawerLoaded = true;
 
-  if (!drawer || !handle || !mainNav) {
-    return;
-  }
+  const drawerNode = () => document.getElementById('nav-drawer');
+  const handleNode = () => document.getElementById('nav-handle');
+  const mainNavNode = () => drawerNode()?.querySelector('.main-nav');
 
-  const NORMAL_AUTO_HIDE_MS = 6000;
-  const MIXER_AUTO_HIDE_MS = 60000;
+  if (!drawerNode() || !handleNode() || !mainNavNode()) return;
+
+  const NAVIGATION_MODE_TRANSFER_KEY = 'a-clockwork-plex.navigation-mode-transfer';
+  const NAVIGATION_MODE_TRANSFER_MAX_AGE_MS = 15000;
   const SWIPE_THRESHOLD_PX = 24;
   const LIVE_ENDPOINT = '/api/audio/live';
   const MIXER_ENDPOINT = '/api/audio/mixer';
@@ -104,17 +105,30 @@
   }
 
   function installAudioPanel() {
+    const drawer = drawerNode();
+    const mainNav = mainNavNode();
+    if (!drawer || !mainNav) return false;
+
     let audioButton = document.getElementById('nav-audio-button');
     if (!audioButton) {
       audioButton = document.createElement('button');
       audioButton.id = 'nav-audio-button';
       audioButton.type = 'button';
-      audioButton.className = 'button nav-button nav-audio-button';
-      audioButton.textContent = 'Audio';
+      audioButton.className = 'button nav-button nav-utility-button nav-audio-button';
+      audioButton.setAttribute('aria-label', 'Audio');
+      audioButton.setAttribute('title', 'Audio');
       audioButton.setAttribute('aria-controls', 'nav-live-mixer');
       audioButton.setAttribute('aria-expanded', 'false');
-      const settingsLink = mainNav.querySelector('a[href="/settings"]');
-      mainNav.insertBefore(audioButton, settingsLink || null);
+      audioButton.innerHTML = `
+        <svg class="nav-utility-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 9.25h3.25L11.5 5.5v13l-4.25-3.75H4z"></path>
+          <path d="M15 8.25a5 5 0 0 1 0 7.5"></path>
+          <path d="M17.75 5.5a8.75 8.75 0 0 1 0 13"></path>
+        </svg>
+      `;
+      const utilityGroup = mainNav.querySelector('.nav-utilities') || mainNav;
+      const settingsLink = utilityGroup.querySelector('a[href="/settings"]');
+      utilityGroup.insertBefore(audioButton, settingsLink || null);
     }
 
     let panel = document.getElementById('nav-live-mixer');
@@ -122,8 +136,8 @@
       panel = document.createElement('section');
       panel.id = 'nav-live-mixer';
       panel.className = 'nav-live-mixer';
-      panel.hidden = true;
       panel.setAttribute('aria-label', 'Audio mixer');
+      panel.setAttribute('aria-hidden', 'true');
       panel.innerHTML = `
         <header class="nav-live-mixer-heading">
           <strong>Audio mixer</strong>
@@ -136,16 +150,22 @@
         </div>
         <div class="nav-live-message" id="nav-live-message" role="status" hidden></div>
       `;
-      drawer.appendChild(panel);
+      document.body.appendChild(panel);
     }
 
-    audioButton.addEventListener('click', () => {
-      const opening = panel.hidden;
-      setMixerOpen(opening);
-      if (opening) {
-        refreshLiveMixer();
-      }
-    });
+    if (audioButton.dataset.navAudioInstalled !== 'true') {
+      audioButton.dataset.navAudioInstalled = 'true';
+      audioButton.addEventListener('click', () => {
+        const currentPanel = document.getElementById('nav-live-mixer');
+        if (!currentPanel) return;
+        const opening = !mixerOpen();
+        setMixerOpen(opening);
+        if (opening) refreshLiveMixer();
+      });
+    }
+
+    if (panel.dataset.navMixerInteractionsInstalled === 'true') return true;
+    panel.dataset.navMixerInteractionsInstalled = 'true';
 
     panel.addEventListener('contextmenu', (event) => {
       if (event.target.closest('[data-nav-live-slider], [data-nav-live-step], [data-nav-trim-knob]')) {
@@ -161,6 +181,7 @@
 
     installFaderInteractions(panel);
     installTrimKnobInteractions(panel);
+    return true;
   }
 
   function installFaderInteractions(panel) {
@@ -284,11 +305,48 @@
     return document.body.classList.contains('nav-audio-open');
   }
 
+  function navigationInactivitySeconds() {
+    const preferences = window.ACPDashboardPreferences?.read?.() || {};
+    const raw = preferences.navigationInactivitySeconds
+      ?? document.documentElement.dataset.navigationInactivitySeconds
+      ?? 6;
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return 6;
+    return Math.round(Math.max(0, Math.min(30, numeric)));
+  }
+
+  function syncNavigationRevealHeight() {
+    const drawer = drawerNode();
+    const mainNav = mainNavNode();
+    if (!drawer || !mainNav) return;
+
+    const style = window.getComputedStyle(drawer);
+    const pixels = (value) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const drawerChrome =
+      pixels(style.paddingTop)
+      + pixels(style.paddingBottom)
+      + pixels(style.borderTopWidth)
+      + pixels(style.borderBottomWidth);
+    const bottomOffset = pixels(style.bottom);
+    const mainNavHeight = mainNav.getBoundingClientRect().height;
+    const revealHeight = Math.ceil(mainNavHeight + drawerChrome + bottomOffset);
+
+    if (revealHeight > 0) {
+      document.documentElement.style.setProperty(
+        '--acp-navigation-reveal-height',
+        `${revealHeight}px`,
+      );
+    }
+  }
+
   function closeMixerWithoutScheduling() {
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.remove('nav-audio-open');
-    if (panel) panel.hidden = true;
+    if (panel) panel.setAttribute('aria-hidden', 'true');
     if (button) {
       button.setAttribute('aria-expanded', 'false');
       button.classList.remove('is-active');
@@ -301,7 +359,7 @@
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.toggle('nav-audio-open', open);
-    if (panel) panel.hidden = !open;
+    if (panel) panel.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (button) {
       button.setAttribute('aria-expanded', open ? 'true' : 'false');
       button.classList.toggle('is-active', open);
@@ -312,24 +370,48 @@
   }
 
   function setExpanded(expanded) {
+    const drawer = drawerNode();
+    const handle = handleNode();
+    const backdrop = document.getElementById('nav-backdrop');
+
+    if (expanded) syncNavigationRevealHeight();
     document.body.classList.toggle('nav-open', expanded);
-    drawer.setAttribute('aria-hidden', expanded ? 'false' : 'true');
-    handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    handle.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
+    document.body.classList.toggle('nav-mode', expanded);
+    drawer?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    backdrop?.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    handle?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    handle?.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
     if (!expanded) closeMixerWithoutScheduling();
   }
 
   function scheduleHide() {
     window.clearTimeout(hideTimer);
-    hideTimer = window.setTimeout(
-      () => setExpanded(false),
-      mixerOpen() ? MIXER_AUTO_HIDE_MS : NORMAL_AUTO_HIDE_MS,
-    );
+    hideTimer = null;
+    if (mixerOpen()) return;
+    const seconds = navigationInactivitySeconds();
+    if (seconds <= 0) return;
+    hideTimer = window.setTimeout(() => setExpanded(false), seconds * 1000);
   }
 
   function showDrawer() {
     setExpanded(true);
     scheduleHide();
+  }
+
+  function consumeNavigationModeTransfer() {
+    try {
+      const raw = window.sessionStorage.getItem(NAVIGATION_MODE_TRANSFER_KEY);
+      if (!raw) return false;
+      const value = JSON.parse(raw);
+      const age = Date.now() - Number(value?.at || 0);
+      window.sessionStorage.removeItem(NAVIGATION_MODE_TRANSFER_KEY);
+      return age >= 0
+        && age <= NAVIGATION_MODE_TRANSFER_MAX_AGE_MS
+        && String(value?.path || '') === window.location.pathname;
+    } catch (error) {
+      try { window.sessionStorage.removeItem(NAVIGATION_MODE_TRANSFER_KEY); } catch (ignored) {}
+      return false;
+    }
   }
 
   function hideDrawer() {
@@ -548,30 +630,94 @@
   }
 
   installAudioPanel();
+  syncNavigationRevealHeight();
   reassertTimer = window.setInterval(reassertDesiredValues, 90);
 
-  handle.addEventListener('click', () => {
+  let suppressHandleClickUntil = 0;
+  let touchStartedOnHandle = false;
+
+  document.addEventListener('click', (event) => {
+    const destination = event.target.closest?.('#nav-drawer a.nav-button');
+    if (destination && mixerOpen()) {
+      closeMixerWithoutScheduling();
+      scheduleHide();
+    }
+
+    if (event.target.closest?.('#nav-backdrop')) {
+      event.preventDefault();
+      hideDrawer();
+      return;
+    }
+
+    const handle = event.target.closest?.('#nav-handle');
+    if (!handle) return;
+    event.preventDefault();
+    if (Date.now() < suppressHandleClickUntil) return;
     if (document.body.classList.contains('nav-open')) hideDrawer();
     else showDrawer();
   });
 
-  handle.addEventListener('touchstart', (event) => {
-    touchStartY = event.changedTouches[0]?.clientY ?? null;
+  document.addEventListener('touchstart', (event) => {
+    touchStartedOnHandle = Boolean(event.target.closest?.('#nav-handle'));
+    touchStartY = touchStartedOnHandle ? (event.changedTouches[0]?.clientY ?? null) : null;
   }, { passive: true });
 
-  handle.addEventListener('touchend', (event) => {
+  document.addEventListener('touchend', (event) => {
+    if (!touchStartedOnHandle) return;
     const touchEndY = event.changedTouches[0]?.clientY ?? null;
-    if (touchStartY !== null && touchEndY !== null && touchStartY - touchEndY > SWIPE_THRESHOLD_PX) {
+    const deltaY = touchStartY !== null && touchEndY !== null
+      ? touchStartY - touchEndY
+      : 0;
+    const open = document.body.classList.contains('nav-open');
+
+    if (!open && deltaY > SWIPE_THRESHOLD_PX) {
       showDrawer();
+      suppressHandleClickUntil = Date.now() + 500;
+    } else if (open && deltaY < -SWIPE_THRESHOLD_PX) {
+      hideDrawer();
+      suppressHandleClickUntil = Date.now() + 500;
     }
+
     touchStartY = null;
+    touchStartedOnHandle = false;
   }, { passive: true });
 
-  drawer.addEventListener('pointerdown', scheduleHide);
-  drawer.addEventListener('focusin', scheduleHide);
+  document.addEventListener('touchcancel', () => {
+    touchStartY = null;
+    touchStartedOnHandle = false;
+  }, { passive: true });
+
+  document.addEventListener('pointerdown', (event) => {
+    if (event.target.closest?.('#nav-drawer, #nav-live-mixer')) scheduleHide();
+  });
+  document.addEventListener('focusin', (event) => {
+    if (event.target.closest?.('#nav-drawer, #nav-live-mixer')) scheduleHide();
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') hideDrawer();
+  });
+
+  document.addEventListener('acp:surface-settled', () => {
+    installAudioPanel();
+    syncNavigationRevealHeight();
+    const expanded = document.body.classList.contains('nav-open');
+    setExpanded(expanded);
+  });
+
+  window.addEventListener('resize', syncNavigationRevealHeight);
+  window.addEventListener('acp:dashboard-preferences-changed', () => {
+    if (document.body.classList.contains('nav-open')) scheduleHide();
+  });
+
+  window.ACPNavDrawerController = Object.freeze({
+    show: showDrawer,
+    hide: hideDrawer,
+    toggle: () => {
+      if (document.body.classList.contains('nav-open')) hideDrawer();
+      else showDrawer();
+    },
+    ensureAudioPanel: installAudioPanel,
   });
 
   window.addEventListener('pagehide', () => {
@@ -581,5 +727,7 @@
     trimDebounceTimers.forEach((timer) => window.clearTimeout(timer));
   });
 
-  setExpanded(false);
+  const restoreNavigationMode = consumeNavigationModeTransfer();
+  setExpanded(restoreNavigationMode);
+  if (restoreNavigationMode) scheduleHide();
 })();

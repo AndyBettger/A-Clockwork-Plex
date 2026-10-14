@@ -2,6 +2,12 @@
    Settings remains the original consumer; supported Plexamp text fields reuse
    the same DOM, layouts and theme tokens above the persistent iframe. */
 
+/* Defensive double-keyboard guard for the voluntary Phase-B OSK trial.
+   JavaScript also closes the DOM keyboard immediately on mode change. */
+html[data-acp-keyboard-choice="native"] .touch-keyboard {
+  display: none !important;
+}
+
 .touch-keyboard {
   position: fixed;
   z-index: 150;

@@ -145,8 +145,8 @@ body.mode-settings .screen {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ffe99c;
-  box-shadow: 0 0 10px rgba(255, 233, 156, .55);
+  background: var(--accent-strong);
+  box-shadow: 0 0 10px var(--acp-theme-glow, rgba(143, 211, 255, .5));
 }
 
 .settings-chevron {
@@ -220,7 +220,7 @@ body.mode-settings .screen {
   padding: 10px 13px;
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 15px;
-  background: rgba(255, 255, 255, .055);
+  background: var(--acp-fill-soft-neutral);
 }
 
 .settings-subpage-row:hover,
@@ -244,7 +244,7 @@ body.mode-settings .screen {
   justify-self: start;
   padding: 5px 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--acp-radius-pill);
   background: rgba(143, 211, 255, .1);
   color: var(--accent);
   font: inherit;
@@ -386,7 +386,7 @@ body.mode-settings .screen {
 }
 
 .settings-save-bar.is-dirty {
-  border-color: rgba(255, 233, 156, .34);
+  border-color: var(--accent);
 }
 
 .settings-save-bar.is-error {
@@ -511,4 +511,27 @@ body.keyboard-open .settings-save-bar {
   .settings-save-bar {
     justify-content: flex-end;
   }
+}
+
+/* Phase-B experimental compositor OSK: the Wayland keyboard sits above the
+   normal Settings scroll area without resizing Chromium's viewport. Leave
+   the outer shell at full size, and add scrolling room INSIDE its detail
+   panel only while a local field is focused. No enormous blank gap. */
+html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-detail-panel:not([hidden]) {
+  padding-bottom: calc(14px + clamp(245px, 44vh, 330px));
+}
+
+html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-save-bar {
+  bottom: clamp(245px, 44vh, 330px);
+}
+
+/* Hide Chromium spinner buttons only on reversible native-trial numbers. */
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-inner-spin-button,
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

@@ -65,6 +65,15 @@ class AirPlayPlaybackStateUiTests(unittest.TestCase):
         self.assertNotIn("OPTIMISTIC_MS", client)
         self.assertIn("render(payload?.playback || {})", client)
 
+    def test_mounted_client_polls_only_while_airplay_surface_is_visible(self):
+        client = CLIENT.read_text(encoding="utf-8")
+        self.assertIn("window.ACPAirPlaySurfaceLifecycle", client)
+        self.assertIn("surfaceLifecycle.isVisible()", client)
+        self.assertIn("surfaceLifecycle?.subscribe?.", client)
+        self.assertIn("function stopPolling()", client)
+        self.assertIn("function schedulePolling()", client)
+        self.assertNotIn("setInterval(refresh", client)
+
     def test_client_never_manages_audio_services(self):
         client = CLIENT.read_text(encoding="utf-8")
         self.assertNotIn("systemctl", client)

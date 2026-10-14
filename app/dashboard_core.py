@@ -1019,7 +1019,6 @@ def save_settings_from_form(config: dict[str, Any]) -> dict[str, Any]:
 
     weather["station_name"] = form_text("station_name", weather.get("station_name", "Weather or Not"))
     weather["reporting_station_name"] = form_text("reporting_station_name", weather.get("reporting_station_name", "Weather Station Name"))
-    weather["auto_refresh_seconds"] = form_int("auto_refresh_seconds", weather.get("auto_refresh_seconds", 60), 0, 3600)
     weather["display_units"] = form_choice("display_units", str(weather.get("display_units", "metric")), {"metric", "imperial"})
     units["temperature"] = form_choice("unit_temperature", str(units.get("temperature", "c")), {"c", "f"})
     units["pressure"] = form_choice("unit_pressure", str(units.get("pressure", "hpa")), {"hpa", "inhg"})
@@ -1046,7 +1045,7 @@ def settings_page_context(config: dict[str, Any], saved: bool = False, error: st
         "settings_error": error,
         "clock_card_options": [{"id": field_id, "label": clock_card_option_label(field_id)} for field_id in CLOCK_CARD_FIELD_IDS],
         "mode_options": [
-            {"id": "clock", "label": "Clock"},
+            {"id": "clock", "label": "Home"},
             {"id": "weather", "label": "Weather"},
             {"id": "plexamp", "label": "Plexamp"},
             {"id": "airplay", "label": "AirPlay"},
@@ -1086,6 +1085,34 @@ def clock():
 def weather():
     set_mode("weather")
     return render_template("weather.html")
+
+
+@app.route("/api/surfaces/<surface>")
+def api_surface_document(surface: str):
+    templates = {
+        "clock": "clock.html",
+        "weather": "weather.html",
+        "news": "news.html",
+        "settings": "settings.html",
+        "airplay": "airplay.html",
+    }
+    surface_name = str(surface or "").strip().lower()
+    template = templates.get(surface_name)
+    if not template:
+        return jsonify({"ok": False, "error": "Surface is not available for same-document mounting."}), 404
+
+    context: dict[str, Any] = {}
+    if surface_name == "settings":
+        config = load_config()
+        context = settings_page_context(config)
+
+    return jsonify(
+        {
+            "ok": True,
+            "surface": surface_name,
+            "html": render_template(template, **context),
+        }
+    )
 
 
 @app.route("/airplay")

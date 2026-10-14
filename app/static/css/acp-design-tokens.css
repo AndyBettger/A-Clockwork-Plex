@@ -1,0 +1,51 @@
+/*
+ * ACP semantic component tokens.
+ *
+ * Palette ownership remains with style.css/daytime-themes.css:
+ *   --panel, --panel-border, --text, --muted, --accent, --accent-strong
+ *
+ * This layer gives reusable components a stable vocabulary that is independent
+ * of any individual application surface. Neutral fills intentionally retain
+ * the physically accepted Classic-Dark values; themed surfaces may continue to
+ * override them through the existing palette/closure layers while migration is
+ * incremental.
+ */
+
+:root {
+  /* Semantic palette aliases. */
+  --acp-color-surface: var(--panel);
+  --acp-color-border: var(--panel-border);
+  --acp-color-text: var(--text);
+  --acp-color-muted: var(--muted);
+  --acp-color-accent: var(--accent);
+  --acp-color-accent-strong: var(--accent-strong);
+
+  /* Reusable neutral chrome. */
+  --acp-fill-card-neutral: rgba(255, 255, 255, 0.08);
+  --acp-fill-field-container-neutral: rgba(255, 255, 255, 0.07);
+  --acp-fill-soft-neutral: rgba(255, 255, 255, 0.055);
+  --acp-fill-control-neutral: rgba(255, 255, 255, 0.12);
+  --acp-fill-control-hover-neutral: rgba(255, 255, 255, 0.22);
+  --acp-border-control-neutral: rgba(255, 255, 255, 0.20);
+
+  /* Ordinary form controls. */
+  --acp-field-border-neutral: rgba(255, 255, 255, 0.18);
+  --acp-field-fill-neutral: rgba(0, 0, 0, 0.26);
+  --acp-field-focus-neutral: rgba(143, 211, 255, 0.65);
+
+  /* Custom scrollbar geometry shared by vertical and horizontal rails. */
+  --acp-scrollbar-track-size: 8px;
+  --acp-scrollbar-thumb-size: 4px;
+  --acp-scrollbar-thumb-min: 42px;
+
+  /* Geometry. */
+  --acp-radius-panel: clamp(18px, 3vmin, 28px);
+  --acp-radius-card: clamp(14px, 2.4vmin, 18px);
+  --acp-radius-control: 14px;
+  --acp-radius-field: 12px;
+  --acp-radius-pill: 999px;
+
+  /* Elevation. */
+  --acp-shadow-panel: 0 20px 70px rgba(0, 0, 0, 0.25);
+  --acp-shadow-content: 0 18px 55px rgba(0, 0, 0, 0.22);
+}

@@ -1,42 +1,146 @@
+/* Phase A navigation mode: the application remains live underneath while
+   shell chrome takes focus. Navigation reveal/hide motion deliberately owns a
+   separate duration from application-surface transitions. */
+:root {
+  --acp-navigation-transition-duration: 180ms;
+  --acp-nav-control-size: clamp(56px, 8vmin, 62px);
+}
+
+.nav-backdrop {
+  position: fixed;
+  view-transition-name: acp-nav-backdrop;
+  z-index: 70;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(2, 5, 10, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--acp-navigation-transition-duration) ease,
+    background var(--acp-navigation-transition-duration) ease;
+}
+
+body.nav-mode .nav-backdrop {
+  background: rgba(2, 5, 10, 0.34);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.screen,
+.persistent-plexamp {
+  scale: 1;
+  translate: 0 0;
+  transition:
+    scale var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    border-radius var(--acp-navigation-transition-duration) ease;
+  transform-origin: 50% 46%;
+}
+
+html[data-navigation-presentation="lift"] body.nav-mode .screen,
+html[data-navigation-presentation="lift"] body.nav-mode .persistent-plexamp.is-open {
+  /* Optional legacy/alternate treatment: lift the live workspace by the
+     measured shell height. Overlay mode leaves content in place while the
+     shell sits above page/workspace transitions. */
+  scale: 1;
+  translate: 0 calc(0px - var(--acp-navigation-reveal-height, 74px));
+  border-radius: 22px;
+}
+
 .nav-drawer {
   position: fixed;
   z-index: 80;
+  view-transition-name: acp-nav-drawer;
   left: 50%;
   bottom: max(8px, env(safe-area-inset-bottom));
   width: min(calc(100vw - 20px), 940px);
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
+  border-radius: var(--acp-radius-card);
   background: rgba(6, 12, 22, 0.91);
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(14px);
-  transform: translate(-50%, calc(100% + 18px));
-  opacity: 0;
+  /* Closed top edge sits exactly at the viewport bottom. The measured reveal
+     height is drawer height + bottom inset, so moving by that same distance as
+     the live surface keeps both edges physically joined throughout the motion. */
+  translate: -50% var(--acp-navigation-reveal-height, 74px);
+  visibility: hidden;
   pointer-events: none;
-  transition: transform 180ms ease, opacity 180ms ease, border-radius 180ms ease;
+  transition:
+    translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    border-radius var(--acp-navigation-transition-duration) ease,
+    visibility 0s linear var(--acp-navigation-transition-duration);
 }
 
 body.nav-open .nav-drawer {
-  transform: translate(-50%, 0);
-  opacity: 1;
+  translate: -50% 0;
+  visibility: visible;
   pointer-events: auto;
-}
-
-body.nav-audio-open .nav-drawer {
-  width: min(calc(100vw - 18px), 1100px);
-  max-height: calc(100vh - 12px);
-  overflow: hidden;
-  border-radius: 24px;
+  transition-delay: 0s;
 }
 
 .main-nav {
   width: 100%;
   margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: clamp(8px, 1.5vmin, 14px);
+}
+
+.nav-workspaces {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(8px, 1.5vmin, 14px);
+}
+
+.nav-utilities {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1vmin, 9px);
+  margin-inline-start: auto;
+  padding-inline-start: clamp(10px, 1.7vmin, 16px);
+  border-inline-start: 1px solid var(--acp-border-control-neutral);
 }
 
 .nav-button {
-  min-width: clamp(72px, 10.5vmin, 110px);
+  min-width: clamp(84px, 12.5vmin, 128px);
+  height: var(--acp-nav-control-size);
+  display: inline-grid;
+  place-items: center;
+  padding: 0 clamp(12px, 2vmin, 18px);
+  border-radius: var(--acp-radius-control);
+  font-size: clamp(1.17rem, 2.9vmin, 1.36rem);
   text-align: center;
+}
+
+.nav-utility-button {
+  width: var(--acp-nav-control-size);
+  height: var(--acp-nav-control-size);
+  min-width: var(--acp-nav-control-size);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.nav-utility-icon {
+  width: clamp(24px, 3.8vmin, 30px);
+  height: clamp(24px, 3.8vmin, 30px);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .nav-button.is-active {
@@ -55,26 +159,50 @@ body.nav-audio-open .nav-drawer {
   font: inherit;
 }
 
-.nav-live-mixer[hidden] {
-  display: none;
-}
-
 .nav-live-mixer {
-  height: min(760px, calc(100vh - 92px));
-  min-height: 540px;
+  position: fixed;
+  z-index: 78;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  bottom: calc(var(--acp-navigation-reveal-height, 74px) + 10px);
+  width: min(calc(100vw - 24px), 1100px);
+  min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
-  margin-top: 8px;
+  margin: 0;
   padding: 10px;
   border: 1px solid rgba(131, 216, 255, 0.2);
-  border-radius: 18px;
+  border-radius: 24px;
   background:
-    linear-gradient(135deg, rgba(131, 216, 255, 0.065), transparent 46%),
-    rgba(255, 255, 255, 0.03);
+    linear-gradient(135deg, rgba(131, 216, 255, 0.075), transparent 46%),
+    rgba(6, 12, 22, 0.42);
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(18px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  translate: -50% 18px;
+  scale: 0.985;
+  transform-origin: 50% 100%;
+  transition:
+    opacity var(--acp-transition-duration) ease,
+    translate var(--acp-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    scale var(--acp-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    visibility 0s linear var(--acp-transition-duration);
+  will-change: opacity, translate, scale;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+body.nav-audio-open .nav-live-mixer {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  translate: -50% 0;
+  scale: 1;
+  transition-delay: 0s;
 }
 
 .nav-live-mixer-heading {
@@ -455,50 +583,91 @@ body.nav-audio-open .nav-drawer {
 .nav-handle {
   position: fixed;
   z-index: 90;
+  view-transition-name: acp-nav-handle;
   left: 50%;
-  bottom: max(4px, env(safe-area-inset-bottom));
-  width: 116px;
-  height: 30px;
+  bottom: max(0px, env(safe-area-inset-bottom));
+  width: min(22vw, 200px);
+  min-width: 180px;
+  height: 22px;
   display: grid;
-  place-items: center;
-  padding: 0;
+  place-items: end center;
+  padding: 0 0 6px;
   border: 0;
-  border-radius: 999px;
-  background: rgba(7, 12, 22, 0.26);
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
-  transform: translateX(-50%);
-  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
-  opacity: 0.72;
+  translate: -50% 0;
+  transition:
+    translate var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    opacity var(--acp-navigation-transition-duration) ease;
+  opacity: 0.82;
   touch-action: none;
 }
 
 .nav-handle span {
   display: block;
-  width: 58px;
+  width: 140px;
   height: 5px;
-  border-radius: 999px;
-  background: rgba(247, 249, 255, 0.7);
+  border-radius: var(--acp-radius-pill);
+  background: rgba(247, 249, 255, 0.74);
   box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
+  transition:
+    width var(--acp-navigation-transition-duration) ease,
+    background var(--acp-navigation-transition-duration) ease,
+    box-shadow var(--acp-navigation-transition-duration) ease;
+  pointer-events: none;
 }
 
 .nav-handle:active,
 .nav-handle:hover {
-  background: rgba(247, 249, 255, 0.13);
   opacity: 1;
+}
+
+.nav-handle:active span,
+.nav-handle:hover span {
+  background: rgba(247, 249, 255, 0.94);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.26);
 }
 
 body.nav-open .nav-handle {
-  transform: translate(-50%, -64px);
+  translate: -50% calc(0px - var(--acp-navigation-reveal-height, 74px));
   opacity: 1;
-}
-
-body.nav-open.nav-audio-open .nav-handle {
-  opacity: 0;
-  pointer-events: none;
 }
 
 body.nav-open .nav-handle span {
   background: rgba(247, 249, 255, 0.92);
+}
+
+/* Persistent shell chrome is excluded from the root page snapshot and gets its
+   own non-animated View Transition layers. Page transitions therefore happen
+   behind the live-looking navigation instead of painting over it. */
+::view-transition-group(acp-nav-backdrop),
+::view-transition-group(acp-nav-drawer),
+::view-transition-group(acp-nav-handle),
+::view-transition-old(acp-nav-backdrop),
+::view-transition-new(acp-nav-backdrop),
+::view-transition-old(acp-nav-drawer),
+::view-transition-new(acp-nav-drawer),
+::view-transition-old(acp-nav-handle),
+::view-transition-new(acp-nav-handle) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+::view-transition-group(acp-nav-backdrop) { z-index: 70; }
+::view-transition-group(acp-nav-drawer) { z-index: 80; }
+::view-transition-group(acp-nav-handle) { z-index: 90; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-backdrop,
+  .screen,
+  .persistent-plexamp,
+  .nav-drawer,
+  .nav-handle,
+  .nav-handle span,
+  .nav-live-mixer {
+    transition-duration: 1ms !important;
+  }
 }
 
 @media (max-height: 680px), (max-width: 860px) {
@@ -507,22 +676,41 @@ body.nav-open .nav-handle span {
     padding: 6px;
   }
 
-  body.nav-audio-open .nav-drawer {
-    width: min(calc(100vw - 10px), 1080px);
-  }
-
   .main-nav {
     gap: 5px;
     flex-wrap: nowrap;
   }
 
+  .nav-workspaces {
+    gap: 5px;
+  }
+
+  .nav-utilities {
+    gap: 4px;
+    padding-inline-start: 6px;
+  }
+
   .nav-button {
-    min-width: 62px;
-    padding-inline: 7px;
+    min-width: 76px;
+    padding-inline: 9px;
+  }
+
+  .nav-utility-button {
+    width: var(--acp-nav-control-size);
+    height: var(--acp-nav-control-size);
+    min-width: var(--acp-nav-control-size);
+    padding: 0;
+  }
+
+  .nav-utility-icon {
+    width: 24px;
+    height: 24px;
   }
 
   .nav-live-mixer {
-    height: calc(100vh - 82px);
+    top: max(8px, env(safe-area-inset-top));
+    bottom: calc(var(--acp-navigation-reveal-height, 70px) + 8px);
+    width: min(calc(100vw - 16px), 1080px);
     min-height: 0;
     padding: 8px;
     gap: 6px;
@@ -588,18 +776,17 @@ body.nav-open .nav-handle span {
   }
 
   .nav-handle {
-    width: 104px;
-    height: 26px;
+    width: min(26vw, 190px);
+    min-width: 170px;
+    height: 20px;
+    padding-bottom: 4px;
   }
 
   .nav-handle span {
-    width: 52px;
+    width: 128px;
     height: 4px;
   }
 
-  body.nav-open .nav-handle {
-    transform: translate(-50%, -56px);
-  }
 }
 
 @media (max-width: 620px) {

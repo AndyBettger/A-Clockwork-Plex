@@ -28,6 +28,9 @@
   };
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
+  let statusTimer = null;
+  let tickTimer = null;
 
   let activeStartedAt = null;
   let lastStatusMode = null;
@@ -574,6 +577,7 @@
       lastTrackKey = trackKey;
     }
 
+    document.body.classList.remove('airplay-session-unresolved');
     document.body.classList.toggle('airplay-session-active', isActive);
     document.body.classList.toggle('airplay-session-idle', !isActive);
     document.body.classList.toggle('airplay-metadata-active', hasDisplayMetadata);
@@ -607,7 +611,8 @@
     }
   }
 
-  async function refreshStatus() {
+  async function refreshStatus({ force = false } = {}) {
+    if (!force && surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     try {
       const response = await fetch('/api/status', { cache: 'no-store' });
       if (!response.ok) {
@@ -705,17 +710,54 @@
     }
   });
 
-  setInterval(refreshStatus, 2000);
-  setInterval(() => {
-    updateMiniClock();
-    updateProgressTick();
-  }, 1000);
-  updateMiniClock();
-  refreshStatus();
+  function stopPresentationTimers() {
+    window.clearTimeout(statusTimer);
+    window.clearTimeout(tickTimer);
+    statusTimer = null;
+    tickTimer = null;
+  }
 
-  window.addEventListener('visibilitychange', () => {
-    if (!document.hidden && lastStatusMode !== 'airplay') {
-      refreshStatus();
-    }
+  function scheduleStatusRefresh() {
+    window.clearTimeout(statusTimer);
+    statusTimer = null;
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    statusTimer = window.setTimeout(async () => {
+      await refreshStatus();
+      scheduleStatusRefresh();
+    }, 2000);
+  }
+
+  function schedulePresentationTick() {
+    window.clearTimeout(tickTimer);
+    tickTimer = null;
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    tickTimer = window.setTimeout(() => {
+      updateMiniClock();
+      updateProgressTick();
+      schedulePresentationTick();
+    }, 1000);
+  }
+
+  function activatePresentation() {
+    updateMiniClock();
+    void refreshStatus().finally(scheduleStatusRefresh);
+    schedulePresentationTick();
+  }
+
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activatePresentation();
+    else stopPresentationTimers();
   });
+
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activatePresentation();
+
+  // B6 long-jump staging sometimes needs a presentation-correct AirPlay clone
+  // while AirPlay is not the logical destination (and may be covered by
+  // Plexamp). This refreshes presentation state only; it does not claim mode,
+  // publish activation or change navigation ownership.
+  window.ACPAirPlayLive = Object.freeze({
+    refreshForSpatialPreview: () => refreshStatus({ force: true }),
+  });
+
+  window.addEventListener('pagehide', stopPresentationTimers, { once: true });
 })();

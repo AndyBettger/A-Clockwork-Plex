@@ -383,6 +383,7 @@
     enhanced.forEach((state) => state.observer?.disconnect());
   });
   window.addEventListener('acp:settings-selects-refresh', queueRefresh);
+  window.addEventListener('acp:settings-hydrated', queueRefresh);
 
   window.ACPSettingsSelects = Object.freeze({
     refresh: queueRefresh,
