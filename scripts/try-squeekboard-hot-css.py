@@ -4,6 +4,7 @@
 --plan: READ-ONLY; validates pinned ZIP, stock singleton, accepted C2 layouts,
         one private C3 hot-CSS resource, user service manager and inactive trials.
 --start: VOLUNTARY 180s disruptive keyboard test after a successful --plan;
+         --theme-sync explicitly enables only this trial's browser CSS bridge;
          arms an INDEPENDENT 240s restore timer before touching the stock OSK.
 --worker and --restore: internal trial/rescue user-service functions.
 
@@ -246,7 +247,7 @@ def verify_candidate(path: Path) -> None:
         raise TrialError("Candidate executable missing or hash mismatch")
 
 
-def prepare(archive: Path, *, modify: bool) -> tuple[int, dict[str, str], Path | None]:
+def prepare(archive: Path, *, modify: bool, theme_sync: bool = False) -> tuple[int, dict[str, str], Path | None]:
     # Baseline identity and source/candidate hashes must all be checked before
     # creating trial files, arming rescue, or terminating the vendor keyboard.
     pid, env = check_baseline()
@@ -276,6 +277,7 @@ def prepare(archive: Path, *, modify: bool) -> tuple[int, dict[str, str], Path |
     verify_candidate(candidate)
     state = {
         "schema": 3,
+        "theme_sync": theme_sync is True,
         "stock_pid": pid,
         "candidate": str(candidate),
         "env": env,
@@ -301,7 +303,8 @@ def read_state(path: Path, *, require_candidate: bool = True) -> dict:
     if path.stat().st_uid != os.getuid() or (path.stat().st_mode & 0o777) != 0o600:
         raise TrialError("C3 trial state permissions/owner invalid")
     value = json.loads(path.read_text(encoding="utf-8"))
-    if value.get("schema") != 3 or not isinstance(value.get("env"), dict):
+    if (value.get("schema") != 3 or not isinstance(value.get("env"), dict)
+            or type(value.get("theme_sync", False)) is not bool):
         raise TrialError("Unknown C3 state schema")
     if not isinstance(value.get("stock_pid"), int) or value["stock_pid"] <= 0:
         raise TrialError("Invalid stored stock keyboard PID")
@@ -437,8 +440,8 @@ def worker(state_path: Path) -> None:
         restore_stock(state_path, stop_trial=False)
 
 
-def start(archive: Path) -> None:
-    _, env, state_path = prepare(archive, modify=True)
+def start(archive: Path, *, theme_sync: bool = False) -> None:
+    _, env, state_path = prepare(archive, modify=True, theme_sync=theme_sync)
     assert state_path is not None
     script = str(Path(__file__).resolve())
     # Rescue timer is independent of trial service AND SSH.
@@ -463,6 +466,7 @@ def start(archive: Path) -> None:
         restore_stock(state_path, stop_trial=False)
         raise TrialError(started.stderr.strip())
     print("C3 trial requested. Independent stock OSK restore timer is ARMED.", flush=True)
+    print("ACP C3 theme sync: " + ("OPTED IN for this trial" if theme_sync else "disabled"), flush=True)
     print(f"Automatic end: {TRIAL_SECONDS}s; independent rescue: {ROLLBACK_SECONDS}s.", flush=True)
     print(f"Log: journalctl --user -u {TRIAL_UNIT}.service -n 60 --no-pager", flush=True)
     print(f"Early restore: systemctl --user start {ROLLBACK_UNIT}.service", flush=True)
@@ -476,7 +480,11 @@ def main() -> int:
     group.add_argument("--start", type=Path, metavar="C3_ZIP")
     group.add_argument("--worker", type=Path, metavar="STATE", help=argparse.SUPPRESS)
     group.add_argument("--restore", type=Path, metavar="STATE", help=argparse.SUPPRESS)
+    parser.add_argument("--theme-sync", action="store_true",
+                        help="Explicitly arm ACP-to-C3 CSS sync for this bounded --start only")
     args = parser.parse_args()
+    if args.theme_sync and not args.start:
+        parser.error("--theme-sync requires --start")
     try:
         if args.plan:
             prepare(args.plan, modify=False)
@@ -485,7 +493,7 @@ def main() -> int:
             print(f"Window: {TRIAL_SECONDS}s; INDEPENDENT restore: {ROLLBACK_SECONDS}s.")
             print("No keyboard, service, system configuration or files changed.")
         elif args.start:
-            start(args.start)
+            start(args.start, theme_sync=args.theme_sync)
         elif args.worker:
             worker(args.worker)
         else:
