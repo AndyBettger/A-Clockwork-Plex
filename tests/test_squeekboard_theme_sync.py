@@ -256,7 +256,7 @@ class C3ThemeSyncTests(unittest.TestCase):
         self.assertIn("'acp:display-night-preview-ended'", watcher)
         self.assertIn("window.addEventListener(event, tick)", watcher)
         self.assertIn("20261014-c3-preview-event-v1", base)
-        self.assertIn("20261014-c3-preview-event-v2", base)
+        self.assertIn("20261017-c3-background-timer-v1", base)
 
 
     def test_server_routes_and_trial_opt_in_are_explicit(self):
