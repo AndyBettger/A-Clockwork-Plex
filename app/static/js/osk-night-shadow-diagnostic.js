@@ -85,7 +85,18 @@
       }
     });
 
-    panel.append(button, output);
+    const timingButton = document.createElement('button');
+    timingButton.type = 'button';
+    timingButton.textContent = 'Show C3 background timer observations';
+    timingButton.style.cssText = 'font-size:16px;padding:9px;max-width:100%;cursor:pointer;margin-top:8px';
+    timingButton.addEventListener('click', () => {
+      const report = window.ACPC3ThemeSync?.timingReport?.();
+      output.textContent = report
+        ? JSON.stringify(report, null, 2)
+        : 'No C3 timing trace on this page. Open Settings with ?c3-shadow=1 and reload.';
+    });
+
+    panel.append(button, timingButton, output);
     document.body.appendChild(panel);
   }
 
