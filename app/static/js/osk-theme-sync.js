@@ -67,7 +67,7 @@
     );
     return {
       diagnosticOnly: true,
-      timerOnly: true,
+      existingThemeCallbackOnly: true,
       noCssOrKeyboardChanges: true,
       expectedIntervalMs: PERIOD_MS,
       recordingWindowSeconds: TRACE_WINDOW_MS / 1000,
