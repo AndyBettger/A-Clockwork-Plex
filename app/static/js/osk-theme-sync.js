@@ -8,6 +8,16 @@
   const STATUS = '/api/osk/c3/theme-sync/status';
   const APPLY = '/api/osk/c3/theme-sync';
   const PERIOD_MS = 5000;
+  // Settings-only diagnostic mode, stored solely in this browser document.
+  // Observe the EXISTING five-second callback rather than introducing another
+  // timer or second CSS writer. No network/log/storage of samples.
+  const TRACE_ENABLED = window.location.pathname === '/settings'
+    && new URLSearchParams(window.location.search).has('c3-shadow');
+  const TRACE_WINDOW_MS = 15 * 60 * 1000;
+  const TRACE_MAX_SAMPLES = 256;
+  const traceStartedAt = TRACE_ENABLED ? Date.now() : null;
+  const traceSamples = [];
+  let lastIntervalAt = null;
   let inFlight = false;
   let lastApplied = null;
   let enabled = false;
@@ -29,7 +39,58 @@
     };
   }
 
-  async function tick() {
+  function observeTick(event) {
+    if (!TRACE_ENABLED) return;
+    const now = Date.now();
+    if (now - traceStartedAt > TRACE_WINDOW_MS) return;
+    const source = event && typeof event.type === 'string' ? event.type : 'interval';
+    const previousInterval = source === 'interval' ? lastIntervalAt : null;
+    if (source === 'interval') lastIntervalAt = now;
+    const elapsedMs = now - traceStartedAt;
+    traceSamples.push({
+      elapsedSeconds: Math.round(elapsedMs / 1000),
+      source,
+      timerGapMs: previousInterval === null ? null : Math.max(0, now - previousInterval),
+      visibility: document.visibilityState,
+      skippedWhileInFlight: inFlight,
+    });
+    if (traceSamples.length > TRACE_MAX_SAMPLES) traceSamples.shift();
+  }
+
+  function timingReport() {
+    if (!TRACE_ENABLED) return null;
+    const timerIntervals = traceSamples.filter(
+      sample => sample.source === 'interval' && sample.timerGapMs !== null,
+    );
+    const largest = [...timerIntervals].sort(
+      (a, b) => b.timerGapMs - a.timerGapMs,
+    );
+    return {
+      diagnosticOnly: true,
+      timerOnly: true,
+      noCssOrKeyboardChanges: true,
+      expectedIntervalMs: PERIOD_MS,
+      recordingWindowSeconds: TRACE_WINDOW_MS / 1000,
+      elapsedSeconds: Math.round((Date.now() - traceStartedAt) / 1000),
+      sampleCount: traceSamples.length,
+      timerIntervalCount: timerIntervals.length,
+      maximumTimerGapMs: largest.length ? largest[0].timerGapMs : null,
+      intervalsOver15Seconds: timerIntervals.filter(s => s.timerGapMs > 15000).length,
+      hiddenSamples: traceSamples.filter(s => s.visibility === 'hidden').length,
+      skippedWhileInFlight: traceSamples.filter(s => s.skippedWhileInFlight).length,
+      largestTimerGaps: largest.slice(0, 10),
+      recentSamples: traceSamples.slice(-16),
+      limitations: [
+        'Only the existing C3 timer callback is sampled; it may be throttled or suspended.',
+        'Window occlusion by native Plexamp may not set Chromium visibility to hidden.',
+        'No proof of CSS repaint, schedule boundary delivery, or uninterrupted typing.',
+        'All evidence is page-memory only and disappears on reload/navigation.',
+      ],
+    };
+  }
+
+  async function tick(event) {
+    observeTick(event);
     if (inFlight) return;
     inFlight = true;
     try {
@@ -88,8 +149,9 @@
   window.setInterval(tick, PERIOD_MS);
   window.ACPC3ThemeSync = {
     status: () => ({ enabled, lastApplied }),
-    // Read-only inspection hook; manual theme override is intentionally absent.
+    // Read-only inspection hooks; no manual theme override is provided.
     currentState,
+    timingReport,
   };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', tick, { once: true });
