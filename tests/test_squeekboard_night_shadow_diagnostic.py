@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
+import subprocess
 from pathlib import Path
 import sys
 import unittest
@@ -165,6 +167,94 @@ class C3NightShadowDiagnosticTests(unittest.TestCase):
                     "/api/osk/c3/theme-sync'", "'style.css'", "localStorage",
                     "sessionStorage", "window.location.reload"):
             self.assertNotIn(bad, script)
+
+    def test_background_timer_trace_is_opt_in_bounded_and_read_only(self):
+        watcher = (ROOT / "app/static/js/osk-theme-sync.js").read_text()
+        inspector = (ROOT / "app/static/js/osk-night-shadow-diagnostic.js").read_text()
+        base = (ROOT / "app/templates/base.html").read_text()
+        self.assertIn("window.location.pathname === '/settings'", watcher)
+        self.assertIn("new URLSearchParams(window.location.search).has('c3-shadow')", watcher)
+        self.assertIn("TRACE_WINDOW_MS = 15 * 60 * 1000", watcher)
+        self.assertIn("TRACE_MAX_SAMPLES = 256", watcher)
+        self.assertIn("if (now - traceStartedAt > TRACE_WINDOW_MS) return;", watcher)
+        self.assertIn("if (traceSamples.length > TRACE_MAX_SAMPLES) traceSamples.shift();", watcher)
+        self.assertEqual(watcher.count("window.setInterval(tick, PERIOD_MS)"), 1)
+        self.assertIn("timingReport,", watcher)
+        self.assertIn("Show C3 background timer observations", inspector)
+        self.assertIn("window.ACPC3ThemeSync?.timingReport?.()", inspector)
+        self.assertNotIn("setInterval(", inspector)
+        self.assertNotIn("localStorage", inspector)
+        self.assertNotIn("sessionStorage", inspector)
+        self.assertIn("20261017-c3-background-timer-v1", base)
+        self.assertIn("window.addEventListener(event, tick)", watcher)
+
+    @unittest.skipUnless(shutil.which("node"), "Node required for JS timing simulation")
+    def test_js_timing_trace_observes_gaps_without_starting_another_timer(self):
+        script = r"""
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+let now = 100000;
+let interval;
+let domReady;
+const listeners = {};
+const calls = [];
+const window = {
+  location: {pathname: '/settings', search: '?c3-shadow=1'},
+  ACPDashboardPreferences: {read: () => ({daytimeTheme: 'classic_dark'})},
+  ACPDisplayDimming: {status: () => ({
+    active: false, interacting: false, effectiveStyle: 'classic',
+  })},
+  addEventListener: (name, callback) => { listeners[name] = callback; },
+  setInterval: (callback, delay) => {
+    assert.equal(delay, 5000);
+    assert.equal(interval, undefined);
+    interval = callback;
+  },
+};
+const document = {
+  readyState: 'loading', visibilityState: 'visible',
+  addEventListener: (name, callback) => {
+    assert.equal(name, 'DOMContentLoaded');
+    domReady = callback;
+  },
+};
+vm.runInNewContext(source, {
+  window, document, URLSearchParams, Date: {now: () => now},
+  fetch: async (url, options) => {
+    calls.push({url, method: options.method || 'GET'});
+    return {ok: true, json: async () => ({ok: true, enabled: false})};
+  },
+});
+assert.equal(typeof interval, 'function');
+domReady({type: 'DOMContentLoaded'});
+now += 5000; interval();
+now += 5000; interval();
+now += 65000; interval();
+const report = window.ACPC3ThemeSync.timingReport();
+assert.equal(report.maximumTimerGapMs, 65000);
+assert.equal(report.intervalsOver15Seconds, 1);
+assert.equal(report.expectedIntervalMs, 5000);
+assert.equal(report.diagnosticOnly, true);
+assert.equal(report.noCssOrKeyboardChanges, true);
+assert.ok(report.sampleCount <= 256);
+for (let i = 0; i < 300; i++) {
+  listeners['acp:display-night-interaction']({type:'acp:display-night-interaction'});
+}
+assert.equal(window.ACPC3ThemeSync.timingReport().sampleCount, 256);
+const count = window.ACPC3ThemeSync.timingReport().sampleCount;
+now += 16 * 60 * 1000;
+interval();
+assert.equal(window.ACPC3ThemeSync.timingReport().sampleCount, count);
+assert.ok(calls.every(call => call.method === 'GET'));
+"""
+        result = subprocess.run(
+            [shutil.which("node"), "-e", script,
+             str(ROOT / "app/static/js/osk-theme-sync.js")],
+            text=True, capture_output=True, timeout=10, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_guard_payload_fits_original_strict_384_byte_ceiling(self):
         compact=json.dumps(observation(), separators=(",", ":")).encode()
