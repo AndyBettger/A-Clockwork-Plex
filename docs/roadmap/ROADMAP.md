@@ -12,12 +12,12 @@
 | Area | Status | Next useful action |
 | --- | --- | --- |
 | Shell, Settings, navigation, spatial transitions, night Clock | **Complete — physically accepted** | Maintenance only |
-| Native Plexamp Linux launch / fullscreen / visualiser / ACP hand-off | **Working in discovery** | Keep Headless as fallback until final acceptance |
+| Native Plexamp Linux launch / fullscreen / visualiser | **Working in discovery** | **Native ACP navigation, nav drawer and page transitions NOT YET INTEGRATED**; browser iframe integration is Phase-A only |
 | Squeekboard UK text / compact number layouts | **Working in bounded trials** | Consolidate into a practical single-keyboard flow |
 | Private Squeekboard CSS, ACP daytime / night palettes | **Live hot reload demonstrated** | Exercise *real* scheduled start/end in fullscreen Plexamp |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
 | Linux input activity with Plexamp foreground | **Passed:** six devices, sequence 230→246, Logitech K800 key | Complete native touchscreen/focus acceptance |
-| Squeekboard long-running C3 + automatic single keyboard | **Long-running/theming physically passed; Settings UI fix CI green / Pi pending** | ACP automatically suppresses its HTML keyboard when C3 is live; Settings focuses scroll above native OSK |
+| Squeekboard long-running C3 + automatic single keyboard | **Pi accepted for text, themes and Settings focus scrolling** | Signed decimal fields still request QWERTY; native numeric-purpose fix in progress |
 | Sunrise/sunset night schedule | **New feature — next implementation slice** | Add `Fixed times` / `Sunset → sunrise` setting with existing location/cached Sun data, DST and fallback |
 | Production/reboot/crash recovery, native audio and stable release | **Still pending** | Close after keyboard is settled |
 
@@ -50,7 +50,7 @@ The UI foundation is already ready for Astronomy. Its reserved spatial slot is *
 1. **C3: finish Squeekboard.** Physically verify automatic day→night→day palette changes with native Plexamp Search in front. Then exercise UK text/numeric keyboard, focus continuity, same process hot CSS, hide/show and fault recovery in one consolidated pass.
 2. **Make the system keyboard usable after restart.** Introduce reversible user-session ownership rather than requiring a timed C3 development trial for every test. Keep the stock binary as fallback; no installation to global paths.
 3. **Sunset/sunrise dimming.** Let the user choose fixed 22:00–07:00 or automatic local sunset→sunrise. Reuse forecast location and cached astronomy times, permit modest offsets, handle UK DST, lack of location, polar edge cases and stale data clearly; retain fixed times as fallback.
-4. **Close Phase B.** Confirm native Plexamp audio, alarm/AirPlay/NFC handoff, touchscreen behaviour, focus, service recovery and eventual stable package candidate. Retain Headless until accepted.
+4. **Close Phase B.** Build **native Plexamp nav/drawer and transition handoff** (not delivered by Phase-A iframe transitions); then confirm audio, alarm/AirPlay/NFC, focus, service recovery and stable package candidate. Retain Headless until accepted.
 5. **Move to Astronomy**, followed by resilience/calendar.
 
 ## Maintenance queue
