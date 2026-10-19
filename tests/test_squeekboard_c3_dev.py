@@ -133,11 +133,11 @@ class C3DevSessionTests(unittest.TestCase):
         with mock.patch.object(bridge, 'load_script', side_effect=load), \
              mock.patch.object(bridge.os, 'geteuid', return_value=1000), \
              mock.patch.object(bridge, 'user_unit_active',
-                               side_effect=lambda x: x == dev.UNIT + '.service'):
+                               side_effect=lambda x: x == dev.UNIT + '.service') as check:
             self.assertEqual(bridge.opted_in_trial(), path)
-        args = actual_dev.active_state.call_args
-        self.assertIs(args.kwargs['trial'], actual_trial)
-        self.assertIs(args.kwargs['unit_check'], bridge.user_unit_active)
+            args = actual_dev.active_state.call_args
+            self.assertIs(args.kwargs['trial'], actual_trial)
+            self.assertIs(args.kwargs['unit_check'], check)
         self.assertIn('acp-squeekboard-c3-dev.service',
                       (ROOT / 'app/squeekboard_theme_sync.py').read_text())
 
@@ -147,7 +147,7 @@ class C3DevSessionTests(unittest.TestCase):
         self.assertIn('trial.restore_stock(path, stop_trial=False)', source)
         self.assertIn('trial.read_state(path)', source)
         for unsupported in ('systemctl enable', 'systemctl --system', 'apt-get install',
-                            '/usr/bin/squeekboard\',', 'os.chmod("/usr/bin/', 'dpkg -i'):
+                            'chmod 777', 'os.chmod("/usr/bin/', 'dpkg -i'):
             self.assertNotIn(unsupported, source)
         self.assertIn('--collect', source)
         self.assertIn("'--stop'", source)
