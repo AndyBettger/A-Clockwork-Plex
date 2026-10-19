@@ -31,7 +31,8 @@
 - [x] Baseline Pi `--plan` for exact C3 artifact passed, original vendor OSK only, theme-sync disabled; ten focused `try-c3-night-boundary.py` tests passed.
 - [ ] **Next physical acceptance:** test **day → night → day** across real clock schedule boundaries while native Plexamp Search stays in front. Verify keyboard *palette* and typing, not just callback cadence. The available schedule helper `scripts/try-c3-night-boundary.py` is optional; test-rig settings are freely resettable.
 - [ ] Test tap, UK typing, compact numbers, Done/Cancel, Search focus and keyboard hide/show after palette switch in **one** regression pass.
-- [ ] Replace short experimental C3 test with reversible, reliable user-session keyboard service/launch strategy. Do not modify `/usr/bin/squeekboard`, create a second simultaneous keyboard or lose access to the original binary.
+- [x] Implement reversible, **untimed dev-session** systemd launch: `scripts/try-squeekboard-c3-dev.py` (`--plan` / `--start` / `--status` / `--stop`). ACP existing browser owns palette writes; no autostart/package changes and stock OSK restored on normal stop/candidate exit. **Physical Pi acceptance still pending.**
+- [ ] Confirm the dev session stays usable over real day/night boundaries, preserves Plexamp Search focus, and restores vendor keyboard after `--stop`. Then plan the final reboot/startup owner.
 - [ ] Verify re-entry/restart and error recovery; then mark C3 accepted.
 
 **Keep basic safety, reduce ceremony:** a working stock OSK recovery path is important because losing all input is inconvenient; a seven-minute schedule rollback and new bespoke diagnostic subprocess for every normal display adjustment are not requirements for this test appliance.
@@ -76,6 +77,11 @@ venv/bin/python -m unittest discover -s tests -p 'test_c3_night_boundary_guard.p
 # Normal preflight / optional bounded dev trial:
 python3 scripts/try-squeekboard-hot-css.py --plan ~/acp-c3-hot-css-arm64-test-only.zip
 python3 scripts/stage-squeekboard-hot-css.py --check
+# Longer-running C3 session (manual stop, no autostart):
+python3 scripts/try-squeekboard-c3-dev.py --plan ~/acp-c3-hot-css-arm64-test-only.zip
+# python3 scripts/try-squeekboard-c3-dev.py --start ~/acp-c3-hot-css-arm64-test-only.zip
+# python3 scripts/try-squeekboard-c3-dev.py --status
+# python3 scripts/try-squeekboard-c3-dev.py --stop
 # Live C3 trial is deliberate, disruptive and has its own 180s/240s recovery:
 # python3 scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync
 ```
