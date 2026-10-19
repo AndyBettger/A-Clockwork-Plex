@@ -84,7 +84,7 @@ class C3LoginStartupTests(unittest.TestCase):
             with mock.patch.object(dev.Path, 'home', return_value=root):
                 self.assertFalse(dev.desktop_login_configured())
                 desktop.write_text(
-                    '[Desktop Entry]\\nX-ACP-C3-Managed=true\\n'.replace('\\\\n', '\\n'),
+                    chr(10).join(('[Desktop Entry]', 'X-ACP-C3-Managed=true', '')),
                     encoding='utf-8',
                 )
                 self.assertTrue(dev.desktop_login_configured())
