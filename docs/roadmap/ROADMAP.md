@@ -17,7 +17,7 @@
 | Private Squeekboard CSS, ACP daytime / night palettes | **Live hot reload demonstrated** | Exercise *real* scheduled start/end in fullscreen Plexamp |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
 | Linux input activity with Plexamp foreground | **Passed:** six devices, sequence 230→246, Logitech K800 key | Complete native touchscreen/focus acceptance |
-| Squeekboard permanent session/launch ownership | **Not yet accepted** | Replace temporary 180s trials with reversible development startup when tests pass |
+| Squeekboard longer-running development session | **Implemented; Pi acceptance pending** | Opt-in `try-squeekboard-c3-dev.py`, stop restores vendor, autostart unchanged |
 | Sunrise/sunset night schedule | **New feature — next implementation slice** | Add `Fixed times` / `Sunset → sunrise` setting with existing location/cached Sun data, DST and fallback |
 | Production/reboot/crash recovery, native audio and stable release | **Still pending** | Close after keyboard is settled |
 
