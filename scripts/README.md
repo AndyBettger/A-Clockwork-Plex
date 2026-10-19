@@ -104,6 +104,24 @@ After `scripts/stage-squeekboard-compact-number.py --stage` and `--check` have p
 
 `python3 scripts/plan-squeekboard-acp-theme.py --plan [--daytime classic_dark] [--night-active] [--effective-style classic|astronomy] [--interacting]` selects an existing named ACP Squeekboard stylesheet **without loading, restarting or changing a keyboard**. The source of truth for a later bridge is the browser's `ACPDisplayDimming.status()` (`active`, `interacting`, `effectiveStyle`), not local wall time or the `scheduled` field alone, together with persisted/current `display.daytime_theme`. `classic_dark` is the **default and fallback**, not `midnight_blue`. Active classic dim uses `<chosen_theme>_night_classic_<idle|active>` and astronomy red uses `astronomy_night_<idle|active>`. The resolver checks that its output belongs to the 23 existing ACP styles. This command is still *only* mapping/inspection (with `tests/test_squeekboard_acp_theme_contract.py`). A **separate C3-only, disabled-by-default browser/API palette bridge is now implemented** using `--start ZIP --theme-sync`, `app/squeekboard_theme_sync.py` and `app/static/js/osk-theme-sync.js`; it uses this exact planner and has safety tests, but its **automatic** day/night behaviour has NOT yet been physically accepted on Pi. The prior manually controlled in-place CSS/focus test has passed; permanent OSK ownership is still unimplemented. Keep production Chromium/Headless/Plexamp and the 180s/240s experimental recovery untouched.
 
+### Stage C3 — long-running native keyboard development session (new)
+
+**Primary next step:** instead of a 180-second trial, keep one experimental C3 Squeekboard running under a user-systemd transient service until you deliberately stop it. Nothing is enabled at startup, and Pi reboot/login retains the original vendor Squeekboard. This is a **development-mode** session, not yet the final production installer.
+
+```bash
+cd ~/A-Clockwork-Plex
+python3 scripts/try-squeekboard-c3-dev.py --plan ~/acp-c3-hot-css-arm64-test-only.zip
+python3 scripts/try-squeekboard-c3-dev.py --start ~/acp-c3-hot-css-arm64-test-only.zip
+python3 scripts/try-squeekboard-c3-dev.py --status
+curl -fsS http://localhost:8088/api/osk/c3/theme-sync/status
+# Later, after testing:
+python3 scripts/try-squeekboard-c3-dev.py --stop
+```
+
+`--start` reuses the exact pinned C3 candidate/source/ABI/UK-layout/staged-Classic-Dark preflight, hands off only the existing Squeekboard process, and runs the candidate in the dedicated `acp-squeekboard-c3-dev.service` user service. The existing ACP browser remains **the only CSS writer**, applying already validated day/night colours through the same loopback route when the live candidate is verified. No time limit, no keyboard packages or modifications to /usr/bin, no permanent boot/systemd enable, no separate CSS scheduler. `--stop` stops the candidate and restores stock via `/usr/bin/sbtest`. A normally exiting candidate or supervised SIGTERM also restores stock; after exceptional process crashes or loss of user systemd, manually inspect `--status`/`journalctl --user -u acp-squeekboard-c3-dev.service -n 40 --no-pager` and use `--stop`; reopening a normal login launches stock as before.
+
+For immediate manual testing, keep native Plexamp Search open, change ACP Display Night dimming start/end to times a minute or two ahead, verify the keyboard's colour follows ACP without restarting it, then put the normal 22:00–07:00 times back yourself. No mandatory 420-second settings guard. **Do not run simultaneous `--start` commands or the older 180-second trial while this is running.** The 180-second script remains available as a fallback. Audio/Headless/NFC unchanged.
+
 ### Stage C3 — guarded actual night schedule start/end rehearsal (not a keyboard installer)
 
 `scripts/try-c3-night-boundary.py` prepares an **operator-attended** one-minute scheduled night interval to test real palette transitions under native Plexamp. Use `python3 scripts/try-c3-night-boundary.py --plan` first. It reads the normal revisioned local `/api/settings`, exact accepted enabled `22:00–07:00` and Classic Dark/classic-dim/same-as-idle baseline, checks `/api/alarms/active` is not ringing or snoozed, confirms C3 sync is disabled, refuses an existing schedule guard/timer and declines overnight/near-boundary execution. Plan does not modify anything.
