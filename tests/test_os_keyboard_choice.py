@@ -371,7 +371,9 @@ const context = {
   },
 };
 const settle = async () => {
-  for (let i=0; i<6; i++) await Promise.resolve();
+  // Flush both the host fetch promise and the sandboxed async callback.
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
 };
 (async () => {
   vm.runInNewContext(choice, context);
