@@ -196,6 +196,42 @@ def stop() -> None:
     print('C3 development session stopped. Vendor Squeekboard restored.')
 
 
+def start_at_login(archive: Path, *, wait_seconds: int = 60) -> None:
+    """Desktop-login entry: wait for distro OSK, then perform the same C3 handoff.
+
+    Labwc starts the distro keyboard independently. The session-start hook
+    never edits labwc's stock keyboard entry and never launches a second OSK.
+    After a reboot the old transient-service pointer can remain on disk even
+    though its user unit and old candidate have gone away.
+    """
+    trial = load_trial()
+    if trial.unit_active(UNIT + '.service'):
+        print('C3 session already active; login hook has nothing to do.')
+        return
+    deadline = time.monotonic() + max(0, wait_seconds)
+    while True:
+        if trial.unit_active(UNIT + '.service'):
+            return
+        stock = trial.vendor_pids()
+        if len(stock) > 1:
+            raise DevError('Multiple vendor OSKs detected; refusing login handover')
+        if len(stock) == 1:
+            if trial.orphan_trial_keyboard_pids():
+                raise DevError('An experimental OSK is already running; refusing overlap')
+            stale = pointer_state()
+            if stale is not None:
+                # The only permitted stale-state cleanup is a dead dev service
+                # with exactly one working stock OSK and NO trial candidate.
+                trial.read_state(stale, require_candidate=False)
+                remove_pointer(stale)
+                print('Cleared stale C3 dev pointer left by previous login.')
+            start(archive)
+            return
+        if time.monotonic() >= deadline:
+            raise DevError('Stock OSK did not become ready within startup window; leaving desktop unchanged')
+        time.sleep(1)
+
+
 def status() -> None:
     trial = load_trial()
     path = pointer_state()
@@ -215,6 +251,7 @@ def main() -> int:
     commands = parser.add_mutually_exclusive_group(required=True)
     commands.add_argument('--plan', type=Path, metavar='C3_ZIP')
     commands.add_argument('--start', type=Path, metavar='C3_ZIP')
+    commands.add_argument('--startup', type=Path, metavar='C3_ZIP', help='desktop-login handoff')
     commands.add_argument('--stop', action='store_true')
     commands.add_argument('--status', action='store_true')
     commands.add_argument('--worker', type=Path, help=argparse.SUPPRESS)
@@ -231,6 +268,8 @@ def main() -> int:
             print('No timeout; --stop returns to stock; stock labwc autostart unchanged.')
         elif args.start:
             start(args.start)
+        elif args.startup:
+            start_at_login(args.startup)
         elif args.stop:
             stop()
         elif args.status:
