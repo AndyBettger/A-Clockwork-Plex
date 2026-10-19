@@ -281,5 +281,134 @@ console.log('Number, dynamic password, non-text filter and ACP fallback: PASS');
         self.assertIn("PASS", result.stdout)
 
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js unavailable")
+    def test_live_c3_status_automatically_selects_single_keyboard_and_reveals_field(self):
+        """One existing 5s GET owns both theme eligibility and keyboard choice."""
+        javascript = r"""
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const choice = fs.readFileSync('app/static/js/osk-keyboard-choice.js', 'utf8');
+const sync = fs.readFileSync('app/static/js/osk-theme-sync.js', 'utf8');
+
+const modeHandlers = {};
+const attrs = new Map([['inputmode', 'none'], ['type', 'text']]);
+const classes = new Set();
+const storage = new Map();
+const pane = {
+  scrollTop: 0,
+  getBoundingClientRect: () => ({ top: 120, bottom: 710 }),
+};
+const input = {
+  type: 'text', disabled: false, readOnly: false,
+  dataset: { keyboard: 'text' },
+  matches: sel => sel === 'input[data-keyboard]' || sel.includes('input[type="text"]'),
+  closest: selector => selector === '.settings-detail' ? pane : null,
+  getBoundingClientRect: () => ({top: 598, bottom: 645}),
+  getAttribute: name => attrs.has(name) ? attrs.get(name) : null,
+  setAttribute: (name, value) => attrs.set(name, value),
+  removeAttribute: name => attrs.delete(name),
+};
+const toggle = { textContent: '', disabled: false, setAttribute() {} };
+const statusText = { textContent: '' };
+const nativeProbes = { hidden: true };
+const document = {
+  readyState: 'complete',
+  activeElement: input,
+  visibilityState: 'visible',
+  body: {classList: {
+    add: name => classes.add(name),
+    remove: name => classes.delete(name),
+  }},
+  documentElement: {dataset: {}, clientHeight: 720},
+  querySelectorAll: query => {
+    if (query === 'input[data-keyboard]') return [input];
+    if (query === '[data-osk-trial-toggle]') return [toggle];
+    if (query === '[data-osk-trial-status]') return [statusText];
+    if (query === '[data-osk-native-probes]') return [nativeProbes];
+    return [];
+  },
+  addEventListener: (event, callback) => {modeHandlers[event] = callback;},
+};
+const events = {};
+const calls = [];
+let interval = null;
+let live = true;
+const window = {
+  innerHeight: 720,
+  location: {pathname: '/settings', search: ''},
+  sessionStorage: {
+    getItem: key => storage.has(key) ? storage.get(key) : null,
+    setItem: (key, val) => storage.set(key, val),
+    removeItem: key => storage.delete(key),
+  },
+  ACPDashboardPreferences: {read: () => ({daytimeTheme:'green_phosphor'})},
+  ACPDisplayDimming: {status: () => ({
+    active: false, interacting: false, effectiveStyle: 'classic',
+  })},
+  addEventListener: (evt, fn) => {events[evt] = fn;},
+  dispatchEvent: () => {},
+  setInterval: (fn, ms) => {
+    assert.equal(ms, 5000);
+    assert.equal(interval, null, 'must reuse one existing C3 interval');
+    interval = fn;
+  },
+  requestAnimationFrame: fn => fn(),
+  setTimeout: () => 1,
+  clearTimeout: () => {},
+};
+const context = {
+  window, document, Date, URLSearchParams,
+  CustomEvent: class { constructor(type, details) { this.type=type; this.detail=details.detail; }},
+  fetch: async (url, options) => {
+    calls.push(url);
+    if (url.endsWith('/status')) {
+      return {ok: true, json: async () => ({ok: true, enabled: live})};
+    }
+    assert.equal(url, '/api/osk/c3/theme-sync');
+    assert.equal(options.method, 'POST');
+    return {ok: true, json: async () => ({ok: true, enabled: true, changed: true})};
+  },
+};
+const settle = async () => {
+  for (let i=0; i<6; i++) await Promise.resolve();
+};
+(async () => {
+  vm.runInNewContext(choice, context);
+  assert.equal(window.ACPKeyboardChoice.isNative(), false);
+  assert.equal(attrs.get('inputmode'), 'none');
+  vm.runInNewContext(sync, context);
+  await settle();
+  assert.equal(window.ACPKeyboardChoice.isNative(), true, 'live C3 forces native');
+  assert.equal(document.documentElement.dataset.acpKeyboardChoice, 'native');
+  assert.equal(toggle.disabled, true, 'cannot opt in to two keyboards');
+  assert.equal(toggle.textContent, 'System keyboard active');
+  assert.equal(attrs.get('inputmode'), 'text');
+  assert.equal(classes.has('native-osk-field-focused'), true);
+  assert.ok(pane.scrollTop > 220, 'native compositor keyboard reveals focused Settings field');
+  assert.ok(calls.includes('/api/osk/c3/theme-sync'));
+  assert.equal(window.ACPKeyboardChoice.setNative(false), true, 'manual button cannot override active C3');
+  assert.equal(window.ACPKeyboardChoice.isNative(), true);
+
+  live = false;
+  await interval();
+  await settle();
+  assert.equal(window.ACPKeyboardChoice.isNative(), false, 'stop C3 restores ACP keyboard');
+  assert.equal(document.documentElement.dataset.acpKeyboardChoice, 'acp');
+  assert.equal(toggle.disabled, false);
+  assert.equal(attrs.get('inputmode'), 'none');
+  assert.equal(classes.has('native-osk-field-focused'), false);
+  assert.equal(statusText.textContent.includes('existing ACP keyboard'), true);
+  console.log('C3 automatic single keyboard, scroll-to-field and stop fallback: PASS');
+})().catch(e => { console.error(e); process.exitCode = 1; });
+"""
+        result = subprocess.run(
+            ["node", "-e", javascript],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
