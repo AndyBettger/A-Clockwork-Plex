@@ -13,8 +13,8 @@
 | B — native Linux Plexamp | 🟡 Functional discovery | Normal start, fullscreen, search, playable audio, end-to-end ACP integration |
 | C1 — Settings text entry and field reachability | ✅ ACP browser accepted | Native/custom keyboard text and numeric field access, scroll-to-focus |
 | C2 — Squeekboard UK keyboard and themes | ✅ Bounded trial demonstrated | British layout, compact numeric, private 23-palette stage |
-| C3 — runtime hot CSS / native keyboard | 🟡 Active | Reliable day/night changes, stable input/focus, then practical persistent ownership |
-| D — sun-aware night dimming | 🔜 Next enhancement | Fixed schedule or sunset→sunrise based on configured location |
+| C3 — runtime hot CSS / native keyboard | 🟡 Nearly accepted | Hot themes, single keyboard, field scrolling and decimal keypad passed on Pi; night boundary/startup/stop remain |
+| D — sun-aware night dimming | ⏳ Deferred after Astronomy | Shared solar engine; seasonal offsets plus evening/morning clock limits |
 | E — production readiness | ⏳ Later | Stable Plexamp build, reboot and crash recovery, cross-source integration |
 
 ## Do next — short acceptance path
@@ -34,24 +34,17 @@
 - [x] **Untimed C3 dev session physically accepted:** `scripts/try-squeekboard-c3-dev.py` starts one native Squeekboard without a three-minute timeout; working theme hot-swap and fullscreen Plexamp typing observed. The original vendor startup remains available via `--stop`; its actual restoration after stop is still awaiting a Pi check.
 - [x] **19 October Pi result:** long-running C3 dev session beyond 180 s; one candidate PID **1895183**, stock absent, native keyboard works in ACP and fullscreen native Plexamp, theme changes follow ACP and persist between surfaces; after restarting the ACP service `/api/osk/c3/theme-sync/status` returns `enabled:true`.
 - [x] **Single-keyboard Settings UI and scrolling physically accepted:** C3 automatically suppresses ACP's legacy HTML keyboard; the actual Settings detail pane scrolls the focused latitude control clear of Squeekboard. Native Plexamp text and theme updates still work.
-- [ ] **Native numeric purpose (fix implemented, Pi check pending):** original decimal coordinate fields (`type=text`) were still requesting QWERTY. Convert only native `data-keyboard=decimal/number` inputs to `type=number` with `step=any` for signed decimals, and restore the original attributes when returning to ACP keyboard. Confirm keypad shows the minus and decimal keys and that a signed 6-decimal coordinate persists exactly.
+- [x] **19 October Pi numeric keypad acceptance:** compact Squeekboard numeric keyboard appears for latitude and signed fractional longitude, with minus and decimal keys; forecast coordinates retain precision, and Display night start/end show the intended time-capable QWERTY layout. C3 remains active, theme sync reports `enabled:true`.
 - [ ] Confirm the dev session stays usable over real day/night boundaries, preserves Plexamp Search focus, and restores vendor keyboard after `--stop`. Then plan the final reboot/startup owner.
 - [ ] Verify re-entry/restart and error recovery; then mark C3 accepted.
 
 **Keep basic safety, reduce ceremony:** a working stock OSK recovery path is important because losing all input is inconvenient; a seven-minute schedule rollback and new bespoke diagnostic subprocess for every normal display adjustment are not requirements for this test appliance.
 
-### D. Night dimming from sunset to sunrise
+### D. Sun-aware night dimming — deferred until Astronomy
 
-**New agreed behaviour:** provide **Schedule mode: Fixed times / Sunset → sunrise** in Display → Night dimming.
+**19 October decision:** do not implement solar scheduling during C3 or before full native Plexamp navigation. Build one shared local Sun-event calculation authority in [Astronomy](astronomy.md), then add sun-aware night dimming as an Astronomy follow-on. The existing fixed 22:00–07:00 schedule remains selectable.
 
-- [ ] Reuse the **existing Weather forecast latitude/longitude/timezone and daily sunrise/sunset** from Open-Meteo, instead of asking for a second location.
-- [ ] In sun mode, transition at **local sunset** and return at **local sunrise**, updating day by day; support optional offset minutes (sunset earlier/later; sunrise earlier/later) after basic flow works.
-- [ ] Respect Europe/London BST/GMT and local dates; no assumption that sunrise/sunset remain fixed seasonally.
-- [ ] If no coordinates or daily Sun times exist (or there is polar day/night), clearly show a status and **fall back to existing fixed 22:00–07:00** times; no mandatory network roundtrip at each boundary.
-- [ ] Keep Classic/Astronomy night themes, alarm suppression, interactions, preview, bouncing Clock and native keyboard following the same resolved scheduled state.
-- [ ] One small calculation/contract test set and one practical UK Pi acceptance; avoid exhaustive manual minute-by-minute rehearsals.
-
-**Important:** Sunrise/sunset are the Sun crossing the horizon, *not* civil twilight/dusk. Twilight options can be added later if useful; begin with the literal sunrise/sunset request.
+**Design idea to refine then:** sliders for signed sunrise/sunset offsets (hours and minutes), showing the actual resolved local time. Crucially, an offset alone would dim the screen in the middle of winter afternoons. Add a **not-before evening dim time** (example: later of sunset+30 min and 21:00), and consider morning limits so summer sunrise at 04:30 cannot brighten the appliance too early. Reuse weather coordinates, local timezone/DST and cached solar events. No need to build a separate astrology/astronomy calculation service within #94.
 
 ### B. Close native Plexamp once the keyboard works
 
@@ -107,4 +100,4 @@ Use `venv/bin/python` for Flask-dependent tests; system `python3` may not have F
 - [Full project roadmap snapshot](../../archive/acp-roadmap-full-history-2026-10-19.md).
 - Keep new accepted results here as **one checkpoint line per complete capability**, not many near-identical dated appendices.
 
-**Finish line for #94:** Squeekboard works natively in Plexamp and ACP, night/day and sun mode both switch cleanly, native audio + app hand-offs behave correctly, and the development-only keyboard trial can be retired. Then build Astronomy.
+**Finish line for #94:** Squeekboard works in ACP and native Plexamp with day/night colours, native **navigation/drawer/transition handoff** is implemented and physically accepted, native audio + app handoffs work, and the development-only keyboard trial is replaced. **Sun-aware scheduling is not a #94 release blocker**; it follows Astronomy's shared solar calculations.
