@@ -271,7 +271,52 @@ document.activeElement = checkbox;
 window.ACPKeyboardChoice.setNative(true);
 assert.strictEqual(classes.has('native-osk-field-focused'), false, 'non-text controls excluded');
 window.ACPKeyboardChoice.setNative(false);
-console.log('Number, dynamic password, non-text filter and ACP fallback: PASS');
+// Forecast lat/long are text fields in ACP (signed high-precision decimals).
+// During native C3 they must request Squeekboard's verified number purpose,
+// with all type/inputmode/step attributes restored on return to ACP.
+const decimalAttrs = new Map([['type', 'text'], ['inputmode', 'none']]);
+const decimal = {
+  type: 'text', value: '-0.806874', disabled: false, readOnly: false,
+  dataset: {keyboard: 'decimal'},
+  matches: sel => sel === 'input[data-keyboard]' || sel.includes('input[type="number"]'),
+  closest: sel => sel === '.settings-detail' ? pane : null,
+  getBoundingClientRect: () => ({top: 610, bottom: 655}),
+  getAttribute: name => decimalAttrs.has(name) ? decimalAttrs.get(name) : null,
+  setAttribute: (name, value) => {
+    decimalAttrs.set(name, value);
+    if (name === 'type') decimal.type = value;
+  },
+  removeAttribute: name => {
+    decimalAttrs.delete(name);
+    if (name === 'type') decimal.type = 'text';
+  }
+};
+const timeAttrs = new Map([['type', 'text'], ['inputmode', 'none']]);
+const timeInput = {
+  type: 'text', dataset: {keyboard: 'time'},
+  matches: sel => sel === 'input[data-keyboard]',
+  getAttribute: name => timeAttrs.has(name) ? timeAttrs.get(name) : null,
+  setAttribute: (name, value) => timeAttrs.set(name, value),
+  removeAttribute: name => timeAttrs.delete(name)
+};
+document.querySelectorAll = sel =>
+  sel === 'input[data-keyboard]' ? [input, decimal, timeInput] : [];
+document.activeElement = decimal;
+assert.strictEqual(window.ACPKeyboardChoice.setNative(true), true);
+assert.strictEqual(decimal.type, 'number', 'decimal field requests native number purpose');
+assert.strictEqual(decimal.getAttribute('inputmode'), 'decimal');
+assert.strictEqual(decimal.getAttribute('step'), 'any', 'arbitrary coordinate precision');
+assert.strictEqual(decimal.value, '-0.806874', 'signed coordinate survives mode selection');
+assert.strictEqual(timeInput.type, 'text', 'time fields retain colon-capable keyboard');
+assert.strictEqual(timeInput.getAttribute('inputmode'), 'text');
+window.ACPKeyboardChoice.setNative(false);
+assert.strictEqual(decimal.type, 'text', 'signed decimal returns to ACP text control');
+assert.strictEqual(decimal.getAttribute('inputmode'), 'none');
+assert.strictEqual(decimal.getAttribute('step'), null, 'temporary step removed');
+assert.strictEqual(decimal.value, '-0.806874');
+assert.strictEqual(timeInput.type, 'text');
+assert.strictEqual(timeInput.getAttribute('inputmode'), 'none');
+console.log('Number, signed decimal, time, password and ACP fallback: PASS');
 """
         result = subprocess.run(
             ["node", "-e", javascript],
