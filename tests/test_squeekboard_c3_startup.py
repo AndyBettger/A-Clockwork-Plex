@@ -76,6 +76,22 @@ class C3LoginStartupTests(unittest.TestCase):
             with self.assertRaises(startup.StartupError):
                 startup.desktop_text(Path('/home/pi/script.py'), Path('/home/pi/c3%zip'))
 
+    def test_session_status_reflects_optional_managed_autostart(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            desktop = root / '.config/autostart/a-clockwork-plex-c3-dev.desktop'
+            desktop.parent.mkdir(parents=True)
+            with mock.patch.object(dev.Path, 'home', return_value=root):
+                self.assertFalse(dev.desktop_login_configured())
+                desktop.write_text(
+                    '[Desktop Entry]\\nX-ACP-C3-Managed=true\\n'.replace('\\\\n', '\\n'),
+                    encoding='utf-8',
+                )
+                self.assertTrue(dev.desktop_login_configured())
+                desktop.unlink()
+                desktop.symlink_to(root / 'nonexistent')
+                self.assertFalse(dev.desktop_login_configured())
+
     def test_session_starts_only_after_stock_keyboard_appears(self):
         archive = Path('/tmp/pinned-candidate.zip')
         trace = []
