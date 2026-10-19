@@ -33,7 +33,7 @@
 - [ ] Test tap, UK typing, compact numbers, Done/Cancel, Search focus and keyboard hide/show after palette switch in **one** regression pass.
 - [x] Implement reversible, **untimed dev-session** systemd launch: `scripts/try-squeekboard-c3-dev.py` (`--plan` / `--start` / `--status` / `--stop`). ACP existing browser owns palette writes; no autostart/package changes and stock OSK restored on normal stop/candidate exit. **Physical Pi acceptance still pending.**
 - [x] **19 October Pi result:** long-running C3 dev session beyond 180 s; one candidate PID **1895183**, stock absent, native keyboard works in ACP and fullscreen native Plexamp, theme changes follow ACP and persist between surfaces; after restarting the ACP service `/api/osk/c3/theme-sync/status` returns `enabled:true`.
-- [ ] **Settings single-keyboard/scroll fix (CI GREEN: 1,494 tests, 3 skipped; Pi acceptance pending):** existing five-second theme-sync status GET now informs `ACPKeyboardChoice.setSystemActive()`; live C3 automatically suppresses ACP's old HTML keyboard, removes the five-minute choice dependency and restores the ACP fallback on a confirmed stop. The native focus-reveal CSS now scopes to stable `body[data-active-page="settings"]` rather than `body.mode-settings`, leaving the shell full-size while scrolling the right detail pane above the keyboard. Verify Weather forecast coordinates, WU Replace, News URL, numeric entry and return to ACP keyboard on `--stop`.
+- [x] **19 October Pi single-keyboard/field-scrolling acceptance:** ACP automatically suppresses its own DOM keyboard while the C3 Squeekboard dev session is active; Weather forecast latitude remains visible above the system keyboard and native Plexamp input still works. **Remaining: decimal/number fields still open the QWERTY layout; numeric-purpose fix in development.** Existing implementation:  existing five-second theme-sync status GET now informs `ACPKeyboardChoice.setSystemActive()`; live C3 automatically suppresses ACP's old HTML keyboard, removes the five-minute choice dependency and restores the ACP fallback on a confirmed stop. The native focus-reveal CSS now scopes to stable `body[data-active-page="settings"]` rather than `body.mode-settings`, leaving the shell full-size while scrolling the right detail pane above the keyboard. Verify Weather forecast coordinates, WU Replace, News URL, numeric entry and return to ACP keyboard on `--stop`.
 - [ ] Confirm the dev session stays usable over real day/night boundaries, preserves Plexamp Search focus, and restores vendor keyboard after `--stop`. Then plan the final reboot/startup owner.
 - [ ] Verify re-entry/restart and error recovery; then mark C3 accepted.
 
@@ -55,7 +55,8 @@
 ### B. Close native Plexamp once the keyboard works
 
 - [x] Experimental ARM64 Plexamp Flatpak installed alongside accepted Headless rollback; native window launch/fullscreen and visualiser physically seen.
-- [x] ACP ↔ native Plexamp nav/return paths integrated in the accepted Phase-A workspace shell.
+- [x] **Embedded/browser Plexamp only:** ACP ↔ the persistent Plexamp *iframe* has working nav, transitions, spatial-row sequencing and return paths in Phase A.
+- [ ] **Native Linux Plexamp navigation (NOT IMPLEMENTED):** integrate the separately launched Flatpak Wayland window with ACP's nav indicator/drawer, switch-back navigation, and transition model. Current `scripts/launch-native-plexamp.sh --fullscreen` launches a separate Wayland toplevel; `app/static/js/plexamp-persistent.js` and `page-transitions.js` animate the browser iframe, **not** the native window. Ensure the active native player can reveal the ACP navigation while retaining focus, and support a reversible compositor/window handoff. This is Phase B work and has never had physical acceptance.
 - [x] Native versus Headless audio A/B runs without DSP errors in focused ten-minute tests; occasional single glitches and ALSA warnings were separately observed.
 - [ ] Resolve any remaining real audio routing/CTL warnings without disrupting CamillaDSP, alarm bypass, music trim/EQ or AirPlay.
 - [ ] Verify search, typing, media controls, return from ACP, alarms, AirPlay and NFC with the accepted native OSK.
@@ -64,7 +65,7 @@
 
 ## Phase A — accepted, no rework planned
 
-**Complete:** A0–A4 same-document Clock, Weather, News, Settings and AirPlay; life-cycle, live refresh, scroll state and component/theme boundaries; persistent nav/home-indicator; spatial ordered row/long jumps; ACP–Plexamp handoff; Audio/Settings utility placement; normal/night transitions and dark-room bouncing Clock. Browser: Chromium physically accepted; a speculative Firefox switch is not on the current task list.
+**Complete:** A0–A4 same-document Clock, Weather, News, Settings and AirPlay; life-cycle, live refresh, scroll state and component/theme boundaries; persistent nav/home-indicator; spatial ordered row/long jumps; **ACP–embedded browser Plexamp iframe** handoff; Audio/Settings utility placement; normal/night transitions and dark-room bouncing Clock. Browser: Chromium physically accepted; a speculative Firefox switch is not on the current task list.
 
 **Future slot:** `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`. Astronomy remains a separate post-#94 feature; avoid widening #94 into its full astronomy implementation.
 
