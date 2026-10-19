@@ -20,6 +20,10 @@
   const originalTypes = new WeakMap();
   let expiryTimer = null;
   let revealTimer = null;
+  // Updated by the EXISTING C3 theme-sync status poll. No extra timer or
+  // keyboard service is introduced here; a live C3 keyboard takes priority
+  // over the old five-minute, browser-only opt-in.
+  let systemActive = false;
 
   // Squeekboard is a compositor overlay: it does not reduce Chromium's
   // visualViewport. Give the Settings detail SCROLLER room for the obscured
@@ -84,6 +88,7 @@
   }
 
   function nativeMode() {
+    if (systemActive) return true;
     const expires = savedExpiry();
     return expires > Date.now() && expires - Date.now() <= LIMIT_MS;
   }
@@ -129,13 +134,17 @@
   function updateControls() {
     const enabled = nativeMode();
     document.querySelectorAll?.('[data-osk-trial-toggle]').forEach((button) => {
-      button.textContent = enabled ? 'Restore ACP keyboard' : 'Try system keyboard';
+      button.textContent = systemActive ? 'System keyboard active'
+        : (enabled ? 'Restore ACP keyboard' : 'Try system keyboard');
+      button.disabled = systemActive;
       button.setAttribute('aria-pressed', String(enabled));
     });
     document.querySelectorAll?.('[data-osk-trial-status]').forEach((label) => {
-      label.textContent = enabled
-        ? 'Native keyboard selected for this browser tab. The separately started Squeekboard trial lasts up to 180 seconds from its SSH launch; this browser choice expires after five minutes. Restore ACP keyboard if native input stops.'
-        : 'Using the existing ACP keyboard. System keyboard trial is off.';
+      label.textContent = systemActive
+        ? 'Live C3 system keyboard detected and automatically selected. Stop the C3 session from SSH to restore the ACP keyboard.'
+        : enabled
+          ? 'Native keyboard selected for this browser tab. The separately started Squeekboard trial lasts up to 180 seconds from its SSH launch; this browser choice expires after five minutes. Restore ACP keyboard if native input stops.'
+          : 'Using the existing ACP keyboard. System keyboard trial is off.';
     });
     document.querySelectorAll?.('[data-osk-native-probes]').forEach((panel) => {
       panel.hidden = !enabled;
@@ -165,6 +174,20 @@
     notify();
   }
 
+  function setSystemActive(active) {
+    const next = active === true;
+    if (next === systemActive) return;
+    if (next) {
+      // The browser's old timed choice must not survive a later --stop,
+      // leaving the ACP keyboard suppressed without a native keyboard.
+      try { window.sessionStorage.removeItem(KEY); } catch (_error) { /* no-op */ }
+      if (expiryTimer !== null) window.clearTimeout(expiryTimer);
+      expiryTimer = null;
+    }
+    systemActive = next;
+    notify(); // Also closes any already-visible ACP HTML keyboard.
+  }
+
   function scheduleExpiry() {
     if (expiryTimer !== null) window.clearTimeout(expiryTimer);
     expiryTimer = null;
@@ -175,6 +198,9 @@
   }
 
   function setNative(enable) {
+    // A running native Squeekboard and ACP's HTML keyboard must never both
+    // be selected. Stop the native process before choosing ACP instead.
+    if (systemActive) return true;
     if (!enable) {
       clearTrial();
       return true;
@@ -211,12 +237,13 @@
     const toggle = event.target?.closest?.('[data-osk-trial-toggle]');
     if (!toggle) return;
     event.preventDefault();
-    setNative(!nativeMode());
+    if (!systemActive) setNative(!nativeMode());
   });
 
   window.ACPKeyboardChoice = Object.freeze({
     isNative: nativeMode,
     setNative,
+    setSystemActive,
   });
 
   // Expired/invalid session values are discarded so an old tab cannot keep
