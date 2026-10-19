@@ -53,12 +53,13 @@ def pointer_state() -> Path | None:
     return Path(obj['state'])
 
 
-def active_state(trial=None) -> Path | None:
+def active_state(trial=None, unit_check=None) -> Path | None:
     """Return exact opted-in candidate state; used read-only by theme bridge."""
     trial = trial or load_trial()
-    if not trial.unit_active(UNIT + '.service'):
+    checked = unit_check or trial.unit_active
+    if not checked(UNIT + '.service'): 
         return None
-    if any(trial.unit_active(name) for name in (
+    if any(checked(name) for name in (
         trial.TRIAL_UNIT + '.service', trial.ROLLBACK_UNIT + '.timer',
         trial.C2_TRIAL_UNIT + '.service', trial.C2_ROLLBACK_UNIT + '.timer'
     )):
@@ -153,6 +154,8 @@ def worker(path: Path) -> None:
             time.sleep(0.25)
         else:
             raise DevError('Vendor keyboard did not exit; refusing candidate overlap')
+        if shutting_down:
+            return  # finally restores vendor if stopped during initial handover
         with (path.parent / 'candidate.log').open('ab') as logfile:
             candidate = subprocess.Popen(
                 [state['candidate']],
