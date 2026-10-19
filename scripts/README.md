@@ -106,6 +106,8 @@ After `scripts/stage-squeekboard-compact-number.py --stage` and `--check` have p
 
 ### Stage C3 — long-running native keyboard development session (new)
 
+**Script:** `scripts/try-squeekboard-c3-dev.py` (developer command; explicitly opt-in).
+
 **Primary next step:** instead of a 180-second trial, keep one experimental C3 Squeekboard running under a user-systemd transient service until you deliberately stop it. Nothing is enabled at startup, and Pi reboot/login retains the original vendor Squeekboard. This is a **development-mode** session, not yet the final production installer.
 
 ```bash
