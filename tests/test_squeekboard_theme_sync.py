@@ -155,14 +155,16 @@ class C3ThemeSyncTests(unittest.TestCase):
                 candidate_pids=mock.Mock(return_value=[2345]),
                 vendor_pids=mock.Mock(return_value=[]),
             )
+            def legacy_only(unit):
+                return "c3-" in unit and "c3-dev" not in unit
             with mock.patch.object(bridge, "load_script", return_value=mock_trial), \
                  mock.patch.object(bridge.os, "geteuid", return_value=1000), \
                  mock.patch.object(bridge, "user_unit_active",
-                                   side_effect=lambda u: "c3-" in u) as units:
+                                   side_effect=legacy_only) as units:
                 self.assertEqual(bridge.opted_in_trial(), state)
                 units.side_effect = lambda u: False
                 self.assertIsNone(bridge.opted_in_trial())
-                units.side_effect = lambda u: "c3-" in u
+                units.side_effect = legacy_only
                 mock_trial.candidate_pids.return_value = []
                 self.assertIsNone(bridge.opted_in_trial())
                 mock_trial.candidate_pids.return_value = [2345]
