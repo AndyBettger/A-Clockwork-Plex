@@ -18,6 +18,7 @@ Build a touch-first astronomy surface using deterministic local/offline calculat
 - [ ] 1280×720 touch presentation and night treatment.
 - [ ] Circumpolar/no-rise/no-set/polar/DST/local-date edge cases.
 - [ ] Reference fixtures and numerical tolerances.
+- [ ] Export one shared local Sun-event calculation service so future display dimming uses Astronomy's sunrise/sunset and timezone logic, not a second implementation.
 
 ## Architecture dependency
 
@@ -40,3 +41,15 @@ This position is part of the shell topology before Astronomy implementation begi
 ## Related authority
 
 - [ACP shell / native Plexamp architecture](../../development/architecture/native-plexamp-desktop.md) — application-surface/design-system dependency before Astronomy begins.
+
+## Follow-on — sun-aware night dimming
+
+**Deferred until after full native Plexamp navigation and the shared Astronomy solar calculations.** Preserve the current **Fixed times** mode (22:00–07:00 or user-edited equivalents).
+
+The intended UI allows independently signed **sunset offset** and **sunrise offset** sliders (hours/minutes), showing calculated local dim/start and bright/stop clock times. An offset alone does not match the user's seasonal bedtime: in a UK winter sunset may be around 16:30, well before they want dimming. Offer a configurable **earliest permissible evening dim time**, for example:
+`start = max(sunset + 30 minutes, 21:00 local)`.
+That yields 21:30 with a 21:00 summer sunset, but 21:00 with a 16:30 winter sunset. The morning may similarly need a minimum daytime-return time to avoid lighting the screen at an early summer sunrise; explore suitable optional upper/lower limits when implementing.
+
+Reuse the same configured forecast location coordinates, IANA time zone, local date and DST rules. Recompute/cache locally, handle missing or stale weather Sun events, latitude extremes, no-rise/no-set and midnight-crossing offsets; fall back explicitly to saved fixed times. Astronomical sunset is distinct from preferred bedtime; civil/nautical twilight can be added as later selectable solar anchors. Seasonal day-length shifts are primarily axial tilt and latitude, not the equation of time.
+
+**Sequence:** C3 Squeekboard → native Plexamp nav/drawer and transitions → Astronomy shared Sun calculations → sun-aware dimming. Do not make solar mode a #94 completion gate.
