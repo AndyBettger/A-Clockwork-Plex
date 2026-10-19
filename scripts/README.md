@@ -124,6 +124,23 @@ python3 scripts/try-squeekboard-c3-dev.py --stop
 
 For immediate manual testing, keep native Plexamp Search open, change ACP Display Night dimming start/end to times a minute or two ahead, verify the keyboard's colour follows ACP without restarting it, then put the normal 22:00–07:00 times back yourself. No mandatory 420-second settings guard. **Do not run simultaneous `--start` commands or the older 180-second trial while this is running.** The 180-second script remains available as a fallback. Audio/Headless/NFC unchanged.
 
+### Stage C3 — opt-in desktop-login startup (reversible development mode)
+
+**Script:** `scripts/configure-squeekboard-c3-startup.py` installs **only** a user XDG autostart entry for the future graphical login. It does **not** replace the distro's `/usr/bin/sbtest`, change labwc system configuration or start/stop a currently active keyboard. The normal stock OSK comes up first; the login entry waits up to 60 seconds for that singleton and then calls the verified C3 dev launcher `--startup`. A stale C3 dev-state pointer left by a reboot is cleaned only after the prior user service is inactive and a live stock OSK, but **no experimental candidate**, is observed.
+
+```bash
+cd ~/A-Clockwork-Plex
+python3 scripts/configure-squeekboard-c3-startup.py --check
+# Opt in when ready for the NEXT graphical login (the ZIP must remain at this path):
+python3 scripts/configure-squeekboard-c3-startup.py --enable ~/acp-c3-hot-css-arm64-test-only.zip
+# Disable future login takeover; this does NOT stop the current session:
+python3 scripts/configure-squeekboard-c3-startup.py --disable
+# Restore stock in the CURRENT session separately:
+python3 scripts/try-squeekboard-c3-dev.py --stop
+```
+
+The installed `~/.config/autostart/a-clockwork-plex-c3-dev.desktop` is private, marked and atomic; enabling again is idempotent and disabling refuses to delete anybody else's entry. On an absent ZIP, missing original keyboard or verification failure, the C3 launcher refuses and the vendor keyboard remains. This is **not** yet a production installable package: final appliance installer integration must obtain the pinned C3 build/UK layouts/CSS itself and expose keyboard mode/disable/repair in a clean, documented fresh-Pi setup. No implicit installer change in this development slice.
+
 ### Stage C3 — guarded actual night schedule start/end rehearsal (not a keyboard installer)
 
 `scripts/try-c3-night-boundary.py` prepares an **operator-attended** one-minute scheduled night interval to test real palette transitions under native Plexamp. Use `python3 scripts/try-c3-night-boundary.py --plan` first. It reads the normal revisioned local `/api/settings`, exact accepted enabled `22:00–07:00` and Classic Dark/classic-dim/same-as-idle baseline, checks `/api/alarms/active` is not ringing or snoozed, confirms C3 sync is disabled, refuses an existing schedule guard/timer and declines overnight/near-boundary execution. Plan does not modify anything.
