@@ -17,7 +17,7 @@
 | Private Squeekboard CSS, ACP daytime / night palettes | **Live hot reload demonstrated** | Exercise *real* scheduled start/end in fullscreen Plexamp |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
 | Linux input activity with Plexamp foreground | **Passed:** six devices, sequence 230→246, Logitech K800 key | Complete native touchscreen/focus acceptance |
-| Squeekboard long-running C3 + automatic single keyboard | **Long-running/theming physically passed; Settings UI fix in CI / Pi pending** | ACP automatically suppresses its HTML keyboard when C3 is live; Settings focuses scroll above native OSK |
+| Squeekboard long-running C3 + automatic single keyboard | **Long-running/theming physically passed; Settings UI fix CI green / Pi pending** | ACP automatically suppresses its HTML keyboard when C3 is live; Settings focuses scroll above native OSK |
 | Sunrise/sunset night schedule | **New feature — next implementation slice** | Add `Fixed times` / `Sunset → sunrise` setting with existing location/cached Sun data, DST and fallback |
 | Production/reboot/crash recovery, native audio and stable release | **Still pending** | Close after keyboard is settled |
 
