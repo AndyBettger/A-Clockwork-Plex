@@ -99,11 +99,16 @@
       });
       if (!response.ok) {
         enabled = false;
+        window.ACPKeyboardChoice?.setSystemActive?.(false);
         lastApplied = null;
         return;
       }
       const status = await response.json();
       enabled = status?.ok === true && status?.enabled === true;
+      // This is the SAME existing status request: no second poller. Only an
+      // active C3 session may suppress ACP's HTML keyboard. Changing the
+      // selection also activates the existing Settings focus-reveal logic.
+      window.ACPKeyboardChoice?.setSystemActive?.(enabled);
       if (!enabled) {
         lastApplied = null;
         return;
@@ -127,6 +132,8 @@
       }
     } catch (_error) {
       enabled = false; // connectivity/status errors must never touch the OSK
+      // Preserve a running native keyboard during transient dashboard errors;
+      // a *confirmed* disabled status above hands input back to ACP.
       lastApplied = null;
     } finally {
       inFlight = false;
