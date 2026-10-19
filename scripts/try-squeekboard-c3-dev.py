@@ -232,6 +232,17 @@ def start_at_login(archive: Path, *, wait_seconds: int = 60) -> None:
         time.sleep(1)
 
 
+def desktop_login_configured() -> bool:
+    """Report our user-only XDG opt-in; never confuse it with distro startup."""
+    path = Path.home() / '.config/autostart/a-clockwork-plex-c3-dev.desktop'
+    if path.is_symlink() or not path.is_file():
+        return False
+    try:
+        return 'X-ACP-C3-Managed=true' in path.read_text(encoding='utf-8').splitlines()
+    except (OSError, UnicodeError):
+        return False
+
+
 def status() -> None:
     trial = load_trial()
     path = pointer_state()
@@ -243,6 +254,7 @@ def status() -> None:
         'candidate_pids': trial.candidate_pids(Path(trial.read_state(path)['candidate'])) if path else [],
         'state_present': path is not None,
         'autostart_changed': False,
+        'dev_autostart_enabled': desktop_login_configured(),
     }, indent=2))
 
 
