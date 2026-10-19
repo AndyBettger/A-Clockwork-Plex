@@ -18,6 +18,7 @@
   });
   const originalHints = new WeakMap();
   const originalTypes = new WeakMap();
+  const originalSteps = new WeakMap();
   let expiryTimer = null;
   let revealTimer = null;
   // Updated by the EXISTING C3 theme-sync status poll. No extra timer or
@@ -107,6 +108,12 @@
         else input.setAttribute('type', type);
         originalTypes.delete(input);
       }
+      if (originalSteps.has(input)) {
+        const step = originalSteps.get(input);
+        if (step === null) input.removeAttribute('step');
+        else input.setAttribute('step', step);
+        originalSteps.delete(input);
+      }
     });
   }
 
@@ -115,12 +122,21 @@
     if (!originalHints.has(input)) {
       originalHints.set(input, input.getAttribute('inputmode'));
     }
-    // Physical numeric probe: type=number sends Squeekboard the digits
-    // purpose whereas type=text + inputmode=numeric was still QWERTY.
-    // Convert only native-trial integer fields, never time/decimal/URL, and
-    // restore the original text input when returning to ACP's keyboard.
-    if (input.dataset.keyboard === 'number' && input.type === 'text') {
+    // On Chromium/Wayland the inputmode hint alone is insufficient:
+    // type=number is the verified way to request Squeekboard's number
+    // purpose. Apply only to declared integer / signed-decimal Settings
+    // fields. Restore the original text type on C3 stop. Never convert
+    // time (needs ':'), text, URL or passwords.
+    const numericPurpose = input.dataset.keyboard === 'number'
+      || input.dataset.keyboard === 'decimal';
+    if (numericPurpose && input.type === 'text') {
       originalTypes.set(input, input.getAttribute('type'));
+      if (input.dataset.keyboard === 'decimal') {
+        // Coordinates may be fractional with up to 6+ decimal places and
+        // signed. Do not let default step=1 mark them invalid.
+        originalSteps.set(input, input.getAttribute('step'));
+        input.setAttribute('step', 'any');
+      }
       input.setAttribute('type', 'number');
     }
     input.setAttribute('inputmode', hints[input.dataset.keyboard] || 'text');
