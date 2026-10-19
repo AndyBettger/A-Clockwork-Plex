@@ -513,15 +513,18 @@ body.keyboard-open .settings-save-bar {
   }
 }
 
-/* Phase-B experimental compositor OSK: the Wayland keyboard sits above the
-   normal Settings scroll area without resizing Chromium's viewport. Leave
-   the outer shell at full size, and add scrolling room INSIDE its detail
-   panel only while a local field is focused. No enormous blank gap. */
-html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-detail-panel:not([hidden]) {
+/* The Settings page can be rendered while state.mode is 'clock' or another
+   running workspace: data-active-page="settings" is the stable page identity.
+   Restrict keyboard clearance to its detail SCROLLER; never lift the whole
+   split-view panel or leave a large blank gap after focus exits. */
+html[data-acp-keyboard-choice="native"] body[data-active-page="settings"].native-osk-field-focused .settings-detail {
+  scroll-padding-bottom: calc(clamp(245px, 44vh, 330px) + 16px);
+}
+html[data-acp-keyboard-choice="native"] body[data-active-page="settings"].native-osk-field-focused .settings-detail-panel:not([hidden]) {
   padding-bottom: calc(14px + clamp(245px, 44vh, 330px));
 }
 
-html[data-acp-keyboard-choice="native"] body.mode-settings.native-osk-field-focused .settings-save-bar {
+html[data-acp-keyboard-choice="native"] body[data-active-page="settings"].native-osk-field-focused .settings-save-bar {
   bottom: clamp(245px, 44vh, 330px);
 }
 
