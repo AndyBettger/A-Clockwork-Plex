@@ -529,12 +529,15 @@ html[data-acp-keyboard-choice="native"] body[data-active-page="settings"].native
 }
 
 /* Hide Chromium spinner buttons only on reversible native-trial numbers. */
-html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"] {
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"],
+html[data-acp-keyboard-choice="native"] input[data-keyboard="decimal"][type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
 html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-inner-spin-button,
-html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-outer-spin-button {
+html[data-acp-keyboard-choice="native"] input[data-keyboard="number"][type="number"]::-webkit-outer-spin-button,
+html[data-acp-keyboard-choice="native"] input[data-keyboard="decimal"][type="number"]::-webkit-inner-spin-button,
+html[data-acp-keyboard-choice="native"] input[data-keyboard="decimal"][type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
