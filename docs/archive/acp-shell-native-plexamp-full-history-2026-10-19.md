@@ -1,0 +1,1927 @@
+# ACP shell / native Plexamp modernisation
+
+**Issue:** #94  
+**Status:** ACTIVE — Phase B native Linux Plexamp on `feature/acp-shell-native-plexamp`; Phase A physically accepted
+
+## Why this moves before Astronomy
+
+Astronomy is a rich new application surface. Building it in the current multi-document navigation model and immediately migrating it would be avoidable rework.
+
+#94 therefore starts with the UI foundation first, then completes the native Linux Plexamp migration on top of that accepted shell. Astronomy keeps its reserved workspace slot but begins only after the native-player migration is physically accepted.
+
+## Phase A — ACP UI foundation
+
+### Checkpoint A0 — fail-safe surface host foundation
+
+- [x] Branch from accepted `develop` after #85 and the bounded Weather rain-event fix.
+- [x] Add `app/static/js/acp-surface-host.js` as the future same-document surface lifecycle owner.
+- [x] Define an explicit asynchronous `prepare() -> commit()` contract so destination work can be prepared before a DOM swap.
+- [x] Use the browser View Transition API when available and transition settings allow it, with a direct synchronous commit fallback.
+- [x] Let `page-transitions.js` delegate only destinations explicitly registered with the surface host.
+- [x] Preserve the existing `window.location.assign()` route path for every unmigrated surface.
+- [x] Add CI syntax checking and repository tests that pin the fail-safe/load-order contract.
+- [x] Implement the first real ACP surface pair: **Clock ↔ Weather** now mount once inside the long-lived document, dynamically loading the other surface's CSS/scripts only when first visited.
+- [x] Replace Weather's timed `window.location.reload()` with an in-place ACP-local refresh controller. The Weather grid refreshes without replacing the document, preserving vertical position and Rain-history horizontal scroll.
+- [x] Keep screen-projection/manual-lease ownership in front of the visual commit and synchronise logical mode after same-document activation.
+- [x] Preserve the full-document route fallback for News, Settings, AirPlay and all other unmigrated destinations.
+- [x] Implementation CI green at `7eda544e26ea932ba44897fea696cb49e28cccbb`.
+- [x] Physically compare Clock → Weather → Clock on the commissioned Pi: **core behaviour PASSED** — materially snappier, no black flash/full reload, active navigation/mode correct, Clock resumes correctly, Weather live refresh preserves reading position, forecast/wind/rain functionality intact.
+- [x] Configured ACP transition styles physically retested: all styles now visibly differ on Clock ↔ Weather and the configured transition-duration setting is honoured.
+- [x] Forecast Outlook custom horizontal rails physically retested across **first visit → leave Weather → second visit**; both rails remain visible and functional on subsequent visits.
+- [x] Fallback navigation to unmigrated **News** and **Settings** remains correct after the A1 lifecycle fixes.
+
+**Historical A0 starting point:** A0 changed architecture ownership without changing product-route behaviour. At that point no Clock/Weather/News/Settings surface was registered and the accepted multi-document path remained the fallback. That statement describes the starting checkpoint, not the current state.
+
+### Phase A closure reconciliation
+
+The original A0 planning list was left unchecked as the implementation evolved through A1–A4 and B0–B7. Reconciled against the accepted implementation and commissioned-Pi evidence:
+
+- [x] Establish one long-lived ACP web document with mounted top-level application surfaces instead of routine full-document navigation.
+- [x] Move the **current implemented ACP-owned surfaces** into that document: Home/Clock, Weather, News, Settings and AirPlay. Alarm remains an ACP-owned forced/takeover surface; Plexamp remains the deliberate cross-application terminal workspace. Astronomy and future surfaces inherit this contract when implemented rather than being prerequisites for closing Phase A.
+- [x] Replace legacy full-document refresh behaviour on the migrated surfaces with surface-owned live updates/lifecycle work that preserves relevant scroll position, open UI and mounted state. Future surfaces must follow the same rule.
+- [x] Establish the ACP component/design-token boundary used by the accepted shell and application surfaces; both bounded theme/token slices were physically accepted.
+- [x] Prove ACP-to-ACP transition ownership. Chromium View Transitions remain available where appropriate; Spatial and astronomy-night paths now use accepted live-DOM/live-screen compositors where browser snapshots are the wrong ownership model.
+- [x] Establish the shell-owned bottom navigation/home-indicator model: swipe/tap navigation, persistent shell ownership, utility controls, transition/workspace ownership and Settings text-entry behaviour are physically accepted. The earlier OS-level kiosk keyboard experiments were rejected; **native Plexamp Search/text entry remains a Phase-B gate**, not an unfinished Phase-A shell item.
+- [x] Prove the Spatial row/carousel navigation model with one logical destination commit, literal intermediate traversal and the accepted terminal Plexamp workspace semantics.
+- [x] **Chromium vs Firefox benchmark — RETIRED / SUPERSEDED.** The planned comparison was never run on the commissioned Pi. Chromium subsequently became the heavily exercised and physically accepted browser baseline through A1–A4 and B0–B7, so a benchmark for its own sake no longer has useful acceptance value. Reconsider Firefox only if Phase B exposes a concrete browser-level problem that Chromium cannot satisfy.
+- [x] Preserve the existing ACP visual identity and themes across the migrated surfaces, shell, Audio and Settings controls.
+- [x] Physically accept Phase-A touch behaviour, transition smoothness and 1280×720 presentation. **Native-player reboot/autostart/crash recovery remains explicitly in Phase B** and is not claimed as a completed Phase-A gate.
+
+### Stage C1 — native OSK field-visibility experiment (12 October, first layout attempt failed, revised candidate pending retest)
+
+The real diagnostic HTML `type=number` field raised Squeekboard's dedicated numeric layout on the commissioned Pi, confirming an OSK purpose path unavailable to ordinary `type=text` numeric-hinted fields. The native overlay still hid the focused field, because a compositor-level Wayland layer surface does not resize the Chromium viewport. An opt-in-only browser candidate now temporarily uses `type=number` for genuine integer setting fields and restores original attributes when ACP mode resumes; it also reserves bottom space only on active Settings input focus and scrolls the `.settings-detail` pane to reveal the focused field. Never change real time, decimal or URL type for this test; the custom ACP keyboard remains the default and is fully retained. Verify the field reveal, dismiss/restore, same-tab five-minute expiry and unsaved probes on the real Pi before marking Stage C1 accepted. Do not alter the bounded 180s/240s native overlay process tests, vendor keyboard or native Plexamp production ownership.
+
+**12 October physical review / scroll correction:** Two screenshots confirm the focused text and number diagnostic fields each show the intended *native* keyboard and the original ACP keyboard returns on Restore; the first field-visibility fix over-shrank the outer Settings page (visible ~300 px dark band above OSK). Corrected Stage C1 candidate removes outer-page padding entirely, keeps the established shell height and only adds temporary scrollable tail space to the visible `.settings-detail-panel`, with focus reveal bounded by the screen area *above* the compositor keyboard. The physical gate remains open. Most numeric settings are already sliders/selects, while forecast latitude/longitude require signed decimal input; night dim start/end times still use QWERTY so ':' remains enterable. Do not convert those to digits-only until a full time/decimal keymap is designed. Retry with the exact guarded OSK trial workflow and record full-height Settings appearance and field reach. No changes to the system keyboard or native-player rollout.
+
+**12 October real-Pi six-screenshot follow-up:** Text and number diagnostics, News URL reveal, native tap-away hide, switching fields and ACP keyboard restoration now pass, with normal full-height Settings and no large gap. WU API key remains partly concealed because `settings-weather-observations.js` injects a password field without `data-keyboard`; native Squeekboard opens but our focus watcher ignored the field. The next opt-in revision matches standard editable HTML input types and textarea (including dynamically created secret fields), while filtering non-text/readonly/disabled controls and leaving the existing credentials workflow unchanged. Node tests include the unmarked password reveal and rollback; physical verification remains pending. Native integer keypad does not permit decimal points, so leave forecast coordinates and time strings in text mode until correct signed-decimal/time layouts can be provided. Original vendor keyboard was restored and no rescue timers remained after the trial.
+
+**12 October Stage C1 commissioned-Pi acceptance, plus WU credential UX gate:** The experimental native keyboard now raises correct QWERTY/number layouts; the News URL and previously unmarked Weather Underground API-key input scroll completely above Squeekboard. The user also confirmed tap-away dismissal, swapping fields, restoring the ACP keyboard, no giant blank band, one restored vendor keyboard and zero rescue timers. Mark the **opt-in browser positioning gate physically accepted**. GB keymap, specialised signed-decimal/time layouts, ACP theme/dimming, persistent OSK owner and native Plexamp rollout are still separate open work. A new *independent* WU Settings UI candidate prevents confusing empty editable password fields beside `Configured`: it hides and disables entry while configured or status-unknown. **Replace API key** opens a fresh blank field, **Save replacement** uses the existing write-only credential POST, and **Cancel replacement** closes/clears without revoking the existing key. **Remove API key** remains an explicit credential DELETE and then shows Set API key. The secret is never echoed through the public settings API. New UI requires Pi screenshot/touch acceptance before merging; no OSK/audio/native-player change.
+
+
+**12 October WU credential follow-up — custom DOM keyboard reveal candidate awaiting Pi acceptance:** With a configured WU key, the field now hides as intended; Replace reopens it, but the *existing ACP HTML keyboard* obscures the input. Done then Cancel works. Root cause is independent of the physically accepted native compositor keyboard: Settings pass-A scrolling reserved space in the scroll viewport instead of the inner grid, limiting bottom-of-panel scroll reach. The proposed CSS reserves height inside the active `.settings-detail-panel` while the original keyboard is shown, and pass-A focus reveal checks again after keyboard entrance and uses immediate scroll after keyboard height is read. This applies to dynamically revealed Settings inputs while leaving outer Settings dimensions, Squeekboard native overlay/rollback, credentials storage, audio, NFC and native Plexamp unchanged. Acceptance gate: replacement input is fully visible above ACP keyboard, Cancel closes it, and other Settings navigation remains intact. The existing write-only WU key is not touched during testing.
+
+**12 October WU credential UI physical re-test — automatic focus on newly visible password field is the outstanding interaction issue:** Pi screenshot after `7a31cdf` still shows the custom ACP keyboard covering the WU field immediately on Replace, though Done/Cancel and other keyboard fields work. Source inspection shows Replace performs `renderCredentialStatus()` (unhides/enables) followed immediately by `elements.input?.focus()`, unlike ordinary user-tapped inputs. New *isolated* candidate removes programmatic focus, keeps the custom keyboard closed on Replace, and reveals/scrolls the field into the ordinary unobscured Settings pane. User must tap the new field to invoke the existing keyboard focus/scroll path. Node behavioural test verifies no automatic focus, no credential API call and bounded editor reveal; static tests update the expected sequence and cache-busted JS asset. Pending Pi acceptance: Replace shows field without keyboard, tap field opens/positions keyboard, Cancel discards unsent entry without changing configured credential. Prior native Wayland OSK physical gate remains accepted, independent of this DOM keyboard-only UX change.
+
+
+**12 October unresolved WU custom keyboard cover — geometry diagnosis staged:** Pi reports no visible change after previous tap-to-edit candidate: keyboard still covers dynamically revealed WU password input. We cannot yet tell whether browser loaded the latest `settings-weather-observations.js`, whether keyboard opens on Replace or only on input tap, or whether `.settings-detail` is already at scroll maximum. Pause further speculative scrolling and add a temporary **Show keyboard layout diagnostics** control in WU commissioning that explicitly reveals fixed on-screen geometry (script version, focus and pointer counts, keyboard-open, input/field/keypad boundaries, real scrollTop and scrollMax). This does not inspect, log or transmit any secret; disabled by default. Pi acceptance gate is a measured two-frame comparison: first after Replace, then after tapping API key, plus unchanged keyboard restoration. Remove the probe once root cause identified and corrected. Native Wayland Squeekboard focus/scroll remains physically accepted and untouched.
+
+
+**12 October Pi screenshots validate staged WU editor reveal (manual focus pending):** Temporary no-secrets geometry overlay loaded (v1). Before Replace: editor hidden/disabled/unfocused, ACP keyboard closed, scrollTop=max=897. After Replace: editor shown and enabled, not focused, 0 focus/pointer events, keyboard still closed, scrollTop 833 / max 1015, input bottom 382 and field bottom 436 within pane bottom 474. This confirms Replace **correctly does not open keyboard** and already scrolls field into ordinary view. The overlay itself visually obscures the input, so it has not yet been manually tapped. Cancel re-hides/disables and preserves Configured; no credential changes. Next: **hide diagnostic overlay**, Replace, tap the now-visible API-key field, and verify that ACP's custom keyboard opens and the field clears its top. Until that actual tap is observed, do not mark keyboard positioning/credential UX fully accepted or edit scroll CSS speculatively. This does not affect the physically accepted native Squeekboard route.
+
+
+**13 October physical focused-input reproduction and compact geometry probe:** Screenshot 1 shows the WU API key editor correctly revealed by Replace without keyboard; screenshot 2 shows that a *separate tap on the visible input* opens ACP's built-in keyboard but leaves the field partly behind the keyboard top. This rules out stale assets and the immediate Replace auto-focus theory. The earlier diagnostics were taken only while the keyboard was closed; scroll range then was 833/1015 with field inside pane. We still need measured values after focus and after keyboard entrance to decide whether the focus scroll handler fired, CSS scroll clearance was applied, or the browser capped scroll. The opt-in no-credentials-leak v2 overlay is compact and fixed at screen top, exposing focused-keyboard measured scroll/max, input-bottom versus OSK-top, keyboard-height variable, panel bottom padding and focus/pointer events without covering the input. Next Pi check: show v2 probe, press Replace (keyboard closed), manually tap API key, screenshot with keyboard *open*, Done and Cancel. Do not save, remove, or read actual key. Do not change native Squeekboard/Headless/audio ownership.
+
+
+**13 October measured Pi root cause / Stage C1 custom ACP keyboard retest candidate:** With the v2 WU diagnostics left on during real input focus, Pi reports focus+pointer delivered, keyboard-open=true, scrollTop=897 versus max=1177, fieldBottom=372, keyboard DOM box top/height=427/53, CSS keyboardHeight=54px, pane/panel bottom padding=82/78px. The visual four-row QWERTY keyboard is far taller than the 53px DOM wrapper returned by `getBoundingClientRect().height`; focusing the field therefore does not trigger sufficient upward scroll despite ample remaining scroll range. Correction is **not additional global padding**: `settings-pass-a.js` now computes effective keyboard coverage from the minimum visible bounding top of the keyboard's wrapper, header, quick row, key-grid, and key rows, plus the viewport bottom and intrinsic scrollHeight, and uses that full rendered extent for both scroll geometry and the CSS height variable. Regression emulates the actual 53px wrapper with key rows above it and checks larger resulting clearance. Cache-busted browser script and same 180s/240s native experiment untouched. Pending one Pi screenshot with focus and keyboard open plus probe; then remove temporary diagnostic, update physical acceptance and return to native Plexamp/OSK refinements. No credential change.
+
+
+**13 October ACP original keyboard focus/scroll physically ACCEPTED and temporary WU probe removed:** User tested the WU replacement field using Pi WayVNC with the DOM keyboard. Screenshots before a second force-refresh still showed `CSS kbHeight=54px` and partial overlap despite the pulled fix; the final force-refresh screenshot shows `CSS kbHeight=178px`, pane scroll `998/1425`, input bottom `217px`, keyboard top `303px`, hence **86px clearance** and a fully visible editable field. This proves the rendered-keyboard-extent correction works when fresh JavaScript is loaded; Chromium asset caching explains the contradictory early result. Previously accepted interactions remain: a configured WU key has no open password field, Replace reveals a blank editor but does not auto-focus/open keyboard, a tap opens keyboard, Done dismisses it, and Cancel discards unsent input while Configured remains. Neither Remove nor Save was used. The temporary no-secrets diagnostics control, fixed overlay and interval were removed from the browser bundle, and its regression was replaced with checks that it stays removed. Mark both native Squeekboard experimental field visibility and **ACP's original keyboard replacement-field positioning** as physically passed; still outstanding are UK/signed-decimal/time layouts, theme and lifetime integration, and native Plexamp fullscreen/volume/playback acceptance. No credential endpoint or Headless/audio/NFC changes.
+
+
+
+### Stage C2 — British Squeekboard layout + ACP day/night theme (ACTIVE, 13 October)
+
+Agreed priority: finish the native keyboard *before* returning to the native Linux Plexamp integration. The physically accepted ACP HTML keyboard stays the default, and Squeekboard remains a bounded opt-in overlay with independent 180s/240s restoration.
+
+- [ ] **C2a inventory:** Run `python3 scripts/inspect-squeekboard-theme-layout.py --inspect` as the ordinary Pi user. Confirm vendor version and SHA-256, real XKB/GNOME language names, GB/US narrow and wide and purpose-keymap files, GTK3 theme and any existing user stylesheet. No writes, no secret values.
+- [ ] **C2b UK input:** Build/test isolated user-owned GB YAML for full text and landscape, correct `£`, `@`, double quotes and apostrophe, and purpose layouts for URL/email, integer, *signed decimal* (`-` and `.`) and time (`:`). Do not force decimal/time HTML controls onto the known inadequate integer keypad; retain the accepted ACP fallback.
+- [ ] **C2c theme samples:** Generate Gtk3 `sq_view` / `sq_button` styling from actual ACP `daytime-themes.css` tokens: Classic Dark, Midnight Blue, Amber Terminal, Green Phosphor, Aubergine, Steel Cyan and Crimson Glow, plus classic dim and astronomy red with legible keys. Style only an isolated trial process — never edit the user's general GTK stylesheet or installed OS assets.
+- [ ] **C2d live handoff:** Browser CSS cannot style the independent Wayland GTK process. Derive a validated theme/night/interaction state from ACP's existing authoritative settings and prove safe update while keyboard is running *without interrupting current input*. Confirm whether GTK CSS reloading works in this pinned build; otherwise add a guarded renderer/update mechanism rather than restarting Squeekboard mid-typing.
+- [ ] **C2e physical acceptance:** Verify day selection and scheduled/previewed night, active/idle dimming, readable red astronomy, GB punctuation, signed-decimal/time, touchscreen, WayVNC, fullscreen ordering, and complete automatic rollback to the stock keyboard. Then resume native Plexamp integration.
+
+
+**13 October C2a Pi discovery:** Pi accepted vendor Squeekboard 1.43.1-1+rpt1 with hash match and one stock process. GNOME input is already `('xkb','gb')`, X11 layout `gb`, locale `en_GB.UTF-8`, GTK theme PiXonyx, and user GTK3 CSS absent. Layout-directory inventory first checked two incorrect candidate system directories; upstream `src/data/loading.rs` actually uses `/usr/share/misc/squeekboard/keyboards` by default and supports `SQUEEKBOARD_KEYBOARDSDIR` for private test layouts, with `us` fallback available as compiled resource. Fixed the read-only inventory and package YAML report. **Next diagnostic gate:** verify this precise directory/package layout inventory once on Pi. Do not change global input sources or claim GB labels without a physical YAML/browser test; the user wants ACP-selected day/night palette matching live, not an unrelated static GTK skin.
+
+
+**13 October C2b/C2c static candidate ready, *not deployed*:** The Pi inventory confirmed `/usr/share/misc/squeekboard/keyboards` has actual vendor US narrow/wide and special-purpose YAML but no listed GB keymaps; GNOME is already `('xkb','gb')`. `scripts/stage-squeekboard-uk-theme.py --plan` now verifies pinned vendor package/SHA and performs a strict read-only schema check of candidate transformations; `--stage` is opt-in and writes *only* into a new private cache directory, never replaces existing files. Candidate derives GB keyboard YAML from the installed US definitions: currency position `£`, retain `# ACP shell / native Plexamp modernisation
+
+**Issue:** #94  
+**Status:** ACTIVE — Phase B native Linux Plexamp on `feature/acp-shell-native-plexamp`; Phase A physically accepted
+
+## Why this moves before Astronomy
+
+Astronomy is a rich new application surface. Building it in the current multi-document navigation model and immediately migrating it would be avoidable rework.
+
+#94 therefore starts with the UI foundation first, then completes the native Linux Plexamp migration on top of that accepted shell. Astronomy keeps its reserved workspace slot but begins only after the native-player migration is physically accepted.
+
+## Phase A — ACP UI foundation
+
+### Checkpoint A0 — fail-safe surface host foundation
+
+- [x] Branch from accepted `develop` after #85 and the bounded Weather rain-event fix.
+- [x] Add `app/static/js/acp-surface-host.js` as the future same-document surface lifecycle owner.
+- [x] Define an explicit asynchronous `prepare() -> commit()` contract so destination work can be prepared before a DOM swap.
+- [x] Use the browser View Transition API when available and transition settings allow it, with a direct synchronous commit fallback.
+- [x] Let `page-transitions.js` delegate only destinations explicitly registered with the surface host.
+- [x] Preserve the existing `window.location.assign()` route path for every unmigrated surface.
+- [x] Add CI syntax checking and repository tests that pin the fail-safe/load-order contract.
+- [x] Implement the first real ACP surface pair: **Clock ↔ Weather** now mount once inside the long-lived document, dynamically loading the other surface's CSS/scripts only when first visited.
+- [x] Replace Weather's timed `window.location.reload()` with an in-place ACP-local refresh controller. The Weather grid refreshes without replacing the document, preserving vertical position and Rain-history horizontal scroll.
+- [x] Keep screen-projection/manual-lease ownership in front of the visual commit and synchronise logical mode after same-document activation.
+- [x] Preserve the full-document route fallback for News, Settings, AirPlay and all other unmigrated destinations.
+- [x] Implementation CI green at `7eda544e26ea932ba44897fea696cb49e28cccbb`.
+- [x] Physically compare Clock → Weather → Clock on the commissioned Pi: **core behaviour PASSED** — materially snappier, no black flash/full reload, active navigation/mode correct, Clock resumes correctly, Weather live refresh preserves reading position, forecast/wind/rain functionality intact.
+- [x] Configured ACP transition styles physically retested: all styles now visibly differ on Clock ↔ Weather and the configured transition-duration setting is honoured.
+- [x] Forecast Outlook custom horizontal rails physically retested across **first visit → leave Weather → second visit**; both rails remain visible and functional on subsequent visits.
+- [x] Fallback navigation to unmigrated **News** and **Settings** remains correct after the A1 lifecycle fixes.
+
+**Historical A0 starting point:** A0 changed architecture ownership without changing product-route behaviour. At that point no Clock/Weather/News/Settings surface was registered and the accepted multi-document path remained the fallback. That statement describes the starting checkpoint, not the current state.
+
+### Phase A closure reconciliation
+
+The original A0 planning list was left unchecked as the implementation evolved through A1–A4 and B0–B7. Reconciled against the accepted implementation and commissioned-Pi evidence:
+
+- [x] Establish one long-lived ACP web document with mounted top-level application surfaces instead of routine full-document navigation.
+- [x] Move the **current implemented ACP-owned surfaces** into that document: Home/Clock, Weather, News, Settings and AirPlay. Alarm remains an ACP-owned forced/takeover surface; Plexamp remains the deliberate cross-application terminal workspace. Astronomy and future surfaces inherit this contract when implemented rather than being prerequisites for closing Phase A.
+- [x] Replace legacy full-document refresh behaviour on the migrated surfaces with surface-owned live updates/lifecycle work that preserves relevant scroll position, open UI and mounted state. Future surfaces must follow the same rule.
+- [x] Establish the ACP component/design-token boundary used by the accepted shell and application surfaces; both bounded theme/token slices were physically accepted.
+- [x] Prove ACP-to-ACP transition ownership. Chromium View Transitions remain available where appropriate; Spatial and astronomy-night paths now use accepted live-DOM/live-screen compositors where browser snapshots are the wrong ownership model.
+- [x] Establish the shell-owned bottom navigation/home-indicator model: swipe/tap navigation, persistent shell ownership, utility controls, transition/workspace ownership and Settings text-entry behaviour are physically accepted. The earlier OS-level kiosk keyboard experiments were rejected; **native Plexamp Search/text entry remains a Phase-B gate**, not an unfinished Phase-A shell item.
+- [x] Prove the Spatial row/carousel navigation model with one logical destination commit, literal intermediate traversal and the accepted terminal Plexamp workspace semantics.
+- [x] **Chromium vs Firefox benchmark — RETIRED / SUPERSEDED.** The planned comparison was never run on the commissioned Pi. Chromium subsequently became the heavily exercised and physically accepted browser baseline through A1–A4 and B0–B7, so a benchmark for its own sake no longer has useful acceptance value. Reconsider Firefox only if Phase B exposes a concrete browser-level problem that Chromium cannot satisfy.
+- [x] Preserve the existing ACP visual identity and themes across the migrated surfaces, shell, Audio and Settings controls.
+- [x] Physically accept Phase-A touch behaviour, transition smoothness and 1280×720 presentation. **Native-player reboot/autostart/crash recovery remains explicitly in Phase B** and is not claimed as a completed Phase-A gate.
+
+### Stage C1 — native OSK field-visibility experiment (12 October, first layout attempt failed, revised candidate pending retest)
+
+The real diagnostic HTML `type=number` field raised Squeekboard's dedicated numeric layout on the commissioned Pi, confirming an OSK purpose path unavailable to ordinary `type=text` numeric-hinted fields. The native overlay still hid the focused field, because a compositor-level Wayland layer surface does not resize the Chromium viewport. An opt-in-only browser candidate now temporarily uses `type=number` for genuine integer setting fields and restores original attributes when ACP mode resumes; it also reserves bottom space only on active Settings input focus and scrolls the `.settings-detail` pane to reveal the focused field. Never change real time, decimal or URL type for this test; the custom ACP keyboard remains the default and is fully retained. Verify the field reveal, dismiss/restore, same-tab five-minute expiry and unsaved probes on the real Pi before marking Stage C1 accepted. Do not alter the bounded 180s/240s native overlay process tests, vendor keyboard or native Plexamp production ownership.
+
+**12 October physical review / scroll correction:** Two screenshots confirm the focused text and number diagnostic fields each show the intended *native* keyboard and the original ACP keyboard returns on Restore; the first field-visibility fix over-shrank the outer Settings page (visible ~300 px dark band above OSK). Corrected Stage C1 candidate removes outer-page padding entirely, keeps the established shell height and only adds temporary scrollable tail space to the visible `.settings-detail-panel`, with focus reveal bounded by the screen area *above* the compositor keyboard. The physical gate remains open. Most numeric settings are already sliders/selects, while forecast latitude/longitude require signed decimal input; night dim start/end times still use QWERTY so ':' remains enterable. Do not convert those to digits-only until a full time/decimal keymap is designed. Retry with the exact guarded OSK trial workflow and record full-height Settings appearance and field reach. No changes to the system keyboard or native-player rollout.
+
+**12 October real-Pi six-screenshot follow-up:** Text and number diagnostics, News URL reveal, native tap-away hide, switching fields and ACP keyboard restoration now pass, with normal full-height Settings and no large gap. WU API key remains partly concealed because `settings-weather-observations.js` injects a password field without `data-keyboard`; native Squeekboard opens but our focus watcher ignored the field. The next opt-in revision matches standard editable HTML input types and textarea (including dynamically created secret fields), while filtering non-text/readonly/disabled controls and leaving the existing credentials workflow unchanged. Node tests include the unmarked password reveal and rollback; physical verification remains pending. Native integer keypad does not permit decimal points, so leave forecast coordinates and time strings in text mode until correct signed-decimal/time layouts can be provided. Original vendor keyboard was restored and no rescue timers remained after the trial.
+
+**12 October Stage C1 commissioned-Pi acceptance, plus WU credential UX gate:** The experimental native keyboard now raises correct QWERTY/number layouts; the News URL and previously unmarked Weather Underground API-key input scroll completely above Squeekboard. The user also confirmed tap-away dismissal, swapping fields, restoring the ACP keyboard, no giant blank band, one restored vendor keyboard and zero rescue timers. Mark the **opt-in browser positioning gate physically accepted**. GB keymap, specialised signed-decimal/time layouts, ACP theme/dimming, persistent OSK owner and native Plexamp rollout are still separate open work. A new *independent* WU Settings UI candidate prevents confusing empty editable password fields beside `Configured`: it hides and disables entry while configured or status-unknown. **Replace API key** opens a fresh blank field, **Save replacement** uses the existing write-only credential POST, and **Cancel replacement** closes/clears without revoking the existing key. **Remove API key** remains an explicit credential DELETE and then shows Set API key. The secret is never echoed through the public settings API. New UI requires Pi screenshot/touch acceptance before merging; no OSK/audio/native-player change.
+
+
+**12 October WU credential follow-up — custom DOM keyboard reveal candidate awaiting Pi acceptance:** With a configured WU key, the field now hides as intended; Replace reopens it, but the *existing ACP HTML keyboard* obscures the input. Done then Cancel works. Root cause is independent of the physically accepted native compositor keyboard: Settings pass-A scrolling reserved space in the scroll viewport instead of the inner grid, limiting bottom-of-panel scroll reach. The proposed CSS reserves height inside the active `.settings-detail-panel` while the original keyboard is shown, and pass-A focus reveal checks again after keyboard entrance and uses immediate scroll after keyboard height is read. This applies to dynamically revealed Settings inputs while leaving outer Settings dimensions, Squeekboard native overlay/rollback, credentials storage, audio, NFC and native Plexamp unchanged. Acceptance gate: replacement input is fully visible above ACP keyboard, Cancel closes it, and other Settings navigation remains intact. The existing write-only WU key is not touched during testing.
+
+**12 October WU credential UI physical re-test — automatic focus on newly visible password field is the outstanding interaction issue:** Pi screenshot after `7a31cdf` still shows the custom ACP keyboard covering the WU field immediately on Replace, though Done/Cancel and other keyboard fields work. Source inspection shows Replace performs `renderCredentialStatus()` (unhides/enables) followed immediately by `elements.input?.focus()`, unlike ordinary user-tapped inputs. New *isolated* candidate removes programmatic focus, keeps the custom keyboard closed on Replace, and reveals/scrolls the field into the ordinary unobscured Settings pane. User must tap the new field to invoke the existing keyboard focus/scroll path. Node behavioural test verifies no automatic focus, no credential API call and bounded editor reveal; static tests update the expected sequence and cache-busted JS asset. Pending Pi acceptance: Replace shows field without keyboard, tap field opens/positions keyboard, Cancel discards unsent entry without changing configured credential. Prior native Wayland OSK physical gate remains accepted, independent of this DOM keyboard-only UX change.
+
+
+**12 October unresolved WU custom keyboard cover — geometry diagnosis staged:** Pi reports no visible change after previous tap-to-edit candidate: keyboard still covers dynamically revealed WU password input. We cannot yet tell whether browser loaded the latest `settings-weather-observations.js`, whether keyboard opens on Replace or only on input tap, or whether `.settings-detail` is already at scroll maximum. Pause further speculative scrolling and add a temporary **Show keyboard layout diagnostics** control in WU commissioning that explicitly reveals fixed on-screen geometry (script version, focus and pointer counts, keyboard-open, input/field/keypad boundaries, real scrollTop and scrollMax). This does not inspect, log or transmit any secret; disabled by default. Pi acceptance gate is a measured two-frame comparison: first after Replace, then after tapping API key, plus unchanged keyboard restoration. Remove the probe once root cause identified and corrected. Native Wayland Squeekboard focus/scroll remains physically accepted and untouched.
+
+
+**12 October Pi screenshots validate staged WU editor reveal (manual focus pending):** Temporary no-secrets geometry overlay loaded (v1). Before Replace: editor hidden/disabled/unfocused, ACP keyboard closed, scrollTop=max=897. After Replace: editor shown and enabled, not focused, 0 focus/pointer events, keyboard still closed, scrollTop 833 / max 1015, input bottom 382 and field bottom 436 within pane bottom 474. This confirms Replace **correctly does not open keyboard** and already scrolls field into ordinary view. The overlay itself visually obscures the input, so it has not yet been manually tapped. Cancel re-hides/disables and preserves Configured; no credential changes. Next: **hide diagnostic overlay**, Replace, tap the now-visible API-key field, and verify that ACP's custom keyboard opens and the field clears its top. Until that actual tap is observed, do not mark keyboard positioning/credential UX fully accepted or edit scroll CSS speculatively. This does not affect the physically accepted native Squeekboard route.
+
+
+**13 October physical focused-input reproduction and compact geometry probe:** Screenshot 1 shows the WU API key editor correctly revealed by Replace without keyboard; screenshot 2 shows that a *separate tap on the visible input* opens ACP's built-in keyboard but leaves the field partly behind the keyboard top. This rules out stale assets and the immediate Replace auto-focus theory. The earlier diagnostics were taken only while the keyboard was closed; scroll range then was 833/1015 with field inside pane. We still need measured values after focus and after keyboard entrance to decide whether the focus scroll handler fired, CSS scroll clearance was applied, or the browser capped scroll. The opt-in no-credentials-leak v2 overlay is compact and fixed at screen top, exposing focused-keyboard measured scroll/max, input-bottom versus OSK-top, keyboard-height variable, panel bottom padding and focus/pointer events without covering the input. Next Pi check: show v2 probe, press Replace (keyboard closed), manually tap API key, screenshot with keyboard *open*, Done and Cancel. Do not save, remove, or read actual key. Do not change native Squeekboard/Headless/audio ownership.
+
+
+**13 October measured Pi root cause / Stage C1 custom ACP keyboard retest candidate:** With the v2 WU diagnostics left on during real input focus, Pi reports focus+pointer delivered, keyboard-open=true, scrollTop=897 versus max=1177, fieldBottom=372, keyboard DOM box top/height=427/53, CSS keyboardHeight=54px, pane/panel bottom padding=82/78px. The visual four-row QWERTY keyboard is far taller than the 53px DOM wrapper returned by `getBoundingClientRect().height`; focusing the field therefore does not trigger sufficient upward scroll despite ample remaining scroll range. Correction is **not additional global padding**: `settings-pass-a.js` now computes effective keyboard coverage from the minimum visible bounding top of the keyboard's wrapper, header, quick row, key-grid, and key rows, plus the viewport bottom and intrinsic scrollHeight, and uses that full rendered extent for both scroll geometry and the CSS height variable. Regression emulates the actual 53px wrapper with key rows above it and checks larger resulting clearance. Cache-busted browser script and same 180s/240s native experiment untouched. Pending one Pi screenshot with focus and keyboard open plus probe; then remove temporary diagnostic, update physical acceptance and return to native Plexamp/OSK refinements. No credential change.
+
+
+**13 October ACP original keyboard focus/scroll physically ACCEPTED and temporary WU probe removed:** User tested the WU replacement field using Pi WayVNC with the DOM keyboard. Screenshots before a second force-refresh still showed `CSS kbHeight=54px` and partial overlap despite the pulled fix; the final force-refresh screenshot shows `CSS kbHeight=178px`, pane scroll `998/1425`, input bottom `217px`, keyboard top `303px`, hence **86px clearance** and a fully visible editable field. This proves the rendered-keyboard-extent correction works when fresh JavaScript is loaded; Chromium asset caching explains the contradictory early result. Previously accepted interactions remain: a configured WU key has no open password field, Replace reveals a blank editor but does not auto-focus/open keyboard, a tap opens keyboard, Done dismisses it, and Cancel discards unsent input while Configured remains. Neither Remove nor Save was used. The temporary no-secrets diagnostics control, fixed overlay and interval were removed from the browser bundle, and its regression was replaced with checks that it stays removed. Mark both native Squeekboard experimental field visibility and **ACP's original keyboard replacement-field positioning** as physically passed; still outstanding are UK/signed-decimal/time layouts, theme and lifetime integration, and native Plexamp fullscreen/volume/playback acceptance. No credential endpoint or Headless/audio/NFC changes.
+
+
+
+### Stage C2 — British Squeekboard layout + ACP day/night theme (ACTIVE, 13 October)
+
+Agreed priority: finish the native keyboard *before* returning to the native Linux Plexamp integration. The physically accepted ACP HTML keyboard stays the default, and Squeekboard remains a bounded opt-in overlay with independent 180s/240s restoration.
+
+- [ ] **C2a inventory:** Run `python3 scripts/inspect-squeekboard-theme-layout.py --inspect` as the ordinary Pi user. Confirm vendor version and SHA-256, real XKB/GNOME language names, GB/US narrow and wide and purpose-keymap files, GTK3 theme and any existing user stylesheet. No writes, no secret values.
+- [ ] **C2b UK input:** Build/test isolated user-owned GB YAML for full text and landscape, correct `£`, `@`, double quotes and apostrophe, and purpose layouts for URL/email, integer, *signed decimal* (`-` and `.`) and time (`:`). Do not force decimal/time HTML controls onto the known inadequate integer keypad; retain the accepted ACP fallback.
+- [ ] **C2c theme samples:** Generate Gtk3 `sq_view` / `sq_button` styling from actual ACP `daytime-themes.css` tokens: Classic Dark, Midnight Blue, Amber Terminal, Green Phosphor, Aubergine, Steel Cyan and Crimson Glow, plus classic dim and astronomy red with legible keys. Style only an isolated trial process — never edit the user's general GTK stylesheet or installed OS assets.
+- [ ] **C2d live handoff:** Browser CSS cannot style the independent Wayland GTK process. Derive a validated theme/night/interaction state from ACP's existing authoritative settings and prove safe update while keyboard is running *without interrupting current input*. Confirm whether GTK CSS reloading works in this pinned build; otherwise add a guarded renderer/update mechanism rather than restarting Squeekboard mid-typing.
+- [ ] **C2e physical acceptance:** Verify day selection and scheduled/previewed night, active/idle dimming, readable red astronomy, GB punctuation, signed-decimal/time, touchscreen, WayVNC, fullscreen ordering, and complete automatic rollback to the stock keyboard. Then resume native Plexamp integration.
+
+
+**13 October C2a Pi discovery:** Pi accepted vendor Squeekboard 1.43.1-1+rpt1 with hash match and one stock process. GNOME input is already `('xkb','gb')`, X11 layout `gb`, locale `en_GB.UTF-8`, GTK theme PiXonyx, and user GTK3 CSS absent. Layout-directory inventory first checked two incorrect candidate system directories; upstream `src/data/loading.rs` actually uses `/usr/share/misc/squeekboard/keyboards` by default and supports `SQUEEKBOARD_KEYBOARDSDIR` for private test layouts, with `us` fallback available as compiled resource. Fixed the read-only inventory and package YAML report. **Next diagnostic gate:** verify this precise directory/package layout inventory once on Pi. Do not change global input sources or claim GB labels without a physical YAML/browser test; the user wants ACP-selected day/night palette matching live, not an unrelated static GTK skin.
+
+, `@`, quotes and apostrophe; `number/gb` adds direct decimal `.` and time `:` without dropping signed minus or vendor editing actions. GTK3 sample style sheets for seven ACP themes, per-theme classic night idle/active and astronomy-red idle/active derive colours from actual daytime CSS tokens; they are **offline examples**, not live synchronized yet. Real Pi YAML validation, GTK CSS priority/appearance, dynamic day/night update while typing and guarded overlay rollback remain open. Only after those physical checks close C2 and resume native Plexamp integration.
+
+
+**13 October Pi C2b preflight FAIL (safe, no stage) → corrected pending retest:** `--plan` at commit `6cb9025` rejected the installed `us.yaml` with `Quotation/colon key absent in us.yaml`. The script already found the main currency/symbol rows, but its final check also incorrectly required an optional explicit `buttons: colon:` mapping, rather than validating that the `show_symbols` keyboard row itself supplies `colon`, apostrophe and double quotation mark keys. We now verify those visible row tokens separately, with specific failure messages, and retain strict checks for malformed vendor layouts and unexpected model/version/hash. Added focused CI regressions for Pi-style layouts without a separate colon mapping, and for required symbols being missing. The user's choice not to run `--stage` was correct; offline YAML and theme sample generation remain **not physically validated**. Next: pull and run only `--plan`, then `--stage` **only if** it passes; keep timed overlay/native theme matching out of scope until later.
+
+
+**13 October C2b Pi repeat preflight failure at `f197cac` — actual vendor YAML inspection required:** User pulled `f197cac` and `--plan` again stopped safely: `Colon key missing from symbols row in us.yaml`. No `--stage` was run and no files were generated or runtime changed. Prior repair removed an over-strict explicit `buttons: colon:` requirement, but *still assumes* the installed symbols row uses the literal `colon` token. The Pi's installed 1.43.1-1+rpt1 YAML evidently uses a different key representation or row format than the upstream `master` fixture. **Do not relax validation speculatively or claim plan success.** Next gate is a strictly read-only printout of the actual installed `us.yaml`, `us_wide.yaml`, `email/us.yaml`, `url/us.yaml`, `number/us.yaml`, and `terminal/us.yaml` key/view lines, with line numbers, so generator transformations and tests use pinned package evidence. There are no secrets in these vendor YAML files. Then implement a format-aware, fail-closed correction with regression covering the real Pi rows; run CI and only retry `--plan`. Native OSK, stock services, GTK global stylesheet, Headless, NFC and audio unchanged.
+
+
+**13 October C2b real Pi vendor YAML resolved (CI + Pi retest pending):** User provided read-only file/line inspection from installed Squeekboard 1.43.1-1+rpt1. Text, wide, email and URL keymaps all use a **literal ":"**, not a "colon" alias nor a separate colon button definition, in the symbols row. The initial staging preflight was built against upstream master fixtures, and twice rejected the valid Pi row; user correctly stopped without staging. Pi numeric keymap uses "( 1 2 3 )" with rows retaining "# 4 5 6 +" and "* 7 8 9 -", so our former parenleft/parenright replacement was also wrong. Its terminal row includes backslash, "* # $ / & - + ( ) _" rather than the upstream row, and is now transformed using a guarded " # $ " currency token replacement. The corrected generator accepts both literal ":" and named "colon" variants only when the symbols row also has a double-quote and apostrophe; the Pi numeric path uses literal "." and ":" keys without dropping +/-; terminal symbols swap pound and dollar to preserve access. It fails closed on unexpected formats. Four new regression fixtures reproduce the Pi's exact row syntax for text/wide/email/URL, number and terminal, plus a missing-character guard. Next: GitHub suite green and user pull then run --plan only; run offline --stage only after a physical plan PASS. No keyboard runtime, global GTK, theme, audio, Headless, NFC or Plexamp change. UK keys and GTK palette behaviour are not yet physically accepted.
+
+
+**13 October commissioned Pi C2b/C2c offline staging PHYSICALLY PASSED (parser/runtime still open):** User's `--plan` on commit `18ceda7` passed against pinned Squeekboard 1.43.1-1+rpt1, listing seven British-language YAML layout candidates and 23 ACP daytime + classic-night active/idle + astronomy-night active/idle GTK3 style samples. `--stage` succeeded at `/home/andy/.cache/a-clockwork-plex/squeekboard-c2-uk-theme-v1`, with **no** keyboard process, GTK configuration, ACP, Headless, NFC or audio modifications. New `scripts/validate-squeekboard-uk-theme-stage.py --check` is a second read-only gate: compare every staged YAML/CSS file with a fresh generation from actual vendor/package and ACP theme sources, reject staged path symlinks/overwrites/missing samples, report whether PyYAML and the optional real Squeekboard `squeekboard-test-layout` CLI are available for parser validation. An unavailable native parser must be labelled **not tested**, not silently treated as a parser pass. After its output, arrange parser and then the original guarded overlay with trial-specific `SQUEEKBOARD_KEYBOARDSDIR` + GTK3 config, 180s trial / 240s independent recovery. Do not yet mark UK character output, GTK colours, dynamic day/night theme sync, or native Plexamp as physically accepted.
+
+
+**13 October Stage C2 post-staging static check physically PASSED, themed guarded OSK candidate prepared (runtime NOT YET tested):** Commissioned Pi pulled `334c4a6` and executed read-only `python3 scripts/validate-squeekboard-uk-theme-stage.py --check`: vendor binary/package manifest PASS; all **seven GB YAML candidates match their pinned Pi layouts**; **23 GTK3 samples** exactly match ACP palette renderer; **PyYAML syntax PASS**; `squeekboard-test-layout` executable NOT INSTALLED, so **native Squeekboard parser and actual key behaviour are NOT yet verified**. The static check did not change any process, GTK config, or audio. Source review confirms the pinned Squeekboard loader uses `SQUEEKBOARD_KEYBOARDSDIR` to prefer custom `gb` YAML and the GTK user stylesheet can be isolated with `XDG_CONFIG_HOME`; GTK styling precedence, theme appearance, full-width/text/purpose keys and dynamic theme handoff remain physical tests. Added opt-in `--uk-theme PALETTE` to the existing verified `scripts/try-squeekboard-overlay.py` plan/start path, preserving stock default behaviour, **180s worker and independently armed 240s restore**. New flag verifies all static stage files BEFORE any vendor OSK stop, then passes both override directories ONLY to the signed/hash-pinned experimental executable via `trial_env`. Vendor `sbtest` restore receives only the original environment (no UK or GTK overrides); tests cover these boundaries. **Next gate:** wait for green CI, then commissioned Pi `--plan ZIP --uk-theme midnight_blue` as normal user; actual `--start` only with user ready at touchscreen, archive verified and explicit step-by-step rollback. Keep UK layout / coloured GTK physically pending until screenshots/key tests and restored one-stock-OSK check; no Headless, NFC, CamillaDSP, ACP setting, theme scheduler or Flatpak alteration.
+
+
+**13 October Stage C2 native-overlay + private UK/Midnight Blue preflight physically PASSED (live presentation still PENDING):** Commissioned Pi fast-forwarded to `73a11c3` and ran `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue`. The existing 6.7 MB verified ARM64 archive was present. SHA-256 for the overlay ELF and .deb, ARM64 metadata, 17 runtime dependency clauses and 18 direct library names all passed. Pinned original Squeekboard, exactly seven GB YAML files, 23 generated ACP palettes, PyYAML syntax, private file manifest and systemd-user session timer manager passed. `squeekboard-test-layout` is **not installed**, therefore no actual native layout-parser validation; plan did not run a keyboard or alter settings. The plan specifically reported `PLAN PASS`, 180-second trial / separate 240-second independent recovery and candidate-only `SQUEEKBOARD_KEYBOARDSDIR` and `XDG_CONFIG_HOME`. **Next physical gate:** one explicitly user-initiated timed trial with `--start ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue`, after arranging WayVNC/touch and selecting ACP Settings→Advanced→Keyboard trial→System keyboard (reversible 5-minute browser opt-in). Prioritise screenshot of normal UK QWERTY and selected Midnight Blue colours, then view `123` symbols page with `£` and exercise punctuation `@ ' " :`; if time remains inspect URL/number keyboard. Do not enter API keys or change saved settings. Stock vendor /usr/bin/sbtest must return as sole Squeekboard and rescue timer exit; user can request early restoration with `systemctl --user start acp-squeekboard-overlay-restore.service`; independently restore ACP custom browser keyboard. The final appearance and actual UK character output, GTK CSS loader priority and live day/night synchronisation remain **unverified**. No native Plexamp ownership, Headless/CamillaDSP/NFC/alarms or global GTK changes.
+
+
+**13 October first native UK/Midnight Blue *runtime* trial verdict — PARTIAL PASS:** The user conducted bounded `--start` with `--uk-theme midnight_blue`. Pi WayVNC shows a nonstandard **£** key displayed on the native Squeekboard `123` symbols page, and both unsaved keyboard test inputs accept typed input. This is evidence the trial-specific British YAML is loaded. The screenshot's focused field is *text + numeric hint*, so native HTML number → compact `number/gb` layout remains unverified; the native right-hand field held a number but was not the photographed focus. Reported and visually confirmed keyboard styling remains **light grey**, not ACP Midnight Blue, so the isolated GTK stylesheet is **not physically accepted**. The user checked afterward: exactly one `/usr/bin/squeekboard` recovered, trial service inactive, rescue timer inactive — safety/rollback PASSED. `journalctl --user ...` produced `No journal files were found`, so next investigation should look for the existing trial's private `candidate.log` and recorded `trial_env` in `state.json`, not guess CSS tweaks. Upstream renderer allocates custom standalone `GtkStyleContext`s, injects a Squeekboard resource CSS provider at `GTK_STYLE_PROVIDER_PRIORITY_APPLICATION`, and uses a theme-name change callback. GTK3 normally loads `$XDG_CONFIG_HOME/gtk-3.0/gtk.css` at user priority; check whether candidate GTK actually loads/uses that file on this Pi before changing styling strategy. Do not run a second disruptive trial yet. Remaining C2: actual GBP key emission, numeric layout purpose, CSS applied, all day/night theme colours, and hot ACP mode handoff without losing focus.
+
+
+**13 October C2 read-only private-trial diagnosis — layout loading CONFIRMED, GTK presentation still OPEN:** The most recent `trial-6yej0bt2/state.json` records candidate-only `SQUEEKBOARD_KEYBOARDSDIR` and `XDG_CONFIG_HOME` pointing to the exact staged private GB layouts and Midnight Blue GTK3 theme tree. Both paths exist; `gtk-3.0/gtk.css` exists, contains the expected dark `sq_view`/`sq_button` colours, is 527 bytes, and has mode `0664` beneath the isolated cache tree. The candidate log explicitly reports loading `gb_wide.yaml` and `number/gb.yaml`. It first searches for missing `number/gb_wide.yaml`, then successfully falls back to `number/gb.yaml`; this is a non-fatal layout lookup, not a reason to change the stock keyboard. The GNOME SessionManager warning is consistent with labwc, not a demonstrated crash. Importantly, the log does **not** prove GTK parsed or used the private CSS, despite correct recorded paths. GTK3 gives user CSS precedence over application CSS in principle, but Squeekboard uses standalone `GtkStyleContext`s and a resource-loaded provider; do not claim root cause or rebuild binaries yet. **Next safe gate:** read-only GTK3 `Gtk.CssProvider` parsing-error inspection against the exact staged stylesheet on Pi, without launching/interrupting the OSK; then investigate style-context provider attachment/cascade only if syntax passes. Neither GB character emission nor special-purpose typing nor live day/night palette switching has been physically accepted. No new timed OSK trial, package/global GTK edit, or Headless/audio/NFC change.
+
+**13 October C2 GTK3 stylesheet-parser gate physically PASS (23/23):** User ran a separate no-write PyGObject `Gtk.CssProvider` parser over all 23 staged palettes; `GTK3 CSS parsed: 23`, `GTK3 CSS failed: 0`, keyboard untouched. This closes the **syntax** hypothesis only. A review of the Raspberry Pi fork's `eek/eek-renderer.c` confirms separate standalone `GtkStyleContext` instances for `sq_view` and `sq_button`, app provider at `GTK_STYLE_PROVIDER_PRIORITY_APPLICATION`, and key paths based on these same node types. GTK3's user stylesheet should normally override application CSS if loaded and matched; actual Squeekboard's GTK cascade/paint still unverified. Added opt-in **read-only** `scripts/inspect-squeekboard-gtk-cascade.py --probe` (plus isolation/colour tests) to run a separate invisible GTK3 client using candidate-only XDG env, comparing auto-loaded private CSS, explicit screen provider and explicit context provider; it neither starts nor interrupts the OSK. **Next Pi gate:** run the probe as the normal user, report MATCH/NO MATCH and any GTK init error; do not build/replace Squeekboard, retheme stock GTK, or mark C2 accepted. All full-screen overlay, restoration, Headless/audio/NFC safety boundaries remain unchanged.
+
+**13 October C2 GTK cascade investigation — explicit style PASS; safe GLib resource alternative STAGED IN SOURCE (Pi test pending):** Pi ran the invisible GTK3 cascade probe at `5a6d2c2`: automatic candidate-only `XDG_CONFIG_HOME` CSS returned `#ffffff` (**NO MATCH**), explicit USER screen and USER context providers both returned expected Midnight Blue text `#eef7ff` (**MATCH**). GTK Gdk-3.0 import warning is non-fatal and the probe now pins Gdk 3.0 explicitly. GNOME GTK3 sources show automatic user CSS is loaded from `g_get_user_config_dir()/gtk-3.0/gtk.css`, but this independent synthetic-context result does not establish the precise Squeekboard cause. Source review of Raspberry Pi Squeekboard `src/style.rs` shows its `squeek_load_style()` selects an embedded `/sm/puri/squeekboard/style.css` fallback after looking for a GTK-theme-specific resource. GLib 2.50+ has documented candidate-process-only `G_RESOURCE_OVERLAYS` for substituting an embedded resource with a private file **without rebuilding the ELF**, and global resource lookup checks overlays before registered resources. The fork's default style imports embedded `common.css` for keyboard sizing. New `scripts/probe-squeekboard-resource-overlay.py` stages all 23 pinned ACP CSS samples under a private **non-overwriting** cache root, prepending an import of unchanged resource `common.css`; its `--probe` spawns a disposable Gio client with only that child's `G_RESOURCE_OVERLAYS=/sm/puri/squeekboard=<private Midnight Blue palette directory>` and validates exact bytes plus resource info. Five new source-level safety/manifest unit tests were added (Pi execution still pending). **NEXT:** run `--plan`, then `--stage`, then `--probe` as the normal Pi user, return output, do not run the live OSK trial yet. If GLib verification succeeds, add a strictly optional resource-overlay flag to the existing 180s/240s rollback-guarded keyboard runner (candidate-only env, no stock environment) and separately test physical styling. No global GTK, `/usr/bin/squeekboard`, apt, autostart, Headless, CamillaDSP, NFC or Plexamp runtime changed; automatic day/night switching and UK key emission remain unaccepted.
+
+**13 October C2 resource-overlay lookup physical PASS / candidate-only live test awaits Pi tests and plan:** User's commissioned-Pi `--plan` and `--stage` generated/verified exactly 23 ACP resource styles; the read-only Gio `--probe` confirmed private `/sm/puri/squeekboard/style.css` lookup **byte-perfect PASS**, resource-info PASS, and original `common.css` import preserved. GLib's two messages explicitly report overlay registration and file mapping. Five `test_squeekboard_resource_overlay.py` unit tests passed on Pi; native Squeekboard layout parser still unavailable. This is a proven GLib override mechanism, **not visual acceptance**. Implemented isolated `--resource-overlay` flag in the existing `scripts/try-squeekboard-overlay.py` test-only candidate runner, which requires `--uk-theme` and a normal `--plan` or `--start` request. With the flag, a pinned vendor/staged-layout/resource verification runs before creation/launch, and adds `G_RESOURCE_OVERLAYS` to *only* the trial binary's `trial_env`. The stock keyboard recovery still receives only original XDG/Wayland DBus session environment; no GLib overlay, private XDG or GB YAML passed to original `sbtest`. Trial-state reader accepts only allowlisted triad of paths associated with one same theme, but never requires CSS files to remain available to restore stock. Existing bounded 180s process and independent 240s rescue timer unchanged. Added targeted unit regression to validate opt-in isolation, no start when palette absent, plan does not stage/interrupt, resource theme-path consistency, and no overlay in stock recovery command. **Next:** Pi pull + targeted test suite + `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay`. Do not initiate physical `--start` until these return successful results and WayVNC/touch is available; actual Midnight Blue rendering remains pending. All native Plexamp/Headless/audio/NFC ownership unchanged.
+
+**13 October real-Pi candidate-only GLib CSS trial PLAN PASSED (start not yet run):** User pulled `f9a1146`, successfully compiled both revised trial and resource-probe Python scripts, and ran **19/19** guarded-trial plus **5/5** resource-overlay unit tests (all green). Full non-disruptive `--plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay` passed archive SHA/ABI package checks (17 dependency clauses, 18 direct ELF libraries), vendor UK YAML and all 23 ACP palettes, and verified the candidate-only GLib CSS overlay. Plan prints 180s trial + independent 240s timer and confirms it did not run the keyboard. Squeekboard's native layout parser tool remains unavailable, so only subsequent actual physical typing proves key semantics; theme/visual appearance and live palette switching remain OPEN. **Next:** in front of active Pi touchscreen/WayVNC, opt into ACP Settings→Advanced→Keyboard trial→System keyboard (browser auto-expires after 5 min); invoke the exact same command with `--start`; capture photo/screenshot of QWERTY theme and number/symbol layouts (including actual unsaved £/@/quote text if possible) while not touching any credentials; allow timed restore or use the documented independent rescue; verify exactly one `/usr/bin/squeekboard`, trial and rescue inactive. The experimental binary, vendor GTK/desktop/autostart, Headless/ALSACamillaDSP/NFC and native Plexamp owner remain unchanged outside the bounded test.
+
+**13 October physical Stage C2 trial — GLib resource-overlay colours and input purposes PASS, keypad ergonomics OPEN:** User performed the guarded `--start ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay` after green Pi preflight. Two WayVNC screenshots visibly confirm the native Squeekboard's complete dark Midnight Blue treatment on both normal UK QWERTY and the real HTML number focus, with blue key outlines and blue Return, not former PiXtrix grey; glyphs are readable. A temporary, unsaved text diagnostic contains actual `£` and varied punctuation/letters, user reports both QWERTY and numeric typing works. Second screenshot directly focuses the true HTML number field and shows correct special-purpose 5-column digit/operator keyboard, closing the earlier 'only numeric hint focused' uncertainty. **Visual issue:** native numeric keys stretch almost the whole 1600-pixel-wide screen while only five columns are present; user finds it odd. Runtime CSS appearance for selected *static* Midnight Blue PASS, UK text output PASS, true number purpose PASS; **compact numeric sizing**, all palette variants, live ACP day/night mode/astronomy sync and editing-safe palette handoff still open. `pgrep` subsequently reported just one stock `/usr/bin/squeekboard`, and both trial and rescue units inactive, independently confirming expected vendor restore. No package install, global GTK, auto-start, CamillaDSP, Headless, alarm, NFC or native Plexamp change. **Next:** inspect pinned vendor layout/renderer sizing policy; prototype centered compact numeric variant only as an opt-in, versioned private stage so existing acceptance and guarded recovery stay intact; then design dynamic ACP palette bridge without changing a focused keyboard unexpectedly.
+
+**13 October C2 follow-up — compact numeric candidate staged IN SOURCE, not Pi-tested:** Native UK QWERTY and true HTML numeric keypad worked on the Pi with the static Midnight Blue GLib CSS overlay, but the 5-column numeric row stretched nearly across the full WayVNC screen. Squeekboard upstream format supports layout-local symmetric `margins` and width scaling. Rather than changing any accepted vendor/UK layout files or the resource CSS, a new offline-only experiment `scripts/stage-squeekboard-compact-number.py` derives the original seven layouts from the *validated accepted v1 stage*, copies them to `squeekboard-c2-compact-number-v1` and adds side margins to **only** `number/gb.yaml`; all keys and row actions stay byte-for-byte identical. Sides are 45% of the widest measured numeric-row outline width, targeting approximately 52.6% content/panel width; runtime actual scale may differ and needs physical screenshot. It fails closed if YAML schema/outlines/shape changed, refuses overwrite/symlinks, uses private files only and neither invokes Squeekboard nor changes trial services. Targeted tests protect accepted input/output, manifest, root and offline contract. **Next gate:** run new static prototype tests and its `--plan`, `--stage`, `--check` as Pi user; do **not** try an alternate `SQUEEKBOARD_KEYBOARDSDIR` or interrupt keyboard until we add a separately gated opt-in to the previously safe 180s/240s trial. **Design decision from user:** **`classic_dark` is the default and fallback** once ACP's native-keyboard themes all work; Midnight Blue is diagnostic only. Theme selection will track ACP's actual daytime palette and night modes. Live theme switching must not disrupt typing or change stock Squeekboard; not yet implemented or accepted.
+
+**13 October compact number stage Pi acceptance / opt-in guarded candidate plan pending:** Pi pulled `3ba7a65` and passed py_compile plus **6/6** compact-stage tests. All three offline CLI checks (`--plan`, `--stage`, `--check`) succeeded, calculating original max row width 356.57 proportional units, new 160.456-unit symmetric side margins (approx. 52.6% available width, unverified on screen). The new private directory contains seven exact GB layouts, with only `number/gb.yaml` amended and accepted v1 untouched. Added a strictly opt-in `--compact-number` flag to `scripts/try-squeekboard-overlay.py`, requiring simultaneous `--uk-theme PALETTE` and `--resource-overlay`, and only on `--plan` or `--start`. Complete private compact manifest/key contents are rechecked **before** trial state creation, timer or stock keyboard termination. Selected compact path overrides the trial candidate's keymap directory only; its XDG palette and GLib Midnight Blue resource remain the physically accepted styling route. New trial-state verifier accepts known v1 or compact path alongside matching palette, but never depends on absent/tampered compact files during a separate stock restoration. Existing 180s trial + 240s rescue, original sbtest environment, single-OSK PID checks, non-compact commands and audio/Headless/NFC ownership remain unchanged. Six added runner regressions are source-committed but require actual Pi unit-test and candidate-only **plan** verification before live test. **Next:** run focused test suite and `--plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay --compact-number`. Wait for plan results, then separate physical 180s run/screenshots to decide compactness and touch targets; never assume static layout parser or estimated size proves presentation. **User default theme decision remains Classic Dark once palette synchronisation works**, with safe inactive/unconfigured fallback; no hot theme switching implemented yet.
+
+**13 October compact guarded trial Pi regression feedback and safe fix (retest OPEN):** Pi pulled `a195cba`, Python syntax compilation passed. Of 25 guarded-trial tests, 24 passed; the sole failing subtest exercises deliberate misuse of `compact_number=True`, `resource_overlay=True` without `uk_theme`. The feature correctly failed closed without ever reading/staging a binary or stopping keyboard, but emitted `Resource overlay requires --uk-theme` instead of compact mode's expected `Compact number requires both --uk-theme and --resource-overlay`. **Updated `prepare()` and main CLI to evaluate the stricter compact-mode guard first**, leaving actual safeguards and production baseline unchanged. No physical compact keyboard test has happened yet. Require Pi test rerun and non-mutating `--plan` confirmation before granting next 180s/240s trial; accepted original UK/Midnight Blue QWERTY/number operation and Classic Dark eventual fallback decision unaffected.
+
+**13 October compact keypad opt-in guarded Pi PLAN ACCEPTED; no physical layout verdict yet:** After branch `37c1223`, user confirmed all 25 trial-controller tests and six compact-number tests passed (31/31). The Pi's full `--plan ~/squeekboard-overlay-arm64-test-only.zip --uk-theme midnight_blue --resource-overlay --compact-number` passed ELF/.deb SHA-256, ABI 17 clauses/18 libraries, accepted original vendor/GB/YAML/23 palette stage, and separately verified all seven compact candidate files, with PLAN PASS plus both candidate-only private CSS and compact-stage verification messages. This closes the previous argument validation regression; no actual keyboard was stopped, so compact numeric geometry/touch comfort remains untested. **Next physical acceptance:** start the same user-scoped 180s trial changing `--plan` to `--start`, inspect true HTML number field's centered five-column keypad; compare QWERTY and Midnight Blue, confirm all keys and independent original `/usr/bin/squeekboard` restoration after 240s, log observations/screenshots; do not promote v2 to default or change ACP day/night behavior until approved. Classic Dark is still the requested future default/fallback.
+
+**13 October physical C2 compact pad appearance PASS; theme synchronisation contract drafted/read-only:** A timed, opt-in British Midnight Blue **compact-number** candidate was physically inspected in WayVNC after `acc9940`. Its five numeric columns and four rows are now centred around the central half of screen width, rather than stretching full-screen, with clear keys and consistent blue border/Return styling. User explicitly confirms much better presentation. Successful original vendor restore was verified: `pgrep` exactly one `/usr/bin/squeekboard` (PID 399256), and both transient 180s/240s trial and rescue inactive. Accepted: centred numeric **visual/geometry**, previously demonstrated real-number-input purpose, Midnight Blue source and recovery. This particular trial did not include independent demonstration of every character emitted, so do not overclaim a new key-by-key acceptance. C2 result stays in private candidate layout, with prior accepted v1 unchanged. For next theme milestone, source inspection confirms `ACPDisplayDimming.status()` is the current effective runtime authority for `active`, `interacting` and `effectiveStyle` (`classic`/`astronomy`); `display.daytime_theme` is current selected daytime palette. New `scripts/plan-squeekboard-acp-theme.py` is a **read-only/offline** palette resolver: invalid/unconfigured theme → `classic_dark`; inactive night → selected daytime; active classic night → per-palette `_night_classic_idle` or `_active`; active astronomy → common `astronomy_night_idle` or `_active`. Uses actual `active` rather than `scheduled` to respect visible alarm and preview. New eight-case unit suite `tests/test_squeekboard_acp_theme_contract.py` guards mapping against the exact existing 23 ACP stylesheet names. No changes to production frontend, running Squeekboard, audio, alarm or service control. **Next gate:** Pi unit tests + read-only `--plan` for daytime Classic Dark and astronomy/classic interaction examples. After verified, design safely deferred application when no text field is focused, and test separate native CSS update/rollback before any automatic theme swapping; not yet implemented. Classic Dark remains requested future default/fallback.
+
+**13 October C3 actual Pi theme resolver accepted; focused night-boundary behaviour specified, resource relookup experiment pending:** User successfully compiled `scripts/plan-squeekboard-acp-theme.py`, passed **8/8** theme-contract unit tests, and ran three `--plan` scenarios with 23 stylesheet variants present: unconfigured day→`classic_dark`; active classic night with interaction→`classic_dark_night_classic_active`; active astronomy idle→`astronomy_night_idle`. Existing ACP daytime palette setting lives in a page not normally requesting OSK, so immediate daytime palette change while typing is not the primary problem. **Critical user acceptance requirement:** if the scheduled night period starts or finishes while the keyboard is already visible, update palette *in place*, without losing focus, keys or input. Current ACP `ACPDisplayDimming.status()` also changes between idle and interacting while night-active, so its effective style is the source of truth; hot night changes should not be deferred to next keyboard opening. Fork review reveals `eek/eek-renderer.c` already installs a `notify::gtk-theme-name` CSS-provider replacement handler, and Rust `src/style.rs` uses a resource-based CSS provider, but invoking a system GTK settings change is forbidden. Implemented only **safe feasibility probe**, `scripts/probe-squeekboard-live-css-lookup.py`, to check whether a single isolated short-lived Gio/GTK3 process observes atomically updated *throwaway* `style.css` resource through its **candidate-only** `G_RESOURCE_OVERLAYS` path, with a freshly loaded `Gtk.CssProvider` afterward. Added six unit safety tests. It never runs Squeekboard, writes accepted palettes, changes global GTK/Wayland/autostart or restarts OSK. **Pi execution pending**; this is not yet evidence that a keyboard repaints in place. Next: test, then plan a candidate-local reload trigger/IPC and a browser night-edge signal while leaving the already accepted native GB/compact/GLib static CSS and 180s/240s rescue unchanged; only after tests schedule a timed Pi visual night-boundary transition. Classic Dark default/fallback continues.
+
+**13 October C3 read-only GResource hot lookup Pi pass, style-context next gate:** Git pull initially refused because tracked `scripts/plan-squeekboard-acp-theme.py` had been emptied locally; `git diff --cached` was empty and untracked repo-root files `--plan`, `-p` are zero bytes. User restored just that tracked file and pulled `4a54288` safely; leave unrelated files untouched until explicit exact cleanup. `py_compile`, all six resource-reload unit tests and disposable physical Pi Gio/GTK3 process test passed: same process `Gio.resources_lookup_data('/sm/puri/squeekboard/style.css')` returned expected CSS **both before and after atomic file swap**; two `Gtk.CssProvider.load_from_resource` instances parsed the old/new resource successfully; GLib logged successive new mappings. Critically, no actual keyboard CSS/style context or focus was tested. Next source-committed **isolated** `scripts/probe-squeekboard-gtk-hot-style.py --probe` (with six source/fixture/isolated-env tests) keeps exactly **one synthetic `sq_view sq_button` GtkStyleContext and one GtkCssProvider alive** while replacing a disposable overlay file, reloading same provider and invalidating same context; expected computed colour shift #123456 → #abcdef, on Pi's Wayland without drawing a window. No Squeekboard, accepted compact GB, styles, stock OSK, sound, Headless, NFC or global GTK affected. **Pi test result pending**, not acceptance of live GTK renderer repaint. User clarified requirement: night scheduled starts/ends must refresh native keyboard even if open, without restart/focus loss, and Classic Dark default/fallback. Future candidate-only control/IPC and event bridge cannot be considered done until separately tested.
+
+**13 October C3 real Pi synthetic GTK same-context hot-style PASS; deprecated explicit invalidation to be evaluated:** User's latest Pi tests on `b42034b` passed Python compilation and **6/6** GTK probe unit tests, plus disposable live GTK3/Wayland comparison: same in-memory CSS provider and style context before/after atomically updating one test-only GResource CSS file changed computed `sq_view sq_button` text colour from **#123456** to **#abcdef**, each PASS. Zero keyboard/style/global changes. GTK emitted only a `DeprecationWarning` for explicit `Gtk.StyleContext.invalidate()`, so style recomputation without a forced invalidation remains unverified. Extended the *same isolated* probe to support `--without-invalidate`: option stays candidate child/private environment only, still reloads identical provider resource and inspects exactly the same context; skip deprecated method and compare computed before/after. Two additional test cases protect the no-invalidate branch and flag propagation, giving 8 planned focused unit tests. **Next Pi:** `git pull --ff-only`, compile + run eight focused tests, then `python3 scripts/probe-squeekboard-gtk-hot-style.py --probe --without-invalidate`. Outcome determines whether an explicit style invalidation is even necessary when CSS provider reloads. Fork audit shows `eek/eek-renderer.c` theme-notify provider replacement path and `src/drawing.rs::queue_redraw` that the future candidate-local hook will need for visible repaint. **Actual Squeekboard repaint, ongoing focus, GTK source integration and night-boundary browser bridge remain PENDING**; source-verified, immutable v1, independent compact v2, 23 static palettes and installed stock Squeekboard unchanged. Never mutate accepted staged palettes to simulate hot reload; use disposable candidate-private writable CSS staging and 180s/240s rollback. Default/fallback Classic Dark.
+
+**13 October C3 optional no-invalidate GTK probe argument clash FIXED, physical test PENDING:** `git pull` to `8d24b38` and eight targeted unit tests passed on Pi. Actual `--probe --without-invalidate` was blocked before any GTK process started by `argparse` (`--without-invalidate` was incorrectly placed in `add_mutually_exclusive_group(required=True)` alongside `--probe`). **Fix committed:** `--probe` or hidden `--_child` remain mutually exclusive operations; `--without-invalidate` is an independent modifier valid on either. Expanded the targeted tests to ten by exercising real `main()` parsing/flag forwarding in **mocked** parent and child calls (no GTK execution). Must now rerun 10 tests and the safe disposable GTK3 test to establish whether provider reload automatically refreshes computed colour without deprecated `context.invalidate()`. No new effect on actual keyboard, accepted compact UK layout, source-tested providers, vendor/system GTK, night-state logic or 180s/240s recovery. Actual Squeekboard repaint without focus loss not yet tested. Classic Dark is still default/fallback.
+
+**13 October C3 provider-only GTK hot CSS accepted on Pi; C widget source prototype NOT YET BUILT:** User pulled `005bfb5`, Python compile and **10/10** focused GTK safety tests passed, and the compositor-session GTK3 probe kept one `GtkCssProvider` and `GtkStyleContext` alive while swapping disposable CSS, obtaining both expected computed colours **#123456→#abcdef** without calling deprecated `Gtk.StyleContext.invalidate()`. GLib overlay relookups occurred; there was no GTK invalidation warning. This settles provider-side synthetic CSS refresh, not actual Squeekboard rendering/focus continuity. Reviewed public Squeekboard `eek/eek-gtk-keyboard.c`: GTK drawing area retains a renderer, draws with it, and `on_notify_keyboard` uses `gtk_widget_queue_draw`; renderer has a GtkCssProvider for view and button styles. Added **standalone source-only** `scripts/ci/patch-squeekboard-hot-css.py`: strict unique vendor-source anchors, no direct filesystem write, candidate-only `ACP_SQUEEKBOARD_CSS_DIR` GTK-owned directory monitor watching atomic `style.css` updates, `gtk_css_provider_load_from_resource` on the same renderer provider + `gtk_widget_queue_draw` on the existing widget. `dispose` disconnects/cancels/unrefs monitor; no keyboard layout/input/focus/restart/global theme change. Seven pure-source/safety tests in `tests/test_squeekboard_hot_css_source_patch.py` cover exact insertions, preserving original bytes, upstream mismatch, repeated patching, absent source, non-wiring to current builder/trial, and no global operations. **This code is NOT referenced from accepted ARM64 CI source preparer or live Pi trial.** Pi seven-test pass NOT YET CONFIRMED; actual vendor Debian source anchors and disposable ARM64 build remain unknown, so do not promote or replace accepted candidate binary. After Pi tests: target independent pinned-source validation + CI-only build, then private writable CSS staging and control channel, and ultimately verify true night start/end without focus loss, 180s/240s recovery. Classic Dark default/fallback.
+
+**13 October C3 actual Raspberry Pi Debian source compatibility ACCEPTED (source only), binary still UNBUILT:** Pi successfully compiled source helper and passed all seven focused pure source patch tests on `edfb02a`. Dedicated GitHub Actions run <https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38471551409> completed success using ARM64 Debian Trixie disposable container; extracted checked `squeekboard_1.43.1-1+rpt1` RPi source (including all six Debian patches), verified original commissioned Pi `src/panel.c` SHA, then tested `patch_keyboard_source()` strictly against extracted real `eek/eek-gtk-keyboard.c`. Five exact C additions have a verified full reversible diff, vendor/proposed SHA-256, separate uploaded report artifact ID `11852150692`. **No compiled keyboard, `.deb`, package replacement, GTK setting, OSK process or audio/NFC/Headless change resulted.** This settles source-shape compatibility only, not C compiler correctness or focused repaint. The separate one-time audit-only push workflow bootstrapped this branch without changing the manual accepted candidate build. Full global regression suite reported missing catalogues for older recent C2/C3 files (three top-level scripts and nine Squeekboard tests), now registered in script/test catalogues and one overbroad CI audit test guard corrected; **await next CI run status**. Next acceptance: local focused tests + full suite green, artifact diff review; then distinct disposable ARM64 *compile-only candidate*, separately named/digest-reviewed and target Pi ABI preflight, followed by carefully gated 180s trial with independent 240s rescue and real keyboard-in-place CSS colour shift when night starts/ends while the field remains focused. Classic Dark default/fallback, QWERTY, compact numeric, and immutable old v1/v2 stages remain protected.
+
+**13 October C3 real vendor C source audit artifact reviewed and global Tests green:** The standalone ARM64 source audit generated and uploaded `PROVENANCE.txt`, `SUMMARY.txt`, and a precise five-hunk `SOURCE-ONLY-AUDIT.txt` in [run 38471551409](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38471551409). Independently inspected that artifact: source `eek/eek-gtk-keyboard.c` original SHA-256 `bc1076aa72c9b56ab752bd84815593c1228f13e74033de87f231597b27e97353` (15,204 bytes), proposal SHA-256 `f4f45a776e11cc3d1e35631e5f19451e7746a6e53173467bf46580c688759f40` (18,488 bytes). Exact reversible additions are `gio` header, private `GFileMonitor*`, main-thread CSS reload/queue-redraw helpers, `dispose` cleanup, and watcher setup; existing C code unchanged. Original `.dsc` was hash-verified over HTTPS but explicitly not independent GPG verified. The full repository CI was initially red only on omitted maintainer script/test catalog entries; updated the three root script rows, nine Squeekboard test entries, CI helper documentation, and fixed an overbroad forbidden substring assertion. GitHub general Tests run [38472022141](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38472022141) then passed **1,369 tests (three skipped)** at `9b3d028`. Source compatibility verified, **no C compile or actual keyboard repaint/focused night edge** yet. Next: source-SHA-locked separately named, disposable ARM64 test-only compile & ABI review; accepted pre-existing binary/trial and stock Squeekboard remain untouched. Classic Dark default and no focus interruption mandatory.
+
+**13 October Stage C3 source-locked disposable ARM64 C3 compiler trial initiated (NO device action):** New C3-specific `scripts/ci/apply-squeekboard-hot-css-build-patch.py` refuses to run outside root ARM64 disposable GitHub Actions container and `/tmp/acp-squeekboard-c3-arm64-*` extracted source; both actual Raspberry Pi vendor and proposed patched `eek/eek-gtk-keyboard.c` SHA-256 pins exactly match separately audited C source. It atomically edits only throwaway compiler-input C bytes. A separate copy of the accepted Debian ARM64 CI build script, `scripts/ci/build-squeekboard-hot-css-arm64.sh`, reuses pinned vendor source and offline Cargo but creates only **new C3-named files and separate artifacts directory** (ELF, never-install `.deb`, patch provenance, ABI/package report, build log). Existing **accepted C2** build workflow, candidate ELF, UK/compact v2 keymaps, palette cache, OSK launch/recovery, vendor keyboard and audio/NFC are untouched. Trigger added only to new `.github/workflows/squeekboard-hot-css-arm64.yml`, scoped to a one-time push of that workflow on `feature/acp-shell-native-plexamp`, with workflow_dispatch and read-only permissions. GitHub CI build run [38473691406](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38473691406) **IN PROGRESS, COMPILATION PENDING**. New test module `tests/test_squeekboard_hot_css_arm64_build.py` has ten source/shell/SHA/environment/isolation cases and is registered in maintainer catalogue; earlier unrelated CI Test run only failed on missing new module catalogue entry until it was fixed. Next: review real ARM64 compiler errors or ABI/hash artifact, ensure full project test run green, and gate target read-only preflight before physical focus-retaining day/night keyboard change. Do not ask user to download or run new executable yet; no actual native repaint has been observed. Classic Dark stays requested default/fallback.
+
+**13 October CI proof after distinct C3 compiler dispatch:** After adding the separate new workflow, the maintained Tests workflow [38473723061](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38473723061) passed **1,379 tests, 3 skipped**, exercising source hash pins, inability to run C3 build scripts on ordinary Pi session, separate artifact names, frozen C2 builder, and feature-branch-only no-device CI workflow. Subsequent documentation-only Tests runs also succeeded. The actual separate C3 ARM64 compile [38473691406](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38473691406) was still **in progress at recording**, not proof of successful compilation. Do not present a new ELF or start a keyboard until build and artifact checks conclude; no production services or physical hardware changed.
+
+**13 October Stage C3 new-source compiled candidate accepted off-device ONLY; target ABI pending:** The separate feature-only ARM64 GitHub Actions job [38473691406](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38473691406) completed **success**. Downloaded seven-file `squeekboard-c3-hot-css-arm64-test-only` ZIP has exact SHA-256 `a2f615d31f7006a71867a92553c2aca02ee58ef130867856aeefcff0e2a59274`; contained C source patch attestation matches audited original `bc1076aa72c9b56ab752bd84815593c1228f13e74033de87f231597b27e97353` and generated `f4f45a776e11cc3d1e35631e5f19451e7746a6e53173467bf46580c688759f40`. Binaries compiled **only off Pi**: AArch64 ELF `squeekboard-c3-hot-css-arm64`, 17,109,456 bytes, SHA `fdd1da08861bbc45331e66a70996953ed6ebfb52915a0a5abeb21c585f40bfd5`; standalone `.deb` (NEVER INSTALL) 2,465,204 bytes, SHA `4eaad98634a44dfdfe64c5038283688e34cf55ee1be59eb0cfff1724f4fb8e14`. Package `squeekboard 1.43.1-1+rpt1`, 18 expected NEEDED SONAME entries, no RPATH/RUNPATH; glibc version floor up to GLIBC_2.39, 17 package dependency clauses. Old binary, installed vendor, trial runner, GB numeric and accepted static themes unchanged. Next gate source-committed `scripts/inspect-squeekboard-hot-css-artifact.py` and focused tests `tests/test_squeekboard_hot_css_artifact.py`: normal-user target ARM64 Pi preflight checks exact ZIP and package/binary bytes, source provenance and installed package/libs read-only; reuses accepted old inspector in independent module instance. **Pi result and latest tests pending.** This is not an authorisation to deploy or run the experimental binary: read-only ABI must pass, then independently validated writable trial-only CSS cache and trial controller must preserve automatic 180s/240s recovery and allow live night transition while typing. Classic Dark default/fallback still planned, real focused CSS repaint untested.
+
+**13 October C3 compiled build artifact + offline Pi-target verifier tests now GREEN:** Distinct C3 ARM64 build successfully generated ZIP with exact pinned SHA-256 and reviewed original/patched C source attestation, 18 expected ELF libraries, no RPATH/RUNPATH, version `1.43.1-1+rpt1`; no Pi install/run. New `scripts/inspect-squeekboard-hot-css-artifact.py` verifies *entire* GitHub seven-file ZIP digest and individual C3 executable/never-install package hashes and provenance, then delegates read-only package-floor/direct-SONAME inspection to a fresh module instance of accepted C2 ABI checker. C2 accepted code/binary/180s trial untouched. Nine new `tests/test_squeekboard_hot_css_artifact.py` safety checks and script/test catalogue rows included; [GitHub Tests run 38474811494](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38474811494) passed **1,388 tests, three skipped, no failures**. **Physical C3 target library preflight STILL PENDING**, as are private writable CSS/bridge/staged source handling and timed focus-safe night-mode keyboard repaint. User should download unmodified `squeekboard-c3-hot-css-arm64-test-only` Actions ZIP onto Pi and run `python3 scripts/inspect-squeekboard-hot-css-artifact.py ZIP` (read-only, no sudo), not install/run `.deb` or use older C2 start/restore tooling with this artifact. Classic Dark fallback retained.
+
+**13 October C3 target Pi package/ELF ABI PASS, now building separate private hot-CSS stage:** Pi user successfully pulled `12a6a05`, compiled C3 artifact inspector, passed **all 9 focused unit tests**, and verified exact seven-file C3 ZIP, executable/package/source hashes, all 17 satisfied installed package dependency clauses, and 18 direct ELF libraries present; `C3 TARGET LIBRARY/PACKAGE ABI PREFLIGHT: PASS`. This closes static target compatibility only: actual dynamic loader, Gtk file monitoring/repaint and uninterrupted text focus UNTESTED. New `scripts/stage-squeekboard-hot-css.py` is independent user-owned 0700 `squeekboard-c3-hot-css-v1`, creates only 0600 `style.css` from verified **Classic Dark** C2 source, enforces entire 23-palettes source freshness against accepted C2, and offers safe `--plan`, `--stage`, `--check`, and explicit allowlisted atomic `--select PALETTE` (no background work, browser integration, stock OSK interaction or system-wide theme). Regres­sion tests in `tests/test_squeekboard_hot_css_stage.py` cover exact byte selection, atomic replacement, permissions, C2 immutability and tamper refusal. GitHub Test CI and commissioned-Pi run PENDING when recorded. Next Pi gate: focused tests + staging/plan/check/optional switch back to Classic Dark. **After stage passes, create a new independently named C3 180s timed user service and 240s rescue; don't reuse C2's accepted binary hash/trial service names or couple stock recovery to private C3 files.** Later bridge ACP `display.daytime_theme` + `ACPDisplayDimming.status()` to private CSS selection, including nighttime boundary while keyboard remains focused. No C3 process is running yet. Classic Dark default/fallback.
+
+**13 October C3 private stylesheet stage CI green, hardware stage pending:** `scripts/stage-squeekboard-hot-css.py` has distinct, non-overwriting user-private 0700 root and current `style.css` exact-copy 0600 validated against all 23 accepted C2 styles; default/fallback Classic Dark. Explicit atomic `--select PALETTE` changes only this candidate test copy and never restarts a keyboard. Ten focused safety tests cover C2/source validation, symlink/hardlink/tamper/extra-file refusal, actual atomic replacement and idempotence. [GitHub Tests #38480853345](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38480853345) passed **1,398 tests, three skipped**, including updated catalogues. **Next commissioning gate:** Pi compile/tests and `--plan` then non-overwriting `--stage`, `--check`; optional `--select midnight_blue` and return to `classic_dark` with stock OSK untouched. Only after Pi stage accepted may create separate C3 timer-backed test controller using pinned ARM64 artifact and candidate-only `ACP_SQUEEKBOARD_CSS_DIR`/`G_RESOURCE_OVERLAYS`; physical in-place repaint/no focus loss remains unproven. No native OSK activated at this checkpoint.
+
+**13 October C3 Pi CSS stage acceptance and independent C3 timed trial source gate:** User's actual Pi passed **10/10** `test_squeekboard_hot_css_stage.py` tests, inspected untouched 7 British keymaps and 23 C2 themes, and changed private `squeekboard-c3-hot-css-v1/style.css` from original **Classic Dark** to **Midnight Blue** via atomic rename and back, confirming exact CSS hash on both changes. `--stage` correctly refused overwrite because `--plan` already showed private C3 stage existed; user final state `classic_dark`. Optional standalone native layout parser unavailable, static stage checks passed; no OSK change. Built `scripts/try-squeekboard-hot-css.py` as **new** independent user-level handover controller, preserving accepted C2 proven sequence but separately pinning C3 ZIP/ELF, unit/timer identities, state root, selected Classic Dark and compact British keypad. Guard stock vendor SHA/PID, 17 Debian dependencies + 18 SONAMEs, private CSS content, C2/C3 service/timer collisions, orphan trial candidate PIDs. `--start` arms C3 240s independent rescue **before** initiating 180s worker; service owns candidate with KillMode=control-group; stock `sbtest` restore never receives C3 CSS/XDG overrides and independently checks no surviving candidate. Restore path does not require C3 CSS stage to remain available or live socket validation. Thirteen focused tests first passed in GitHub general Tests [38483119043](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38483119043) **1,411 OK (3 skipped)**, followed by a fourteenth orphan-process overlap gate/test awaiting CI. Script/test catalogues updated. **Next user action only**: after latest CI green, compile and execute focused C3 trial tests and use `--plan ZIP` read-only. No actual C3 keyboard trial has been run or approved; dynamic GTK provider repaint, British input focus at live colour switch, automatic ACP day/night boundary bridge are still OPEN. Keep stock OSK, existing C2 trials, 180s/240s independent rollback, audio/NFC/Headless and 23 immutable staged palettes untouched.
+
+**13 October C3 trial controller source gate GREEN; physical plan pending:** Separate opt-in `scripts/try-squeekboard-hot-css.py` is registered alongside unchanged C2 controller. Fourteenth added test refuses orphaned C2/C3 candidate processes even if old units are inactive. GitHub [Tests run 38483247125](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38483247125) confirms **all 1,412 tests OK (3 skipped)**, including 14 new C3 trial checks; previous test harness mock error fixes verified. Renderer compiled; Pi ABI and offline C3 CSS palette switching physically accepted. **Next test is ONLY read-only Pi `--plan`**, verifying original stock singleton, exact C3 ZIP/ELF and installed Debian ABI, no overlapping trial unit/candidate, accepted compact UK YAML, Classic Dark private C3 stylesheet and 240s rescue service-manager readiness. No actual C3 candidate activation/Wayland touch/focus continuity tested yet; `--start` is deliberately deferred pending separate authorisation, user touchscreen availability and recovery confirmation. No ACP day/night bridge implemented. Original vendor/C2 service, audio/NFC/Headless untouched.
+
+**14 October C3 source-to-Pi trial PLAN fully accepted — live run still pending:** Physical read-only evidence on `51d34229`: `py_compile` on the separate C3 runner passed; **14/14** `tests/test_squeekboard_hot_css_trial.py` cases passed on Pi. C3 standalone `--check` verified **Classic Dark**, digest `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, seven GB vendor-derived layouts, all 23 preserved palette styles, with optional standalone Squeekboard YAML parser unavailable but static source validation passing. Real `try-squeekboard-hot-css.py --plan ~/acp-c3-hot-css-arm64-test-only.zip` returned **C3 PLAN PASS**, with pinned seven-file artifact/source/ELF/.deb provenance, 17 Debian dependency clauses, 18 SONAMEs, stock vendor SHA and one active vendor Squeekboard, ready Wayland/user systemd, private compact UK layout, and C3 `classic_dark` CSS. The plan **did not** arm rescue, start candidate, kill stock or touch GTK/system/audio/Headless/NFC. In code the manual opt-in `--start` separately arms independent `acp-squeekboard-c3-restore.timer` for 240s before an at-most-180s candidate worker; the stop/restore processes and focus-safe GTK live redraw are not yet witnessed. **Next physical gate** with on-device touchscreen/WayVNC and SSH available: (1) guarded single 180s test of actual C3 keyboard appearance and normal restored `/usr/bin/squeekboard` with zero candidate processes; then (2) separately controlled focused Search/input hot palette swap between Classic Dark/Midnight Blue/Classic Dark without keyboard restart, keystroke loss or defocus, with automatic stock recovery confirmed. ACP runtime browser→OSK day/night bridge and persistent owner/autostart remain unimplemented and must not be claimed as accepted. Do not install the C3 `.deb`, change C2 trial or system GTK.
+
+**14 October C3 first 180s LIVE keyboard experiment PASSED — in-place CSS repaint pending:** The actual commissioned Pi pulled docs-only branch commit `ac246035`, then ran C3-specific `scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip`. Complete separately pinned ELF/.deb/source provenance, Debian 17-clause/18-SONAME ABI, C2 compact GB and 23 immutable styles, Classic Dark C3 private CSS, original stock identity and user-session safety preflight passed. `--start` printed `Independent stock OSK restore timer is ARMED`, `Automatic end: 180s; independent rescue: 240s`. WayVNC screenshot shows visually correct keyboard with blue-outlined dark keys in front of native full-screen Plexamp Search; typing `test` returned matching album results. User also physically tried keyboard on ACP and reports success. Private candidate log shows GLib GResource overlay registration and repeated reading of C3 `style.css`, the candidate's `gb_wide.yaml` from C2 compact UK layout, and benign lookup fallback from absent optional `number/gb_wide.yaml` to valid `number/gb.yaml`. GNOME SessionManager no-owner warning expected on labwc and is not a reported failure. After trial `pgrep` and `ps` identified **one vendor `/usr/bin/squeekboard` PID 810395** under **vendor `/bin/sh /usr/bin/sbtest` PID 810384**, zero C3 timers; no C3 candidate running. **PHYSICAL ACCEPTANCE:** C3 dynamic launch, UK keyboard visibility, input to native Plexamp and ACP, private static palette/resource lookup and eventual stock keyboard restoration. **NOT YET ACCEPTED:** timeline distinguishing normal worker 180s from fallback rescue 240s; actual GTK widget hot-style repaint, focus/typed characters continuity during a CSS swap, automatic ACP day/night boundaries, system keyboard manager/autostart replacement, and broader native Plexamp production acceptance. Next strictly bounded gate: visually observe a single focused text field while issuing C3 `--select midnight_blue` then `--select classic_dark` from a separate SSH session before 180s expiry, checking unchanged process PID/key input/focus across both swaps, followed by original stock recovery. Classic Dark must be restored even if test expires early. Do not install test-only Debian package or touch C2/stock/global GTK/audio/Headless/NFC.
+
+**14 October Stage C3 two-way GTK hot CSS candidate PALETTE SHIFT PHYSICALLY VISIBLE, focus continuity not yet instrumented:** User pulled docs head `5a9e044`, confirmed Classic Dark private CSS + fixed digest `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, started a second separately pinned `--start` candidate with verified ZIP/ELF/17 dependency clauses/18 SONAMEs, UK compact layout, 180s trial worker and 240s independent rescue timer. They observed candidate PID `824369` before switching. Screenshot A shows a functioning native Plexamp Search (`Before`) and C3 blue-accented keyboard. `--select midnight_blue` reported `classic_dark -> midnight_blue`, atomic replacement YES; screenshot B shows functioning native Search (`After`) with subtle but measurable key/background pixel differences. Representative fill changed `#172b44 -> #112b44` (RGB 23/43/68 to 17/43/68); private overlay changed the on-screen keyboard without editing the source palette files. Subsequent `--select classic_dark` reported atomic replacement YES and `--check` passed restored Classic Dark with exact original hash. End-state showed no running C3 experimental process, one original `/usr/bin/squeekboard` PID `829437`, and no C3 timers. **Pass:** real C3 launch and working native input; visible styling difference after private CSS hot selection; allowed reverse selection; end-state original OSK and private stage recovered. **Residual proof:** the VNC images show text was entered on both sides but not unbroken focus or no re-creation; `pgrep` was captured before colour switch only and after the trial ended, so same PID across BOTH colour swaps and intermediate instant return to Classic Dark remain unverified. A fast user-observed timed probe should snapshot candidate PID immediately after each CSS switch and type continuously in one input, then automatically restore private Classic Dark in all outcomes. **Following implementation stage:** design opt-in ACP browser-to-C3 local event/state bridge using live `window.ACPDisplayDimming.status()` (including scheduled/preview/interaction/alarm handling) and current `display.daytime_theme` via already proved `plan-squeekboard-acp-theme.py`, only the validated 23 CSS IDs, idempotent atomic change and Classic Dark fallback; no full-screen player ownership/autostart, stock process, global GTK, immutable C2 layouts/styles, ALARM/Headless/ALSA/NFC change.
+
+**14 October C3 Midnight Blue fidelity refinement — implementation committed, Pi ACCEPTANCE PENDING:** The first C3 focused-playback WayVNC screenshots established a real live style reload but only a very subtle key-fill difference from Classic Dark (roughly RGB `23,43,68 → 17,43,68`). User requested the dramatically more blue ACP daytime Midnight Blue appearance. Implemented *only in* `scripts/stage-squeekboard-hot-css.py` a C3-specific deterministic `c3_midnight_blue(accepted_css)` transform after source SHA/stage verification: it **appends** CSS to the byte-perfect accepted `midnight_blue` style, retaining `common.css`, GTK `sq_view` scope, original palette bytes, and unchanged Classic Dark and remaining 21 palette bytes. New C3 control tokens: keyboard background `#0b2345`, normal keys `#2864a0`, special keys `#16385f` (ACP Midnight Blue gradient start), blue border and Return `#78bfff` (ACP accent), bright pressed `#b9e0ff`, white-blue text `#eef7ff`. Compared with previous keys `rgba(20,49,77,.82)`, the proposed normal key fill is materially more saturated and lighter, without using neon/unsuitable bright backgrounds. The same **23 IDs** remain: user still runs `--select midnight_blue` in private C3 stage; no new OSK binary, package rebuild or system changes. Existing C3 Classic Dark state remains valid immediately after pull, including unchanged `--plan` gate. Test module has new exact-source/contrast/immutability/tamper cases, test/script catalogues updated; full CI and live on-Pi palette comparison pending. The correction is *not yet* physically accepted. **Automatic state bridge design next:** read exact current browser `ACPDisplayDimming.status()` (`active`, `interacting`, `effectiveStyle`, alarm-aware) and `ACPDashboardPreferences.read().daytimeTheme`/root dataset; map via existing 23-palette `plan-squeekboard-acp-theme.py`, restrict writes to candidate-private validated C3 stylesheet while an operator-armed trial is active. Do not use blind schedule computation, change C2, let LAN requests write CSS freely, restart a focused keyboard, enable autostart or change ACP/Headless/audio/NFC/alarms. First physically accept high-contrast Midnight Blue and same-PID/focus typing during changes, then implement the disabled-by-default bridge with unit security tests and trial rescue.
+
+**14 October C3 vivid-Midnight Blue physically accepted and identical hot-CSS PID verified:** User pulled `04ffd517` on the commissioned Pi, passed `py_compile`, **13/13** focused C3 private CSS tests and exact default `classic_dark` stage check, then ran third safeguarded 180-second C3 ARM64 trial with independent 240-second stock timer. Actual VNC screenshots show `Before` in Classic Dark, `After` with strongly improved blue normal keys, dark-blue canvas and a visually clear difference from Classic Dark, and `After 2` back in Classic Dark while using the symbols layout. `stage-squeekboard-hot-css.py --select midnight_blue` and `--select classic_dark` both said `Atomic style.css change: YES`, and the candidate PID remained **865158 before both switches, after Midnight Blue, and after returning Classic Dark**. Original vendor `/usr/bin/squeekboard` PID **870188** was the sole keyboard at end, zero timers; private CSS final `--check` returned Classic Dark SHA `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`. **This physically closes** visual C3 high-contrast tuning, same-process CSS changes, functional typing through swaps and stock restoration. It does not measure restoration execution path precisely or certify automated scheduling.
+
+**14 October C3 automatic ACP theme bridge first-code implementation — CI/commissioned-Pi evaluation outstanding:** `scripts/try-squeekboard-hot-css.py` has a separate, default-OFF `--start ... --theme-sync` switch whose per-trial state flag cannot be set via HTTP; original `--start` still does not apply automatic sync. `app/squeekboard_theme_sync.py` checks strict loopback-origin/host, rejects forwarded requests, rejects malformed/non-JSON/overlarge state, resolves night/day appearance via the already accepted `plan-squeekboard-acp-theme.py` and refuses *any* stylesheet mutation unless a single C3 worker PID, appropriate transient user trial service AND independent stock rescue timer are all active and the C3 state explicitly opted in. The backend acquires a private per-trial file lock and only atomically selects a verified palette in existing private C3 `style.css` (never C2 or system GTK), leaving stable candidate binary, GB compact layout and source palettes untouched. Flask `/api/osk/c3/theme-sync/status` GET and `/api/osk/c3/theme-sync` POST are loopback-only. `app/static/js/osk-theme-sync.js` is a default-inert (unless opted-in C3 active) browser poll/watcher using `ACPDashboardPreferences.read().daytimeTheme` and actual `ACPDisplayDimming.status().active/.interacting/.effectiveStyle`; it responds to page/surface/setting/night-interaction events and periodic 5s checks for a scheduled boundary, without focus edits, OSK ownership or wall-clock inference. Once original vendor `sbtest` is confirmed, independent restore *best-effort* resets only private candidate CSS to Classic Dark (failure cannot block recovery). Tests `tests/test_squeekboard_theme_sync.py` cover resolver, exact schema, loopback/Origin/proxy/CSS-update/no-op/symlink-lock/opt-in checks; script/test catalogues updated. **Physical/browser acceptance NOT YET CLAIMED:** Chromium kiosk URL must be verified as a loopback origin, and physical Pi tests must confirm real day/night/interaction transition, same candidate PID and uninterrupted Search typing while native full-screen Plexamp is on top; background-tab throttling is an open timing risk. Next CI green and non-disruptive Pi readiness/test gate, then user-approved `--start ZIP --theme-sync` within established 180s/240s recovery. Production OSK/autostart, Headless, ACP HTML keyboard default, audio, alarms, GTK, NFC unchanged.
+
+**14 October C3 browser bridge service-boundary gate CI PASSED; commissioned dashboard restart pending:** User physically fast-forwarded to `d3aed77a` and verified `py_compile` on `app/squeekboard_theme_sync.py`, C3 trial runner and private CSS stage, all **9/9** original bridge tests and **14/14** existing trial recovery tests, private `classic_dark` exact-SHA stage and `ActiveState=active` for `/etc/systemd/system/a-clockwork-plex.service` (ExecStart `/home/andy/A-Clockwork-Plex/venv/bin/python /home/andy/A-Clockwork-Plex/app/runner.py`). The dashboard is a SYSTEM unit running as `andy`, whereas the C3 timer/service are USER units. The first bridge invoked inherited `systemctl --user` environment, which may be absent from the system service even when SSH queries work, so the bridge now pins `XDG_RUNTIME_DIR=/run/user/<uid>` and `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/<uid>/bus` **only for the read-only unit-query child**, after verifying the socket; no global environment mutation or service starts/stops. Added two regression cases for user manager/absent bus; final [GitHub Tests 38492107713](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38492107713) **GREEN: 1,426 tests, 3 skipped**. Earlier intermediate suite failed only because its old mock still targeted the original unit-check function; test fixed and green. **Next physical gate** (no C3 trial yet): controlled restart of the already active ACP dashboard system unit when safe, verify HTTP `GET http://localhost:8088/api/osk/c3/theme-sync/status` returns `{ok:true,enabled:false}` while stock OSK remains active; optionally verify well-formed local POST with no active trial yields `enabled:false,changed:false`; only then ask for voluntary timed C3 `--start ZIP --theme-sync` experiment to observe actual automatic day/night and interaction focus transitions. Note background-throttling of ACP Chromium while full-screen native Plexamp is in front remains an unverified timing risk. No system keyboard/autostart/audio/NFC ownership changes.
+
+**14 October C3 automatic palette bridge Pi dashboard/API smoke test PHYSICALLY PASSED; first auto-theme keyboard trial NEXT:** Commissioned Pi fast-forwarded `d3aed77a → 801cf709` on `feature/acp-shell-native-plexamp` and passed **11/11** `test_squeekboard_theme_sync.py` checks (including explicit user-bus query, missing-bus fail-closed, loopback/Origin constraints and atomic private CSS selection). `sudo systemctl restart a-clockwork-plex.service` completed; `systemctl is-active` returned `active`. With stock OSK running, genuine loopback `GET http://localhost:8088/api/osk/c3/theme-sync/status` returned **`{"enabled":false,"ok":true}`**. Valid same-origin POST requesting Midnight Blue returned **`{"changed":false,"enabled":false,"ok":true,"reason":"no opted-in live C3 trial"}`**, proving no unauthorised CSS change from the active dashboard. Private staged `--check` still PASS **classic_dark** exact SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`; stock `/usr/bin/squeekboard` only PID **870188**. No C3 trial started, no extra keyboard, no audio/Headless/NFC/GTK/autostart changes. **NEXT:** explicit voluntary 180s trial with independent 240s stock restore using `scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync`, after verifying original Classic Dark and on-device WayVNC/touch + SSH; first check live GET `enabled:true` once C3 candidate launches and whether ACP browser-sourced actual daytime/night state automatically changes private palette without PID/focus loss, then inspect stock restore and private CSS Classic Dark. If `enabled:false` while candidate active, do **not** manually force CSS selection as proof of auto bridge; inspect user journal and physical host-origin assumptions. Production keyboard owner and unattended night boundaries remain unaccepted.
+
+**14 October C3 auto-theme trial authorisation and recovery PHYSICALLY PASSED; browser-driven palette application NOT YET SHOWN:** On #94 branch `7dd7636f`, user checked staged `classic_dark` and C3 `--plan ~/acp-c3-hot-css-arm64-test-only.zip`: pinned ARM64 ZIP/ELF/.deb identity, all 17 runtime dependency clauses and 18 linked library names PASS, verified seven GB layouts, 23 palettes, and intact original OSK. User invoked `scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync`: controller reported independent 240s stock rescue ARMED, 180s worker, and `ACP C3 theme sync: OPTED IN`. During live candidate PID **956416**, real dashboard loopback GET `.../api/osk/c3/theme-sync/status` returned **`{"enabled":true,"ok":true}`**, proving system-service to user-manager gating succeeds in the active device. Native full-screen Plexamp screenshot shows C3 Classic Dark keyboard and typed `Before`. While C3 live, `stage-squeekboard-hot-css.py --check` still reported private `classic_dark` original SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`. After trial, status returned `enabled:false`, CSS remained `classic_dark`, exactly one vendor `/usr/bin/squeekboard` PID **961397** and zero C3 timers. **ACCEPT:** opt-in state propagation, browser/API route availability, C3 candidate presentation, safe vendor recovery + private CSS cleanup. **OPEN:** whether ACP Chromium actually POSTed a computed palette; the observed unchanged CSS is equally consistent with correct Classic Dark daytime or a stalled/background browser watcher. No evidence of automatic visual repaint, night boundary or focus continuity *from the new watcher*. **NEXT:** avoid changing production keyboard ownership or treating `enabled:true` as successful auto-sync. Provoke a deliberate non-default ACP daytime theme (e.g., Midnight Blue) while C3 is running, observe stage `--check`, same PID and screen before/after, then return ACP preferences to original; ideally start with ACP Chromium in foreground before entering native Plexamp to distinguish browser background throttling. If still Classic Dark under a confirmed nondefault ACP state, inspect browser `ACPC3ThemeSync.currentState()` and POST trace under controlled diagnostic procedures before changing architecture. No change to Headless, ALSA, alarms, C2, global GTK, stock keyboard or NFC.
+
+**14 October C3 automatic ACP→Squeekboard Midnight Blue selection PHYSICALLY PASSED — night/foreground continuity NEXT:** In a fresh actual Pi trial on `768ddec1` (documentation-only fast forward from `7dd7636f`), user confirmed private `--check classic_dark` then invoked `scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync` with independent 240s stock restore ARMED and 180s bounded worker. Starting from newly refreshed foreground ACP Chromium with daytime **Midnight Blue** selected, the live dashboard GET `/api/osk/c3/theme-sync/status` returned **`{"enabled":true,"ok":true}`**; without any manual `--select` operation, the PRIVATE C3 `stage-squeekboard-hot-css.py --check` changed to **`midnight_blue`**, SHA-256 **`22d9cc69ddb0636aad94b1bb5d05649a02fccc3f6c4d9680a922120ced30fb8e`**. User captured the stronger blue C3 keyboard visible over native Plexamp Search, and the sole experimental PID **1009111** was observed in that live phase. At trial conclusion `--check` again confirmed exact original **`classic_dark`** SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`; only the vendor `/usr/bin/squeekboard` PID **1014234** remained, with **zero** C3 timers. **ACCEPT:** live opt-in ACP-browser-to-local-API-to-validated private C3 CSS path and automatic *non-default daytime* palette application, attractive physically visible high-contrast blue, and recovery/Classic Dark cleanup. **NOT YET ACCEPT:** transition between multiple daytime palette IDs in one session, live scheduled/preview night-mode + astronomy-red state, same PID and text-field focus continuity during *automated* changes, or timely browser delivery while native Plexamp alone is foreground/background Chromium may throttle. Earlier manual CSS colour-change continuity remains accepted. **NEXT:** one guarded practical test of user-triggered ACP theme transition and/or night preview with timestamped C3 palette/PID snapshots on Pi, while respecting the existing 180s/240s restore; separately test inactive/background Chromium before permanent integration. Production OSK ownership, Headless/audio/NFC/alarms, GTK and C2 files remain untouched.
+
+**14 October C3 automatic daytime palette transitions PASS with identical live Squeekboard PID — Night Preview next:** On commissioned Pi after documentation-only fast-forward `768ddec1 → 5596c88e`, user confirmed private Classic Dark digest `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, then intentionally started `try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync` (180s worker, independent 240s stock timer ARMED). **No manual `--select` commands were used.** Setting ACP daytime theme triggered C3 verified exact palette changes **`midnight_blue` → `green_phosphor` → `midnight_blue`** with SHA-256 respectively `22d9cc69ddb0636aad94b1bb5d05649a02fccc3f6c4d9680a922120ced30fb8e` → `76de6a8adf263ab480d870f06581bb5d129870642a2eac37a2ce5b42e012869e` → original Midnight Blue digest. Candidate process PID **1033988** was reported after **each of all three states**, demonstrating no restart; WayVNC screenshots visibly show vivid Green Phosphor and Midnight Blue keyboard styles over native Plexamp Search, with text input `Test` and `Test 2` remaining usable. **PHYSICAL ACCEPTANCE:** real automatic multi-theme palette updates through ACP browser/API/private stylesheet; keyboard process continuity and practical native Plexamp input; no manually operated palette selection. At timed trial end, C3 CSS verified **`classic_dark`**, sole stock `/usr/bin/squeekboard` PID **1039217**, and zero C3 timers. **OPEN:** scheduled Classic Night / Astronomy red idle-and-interaction transitions, exact focus-not-reclaimed during automated night switch, inactive/background Chromium timer throttling over extended periods, and production OSK ownership. **Night Preview reliability patch CODED, Pi acceptance pending:** the existing eight-second ACP night preview previously emitted only `acp:display-night-preview-ended`, forcing experimental C3 bridge to notice the short preview on its next 5s poll. `display-dimming.js` now dispatches an *additional* `acp:display-night-preview-started` after applying actual preview state; C3 watcher subscribes to this event and the existing end event. Versioned JS asset URLs updated to ensure fresh Chromium scripts; regression contracts check order, both events and unchanged target-specific selectors. This event does not touch stock OSK, GTK, Headless, audio or NFC. **NEXT:** CI green then Pi pull/targeted tests and reload ACP browser (no dashboard service restart needed for static scripts); use controlled Settings → Display → Night dimming Preview with existing selected idle Classic Night/Astronomy style and verified timed C3 `--theme-sync`, monitor CSS/PID before-during-after the eight-second preview, then confirm Classic Dark/stock rescue at trial end.
+
+**14 October C3 automatic Classic Night preview / idle / interaction palette changes PHYSICALLY PASSED — Astronomy Red and background Chromium still OPEN:** On commissioned Pi after ff-only `5596c88e → 7d5f93f2`, all **12/12** focused C3 theme-sync tests passed, initial private `--check` returned **classic_dark** with intact vendor/23 palette checks, and user voluntarily started `scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync` (180s worker, independent 240s stock restore armed). In a **12-sample monitor every ~2s** during ACP Settings → Display → Night dimming **8-second Preview** (tapped a few times), actual browser-driven private palette sequence included `midnight_blue` at **03:09:31/34/36**, `midnight_blue_night_classic_idle` at **03:09:38**, `midnight_blue_night_classic_active` at **03:09:41/43**, `...idle` at **03:09:46**, `...active` at **03:09:48/51**, and `...idle` at **03:09:53/55/58**, **without a single candidate PID change**: experimental PID **1070126** in every snapshot. No manual `--select`; all palettes were accepted by SHA-exact `stage-squeekboard-hot-css.py --check`. Screenshot shows the ACP Settings screen genuinely dimmed during the preview, supporting that its night-mode mechanism was active (it does **not** independently display night keyboard colours). User explains extra active/idle transitions from input waking night interaction and multiple Preview taps; that matches the implemented `ACPDisplayDimming.status().active/.interacting` model, not a spurious loop. End-state CSS reset to exact accepted **classic_dark** SHA `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, one stock `/usr/bin/squeekboard` PID **1075312**, **zero** C3 timers. **ACCEPT:** automatic Classic Night idle/active palette selection via real ACP preview and interaction events, same-C3-process continuity, private CSS safety and clean stock recovery. **DO NOT OVERCLAIM:** sample timestamps do not isolate individual 8-second preview expiry from sustained scheduled night mode or multiple preview interactions, prove sub-second reaction time, directly show the C3 keyboard while classic-night palette is applied, or prove native Plexamp focus remained open throughout this particular Settings-screen test. **NEXT:** run bounded opt-in Astronomy Red idle/active trial, preferably recording palette/PID and a native Squeekboard screenshot; then separate foreground native Plexamp/background Chromium timing and focused input test before moving OSK ownership. Existing stock Squeekboard, C2, global GTK, Headless/audio/NFC/alarms remain untouched.
+
+**14 October C3 Astronomy Red preview/interaction automatic palette selections PHYSICALLY PASSED — native-fullscreen background delivery OPEN:** After docs-only fast-forward `7d5f93f2 → 4585a76c`, Pi private C3 CSS `--check` passed original `classic_dark` digest `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`. User armed an opt-in C3 `--start ... --theme-sync` with independently armed 240s vendor rescue and 180s worker. A **18-sample, ~2s** monitor during ACP Settings → Display → Night dimming preview (triggered twice, with interactions) captured the no-manual-selection sequence: `midnight_blue` at **03:19:31/34**; `astronomy_night_idle` at **03:19:36/38/41/43**; `midnight_blue` at **03:19:46/48/50/53/55/58**; `astronomy_night_idle` at **03:20:02/05/07**, `astronomy_night_active` at **03:20:09**, and `midnight_blue` at **03:20:12**. Every sample independently reports the **identical native C3 candidate PID 1086386**. Screenshot shows ACP Settings in real Astronomy Red preview; it is NOT a screenshot of the Squeekboard key colours, so visually red keyboard rendering and uninterrupted native Plexamp typing during this particular preview remain unchecked. Time series and private C3 palette validation DO confirm automatic *both* astronomy idle and active CSS resources. User reports the repeats arose from multiple preview taps and waking interaction; changes align with browser `ACPDisplayDimming.status()` and the 8s preview event. After trial verified `classic_dark` original digest, only vendor `/usr/bin/squeekboard` PID **1091696** and **zero** C3 timers. **ACCEPT:** browser→backend automatic Astronomy Red idle/active CSS selection, in-process candidate continuity, browser preview activation and reliable stock restoration. **REMAINING PHYSICAL GATES:** keyboard visually red under a native text field; timed preview ending and/or true scheduled day↔night boundary when **native Plexamp remains foreground and Chromium is background**, focus/typing continuity, browser background-throttling effect under longer idle, robust ownership and recovery architecture before any permanent C3 replacement. Avoid assuming that matching CSS file name alone proves live key rendering or that a foreground ACP preview proves background delivery. **NEXT:** opt-in bounded background handoff test with ACP Preview → immediately switch to native Plexamp and hold Search focus while timestamping C3 palette+PID; confirm return to daytime after actual 8s expiry (only if daytime is not already in scheduled-night range), then measure longer background delivery separately. No C2, stock OSK, global GTK, audio/Headless/NFC/alarms or autostart change.
+
+**14 October C3 Astronomy Red → Midnight Blue in-place repaint with NATIVE PLEXAMP FOREGROUND PHYSICALLY PASSED:** On commissioned Pi after docs-only `4585a76c → 73748b88`, private C3 `--check` initially passed SHA-exact `classic_dark`; operator invoked only `scripts/try-squeekboard-hot-css.py --start ~/acp-c3-hot-css-arm64-test-only.zip --theme-sync` (180s trial with independently armed 240s vendor restore). ACP Night Preview was triggered, then ACP was moved behind the **native full-screen Plexamp Search** application while the compact UK Squeekboard remained on screen. A one-second sampling loop saw `midnight_blue` at **03:33:11/12**; `astronomy_night_idle` at **03:33:14/15**; `astronomy_night_active` at **03:33:16/17/19**; `astronomy_night_idle` at **03:33:20**; and back to `midnight_blue` by **03:33:21**, remaining through 03:33:34. All **20 snapshots had exactly the same C3 PID `1110651`**, with no manual palette selection. Two actual WayVNC screenshots show the native Plexamp Search containing typed `Test`, with C3 keyboard visibly **dark red astronomy styling then vivid Midnight Blue keys**. Input remained practically functional; exact keystroke timing/focus event history was not instrumented, but field content persisted and keyboard remained visible across the automatic colour change. Recovery again passed: C3 private CSS reset to original verified `classic_dark` SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, only stock `/usr/bin/squeekboard` PID **1116068** and no remaining C3 timers. **PHYSICAL ACCEPT:** immediate browser→native foreground handoff, automatic astronomy-red idle/active→day palette updates reaching the visible keyboard while Chromium is backgrounded briefly, same-process GTK palette repaint, functional focused Search, and vendor fallback. **NOT YET PROVEN:** browser timer/schedule reliability after substantially longer background or system idle, a real wall-clock night-boundary with native Plexamp foreground, independently measured preview-end latency, truly uninterrupted individual keystrokes, and permanent safe OSK ownership. **Architecture next gate (read-only design before code):** current JS watcher uses a 5-second `setInterval` plus events and obtains browser-local `ACPDisplayDimming.status()`. Existing Python `settings_unified_scheduled.py` persists `night_dim_enabled/start/end/style/active_style/wake_seconds/daytime_theme`; `input_activity.py` exposes Linux input activity. Consider a Python-owned canonical scheduled night-state evaluator with parity tests against JS schedule semantics, DST, active/idle interaction and alarm suppression, with browser-only preview as a bounded override. Do NOT simply discard browser preview/interaction or take production OSK ownership; keep C3 explicit opt-in, same private style selector, verified 180s/240s restore and stock fallback.
+
+**14 October Phase C3 long-background resilience — read-only Python night schedule parity PROTOTYPE (not runtime-enabled):** Following successful real native foreground red→blue handoff, a new standalone `app/squeekboard_night_schedule_plan.py` deliberately models only ACP's deterministic `display-dimming.js` `scheduledNow()`/`dimRequired()` rules from injected validated settings + timezone-aware timestamp. It implements strict `HH:MM`, start-inclusive/end-exclusive intervals, crossing midnight, equal boundaries meaning full day, and Europe/London conversion including BST/GMT folds/skips; optionally accepts **explicit** alarm-visible and browser-preview flags rather than inferring browser-local preview or alarm. No wall-clock sleeps, network, filesystem mutations, keyboard process control, CSS selection, service startup, or dashboard integration. Nine focused `tests/test_squeekboard_night_schedule_plan.py` cases cover schedule boundaries, DST, invalid-state refusal and contract parity with JS; catalogue updated. **Final corrected GitHub Actions run [38502739146](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38502739146) GREEN: 1,436 tests, 3 skipped, 0 failures.** An intermediate new test asserted the wrong expression spelling (a `return` instead of `scheduled =`), with no evaluator defect; fixed in `e0c5e1fa`. This prototype DOES NOT establish robust long-background delivery or replace the existing passing Chromium-to-C3 bridge. **Next architecture evidence** must identify authoritative server alarm-screen/session state, align Linux input monitor interaction TTL with ACP's browser preview/interaction rules, handle settings changes and schedule clock boundaries without two simultaneous theme writers, and preserve original 180s/240s experiment + stock rescue. Any future Python worker remains dry-run/no-writes until parity and opt-in safety gates are accepted; no production autostart/OSK ownership, C2, GTK, audio, Headless, NFC or alarm modification.
+
+**14 October C3 alarm + touchscreen input parity shadow model CODED, Pi checks pending:** User physically pulled through `9b9c8663` on Pi and verified `py_compile app/squeekboard_night_schedule_plan.py`, all **9/9** Europe/London schedule parity tests, private C3 `--check classic_dark` SHA `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512` and one original `/usr/bin/squeekboard` PID **1116068**. This is the non-disruptive *read-only* schedule stage, not a live night worker. Next design proof now adds **`app/squeekboard_night_observation_plan.py`**, a pure evaluator for **two independent alarm observations** (browser `alarmVisible()` vs `ActiveAlarmScheduler.status().screen_required`); disagreement/missing flags remain unresolved and are NOT silently interpreted as browser presentation. Its **Linux input sequence** counterpart consumes an explicitly supplied `/api/screen/state` snapshot from `LinuxInputActivityMonitor`; first observed sequence establishes baseline, greater sequence gives a validated 5–300s candidate interaction deadline, unchanged/decreased sequences do not wake, snapshot during browser-local eight-second preview is consumed without replaying the initiating tap, and existing JavaScript polling gates (night enabled, scheduled or preview, no visible alarm) apply. Proposed wake time is returned as inert data only, not scheduled or written. Added **16** focused `tests/test_squeekboard_night_observation_plan.py` behavioural/source safety tests and registered catalogue. **Full GitHub Tests [38504304281](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38504304281) GREEN: 1,452 tests, 3 skipped, 0 failures**; no new HTTP routes, no timer/thread, no unit/service modifications, no CSS selection, no keyboard restart, and no production alarm/audio/NFC/GTK/C2 changes. **Remaining real scheduler gates:** observe whether native foreground input monitors while browser throttled, reconcile alarm presentation delay, settings updates, preview ownership, wall-clock schedule evaluation with monotonic interaction deadlines and crash/recovery; preserve a single CSS writer and the separate C3 stock restore. No unattended keyboard replacement is authorised.
+
+**14 October C3 Pi alarm/input observer parity PHYSICALLY PASSED; OFFLINE browser/server shadow comparison CODED — Pi acceptance pending:** User pulled `9b9c8663 → 2996a807` and passed `py_compile` for `app/squeekboard_night_observation_plan.py` and previously validated night schedule planner, **16/16** focused `test_squeekboard_night_observation_plan.py` cases, private C3 exact `classic_dark` SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, and original `/usr/bin/squeekboard` sole PID **1116068**. No live C3 process or service interruption. **New pure comparator** `app/squeekboard_night_shadow_compare.py` takes intentionally supplied *simultaneous* browser `ACPDisplayDimming.status()`, independently known browser-alarm visibility, server-persisted night settings, server `screen_required`, injected timestamp and optionally Linux `/api/screen/state` input sequence/baseline; it reports `match`, `mismatch` or `inconclusive` and per-component evidence. Distinguishes browser-vs-server settings drift from scheduling arithmetic; treats alarm request/presentation disagreement, absent inputs and near-second schedule boundary as unresolved; checks effective idle/active style, invokes the existing pure UK night schedule and alarm/input observers, and **never writes CSS, starts services, polls browser, runs a scheduler or touches stock OSK**. New **14-case** `tests/test_squeekboard_night_shadow_compare.py` and test catalogue entry. **Full GitHub Tests [38504963703](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38504963703) GREEN: 1,466 tests, 3 skipped, 0 failures** (after its test catalogue entry was committed). This is an offline comparator, NOT yet a connected live stream, and single samples cannot establish browser background liveness; that remains the next gated engineering phase. Keep the passing browser C3 CSS writer as sole active theme owner, preserve explicit 180s/240s trial and all audio/Headless/alarms/NFC/GTK/C2 behaviour.
+
+**14 October C3 offline browser/server shadow comparator Pi PASSED; manual live comparison diagnostic CODED, CI/Pi acceptance pending:** User pulled `2996a807 → 81f9aea7`, passed `python3 -m py_compile app/squeekboard_night_shadow_compare.py` and **14/14** focused `test_squeekboard_night_shadow_compare.py` cases, plus exact staged C3 `--check classic_dark` SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`, with only vendor `/usr/bin/squeekboard` PID **1116068**. **No active C3 trial, no service/restart changes.** Next gate is a *manually triggered, read-only live diagnostic* implemented without any scheduler or OSK ownership: `app/squeekboard_night_shadow_diagnostic.py` registers exact same-origin, loopback-only **POST** `/api/osk/c3/night-shadow/compare` through `app/runner.py` using the existing strict C3 local-browser request guard (≤384-byte JSON, reject proxy/LAN/foreign Origin), reads normal dashboard night settings, `alarm_scheduler.status()` and only `LinuxInputActivityMonitor.snapshot()` sequence once, and invokes pure `squeekboard_night_shadow_compare.compare`. Server timestamps with its own timezone-aware UTC time, reports verdict, per-component results/uncertainty, input sequence and explicit `retained:false, cssWritten:false` without exposing saved configuration, running a poller or touching the C3 CSS writer. The browser helper `app/static/js/osk-night-shadow-diagnostic.js` loads on **Settings only**, and creates a diagnostics button **only** for explicit `?c3-shadow` URL opt-in; each click samples exactly `ACPDisplayDimming.status()` plus the existing browser alarm-visible DOM predicate, posts one JSON record, and displays the JSON report in-memory; the previous Linux-input sequence lives solely within the current page for a follow-up click. No timer, background client request, auto-theme change, storage or tracking. Test module `tests/test_squeekboard_night_shadow_diagnostic.py` covers local-only Flask POST, strict request shape, single reads, sequence-baseline continuity, no-writes response and inert URL-gated JS. **FULL GITHUB TESTS [38506402981](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38506402981) GREEN: 1,474 tests, 3 skipped, 0 failures.** Initial intermediate CI failures were only a test-inventory race and an overbroad literal `style.css` assertion that also matched harmless `style.cssText` UI properties; both corrected. **NEXT:** Pi static tests, then deliberate dashboard system-service restart only after verifying alarm is not active; test default no C3/Squeekboard impact with loopback GET showing sync disabled, then open `http://localhost:8088/settings?c3-shadow=1` inside local Pi Chromium, press manual compare button twice and inspect match/unknown evidence. Keep C3 OSK vendor current; no 180s trial for this diagnostic. This is NOT continuous background reliability proof or Python-owned scheduler. If an alarm is requested but not shown, report uncertain rather than letting Python override. Audio, alarms, NFC, C2, GTK and production autostart are unchanged.
+
+**14 October C3 one-shot browser/server night-shadow diagnostic PHYSICALLY PASSED (single observed sample); native-input/background liveness still OPEN:** Commissioned Pi fast-forwarded `81f9aea7 → c49c88ab` on `feature/acp-shell-native-plexamp` with clean checkout; `py_compile` for diagnostic/comparator passed. The focused `venv/bin/python` Flask suite passed **8/8** (system `python3` lacked Flask, so the first test invocation was an environment mismatch, not a product regression). `scripts/stage-squeekboard-hot-css.py --check` passed all static guards and exact `classic_dark` SHA-256 `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`; vendor `/usr/bin/squeekboard` was sole PID **1116068** before dashboard restart. User restarted **only** `a-clockwork-plex.service`; unit became `active`, and loopback C3 theme-sync status was `{\"enabled\":false,\"ok\":true}`. In local Pi Chromium Settings with `?c3-shadow=1`, WayVNC screenshot visibly shows the opt-in button and actual JSON. The manually obtained server-timestamped sample `2026-10-14T19:02:45+00:00` reports `ok:true`, `verdict:match`, **no disagreements**, `settings/scheduled/active/effective_style:match`, `alarm_presentation:agree`, `linux_input:poll-gated`, `inputSequence:0`, `cssWritten:false`, `retained:false`. **ACCEPT** one-shot live local read-only comparison and safe isolation from the stock keyboard; **DO NOT MARK** Linux input increment/availability, a two-click input sequence delta, alarm-screen takeover, schedule edge, native-fullscreen long-background timer liveness, or Python ownership as proved. `poll-gated` is the expected policy branch when input polling is not warranted by that night state, not proof of observed physical touch. **NEXT evidence gate:** use GET `/api/screen/state` to inspect `screen.input_activity` *read-only* (`running`, `available`, `device_count`, `sequence`, `last_error`, without publishing device paths) before and after deliberate input, distinguishing WayVNC injection from actual local touchscreen/key events. Then design a separate opt-in long-background parity/clock-boundary measurement with no competing CSS writer, preserving the passing 180s/240s rescue and stock OSK; keep audio, alarms, Headless, NFC, GTK/C2 and autostart unchanged.
+
+**14 October C3 Linux input monitor TWO-SNAPSHOT Pi gate PASSED (device provenance remains open):** After the physically accepted one-shot shadow report, user invoked the existing *read-only* `GET /api/screen/state` twice from Pi SSH using ACP's `venv/bin/python`. First input monitor snapshot: `running:true`, `available:true`, `device_count:6`, `sequence:19`, `last_activity_at:2026-10-14T20:05:52.180+01:00`, no reported error; later snapshot: `running:true`, `available:true`, `device_count:6`, `sequence:33`, `last_activity_at:2026-10-14T20:23:42.032+01:00`, no reported error. **PHYSICAL ACCEPT:** Linux-side monitor alive, six accessible devices, input sequence advances **+14** and last-activity timestamp advances. **LIMITATION:** ~18-minute interval is not a controlled individual tap/keystroke trace, so the evidence does not identify whether WayVNC-injected events versus local touchscreen produced the increments, nor prove native Plexamp foreground handling or long-background Chromium/theme timing. Earlier shadow `linux_input:poll-gated` remained correct when night policy did not permit a wake and should not be mistaken for monitor failure. Existing stock Squeekboard, global GTK, audio, Headless, alarms, NFC, keyboard-owner/autostart, and C3 180s/240s safety remain unchanged. **NEXT bounded evidence:** capture input sequence immediately before/after *controlled native Plexamp foreground activity* (not a new keyboard trial), check C3 browser background timer/schedule drift separately, and only then design a single-authority Python-owned night-state path using the accepted read-only parity model. No second CSS writer or unbounded worker may start merely because the monitor is alive.
+
+**17 October C3 controlled native Plexamp foreground / Linux input PHYSICALLY PASSED; Chromium long-background timing PROBE CODED, CI GREEN / Pi pending:** In a focused test after the prior two-snapshot monitor acceptance, Pi SSH read-only `/api/screen/state` reported `running:true`, `available:true`, **six** input devices and **no reported errors** at both ends. Input sequence **230 → 246 (+16)** between `2026-10-17T20:21:37.572+01:00` and `20:22:47.700+01:00`; a later read reports most recent `device: Logitech K800`, `kind: key`. This supports real Linux-side keystroke observation across the requested native Plexamp foreground interaction, but no per-event/toplevel correlation, touchscreen provenance or unattended timer cadence was captured. **ACCEPT:** live native keyboard-event observation and input monitor continuity. **REMAINING:** Linux input-driven night interaction while scheduled, background browser timing/delivery, clock/DST edge, alarm handoff, permanent OSK ownership.
+ 
+**17 October opt-in 15-minute C3 *existing timer* timing trace (new implementation; PHYSICAL TEST PENDING):** The existing `app/static/js/osk-theme-sync.js` five-second tick now optionally records **only in page memory** when Chromium itself opens `http://localhost:8088/settings?c3-shadow=1`: wall-clock callback gaps, actual event-vs-interval source, browser visibility, and in-flight skips. The diagnostic is limited to 15 minutes and the latest 256 samples; there is **no added interval, no telemetry endpoint, network upload, input contents, persistence, theme override, keyboard launch/restart, background daemon or second CSS writer**. In the already accepted Settings-only read-only inspector `app/static/js/osk-night-shadow-diagnostic.js`, **Show C3 background timer observations** displays summary, largest gaps over 15 seconds and recent samples after the operator returns from fullscreen native Plexamp. Existing direct `Compare C3 night state (read-only)` remains intact; cache versions are bumped and the existing Flask/Python tests now include a bounded JavaScript callback timing simulation when Node is available. **Full GitHub Actions [Tests #39062783745](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/39062783745) GREEN: 1,476 tests, 3 skipped, zero failures.** Both new timing-telemetry tests passed, including the Node simulation of a delayed timer. Earlier intermediary CI reds were a stale asset-version assertion, corrected before this final run. **NEXT PI GATE:** `git pull --ff-only`, use ACP's `venv/bin/python` for focused tests (avoid system Python without Flask), refresh Settings directly with `?c3-shadow=1`; collect one early snapshot, leave the same Chromium document open beneath native Plexamp for ~8–10 minutes, return to it *without reloading*, and capture timer report. If Chromium navigates/reloads, mark capture invalid rather than claiming timer liveness. Keep normal `/api/osk/c3/theme-sync/status` **disabled** (no trial), stock `/usr/bin/squeekboard`, production alarm/audio/NFC/GTK and independent 180s/240s recovery unchanged. The trace can reveal callback gaps; it cannot prove that CSS was actually updated or that timer cadence equals palette repaint latency.
+
+**19 October C3 Chromium background-timer cadence PHYSICALLY PASSED — measured 660s / 130 interval deltas, no throttling observed:** User returned the bounded 15-minute, in-browser `?c3-shadow=1` timing report from the commissioned Pi following the requested native-fullscreen Plexamp foreground hold. The SAME Settings browser document yielded `elapsedSeconds:660`, `sampleCount:145`, `timerIntervalCount:130`, `expectedIntervalMs:5000`, `maximumTimerGapMs:5087` (just **87ms** above target), `intervalsOver15Seconds:0`, `hiddenSamples:0`, and `skippedWhileInFlight:2`. Largest recorded gaps were 5087ms/5016ms/5013ms; recent 595–655s interval samples stayed approximately 5000ms. The two in-flight skips are event/callback overlaps intentionally not started concurrently, not missing 15-second interval gaps. **ACCEPT:** continuous C3 JavaScript callback cadence across this measured ~11-minute observation with native Plexamp covering Chromium, and no evidence of prolonged timer throttling in these conditions. `document.visibilityState` remained `visible` even with the native fullscreen window in front, so these results must NOT be generalised to a genuinely `hidden`/suspended Chromium page or sleep/wake. This mode was *read-only*: `noCssOrKeyboardChanges:true`; measurements do **not** prove scheduled boundary evaluation, delivery of a changed CSS palette, focus/typing continuity during a long trial, wake/recovery or a permanently installed OSK. **Architecture decision:** Do not introduce a competing Python CSS writer or unbounded daemon merely for conjectured background throttling; existing event + 5s browser sync remains the accepted C3 experimental owner. **NEXT gated physical proof:** a real scheduled day/night start/end with native Plexamp foreground while monitoring browser status and an explicitly opted-in 180s C3 candidate/240s stock rescue only after safe timing and original schedule restoration are planned; keep Headless/audio/alarms/NFC, vendor OSK and global GTK untouched.
+
+**19 October C3 real-schedule start/end test — USER CONFIG BASELINE CAPTURED, physical boundary acceptance still OPEN:** User supplied three WayVNC screenshots of ACP Settings → Display. Saved schedule is **enabled, 22:00 → 07:00 Europe/London** (crosses midnight); idle brightness **39%**, interaction brightness **80%**, wake duration **5 seconds**, very-dark Clock mode enabled, anti-burn-in motion **Bouncing 77 px/s**; daytime theme **Classic Dark**, idle style **Classic dim**, interaction style **Same as idle**. This is the baseline to restore **exactly** after any test; do not silently replace it with default 40 px/s or change appearance/brightness just to amplify CSS differences. The passing 660-second background callback cadence establishes five-second JS delivery while Chromium remains `visibilityState:visible` under fullscreen native Plexamp, but **does not prove a real scheduled night start/end or actual candidate CSS repaint**. **NEXT SAFETY GATE:** prepare a bounded, operator-attended two-boundary wall-clock test (one-minute scheduled night interval placed ahead of local Pi time, with time for the verified opt-in 180-second C3 candidate/independent 240-second stock rescue). Verify saved schedule and alarm status before changing anything, pre-arrange a tested way to restore 22:00–07:00 even if the candidate trial fails, and avoid overlap with a real alarm. Schedule restoration is SEPARATE from the keyboard rescue and MUST be explicitly verified; `--plan`/staging checks first, `--start ... --theme-sync` only after these safeguards. Monitor candidate PID and exact private palette transitions daylight Classic Dark → `classic_dark_night_classic_idle`/active → daylight Classic Dark while Plexamp Search stays open and input remains functional. Do not interpret `Same as idle` as suppressing the selected palette's separate active brightness variant. Keep settings, OSK ownership, global GTK, audio, Headless, NFC and alarm runtime unchanged outside that opt-in test.
+
+**19 October C3 schedule-boundary preflight on commissioned Pi GREEN; fail-closed independent schedule guard IMPLEMENTED, CI GREEN / Pi plan pending:** User pulled the docs-only `349ec383 → be796e30` feature branch (no runtime code changed). At **2026-10-19 20:03:42 BST**, `python3 scripts/try-squeekboard-hot-css.py --plan ~/acp-c3-hot-css-arm64-test-only.zip` passed C3 ELF/.deb pinned hashes, 17 runtime dependency clauses, 18 direct ELF libraries, target ABI, UK compact seven-layout inventory, 23 ACP palettes and independent **180-second** C3 trial / **240-second** vendor-keyboard restore. Read-only `scripts/stage-squeekboard-hot-css.py --check` passed exact private `classic_dark` SHA `0e22ad226f03ade34dc1c91a6b174a9ebb725ed7dbc14457207d4f7f41178512`. Loopback `/api/osk/c3/theme-sync/status` returned `{"enabled":false,"ok":true}`; only `/usr/bin/squeekboard` PID **1499**, zero `acp-squeekboard*` user timers. **PASS:** no competing OSK/C2/C3 trial and artifact ready; **DO NOT CLAIM** an actual scheduled night-start/end test passed.
+
+A separate test-only `scripts/try-c3-night-boundary.py` with ten focused tests (`tests/test_c3_night_boundary_guard.py`) is now implemented as an explicit additional safety gate: `--plan` is read-only; `--arm` (do **not** run until physical plan accepted) demands saved enabled **22:00–07:00** / Classic Dark / Classic dim / Same as idle, checks active/snoozed alarms and disabled theme-sync, refuses active schedule guards and outside 07:15–20:40 UK daytime, derives a minute-accurate one-minute scheduled test window beginning at next full minute +4, records only original schedule times in private 0600 state, arms/verifies a separate **seven-minute user-systemd schedule restore** before sending a revision-checked `/api/settings` transaction changing only those two schedule fields. The `--restore` action reloads latest settings and restores 22:00–07:00 if-and-only-if the two fields still equal this trial's temporary values; otherwise refuses overwriting concurrent user changes. **Keyboard 180/240s rescue and ACP schedule 420s recovery are independent.** During actual operator-attended trial, ACP browser must be hard-refreshed *after* the external settings API save so it sees temporary settings, and C3 trial should be started ~45s before the printed start boundary; test candidate foreground Plexamp focus/palette start-end and verify independent vendor rollback. No direct config writes, no OSK launch from schedule helper, no GTK/Headless/audio/NFC changes. **GitHub Actions [Tests #39309835356](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/39309835356) GREEN: 1,486 tests, 3 skipped, zero failures; all 10 guard tests passed.** **NEXT:** pull on Pi, run focused `venv/bin/python` tests and `python3 scripts/try-c3-night-boundary.py --plan`, inspect expected baseline/window before authorising `--arm`; recovery failure requires manual Settings restore and must not be described as guaranteed recovery.
+
+## Phase B — native Plexamp
+
+**Status: ACTIVE — next implementation boundary after Phase-A physical acceptance.**
+
+### 10 October 2026 Phase-B entry point
+
+- The Chromium-vs-Firefox comparison is retired as superseded by the physically accepted Chromium baseline; browser reconsideration is now evidence-driven only.
+- Plexamp Desktop 4.50.x now officially provides native Linux ARM64 AppImage and Flatpak builds. The latest stable release verified for this checkpoint is **4.50.19**; 4.50.20 remains on the beta channel.
+- Prefer a **stable** desktop build for production acceptance; the 11 October initial Flathub experiment has installed 4.50.20-beta.22 because the Flathub beta remote changed release policy on 7 October. This beta is **discovery-only** until we select a suitable stable candidate. Do not replace or disable Headless: it remains the accepted rollback/player runtime throughout discovery.
+- Do not freeze AppImage versus Flatpak before testing the commissioned Pi. The first gate is a non-destructive platform/audio preflight, followed by a reversible side-by-side launch.
+
+**11 October 2026 commissioned-Pi installation result — PACKAGE AND MANUAL GUI LAUNCH PASSED.** The board is **Raspberry Pi 5 Model B Rev 1.1** (confirmed by `/proc/device-tree/model`), Debian 13 ARM64, labwc/Wayland and Chromium kiosk. Host ALSA exposes `acp_plexamp`, Raspberry Pi DAC Pro and the ACP loopback, while PipeWire currently reports only `Dummy Output`. Flatpak 1.16.6 installed; the first Plexamp install attempt failed because only `flathub-beta` was configured and `org.gnome.Platform/aarch64/50` was unavailable. After adding the main `flathub` remote, **Plexamp Flatpak installation succeeded** using GNOME Platform 50 (system installation, `aarch64`, `flathub-beta`). Installed version: **4.50.20-beta.22**, app commit `b2b1645ac82777cba8169910b3107c997ecda71cc9f5e3451cef1009a5023d65`. Headless, ACP dashboard, CamillaDSP and NFC listener all remained active. The installation and subsequent manual launch prove **side-by-side packaging, native labwc/Wayland presentation and WayVNC visibility**, while leaving Headless in place. This does **not** yet prove named ALSA PCM availability, playback, visualisers, hardware acceleration, touchscreen interaction, or ACP/runtime integration.
+
+**Release-channel correction:** On 7 October 2026 Plex clarified that `flathub-beta`, previously following its stable 4.50 builds, now follows **Plexamp beta releases** (https://forums.plex.tv/t/plexamp-flatpak-linux-beta-not-updating/944063/2). The old expectation of receiving stable 4.50.19 from this remote was superseded. Use the installed 4.50.20-beta.22 only for bounded discovery; production acceptance must evaluate a suitable stable candidate. Next: inspect the existing host ALSA config and test a one-shot read-only host-configuration view inside the sandbox before considering a scoped audio-device proof. No production Flatpak overrides or playback routing changes authorised yet.
+- Plexamp 4.50.12 added direct ALSA-device access to the Linux Flatpak, but the ACP-specific requirement is stronger: the chosen package must see and drive the managed `acp_plexamp` PCM without bypassing ACP mixer/EQ ownership. That must be physically proven before package choice is accepted.
+
+- [x] Install ARM64 Linux Plexamp reversibly alongside Headless — **4.50.20-beta.22 Flatpak installed for discovery**; launch, audio routing and a suitable stable production candidate are separate pending gates.
+- [x] **B1 manual native GUI launch / VNC visibility:** commissioned Pi ran `flatpak run --branch=beta com.plexamp.Plexamp` in the existing `wayland-0` labwc session. Welcome screen appeared above Chromium ACP kiosk and in WayVNC; `flatpak kill com.plexamp.Plexamp` dismissed Plexamp and ACP became visible again. This proves compositor/VNC presentation and manual termination **only**. Warnings `MESA-EGL: failed to get driver name for fd -1` / `failed to retrieve device information` were logged: GPU acceleration and visualiser performance are pending checks.
+- [x] **B1 read-only host ALSA definition inspection:** commissioned Pi's sole `/etc/alsa/conf.d/` file is `99-a-clockwork-plex-shared.conf` (root-owned, world-readable). `pcm.acp_plexamp` is a `plug` over `acp_plexamp_volume` (`softvol`, control card `Pro`) → `acp_master`/`acp_master_volume` → `acp_music_route` → `acp_dmix` (`hw:7,0,0`, 4 channels at 192 kHz, music channel bindings 0/1, alarm 2/3). Do not redirect to raw hardware/loopback by name or reinterpret `/dev/snd` exposure as full graph integration.
+- [x] **B1 temporary host configuration visibility:** one-shot `--filesystem=host-etc:ro` exposes the unchanged file read-only at `/run/host/etc/alsa/conf.d/99-a-clockwork-plex-shared.conf`. The Flatpak environment still declares `ALSA_CONFIG_PATH=/usr/share/alsa/alsa-flatpak.conf`, so it is **not established** that libasound loads ACP's custom PCM. The runtime's own ALSA root config remains to be inspected.
+- [x] **B1 Flatpak ALSA loader inspected (11 October):** `ALSA_CONFIG_PATH=/usr/share/alsa/alsa-flatpak.conf` has a native optional-load hook for `$XDG_CONFIG_HOME/asound.conf` and `$XDG_CONFIG_HOME/alsa/asoundrc`, so the existing runtime configuration can remain authoritative. `/usr/share/alsa/alsa.conf` and the runtime PCM plugin directory exist. `aplay`, `alsactl`, and `speaker-test` are absent in the sandbox; `/proc/asound/cards` enumerates HDMI, DAC Pro (`Pro`), and `ACPLoopback`.
+- [x] **B1 isolated custom PCM visibility + native picker discovery — PHYSICALLY ACCEPTED (11 October):** No pre-existing private Plexamp ALSA config was present. Copied the host `99-a-clockwork-plex-shared.conf` into `~/.var/app/com.plexamp.Plexamp/config/alsa/asoundrc` with `install -m 644` under the existing Flatpak app-specific config, without broad permissions, global Flatpak override, or changes to host ALSA. Host and copy SHA-256 match (`9de505b8e9ef326558fd317f22afaba2006d056efb0c34c79457c43ec9881fec`). Flatpak reports `XDG_CONFIG_HOME=/home/andy/.var/app/com.plexamp.Plexamp/config` and confirms the definition is readable. Native Plexamp's on-Pi Audio Device picker **visibly lists `A Clockwork Plex - Plexamp`** together with ACP Music master, AirPlay, and independent alarm ceiling, plus generic devices. Three WayVNC screenshots evidence list visibility. This establishes **device listing only**, not correct playback/output/softvol/EQ/4-channel loopback handling or native-source arbitration. The private test copy is disposable and must eventually become safely installer-maintained; do not merge into production by accident.
+
+
+### 12 October 2026 — missing named ALSA CTL confirmed
+
+- [x] `amixer -D acp_plexamp scontrols` fails with `Invalid CTL acp_plexamp` / `Mixer attach acp_plexamp error: No such file or directory`; the `pcm.acp_plexamp` stream remains functional.
+- [x] `amixer -D hw:Pro scontrols` exposes individual `A Clockwork Plexamp`, `A Clockwork Master`, `A Clockwork AirPlay`, `A Clockwork AirPlay Live`, `A Clockwork Alarm` softvols and additional card-level DAC controls. This proves the real card CTL is healthy, not that a named Plexamp CTL exists.
+- [ ] Native Plexamp volume-slider ownership remains unknown. Do not add a broad `ctl.acp_plexamp` alias to `hw:Pro` merely to silence non-fatal logs: it would expose controls outside the Plexamp-specific gain authority. Keep accepted independent music/alarm routing.
+- [ ] **Next B2 touchscreen gate:** on the actual Pi touch display, tap native Plexamp Search and establish whether any Wayland OSK appears; test characters, Shift/backspace and dismissal, plus WayVNC visibility. ACP's existing browser/iframe keyboard cannot type into native Wayland Plexamp. If no OSK, inventory available input tools before changes.
+
+### 12 October 2026 — native versus Headless ten-minute comparison and ALSA CTL warning
+
+- [x] **10-minute native playback:** 00:37:27–00:47:27 local, no CamillaDSP XRUN/stall/error matches. User heard at most one very slight sound not confidently attributable to music (possibly heater click), not diagnostic evidence of a repeat fault.
+- [x] **10-minute Headless playback:** 00:51:47–01:01:47 local, no CamillaDSP XRUN/stall/error matches. No concurrent native and Headless playback reported; Headless remains the accepted player/rollback.
+- [x] **26 minutes of bounded clean playback evidence** now comprises two earlier three-minute native visualiser-on/off tests and these two ten-minute engine tests. This supports basic reliability but cannot establish an indefinitely clean native runtime; the confirmed 11 October CamillaDSP XRUN/stall cluster remains a blocker to unqualified audio-stability acceptance.
+- [x] **Native `Invalid CTL acp_plexamp` classification — verified by `amixer` on 12 October:** while launched from SSH, native Plexamp printed nine ALSA lib control lookup warnings. ACP's installed `pcm.acp_plexamp` is a named audio stream, **not** a matching `ctl.acp_plexamp` mixer/control alias. The warning suggests ALSA clients attempt `snd_ctl_open` using the PCM name; this is consistent with successful playback while control discovery fails. **This is not necessarily native-player-specific:** B6b Headless diagnostics also recorded an `Invalid CTL acp_plexamp` line on 10 October. No evidence yet shows whether this is *the* reason the native Plexamp volume slider has no effect; ACP's separately addressed `A Clockwork Plexamp` softvol remains at 255/255 when native volume moves. **Do not** add `ctl.acp_plexamp { type hw; card "Pro" }` or other DAC-facing alias merely to silence the warning: it could expose broader hardware controls than the Plexamp-only trim and compromise the independent alarm ceiling. That read-only CTL/card comparison is completed above; the native slider requires separate investigation.
+- [ ] **Longer ordinary-use stability / shutdown-transition check** still required. Treat warning count and timestamps separately from playback XRUN timestamps; do not attribute a clean 10-minute test's audio quality to the missing control interface.
+
+### 11 October 2026 B2 follow-up — full-screen clarification and clean short A/B
+
+- User clarified the displayed upper gap followed **maximisation** rather than actual labwc fullscreen. The suspected panel/compositor defect is not established and the proposal to alter global compositor/panel layout is retired. Correct true-fullscreen operation can be confirmed separately when integrating the native workspace; no shell change is justified now.
+- Existing read-only timing snapshot confirms **all** key production geometry: `S32_LE/192000 Hz` 4-channel loopback playback at `4096/32768`; CamillaDSP capture 4-channel `2048/16384`, physical DAC 2-channel `2048/16384`; CamillaDSP `chunksize=4096`, `target_level=12288` (64 ms), `queuelimit=4`, `enable_rate_adjust=true`, `adjust_period=1`, and `resampler=null`. Services stayed active. There is no drift from the #85 accepted time-scaled high-target buffer geometry.
+- **A/B test 1:** visualiser inactive, `2026-10-11 02:35:44–02:38:44` (3 min): no audible glitches, no matching CamillaDSP underrun/overrun/XRUN/stall/error journal events.
+- **A/B test 2:** visualiser active, `2026-10-11 02:39:15–02:42:15` (3 min): no audible glitches, no matching CamillaDSP events.
+- User reports glitches can happen with the visualiser **off**. These two clean short intervals therefore **do not clear** the earlier real 02:25:50 capture overrun/processing stall/playback underruns, and **do not implicate** visualiser rendering as necessary for XRUNs. B2 audio stability remains open.
+- [ ] **Next bounded comparison:** longer settled native playback without user interaction versus accepted Headless playback of the same material (never both playing simultaneously), with independently recorded journal windows and approximately noted audible event times; keep ACP mixer/ALSA/route unchanged. If only native produces XRUNs, isolate native ALSA writer / graphical workload (optionally compare WayVNC on/off); if both produce XRUNs, inspect shared CamillaDSP/loopback scheduling first. Avoid assuming either cause absent reproducibility.
+
+### 11 October 2026 B2 repeat audible glitch — verified XRUN/stall evidence
+
+After the earlier single 02:15:34 playback recovery warning, the user reported another audible glitch while running native Plexamp. CamillaDSP journal now includes a **cluster**:
+- `02:25:50.894368` — capture read overrun: ALSA `snd_pcm_readi` failed, `Broken pipe (32)`;
+- `02:25:51.064187` — capture stalled and processing stalled;
+- `02:25:51.401370` — playback buffer underrun recovery;
+- `02:26:00.699863` — another playback buffer underrun recovery.
+
+Kernel audio/MMC/throttle grep gave no matches; firmware `throttled=0x0`, temperature 66.4°C; live loopback `S32_LE/192000/4ch` with `period_size=4096`, `buffer_size=32768`. This verifies a real managed-graph XRUN/stall rather than an exclusively subjective audio click. The reported audible event has not been timestamped to the millisecond, and the data do not yet establish *why* the graph was disrupted. Process `ps %CPU` values were lifetime averages, not point-of-failure telemetry.
+
+**Next diagnostic boundary (no configuration mutation):**
+- [ ] Read live CamillaDSP `chunksize`, `target_level`, `queuelimit` and source-format geometry; the promoted #85 profile expected 4096 / 12288 / 4, with capture/DAC 2048/16384.
+- [ ] Two settled, individually journal-bounded native-playback intervals using the same track: visualiser not displayed versus visualiser displayed. Note audible glitches, UI activity and VNC connection status. Avoid including playback start/stop transitions in the settled windows.
+- [ ] If the visualiser changes failure frequency, examine rendering/WayVNC scheduling and GPU acceleration; if both fail, isolate native player/ALSA PCM delivery from CamillaDSP and compare with accepted Headless source.
+- [ ] Do not raise buffers, set RT scheduling, alter Flatpak/audio device permissions or modify ACP audio-service ownership until the evidence supports an isolated change. Preserve Headless rollback.
+
+### 11 October 2026 B2 follow-up: fullscreen, PCM and volume evidence
+
+- [x] **Device/audio routing corroborated:** native Plexamp plays through ACP Plexamp softvol, Music Master and CamillaDSP EQ; visualisers render. Subsequent playback contained no further **audible** glitches.
+- [ ] **Audio stability watch:** one CamillaDSP `PB: Prepare playback after buffer underrun` at 02:15:34; no correlated report in kernel ALSA/MMC/throttle filter, `vcgencmd get_throttled=0x0`, temperature 64.8°C. Live loopback `S32_LE / 192000 Hz / 4ch / period 4096 / buffer 32768` still matches accepted time-scaled geometry. Do not infer a persistent buffer fault or retune before reproducibility/timestamp correlation.
+- [ ] **Native player volume slider:** moving slider had no audible effect and ACP ALSA `A Clockwork Plexamp` softvol stayed `255 [100%] [0.00dB]` for both channels before/after. Native slider is not currently controlling that ALSA softvol; its other volume policy is unknown. ACP Trim/Music Master remain working controls.
+- [ ] **True fullscreen:** screenshot after user-requested fullscreen shows full-width native player but an ACP-colored top strip, consistent with maximisation to panel-reserved usable area. The compositor's actual fullscreen state is not proven. Test `wlrctl` on the Pi, matching Wayland `app_id:com.plexamp.Plexamp` before requesting `toplevel fullscreen`. If identity differs, inspect rather than guess. Avoid removing panel reservation globally; later make only Plexamp fullscreen via a scoped labwc rule.
+
+### 11 October 2026 Phase-B first real playback feedback
+
+Commissioned-Pi playback through `A Clockwork Plex - Plexamp` is **audible and generally good**. The user physically confirmed ACP Plexamp Trim, Music Master and EQ all change the native player's sound through the existing fixed-192 managed audio graph. Native Plexamp visualisers render and animate, but resource cost/GPU acceleration is unmeasured. **Intermittent audible glitches recur**, and the **native Plexamp main volume slider has no audible effect** despite ACP softvol ownership working. Do not treat the earlier B6 Headless/Chromium monitor-only glitch note as proof of this issue's cause. Retain the exact audio path, hard-coded 4-channel loopback, Headless fallback, and app-local PCM test copy until a bounded diagnosis.
+
+Next physical gates:
+- [x] Basic native music/audio-chain actuation: audible playback, ACP Trim, Music Master and EQ work.
+- [x] Native visualiser functional proof: visible animation on the Raspberry Pi 5.
+- [ ] Clean-playback stability: compare same short track native visualiser idle/inactive versus visibly active, at unchanged native and ACP levels; note VNC connection status, track format/rate and timing of glitches.
+- [ ] Capture CamillaDSP service journal for XRUN/overrun/underrun/stall, kernel ALSA/MMC/throttling evidence and Pi temperature under a reproducible glitch; do not change audio buffers before evidence.
+- [ ] Native slider classification: test whether it changes the DAC Pro's `A Clockwork Plexamp` ALSA softvol control or an entirely separate backend. Do not retune ACP to accommodate an unverified UI volume owner.
+- [ ] Full-screen compositor proof: use labwc's focused client menu (Alt+Space → Fullscreen) first, avoiding global compositor edits; eventually scope launch/window rules to native Plexamp without impacting kiosk.
+
+- [ ] **B2 guarded native playback/audio-route gate:** select **only** `A Clockwork Plex - Plexamp` (never DAC Pro, raw loopback, Music master, AirPlay, Alarm or PipeWire). Pause existing Headless playback without disabling its service, ensure no active AirPlay session/alarm takeover, start a short low-volume native test track, then verify audible output plus ACP Plexamp Trim/Music Master/EQ control and truth of the accepted fixed-192 route. Observe without changing music-source authority or starting NFC/automatic playback. If ALSA fails to open, gather native and CamillaDSP logs; do not fall back to a raw device.
+
+- [x] **B1 default-sandbox ALSA definition gap RESOLVED FOR DISCOVERY:** default Flatpak cannot access host `/etc/alsa`, although `/dev/snd` is visible. Native ALSA private-config hooks and a byte-for-byte app-local test copy now expose ACP named PCMs in Plexamp's picker. Opening these devices and validating managed audio behavior remain a separate B2 physical gate; the copied config is not yet upgrade-safe or production-maintained.
+
+- [ ] Confirm visualisers on the real Pi/display and measure CPU/GPU cost.
+- [ ] Prove native Plexamp can feed the accepted `acp_plexamp` ALSA boundary without bypassing ACP audio ownership.
+- [ ] Classify Companion/playMedia/timeline compatibility for existing NFC tags and playback observation.
+- [ ] Prove touchscreen Search/text entry.
+- [ ] Integrate native Plexamp as a second compositor workspace/surface under the ACP shell.
+- [ ] Prove alarm/AirPlay arbitration, Direct failback, reboot/autostart and rollback.
+- [ ] Keep Headless until every native-player gate passes.
+
+### 12 October 2026 — native Plexamp SSH launch helper
+
+- [x] Added manual `bash scripts/launch-native-plexamp.sh` helper to the #94 feature branch. It runs as the desktop user and targets the currently installed `com.plexamp.Plexamp` Flatpak `beta` branch, retaining the discovery-only release policy.
+- [x] Determines the actual existing `XDG_RUNTIME_DIR`, usable Wayland socket (preferring `wayland-0`) and user session D-Bus; returns the SSH prompt immediately, writes a private launcher log, and avoids launching a duplicate native instance.
+- [x] Refuses root, missing Flatpak/install and absent desktop session; no sudo, autostart, kiosk compositor or audio mutation. Local `bash -n`, help and mock Flatpak/Wayland-session/duplicate-launch tests passed.
+- [ ] Commissioned-Pi physical acceptance: after `git pull --ff-only`, use the manual launcher from SSH, confirm native Plexamp opens visibly in labwc/WayVNC and Headless/ACP remain healthy; then continue touch-only native Search/OSK gate.
+
+### 12 October 2026 — native launcher preflight correction
+
+- [x] Commissioned-Pi first launch attempt identified a **script-only false-negative:** `flatpak info --branch=beta com.plexamp.Plexamp` is invalid for the `info` subcommand, so the launcher incorrectly reported that the beta was not installed and never started Plexamp. The app itself remains installed and previously verified.
+- [x] Corrected to `flatpak info "$APP_ID" "$APP_BRANCH"`, matching Flatpak's documented `info [OPTIONS] NAME [BRANCH]` signature; retained the correct `flatpak run --branch=beta` for launching.
+- [x] Strengthened tests: fake Flatpak `info` refuses non-positional/incorrect arguments, and an additional non-skipped regression checks the exact intended syntax. The previous dummy `info` stub indiscriminately returned success, which allowed the bug through.
+- [ ] Confirm normal `git pull --ff-only` and `bash scripts/launch-native-plexamp.sh` on commissioned Pi; verify the SSH shell returns and native app appears via WayVNC. Do not reinstall the Flatpak or change Headless/ALSA.
+
+### 12 October 2026 — SSH launcher physically passed; native OSK fullscreen blocker
+
+- [x] **One-command native launcher physical pass:** after the corrected Flatpak-info preflight, `bash scripts/launch-native-plexamp.sh` successfully opened the native Flatpak visible in WayVNC and left Headless and ACP intact.
+- [x] **Native windowed Search and OS keyboard pass:** Pi OS automatically displayed its on-screen keyboard when native Plexamp Search was focused in windowed mode; the user typed `test` and the Plex server returned matching results. Keyboard and search were visible/usable via WayVNC as well as the Pi screen.
+- [ ] **Native genuine-fullscreen Search keyboard visibility BLOCKED:** after switching native Plexamp to true fullscreen, search results remained available but the OS keyboard no longer appeared in front of the window (screenshots supplied). This matches our July Wayland/labwc experiments where both `wvkbd-mobintl` and Squeekboard were hidden behind Chromium's true fullscreen/kiosk surface. Do not repeat failed unmodified keyboard installs or call windowed success fullscreen acceptance.
+- [x] **Scoped fullscreen launch option implemented (awaiting Pi command test):** `bash scripts/launch-native-plexamp.sh --fullscreen` asks `wlrctl` to fullscreen only `app_id:com.plexamp.Plexamp`, waiting for a newly launched window or handling an already-running instance. If `wlrctl` or matching app_id is missing it reports an actionable failure rather than changing global compositor settings. Default remains windowed for working OSK. Separate regression coverage verifies command scoping and prevents launching duplicates.
+- [ ] **Next OSK investigation:** read-only inventory of active `squeekboard` / `wvkbd` process, installed version/flags and labwc layer capability; evaluate overlay-layer OSK or kiosk-like borderless/windowed workspace only if compatible with touch-only Search and ACP shell navigation. Do not patch package binaries, add `sudo` autostart or change Chromium kiosk during discovery.
+
+### 12 October 2026 — resolve native full-screen window identity safely
+
+- [x] Real Pi attempted `bash scripts/launch-native-plexamp.sh --fullscreen` with Debian `wlrctl 0.2.2-2` installed. Flatpak reported a running native instance but `wlrctl toplevel waitfor app_id:com.plexamp.Plexamp` timed out; no window was altered. This invalidates the assumption that the Flatpak installation ID equals the labwc foreign-toplevel `app_id`.
+- [x] Checked the Debian `wlrctl` **0.2.2 source**: `wlrctl toplevel list` prints actual `app_id: title` and supports exact `app_id` plus `title` matches, despite the manual not listing the `toplevel list` action. Avoid shelling out to unrelated window tools or guessing XWayland identifiers.
+- [x] Revised `scripts/launch-native-plexamp.sh --fullscreen` to query the live compositor, prefer an actual Flatpak-ID toplevel when present, or select **one and only one** non-Chromium/Firefox toplevel with exactly `Plexamp` title, then confirm a conjunction of discovered app ID and title before requesting fullscreen. Poll is bounded to 20 seconds; no matches or multiple candidates fail closed with diagnostics. Mock tests include the differing-app-id case, Chromium with a `Plexamp` title and ambiguous duplicate window exclusion.
+- [x] **Commissioned-Pi fullscreen physical re-test PASSED (12 October):** after pulling the window-discovery fallback, the user reports that `bash scripts/launch-native-plexamp.sh --fullscreen` now correctly puts native Plexamp into genuine fullscreen. Do not confuse this compositor/launcher acceptance with touch keyboard acceptance.
+- [ ] Retain plain windowed launch for touch Search until Squeekboard's fullscreen layering is solved; touch-only Search is currently functional only in windowed native Plexamp.
+- [x] OSK inventory: the active keyboard is **`/usr/bin/squeekboard` (PID 1484)**; `wvkbd-mobintl` is **not installed**. Earlier labwc/Chromium full-screen keyboard stacking issue remains relevant; do not repeat the unproductive keyboard installations. Next inspect whether Squeekboard's surface layer can be changed under labwc or whether ACP's workspace can emulate full display in non-fullscreen mode without sacrificing input.
+
+### 12 October 2026 — Squeekboard fullscreen layering diagnosed upstream
+
+- [x] **Root-cause research:** labwc's documented layer order places `top` below genuine fullscreen and `overlay` above fullscreen (https://github.com/labwc/labwc/issues/2926); Raspberry Pi's Squeekboard fork constructs its panel with `ZWLR_LAYER_SHELL_V1_LAYER_TOP` in `src/panel.c` (https://github.com/raspberrypi-ui/squeekboard/blob/master/src/panel.c). Pi users have independently tested a build selecting `OVERLAY` and seen the keyboard above full-screen (https://github.com/raspberrypi-ui/squeekboard/issues/13). This explains windowed Search success and fullscreen keyboard invisibility without asserting that the local runtime was rebuilt or changed.
+- [x] **Existing keyboard retained:** commissioned Pi has Squeekboard running and `wvkbd-mobintl` is absent. Don't repeat prior failed Chromium kiosk OSK installations. The current text-input chain is proven in native windowed mode and WayVNC.
+- [ ] **Next read-only Pi inventory:** verify `dpkg-query` and `apt-cache policy` Squeekboard/labwc versions and package origin; identify the existing Squeekboard launch owner (user service vs desktop autostart) without stopping/restarting it. This is needed for exact rollback and appropriate package-source matching.
+- [ ] **Candidate A — controlled overlay Squeekboard build (not approved/deployed):** only after source/version and rollback ownership are known, consider a **locally isolated user-scoped build** or a controlled Squeekboard patch that changes only its panel's layer to `OVERLAY`, with exact restoration and scope review. A third-party example exists (https://github.com/CaputoDavide93/Squeekboard-Overlay-Patch) but its unconditional system-wide replacement, APT/source changes and overlay visibility over security/lock screens make its installation script unsuitable for unreviewed production use. Do not claim a stock `SQUEEKBOARD_LAYER` environment override exists; that has been *proposed* upstream, not verified on this Pi.
+- [ ] **Candidate B — borderless maximised native Plexamp:** compare an app-specific server-decoration-free maximised window and the stock working OSK, without changing ACP Chromium. This avoids true-fullscreen stacking but currently leaves the Raspberry Pi panel work-area strip and needs a separate layout solution (labwc window-rule docs: https://github.com/labwc/labwc/blob/master/docs/labwc-config.5.scd).
+- [ ] **Physical gate:** ensure native Plexamp Search text insertion, Backspace, Shift, Done/dismiss, repeated focus and return to ACP all work with a keyboard *visibly above* the intended full-display player before enabling full-screen by default or retiring Headless.
+
+### 12 October 2026 — exact Pi OS Squeekboard package and autostart inventory
+
+- [x] **Installed versions:** `labwc 0.9.8-1+rpt1 arm64`; `squeekboard 1.43.1-1+rpt1 arm64`.
+- [x] **Supplier and package recovery:** `apt-cache policy squeekboard` shows Raspberry Pi's Trixie repository `http://archive.raspberrypi.com/debian` at priority 500 with installed/candidate `1.43.1-1+rpt1`; Debian Trixie offers `1.43.1-1` as an alternative. The Pi repository contains its matching source tarball, distro revision and arm64 package; a return to vendor binary should be possible if a separate experimental build is abandoned, but no package manager operation is required yet. <https://archive.raspberrypi.org/debian/pool/main/s/squeekboard/>.
+- [x] **Process owner evidence:** PID 1484 runs `/usr/bin/squeekboard`, parent PID 1439. `systemctl --user show squeekboard.service` reports `LoadState=not-found` and `ActiveState=inactive`. Grep found only `/etc/xdg/autostart/squeekboard.desktop` in examined desktop autostart directories. This is consistent with XDG session autostart; the entry's `Exec` and parent's identity need direct read-only confirmation.
+- [ ] **Narrow source/rollback probe:** inspect `/etc/xdg/autostart/squeekboard.desktop`, PID 1439 process and actual binary symlink/sha256; check user `~/.config/autostart` override and whether `meson/ninja/rustc/cargo` are already installed. This is needed before any build or transition attempt, without stopping the working OSK.
+- [ ] **Scoped test design:** prefer a separate source-matched `1.43.1-1+rpt1` overlay-capable build with locally identifiable executable over replacing system `/usr/bin/squeekboard`. Determine if its D-Bus/input-method ownership requires a short stop/restart of stock Squeekboard, and build a rollback guard before any such switch. Don't run unreviewed third-party `sudo` builders or modify global packaged XDG startup. Keep fullscreen Plexamp manual while touch-only search is blocked.
+
+### 12 October 2026 — vendor keyboard entry point is `sbtest`, source hash preserved
+
+- [x] XDG autostart content verified: `/etc/xdg/autostart/squeekboard.desktop` has `Exec=/usr/bin/sbtest`, `Terminal=false`, `Type=Application`, `NoDisplay=true`. Running PID 1439 is `/bin/sh /usr/bin/sbtest` (PPID 1), with Squeekboard child PID 1484. The desktop is starting a **wrapper**, not calling the OSK executable directly.
+- [x] No user override at `~/.config/autostart/squeekboard.desktop`. The original `/usr/bin/squeekboard` is a regular root-owned executable (17,174,992 bytes; file mtime 18 March 2025) with SHA-256 `2ad3ef3750c26b94427deb7423041293c1ae658027261a38623373af1a243338` for later recovery verification. No changes made to it.
+- [x] Tool availability: `meson`, `ninja`, `gcc` installed; **`rustc` and `cargo` missing**. Squeekboard is a mixed Rust/C build; any source-matched experimental overlay candidate will require an explicitly planned toolchain, not simply a one-line C patch and Meson build.
+- [ ] **Immediate read-only gate:** inspect `sed -n '1,240p' /usr/bin/sbtest`, `dpkg -S /usr/bin/sbtest`, and its process supervision behavior. Do not stop/kill Squeekboard, build/install an overlaid .deb, or edit XDG autostart before determining if the script re-spawns the stock keyboard. If the vendor wrapper supervises process exits, plan an explicit rollback/ownership handoff.
+- [ ] After exact wrapper behavior is known, decide between a separately built, **non-installed** overlay-capable Squeekboard binary (subject to D-Bus/Wayland singleton ownership) and a reversible window-layout alternative. Retain the vendor binary and current runtime until the test is explicitly bounded and recoverable.
+
+### 12 October 2026 — vendor `sbtest` inspected; no automatic respawn loop
+
+- [x] **Original wrapper read:** `#!/bin/sh`, optional source of `/usr/share/squeekboard/output` if present, touchscreen capability check via `libinput list-devices | grep Capabilities | grep -qw touch`, and one invocation of `/usr/bin/squeekboard` (no `exec`, `while`, restart or supervisor commands). `dpkg -S /usr/bin/sbtest` confirms it belongs to package `squeekboard`, and its mode is executable root-owned 186 bytes. Process PID 1439 (`sbtest`, PPID 1) is sleeping in the child wait; child PID 1484 (`squeekboard`) is active.
+- [x] **Consequence:** the wrapper itself will not immediately relaunch a keyboard when its one child exits; there remains no evidence about additional external session monitor behaviour. It is feasible to *design* a manual one-at-a-time keyboard handoff, after proving the original restart environment and guard. Running native and stock keyboards simultaneously is not part of the plan because of input-method/DBus ownership.
+- [x] **Version-matched vendor source artifacts identified:** Raspberry Pi repository index publishes `squeekboard_1.43.1.orig.tar.bz2`, `squeekboard_1.43.1-1+rpt1.debian.tar.xz`, matching `.dsc` and arm64 `.deb` under <https://archive.raspberrypi.org/debian/pool/main/s/squeekboard/>. These are intended inputs for an isolated build; source/binary reproducibility and dependency resolution are unverified. Prefer these over a moving upstream branch and third-party install script.
+- [ ] **One remaining read-only input:** inspect the optional sourced `/usr/share/squeekboard/output` if it exists, including any session/display directives. Do not source it from SSH merely to inspect it.
+- [ ] **Next engineering work:** prepare a version-pinned, non-installing overlay build (one exact `ZWLR_LAYER_SHELL_V1_LAYER_TOP`→`...OVERLAY` source change, strict patch match, no `sudo meson install`) and an explicit timed recovery sequence for single-instance handoff. User must approve actual package/toolchain installation or keyboard disruption when those actions become necessary. Touch Search in true fullscreen remains unaccepted.
+
+### 12 October 2026 — safely stage original Squeekboard source + isolated overlay patch
+
+- [x] `/usr/share/squeekboard/output` **does not exist**, confirmed by the user. The inspected `sbtest` wrapper therefore only checks `libinput` touchscreen capability and launches `/usr/bin/squeekboard` once; no sourced local environment override or wrapper restart loop is present.
+- [x] Added `scripts/prepare-squeekboard-overlay.py`, a standalone *source staging* helper with no `sudo` or installed-package mutations. `--plan` (default) does no file/network changes. `--prepare` writes exclusively to a new private directory under `~/.cache/a-clockwork-plex/`, leaving vendor executable, sbtest, system and user autostart, labwc, audio graph and Plexamp Headless untouched.
+- [x] Source checks: installed vendor version must equal `1.43.1-1+rpt1` and vendor executable SHA-256 `2ad3ef3750c26b94427deb7423041293c1ae658027261a38623373af1a243338` (the physically recorded value). Download exact Raspberry Pi archive files `squeekboard_1.43.1-1+rpt1.dsc`, `squeekboard_1.43.1.orig.tar.bz2`, `squeekboard_1.43.1-1+rpt1.debian.tar.xz` over HTTPS; descriptor SHA-256/length check before `dpkg-source -x`. This is descriptor-hash verification over HTTPS, **not an independent GPG authentication claim**.
+- [x] Exact, deterministic source change: one-and-only-one occurrence of `"layer", ZWLR_LAYER_SHELL_V1_LAYER_TOP,` in `src/panel.c` is replaced by `ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY`; unsupported or already-patched sources fail closed. Original/patched panel digests recorded to `PROVENANCE.txt`. Five local isolated unit tests pass; production `bash setup.sh` does not call the helper.
+- [ ] **Next commissioned Pi staging gate:** `python3 scripts/prepare-squeekboard-overlay.py --plan`, then `--prepare` if the plan is acceptable. Confirm downloader/extractor result, archive validation and exact source diff. This is **not** keyboard deployment or build.
+- [ ] **Later, separately reviewed:** verify build dependency closure for the exact Pi Trixie source package, deliberately install missing tools if approved, compile in the *source* user-cache tree without `meson install` / `dpkg -i`, then design a watchdog-backed one-instance-at-a-time keyboard substitution. The production Squeekboard binary and XDG autostart remain the fast rollback. Never run stock and experimental input-method clients simultaneously without an ownership investigation. Keyboard visibility/entry in fullscreen is still blocked and unaccepted.
+
+### 12 October 2026 — exact Raspberry Pi Squeekboard staging physically passed
+
+- [x] **Commissioned-Pi staging gate PASSED:** `python3 scripts/prepare-squeekboard-overlay.py --plan` displayed the expected vendor binary SHA-256, version, source descriptor and user-cache destination. `--prepare` downloaded `squeekboard_1.43.1.orig.tar.bz2` and `squeekboard_1.43.1-1+rpt1.debian.tar.xz`, verified archive SHA-256/size against the matching Raspberry Pi `.dsc`, and `dpkg-source -x` extracted the vendor source plus six package patches. Exactly one `TOP` → `OVERLAY` source edit was staged. User saw `Prepared overlay source: /home/andy/.cache/a-clockwork-plex/squeekboard-overlay-1.43.1-1+rpt1/squeekboard-source` and `No keyboard was stopped, built, installed or launched.`
+- [x] **Hash/signature distinction:** `dpkg-source` warned `extracting unsigned source package`. This is not a failure of the descriptor-verified extraction; the helper checks source hashes over HTTPS but **does not verify a signed release descriptor**. Record this honestly when deciding whether to deploy compiled code. Do not silently represent it as vendor GPG authenticated.
+- [x] **CI hygiene regression identified and repaired:** GitHub Tests #5528 failed due to omitted test-module catalogue entries for `test_native_plexamp_launcher.py` and `test_prepare_squeekboard_overlay.py`, plus stale Phase-A title assertion in `test_docs_catalog.py`. Code and documentation catalogues were corrected on this branch; follow-up CI not yet proven green. The source preparation itself succeeded physically and was not the cause of the CI failure.
+- [ ] **Next read-only build preflight:** inspect `PROVENANCE.txt`, `src/panel.c` layer line(s), staged `debian/control` and `dpkg-checkbuilddeps` output. Do not assume Debian baseline build dependencies equal Raspberry Pi's `+rpt1` package. User's Pi has Meson, Ninja, GCC but no `rustc` or `cargo`. No build, installer, keyboard replacement or live handover approved yet.
+
+### 12 October 2026 — panel provenance and vendor build requirements physically checked
+
+- [x] **Source provenance gate:** original `src/panel.c` SHA-256 `2983685254b5d5b81ce36d9277172a041502737450dee416a6f805b82d51c203`, modified SHA-256 `61d977ba7d7805f58dc57126b2fa410c6115af172889724f3e55cd444d9df916`. Confirmed `src/panel.c:82` contains exactly the intended `"layer", ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,`.
+- [x] **Vendor Build-Depends inspected from the staged source:** packages include `cargo`, `rustc`, `debhelper-compat (= 13)`, development libraries for GTK3/GLib/Wayland, `libfeedback-dev`, `libgnome-desktop-3-dev`, `python3-ruamel.yaml` and Debian-versioned `librust-*-dev` dependencies. `dpkg-checkbuilddeps` reports substantial unmet dependencies, not a compiler error. Existing `meson --version=1.7.0`, `ninja --version=1.12.1`. Build must preserve vendor's Debian offline-crate usage, not blindly run `cargo` against the public registry.
+- [x] **GitHub Tests #5532 green** after fixing the two earlier hygiene regressions (stale Phase A title assertion and missing test modules).
+- [x] Added `scripts/plan-squeekboard-build-deps.py`: first validates actual staged source SHA-256, single overlay-layer substitution, provenance and source `debian/control`, then invokes **only** `apt-get --simulate -o APT::Install-Recommends=false satisfy "<vendor Build-Depends>"`. Does not install, refresh APT indexes, compile or change the running OSK; four isolated tests passed locally.
+- [ ] **Next Pi gate:** pull changes and run `python3 scripts/plan-squeekboard-build-deps.py`. Inspect proposed package **new installs, upgrades, removals and download/disk size**. Do not approve live apt transactions automatically. APT simulation may propose unrelated upgrades; explicitly avoid accepting those without a reason.
+- [ ] **Later:** inspect staged `debian/rules` and `debian/cargo/config` to pin fully offline version-matched build mechanics before first compilation. Next live OSK handover still requires a rollback guard and physical touchscreen acceptance.
+
+### 12 October 2026 — APT simulation accepted; **live build dependency installation rejected**
+
+- [x] **Pi read-only APT preflight passed**: the helper validated the source tree, exact modified panel SHA-256, and vendor Build-Depends. `apt-get --simulate ... satisfy` completed and proposed **355 new packages, 31 upgrades, 0 removals, 192 not upgraded**. This is only a solver result, not an installation, and the posted simulation did not include an exact download-size/disk-space total. Do not infer one.
+- [x] **Risk classification:** proposed upgrades include `libgl1-mesa-dri`, `libegl-mesa0`, `libgbm1`, `mesa-libgallium`, `mesa-vulkan-drivers`, `libgtk-3-0t64`, `libglib2.0-0t64`, `libxkbcommon0` and other active desktop libraries. This exceeds the acceptable blast radius for a single-layer OS keyboard experiment; **do not run `sudo apt-get satisfy` or `apt-get build-dep` on the commissioned Pi** as the next step. The user did not install any packages; the stable OSK/Headless/ACP compositor/audio configuration remains unchanged.
+- [x] **Vendor `debian/rules` examined:** sets `CARGO_HOME=$(CURDIR)/debian/cargo`, `RUSTFLAGS=--remap-path-prefix=$(CURDIR)=/remap-pwd`, and `DEB_BUILD_MAINT_OPTIONS=hardening=+all`; runs `dh ... --builddirectory=_build --buildsystem=meson`; `build-arch` deletes `Cargo.lock` to avoid Debian crate hash mismatch; `override_dh_auto_test` disables parallel tests and increases timeout. User pasted same rules twice, not two distinct rule files. Rust crate sourcing/build behaviour should follow the vendor Debian packaging, not arbitrary Cargo registry downloads.
+- [x] **GH Tests #5538 green** for the accepted Phase-B tree and APT preflight helper.
+- [ ] **Next engineering gate — disposable ARM64 build outside production:** investigate/implement a restricted `debian:trixie` ARM64 container build on GitHub's `ubuntu-24.04-arm` runner (official standard runner), using the Raspberry Pi `1.43.1-1+rpt1` descriptor/tarball archive checks plus the physically accepted modified `src/panel.c` SHA-256. Run vendor `debian/rules` within container; export the built `arm64` Debian package and extracted executable as a test-only artifact with dynamic library/dependency manifest. Avoid any automatic deployment or package installation on the Pi. Review Actions minutes/build cost and available runner support before launching.
+- [ ] **Separate live keyboard gate:** inspect runtime shared libraries, offline built binary, and create failback guard; only then test stop-stock/start-overlay/restore-stock with an explicitly bounded timeout and acceptance steps on the touchscreen/WayVNC. Default native fullscreen and the Headless rollback remain unchanged.
+
+### 12 October 2026 — native ARM64 off-Pi Squeekboard build candidate
+
+- [x] Implemented **disposable ARM64** source verifier (`scripts/ci/prepare-squeekboard-overlay-source.py`) using the previously tested source-helper functions. Source descriptor `1.43.1-1+rpt1` and its two source archives are verified over HTTPS against `.dsc` SHA-256/size; after vendor patches, `src/panel.c` must hash to `2983685254b5d5b81ce36d9277172a041502737450dee416a6f805b82d51c203`. A single `TOP→OVERLAY` edit must hash to `61d977ba7d7805f58dc57126b2fa410c6115af172889724f3e55cd444d9df916`. The original descriptor remains unsigned/unverified by GPG and is not represented as cryptographically signed.
+- [x] Implemented guarded CI container builder (`scripts/ci/build-squeekboard-overlay-arm64.sh`) with strict `GITHUB_ACTIONS=true`, `/.dockerenv`, `aarch64` and `arm64` preflights; Debian vendor `Build-Depends` are satisfied **only in disposable container**; compilation runs as unprivileged `acp-builder` with `CARGO_NET_OFFLINE=true`. No `dpkg -i`, `systemctl`, `ssh`, `scp`, Flatpak changes or deployment. Output: test-only Debian `.deb`, extracted `squeekboard` ELF and dynamic-dependency/ABI report, build logs and provenance.
+- [x] Added source/version/scope/syntax workflow regression tests and updated script + test catalogues.
+- [ ] **GitHub build gate:** create and run restricted `.github/workflows/squeekboard-overlay-arm64.yml` on GitHub ARM64 standard runner with Debian Trixie container. The workflow exists only on the Phase-B feature branch; check GitHub runner availability, dependency closure, build outcome and artifact data before calling it passed.
+- [ ] **Post-build risk review:** inspect .deb `Depends`, `readelf -d/-V`, package contents, and compare the resulting binary's needed runtime libraries to the target Pi **without executing/installing it**. No keyboard process switch, autostart change or accepted Headless replacement yet.
+
+### 12 October 2026 — approved disposable ARM64 CI run started
+
+- [x] User approved creation and execution of an isolated test-only ARM64 GitHub Actions builder. Workflow `.github/workflows/squeekboard-overlay-arm64.yml` exists on Phase-B branch and run **#3**, <https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38196515161>, entered the Docker/container checkout and build stage; artifact/compile success was **not** yet known when this was recorded.
+- [x] Existing ACP regression **Tests #5549 green** on the builder-launch commit.
+- [x] Workflow used temporary, narrowly scoped same-repo PR trigger to start once because adding the workflow with a push trigger alone did not register a separate build on the feature-branch commit. Following job start, removed temporary PR/push triggers, leaving `workflow_dispatch` only; current in-flight #3 continues on its original SHA. New ordinary PR pushes do not rerun the large builder. The workflow may require default-branch presence for future dispatch; do not claim a new manual run can be started from GitHub UI in this feature branch without verification.
+- [ ] **Current gate:** inspect actual build #3 conclusion, logs, artifacts and `readelf`/package `Depends`; only then decide whether any CI-only correction and intentional manual retry is necessary. Do not ship/install package or change accepted Pi keyboard, Headless or compositor.
+
+### 12 October 2026 — run #3 test fixture failure and guarded fix
+
+- [x] **First test-only ARM64 build failed only at Rust unit-test compilation:** [run #3](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38196515161) successfully bootstrapped Debian Trixie arm64 dependencies and compiled `rs` library, then `cargo.sh test --no-run` raised E0063 `missing field name in initializer of outputs::OutputState` at `src/state.rs:852`. `dh_auto_test` failed and **no .deb/ELF artifact** was exported. The uploaded diagnostic-only archive #11723219236 holds build log/dependency manifest/provenance; this is a real CI build failure, not Pi failure.
+- [x] **Upstream source comparison:** the Raspberry Pi maintained `src/outputs.rs` defines `name: Option<String>` and its fixed `application_with_fake_output` fixture sets `name: None`. The Pi archive retains one or two older *scaling-test-only* initializers without the field. This is unrelated to the compositor layer patch.
+- [x] **Guarded test-fixture-only repair:** update the dedicated `scripts/ci/prepare-squeekboard-overlay-source.py` to require exact scaling-test construction pattern/count and insert `name: None,` only there. If unexpected/previously changed, fail closed. Preserve the original source package and sole runtime-layer source change; record extra change transparently in provenance. Keep vendor `dh_auto_test` active rather than using `DEB_BUILD_OPTIONS=nocheck`. Added a narrow regression proving the fixture repair changes only the intended initializers.
+- [ ] **Second isolated ARM64 CI build:** deliberately retrigger same-repo-only candidate, then inspect logs and actual artifact. No broad APT installation or component mutation on the commissioned Pi.
+
+### 12 October 2026 — second source-stage attempt, third CI builder launched
+
+- [x] **Run #4 failed closed at source preparation:** [run #4](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197421672) extracted the authentic vendor patch set but refused an over-specific missing-`OutputState.name` test fixture replacement before installing Rust dependencies. No binary/package artifact was produced. This was a CI preflight rejection, not a Pi/audio issue.
+- [x] **Safer test-only fixture correction:** the CI prep parser now restricts itself to `#[cfg(test)]`, recognises balanced Rust `OutputState { ... }` test initialisers, and inserts `name: None` only where missing; limited to 1–3 insertions and 1–4 test initialisers with strict validation, preserving the independently pinned runtime panel SHA-256. The custom Python regression test passes in **Tests #5567**. The vendor's Rust test suite remains enabled in the next build.
+- [x] **Third isolated candidate launched:** [ARM64 run #5](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197809476) was accepted by GitHub and reached build stage; actual build/packaging verdict not established at this checkpoint. Temp same-repository PR trigger was removed immediately after run start; workflow is manual-only.
+- [ ] **Next gate:** inspect #5 conclusion, full logs, any exported test-only `.deb`/ELF and package ABI report. Do not assume a successful artifact until confirmed. The Pi keyboard, native Plexamp/Headless, Wayland compositor and installed library versions remain unchanged.
+
+### 12 October 2026 — isolated Squeekboard overlay candidate built and tested ✅
+
+- [x] **GitHub ARM64 build physically/CI accepted (off-device only):** [run #5](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197809476) completed green. Debian Trixie ARM64 container compiled the pinned Raspberry Pi `squeekboard 1.43.1-1+rpt1` source using the original six Debian patches, the independently validated single `src/panel.c` `TOP→OVERLAY` change and **one** test-only `OutputState.name: None` fixture repair.
+- [x] **Real build/test evidence:** 124 Meson tests passed, 0 failed, 0 skipped; `dpkg-buildpackage --build=binary` created `squeekboard_1.43.1-1+rpt1_arm64.deb` and a 64-bit AArch64 PIE executable. Uploaded [experimental Actions artifact #11724201740](https://github.com/AndyBettger/A-Clockwork-Plex/actions/runs/38197809476/artifacts/11724201740), ~6.9MB zipped, containing `PROVENANCE.txt`, `build-depends.txt`, `build.log`, `ABI-AND-PACKAGE-REPORT.txt`, binary, and `.deb`.
+- [x] **Integrity baseline:** executable 17,109,456 bytes, SHA-256 `11e1c8ef40674503cb9a0b82a96086d8bbca319c99943b9061bc5629118166a6`; package 2,468,116 bytes, SHA-256 `f13e11f67b868d6f23beeeb607596fa99e05b5657c575526dcca43ca1ef1511e`; source/provenance hashes unchanged. Unsigned source descriptor `dsc` was retrieved via HTTPS and source archives checked against its SHA-256, **not independently signed**; candidate is for testing only.
+- [x] **Extracted metadata review:** package `Depends` requires `libc6 >=2.39`, `libglib2.0-0t64 >=2.83.0`, `libwayland-client0 >=1.20.0`, `libxkbcommon0 >=1.0.0`, GTK3 and assorted Pi runtime dependencies. ELF `readelf` highest glibc version `GLIBC_2.39`. Do not infer full ABI compatibility from Debian Trixie branding; compare actual commissioned-Pi versions before execution.
+- [x] Normal ACP **Tests #5574 green** on post-run documentation checkpoint. The separate build workflow has `workflow_dispatch` only, preventing surprise repeated expensive runner jobs.
+- [ ] **Immediate target-Pi read-only gate:** inventory installed versions for `libc6`, `libglib2.0-0t64`, `libgtk-3-0t64`, `libgnome-desktop-3-20t64`, `libfeedback-0.0-0`, `libwayland-client0`, `libxkbcommon0`, `raspi-config` and relevant `dpkg --compare-versions` floors. Do not copy/start candidate yet.
+- [ ] **Next controlled Wayland gate:** prepare reliable timed watchdog restoration of original `/usr/bin/sbtest` and exactly-one-OSK ownership before manual launching the uninstalled candidate; test real fullscreen native Plexamp Search, typed characters/Backspace/Shift, keyboard dismissal, return to ACP and WayVNC. Preserve all current services/audio and stock XDG entry.
+
+### 12 October 2026 — target-Pi runtime version gate passed, ELF resolver gate remains
+
+- [x] **Actual installed version floors:** `getconf GNU_LIBC_VERSION` returns `glibc 2.41`, above ELF's `GLIBC_2.39`. Installed `libc6:arm64 2.41-12+rpt1+deb13u3`, `libglib2.0-0t64:arm64 2.84.4-3~deb13u3`, `libgtk-3-0t64:arm64 1:3.24.49-3+rpt8`, `libgnome-desktop-3-20t64:arm64 44.3-3`, `libfeedback-0.0-0:arm64 0.8.2-1`, `libwayland-client0:arm64 1.24.0-2~bpo13+1~rpt1`, `libxkbcommon0:arm64 1.7.0-2`, `raspi-config 20260730` meet the candidate package's corresponding declared floors. No APT operation was performed.
+- [x] Artifact `readelf -d` report lists 18 direct ELF libraries including `libgnome-desktop-3.so.20`, `libfeedback-0.0.so.0`, `libglib-2.0.so.0`, GTK3/GDK3, Wayland and `ld-linux-aarch64.so.1`. Versioned ELF dependencies are not equivalent to proven runtime symbol resolution.
+- [x] Added `scripts/inspect-squeekboard-overlay-artifact.py`: non-running, normal-user ARM64 preflight pins experimental ELF/.deb hashes and sizes, refuses unexpected ELF NEEDED names/RPATH, checks all Debian Depends against installed package versions and available direct SONAMEs against `ldconfig -p`. No `dpkg -i`, sudo, keyboard process manipulation or system configuration change. Is a **preflight**, not keyboard acceptance.
+- [ ] **Next Pi gate:** transfer the successful CI ZIP to the Pi (not yet performed), run the checker, investigate any missing runtime libraries without broad APT upgrades; only then stage test binary and pre-arm a trusted timeout/rescue guard.
+- [ ] **Physical OSK gate:** exactly-one-input-method handover, true fullscreen Plexamp Search/keyboard visibility, insertion, Backspace, Shift, dismiss, WayVNC and ACP return must all pass before default full-screen activation.
+
+### 12 October 2026 — Pi artifact ABI preflight physically PASSED; bounded handover prepared
+
+- [x] Pi physically ran `scripts/inspect-squeekboard-overlay-artifact.py ~/squeekboard-overlay-arm64-test-only.zip` after fast-forward to `081274f`. Output: **ELF and .deb SHA-256 PASS**, **architecture/metadata PASS**, 17 Debian runtime dependency clauses satisfied, all 18 direct ELF SONAMEs resolvable, overall **ABI PACKAGE/LIBRARY PREFLIGHT PASSED**. This does not prove actual dynamic symbol relocations or Squeekboard ownership/visibility, and it did **not** execute the binary or change system software.
+- [x] Created `scripts/try-squeekboard-overlay.py` for a user-authorised, **time-limited native OSK trial**; it reuses exact archive/installed-baseline checks, requires precisely one original `/usr/bin/squeekboard`, verified `wayland-0` and user D-Bus sockets, and an accessible user systemd manager. `--plan ZIP` is non-disruptive; `--start ZIP` stages only the verified executable in a mode-0700 user-cache directory, schedules a **240-second independent systemd-user rollback timer**, confirms it is active, then starts a separate user trial service. The worker stops the sole accepted vendor process, launches the candidate for up to **180 seconds**, and restores stock via `/usr/bin/sbtest` in a *different* transient user unit. The rescue timer can independently stop the trial and restore original even if SSH disconnects or worker crashes; a file lock avoids duplicate restore. The original XDG autostart, vendor binary, Headless Plexamp, ACP and audio remain unchanged.
+- [x] Added mocked safety tests covering timer-first ordering, restored-keyboard recovery even if candidate file vanished, refusal on overlapping trials/timer failure, session expectations and no package/OS modification; locally passed prior to push.
+- [ ] **Next Pi gate:** pull the branch and run `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip`. Review its output and repository CI before `--start`; this step does not alter the keyboard.
+- [ ] **Then physically test (requires user ready at VNC/touchscreen):** prelaunch fullscreen native Plexamp, run `--start` from SSH, type Search/Backspace/Shift, dismiss, observe keyboard overlay and ACP return. It is a deliberately disruptive, short user-initiated OSK process swap; emergency early restore: `systemctl --user start acp-squeekboard-overlay-restore.service`. The independent timer is a recovery aid, **not** protection against OS crash/session shutdown, and the user must be able to SSH back in for manual recovery. Verify one stock OSK is restored afterward. Phase B acceptance remains pending.
+
+### 12 October 2026 — full Pi PLAN PASS; strengthen failback before start
+
+- [x] User's actual `python3 scripts/try-squeekboard-overlay.py --plan ~/squeekboard-overlay-arm64-test-only.zip` completed with **PLAN PASS**: 17 runtime dependency expressions, 18 ELF SONAMEs, both artifact hashes/metadata, single original OSK, session sockets and user systemd manager present. Zero keyboard/session mutations.
+- [x] Final trial safety review and fix: backup `restore_stock` stops the trial transient service **outside** its inter-process restoration lock, preventing a deadlock if the worker is simultaneously entering its own `finally`. The trial transient service explicitly sets `KillMode=control-group` and `TimeoutStopSec=5s` so stopping it also terminates the experiment child. Recovery scans `/proc/PID/exe` for **only the exact private staged candidate** and refuses to start original `/usr/bin/sbtest` until zero experimental PIDs remain; no generic `pkill` or broad process signalling. Dedicated tests cover lock ordering, refusal to overlap and explicit cgroup service properties.
+- [ ] **First live test still pending**: complete green CI for the hardening, pull changes, re-run `--plan`, then user initiates `--start` only with touchscreen/SSH and fullscreen native Plexamp ready. Observe overlay keyboard, actual typing and independent restoration. No default/native-service migration approved.
+
+### 12 October 2026 — FIRST FULLSCREEN OVERLAY KEYBOARD LIVE TRIAL PASSED 🎉
+
+- [x] **Physically demonstrated Squeekboard OVERLAY visibility above truly fullscreen native Plexamp.** User pulled `dbb57b2c`, ran `--plan` successfully (pinned ELF/.deb hashes, 17 package clauses, 18 direct SONAMEs, original OSK/session) and `bash scripts/launch-native-plexamp.sh --fullscreen` (reports fullscreen targeted `app_id:Plexamp`). The opt-in `python3 scripts/try-squeekboard-overlay.py --start ~/squeekboard-overlay-arm64-test-only.zip` reported `Trial service requested. Independent backup restore timer is ARMED. Automatic end: 180s; independent rescue: 240s.`
+- [x] **Screenshot acceptance:** two user-captured WayVNC screenshots show the experimental virtual keyboard in the foreground of genuine fullscreen native Plexamp. (1) Search input displays `pink f`, dynamic Pink Floyd artist/albums appear while the keyboard occupies the lower portion; (2) native Artists `Add` header-title modal visibly receives keyboard foregrounding as its text input is focused. User explicitly reports success ('Wooohooo, that worked well'). This closes the previous *fullscreen layering visibility blocker*, not every touch/input-method behavioural or lifecycle test.
+- [x] **Post-trial original keyboard restored:** `ps` lists `/bin/sh /usr/bin/sbtest` PID **723426**, child `/usr/bin/squeekboard` PID **723443**; no candidate process shown. Exactly one original/vendor OSK is back. **Restoration mechanism timing is not independently proven:** user `journalctl --user -u ...` returned `No journal files were found` / `-- No entries --`, so do not assert which 180/240s path fired or that the missing journal indicates failure.
+- [x] **Launcher guidance corrected:** native `--fullscreen` now distinguishes the *default stock* TOP-layer keyboard (still hidden beneath compositor fullscreen) from the *experimentally proven* OVERLAY keyboard, which has not yet been installed or configured as a default. Normal launcher remains manual/windowed unless requested and no Pi packages/OSK autostart/Headless/audio/NFC production ownership changed.
+- [ ] **Next read-only evidence:** inspect trial state, `systemctl --user show ...`/timer status and private `candidate.log` without depending on journald, verify whether the user physically tapped Shift/Backspace/typed characters and observed normal dismissal/recovery, and identify whether overlay obscures the lower action buttons in some modals (screenshot shows dialog continuing beneath keyboard).
+- [ ] **Next engineering decision (not yet authorised for production):** design a reversible appliance-owned OSK lifecycle that uses the separately built OVERLAY candidate while preserving the distro binary and its per-user XDG autostart semantics. Maintain one input-method instance; a short test isn't production startup acceptance. Native Plexamp audio-slider, intermittent audio stability, NFC integration, navigation/workspace and recovery gates remain OPEN. Do not enable native Linux Plexamp or patched OSK by default yet.
+
+### 12 October 2026 — key-level acceptance; design one ACP-owned OS keyboard, including themes
+
+- [x] **Physical key/focus follow-up PASS:** user supplied full-screen native Plexamp screenshot with typed `Does This Help?$%&` in Search and the live number/special-character Squeekboard layout. User explicitly confirms **Shift, special characters and numbers**, hiding OSK by tapping away, and access to the Add/Cancel actions in the title dialog. Screenshots support text entry and modal operability; user did not individually enumerate an isolated Backspace test. This closes the previously open general key/symbol and modal-obscuration acceptance questions for the *native full-screen prototype*.
+- [x] **Trial log classified:** `candidate.log` has `org.gnome.SessionManager` unavailable warning (normal for the Pi's labwc non-GNOME session) and repeated attempts for `/usr/share/misc/squeekboard/keyboards/gb_wide.yaml`/`gb.yaml`, followed by a successful `us_wide.yaml` load. No fatal failure shown. **Missing UK layout is a product quality follow-up:** avoid assuming US symbols/GBP placement are correct; ship a vetted GB layout in the separately built candidate or allow a safe ACP-owned layout source, not a system-package overwrite. Post-trial no active `acp-squeekboard-overlay-*` timers and exactly one original vendor OSK is present. Transient timer cleanup does not identify which rollback path executed.
+- [ ] **Proposed unified OSK architecture:** aim to use a **single Squeekboard OVERLAY instance** across ACP Chromium pages (Clock, Settings, Weather, News, Audio and future Astronomy) and native Plexamp, with a managed user-owned lifecycle and exact stock rollback. Do not switch ACP to it yet: #91's accepted keyboard in `app/static/js/settings-keyboard.js` / `app/static/css/touch-keyboard.css` is a **DOM** keyboard; its narrow Headless Plexamp content bridge and specialised Settings input layouts (text, URL, number, decimal, time with quick keys/Clear/Done) are currently real accepted workflows. Native Squeekboard uses Wayland text-input/virtual-keyboard protocols, which may not be offered by the currently configured Chromium kiosk (potential XWayland/backend issues). Prove OSK raises and types in Chromium/Settings and Headless iframe *under a reversible option*, preserving the DOM implementation as fallback until all field types pass, without two keyboards simultaneously.
+- [ ] **Theme integration:** ACP visual themes are owned by CSS `--acp-theme-*`, `--accent` and `--text` selectors in `app/static/css/daytime-themes.css` / design tokens; Squeekboard is a separate GTK application whose `src/style.rs` loads GTK CSS from **compiled resource** files, including `data/style.css` and `data/style-Adwaita:dark.css`, using GTK theme name/variant. Its `GTK_THEME` selector is not an automatic bridge to ACP's browser CSS variables. Design ACP-owned theme bridge exporting a **limited, validated palette** (Classic Dark plus six daytime palettes; scheduled night dim and astronomy red) to an **app-scoped** GTK CSS provider with controlled update/reload at safe keyboard-hidden boundaries. Never edit global GTK theme, turn all native apps red, or overwrite vendor Squeekboard. Preserve readable contrast and touch key geometry at 1280×720.
+- [ ] **Safe lifecycle/UX gates:** only one OSK owner across XDG `/etc/xdg/autostart/squeekboard.desktop` (vendor `sbtest`) and ACP user service; opt-in per-user override/uninstall rollback, launch after labwc/Wayland, recover stock on failure/reboot. Preserve sensible close/blur, accessibility/security prompts and keyboard focus; test source-specific keyboards and day/night transitions on real touchscreen/WayVNC. No system package modifications or default-OSK cutover authorised by this discussion.
+
+### 12 October 2026 — Stage C1: duplicated keyboards in Chromium, voluntary one-keyboard mode
+
+- [x] **Exact physical evidence:** user captured ACP Chromium Settings → Weather (focused `Weather page title`, current theme Midnight Blue) with the **native Squeekboard at the bottom overlapping the original ACP HTML keyboard**. This proves compositor OSK focus/visibility works for at least one Chromium Settings text field. It does **not** prove all Settings input types or the embedded Headless Plexamp iframe.
+- [x] **Reversible opt-in integration implemented on Phase-B branch:** `app/static/js/osk-keyboard-choice.js` exposes `window.ACPKeyboardChoice.isNative()/setNative()` and uses a **five-minute sessionStorage expiry** (no server config, install, API or permanent preference). `Settings → Advanced → Keyboard trial` has explicit `Try system keyboard` / `Restore ACP keyboard` button and status. Head-loaded controller normalises pre-existing `inputmode=none` on `data-keyboard` fields to native-compatible text/numeric/decimal/url while opted in; it restores each input's exact original hint when mode is off. Keyboard JS won't open the custom DOM keyboard for either local/Headless text focus while opted in, and closes any open custom keyboard on preference change. Defensive CSS hides the custom keyboard in native mode. Existing #91 HTML keyboard, special quick-entry keys, Headless bridge and permissions are untouched and remain the **default**.
+- [x] **Safety constraints:** choosing the UI mode does not launch the experimental ELF, stop vendor OSK, install a package or alter labwc, audio, NFC or systemd; user must separately run the approved `--start` timed overlay trial. No browser-tab preference survives tab closure; timeout returns to the ACP keyboard. Switching modes needs no physical keyboard and is possible even after trial OSK has exited.
+- [ ] **Physical Stage C1 acceptance:** run current `--plan` and timed `--start` (180 seconds experimental/240s independent rescue); in ACP `Settings → Advanced → Keyboard trial`, select system keyboard; return to Weather title and other text/number/URL inputs and observe *only one* OSK with actual text/edit/Shift/dismissal and normal settings auto-save; test embedded Headless Search only if time permits, and explicitly report any fields that no longer summon OSK. Tap `Restore ACP keyboard` to return to known-good #91 before or after timer; verify stock keyboard restored. Physical Pi re-test pending.
+- [ ] **Next design track:** version-pinned ACP-owned Squeekboard GB layout and themeable GTK CSS independent of webpage CSS, with no global GTK overrides; follow up after Stage C1 input compatibility and no-overlap acceptance. No default startup or migration changes authorised yet.
+
+### 12 October 2026 — Stage C1 physical single-keyboard PASS, numeric/night refinements open
+
+- [x] User physically tested `0c529169` on the commissioned Pi, `--plan` passed and `--start` armed normal 180s and independent 240s recovery. ACP Settings focused text and number inputs displayed **only native Squeekboard**, not its previous duplicate custom DOM keyboard. Screenshots confirm the same grey GTK keyboard remains visible over daytime blue and astronomy-night red ACP Settings. This accepts **single OSK presentation** for the tested fields, not permanent ACP-managed ownership or specialised field parity.
+- [x] User reports full QWERTY on numeric fields; sampled `Dim from`/`Return to daytime` screenshot fields are time values `22:00`/`07:00`, and the trial explicitly chooses `inputmode=text` for `data-keyboard=time` so ':' is available. Actual `data-keyboard=number` fields use HTML `type=text` plus JS `inputmode=numeric` while trialled. Squeekboard upstream has an actual `number/us.yaml` for `ContentPurpose::Digits/Number/Phone`, but numeric layout has no decimal point or time colon. Hypothesis: Chromium's text-input purpose doesn't follow the hint consistently; **not yet verified**, so do not globally change input types and risk validation/auto-save.
+- [x] Night-mode test: user accidentally enabled scheduled dimming and reported the OSK stopped working until the timed window ended; another safe trial then worked. The night screenshot still visibly displays native Squeekboard in foreground and red-treated ACP underneath. The evidence cannot distinguish lost edit focus/re-render, the timed OSK worker finishing, or dim styling interaction; do not claim a compositor regression. System GTK overlay remains grey because the ACP browser dim filter does not cover separate OVERLAY layer. Concurrent attempted `--start` was correctly rejected and later sequential trial succeeded.
+- [x] Added read-only, no-settings-persistence test probes on **Settings → Advanced → Keyboard trial**, visible only in native trial choice: text input + `inputmode=numeric` vs genuine HTML number input + `inputmode=numeric`. They do not replace any production control or touch native Squeekboard service. Status help now distinguishes browser's 5-minute choice and independently shorter 180-second worker. Probe tests cover native-only visibility and restore. This Stage C1 diagnostic is code-ready; real Pi outcomes pending.
+- [ ] **Next physical probe:** start a fresh bounded OSK run, opt into the native choice, focus each of the two numeric probes and report whether Squeekboard changes to its small number-only layout, whether digits enter and backspace works. Do not change live numeric/time settings for this diagnostic. If one input triggers numbers and the other does not, plan an explicit type-specific conversion with validation checks; if neither triggers, inspect Chromium-to-Wayland content-purpose reporting before choosing a Squeekboard-side workaround.
+- [ ] **Night-interval diagnostic after numeric probe:** under a separate fresh trial, focus a text field, enable night via the already existing Settings control/preview only if intended, then re-tap a text field promptly; check trial elapsed time and systemd user unit/process state if the keyboard no longer accepts input. Do not edit permanent night settings accidentally or confuse expiry of 180-second worker with the five-minute browser choice. ACP/night Squeekboard palette matching remains an unimplemented GTK-styling milestone.
+
+## Detailed authority
+
+- [Native Plexamp / ACP shell architecture](../../development/architecture/native-plexamp-desktop.md)
+
+### 4 October 2026 A1 physical feedback
+
+The first same-document Clock ↔ Weather test on the commissioned appliance validates the architectural direction:
+
+- transition latency is noticeably lower than the old multi-document route;
+- there is no black frame or page-bootstrap flash;
+- mounted Clock remains live after a Weather round-trip;
+- Weather background data refresh no longer resets vertical position;
+- mode/navigation ownership remains in sync.
+
+Two defects are classified as presentation-lifecycle follow-ups, not architecture blockers:
+
+1. Chromium defaulted to a dissolve because the new View Transition snapshots were not yet mapped to ACP's configured transition-style keyframes.
+2. Forecast strips measured their custom scrollbar geometry too early during first mounted-surface activation and could leave the rails hidden even though horizontal scrolling still worked.
+
+The branch now maps ACP motion preferences onto View Transition root snapshots and explicitly remeasures Forecast rails over settled frames/activation events. Physical retest remains required.
+
+### A1 follow-up — configured motion accepted; Forecast lifecycle hardened
+
+Physical retest confirms ACP's existing transition-style and transition-duration preferences now drive the same-document View Transition path correctly.
+
+The Forecast custom-scrollbar defect was narrowed further: rails are present on first Weather visit, disappear only after a leave/return cycle, and return after a full document refresh. This proves the strip content remains scrollable and isolates the problem to hidden mounted-surface geometry. The Forecast scrollbar now preserves its last known state when ResizeObserver sees zero-width hidden geometry and performs an authoritative remeasurement after the Surface Host emits `acp:surface-settled` once `transition.finished` resolves.
+
+### A1 physical acceptance — COMPLETE
+
+The Clock ↔ Weather same-document pair is physically accepted on the commissioned appliance.
+
+Accepted behaviour:
+
+- faster/smoother navigation with no full-document boot flash;
+- all configured ACP transition styles and duration control honoured;
+- active navigation/footer Mode ownership correct;
+- Clock remains live after Weather round-trips;
+- Weather refreshes in place without resetting reading position;
+- Forecast rails remain visible and synchronised on first and subsequent visits;
+- Rain controls remain functional;
+- unmigrated News and Settings routes continue to fall back safely to the legacy full-document path.
+
+Checkpoint A1 is therefore closed. Subsequent ACP surfaces may now migrate incrementally onto the same Surface Host contract.
+
+### A2 — News migration
+
+A2 extends the accepted Surface Host contract from Clock/Weather to **News**.
+
+Implementation:
+
+- [x] Generalise the pair-specific loader into `acp-application-surfaces.js`.
+- [x] Register Clock, Weather and News as the first mounted ACP application-surface set.
+- [x] Expose News through the existing read-only `/api/surfaces/<surface>` endpoint without calling `set_mode()`.
+- [x] Pause News data refresh work while the mounted News surface is hidden; refresh once when News becomes active again.
+- [x] Preserve story/category scroll positions across routine News data refresh.
+- [x] Make News story/category custom scrollbars ignore hidden zero-height geometry and remeasure on `acp:surface-settled`.
+- [x] Retain article detail / QR handoff logic inside the mounted News DOM.
+- [x] Keep Settings and AirPlay unregistered so their accepted full-document fallback remains available.
+- [x] Exact A2 candidate `b4e0943038779862816e65f1e291ae2b4ef2e571` passed **Tests #5087**.
+- [x] Commissioned-Pi physical acceptance passed: Clock/Weather ↔ News round-trips, News interaction/repeated visits and configured transitions behave correctly; Settings fallback remained intact during the A2 gate.
+
+
+### A2 physical acceptance — COMPLETE
+
+News is now physically accepted as the third mounted ACP application surface. The commissioned appliance confirms that repeated News visits no longer cause a full-document boot, the configured transition choreography remains correct, and the News page remains functionally intact after Clock/Weather round-trips.
+
+Checkpoint A2 is therefore closed.
+
+### A3 — Settings migration
+
+A3 extends the same accepted application-surface contract to **Settings**, while preserving Settings' stronger transaction and UI-state ownership.
+
+Implementation:
+
+- [x] Register Settings alongside Clock, Weather and News in `acp-application-surfaces.js`.
+- [x] Expose Settings through the read-only `/api/surfaces/<surface>` renderer without calling `set_mode()`.
+- [x] Render the mounted Settings document with the normal Settings page context so server-rendered choices are not lost during lazy mounting.
+- [x] Load Settings-only CSS/scripts lazily after the visual commit, when `body[data-active-page="settings"]` is already authoritative.
+- [x] Preserve the mounted Settings DOM across ACP navigation so staged values, active section/subpage and modal/form state are not destroyed by a Clock/Weather/News round-trip.
+- [x] Suspend alarm-diagnostics, lifetime-rainfall and live-audio-path network polling while Settings is not the active ACP surface; refresh again when Settings is reactivated.
+- [x] Keep AirPlay unregistered so the established full-document fallback remains a clean escape path while A3 is proven.
+- [x] A3 implementation passed **Tests #5089**; implementation + documentation candidate `2ca0997b1f063bc6a3a38c09a4d6ea2e04ab1d72` passed **Tests #5091**.
+- [x] Physically test Clock/Weather/News ↔ Settings round-trips: same-document navigation/transition ownership passed.
+- [x] Physically test Settings section/subpage controls, touch keyboard/selects and autosave persistence: passed.
+- [x] Physically test Audio Hardware and alarm diagnostics after mounted-surface migration: passed.
+- [x] Confirm AirPlay remains on the intentional full-document fallback: passed; its legacy transition remains intentionally unchanged until AirPlay migration.
+- [x] Retest transition style/duration live projection: passed without hard document reload.
+- [x] Retest mounted Weather identity projection: Weather page title/reporting-station name update correctly after autosave without hard reload.
+- [x] Retest a hard reload directly on Settings: obsolete manual Save/Discard bar no longer appears during bootstrap.
+- [x] Repeat Clock/Weather/News ↔ Settings circuit and keyboard interaction: passed.
+- [x] Final A3 retest: Clock weather-panel title updates immediately after Weather identity autosave without a hard reload.
+
+A3 must not weaken Settings transaction/autosave ownership merely to make navigation faster. A failed lazy mount/script activation still falls back to the ordinary `/settings` route.
+
+### A3 first physical pass — core accepted, live-projection follow-up required
+
+Commissioned-Pi testing confirms the mounted Settings architecture itself is healthy:
+
+- Clock/Weather/News ↔ Settings navigation is correct;
+- Settings sections, subpages, touchscreen keyboard and controls work;
+- changes persist through the established autosave owner;
+- Audio Hardware and alarm diagnostics render correctly;
+- AirPlay remains a clean full-document fallback.
+
+The first pass also exposed an architectural dependency left over from multi-document navigation. Autosaved values were correctly written to the server, but some visual/runtime configuration only became authoritative when Flask rendered a new document. In the long-lived ACP document this meant a new transition style/duration, Weather page title or reporting-station name could remain visually stale until a hard reload.
+
+The follow-up removes that implicit reload dependency:
+
+- validated Settings snapshots are projected back into `ACPDashboardPreferences`;
+- dashboard-preference reads prefer the live document state after bootstrap rather than repeatedly falling back to server boot attributes;
+- successful Weather-section autosaves emit an application event that invalidates the mounted Weather view, including the race where the user navigates away before autosave completes;
+- the obsolete manual Save/Discard controls are hidden by Settings CSS from first paint instead of waiting for the autosave owner to initialise.
+
+The previous A3 test wording mentioning manual **Save** and **Discard** was stale: the accepted Settings product uses autosave. The corrected physical gate tests autosave persistence and live projection instead.
+
+
+### A3 second physical pass — one Clock projection remains
+
+The second commissioned-Pi pass confirms the main persistent-document correction works:
+
+- transition style and duration apply immediately to subsequent ACP transitions;
+- Weather's detailed page title and reporting-station copy refresh from the saved Weather identity without a hard document reload;
+- direct Settings hard reload no longer flashes the retired Save/Discard transaction bar;
+- repeated Settings round-trips and keyboard interaction remain healthy.
+
+The Clock page still showed the old Weather panel title until document reload. This is a separate mounted-surface refresh gap rather than a Settings persistence failure: `clock-dashboard.js` already reads the current title from `/api/status`, but its old fixed interval had no immediate Settings-save or Clock-reactivation hook.
+
+The A3 follow-up now:
+
+- listens for successful `acp:settings-saved` Weather transactions and refreshes the mounted Clock weather panel immediately;
+- refreshes Clock weather/status whenever Clock becomes active;
+- refreshes Clock weather/status without reloading the document;
+- replaces the old permanently running interval with an active-surface timeout, so hidden Clock no longer polls weather/status unnecessarily.
+
+The focused commissioned-Pi retest passed: the Clock weather-panel title now follows Weather identity autosave without a document reload. The Settings → News **Refresh feeds now** follow-up also works physically. Combined A3 Clock-projection and bounded News-refresh candidate `a72079fcb9688aa47b086238866439a127c4299c` passed **Tests #5105** (compile, JavaScript/page/shell checks and full regression suite).
+
+### A3 physical acceptance — COMPLETE
+
+A3 is closed. Settings is now the fourth physically accepted mounted ACP application surface. The accepted persistent-document contract covers transactional autosave, live shell configuration projection, affected-surface invalidation, hidden-surface polling suspension and first-paint-safe enhancement behaviour.
+
+As a post-acceptance cleanup, the former **Dashboard observation refresh** field is retired from Settings and portable configuration. Clock and Weather presentation refresh now use a shell-owned 60-second cadence only while visible, with immediate refresh on activation and relevant Settings changes. Legacy `auto_refresh_seconds` values may remain in old config files but are ignored, so upgrades require no migration.
+
+### A4 — AirPlay migration
+
+A4 should migrate the remaining ACP-owned AirPlay page onto the accepted Surface Host contract without changing AirPlay playback/control authority. The work must preserve AirPlay's live metadata, artwork, mini-clock, playback/volume controls, hold/pause coordination and source-ownership behaviour while removing its current full-document transition boundary.
+
+- [x] Audit AirPlay scripts for document-load/pagehide assumptions, timers and observers that need mounted-surface suspend/resume handling.
+- [x] Add a dedicated AirPlay surface-lifecycle helper that distinguishes active AirPlay visibility from a merely mounted DOM, browser-hidden state and the native Plexamp overlay.
+- [x] Register AirPlay as the fifth ACP application surface and expose its read-only surface document without changing mode during preparation.
+- [x] Suspend/resume live metadata/status, coordinator transport/navigation, receiver-volume, adaptive skip-mode, outside-card and mini-clock work with surface visibility; remeasure layout/title presentation on activation.
+- [x] Preserve AirPlay control-plane and audio authority unchanged; no Shairport, playback-coordinator, MPRIS or MixerController ownership moves into the shell.
+- [x] AirPlay lifecycle candidate `2f351a9b83332c75cdd8d94d3ccebceb27362cf4` passed **Tests #5128** (compile, JavaScript/page/shell checks and full regression suite).
+- [x] Physically test ACP ↔ AirPlay round-trips, ready/idle state, live metadata/artwork, transport/skip/volume controls, mini-clock/weather glance, automatic AirPlay projection, native Plexamp overlay return, active navigation/footer mode and configured transition motion: all passed on the commissioned Pi.
+- [x] Keep native Plexamp separate; A4 completes the current ordinary ACP-owned top-level browser surface set once physically accepted.
+
+### A4 physical acceptance — COMPLETE
+
+A4 is closed. AirPlay is now the fifth physically accepted mounted ACP application surface. Manual navigation, automatic AirPlay projection, playback metadata/artwork, transport and navigation controls, receiver volume, weather/clock glance, hidden-surface catch-up and native-Plexamp-overlay return all behave correctly without reverting to full-document navigation.
+
+This completes the ordinary ACP browser-surface convergence portion of Phase A.
+
+### Post-A4 Settings hydration audit — candidate
+
+Physical use after A4 exposed two related hydration races.
+
+The first affected **Transition duration**:
+
+1. Settings initially renders `display.transition_duration_ms` as a text input.
+2. Unified Settings may hydrate a value such as 800 or 1200 ms before `settings-display-sections.js` upgrades the field.
+3. The old upgrade changed `type` to `range` **before** setting `min=0` and `max=2000`.
+4. Chromium therefore temporarily applied the HTML range defaults (0–100) and could clamp the already-hydrated value into that range.
+5. A later Settings interaction/autosave could persist the clamped value.
+
+The duration correction sets range bounds/step before changing input type, explicitly restores the pre-upgrade value, exposes the exact current millisecond value and repaints the range after hydration. Commissioned-Pi retest confirms the duration now remains stable across mounted round-trips and hard reloads.
+
+The retest then exposed the same ownership problem in **Transition style**. The initial HTML only contained Grow and fade, Crossfade and Instant; the remaining accepted styles were added later by Javascript. If the local Settings API hydrated a value such as `vertical-lift` before that enhancement ran, the native select could not represent the value. The later option rebuild then fell back to the first option, **Grow and fade**, and a later autosave could persist that accidental fallback.
+
+The follow-up is deliberately broader than one Motion field:
+
+- all eight accepted transition styles now exist in the initial Settings HTML;
+- Motion enhancement adds missing options non-destructively instead of replacing the select contents;
+- legacy stored `none` is exposed canonically as the UI's `instant` value;
+- the shared Settings hydrator preserves any valid saved select value that is not one of the current preset options by adding a temporary **Current saved value** choice rather than clearing it;
+- custom select presentation receives an explicit `acp:settings-hydrated` signal instead of relying on the two-second safety refresh;
+- dynamically inserted night-dimming, alarm-indicator and rainfall controls use the same hydration authority;
+- numeric preset controls also resynchronise from the authoritative snapshot on hydration;
+- save collection now starts from the authoritative loaded snapshot and rereads **only dirty Settings sections/providers**, preventing an unrelated stale control from overwriting another section;
+- a direct `/settings` document load now participates in the hydration-aware first-paint gate, so template defaults are not deliberately revealed before the Settings API has resolved.
+
+The code audit covered the currently loaded Settings enhancement owners, including Display/Motion, numeric presets, custom selects, Weather observation/rainfall controls, night dimming/interaction, alarm indicator, News provider UI, alarm editor ownership, AirPlay receiver ownership and read-only diagnostic enhancements. Alarm and News domain editors retain their own authoritative model/provider contracts.
+
+One focused physical retest remains: select a non-default Motion style that was formerly Javascript-only (for example Vertical lift), wait for autosave, hard refresh Settings and confirm both the displayed style and subsequent transitions remain unchanged. The user does **not** need to manually retest every Settings value; the broader preservation/dirty-section contracts are regression-covered.
+
+Settings hydration-audit candidate `92af74bbf9ed61d81b5a55ef4092cb5288d1ea01` passed **Tests #5152** (compile, Javascript/page/shell checks and full regression suite).
+
+
+### Post-A4 Settings hydration physical acceptance — COMPLETE
+
+Commissioned-Pi retest passes. A non-default transition style that previously existed only after Javascript enhancement now survives autosave and a direct hard reload, the selected style remains visible in Settings, the actual ACP transitions use that style, and the already-fixed duration remains stable.
+
+The Settings hydration audit is therefore closed. The next active Phase A task is the reusable component/design-token boundary.
+
+
+
+### Phase A component/design-system boundary — first slice
+
+The post-A4 Settings hydration gate is closed, so Phase A has moved to the reusable component/design-token boundary.
+
+Implementation candidate:
+
+- [x] Add `app/static/css/acp-design-tokens.css` as a page-agnostic semantic vocabulary between the existing palette authority and application-surface CSS.
+- [x] Keep the accepted palette variables (`--panel`, `--panel-border`, `--text`, `--muted`, `--accent`, `--accent-strong`) authoritative rather than creating a competing colour system.
+- [x] Route shared `.panel`, `.weather-card` and `.button` primitives through semantic tokens with exact accepted values.
+- [x] Route top-level AirPlay, Weather-detail and News container chrome through the same semantic palette/elevation boundary without changing their feature geometry.
+- [x] Add regression coverage for token load order, palette derivation and first migrated consumers.
+- [x] Document component/token ownership and incremental migration rules in [ACP component / design-token architecture](../../development/architecture/acp-design-system.md).
+- [x] First component/token slice candidate `c751cd3eb50829d0937842965d0bed0581870e0c` passed **Tests #5168**.
+- [x] Representative commissioned-Pi visual sanity pass accepted: Classic Dark plus a non-Classic theme remain stable across Clock, Weather, News, Settings and AirPlay; ordinary buttons, Clock Weather cards and main News/AirPlay/Weather panels show no visual regression.
+- [x] Continue with the next safe reusable contracts: status pills, ordinary touch rows/buttons, form chrome, modal chrome and custom scrollbars. Keep specialised audio/weather/display geometry component-owned until separately justified.
+
+This is intentionally an **ownership refactor, not a redesign**. Existing theme-closure sheets remain until a migrated component contract fully replaces their job and has been physically accepted.
+
+
+### Component/design-system boundary — second slice
+
+With the first slice physically accepted, the next bounded migration covers ordinary interaction chrome while preserving all accepted values:
+
+- [x] Add shared form-control tokens for field border/fill/focus and field radius.
+- [x] Keep the Settings field-container 7% neutral fill separate from the existing 8% card fill so tokenisation does not subtly change the accepted presentation.
+- [x] Route native Settings fields and custom in-document select triggers through the same form-control tokens.
+- [x] Route ordinary Settings subpage rows and News category/story touch surfaces through neutral component fills while preserving their existing geometry and active/focus states.
+- [x] Route News/Weather status-pill radius and semantic foreground/border ownership through component/palette aliases without changing warning/stale states.
+- [x] Give News vertical and Weather/Rain horizontal custom scrollbars one shared geometry contract: 8 px track, 4 px thumb and 42 px minimum thumb.
+- [x] Route ordinary kiosk-safe modal text/accent chrome through semantic colour tokens; retain its existing modal geometry/background/elevation.
+- [x] Extend static regression coverage across form, touch, modal and scrollbar consumers.
+- [x] Second component/token slice candidate `58be4c8ac64dde13c6f9537ca5a8db7a1fd4bdda` passed **Tests #5179**.
+- [x] Perform a bounded visual/interaction sanity pass on Settings fields/selects, News category/story/status UI, Weather forecast/rain rails and the kiosk-safe link dialog: accepted on the commissioned Pi, including a non-Classic theme.
+
+Specialised warning/error/success paint, Settings alarm/audio controls, Weather gauge/compass presentation and media-specific AirPlay geometry remain component-owned.
+
+### Component/design-system physical acceptance — COMPLETE
+
+The reusable token/component boundary is now sufficient for the shell work: ordinary palette aliases, panel/card/button primitives, form/select chrome, ordinary touch rows, status-pill geometry, custom-scrollbar geometry and kiosk-modal semantic colours are physically accepted. Further componentisation should now be demand-driven by real reuse rather than continuing as a CSS-cleanup project in its own right.
+
+The next Phase A task is **shell-owned bottom-edge navigation**.
+
+
+### Shell-owned bottom-edge navigation — ownership slice
+
+Before changing gestures or appearance, navigation ownership is being made real rather than simulated:
+
+- [x] Render `_nav.html` once from `base.html`, alongside the persistent shell layers.
+- [x] Remove `_nav.html` from Clock, Weather, News, Settings, AirPlay and Plexamp page templates.
+- [x] Remove the obsolete `nav-layer.js` DOM-relocation shim that moved page-owned navigation out of `<main>`.
+- [x] Simplify `acp-application-surfaces.js`: mounted surfaces no longer need special filtering to discard duplicate `nav-drawer` / `nav-handle` nodes.
+- [x] Keep the current handle, swipe-up/tap behaviour, drawer, Audio mixer, active-state ownership and Plexamp overlay behaviour unchanged for this slice.
+- [x] Add regression coverage proving there is exactly one shell-owned navigation include and no page-owned duplicates.
+- [x] Shell-navigation ownership candidate `e352c40069e652cbae1ced9a02c7443342d896b1` passed **Tests #5191** on rerun attempt 2; the first attempt was cancelled before executing tests.
+- [x] Hardened lifecycle retest accepted on the commissioned Pi: repeated mounted-surface navigation no longer requires forced refresh, tap/swipe reopen correctly on ACP surfaces, Audio remains present, mixer/EQ works and Plexamp→ACP handoff is stable. Remaining issue is specifically swipe initiation over the Plexamp iframe.
+
+
+#### Shell-navigation lifecycle hardening
+
+The first structural candidate proved that shell ownership alone was not enough. Physical use showed that persistent controls also need persistent **behavioural ownership**.
+
+The hardened contract is:
+
+- `nav-drawer.js` is one-instance guarded so it cannot silently accumulate duplicate tap/touch handlers in the long-lived document;
+- bottom-handle tap/swipe handling is delegated from `document` and resolves the current `#nav-handle` rather than depending on one captured element instance;
+- swipe-open suppresses the immediately following synthetic click so it cannot reopen-and-close in the same gesture;
+- the Audio button is static `_nav.html` shell markup rather than an opportunistically injected button;
+- Audio mixer setup is idempotent and reruns after `acp:surface-settled`;
+- EQ content, EQ drawer placement and Audio drawer motion also reassert on surface settlement;
+- nav lifecycle APIs forward to the current shell controller rather than holding stale drawer/handle references;
+- asset versions were bumped so the Pi cannot combine the new shell template with an old cached navigation script.
+
+The ownership/lifecycle correction is now physically accepted.
+
+#### Home-indicator gesture slice
+
+The first interaction slice addresses the remaining Plexamp boundary and gesture symmetry:
+
+- [x] Replace the dark 116×30 navigation pill presentation with a small iPhone-style home indicator.
+- [x] Keep the real button/gesture target wider than the visible bar so touch can begin on ACP-owned shell chrome even when Plexamp's iframe fills the display.
+- [x] Bound that invisible target to 300 px maximum width × 30 px high so it does not become a large transparent interception layer over Plexamp controls.
+- [x] Keep shell z-order above persistent Plexamp so the gesture target is reachable from the native-player overlay.
+- [x] Closed + swipe up opens navigation.
+- [x] Open + swipe down closes navigation.
+- [x] Tap remains as a fallback.
+- [x] Suppress the synthetic follow-up click after either swipe direction.
+- [x] Version both nav CSS and Javascript so the Pi receives the new interaction layer together.
+- [x] Add regression coverage for gesture symmetry, bounded hit geometry and shell-above-Plexamp z-order.
+- [x] Home-indicator gesture candidate `8dffa93a04167ac4806974b2603c6e17f955d42a` passed **Tests #5204**.
+- [x] Refined home-indicator physical retest accepted: Plexamp Library/Search taps including inner edges are no longer intercepted; swipe-up/open, swipe-down/close and tap fallback all work from Plexamp; Audio remains stable.
+
+
+#### Refined Plexamp hit target + AirPlay first-paint correction
+
+The first home-indicator candidate proved swipe reach over the Plexamp iframe, but its invisible target was too greedy. On the commissioned Pi, taps near the inner edges of Plexamp's Library and Search buttons could be intercepted by ACP and open the ACP drawer instead.
+
+The refined contract is:
+
+- the ACP gesture target is reduced from 300×30 px to roughly 180–200 px wide × 22 px high;
+- the visible white home indicator grows to roughly 140 px, so the visible affordance now corresponds much more honestly to the usable swipe zone;
+- ACP remains above the Plexamp iframe only in that narrow bottom-centre strip;
+- swipe-up/open, swipe-down/close and tap fallback remain unchanged.
+
+The same physical pass exposed an unrelated AirPlay first-mount flash: before `/api/status` resolved, the generic player layout briefly showed transport/volume controls and then collapsed into route-ready layout. AirPlay now stages an explicit `airplay-session-unresolved` state before first mounted commit (and on direct AirPlay document load). That unresolved state shares route-ready geometry and hides inactive controls. `airplay-live.js` removes the unresolved class atomically when the authoritative status response applies the real idle/active state.
+
+Combined navigation/AirPlay candidate `735cf5162fa37ef138ab3f2fca18ba97e5d19ee4` passed **Tests #5216**.
+
+The refined home-indicator and AirPlay first-paint slice is now physically accepted. Idle AirPlay first mount no longer flashes playback controls or visibly rejiggles.
+
+#### Navigation-mode overlay/recede — Level A candidate
+
+The next slice implements the production-first navigation treatment before attempting the spatial carousel:
+
+- [x] Add a shell-owned backdrop between live application content and navigation chrome.
+- [x] Keep the active ACP surface or Plexamp iframe live underneath rather than snapshotting/reloading it.
+- [x] When navigation opens, apply a small 0.965 recede scale, 10 px upward translation and rounded edge treatment to the active application.
+- [x] Use CSS individual `scale` / `translate` properties so navigation-mode motion can coexist with ACP's transform-based View Transitions and Plexamp handoff animations.
+- [x] Extend Plexamp's own transition list so its recede animates smoothly rather than snapping.
+- [x] Dim the live application with a shell scrim while keeping the drawer/indicator above it.
+- [x] Make tapping the scrim dismiss navigation.
+- [x] Respect reduced-motion preference.
+- [x] Keep current drawer/buttons, Audio panel, gesture semantics and destination transition behaviour unchanged.
+- [x] Add regression coverage for z-order, backdrop dismissal, recede geometry, reduced motion and Plexamp transition coexistence.
+- [x] Level-A navigation-mode candidate `5ca3214cd942784025a6e39ed5c26ddd48a683b7` passed **Tests #5226**.
+- [~] Level-A shell-state preservation now passes physically across ACP↔Plexamp, normal auto-hide still closes navigation, Audio is unchanged, and the deeper recede clears the drawer. The remaining work is visual refinement: full-scale lift candidate `1600e053bd18283a0de2016062fc6289ee6803d4` keeps the live application at 100% size and moves it upward instead of shrinking it; focused retest pending.
+
+
+
+#### Level-A Plexamp consistency / deeper recede follow-up
+
+Physical testing confirmed the Level-A visual model but found two refinements:
+
+- ACP→ACP destination changes preserve the open drawer and receded new surface, while entering/leaving Plexamp still closed the drawer because `plexamp-persistent.js` explicitly called the nav lifecycle hide path.
+- The original `0.965 / -10px` recede was too subtle for the current drawer height; the drawer still covered the lower portion of the live page.
+
+The follow-up contract is:
+
+- explicit manual shell navigation preserves `nav-open/nav-mode` across ACP→Plexamp and Plexamp→ACP;
+- automatic screen-projection changes do **not** inherit an open drawer;
+- Plexamp `show`, `hide` and `prepareNavigation` accept a presentation-only `preserveNavigation` option;
+- Plexamp→the already-underlying ACP surface preserves nav without a reload;
+- Plexamp→a different ACP surface carries a short-lived pathname-scoped `sessionStorage` navigation-mode token through the existing full-document fallback; `nav-drawer.js` restores the drawer before the booting document is revealed;
+- the live application recedes to `0.84`, lifts `28px`, and uses a `28px` radius so its bottom edge sits above the ordinary navigation drawer rather than beneath it.
+
+Candidate `d11bfd3f3574dda86a14bfdb1f3dbdccb5c913ac` passed **Tests #5233**.
+
+The 6 October physical retest passes that cross-application contract. Manual ACP→Plexamp and Plexamp→ACP navigation keeps the drawer visible, including the different-ACP full-document path; auto-hide still works and Audio behaves as before. The `0.84 / -28px` geometry also succeeds at its original job: the live application's bottom edge clears the drawer.
+
+#### Level-A full-scale lift refinement
+
+Commissioned-Pi testing confirms the full-scale direction is visually better than the 0.84 recede: typography and controls stay at their normal size and the shell feels like it is temporarily borrowing display space rather than shrinking the application.
+
+The first full-scale candidate used a 90 px lift. Physical feedback showed that this was too large; the next 28 px candidate moved too little and allowed the ordinary drawer to cover the bottom of the live page again. The visual target is now explicit: the top edge of the ordinary navigation drawer should meet the bottom edge of the lifted live surface, making the drawer appear attached beneath the page rather than floating over it.
+
+The active refinement therefore:
+
+- keeps `scale: 1` throughout navigation mode;
+- removes the guessed fixed lift;
+- measures the ordinary navigation strip at runtime from the main-nav row height, drawer vertical padding/borders and the drawer's bottom inset;
+- writes that measurement to `--acp-navigation-reveal-height`;
+- lifts ACP and Plexamp by exactly that measured amount;
+- recalculates on navigation open, surface settlement and viewport resize;
+- deliberately measures only the ordinary main-nav row, so opening the large Audio mixer does not suddenly shove the background application almost off-screen;
+- retains the dim backdrop, rounded live-surface edge and exact normal geometry restoration when navigation closes.
+
+The same pass also separates two previously mixed timing authorities. Before this refinement, the drawer/indicator themselves used a fixed 180 ms transition, while the backdrop and live-surface lift used `--acp-transition-in-duration`, derived from the ordinary Display → Motion page-transition duration. Navigation now has one dedicated timing contract:
+
+- Settings → Display → Motion exposes **Navigation transition duration**;
+- stored as `dashboard.navigation_transition_duration_ms` and surfaced as `display.navigation_transition_duration_ms`;
+- default 180 ms, range 0–1000 ms in 20 ms steps;
+- controls the navigation drawer, home indicator, dim backdrop and ACP/Plexamp lift/rounding;
+- ordinary application-surface transition style/duration remains independent.
+
+The setting is live-projected into the long-lived shell, included in portable configuration backup and defaults to 180 ms on existing configs that do not yet contain the key.
+
+The 28 px candidate plus independent navigation timing passed **Tests #5241/#5242**. Physical testing accepts the independent Navigation transition duration, ACP↔Plexamp preservation, auto-hide and the existing Audio controls; only the 28 px geometry failed visually because the drawer again covered live content. Runtime-measured geometry candidate `97b3b5f9323853b3f05699140740c53f5094b4e6` then passed **Tests #5243**, with docs-synchronised head `27d32c16101761787d416c1bc9370a2499294b60` passing **Tests #5244**.
+
+The 6 October physical retest accepts the **measured live-surface reveal height**: the page now rises by the right amount and the drawer no longer covers it. It also accepts the dedicated Navigation transition duration, ordinary destination switching, ACP↔Plexamp handling, normal auto-hide and Audio functionality. One visual mismatch remains in the home indicator itself: it still follows the historical fixed `64px/56px` path with generic `ease`, while the page follows the measured reveal height with the shell cubic-bezier. At a deliberately slow 1000 ms navigation duration this looks like the indicator is dragging through resistance rather than being attached to the page.
+
+#### Indicator parity, Audio overlay and AirPlay snapshot hydration
+
+Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` makes three bounded follow-ups:
+
+- **Home indicator:** uses the same `--acp-navigation-reveal-height`, duration and `cubic-bezier(.16, .84, .24, 1)` as the live ACP/Plexamp surface. The fixed `-64px/-56px` offsets are removed, so the visible indicator should now move as part of the page/nav assembly rather than lagging it.
+- **Audio:** the ordinary nav drawer no longer grows upward into a special Audio layout. Selecting Audio leaves the nav in its normal bottom position and opens the existing mixer as a fixed overlay above the current application surface. The mixer is shell-owned, remains above the dim backdrop but below ordinary navigation, and its reveal/hide uses the configured **application Transition duration** (`--acp-transition-duration`), deliberately independent of Navigation transition duration. The old `audio-polish.js` fixed 225/300/320 ms motion owner is retired to avoid two animation authorities fighting.
+- **AirPlay first snapshot:** the Surface Host now supports an optional async `beforeSnapshot` hook inside the View Transition update callback. AirPlay marks each entry unresolved, loads/activates its surface scripts, waits for the reusable AirPlay hydration authority to report a settled status/segmented glance row, and only then lets Chromium capture the incoming snapshot. The existing `activate` stage remains the post-commit logical-mode owner.
+
+The reported screenshot with AirPlay on the left and News still visible on the right is partly expected: with **Cover reveal** and a 2000 ms Transition duration, the old News snapshot remains visible while the new snapshot uncovers it. The genuine defect is visible *inside* the incoming AirPlay half: the mini-clock is still only its four static colon dots and the layout subsequently reflows after hydration. The pre-snapshot gate targets that defect without changing what Cover reveal is supposed to look like.
+
+Candidate `007f6622e92645e5a5c597f2922f6e561c126f2d` passed the full maintained suite as **Tests #5245**, with documentation-synchronised head `515027990df2db89ff361ffaae17ef0b68acada2` passing **Tests #5246**.
+
+The next commissioned-Pi pass accepts most of that slice:
+
+- the **home indicator now moves exactly with the live page**, including at the intentionally slow 1000 ms Navigation transition duration;
+- the **Audio overlay is physically accepted**: the normal bottom nav remains in place, the mixer fades/lifts over the live surface, the translucent glass treatment looks correct over both Plexamp and AirPlay, and changing ordinary Transition duration changes the overlay timing while Navigation duration remains independent;
+- the **AirPlay pre-snapshot hydration gate is accepted** on first and repeated visits: the segmented mini-clock/weather/status geometry is stable during Cover reveal, with no later vertical correction;
+- the existing ACP/Plexamp and Audio round-trips remain healthy.
+
+The same slow-motion test makes the remaining drawer mismatch obvious. The page and indicator now share the measured distance and shell easing, but the nav drawer itself still starts from `calc(100% + 18px)` and uses generic `ease`. On opening the page/indicator therefore reach their destination first and wait for the drawer; on closing the page visibly moves down behind a drawer that is still catching up. The intended physical model is stricter: **live page, white indicator and ordinary nav bar are one sheet**. Their vertical deltas must be equal in magnitude and driven by the same easing/duration at every animation frame.
+
+A separate interaction defect was also exposed: tapping the nav button for the **already-active ACP page** did not enter the Surface Host at all. The global link interceptor returned early for the same URL without calling `preventDefault()`, so Chromium performed a normal document navigation. That explains the black screen flash, page reappearance and lost nav state. Plexamp does not show the defect because its route is presentation-owned, and Audio is a button/overlay rather than an anchor.
+
+Candidate `eeca5a4fc6e5be87f0801008cb94e50cadbf6e40` therefore:
+
+- gives the nav drawer a closed offset of exactly `--acp-navigation-reveal-height` and the same `cubic-bezier(.16, .84, .24, 1)` as the page/indicator;
+- changes the drawer from its historical transform path to the same individual `translate` contract used by the live surface assembly;
+- treats an already-active ACP main-nav destination as an explicit consumed no-op, preventing the browser default reload and leaving navigation open.
+
+The first code head correctly changed production behaviour but caused **Tests #5247** to fail on one regression assertion that still expected the retired same-URL early-return string. Updating that regression to express the new Plexamp-safe contract produced candidate `eeca5a4fc6e5be87f0801008cb94e50cadbf6e40`, which passed the full maintained suite as **Tests #5248**; documentation head `2982de64c41c1492948a1e2937cf80fe82d503a6` then passed **Tests #5249**.
+
+Because the physical requirement is explicitly that page, indicator and navigation behave like **one piece of paper**, the final follow-up also removes the drawer's independent opacity transition. Candidate `dc434d7a9e94604e167c2dc401d1dc42914aef1c` keeps the drawer fully present for the whole measured slide, using delayed visibility only after the close completes, so there is no separate fade that can make a correctly positioned drawer still appear to lag. It passed the full maintained suite as **Tests #5250**, and documentation-synchronised head `94b2985c9f1c23e3adab9b2f3ef3350c81b20e63` passed **Tests #5251**.
+
+### Level-A navigation physical acceptance — COMPLETE
+
+The final commissioned-Pi retest passes all five focused gates:
+
+- **one-sheet motion:** live ACP/Plexamp surface, white home indicator and ordinary nav drawer remain visually attached throughout both open and close, including the deliberately slow 1000 ms timing test;
+- **Plexamp parity:** the same sheet motion works over Plexamp without regressing its persistent-overlay handoff;
+- **current-route no-op:** tapping the already-active Clock, Weather, News, AirPlay or Settings button produces no transition, no black document reload and leaves navigation open;
+- **Plexamp current destination:** the existing Plexamp-specific current-destination behaviour remains correct;
+- **Audio overlay:** the accepted translucent mixer still fades/lifts over the current surface and remains independent of Navigation transition timing.
+
+Together with the preceding accepted AirPlay hydration, ACP↔Plexamp shell-state, auto-hide and backdrop tests, **Level A is closed**. The production baseline is therefore a full-scale live surface with measured bottom-edge reveal, shell-owned navigation timing, a persistent home indicator/nav assembly, and Audio as an application-duration overlay.
+
+The Audio overlay motion is intentionally **not yet a transition-style preset**. It is a one-sided component overlay animation (opacity + 18 px lift + 0.985→1 scale) over a still-live translucent background, whereas the Motion style list controls old/new whole-application View Transition snapshots. It is closest in character to Grow and fade but has a different compositing contract. A page-transition analogue can be considered after Level A is closed rather than mixing a new style into this acceptance gate.
+
+Level-A documentation head `02af155ea2d536e774f5ef07a7c745ff80315f5c` passed **Tests #5252**.
+
+### Level-B B0 — one bounded spatial-row commit
+
+The first Level-B experiment is deliberately **not** a general carousel implementation. It proves one adjacent destination movement against the accepted Level-A shell before adding bidirectional ordering, snapshots or cross-application work.
+
+B0 is restricted to this exact path:
+
+```text
+Clock + navigation open
+        |
+        | tap Weather
+        v
+manual Weather lease accepted
+        |
+        v
+Level-A navigation sheet closes
+(using Navigation transition duration)
+        |
+        v
+ONE same-document View Transition
+Clock  <----------------  Weather
+        |
+        v
+Weather settled full-screen
+```
+
+Implementation rules:
+
+- only the main-nav **Clock → Weather** path while navigation mode is already open receives `spatialCommitDirection: "forward"`;
+- direct Clock→Weather navigation, Weather→Clock, all other ACP destinations, Plexamp and automatic screen projection remain unchanged;
+- spatial selection deliberately opts out of Level-A's "preserve open navigation across destination changes" rule because the Level-B model says selection exits navigation before destination commit;
+- the navigation sheet is allowed to finish its accepted close motion before the destination snapshot is taken, using `display.navigation_transition_duration_ms`;
+- the Surface Host still calls `document.startViewTransition(commit)` exactly once;
+- only for that one commit, `data-acp-spatial-commit="forward"` overrides the configured View Transition keyframes;
+- the first B0 destination motion used outgoing `-34vw / 0.94` and incoming `+34vw / 0.94`; commissioned-Pi testing rejected that visual composition because it reads as Weather sliding over a faded/washed Clock backing and exposes the white document root at the incoming edge rather than as two neighbouring surfaces;
+- the temporary spatial dataset is removed after the transition and also in the Surface Host fail-safe `finally` path;
+- the accepted Level-A shell remains the production fallback if B0 feels gimmicky, janks on the Pi or proves too visually busy.
+
+The first implementation head `34969583305a4867f3e47a6da258ee4bf7db67c1` failed **Tests #5253** only because two static regression assertions expected the pre-B0 source spelling for navigation preservation and `transition.finished.catch`. Production behaviour was not the failing condition. Compatibility/cleanup head `60412c433ef8539e9c776fb228f47234e33878af` preserves those accepted contracts, adds fail-safe spatial-dataset cleanup and passed the full maintained suite as **Tests #5254**.
+
+#### B0 first physical pass — lifecycle passes, spatial presentation rejected
+
+The commissioned-Pi result cleanly separates the architecture from the animation choice:
+
+- [x] Clock → Weather selection first dismisses navigation.
+- [x] Exactly one destination movement occurs.
+- [x] No Cover Reveal follows it; there is no black frame, full-document reload or second Weather appearance.
+- [x] Weather → Clock remains the ordinary configured transition.
+- [x] Clock → News/AirPlay/Settings/Plexamp remain ordinary accepted behaviour.
+- [ ] **Row metaphor:** failed. The old Clock surface becomes a pale/grey backing and Weather visibly slides over it rather than both pages reading as a continuous horizontal strip.
+
+The captured transition frame explains the failure. With the incoming Weather snapshot translated by `34vw` and scaled to `0.94`, its left edge begins at approximately `34vw + 3vw = 37vw`. The screenshot shows almost exactly that much pure white document background before the Weather snapshot begins. Scale and opacity therefore introduced empty canvas/overlay cues—the opposite of the intended neighbouring-surface metaphor.
+
+#### B0 v2 — edge-locked strip
+
+Candidate `eb5cd5950152f9336dc5a0ac8b32bcf58fce4c95` keeps the existing one-commit lifecycle but simplifies the spatial composition to the strongest possible row invariant:
+
+```text
+Clock                       Weather
+|<------ 100vw ------>|<------ 100vw ------>|
+              ↓ same animation fraction
+Clock shifts left one viewport while Weather shifts in
+from exactly one viewport to the right.
+```
+
+- no spatial opacity change;
+- no spatial scale change;
+- outgoing Clock: `translateX(0) → translateX(-100vw)`;
+- incoming Weather: `translateX(100vw) → translateX(0)`;
+- identical configured application Transition duration and easing for both snapshots;
+- the old right edge and new left edge therefore remain coincident throughout the movement, preventing the root background from opening between them.
+
+#### B0 v2 second physical pass — row geometry works, outgoing snapshot races
+
+The edge-locked geometry is a material improvement:
+
+- [x] when the outgoing Clock snapshot is valid, Clock and Weather move together with a continuous vertical seam;
+- [x] Weather no longer looks like an overlay floating over a grey Clock card;
+- [x] the one-commit/no-reload/no-second-reveal behaviour remains intact;
+- [x] reverse and unrelated destinations remain on their accepted configured transitions;
+- [ ] **snapshot consistency:** intermittent failure remains. On many runs the region that should contain the outgoing Clock snapshot is solid white while Weather still follows the correct edge-locked path.
+
+The paired screenshots are diagnostically useful. In the good frame, the left region contains the expected right-hand portion of Clock while Weather begins exactly at the moving seam. In the bad frame, Weather begins at essentially the same seam position but the entire outgoing region is white. This means the `±100vw` geometry is doing what it should; the problem is that Chromium sometimes receives/captures a blank old root texture before the spatial animation begins.
+
+B0's navigation-exit boundary was timer based:
+
+```text
+hide navigation
+      ↓
+wait navigation duration + 24 ms
+      ↓
+startViewTransition()
+```
+
+That is not a strong enough compositor/paint contract on the Pi. CSS transition duration describes animation timing, not proof that the final composited application texture has been painted and is ready for a View Transition snapshot.
+
+#### B0 v3 — compositor-settled snapshot barrier
+
+Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` keeps the accepted edge-locked animation but strengthens the handoff:
+
+1. install a listener on `main.screen` **before** closing navigation;
+2. close the accepted Level-A sheet;
+3. wait for the live surface's actual `translate` `transitionend` (or `transitioncancel`);
+4. retain a conservative timeout only as a fail-safe;
+5. after the CSS transition has really ended, wait for **two requestAnimationFrame turns**, with a `getBoundingClientRect()` layout read between them;
+6. only then call the Surface Host / `document.startViewTransition()`.
+
+The extra frames are intentional. The old-root image used by the View Transition is a compositor capture; the test must ensure the full-size Clock surface has actually survived the Level-A transform handoff and reached a paint opportunity before Chromium is asked to photograph it.
+
+Candidate `c2093f63b075db92d3b491ac2a820d8dfc003477` passed the full maintained suite as **Tests #5258**, with documentation head `754a2a7d979dd2c556557ba0e0b947b789f61c93` passing **Tests #5259**.
+
+#### B0 v3 repeated physical pass — REJECTED
+
+The stronger nav-settle barrier did **not** cure the white outgoing surface. In 20 consecutive commissioned-Pi Clock→Weather transitions:
+
+- **1/20** showed Clock correctly;
+- **19/20** showed the outgoing Clock region as a plain white rectangle;
+- Weather still followed the correct edge-locked path;
+- there was still exactly one destination movement and no reload/double-reveal regression.
+
+Because the failure became more frequent after adding extra post-nav settle time, the evidence no longer supports a simple "snapshot requested too early" explanation. The unreliable component is the **old-root View Transition texture itself** on this Pi/browser path. Continuing to add arbitrary delay would therefore be cargo-cult timing rather than an architecture fix.
+
+#### B0 v4 — live-DOM spatial strip
+
+The experiment now stops asking Chromium to provide an outgoing root snapshot.
+
+Candidate `114b945f4bc132bbc14922eac045e582330703cd` keeps the accepted B0 selection policy and one-destination lifecycle, but changes the presentation engine only for this bounded Clock→Weather path:
+
+1. after navigation has closed, clone the currently mounted **live Clock DOM** from `main.screen`;
+2. preserve the current body background on that outgoing clone so it is visually self-contained;
+3. place the real live `main.screen` one viewport to the right;
+4. commit Weather into the real mounted surface;
+5. animate the outgoing Clock clone `0 → -100vw` and the live Weather host `+100vw → 0` with the same configured application Transition duration/easing;
+6. remove the temporary Clock clone and return the real screen to normal geometry;
+7. continue the normal Surface Host activation/history/settled lifecycle.
+
+This is intentionally **not** a second general transition framework. The Surface Host exposes a lifecycle hook (`prepared.spatialCommit`) for the one B0 relation; all ordinary ACP destination transitions still use `document.startViewTransition()`. If B0 is rejected, Level A remains unchanged.
+
+Important side effect: the home indicator remains real shell chrome rather than being baked into a moving root screenshot. That is closer to the intended desktop-shell ownership model.
+
+Automated coverage verifies:
+
+- the B0 policy remains restricted to Clock→Weather from open navigation;
+- the spatial path calls `prepared.spatialCommit` instead of root View Transition snapshot animation;
+- the outgoing layer is a DOM clone of the current mounted screen;
+- the incoming layer is the real live mounted Weather surface;
+- both use exact `±100vw` edge-lock motion;
+- cleanup always removes the temporary layer and inline transform;
+- the retired `data-acp-spatial-commit` root keyframes are gone.
+
+Candidate `114b945f4bc132bbc14922eac045e582330703cd` passed the full maintained suite as **Tests #5260**.
+
+#### B0 v4 physical pass — live-DOM mechanism ACCEPTED
+
+The commissioned-Pi retest accepts the new presentation primitive:
+
+- [x] repeated Clock→Weather runs consistently keep the outgoing Clock surface present;
+- [x] Clock and Weather remain joined at the moving seam with no white snapshot failure;
+- [x] the home indicator remains shell-owned rather than baked into a root texture;
+- [x] there is still one destination movement only, with no Cover Reveal, black frame, reload or second Weather appearance;
+- [x] Weather settles fully live/interactable;
+- [x] the same mechanism remains visually coherent after changing daytime theme, including Crimson Glow.
+
+The mechanism is therefore good enough to keep. The next issue is **policy**, not rendering.
+
+#### B0 v5 — integrate Spatial row into the custom Transition style system
+
+Physical feedback correctly identifies that an always-on spatial Clock→Weather path would silently override the user's selected Transition style. B0 was allowed to do that temporarily to prove the mechanism, but production motion policy must remain user-owned.
+
+The architecture is now:
+
+- **Transition style remains authoritative.**
+- Existing values—Grow and fade, Crossfade, Horizontal slide, Vertical lift, Cover reveal, Zoom, Blur dissolve and Instant—retain their existing behaviour.
+- A new explicit **Spatial row (prototype)** choice opts into the Level-B live-DOM navigation model.
+- The bounded live-DOM B0 path activates only when:
+  - navigation is open;
+  - Clock is the active ACP surface;
+  - Weather is selected from the main nav;
+  - the configured Transition style is `spatial-row`.
+- With any other selected style, Clock→Weather uses that ordinary configured style exactly as before.
+- While Spatial row remains incomplete, unsupported relations use the accepted **Horizontal slide** View Transition as a temporary fallback. This avoids inventing a half-implemented reverse carousel while still keeping the setting valid and predictable.
+- Transition **duration** continues to apply to Spatial row's live-DOM movement.
+- Navigation transition duration still owns only the drawer/page/indicator sheet opening and closing.
+
+Candidate `24ead76bc2245332354637c5c301f7dac938beb2` adds `spatial-row` to frontend preference normalisation, Unified Settings validation, the Motion selector and the transition-style fallback mapping. It passed the full maintained suite as **Tests #5262**.
+
+Physical B0-v5 gate:
+
+- [x] Selecting another ordinary Transition style restores that configured transition rather than silently invoking Spatial row.
+- [x] Selecting **Spatial row (prototype)** opts Clock→Weather into the accepted live-DOM strip.
+- [x] Changing away from Spatial row immediately returns authority to the selected ordinary style.
+- [ ] While Spatial row is selected, Weather→Clock and unrelated destinations should use the temporary Horizontal slide fallback without reloads or broken state.
+- [x] Transition duration continues to control the live-DOM Spatial row speed.
+- [x] Theme changes remain independent of transition-style choice.
+
+Candidate `24ead76bc2245332354637c5c301f7dac938beb2` passed **Tests #5262**, with documentation head `41a05786fabd2998d83cc84f634c4526fd207051` passing **Tests #5263**.
+
+#### B0 v6 — freeze the outgoing surface geometry
+
+A new physical screenshot comparison exposed a small but real jank at the start of the spatial movement: the outgoing Clock's large time/date block jumps upward as soon as the strip begins, even though the stationary full-screen Clock was correctly laid out immediately beforehand.
+
+This is not an animation-distance bug. It comes from **global destination CSS leaking into the outgoing live clone**:
+
+```css
+/* base Clock/main-screen geometry */
+.screen {
+  grid-template-rows: minmax(0, 1fr) auto auto;
+}
+
+/* destination Weather geometry */
+body.mode-weather .screen {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+```
+
+The spatial compositor clones `main.screen` while Clock is active, but the normal Surface Host commit then changes `body.mode-clock` to `body.mode-weather` before the outgoing clone has finished travelling. Because the clone is still a `.screen`, Weather's screen rule immediately reflows the clone into Weather row geometry. The Clock weather panel happens to retain approximately the same vertical boundary, while the flexible hero row changes position, which is why the time/date visibly jump upward in the captured transition frame.
+
+Candidate `646fe343b760879704804f73e0126cc061170494` fixes this without hard-coding Clock dimensions. Before the destination commit, ACP copies the outgoing screen's **computed layout contract** onto the clone as inline values:
+
+- grid template rows/columns;
+- grid auto-flow/auto tracks;
+- alignment;
+- row/column gaps;
+- screen padding.
+
+The outgoing layer is therefore layout-frozen in its real pre-transition geometry while the incoming live `main.screen` remains free to adopt Weather's destination-specific layout. This is the correct ownership boundary for a two-surface compositor: the old surface keeps its old geometry for the duration of the handoff; the new surface uses new geometry immediately.
+
+Candidate `646fe343b760879704804f73e0126cc061170494` passed the full maintained suite as **Tests #5264**.
+
+Focused physical B0-v6 gate:
+
+- [x] Stationary Clock and the first moving frame retain the same time/date/alarm/weather-panel geometry.
+- [x] Clock translates left without internal reflow.
+- [x] Weather adopts its normal detailed-layout geometry while entering from the right.
+- [x] The seam remains edge-locked and the accepted theme/style-selection behaviour remains intact.
+
+### Level-B B0 physical acceptance — COMPLETE
+
+B0 now proves the key spatial-row mechanism on the commissioned Pi: explicit style opt-in, live-DOM rather than unreliable old-root snapshots, one committed destination lifecycle, edge-locked viewport motion, per-surface outgoing layout preservation, theme independence and correct Transition-duration ownership.
+
+The accepted implementation lineage is:
+
+- live-DOM pivot `114b945f4bc132bbc14922eac045e582330703cd` / **Tests #5260**;
+- explicit Spatial-row style `24ead76bc2245332354637c5c301f7dac938beb2` / **Tests #5262**;
+- outgoing-layout freeze `646fe343b760879704804f73e0126cc061170494` / **Tests #5264**;
+- final docs/status heads **#5265–#5266** green.
+
+#### B1 — ordered, bidirectional Clock ↔ Weather row
+
+The next experiment adds the smallest real row model rather than another special-case reverse animation. The row order is currently:
+
+```text
+Home  <---->  Weather
+index 0         index 1
+```
+
+Navigation derives direction from those indices:
+
+- Clock → Weather = **forward**;
+- Weather → Clock = **reverse**;
+- only adjacent implemented row members receive the live-DOM Spatial-row compositor;
+- all other destinations under Spatial row continue to use the documented Horizontal-slide fallback.
+
+The application-surface compositor mirrors the same two-item order and validates the requested direction against the actual outgoing/incoming pair. The existing live-DOM path is now direction-neutral:
+
+- **forward:** outgoing `0 → -100vw`, incoming `+100vw → 0`;
+- **reverse:** outgoing `0 → +100vw`, incoming `-100vw → 0`;
+- both preserve the outgoing surface's computed layout before destination body-mode changes;
+- both use the configured application Transition duration/easing;
+- both retain the same Surface Host commit/activate/history/settled ownership.
+
+Candidate `d8b74c0d83036544d6b352c33768bfdc1c46ff8c` implements B1 and passed the full maintained suite as **Tests #5267**.
+
+Focused physical B1 gate:
+
+- [x] Clock → Weather still looks exactly like the accepted B0 movement.
+- [ ] Weather → Clock performs the mirrored Spatial-row movement: Weather leaves right while Clock enters from the left.
+- [ ] The moving seam remains joined in both directions with no white gap, overlap or internal page reflow.
+- [ ] Clock and Weather both settle fully live/interactable after their respective incoming movements.
+- [ ] Transition duration affects both directions equally.
+- [ ] Selecting any non-Spatial transition restores the normal configured style in both directions.
+- [ ] News/AirPlay/Settings/Plexamp remain outside the ordered row for B1 and keep their existing Spatial-row fallback/accepted behaviour.
+
+#### B1 first physical pass — reverse direction was discarded by the host
+
+The screenshots initially look like a compositor problem because Weather fades away while Clock becomes visible underneath, with only a very short lateral movement. The code path explains that exact visual:
+
+1. navigation's ordered-row logic correctly derives `reverse` for Weather → Clock;
+2. `page-transitions.js` passes `spatialCommitDirection: "reverse"`;
+3. the Surface Host still contained the older B0 normaliser:
+   ```js
+   options.spatialCommitDirection === 'forward' ? 'forward' : ''
+   ```
+4. `reverse` was therefore converted to an empty direction **before** the application-surface `spatialCommit` hook;
+5. the host fell back to its ordinary View Transition path;
+6. because the selected style is Spatial row and unsupported relations still temporarily map to Horizontal slide, Chromium ran `acp-out-horizontal-slide` / `acp-in-horizontal-slide`: only ±4–5vw plus an opacity fade.
+
+That is precisely the fade/overlay effect captured in the physical screenshots. The live-DOM reverse compositor itself had not actually been exercised.
+
+Candidate `8a3b300a7e9d55807aaa3d76993689260f5356ac` changes the Surface Host direction contract to accept both `forward` and `reverse`, with regression coverage so a future refactor cannot silently collapse reverse back to the fallback path. It passed the full maintained suite as **Tests #5269**.
+
+The same physical pass exposed a separate small theme defect on Weather: `.weather-forecast-status` had theme-owned border/background but its text still inherited `var(--acp-color-accent)`, leaving **Forecast Ready** cyan under Amber Terminal and Crimson Glow. The correction gives **non-stale** forecast status text `var(--accent-strong)` in the non-Classic theme layer; `.is-stale` deliberately keeps its semantic warning colour.
+
+Focused retest:
+
+- [x] With Spatial row selected, Weather → Clock now uses the full live-DOM reverse strip rather than the short fading Horizontal-slide fallback.
+- [x] Weather travels right while Clock enters from the left.
+- [ ] The moving seam/no-gap/no-internal-reflow contract still needs one final explicit acceptance pass after the styling correction below.
+- [x] Forecast Ready follows the selected daytime theme; stale-warning colour remains semantic.
+- [x] Clock → Weather remains unchanged.
+- [ ] The outgoing Weather surface must retain its selected theme colours—including both forecast scroll rails—for the entire reverse movement.
+
+#### B1 second physical pass — outgoing Weather lost global theme context
+
+The reverse compositor is now genuinely running, but the screenshots expose a different class of problem: while Weather is stationary its custom forecast scrollbar is Crimson/Green as expected; the instant the reverse slide begins, the outgoing Weather scrollbar changes to Classic cyan.
+
+This is the styling equivalent of the earlier Clock layout leak. The live outgoing layer is a clone of `main.screen`, but the normal destination commit changes the **global** document state to Clock before that Weather clone has left the viewport. Weather's non-Classic component rules were scoped like:
+
+```css
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body[data-active-page="weather"] .weather-forecast-scrollbar-thumb { ... }
+```
+
+Once `body[data-active-page]` becomes `clock`, those selectors stop applying to the still-visible outgoing Weather clone. Its markup then falls back to the base forecast CSS, whose historical default is cyan. Clock→Weather does not show the bug because Weather is the **incoming** live destination and therefore owns the global Weather state throughout its entrance.
+
+The compositor now gives each outgoing clone an explicit local presentation identity:
+
+```text
+data-acp-surface-context="weather"
+```
+
+Weather's non-Classic component selectors accept either the live global Weather body state **or** an outgoing clone carrying Weather context. That preserves the selected palette without freezing pixels or copying dozens of computed colour values. Candidate `5ca3ad46c511451fa8aa971332d33f7779b5046a` implements the theme-context contract and passed **Tests #5271**.
+
+A follow-up audit found the forecast console itself also had two active-page-scoped layout rules. Candidate `5a0b5313f593d92d949fba6989e93cda0d74b6e7` extends those rules to the same outgoing Weather context, preventing width/margin changes during the reverse handoff as well. **Tests #5272** found only a stale cache-bust expectation in `test_weather_forecast_ui.py`; candidate `a8d7ffc24b26b4543406049f73dc79e1aa6c7e61` updates that assertion and passed the full maintained suite as **Tests #5273**.
+
+Focused B1-v3 retest:
+
+- [x] Under Crimson Glow, Weather's forecast rails remain Crimson from stationary state through the entire Weather→Clock slide.
+- [x] Under Green Phosphor, the rails remain Green rather than reverting to cyan.
+- [x] Forecast Ready and the other Weather theme accents remain palette-owned while the page is leaving.
+- [x] The reverse movement continues to use the full live-DOM strip rather than the fade fallback.
+- [x] Clock→Weather remains unchanged.
+
+### B1-v3 outgoing presentation-context acceptance — COMPLETE
+
+The outgoing Weather surface now carries enough local identity to remain visually Weather after the live document has already committed Clock. The commissioned-Pi retest confirms that the custom forecast rails no longer lose their daytime-theme palette during the reverse handoff. This closes the theme/presentation-context defect that followed the earlier layout-context fix.
+
+The remaining B1 acceptance work was about the **two-way row as a whole**, not Weather styling:
+
+- [x] no seam gap/overlap or internal reflow appears in either direction over repeated runs;
+- [x] both incoming surfaces settle fully live/interactable;
+- [x] Transition duration affects forward and reverse equally;
+- [x] choosing a non-Spatial transition restores that configured style in both directions;
+- [x] News/AirPlay/Settings/Plexamp remain outside the B1 row and retain their documented fallback/accepted behaviour.
+
+### Level-B B1 physical acceptance — COMPLETE
+
+The commissioned Pi now accepts the full two-member ordered row: Clock↔Weather is symmetric, edge-locked, theme/layout-context safe, duration-owned and opt-in through the existing Transition style system.
+
+#### B2 — add News as the third adjacent row member
+
+The next step expands only one position in the existing navigation order:
+
+```text
+Home  <---->  Weather  <---->  News
+  0               1              2
+```
+
+B2 intentionally keeps **adjacency** as the spatial-commit rule:
+
+- Clock↔Weather remains the accepted B1 live-DOM strip;
+- Weather→News is a new **forward** live-DOM strip;
+- News→Weather is the mirrored **reverse** live-DOM strip;
+- Clock↔News is non-adjacent, so for B2 it deliberately keeps the documented Horizontal-slide fallback rather than inventing long-jump behaviour;
+- AirPlay, Settings and Plexamp remain outside this row slice.
+
+News is a good third member because it is already a physically accepted mounted ACP surface and its primary page styling is token/local-component based rather than depending on a body-mode screen-grid override. The existing compositor still freezes the outgoing root-screen geometry and stamps source-surface presentation context, so Weather retains its accepted layout/theme identity when leaving for News.
+
+Candidate `35f22445be5d7ca7ce93a646c245e1be0a4dec41` extends both the navigation row and compositor row from `['clock','weather']` to `['clock','weather','news']` while keeping the adjacent-only guard, and passed the full maintained suite as **Tests #5276**.
+
+Focused B2 physical gate:
+
+- [x] Weather → News moves forward as one full-viewport edge-locked strip.
+- [x] News → Weather moves in the exact reverse direction.
+- [x] Weather keeps its selected theme and forecast geometry while leaving for News.
+- [x] News retains its category/story/ticker layout and remains fully interactive after arriving and after returning from Weather.
+- [x] Clock↔Weather remains unchanged.
+- [x] Clock→News and News→Clock remain on the temporary Horizontal-slide fallback for this slice.
+- [x] Transition duration and non-Spatial style ownership continue to behave exactly as accepted.
+
+### Level-B B2 physical acceptance — COMPLETE
+
+The commissioned Pi now accepts the three-member adjacent row `Clock ↔ Weather ↔ News`. Both new Weather↔News directions are edge-locked and fully interactive, Weather preserves its outgoing layout/theme context, Clock↔Weather remains unchanged, and non-adjacent Clock↔News deliberately stays on the bounded fallback.
+
+The small **News page theme-polish defect** found during B2 is now physically accepted: the **News ready** and **BBC feed date/time** pill borders follow the active daytime palette rather than retaining the legacy cyan/light-blue accent. Candidate `1d41fbfbbea7f2e02abab2a5352c889ec3c2ee0e` passed **Tests #5278**, and documentation head `2dc809d2120fe5a694287b5274192ac4a3a9f3ab` passed **Tests #5279**.
+
+#### B3 — staged long jumps across the visible spatial row
+
+B2 deliberately left Clock↔News on the short Horizontal-slide fallback because they are two positions apart. The first B3 code candidate removed that guard and used one direct viewport handoff. Although technically clean, physical/product review rejects that **model** before acceptance: Spatial row should communicate that these surfaces occupy real neighbouring positions, whereas a direct Clock→News handoff is visually little different from an ordinary reveal style.
+
+The revised B3 rule is therefore **literal row traversal with one logical destination**:
+
+```text
+Home  <---->  Weather  <---->  News
+
+Clock → News : Clock | Weather | News strip moves left by 200vw
+News → Clock : News | Weather | Clock strip moves right by 200vw
+```
+
+Important semantics:
+
+- Weather is visibly present between Clock and News during the motion;
+- Weather is **not** logically activated, added to browser history or published as a destination event;
+- only the selected destination is committed by the Surface Host;
+- the configured Transition duration applies once to the **whole 200vw movement**, not once per viewport;
+- adjacent one-position movements remain 100vw and otherwise unchanged;
+- the same easing, outgoing layout freeze and per-surface presentation-context rules remain authoritative.
+
+To do that without bringing back unreliable Chromium root snapshots, the compositor now builds a temporary DOM strip:
+
+1. clone/freeze the real outgoing surface;
+2. ensure any intermediate row member is mounted;
+3. synchronously present that intermediate under its own temporary body mode, clone its real DOM/layout/background, then restore the true source before a paint can occur;
+4. place the final live destination at its row distance;
+5. animate every layer together for one configured duration;
+6. remove temporary layers and leave only the selected destination live.
+
+The initial direct-handoff candidate `205908549f11f1682d077c4df28029f917dd2592` passed **Tests #5280** but is superseded by this product decision. Staged-strip candidate `f8e8fea368fefb46f9ed2739a586aaceb84e9232` passed **Tests #5283**; comment/regression alignment head `f84ecd625a4d8a0aab1bfa582147797d3c4fc3b4` passed **Tests #5284**.
+
+Focused B3-v2 physical gate:
+
+- [x] Clock → News shows Weather physically between them as one continuous leftward strip.
+- [x] News → Clock shows Weather physically between them as the exact reverse strip.
+- [x] Weather passes through without becoming the logical active destination or causing a second settle/navigation event.
+- [x] The configured Transition duration is the duration of the **complete** Clock↔News movement; it does not take twice as long as configured.
+- [x] The three moving surfaces remain edge-locked with no white gaps, overlaps, fade/overlay or internal reflow.
+- [x] Clock and News settle fully live/interactable after long jumps.
+- [x] Existing Clock↔Weather and Weather↔News movements remain unchanged.
+- [x] Selecting a non-Spatial transition restores that configured style for Clock↔News.
+- [x] AirPlay, Settings and Plexamp remain outside the B3 row and unchanged.
+
+### Level-B B3 physical acceptance — COMPLETE
+
+The commissioned Pi accepts the literal staged-row model. Non-adjacent ACP surfaces now visibly traverse their real neighbours while retaining a single logical destination commit and one configured total duration.
+
+The accompanying News status correction is also accepted: the rail pill describes the active category rather than inheriting an unrelated feed's degraded state. A real active-feed warning deliberately remains semantic rather than theme decorative:
+
+- **News ready** follows the selected daytime palette;
+- **Cached news / Stale cache** remains amber/yellow under Green Phosphor, Crimson Glow and other themes;
+- that warning colour is intentional because it communicates degraded freshness rather than surface identity.
+
+#### B4 — add AirPlay as the fourth ACP row member
+
+The ACP browser-surface row now expands to:
+
+```text
+Home  <---->  Weather  <---->  News  <---->  AirPlay
+```
+
+This row is an **ACP application-surface order**, not a literal copy of every bottom-nav button. Plexamp is the deliberate cross-application workspace exception and Audio is a shell overlay, so neither belongs between News and AirPlay in the browser-surface strip.
+
+B4 keeps the accepted B3 semantics unchanged:
+
+- News↔AirPlay is a normal adjacent 100vw strip;
+- Clock/Weather↔AirPlay long jumps visibly traverse every intermediate ACP row member;
+- the configured Transition duration still covers the entire movement once;
+- only AirPlay is logically committed when it is the selected destination;
+- AirPlay's existing pre-snapshot/hydration authority remains responsible for stable segmented-clock/glance geometry before it starts entering;
+- leaving AirPlay uses the same outgoing DOM-clone contract as Clock/Weather/News.
+
+Because AirPlay has a few non-Classic theme rules scoped through `body[data-active-page="airplay"]`, B4 extends those rules to `[data-acp-surface-context="airplay"]` as well. This prevents an outgoing AirPlay clone from dropping back to Classic/cyan pulse and screen-border paint when the global body switches to News/Weather/Clock.
+
+Candidate `9be2934e329ffaeb69d94e9cbfedda09bf8644d5` extends both spatial-row authorities to `['clock','weather','news','airplay']` and adds the outgoing AirPlay theme-context selectors. It passed the full maintained suite as **Tests #5286**.
+
+The first commissioned-Pi B4 pass is **mostly successful but not accepted**. News→AirPlay, total-duration ownership, edge-locked multi-surface travel, endpoint interactivity, the accepted Clock↔Weather↔News row, non-Spatial transition ownership, Plexamp and Audio all pass. The first follow-up then separated two independent defects:
+
+1. **AirPlay departure state corruption — FIXED PHYSICALLY.** B4's intermediate-surface capture had called the real `commitSurface()` while temporarily showing News/Weather and again while restoring AirPlay. Restoring AirPlay therefore ran `markAirPlayUnresolved()`, stripping the live now-playing/session classes before the outgoing clone was secured. B4-v2 candidate `c8e2790d449eb6c99e5e632b18b2197fdda1d138` separates presentation-only staging from logical activation with `presentMountedSurface()`; the commissioned-Pi retest confirms playing AirPlay now retains its controls, metadata and artwork geometry until movement begins.
+2. **Endpoint screen-format leak — FIXED PHYSICALLY.** The remaining vertical hitch reproduced in both directions around AirPlay and was also visible on News→AirPlay. The cause was deterministic: `airplay.css` owns the live page with `body.mode-airplay .screen { display: block; }`, while ordinary ACP screens are grid containers. Spatial clones also carry class `.screen`. When the logical destination commit toggled `body.mode-airplay` before horizontal animation started, an outgoing Clock/News clone changed **grid → block**; when leaving AirPlay, its outgoing clone changed **block → grid**. B4-v3 now freezes the source screen's computed formatting mode before commit, preventing that body-mode leak. Commissioned-Pi retesting confirms News→AirPlay, Clock→AirPlay and both ready/now-playing AirPlay→Clock all remain vertically stable until horizontal motion begins.
+
+B4-v2 regression guard `a805f274750bc6bd3a3e0c9a976cbda7cfae0a64`, cache-bust head `c1317b2dd3d9e107848d21d329c127504c816a4d` and aligned test head `22dc15b5a1270de6f7b045654e373e526a430058` passed through **Tests #5292**, with documentation-synchronised head `d22374e7b984a9df9a0f8ee4e11b02c9c4fa79a1` passing **Tests #5294**.
+
+B4-v3 candidate `ed656f8fba24925aaab75cea2b25ff8ebffdc2b9` extends `freezeOutgoingScreenLayout()` to pin the source screen's computed `display` and `overflow` values as inline clone formatting before the destination body mode changes. This keeps News/Clock clones grid-formatted while entering AirPlay and keeps AirPlay clones block-formatted while leaving it. Regression head `eab572e565b041125af1b9e61e31bfa9400b767d`, cache-bust `6e0552e98bb1d49392a4335f4937277b3b24beed` and aligned test head `17151fbeed91144548adbc9bb5eab81584111e18` follow. The display-freeze implementation passed **Tests #5296**, the aligned regression/cache head passed **Tests #5299**, the detailed documentation head passed **Tests #5300**, the roadmap-synchronised head passed **Tests #5301**, and the pre-acceptance documentation head passed **Tests #5302**. The focused commissioned-Pi retest now passes in every remaining direction. **Level-B B4 is physically accepted.**
+
+Focused B4 physical gate:
+
+- [x] News → AirPlay moves as one adjacent full-viewport strip with AirPlay already hydrated/stable while entering.
+- [x] AirPlay → News is the exact reverse with the source retaining both its session state **and its block-format screen geometry** until movement begins.
+- [x] Clock/News → AirPlay begins horizontally without the outgoing grid screen changing vertical geometry when `mode-airplay` is committed.
+- [x] AirPlay → Clock visibly traverses News then Weather in reverse with active/idle source presentation and bottom glance row remaining fixed until horizontal movement starts.
+- [x] A deliberately slow Transition duration applies once to the complete 300vw Clock↔AirPlay movement.
+- [x] All four moving surfaces remain edge-locked with no gaps, overlap, fade or internal reflow once movement begins.
+- [x] AirPlay controls/status remain live after arrival and after returning from another row surface.
+- [x] Existing Clock↔Weather↔News behaviour remains unchanged.
+- [x] Cover reveal (or another non-Spatial style) still performs its ordinary direct destination transition.
+- [x] Plexamp and Audio behaviour remain unchanged.
+
+**B4 gate complete.**
+
+#### B5 — separate workspace navigation from shell utilities
+
+Product review after B4 changes the navigation model rather than adding Settings mechanically as a fifth row member.
+
+The bottom sheet now has two semantic groups:
+
+```text
+WORKSPACES                                      UTILITIES
+Clock   Weather   News   AirPlay   Plexamp      [Audio] [Settings]
+```
+
+The utility controls should be visually separated toward the right-hand edge rather than styled as ordinary page pills:
+
+- **Settings** uses a modern inline SVG cog icon.
+- **Audio** uses a modern inline SVG speaker-with-waves icon rather than a musical note, because the control owns appliance-wide mixer/EQ/audio behaviour rather than only music playback.
+- SVGs use a stable `viewBox`, `currentColor` and CSS sizing so they scale cleanly with the navigation treatment and themes.
+- icon-only controls retain full touch targets and explicit accessible names/labels;
+- Settings remains a mounted ACP application surface for lifecycle/state preservation, but it is **not** a member of the spatial workspace row;
+- Audio remains the accepted shell overlay and is likewise **not** a spatial row member.
+
+This changes presentation and navigation semantics only; it must not weaken Settings autosave/state preservation or Audio overlay ownership.
+
+B5 implementation candidate:
+
+- `be9351567e81a0f308681c343bc94d7e10ebdc5b` splits `_nav.html` into explicit `nav-workspaces` and `nav-utilities` groups and places the visible workspace controls in the intended order `Clock → Weather → News → AirPlay → Plexamp`.
+- `4ee212c6013993a7fc4b1a95593ba433a69cefb6` adds the right-edge utility layout, divider, compact touch targets and scalable `currentColor` SVG treatment.
+- `fef4860c4bac75ee5b6bcb932e91b5c724af71ca` updates the defensive Audio-button installer so a missing runtime control is recreated inside the utility group rather than inserted into the wrong parent.
+- `5600301dceee5460704fe82c92d20c5448346764` bumps the shell navigation asset versions. Its **Tests #5315** failure is the expected transient stale-marker assertion before the next commit updates the regression fixture.
+- `27723265773c03274b1d8a77917990e650c4ce6d` aligns regression coverage for grouping, visible order, inline SVG/accessibility ownership and the new asset markers; it passed the full maintained suite as **Tests #5316**.
+
+B5 deliberately changes **visible nav order only** for Plexamp. The accepted Spatial-row engine remains `Clock ↔ Weather ↔ News ↔ AirPlay` until B6; Plexamp does not gain spatial traversal merely because its button now occupies the intended terminal visual position.
+
+Focused B5 physical gate:
+
+- [x] Navigation opens with workspace pills grouped together on the left/centre and a clearly separated Audio/Settings utility cluster near the right edge.
+- [x] Visible workspace order is `Clock, Weather, News, AirPlay, Plexamp` without crowding, wrapping or overlap at 1280×720.
+- [x] Audio shows a clean speaker-with-waves SVG and Settings a clean cog SVG; both remain sharp at normal scale and under VNC.
+- [x] Utility icons inherit Classic Dark and at least one non-Classic daytime theme correctly, including active/open state.
+- [x] Audio icon opens/closes the existing mixer overlay exactly as before and its active state follows the overlay.
+- [x] Settings icon enters the existing mounted Settings surface; repeated return preserves Settings state/autosave behaviour.
+- [x] Workspace buttons retain current navigation behaviour; B5 has not given Plexamp Spatial-row semantics before B6.
+- [x] Home-indicator reveal height, page/drawer sheet motion and auto-hide remain healthy with the nested nav groups.
+
+**B5 utility-cluster core is physically accepted.** Product review of that accepted layout immediately identified a shell-presentation refinement before B6.
+
+##### B5 refinement — persistent navigation above workspace transitions
+
+The navigation bar is shell chrome, not page content. It should therefore remain visually above destination transitions until its own inactivity policy hides it.
+
+Refined contract:
+
+- ordinary View Transitions occur **behind** navigation rather than painting over/dimming the drawer;
+- Spatial-row transitions likewise start immediately behind an open navigation bar instead of first waiting for navigation to slide away;
+- **Overlay content** is the new default navigation presentation: opening navigation leaves the current workspace in place and overlays/dims it;
+- **Lift content** remains available as a Display → Motion option, retaining the accepted measured live-page lift for users who prefer it;
+- the existing **Navigation transition duration** remains the authority for drawer/indicator/backdrop motion (and the optional page lift);
+- add **Navigation inactivity time** under Display → Motion as a 0–30 second slider in 1-second steps; `0` means **Never auto-hide**;
+- while the Audio mixer is open, navigation inactivity auto-hide is suspended regardless of the configured timeout;
+- workspace and utility controls gain a roughly 15–20% larger touch target and one shared control height; workspace pills become rounded rectangles while Audio/Settings retain compact circular icon controls;
+- the drawer itself uses the normal ACP card radius rather than a pill/half-circle end treatment.
+
+Implementation:
+
+- `deaf1f29f80f5f027437db2f43436d13659abe0a` adds persisted `navigation_presentation` and `navigation_inactivity_seconds` settings.
+- `8d4ee1c98ba2f8d7e45ad4453d7202d46ec895e4` / `df68650242f2a9f7158f5a187cd80aed8aea9f6a` add the Motion controls and slider restoration.
+- `8ce79f4591fcce6b3ed4cc57ebe5161c20d0336b` / `6b746b0eb081cbf1a3360dcdf887a1abbaed9486` project the settings into the long-lived shell.
+- `ee9f7ee1e9734524da4b0c857f4c99df66758709` replaces the fixed 6/60-second timers with the user-owned inactivity timeout and makes Audio suspend auto-hide.
+- `bf5aa2c205a5dca5d72d6cfe52ae984bc2788a1a` removes the Spatial-row pre-transition navigation-close wait so the shell stays present.
+- `5a8a3bad117635459db9260050e215c3fc483e16` makes the shell a non-animated named View Transition layer above page snapshots, adds Overlay/Lift presentation ownership and enlarges/re-shapes the controls/drawer.
+- `9597f55b29c26bd234c5efc7ee8b1a1280490b73` aligns the final control size/radii with ACP design tokens; regression alignment follows through `eb00e963ebe8aa6b5185c56fdd8bc2b885501bef`.
+- Intermediate CI reds during the setting/cache/test sequence were stale regression expectations; the first fully aligned implementation passed **Tests #5333**, the final larger-control/radius treatment passed **Tests #5334**, and its aligned regression head passed **Tests #5335**. Roadmap/documentation sync then passed **Tests #5336–#5337**.
+- The first commissioned-Pi follow-up confirms the persistent-shell model is substantially correct. Ordinary transitions, Spatial-row shell persistence, Overlay mode, inactivity ownership and Audio timeout suspension all pass. Two real edge cases were found: Lift+Spatial forced the outgoing clone down before horizontal movement, and Plexamp→Settings still used the legacy full-document handoff. Touch sizing passed but the workspace labels wanted more visual weight.
+- Follow-up implementation removes the clone's forced zero translate (`3861a2b2d360a2b895ef274b225788d7261dd714`), keeps mounted ACP destinations including Settings inside the live shell when leaving Plexamp (`ea868dc141de484c24d7c279f252e6f3cf199bc2`), reorders the Motion controls and adopts **Home** as the human-facing name for the internal `clock` workspace, themes pending/saving Settings state instead of using warning yellow, enlarges nav labels without changing their padding/gaps, and brings Classic Dark Audio glass in line with the other themes. The aligned behavioural/regression head passed **Tests #5349**; the final Classic Dark transparency polish passed **Tests #5350**, documentation/initial Home-status alignment passed **Tests #5353**, and the final Home-identity regression head passed **Tests #5354**.
+
+Focused refinement physical gate:
+
+- [x] With Cover reveal (and another ordinary transition), navigation remains visually above and unchanged while the page transition runs behind it, including Plexamp→Settings.
+- [x] Spatial row begins immediately behind the still-open navigation bar; it no longer waits for navigation to close first.
+- [x] Default **Overlay content** leaves the live page at its normal vertical position while opening/closing navigation.
+- [x] **Lift content** remains selectable and uses the measured reveal height. The Spatial outgoing-page drop is fixed and physically retested.
+- [x] Navigation transition/inactivity ownership behaves independently of application Transition duration in the tested shell flows.
+- [x] Navigation inactivity values, including `0 = Never`, behave correctly and shell interaction resets the timer.
+- [x] Audio remains open while the mixer is active; closing Audio resumes the configured inactivity timeout.
+- [x] Enlarged workspace and utility controls share one height, are comfortably touchable and do not wrap at 1280×720. The final ~15% workspace-label increase is physically accepted with the existing height, horizontal padding and inter-button gaps unchanged.
+- [x] Drawer and workspace-button corner radii read as ACP rounded rectangles rather than a pill-ended bar.
+
+Additional B5 presentation polish from this gate:
+
+- Settings → Display → Motion places its two choice controls in one column: **Transition style** above **Navigation presentation**, with the two duration sliders opposite them.
+- “changed / pending / saving” Settings chrome follows the selected theme accent; semantic failure remains red and warning colours remain reserved for actual warnings.
+- Classic Dark Audio uses the same glass/translucency idea as the coloured daytime themes rather than an almost-opaque navy sheet.
+- the primary `clock` workspace is now presented to users as **Home**. Internal route/state identifiers remain `/clock` / `clock` for compatibility.
+- possible workspace SVG treatment is being evaluated separately before implementation: Home, Weather and News can use semantic symbols while AirPlay/Plexamp can use recognisable product marks; Audio and Settings retain their accepted utility icons.
+- the October 9 focused Pi retest passed the Lift+Spatial fix, Plexamp→Settings shell persistence, Motion layout, themed save-state chrome and Classic Dark Audio glass. Only workspace label size remained open; the final candidate increases the label clamp from `1.02rem/2.55vmin/1.18rem` to `1.17rem/2.9vmin/1.36rem` (about 15%). The final label-size implementation/regression head passed **Tests #5357** and the commissioned-Pi visual retest is accepted. **B5 is physically complete.**
+
+**B5 PHYSICALLY ACCEPTED — 2026-10-09.**
+
+#### B6 — promote the row from browser surfaces to shell workspaces
+
+**Status: ACTIVE.**
+
+The accepted B4 compositor proved a literal ACP browser-surface strip. Before native Plexamp migration, generalise that product concept into a **shell-owned workspace order** whose positions are independent of renderer technology.
+
+Current target order:
+
+```text
+Home  <---->  Weather  <---->  News  <---->  AirPlay  <---->  Plexamp
+```
+
+Reserved future order once Astronomy is implemented:
+
+```text
+Home  <---->  Weather  <---->  Astronomy  <---->  News  <---->  AirPlay  <---->  Plexamp
+```
+
+The distinction is deliberate:
+
+- Home/Weather/News/AirPlay/Astronomy are ACP browser application surfaces;
+- Plexamp is the terminal media workspace;
+- today Plexamp is represented by the persistent browser player layer;
+- later it becomes the native Wayland Plexamp application;
+- **its row position, navigation direction and shell choreography do not change when the renderer changes**.
+
+##### B6a — shell-owned topology authority
+
+The first B6 slice is structural rather than visual:
+
+- new `workspace-topology.js` owns the live order `clock → weather → news → airplay → plexamp`, presentation label **Home**, route mapping and renderer ownership;
+- the same authority records the future reserved order `clock → weather → astronomy → news → airplay → plexamp` without making Astronomy routable early;
+- the ACP live-DOM compositor derives its ACP-only order from this shell authority instead of carrying a private four-item array;
+- `page-transitions.js` uses the same topology for direction/path decisions;
+- renderer ownership is explicit (`acp` vs `plexamp`), so Plexamp does not have to masquerade as an `ACPSurfaceHost` surface.
+
+Candidate chain: `90477c75971a580cb1f6b933cb23395df2af21aa` → `34f4ab39314866a64d48462a2263b0dde6b56cf8` → `d4bf62237dec8c1947c7f41b3cf5985f628fe939` → `283dd435127f9875524ed69c6b62f7c4dec47922`. The first topology CI run (**Tests #5364**) was an expected stale B4 regression assertion against the removed hard-coded row; the aligned regression is included in the following B6b candidate.
+
+##### B6b — adjacent AirPlay ↔ Plexamp renderer boundary
+
+The second slice makes only the adjacent cross-renderer boundary spatial:
+
+- explicit Spatial-row navigation from AirPlay to Plexamp animates the live AirPlay screen `0 → -100vw` while the persistent Plexamp layer moves `+100vw → 0`;
+- Plexamp → AirPlay is the exact reverse: Plexamp `0 → +100vw`, AirPlay `-100vw → 0`;
+- both use the full application Transition duration once, with the accepted Spatial easing;
+- navigation remains persistent shell chrome above both moving renderers;
+- Plexamp iframe/process state is not recreated; the persistent player layer itself moves;
+- if AirPlay is not already the mounted underlay when returning from Plexamp, it is committed/hydrated first without animation, then participates as the incoming adjacent workspace;
+- non-Spatial styles continue through the accepted Plexamp transition backend unchanged;
+- **long jumps involving Plexamp are deliberately not spatial yet**. Home/Weather/News ↔ Plexamp remain on the accepted ordinary backend until B6c stages the intermediate ACP workspaces.
+
+Implementation heads: `34c0a8fb099b41f062a9b81b7172b12fab7ad6e9` (Plexamp renderer adapter), `003a60cfb9d69c73a7402e2ced0ea61487389c52` (navigation routing), `e9d2a643770905298c5abbab01d9804b214d3580` (asset versions), and `6faf264ffdbee69d429c3fa5629c45bc2bdb2f0f` (aligned topology/adjacent regression). The first combined run **Tests #5368** exposed only two stale static assertions from the topology/handoff refactor; aligned regression head `7619686be2b12a1439f154d9e5c12b84aa3ddfa2` passes the full maintained suite as **Tests #5370**. Commissioned-Pi acceptance is complete.
+
+Focused B6b physical gate:
+
+**10 October 2026 commissioned-Pi result:** all eight visual/behavioural checks pass. A possible audio-continuity issue was investigated before B6b sign-off: Plexamp music is clean while the UI is idle, but brief glitches are audible during page transitions and while navigating between Settings sections/subpages. Because Settings internal navigation is primarily synchronous panel hide/show + layout/paint rather than the B6b spatial animation, investigation is treating this as a wider UI-load / real-time-audio interaction rather than assuming the new AirPlay↔Plexamp adapter is solely responsible.
+
+**First diagnostic capture — 2026-10-10 02:42 BST:** after deliberately exercising transitions and Settings navigation while Plexamp played 44.1 kHz / 16-bit FLAC, only one audible glitch was noticed. The last-five-minute CamillaDSP/Plexamp journal contained no underrun/overrun/XRUN/stall report; the kernel journal contained no ALSA, MMC or throttling event. `vcgencmd get_throttled` returned `0x0`, SoC temperature was 67°C and the ARM clock remained ~2.4 GHz. Snapshot process load showed Chromium renderer as the dominant user-space consumer (~38% CPU), GPU Chromium ~6.5%, WayVNC ~4.7%, CamillaDSP ~1.6% and Plexamp Node ~0.3%. One Plexamp log line reported `ALSA ... Invalid CTL acp_plexamp`; this is a control-interface lookup rather than an XRUN and is not yet correlated with the audible glitch. The evidence therefore does **not** currently implicate the downstream CamillaDSP graph or thermal/storage failure; next isolate UI rendering from remote-display encoding by comparing the same workload with the VNC viewer disconnected versus connected. Follow-up A/B testing with and without an active VNC viewer reproduced **no audible glitch** despite aggressive transitions and Settings navigation. Thread inspection showed CamillaDSP and Plexamp under ordinary TS scheduling, memory remained healthy (~3.1 GiB available), zram swap was unused, and PSI files were simply unavailable on this kernel. The test track itself contains deliberate ticks/clicks which may have been mistaken for a glitch. **B6b audio continuity is therefore accepted with a monitor-only note: reopen investigation only if a repeatable symptom returns.**
+
+
+- [x] AirPlay → Plexamp is one clean adjacent 100vw movement with both live surfaces visible edge-to-edge and no fade/gap.
+- [x] Plexamp → AirPlay is the exact reverse.
+- [x] A slow Transition duration applies once to the complete AirPlay↔Plexamp movement.
+- [x] Open navigation remains fixed above both moving workspaces.
+- [x] Plexamp playback/UI state remains continuous. The earlier suspected audible glitch could not be reproduced in a deliberate VNC-connected/disconnected stress test; no XRUN/kernel/throttling/storage evidence was found. Treat as a watch item only if a repeatable symptom returns.
+- [x] AirPlay live/ready state remains correct after returning from Plexamp.
+- [x] Cover reveal (or another non-Spatial style) still uses the existing ordinary Plexamp transition.
+- [x] Home/Weather/News → Plexamp still use ordinary transition behaviour for now; no fake partial spatial long jump is introduced.
+
+**B6b PHYSICALLY ACCEPTED — 2026-10-10.** All eight visual/behavioural checks pass and the suspected audio issue is not reproducible under targeted stress.
+
+##### B6c — literal long-jump traversal to/from Plexamp
+
+B6c extends the accepted shell topology beyond the adjacent AirPlay↔Plexamp boundary without making Plexamp an ACP browser surface.
+
+For a forward long jump such as `Home → Plexamp`:
+
+```text
+Home → Weather → News → AirPlay → Plexamp
+```
+
+the source plus intermediate ACP workspaces are captured as presentation-only live-DOM layers in their literal row positions, while the **real persistent Plexamp layer** occupies the terminal slot. The entire strip moves once across the configured Transition duration.
+
+Reverse traversal mirrors the same topology. For example `Plexamp → Home` stages AirPlay, News and Weather between the live Plexamp source and the committed live Home destination, then moves the complete strip right in one movement.
+
+Important lifecycle rules:
+
+- the accepted adjacent `spatialShow()` / `spatialHide()` path remains intact; long jumps use separate `spatialShowPath()` / `spatialHidePath()` renderer adapters;
+- ACP intermediate workspaces are presentation-only captures and are never logically activated;
+- AirPlay is now allowed to be an **intermediate** workspace, so its script-owned status is refreshed while its wrapper is still hidden, then its measured layout is synchronously calibrated during the capture window;
+- the real AirPlay wrapper is never left visible across an `await`, preventing a pre-transition flash;
+- Home/Weather/News/AirPlay capture layers remain inert and are removed after travel;
+- the persistent Plexamp iframe/player itself moves; it is not cloned/reloaded;
+- one configured application Transition duration owns the full multi-workspace journey;
+- navigation remains persistent shell chrome above the moving strip;
+- automatic projection and non-Spatial transition styles retain their accepted existing paths.
+
+Key implementation chain:
+
+- `9e2eadce98bb6deba98775d63ea0e4284c9a2bc4` adds presentation-only AirPlay preview refresh;
+- `c2a2e233f24fce8b001fca87f971e40a6f48e218` exposes ACP staged-strip capture;
+- `e12bd0e14f114835487be506ade9195f09ee2d7b` adds long-path Plexamp renderer adapters;
+- `05f084d44de5b356b5e05abcbbe30ce73d707039` routes long Spatial requests through those adapters;
+- `eb7a7bcae4cf2e4393598f673e136899a0c1b6ef` keeps AirPlay hidden while awaiting preview hydration;
+- `73c1dd73f6145c9d8e5068d9dcf6ab342f39e381` adds synchronous AirPlay layout/marquee preview calibration;
+- final regression/cache alignment is through `f10ee196629051d449a624075727fcf1c28793a2`.
+
+Intermediate **Tests #5384/#5390** reds were stale static expectations only; the final aligned B6c head passes the complete maintained suite as **Tests #5391**.
+
+Focused B6c physical gate:
+
+**10 October 2026 commissioned-Pi result:** clean sweep. All ten long-jump checks pass, including literal forward/reverse order, shortened paths, one total duration, first-pass AirPlay staging, persistent navigation, Lift/Overlay geometry, Plexamp state continuity and non-Spatial fallback. No audio glitches were heard during this stress test. **B6c is physically accepted.**
+
+- [x] Home → Plexamp visibly traverses Weather → News → AirPlay → Plexamp in that exact order.
+- [x] Weather → Plexamp traverses News → AirPlay → Plexamp; News → Plexamp traverses AirPlay → Plexamp.
+- [x] Plexamp → Home is the exact reverse: Plexamp → AirPlay → News → Weather → Home.
+- [x] Plexamp → Weather and Plexamp → News preserve the corresponding shortened reverse paths.
+- [x] One slow Transition duration applies to the **entire** long journey, not once per workspace.
+- [x] Intermediate AirPlay is presentation-correct on the **first** long jump, including route-ready/now-playing geometry, with no pre-transition flash.
+- [x] Open navigation remains fixed above the complete long strip.
+- [x] Plexamp playback/UI state survives long jumps exactly as it did for the accepted adjacent boundary; the commissioned-Pi retest also produced no audio glitches.
+- [x] Lift and Overlay navigation presentations both retain correct vertical geometry during the long strip.
+- [x] Cover reveal (or another non-Spatial style) continues to use the ordinary Plexamp transition; automatic projection also remains non-Spatial.
+
+This should make native Plexamp migration easier: the shell first owns a stable workspace index/order, then the Phase-B migration replaces only the Plexamp endpoint implementation and cross-application transition backend. Do not force native Plexamp into `ACPSurfaceHost` merely to satisfy the spatial metaphor; introduce/retain a shell/workspace abstraction above browser-surface and native-application implementations.
+
+B6 physical gates should prove:
+
+- AirPlay↔Plexamp behaves as an adjacent workspace movement with the same left/right spatial meaning as the ACP row;
+- Home/Weather/News↔Plexamp long jumps preserve literal intermediate workspace order and one configured overall movement duration where technically appropriate;
+- reverse Plexamp→ACP navigation mirrors the same topology;
+- the home indicator/navigation utility cluster remains shell-owned above both implementations;
+- automatic Plexamp projection does not masquerade as a user-requested multi-workspace traversal;
+- later native Plexamp can inherit the same terminal slot without changing button order or navigation direction.
+
+**B6 PHYSICALLY ACCEPTED — 2026-10-10.** The shell-owned topology `Home ↔ Weather ↔ News ↔ AirPlay ↔ Plexamp` is now physically proven across ACP↔ACP, adjacent ACP↔Plexamp and long cross-renderer traversal, while preserving native-Plexamp renderer independence.
+
+#### B7 — night-clock anti-burn-in bouncing cluster — final Phase-A polish before Astronomy
+
+**Status: COMPLETE — physically accepted 10 October 2026.**
+
+Replace/extend the existing simple night burn-in shift with an optional continuous **bouncing cluster** mode inspired by classic screen-saver motion.
+
+The moving object is one rigid visual group containing:
+
+- the time;
+- the date row;
+- the alarm indicator/symbol when present.
+
+Required behaviour:
+
+- the group travels continuously within the safe visible night-clock area;
+- edge collisions use ordinary specular reflection: the incident component reverses at the boundary so the cluster visibly “bounces” rather than jumping to a new random location;
+- time/date/alarm retain their internal spacing and move together;
+- a **Night burn-in motion speed** setting controls the travel speed independently of page/navigation transition duration;
+- preserve the existing static/periodic-shift behaviour as a fallback or selectable motion style until the bouncing mode is physically accepted;
+- use transform-based motion and recalculate bounds safely after viewport/layout/alarm-indicator changes without allowing any part of the cluster to leave the visible area;
+- respect reduced-motion/accessibility policy and all existing night dim/wake behaviour;
+- physically accept long-running 1280×720 motion for smoothness, edge reflection, no clipping, no obvious repeated short loop and no interference with alarm takeover/navigation.
+
+##### B7 candidate — reflected night Clock motion
+
+The first B7 candidate preserves the old anti-burn-in implementation as an explicit mode rather than silently replacing it.
+
+Settings → Display → Night dimming now exposes:
+
+- **Anti-burn-in motion:** Off / Periodic shift / Bouncing;
+- **Night burn-in motion speed:** originally 1–20 px/s/default 6; after the first physical pass the range is **1–120 px/s** with fresh/default value **40 px/s**, enabled only for Bouncing. Existing saved values such as 6 px/s remain valid and are not silently migrated.
+
+The saved mode is `display.night_burn_in_motion`; speed is `display.night_burn_in_speed_px_per_second`. The legacy `night_burn_in_shift` boolean remains mirrored for older configuration/client compatibility. Existing configurations with the old checkbox off migrate to **Off**; existing enabled configurations migrate to **Periodic shift**. Fresh example configuration remains Periodic until Bouncing is physically accepted.
+
+Runtime ownership is split cleanly:
+
+- `display-dimming.js` decides whether the Clock is currently eligible for night anti-burn-in motion (scheduled/preview night state, not interacting, Clock visible, no Alarm takeover);
+- `night-burn-in-motion.js` owns movement only;
+- Periodic shift preserves the accepted nine-position ±4 px pattern on the existing five-minute cadence;
+- Bouncing uses `requestAnimationFrame`, an initial non-axis-aligned vector and pixels-per-second velocity;
+- the first candidate gave time, date and alarm annunciator the same CSS individual `translate`, proving rigid movement but exposing that the alarm was still positioned against the viewport-sized Clock hero;
+- the follow-up introduces a layout-transparent daytime `#clock-burn-in-cluster` which becomes the real positioned/bounded object only in very-dark Clock mode; the alarm is then anchored inside the cluster's top-right corner and one `translate` moves the entire group;
+- the real cluster box defines safe movement limits with a viewport margin, eliminating the remote alarm-annunciator "outrigger" that artificially collapsed the available travel area;
+- a collision reflects only the velocity component normal to that edge, giving ordinary specular reflection;
+- bounds are recalculated through `ResizeObserver`/viewport resize and the position is clamped back inside the safe area;
+- long renderer stalls are capped to a 50 ms motion step so resume cannot teleport the cluster through an edge;
+- `prefers-reduced-motion: reduce` automatically substitutes Periodic shift for continuous Bouncing;
+- same-document surface activation/settling immediately starts or stops motion instead of waiting for the 15-second night-state refresh;
+- leaving night Clock mode, interaction/wake state, document hiding or page teardown stops continuous motion safely.
+
+Implementation/regression chain is aligned through `1637f17d54e7b21fc6f9cb02ded7867ba8c1ca7d`; the complete maintained suite passes as **Tests #5405**.
+
+Focused B7 physical gate:
+
+**10 October 2026 first commissioned-Pi pass:** partial acceptance. Rigid motion, persistence, Off/Periodic fallback, navigation stop/resume and Alarm takeover all worked. The first safe-bounds implementation was technically correct but the annunciator was anchored to the viewport-sized hero, making it a remote top-right outlier; this produced a very large top/right exclusion and tiny vertical travel. The 20 px/s ceiling also felt too slow, the inactive night annunciator was effectively invisible, named navigation transition layers could show the selected daytime palette above the astronomy overlay, and one or two brief full-white transition flashes were observed.
+
+- [x] Off leaves the night Clock stationary.
+- [x] Periodic shift retains the previously accepted subtle five-minute behaviour.
+- [x] Bouncing moves time, date and alarm annunciator together with no change in their relative spacing.
+- [~] Left/right/top/bottom reflection worked, but the first candidate's alarm geometry made the usable bounds visibly wrong; retest the rebased cluster.
+- [~] No clipping was reported, but 1280×720 safe-area acceptance must be repeated with the corrected cluster geometry.
+- [~] Speed changes persisted correctly, but 20 px/s was still slow and 6 px/s was "positively snail like"; retest the widened 1–120 px/s scale (40 px/s fresh/default, saved legacy values preserved).
+- [ ] Entering the configured night interaction state stops/resets the motion; when the interaction timeout expires on Home, motion resumes safely.
+- [x] Navigating away from Home stops the motion; returning to Home during an eligible idle night state resumes it safely.
+- [x] Alarm takeover remains fully visible and is not moved/dimmed by the burn-in engine; dismissing the Alarm returned directly to the eligible bouncing Clock without falsely replaying the dismissal as night interaction.
+- [~] Several-minute operation remained stable until the normal three-minute idle policy projected the actively-playing Plexamp workspace; repeat smoothness/loop observation at a useful speed after the geometry fix.
+
+##### B7 follow-up candidate — cluster geometry + dark-room shell closure
+
+The follow-up directly addresses the physical findings:
+
+- `#clock-burn-in-cluster` is `display: contents` in normal/daytime layout, preserving the accepted Clock geometry, and becomes a centred positioned flex container only in very-dark Clock mode;
+- the alarm annunciator is rebased to that cluster's top-right corner, taking advantage of the naturally empty area above the smaller seconds readout instead of sitting near the viewport corner;
+- the bounce engine now moves/bounds that single cluster rather than maintaining three independent translated targets;
+- inactive alarm indication is explicitly lifted to a visible-but-dimmer night level throughout the active night treatment, while a scheduled alarm retains the stronger active state;
+- Bouncing speed is 1–120 px/s with 1 px/s steps and a fresh/default value of 40 px/s; existing saved values are preserved exactly;
+- astronomy-night shell chrome receives an explicit red/dark palette before named View Transition capture, preventing persistent nav snapshots from revealing the selected daytime theme above the multiply overlay;
+- the View Transition top layer now has an explicit `#02040a` canvas, switching to black whenever the document night treatment is active, so a transient Chromium snapshot gap cannot expose the browser's white default canvas.
+
+The first follow-up implementation passed the full suite as **Tests #5417**; the migration-safe speed-scale refinement on implementation head `9e56da66d36299d890e816c4d2c2fc0ac481a4f6` passes the full suite as **Tests #5421**.
+
+**10 October 2026 second commissioned-Pi pass:** the wider speed range is physically useful and **40 px/s feels suitable as the normal/default value**. The inactive alarm bell is now visible as intended. The rebased bell, however, sits inside the clock face over the seconds rather than just outside it, and the visible edge clearance still feels too generous even though it is now symmetrical. The segment glow is not part of `getBoundingClientRect()` collision geometry, so it is retained. Astronomy-night navigation is still wrong during ordinary ACP page transitions: named nav snapshots temporarily appear in the selected daytime palette until the transition ends and the document overlay resumes. One additional brief full-white transition flash was also observed but was not reproducible or tied to a specific route.
+
+##### B7 follow-up v3 — visible bounds + transition-top-layer night safety
+
+The next focused candidate addresses those remaining findings:
+
+- the alarm bell remains anchored to the compact night Clock cluster but is moved just above/slightly outside its top-right corner rather than over the seconds;
+- the cluster remains the single translated object, while collision bounds are measured from the **visible union of time + date + alarm bell** so wrapper whitespace cannot create a fake margin;
+- the deliberate edge safety margin is reduced from 20 px to **10 px**;
+- the segment glow is retained because CSS shadows/filters do not affect the geometric bounding boxes used by the collision engine;
+- `#acp-night-dim-overlay` now has its own named View Transition layer with a z-index above the persistent navigation snapshots, so the exact night treatment remains above navigation during ordinary ACP transitions instead of disappearing beneath the transition top layer;
+- night style is mirrored onto the document root so transition pseudo-elements can preserve astronomy multiply behaviour;
+- the View Transition canvas, root group, root image-pair and root old/new snapshots all receive explicit dark backing (`#02040a`, black when night-active);
+- the separate live-DOM Spatial-row path also receives explicit dark/black backing, covering both transition implementations against a transient white browser canvas.
+
+Implementation/regression head `2828f17e56306849844f4305016fc12c4e11a0f5` passes the complete maintained suite as **Tests #5434**. Focused commissioned-Pi retest remains the B7 closure gate.
+
+**10 October 2026 third commissioned-Pi pass:** the 10 px/visible-child bounds are improved and the inactive bell remains correct. The bell still needs one final placement adjustment: it should sit immediately to the right of the seconds with its top aligned to the hours/minutes. The v3 named-overlay experiment is rejected: ordinary ACP transitions displayed a bright full-screen red frame, and one transition from around AirPlay showed a darker red snapshot region moving down the screen while the red shell remained visible. Spatial-row transitions did **not** show the red frame, confirming that the regression is specific to the View Transition overlay composition rather than the live-DOM strip. The old daytime-nav leak was not seen in this round.
+
+##### B7 follow-up v4 — real night nav capture, no overlay snapshot
+
+V4 removes the failed overlay-as-View-Transition-layer approach entirely:
+
+- `#acp-night-dim-overlay` is once again an ordinary part of the page/root snapshot; it has no `view-transition-name`, so Chromium cannot isolate the pure-red multiply layer as an opaque top-layer image;
+- the dedicated `acp-night-dim-overlay` transition pseudo rules are removed;
+- the previously added dark safety backing remains on the View Transition canvas, root group/image-pair/old/new snapshots and the independent live-DOM Spatial strip, preserving protection against a white browser canvas;
+- the nav itself is now given a **real computed astronomy-night palette before snapshot capture** by a new late-loading `night-shell-closure.css`;
+- that closure stylesheet loads after all daytime theme/component styles and uses a higher-specificity night-state selector, fixing the actual cascade problem that let daytime nav colours survive underneath the document overlay;
+- Plexamp is deliberately excluded from the late ACP nav override because its accepted transition path was already correct;
+- the night Clock now has a `.clock-time-row`: it is layout-transparent during normal/daytime presentation, but in very-dark Clock mode it becomes a flex row with the time first and the alarm annunciator second;
+- the bell is therefore a normal layout sibling directly to the **right of the seconds**, top-aligned with the main time instead of being absolutely guessed into place;
+- the bounce engine still measures visible time/date/bell geometry with the accepted 10 px safe margin and keeps 40 px/s as the physically preferred fresh/default speed.
+
+Implementation/regression head `90021e616a110f7da75e8381ef3e84fbd331efc9` passes the complete maintained suite as **Tests #5444**. Focused Pi verification of bell placement, night nav capture and transition-flash closure remains required.
+
+**10 October 2026 fourth commissioned-Pi pass:** the new flex-row bell placement passes physically. The user requested the remaining 10 px collision margin be removed so the visible cluster bounces at the actual viewport edge. The v4 overlay regression is gone — no bright-red transition screen was seen — but the nav drawer still appears in its daytime palette during **every ordinary ACP View Transition** tested, except the separate Plexamp/Audio paths. Under Spatial row, ACP workspace transitions correctly keep the nav red; only Settings and return-from-Settings show the daytime nav because Settings deliberately falls back to the ordinary View Transition backend. This cleanly isolates the remaining nav issue to the named `acp-nav-drawer` View Transition snapshot rather than night state, Spatial composition or Plexamp. No white/red full-screen flash was reported in this round.
+
+##### B7 follow-up v5 — edge bounce + nav-snapshot-only tint
+
+V5 narrows the fix to the actual failing layer:
+
+- `SAFE_MARGIN_PX` is now **0**, so collision bounds are the visible time/date/bell union against the real viewport edge;
+- the failed late live-nav closure stylesheet is no longer loaded and has been removed from the repository;
+- the night overlay remains an ordinary part of the root/page snapshot and is never promoted into its own View Transition layer;
+- the dark safety colour is kept only on the **stationary** View Transition canvas plus the night document background;
+- dark backgrounds are removed from the animated root old/new/image-pair snapshot pseudos, because their motion can expose the backing as a travelling dark/red rectangular slab;
+- only the temporary `acp-nav-drawer` snapshot is night-treated: its View Transition group gets a clipped pure-red backing, the old drawer copy is hidden, and the incoming drawer snapshot uses `mix-blend-mode: multiply`;
+- this locally reproduces the normal astronomy red multiply treatment on the one named snapshot that sits above the page overlay, without introducing any full-screen overlay snapshot;
+- the independent live-DOM Spatial strip retains its accepted dark/black safety canvas and requires no nav tint because its persistent nav is already physically correct.
+
+Implementation/cleanup head `9949442191f3a544411fcfec594bc557eeeef474` passes the complete maintained suite as **Tests #5452**. Focused commissioned-Pi verification of edge bounce and ordinary-transition nav snapshot tint remains the B7 closure gate.
+
+**10 October 2026 fifth commissioned-Pi pass:** the zero-margin bounce is physically accepted — the Clock/date/bell group now reaches and reflects from the visible viewport edges cleanly and looks right. No white screen, red screen or travelling rectangular transition artefact was seen. The remaining failure is now singular and fully reproducible: the navigation drawer still appears in its daytime palette for every **ordinary ACP View Transition**, including Settings when Spatial row is selected. True Spatial workspace transitions remain correct. The v5 attempt to recolour only the named drawer snapshot therefore does not solve Chromium's captured-pixel behaviour and is retired.
+
+##### B7 follow-up v6 — live-screen ordinary night transitions
+
+V6 removes the failing object from Chromium's snapshot compositor rather than trying to recolour it:
+
+- astronomy-night ACP transitions no longer use `document.startViewTransition()` when a mounted-surface live compositor is available;
+- `ACPSurfaceHost` detects active astronomy-night treatment and routes ordinary transitions through the surface lifecycle's `liveCommit()`;
+- the outgoing **ACP screen only** is cloned as an inert presentation layer; the real destination mounted surface is committed underneath it;
+- the real navigation drawer, handle, backdrop and night overlay remain live DOM for the entire movement and therefore cannot expose a frozen daytime-theme nav snapshot;
+- `ordinaryLiveCommit()` reproduces the existing transition styles with Web Animations: grow/fade, crossfade, horizontal slide, vertical lift, cover reveal, zoom and blur dissolve;
+- when Spatial row is selected for a non-row destination such as Settings, the accepted fallback remains Horizontal slide, but it now uses the live-screen compositor at night;
+- true Spatial row workspace transitions continue to use the already accepted literal-row compositor unchanged;
+- Plexamp and Audio continue on their separate accepted renderer/overlay paths;
+- reduced-motion still collapses the live-screen animation to a 1 ms presentation;
+- the failed frozen-nav snapshot tint CSS is removed;
+- the stationary dark View Transition/document safety canvas remains for daytime/other View Transition use, while the already accepted Spatial live-strip dark backing remains intact.
+
+Implementation/regression head `4b2ae0835307183a900a64155a9308abea86d259` passes the complete maintained suite as **Tests #5460**.
+
+**10 October 2026 final commissioned-Pi B7 acceptance:** every focused v6 check passes. Non-Spatial astronomy-night transitions preserve the live red navigation while the selected application transition animates underneath it; Crossfade/Zoom and the other ordinary styles retain their intended presentation; Spatial workspace travel remains unchanged; Settings fallback under Spatial now also preserves the live red shell; repeated abuse produced no white screen, red screen or moving rectangular artefact. The zero-margin 40 px/s time/date/alarm cluster was already physically accepted in the previous round. B7 is therefore **physically accepted and complete**.
+
+The synchronized architecture/docs head `4aa5c10bd5be6f9fc619007e64f84397a15f75d3` passes **Tests #5462**.
+
+**B5–B7 are now all physically accepted, closing Phase A. Phase B native Linux Plexamp is next.** Astronomy remains reserved between Weather and News, giving `Home ↔ Weather ↔ Astronomy ↔ News ↔ AirPlay ↔ Plexamp`, but implementation waits until the native-player migration is physically accepted.
+
