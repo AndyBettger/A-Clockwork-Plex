@@ -35,7 +35,7 @@
 - [x] **19 October Pi result:** long-running C3 dev session beyond 180 s; one candidate PID **1895183**, stock absent, native keyboard works in ACP and fullscreen native Plexamp, theme changes follow ACP and persist between surfaces; after restarting the ACP service `/api/osk/c3/theme-sync/status` returns `enabled:true`.
 - [x] **Single-keyboard Settings UI and scrolling physically accepted:** C3 automatically suppresses ACP's legacy HTML keyboard; the actual Settings detail pane scrolls the focused latitude control clear of Squeekboard. Native Plexamp text and theme updates still work.
 - [x] **19 October Pi numeric keypad acceptance:** compact Squeekboard numeric keyboard appears for latitude and signed fractional longitude, with minus and decimal keys; forecast coordinates retain precision, and Display night start/end show the intended time-capable QWERTY layout. C3 remains active, theme sync reports `enabled:true`.
-- [ ] Confirm the dev session stays usable over real day/night boundaries, preserves Plexamp Search focus, and restores vendor keyboard after `--stop`. Then plan the final reboot/startup owner.
+- [ ] **Next physical acceptance: restart/login ownership.** `scripts/try-squeekboard-c3-dev.py --startup` waits for the distro OSK, then performs the verified C3 handoff. Optional `scripts/configure-squeekboard-c3-startup.py --enable ZIP` installs a reversible desktop-login entry; `--disable` removes it. This is development-only and not enabled until separately tested on the Pi. Verify `--stop` restores stock, subsequent login takes over automatically, theme sync and numeric keyboards work, and disabling the entry returns to stock on next login. Then accept actual scheduled night boundaries and native Plexamp focus continuity.
 - [ ] Verify re-entry/restart and error recovery; then mark C3 accepted.
 
 **Keep basic safety, reduce ceremony:** a working stock OSK recovery path is important because losing all input is inconvenient; a seven-minute schedule rollback and new bespoke diagnostic subprocess for every normal display adjustment are not requirements for this test appliance.
@@ -56,6 +56,19 @@
 - [ ] Verify search, typing, media controls, return from ACP, alarms, AirPlay and NFC with the accepted native OSK.
 - [ ] Confirm auto-launch, reboot/recovery and a suitable stable Plexamp channel; retain Headless until genuine physical sign-off.
 - [ ] Document accepted user-facing operation and promotion/rollback.
+
+### B installer and configuration portability — **mandatory before #94 release**
+
+The existing `setup.sh` / `appliance-installer.sh` fresh-Pi installation is built around **Plexamp Headless, Chromium and the distro keyboard**. Merely testing a manually staged C3 ZIP or launching a Flatpak does **not** make native Plexamp installable. Treat these as explicit development-to-installation acceptance gates:
+
+- [ ] Extend the normal appliance installation system to select/download/verify a pinned **native Plexamp ARM64 Flatpak** and its runtime/permissions, with sensible upgrade/rollback and offline/error messages. Do not assume the beta Flatpak used on the bedroom Pi is an acceptable stable release.
+- [ ] Package the validated C3 binary, UK layouts, compact numeric layout and GTK/CSS resources through a reproducible installer-owned artifact. Choose/repair the keyboard login startup owner as an install option; no dependency on a personal ZIP in `~/` or manually written labwc config.
+- [ ] On a genuinely fresh Pi, prove setup installs the native app, selected output, Squeekboard, ACP navigation and 1280×720 UI with correct login/reboot ordering, and leaves stock keyboard/Headless as documented fallback where available. Installer must be idempotent and survive upgrades.
+- [ ] **Investigate native Flatpak settings ownership for ACP Backup → Restore → Reset.** The current schema-v2 ACP Backup/Reset uses a browser-iframe Plexamp settings owner, a live Chromium bridge and Headless; this is **not evidence** that the separately launched Flatpak's profile at `~/.var/app/com.plexamp.Plexamp` is already covered. Inventory which preferences and Home/customisations are portable and which are account/session/machine specific.
+- [ ] Design a **live native-owner adapter** for portable preferences and Home, with opt-in preview/apply/rollback for Backup/Restore and logical Reset (ordinary preferences, not application deletion or forced sign-out). Preserve account authentication, selected library and the selected ACP audio device unless the user explicitly chooses a wider reset. Never blindly copy Flatpak browser profile databases, identity tokens, cookies or credentials into the normal portable backup.
+- [ ] Physically accept on a fresh second install: Backup on original → Restore on clean install → compare portable preferences and navigation; separately Reset → Preview convergence while account sign-in and audio are preserved. Document when fresh Plex sign-in/claim is unavoidable.
+
+**Engineering split:** C3 login integration first; native Plexamp shell navigation/launch second; then installer and portability owner before Phase-B release. The [configuration backup ownership](../../development/architecture/configuration-backup-ownership.md) and [reset-to-defaults architecture](../../development/architecture/reset-to-defaults.md) remain authoritative for existing, browser-backed behaviour; don't conflate those with a separate Flatpak process.
 
 ## Phase A — accepted, no rework planned
 
