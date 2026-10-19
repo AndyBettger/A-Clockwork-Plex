@@ -1,8 +1,8 @@
-"""Opt-in C3 trial-only ACP keyboard palette bridge; never owns the stock OSK.
+"""Opt-in C3 trial/dev ACP keyboard palette bridge; never owns the stock OSK.
 
 The browser reports the CURRENT ACPDisplayDimming.status() result. We resolve
 the 23 allowed styles on the Python side, and write only the previously staged
-private C3 style.css while an explicitly opted-in C3 trial is still alive.
+private C3 style.css while an explicitly opted-in C3 trial or dev session is alive.
 The original OSK, C2 resources, system GTK and trial recovery are never touched.
 """
 from __future__ import annotations
@@ -32,6 +32,7 @@ def load_script(filename: str):
     """Load only hardcoded repository scripts, never a path from HTTP."""
     allowed = {
         "try-squeekboard-hot-css.py": "acp_sync_c3_trial",
+        "try-squeekboard-c3-dev.py": "acp_sync_c3_dev",
         "stage-squeekboard-hot-css.py": "acp_sync_c3_stage",
         "plan-squeekboard-acp-theme.py": "acp_sync_palette_planner",
     }
@@ -113,6 +114,7 @@ def user_unit_active(name: str) -> bool:
     """
     allowed = frozenset((
         "acp-squeekboard-c3-trial.service",
+        "acp-squeekboard-c3-dev.service",
         "acp-squeekboard-c3-restore.timer",
         "acp-squeekboard-overlay-trial.service",
         "acp-squeekboard-overlay-restore.timer",
@@ -144,6 +146,13 @@ def opted_in_trial():
         return None
     try:
         trial = load_script("try-squeekboard-hot-css.py")
+        # Dev mode has no artificial 180s expiry. It remains opt-in and
+        # needs one exact, live, hash-verified C3 instance with NO stock OSK.
+        # The dashboard system service must query user-systemd with its own
+        # explicit DBus environment (not the SSH/session environment).
+        if user_unit_active("acp-squeekboard-c3-dev.service"):
+            dev = load_script("try-squeekboard-c3-dev.py")
+            return dev.active_state(trial=trial, unit_check=user_unit_active)
         if (not user_unit_active(trial.TRIAL_UNIT + ".service")
                 or not user_unit_active(trial.ROLLBACK_UNIT + ".timer")
                 or user_unit_active(trial.C2_TRIAL_UNIT + ".service")
