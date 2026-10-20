@@ -102,9 +102,15 @@ def start(archive: Path) -> None:
     trial = load_trial()
     if trial.unit_active(UNIT + '.service') or pointer_state() is not None:
         raise DevError('C3 dev session already running or awaiting cleanup; run --stop')
-    # Reuse the exact known-good candidate hash, source/layout/CSS checks,
-    # singleton checks and private candidate layout from the 180s trial.
-    _stock_pid, env, path = trial.prepare(archive, modify=True, theme_sync=True)
+    # Reuse the verified candidate, ABI, UK layout and private CSS checks.
+    # Unlike the deliberately strict 180s one-shot trial, a login session
+    # must accept any already-validated ACP palette selected before reboot.
+    try:
+        _stock_pid, env, path = trial.prepare(
+            archive, modify=True, theme_sync=True, allow_selected_palette=True
+        )
+    except trial.TrialError as exc:
+        raise DevError(str(exc)) from exc
     assert path is not None
     save_pointer(path, trial)
     command = [
