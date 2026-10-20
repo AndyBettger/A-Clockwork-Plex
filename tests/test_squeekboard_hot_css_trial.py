@@ -114,6 +114,36 @@ class C3TimedTrialTests(unittest.TestCase):
             with self.assertRaisesRegex(trial.TrialError, "Classic Dark"):
                 trial.candidate_style_environment()
 
+    def test_dev_start_accepts_exact_existing_nondefault_palette_without_css_mutation(self):
+        """Only opt-in persistent C3 reuses selected theme; legacy 180s stays strict."""
+        gen = mock.Mock(generator=lambda: mock.Mock(DEST=Path("/accepted/c2")),
+                        validate=mock.Mock(), CheckError=ValueError)
+        stage = mock.Mock(ROOT=Path("/candidate/c3"), RESOURCE_PREFIX="/sm/puri/squeekboard",
+                          DEFAULT_PALETTE="classic_dark", CSSStageError=ValueError)
+        stage.palettes.return_value = {
+            "classic_dark": b"dark css",
+            "midnight_blue": b"blue css",
+        }
+        stage.inspect.return_value = "midnight_blue"
+        stage.resource_environment.return_value = {
+            "G_RESOURCE_OVERLAYS": "/sm/puri/squeekboard=/candidate/c3",
+            "ACP_SQUEEKBOARD_CSS_DIR": "/candidate/c3",
+        }
+        with mock.patch.object(trial, "load_theme_validator", return_value=gen), \
+             mock.patch.object(trial, "verified_compact_keyboard_dir",
+                               return_value="/private/layout"), \
+             mock.patch.object(trial, "load_c3_stage", return_value=stage), \
+             mock.patch.object(Path, "is_dir", return_value=True):
+            with self.assertRaisesRegex(trial.TrialError, "Classic Dark"):
+                trial.candidate_style_environment()
+            got = trial.candidate_style_environment(allow_selected_palette=True)
+            self.assertEqual(got["ACP_SQUEEKBOARD_CSS_DIR"], "/candidate/c3")
+            self.assertEqual(got["XDG_CONFIG_HOME"], "/accepted/c2/themes/classic_dark")
+            stage.select.assert_not_called()  # Keep the selected CSS unchanged.
+            stage.inspect.side_effect = ValueError("active CSS is not an exact accepted palette")
+            with self.assertRaisesRegex(trial.TrialError, "accepted-theme preflight"):
+                trial.candidate_style_environment(allow_selected_palette=True)
+
     def test_candidate_hash_refuses_wrong_bytes_without_execution(self):
         with tempfile.TemporaryDirectory() as tmp:
             file = Path(tmp) / trial.CANDIDATE_FILENAME
