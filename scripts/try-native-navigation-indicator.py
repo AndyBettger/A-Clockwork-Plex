@@ -16,7 +16,7 @@ import subprocess
 import sys
 
 PROBE_WIDTH = 190
-PROBE_HEIGHT = 22
+PROBE_HEIGHT = 16
 BAR_WIDTH = 140
 BAR_HEIGHT = 5
 BOTTOM_MARGIN = 0
@@ -139,8 +139,9 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     handle.set_size_request(BAR_WIDTH, BAR_HEIGHT)
     handle.set_margin_bottom(edge_padding)
     handle.get_style_context().add_class("acp-native-probe-indicator")
-    # Place the visible line near the bottom edge rather than centred in the
-    # hitbox; the previous centred line covered Plexamp transport controls.
+    # A shallower 16px touch region at the extreme edge avoids native Plexamp's
+    # transport control row. The previous 26px vertically centred overlay
+    # physically crossed the playback buttons; preserve touch and keyboard.
     layout.pack_end(handle, False, False, 0)
     eventbox.add(layout)
     window.add(eventbox)
