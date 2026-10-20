@@ -1,6 +1,6 @@
 # ACP shell / native Linux Plexamp — #94
 
-**Status:** Phase A complete; Phase B active. **Current priority: finish native Squeekboard (C3)**.  
+**Status:** Phase A complete; Phase B active. **C3 native Squeekboard functionally accepted on the development Pi; current priority: native Plexamp navigation.**  
 **Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 20 October 2026
 
 > This is a **working feature checklist**, not a chronological test transcript. The Raspberry Pi is a development appliance; move through complete vertical slices, with a brief focused test and physical check per feature. Detailed pre-cleanup history is preserved in the [full feature archive](../../archive/acp-shell-native-plexamp-full-history-2026-10-19.md).
@@ -13,7 +13,7 @@
 | B — native Linux Plexamp | 🟡 Functional discovery | Normal start, fullscreen, search, playable audio, end-to-end ACP integration |
 | C1 — Settings text entry and field reachability | ✅ ACP browser accepted | Native/custom keyboard text and numeric field access, scroll-to-focus |
 | C2 — Squeekboard UK keyboard and themes | ✅ Bounded trial demonstrated | British layout, compact numeric, private 23-palette stage |
-| C3 — runtime hot CSS / native keyboard | 🟡 Final stock-recovery gate | Reboot startup, UK/numeric keyboard, scheduled night → day and fullscreen native typing passed physically; stock fallback on deliberate stop pending |
+| C3 — runtime hot CSS / native keyboard | ✅ Pi accepted | UK/numeric, theme sync, scheduled night/day, reboot login and deliberate stock → C3 fallback passed; installer packaging remains open |
 | D — sun-aware night dimming | ⏳ Deferred after Astronomy | Shared solar engine; seasonal offsets plus evening/morning clock limits |
 | E — production readiness | ⏳ Later | Stable Plexamp build, reboot and crash recovery, cross-source integration |
 
@@ -30,14 +30,14 @@
 - [x] Manual read-only browser/server night schedule comparison passed; Python-side schedule/observation parity test utilities are available.
 - [x] Baseline Pi `--plan` for exact C3 artifact passed, original vendor OSK only, theme-sync disabled; ten focused `try-c3-night-boundary.py` tests passed.
 - [x] **20 October scheduled night transition — PHYSICALLY PASSED:** With native Plexamp fullscreen and Search active, changing ACP's real night schedule automatically repainted Squeekboard to Astronomy Red, then returned to the daytime palette. Typing still worked after both transitions, without changing the candidate process or interrupting Plexamp. This establishes actual scheduled palette changes, not just timer callback cadence.
-- [ ] Test tap, UK typing, compact numbers, Done/Cancel, Search focus and keyboard hide/show after palette switch in **one** regression pass.
-- [x] **Untimed C3 dev session physically accepted:** `scripts/try-squeekboard-c3-dev.py` starts one native Squeekboard without a three-minute timeout; working theme hot-swap and fullscreen Plexamp typing observed. The original vendor startup remains available via `--stop`; its actual restoration after stop is still awaiting a Pi check.
+- [x] UK typing, numeric/decimal pads, Search focus, keyboard dismissal and theme switching physically covered across ACP and fullscreen native Plexamp; scheduled night/day typing also passed.
+- [x] **Untimed C3 dev session physically accepted:** persistent session and theme hot-swap work; `--stop` physically restored stock, followed by re-enabling C3 startup and successful re-entry.
 - [x] **19 October Pi result:** long-running C3 dev session beyond 180 s; one candidate PID **1895183**, stock absent, native keyboard works in ACP and fullscreen native Plexamp, theme changes follow ACP and persist between surfaces; after restarting the ACP service `/api/osk/c3/theme-sync/status` returns `enabled:true`.
 - [x] **Single-keyboard Settings UI and scrolling physically accepted:** C3 automatically suppresses ACP's legacy HTML keyboard; the actual Settings detail pane scrolls the focused latitude control clear of Squeekboard. Native Plexamp text and theme updates still work.
 - [x] **19 October Pi numeric keypad acceptance:** compact Squeekboard numeric keyboard appears for latitude and signed fractional longitude, with minus and decimal keys; forecast coordinates retain precision, and Display night start/end show the intended time-capable QWERTY layout. C3 remains active, theme sync reports `enabled:true`.
 - [x] **20 October startup launcher + saved-theme restart PHYSICALLY PASSED:** C3 style `green_phosphor_night_classic_idle` remained valid across reboot; before the fix the original Classic-Dark-only timed-trial check rejected it. After commit `c1408f4e`, the **same** `--startup` command used by the desktop entry started one candidate PID **1820569**, vendor PID list empty, `service_active:true`, `theme_sync_eligible:true`, HTTP `enabled:true`; ACP Settings, embedded Plexamp Search and live theme swaps work. The **180s trial** still requires Classic Dark. Previous reboot correctly fell back to stock PID **1508** when C3 failed.
 - [x] **20 October physical XDG autostart acceptance:** After a real Pi reboot and with NO manual `--startup`, `acp-squeekboard-c3-dev.service` was active, C3 candidate PID **1844** was the only native keyboard, `vendor_pids:[]`, `dev_autostart_enabled:true`, and `/api/osk/c3/theme-sync/status` returned `enabled:true`. ACP Settings keyboard appeared and hot theme changes repainted correctly. This closes desktop-login ownership in the development rig. Installer packaging remains separately pending.
-- [ ] **Final C3 Pi check:** close or leave fullscreen native Plexamp before stopping C3 (stock keyboard sits behind fullscreen; prefer close native Plexamp first). Run `scripts/configure-squeekboard-c3-startup.py --disable` and `scripts/try-squeekboard-c3-dev.py --stop`; verify vendor singleton, theme sync disabled and ACP's original HTML keyboard usable. Re-enable desktop startup and `--startup` with the pinned C3 ZIP; verify working C3 again. Then consider C3 functionally accepted on the development Pi and proceed to native Plexamp navigation. Fresh-Pi installer-owned C3 packaging remains separately pending.
+- [x] **20 October final deliberate recovery/re-entry Pi PASS:** after `--disable` and `--stop`, stock `/usr/bin/squeekboard` alone ran as PID **45352**, no candidate/state, C3 sync disabled, ACP HTML keyboard usable. After `--enable` and `--startup`, one C3 candidate ran as PID **47322**, no vendor, sync enabled and the native keyboard returned. Normal night schedule was restored. **C3 is functionally accepted for development**; reproducible fresh-Pi C3 installer packaging still pending.
 
 **Keep basic safety, reduce ceremony:** a working stock OSK recovery path is important because losing all input is inconvenient; a seven-minute schedule rollback and new bespoke diagnostic subprocess for every normal display adjustment are not requirements for this test appliance.
 
