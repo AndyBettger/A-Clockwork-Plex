@@ -12,7 +12,7 @@
 | Area | Status | Next useful action |
 | --- | --- | --- |
 | Shell, Settings, navigation, spatial transitions, night Clock | **Complete — physically accepted** | Maintenance only |
-| Native Plexamp Linux launch / fullscreen / visualiser | **Working in discovery** | **Native ACP navigation, nav drawer and page transitions NOT YET INTEGRATED**; browser iframe integration is Phase-A only |
+| Native Plexamp Wayland focus handoff | **B1 physically accepted on Pi** | `wlrctl` focus raises ACP and restores fullscreen Plexamp with no minimise/unfullscreen; next B2 shared nav/indicator overlay, B3 native transitions |
 | Squeekboard UK text / compact numeric layouts | **Pi accepted in C3** | UK text, signed decimals/numeric pads, time QWERTY, and ACP Settings scroll verified |
 | Private Squeekboard CSS, ACP daytime / night palettes | **Scheduled night → day physically accepted** | C3 automatically changed to Astronomy Red and back while native Plexamp stayed fullscreen; typing survived both changes |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
@@ -48,7 +48,7 @@ The UI foundation is already ready for Astronomy. Its reserved spatial slot is *
 ## Next actionable development sequence
 
 1. **C3 complete on development Pi.** Native/ACP input, numerical and UK layouts, CSS, scheduled night/day, reboot autostart, stop-to-stock and return-to-C3 have passed. Do not repeat the trials; installer-owned C3 packaging remains separate.
-2. **Phase B native Plexamp navigation.** Bridge the separate Wayland Flatpak window into ACP's page navigation, drawer and transitions, without mistaking the accepted browser Plexamp iframe for native integration.
+2. **Phase B native Plexamp navigation.** **B1 focus handoff physically passed** (actual `Plexamp` and `chromium` Wayland IDs, both directions, no fullscreen state changes). Next test an ACP-owned touchable OVERLAY-layer indicator over fullscreen native Plexamp; connect to the accepted browser nav drawer through targeted focus, then implement cross-process transitions.
 3. **Complete native Plexamp Phase B.** Build native nav/drawer and transition handoff, finish audio/alarm/AirPlay/NFC and recovery; **integrate native Flatpak + C3 into fresh-Pi setup and investigate native Flatpak Backup/Restore/Reset** before calling #94 release-ready. Retain Headless as fallback.
 4. **Build Astronomy and shared Sun calculations.** Reuse the weather location/timezone for rise/set/twilight and deterministic local-time/DST handling.
 5. **Add sun-aware dimming after Astronomy.** Use sunrise/sunset-relative sliders and a configurable **not-before evening time** to avoid dimming during winter afternoons; consider morning limits. Keep fixed 22:00–07:00 as an option. Then resilience/calendar.
