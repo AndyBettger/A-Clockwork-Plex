@@ -1,23 +1,23 @@
 # A Clockwork Plex Roadmap
 
-**Updated:** 19 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
+**Updated:** 20 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
 **Working feature branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
 
 ## Current focus — #94 Phase B native Linux Plexamp
 
-**Priority 1: finish one reliable system Squeekboard keyboard usable in ACP and native fullscreen Plexamp.** Native Plexamp is already running as an experimental Linux Flatpak alongside Headless; the ACP shell / transitions (Phase A) are physically accepted.
+**Priority 1: finish final C3 scheduled night transition and stock-restore check, then implement native Plexamp shell integration.** Native Plexamp is already running as an experimental Linux Flatpak alongside Headless; the ACP shell / transitions (Phase A) are physically accepted.
 
 | Area | Status | Next useful action |
 | --- | --- | --- |
 | Shell, Settings, navigation, spatial transitions, night Clock | **Complete — physically accepted** | Maintenance only |
 | Native Plexamp Linux launch / fullscreen / visualiser | **Working in discovery** | **Native ACP navigation, nav drawer and page transitions NOT YET INTEGRATED**; browser iframe integration is Phase-A only |
-| Squeekboard UK text / compact numeric layouts | **Pi accepted in long-running C3** | Decimal/minus keypad, time QWERTY, themes and ACP field-scrolling work; session startup ownership pending |
+| Squeekboard UK text / compact numeric layouts | **Pi accepted in C3** | UK text, signed decimals/numeric pads, time QWERTY, and ACP Settings scroll verified |
 | Private Squeekboard CSS, ACP daytime / night palettes | **Live hot reload demonstrated** | Exercise *real* scheduled start/end in fullscreen Plexamp |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
 | Linux input activity with Plexamp foreground | **Passed:** six devices, sequence 230→246, Logitech K800 key | Complete native touchscreen/focus acceptance |
-| Squeekboard C3 + one system keyboard | **Manual login command physically passed** | Retained non-default theme, service handover, ACP themes and input passed; **automatic XDG desktop-login invocation still requires a reboot test** |
+| Squeekboard C3 + one system keyboard | **AUTO-START PHYSICALLY PASSED AFTER REBOOT** | C3 candidate PID 1844, original stock absent, service/theme API enabled; ACP typing and live colours work. Final schedule boundary/stock-stop check pending |
 | Sunrise/sunset night schedule | **Deferred until Astronomy** | Use shared Sun calculations, seasonal offsets and sensible earliest evening start/wake limits |
 | Fresh-Pi native installer, Plexamp profile Backup/Restore/Reset | **Required, not implemented for Flatpak** | Installer-owned C3 artifact + native Plexamp Flatpak, live portable settings, safe Reset, clean-Pi acceptance |
 
@@ -48,7 +48,7 @@ The UI foundation is already ready for Astronomy. Its reserved spatial slot is *
 ## Next actionable development sequence
 
 1. **C3: finish Squeekboard.** Physically verify automatic day→night→day palette changes with native Plexamp Search in front. Then exercise UK text/numeric keyboard, focus continuity, same process hot CSS, hide/show and fault recovery in one consolidated pass.
-2. **Validate the new C3 desktop-login hook.** Reversible development autostart is coded; on-Pi reboot, stock fallback, theme sync and stop/disable tests pending. Promote to an installer-owned selection only after this passes.
+2. **C3 desktop-login startup: PASSED.** Pi reboot independently launched one candidate (PID 1844), user service active, vendor absent, theme sync enabled. Finish one actual scheduled day/night cycle and deliberate stock-restore check. Installer-owned packaging still pending.
 3. **Complete native Plexamp Phase B.** Build native nav/drawer and transition handoff, finish audio/alarm/AirPlay/NFC and recovery; **integrate native Flatpak + C3 into fresh-Pi setup and investigate native Flatpak Backup/Restore/Reset** before calling #94 release-ready. Retain Headless as fallback.
 4. **Build Astronomy and shared Sun calculations.** Reuse the weather location/timezone for rise/set/twilight and deterministic local-time/DST handling.
 5. **Add sun-aware dimming after Astronomy.** Use sunrise/sunset-relative sliders and a configurable **not-before evening time** to avoid dimming during winter afternoons; consider morning limits. Keep fixed 22:00–07:00 as an option. Then resilience/calendar.
