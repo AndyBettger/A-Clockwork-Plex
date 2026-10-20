@@ -1,7 +1,7 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** Phase A complete; Phase B active. **Current priority: finish native Squeekboard (C3)**.  
-**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 19 October 2026
+**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 20 October 2026
 
 > This is a **working feature checklist**, not a chronological test transcript. The Raspberry Pi is a development appliance; move through complete vertical slices, with a brief focused test and physical check per feature. Detailed pre-cleanup history is preserved in the [full feature archive](../../archive/acp-shell-native-plexamp-full-history-2026-10-19.md).
 
@@ -13,7 +13,7 @@
 | B — native Linux Plexamp | 🟡 Functional discovery | Normal start, fullscreen, search, playable audio, end-to-end ACP integration |
 | C1 — Settings text entry and field reachability | ✅ ACP browser accepted | Native/custom keyboard text and numeric field access, scroll-to-focus |
 | C2 — Squeekboard UK keyboard and themes | ✅ Bounded trial demonstrated | British layout, compact numeric, private 23-palette stage |
-| C3 — runtime hot CSS / native keyboard | 🟡 Nearly accepted | Hot themes, single keyboard, field scrolling and decimal keypad passed on Pi; night boundary/startup/stop remain |
+| C3 — runtime hot CSS / native keyboard | 🟡 Final acceptance | Reboot auto-start, one keyboard, theme sync, text/numbers all physically passed; scheduled boundary and explicit stock restore pending |
 | D — sun-aware night dimming | ⏳ Deferred after Astronomy | Shared solar engine; seasonal offsets plus evening/morning clock limits |
 | E — production readiness | ⏳ Later | Stable Plexamp build, reboot and crash recovery, cross-source integration |
 
@@ -36,8 +36,8 @@
 - [x] **Single-keyboard Settings UI and scrolling physically accepted:** C3 automatically suppresses ACP's legacy HTML keyboard; the actual Settings detail pane scrolls the focused latitude control clear of Squeekboard. Native Plexamp text and theme updates still work.
 - [x] **19 October Pi numeric keypad acceptance:** compact Squeekboard numeric keyboard appears for latitude and signed fractional longitude, with minus and decimal keys; forecast coordinates retain precision, and Display night start/end show the intended time-capable QWERTY layout. C3 remains active, theme sync reports `enabled:true`.
 - [x] **20 October startup launcher + saved-theme restart PHYSICALLY PASSED:** C3 style `green_phosphor_night_classic_idle` remained valid across reboot; before the fix the original Classic-Dark-only timed-trial check rejected it. After commit `c1408f4e`, the **same** `--startup` command used by the desktop entry started one candidate PID **1820569**, vendor PID list empty, `service_active:true`, `theme_sync_eligible:true`, HTTP `enabled:true`; ACP Settings, embedded Plexamp Search and live theme swaps work. The **180s trial** still requires Classic Dark. Previous reboot correctly fell back to stock PID **1508** when C3 failed.
-- [ ] **Next one reboot: XDG autostart acceptance.** `dev_autostart_enabled:true` only proves the `.desktop` entry exists, not that labwc ran it. Reboot with the selected non-default palette; **do not** issue manual `--startup` afterward. Check for one new C3 PID, theme sync enabled, no vendor PID, working fields. If stock remains, inspect whether XDG entry is actually invoked and consider labwc's explicit autostart hook; don't blame keyboard itself or change desktop startup prematurely.
-- [ ] Verify re-entry/restart and error recovery; then mark C3 accepted.
+- [x] **20 October physical XDG autostart acceptance:** After a real Pi reboot and with NO manual `--startup`, `acp-squeekboard-c3-dev.service` was active, C3 candidate PID **1844** was the only native keyboard, `vendor_pids:[]`, `dev_autostart_enabled:true`, and `/api/osk/c3/theme-sync/status` returned `enabled:true`. ACP Settings keyboard appeared and hot theme changes repainted correctly. This closes desktop-login ownership in the development rig. Installer packaging remains separately pending.
+- [ ] Finish one attended day → scheduled night → day palette/input test, then use `--disable` + `--stop` once to confirm original stock keyboard recovery. Re-enable login startup as desired; then mark C3 working on the development appliance and proceed to native Plexamp nav integration.
 
 **Keep basic safety, reduce ceremony:** a working stock OSK recovery path is important because losing all input is inconvenient; a seven-minute schedule rollback and new bespoke diagnostic subprocess for every normal display adjustment are not requirements for this test appliance.
 
