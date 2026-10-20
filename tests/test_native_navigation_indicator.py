@@ -44,7 +44,7 @@ class NativeNavigationIndicatorTests(unittest.TestCase):
     def test_indicator_matches_acp_edge_geometry_and_avoids_media_controls(self):
         # Physical screenshot showed the centred white bar over transport controls.
         self.assertEqual(indicator.PROBE_WIDTH, 190)
-        self.assertEqual(indicator.PROBE_HEIGHT, 22)
+        self.assertEqual(indicator.PROBE_HEIGHT, 16)
         self.assertEqual(indicator.BAR_WIDTH, 140)
         self.assertEqual(indicator.BAR_HEIGHT, 5)
         self.assertEqual(indicator.BOTTOM_MARGIN, 0)
