@@ -16,8 +16,11 @@ import subprocess
 import sys
 
 PROBE_WIDTH = 190
-PROBE_HEIGHT = 26
-BOTTOM_MARGIN = 2
+PROBE_HEIGHT = 22
+BAR_WIDTH = 140
+BAR_HEIGHT = 5
+BOTTOM_MARGIN = 0
+DEFAULT_EDGE_PADDING = 2
 DEFAULT_TIMEOUT = 120
 MAX_TIMEOUT = 300
 
@@ -80,7 +83,8 @@ def focus_acp() -> bool:
     return result.returncode == 0
 
 
-def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool) -> None:
+def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
+            edge_padding: int = DEFAULT_EDGE_PADDING) -> None:
     if not LayerShell.is_supported():
         raise ProbeError("labwc has no advertised zwlr_layer_shell_v1 support.")
 
@@ -105,12 +109,15 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool) ->
     LayerShell.set_margin(window, LayerShell.Edge.BOTTOM, BOTTOM_MARGIN)
     LayerShell.set_exclusive_zone(window, 0)  # Never move/resize Plexamp.
 
+    # Match ACP's real handle: a transparent touch target and 140x5px bar.
+    # No dark backdrop over the native Plexamp playback buttons.
     css = b"""
         window, .acp-native-probe { background-color: transparent; }
-        .acp-native-probe-hitbox { background-color: rgba(8, 12, 20, 0.50);
-                                   border-radius: 13px; }
-        .acp-native-probe-indicator { background-color: rgba(229, 235, 241, 0.94);
-                                      border-radius: 3px; }
+        .acp-native-probe-hitbox { background-color: transparent; }
+        .acp-native-probe-indicator {
+            background-color: rgba(247, 249, 255, 0.82);
+            border-radius: 3px;
+        }
     """
     provider = Gtk.CssProvider()
     provider.load_from_data(css)
@@ -126,38 +133,66 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool) ->
     # Centered handle, same visual vocabulary as ACP's existing home indicator.
     layout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     layout.set_halign(Gtk.Align.CENTER)
-    layout.set_valign(Gtk.Align.CENTER)
+    layout.set_valign(Gtk.Align.FILL)
     layout.set_size_request(PROBE_WIDTH, PROBE_HEIGHT)
     handle = Gtk.EventBox()
-    handle.set_size_request(136, 5)
+    handle.set_size_request(BAR_WIDTH, BAR_HEIGHT)
+    handle.set_margin_bottom(edge_padding)
     handle.get_style_context().add_class("acp-native-probe-indicator")
-    layout.pack_start(handle, False, False, 0)
+    # Place the visible line near the bottom edge rather than centred in the
+    # hitbox; the previous centred line covered Plexamp transport controls.
+    layout.pack_end(handle, False, False, 0)
     eventbox.add(layout)
     window.add(eventbox)
+
+    stopping = False
+    destroyed = False
+
+    def stop_once(reason: str) -> bool:
+        nonlocal stopping
+        if stopping:
+            return False
+        stopping = True
+        print(f"ACP native indicator: {reason}", flush=True)
+        # Prevent a second gtk_main_quit after main() has already returned.
+        if Gtk.main_level() > 0:
+            Gtk.main_quit()
+        return False
+
+    def on_destroy(_window):
+        nonlocal destroyed
+        destroyed = True
+        stop_once("window closed")
 
     def tapped(_widget, _event):
         print("ACP native indicator: TAP observed", flush=True)
         if tap_focus_acp:
             if focus_acp():
-                print("ACP native indicator: requested existing Chromium focus; closing probe.", flush=True)
-                Gtk.main_quit()
+                stop_once("ACP focused; closing probe")
             else:
                 print("ACP native indicator: focus failed; leaving probe visible.", flush=True)
         return True
 
     eventbox.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
     eventbox.connect("button-release-event", tapped)
-    window.connect("destroy", Gtk.main_quit)
-    GLib.timeout_add_seconds(seconds, lambda: (Gtk.main_quit(), False)[1])
+    window.connect("destroy", on_destroy)
+    GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing probe"))
     window.show_all()
     print(
         "ACP native indicator: visible for at most "
-        f"{seconds}s; {PROBE_WIDTH}x{PROBE_HEIGHT}px; tap "
+        f"{seconds}s; {PROBE_WIDTH}x{PROBE_HEIGHT}px; edge gap {edge_padding}px; tap "
         f"{'focuses ACP then exits' if tap_focus_acp else 'prints a diagnostic only'}.",
         flush=True,
     )
-    Gtk.main()
-    window.destroy()
+    try:
+        Gtk.main()
+    except KeyboardInterrupt:
+        # PyGObject's Gtk.main() SIGINT fallback may raise on context exit
+        # even after its own GTK quit has been requested.
+        print("ACP native indicator: Ctrl+C received; closing probe.", flush=True)
+    finally:
+        if not destroyed:
+            window.destroy()
 
 
 def main() -> int:
@@ -169,11 +204,15 @@ def main() -> int:
                         help=f"automatically close the window after 1-{MAX_TIMEOUT} seconds (default {DEFAULT_TIMEOUT})")
     parser.add_argument("--tap-focus-acp", action="store_true",
                         help="on tap, ask labwc to focus ACP then close this indicator")
+    parser.add_argument("--edge-padding", type=int, default=DEFAULT_EDGE_PADDING,
+                        help="visual bar distance from bottom of touch target (0-10 pixels; default 2)")
     args = parser.parse_args()
     if not 1 <= args.seconds <= MAX_TIMEOUT:
         parser.error(f"--seconds must be between 1 and {MAX_TIMEOUT}")
     if args.tap_focus_acp and not args.show:
         parser.error("--tap-focus-acp requires --show")
+    if not 0 <= args.edge_padding <= 10:
+        parser.error("--edge-padding must be between 0 and 10")
     try:
         env = desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
         os.environ.update(env)
@@ -184,7 +223,7 @@ def main() -> int:
             print("Wayland socket:", env["WAYLAND_DISPLAY"])
             return 0 if LayerShell.is_supported() else 1
         present(Gtk, Gdk, GLib, LayerShell, args.seconds,
-                tap_focus_acp=args.tap_focus_acp)
+                tap_focus_acp=args.tap_focus_acp, edge_padding=args.edge_padding)
         return 0
     except (ProbeError, OSError, subprocess.TimeoutExpired) as exc:
         print("ACP native indicator: " + str(exc), file=sys.stderr)
