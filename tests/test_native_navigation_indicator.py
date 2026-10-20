@@ -41,6 +41,37 @@ class NativeNavigationIndicatorTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
+    def test_indicator_matches_acp_edge_geometry_and_avoids_media_controls(self):
+        # Physical screenshot showed the centred white bar over transport controls.
+        self.assertEqual(indicator.PROBE_WIDTH, 190)
+        self.assertEqual(indicator.PROBE_HEIGHT, 22)
+        self.assertEqual(indicator.BAR_WIDTH, 140)
+        self.assertEqual(indicator.BAR_HEIGHT, 5)
+        self.assertEqual(indicator.BOTTOM_MARGIN, 0)
+        self.assertEqual(indicator.DEFAULT_EDGE_PADDING, 2)
+        source = SRC.read_text(encoding="utf-8")
+        self.assertIn("layout.pack_end(handle, False, False, 0)", source)
+        self.assertIn("handle.set_margin_bottom(edge_padding)", source)
+        self.assertIn("background-color: transparent", source)
+
+    def test_gtk_shutdown_only_requests_quit_inside_running_main_loop(self):
+        # Tapping ACP previously called Gtk.main_quit, then destroy called it
+        # again after the loop had returned, producing a Gtk-CRITICAL warning.
+        source = SRC.read_text(encoding="utf-8")
+        self.assertIn("if Gtk.main_level() > 0:", source)
+        self.assertIn("if not destroyed:", source)
+        self.assertIn("except KeyboardInterrupt:", source)
+        self.assertNotIn('window.connect("destroy", Gtk.main_quit)', source)
+        self.assertNotIn("GLib.timeout_add_seconds(seconds, lambda: (Gtk.main_quit()", source)
+
+    def test_bad_padding_exits_without_starting_gtk(self):
+        result = subprocess.run(
+            [sys.executable, str(SRC), "--show", "--edge-padding", "11"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--edge-padding must be between 0 and 10", result.stderr)
+
     def test_missing_runtime_socket_fails_closed(self):
         with mock.patch.object(indicator.Path, "is_dir", return_value=False):
             with self.assertRaisesRegex(indicator.ProbeError, "No user desktop runtime"):
