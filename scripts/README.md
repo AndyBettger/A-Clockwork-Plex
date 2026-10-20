@@ -108,7 +108,7 @@ After `scripts/stage-squeekboard-compact-number.py --stage` and `--check` have p
 
 **Script:** `scripts/try-squeekboard-c3-dev.py` (developer command; explicitly opt-in).
 
-**Primary next step:** instead of a 180-second trial, keep one experimental C3 Squeekboard running under a user-systemd transient service until you deliberately stop it. Nothing is enabled at startup, and Pi reboot/login retains the original vendor Squeekboard. This is a **development-mode** session, not yet the final production installer.
+**Development runtime:** one experimental C3 Squeekboard runs under a transient user-systemd service until deliberately stopped. A separately opt-in user XDG desktop entry now starts it after login; **Pi reboot auto-start physically passed 20 October**, while the distro binary remains unchanged. This is not yet the final production installer.
 
 ```bash
 cd ~/A-Clockwork-Plex
@@ -120,7 +120,7 @@ curl -fsS http://localhost:8088/api/osk/c3/theme-sync/status
 python3 scripts/try-squeekboard-c3-dev.py --stop
 ```
 
-`--start` reuses the exact pinned C3 candidate/source/ABI/UK-layout/staged-Classic-Dark preflight, hands off only the existing Squeekboard process, and runs the candidate in the dedicated `acp-squeekboard-c3-dev.service` user service. The existing ACP browser remains **the only CSS writer**, applying already validated day/night colours through the same loopback route when the live candidate is verified. No time limit, no keyboard packages or modifications to /usr/bin, no permanent boot/systemd enable, no separate CSS scheduler. `--stop` stops the candidate and restores stock via `/usr/bin/sbtest`. A normally exiting candidate or supervised SIGTERM also restores stock; after exceptional process crashes or loss of user systemd, manually inspect `--status`/`journalctl --user -u acp-squeekboard-c3-dev.service -n 40 --no-pager` and use `--stop`; reopening a normal login launches stock as before.
+`--start` reuses the exact pinned C3 candidate/source/ABI/UK-layout/staged-palette preflight (any of the 23 verified themes for the persistent dev session; the 180-second trial still requires Classic Dark), hands off only the existing Squeekboard process, and runs the candidate in the dedicated `acp-squeekboard-c3-dev.service` user service. The existing ACP browser remains **the only CSS writer**, applying already validated day/night colours through the same loopback route when the live candidate is verified. No time limit, no keyboard packages or modifications to /usr/bin, no permanent boot/systemd enable, no separate CSS scheduler. `--stop` stops the candidate and restores stock via `/usr/bin/sbtest`. A normally exiting candidate or supervised SIGTERM also restores stock; after exceptional process crashes or loss of user systemd, manually inspect `--status`/`journalctl --user -u acp-squeekboard-c3-dev.service -n 40 --no-pager` and use `--stop`; reopening a normal login launches stock as before.
 
 For immediate manual testing, keep native Plexamp Search open, change ACP Display Night dimming start/end to times a minute or two ahead, verify the keyboard's colour follows ACP without restarting it, then put the normal 22:00–07:00 times back yourself. No mandatory 420-second settings guard. **Do not run simultaneous `--start` commands or the older 180-second trial while this is running.** The 180-second script remains available as a fallback. Audio/Headless/NFC unchanged.
 
