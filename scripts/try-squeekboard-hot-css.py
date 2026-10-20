@@ -101,7 +101,7 @@ def load_c3_stage():
     return module
 
 
-def candidate_style_environment() -> dict[str, str]:
+def candidate_style_environment(*, allow_selected_palette: bool = False) -> dict[str, str]:
     """All C3-only overrides are explicit and checked BEFORE stock is stopped.
 
     Do not include these in the independent stock rescue service environment.
@@ -117,7 +117,11 @@ def candidate_style_environment() -> dict[str, str]:
         compact_keyboard = verified_compact_keyboard_dir()
         c3 = load_c3_stage()
         selected = c3.inspect(c3.palettes())
-        if selected != c3.DEFAULT_PALETTE:
+        # The one-shot 180s trial retains its original Classic Dark start
+        # contract. The longer-running dev keyboard may start with *any*
+        # exact validated ACP palette left selected during the last session.
+        # c3.inspect() checks it matches one of the accepted 23 CSS files.
+        if not allow_selected_palette and selected != c3.DEFAULT_PALETTE:
             raise TrialError("C3 trial must initially show Classic Dark")
         values = c3.resource_environment()
         if set(values) != {"G_RESOURCE_OVERLAYS", "ACP_SQUEEKBOARD_CSS_DIR"}:
@@ -247,7 +251,8 @@ def verify_candidate(path: Path) -> None:
         raise TrialError("Candidate executable missing or hash mismatch")
 
 
-def prepare(archive: Path, *, modify: bool, theme_sync: bool = False) -> tuple[int, dict[str, str], Path | None]:
+def prepare(archive: Path, *, modify: bool, theme_sync: bool = False,
+            allow_selected_palette: bool = False) -> tuple[int, dict[str, str], Path | None]:
     # Baseline identity and source/candidate hashes must all be checked before
     # creating trial files, arming rescue, or terminating the vendor keyboard.
     pid, env = check_baseline()
@@ -258,7 +263,7 @@ def prepare(archive: Path, *, modify: bool, theme_sync: bool = False) -> tuple[i
             raise TrialError("Existing C2/C3 keyboard trial/rescue active: " + unit)
     if orphan_trial_keyboard_pids():
         raise TrialError("Orphan C2/C3 trial keyboard process detected; refusing overlap")
-    trial_env = candidate_style_environment()
+    trial_env = candidate_style_environment(allow_selected_palette=allow_selected_palette)
     if not modify:
         return pid, env, None
     if ROOT.is_symlink():
