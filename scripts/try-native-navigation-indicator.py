@@ -109,14 +109,16 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     LayerShell.set_margin(window, LayerShell.Edge.BOTTOM, BOTTOM_MARGIN)
     LayerShell.set_exclusive_zone(window, 0)  # Never move/resize Plexamp.
 
-    # Match ACP's real handle: a transparent touch target and 140x5px bar.
-    # No dark backdrop over the native Plexamp playback buttons.
+    # Same bar metrics/colours as app/static/css/nav.css .nav-handle span:
+    # 140x5, rgba(247,249,255,.74) plus the outer handle's .82 opacity,
+    # radius and restrained white glow. Native GTK must not add a backdrop.
     css = b"""
         window, .acp-native-probe { background-color: transparent; }
         .acp-native-probe-hitbox { background-color: transparent; }
         .acp-native-probe-indicator {
-            background-color: rgba(247, 249, 255, 0.82);
-            border-radius: 3px;
+            background-color: rgba(247, 249, 255, 0.74);
+            border-radius: 999px;
+            box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
         }
     """
     provider = Gtk.CssProvider()
@@ -137,6 +139,12 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     layout.set_size_request(PROBE_WIDTH, PROBE_HEIGHT)
     handle = Gtk.EventBox()
     handle.set_size_request(BAR_WIDTH, BAR_HEIGHT)
+    # GTK3's Box stretches children across the cross-axis unless explicitly
+    # centred. Without this, our 140px bar fills the 190px *hitbox* — precisely
+    # the discrepancy between the two WayVNC screenshots.
+    handle.set_halign(Gtk.Align.CENTER)
+    handle.set_valign(Gtk.Align.CENTER)
+    handle.set_opacity(0.82)
     handle.set_margin_bottom(edge_padding)
     handle.get_style_context().add_class("acp-native-probe-indicator")
     # A shallower 16px touch region at the extreme edge avoids native Plexamp's
