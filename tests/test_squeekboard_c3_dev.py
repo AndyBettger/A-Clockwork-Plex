@@ -70,7 +70,7 @@ class C3DevSessionTests(unittest.TestCase):
         archive = Path('/dummy/c3.zip')
         trial = types.SimpleNamespace(
             unit_active=lambda _: False,
-            prepare=lambda *a, **k: (111, {'WAYLAND_DISPLAY': 'wayland-0'}, state),
+            prepare=mock.Mock(return_value=(111, {'WAYLAND_DISPLAY': 'wayland-0'}, state)), 
             unit_environment=lambda env: ['--setenv=WAYLAND_DISPLAY=wayland-0'],
             run=mock.Mock(return_value=types.SimpleNamespace(returncode=0)),
         )
@@ -81,6 +81,10 @@ class C3DevSessionTests(unittest.TestCase):
             dev.start(archive)
         save.assert_called_once_with(state, trial)
         remove.assert_not_called()
+        prepare_args = trial.prepare.call_args
+        self.assertEqual(prepare_args.kwargs, {
+            'modify': True, 'theme_sync': True, 'allow_selected_palette': True,
+        })
         args = trial.run.call_args.args
         self.assertIn('--unit=acp-squeekboard-c3-dev', args)
         self.assertIn('--property=KillMode=mixed', args)
@@ -143,7 +147,7 @@ class C3DevSessionTests(unittest.TestCase):
 
     def test_session_never_installs_or_enables_service_and_keeps_pinned_c3_artifact(self):
         source = PATH.read_text()
-        self.assertIn('trial.prepare(archive, modify=True, theme_sync=True)', source)
+        self.assertIn('allow_selected_palette=True', source)
         self.assertIn('trial.restore_stock(path, stop_trial=False)', source)
         self.assertIn('trial.read_state(path)', source)
         for unsupported in ('systemctl enable', 'systemctl --system', 'apt-get install',
