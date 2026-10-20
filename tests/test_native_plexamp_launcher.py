@@ -38,6 +38,16 @@ class NativePlexampLauncherTests(unittest.TestCase):
         self.assertNotIn("pkill chromium", script)
         self.assertNotIn("systemctl stop plexamp", script)
 
+    def test_fullscreen_help_and_message_identify_c3_overlay_as_supported(self):
+        result = subprocess.run(
+            ["bash", str(LAUNCHER), "--help"], capture_output=True, text=True
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ACP C3 OVERLAY Squeekboard", result.stdout)
+        script = LAUNCHER.read_text(encoding="utf-8")
+        self.assertIn("ACP C3 OVERLAY Squeekboard supports fullscreen typing", script)
+        self.assertNotIn("OVERLAY variant is not yet configured as the default keyboard", script)
+
     def test_flatpak_info_uses_positional_branch_not_run_flag(self):
         text = LAUNCHER.read_text(encoding="utf-8")
         self.assertIn('flatpak info "$APP_ID" "$APP_BRANCH"', text)
