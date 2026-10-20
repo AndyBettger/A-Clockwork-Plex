@@ -17,7 +17,7 @@
 | Private Squeekboard CSS, ACP daytime / night palettes | **Live hot reload demonstrated** | Exercise *real* scheduled start/end in fullscreen Plexamp |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
 | Linux input activity with Plexamp foreground | **Passed:** six devices, sequence 230→246, Logitech K800 key | Complete native touchscreen/focus acceptance |
-| Squeekboard C3 + one system keyboard | **UI physically accepted; startup fix in testing** | Reboot retained stock fallback; manual `--startup` failed on a valid non-Classic CSS theme. Corrected dev-start palette check; Pi login retest pending |
+| Squeekboard C3 + one system keyboard | **Manual login command physically passed** | Retained non-default theme, service handover, ACP themes and input passed; **automatic XDG desktop-login invocation still requires a reboot test** |
 | Sunrise/sunset night schedule | **Deferred until Astronomy** | Use shared Sun calculations, seasonal offsets and sensible earliest evening start/wake limits |
 | Fresh-Pi native installer, Plexamp profile Backup/Restore/Reset | **Required, not implemented for Flatpak** | Installer-owned C3 artifact + native Plexamp Flatpak, live portable settings, safe Reset, clean-Pi acceptance |
 
