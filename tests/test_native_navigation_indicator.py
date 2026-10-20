@@ -52,7 +52,19 @@ class NativeNavigationIndicatorTests(unittest.TestCase):
         source = SRC.read_text(encoding="utf-8")
         self.assertIn("layout.pack_end(handle, False, False, 0)", source)
         self.assertIn("handle.set_margin_bottom(edge_padding)", source)
+        self.assertIn("handle.set_halign(Gtk.Align.CENTER)", source)
+        self.assertIn("handle.set_valign(Gtk.Align.CENTER)", source)
+        self.assertIn("handle.set_opacity(0.82)", source)
         self.assertIn("background-color: transparent", source)
+        self.assertIn("background-color: rgba(247, 249, 255, 0.74)", source)
+        self.assertIn("border-radius: 999px", source)
+        self.assertIn("box-shadow: 0 0 16px rgba(255, 255, 255, 0.18)", source)
+        # Reuse the accepted browser shell's exact 140x5 dimensions and theme.
+        acp_css = (ROOT / "app/static/css/nav.css").read_text(encoding="utf-8")
+        self.assertIn(".nav-handle span {", acp_css)
+        self.assertIn("width: 140px;", acp_css)
+        self.assertIn("height: 5px;", acp_css)
+        self.assertIn("background: rgba(247, 249, 255, 0.74)", acp_css)
 
     def test_gtk_shutdown_only_requests_quit_inside_running_main_loop(self):
         # Tapping ACP previously called Gtk.main_quit, then destroy called it
