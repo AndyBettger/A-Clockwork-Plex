@@ -264,6 +264,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 
 - `tests/test_native_plexamp_launcher.py` — Protects the manual native Flatpak SSH launcher, scoped fullscreen matching, missing-session handling and duplicate-launch safety.
 - `tests/test_native_plexamp_window_handoff.py` — Phase B1 direct Wayland focus helper tests: exact Pi app IDs and title, duplicate/spoof rejection, no process/geometry changes, compositor failure and SSH session boundaries.
+- `tests/test_native_navigation_indicator.py` — Phase B2 GTK3 Wayland overlay indicator test contract; bounded runtime, local-only desktop environment, layer-shell OVERLAY and no keyboard/reserved region, opt-in exact ACP focus.
 - `tests/test_prepare_squeekboard_overlay.py` — Protects non-installing vendor Squeekboard source staging, strict SHA-256 descriptor requirements, one-shot TOP→OVERLAY patching and refusal of overwrite/root execution.
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.
 - `tests/test_nfc_python_dependency_check.py` — Checks the dedicated NFC Python environment contains the required importable dependencies.
