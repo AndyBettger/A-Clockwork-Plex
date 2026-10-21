@@ -38,7 +38,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         call = bus.call_sync.call_args
         self.assertEqual(call.args[:4], (
             "sm.puri.OSK0", "/sm/puri/OSK0", "sm.puri.OSK0", "GetVisible"))
-        self.assertEqual(call.args[6], drawer.DBUS_TIMEOUT_MS)
+        self.assertEqual(call.args[7], drawer.DBUS_TIMEOUT_MS)
         bus.call_sync.return_value.unpack.return_value = (True,)
         self.assertIs(drawer.keyboard_visible(bus, gio, glib), True)
         bus.call_sync.return_value.unpack.return_value = ("false",)
