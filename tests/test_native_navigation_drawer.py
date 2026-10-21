@@ -108,8 +108,8 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         with mock.patch.object(drawer.urllib.request, "urlopen") as send:
             reply = send.return_value.__enter__.return_value
             reply.status = 200
-            reply.read.return_value = b'{"ok":true}'
-            self.assertTrue(drawer.request_page_handoff("Weather"))
+            reply.read.return_value = b'{"ok":true,"sequence":7}'
+            self.assertEqual(drawer.request_page_handoff("Weather"), 7)
             req = send.call_args.args[0]
             self.assertEqual(req.full_url, drawer.NAVIGATION_URL)
             self.assertEqual(req.get_method(), "POST")
@@ -118,7 +118,21 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         source = SRC.read_text()
         self.assertIn('parser.add_argument("--route-pages"', source)
         self.assertIn("route_pages=args.route_pages", source)
-        self.assertIn("if request_page_handoff(name):", source)
+        self.assertIn("sequence = request_page_handoff(name)", source)
+        self.assertIn("GLib.timeout_add(HANDOFF_POLL_MS, await_prepared)", source)
+        self.assertIn('if phase == "ready":', source)
+
+    def test_status_probe_requires_ready_phase(self):
+        with mock.patch.object(drawer.urllib.request, "urlopen") as send:
+            reply = send.return_value.__enter__.return_value
+            reply.status = 200
+            reply.read.return_value = b'{"ok":true,"state":"ready"}'
+            self.assertEqual(drawer.handoff_status(7), "ready")
+            req = send.call_args.args[0]
+            self.assertIn("sequence=7", req.full_url)
+            self.assertEqual(req.get_header("X-acp-b3-source"), "native-gtk-b3-dev")
+            reply.read.return_value = b'{"ok":true,"state":"bogus"}'
+            self.assertEqual(drawer.handoff_status(7), "unavailable")
 
     def test_routes_are_explicitly_preview_only(self):
         self.assertEqual(drawer.NAV_ITEMS, (

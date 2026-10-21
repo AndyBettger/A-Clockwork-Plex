@@ -28,6 +28,35 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             with self.assertRaises(nav.NavigationError):
                 mailbox.offer(payload)
 
+    def test_ready_requires_matching_consumed_command(self):
+        now = [150.0]
+        box = nav.NavigationMailbox(lambda: now[0])
+        seq = box.offer({"destination": "weather"})
+        self.assertEqual(box.status(seq), "queued")
+        self.assertFalse(box.confirm_ready(seq, "weather"))
+        self.assertFalse(box.confirm_ready(seq + 1, "weather"))
+        self.assertEqual(box.take()["sequence"], seq)
+        self.assertEqual(box.status(seq), "taken")
+        self.assertFalse(box.confirm_ready(seq, "clock"))
+        self.assertTrue(box.confirm_ready(seq, "weather"))
+        self.assertEqual(box.status(seq), "ready")
+        now[0] += 13
+        self.assertEqual(box.status(seq), "expired")
+        self.assertFalse(box.confirm_ready(seq, "weather"))
+
+    def test_browser_ack_and_native_status_permissions(self):
+        req = SimpleNamespace(remote_addr="127.0.0.1", host="localhost:8088",
+            scheme="http", headers={"Origin": "http://localhost:8088",
+                "Sec-Fetch-Site": "same-origin"}, mimetype="application/json",
+            content_length=39)
+        self.assertTrue(nav.browser_ready_allowed(req))
+        req.headers["Origin"] = "http://evil.example"
+        self.assertFalse(nav.browser_ready_allowed(req))
+        req.headers = {"X-ACP-B3-Source": nav.SOURCE_HEADER}
+        self.assertTrue(nav.native_status_allowed(req))
+        req.headers["Sec-Fetch-Site"] = "cross-site"
+        self.assertFalse(nav.native_status_allowed(req))
+
     def test_expiration_and_monotonic_sequence(self):
         now = [100.0]
         m = nav.NavigationMailbox(lambda: now[0])
@@ -69,6 +98,12 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("ACPNavDrawer?.ensureAudioPanel?.()", js)
         self.assertIn("@app.route(\"/api/native-navigation/request\"", main)
         self.assertIn("@app.route(\"/api/native-navigation/next\"", main)
+        self.assertIn("@app.route(\"/api/native-navigation/ready\"", main)
+        self.assertIn("@app.route(\"/api/native-navigation/status\"", main)
+        self.assertIn("ACPNavigationState?.activeRoute?.()", js)
+        self.assertIn("ACPNavigationState?.isPresenting?.()", js)
+        self.assertIn("sessionStorage", js)
+        self.assertIn("/api/native-navigation/ready", js)
         self.assertNotIn("window.location.assign", js)
         self.assertNotIn("subprocess", PATH.read_text())
 
