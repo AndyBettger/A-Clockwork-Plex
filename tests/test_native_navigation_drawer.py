@@ -122,6 +122,33 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn("GLib.timeout_add(HANDOFF_POLL_MS, await_prepared)", source)
         self.assertIn('if phase == "ready":', source)
 
+    def test_curtain_requires_explicit_route_mode_and_releases_on_timeout(self):
+        invalid = [
+            ["--show", "--curtain-handoff"],
+            ["--check-osk", "--route-pages", "--curtain-handoff"],
+        ]
+        for options in invalid:
+            result = subprocess.run(
+                [sys.executable, str(SRC), *options],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("requires --show and --route-pages", result.stderr)
+        source = SRC.read_text(encoding="utf-8")
+        for required in (
+            "curtain_handoff: bool = False",
+            "LayerShell.set_anchor(curtain, LayerShell.Edge.TOP, True)",
+            "curtain.show_all()",
+            "GLib.timeout_add(CURTAIN_FOCUS_SETTLE_MS, focus_then_watch)",
+            'if phase == "painted":',
+            "CURTAIN_PAINT_WAIT_SECONDS = 2.5",
+            'curtain.hide()',
+            "curtain.destroy()",
+        ):
+            self.assertIn(required, source)
+        self.assertIn("LayerShell.KeyboardMode.NONE", source)
+        self.assertNotIn("subprocess.Popen", source)
+
     def test_status_probe_requires_ready_phase(self):
         with mock.patch.object(drawer.urllib.request, "urlopen") as send:
             reply = send.return_value.__enter__.return_value
@@ -131,6 +158,8 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             req = send.call_args.args[0]
             self.assertIn("sequence=7", req.full_url)
             self.assertEqual(req.get_header("X-acp-b3-source"), "native-gtk-b3-dev")
+            reply.read.return_value = b'{"ok":true,"state":"painted"}'
+            self.assertEqual(drawer.handoff_status(7), "painted")
             reply.read.return_value = b'{"ok":true,"state":"bogus"}'
             self.assertEqual(drawer.handoff_status(7), "unavailable")
 

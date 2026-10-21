@@ -116,6 +116,15 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("const transition = document.startViewTransition(commit)", surface_host)
         self.assertIn("motionEnabled(options)", surface_host)
 
+    def test_browser_painted_ack_is_after_focus_and_two_frames(self):
+        js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        self.assertIn("window.requestAnimationFrame(() => window.requestAnimationFrame(resolve))", js)
+        self.assertIn("!document.hasFocus()", js)
+        self.assertIn("/api/native-navigation/painted", js)
+        self.assertIn("window.addEventListener('focus', reportPainted)", js)
+        self.assertIn("window.sessionStorage.removeItem(STORAGE_KEY)", js)
+        self.assertIn('confirm_painted', PATH.read_text())
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
