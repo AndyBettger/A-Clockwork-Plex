@@ -16,6 +16,7 @@ try:
     )
     from .alarm_runtime import ActiveAlarmScheduler
     from . import squeekboard_theme_sync as c3_theme_sync
+    from . import native_navigation_bridge as b3_nav_bridge
 except ImportError:  # Supports direct execution with: python app/main.py
     import dashboard_core as core
     from alarm_audio import AlarmAudioManager, normalise_audio_settings
@@ -27,6 +28,7 @@ except ImportError:  # Supports direct execution with: python app/main.py
     )
     from alarm_runtime import ActiveAlarmScheduler
     import squeekboard_theme_sync as c3_theme_sync
+    import native_navigation_bridge as b3_nav_bridge
 
 # Re-export the established application helpers for compatibility with existing
 # imports, then replace only the alarm-aware functions below.
@@ -485,6 +487,26 @@ def api_c3_theme_sync():
     except (OSError, ValueError, RuntimeError) as exc:
         app.logger.warning("C3 trial-only theme sync refused: %s", exc)
         return jsonify({"ok": False, "error": "C3 trial sync refused; inspect private stage"}), 409
+
+
+@app.route("/api/native-navigation/request", methods=["POST"])
+def api_native_navigation_request():
+    """Development-only local native GTK -> existing Chromium destination."""
+    if not b3_nav_bridge.native_submit_allowed(request):
+        return jsonify({"ok": False, "error": "Native loopback request required"}), 403
+    try:
+        number = b3_nav_bridge.mailbox.offer(request.get_json(silent=True))
+    except b3_nav_bridge.NavigationError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({"ok": True, "sequence": number})
+
+
+@app.route("/api/native-navigation/next", methods=["GET"])
+def api_native_navigation_next():
+    """Read once, then delete; stale selections must never replay."""
+    if not b3_nav_bridge.local_browser_request(request):
+        return jsonify({"ok": False, "error": "Local Chromium only"}), 403
+    return jsonify({"ok": True, "command": b3_nav_bridge.mailbox.take()})
 
 
 if __name__ == "__main__":

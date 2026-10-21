@@ -104,6 +104,22 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn("acp-b3-utility-group", src)
         self.assertIn('escape.set_tooltip_text("Development only:', src)
 
+    def test_local_page_routing_requires_opt_in(self):
+        with mock.patch.object(drawer.urllib.request, "urlopen") as send:
+            reply = send.return_value.__enter__.return_value
+            reply.status = 200
+            reply.read.return_value = b'{"ok":true}'
+            self.assertTrue(drawer.request_page_handoff("Weather"))
+            req = send.call_args.args[0]
+            self.assertEqual(req.full_url, drawer.NAVIGATION_URL)
+            self.assertEqual(req.get_method(), "POST")
+            self.assertIn(b'"destination": "weather"', req.data)
+            self.assertFalse(drawer.request_page_handoff("Plexamp"))
+        source = SRC.read_text()
+        self.assertIn('parser.add_argument("--route-pages"', source)
+        self.assertIn("route_pages=args.route_pages", source)
+        self.assertIn("if request_page_handoff(name):", source)
+
     def test_routes_are_explicitly_preview_only(self):
         self.assertEqual(drawer.NAV_ITEMS, (
             "Home", "Weather", "News", "AirPlay", "Plexamp",

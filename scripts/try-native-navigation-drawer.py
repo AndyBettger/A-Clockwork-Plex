@@ -15,6 +15,9 @@ import importlib.util
 import os
 from pathlib import Path
 import sys
+import json
+import urllib.request
+import urllib.error
 
 HERE = Path(__file__).resolve().parent
 INDICATOR = HERE / "try-native-navigation-indicator.py"
@@ -31,6 +34,35 @@ UTILITY_ITEMS = ("Audio", "Settings")
 # The extra ACP escape is temporary and explicitly development-only.
 NAV_ITEMS = WORKSPACE_ITEMS + UTILITY_ITEMS + ("ACP",)
 MAX_SECONDS = 300
+NAVIGATION_URL = "http://127.0.0.1:8088/api/native-navigation/request"
+
+
+def request_page_handoff(label: str) -> bool:
+    """Issue only an allowlisted local command, never a URL or OSK action."""
+    routes = {
+        "Home": "clock", "Weather": "weather", "News": "news",
+        "AirPlay": "airplay", "Settings": "settings", "Audio": "audio",
+    }
+    destination = routes.get(label)
+    if not destination:
+        return False
+    payload = json.dumps({"destination": destination}).encode("utf-8")
+    req = urllib.request.Request(
+        NAVIGATION_URL, data=payload, method="POST",
+        headers={"Content-Type": "application/json",
+                 "X-ACP-B3-Source": "native-gtk-b3-dev"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=2) as response:
+            data = json.load(response)
+            if response.status != 200 or data.get("ok") is not True:
+                print("ACP B3: destination rejected by ACP", flush=True)
+                return False
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        print(f"ACP B3: local route unavailable: {exc}", flush=True)
+        return False
+    return True
+
 
 
 def load_indicator():
@@ -112,7 +144,8 @@ def make_layer_window(Gtk, LayerShell, width: int, height: int,
     return win
 
 
-def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int):
+def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
+            route_pages: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -239,6 +272,13 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int):
                 stop_once("ACP focused, ending preview")
             else:
                 print("ACP B3: ACP focus failed; preview remains available", flush=True)
+        elif route_pages:
+            print(f"ACP B3: {name} selected; requesting ACP navigation", flush=True)
+            if request_page_handoff(name):
+                if b2.focus_acp():
+                    stop_once(f"{name} sent to ACP; closing native preview")
+                else:
+                    print("ACP B3: focus failed; check ACP window before retrying", flush=True)
         else:
             print(f"ACP B3: {name} selected (preview only; route not connected)", flush=True)
 
@@ -308,8 +348,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int):
     GLib.timeout_add(POLL_MS, refresh_keyboard)
     GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing preview"))
     print(f"ACP B3: preview for at most {seconds}s, indicator {bar_width}x{bar_height}px;"
-          " tap opens drawer; routes preview-only except Plexamp/ACP;"
-          " hides when Squeekboard opens.", flush=True)
+          " tap opens drawer; "
+          + ("ACP page handoff ENABLED" if route_pages else "routes preview-only except Plexamp/ACP")
+          + "; hides when Squeekboard opens.", flush=True)
     try:
         Gtk.main()
     except KeyboardInterrupt:
@@ -326,6 +367,8 @@ def main() -> int:
                         help="read Squeekboard visibility without showing any window")
     action.add_argument("--show", action="store_true",
                         help="start temporary drawer preview over existing native Plexamp")
+    parser.add_argument("--route-pages", action="store_true",
+                        help="explicitly enable loopback ACP page handoff (default preview-only)")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -350,7 +393,8 @@ def main() -> int:
             detail = f" ({diagnostic[0]})" if diagnostic else ""
             raise RuntimeError("Squeekboard visible or Visible property unavailable"
                                + detail + "; no native navigation overlay shown")
-        present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds)
+        present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds,
+                route_pages=args.route_pages)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
