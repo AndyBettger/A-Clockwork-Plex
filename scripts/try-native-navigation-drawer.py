@@ -39,6 +39,10 @@ NAVIGATION_URL = "http://127.0.0.1:8088/api/native-navigation/request"
 STATUS_URL = "http://127.0.0.1:8088/api/native-navigation/status"
 PREPARE_TIMEOUT_SECONDS = 10.0
 HANDOFF_POLL_MS = 180
+CURTAIN_FOCUS_SETTLE_MS = 85
+CURTAIN_PAINT_WAIT_SECONDS = 2.5
+CURTAIN_FADE_STEP_MS = 40
+CURTAIN_FADE_STEPS = 5
 
 
 def request_page_handoff(label: str) -> int | None:
@@ -81,7 +85,7 @@ def handoff_status(sequence: int) -> str:
             data = json.load(response)
             state = data.get("state")
             if (response.status == 200 and data.get("ok") is True
-                    and state in ("queued", "taken", "ready", "expired")):
+                    and state in ("queued", "taken", "ready", "painted", "expired")):
                 return state
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         pass
@@ -168,7 +172,7 @@ def make_layer_window(Gtk, LayerShell, width: int, height: int,
 
 
 def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
-            route_pages: bool = False):
+            route_pages: bool = False, curtain_handoff: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -216,6 +220,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         padding-left: 6px;
       }
       .acp-b3-developer { font-size: 12px; border-style: dashed; }
+      .acp-b3-curtain { background-color: #09111f; }
     """
     provider = Gtk.CssProvider()
     provider.load_from_data(css)
@@ -255,6 +260,22 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     body.pack_start(utilities, False, False, 0)
     drawer.add(body)
 
+    # Opt-in cover belongs to GTK's overlay layer, above both toplevels.
+    # Map it BEFORE compositor focus changes, then release after an ACP paint
+    # acknowledgment; the accepted B3 drawer remains unchanged by default.
+    curtain = None
+    if curtain_handoff:
+        curtain = make_layer_window(
+            Gtk, LayerShell, width, height,
+            namespace="acp-b3-handoff-curtain-test", bottom=0)
+        LayerShell.set_anchor(curtain, LayerShell.Edge.TOP, True)
+        LayerShell.set_anchor(curtain, LayerShell.Edge.LEFT, True)
+        LayerShell.set_anchor(curtain, LayerShell.Edge.RIGHT, True)
+        cover = Gtk.EventBox()
+        cover.set_size_request(width, height)
+        cover.get_style_context().add_class("acp-b3-curtain")
+        curtain.add(cover)
+
     state = {"drawer": False, "keyboard": None, "stopping": False,
              "handoff_pending": False}
     def stop_once(reason):
@@ -282,6 +303,67 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         set_drawer_open(not state["drawer"])
         print("ACP B3: preview drawer " +
               ("opened" if state["drawer"] else "closed"), flush=True)
+        return True
+
+    def fade_and_finish(reason):
+        """Release a temporary Wayland cover, never leave a locked overlay."""
+        if curtain is None:
+            stop_once(reason)
+            return
+        steps = {"remaining": CURTAIN_FADE_STEPS}
+
+        def fade_step():
+            if state["stopping"]:
+                return False
+            steps["remaining"] -= 1
+            curtain.set_opacity(max(0.0, steps["remaining"] / CURTAIN_FADE_STEPS))
+            if steps["remaining"] <= 0:
+                curtain.hide()
+                stop_once(reason)
+                return False
+            return True
+
+        GLib.timeout_add(CURTAIN_FADE_STEP_MS, fade_step)
+
+    def start_curtained_focus(name, sequence):
+        """Keep the old Chromium framebuffer covered until repaint opportunity."""
+        if curtain is None:
+            return False
+        curtain.set_opacity(1.0)
+        curtain.show_all()
+        print("ACP B3: handoff curtain mapped before focus", flush=True)
+
+        def focus_then_watch():
+            if state["stopping"]:
+                return False
+            if not b2.focus_acp():
+                curtain.hide()
+                state["handoff_pending"] = False
+                print("ACP B3: focus failed; removed curtain, Plexamp remains", flush=True)
+                return False
+            painted_deadline = time.monotonic() + CURTAIN_PAINT_WAIT_SECONDS
+            print("ACP B3: ACP focused behind curtain; awaiting painted ack", flush=True)
+
+            def wait_for_paint():
+                if state["stopping"]:
+                    return False
+                phase = handoff_status(sequence)
+                if phase == "painted":
+                    print("ACP B3: Chromium painted acknowledgment; fading curtain", flush=True)
+                    fade_and_finish(f"{name} painted and focused; closing native preview")
+                    return False
+                if time.monotonic() >= painted_deadline or phase == "expired":
+                    print(f"ACP B3: paint acknowledgment missing ({phase}); releasing curtain safely", flush=True)
+                    fade_and_finish(f"{name} focus completed; painted state not confirmed")
+                    return False
+                return True
+
+            GLib.timeout_add(HANDOFF_POLL_MS, wait_for_paint)
+            return False
+
+        # Give the newly mapped Wayland overlay a compositor frame before
+        # promoting Chromium; no change to ACP's own transition duration.
+        GLib.timeout_add(CURTAIN_FOCUS_SETTLE_MS, focus_then_watch)
         return True
 
     def select_destination(_button, name):
@@ -316,11 +398,14 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     phase = handoff_status(sequence)
                     if phase == "ready":
                         print(f"ACP B3: {name} ready in Chromium; focusing ACP", flush=True)
-                        state["handoff_pending"] = False
-                        if b2.focus_acp():
-                            stop_once(f"{name} prepared and focused; closing native preview")
+                        if curtain_handoff:
+                            start_curtained_focus(name, sequence)
                         else:
-                            print("ACP B3: focus failed; native preview remains available", flush=True)
+                            state["handoff_pending"] = False
+                            if b2.focus_acp():
+                                stop_once(f"{name} prepared and focused; closing native preview")
+                            else:
+                                print("ACP B3: focus failed; native preview remains available", flush=True)
                         return False
                     if phase == "expired" or time.monotonic() >= deadline:
                         state["handoff_pending"] = False
@@ -406,6 +491,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     except KeyboardInterrupt:
         print("ACP B3: Ctrl+C received", flush=True)
     finally:
+        if curtain is not None:
+            curtain.destroy()
         drawer.destroy()
         indicator.destroy()
 
@@ -419,11 +506,15 @@ def main() -> int:
                         help="start temporary drawer preview over existing native Plexamp")
     parser.add_argument("--route-pages", action="store_true",
                         help="explicitly enable loopback ACP page handoff (default preview-only)")
+    parser.add_argument("--curtain-handoff", action="store_true",
+                        help="experimental GTK cover until Chromium confirms painted focus")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
     if not 1 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 1 and 300")
+    if args.curtain_handoff and (not args.route_pages or not args.show):
+        parser.error("--curtain-handoff requires --show and --route-pages")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -444,7 +535,7 @@ def main() -> int:
             raise RuntimeError("Squeekboard visible or Visible property unavailable"
                                + detail + "; no native navigation overlay shown")
         present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds,
-                route_pages=args.route_pages)
+                route_pages=args.route_pages, curtain_handoff=args.curtain_handoff)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
