@@ -501,6 +501,30 @@ def api_native_navigation_request():
     return jsonify({"ok": True, "sequence": number})
 
 
+@app.route("/api/native-navigation/ready", methods=["POST"])
+def api_native_navigation_ready():
+    """Chromium confirms the ACP destination is presented before focus."""
+    if not b3_nav_bridge.browser_ready_allowed(request):
+        return jsonify({"ok": False, "error": "Local same-origin Chromium required"}), 403
+    payload = request.get_json(silent=True)
+    if (type(payload) is not dict or set(payload) != {"sequence", "destination"}
+            or not b3_nav_bridge.mailbox.confirm_ready(
+                payload["sequence"], payload["destination"])):
+        return jsonify({"ok": False, "error": "No matching active navigation"}), 409
+    return jsonify({"ok": True})
+
+
+@app.route("/api/native-navigation/status", methods=["GET"])
+def api_native_navigation_status():
+    """Read the current handoff phase without taking Chromium's command."""
+    if not b3_nav_bridge.native_status_allowed(request):
+        return jsonify({"ok": False, "error": "Native loopback required"}), 403
+    raw = request.args.get("sequence", "")
+    if not raw.isascii() or not raw.isdecimal() or len(raw) > 10:
+        return jsonify({"ok": False, "error": "Invalid sequence"}), 400
+    return jsonify({"ok": True, "state": b3_nav_bridge.mailbox.status(int(raw))})
+
+
 @app.route("/api/native-navigation/next", methods=["GET"])
 def api_native_navigation_next():
     """Read once, then delete; stale selections must never replay."""

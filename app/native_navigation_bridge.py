@@ -26,6 +26,7 @@ class NavigationMailbox:
         self._guard = Lock()
         self._number = 0
         self._pending = None
+        self._current = None
 
     def offer(self, payload):
         if (type(payload) is not dict or set(payload) != {"destination"}
@@ -39,6 +40,7 @@ class NavigationMailbox:
                 "destination": payload["destination"],
                 "issued_at": self._clock(),
             }
+            self._current = {**self._pending, "phase": "queued"}
             return self._number
 
     def take(self):
@@ -50,10 +52,38 @@ class NavigationMailbox:
             elapsed = self._clock() - pending["issued_at"]
             if elapsed < 0 or elapsed > MAX_AGE_SECONDS:
                 return None
+            if self._current and self._current["sequence"] == pending["sequence"]:
+                self._current["phase"] = "taken"
             return {
                 "sequence": pending["sequence"],
                 "destination": pending["destination"],
             }
+
+    def confirm_ready(self, sequence, destination):
+        """Only the current consumed command may be marked as ready."""
+        with self._guard:
+            current = self._current
+            if (type(sequence) is not int or type(destination) is not str
+                    or not current or current["sequence"] != sequence
+                    or current["destination"] != destination
+                    or current["phase"] not in ("taken", "ready")):
+                return False
+            elapsed = self._clock() - current["issued_at"]
+            if elapsed < 0 or elapsed > MAX_AGE_SECONDS:
+                return False
+            current["phase"] = "ready"
+            return True
+
+    def status(self, sequence):
+        """Bounded read-only status for the requesting native GTK process."""
+        with self._guard:
+            current = self._current
+            if type(sequence) is not int or not current or current["sequence"] != sequence:
+                return "expired"
+            elapsed = self._clock() - current["issued_at"]
+            if elapsed < 0 or elapsed > MAX_AGE_SECONDS:
+                return "expired"
+            return current["phase"]
 
 
 mailbox = NavigationMailbox()
@@ -75,6 +105,27 @@ def local_browser_request(req) -> bool:
     )):
         return False
     return True
+
+
+def browser_ready_allowed(req) -> bool:
+    """Same-origin local Chromium acknowledgment, never external websites."""
+    return (
+        local_browser_request(req)
+        and req.mimetype == "application/json"
+        and req.content_length is not None
+        and 0 < req.content_length <= MAX_BODY_BYTES
+        and req.headers.get("Origin") == f"{req.scheme}://{req.host}"
+        and req.headers.get("Sec-Fetch-Site") in (None, "same-origin")
+    )
+
+
+def native_status_allowed(req) -> bool:
+    return (
+        local_browser_request(req)
+        and req.headers.get("X-ACP-B3-Source") == SOURCE_HEADER
+        and not req.headers.get("Origin")
+        and not req.headers.get("Sec-Fetch-Site")
+    )
 
 
 def native_submit_allowed(req) -> bool:
