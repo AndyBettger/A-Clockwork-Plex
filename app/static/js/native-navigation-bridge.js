@@ -97,8 +97,13 @@
         const button = document.getElementById('nav-audio-button');
         if (button && !document.body.classList.contains('nav-audio-open')) button.click();
       } else {
+        // Native Plexamp is still foreground. A browser View Transition may
+        // defer its rendering lifecycle while Chromium is occluded; stage the
+        // destination *without* that animation, then wait for route readiness.
+        // Normal ACP-to-ACP navigations still use the user's selected style.
         void window.ACPNavigate('/' + command.destination, {
           source: 'native-plexamp-b3',
+          animate: false,
         });
       }
     } catch (error) {

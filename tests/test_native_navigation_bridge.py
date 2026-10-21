@@ -88,6 +88,17 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         req.headers.clear()
         self.assertFalse(nav.native_submit_allowed(req))
 
+    def test_native_background_preparation_does_not_start_view_transition(self):
+        bridge = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        transitions = (ROOT / "app/static/js/page-transitions.js").read_text()
+        surface_host = (ROOT / "app/static/js/acp-surface-host.js").read_text()
+        self.assertIn("source: 'native-plexamp-b3',\n          animate: false,", bridge)
+        self.assertIn("...options,\n        history: true,", transitions)
+        self.assertIn("if (options.animate === false) return false;", surface_host)
+        self.assertIn("document.startViewTransition(commit)", surface_host)
+        # User-selected ACP-to-ACP transitions are not globally disabled.
+        self.assertNotIn("animate: false", transitions)
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
