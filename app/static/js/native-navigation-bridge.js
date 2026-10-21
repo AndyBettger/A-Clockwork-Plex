@@ -9,6 +9,7 @@
   const MAX_AGE_MS = 12000;
   let polling = false;
   let acknowledging = false;
+  let reportingPaint = false;
   let lastSeen = 0;
 
   function saveHandoff(command) {
@@ -68,13 +69,43 @@
         }),
       });
       if (!response.ok) return;
-      if (pendingHandoff()?.sequence === command.sequence) {
-        window.sessionStorage.removeItem(STORAGE_KEY);
-      }
+      // Keep this short-lived command until Chromium gets actual foreground
+      // focus and has a chance to draw; route-ready is not paint-ready.
     } catch (error) {
       // GTK keeps native Plexamp in front if ACP never becomes ready.
     } finally {
       acknowledging = false;
+    }
+  }
+
+  async function reportPainted() {
+    if (reportingPaint || !document.hasFocus()) return;
+    const command = pendingHandoff();
+    if (!command || !readyForHandoff(command)) return;
+    reportingPaint = true;
+    try {
+      // Rendering while fully occluded can be throttled. Wait until Chromium
+      // has compositor focus, then allow two actual animation-frame callbacks
+      // before releasing the native GTK handoff curtain.
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+      });
+      if (!document.hasFocus() || !readyForHandoff(command)) return;
+      const response = await fetch('/api/native-navigation/painted', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sequence: command.sequence, destination: command.destination,
+        }),
+      });
+      if (response.ok && pendingHandoff()?.sequence === command.sequence) {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (error) {
+      // Bounded GTK preview will release the curtain on its own deadline.
+    } finally {
+      reportingPaint = false;
     }
   }
 
@@ -115,8 +146,12 @@
 
   const pollTimer = window.setInterval(poll, 600);
   const readyTimer = window.setInterval(acknowledgePresented, 150);
+  const paintTimer = window.setInterval(reportPainted, 120);
+  window.addEventListener('focus', reportPainted);
   window.addEventListener('pagehide', () => {
     window.clearInterval(pollTimer);
     window.clearInterval(readyTimer);
+    window.clearInterval(paintTimer);
+    window.removeEventListener('focus', reportPainted);
   });
 })();
