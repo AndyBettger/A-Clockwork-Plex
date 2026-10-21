@@ -96,8 +96,9 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("...options,\n        history: true,", transitions)
         self.assertIn("if (options.animate === false) return false;", surface_host)
         self.assertIn("document.startViewTransition(commit)", surface_host)
-        # User-selected ACP-to-ACP transitions are not globally disabled.
-        self.assertNotIn("animate: false", transitions)
+        # Existing ACP-to-ACP navigation still offers View Transitions.
+        self.assertIn("const transition = document.startViewTransition(commit)", surface_host)
+        self.assertIn("motionEnabled(options)", surface_host)
 
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
