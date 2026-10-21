@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import sys
 import json
+import time
 import urllib.request
 import urllib.error
 
@@ -35,17 +36,20 @@ UTILITY_ITEMS = ("Audio", "Settings")
 NAV_ITEMS = WORKSPACE_ITEMS + UTILITY_ITEMS + ("ACP",)
 MAX_SECONDS = 300
 NAVIGATION_URL = "http://127.0.0.1:8088/api/native-navigation/request"
+STATUS_URL = "http://127.0.0.1:8088/api/native-navigation/status"
+PREPARE_TIMEOUT_SECONDS = 10.0
+HANDOFF_POLL_MS = 180
 
 
-def request_page_handoff(label: str) -> bool:
-    """Issue only an allowlisted local command, never a URL or OSK action."""
+def request_page_handoff(label: str) -> int | None:
+    """Issue only an allowlisted local command; return its server sequence."""
     routes = {
         "Home": "clock", "Weather": "weather", "News": "news",
         "AirPlay": "airplay", "Settings": "settings", "Audio": "audio",
     }
     destination = routes.get(label)
     if not destination:
-        return False
+        return None
     payload = json.dumps({"destination": destination}).encode("utf-8")
     req = urllib.request.Request(
         NAVIGATION_URL, data=payload, method="POST",
@@ -55,14 +59,33 @@ def request_page_handoff(label: str) -> bool:
     try:
         with urllib.request.urlopen(req, timeout=2) as response:
             data = json.load(response)
-            if response.status != 200 or data.get("ok") is not True:
+            sequence = data.get("sequence")
+            if (response.status != 200 or data.get("ok") is not True
+                    or type(sequence) is not int or sequence < 1):
                 print("ACP B3: destination rejected by ACP", flush=True)
-                return False
+                return None
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         print(f"ACP B3: local route unavailable: {exc}", flush=True)
-        return False
-    return True
+        return None
+    return sequence
 
+
+def handoff_status(sequence: int) -> str:
+    """Read our own bounded loopback handoff state; no route mutations."""
+    url = f"{STATUS_URL}?sequence={sequence}"
+    req = urllib.request.Request(
+        url, method="GET", headers={"X-ACP-B3-Source": "native-gtk-b3-dev"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=0.35) as response:
+            data = json.load(response)
+            state = data.get("state")
+            if (response.status == 200 and data.get("ok") is True
+                    and state in ("queued", "taken", "ready", "expired")):
+                return state
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        pass
+    return "unavailable"
 
 
 def load_indicator():
@@ -232,7 +255,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     body.pack_start(utilities, False, False, 0)
     drawer.add(body)
 
-    state = {"drawer": False, "keyboard": None, "stopping": False}
+    state = {"drawer": False, "keyboard": None, "stopping": False,
+             "handoff_pending": False}
     def stop_once(reason):
         if state["stopping"]:
             return False
@@ -261,7 +285,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         return True
 
     def select_destination(_button, name):
-        if not overlay_allowed(state["keyboard"]):
+        if not overlay_allowed(state["keyboard"]) or state["handoff_pending"]:
             return
         if name == "Plexamp":
             set_drawer_open(False)
@@ -273,12 +297,38 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             else:
                 print("ACP B3: ACP focus failed; preview remains available", flush=True)
         elif route_pages:
-            print(f"ACP B3: {name} selected; requesting ACP navigation", flush=True)
-            if request_page_handoff(name):
-                if b2.focus_acp():
-                    stop_once(f"{name} sent to ACP; closing native preview")
-                else:
-                    print("ACP B3: focus failed; check ACP window before retrying", flush=True)
+            print(f"ACP B3: {name} selected; preparing ACP navigation in background", flush=True)
+            sequence = request_page_handoff(name)
+            if sequence is not None:
+                state["handoff_pending"] = True
+                deadline = time.monotonic() + PREPARE_TIMEOUT_SECONDS
+
+                def await_prepared():
+                    if state["stopping"]:
+                        return False
+                    if not overlay_allowed(state["keyboard"]):
+                        # The OSK keeps navigation hidden, even during handoff.
+                        if time.monotonic() >= deadline:
+                            state["handoff_pending"] = False
+                            print("ACP B3: keyboard still open; handoff cancelled", flush=True)
+                            return False
+                        return True
+                    phase = handoff_status(sequence)
+                    if phase == "ready":
+                        print(f"ACP B3: {name} ready in Chromium; focusing ACP", flush=True)
+                        state["handoff_pending"] = False
+                        if b2.focus_acp():
+                            stop_once(f"{name} prepared and focused; closing native preview")
+                        else:
+                            print("ACP B3: focus failed; native preview remains available", flush=True)
+                        return False
+                    if phase == "expired" or time.monotonic() >= deadline:
+                        state["handoff_pending"] = False
+                        print(f"ACP B3: {name} not ready ({phase}); staying in Plexamp", flush=True)
+                        return False
+                    return True
+
+                GLib.timeout_add(HANDOFF_POLL_MS, await_prepared)
         else:
             print(f"ACP B3: {name} selected (preview only; route not connected)", flush=True)
 
