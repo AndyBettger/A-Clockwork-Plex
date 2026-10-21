@@ -44,6 +44,22 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertEqual(box.status(seq), "expired")
         self.assertFalse(box.confirm_ready(seq, "weather"))
 
+    def test_painted_requires_matching_ready_command_and_expires(self):
+        now = [100.0]
+        box = nav.NavigationMailbox(lambda: now[0])
+        seq = box.offer({"destination": "weather"})
+        self.assertFalse(box.confirm_painted(seq, "weather"))
+        self.assertEqual(box.take()["sequence"], seq)
+        self.assertFalse(box.confirm_painted(seq, "weather"))
+        self.assertTrue(box.confirm_ready(seq, "weather"))
+        self.assertFalse(box.confirm_painted(seq + 1, "weather"))
+        self.assertFalse(box.confirm_painted(seq, "clock"))
+        self.assertTrue(box.confirm_painted(seq, "weather"))
+        self.assertEqual(box.status(seq), "painted")
+        now[0] += 13.0
+        self.assertFalse(box.confirm_painted(seq, "weather"))
+        self.assertEqual(box.status(seq), "expired")
+
     def test_browser_ack_and_native_status_permissions(self):
         req = SimpleNamespace(remote_addr="127.0.0.1", host="localhost:8088",
             scheme="http", headers={"Origin": "http://localhost:8088",
@@ -111,6 +127,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("@app.route(\"/api/native-navigation/request\"", main)
         self.assertIn("@app.route(\"/api/native-navigation/next\"", main)
         self.assertIn("@app.route(\"/api/native-navigation/ready\"", main)
+        self.assertIn("@app.route(\"/api/native-navigation/painted\"", main)
         self.assertIn("@app.route(\"/api/native-navigation/status\"", main)
         self.assertIn("ACPNavigationState?.activeRoute?.()", js)
         self.assertIn("ACPNavigationState?.isPresenting?.()", js)

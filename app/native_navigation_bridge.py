@@ -74,6 +74,21 @@ class NavigationMailbox:
             current["phase"] = "ready"
             return True
 
+    def confirm_painted(self, sequence, destination):
+        """Confirm Chromium got focus and rendered after the ready state."""
+        with self._guard:
+            current = self._current
+            if (type(sequence) is not int or type(destination) is not str
+                    or not current or current["sequence"] != sequence
+                    or current["destination"] != destination
+                    or current["phase"] not in ("ready", "painted")):
+                return False
+            age = self._clock() - current["issued_at"]
+            if age < 0 or age > MAX_AGE_SECONDS:
+                return False
+            current["phase"] = "painted"
+            return True
+
     def status(self, sequence):
         """Bounded read-only status for the requesting native GTK process."""
         with self._guard:

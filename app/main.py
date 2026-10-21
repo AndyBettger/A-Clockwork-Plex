@@ -514,6 +514,19 @@ def api_native_navigation_ready():
     return jsonify({"ok": True})
 
 
+@app.route("/api/native-navigation/painted", methods=["POST"])
+def api_native_navigation_painted():
+    """Local Chromium confirms focus and a subsequent render opportunity."""
+    if not b3_nav_bridge.browser_ready_allowed(request):
+        return jsonify({"ok": False, "error": "Local same-origin Chromium required"}), 403
+    payload = request.get_json(silent=True)
+    if (type(payload) is not dict or set(payload) != {"sequence", "destination"}
+            or not b3_nav_bridge.mailbox.confirm_painted(
+                payload["sequence"], payload["destination"])):
+        return jsonify({"ok": False, "error": "No matching ready navigation"}), 409
+    return jsonify({"ok": True})
+
+
 @app.route("/api/native-navigation/status", methods=["GET"])
 def api_native_navigation_status():
     """Read the current handoff phase without taking Chromium's command."""
