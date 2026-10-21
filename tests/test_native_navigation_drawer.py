@@ -96,7 +96,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "Home", "Weather", "News", "AirPlay", "Plexamp"))
         self.assertEqual(drawer.UTILITY_ITEMS, ("Audio", "Settings"))
         src = SRC.read_text(encoding="utf-8")
-        self.assertNotIn("B3 navigation preview\")", src)
+        self.assertNotIn('Gtk.Label(label="A Clockwork Plex', src)
         self.assertIn("set_drawer_open(not state[\"drawer\"])", src)
         self.assertIn("LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM", src)
         self.assertIn("set_drawer_open(False)\n            indicator.hide()", src)
