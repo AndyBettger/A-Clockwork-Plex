@@ -48,7 +48,7 @@ class NativeNavigationIndicatorTests(unittest.TestCase):
         self.assertEqual(indicator.BAR_WIDTH, 140)
         self.assertEqual(indicator.BAR_HEIGHT, 5)
         self.assertEqual(indicator.BOTTOM_MARGIN, 0)
-        self.assertEqual(indicator.DEFAULT_EDGE_PADDING, 2)
+        self.assertEqual(indicator.DEFAULT_EDGE_PADDING, 4)
         source = SRC.read_text(encoding="utf-8")
         self.assertIn("layout.pack_end(handle, False, False, 0)", source)
         self.assertIn("handle.set_margin_bottom(edge_padding)", source)
@@ -83,6 +83,27 @@ class NativeNavigationIndicatorTests(unittest.TestCase):
         self.assertIn('eventbox.connect("leave-notify-event", on_leave)', source)
         self.assertIn('background-color: rgba(247, 249, 255, 0.94)', source)
         self.assertIn('handle.set_opacity(1.0)', source)
+
+    def test_modern_monitor_geometry_and_primary_fallback(self):
+        primary = mock.Mock()
+        primary.get_geometry.return_value = mock.Mock(width=800, height=480)
+        fallback = mock.Mock()
+        fallback.get_geometry.return_value = mock.Mock(width=1280, height=720)
+        display = mock.Mock()
+        display.get_primary_monitor.return_value = primary
+        display.get_monitor.return_value = fallback
+        self.assertEqual(indicator.desktop_monitor_size(display), (800, 480))
+        display.get_monitor.assert_not_called()
+        display.get_primary_monitor.return_value = None
+        self.assertEqual(indicator.desktop_monitor_size(display), (1280, 720))
+        display.get_monitor.assert_called_once_with(0)
+        display.get_monitor.return_value = None
+        with self.assertRaisesRegex(indicator.ProbeError, "No active desktop monitor"):
+            indicator.desktop_monitor_size(display)
+        source = SRC.read_text(encoding="utf-8")
+        self.assertNotIn("screen.get_width()", source)
+        self.assertNotIn("screen.get_height()", source)
+        self.assertIn("desktop_monitor_size(window.get_display())", source)
 
     def test_gtk_shutdown_only_requests_quit_inside_running_main_loop(self):
         # Tapping ACP previously called Gtk.main_quit, then destroy called it

@@ -24,7 +24,7 @@ COMPACT_BAR_HEIGHT = 4
 ACP_COMPACT_MAX_WIDTH = 860
 ACP_COMPACT_MAX_HEIGHT = 680
 BOTTOM_MARGIN = 0
-DEFAULT_EDGE_PADDING = 2
+DEFAULT_EDGE_PADDING = 4
 DEFAULT_TIMEOUT = 120
 MAX_TIMEOUT = 300
 
@@ -41,6 +41,19 @@ def bar_size_for_screen(width: int, height: int) -> tuple[int, int]:
     if width <= ACP_COMPACT_MAX_WIDTH or height <= ACP_COMPACT_MAX_HEIGHT:
         return COMPACT_BAR_WIDTH, COMPACT_BAR_HEIGHT
     return BAR_WIDTH, BAR_HEIGHT
+
+
+def desktop_monitor_size(display) -> tuple[int, int]:
+    """Use Gdk.Monitor's logical geometry, not deprecated Gdk.Screen dimensions."""
+    monitor = display.get_primary_monitor()
+    if monitor is None:
+        monitor = display.get_monitor(0)  # Wayland need not define a primary.
+    if monitor is None:
+        raise ProbeError("No active desktop monitor.")
+    geometry = monitor.get_geometry()
+    if geometry.width <= 0 or geometry.height <= 0:
+        raise ProbeError("Invalid desktop monitor geometry.")
+    return geometry.width, geometry.height
 
 
 def desktop_environment(env: dict[str, str], uid: int, *, root: bool = False) -> dict[str, str]:
@@ -107,7 +120,7 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     window.set_size_request(PROBE_WIDTH, PROBE_HEIGHT)
     window.set_app_paintable(True)
     screen = window.get_screen()
-    bar_width, bar_height = bar_size_for_screen(screen.get_width(), screen.get_height())
+    bar_width, bar_height = bar_size_for_screen(*desktop_monitor_size(window.get_display()))
     visual = screen.get_rgba_visual() if screen else None
     if visual is not None:
         window.set_visual(visual)
@@ -244,7 +257,7 @@ def main() -> int:
     parser.add_argument("--tap-focus-acp", action="store_true",
                         help="on tap, ask labwc to focus ACP then close this indicator")
     parser.add_argument("--edge-padding", type=int, default=DEFAULT_EDGE_PADDING,
-                        help="visual bar distance from bottom of touch target (0-10 pixels; default 2)")
+                        help=f"visual bar distance from bottom of touch target (0-10 pixels; default {DEFAULT_EDGE_PADDING})")
     args = parser.parse_args()
     if not 1 <= args.seconds <= MAX_TIMEOUT:
         parser.error(f"--seconds must be between 1 and {MAX_TIMEOUT}")

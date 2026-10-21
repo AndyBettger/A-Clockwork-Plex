@@ -12,7 +12,7 @@
 | Area | Status | Next useful action |
 | --- | --- | --- |
 | Shell, Settings, navigation, spatial transitions, night Clock | **Complete — physically accepted** | Maintenance only |
-| Native Plexamp Wayland navigation | **B1 focus passed; B2 prototype touch passed** | GTK overlay over fullscreen Plexamp and tap→ACP work; safe edge placement, touch and clean GTK timeout/Ctrl+C physically passed (10/10 tests). 21 Oct screenshots showed native bar still ~9% wider/thicker and dimmer than ACP; revised GTK probe now mirrors nav.css compact 128×4 breakpoint and hover brightness. Pi visual/touch retest pending; B3 transitions pending |
+| Native Plexamp Wayland navigation | **B1 focus passed; B2 prototype touch passed** | GTK overlay over fullscreen Plexamp and tap→ACP work; safe placement, touch, hover and GTK timeout/Ctrl+C physically passed; latest 11/11 Pi tests clean. Native 128×4 responsive bar almost matches ACP; pixel comparison shows ~3–4 captured pixels too low, centres within 1px. Default edge-padding adjusted 2→4 logical px and deprecated Screen size queries replaced with Monitor geometry; Pi visual retest pending, B3 transitions pending |
 | Squeekboard UK text / compact numeric layouts | **Pi accepted in C3** | UK text, signed decimals/numeric pads, time QWERTY, and ACP Settings scroll verified |
 | Private Squeekboard CSS, ACP daytime / night palettes | **Scheduled night → day physically accepted** | C3 automatically changed to Astronomy Red and back while native Plexamp stayed fullscreen; typing survived both changes |
 | Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
