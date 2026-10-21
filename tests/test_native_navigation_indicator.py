@@ -66,6 +66,24 @@ class NativeNavigationIndicatorTests(unittest.TestCase):
         self.assertIn("height: 5px;", acp_css)
         self.assertIn("background: rgba(247, 249, 255, 0.74)", acp_css)
 
+    def test_responsive_size_and_hover_follow_acp_css(self):
+        # The Pi screenshot corresponds to ACP's compact @media rule: 128x4,
+        # not the full-screen 140x5 inherited by the initial GTK prototype.
+        self.assertEqual(indicator.bar_size_for_screen(1280, 720), (140, 5))
+        self.assertEqual(indicator.bar_size_for_screen(860, 720), (128, 4))
+        self.assertEqual(indicator.bar_size_for_screen(1280, 680), (128, 4))
+        self.assertEqual(indicator.bar_size_for_screen(800, 480), (128, 4))
+        acp_css = (ROOT / "app/static/css/nav.css").read_text(encoding="utf-8")
+        self.assertIn("@media (max-height: 680px), (max-width: 860px)", acp_css)
+        self.assertIn("width: 128px;", acp_css)
+        self.assertIn("height: 4px;", acp_css)
+        source = SRC.read_text(encoding="utf-8")
+        self.assertIn("handle.set_size_request(bar_width, bar_height)", source)
+        self.assertIn('eventbox.connect("enter-notify-event", on_enter)', source)
+        self.assertIn('eventbox.connect("leave-notify-event", on_leave)', source)
+        self.assertIn('background-color: rgba(247, 249, 255, 0.94)', source)
+        self.assertIn('handle.set_opacity(1.0)', source)
+
     def test_gtk_shutdown_only_requests_quit_inside_running_main_loop(self):
         # Tapping ACP previously called Gtk.main_quit, then destroy called it
         # again after the loop had returned, producing a Gtk-CRITICAL warning.

@@ -19,6 +19,10 @@ PROBE_WIDTH = 190
 PROBE_HEIGHT = 16
 BAR_WIDTH = 140
 BAR_HEIGHT = 5
+COMPACT_BAR_WIDTH = 128
+COMPACT_BAR_HEIGHT = 4
+ACP_COMPACT_MAX_WIDTH = 860
+ACP_COMPACT_MAX_HEIGHT = 680
 BOTTOM_MARGIN = 0
 DEFAULT_EDGE_PADDING = 2
 DEFAULT_TIMEOUT = 120
@@ -30,6 +34,13 @@ FOCUS_HELPER = ROOT / "switch-native-plexamp-window.py"
 
 class ProbeError(Exception):
     pass
+
+
+def bar_size_for_screen(width: int, height: int) -> tuple[int, int]:
+    """Mirror nav.css: compact handle if display width<=860 OR height<=680."""
+    if width <= ACP_COMPACT_MAX_WIDTH or height <= ACP_COMPACT_MAX_HEIGHT:
+        return COMPACT_BAR_WIDTH, COMPACT_BAR_HEIGHT
+    return BAR_WIDTH, BAR_HEIGHT
 
 
 def desktop_environment(env: dict[str, str], uid: int, *, root: bool = False) -> dict[str, str]:
@@ -96,6 +107,7 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     window.set_size_request(PROBE_WIDTH, PROBE_HEIGHT)
     window.set_app_paintable(True)
     screen = window.get_screen()
+    bar_width, bar_height = bar_size_for_screen(screen.get_width(), screen.get_height())
     visual = screen.get_rgba_visual() if screen else None
     if visual is not None:
         window.set_visual(visual)
@@ -109,9 +121,9 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     LayerShell.set_margin(window, LayerShell.Edge.BOTTOM, BOTTOM_MARGIN)
     LayerShell.set_exclusive_zone(window, 0)  # Never move/resize Plexamp.
 
-    # Same bar metrics/colours as app/static/css/nav.css .nav-handle span:
-    # 140x5, rgba(247,249,255,.74) plus the outer handle's .82 opacity,
-    # radius and restrained white glow. Native GTK must not add a backdrop.
+    # Match app/static/css/nav.css: 140x5 normally; 128x4 on compact screens.
+    # Default: translucent .74 white with outer .82 opacity; hovered: .94
+    # white at full opacity. Native GTK must not add a backdrop.
     css = b"""
         window, .acp-native-probe { background-color: transparent; }
         .acp-native-probe-hitbox { background-color: transparent; }
@@ -119,6 +131,10 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
             background-color: rgba(247, 249, 255, 0.74);
             border-radius: 999px;
             box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
+        }
+        .acp-native-probe-indicator.acp-native-probe-hover {
+            background-color: rgba(247, 249, 255, 0.94);
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.26);
         }
     """
     provider = Gtk.CssProvider()
@@ -138,7 +154,7 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
     layout.set_valign(Gtk.Align.FILL)
     layout.set_size_request(PROBE_WIDTH, PROBE_HEIGHT)
     handle = Gtk.EventBox()
-    handle.set_size_request(BAR_WIDTH, BAR_HEIGHT)
+    handle.set_size_request(bar_width, bar_height)
     # GTK3's Box stretches children across the cross-axis unless explicitly
     # centred. Without this, our 140px bar fills the 190px *hitbox* — precisely
     # the discrepancy between the two WayVNC screenshots.
@@ -173,6 +189,16 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
         destroyed = True
         stop_once("window closed")
 
+    def on_enter(_widget, _event):
+        handle.get_style_context().add_class("acp-native-probe-hover")
+        handle.set_opacity(1.0)
+        return False
+
+    def on_leave(_widget, _event):
+        handle.get_style_context().remove_class("acp-native-probe-hover")
+        handle.set_opacity(0.82)
+        return False
+
     def tapped(_widget, _event):
         print("ACP native indicator: TAP observed", flush=True)
         if tap_focus_acp:
@@ -182,14 +208,18 @@ def present(Gtk, Gdk, GLib, LayerShell, seconds: int, *, tap_focus_acp: bool,
                 print("ACP native indicator: focus failed; leaving probe visible.", flush=True)
         return True
 
-    eventbox.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+    eventbox.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK |
+                        Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
+    eventbox.connect("enter-notify-event", on_enter)
+    eventbox.connect("leave-notify-event", on_leave)
     eventbox.connect("button-release-event", tapped)
     window.connect("destroy", on_destroy)
     GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing probe"))
     window.show_all()
     print(
         "ACP native indicator: visible for at most "
-        f"{seconds}s; {PROBE_WIDTH}x{PROBE_HEIGHT}px; edge gap {edge_padding}px; tap "
+        f"{seconds}s; touch {PROBE_WIDTH}x{PROBE_HEIGHT}px; visible "
+        f"{bar_width}x{bar_height}px; edge gap {edge_padding}px; tap "
         f"{'focuses ACP then exits' if tap_focus_acp else 'prints a diagnostic only'}.",
         flush=True,
     )
