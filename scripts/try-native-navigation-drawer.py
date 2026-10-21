@@ -38,20 +38,35 @@ def load_indicator():
     return module
 
 
-def keyboard_visible(bus, Gio, GLib) -> bool | None:
-    """Read actual Squeekboard visibility; never activate or mutate a service."""
+def keyboard_visible(bus, Gio, GLib, *, diagnostic: list[str] | None = None) -> bool | None:
+    """Read the OSK's documented D-Bus Visible PROPERTY, never change its state.
+
+    The method-only GetVisible call used in the first B3 preview is not exposed
+    by all Squeekboard releases. Properties.Get returns a (v) carrying a 'b'.
+    Preserve the strict fail-closed policy on missing services or bad replies.
+    """
     try:
         response = bus.call_sync(
-            OSK_SERVICE, OSK_PATH, OSK_INTERFACE, "GetVisible",
-            None, GLib.VariantType.new("(b)"),
+            OSK_SERVICE, OSK_PATH, "org.freedesktop.DBus.Properties", "Get",
+            GLib.Variant("(ss)", (OSK_INTERFACE, "Visible")),
+            GLib.VariantType.new("(v)"),
             Gio.DBusCallFlags.NO_AUTO_START, DBUS_TIMEOUT_MS, None,
         )
         if response is None:
+            if diagnostic is not None:
+                diagnostic.append("D-Bus Properties.Get returned no response")
             return None
-        (visible,) = response.unpack()
+        property_value = response.get_child_value(0).get_variant()
+        if property_value.get_type_string() != "b":
+            if diagnostic is not None:
+                diagnostic.append("D-Bus Visible property was not a Boolean")
+            return None
+        visible = property_value.get_boolean()
         return visible if isinstance(visible, bool) else None
-    except Exception:
-        # Missing/slow OSK and D-Bus failures must not expose overlays over it.
+    except Exception as exc:
+        # Unavailable D-Bus/OSK must not uncover navigation above the keyboard.
+        if diagnostic is not None:
+            diagnostic.append(f"{type(exc).__name__}: {str(exc).splitlines()[0][:240]}")
         return None
 
 
@@ -272,12 +287,18 @@ def main() -> int:
         Gtk, Gdk, GLib, LayerShell = b2.load_gtk()
         from gi.repository import Gio
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        state = keyboard_visible(bus, Gio, GLib)
+        diagnostic: list[str] = []
+        state = keyboard_visible(bus, Gio, GLib, diagnostic=diagnostic)
         if args.check_osk:
-            print("ACP B3: Squeekboard GetVisible:", state if state is not None else "unavailable")
+            print("ACP B3: Squeekboard Visible property:",
+                  state if state is not None else "unavailable")
+            if diagnostic:
+                print("ACP B3: D-Bus diagnostic:", diagnostic[0])
             return 0 if state is not None else 1
         if not overlay_allowed(state):
-            raise RuntimeError("Squeekboard visible or GetVisible unavailable; no native navigation overlay shown")
+            detail = f" ({diagnostic[0]})" if diagnostic else ""
+            raise RuntimeError("Squeekboard visible or Visible property unavailable"
+                               + detail + "; no native navigation overlay shown")
         present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:

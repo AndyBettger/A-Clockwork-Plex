@@ -28,23 +28,39 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertNotEqual(bad.returncode, 0)
         self.assertIn("between 1 and 300", bad.stderr)
 
-    def test_visibility_is_readonly_and_fail_closed(self):
+    def test_visibility_property_is_readonly_and_fail_closed(self):
         bus = mock.Mock()
         gio = mock.Mock()
         glib = mock.Mock()
-        glib.VariantType.new.return_value = "(b)"
-        bus.call_sync.return_value.unpack.return_value = (False,)
+        reply = bus.call_sync.return_value
+        boolean_value = reply.get_child_value.return_value.get_variant.return_value
+        boolean_value.get_type_string.return_value = "b"
+        boolean_value.get_boolean.return_value = False
         self.assertIs(drawer.keyboard_visible(bus, gio, glib), False)
         call = bus.call_sync.call_args
         self.assertEqual(call.args[:4], (
-            "sm.puri.OSK0", "/sm/puri/OSK0", "sm.puri.OSK0", "GetVisible"))
+            "sm.puri.OSK0", "/sm/puri/OSK0",
+            "org.freedesktop.DBus.Properties", "Get"))
+        glib.Variant.assert_called_once_with(
+            "(ss)", ("sm.puri.OSK0", "Visible"))
+        glib.VariantType.new.assert_called_once_with("(v)")
+        self.assertIs(call.args[6], gio.DBusCallFlags.NO_AUTO_START)
         self.assertEqual(call.args[7], drawer.DBUS_TIMEOUT_MS)
-        bus.call_sync.return_value.unpack.return_value = (True,)
+        reply.get_child_value.assert_called_with(0)
+        boolean_value.get_boolean.return_value = True
         self.assertIs(drawer.keyboard_visible(bus, gio, glib), True)
-        bus.call_sync.return_value.unpack.return_value = ("false",)
-        self.assertIsNone(drawer.keyboard_visible(bus, gio, glib))
-        bus.call_sync.side_effect = RuntimeError("missing service")
-        self.assertIsNone(drawer.keyboard_visible(bus, gio, glib))
+        boolean_value.get_type_string.return_value = "s"
+        issues = []
+        self.assertIsNone(drawer.keyboard_visible(bus, gio, glib, diagnostic=issues))
+        self.assertIn("not a Boolean", issues[0])
+        bus.call_sync.return_value = None
+        issues = []
+        self.assertIsNone(drawer.keyboard_visible(bus, gio, glib, diagnostic=issues))
+        self.assertIn("no response", issues[0])
+        bus.call_sync.side_effect = RuntimeError("service not available")
+        issues = []
+        self.assertIsNone(drawer.keyboard_visible(bus, gio, glib, diagnostic=issues))
+        self.assertIn("service not available", issues[0])
         self.assertTrue(drawer.overlay_allowed(False))
         self.assertFalse(drawer.overlay_allowed(True))
         self.assertFalse(drawer.overlay_allowed(None))
@@ -52,6 +68,9 @@ class NativeNavigationDrawerTests(unittest.TestCase):
     def test_dev_preview_never_controls_keyboard_or_chromium_navigation(self):
         source = SRC.read_text(encoding="utf-8")
         for required in (
+            '"org.freedesktop.DBus.Properties", "Get"',
+            'GLib.Variant("(ss)", (OSK_INTERFACE, "Visible"))',
+            'GLib.VariantType.new("(v)")',
             "LayerShell.Layer.OVERLAY", "LayerShell.KeyboardMode.NONE",
             "LayerShell.set_exclusive_zone(win, 0)",
             "indicator.hide()", "drawer.hide()", "GLib.timeout_add(POLL_MS, refresh_keyboard)",
