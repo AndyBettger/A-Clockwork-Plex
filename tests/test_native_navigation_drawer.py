@@ -85,9 +85,28 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
+    def test_acp_drawer_geometry_and_groups(self):
+        self.assertEqual(drawer.drawer_width_for_screen(800, 480), 786)
+        self.assertEqual(drawer.drawer_width_for_screen(1280, 720), 940)
+        self.assertEqual(drawer.DRAWER_HEIGHT, 70)
+        self.assertEqual(drawer.DRAWER_BOTTOM_MARGIN, 8)
+        self.assertEqual(drawer.indicator_margin(False), 0)
+        self.assertEqual(drawer.indicator_margin(True), 82)
+        self.assertEqual(drawer.WORKSPACE_ITEMS, (
+            "Home", "Weather", "News", "AirPlay", "Plexamp"))
+        self.assertEqual(drawer.UTILITY_ITEMS, ("Audio", "Settings"))
+        src = SRC.read_text(encoding="utf-8")
+        self.assertNotIn("B3 navigation preview\")", src)
+        self.assertIn("set_drawer_open(not state[\"drawer\"])", src)
+        self.assertIn("LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM", src)
+        self.assertIn("set_drawer_open(False)\n            indicator.hide()", src)
+        self.assertIn("acp-b3-active", src)
+        self.assertIn("acp-b3-utility-group", src)
+        self.assertIn('escape.set_tooltip_text("Development only:', src)
+
     def test_routes_are_explicitly_preview_only(self):
         self.assertEqual(drawer.NAV_ITEMS, (
-            "Clock", "Weather", "News", "AirPlay", "Plexamp",
+            "Home", "Weather", "News", "AirPlay", "Plexamp",
             "Audio", "Settings", "ACP",
         ))
         source = SRC.read_text(encoding="utf-8")
