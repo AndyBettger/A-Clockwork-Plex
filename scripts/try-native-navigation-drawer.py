@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import sys
 import json
+import re
 import time
 import urllib.request
 import urllib.error
@@ -37,6 +38,8 @@ NAV_ITEMS = WORKSPACE_ITEMS + UTILITY_ITEMS + ("ACP",)
 MAX_SECONDS = 300
 NAVIGATION_URL = "http://127.0.0.1:8088/api/native-navigation/request"
 STATUS_URL = "http://127.0.0.1:8088/api/native-navigation/status"
+PALETTE_URL = "http://127.0.0.1:8088/api/native-navigation/palette"
+PALETTE_REFRESH_MS = 4000
 PREPARE_TIMEOUT_SECONDS = 10.0
 HANDOFF_POLL_MS = 180
 CURTAIN_FOCUS_SETTLE_MS = 85
@@ -90,6 +93,63 @@ def handoff_status(sequence: int) -> str:
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):
         pass
     return "unavailable"
+
+
+PALETTE_NAMES = frozenset((
+    "drawer_background", "drawer_border", "button_background",
+    "button_border", "button_text", "active_background", "active_text",
+    "handle_color", "utility_border",
+))
+PALETTE_COLOR = re.compile(r"(?:rgba?\([\d.,%\s]+\)|#[\da-fA-F]{6,8}|transparent)\Z")
+
+
+def valid_palette(value) -> bool:
+    return (type(value) is dict and set(value) == PALETTE_NAMES
+            and all(type(color) is str and len(color) <= 64
+                    and PALETTE_COLOR.fullmatch(color) for color in value.values()))
+
+
+def fetch_theme_palette() -> dict[str, str] | None:
+    """Read only the ephemeral Chromium CSS snapshot; never write settings."""
+    req = urllib.request.Request(
+        PALETTE_URL, method="GET",
+        headers={"X-ACP-B3-Source": "native-gtk-b3-dev"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=0.35) as response:
+            payload = json.load(response)
+        palette = payload.get("palette")
+        if payload.get("ok") is True and valid_palette(palette):
+            return palette
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        pass
+    return None
+
+
+def palette_css(value: dict[str, str]) -> bytes:
+    """Only allow already validated CSS *color* literals, never raw CSS text."""
+    if not valid_palette(value):
+        raise ValueError("Unsafe or incomplete ACP navigation palette")
+    return (f"""
+      .acp-b3-drawer {{
+        background-color: {value['drawer_background']};
+        border-color: {value['drawer_border']};
+      }}
+      .acp-b3-nav {{
+        background-color: {value['button_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+      }}
+      .acp-b3-nav:hover {{ border-color: {value['drawer_border']}; }}
+      .acp-b3-active, .acp-b3-active:hover {{
+        background-color: {value['active_background']};
+        border-color: {value['active_background']};
+        color: {value['active_text']};
+      }}
+      .acp-b3-handle {{ background-color: {value['handle_color']}; }}
+      .acp-b3-handle.hover {{ background-color: {value['handle_color']}; }}
+      .acp-b3-utility-group {{ border-left-color: {value['utility_border']}; }}
+    """).encode("ascii")
 
 
 def load_indicator():
@@ -172,7 +232,8 @@ def make_layer_window(Gtk, LayerShell, width: int, height: int,
 
 
 def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
-            route_pages: bool = False, curtain_handoff: bool = False):
+            route_pages: bool = False, curtain_handoff: bool = False,
+            theme_from_acp: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -278,6 +339,18 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
 
     state = {"drawer": False, "keyboard": None, "stopping": False,
              "handoff_pending": False, "curtain_active": False}
+    last_palette = {"value": None}
+
+    def refresh_palette():
+        snapshot = fetch_theme_palette()
+        if snapshot == last_palette["value"]:
+            return True
+        provider.load_from_data(css + (palette_css(snapshot) if snapshot else b""))
+        last_palette["value"] = snapshot
+        print("ACP B3: navigation theme " +
+              ("synced from Chromium" if snapshot else "default Classic Dark fallback"),
+              flush=True)
+        return True
     def stop_once(reason):
         if state["stopping"]:
             return False
@@ -491,6 +564,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         raise RuntimeError("Cannot start preview while Squeekboard is visible or its state is unavailable")
     refresh_keyboard()
     GLib.timeout_add(POLL_MS, refresh_keyboard)
+    if theme_from_acp:
+        refresh_palette()
+        GLib.timeout_add(PALETTE_REFRESH_MS, refresh_palette)
     GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing preview"))
     print(f"ACP B3: preview for at most {seconds}s, indicator {bar_width}x{bar_height}px;"
           " tap opens drawer; "
@@ -518,6 +594,8 @@ def main() -> int:
                         help="explicitly enable loopback ACP page handoff (default preview-only)")
     parser.add_argument("--curtain-handoff", action="store_true",
                         help="experimental GTK cover until Chromium confirms painted focus")
+    parser.add_argument("--theme-from-acp", action="store_true",
+                        help="opt in to read-only live ACP drawer colour synchronisation")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -525,6 +603,8 @@ def main() -> int:
         parser.error("--seconds must be between 1 and 300")
     if args.curtain_handoff and (not args.route_pages or not args.show):
         parser.error("--curtain-handoff requires --show and --route-pages")
+    if args.theme_from_acp and not args.show:
+        parser.error("--theme-from-acp requires --show")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -545,7 +625,8 @@ def main() -> int:
             raise RuntimeError("Squeekboard visible or Visible property unavailable"
                                + detail + "; no native navigation overlay shown")
         present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds,
-                route_pages=args.route_pages, curtain_handoff=args.curtain_handoff)
+                route_pages=args.route_pages, curtain_handoff=args.curtain_handoff,
+                theme_from_acp=args.theme_from_acp)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
