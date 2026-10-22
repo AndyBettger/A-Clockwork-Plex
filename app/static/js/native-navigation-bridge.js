@@ -148,7 +148,7 @@
     if (palettePublishing || now - lastPaletteAttemptAt < 4000) return;
     lastPaletteAttemptAt = now;
     const drawer = document.querySelector('#nav-drawer');
-    const button = drawer?.querySelector('.nav-workspaces .nav-button');
+    const button = drawer?.querySelector('.nav-workspaces .nav-button:not(.is-active)');
     const active = drawer?.querySelector('.nav-button.is-active');
     const handle = document.querySelector('#nav-handle span');
     const utilities = drawer?.querySelector('.nav-utilities');
