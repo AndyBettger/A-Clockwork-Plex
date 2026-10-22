@@ -144,6 +144,49 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("20261022-b3-weather-ready-v5", template)
         self.assertIn("20261022-b3-forecast-settled-v2", template)
 
+    def test_native_palette_exact_colours_and_expiration(self):
+        now = [10.0]
+        snapshot = nav.PaletteSnapshot(lambda: now[0])
+        self.assertIsNone(snapshot.read())
+        colors = {key: "rgb(10, 20, 30)" for key in nav.PALETTE_KEYS}
+        colors["drawer_background"] = "rgba(6, 12, 22, 0.91)"
+        snapshot.publish(colors)
+        self.assertEqual(snapshot.read(), colors)
+        colors["drawer_background"] = "rgb(0, 0, 0)"
+        self.assertEqual(snapshot.read()["drawer_background"],
+                         "rgba(6, 12, 22, 0.91)")
+        for bad in (
+            {}, {"drawer_background": "rgb(0, 0, 0)"},
+            {**colors, "handle_color": "red; } window { opacity: 0"},
+            {**colors, "utility_border": None},
+        ):
+            with self.assertRaises(nav.NavigationError):
+                snapshot.publish(bad)
+        now[0] += 21
+        self.assertIsNone(snapshot.read())
+
+    def test_local_palette_endpoint_and_browser_source(self):
+        req = SimpleNamespace(remote_addr="127.0.0.1", host="localhost:8088",
+            scheme="http", headers={"Origin": "http://localhost:8088",
+                "Sec-Fetch-Site": "same-origin"}, mimetype="application/json",
+            content_length=500)
+        self.assertTrue(nav.browser_palette_allowed(req))
+        req.headers["Origin"] = "http://other-host:8088"
+        self.assertFalse(nav.browser_palette_allowed(req))
+        req.headers["Origin"] = "http://localhost:8088"
+        req.remote_addr = "192.168.10.10"
+        self.assertFalse(nav.browser_palette_allowed(req))
+        script = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        main = (ROOT / "app/main.py").read_text()
+        self.assertIn('window.getComputedStyle(node)', script)
+        self.assertIn('lastPaletteAttemptAt < 4000', script)
+        self.assertIn("void publishPalette();", script)
+        self.assertIn("/api/native-navigation/palette", script)
+        self.assertIn('browser_palette_allowed(request)', main)
+        self.assertIn('native_status_allowed(request)', main)
+        self.assertIn('palette_snapshot.publish(', main)
+        self.assertIn('palette_snapshot.read()', main)
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()

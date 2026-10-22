@@ -178,6 +178,43 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             reply.read.return_value = b'{"ok":true,"state":"bogus"}'
             self.assertEqual(drawer.handoff_status(7), "unavailable")
 
+    def test_opt_in_computed_palette_cannot_inject_css(self):
+        colors = {key: "rgb(10, 20, 30)" for key in drawer.PALETTE_NAMES}
+        self.assertTrue(drawer.valid_palette(colors))
+        css = drawer.palette_css(colors)
+        self.assertIn(b"background-color: rgb(10, 20, 30)", css)
+        self.assertNotIn(b"@import", css)
+        for invalid in (
+            {**colors, "active_text": "red; } * { opacity:0;"},
+            {**colors, "handle_color": "url(http://example.com)"},
+            {**colors, "drawer_border": None},
+            {**colors, "unexpected": "rgb(1,2,3)"},
+        ):
+            self.assertFalse(drawer.valid_palette(invalid))
+            with self.assertRaises(ValueError):
+                drawer.palette_css(invalid)
+        with mock.patch.object(drawer.urllib.request, "urlopen") as send:
+            reply = send.return_value.__enter__.return_value
+            reply.status = 200
+            reply.read.return_value = __import__("json").dumps(
+                {"ok": True, "palette": colors},
+            ).encode()
+            self.assertEqual(drawer.fetch_theme_palette(), colors)
+            self.assertEqual(send.call_args.args[0].get_method(), "GET")
+
+    def test_palette_opt_in_and_existing_navigation_untouched(self):
+        src = SRC.read_text(encoding="utf-8")
+        self.assertIn('parser.add_argument("--theme-from-acp"', src)
+        self.assertIn('if theme_from_acp:', src)
+        self.assertIn('GLib.timeout_add(PALETTE_REFRESH_MS, refresh_palette)', src)
+        self.assertIn('theme_from_acp=args.theme_from_acp', src)
+        bad = subprocess.run([sys.executable, str(SRC), "--check-osk",
+                              "--theme-from-acp"], capture_output=True, text=True)
+        self.assertNotEqual(bad.returncode, 0)
+        self.assertIn("--theme-from-acp requires --show", bad.stderr)
+        self.assertIn('curtain_handoff: bool = False,', src)
+        self.assertIn('Squeekboard', src)
+
     def test_routes_are_explicitly_preview_only(self):
         self.assertEqual(drawer.NAV_ITEMS, (
             "Home", "Weather", "News", "AirPlay", "Plexamp",
