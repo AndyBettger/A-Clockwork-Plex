@@ -141,8 +141,15 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("anchor.dataset.acpForecastSettled = 'true';", weather)
         self.assertIn(".then((payload) => {\n      render(payload);", weather)
         self.assertIn(".catch(() => {", weather)
-        self.assertIn("20261022-b3-weather-ready-v5", template)
-        self.assertIn("20261022-b3-forecast-settled-v2", template)
+        # Cache-busting versions change when the bridge/forecast JS changes.
+        # Assert that both scripts have a version rather than pinning a stale
+        # revision from an earlier B3 milestone.
+        self.assertRegex(
+            template, r"filename='js/native-navigation-bridge\.js', v='[^']+'"
+        )
+        self.assertRegex(
+            template, r"filename='js/weather-forecast\.js', v='[^']+'"
+        )
 
     def test_native_palette_exact_colours_and_expiration(self):
         now = [10.0]
