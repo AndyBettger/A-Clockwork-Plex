@@ -51,6 +51,35 @@
     return window.ACPNavigationState?.activeRoute?.() === '/' + command.destination;
   }
 
+  function weatherContentReady() {
+    // Header/title is present long before forecast panels finish loading.
+    // Only inspect the *active* mounted Weather surface, never a cached hidden
+    // wrapper; a missing optional forecast may still show station panels.
+    const active = document.querySelector(
+      '.acp-mounted-surface-weather:not([hidden])',
+    );
+    const page = active?.querySelector('.weather-detail-page')
+      || (document.body.dataset.activePage === 'weather'
+        ? document.querySelector('main.screen .weather-detail-page')
+        : null);
+    if (!page || page.dataset.acpForecastSettled !== 'true') return false;
+    if (document.body.classList.contains('acp-page-booting')) return false;
+    if (document.documentElement.classList.contains('acp-document-booting')) return false;
+    const panel = page.querySelector(
+      '.weather-forecast-panel .weather-forecast-card, '
+      + '.weather-detail-grid .detail-panel, .weather-panel',
+    );
+    if (!panel) return false;
+    const rect = panel.getBoundingClientRect();
+    return rect.width > 12 && rect.height > 12
+      && window.getComputedStyle(page).visibility !== 'hidden';
+  }
+
+  function contentReadyForPaint(command) {
+    if (command.destination === 'weather') return weatherContentReady();
+    return true;
+  }
+
   async function acknowledgePresented() {
     if (acknowledging) return;
     const command = pendingHandoff();
@@ -81,7 +110,7 @@
   async function reportPainted() {
     if (reportingPaint || !document.hasFocus()) return;
     const command = pendingHandoff();
-    if (!command || !readyForHandoff(command)) return;
+    if (!command || !readyForHandoff(command) || !contentReadyForPaint(command)) return;
     reportingPaint = true;
     try {
       // Rendering while fully occluded can be throttled. Wait until Chromium
@@ -90,7 +119,8 @@
       await new Promise((resolve) => {
         window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
       });
-      if (!document.hasFocus() || !readyForHandoff(command)) return;
+      if (!document.hasFocus() || !readyForHandoff(command)
+          || !contentReadyForPaint(command)) return;
       const response = await fetch('/api/native-navigation/painted', {
         method: 'POST',
         cache: 'no-store',

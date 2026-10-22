@@ -125,6 +125,25 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("window.sessionStorage.removeItem(STORAGE_KEY)", js)
         self.assertIn('confirm_painted', PATH.read_text())
 
+    def test_weather_paint_ack_requires_settled_forecast_and_real_panel(self):
+        bridge = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        weather = (ROOT / "app/static/js/weather-forecast.js").read_text()
+        template = (ROOT / "app/templates/base.html").read_text()
+        self.assertIn("function weatherContentReady()", bridge)
+        self.assertIn("function contentReadyForPaint(command)", bridge)
+        self.assertIn("!contentReadyForPaint(command)", bridge)
+        self.assertIn(".acp-mounted-surface-weather:not([hidden])", bridge)
+        self.assertIn(".weather-detail-page", bridge)
+        self.assertIn("page.dataset.acpForecastSettled !== 'true'", bridge)
+        self.assertIn(".weather-forecast-panel .weather-forecast-card", bridge)
+        self.assertIn(".weather-detail-grid .detail-panel, .weather-panel", bridge)
+        self.assertIn("rect.width > 12 && rect.height > 12", bridge)
+        self.assertIn("anchor.dataset.acpForecastSettled = 'true';", weather)
+        self.assertIn(".then((payload) => {\n      render(payload);", weather)
+        self.assertIn(".catch(() => {", weather)
+        self.assertIn("20261022-b3-weather-ready-v5", template)
+        self.assertIn("20261022-b3-forecast-settled-v2", template)
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()

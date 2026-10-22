@@ -437,8 +437,15 @@
       }
       return response.json();
     })
-    .then(render)
+    .then((payload) => {
+      render(payload);
+      // The forecast DOM is now mounted (or explicitly unavailable). ACP B3
+      // can wait for real Weather content instead of assuming two rAFs mean
+      // this optional async module has finished.
+      anchor.dataset.acpForecastSettled = 'true';
+    })
     .catch(() => {
       // The station console remains fully usable without the optional provider.
+      anchor.dataset.acpForecastSettled = 'true';
     });
 })();
