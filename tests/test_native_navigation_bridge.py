@@ -179,6 +179,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         script = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
         main = (ROOT / "app/main.py").read_text()
         self.assertIn('window.getComputedStyle(node)', script)
+        self.assertIn(".nav-button:not(.is-active)", script)
         self.assertIn('lastPaletteAttemptAt < 4000', script)
         self.assertIn("void publishPalette();", script)
         self.assertIn("/api/native-navigation/palette", script)
