@@ -11,6 +11,8 @@
   let acknowledging = false;
   let reportingPaint = false;
   let lastSeen = 0;
+  let lastPaletteAttemptAt = 0;
+  let palettePublishing = false;
 
   function saveHandoff(command) {
     try {
@@ -139,7 +141,49 @@
     }
   }
 
+  async function publishPalette() {
+    // Reuse the existing B3 polling callback, not a second background timer.
+    // All values come from the currently computed ACP CSS, including night mode.
+    const now = Date.now();
+    if (palettePublishing || now - lastPaletteAttemptAt < 4000) return;
+    lastPaletteAttemptAt = now;
+    const drawer = document.querySelector('#nav-drawer');
+    const button = drawer?.querySelector('.nav-workspaces .nav-button');
+    const active = drawer?.querySelector('.nav-button.is-active');
+    const handle = document.querySelector('#nav-handle span');
+    const utilities = drawer?.querySelector('.nav-utilities');
+    if (!drawer || !button || !active || !handle || !utilities) return;
+    const styles = [drawer, button, active, handle, utilities].map(
+      (node) => window.getComputedStyle(node),
+    );
+    const payload = {
+      drawer_background: styles[0].backgroundColor,
+      drawer_border: styles[0].borderTopColor,
+      button_background: styles[1].backgroundColor,
+      button_border: styles[1].borderTopColor,
+      button_text: styles[1].color,
+      active_background: styles[2].backgroundColor,
+      active_text: styles[2].color,
+      handle_color: styles[3].backgroundColor,
+      utility_border: styles[4].borderLeftColor,
+    };
+    palettePublishing = true;
+    try {
+      await fetch('/api/native-navigation/palette', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      // Best-effort observational channel; never block navigation or the C3 OSK.
+    } finally {
+      palettePublishing = false;
+    }
+  }
+
   async function poll() {
+    void publishPalette();
     if (polling || typeof window.ACPNavigate !== 'function') return;
     polling = true;
     try {
