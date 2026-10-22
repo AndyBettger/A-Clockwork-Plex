@@ -277,7 +277,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         curtain.add(cover)
 
     state = {"drawer": False, "keyboard": None, "stopping": False,
-             "handoff_pending": False}
+             "handoff_pending": False, "curtain_active": False}
     def stop_once(reason):
         if state["stopping"]:
             return False
@@ -316,7 +316,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             if state["stopping"]:
                 return False
             steps["remaining"] -= 1
-            curtain.set_opacity(max(0.0, steps["remaining"] / CURTAIN_FADE_STEPS))
+            cover.set_opacity(max(0.0, steps["remaining"] / CURTAIN_FADE_STEPS))
             if steps["remaining"] <= 0:
                 curtain.hide()
                 stop_once(reason)
@@ -329,17 +329,26 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         """Keep the old Chromium framebuffer covered until repaint opportunity."""
         if curtain is None:
             return False
-        curtain.set_opacity(1.0)
+        # Never composite two navigation drawers over each other during fade.
+        # ACP will own its drawer once the Chromium destination is focused.
+        set_drawer_open(False)
+        indicator.hide()
+        state["curtain_active"] = True
+        cover.set_opacity(1.0)
         curtain.show_all()
-        print("ACP B3: handoff curtain mapped before focus", flush=True)
+        print("ACP B3: native drawer and handle hidden; curtain mapped before focus", flush=True)
 
         def focus_then_watch():
             if state["stopping"]:
                 return False
             if not b2.focus_acp():
                 curtain.hide()
+                state["curtain_active"] = False
                 state["handoff_pending"] = False
-                print("ACP B3: focus failed; removed curtain, Plexamp remains", flush=True)
+                if overlay_allowed(state["keyboard"]):
+                    indicator.show_all()
+                    set_drawer_open(True)
+                print("ACP B3: focus failed; native navigation restored", flush=True)
                 return False
             painted_deadline = time.monotonic() + CURTAIN_PAINT_WAIT_SECONDS
             print("ACP B3: ACP focused behind curtain; awaiting painted ack", flush=True)
@@ -472,8 +481,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             indicator.hide()
             print("ACP B3: keyboard visible/unavailable: hiding ALL native navigation", flush=True)
         else:
-            indicator.show_all()
-            print("ACP B3: keyboard hidden: indicator restored", flush=True)
+            if not state["curtain_active"]:
+                indicator.show_all()
+                print("ACP B3: keyboard hidden: indicator restored", flush=True)
         return True
 
     # Verify Squeekboard before either Wayland window is displayed.

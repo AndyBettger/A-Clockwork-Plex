@@ -149,6 +149,21 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn("LayerShell.KeyboardMode.NONE", source)
         self.assertNotIn("subprocess.Popen", source)
 
+    def test_native_drawer_is_hidden_before_curtain_and_restored_on_focus_failure(self):
+        source = SRC.read_text(encoding="utf-8")
+        start = source.index("    def start_curtained_focus(name, sequence):")
+        end = source.index("    def select_destination(_button, name):", start)
+        focus = source[start:end]
+        self.assertLess(focus.index("set_drawer_open(False)"), focus.index("curtain.show_all()"))
+        self.assertLess(focus.index("indicator.hide()"), focus.index("curtain.show_all()"))
+        self.assertIn('state["curtain_active"] = True', focus)
+        self.assertIn('state["curtain_active"] = False', focus)
+        self.assertIn("indicator.show_all()\n                    set_drawer_open(True)", focus)
+        self.assertIn('if not state["curtain_active"]:', source)
+        self.assertIn("cover.set_opacity(1.0)", focus)
+        self.assertIn("cover.set_opacity(max(0.0,", source)
+        self.assertNotIn("curtain.set_opacity(", source)
+
     def test_status_probe_requires_ready_phase(self):
         with mock.patch.object(drawer.urllib.request, "urlopen") as send:
             reply = send.return_value.__enter__.return_value
