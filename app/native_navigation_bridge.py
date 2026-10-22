@@ -7,12 +7,21 @@ Chromium dashboard consumes it once and uses its ordinary ACPNavigate owner.
 from __future__ import annotations
 
 from ipaddress import ip_address
+import re
 from threading import Lock
 from time import monotonic
 
 ALLOWED_DESTINATIONS = frozenset({"clock", "weather", "news", "airplay", "settings", "audio"})
 MAX_AGE_SECONDS = 12.0
 MAX_BODY_BYTES = 96
+MAX_PALETTE_BODY_BYTES = 1024
+PALETTE_MAX_AGE_SECONDS = 20.0
+PALETTE_KEYS = frozenset((
+    "drawer_background", "drawer_border", "button_background",
+    "button_border", "button_text", "active_background", "active_text",
+    "handle_color", "utility_border",
+))
+COLOR_RE = re.compile(r"(?:rgba?\([\d.,%\s]+\)|#[\da-fA-F]{6,8}|transparent)\Z")
 SOURCE_HEADER = "native-gtk-b3-dev"
 
 
@@ -101,6 +110,35 @@ class NavigationMailbox:
             return current["phase"]
 
 
+class PaletteSnapshot:
+    """Ephemeral exact Chromium-computed colours; never stores preferences."""
+    def __init__(self, clock=monotonic):
+        self._clock = clock
+        self._guard = Lock()
+        self._value = None
+        self._updated_at = None
+
+    def publish(self, data):
+        if type(data) is not dict or set(data) != PALETTE_KEYS:
+            raise NavigationError("Unexpected palette properties")
+        if any(type(value) is not str or len(value) > 64
+               or not COLOR_RE.fullmatch(value) for value in data.values()):
+            raise NavigationError("Invalid computed colour")
+        with self._guard:
+            self._value = dict(data)
+            self._updated_at = self._clock()
+
+    def read(self):
+        with self._guard:
+            if self._value is None or self._updated_at is None:
+                return None
+            age = self._clock() - self._updated_at
+            if age < 0 or age > PALETTE_MAX_AGE_SECONDS:
+                return None
+            return dict(self._value)
+
+
+palette_snapshot = PaletteSnapshot()
 mailbox = NavigationMailbox()
 
 
@@ -120,6 +158,17 @@ def local_browser_request(req) -> bool:
     )):
         return False
     return True
+
+
+def browser_palette_allowed(req) -> bool:
+    return (
+        local_browser_request(req)
+        and req.mimetype == "application/json"
+        and req.content_length is not None
+        and 0 < req.content_length <= MAX_PALETTE_BODY_BYTES
+        and req.headers.get("Origin") == f"{req.scheme}://{req.host}"
+        and req.headers.get("Sec-Fetch-Site") in (None, "same-origin")
+    )
 
 
 def browser_ready_allowed(req) -> bool:

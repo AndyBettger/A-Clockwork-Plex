@@ -501,6 +501,22 @@ def api_native_navigation_request():
     return jsonify({"ok": True, "sequence": number})
 
 
+@app.route("/api/native-navigation/palette", methods=["GET", "POST"])
+def api_native_navigation_palette():
+    """Only colour tokens from local ACP Chromium; no stored settings or CSS."""
+    if request.method == "POST":
+        if not b3_nav_bridge.browser_palette_allowed(request):
+            return jsonify({"ok": False, "error": "Local Chromium required"}), 403
+        try:
+            b3_nav_bridge.palette_snapshot.publish(request.get_json(silent=True))
+        except b3_nav_bridge.NavigationError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        return jsonify({"ok": True})
+    if not b3_nav_bridge.native_status_allowed(request):
+        return jsonify({"ok": False, "error": "Native loopback required"}), 403
+    return jsonify({"ok": True, "palette": b3_nav_bridge.palette_snapshot.read()})
+
+
 @app.route("/api/native-navigation/ready", methods=["POST"])
 def api_native_navigation_ready():
     """Chromium confirms the ACP destination is presented before focus."""
