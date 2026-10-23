@@ -43,6 +43,16 @@ class DisplayDimmingTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
 
+    def test_night_nav_colours_are_sourced_from_loaded_dim_css(self):
+        css = STYLE.read_text(encoding="utf-8")
+        base = BASE.read_text(encoding="utf-8")
+        self.assertIn("20261023-b3-night-nav-in-dimming-v7", base)
+        self.assertIn("#nav-drawer .nav-button", css)
+        self.assertIn("background: rgb(255, 64, 64) !important", css)
+        self.assertIn('not([data-active-page="alarm"])', css)
+        self.assertIn("acp-night-dim-active", css)
+        self.assertIn("filter: brightness(var(--acp-night-brightness))", css)
+
     def test_schedule_handles_daytime_and_cross_midnight_ranges(self):
         text = CLIENT.read_text(encoding="utf-8")
         self.assertIn("if (start < end) return current >= start && current < end", text)

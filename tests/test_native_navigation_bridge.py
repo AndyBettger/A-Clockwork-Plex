@@ -222,6 +222,24 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             if "body." in selector:
                 self.assertIn("acp-night-style-astronomy", selector)
 
+    def test_effective_astronomy_night_colours_share_loaded_dimming_stylesheet(self):
+        dim = (ROOT / "app/static/css/display-dimming.css").read_text()
+        template = (ROOT / "app/templates/base.html").read_text()
+        handle_selector = ("body.acp-night-style-astronomy."
+                           "acp-night-dim-active .nav-handle span")
+        nav_selector = ("body.acp-night-style-astronomy."
+                        "acp-night-dim-active:not(.mode-alarm):"
+                        "not([data-active-page=\"alarm\"]) #nav-drawer")
+        self.assertIn(handle_selector, dim)
+        self.assertIn(nav_selector, dim)
+        self.assertIn(f"{nav_selector} .nav-button", dim)
+        self.assertIn("background: rgba(20, 0, 0, 0.96) !important", dim)
+        self.assertIn("background: rgba(96, 0, 0, 0.62) !important", dim)
+        self.assertIn("background: rgb(255, 64, 64) !important", dim)
+        self.assertIn("20261023-b3-night-nav-in-dimming-v7", template)
+        self.assertNotIn("filter:", dim[dim.index("B3 23 Oct physical failure follow-up"):
+                                     dim.index("body.acp-night-style-astronomy.acp-night-dim-active .nav-handle span")])
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
