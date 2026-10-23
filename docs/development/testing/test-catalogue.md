@@ -1,3 +1,10 @@
+## 23 October 2026 — Native B3 Pi visual FAIL and corrective test revision
+
+- Pre-fix Pi tests passed **16/16** bridge, **13/13** GTK; `/api/native-navigation/presentation` returned `viewport_width=853`, `viewport_height=480`, `drawer_width=839.33`, `drawer_height=69.33`, `drawer_bottom=8`, `button_height=56`, `font_size=18.72`, `astronomy_night=true` and brightness 0.80/0.53 across live states.
+- Four screenshots show GTK buttons occupying almost all horizontal drawer width, too-light text, undersized music-note/cog glyphs and pinkish active red. ACP keeps buttons compact at left and uses red multiply after brightness.
+- New `tests/test_native_navigation_drawer.py` expects **16 tests**, covering opt-in compact natural-width GTK button packing, bold labels, Cairo port of ACP's own SVG outline icons, red-only channel multiplication at 80% and 53%, and preservation of alpha. Bridge suite remains 16.
+- Await new Pi test output and 4-way night active/dim screenshots before acceptance. Existing route/OSK/curtain safely retained; motion not yet in scope.
+
 ## 23 October 2026 — Native B3 presentation prototype (awaiting Pi verification)
 
 - `test_native_navigation_bridge.py` now has **16** expected tests including validation, 20-second expiration, strictly same-origin publisher and native-only reader for the new numeric presentation snapshot, plus the unchanged nine colour values.
