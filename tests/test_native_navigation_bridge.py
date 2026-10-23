@@ -240,6 +240,59 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertNotIn("filter:", dim[dim.index("B3 23 Oct physical failure follow-up"):
                                      dim.index("body.acp-night-style-astronomy.acp-night-dim-active .nav-handle span")])
 
+    def test_presentation_snapshot_rejects_unbounded_values_and_expires(self):
+        now = [20.0]
+        store = nav.PresentationSnapshot(lambda: now[0])
+        metrics = {
+            "viewport_width": 1280, "viewport_height": 720,
+            "drawer_width": 940, "drawer_height": 76,
+            "drawer_bottom": 8, "drawer_padding": 8,
+            "workspace_gap": 8, "utility_gap": 6,
+            "button_height": 62, "utility_size": 62,
+            "font_size": 21.8, "night_brightness": 0.18,
+            "astronomy_night": True,
+        }
+        self.assertIsNone(store.read())
+        store.publish(metrics)
+        self.assertEqual(store.read(), metrics)
+        metrics["drawer_width"] = 5
+        self.assertEqual(store.read()["drawer_width"], 940)
+        bad_samples = [
+            {**metrics, "drawer_width": 5001},
+            {**metrics, "viewport_width": 700, "drawer_width": 940},
+            {**metrics, "font_size": "21px"},
+            {**metrics, "utility_size": True},
+            {**metrics, "night_brightness": 2.0},
+            {**metrics, "astronomy_night": False},
+            {**metrics, "astronomy_night": False, "night_brightness": .18},
+            {**metrics, "extra_css": "window { color: red; }"},
+        ]
+        for candidate in bad_samples:
+            with self.assertRaises(nav.NavigationError):
+                store.publish(candidate)
+        now[0] += nav.PALETTE_MAX_AGE_SECONDS + 1
+        self.assertIsNone(store.read())
+
+    def test_presentation_uses_palette_loopback_guards_and_existing_timer(self):
+        source = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        main = (ROOT / "app/main.py").read_text()
+        template = (ROOT / "app/templates/base.html").read_text()
+        self.assertIn('window.getComputedStyle(document.documentElement)', source)
+        self.assertIn('getBoundingClientRect().height', source)
+        self.assertIn("'--acp-night-brightness'", source)
+        self.assertIn("document.body.classList.contains('acp-night-style-astronomy')", source)
+        self.assertIn("document.body.dataset.activePage !== 'alarm'", source)
+        self.assertIn('/api/native-navigation/presentation', source)
+        self.assertIn("if (validMeasurements)", source)
+        self.assertIn("void publishPalette();", source)
+        self.assertEqual(source.count("window.setInterval(poll, 600)"), 1)
+        self.assertIn("@app.route(\"/api/native-navigation/presentation\"", main)
+        self.assertIn('browser_palette_allowed(request)', main)
+        self.assertIn('native_status_allowed(request)', main)
+        self.assertIn('presentation_snapshot.publish(', main)
+        self.assertIn('presentation_snapshot.read()', main)
+        self.assertIn("20261023-b3-presentation-v7", template)
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()

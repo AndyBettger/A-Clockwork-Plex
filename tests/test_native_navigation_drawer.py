@@ -215,6 +215,61 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn('curtain_handoff: bool = False,', src)
         self.assertIn('Squeekboard', src)
 
+    def test_presentation_is_explicit_opt_in_and_fails_closed_on_zoom(self):
+        source = SRC.read_text(encoding="utf-8")
+        self.assertIn('parser.add_argument("--presentation-from-acp"', source)
+        self.assertIn('presentation_from_acp=args.presentation_from_acp', source)
+        for args in (["--check-osk", "--presentation-from-acp"],
+                     ["--show", "--presentation-from-acp"]):
+            result = subprocess.run([sys.executable, str(SRC), *args],
+                                    capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("requires --show and --theme-from-acp", result.stderr)
+        values = {
+            "viewport_width": 1280, "viewport_height": 720,
+            "drawer_width": 940, "drawer_height": 76,
+            "drawer_bottom": 8, "drawer_padding": 8,
+            "workspace_gap": 8, "utility_gap": 6,
+            "button_height": 62, "utility_size": 62,
+            "font_size": 21.8, "night_brightness": 0.18,
+            "astronomy_night": True,
+        }
+        self.assertTrue(drawer.valid_presentation(values))
+        self.assertEqual(drawer.presentation_scale(values, 1280, 720), 1.0)
+        self.assertEqual(drawer.presentation_scale(values, 1920, 1080), 1.5)
+        self.assertIsNone(drawer.presentation_scale(values, 1280, 800))
+        self.assertIsNone(drawer.presentation_scale(values, 9000, 5000))
+        self.assertFalse(drawer.valid_presentation({**values, "font_size": True}))
+        self.assertFalse(drawer.valid_presentation({**values, "astronomy_night": False}))
+        self.assertIn(b"font-size: 22px", drawer.presentation_css(values, 1.0))
+
+    def test_astronomy_night_brightness_preblends_rgb_not_alpha(self):
+        self.assertEqual(drawer.night_darken_color("rgb(255, 64, 64)", 0.18),
+                         "rgb(46, 12, 12)")
+        self.assertEqual(drawer.night_darken_color(
+            "rgba(96, 0, 0, 0.62)", 0.18), "rgba(17, 0, 0, 0.62)")
+        self.assertEqual(drawer.night_darken_color("#FF4040", 0.5),
+                         "rgb(128, 32, 32)")
+        colors = {name: "rgba(255, 64, 64, 0.88)"
+                  for name in drawer.PALETTE_NAMES}
+        metrics = {
+            "viewport_width": 1280, "viewport_height": 720,
+            "drawer_width": 940, "drawer_height": 76,
+            "drawer_bottom": 8, "drawer_padding": 8,
+            "workspace_gap": 8, "utility_gap": 6,
+            "button_height": 62, "utility_size": 62,
+            "font_size": 21.8, "night_brightness": 0.2,
+            "astronomy_night": True,
+        }
+        shaded = drawer.presentation_palette(colors, metrics)
+        self.assertEqual(shaded["handle_color"], "rgba(51, 13, 13, 0.88)")
+        self.assertEqual(colors["handle_color"], "rgba(255, 64, 64, 0.88)")
+        self.assertEqual(drawer.presentation_palette(
+            colors, {**metrics, "astronomy_night": False,
+                     "night_brightness": 1}), colors)
+        self.assertIn("LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM",
+                      SRC.read_text())
+
     def test_routes_are_explicitly_preview_only(self):
         self.assertEqual(drawer.NAV_ITEMS, (
             "Home", "Weather", "News", "AirPlay", "Plexamp",
