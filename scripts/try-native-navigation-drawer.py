@@ -142,7 +142,16 @@ def palette_css(value: dict[str, str]) -> bytes:
         color: {value['button_text']};
       }}
       .acp-b3-nav:hover {{ border-color: {value['drawer_border']}; }}
-      .acp-b3-active, .acp-b3-active:hover {{
+      .acp-b3-nav:active, .acp-b3-nav:checked,
+      .acp-b3-nav:hover:active {{
+        background-image: none;
+        background-color: {value['button_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+        box-shadow: none;
+      }}
+      .acp-b3-active, .acp-b3-active:hover,
+      .acp-b3-active:active, .acp-b3-active:checked {{
         background-color: {value['active_background']};
         border-color: {value['active_background']};
         color: {value['active_text']};
@@ -259,51 +268,69 @@ def presentation_css(presentation: dict, scale: float) -> bytes:
     return f".acp-b3-nav {{ font-size: {font}px; }}".encode("ascii")
 
 
-def draw_acp_utility_symbol(_widget, cr, label: str, source_button) -> bool:
-    """Cairo paths ported from ACP's existing 24px _nav.html SVG icons.
+ACP_NAV_SVG_PATHS = {
+    "Audio": (
+        '<path d="M4 9.25h3.25L11.5 5.5v13l-4.25-3.75H4z"/>'
+        '<path d="M15 8.25a5 5 0 0 1 0 7.5"/>'
+        '<path d="M17.75 5.5a8.75 8.75 0 0 1 0 13"/>'
+    ),
+    "Settings": (
+        '<path d="M9.6 3.35 10.2 2h3.6l.6 1.35 1.55.65 '
+        '1.38-.53 2.55 2.55-.53 1.38L20 8.95l1.35.6v3.6'
+        'L20 13.75l-.65 1.55.53 1.38-2.55 2.55-1.38-.53'
+        '-1.55.65-.6 1.35h-3.6l-.6-1.35-1.55-.65-1.38.53'
+        '-2.55-2.55.53-1.38L4 13.75l-1.35-.6v-3.6L4 8.95'
+        'l.65-1.55-.53-1.38 2.55-2.55 1.38.53z"/>'
+        '<circle cx="12" cy="11.35" r="3.1"/>'
+    ),
+}
 
-    No new SVG renderer/font dependency. The drawing uses the button's live GTK
-    text colour, including Chromium's validated colour and night values.
-    """
-    visual = source_button.get_style_context().get_color(source_button.get_state_flags())
-    cr.set_source_rgba(visual.red, visual.green, visual.blue, visual.alpha)
-    cr.scale(_widget.get_allocated_width() / 24.0,
-             _widget.get_allocated_height() / 24.0)
-    cr.set_line_width(1.8)
-    cr.set_line_cap(1)   # cairo.LINE_CAP_ROUND
-    cr.set_line_join(1)  # cairo.LINE_JOIN_ROUND
-    if label == "Audio":
-        cr.move_to(4, 9.25)
-        cr.line_to(7.25, 9.25)
-        cr.line_to(11.5, 5.5)
-        cr.line_to(11.5, 18.5)
-        cr.line_to(7.25, 14.75)
-        cr.line_to(4, 14.75)
-        cr.close_path()
-        cr.move_to(15, 8.25)
-        cr.curve_to(17, 10.1, 17, 13.9, 15, 15.75)
-        cr.move_to(17.75, 5.5)
-        cr.curve_to(22, 8.4, 22, 15.6, 17.75, 18.5)
-    else:
-        # Exact gear outline points from ACP app/templates/_nav.html.
-        outline = [(9.6, 3.35), (10.2, 2), (13.8, 2), (14.4, 3.35),
-                   (15.95, 4), (17.33, 3.47), (19.88, 6.02),
-                   (19.35, 7.4), (20, 8.95), (21.35, 9.55),
-                   (21.35, 13.15), (20, 13.75), (19.35, 15.3),
-                   (19.88, 16.68), (17.33, 19.23), (15.95, 18.7),
-                   (14.4, 19.35), (13.8, 20.7), (10.2, 20.7),
-                   (9.6, 19.35), (8.05, 18.7), (6.67, 19.23),
-                   (4.12, 16.68), (4.65, 15.3), (4, 13.75),
-                   (2.65, 13.15), (2.65, 9.55), (4, 8.95),
-                   (4.65, 7.4), (4.12, 6.02), (6.67, 3.47),
-                   (8.05, 4)]
-        cr.move_to(*outline[0])
-        for point in outline[1:]:
-            cr.line_to(*point)
-        cr.close_path()
-        cr.arc(12, 11.35, 3.1, 0, 6.283185307179586)
-    cr.stroke()
-    return False
+
+def svg_colour(value: str) -> str:
+    """Convert validated RGB components to safe CSS hexadecimal."""
+    m = _RGB_COLOR.fullmatch(value)
+    if m:
+        channels = [int(m.group(i)) for i in (1, 2, 3)]
+        if all(0 <= ch <= 255 for ch in channels):
+            return "#" + "".join(f"{ch:02x}" for ch in channels)
+    return "#f7f9ff"
+
+
+def utility_svg(label: str, color: str) -> bytes:
+    """ACP's original SVG paths, without a Cairo foreign-struct callback."""
+    if label not in ACP_NAV_SVG_PATHS:
+        raise ValueError("Unknown ACP utility icon")
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" '
+        'viewBox="0 0 24 24" fill="none" stroke="' + svg_colour(color) + '" '
+        'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
+        + ACP_NAV_SVG_PATHS[label] + '</svg>'
+    ).encode("ascii")
+
+
+def load_utility_pixbuf(GdkPixbuf, label: str, color: str):
+    """GTK pixbuf SVG loader; never invokes the PyGObject Cairo converter."""
+    loader = GdkPixbuf.PixbufLoader.new_with_type("svg")
+    loader.write(utility_svg(label, color))
+    loader.close()
+    pixbuf = loader.get_pixbuf()
+    if pixbuf is None:
+        raise ValueError("SVG pixbuf produced no image")
+    return pixbuf
+
+
+def refresh_utility_images(Gtk, GdkPixbuf, images, color: str) -> bool:
+    """Always show usable stock icons if an optional SVG loader is missing."""
+    exact = True
+    for label, image in images:
+        try:
+            image.set_from_pixbuf(load_utility_pixbuf(GdkPixbuf, label, color))
+        except Exception:
+            exact = False
+            fallback = ("audio-volume-high-symbolic" if label == "Audio"
+                        else "emblem-system-symbolic")
+            image.set_from_icon_name(fallback, Gtk.IconSize.DIALOG)
+    return exact
 
 
 def load_indicator():
@@ -409,6 +436,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         box-shadow: 0 0 18px rgba(255,255,255,0.26);
       }
       .acp-b3-drawer {
+        background-image: none;
         background-color: rgba(6,12,22,0.91);
         border: 1px solid rgba(255,255,255,0.18);
         border-radius: 18px;
@@ -425,7 +453,17 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
       }
       .acp-b3-nav label { font-weight: 700; }
       .acp-b3-nav:hover { background-color: rgba(247,249,255,0.18); }
-      .acp-b3-active, .acp-b3-active:hover {
+      /* Suppress stock GTK grey pressed backgrounds in Astronomy Red. */
+      .acp-b3-nav:active, .acp-b3-nav:checked,
+      .acp-b3-nav:hover:active {
+        background-image: none;
+        background-color: rgba(255,255,255,0.08);
+        color: #f7f9ff;
+        border-color: rgba(255,255,255,0.15);
+        box-shadow: none;
+      }
+      .acp-b3-active, .acp-b3-active:hover,
+      .acp-b3-active:active, .acp-b3-active:checked {
         color: #07101d;
         background-color: #f7f9ff;
         border-color: #f7f9ff;
@@ -469,13 +507,17 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         namespace="acp-b3-drawer-test", bottom=DRAWER_BOTTOM_MARGIN)
     body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
     body.set_border_width(6)
-    body.get_style_context().add_class("acp-b3-drawer")
+    # Visible-window GTK paint surface owns rounded frame and dark panel.
+    shell = Gtk.EventBox()
+    shell.set_visible_window(True)
+    shell.get_style_context().add_class("acp-b3-drawer")
     workspaces = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
     utilities = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
     utilities.get_style_context().add_class("acp-b3-utility-group")
     body.pack_start(workspaces, True, True, 0)
     body.pack_start(utilities, False, False, 0)
-    drawer.add(body)
+    shell.add(body)
+    drawer.add(shell)
 
     # Opt-in cover belongs to GTK's overlay layer, above both toplevels.
     # Map it BEFORE compositor focus changes, then release after an ACP paint
@@ -500,6 +542,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
     workspace_buttons = []
     utility_buttons = []
+    utility_images = []
+    from gi.repository import GdkPixbuf
+    icon_loader_warned = {"value": False}
 
     def update_styles():
         palette = last_palette["value"]
@@ -509,6 +554,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         provider.load_from_data(css
             + (palette_css(applied) if applied else b"")
             + (presentation_css(metrics, scale) if scale else b""))
+        icon_color = applied["button_text"] if applied else "rgb(247,249,255)"
+        exact = refresh_utility_images(Gtk, GdkPixbuf, utility_images, icon_color)
+        if not exact and not icon_loader_warned["value"]:
+            icon_loader_warned["value"] = True
+            print("ACP B3: SVG pixbuf unavailable; using GTK symbolic icons", flush=True)
 
     def refresh_palette():
         snapshot = fetch_theme_palette()
@@ -731,12 +781,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         button.set_size_request(56, 56)
         button.get_style_context().add_class("acp-b3-nav")
         button.get_style_context().add_class("acp-b3-utility")
-        glyph = Gtk.DrawingArea()
+        glyph = Gtk.Image()
         glyph.set_size_request(24, 24)
-        glyph.connect("draw", draw_acp_utility_symbol, label, button)
         glyph.set_halign(Gtk.Align.CENTER)
         glyph.set_valign(Gtk.Align.CENTER)
         button.add(glyph)
+        utility_images.append((label, glyph))
         button.connect("clicked", select_destination, label)
         utilities.pack_start(button, False, False, 0)
         utility_buttons.append(button)
@@ -749,6 +799,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     escape.get_style_context().add_class("acp-b3-developer")
     escape.connect("clicked", select_destination, "ACP")
     utilities.pack_start(escape, False, False, 0)
+
+    # Initialise icons even if no ACP palette has arrived.
+    update_styles()
 
     def on_enter(_widget, _event):
         handle.get_style_context().add_class("hover")
