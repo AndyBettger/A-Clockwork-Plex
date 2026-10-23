@@ -225,12 +225,30 @@ def night_darken_color(value: str, factor: float) -> str:
     return value
 
 
+def astronomy_red_color(value: str, factor: float) -> str:
+    """Match ACP brightness followed by Astronomy Red's multiply blend.
+
+    ACP's fullscreen red multiply overlay zeroes the green/blue channels *after*
+    applying brightness to its nav. Native GTK cannot use that global browser
+    overlay, so convert only the preview's already-validated colour tokens.
+    Preserve alpha to keep the existing rounded translucent panels intact.
+    """
+    shaded = night_darken_color(value, factor)
+    match = _RGB_COLOR.fullmatch(shaded)
+    if match:
+        red = match.group(1)
+        alpha = match.group(4)
+        return (f"rgba({red}, 0, 0, {alpha})" if alpha is not None
+                else f"rgb({red}, 0, 0)")
+    return shaded
+
+
 def presentation_palette(palette: dict, presentation: dict | None) -> dict:
     if not valid_palette(palette):
         raise ValueError("Invalid colour palette")
     if not valid_presentation(presentation) or not presentation["astronomy_night"]:
         return dict(palette)
-    return {key: night_darken_color(color, presentation["night_brightness"])
+    return {key: astronomy_red_color(color, presentation["night_brightness"])
             for key, color in palette.items()}
 
 
@@ -239,6 +257,53 @@ def presentation_css(presentation: dict, scale: float) -> bytes:
         return b""
     font = max(8, min(50, round(presentation["font_size"] * scale)))
     return f".acp-b3-nav {{ font-size: {font}px; }}".encode("ascii")
+
+
+def draw_acp_utility_symbol(_widget, cr, label: str, source_button) -> bool:
+    """Cairo paths ported from ACP's existing 24px _nav.html SVG icons.
+
+    No new SVG renderer/font dependency. The drawing uses the button's live GTK
+    text colour, including Chromium's validated colour and night values.
+    """
+    visual = source_button.get_style_context().get_color(source_button.get_state_flags())
+    cr.set_source_rgba(visual.red, visual.green, visual.blue, visual.alpha)
+    cr.scale(_widget.get_allocated_width() / 24.0,
+             _widget.get_allocated_height() / 24.0)
+    cr.set_line_width(1.8)
+    cr.set_line_cap(1)   # cairo.LINE_CAP_ROUND
+    cr.set_line_join(1)  # cairo.LINE_JOIN_ROUND
+    if label == "Audio":
+        cr.move_to(4, 9.25)
+        cr.line_to(7.25, 9.25)
+        cr.line_to(11.5, 5.5)
+        cr.line_to(11.5, 18.5)
+        cr.line_to(7.25, 14.75)
+        cr.line_to(4, 14.75)
+        cr.close_path()
+        cr.move_to(15, 8.25)
+        cr.curve_to(17, 10.1, 17, 13.9, 15, 15.75)
+        cr.move_to(17.75, 5.5)
+        cr.curve_to(22, 8.4, 22, 15.6, 17.75, 18.5)
+    else:
+        # Exact gear outline points from ACP app/templates/_nav.html.
+        outline = [(9.6, 3.35), (10.2, 2), (13.8, 2), (14.4, 3.35),
+                   (15.95, 4), (17.33, 3.47), (19.88, 6.02),
+                   (19.35, 7.4), (20, 8.95), (21.35, 9.55),
+                   (21.35, 13.15), (20, 13.75), (19.35, 15.3),
+                   (19.88, 16.68), (17.33, 19.23), (15.95, 18.7),
+                   (14.4, 19.35), (13.8, 20.7), (10.2, 20.7),
+                   (9.6, 19.35), (8.05, 18.7), (6.67, 19.23),
+                   (4.12, 16.68), (4.65, 15.3), (4, 13.75),
+                   (2.65, 13.15), (2.65, 9.55), (4, 8.95),
+                   (4.65, 7.4), (4.12, 6.02), (6.67, 3.47),
+                   (8.05, 4)]
+        cr.move_to(*outline[0])
+        for point in outline[1:]:
+            cr.line_to(*point)
+        cr.close_path()
+        cr.arc(12, 11.35, 3.1, 0, 6.283185307179586)
+    cr.stroke()
+    return False
 
 
 def load_indicator():
@@ -355,8 +420,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         border-radius: 13px;
         color: #f7f9ff;
         font-size: 16px;
+        font-weight: 700;
         padding: 0 7px;
       }
+      .acp-b3-nav label { font-weight: 700; }
       .acp-b3-nav:hover { background-color: rgba(247,249,255,0.18); }
       .acp-b3-active, .acp-b3-active:hover {
         color: #07101d;
@@ -650,15 +717,26 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         if item == "Plexamp":
             button.get_style_context().add_class("acp-b3-active")
         button.connect("clicked", select_destination, item)
-        workspaces.pack_start(button, True, True, 0)
+        # ACP's CSS flex row keeps each button at its content/natural width,
+        # and assigns the remaining free width to the *workspace group*.
+        # Expanding each individual GTK button was stretching all five across
+        # the drawer and leaving no separation before the utilities.
+        workspaces.pack_start(button, False, False, 0)
         workspace_buttons.append(button)
 
-    for label, glyph in (("Audio", "♪"), ("Settings", "⚙")):
-        button = Gtk.Button(label=glyph)
+    for label in UTILITY_ITEMS:
+        button = Gtk.Button()
         button.set_tooltip_text(label)
+        button.get_accessible().set_name(label)
         button.set_size_request(56, 56)
         button.get_style_context().add_class("acp-b3-nav")
         button.get_style_context().add_class("acp-b3-utility")
+        glyph = Gtk.DrawingArea()
+        glyph.set_size_request(24, 24)
+        glyph.connect("draw", draw_acp_utility_symbol, label, button)
+        glyph.set_halign(Gtk.Align.CENTER)
+        glyph.set_valign(Gtk.Align.CENTER)
+        button.add(glyph)
         button.connect("clicked", select_destination, label)
         utilities.pack_start(button, False, False, 0)
         utility_buttons.append(button)
