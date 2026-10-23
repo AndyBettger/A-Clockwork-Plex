@@ -1047,6 +1047,16 @@ def register_news_api(app: Flask, service: BBCNewsFeedService) -> None:
     def api_news():
         return jsonify(service.snapshot())
 
+    @app.post("/api/news/refresh")
+    def api_news_refresh():
+        try:
+            result = service.refresh(force=True)
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"BBC News refresh failed: {exc}"}), 502
+        response = jsonify(result)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.post("/api/news/feed/validate")
     def api_news_feed_validate():
         payload = request.get_json(silent=True)

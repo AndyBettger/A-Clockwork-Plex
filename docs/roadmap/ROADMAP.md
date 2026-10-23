@@ -1,134 +1,92 @@
 # A Clockwork Plex Roadmap
 
-**Last updated:** 4 October 2026  
-**Active integration branch:** `develop`  
-**Active maintenance branch:** `fix/weather-rain-events`  
-**Stable branch:** `main`  
-**Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
+**Updated:** 23 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
+**Working feature branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
-> This is the project dashboard: what is complete, what is active, what comes next, and where the detailed feature roadmaps live. Engineering chronology belongs in the feature/development documents, not here. 😁
+> **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
+
+## Latest Pi finding — 23 October, GTK SVG runtime & native night overlay
+
+The follow-up Pi visual run passed **16/16 B3 bridge + 16/16 GTK tests**, but runtime logged repeated `TypeError: Couldn't find foreign struct converter for 'cairo.Context'` every time the native drawer opened, leaving the Audio and Settings buttons **empty**. This cannot be caught by mocked Cairo unit tests because GTK cannot invoke the callback. Visual screenshot also shows GTK shell lacking a clearly painted rounded outer container and Weather's pressed state temporarily **grey**, overriding Astronomy Red. The five workspace widths are now closer to ACP's geometry, and brightness synchronisation still works. **New Pi-unverified GTK-only revision:** replace live `Gtk.DrawingArea`/Cairo foreign callback with GTK's SVG GdkPixbuf loader using the exact ACP speaker/cog SVG paths, with stock themed symbolic icons as fallback if the optional SVG loader is missing; paint the rounded drawer panel on a visible `Gtk.EventBox`; explicitly style GTK `:active/:checked` using the validated current palette. No server/Chromium changes. Expected focused test counts now bridge **16**, drawer **18**.
+
+**Important outstanding feature:** native Plexamp **itself** still does not receive ACP's Astronomy-night red `mix-blend-mode:multiply` filter. A separate GTK layer cannot apply Chromium's blend/filter to the pixels in the underlying Flatpak window; a simple transparent red tint would not be equivalent and might obstruct touchscreen/Squeekboard. Treat compositor-level tint/filter as an explicit separate experiment with input-pass-through validation, not a claim of parity. The GTK drawer's bright/dim controls, OSK suppression and curtain remain opt-in; no production auto-start/audio changes. First verify icons/frame/pressed colours before adding movement.
+
+## Current focus — #94 Phase B native Linux Plexamp
+
+**23 October B3 Pi visual results & corrective iteration (new revision still UNTESTED):** Tests **16/16 bridge** and **13/13 drawer** passed; local presentation snapshot accurately reported **853×480** viewport, 839.33×69.33px drawer, 8px bottom, 56px controls, 18.72px font, and Astronomy Red brightness alternating correctly **0.80 active / 0.53 dimmed**. OSK still hid the drawer; Plexamp→Weather curtain handoff was successful (ready→focus→painted→fade). **However four WayVNC screenshots FAIL visual parity:** GTK expanded all five workspace buttons to fill the row, made text too thin and used temporary music-note/gear glyphs; furthermore GTK applied brightness to RGB but not ACP's subsequent red multiply overlay, leaving visible pink/grey channels on the active Plexamp button. New **opt-in** GTK follow-up: workspace group still expands but its buttons no longer do; bold labels; ACP's outline speaker/gear as Cairo shapes; red-only channel blend applied *after* brightness to already validated palette tokens, preserving alpha. No browser snapshot/backend changes. Tests now expected: bridge **16**, GTK drawer **16**. **Physical follow-up pending** before motion work. Retain accepted baseline by omitting `--presentation-from-acp`.
+
+**23 October B3 presentation parity prototype STAGED, Pi UNTESTED:** ACP Chromium now publishes a separate, expiring, strict loopback presentation snapshot (its measured navigation drawer/control sizes, spacing, viewport, and effective Astronomy-night brightness) alongside the physically accepted nine-colour palette. It uses the existing B3 polling callback and the original nine-colour contract is unchanged. Native GTK has a new explicit `--presentation-from-acp` flag (requires `--show --theme-from-acp`) to adopt proportional measured geometry only when browser viewport/monitor ratios agree, and to approximate Chromium's brightness filter by pre-darkening RGB values **without making controls translucent over Plexamp**. Fallback stays the accepted fixed geometry and unmodified palette when the snapshot expires/is invalid. The existing keyboard suppression, page routes, curtain handoff, audio and boot configuration are unchanged. **Physical acceptance pending** for geometry/night intensity; native drawer motion and full cross-process spatial transitions are a later B3 substep. Unit suites expected: B3 bridge 16 and native drawer 13; run on Pi before the visual preview.
+
+**23 October 2026 physical acceptance update:** native Plexamp beta Flatpak relaunched successfully after a Wi-Fi-related Pi reboot via `bash scripts/launch-native-plexamp.sh --fullscreen`, with genuine Wayland fullscreen confirmed. Astronomy Red native drawer colour synchronisation is **PHYSICALLY PASSED**: nine palette tokens report red, WayVNC screenshot shows red drawer and highlighted Plexamp, and Weather B3 route `ready → focus → painted → fade` still succeeds. Initial rain test failed only because system Python lacked Flask; the isolated real-source rain test repair now **6/6 PASSED**. Other suites from prior run: B3 bridge **14/14**, dimming **15 passed + 1 Node.js skip**, GTK drawer **11/11**. **23 October Rain duplicate-event rendering ACCEPTED:** initial screenshot still showed legacy standalone "Active rain event" (0.3 mm) despite 6/6 tests and new template. Live `GET /api/surfaces/weather` proved Flask was serving the *old* template (`Old standalone event card: True`). After `sudo systemctl restart a-clockwork-plex.service`, the endpoint reported `False`, with normal current rain gauges still present. Chromium ACP hard refresh discarded the previously mounted Weather DOM, and the subsequent WayVNC screenshot confirms the duplicate pill disappeared; current Event Rain gauge remains. `New inline event note: False` is expected when no completed event is present. No numerical rain data correction required. **QA lesson:** template changes need dashboard service restart and a Chromium hard refresh to replace cached ACP same-document mounts. **Next:** native vs ACP navigation geometry, animation/transition parity and exact night brightness; keep accepted colour palettes, C3 Squeekboard and audio stable.  Native navigation remains manual opt-in; no boot installer changes.
+
+## Current focus — #94 Phase B native Linux Plexamp
+
+**Priority 1: native Plexamp shell integration.** C3 native Squeekboard is functionally accepted on the test Pi, including deliberate fallback/restart; installer packaging remains a release task. Native Plexamp is already running as an experimental Linux Flatpak alongside Headless; the ACP shell / transitions (Phase A) are physically accepted.
+
+| Area | Status | Next useful action |
+| --- | --- | --- |
+| Shell, Settings, navigation, spatial transitions, night Clock | **Complete — physically accepted** | Maintenance only |
+| Native Plexamp Wayland navigation | **B1/B2 prototype physically accepted** | 21 Oct: 12/12 Pi tests pass; native handle matches ACP responsive size, hover and height; last pixel comparison shows only a 1px horizontal-centre difference in the VNC capture, accepted as screenshot/scaling tolerance. Clean 90s shutdown, no GTK deprecation; previous taps and focus proved. **B3 keyboard/drawer physical proof passed:** Squeekboard D-Bus `Visible=False` when closed, `True` while native Plexamp Search opens C3 keyboard. Overlay disappears instead of rising above keyboard; touches on the diagnostic nav buttons register, Plexamp closes drawer, ACP focus request returns to the live Chromium toplevel; 4/4 focused tests pass. **21 Oct physical retest passed:** ACP-shaped drawer opens, raised handle, all button taps registered, keyboard hides/restores both, ACP escape focuses Chromium, 5/5 tests pass. **21 Oct B3 real-routing first Pi run: PARTIAL, not accepted.** 4/4 mailbox tests + 6/6 drawer tests; dashboard active, restarted, GET `/api/native-navigation/next` returned valid empty JSON. `--route-pages` Weather selection submitted successfully; labwc focus to Chromium succeeded, but ACP stayed on Home. Chromium was not confirmed refreshed to load the newly added JS bridge. **21 Oct real Weather routing PHYSICALLY PASSED after explicit Chromium refresh:** selecting Weather with native Plexamp forward navigates ACP; first attempt briefly showed existing Home before Weather, then ACP nav opened/hid on its regular timeout; repeat with Weather already active showed Weather directly. **21 Oct staged pre-focus Pi PARTIAL:** 6/6 bridge and 7/7 drawer tests, service/status PASS. Native Weather from ACP Home got `taken` twice for 10s while Plexamp remained foreground; manually focusing ACP then completed Weather. Repeating Weather after it was already active got `ready` and switched without Home flash. Evidence points to a Chromium background rendering/transition dependency; **22 Oct curtain Pi PARTIAL VISUAL PASS:** 9/9 bridge and 8/8 drawer tests; twice reached `ready`→ACP focus→`painted`→curtain fade, revealing Weather without a reported Clock flash. WayVNC captured duplicate native GTK/ACP navigation bars during the fade, plus a top Weather header band also present in the settled screenshot. The GTK Window opacity call emitted a deprecation warning. **22 Oct refined curtain Pi PARTIAL PASS:** 9/9 drawer tests; twice logged native drawer/handle hidden before curtain, Weather `ready`→ACP focus→`painted`→fade, without the GTK opacity warning or duplicate drawer. A new WayVNC screenshot reveals the remaining Weather title-over-blank-content interval before forecast/instrument panels render. `painted` after two rAFs was too early for Weather's separate asynchronous forecast fetch. **22 Oct current Weather handoff PROVISIONALLY ACCEPTED by user:** 10/10 bridge + 9/9 drawer tests passed; native Weather requested in background, Chromium reported route `ready`, focus succeeded, paint acknowledgment and curtain fade completed. User reports it looks better; the richer Weather presentation will be revisited with the planned expanded Weather page, alongside the future Astronomy page. This is NOT approval of all destinations, or spatial native-window animation. **22 Oct theme regression suites physically PASS: 12/12 bridge and 11/11 GTK drawer tests after fixing an obsolete test-only asset version assertion (23/23).** **23 Oct B3 theme parity physical PARTIAL PASS:** Classic Dark, Steel Cyan and Green Phosphor native GTK drawer colours visually follow ACP; route to Settings, previously accepted Weather route, keyboard hiding, and painted curtain still work. Astronomy Red during active night dimming FAILS: handle red but buttons/drawer stay Green Phosphor. Cause traced to late `daytime-theme-followup.css` `!important` nav buttons overriding earlier `display-dimming.css` Astronomy-night rules, plus daytime drawer specificity. **23 Oct Pi follow-up: regression 13/13 bridge + 11/11 drawer PASS, but night visuals still FAIL:** `/api/native-navigation/palette` returned Green Phosphor drawer/buttons with red handle and red utility separator. Previous instructions erroneously called this a CSS-only change requiring no service restart, even though a **new stylesheet reference was added to Flask's cached `base.html`**. Likely stale rendered server template. Before changing more CSS, restart `a-clockwork-plex.service`, verify actual `/weather` HTML contains `night-navigation-closure.css`, refresh Chromium, then recheck red palette. **23 Oct confirmed Flask `/weather` serves `night-navigation-closure.css` HTTP 200 after restart, but Astronomy night drawer STILL GREEN; separate CSS ref was not enough. New Pi-untested fix: place ID-scoped `!important` Astronomy-night rules directly in `display-dimming.css` (known to paint the red handle), bump stylesheet version, preserve brightness/alarm guards.** **Night-only closure CSS committed, actual runtime load VERIFIED but visual fix not accepted**: load `night-navigation-closure.css` after daytime theme layers to restore astronomy red on ACP's actual navigation, which B3 already samples. Adds 1 focused bridge stylesheet regression; no C3, audio or boot modifications. Current rain event also appeared twice (16.8 mm normal Event Rain gauge plus 16.8 mm active WU derived summary card). New Pi-untested Weather data/presentation change removes the matching active summary, displays any genuinely different derived value as an ordinary gauge within current rain, and renders last-event history as a small inline note. **23 Oct first Pi regression:** 14/14 B3 bridge PASS; dimming 15 PASS/1 skipped (Node unavailable); native drawer 11/11 PASS; 6-event rain suite failed at import because system `python3` lacks Flask. **Test-only fix now staged, Pi rerun pending:** load the actual isolated pure rain helpers from `dashboard_core.py` via AST, preserving postponed annotations, rather than importing the Flask dashboard package. Pi also lost Wi-Fi and rebooted, so the manually launched native Plexamp Flatpak is no longer running. Relaunch with repository's `bash scripts/launch-native-plexamp.sh --fullscreen` as normal user; do not install an autostart/service or touch Headless/audio. No provider/state data removed; expanded Weather/Astronomy redesign still later. Dim brightness/opacity and cross-app movement still require visual parity checks. |
+| Squeekboard UK text / compact numeric layouts | **Pi accepted in C3** | UK text, signed decimals/numeric pads, time QWERTY, and ACP Settings scroll verified |
+| Private Squeekboard CSS, ACP daytime / night palettes | **Scheduled night → day physically accepted** | C3 automatically changed to Astronomy Red and back while native Plexamp stayed fullscreen; typing survived both changes |
+| Chromium C3 background callback while native Plexamp foreground | **Passed:** 660s, max gap 5.087s | No Python replacement scheduler warranted on this evidence |
+| Linux input activity with Plexamp foreground | **Passed:** six devices, sequence 230→246, Logitech K800 key | Complete native touchscreen/focus acceptance |
+| Squeekboard C3 + one system keyboard | **COMPLETE on development Pi** | Stop restored vendor PID 45352 + ACP HTML keyboard; re-enabled/restarted C3 PID 47322, sync enabled. Installer-owned packaging still pending |
+| Sunrise/sunset night schedule | **Deferred until Astronomy** | Use shared Sun calculations, seasonal offsets and sensible earliest evening start/wake limits |
+| Fresh-Pi native installer, Plexamp profile Backup/Restore/Reset | **Required, not implemented for Flatpak** | Installer-owned C3 artifact + native Plexamp Flatpak, live portable settings, safe Reset, clean-Pi acceptance |
+
+### Fast development/testing rules
+
+- The Pi is a **test rig**: use compact checks and one real Pi acceptance pass per logical feature, not a new guard subsystem for every settings change.
+- Keep an easily recoverable stock `/usr/bin/squeekboard` and existing audio/Headless routes. Recover a failed keyboard handover promptly; no duplicate keyboards or changes to `/usr/bin`.
+- A display setting change is not a production incident. Record the baseline once, use and restore it as needed. Keep rigorous CI/static checks and short physical smoke tests.
+- `scripts/try-c3-night-boundary.py` is an **optional existing guarded rehearsal**, not a prerequisite for ordinary development. Its read-only `--plan` was physically accepted; `--arm` has **not** been run.
+- Keep detailed findings in [the feature roadmap](features/acp-shell-native-plexamp.md) and implementation/test catalogue, not repeated date-by-date paragraphs here.
 
 ## Agreed implementation order
 
-This is the authoritative product order.
+| Order | Track | Status |
+| ---: | --- | --- |
+| 1 | [Weather (#86–#87)](features/weather.md) | **COMPLETE / MERGED**; enhancements queued |
+| 2 | [Settings / appliance ownership (#88–#90, #93)](features/settings-appliance-ownership.md) | **Complete** |
+| 3 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete** for browser ACP; native Squeekboard in #94 |
+| 4 | [BBC News (#92)](features/bbc-news.md) | **Complete** |
+| 5 | [High-resolution Plexamp audio / mixer-EQ (#85)](features/high-resolution-audio.md) | **COMPLETE / MERGED**; source-rate-native Direct deferred |
+| 6 | [ACP shell / native Plexamp modernisation (#94)](features/acp-shell-native-plexamp.md) | **ACTIVE — Phase B native window navigation; C3 physically accepted** |
+| 7 | [Astronomy](features/astronomy.md) | **Queued:** once #94 native UI settled |
+| 8 | [Appliance resilience](features/appliance-resilience.md) | **Queued** |
+| 9 | [Events calendar](features/events-calendar.md) | **Queued** |
 
-| Order | Feature / track | Status | Next boundary | Feature roadmap |
-| ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE READY FOR MERGE** | Merge accepted rain-event fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
-| 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
-| 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
-| 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
-| 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **NEXT** | Phase A: single-document ACP surface, design system, shell/navigation prototype | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
-| 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
-| 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
-| 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
+The UI foundation is already ready for Astronomy. Its reserved spatial slot is **Home → Weather → Astronomy → News → AirPlay → Plexamp**. Finish the native Plexamp/keyboard work first so new surfaces do not inherit a temporary input model.
 
-### Why #94 now precedes Astronomy
+## Next actionable development sequence
 
-The #94 work is no longer merely “add a Plexamp visualiser”. It includes the ACP application-shell and navigation foundation.
-
-Astronomy would otherwise be built as another full-document page and then immediately migrated. The efficient boundary is:
-
-1. close and merge #85 — **complete**;
-2. complete the bounded Weather rain-event maintenance branch;
-3. complete **#94 Phase A** — single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
-4. build Astronomy as the first new surface on that foundation;
-5. complete the native Plexamp/player migration and then the full resilience track.
-
-If native Plexamp discovery becomes a long side quest, Astronomy need not wait for every Phase B player/resilience gate once the Phase A application-surface contract is accepted.
+1. **C3 complete on development Pi.** Native/ACP input, numerical and UK layouts, CSS, scheduled night/day, reboot autostart, stop-to-stock and return-to-C3 have passed. Do not repeat the trials; installer-owned C3 packaging remains separate.
+2. **Phase B native Plexamp navigation.** **B1 focus handoff physically passed** (actual `Plexamp` and `chromium` Wayland IDs, both directions, no fullscreen state changes). ACP-owned touchable OVERLAY-layer indicator is visually accepted (within 1 VNC pixel), with safe edge hitbox and reversible B1 focus already accepted. **Next design a genuinely usable native overlay drawer while Plexamp remains visible**, reusing ACP navigation semantics for page selection and focus handoff; do not mistake a focus-only tap for a native navigation drawer or install an auto-start yet. Then address feasible cross-process transitions.
+3. **Complete native Plexamp Phase B.** Build native nav/drawer and transition handoff, finish audio/alarm/AirPlay/NFC and recovery; **integrate native Flatpak + C3 into fresh-Pi setup and investigate native Flatpak Backup/Restore/Reset** before calling #94 release-ready. Retain Headless as fallback.
+4. **Build Astronomy and shared Sun calculations.** Reuse the weather location/timezone for rise/set/twilight and deterministic local-time/DST handling.
+5. **Add sun-aware dimming after Astronomy.** Use sunrise/sunset-relative sliders and a configurable **not-before evening time** to avoid dimming during winter afternoons; consider morning limits. Keep fixed 22:00–07:00 as an option. Then resilience/calendar.
 
 ## Maintenance queue
 
-These are bounded corrections/improvements to accepted features; they do not change the main feature order.
-
-- **Weather rain events — ACCEPTED:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI, commissioned-Pi backend/state migration and dry-weather touchscreen presentation are accepted.
-- **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
-- **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
-
-## Current focus — Weather rain-event maintenance
-
-The #85 audio branch is merged into `develop`. The active bounded maintenance branch is `fix/weather-rain-events`.
-
-Current branch scope:
-
-- [x] Use WU station observation time rather than ACP receipt time for rain-counter chronology.
-- [x] Prevent stale/out-of-order observations from regressing derived rain counters.
-- [x] Replace the old 24-hour / 1 mm derived-event reset with a **2-hour continuously dry gap**.
-- [x] Persist active/completed rain-event provenance.
-- [x] Project Active/Last rain-event context on the existing Weather rain panel.
-- [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
-- [x] Code-head PR CI green at `cd967a174ba749d264ef1f1858040ae76104bfa3`.
-- [x] Commissioned Pi updated; ACP service restarted cleanly, WU status `ready`, and schema-v2 derived rain state/live chronology accepted.
-- [x] Existing Weather Rain panel checked on the commissioned touchscreen; dry-weather gauges correctly show zero with no stale derived event.
-- [ ] Merge after explicit user approval.
-
-Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
-
-Detailed status: [features/weather.md](features/weather.md).
+- Weather charts and richer history without unnecessary SD writes.
+- Manual BBC News refresh is already physically accepted.
+- Source-rate-native direct audio work remains deferred until after #94.
 
 ## Branch housekeeping
 
-Current visible branches after the 4 October cleanup:
-
-- `main` — supported stable release branch.
-- `develop` — accepted integration branch, now including merged #85.
-- `fix/weather-rain-events` — active bounded Weather maintenance branch / PR #14.
-
-The former #85 and two merged News feature branches have been deleted after their work was confirmed present in `develop`.
+- Feature work stays on `feature/acp-shell-native-plexamp` until accepted, with docs/tests updated alongside real milestones.
+- `develop` remains the integration target; `main` remains the published stable branch.
+- Retired merged feature branches can be cleaned up later; don't switch branches simply to test keyboard themes.
 
 ## Feature roadmaps
 
-Feature-level progress lives under [`features/`](features/README.md):
-
-- [Weather](features/weather.md)
-- [Settings and appliance ownership](features/settings-appliance-ownership.md)
-- [Touchscreen text entry](features/touchscreen-text-entry.md)
-- [BBC News](features/bbc-news.md)
-- [High-resolution audio](features/high-resolution-audio.md)
-- [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md)
-- [Astronomy](features/astronomy.md)
-- [Appliance resilience](features/appliance-resilience.md)
-- [Events calendar](features/events-calendar.md)
-
-Detailed architecture, test plans and physical evidence remain under `docs/development/`. Historical roadmap snapshots remain in this directory.
-
-## Specialist authorities
-
-- [High-resolution audio architecture](../development/architecture/high-resolution-audio.md)
-- [AirPlay / hi-res physical investigation](../development/testing/airplay-hi-res-buffer-investigation.md)
-- [Native Plexamp / ACP shell architecture](../development/architecture/native-plexamp-desktop.md)
-- [BBC News architecture](../development/architecture/bbc-news.md)
-- [Configuration backup ownership](../development/architecture/configuration-backup-ownership.md)
-- [Reset-to-defaults architecture](../development/architecture/reset-to-defaults.md)
-- [Appliance resilience architecture](../development/architecture/appliance-resilience.md)
-- [Fresh appliance acceptance runbook](../development/testing/fresh-appliance-acceptance-runbook.md)
-
-Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not the development roadmaps.
-
-## Branch and release model
-
-- `main` is the supported stable appliance and normal installation/update channel.
-- `develop` is the integration branch for the next release cycle.
-- substantial isolated work uses short-lived `feature/<name>` branches from `develop`.
-- published `vX.Y.Z` tags/releases are immutable accepted snapshots.
-- feature branches do not merge merely because CI is green: relevant Raspberry Pi/touchscreen behaviour must pass its physical acceptance gate first.
-- the next release version is intentionally not assigned until its real scope is clear.
+See [feature index](features/README.md), especially [#94 Native Plexamp](features/acp-shell-native-plexamp.md) and [Astronomy](features/astronomy.md). Engineering architecture lives in [native Linux Plexamp desktop](../development/architecture/native-plexamp-desktop.md) and [touchscreen text entry](../development/architecture/touchscreen-text-entry.md).
 
 ## Release gate for the next version
 
-Before promoting the next development cycle to `main`:
-
-- all included feature branches must be merged into `develop` only after automated and relevant physical acceptance;
-- the clean-room installer/runbook must still pass on supported hardware;
-- repeat `bash setup.sh` must remain safe/idempotent;
-- repository/docs catalogues and these roadmaps must describe the actual shipped state;
-- materially risky audio/storage experiments must remain isolated to feature branches with a known-good rollback/rebuild path through `develop` or `main`;
-- release version/tag/name is assigned only after final scope and acceptance are known.
+Native Plexamp and Squeekboard accepted, audio/alarm/AirPlay/NFC preserved, restart and recovery validated, CI green, and installation/upgrade guidance updated. None of these is an obstacle to everyday **test-rig** iteration.
 
 ## History
 
-- [history-through-phase7-checkpoint6.md](history-through-phase7-checkpoint6.md) — early Phase 7 chronology.
-- [history-through-checkpoint64.md](history-through-checkpoint64.md) — pre-consolidation roadmap snapshot.
-
-Those files are historical records, not current instructions.
+Full chronology preserved before cleanup in [19 October 2026 project roadmap snapshot](../archive/acp-roadmap-full-history-2026-10-19.md); older snapshots: [Phase 7 / checkpoint 6](history-through-phase7-checkpoint6.md), [checkpoint 64](history-through-checkpoint64.md). **History is reference, not the current TODO list.**

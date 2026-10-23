@@ -16,6 +16,8 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.css = Path("app/static/css/news-custom-feeds.css").read_text(encoding="utf-8")
         self.scrollbar_js = Path("app/static/js/news-category-scrollbar.js").read_text(encoding="utf-8")
         self.news_feed = Path("app/news_feed.py").read_text(encoding="utf-8")
+        self.news_client = Path("app/static/js/news.js").read_text(encoding="utf-8")
+        self.settings_news = Path("app/static/js/settings-news.js").read_text(encoding="utf-8")
         self.touch_helper = Path("app/static/js/settings-touch-reorder.js").read_text(encoding="utf-8")
         self.feed_order = Path("app/static/js/settings-news-feed-order.js").read_text(encoding="utf-8")
         self.feed_discovery = Path("app/static/js/settings-news-feed-discovery.js").read_text(encoding="utf-8")
@@ -71,11 +73,42 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
         self.assertIn("scrollbar.classList.add('is-dragging');", self.scrollbar_js)
         self.assertIn("MutationObserver", self.scrollbar_js)
 
+    def test_settings_news_has_owner_triggered_force_refresh(self):
+        self.assertIn("const NEWS_REFRESH_API = '/api/news/refresh';", self.settings_news)
+        self.assertIn("data-news-refresh-now", self.settings_news)
+        self.assertIn("Refresh feeds now", self.settings_news)
+        self.assertIn("async function refreshNewsNow()", self.settings_news)
+        self.assertIn("method: 'POST'", self.settings_news)
+        self.assertIn("renderStatus(payload)", self.settings_news)
+        self.assertIn("BBC News feeds refreshed successfully.", self.settings_news)
+
+    def test_news_mounted_surface_pauses_hidden_refresh_and_remeasures_on_settle(self):
+        self.assertIn("function newsIsVisible()", self.news_client)
+        self.assertIn("if (!newsIsVisible()) return;", self.news_client)
+        self.assertIn("acp:surface-activated", self.news_client)
+        self.assertIn("acp:surface-settled", self.news_client)
+        self.assertIn("captureScrollState", self.news_client)
+        self.assertIn("restoreScrollState", self.news_client)
+        self.assertIn("storyMount.clientHeight <= 0", self.news_client)
+
+        self.assertIn("scrollMount.clientHeight <= 0", self.scrollbar_js)
+        self.assertIn("acp:surface-settled", self.scrollbar_js)
+        self.assertIn("window.ACPNewsCategoryScrollbar", self.scrollbar_js)
+
+    def test_news_status_pill_describes_active_section(self):
+        self.assertIn(
+            "const overall = text(state.status || snapshot?.status || 'empty').toLowerCase();",
+            self.news_client,
+        )
+        self.assertIn("js/news.js', v='20261007-news-status-v5'", self.news_template)
+
     def test_news_followup_clients_have_valid_javascript_syntax(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "Node.js is required for JavaScript syntax regression checks")
         for source in (
+            "app/static/js/settings-news.js",
             "app/static/js/settings-news-placement.js",
+            "app/static/js/news.js",
             "app/static/js/news-category-scrollbar.js",
             "app/static/js/settings-touch-reorder.js",
             "app/static/js/settings-news-feed-order.js",

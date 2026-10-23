@@ -30,7 +30,8 @@ class PlexampUiHandoffRetirementTests(unittest.TestCase):
 
         self.assertIn("function show(options = {})", text)
         self.assertIn("function hide(options = {})", text)
-        self.assertIn("function prepareNavigation()", text)
+        self.assertIn("function prepareNavigation(options = {})", text)
+        self.assertIn("options.preserveNavigation !== true", text)
         self.assertIn("window.ACPPlexamp =", text)
         self.assertNotIn("updateServerMode", text)
         self.assertNotIn("/api/mode/", text)

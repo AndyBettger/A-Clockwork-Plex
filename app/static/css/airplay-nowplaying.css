@@ -137,7 +137,8 @@ body.airplay-metadata-active .airplay-source-line {
 }
 
 body.airplay-remote-paused #airplay-play-pause-icon::before,
-body.airplay-session-idle #airplay-play-pause-icon::before {
+body.airplay-session-idle #airplay-play-pause-icon::before ,
+body.airplay-session-unresolved #airplay-play-pause-icon::before {
   content: "▶";
   transform: translate(0.12em, -0.015em);
 }
@@ -226,13 +227,15 @@ body.airplay-metadata-active .airplay-volume-slider {
 
 /* Idle route-ready state: make the AirPlay mark wider/taller, remove inactive controls,
    and keep the copy calm rather than looking like a half-loaded player. */
-body.airplay-session-idle .airplay-now-card:not(.unused) {
+body.airplay-session-idle .airplay-now-card:not(.unused) ,
+body.airplay-session-unresolved .airplay-now-card:not(.unused) {
   grid-template-columns: minmax(300px, 46%) minmax(0, 1fr);
   align-items: stretch;
   gap: clamp(24px, 4vw, 58px);
 }
 
-body.airplay-session-idle .airplay-glyph-wrap {
+body.airplay-session-idle .airplay-glyph-wrap ,
+body.airplay-session-unresolved .airplay-glyph-wrap {
   align-self: stretch;
   justify-self: stretch;
   display: grid;
@@ -243,22 +246,27 @@ body.airplay-session-idle .airplay-glyph-wrap {
 }
 
 body.airplay-session-idle .airplay-artwork,
-body.airplay-session-idle .airplay-glyph {
+body.airplay-session-unresolved .airplay-artwork,
+body.airplay-session-idle .airplay-glyph ,
+body.airplay-session-unresolved .airplay-glyph {
   overflow: visible;
 }
 
-body.airplay-session-idle .airplay-pulse {
+body.airplay-session-idle .airplay-pulse ,
+body.airplay-session-unresolved .airplay-pulse {
   left: 50%;
   top: 50%;
   z-index: 1;
   width: 68%;
 }
 
-body.airplay-session-idle .airplay-controls-stack {
+body.airplay-session-idle .airplay-controls-stack ,
+body.airplay-session-unresolved .airplay-controls-stack {
   display: none !important;
 }
 
-body.airplay-session-idle .airplay-copy {
+body.airplay-session-idle .airplay-copy ,
+body.airplay-session-unresolved .airplay-copy {
   display: flex;
   flex-direction: column;
   justify-content: center;

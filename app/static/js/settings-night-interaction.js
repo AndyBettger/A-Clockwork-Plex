@@ -47,8 +47,10 @@
     const snapshot = window.ACPUnifiedSettings?.getSnapshot?.();
     const value = snapshot?.settings?.display?.night_dim_active_level_percent;
     if (value !== undefined && value !== null) {
-      control.value = String(value);
+      window.ACPUnifiedSettings?.applyControlValue?.(control, value);
+      if (!window.ACPUnifiedSettings?.applyControlValue) control.value = String(value);
       applyActiveLevel(control);
+      window.ACPSettingsRangeTheme?.paint?.(control);
       return;
     }
     if (attempts > 0) window.setTimeout(() => populate(control, attempts - 1), 100);

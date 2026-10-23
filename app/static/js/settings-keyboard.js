@@ -112,6 +112,10 @@
   let shifted = false;
   let usingNumbers = false;
 
+  function useSystemKeyboard() {
+    return window.ACPKeyboardChoice?.isNative?.() === true;
+  }
+
   function isRemotePlexamp() {
     return remoteSession !== null;
   }
@@ -201,6 +205,12 @@
   }
 
   function openKeyboard(input) {
+    // Phase-B native OSK experiment: the Chromium input keeps real focus,
+    // and the compositor's system keyboard handles keys directly.
+    if (useSystemKeyboard()) {
+      if (hasTarget()) closeKeyboard({ notifyRemote: false });
+      return;
+    }
     target = input;
     remoteSession = null;
     remoteKind = null;
@@ -256,6 +266,11 @@
   }
 
   function openRemoteText(sessionId, kind) {
+    if (useSystemKeyboard()) {
+      // Leave real text focus to Chromium/Wayland; do not send synthetic keys.
+      if (hasTarget()) closeKeyboard({ notifyRemote: false });
+      return;
+    }
     if (!SAFE_REMOTE_SESSION.test(sessionId) || !PLEXAMP_TEXT_KINDS.has(kind) || !plexampIsVisible()) return;
     target = null;
     remoteSession = sessionId;
@@ -394,6 +409,10 @@
       renderKeyboard();
     }
   }
+
+  window.addEventListener('acp:keyboard-choice-changed', () => {
+    if (useSystemKeyboard()) closeKeyboard({ notifyRemote: false });
+  });
 
   document.addEventListener('focusin', (event) => {
     const input = event.target.closest?.('input[data-keyboard]');

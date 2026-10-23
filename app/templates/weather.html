@@ -138,7 +138,7 @@
       <article class="detail-panel rain-panel">
         <h2>Rain</h2>
         <div class="rain-overview-scroll" aria-label="Current and historical rainfall summaries">
-          {% if weather_detail.rain_today_gauges %}
+          {% if weather_detail.rain_today_gauges or weather_detail.rain_event_summary %}
             <section class="rain-subpanel rain-current-subpanel">
               <h3>Mostly Moist Today</h3>
               <div class="rain-gauge-row compact-gauges">
@@ -151,18 +151,20 @@
                       <span>{{ gauge.label }}</span>
                       <strong>{{ gauge.value }}</strong>
                       <small>Scale {{ gauge.max_label }}</small>
+                      {% if gauge.note %}
+                        <small class="rain-coverage-note">{{ gauge.note }}</small>
+                      {% endif %}
                     </div>
                   </div>
                 {% endfor %}
               </div>
-            </section>
-          {% endif %}
-
-          {% if weather_detail.rain_event_summary %}
-            <section class="rain-event-summary is-{{ weather_detail.rain_event_summary.kind }}">
-              <span>{{ weather_detail.rain_event_summary.label }}</span>
-              <strong>{{ weather_detail.rain_event_summary.value }}</strong>
-              <small>{{ weather_detail.rain_event_summary.detail }}</small>
+              {% if weather_detail.rain_event_summary %}
+                <p class="rain-event-note">
+                  {{ weather_detail.rain_event_summary.label }}:
+                  <strong>{{ weather_detail.rain_event_summary.value }}</strong>
+                  <span>{{ weather_detail.rain_event_summary.detail }}</span>
+                </p>
+              {% endif %}
             </section>
           {% endif %}
 
@@ -215,79 +217,7 @@
   {% endif %}
 </section>
 
-{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script>
-(() => {
-  const directionElement = document.getElementById('wind-direction-word');
-  const segments = window.AClockworkSegments;
-  if (!directionElement || !segments) {
-    return;
-  }
-
-  const directionNames = [
-    'North',
-    'North-northeast',
-    'Northeast',
-    'East-northeast',
-    'East',
-    'East-southeast',
-    'Southeast',
-    'South-southeast',
-    'South',
-    'South-southwest',
-    'Southwest',
-    'West-southwest',
-    'West',
-    'West-northwest',
-    'Northwest',
-    'North-northwest',
-  ];
-
-  const rawDegrees = Number(directionElement.dataset.windDegrees);
-  const degrees = Number.isFinite(rawDegrees) ? ((rawDegrees % 360) + 360) % 360 : 0;
-  const directionName = directionNames[Math.round(degrees / 22.5) % directionNames.length];
-  directionElement.classList.toggle('is-long', directionName.length > 10);
-  directionElement.setAttribute('aria-label', `${Math.round(degrees)} degrees, ${directionName}`);
-  segments.setCharacters(directionElement, directionName);
-})();
-
-(() => {
-  const refreshSeconds = Number({{ config.weather.auto_refresh_seconds | default(60) | tojson }});
-  if (!Number.isFinite(refreshSeconds) || refreshSeconds <= 0) {
-    return;
-  }
-
-  const refreshMilliseconds = Math.max(15, refreshSeconds) * 1000;
-  let refreshTimer = null;
-
-  async function refreshOnlyWhenWeatherOwnsTheVisibleSurface() {
-    try {
-      const response = await fetch('/api/screen/state', { cache: 'no-store' });
-      const payload = response.ok ? await response.json() : null;
-      const screen = payload?.screen || {};
-      const overlayOpen = window.ACPPlexamp?.isVisiblyOpen?.() === true;
-      const weatherOwnsSurface = screen.current_screen === 'weather'
-        && screen.recommended_screen === 'weather';
-
-      if (!document.hidden && !overlayOpen && weatherOwnsSurface) {
-        window.location.reload();
-        return;
-      }
-    } catch (error) {
-    }
-    refreshTimer = window.setTimeout(
-      refreshOnlyWhenWeatherOwnsTheVisibleSurface,
-      refreshMilliseconds,
-    );
-  }
-
-  refreshTimer = window.setTimeout(
-    refreshOnlyWhenWeatherOwnsTheVisibleSurface,
-    refreshMilliseconds,
-  );
-  window.addEventListener('pagehide', () => window.clearTimeout(refreshTimer));
-})();
-</script>
+<script src="{{ url_for('static', filename='js/weather-surface.js', v='20261004-live-surface-v1') }}"></script>
 {% endblock %}
