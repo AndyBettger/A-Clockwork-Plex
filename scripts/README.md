@@ -72,6 +72,8 @@ These files are source material for installed services, restricted helpers or ap
 
 **12 October physical OSK update:** the opt-in, separately built Squeekboard `OVERLAY` prototype has now been seen and used above true fullscreen native Plexamp Search and an Add-dialog input. The standard distro keyboard remains `TOP` and **does not** overlay fullscreen; no global replacement, auto-start or installation of the test executable has occurred. The trial restored a single original Squeekboard process afterwards. The native launcher is still windowed by default to keep the unmodified appliance touch-friendly until keyboard ownership is integrated safely.
 
+**23 October B3 acceptance after Wi-Fi reboot:** `bash scripts/launch-native-plexamp.sh --fullscreen` restored the manually launched Flatpak and Wayland fullscreen. Native GTK drawer with `--theme-from-acp` now physically matches Astronomy Red (all nine palette tokens red, correct active Plexamp) and the Weather prepared/painted curtain handoff continues to pass. Classic Dark, Steel Cyan and Green Phosphor previously passed. Six rain helper tests now pass with the Flask-free test loader; Rain duplicate-card change still awaits an actual Weather screenshot. Current manual opt-in B3 flow is accepted for palette/keyboard/route, **not** exact dim brightness, geometry, spatial transition or boot installer.
+
 ### Stage C2 — read-only native GTK3 palette probe
 
 | File | Purpose | Safety / intended use |

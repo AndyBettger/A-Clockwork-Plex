@@ -1,3 +1,9 @@
+## 23 October 2026 — Native B3 acceptance evidence
+
+- Native Flatpak resumed fullscreen after reboot; Astronomy Red palette now correctly red for all nine navigation values; WayVNC drawer red with correct active Plexamp; Weather background paint handoff passed.
+- Rainfall six focused tests PASS under system Python after test-only isolation; bridge 14 PASS, dim 15 PASS + 1 Node skip, GTK drawer 11 PASS from immediately preceding run.
+- Rain tile post-fix visual validation, brightness, geometry and motion still pending. No boot integration changes.
+
 # A Clockwork Plex test-suite catalogue
 
 This is the maintainer map for the automated regression suite under `tests/`.
@@ -207,7 +213,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_weather_forecast_settings.py` — Checks forecast Settings validation, persistence and refresh behaviour.
 - `tests/test_weather_forecast_ui.py` — Protects forecast cards/status attribution and browser-side rendering.
 - `tests/test_weather_live_state.py` — Checks authoritative live-weather projection and freshness/staleness behaviour.
-- `tests/test_weather_rain_event_summary.py` — Checks active/last WU-derived rain-event provenance projection, metric formatting, cross-midnight spans and suppression for native providers.
+- `tests/test_weather_rain_event_summary.py` — **23 Oct Pi PASS (6/6)**: executes actual isolated pure rain helpers without Flask dependency under system Python; checks active/last WU rain provenance, metric formatting, midnight spans, exact-value dedupe (16.8 mm), distinct-value standard gauge and completed-event inline note. Post-fix Weather screenshot remains pending.
 - `tests/test_weather_observation_settings.py` — Checks observation-provider configuration defaults, validation and persistence.
 - `tests/test_weather_observation_source_authority.py` — Ensures the selected provider owns outdoor values while only fresh Ecowitt data may supplement WU indoor readings.
 - `tests/test_weather_observation_store.py` — Exercises persisted observation state, freshness timestamps and safe update/expiry behaviour.

@@ -1,7 +1,9 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** Phase A complete; Phase B active. **C3 native Squeekboard functionally accepted on the development Pi; current priority: native Plexamp navigation.**  
-**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 20 October 2026
+**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 23 October 2026
+
+**23 October Pi follow-up — B3 Astronomy Red acceptance:** After the red override was moved into the existing `display-dimming.css`, browser palette returned fully red values (`active_background=rgb(255,64,64)`, `button_background=rgba(96,0,0,.62)`, `drawer_background=rgba(20,0,0,.96)`, red handle and utility borders). The GTK drawer visibly matched in WayVNC; Plexamp was highlighted correctly and selecting Weather again logged the complete background preparation, focus and painted curtain sequence. **B3 colour parity is physically accepted for Classic Dark, Steel Cyan, Green Phosphor and Astronomy Red**; exact overlay brightness, geometry and native transition parity are not yet accepted. Following Pi Wi-Fi loss/reboot the user relaunched native Flatpak fullscreen manually (no startup changes). **Rain unit tests 6/6 passed** under OS Python after isolating actual helper functions from Flask imports; no new runtime dependencies. Rain duplicate-card removal still requires a post-fix visual check. This status supersedes older failure/untested notes in the history below.
 
 > This is a **working feature checklist**, not a chronological test transcript. The Raspberry Pi is a development appliance; move through complete vertical slices, with a brief focused test and physical check per feature. Detailed pre-cleanup history is preserved in the [full feature archive](../../archive/acp-shell-native-plexamp-full-history-2026-10-19.md).
 

@@ -7,6 +7,10 @@
 
 ## Current focus — #94 Phase B native Linux Plexamp
 
+**23 October 2026 physical acceptance update:** native Plexamp beta Flatpak relaunched successfully after a Wi-Fi-related Pi reboot via `bash scripts/launch-native-plexamp.sh --fullscreen`, with genuine Wayland fullscreen confirmed. Astronomy Red native drawer colour synchronisation is **PHYSICALLY PASSED**: nine palette tokens report red, WayVNC screenshot shows red drawer and highlighted Plexamp, and Weather B3 route `ready → focus → painted → fade` still succeeds. Initial rain test failed only because system Python lacked Flask; the isolated real-source rain test repair now **6/6 PASSED**. Other suites from prior run: B3 bridge **14/14**, dimming **15 passed + 1 Node.js skip**, GTK drawer **11/11**. Rain card deduplication is **unit-tested but its physical appearance remains UNVERIFIED** (no post-fix Weather screenshot). Next: visually confirm Rain presentation, then investigate navigation geometry, animation/transition parity and actual night brightness without changing accepted palette, C3 Squeekboard or audio. Native navigation remains manual opt-in; no boot installer changes.
+
+## Current focus — #94 Phase B native Linux Plexamp
+
 **Priority 1: native Plexamp shell integration.** C3 native Squeekboard is functionally accepted on the test Pi, including deliberate fallback/restart; installer packaging remains a release task. Native Plexamp is already running as an experimental Linux Flatpak alongside Headless; the ACP shell / transitions (Phase A) are physically accepted.
 
 | Area | Status | Next useful action |
