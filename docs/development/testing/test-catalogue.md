@@ -1,3 +1,10 @@
+## 23 October 2026 — Native B3 presentation prototype (awaiting Pi verification)
+
+- `test_native_navigation_bridge.py` now has **16** expected tests including validation, 20-second expiration, strictly same-origin publisher and native-only reader for the new numeric presentation snapshot, plus the unchanged nine colour values.
+- `test_native_navigation_drawer.py` now has **13** expected tests including explicit `--presentation-from-acp` opt-in, mismatched viewport-scale fallback, and night-colour RGB pre-darkening without reducing alpha.
+- Browser reuses its existing poll interval. Geometry and brightness test is **not yet physically accepted**. Default manual GTK command without `--presentation-from-acp` retains the earlier physically accepted red/other theme behaviour and keyboard/route/curtain safeguards. No service enabled at boot, no CamillaDSP/Headless changes.
+- The Rain duplicate-card fix is **physically accepted** after restarting Flask and refreshing Chromium; previous note that its final screenshot was pending is superseded.
+
 ## 23 October 2026 — Native B3 acceptance evidence
 
 - Native Flatpak resumed fullscreen after reboot; Astronomy Red palette now correctly red for all nine navigation values; WayVNC drawer red with correct active Plexamp; Weather background paint handoff passed.
