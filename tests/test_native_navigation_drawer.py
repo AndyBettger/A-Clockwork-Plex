@@ -284,33 +284,70 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn(".nav-workspaces {", nav_css)
         self.assertIn("gap: 5px;", nav_css)
 
-    def test_gtk_utilities_use_acp_vector_outline_and_dynamic_text_colour(self):
-        src = SRC.read_text(encoding="utf-8")
+    def test_gtk_utilities_use_acp_svg_pixbuf_not_cairo_foreign_converter(self):
+        source = SRC.read_text(encoding="utf-8")
         nav_template = (ROOT / "app/templates/_nav.html").read_text()
-        self.assertIn("for label in UTILITY_ITEMS:", src)
-        self.assertIn("glyph = Gtk.DrawingArea()", src)
-        self.assertIn('glyph.connect("draw", draw_acp_utility_symbol, label, button)', src)
-        self.assertIn("button.get_accessible().set_name(label)", src)
-        self.assertNotIn('Gtk.Button(label=glyph)', src)
+        self.assertIn("for label in UTILITY_ITEMS:", source)
+        self.assertIn("glyph = Gtk.Image()", source)
+        self.assertIn("utility_images.append((label, glyph))", source)
+        self.assertIn("button.get_accessible().set_name(label)", source)
+        self.assertNotIn("Gtk.DrawingArea()", source)
+        self.assertNotIn('glyph.connect("draw"', source)
+        self.assertIn('GdkPixbuf.PixbufLoader.new_with_type("svg")', source)
         self.assertIn('viewBox="0 0 24 24"', nav_template)
-        self.assertIn("cr.line_to(11.5, 18.5)", src)
-        self.assertIn("cr.arc(12, 11.35, 3.1", src)
-        widget = mock.Mock()
-        widget.get_allocated_width.return_value = 24
-        widget.get_allocated_height.return_value = 24
-        button = mock.Mock()
-        colour = mock.Mock(red=1.0, green=0.0, blue=0.0, alpha=1.0)
-        button.get_style_context.return_value.get_color.return_value = colour
         for label in ("Audio", "Settings"):
-            context = mock.Mock()
-            self.assertIs(drawer.draw_acp_utility_symbol(widget, context, label, button), False)
-            context.set_source_rgba.assert_called_with(1.0, 0.0, 0.0, 1.0)
-            context.scale.assert_called_with(1.0, 1.0)
-            context.stroke.assert_called_once()
-            if label == "Audio":
-                context.curve_to.assert_called()
-            else:
-                context.arc.assert_called_once()
+            result = drawer.utility_svg(label, "rgb(255, 64, 64)")
+            self.assertIn(b'viewBox="0 0 24 24"', result)
+            self.assertIn(b'stroke="#ff4040"', result)
+            self.assertIn(b'<path', result)
+        self.assertIn(b'<circle', drawer.utility_svg("Settings", "rgb(255,0,0)"))
+        with self.assertRaises(ValueError):
+            drawer.utility_svg("Unknown", "rgb(255,0,0)")
+        self.assertEqual(drawer.svg_colour("rgba(255, 92, 92, 0.8)"),
+                         "#ff5c5c")
+        self.assertEqual(drawer.svg_colour('red; } window { opacity:0'), "#f7f9ff")
+
+    def test_utility_icons_pixbuf_loader_and_safe_fallback(self):
+        Gtk = mock.Mock()
+        GdkPixbuf = mock.Mock()
+        loader = GdkPixbuf.PixbufLoader.new_with_type.return_value
+        fake_icon = mock.Mock()
+        loader.get_pixbuf.return_value = fake_icon
+        img_audio, img_settings = mock.Mock(), mock.Mock()
+        icons = [("Audio", img_audio), ("Settings", img_settings)]
+        self.assertTrue(drawer.refresh_utility_images(
+            Gtk, GdkPixbuf, icons, "rgb(255, 64, 64)"))
+        img_audio.set_from_pixbuf.assert_called_once_with(fake_icon)
+        img_settings.set_from_pixbuf.assert_called_once_with(fake_icon)
+        self.assertEqual(loader.write.call_count, 2)
+        loader.write.assert_any_call(drawer.utility_svg("Audio", "rgb(255, 64, 64)"))
+        loader.write.assert_any_call(drawer.utility_svg("Settings", "rgb(255, 64, 64)"))
+        loader.close.assert_called()
+        loader.write.side_effect = RuntimeError("No SVG pixbuf module")
+        self.assertFalse(drawer.refresh_utility_images(
+            Gtk, GdkPixbuf, icons, "rgb(255, 64, 64)"))
+        img_audio.set_from_icon_name.assert_called_once_with(
+            "audio-volume-high-symbolic", Gtk.IconSize.DIALOG)
+        img_settings.set_from_icon_name.assert_called_once_with(
+            "emblem-system-symbolic", Gtk.IconSize.DIALOG)
+
+    def test_drawer_has_window_backed_frame_and_theme_safe_pressed_state(self):
+        source = SRC.read_text(encoding="utf-8")
+        self.assertIn("shell = Gtk.EventBox()", source)
+        self.assertIn("shell.set_visible_window(True)", source)
+        self.assertIn('shell.get_style_context().add_class("acp-b3-drawer")', source)
+        self.assertIn("shell.add(body)", source)
+        self.assertIn("drawer.add(shell)", source)
+        self.assertNotIn('body.get_style_context().add_class("acp-b3-drawer")', source)
+        self.assertIn(".acp-b3-nav:active, .acp-b3-nav:checked", source)
+        self.assertIn("background-image: none;", source)
+        self.assertIn("background-color: {value['button_background']}", source)
+        colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
+        css = drawer.palette_css(colors)
+        self.assertIn(b".acp-b3-nav:active", css)
+        self.assertIn(b"background-color: rgb(15, 0, 0)", css)
+        self.assertIn(b".acp-b3-active:active", css)
+
 
     def test_astronomy_red_multiply_matches_bright_and_dimmed_acp_screenshots(self):
         # ACP's multiply overlay eliminates the blue/green channels *after*
