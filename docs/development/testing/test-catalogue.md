@@ -1,3 +1,10 @@
+## 23 October 2026 — Native GTK icon-converter failure and subsequent patch
+
+- Pi tests 16/16 B3 bridge and 16/16 drawer **PASSED**, but GTK draw callbacks failed repeatedly with `TypeError: Couldn't find foreign struct converter for 'cairo.Context'`. Tests had only mocked a passed-in Cairo context rather than asking GTK to invoke its actual handler, so no icons were visible. The drawer still lacked a painted outer-frame appearance and stock GTK `:active` painted Weather grey; browser/GTK drawer geometry now closer.
+- New `test_native_navigation_drawer.py` **18 tests expected** (new Pi run pending): verifies exact original ACP Audio/Settings SVG markup, safe RGB sanitisation, mocked GdkPixbuf SVG decode and fallback symbolic icon, **absence** of `Gtk.DrawingArea`/Cairo draw callback, visible-window `Gtk.EventBox` panel and palette-dependent pressed-state CSS. Bridge remains 16 tests.
+- **Native Plexamp whole-screen Astronomy Red filtering remains unresolved:** GTK cannot reproduce the CSS multiply filter applied inside Chromium on an unrelated Flatpak surface. Do not claim it works or enable a fullscreen GTK pointer-obscuring overlay; examine compositor/input-safe filter methods separately.
+- Re-run tests and manual preview with existing flags; no dashboard restart required, because this is Python-only.
+
 ## 23 October 2026 — Native B3 Pi visual FAIL and corrective test revision
 
 - Pre-fix Pi tests passed **16/16** bridge, **13/13** GTK; `/api/native-navigation/presentation` returned `viewport_width=853`, `viewport_height=480`, `drawer_width=839.33`, `drawer_height=69.33`, `drawer_bottom=8`, `button_height=56`, `font_size=18.72`, `astronomy_night=true` and brightness 0.80/0.53 across live states.
