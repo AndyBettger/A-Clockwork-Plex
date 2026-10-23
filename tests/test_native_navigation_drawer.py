@@ -262,13 +262,72 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "astronomy_night": True,
         }
         shaded = drawer.presentation_palette(colors, metrics)
-        self.assertEqual(shaded["handle_color"], "rgba(51, 13, 13, 0.88)")
+        self.assertEqual(shaded["handle_color"], "rgba(51, 0, 0, 0.88)")
         self.assertEqual(colors["handle_color"], "rgba(255, 64, 64, 0.88)")
         self.assertEqual(drawer.presentation_palette(
             colors, {**metrics, "astronomy_night": False,
                      "night_brightness": 1}), colors)
         self.assertIn("LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM",
                       SRC.read_text())
+
+    def test_native_compact_workspaces_match_acp_css_spacing(self):
+        src = SRC.read_text(encoding="utf-8")
+        nav_css = (ROOT / "app/static/css/nav.css").read_text()
+        self.assertIn("body.pack_start(workspaces, True, True, 0)", src)
+        self.assertIn("workspaces.pack_start(button, False, False, 0)", src)
+        self.assertNotIn("workspaces.pack_start(button, True, True, 0)", src)
+        self.assertIn("set_spacing(px(\"workspace_gap\"))", src)
+        self.assertIn("set_spacing(px(\"utility_gap\"))", src)
+        self.assertIn("font-weight: 700;", src)
+        self.assertIn(".acp-b3-nav label { font-weight: 700; }", src)
+        self.assertIn("flex: 1 1 auto;", nav_css)
+        self.assertIn(".nav-workspaces {", nav_css)
+        self.assertIn("gap: 5px;", nav_css)
+
+    def test_gtk_utilities_use_acp_vector_outline_and_dynamic_text_colour(self):
+        src = SRC.read_text(encoding="utf-8")
+        nav_template = (ROOT / "app/templates/_nav.html").read_text()
+        self.assertIn("for label in UTILITY_ITEMS:", src)
+        self.assertIn("glyph = Gtk.DrawingArea()", src)
+        self.assertIn('glyph.connect("draw", draw_acp_utility_symbol, label, button)', src)
+        self.assertIn("button.get_accessible().set_name(label)", src)
+        self.assertNotIn('Gtk.Button(label=glyph)', src)
+        self.assertIn('viewBox="0 0 24 24"', nav_template)
+        self.assertIn("cr.line_to(11.5, 18.5)", src)
+        self.assertIn("cr.arc(12, 11.35, 3.1", src)
+        widget = mock.Mock()
+        widget.get_allocated_width.return_value = 24
+        widget.get_allocated_height.return_value = 24
+        button = mock.Mock()
+        colour = mock.Mock(red=1.0, green=0.0, blue=0.0, alpha=1.0)
+        button.get_style_context.return_value.get_color.return_value = colour
+        for label in ("Audio", "Settings"):
+            context = mock.Mock()
+            self.assertIs(drawer.draw_acp_utility_symbol(widget, context, label, button), False)
+            context.set_source_rgba.assert_called_with(1.0, 0.0, 0.0, 1.0)
+            context.scale.assert_called_with(1.0, 1.0)
+            context.stroke.assert_called_once()
+            if label == "Audio":
+                context.curve_to.assert_called()
+            else:
+                context.arc.assert_called_once()
+
+    def test_astronomy_red_multiply_matches_bright_and_dimmed_acp_screenshots(self):
+        # ACP's multiply overlay eliminates the blue/green channels *after*
+        # the nav brightness filter. Pure RGBA pre-darkening alone went pink.
+        self.assertEqual(drawer.astronomy_red_color("rgb(255, 64, 64)", .8),
+                         "rgb(204, 0, 0)")
+        self.assertEqual(drawer.astronomy_red_color("rgb(255, 64, 64)", .53),
+                         "rgb(135, 0, 0)")
+        self.assertEqual(drawer.astronomy_red_color("rgba(96, 0, 0, 0.62)", .8),
+                         "rgba(77, 0, 0, 0.62)")
+        self.assertEqual(drawer.astronomy_red_color("rgba(255, 64, 64, 0.88)", .53),
+                         "rgba(135, 0, 0, 0.88)")
+        self.assertEqual(drawer.night_darken_color("rgb(255, 64, 64)", .8),
+                         "rgb(204, 51, 51)")
+        # This is opt-in: default accepted colour snapshot remains untouched.
+        pal = {key: "rgb(255, 64, 64)" for key in drawer.PALETTE_NAMES}
+        self.assertEqual(drawer.presentation_palette(pal, None), pal)
 
     def test_routes_are_explicitly_preview_only(self):
         self.assertEqual(drawer.NAV_ITEMS, (
