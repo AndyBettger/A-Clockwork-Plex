@@ -195,6 +195,33 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn('palette_snapshot.publish(', main)
         self.assertIn('palette_snapshot.read()', main)
 
+    def test_astronomy_red_owns_nav_after_daytime_theme_important_css(self):
+        base = (ROOT / "app/templates/base.html").read_text()
+        night = (ROOT / "app/static/css/night-navigation-closure.css").read_text()
+        original = (ROOT / "app/static/css/display-dimming.css").read_text()
+        followup = (ROOT / "app/static/css/daytime-theme-followup.css").read_text()
+        self.assertLess(base.index("css/daytime-theme-followup.css"),
+                        base.index("css/night-navigation-closure.css"))
+        self.assertIn("20261023-night-nav-v1", base)
+        self.assertIn(".nav-drawer .nav-button", followup)
+        self.assertIn("!important", followup)
+        self.assertIn(
+            "body.acp-night-style-astronomy.acp-night-dim-active"
+            ":not(.mode-alarm):not([data-active-page=\"alarm\"])",
+            night,
+        )
+        self.assertIn("#nav-drawer .nav-button.is-active", night)
+        self.assertIn("background: rgb(255, 64, 64) !important", night)
+        self.assertIn("background: rgba(96, 0, 0, 0.62) !important", night)
+        self.assertIn("#nav-drawer .nav-utilities", night)
+        self.assertIn("rgba(20, 0, 0, 0.96)", night)
+        self.assertIn("--acp-night-brightness", original)
+        self.assertNotIn("filter:", night)
+        # No non-night selector may override daytime, alarm or Classic night.
+        for selector in night.split("{")[:-1]:
+            if "body." in selector:
+                self.assertIn("acp-night-style-astronomy", selector)
+
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
