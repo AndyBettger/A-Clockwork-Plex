@@ -138,7 +138,50 @@ class PaletteSnapshot:
             return dict(self._value)
 
 
+PRESENTATION_KEYS = frozenset((
+    "viewport_width", "viewport_height", "drawer_width", "drawer_height",
+    "drawer_bottom", "drawer_padding", "workspace_gap", "utility_gap",
+    "button_height", "utility_size", "font_size",
+    "night_brightness", "astronomy_night",
+))
+PRESENTATION_LIMITS = {
+    "viewport_width": (320, 5000), "viewport_height": (240, 3000),
+    "drawer_width": (200, 5000), "drawer_height": (40, 220),
+    "drawer_bottom": (0, 60), "drawer_padding": (0, 32),
+    "workspace_gap": (0, 40), "utility_gap": (0, 40),
+    "button_height": (24, 140), "utility_size": (24, 140),
+    "font_size": (8, 40), "night_brightness": (0.05, 1.0),
+}
+
+
+def valid_presentation(data):
+    if type(data) is not dict or set(data) != PRESENTATION_KEYS:
+        return False
+    if type(data["astronomy_night"]) is not bool:
+        return False
+    if any(type(data[k]) not in (int, float) or not (
+        lo <= data[k] <= hi) for k, (lo, hi) in PRESENTATION_LIMITS.items()):
+        return False
+    if (data["drawer_width"] > data["viewport_width"]
+            or data["drawer_height"] > data["viewport_height"]):
+        return False
+    if not data["astronomy_night"] and data["night_brightness"] != 1.0:
+        return False
+    return True
+
+
+class PresentationSnapshot(PaletteSnapshot):
+    """Same local-only, expiring snapshot lifecycle as the B3 colour tokens."""
+    def publish(self, data):
+        if not valid_presentation(data):
+            raise NavigationError("Invalid navigation presentation metrics")
+        with self._guard:
+            self._value = dict(data)
+            self._updated_at = self._clock()
+
+
 palette_snapshot = PaletteSnapshot()
+presentation_snapshot = PresentationSnapshot()
 mailbox = NavigationMailbox()
 
 

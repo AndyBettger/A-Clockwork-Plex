@@ -167,6 +167,36 @@
       handle_color: styles[3].backgroundColor,
       utility_border: styles[4].borderLeftColor,
     };
+    // Observational geometry/brightness is deliberately separate from the
+    // accepted nine-colour snapshot; no HTML/CSS or configuration writes.
+    const px = (value) => Number.parseFloat(value) || 0;
+    const root = window.getComputedStyle(document.documentElement);
+    const astronomyNight = document.body.classList.contains('acp-night-dim-active')
+      && document.body.classList.contains('acp-night-style-astronomy')
+      && !document.body.classList.contains('mode-alarm')
+      && document.body.dataset.activePage !== 'alarm';
+    const rawBrightness = px(root.getPropertyValue('--acp-night-brightness'));
+    const presentation = {
+      viewport_width: window.innerWidth,
+      viewport_height: window.innerHeight,
+      drawer_width: drawer.getBoundingClientRect().width,
+      drawer_height: drawer.getBoundingClientRect().height,
+      drawer_bottom: px(styles[0].bottom),
+      drawer_padding: px(styles[0].paddingTop),
+      workspace_gap: px(window.getComputedStyle(drawer.querySelector('.nav-workspaces')).gap),
+      utility_gap: px(window.getComputedStyle(utilities).gap),
+      button_height: button.getBoundingClientRect().height,
+      utility_size: utilities.querySelector('.nav-utility-button')?.getBoundingClientRect().width || 0,
+      font_size: px(styles[1].fontSize),
+      night_brightness: astronomyNight
+        ? Math.min(1, Math.max(0.05, rawBrightness || 0.18)) : 1,
+      astronomy_night: astronomyNight,
+    };
+    // Fail closed on missing nodes or nonsensical dimensions.
+    const validMeasurements = Number.isFinite(presentation.drawer_width)
+      && presentation.drawer_width >= 200
+      && presentation.drawer_height >= 40
+      && presentation.utility_size >= 24;
     palettePublishing = true;
     try {
       await fetch('/api/native-navigation/palette', {
@@ -175,6 +205,14 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      if (validMeasurements) {
+        await fetch('/api/native-navigation/presentation', {
+          method: 'POST',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(presentation),
+        });
+      }
     } catch (error) {
       // Best-effort observational channel; never block navigation or the C3 OSK.
     } finally {
