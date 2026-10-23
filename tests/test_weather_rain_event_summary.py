@@ -34,8 +34,13 @@ def load_rain_helpers() -> ModuleType:
     # dependencies rather than silently loading Flask-heavy dashboard code.
     module.rain_gauges = lambda *_args, **_kwargs: []
     module.rain_gauge = lambda *_args, **_kwargs: None
-    isolated_tree = ast.Module(body=selected, type_ignores=[])
-    exec(compile(isolated_tree, str(_CORE_FILE), "exec"), module.__dict__)
+    # dashboard_core.py uses postponed type annotations; preserve that
+    # compilation feature so symbols such as Any need not be runtime imports.
+    future = ast.ImportFrom(module="__future__",
+                            names=[ast.alias(name="annotations")], level=0)
+    isolated_tree = ast.Module(body=[future, *selected], type_ignores=[])
+    exec(compile(ast.fix_missing_locations(isolated_tree),
+                 str(_CORE_FILE), "exec"), module.__dict__)
     return module
 
 
