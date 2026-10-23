@@ -1,11 +1,46 @@
 from __future__ import annotations
 
+import ast
+from datetime import datetime
+import math
+from pathlib import Path
+from types import ModuleType
 import unittest
 from unittest.mock import patch
-from pathlib import Path
 
-from app import dashboard_core as core
-from app.dashboard_core import rain_event_summary
+
+# System Python on the Pi deliberately does not include Flask. These tests
+# execute the actual, selected pure rain helpers directly from dashboard_core,
+# without importing the Flask application or replacing system dependencies.
+_CORE_FILE = Path(__file__).resolve().parents[1] / "app/dashboard_core.py"
+_FUNCTIONS = {
+    "parse_float", "parse_datetime", "weather_units", "inches_to_mm",
+    "mm_to_inches", "format_float", "dynamic_rain_max_mm",
+    "format_rain_mm", "rain_event_summary", "rain_overview_data",
+}
+
+
+def load_rain_helpers() -> ModuleType:
+    tree = ast.parse(_CORE_FILE.read_text(encoding="utf-8"),
+                     filename=str(_CORE_FILE))
+    selected = [node for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name in _FUNCTIONS]
+    found = {node.name for node in selected}
+    if found != _FUNCTIONS:
+        raise AssertionError(f"Missing real rain helpers: {_FUNCTIONS - found}")
+    module = ModuleType("acp_rain_helper_test")
+    module.__dict__.update({"datetime": datetime, "math": math})
+    # These are mocked in the focused presentation tests; make them explicit
+    # dependencies rather than silently loading Flask-heavy dashboard code.
+    module.rain_gauges = lambda *_args, **_kwargs: []
+    module.rain_gauge = lambda *_args, **_kwargs: None
+    isolated_tree = ast.Module(body=selected, type_ignores=[])
+    exec(compile(isolated_tree, str(_CORE_FILE), "exec"), module.__dict__)
+    return module
+
+
+core = load_rain_helpers()
+rain_event_summary = core.rain_event_summary
 
 
 class WeatherRainEventSummaryTests(unittest.TestCase):
