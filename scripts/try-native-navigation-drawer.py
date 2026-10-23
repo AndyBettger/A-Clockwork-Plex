@@ -40,6 +40,7 @@ NAVIGATION_URL = "http://127.0.0.1:8088/api/native-navigation/request"
 STATUS_URL = "http://127.0.0.1:8088/api/native-navigation/status"
 PALETTE_URL = "http://127.0.0.1:8088/api/native-navigation/palette"
 PALETTE_REFRESH_MS = 4000
+PRESENTATION_URL = "http://127.0.0.1:8088/api/native-navigation/presentation"
 PREPARE_TIMEOUT_SECONDS = 10.0
 HANDOFF_POLL_MS = 180
 CURTAIN_FOCUS_SETTLE_MS = 85
@@ -152,6 +153,94 @@ def palette_css(value: dict[str, str]) -> bytes:
     """).encode("ascii")
 
 
+PRESENTATION_NUMBERS = {
+    "viewport_width": (320, 5000), "viewport_height": (240, 3000),
+    "drawer_width": (200, 5000), "drawer_height": (40, 220),
+    "drawer_bottom": (0, 60), "drawer_padding": (0, 32),
+    "workspace_gap": (0, 40), "utility_gap": (0, 40),
+    "button_height": (24, 140), "utility_size": (24, 140),
+    "font_size": (8, 40), "night_brightness": (0.05, 1.0),
+}
+
+
+def valid_presentation(value) -> bool:
+    return (type(value) is dict
+            and set(value) == set(PRESENTATION_NUMBERS) | {"astronomy_night"}
+            and type(value["astronomy_night"]) is bool
+            and all(type(value[key]) in (int, float) and low <= value[key] <= high
+                    for key, (low, high) in PRESENTATION_NUMBERS.items())
+            and value["drawer_width"] <= value["viewport_width"]
+            and value["drawer_height"] <= value["viewport_height"]
+            and (value["astronomy_night"] or value["night_brightness"] == 1.0))
+
+
+def fetch_acp_presentation() -> dict | None:
+    req = urllib.request.Request(
+        PRESENTATION_URL, method="GET",
+        headers={"X-ACP-B3-Source": "native-gtk-b3-dev"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=0.35) as response:
+            payload = json.load(response)
+        data = payload.get("presentation")
+        if payload.get("ok") is True and valid_presentation(data):
+            return data
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        pass
+    return None
+
+
+def presentation_scale(data, monitor_width: int, monitor_height: int) -> float | None:
+    """GTK geometry is physical display logical px; reject inconsistent zoom."""
+    if not valid_presentation(data):
+        return None
+    x = monitor_width / data["viewport_width"]
+    y = monitor_height / data["viewport_height"]
+    if not (0.5 <= x <= 2.5 and 0.5 <= y <= 2.5):
+        return None
+    if abs(x - y) > 0.05 * max(x, y):
+        return None
+    return (x + y) / 2.0
+
+
+_RGB_COLOR = re.compile(r"rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([\d.]+))?\s*\)\Z")
+
+
+def night_darken_color(value: str, factor: float) -> str:
+    """Simulate Chromium's nav filter: brightness(), preserving alpha.
+
+    GTK3 layer-shell cannot apply the browser's CSS filter. Multiplying RGB
+    components instead of making the whole drawer transparent avoids revealing
+    Plexamp controls through the darkened navigation background.
+    """
+    match = _RGB_COLOR.fullmatch(value)
+    if match:
+        rgb = [min(255, round(int(match.group(n)) * factor)) for n in (1, 2, 3)]
+        return (f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {match.group(4)})"
+                if match.group(4) is not None
+                else f"rgb({rgb[0]}, {rgb[1]}, {rgb[2]})")
+    if re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+        rgb = [round(int(value[i:i + 2], 16) * factor) for i in (1, 3, 5)]
+        return "rgb(" + ", ".join(map(str, rgb)) + ")"
+    return value
+
+
+def presentation_palette(palette: dict, presentation: dict | None) -> dict:
+    if not valid_palette(palette):
+        raise ValueError("Invalid colour palette")
+    if not valid_presentation(presentation) or not presentation["astronomy_night"]:
+        return dict(palette)
+    return {key: night_darken_color(color, presentation["night_brightness"])
+            for key, color in palette.items()}
+
+
+def presentation_css(presentation: dict, scale: float) -> bytes:
+    if not valid_presentation(presentation) or scale is None:
+        return b""
+    font = max(8, min(50, round(presentation["font_size"] * scale)))
+    return f".acp-b3-nav {{ font-size: {font}px; }}".encode("ascii")
+
+
 def load_indicator():
     spec = importlib.util.spec_from_file_location("acp_b3_indicator", INDICATOR)
     if not spec or not spec.loader:
@@ -233,7 +322,7 @@ def make_layer_window(Gtk, LayerShell, width: int, height: int,
 
 def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             route_pages: bool = False, curtain_handoff: bool = False,
-            theme_from_acp: bool = False):
+            theme_from_acp: bool = False, presentation_from_acp: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -340,16 +429,70 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     state = {"drawer": False, "keyboard": None, "stopping": False,
              "handoff_pending": False, "curtain_active": False}
     last_palette = {"value": None}
+    last_presentation = {"value": None}
+    layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
+    workspace_buttons = []
+    utility_buttons = []
+
+    def update_styles():
+        palette = last_palette["value"]
+        metrics = last_presentation["value"] if presentation_from_acp else None
+        scale = presentation_scale(metrics, width, height) if metrics else None
+        applied = presentation_palette(palette, metrics if scale else None) if palette else None
+        provider.load_from_data(css
+            + (palette_css(applied) if applied else b"")
+            + (presentation_css(metrics, scale) if scale else b""))
 
     def refresh_palette():
         snapshot = fetch_theme_palette()
         if snapshot == last_palette["value"]:
             return True
-        provider.load_from_data(css + (palette_css(snapshot) if snapshot else b""))
         last_palette["value"] = snapshot
+        update_styles()
         print("ACP B3: navigation theme " +
               ("synced from Chromium" if snapshot else "default Classic Dark fallback"),
               flush=True)
+        return True
+
+    def refresh_presentation():
+        snapshot = fetch_acp_presentation()
+        if snapshot == last_presentation["value"]:
+            return True
+        last_presentation["value"] = snapshot
+        scale = presentation_scale(snapshot, width, height) if snapshot else None
+        if scale is None:
+            layout.update(height=DRAWER_HEIGHT, bottom=DRAWER_BOTTOM_MARGIN)
+            drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
+            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
+            body.set_border_width(6)
+            workspaces.set_spacing(5)
+            utilities.set_spacing(4)
+            for button in workspace_buttons:
+                button.set_size_request(76, 56)
+            for button in utility_buttons:
+                button.set_size_request(56, 56)
+            print("ACP B3: presentation unavailable/mismatched; using tested geometry", flush=True)
+        else:
+            px = lambda name: round(snapshot[name] * scale)
+            layout.update(height=px("drawer_height"), bottom=px("drawer_bottom"))
+            drawer.set_size_request(px("drawer_width"), layout["height"])
+            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
+            body.set_border_width(px("drawer_padding"))
+            workspaces.set_spacing(px("workspace_gap"))
+            utilities.set_spacing(px("utility_gap"))
+            for button in workspace_buttons:
+                button.set_size_request(76, px("button_height"))
+            for button in utility_buttons:
+                button.set_size_request(px("utility_size"), px("button_height"))
+            print(f"ACP B3: presentation {px('drawer_width')}x{layout['height']}px "
+                  f"at bottom {layout['bottom']}px; Astronomy night "
+                  f"{'on' if snapshot['astronomy_night'] else 'off'}; "
+                  f"brightness {snapshot['night_brightness']:.2f}", flush=True)
+        if state["drawer"]:
+            LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
+                                  layout["height"] + layout["bottom"]
+                                  + OPEN_INDICATOR_EXTRA_GAP)
+        update_styles()
         return True
     def stop_once(reason):
         if state["stopping"]:
@@ -364,7 +507,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         # Keep handle and drawer in step, as in ACP's accepted nav.css.
         state["drawer"] = opened
         LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
-                              indicator_margin(opened))
+            (layout["height"] + layout["bottom"] + OPEN_INDICATOR_EXTRA_GAP)
+            if opened else 0)
         if opened:
             drawer.show_all()
         else:
@@ -507,6 +651,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             button.get_style_context().add_class("acp-b3-active")
         button.connect("clicked", select_destination, item)
         workspaces.pack_start(button, True, True, 0)
+        workspace_buttons.append(button)
 
     for label, glyph in (("Audio", "♪"), ("Settings", "⚙")):
         button = Gtk.Button(label=glyph)
@@ -516,6 +661,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         button.get_style_context().add_class("acp-b3-utility")
         button.connect("clicked", select_destination, label)
         utilities.pack_start(button, False, False, 0)
+        utility_buttons.append(button)
 
     # B3 still lacks actual ACP page selection; keep a small explicit escape.
     escape = Gtk.Button(label="ACP")
@@ -567,6 +713,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     if theme_from_acp:
         refresh_palette()
         GLib.timeout_add(PALETTE_REFRESH_MS, refresh_palette)
+    if presentation_from_acp:
+        refresh_presentation()
+        GLib.timeout_add(PALETTE_REFRESH_MS, refresh_presentation)
     GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing preview"))
     print(f"ACP B3: preview for at most {seconds}s, indicator {bar_width}x{bar_height}px;"
           " tap opens drawer; "
@@ -596,6 +745,8 @@ def main() -> int:
                         help="experimental GTK cover until Chromium confirms painted focus")
     parser.add_argument("--theme-from-acp", action="store_true",
                         help="opt in to read-only live ACP drawer colour synchronisation")
+    parser.add_argument("--presentation-from-acp", action="store_true",
+                        help="experimental geometry/night brightness from ACP, requires --theme-from-acp")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -605,6 +756,8 @@ def main() -> int:
         parser.error("--curtain-handoff requires --show and --route-pages")
     if args.theme_from_acp and not args.show:
         parser.error("--theme-from-acp requires --show")
+    if args.presentation_from_acp and not (args.theme_from_acp and args.show):
+        parser.error("--presentation-from-acp requires --show and --theme-from-acp")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -626,7 +779,8 @@ def main() -> int:
                                + detail + "; no native navigation overlay shown")
         present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds,
                 route_pages=args.route_pages, curtain_handoff=args.curtain_handoff,
-                theme_from_acp=args.theme_from_acp)
+                theme_from_acp=args.theme_from_acp,
+                presentation_from_acp=args.presentation_from_acp)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
