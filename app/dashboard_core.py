@@ -667,6 +667,45 @@ def rain_gauges(field_ids: list[str], config: dict[str, Any], weather: dict[str,
     return [gauge for field_id in field_ids if (gauge := rain_gauge(field_id, config, weather))]
 
 
+def rain_overview_data(
+    config: dict[str, Any],
+    weather: dict[str, Any],
+    state: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, str] | None]:
+    """Present a derived active event once, without discarding source data.
+
+    Normal Event Rain and the derived active-event total can represent the
+    same amount. If they match at displayed precision, keep just the normal
+    gauge. If they differ, display the derived total as a normal gauge WITHIN
+    the current-rain group rather than a freestanding duplicate-looking card.
+    Historic last-event information remains as a compact note.
+    """
+    gauges = rain_gauges(
+        ["rain_rate", "hourly_rain", "daily_rain", "event_rain"],
+        config, weather,
+    )
+    summary = rain_event_summary(config, state)
+    if summary and summary["kind"] == "active":
+        source_gauge = rain_gauge("event_rain", config, weather)
+        if not source_gauge or source_gauge["value"] != summary["value"]:
+            derived = state.get("weather_rain_derived")
+            if isinstance(derived, dict):
+                total_in = parse_float(derived.get("event_total_in"))
+                if total_in is not None and total_in > 0:
+                    amount_mm = inches_to_mm(total_in)
+                    maximum_mm = dynamic_rain_max_mm(amount_mm)
+                    gauges.append({
+                        "label": summary["label"],
+                        "value": summary["value"],
+                        "max_label": format_rain_mm(maximum_mm, config),
+                        "percent": round(min(100, amount_mm / maximum_mm * 100), 1)
+                        if maximum_mm > 0 else 0,
+                        "note": summary["detail"],
+                    })
+        summary = None
+    return gauges, summary
+
+
 def rain_event_summary(config: dict[str, Any], state: dict[str, Any]) -> dict[str, str] | None:
     weather_config = config.get("weather") if isinstance(config.get("weather"), dict) else {}
     if str(weather_config.get("provider") or "").strip().lower() != "weather_underground":
@@ -831,12 +870,13 @@ def barometer_status(config: dict[str, Any], weather: dict[str, Any], state: dic
 
 
 def weather_detail_data(config: dict[str, Any], weather: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    current_rain_gauges, rain_note = rain_overview_data(config, weather, state)
     return {
         "issued_at": format_display_datetime(state.get("last_weather_update")),
         "condition_rows": condition_rows(config, weather, state),
         "atmosphere": weather_items(["solar", "uv", "vpd"], config, weather),
-        "rain_today_gauges": rain_gauges(["rain_rate", "hourly_rain", "daily_rain", "event_rain"], config, weather),
-        "rain_event_summary": rain_event_summary(config, state),
+        "rain_today_gauges": current_rain_gauges,
+        "rain_event_summary": rain_note,
         "rain_longer_gauges": rain_gauges(["weekly_rain", "monthly_rain", "yearly_rain", "total_rain"], config, weather),
         "station_status": weather_items(
             ["station_type", "model", "frequency", "upload_interval", "last_station_update", "sensor_battery"],

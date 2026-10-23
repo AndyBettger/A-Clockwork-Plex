@@ -138,7 +138,7 @@
       <article class="detail-panel rain-panel">
         <h2>Rain</h2>
         <div class="rain-overview-scroll" aria-label="Current and historical rainfall summaries">
-          {% if weather_detail.rain_today_gauges %}
+          {% if weather_detail.rain_today_gauges or weather_detail.rain_event_summary %}
             <section class="rain-subpanel rain-current-subpanel">
               <h3>Mostly Moist Today</h3>
               <div class="rain-gauge-row compact-gauges">
@@ -151,18 +151,20 @@
                       <span>{{ gauge.label }}</span>
                       <strong>{{ gauge.value }}</strong>
                       <small>Scale {{ gauge.max_label }}</small>
+                      {% if gauge.note %}
+                        <small class="rain-coverage-note">{{ gauge.note }}</small>
+                      {% endif %}
                     </div>
                   </div>
                 {% endfor %}
               </div>
-            </section>
-          {% endif %}
-
-          {% if weather_detail.rain_event_summary %}
-            <section class="rain-event-summary is-{{ weather_detail.rain_event_summary.kind }}">
-              <span>{{ weather_detail.rain_event_summary.label }}</span>
-              <strong>{{ weather_detail.rain_event_summary.value }}</strong>
-              <small>{{ weather_detail.rain_event_summary.detail }}</small>
+              {% if weather_detail.rain_event_summary %}
+                <p class="rain-event-note">
+                  {{ weather_detail.rain_event_summary.label }}:
+                  <strong>{{ weather_detail.rain_event_summary.value }}</strong>
+                  <span>{{ weather_detail.rain_event_summary.detail }}</span>
+                </p>
+              {% endif %}
             </section>
           {% endif %}
 

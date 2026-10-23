@@ -70,6 +70,34 @@ body.acp-night-style-astronomy.acp-night-dim-active .nav-utilities {
   border-inline-start-color: rgba(255, 72, 72, 0.24);
 }
 
+/*
+ * B3 23 Oct physical failure follow-up: Green Phosphor remains on the drawer
+ * when Astronomy night is active although the handle turns red. Place the
+ * strong night colours in the same proven-loaded stylesheet as the handle.
+ * Source-specific nav controls with !important can otherwise retain daytime
+ * paint. Scope to active Astronomy night and exclude alarm presentation.
+ *
+ * No separate dimming/filter implementation: the established night brightness
+ * filter above is still the only mechanism controlling perceived intensity.
+ */
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer {
+  background: rgba(20, 0, 0, 0.96) !important;
+  border-color: rgba(255, 58, 58, 0.28) !important;
+}
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button {
+  color: rgb(255, 92, 92) !important;
+  background: rgba(96, 0, 0, 0.62) !important;
+  border-color: rgba(255, 72, 72, 0.24) !important;
+  box-shadow: none !important;
+}
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button.is-active,
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button.is-active:is(:hover, :active) {
+  color: #1a0000 !important;
+  background: rgb(255, 64, 64) !important;
+  border-color: rgb(255, 64, 64) !important;
+  box-shadow: 0 0 18px rgba(255, 48, 48, 0.26) !important;
+}
+
 body.acp-night-style-astronomy.acp-night-dim-active .nav-handle span,
 body.acp-night-style-astronomy.acp-night-dim-active.nav-open .nav-handle span {
   background: rgba(255, 64, 64, 0.88);
