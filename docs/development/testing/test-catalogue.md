@@ -1,3 +1,9 @@
+## 24 October 2026 — optional Node syntax checker during Settings suite
+
+- Re-running with ACP project `venv/bin/python` (Flask confirmed available) collected **25 Settings tests**: **24 passed**, `test_followup_client_has_valid_javascript_syntax` raised `FileNotFoundError: node` on Pi lacking Node. Other **16 bridge** and **19 drawer** tests already passed.
+- New test-only guard: resolve Node with `shutil.which("node")`; if unavailable use `self.skipTest("Node.js not installed; JS syntax requires a Node-equipped test runner")`; otherwise execute `node --check` and assert exit code 0. This avoids an **ERROR** for absent developer tool without silently claiming JavaScript was syntax-checked. Expected Pi test result: **24 PASS + 1 SKIP**, not 25 PASS. Node-equipped CI still checks JS syntax; full `scripts/run-tests.sh` remains strict.
+- Run **`venv/bin/python -m unittest discover -s tests -p 'test_settings_physical_followup.py' -v`** (or `.venv/bin/python`) after pull. No Flask/Node system installs. Visual keyboard notice and native font remain pending.
+
 ## 24 October 2026 — Pi test command correction after clean B3 focused passes
 
 - **Pi results:** `py_compile` PASS; `test_native_navigation_bridge.py` **16/16 PASS**; `test_native_navigation_drawer.py` **19/19 PASS**.

@@ -5,6 +5,10 @@
 
 > **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
 
+## 24 October 2026 — Settings tests now execute; optional Node check corrected
+
+**Pi evidence after selecting ACP's existing venv:** Settings physical suite collected **25 tests**, **24 PASSED** and **one ERROR** in `test_followup_client_has_valid_javascript_syntax`, solely because `subprocess.run(["node", "--check", ...])` raised `FileNotFoundError: node` on the development Pi. Flask import verified present in project venv. The separate native B3 bridge **16/16** and GTK drawer **19/19** remain PASSED. No observed failed assertions in the application Settings tests. **New test-only fix (Pi rerun pending):** `shutil.which("node")` and `self.skipTest` when absent; keep real `node --check` and failure assertion on Node-equipped development/CI. Expected on Pi: **24 pass, 1 skipped, 0 errors**; total three focused suites: **59 pass, 1 skipped**. This is a missing optional local tool, **not a Settings runtime bug**. Do not install Node/system Flask or weaken `scripts/run-tests.sh` (full suite requires Node). Visual checks of B3 font and Settings OSK toast remain pending.
+
 ## 24 October 2026 — focused Pi test runner correction (no application defect)
 
 **Pi test evidence after font/OSK-CSS branch update:** `python3 -m py_compile` PASS, B3 bridge **16/16 PASS**, native drawer **19/19 PASS** (including the new Pango font logic). The separately requested Settings suite did **not run**: `test_settings_physical_followup.py` imports `test_unified_settings.py`, which imports Flask, and system `python3` on this Pi reports `ModuleNotFoundError: No module named 'flask'` during collection (`_FailedTest`). This is a **mistake in the issued test command**, not a demonstrated Settings assertion failure or regression; Settings **25 tests still pending**.
