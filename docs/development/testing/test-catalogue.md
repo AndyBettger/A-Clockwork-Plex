@@ -1,3 +1,9 @@
+## 25 October 2026 — GTK font diagnosis: system fallback versus ACP web font
+
+- Latest Pi bounded preview showed `ACP B3: navigation label font: DejaVu Sans Bold (Atkinson web font unavailable to GTK)`; `fc-match` for `Atkinson Hyperlegible` also returns DejaVu Sans. Screenshots show closer weight but not exact ACP label glyphs. Chromium downloads Atkinson as a web font via `app/static/css/typography.css`, which GTK cannot see without a system installation.
+- Debian's official package `fonts-atkinson-hyperlegible-ttf` is the preferred opt-in remedy (available from trixie/Raspbian package repositories). Before recommending `sudo apt install`, confirm candidate with `apt-cache policy fonts-atkinson-hyperlegible-ttf`. Then verify fontconfig and relaunch GTK bounded preview: expect log `Atkinson Hyperlegible Bold`. If unavailable, retain DejaVu fallback; do not add downloaded font binaries to repo. **Test and exact pixel/weight parity pending; installation is not automatic.**
+- Operator's GTK preview was otherwise positive (SVG utility icons, framed box, Astronomy night palette, Weather focus/painted acknowledgment). Settings OSK notification display not yet retested visually. Existing focused test results 16 bridge PASS + 19 GTK PASS + 24 Settings PASS, 1 explicit Node skip.
+
 ## 25 October 2026 — Pi focused tests green; visual verification queued
 
 - Operator pulled `d8b50c66` and reran Settings using ACP's Flask-enabled venv. **Ran 25 tests; OK (skipped=1)**: 24 pass, one skipped due to no Node.js. Earlier B3 native bridge 16/16 and GTK drawer 19/19 pass. All three focused suites: **59 pass, 1 skipped, 0 errors**. The Pi did **not** run JavaScript syntax checking; that remains a Node-equipped development/CI responsibility.
