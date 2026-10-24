@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import unittest
 from copy import deepcopy
@@ -194,8 +195,14 @@ default
         self.assertNotIn("rgba(255, 233, 156", self.css)
 
     def test_followup_client_has_valid_javascript_syntax(self):
+        # The development Pi intentionally has no Node.js. This must remain
+        # a real syntax assertion on Node-equipped developer/CI machines,
+        # not a FileNotFoundError that hides the other Settings results.
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js not installed; JS syntax requires a Node-equipped test runner")
         result = subprocess.run(
-            ["node", "--check", "app/static/js/settings-physical-followup.js"],
+            [node, "--check", "app/static/js/settings-physical-followup.js"],
             check=False,
             capture_output=True,
             text=True,
