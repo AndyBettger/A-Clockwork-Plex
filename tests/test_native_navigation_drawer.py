@@ -279,10 +279,48 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn("set_spacing(px(\"workspace_gap\"))", src)
         self.assertIn("set_spacing(px(\"utility_gap\"))", src)
         self.assertIn("font-weight: 700;", src)
-        self.assertIn(".acp-b3-nav label { font-weight: 700; }", src)
+        self.assertIn('font-family: "Atkinson Hyperlegible", "DejaVu Sans", sans-serif;', src)
         self.assertIn("flex: 1 1 auto;", nav_css)
         self.assertIn(".nav-workspaces {", nav_css)
         self.assertIn("gap: 5px;", nav_css)
+
+    def test_native_navigation_font_uses_pango_bold_and_local_font_fallback(self):
+        src = SRC.read_text(encoding="utf-8")
+        typography = (ROOT / "app/static/css/typography.css").read_text()
+        self.assertIn('--ui-font: "Atkinson Hyperlegible"', typography)
+        self.assertIn("label = Gtk.Label(label=item)", src)
+        self.assertIn("workspace_labels.append(label)", src)
+        self.assertIn("from gi.repository import GdkPixbuf, Pango", src)
+        self.assertIn("apply_navigation_labels(Pango, workspace_labels,", src)
+
+        pango_context = mock.Mock()
+        pango_context.list_families.return_value = [
+            mock.Mock(get_name=lambda: "DejaVu Sans"),
+            mock.Mock(get_name=lambda: "Atkinson Hyperlegible"),
+        ]
+        self.assertEqual(drawer.choose_navigation_font(pango_context),
+                         "Atkinson Hyperlegible")
+        pango_context.list_families.return_value = [
+            mock.Mock(get_name=lambda: "DejaVu Sans"),
+        ]
+        self.assertEqual(drawer.choose_navigation_font(pango_context),
+                         "DejaVu Sans")
+        pango_context.list_families.side_effect = AttributeError("No font map")
+        self.assertEqual(drawer.choose_navigation_font(pango_context),
+                         "DejaVu Sans")
+
+        Pango = mock.Mock()
+        Pango.Weight.BOLD = 700
+        Pango.SCALE = 1024
+        Pango.AttrList.side_effect = lambda: mock.Mock()
+        label = mock.Mock()
+        drawer.apply_navigation_labels(Pango, [label], "DejaVu Sans", 18.72)
+        Pango.attr_family_new.assert_called_with("DejaVu Sans")
+        Pango.attr_weight_new.assert_called_with(700)
+        Pango.attr_size_new_absolute.assert_called_with(19 * 1024)
+        label.set_attributes.assert_called_once()
+        drawer.apply_navigation_labels(Pango, [label], "DejaVu Sans", 500)
+        Pango.attr_size_new_absolute.assert_called_with(50 * 1024)
 
     def test_gtk_utilities_use_acp_svg_pixbuf_not_cairo_foreign_converter(self):
         source = SRC.read_text(encoding="utf-8")
