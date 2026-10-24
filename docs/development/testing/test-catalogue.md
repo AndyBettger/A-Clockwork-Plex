@@ -1,3 +1,10 @@
+## 24 October 2026 — Native B3 font and Settings OSK status correction
+
+- Previous Pi iteration physically PASSED 16/16 bridge, 18/18 GTK tests; SVG Audio/Settings icons and window-backed rounded frame visible in Astronomy Red and Midnight Blue. Opt-in Weather handoff reaches focus+painted. Label weight/font still visually mismatched versus ACP.
+- GTK preview now uses explicit `Gtk.Label` children with Pango font family, bold weight 700 and ACP-measured font pixel size. Detects Atkinson Hyperlegible in GTK's installed font map, otherwise logs/uses bold DejaVu Sans. This **does not install or distribute fonts**. Expected `tests/test_native_navigation_drawer.py`: **19**.
+- Display night-time edit with keyboard open exposed an oversized `1 section changed` *staged/unsaved* banner. `settings-physical-followup.css` now strictly resets top/bottom/height, temporarily hides ordinary save-status notices while OSK open and retains visible error notices, without editing transactional save JavaScript. Settings CSS URL cache-bumped. Expected `tests/test_settings_physical_followup.py`: **25**.
+- Expected B3 bridge **16** unchanged. Run focused suites and inspect Pi visual/UI states; static tests do not establish render parity. Restart ACP and hard-refresh Settings after pulling CSS; native preview itself remains opt-in.
+
 ## 23 October 2026 — Native GTK icon-converter failure and subsequent patch
 
 - Pi tests 16/16 B3 bridge and 16/16 drawer **PASSED**, but GTK draw callbacks failed repeatedly with `TypeError: Couldn't find foreign struct converter for 'cairo.Context'`. Tests had only mocked a passed-in Cairo context rather than asking GTK to invoke its actual handler, so no icons were visible. The drawer still lacked a painted outer-frame appearance and stock GTK `:active` painted Weather grey; browser/GTK drawer geometry now closer.

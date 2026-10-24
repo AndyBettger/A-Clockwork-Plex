@@ -1,9 +1,15 @@
 # A Clockwork Plex Roadmap
 
-**Updated:** 23 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
+**Updated:** 24 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
 **Working feature branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
+
+## 24 October 2026 — Pi checks accepted; font mismatch and oversized Settings notice
+
+**Physical Pi acceptance:** After the SVG/GdkPixbuf and window-backed GTK drawer corrections, **16/16 B3 bridge + 18/18 GTK tests PASSED**; screenshots show both native Audio and Settings icons, a complete rounded navigation frame, a good-looking Astronomy Red drawer, and a coherent Midnight Blue drawer. Native Plexamp→Weather prepared/focused/painted curtain handoff also PASSED again. **Remaining visual discrepancy:** workspace label typeface is noticeably thinner/different than ACP's real font in the comparison screenshot; static SVG/icons and frame are fine. **Squeekboard/settings side issue:** when editing Display > scheduled night dimming start/end times, top-right `1 section changed` status ballooned into a huge tall rectangle while keyboard open (normal compact `Saving changes` notice when closed). That banner indicates *staged unsaved edits*, not a confirmed save.
+
+**New staged follow-up awaiting Pi acceptance:** Native preview explicitly renders workspace labels using Pango bold at the measured ACP font size. Uses `Atkinson Hyperlegible` if already installed as a *system* face; otherwise explicitly bold `DejaVu Sans` with a logged diagnostic (ACP fetches Atkinson as a Chromium web font, which does not make it available to GTK). This is a best-effort font improvement, **not yet a promise of exact font parity**. Settings-only CSS now prevents the legacy keyboard-bottom anchor stretching the newer top-right save toast; normal dirty/status toast is hidden **only while the OSK is open** and returns afterward, while actual errors remain visible. Existing save/validation/keyboard state machine untouched. Font and status tests expanded: focused expectations now **bridge 16, drawer 19, settings physical 25**. `settings-physical-followup.css` cache key bumped in `base.html`, so **restart ACP and hard refresh Settings once** for that CSS. No boot/audio changes. Separate native full-window Astronomy Red filter remains unsolved; no unsafe tint overlay.
 
 ## Latest Pi finding — 23 October, GTK SVG runtime & native night overlay
 
