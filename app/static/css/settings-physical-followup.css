@@ -382,3 +382,27 @@ body.mode-settings .setting-toggle {
     gap: 8px;
   }
 }
+/* Settings: when Squeekboard opens, do not let the older bottom-positioned
+   save notice combine with the newer top-right toast and stretch across
+   the screen. Hide routine staged/autosave feedback while editing; the category
+   dirty dot remains visible and the toast returns when the keyboard closes.
+   Keep real errors visible as compact notices, never as fullscreen panels. */
+body.mode-settings.keyboard-open .settings-save-bar {
+  top: 10px;
+  bottom: auto !important;
+  left: auto;
+  height: auto !important;
+  min-height: 0;
+  max-height: 86px;
+  overflow: hidden;
+  align-items: center;
+}
+body.mode-settings.settings-autosave-enabled.keyboard-open .settings-save-bar:not(.is-error) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+body.mode-settings.settings-autosave-enabled.keyboard-open .settings-save-bar.is-error {
+  opacity: 1;
+  visibility: visible;
+}
+

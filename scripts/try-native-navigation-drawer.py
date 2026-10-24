@@ -261,6 +261,32 @@ def presentation_palette(palette: dict, presentation: dict | None) -> dict:
             for key, color in palette.items()}
 
 
+def choose_navigation_font(pango_context) -> str:
+    """Prefer ACP's Atkinson face when available to GTK/Pango."""
+    try:
+        families = {family.get_name().casefold()
+                    for family in pango_context.list_families()}
+    except (AttributeError, TypeError):
+        families = set()
+    return ("Atkinson Hyperlegible"
+            if "atkinson hyperlegible" in families else "DejaVu Sans")
+
+
+def apply_navigation_labels(Pango, labels, family: str, size_px: float):
+    """Set real Pango font attributes, independent of GTK theme button CSS.
+
+    ACP loads Atkinson Hyperlegible as a Chromium web font; GTK can use it
+    only if the same face is also installed as a system font.
+    """
+    size = max(8, min(50, round(size_px)))
+    for label in labels:
+        attrs = Pango.AttrList()
+        attrs.insert(Pango.attr_family_new(family))
+        attrs.insert(Pango.attr_weight_new(Pango.Weight.BOLD))
+        attrs.insert(Pango.attr_size_new_absolute(size * Pango.SCALE))
+        label.set_attributes(attrs)
+
+
 def presentation_css(presentation: dict, scale: float) -> bytes:
     if not valid_presentation(presentation) or scale is None:
         return b""
@@ -451,7 +477,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         font-weight: 700;
         padding: 0 7px;
       }
-      .acp-b3-nav label { font-weight: 700; }
+      .acp-b3-nav label {
+        font-family: "Atkinson Hyperlegible", "DejaVu Sans", sans-serif;
+        font-weight: 700;
+      }
       .acp-b3-nav:hover { background-color: rgba(247,249,255,0.18); }
       /* Suppress stock GTK grey pressed backgrounds in Astronomy Red. */
       .acp-b3-nav:active, .acp-b3-nav:checked,
@@ -543,7 +572,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     workspace_buttons = []
     utility_buttons = []
     utility_images = []
-    from gi.repository import GdkPixbuf
+    workspace_labels = []
+    from gi.repository import GdkPixbuf, Pango
+    nav_font = {"family": None}
     icon_loader_warned = {"value": False}
 
     def update_styles():
@@ -554,6 +585,18 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         provider.load_from_data(css
             + (palette_css(applied) if applied else b"")
             + (presentation_css(metrics, scale) if scale else b""))
+        font_px = metrics["font_size"] * scale if scale else 16
+        if workspace_labels:
+            if nav_font["family"] is None:
+                nav_font["family"] = choose_navigation_font(
+                    workspace_labels[0].get_pango_context())
+                print("ACP B3: navigation label font: " + nav_font["family"]
+                      + (" Bold (ACP font available locally)"
+                         if nav_font["family"] == "Atkinson Hyperlegible"
+                         else " Bold (Atkinson web font unavailable to GTK)"),
+                      flush=True)
+            apply_navigation_labels(Pango, workspace_labels,
+                                    nav_font["family"], font_px)
         icon_color = applied["button_text"] if applied else "rgb(247,249,255)"
         exact = refresh_utility_images(Gtk, GdkPixbuf, utility_images, icon_color)
         if not exact and not icon_loader_warned["value"]:
@@ -761,7 +804,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             print(f"ACP B3: {name} selected (preview only; route not connected)", flush=True)
 
     for item in WORKSPACE_ITEMS:
-        button = Gtk.Button(label=item)
+        button = Gtk.Button()
+        label = Gtk.Label(label=item)
+        label.set_halign(Gtk.Align.CENTER)
+        label.set_valign(Gtk.Align.CENTER)
+        button.add(label)
+        workspace_labels.append(label)
         button.set_size_request(76, 56)
         button.get_style_context().add_class("acp-b3-nav")
         if item == "Plexamp":
