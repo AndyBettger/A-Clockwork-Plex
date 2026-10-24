@@ -1,3 +1,9 @@
+## 25 October 2026 — Pi focused tests green; visual verification queued
+
+- Operator pulled `d8b50c66` and reran Settings using ACP's Flask-enabled venv. **Ran 25 tests; OK (skipped=1)**: 24 pass, one skipped due to no Node.js. Earlier B3 native bridge 16/16 and GTK drawer 19/19 pass. All three focused suites: **59 pass, 1 skipped, 0 errors**. The Pi did **not** run JavaScript syntax checking; that remains a Node-equipped development/CI responsibility.
+- No code change needed from this outcome. Visual acceptance still pending: Settings > Display night start/end editor with OSK should not show the huge pending-change notice; ordinary save and error messaging still work; GTK native font diagnostic should indicate system Atkinson Hyperlegible availability or bold DejaVu Sans fallback; side-by-side native/ACP drawer comparison required.
+- To perform physical checks, restart `a-clockwork-plex.service`, hard refresh Settings, then native preview with existing `--show --seconds 120 --route-pages --curtain-handoff --theme-from-acp --presentation-from-acp` flags. Do not restart audio stack or install Node just for the optional focused syntax check.
+
 ## 24 October 2026 — optional Node syntax checker during Settings suite
 
 - Re-running with ACP project `venv/bin/python` (Flask confirmed available) collected **25 Settings tests**: **24 passed**, `test_followup_client_has_valid_javascript_syntax` raised `FileNotFoundError: node` on Pi lacking Node. Other **16 bridge** and **19 drawer** tests already passed.

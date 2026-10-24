@@ -1,7 +1,9 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** Phase A complete; Phase B active. **C3 native Squeekboard functionally accepted on the development Pi; current priority: native Plexamp navigation.**  
-**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 24 October 2026
+**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 25 October 2026
+
+**25 Oct Pi evidence — focused suites all green:** Latest pull `d8b50c66`; Settings suite via existing `$TEST_PYTHON` venv has **25 collected / 24 PASS / 1 SKIP / 0 errors**. Skip is only `node --check` on this Pi lacking Node, which is still required on Node-enabled developer/CI. Previous native bridge **16/16** and GTK drawer **19/19** PASS, hence **59 passing, one explicitly skipped** across three suites. Nothing else needs to be installed and no app-side code changes are indicated by this test result. Next physical acceptance: Settings OSK and small pending-changes toast after service restart and hard refresh; native GTK Pango font family diagnostic and side-by-side weight comparison, then return to animated navigation/full-screen Astronomy Red work after static parity. Last observed icon/frame/theme and Weather focus/painted handoff remain good.
 
 **24 Oct 2026 Settings virtualenv rerun + optional JS tool fix:** Project venv confirmed Flask; `test_settings_physical_followup.py` collected all **25**, with **24 passing** and **1 ERROR** due only to missing `node` during JS syntax check. Fixed test to `skipTest` when Node is absent but preserve strict `node --check` on Node-equipped systems. Expected Pi focused outcome **24 passed + 1 skipped** and existing B3 native suites **16 + 19 passed**. Full `scripts/run-tests.sh` retains Node requirement for repository JS checks. No production app/keyboard/audio changes; OSK toast appearance and Pango font still need physical acceptance.
 

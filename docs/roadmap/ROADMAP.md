@@ -1,9 +1,15 @@
 # A Clockwork Plex Roadmap
 
-**Updated:** 24 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
+**Updated:** 25 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
 **Working feature branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
+
+## 25 October 2026 — focused Pi test suites green; return to physical UI acceptance
+
+The operator pulled `d8b50c66` and reran `test_settings_physical_followup.py` under the existing ACP Python virtual environment. **25 collected; 24 PASS, 1 SKIP (Node.js not installed), 0 errors, overall OK (skipped=1).** The dedicated JS syntax assertion was explicitly skipped by the new optional-Node guard, **not validated** on the Pi. Earlier Pi results on this same branch remain **16/16 bridge** and **19/19 native GTK drawer** passing: **59 passed, 1 skipped across the three focused suites**. No runtime/configuration problem shown; no further packages or test-command changes required.
+
+**Next operator-facing checks (physical acceptance pending):** Restart ACP service and hard-refresh its Settings page to load `settings-physical-followup.css?v=20261024-keyboard-save-toast-v1`; open Settings > Display > night start/end time with Squeekboard visible and confirm that the massive `1 section changed` panel no longer covers the form, that staged changes still persist through normal save, and any genuine save error remains visible. Then focus native Plexamp and launch `scripts/try-native-navigation-drawer.py --show --seconds 120 --route-pages --curtain-handoff --theme-from-acp --presentation-from-acp`. Capture the diagnostic `ACP B3: navigation label font: ...`, compare workspace text weight/size against ACP, and confirm icon/frame/keyboard suppression/Weather handoff remain accepted. `fc-match` may help identify availability of Atkinson Hyperlegible to GTK. Native full-screen Astronomy Red filter and cross-app transition remain separate work. **Do not claim visual fixes accepted without Pi screenshots.**
 
 ## 24 October 2026 — Settings tests now execute; optional Node check corrected
 
