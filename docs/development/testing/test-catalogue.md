@@ -1,3 +1,10 @@
+## 24 October 2026 — Pi test command correction after clean B3 focused passes
+
+- **Pi results:** `py_compile` PASS; `test_native_navigation_bridge.py` **16/16 PASS**; `test_native_navigation_drawer.py` **19/19 PASS**.
+- **Settings suite was not exercised:** `python3 -m unittest discover -s tests -p 'test_settings_physical_followup.py' -v` produced `_FailedTest` at import because `test_unified_settings.py` imports `flask`, unavailable under OS `python3` on the Pi. **0/25 Settings tests executed; not a failed assertion.** This was caused by a wrong operator test command, not evidence of failed application logic.
+- **Run with project environment:** `venv/bin/python -c 'import flask'` and `venv/bin/python -m unittest discover -s tests -p 'test_settings_physical_followup.py' -v` (or `.venv/bin/python`). `scripts/run-tests.sh` already detects either environment and checks Flask; it requires Node for the broader all-tests suite, which need not be installed for this focused test. **Do not install Flask system-wide or isolate this full-stack Settings test just to use system Python.**
+- Once 25 Settings tests execute, recheck OSK-open Display night start/end fields and notice: no oversized `1 section changed` panel; errors remain visible; native drawer font and Weather handoff not yet physically checked on this revision.
+
 ## 24 October 2026 — Native B3 font and Settings OSK status correction
 
 - Previous Pi iteration physically PASSED 16/16 bridge, 18/18 GTK tests; SVG Audio/Settings icons and window-backed rounded frame visible in Astronomy Red and Midnight Blue. Opt-in Weather handoff reaches focus+painted. Label weight/font still visually mismatched versus ACP.
