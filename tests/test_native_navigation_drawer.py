@@ -427,6 +427,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         # Astronomy Red now has distinct hover and pressed fills. Neither
         # state may inherit the stock grey GTK background.
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
+        colors["curtain_background"] = "#101b2e"
         colors.update(button_background="rgba(96, 0, 0, 0.62)",
                       button_hover_background="rgba(135, 0, 0, 0.78)",
                       button_pressed_background="rgba(176, 0, 0, 0.86)",
@@ -461,6 +462,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
 
     def test_classic_dark_hover_only_and_strict_palette_contract(self):
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
+        colors["curtain_background"] = "#101b2e"
         colors.update(button_background="rgba(255, 255, 255, 0.12)",
                       button_hover_background="rgba(255, 255, 255, 0.22)",
                       button_pressed_background="rgba(255, 255, 255, 0.30)")
@@ -490,6 +492,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn("background-color: {value['button_background']}", source)
         self.assertIn("background-color: {value['button_pressed_background']}", source)
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
+        colors["curtain_background"] = "#101b2e"
         css = drawer.palette_css(colors)
         self.assertIn(b".acp-b3-nav:active", css)
         self.assertIn(b"background-color: rgb(15, 0, 0)", css)
@@ -511,6 +514,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
                          "rgb(204, 51, 51)")
         # This is opt-in: default accepted colour snapshot remains untouched.
         pal = {key: "rgb(255, 64, 64)" for key in drawer.PALETTE_NAMES}
+        pal["curtain_background"] = "#300000"
         self.assertEqual(drawer.presentation_palette(pal, None), pal)
 
     def test_routes_are_explicitly_preview_only(self):
