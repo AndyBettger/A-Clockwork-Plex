@@ -349,7 +349,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn('native_status_allowed(request)', main)
         self.assertIn('presentation_snapshot.publish(', main)
         self.assertIn('presentation_snapshot.read()', main)
-        self.assertIn("20261025-b3-stage-retry-v1", template)
+        self.assertIn("20261025-b3-lease-readiness-v1", template)
 
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()
