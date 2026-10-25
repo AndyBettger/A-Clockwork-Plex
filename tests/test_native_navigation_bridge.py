@@ -157,6 +157,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIsNone(snapshot.read())
         colors = {key: "rgb(10, 20, 30)" for key in nav.PALETTE_KEYS}
         colors["drawer_background"] = "rgba(6, 12, 22, 0.91)"
+        colors["button_hover_background"] = "rgba(255, 255, 255, 0.22)"
         snapshot.publish(colors)
         self.assertEqual(snapshot.read(), colors)
         colors["drawer_background"] = "rgb(0, 0, 0)"
@@ -186,6 +187,10 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         script = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
         main = (ROOT / "app/main.py").read_text()
         self.assertIn('window.getComputedStyle(node)', script)
+        self.assertIn("button_hover_background: buttonHover", script)
+        self.assertIn("=== 'classic_dark'", script)
+        self.assertIn("!astronomyNight && neutralHover", script)
+        self.assertIn("--acp-fill-control-hover-neutral", script)
         self.assertIn(".nav-button:not(.is-active)", script)
         self.assertIn('lastPaletteAttemptAt < 4000', script)
         self.assertIn("void publishPalette();", script)

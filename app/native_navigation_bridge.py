@@ -18,7 +18,7 @@ MAX_PALETTE_BODY_BYTES = 1024
 PALETTE_MAX_AGE_SECONDS = 20.0
 PALETTE_KEYS = frozenset((
     "drawer_background", "drawer_border", "button_background",
-    "button_border", "button_text", "active_background", "active_text",
+    "button_hover_background", "button_border", "button_text", "active_background", "active_text",
     "handle_color", "utility_border",
 ))
 COLOR_RE = re.compile(r"(?:rgba?\([\d.,%\s]+\)|#[\da-fA-F]{6,8}|transparent)\Z")

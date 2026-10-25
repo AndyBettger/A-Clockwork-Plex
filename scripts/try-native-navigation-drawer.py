@@ -101,7 +101,7 @@ def handoff_status(sequence: int) -> str:
 
 PALETTE_NAMES = frozenset((
     "drawer_background", "drawer_border", "button_background",
-    "button_border", "button_text", "active_background", "active_text",
+    "button_hover_background", "button_border", "button_text", "active_background", "active_text",
     "handle_color", "utility_border",
 ))
 PALETTE_COLOR = re.compile(r"(?:rgba?\([\d.,%\s]+\)|#[\da-fA-F]{6,8}|transparent)\Z")
@@ -139,11 +139,11 @@ def palette_css(value: dict[str, str]) -> bytes:
         background-color: {value['drawer_background']};
         border-color: {value['drawer_border']};
       }}
-      /* The static fallback :hover is more specific than its plain button
-         selector and previously won over the later palette's plain selector,
-         causing grey hover in Astronomy Red. Match all relevant GTK states. */
-      .acp-b3-nav, .acp-b3-nav:hover, .acp-b3-nav:focus,
-      .acp-b3-nav:hover:focus, .acp-b3-nav:backdrop {{
+      /* Preserve ACP's actual theme behaviour: Classic Dark has a
+         brighter neutral hover/pressed fill; themed buttons do not. Both
+         values are supplied by the validated Chromium palette snapshot.
+         Override GTK's built-in grey in every pseudo-state. */
+      .acp-b3-nav, .acp-b3-nav:focus, .acp-b3-nav:backdrop {{
         background-image: none;
         background-color: {value['button_background']};
         border-color: {value['button_border']};
@@ -151,10 +151,11 @@ def palette_css(value: dict[str, str]) -> bytes:
         box-shadow: none;
       }}
       .acp-b3-nav:active, .acp-b3-nav:checked,
+      .acp-b3-nav:hover, .acp-b3-nav:hover:focus,
       .acp-b3-nav:hover:active, .acp-b3-nav:focus:active,
-      .acp-b3-nav:hover:checked {{
+      .acp-b3-nav:hover:checked, .acp-b3-nav:backdrop:hover {{
         background-image: none;
-        background-color: {value['button_background']};
+        background-color: {value['button_hover_background']};
         border-color: {value['button_border']};
         color: {value['button_text']};
         box-shadow: none;

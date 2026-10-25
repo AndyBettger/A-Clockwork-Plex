@@ -156,10 +156,25 @@
     const styles = [drawer, button, active, handle, utilities].map(
       (node) => window.getComputedStyle(node),
     );
+    // Classic Dark alone retains the base .button:hover fill. ACP's
+    // other daytime themes override the button background (including hover),
+    // as does Astronomy Red at night. Publish the resolved hover colour,
+    // never infer the theme from an RGB value inside native GTK.
+    const root = window.getComputedStyle(document.documentElement);
+    const astronomyNight = document.body.classList.contains('acp-night-dim-active')
+      && document.body.classList.contains('acp-night-style-astronomy')
+      && !document.body.classList.contains('mode-alarm')
+      && document.body.dataset.activePage !== 'alarm';
+    const classicDark = (document.documentElement.dataset.daytimeTheme || 'classic_dark')
+      === 'classic_dark';
+    const neutralHover = root.getPropertyValue('--acp-fill-control-hover-neutral').trim();
+    const buttonHover = classicDark && !astronomyNight && neutralHover
+      ? neutralHover : styles[1].backgroundColor;
     const payload = {
       drawer_background: styles[0].backgroundColor,
       drawer_border: styles[0].borderTopColor,
       button_background: styles[1].backgroundColor,
+      button_hover_background: buttonHover,
       button_border: styles[1].borderTopColor,
       button_text: styles[1].color,
       active_background: styles[2].backgroundColor,
@@ -167,14 +182,9 @@
       handle_color: styles[3].backgroundColor,
       utility_border: styles[4].borderLeftColor,
     };
-    // Observational geometry/brightness is deliberately separate from the
-    // accepted nine-colour snapshot; no HTML/CSS or configuration writes.
+    // Geometry and night brightness remain a separate, opt-in snapshot;
+    // the tenth colour is read-only hover styling, not a preference.
     const px = (value) => Number.parseFloat(value) || 0;
-    const root = window.getComputedStyle(document.documentElement);
-    const astronomyNight = document.body.classList.contains('acp-night-dim-active')
-      && document.body.classList.contains('acp-night-style-astronomy')
-      && !document.body.classList.contains('mode-alarm')
-      && document.body.dataset.activePage !== 'alarm';
     const rawBrightness = px(root.getPropertyValue('--acp-night-brightness'));
     const presentation = {
       viewport_width: window.innerWidth,

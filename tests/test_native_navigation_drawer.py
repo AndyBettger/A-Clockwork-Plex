@@ -409,10 +409,11 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "emblem-system-symbolic", Gtk.IconSize.DIALOG)
 
     def test_dynamic_palette_owns_gtk_hover_focus_and_pressed_colours(self):
-        # Confirm the dynamic ACP palette overrides the static GTK :hover
-        # selector (which previously turned red navigation buttons grey).
+        # For Astronomy Red the hover colour is *identical* to the base colour;
+        # GTK's grey fallback must not break theme parity.
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
         colors.update(button_background="rgba(96, 0, 0, 0.62)",
+                      button_hover_background="rgba(96, 0, 0, 0.62)",
                       button_border="rgba(255, 72, 72, 0.24)",
                       button_text="rgb(255, 92, 92)",
                       active_background="rgb(255, 64, 64)",
@@ -428,9 +429,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             ".acp-b3-active:hover:active",
         ):
             self.assertIn(selector, generated)
-        # The effective red button background and text must occur inside
-        # the :hover selector's own rules, not only in the normal rule.
-        hover_rule = generated.split(".acp-b3-nav:backdrop {", 1)[1].split("}", 1)[0]
+        hover_rule = generated.split(".acp-b3-nav:backdrop:hover {", 1)[1].split("}", 1)[0]
         self.assertIn("background-color: rgba(96, 0, 0, 0.62);", hover_rule)
         self.assertIn("border-color: rgba(255, 72, 72, 0.24);", hover_rule)
         self.assertIn("color: rgb(255, 92, 92);", hover_rule)
@@ -441,6 +440,20 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         source = SRC.read_text(encoding="utf-8")
         self.assertIn("provider.load_from_data(css", source)
         self.assertIn("palette_css(applied)", source)
+
+    def test_classic_dark_hover_only_and_strict_palette_contract(self):
+        colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
+        colors.update(button_background="rgba(255, 255, 255, 0.12)",
+                      button_hover_background="rgba(255, 255, 255, 0.22)")
+        generated = drawer.palette_css(colors).decode("ascii")
+        normal_rule = generated.split(".acp-b3-nav:backdrop {", 1)[1].split("}", 1)[0]
+        hover_rule = generated.split(".acp-b3-nav:backdrop:hover {", 1)[1].split("}", 1)[0]
+        self.assertIn("background-color: rgba(255, 255, 255, 0.12);", normal_rule)
+        self.assertIn("background-color: rgba(255, 255, 255, 0.22);", hover_rule)
+        self.assertNotEqual(normal_rule, hover_rule)
+        with self.assertRaises(ValueError):
+            drawer.palette_css({k: v for k, v in colors.items()
+                                if k != "button_hover_background"})
 
     def test_drawer_has_window_backed_frame_and_theme_safe_pressed_state(self):
         source = SRC.read_text(encoding="utf-8")
