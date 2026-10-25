@@ -85,6 +85,26 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
+    def test_native_drawer_glide_is_opt_in_and_keyboard_handoff_interrupts(self):
+        self.assertEqual(drawer.drawer_motion_margins(0, 69, 8), (-69, 0))
+        self.assertEqual(drawer.drawer_motion_margins(1, 69, 8), (8, 81))
+        self.assertEqual(drawer.drawer_motion_margins(.5, 69, 8), (-30, 40))
+        self.assertEqual(drawer.drawer_motion_margins(-5, 69, 8), (-69, 0))
+        self.assertEqual(drawer.drawer_motion_margins(5, 69, 8), (8, 81))
+        self.assertEqual(drawer.drawer_motion_ease(0), 0)
+        self.assertEqual(drawer.drawer_motion_ease(1), 1)
+        self.assertGreater(drawer.drawer_motion_ease(.5), .5)
+        src = SRC.read_text(encoding="utf-8")
+        self.assertIn('parser.add_argument("--animate-drawer"', src)
+        self.assertIn('parser.error("--animate-drawer requires --show")', src)
+        self.assertIn("animate_drawer: bool = False", src)
+        self.assertIn('motion["epoch"] += 1', src)
+        self.assertIn('motion["epoch"] != epoch', src)
+        self.assertIn("GLib.timeout_add(DRAWER_MOTION_TICK_MS, motion_tick)", src)
+        self.assertIn("set_drawer_open(False, immediate=True)", src)
+        self.assertIn("place_drawer_motion(0.0)", src)
+        self.assertIn("DRAWER_MOTION_MS = 180", src)
+
     def test_acp_drawer_geometry_and_groups(self):
         self.assertEqual(drawer.drawer_width_for_screen(800, 480), 786)
         self.assertEqual(drawer.drawer_width_for_screen(1280, 720), 940)
@@ -99,7 +119,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertNotIn('Gtk.Label(label="A Clockwork Plex', src)
         self.assertIn("set_drawer_open(not state[\"drawer\"])", src)
         self.assertIn("LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM", src)
-        self.assertIn("set_drawer_open(False)\n            indicator.hide()", src)
+        self.assertIn("set_drawer_open(False, immediate=True)\n            indicator.hide()", src)
         self.assertIn("acp-b3-active", src)
         self.assertIn("acp-b3-utility-group", src)
         self.assertIn('escape.set_tooltip_text("Development only:', src)
@@ -154,7 +174,8 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         start = source.index("    def start_curtained_focus(name, sequence):")
         end = source.index("    def select_destination(_button, name):", start)
         focus = source[start:end]
-        self.assertLess(focus.index("set_drawer_open(False)"), focus.index("curtain.show_all()"))
+        self.assertLess(focus.index("set_drawer_open(False, immediate=True)"),
+                        focus.index("curtain.show_all()"))
         self.assertLess(focus.index("indicator.hide()"), focus.index("curtain.show_all()"))
         self.assertIn('state["curtain_active"] = True', focus)
         self.assertIn('state["curtain_active"] = False', focus)

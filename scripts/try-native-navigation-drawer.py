@@ -47,6 +47,9 @@ CURTAIN_FOCUS_SETTLE_MS = 85
 CURTAIN_PAINT_WAIT_SECONDS = 2.5
 CURTAIN_FADE_STEP_MS = 40
 CURTAIN_FADE_STEPS = 5
+# Explicitly opt-in; ACP's navigation reveal duration is 180ms.
+DRAWER_MOTION_MS = 180
+DRAWER_MOTION_TICK_MS = 20
 
 
 def request_page_handoff(label: str) -> int | None:
@@ -415,6 +418,19 @@ def indicator_margin(drawer_open: bool) -> int:
     return DRAWER_HEIGHT + DRAWER_BOTTOM_MARGIN + OPEN_INDICATOR_EXTRA_GAP if drawer_open else 0
 
 
+def drawer_motion_margins(fraction: float, height: int, bottom: int) -> tuple[int, int]:
+    """Join native panel and handle as they move in from below the screen."""
+    fraction = max(0.0, min(1.0, float(fraction)))
+    travel = height + bottom
+    return (round(-height + travel * fraction),
+            round((travel + OPEN_INDICATOR_EXTRA_GAP) * fraction))
+
+
+def drawer_motion_ease(fraction: float) -> float:
+    t = max(0.0, min(1.0, float(fraction)))
+    return 1.0 - (1.0 - t) ** 3
+
+
 def make_layer_window(Gtk, LayerShell, width: int, height: int,
                       *, namespace: str, bottom: int):
     win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
@@ -440,7 +456,8 @@ def make_layer_window(Gtk, LayerShell, width: int, height: int,
 
 def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             route_pages: bool = False, curtain_handoff: bool = False,
-            theme_from_acp: bool = False, presentation_from_acp: bool = False):
+            theme_from_acp: bool = False, presentation_from_acp: bool = False,
+            animate_drawer: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -569,6 +586,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     last_palette = {"value": None}
     last_presentation = {"value": None}
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
+    motion = {"fraction": 0.0, "epoch": 0}
     workspace_buttons = []
     utility_buttons = []
     utility_images = []
@@ -614,6 +632,13 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
               flush=True)
         return True
 
+    def place_drawer_motion(fraction):
+        motion["fraction"] = max(0.0, min(1.0, fraction))
+        panel_bottom, handle_bottom = drawer_motion_margins(
+            motion["fraction"], layout["height"], layout["bottom"])
+        LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)
+        LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM, handle_bottom)
+
     def refresh_presentation():
         snapshot = fetch_acp_presentation()
         if snapshot == last_presentation["value"]:
@@ -623,7 +648,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         if scale is None:
             layout.update(height=DRAWER_HEIGHT, bottom=DRAWER_BOTTOM_MARGIN)
             drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
-            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
+            if not animate_drawer:
+                LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
             body.set_border_width(6)
             workspaces.set_spacing(5)
             utilities.set_spacing(4)
@@ -636,7 +662,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             px = lambda name: round(snapshot[name] * scale)
             layout.update(height=px("drawer_height"), bottom=px("drawer_bottom"))
             drawer.set_size_request(px("drawer_width"), layout["height"])
-            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
+            if not animate_drawer:
+                LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
             body.set_border_width(px("drawer_padding"))
             workspaces.set_spacing(px("workspace_gap"))
             utilities.set_spacing(px("utility_gap"))
@@ -648,7 +675,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                   f"at bottom {layout['bottom']}px; Astronomy night "
                   f"{'on' if snapshot['astronomy_night'] else 'off'}; "
                   f"brightness {snapshot['night_brightness']:.2f}", flush=True)
-        if state["drawer"]:
+        if animate_drawer:
+            place_drawer_motion(motion["fraction"])
+        elif state["drawer"]:
             LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
                                   layout["height"] + layout["bottom"]
                                   + OPEN_INDICATOR_EXTRA_GAP)
@@ -663,16 +692,49 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             Gtk.main_quit()
         return False
 
-    def set_drawer_open(opened: bool):
-        # Keep handle and drawer in step, as in ACP's accepted nav.css.
+    def set_drawer_open(opened: bool, *, immediate: bool = False):
+        # Each new request invalidates older ticks, including on OSK/focus.
         state["drawer"] = opened
-        LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
-            (layout["height"] + layout["bottom"] + OPEN_INDICATOR_EXTRA_GAP)
-            if opened else 0)
+        motion["epoch"] += 1
+        if not animate_drawer or immediate:
+            motion["fraction"] = float(opened)
+            if animate_drawer:
+                place_drawer_motion(motion["fraction"])
+            else:
+                LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
+                    (layout["height"] + layout["bottom"] + OPEN_INDICATOR_EXTRA_GAP)
+                    if opened else 0)
+            if opened:
+                drawer.show_all()
+            else:
+                drawer.hide()
+            return
+
+        target, start, epoch = float(opened), motion["fraction"], motion["epoch"]
         if opened:
+            place_drawer_motion(start)
             drawer.show_all()
-        else:
-            drawer.hide()
+        if abs(start - target) < 0.001:
+            place_drawer_motion(target)
+            if not opened:
+                drawer.hide()
+            return
+        began = time.monotonic()
+        # Reversals take a proportionate part of the 180ms full travel.
+        duration = DRAWER_MOTION_MS / 1000.0 * abs(target - start)
+
+        def motion_tick():
+            if state["stopping"] or motion["epoch"] != epoch:
+                return False
+            phase = min(1.0, (time.monotonic() - began) / duration)
+            place_drawer_motion(start + (target - start) * drawer_motion_ease(phase))
+            if phase >= 1.0:
+                if not opened:
+                    drawer.hide()
+                return False
+            return True
+
+        GLib.timeout_add(DRAWER_MOTION_TICK_MS, motion_tick)
 
     def toggle_drawer(_widget, _event):
         if not overlay_allowed(state["keyboard"]):
@@ -708,7 +770,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             return False
         # Never composite two navigation drawers over each other during fade.
         # ACP will own its drawer once the Chromium destination is focused.
-        set_drawer_open(False)
+        set_drawer_open(False, immediate=True)
         indicator.hide()
         state["curtain_active"] = True
         cover.set_opacity(1.0)
@@ -875,7 +937,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             return True
         state["keyboard"] = current
         if not overlay_allowed(current):
-            set_drawer_open(False)
+            set_drawer_open(False, immediate=True)
             indicator.hide()
             print("ACP B3: keyboard visible/unavailable: hiding ALL native navigation", flush=True)
         else:
@@ -883,6 +945,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 indicator.show_all()
                 print("ACP B3: keyboard hidden: indicator restored", flush=True)
         return True
+
+    # Start off-screen before mapping the first animated preview frame.
+    if animate_drawer:
+        place_drawer_motion(0.0)
 
     # Verify Squeekboard before either Wayland window is displayed.
     if not overlay_allowed(keyboard_visible(bus, Gio, GLib)):
@@ -899,6 +965,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     print(f"ACP B3: preview for at most {seconds}s, indicator {bar_width}x{bar_height}px;"
           " tap opens drawer; "
           + ("ACP page handoff ENABLED" if route_pages else "routes preview-only except Plexamp/ACP")
+          + ("; native drawer glide ENABLED" if animate_drawer else "; instant drawer")
           + "; hides when Squeekboard opens.", flush=True)
     try:
         Gtk.main()
@@ -926,6 +993,8 @@ def main() -> int:
                         help="opt in to read-only live ACP drawer colour synchronisation")
     parser.add_argument("--presentation-from-acp", action="store_true",
                         help="experimental geometry/night brightness from ACP, requires --theme-from-acp")
+    parser.add_argument("--animate-drawer", action="store_true",
+                        help="opt-in 180ms native drawer glide; default unchanged")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -937,6 +1006,8 @@ def main() -> int:
         parser.error("--theme-from-acp requires --show")
     if args.presentation_from_acp and not (args.theme_from_acp and args.show):
         parser.error("--presentation-from-acp requires --show and --theme-from-acp")
+    if args.animate_drawer and not args.show:
+        parser.error("--animate-drawer requires --show")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -959,7 +1030,8 @@ def main() -> int:
         present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, seconds=args.seconds,
                 route_pages=args.route_pages, curtain_handoff=args.curtain_handoff,
                 theme_from_acp=args.theme_from_acp,
-                presentation_from_acp=args.presentation_from_acp)
+                presentation_from_acp=args.presentation_from_acp,
+                animate_drawer=args.animate_drawer)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
