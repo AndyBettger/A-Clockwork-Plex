@@ -101,7 +101,8 @@ def handoff_status(sequence: int) -> str:
 
 PALETTE_NAMES = frozenset((
     "drawer_background", "drawer_border", "button_background",
-    "button_hover_background", "button_border", "button_text", "active_background", "active_text",
+    "button_hover_background", "button_pressed_background", "button_border", "button_text",
+    "active_background", "active_text",
     "handle_color", "utility_border",
 ))
 PALETTE_COLOR = re.compile(r"(?:rgba?\([\d.,%\s]+\)|#[\da-fA-F]{6,8}|transparent)\Z")
@@ -139,10 +140,7 @@ def palette_css(value: dict[str, str]) -> bytes:
         background-color: {value['drawer_background']};
         border-color: {value['drawer_border']};
       }}
-      /* Preserve ACP's actual theme behaviour: Classic Dark has a
-         brighter neutral hover/pressed fill; themed buttons do not. Both
-         values are supplied by the validated Chromium palette snapshot.
-         Override GTK's built-in grey in every pseudo-state. */
+      /* ACP CSS supplies separate normal, hover and touch-pressed colours. */
       .acp-b3-nav, .acp-b3-nav:focus, .acp-b3-nav:backdrop {{
         background-image: none;
         background-color: {value['button_background']};
@@ -150,12 +148,20 @@ def palette_css(value: dict[str, str]) -> bytes:
         color: {value['button_text']};
         box-shadow: none;
       }}
-      .acp-b3-nav:active, .acp-b3-nav:checked,
       .acp-b3-nav:hover, .acp-b3-nav:hover:focus,
-      .acp-b3-nav:hover:active, .acp-b3-nav:focus:active,
-      .acp-b3-nav:hover:checked, .acp-b3-nav:backdrop:hover {{
+      .acp-b3-nav:backdrop:hover {{
         background-image: none;
         background-color: {value['button_hover_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+        box-shadow: none;
+      }}
+      /* :active wins even when :hover is also present on hybrid displays. */
+      .acp-b3-nav:active, .acp-b3-nav:checked,
+      .acp-b3-nav:hover:active, .acp-b3-nav:focus:active,
+      .acp-b3-nav:hover:checked, .acp-b3-nav:backdrop:active {{
+        background-image: none;
+        background-color: {value['button_pressed_background']};
         border-color: {value['button_border']};
         color: {value['button_text']};
         box-shadow: none;
@@ -512,11 +518,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         font-weight: 700;
       }
       .acp-b3-nav:hover { background-color: rgba(247,249,255,0.18); }
-      /* Suppress stock GTK grey pressed backgrounds in Astronomy Red. */
+      /* Classic Dark fallback press before the live theme snapshot. */
       .acp-b3-nav:active, .acp-b3-nav:checked,
       .acp-b3-nav:hover:active {
         background-image: none;
-        background-color: rgba(255,255,255,0.08);
+        background-color: rgba(255,255,255,0.30);
         color: #f7f9ff;
         border-color: rgba(255,255,255,0.15);
         box-shadow: none;

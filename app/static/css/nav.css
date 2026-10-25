@@ -4,6 +4,8 @@
 :root {
   --acp-navigation-transition-duration: 180ms;
   --acp-nav-control-size: clamp(56px, 8vmin, 62px);
+  --acp-nav-hover-fill: var(--acp-fill-control-hover-neutral);
+  --acp-nav-pressed-fill: rgba(255, 255, 255, 0.30);
 }
 
 .nav-backdrop {
@@ -142,6 +144,9 @@ body.nav-open .nav-drawer {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+
+/* Press outranks hover, while the selected workspace stays unchanged. */
+.nav-drawer .nav-button:not(.is-active):active { background: var(--acp-nav-pressed-fill); }
 
 .nav-button.is-active {
   color: #07101d;

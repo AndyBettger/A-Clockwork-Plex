@@ -88,6 +88,17 @@ body:not([data-active-page="plexamp"]) .nav-drawer .nav-button.is-active:is(:hov
   background: var(--accent-strong) !important;
 }
 
+/* Theme-aware feedback, never override the selected workspace. On hybrid
+   touchscreens :active must win even when :hover is also true. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button:not(.is-active):hover {
+  background: var(--acp-nav-hover-fill) !important;
+}
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button:not(.is-active):active {
+  background: var(--acp-nav-pressed-fill) !important;
+}
+
 /* The compact EQ drawer no longer needs to restate which music sources feed it;
    the controls and surrounding mixer already make that boundary clear. */
 .acp-eq-strip .acp-eq-heading > div > span {

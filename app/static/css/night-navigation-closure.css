@@ -12,6 +12,8 @@
  * Never colour the alarm screen here.
  */
 body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer {
+  --acp-nav-hover-fill: rgba(135, 0, 0, 0.78);
+  --acp-nav-pressed-fill: rgba(176, 0, 0, 0.86);
   border-color: rgba(255, 58, 58, 0.28) !important;
   background: rgba(20, 0, 0, 0.96) !important;
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.62) !important;
@@ -22,6 +24,14 @@ body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-a
   background: rgba(96, 0, 0, 0.62) !important;
   border-color: rgba(255, 72, 72, 0.24) !important;
   box-shadow: none !important;
+}
+
+/* Same night-only colour owner as normal and selected navigation. */
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button:not(.is-active):hover {
+  background: var(--acp-nav-hover-fill) !important;
+}
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button:not(.is-active):active {
+  background: var(--acp-nav-pressed-fill) !important;
 }
 
 body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer .nav-button.is-active,

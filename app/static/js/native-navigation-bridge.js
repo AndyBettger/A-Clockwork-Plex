@@ -13,6 +13,10 @@
   let lastSeen = 0;
   let lastPaletteAttemptAt = 0;
   let palettePublishing = false;
+  // Retry the same consumed command after an ACP screen lease becomes idle.
+  const STAGE_RETRY_MS = 1200;
+  const MAX_STAGE_ATTEMPTS = 6;
+  let staging = null;
 
   function saveHandoff(command) {
     try {
@@ -156,25 +160,21 @@
     const styles = [drawer, button, active, handle, utilities].map(
       (node) => window.getComputedStyle(node),
     );
-    // Classic Dark alone retains the base .button:hover fill. ACP's
-    // other daytime themes override the button background (including hover),
-    // as does Astronomy Red at night. Publish the resolved hover colour,
-    // never infer the theme from an RGB value inside native GTK.
+    // The effective ACP CSS defines exact hover and press colours.
     const root = window.getComputedStyle(document.documentElement);
     const astronomyNight = document.body.classList.contains('acp-night-dim-active')
       && document.body.classList.contains('acp-night-style-astronomy')
       && !document.body.classList.contains('mode-alarm')
       && document.body.dataset.activePage !== 'alarm';
-    const classicDark = (document.documentElement.dataset.daytimeTheme || 'classic_dark')
-      === 'classic_dark';
-    const neutralHover = root.getPropertyValue('--acp-fill-control-hover-neutral').trim();
-    const buttonHover = classicDark && !astronomyNight && neutralHover
-      ? neutralHover : styles[1].backgroundColor;
+    const buttonHover = styles[1].getPropertyValue('--acp-nav-hover-fill').trim();
+    const buttonPressed = styles[1].getPropertyValue('--acp-nav-pressed-fill').trim();
+    if (!buttonHover || !buttonPressed) return;
     const payload = {
       drawer_background: styles[0].backgroundColor,
       drawer_border: styles[0].borderTopColor,
       button_background: styles[1].backgroundColor,
       button_hover_background: buttonHover,
+      button_pressed_background: buttonPressed,
       button_border: styles[1].borderTopColor,
       button_text: styles[1].color,
       active_background: styles[2].backgroundColor,
@@ -183,7 +183,7 @@
       utility_border: styles[4].borderLeftColor,
     };
     // Geometry and night brightness remain a separate, opt-in snapshot;
-    // the tenth colour is read-only hover styling, not a preference.
+    // hover and press colours are read-only styling, not preferences.
     const px = (value) => Number.parseFloat(value) || 0;
     const rawBrightness = px(root.getPropertyValue('--acp-night-brightness'));
     const presentation = {
@@ -230,6 +230,39 @@
     }
   }
 
+  function stagePendingHandoff() {
+    const command = pendingHandoff();
+    if (!command || typeof window.ACPNavigate !== 'function') return;
+    if (!staging || staging.sequence !== command.sequence) {
+      staging = { sequence: command.sequence, lastAttemptAt: 0, attempts: 0, inFlight: false };
+    }
+    if (readyForHandoff(command) || staging.inFlight
+        || window.ACPNavigationState?.isPresenting?.()
+        || staging.attempts >= MAX_STAGE_ATTEMPTS
+        || Date.now() - staging.lastAttemptAt < STAGE_RETRY_MS) return;
+    staging.attempts++;
+    staging.lastAttemptAt = Date.now();
+    staging.inFlight = true;
+    window.ACPNavDrawer?.show?.();
+    void (async () => {
+      try {
+        if (command.destination === 'audio') {
+          window.ACPNavDrawer?.ensureAudioPanel?.();
+          const button = document.getElementById('nav-audio-button');
+          if (button && !document.body.classList.contains('nav-audio-open')) button.click();
+        } else {
+          await window.ACPNavigate('/' + command.destination, {
+            source: 'native-plexamp-b3', animate: false,
+          });
+        }
+      } catch (error) {
+        console.warn('ACP B3 native staging failed', error);
+      } finally {
+        if (staging?.sequence === command.sequence) staging.inFlight = false;
+      }
+    })();
+  }
+
   async function poll() {
     void publishPalette();
     if (polling || typeof window.ACPNavigate !== 'function') return;
@@ -244,21 +277,7 @@
       lastSeen = command.sequence;
       if (!saveHandoff(command)) return;
 
-      window.ACPNavDrawer?.show?.();
-      if (command.destination === 'audio') {
-        window.ACPNavDrawer?.ensureAudioPanel?.();
-        const button = document.getElementById('nav-audio-button');
-        if (button && !document.body.classList.contains('nav-audio-open')) button.click();
-      } else {
-        // Native Plexamp is still foreground. A browser View Transition may
-        // defer its rendering lifecycle while Chromium is occluded; stage the
-        // destination *without* that animation, then wait for route readiness.
-        // Normal ACP-to-ACP navigations still use the user's selected style.
-        void window.ACPNavigate('/' + command.destination, {
-          source: 'native-plexamp-b3',
-          animate: false,
-        });
-      }
+      stagePendingHandoff();
     } catch (error) {
       // Dashboard can be unavailable during a development restart.
     } finally {
@@ -267,7 +286,10 @@
   }
 
   const pollTimer = window.setInterval(poll, 600);
-  const readyTimer = window.setInterval(acknowledgePresented, 150);
+  const readyTimer = window.setInterval(() => {
+    stagePendingHandoff();
+    void acknowledgePresented();
+  }, 150);
   const paintTimer = window.setInterval(reportPainted, 120);
   window.addEventListener('focus', reportPainted);
   window.addEventListener('pagehide', () => {
