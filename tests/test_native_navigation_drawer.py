@@ -176,6 +176,9 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         for required in (
             "curtain_handoff: bool = False",
             "LayerShell.set_anchor(curtain, LayerShell.Edge.TOP, True)",
+            "LayerShell.set_anchor(curtain, LayerShell.Edge.LEFT, True)",
+            "LayerShell.set_anchor(curtain, LayerShell.Edge.RIGHT, True)",
+            "LayerShell.set_exclusive_zone(curtain, -1)",
             "curtain.show_all()",
             "GLib.timeout_add(CURTAIN_FOCUS_SETTLE_MS, focus_then_watch)",
             'if phase == "painted":',
@@ -185,6 +188,10 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
         self.assertIn("LayerShell.KeyboardMode.NONE", source)
+        # Only the full-screen cover may ignore the top panel's reserved
+        # zone. The compact indicator and drawer retain their safe zone 0.
+        self.assertIn("LayerShell.set_exclusive_zone(win, 0)", source)
+        self.assertEqual(source.count("LayerShell.set_exclusive_zone(curtain, -1)"), 1)
         self.assertNotIn("subprocess.Popen", source)
 
     def test_native_drawer_is_hidden_before_curtain_and_restored_on_focus_failure(self):

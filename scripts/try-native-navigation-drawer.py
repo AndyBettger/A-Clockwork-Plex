@@ -610,6 +610,13 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         LayerShell.set_anchor(curtain, LayerShell.Edge.TOP, True)
         LayerShell.set_anchor(curtain, LayerShell.Edge.LEFT, True)
         LayerShell.set_anchor(curtain, LayerShell.Edge.RIGHT, True)
+        # The generic layer helper uses exclusive zone 0 so compact drawers
+        # respect panels. A FULL-SCREEN handoff curtain must instead ignore
+        # every panel's reserved strip (-1 per wlr-layer-shell); otherwise
+        # labwc positions this overlay below the top panel, exposing the
+        # previous page above a dark #09111f rectangle during handoff.
+        # Only this temporary curtain opts out; indicator/drawer stay at 0.
+        LayerShell.set_exclusive_zone(curtain, -1)
         cover = Gtk.EventBox()
         cover.set_size_request(width, height)
         cover.get_style_context().add_class("acp-b3-curtain")
