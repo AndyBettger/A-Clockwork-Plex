@@ -316,7 +316,10 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         }
         shaded = drawer.presentation_palette(colors, metrics)
         self.assertEqual(shaded["handle_color"], "rgba(51, 0, 0, 0.88)")
-        self.assertEqual(shaded["curtain_background"], "rgb(10, 0, 0)")
+        self.assertEqual(shaded["curtain_background"], "#0a0000")
+        self.assertTrue(drawer.valid_palette(shaded))
+        self.assertIn(b"background-color: #0a0000;",
+                      drawer.palette_css(shaded))
         self.assertEqual(colors["handle_color"], "rgba(255, 64, 64, 0.88)")
         self.assertEqual(drawer.presentation_palette(
             colors, {**metrics, "astronomy_night": False,

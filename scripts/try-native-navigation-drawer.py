@@ -280,8 +280,14 @@ def presentation_palette(palette: dict, presentation: dict | None) -> dict:
         raise ValueError("Invalid colour palette")
     if not valid_presentation(presentation) or not presentation["astronomy_night"]:
         return dict(palette)
-    return {key: astronomy_red_color(color, presentation["night_brightness"])
-            for key, color in palette.items()}
+    shaded = {key: astronomy_red_color(color, presentation["night_brightness"])
+              for key, color in palette.items()}
+    # The GTK curtain must remain OPAQUE. Preserve the exact six-digit hex
+    # contract after pre-darkening its red channel for Astronomy night.
+    red = round(int(palette["curtain_background"][1:3], 16)
+                * presentation["night_brightness"])
+    shaded["curtain_background"] = f"#{red:02x}0000"
+    return shaded
 
 
 def choose_navigation_font(pango_context) -> str:
