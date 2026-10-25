@@ -108,7 +108,13 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         bridge = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
         transitions = (ROOT / "app/static/js/page-transitions.js").read_text()
         surface_host = (ROOT / "app/static/js/acp-surface-host.js").read_text()
-        self.assertIn("source: 'native-plexamp-b3',\n          animate: false,", bridge)
+        # Verify that the native navigation invocation requests a non-animated
+        # background commit, without coupling this regression to JS layout.
+        self.assertRegex(
+            bridge,
+            r"window\.ACPNavigate\('/' \+ command\.destination,\s*\{"
+            r"\s*source:\s*'native-plexamp-b3',\s*animate:\s*false,?\s*\}\)",
+        )
         self.assertIn("...options,\n        history: true,", transitions)
         self.assertIn("if (options.animate === false) return false;", surface_host)
         self.assertIn("document.startViewTransition(commit)", surface_host)
