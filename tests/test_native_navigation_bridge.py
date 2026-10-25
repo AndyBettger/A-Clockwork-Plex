@@ -181,6 +181,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         snapshot = nav.PaletteSnapshot(lambda: now[0])
         self.assertIsNone(snapshot.read())
         colors = {key: "rgb(10, 20, 30)" for key in nav.PALETTE_KEYS}
+        colors["curtain_background"] = "#101b2e"
         colors["drawer_background"] = "rgba(6, 12, 22, 0.91)"
         colors["button_hover_background"] = "rgba(255, 255, 255, 0.22)"
         colors["button_pressed_background"] = "rgba(255, 255, 255, 0.30)"
@@ -193,6 +194,8 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             {}, {"drawer_background": "rgb(0, 0, 0)"},
             {**colors, "handle_color": "red; } window { opacity: 0"},
             {**colors, "utility_border": None},
+            {**colors, "curtain_background": "rgba(16, 27, 46, 0.5)"},
+            {**colors, "curtain_background": "#101b2e!important"},
         ):
             with self.assertRaises(nav.NavigationError):
                 snapshot.publish(bad)
@@ -215,6 +218,8 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn('window.getComputedStyle(node)', script)
         self.assertIn("button_hover_background: buttonHover", script)
         self.assertIn("button_pressed_background: buttonPressed", script)
+        self.assertIn("curtain_background: curtainFill", script)
+        self.assertIn("getPropertyValue('--acp-b3-curtain-fill')", script)
         self.assertIn("--acp-nav-hover-fill", script)
         self.assertIn("--acp-nav-pressed-fill", script)
         self.assertIn(".nav-button:not(.is-active)", script)
@@ -235,6 +240,22 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("window.ACPNavigationState?.isPresenting?.()", script)
         self.assertIn("stagePendingHandoff();", script)
         self.assertEqual(script.count("fetch('/api/native-navigation/next'"), 1)
+
+    def test_native_curtain_uses_css_theme_colours_not_gtk_theme_guesses(self):
+        base = (ROOT / "app/templates/base.html").read_text()
+        token = (ROOT / "app/static/css/acp-design-tokens.css").read_text()
+        day = (ROOT / "app/static/css/daytime-themes.css").read_text()
+        night = (ROOT / "app/static/css/night-navigation-closure.css").read_text()
+        self.assertIn("--acp-b3-curtain-fill: #101b2e", token)
+        for name in ("midnight_blue", "amber_terminal", "green_phosphor",
+                     "aubergine", "steel_cyan", "crimson_glow"):
+            block = day.split('html[data-daytime-theme="' + name
+                              + '"] body:not([data-active-page="plexamp"]) {', 1)[1]
+            self.assertRegex(block.split("}", 1)[0],
+                             r"--acp-b3-curtain-fill: #[0-9a-f]{6};")
+        self.assertIn("--acp-b3-curtain-fill: #300000", night)
+        self.assertIn("20261025-b3-curtain-theme-v1", base)
+        self.assertIn('r"#[0-9a-fA-F]{6}"', PATH.read_text())
 
     def test_all_curated_nav_themes_define_hover_and_press_colours(self):
         theme = (ROOT / "app/static/css/daytime-themes.css").read_text()

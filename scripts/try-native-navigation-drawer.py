@@ -100,7 +100,7 @@ def handoff_status(sequence: int) -> str:
 
 
 PALETTE_NAMES = frozenset((
-    "drawer_background", "drawer_border", "button_background",
+    "curtain_background", "drawer_background", "drawer_border", "button_background",
     "button_hover_background", "button_pressed_background", "button_border", "button_text",
     "active_background", "active_text",
     "handle_color", "utility_border",
@@ -111,7 +111,8 @@ PALETTE_COLOR = re.compile(r"(?:rgba?\([\d.,%\s]+\)|#[\da-fA-F]{6,8}|transparent
 def valid_palette(value) -> bool:
     return (type(value) is dict and set(value) == PALETTE_NAMES
             and all(type(color) is str and len(color) <= 64
-                    and PALETTE_COLOR.fullmatch(color) for color in value.values()))
+                    and PALETTE_COLOR.fullmatch(color) for color in value.values())
+            and bool(re.fullmatch(r"#[0-9a-fA-F]{6}", value["curtain_background"])))
 
 
 def fetch_theme_palette() -> dict[str, str] | None:
@@ -136,6 +137,9 @@ def palette_css(value: dict[str, str]) -> bytes:
     if not valid_palette(value):
         raise ValueError("Unsafe or incomplete ACP navigation palette")
     return (f"""
+      .acp-b3-curtain {{
+        background-color: {value['curtain_background']};
+      }}
       .acp-b3-drawer {{
         background-color: {value['drawer_background']};
         border-color: {value['drawer_border']};
@@ -540,7 +544,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         padding-left: 6px;
       }
       .acp-b3-developer { font-size: 12px; border-style: dashed; }
-      .acp-b3-curtain { background-color: #09111f; }
+      .acp-b3-curtain { background-color: #101b2e; }
     """
     provider = Gtk.CssProvider()
     provider.load_from_data(css)

@@ -12,6 +12,10 @@
  */
 
 :root {
+  /* B3 native handoff: calm, opaque Classic Dark backdrop rather than the
+     fixed GTK navy. Curated themes/night mode override in their CSS owners. */
+  --acp-b3-curtain-fill: #101b2e;
+
   /* Semantic palette aliases. */
   --acp-color-surface: var(--panel);
   --acp-color-border: var(--panel-border);

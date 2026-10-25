@@ -188,8 +188,13 @@
       && document.body.dataset.activePage !== 'alarm';
     const buttonHover = styles[1].getPropertyValue('--acp-nav-hover-fill').trim();
     const buttonPressed = styles[1].getPropertyValue('--acp-nav-pressed-fill').trim();
-    if (!buttonHover || !buttonPressed) return;
+    // The page's CSS owns the curtain hue, including Astronomy Red; send only
+    // one opaque colour token rather than copying gradients or accepting CSS.
+    const curtainFill = window.getComputedStyle(document.body)
+      .getPropertyValue('--acp-b3-curtain-fill').trim();
+    if (!buttonHover || !buttonPressed || !curtainFill) return;
     const payload = {
+      curtain_background: curtainFill,
       drawer_background: styles[0].backgroundColor,
       drawer_border: styles[0].borderTopColor,
       button_background: styles[1].backgroundColor,

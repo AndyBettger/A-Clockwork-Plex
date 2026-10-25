@@ -11,6 +11,12 @@
  * file only supplies the underlying colour tokens of persistent navigation.
  * Never colour the alarm screen here.
  */
+/* This token reaches GTK through the same B3 validated computed palette.
+   GTK then applies the established Astronomy-night brightness factor. */
+body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) {
+  --acp-b3-curtain-fill: #300000;
+}
+
 body.acp-night-style-astronomy.acp-night-dim-active:not(.mode-alarm):not([data-active-page="alarm"]) #nav-drawer {
   --acp-nav-hover-fill: rgba(135, 0, 0, 0.78);
   --acp-nav-pressed-fill: rgba(176, 0, 0, 0.86);

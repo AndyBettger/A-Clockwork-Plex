@@ -17,7 +17,7 @@ MAX_BODY_BYTES = 96
 MAX_PALETTE_BODY_BYTES = 1024
 PALETTE_MAX_AGE_SECONDS = 20.0
 PALETTE_KEYS = frozenset((
-    "drawer_background", "drawer_border", "button_background",
+    "curtain_background", "drawer_background", "drawer_border", "button_background",
     "button_hover_background", "button_pressed_background", "button_border", "button_text",
     "active_background", "active_text",
     "handle_color", "utility_border",
@@ -125,6 +125,10 @@ class PaletteSnapshot:
         if any(type(value) is not str or len(value) > 64
                or not COLOR_RE.fullmatch(value) for value in data.values()):
             raise NavigationError("Invalid computed colour")
+        # Full-screen Wayland cover must NEVER become translucent or accept a
+        # complex CSS value; it is a strictly opaque six-digit theme hex.
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", data["curtain_background"]):
+            raise NavigationError("Curtain must be an opaque theme colour")
         with self._guard:
             self._value = dict(data)
             self._updated_at = self._clock()

@@ -226,14 +226,20 @@ class NativeNavigationDrawerTests(unittest.TestCase):
 
     def test_opt_in_computed_palette_cannot_inject_css(self):
         colors = {key: "rgb(10, 20, 30)" for key in drawer.PALETTE_NAMES}
+        colors["curtain_background"] = "#101b2e"
         self.assertTrue(drawer.valid_palette(colors))
         css = drawer.palette_css(colors)
         self.assertIn(b"background-color: rgb(10, 20, 30)", css)
+        self.assertIn(b".acp-b3-curtain {", css)
+        self.assertIn(b"background-color: #101b2e;", css)
         self.assertNotIn(b"@import", css)
         for invalid in (
             {**colors, "active_text": "red; } * { opacity:0;"},
             {**colors, "handle_color": "url(http://example.com)"},
             {**colors, "drawer_border": None},
+            {**colors, "curtain_background": "rgba(16, 27, 46, 0.5)"},
+            {**colors, "curtain_background": "transparent"},
+            {**colors, "curtain_background": "#101b2e; opacity: 0"},
             {**colors, "unexpected": "rgb(1,2,3)"},
         ):
             self.assertFalse(drawer.valid_palette(invalid))
@@ -298,6 +304,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
                          "rgb(128, 32, 32)")
         colors = {name: "rgba(255, 64, 64, 0.88)"
                   for name in drawer.PALETTE_NAMES}
+        colors["curtain_background"] = "#300000"
         metrics = {
             "viewport_width": 1280, "viewport_height": 720,
             "drawer_width": 940, "drawer_height": 76,
@@ -309,6 +316,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         }
         shaded = drawer.presentation_palette(colors, metrics)
         self.assertEqual(shaded["handle_color"], "rgba(51, 0, 0, 0.88)")
+        self.assertEqual(shaded["curtain_background"], "rgb(10, 0, 0)")
         self.assertEqual(colors["handle_color"], "rgba(255, 64, 64, 0.88)")
         self.assertEqual(drawer.presentation_palette(
             colors, {**metrics, "astronomy_night": False,
