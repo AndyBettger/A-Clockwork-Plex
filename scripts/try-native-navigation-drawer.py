@@ -419,11 +419,14 @@ def indicator_margin(drawer_open: bool) -> int:
 
 
 def drawer_motion_margins(fraction: float, height: int, bottom: int) -> tuple[int, int]:
-    """Join native panel and handle as they move in from below the screen."""
+    """Return safe panel inset and animated handle inset.
+
+    The panel must NEVER leave the screen via a negative layer-shell
+    margin: on the Pi's labwc compositor it failed to become visible again.
+    A GTK3 Revealer animates the panel contents inside the fixed surface.
+    """
     fraction = max(0.0, min(1.0, float(fraction)))
-    travel = height + bottom
-    return (round(-height + travel * fraction),
-            round((travel + OPEN_INDICATOR_EXTRA_GAP) * fraction))
+    return bottom, round((height + bottom + OPEN_INDICATOR_EXTRA_GAP) * fraction)
 
 
 def drawer_motion_ease(fraction: float) -> float:
@@ -563,7 +566,22 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     body.pack_start(workspaces, True, True, 0)
     body.pack_start(utilities, False, False, 0)
     shell.add(body)
-    drawer.add(shell)
+    revealer = None
+    if animate_drawer:
+        # Keep Wayland layer surface in its accepted, visible bottom position.
+        # Gtk.Revealer moves/clips its child, avoiding an off-screen layer
+        # surface that labwc never remapped during the first B3 motion trial.
+        shell.set_size_request(drawer_width, DRAWER_HEIGHT)
+        revealer = Gtk.Revealer()
+        revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
+        revealer.set_transition_duration(DRAWER_MOTION_MS)
+        revealer.set_halign(Gtk.Align.FILL)
+        revealer.set_valign(Gtk.Align.END)
+        revealer.set_reveal_child(False)
+        revealer.add(shell)
+        drawer.add(revealer)
+    else:
+        drawer.add(shell)
 
     # Opt-in cover belongs to GTK's overlay layer, above both toplevels.
     # Map it BEFORE compositor focus changes, then release after an ACP paint
@@ -636,6 +654,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         motion["fraction"] = max(0.0, min(1.0, fraction))
         panel_bottom, handle_bottom = drawer_motion_margins(
             motion["fraction"], layout["height"], layout["bottom"])
+        # All panel motion belongs to Gtk.Revealer, never the Wayland surface.
         LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)
         LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM, handle_bottom)
 
@@ -648,8 +667,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         if scale is None:
             layout.update(height=DRAWER_HEIGHT, bottom=DRAWER_BOTTOM_MARGIN)
             drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
-            if not animate_drawer:
-                LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
+            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
+            if animate_drawer:
+                shell.set_size_request(drawer_width, DRAWER_HEIGHT)
             body.set_border_width(6)
             workspaces.set_spacing(5)
             utilities.set_spacing(4)
@@ -662,8 +682,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             px = lambda name: round(snapshot[name] * scale)
             layout.update(height=px("drawer_height"), bottom=px("drawer_bottom"))
             drawer.set_size_request(px("drawer_width"), layout["height"])
-            if not animate_drawer:
-                LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
+            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
+            if animate_drawer:
+                shell.set_size_request(px("drawer_width"), layout["height"])
             body.set_border_width(px("drawer_padding"))
             workspaces.set_spacing(px("workspace_gap"))
             utilities.set_spacing(px("utility_gap"))
@@ -700,20 +721,33 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             motion["fraction"] = float(opened)
             if animate_drawer:
                 place_drawer_motion(motion["fraction"])
+                # OSK and focus handoff must always win immediately.
+                revealer.set_transition_duration(0)
+                if opened:
+                    drawer.show_all()
+                revealer.set_reveal_child(opened)
+                if not opened:
+                    drawer.hide()
+                revealer.set_transition_duration(DRAWER_MOTION_MS)
             else:
                 LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
                     (layout["height"] + layout["bottom"] + OPEN_INDICATOR_EXTRA_GAP)
                     if opened else 0)
-            if opened:
-                drawer.show_all()
-            else:
-                drawer.hide()
+                if opened:
+                    drawer.show_all()
+                else:
+                    drawer.hide()
             return
 
         target, start, epoch = float(opened), motion["fraction"], motion["epoch"]
+        # Gtk.Revealer owns the actual panel slide. The indicator alone
+        # changes positive layer-shell margins, matching its bottom position.
+        revealer.set_transition_duration(max(1, round(
+            DRAWER_MOTION_MS * abs(target - start))))
         if opened:
             place_drawer_motion(start)
             drawer.show_all()
+        revealer.set_reveal_child(opened)
         if abs(start - target) < 0.001:
             place_drawer_motion(target)
             if not opened:
@@ -946,7 +980,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 print("ACP B3: keyboard hidden: indicator restored", flush=True)
         return True
 
-    # Start off-screen before mapping the first animated preview frame.
+    # The panel layer surface stays at its normal positive inset. Only
+    # its GTK child is initially concealed, and the indicator starts low.
     if animate_drawer:
         place_drawer_motion(0.0)
 
@@ -994,7 +1029,7 @@ def main() -> int:
     parser.add_argument("--presentation-from-acp", action="store_true",
                         help="experimental geometry/night brightness from ACP, requires --theme-from-acp")
     parser.add_argument("--animate-drawer", action="store_true",
-                        help="opt-in 180ms native drawer glide; default unchanged")
+                        help="opt-in 180ms GTK child slide + indicator glide; default unchanged")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()

@@ -86,10 +86,11 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             self.assertNotIn(forbidden, source)
 
     def test_native_drawer_glide_is_opt_in_and_keyboard_handoff_interrupts(self):
-        self.assertEqual(drawer.drawer_motion_margins(0, 69, 8), (-69, 0))
+        # The drawer's Wayland surface must NEVER start off-screen.
+        self.assertEqual(drawer.drawer_motion_margins(0, 69, 8), (8, 0))
         self.assertEqual(drawer.drawer_motion_margins(1, 69, 8), (8, 81))
-        self.assertEqual(drawer.drawer_motion_margins(.5, 69, 8), (-30, 40))
-        self.assertEqual(drawer.drawer_motion_margins(-5, 69, 8), (-69, 0))
+        self.assertEqual(drawer.drawer_motion_margins(.5, 69, 8), (8, 40))
+        self.assertEqual(drawer.drawer_motion_margins(-5, 69, 8), (8, 0))
         self.assertEqual(drawer.drawer_motion_margins(5, 69, 8), (8, 81))
         self.assertEqual(drawer.drawer_motion_ease(0), 0)
         self.assertEqual(drawer.drawer_motion_ease(1), 1)
@@ -104,6 +105,23 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn("set_drawer_open(False, immediate=True)", src)
         self.assertIn("place_drawer_motion(0.0)", src)
         self.assertIn("DRAWER_MOTION_MS = 180", src)
+        self.assertIn("revealer = Gtk.Revealer()", src)
+        self.assertIn("Gtk.RevealerTransitionType.SLIDE_UP", src)
+        self.assertIn("revealer.set_reveal_child(opened)", src)
+        self.assertIn("revealer.set_transition_duration(0)", src)
+        self.assertIn("revealer.set_valign(Gtk.Align.END)", src)
+        self.assertIn("drawer.add(revealer)", src)
+        self.assertIn("drawer.add(shell)", src)  # unchanged instant path
+        self.assertNotIn("round(-height + travel * fraction)", src)
+        self.assertIn("shell.set_size_request(px(\"drawer_width\"), layout[\"height\"])", src)
+        # Any generated bottom margin for panel remains at its safe inset.
+        for height in (40, 69, 220):
+            for bottom in (0, 8, 60):
+                for fraction in (-1, 0, .2, .5, 1, 2):
+                    panel, handle = drawer.drawer_motion_margins(fraction, height, bottom)
+                    self.assertEqual(panel, bottom)
+                    self.assertGreaterEqual(handle, 0)
+                    self.assertLessEqual(handle, height + bottom + drawer.OPEN_INDICATOR_EXTRA_GAP)
 
     def test_acp_drawer_geometry_and_groups(self):
         self.assertEqual(drawer.drawer_width_for_screen(800, 480), 786)
