@@ -1,3 +1,9 @@
+## 25 October 2026 — native GTK animated drawer visible; fix grey Astronomy Red hover
+
+- Physical `ffc06dd9` confirmation: drawer animation is visible and opens/closes repeatedly; full 20/20 focused tests pass. Weather route successfully reaches `ready → focus → painted → fade`.
+- Defect: pointer over Weather draws grey instead of Astronomy Red. Static CSS `.acp-b3-nav:hover` overrides dynamic normal selector due to specificity. Candidate fix: dynamic validated ACP palette now explicitly covers normal/hover/focus/active/checked/backdrop and active-Plexamp states, with no GTK background image. No service, audio, compositor or OSK behaviour changes.
+- New `test_dynamic_palette_owns_gtk_hover_focus_and_pressed_colours` asserts themed selectors and actual red colour declarations within hover and active rules; focused suite **21 expected**. Run `python3 -m py_compile scripts/try-native-navigation-drawer.py tests/test_native_navigation_drawer.py` then `python3 -m unittest discover -s tests -p 'test_native_navigation_drawer.py' -v`. Repeat bounded `--animate-drawer` preview, inspect Weather hover/press under Astronomy Red; run keyboard/rapid taps and Weather focus handoff. Await physical confirmation before accepting.
+
 ## 25 October 2026 — B3 animated panel invisible on Pi; corrected with Gtk.Revealer (retest pending)
 
 - User's Pi: initial opt-in `--animate-drawer` produced a raised red indicator but an invisible drawer. Terminal showed normal open/close state, correct theme/presentation, time limit; `py_compile` succeeded and **20/20 tests passed**. Unit tests did not catch actual Wayland rendering failure. Mark original negative-margin animation **physical FAIL**.

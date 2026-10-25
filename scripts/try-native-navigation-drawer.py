@@ -139,22 +139,31 @@ def palette_css(value: dict[str, str]) -> bytes:
         background-color: {value['drawer_background']};
         border-color: {value['drawer_border']};
       }}
-      .acp-b3-nav {{
-        background-color: {value['button_background']};
-        border-color: {value['button_border']};
-        color: {value['button_text']};
-      }}
-      .acp-b3-nav:hover {{ border-color: {value['drawer_border']}; }}
-      .acp-b3-nav:active, .acp-b3-nav:checked,
-      .acp-b3-nav:hover:active {{
+      /* The static fallback :hover is more specific than its plain button
+         selector and previously won over the later palette's plain selector,
+         causing grey hover in Astronomy Red. Match all relevant GTK states. */
+      .acp-b3-nav, .acp-b3-nav:hover, .acp-b3-nav:focus,
+      .acp-b3-nav:hover:focus, .acp-b3-nav:backdrop {{
         background-image: none;
         background-color: {value['button_background']};
         border-color: {value['button_border']};
         color: {value['button_text']};
         box-shadow: none;
       }}
-      .acp-b3-active, .acp-b3-active:hover,
-      .acp-b3-active:active, .acp-b3-active:checked {{
+      .acp-b3-nav:active, .acp-b3-nav:checked,
+      .acp-b3-nav:hover:active, .acp-b3-nav:focus:active,
+      .acp-b3-nav:hover:checked {{
+        background-image: none;
+        background-color: {value['button_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+        box-shadow: none;
+      }}
+      .acp-b3-active, .acp-b3-active:hover, .acp-b3-active:focus,
+      .acp-b3-active:hover:focus, .acp-b3-active:backdrop,
+      .acp-b3-active:active, .acp-b3-active:checked,
+      .acp-b3-active:hover:active, .acp-b3-active:focus:active {{
+        background-image: none;
         background-color: {value['active_background']};
         border-color: {value['active_background']};
         color: {value['active_text']};
