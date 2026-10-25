@@ -218,7 +218,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         night = (ROOT / "app/static/css/night-navigation-closure.css").read_text()
         for name in ("midnight_blue", "amber_terminal", "green_phosphor",
                      "aubergine", "steel_cyan", "crimson_glow"):
-            block = theme.split('html[data-daytime-theme="' + name + '"] body:', 1)[1]
+            block = theme.split('html[data-daytime-theme="' + name + '"] body:not([data-active-page="plexamp"]) {', 1)[1]
             block = block.split('}', 1)[0]
             self.assertIn('--acp-nav-hover-fill:', block)
             self.assertIn('--acp-nav-pressed-fill:', block)
