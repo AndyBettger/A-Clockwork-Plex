@@ -54,7 +54,27 @@
     if (command.destination === 'audio') {
       return document.body.classList.contains('nav-audio-open');
     }
-    return window.ACPNavigationState?.activeRoute?.() === '/' + command.destination;
+
+    // A matching URL/route is not enough. During native Plexamp handoff the
+    // background browser may still have a stale Clock surface, a visible
+    // Chromium Plexamp overlay, or a screen-projection recommendation that
+    // disagrees with the requested destination. Never focus until the same
+    // existing control service that owns ACP's manual page selection confirms
+    // this surface's lease and the mounted destination is actually visible.
+    const destination = command.destination;
+    const route = '/' + destination;
+    if (window.ACPNavigationState?.activeRoute?.() !== route
+        || window.ACPSurfaceHost?.activeRoute?.() !== route
+        || window.ACPPlexamp?.isVisiblyOpen?.() === true) return false;
+
+    const projection = window.ACPScreenProjection?.state?.();
+    if (projection?.recommended_screen !== destination
+        || projection?.lease?.active !== true
+        || projection?.lease?.manual_surface !== destination) return false;
+
+    return Boolean(document.querySelector(
+      '.acp-mounted-surface-' + destination + ':not([hidden])',
+    ));
   }
 
   function weatherContentReady() {

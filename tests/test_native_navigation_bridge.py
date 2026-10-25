@@ -122,6 +122,25 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("const transition = document.startViewTransition(commit)", surface_host)
         self.assertIn("motionEnabled(options)", surface_host)
 
+    def test_native_ready_requires_screen_controller_lease_and_visible_surface(self):
+        bridge = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        # The native route must not focus Chromium on a stale Clock/underlay.
+        self.assertIn("function readyForHandoff(command)", bridge)
+        self.assertIn("window.ACPNavigationState?.activeRoute?.() !== route", bridge)
+        self.assertIn("window.ACPSurfaceHost?.activeRoute?.() !== route", bridge)
+        self.assertIn("window.ACPPlexamp?.isVisiblyOpen?.() === true", bridge)
+        self.assertIn("window.ACPScreenProjection?.state?.()", bridge)
+        self.assertIn("projection?.recommended_screen !== destination", bridge)
+        self.assertIn("projection?.lease?.active !== true", bridge)
+        self.assertIn("projection?.lease?.manual_surface !== destination", bridge)
+        self.assertIn("'.acp-mounted-surface-' + destination + ':not([hidden])'", bridge)
+        self.assertIn("if (!command || !readyForHandoff(command)) return;", bridge)
+        self.assertIn("if (!document.hasFocus() || !readyForHandoff(command)", bridge)
+        self.assertIn("const MAX_AGE_MS = 12000", bridge)
+        self.assertIn("const MAX_STAGE_ATTEMPTS = 6", bridge)
+        # Audio is an in-drawer utility, not a registered ACP page/lease.
+        self.assertIn("if (command.destination === 'audio')", bridge)
+
     def test_browser_painted_ack_is_after_focus_and_two_frames(self):
         js = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
         self.assertIn("window.requestAnimationFrame(() => window.requestAnimationFrame(resolve))", js)
