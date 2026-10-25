@@ -1,3 +1,10 @@
+## 25 October 2026 — B3 animated panel invisible on Pi; corrected with Gtk.Revealer (retest pending)
+
+- User's Pi: initial opt-in `--animate-drawer` produced a raised red indicator but an invisible drawer. Terminal showed normal open/close state, correct theme/presentation, time limit; `py_compile` succeeded and **20/20 tests passed**. Unit tests did not catch actual Wayland rendering failure. Mark original negative-margin animation **physical FAIL**.
+- Candidate fix `c7e90a31`: use GTK3 `Gtk.Revealer` `SLIDE_UP` within a fixed, non-negative-bottom-margin layer-shell window, while the indicator rises/lowers by non-negative margin. Frame/font/palette still owned by same GTK child. On OSK or handoff force transition duration zero and hide immediately; cancel stale indicator tick. Default instant path unchanged; no startup/OSK/audio/system settings changed.
+- Regression test `test_native_drawer_glide_is_opt_in_and_keyboard_handoff_interrupts` explicitly asserts panel margin always equals non-negative ACP bottom inset over multiple heights/positions, and checks GTK3 Revealer is used with 180ms motion. Existing B3 suite count remains **20**. Tests and physical rendering of corrected code **not yet run** by Pi user.
+- Check via `python3 -m py_compile scripts/try-native-navigation-drawer.py tests/test_native_navigation_drawer.py`, `python3 -m unittest discover -s tests -p 'test_native_navigation_drawer.py' -v`; then run bounded preview with usual flags plus `--animate-drawer`, screenshot open drawer. Tap/reverse, keyboard hide/restoration, Weather painted handoff; compare with preview omitting new flag.
+ 
 ## 25 October 2026 — Atkinson native font accepted; experimental drawer glide
 
 - Physical Pi: official Debian trixie `fonts-atkinson-hyperlegible-ttf` installed; `fc-match` and B3 GTK diagnostics confirm Atkinson Hyperlegible Bold is used rather than DejaVu substitution. Screenshot now closely resembles ACP label font; host installation successful, no font files shared/committed. Theme red and route-to-Weather handoff still work.
