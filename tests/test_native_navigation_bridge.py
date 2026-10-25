@@ -158,6 +158,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         colors = {key: "rgb(10, 20, 30)" for key in nav.PALETTE_KEYS}
         colors["drawer_background"] = "rgba(6, 12, 22, 0.91)"
         colors["button_hover_background"] = "rgba(255, 255, 255, 0.22)"
+        colors["button_pressed_background"] = "rgba(255, 255, 255, 0.30)"
         snapshot.publish(colors)
         self.assertEqual(snapshot.read(), colors)
         colors["drawer_background"] = "rgb(0, 0, 0)"
@@ -188,9 +189,9 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         main = (ROOT / "app/main.py").read_text()
         self.assertIn('window.getComputedStyle(node)', script)
         self.assertIn("button_hover_background: buttonHover", script)
-        self.assertIn("=== 'classic_dark'", script)
-        self.assertIn("!astronomyNight && neutralHover", script)
-        self.assertIn("--acp-fill-control-hover-neutral", script)
+        self.assertIn("button_pressed_background: buttonPressed", script)
+        self.assertIn("--acp-nav-hover-fill", script)
+        self.assertIn("--acp-nav-pressed-fill", script)
         self.assertIn(".nav-button:not(.is-active)", script)
         self.assertIn('lastPaletteAttemptAt < 4000', script)
         self.assertIn("void publishPalette();", script)
@@ -200,6 +201,33 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn('palette_snapshot.publish(', main)
         self.assertIn('palette_snapshot.read()', main)
 
+    def test_transiently_busy_native_route_is_retried_without_reposting(self):
+        script = (ROOT / "app/static/js/native-navigation-bridge.js").read_text()
+        self.assertIn("const STAGE_RETRY_MS = 1200", script)
+        self.assertIn("const MAX_STAGE_ATTEMPTS = 6", script)
+        self.assertIn("staging.sequence !== command.sequence", script)
+        self.assertIn("if (readyForHandoff(command) || staging.inFlight", script)
+        self.assertIn("window.ACPNavigationState?.isPresenting?.()", script)
+        self.assertIn("stagePendingHandoff();", script)
+        self.assertEqual(script.count("fetch('/api/native-navigation/next'"), 1)
+
+    def test_all_curated_nav_themes_define_hover_and_press_colours(self):
+        theme = (ROOT / "app/static/css/daytime-themes.css").read_text()
+        follow = (ROOT / "app/static/css/daytime-theme-followup.css").read_text()
+        nav = (ROOT / "app/static/css/nav.css").read_text()
+        night = (ROOT / "app/static/css/night-navigation-closure.css").read_text()
+        for name in ("midnight_blue", "amber_terminal", "green_phosphor",
+                     "aubergine", "steel_cyan", "crimson_glow"):
+            block = theme.split('html[data-daytime-theme="' + name + '"] body:', 1)[1]
+            block = block.split('}', 1)[0]
+            self.assertIn('--acp-nav-hover-fill:', block)
+            self.assertIn('--acp-nav-pressed-fill:', block)
+        self.assertIn('nav-button:not(.is-active):hover', follow)
+        self.assertIn('nav-button:not(.is-active):active', follow)
+        self.assertIn('nav-button:not(.is-active):active', nav)
+        self.assertIn('--acp-nav-hover-fill: rgba(135, 0, 0, 0.78)', night)
+        self.assertIn('--acp-nav-pressed-fill: rgba(176, 0, 0, 0.86)', night)
+
     def test_astronomy_red_owns_nav_after_daytime_theme_important_css(self):
         base = (ROOT / "app/templates/base.html").read_text()
         night = (ROOT / "app/static/css/night-navigation-closure.css").read_text()
@@ -207,7 +235,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         followup = (ROOT / "app/static/css/daytime-theme-followup.css").read_text()
         self.assertLess(base.index("css/daytime-theme-followup.css"),
                         base.index("css/night-navigation-closure.css"))
-        self.assertIn("20261023-night-nav-v1", base)
+        self.assertIn("20261025-b3-pointer-feedback-v1", base)
         self.assertIn(".nav-drawer .nav-button", followup)
         self.assertIn("!important", followup)
         self.assertIn(
@@ -296,7 +324,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn('native_status_allowed(request)', main)
         self.assertIn('presentation_snapshot.publish(', main)
         self.assertIn('presentation_snapshot.read()', main)
-        self.assertIn("20261023-b3-presentation-v7", template)
+        self.assertIn("20261025-b3-stage-retry-v1", template)
 
     def test_dashboard_hooks_present_and_no_boot_activation(self):
         template = (ROOT / "app/templates/base.html").read_text()

@@ -409,11 +409,12 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "emblem-system-symbolic", Gtk.IconSize.DIALOG)
 
     def test_dynamic_palette_owns_gtk_hover_focus_and_pressed_colours(self):
-        # For Astronomy Red the hover colour is *identical* to the base colour;
-        # GTK's grey fallback must not break theme parity.
+        # Astronomy Red now has distinct hover and pressed fills. Neither
+        # state may inherit the stock grey GTK background.
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
         colors.update(button_background="rgba(96, 0, 0, 0.62)",
-                      button_hover_background="rgba(96, 0, 0, 0.62)",
+                      button_hover_background="rgba(135, 0, 0, 0.78)",
+                      button_pressed_background="rgba(176, 0, 0, 0.86)",
                       button_border="rgba(255, 72, 72, 0.24)",
                       button_text="rgb(255, 92, 92)",
                       active_background="rgb(255, 64, 64)",
@@ -430,10 +431,12 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         ):
             self.assertIn(selector, generated)
         hover_rule = generated.split(".acp-b3-nav:backdrop:hover {", 1)[1].split("}", 1)[0]
-        self.assertIn("background-color: rgba(96, 0, 0, 0.62);", hover_rule)
+        self.assertIn("background-color: rgba(135, 0, 0, 0.78);", hover_rule)
         self.assertIn("border-color: rgba(255, 72, 72, 0.24);", hover_rule)
         self.assertIn("color: rgb(255, 92, 92);", hover_rule)
         self.assertIn("background-image: none;", hover_rule)
+        pressed_rule = generated.split(".acp-b3-nav:backdrop:active {", 1)[1].split("}", 1)[0]
+        self.assertIn("background-color: rgba(176, 0, 0, 0.86);", pressed_rule)
         active_rule = generated.split(".acp-b3-active:focus:active {", 1)[1].split("}", 1)[0]
         self.assertIn("background-color: rgb(255, 64, 64);", active_rule)
         self.assertIn("color: rgb(26, 0, 0);", active_rule)
@@ -444,13 +447,17 @@ class NativeNavigationDrawerTests(unittest.TestCase):
     def test_classic_dark_hover_only_and_strict_palette_contract(self):
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
         colors.update(button_background="rgba(255, 255, 255, 0.12)",
-                      button_hover_background="rgba(255, 255, 255, 0.22)")
+                      button_hover_background="rgba(255, 255, 255, 0.22)",
+                      button_pressed_background="rgba(255, 255, 255, 0.30)")
         generated = drawer.palette_css(colors).decode("ascii")
         normal_rule = generated.split(".acp-b3-nav:backdrop {", 1)[1].split("}", 1)[0]
         hover_rule = generated.split(".acp-b3-nav:backdrop:hover {", 1)[1].split("}", 1)[0]
         self.assertIn("background-color: rgba(255, 255, 255, 0.12);", normal_rule)
         self.assertIn("background-color: rgba(255, 255, 255, 0.22);", hover_rule)
+        pressed_rule = generated.split(".acp-b3-nav:backdrop:active {", 1)[1].split("}", 1)[0]
+        self.assertIn("background-color: rgba(255, 255, 255, 0.30);", pressed_rule)
         self.assertNotEqual(normal_rule, hover_rule)
+        self.assertNotEqual(hover_rule, pressed_rule)
         with self.assertRaises(ValueError):
             drawer.palette_css({k: v for k, v in colors.items()
                                 if k != "button_hover_background"})
@@ -466,6 +473,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIn(".acp-b3-nav:active, .acp-b3-nav:checked", source)
         self.assertIn("background-image: none;", source)
         self.assertIn("background-color: {value['button_background']}", source)
+        self.assertIn("background-color: {value['button_pressed_background']}", source)
         colors = {key: "rgb(15, 0, 0)" for key in drawer.PALETTE_NAMES}
         css = drawer.palette_css(colors)
         self.assertIn(b".acp-b3-nav:active", css)
