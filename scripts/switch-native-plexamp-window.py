@@ -22,7 +22,7 @@ BROWSER_SUFFIX = " - A Clockwork Plex - Chromium"
 # ACP Chromium uses titles such as "Home - A Clockwork Plex - Chromium".
 # Never use a generic Chromium app_id for actual focus.
 BROWSER_PAGES = frozenset({
-    "Home", "Clock", "Weather", "Astronomy", "News", "AirPlay",
+    "Home", "Clock", "Weather", "Astronomy", "News", "BBC News", "AirPlay",
     "Airplay", "AirPlay Ready", "Settings", "Plexamp",
     "A Clockwork Plex",
 })

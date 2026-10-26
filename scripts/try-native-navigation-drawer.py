@@ -61,7 +61,7 @@ DRAWER_MOTION_TICK_MS = 20
 # Never focus a window from an observer or trust generic Chromium metadata.
 FOREGROUND_PAGE_LABELS = {
     "Home": "Home", "Clock": "Home", "Weather": "Weather",
-    "News": "News", "AirPlay": "AirPlay", "Airplay": "AirPlay",
+    "News": "News", "BBC News": "News", "AirPlay": "AirPlay", "Airplay": "AirPlay",
     "AirPlay Ready": "AirPlay", "Settings": "Settings",
     "Plexamp": "Plexamp",
 }
@@ -1167,6 +1167,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         workspace_labels.append(label)
         button.set_size_request(76, 56)
         button.get_style_context().add_class("acp-b3-nav")
+        # Mouse/touch clicks must not leave GTK keyboard-focus paint stuck
+        # on the last button after the actual ACP page changes.
+        button.set_focus_on_click(False)
         if item == "Plexamp" and not observe_foreground:
             button.get_style_context().add_class("acp-b3-active")
         button.connect("clicked", select_destination, item)
@@ -1184,6 +1187,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         button.set_size_request(56, 56)
         button.get_style_context().add_class("acp-b3-nav")
         button.get_style_context().add_class("acp-b3-utility")
+        button.set_focus_on_click(False)
         glyph = Gtk.Image()
         glyph.set_size_request(24, 24)
         glyph.set_halign(Gtk.Align.CENTER)

@@ -25,6 +25,9 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
     def test_uses_only_existing_b1_exact_app_ids_and_active_find(self):
         self.assertEqual(self.b1.APP_ID, "Plexamp")
         self.assertEqual(self.b1.BROWSER_ID, "chromium")
+        # The real News template renders BBC News - A Clockwork Plex, not
+        # News - A Clockwork Plex. Keep the exact title allowlist strict.
+        self.assertIn("BBC News", self.b1.BROWSER_PAGES)
         self.assertTrue(FOCUS_HELPER.exists())
         history = []
 
@@ -58,7 +61,8 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
         self.assertEqual(drawer.observed_foreground(b1, {}), ("plexamp", "Plexamp"))
         cases = {
             "Home": "Home", "Clock": "Home", "Weather": "Weather",
-            "News": "News", "AirPlay": "AirPlay", "AirPlay Ready": "AirPlay",
+            "News": "News", "BBC News": "News",
+            "AirPlay": "AirPlay", "AirPlay Ready": "AirPlay",
             "Settings": "Settings",
         }
         for title, label in cases.items():
@@ -127,6 +131,15 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
         # tuples. A B4 label/selection list must never break B3 geometry.
         self.assertEqual(source.count("utility_buttons.append(button)"), 1)
         self.assertIn("utility_button_labels.append(label)", source)
+        self.assertIn('button.set_focus_on_click(False)', source)
+        news_template = (ROOT / "app/templates/news.html").read_text()
+        self.assertIn("{% block title %}BBC News - A Clockwork Plex", news_template)
+        self.assertIn('"BBC News": "News"', source)
+        settings_close = (ROOT / "app/static/css/settings-theme-closure.css").read_text()
+        self.assertIn('input[type="range"]:not(.acp-calibrated-fader):is(:focus, :focus-visible)', settings_close)
+        self.assertIn("outline: 2px solid var(--accent) !important", settings_close)
+        self.assertIn("20261026-settings-slider-focus-palette-v2",
+                      (ROOT / "app/templates/base.html").read_text())
         self.assertIn("zip(utility_button_labels, utility_buttons)", source)
         self.assertIn("for button in utility_buttons:", source)
         self.assertIn('elif route_pages:', source)
