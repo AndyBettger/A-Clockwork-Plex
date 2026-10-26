@@ -4,9 +4,10 @@
 A short-lived GTK3 layer-shell preview, NOT the production shell. It reads
 Squeekboard's read-only Visible D-Bus property but never controls the OSK.
 Unknown keyboard state fails closed: no native overlay is displayed.
-Navigation destinations are PREVIEW ONLY; the ACP button deliberately uses the
-existing B1 compositor focus helper without changing any browser route.
-No startup, desktop configuration, app state or audio changes.
+B3 routes require explicit opt-in and exit after handoff; B4.1/B4.2 remain
+read-only. B4.3's separately opt-in shared navigation retains the GTK process
+across app focus changes, using the existing ACP mailbox and B1 focus helper.
+No startup, desktop configuration, persistent app state or audio changes.
 """
 from __future__ import annotations
 
@@ -1264,7 +1265,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing preview"))
     print(f"ACP B3: preview for at most {seconds}s, indicator {bar_width}x{bar_height}px;"
           " tap opens drawer; "
-          + ("ACP page handoff ENABLED" if route_pages else "routes preview-only except Plexamp/ACP")
+          + ("B4.3 shared page/native routing ENABLED" if navigate_shared
+             else ("ACP page handoff ENABLED" if route_pages
+                   else "routes preview-only except Plexamp/ACP"))
           + ("; native drawer glide ENABLED" if animate_drawer else "; instant drawer")
           + ("; B4.1 read-only foreground observer ENABLED" if observe_foreground else "")
           + ("; B4.2 expiring Chromium chrome takeover ENABLED" if share_chrome else "")
