@@ -85,6 +85,25 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
+    def test_revealer_height_is_single_source_for_indicator_gap(self):
+        # Gtk3 Revealer slide-up changes its preferred natural height on
+        # each frame. The pill must follow it rather than an independent
+        # cubic timer that can get ahead of the rendered navigation box.
+        self.assertEqual(drawer.gtk_revealed_fraction(0, 69), 0.0)
+        self.assertAlmostEqual(drawer.gtk_revealed_fraction(34, 69), 34 / 69)
+        self.assertEqual(drawer.gtk_revealed_fraction(69, 69), 1.0)
+        self.assertEqual(drawer.gtk_revealed_fraction(90, 69), 1.0)
+        self.assertEqual(drawer.gtk_revealed_fraction(-5, 69), 0.0)
+        self.assertEqual(drawer.gtk_revealed_fraction(10, 0), 0.0)
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("revealer.get_preferred_height()[1]", script)
+        self.assertIn('gtk_revealed_fraction(natural_height, layout["height"])', script)
+        self.assertNotIn(
+            "start + (target - start) * drawer_motion_ease(phase)", script)
+        # Keep GTK child clipping; never animate negative Wayland margins.
+        self.assertIn("Gtk.RevealerTransitionType.SLIDE_UP", script)
+        self.assertIn("LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)", script)
+
     def test_native_drawer_glide_is_opt_in_and_keyboard_handoff_interrupts(self):
         # The drawer's Wayland surface must NEVER start off-screen.
         self.assertEqual(drawer.drawer_motion_margins(0, 69, 8), (8, 0))

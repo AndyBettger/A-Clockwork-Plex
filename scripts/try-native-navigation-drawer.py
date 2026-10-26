@@ -555,6 +555,18 @@ def drawer_motion_ease(fraction: float) -> float:
     return 1.0 - (1.0 - t) ** 3
 
 
+def gtk_revealed_fraction(revealed_height: int, full_height: int) -> float:
+    """Read Gtk.Revealer's own sliding size, not a second animation clock.
+
+    GTK3 slide-up scales its natural/preferred height as it reveals the
+    child. Using that same height for the separate Wayland indicator keeps
+    the pill-to-drawer gap constant, including during 1000ms animations.
+    """
+    if full_height <= 0:
+        return 0.0
+    return max(0.0, min(1.0, float(revealed_height) / full_height))
+
+
 def make_layer_window(Gtk, LayerShell, width: int, height: int,
                       *, namespace: str, bottom: int):
     win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
@@ -926,15 +938,22 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 drawer.hide()
             return
         began = time.monotonic()
-        # Reversals take a proportionate part of ACP's configured full travel.
+        # GTK3 Revealer owns the slide. Poll its *actual preferred height*
+        # rather than run a second easing timeline for the Wayland handle.
+        # A small completion allowance permits the GTK frame clock to draw
+        # its last frame before the window is hidden on close.
         duration = duration_ms / 1000.0 * abs(target - start)
 
         def motion_tick():
             if state["stopping"] or motion["epoch"] != epoch:
                 return False
-            phase = min(1.0, (time.monotonic() - began) / duration)
-            place_drawer_motion(start + (target - start) * drawer_motion_ease(phase))
-            if phase >= 1.0:
+            natural_height = revealer.get_preferred_height()[1]
+            fraction = gtk_revealed_fraction(natural_height, layout["height"])
+            place_drawer_motion(fraction)
+            settled = abs(fraction - target) < 0.025
+            elapsed = time.monotonic() - began
+            if (settled and elapsed >= duration * 0.5) or elapsed >= duration + 0.15:
+                place_drawer_motion(target)
                 if not opened:
                     drawer.hide()
                 return False

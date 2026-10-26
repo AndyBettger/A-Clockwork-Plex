@@ -68,6 +68,8 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("if seconds <= 0:", source)
         self.assertIn("if not animate_drawer or immediate or duration_ms <= 0:", source)
         self.assertIn("duration_ms / 1000.0 * abs(target - start)", source)
+        self.assertIn("revealer.get_preferred_height()[1]", source)
+        self.assertIn("gtk_revealed_fraction(natural_height", source)
         self.assertIn("prior = state[\"foreground\"]", source)
         self.assertIn("observed[0] != prior[0]", source)
         self.assertIn("restart_drawer_idle()", source)
