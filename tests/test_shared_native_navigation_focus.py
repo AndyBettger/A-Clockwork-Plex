@@ -115,6 +115,12 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
                       source)
         self.assertIn('not observe_foreground or state["foreground"] is not None', source)
         self.assertIn('if item == "Plexamp" and not observe_foreground:', source)
+        # Original B3 layout still scales plain Gtk.Button objects, not label
+        # tuples. A B4 label/selection list must never break B3 geometry.
+        self.assertEqual(source.count("utility_buttons.append(button)"), 1)
+        self.assertIn("utility_button_labels.append(label)", source)
+        self.assertIn("zip(utility_button_labels, utility_buttons)", source)
+        self.assertIn("for button in utility_buttons:", source)
         self.assertIn('elif route_pages:', source)
         self.assertIn('start_curtained_focus(name, sequence)', source)
         # The B4.1 observer itself does not use or manipulate any window focus.
