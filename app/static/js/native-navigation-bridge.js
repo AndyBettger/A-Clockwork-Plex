@@ -217,6 +217,13 @@
     // hover and press colours are read-only styling, not preferences.
     const px = (value) => Number.parseFloat(value) || 0;
     const rawBrightness = px(root.getPropertyValue('--acp-night-brightness'));
+    // ACP's own preferences are the authority for both GTK navigation
+    // inactivity and its show/hide duration, not the old B3 180ms defaults.
+    const prefs = window.ACPDashboardPreferences?.read?.() || {};
+    const navDuration = Number(prefs.navigationTransitionDurationMs
+      ?? document.documentElement.dataset.navigationTransitionDurationMs ?? 180);
+    const navInactivity = Number(prefs.navigationInactivitySeconds
+      ?? document.documentElement.dataset.navigationInactivitySeconds ?? 6);
     const presentation = {
       viewport_width: window.innerWidth,
       viewport_height: window.innerHeight,
@@ -229,6 +236,8 @@
       button_height: button.getBoundingClientRect().height,
       utility_size: utilities.querySelector('.nav-utility-button')?.getBoundingClientRect().width || 0,
       font_size: px(styles[1].fontSize),
+      navigation_transition_duration_ms: navDuration,
+      navigation_inactivity_seconds: navInactivity,
       night_brightness: astronomyNight
         ? Math.min(1, Math.max(0.05, rawBrightness || 0.18)) : 1,
       astronomy_night: astronomyNight,
@@ -237,7 +246,9 @@
     const validMeasurements = Number.isFinite(presentation.drawer_width)
       && presentation.drawer_width >= 200
       && presentation.drawer_height >= 40
-      && presentation.utility_size >= 24;
+      && presentation.utility_size >= 24
+      && Number.isInteger(navDuration) && navDuration >= 0 && navDuration <= 1000
+      && Number.isInteger(navInactivity) && navInactivity >= 0 && navInactivity <= 30;
     palettePublishing = true;
     try {
       await fetch('/api/native-navigation/palette', {
@@ -259,6 +270,24 @@
     } finally {
       palettePublishing = false;
     }
+  }
+
+  function sharedSpatialDirection(destination) {
+    // ACP's ordinary .main-nav links provide direction metadata for Spatial
+    // Row. B4 GTK buttons are not DOM links, so recover the SAME topology
+    // from the currently mounted ACP page before navigating. The intermediate
+    // surface strip is built by ACPSurfaceHost, not reimplemented here.
+    const settings = window.ACPDashboardPreferences?.read?.() || {};
+    const style = String(settings.transitionStyle
+      || document.documentElement.dataset.transitionStyle || '').toLowerCase();
+    if (style !== 'spatial-row') return '';
+    const from = window.ACPSurfaceHost?.activeRoute?.()
+      || window.ACPNavigationState?.activeRoute?.();
+    const to = '/' + destination;
+    const topology = window.ACPWorkspaceTopology;
+    const path = topology?.path?.(from, to) || [];
+    if (path.length < 2 || !path.every((entry) => entry.renderer === 'acp')) return '';
+    return topology.direction(from, to) || '';
   }
 
   function stagePendingHandoff() {
@@ -287,8 +316,10 @@
             && document.hasFocus()) {
           // Local ACP→ACP selection: retain the user's configured page
           // transition; there is no independent Flatpak window to uncover.
+          const spatialCommitDirection = sharedSpatialDirection(command.destination);
           await window.ACPNavigate('/' + command.destination, {
             source: 'native-gtk-b4-shared', animate: true,
+            ...(spatialCommitDirection ? { spatialCommitDirection } : {}),
           });
         } else {
           // Existing B3: background staging MUST remain non-animated.

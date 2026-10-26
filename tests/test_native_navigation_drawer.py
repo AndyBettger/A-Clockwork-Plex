@@ -283,7 +283,9 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "drawer_bottom": 8, "drawer_padding": 8,
             "workspace_gap": 8, "utility_gap": 6,
             "button_height": 62, "utility_size": 62,
-            "font_size": 21.8, "night_brightness": 0.18,
+            "font_size": 21.8,
+            "navigation_transition_duration_ms": 180,
+            "navigation_inactivity_seconds": 6, "night_brightness": 0.18,
             "astronomy_night": True,
         }
         self.assertTrue(drawer.valid_presentation(values))
@@ -292,6 +294,10 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertIsNone(drawer.presentation_scale(values, 1280, 800))
         self.assertIsNone(drawer.presentation_scale(values, 9000, 5000))
         self.assertFalse(drawer.valid_presentation({**values, "font_size": True}))
+        self.assertFalse(drawer.valid_presentation({
+            **values, "navigation_transition_duration_ms": True}))
+        self.assertFalse(drawer.valid_presentation({
+            **values, "navigation_inactivity_seconds": 31}))
         self.assertFalse(drawer.valid_presentation({**values, "astronomy_night": False}))
         self.assertIn(b"font-size: 22px", drawer.presentation_css(values, 1.0))
 
@@ -311,7 +317,9 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "drawer_bottom": 8, "drawer_padding": 8,
             "workspace_gap": 8, "utility_gap": 6,
             "button_height": 62, "utility_size": 62,
-            "font_size": 21.8, "night_brightness": 0.2,
+            "font_size": 21.8,
+            "navigation_transition_duration_ms": 180,
+            "navigation_inactivity_seconds": 6, "night_brightness": 0.2,
             "astronomy_night": True,
         }
         shaded = drawer.presentation_palette(colors, metrics)

@@ -328,7 +328,9 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             "drawer_bottom": 8, "drawer_padding": 8,
             "workspace_gap": 8, "utility_gap": 6,
             "button_height": 62, "utility_size": 62,
-            "font_size": 21.8, "night_brightness": 0.18,
+            "font_size": 21.8,
+            "navigation_transition_duration_ms": 180,
+            "navigation_inactivity_seconds": 6, "night_brightness": 0.18,
             "astronomy_night": True,
         }
         self.assertIsNone(store.read())
@@ -342,6 +344,10 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             {**metrics, "font_size": "21px"},
             {**metrics, "utility_size": True},
             {**metrics, "night_brightness": 2.0},
+            {**metrics, "navigation_transition_duration_ms": 1001},
+            {**metrics, "navigation_transition_duration_ms": 180.1},
+            {**metrics, "navigation_inactivity_seconds": -1},
+            {**metrics, "navigation_inactivity_seconds": True},
             {**metrics, "astronomy_night": False},
             {**metrics, "astronomy_night": False, "night_brightness": .18},
             {**metrics, "extra_css": "window { color: red; }"},
