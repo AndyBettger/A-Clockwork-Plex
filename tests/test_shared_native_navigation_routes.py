@@ -53,7 +53,7 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("complete_handoff(reason)", source)
         self.assertIn('if not navigate_shared:\n            stop_once(reason)', source)
         self.assertIn('state["handoff_pending"] = False', source)
-        self.assertIn("audio mixer lives in Chromium", source.lower())
+        self.assertIn("audio mixer lives in chromium", source.lower())
         self.assertIn("ThreadPoolExecutor(max_workers=1", source)
         self.assertIn("overlay_allowed(state[\"keyboard\"])", source)
         self.assertNotIn("flatpak kill", source)
