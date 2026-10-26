@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import os
 from pathlib import Path
+import uuid
 import sys
 import json
 import re
@@ -41,6 +42,7 @@ MAX_SECONDS = 300
 NAVIGATION_URL = "http://127.0.0.1:8088/api/native-navigation/request"
 STATUS_URL = "http://127.0.0.1:8088/api/native-navigation/status"
 PALETTE_URL = "http://127.0.0.1:8088/api/native-navigation/palette"
+B4_CHROME_OWNER_URL = "http://127.0.0.1:8088/api/native-navigation/chrome-owner"
 PALETTE_REFRESH_MS = 4000
 PRESENTATION_URL = "http://127.0.0.1:8088/api/native-navigation/presentation"
 PREPARE_TIMEOUT_SECONDS = 10.0
@@ -93,6 +95,28 @@ def observed_foreground(b1, env: dict[str, str]) -> tuple[str, str] | None:
         return ("acp", selected) if selected else None
     except (b1.WindowError, OSError, ValueError):
         return None
+
+
+def observe_and_renew_chrome(b1, env: dict[str, str],
+                             owner: str, indicator_mapped: bool):
+    """One background-worker cycle; never issue a GTK API call off-thread."""
+    observed = observed_foreground(b1, env)
+    if observed is None or observed[0] != "acp" or not indicator_mapped:
+        return observed, False
+    payload = json.dumps({
+        "owner": owner, "foreground": "acp", "visible": True,
+    }).encode("ascii")
+    req = urllib.request.Request(
+        B4_CHROME_OWNER_URL, data=payload, method="POST",
+        headers={"Content-Type": "application/json",
+                 "X-ACP-B3-Source": "native-gtk-b3-dev"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=0.35) as response:
+            result = json.load(response)
+            return observed, response.status == 200 and result.get("ok") is True
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return observed, False
 
 
 def request_page_handoff(label: str) -> int | None:
@@ -530,7 +554,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             route_pages: bool = False, curtain_handoff: bool = False,
             theme_from_acp: bool = False, presentation_from_acp: bool = False,
             animate_drawer: bool = False,
-            observe_foreground: bool = False):
+            observe_foreground: bool = False,
+            share_chrome: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -1070,22 +1095,42 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         focus_env = b1.runtime_env()
         focus_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="acp-b4-focus")
         focus_task = {"future": None}
+        chrome_owner = uuid.uuid4().hex if share_chrome else None
+        chrome_was_live = {"value": False}
 
         def refresh_foreground():
             future = focus_task["future"]
             if future is None:
-                focus_task["future"] = focus_executor.submit(
-                    observed_foreground, b1, focus_env)
+                if share_chrome:
+                    # The worker observes only Wayland focus and submits one
+                    # same-host heartbeat *after* the GTK indicator is mapped.
+                    # No GTK methods may run in this worker.
+                    mapped = (overlay_allowed(state["keyboard"])
+                              and not state["curtain_active"]
+                              and indicator.get_mapped())
+                    focus_task["future"] = focus_executor.submit(
+                        observe_and_renew_chrome, b1, focus_env,
+                        chrome_owner, bool(mapped))
+                else:
+                    focus_task["future"] = focus_executor.submit(
+                        observed_foreground, b1, focus_env)
                 return True
             if not future.done():
                 return True
             focus_task["future"] = None
             try:
-                observed = future.result()
+                result = future.result()
+                observed, renewed = result if share_chrome else (result, False)
             except Exception as exc:
                 print(f"ACP B4.1: foreground query failed ({type(exc).__name__}); hidden",
                       flush=True)
-                observed = None
+                observed, renewed = None, False
+            if share_chrome and renewed != chrome_was_live["value"]:
+                chrome_was_live["value"] = renewed
+                print("ACP B4.2: " + (
+                    "GTK ownership lease active; Chromium nav may yield"
+                    if renewed else "GTK lease not renewed; Chromium fallback remains"),
+                    flush=True)
             if observed != state["foreground"]:
                 state["foreground"] = observed
                 # Close any previously opened GTK drawer rather than dragging
@@ -1138,6 +1183,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
           + ("ACP page handoff ENABLED" if route_pages else "routes preview-only except Plexamp/ACP")
           + ("; native drawer glide ENABLED" if animate_drawer else "; instant drawer")
           + ("; B4.1 read-only foreground observer ENABLED" if observe_foreground else "")
+          + ("; B4.2 expiring Chromium chrome takeover ENABLED" if share_chrome else "")
           + "; hides when Squeekboard opens.", flush=True)
     try:
         Gtk.main()
@@ -1171,6 +1217,8 @@ def main() -> int:
                         help="opt-in 180ms GTK child slide + indicator glide; default unchanged")
     parser.add_argument("--observe-foreground", action="store_true",
                         help="B4.1 read-only shared GTK drawer foreground/active-tab preview")
+    parser.add_argument("--share-chrome", action="store_true",
+                        help="B4.2 dev-only expiring lease to hide Chromium duplicate navigation")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -1186,6 +1234,8 @@ def main() -> int:
         parser.error("--animate-drawer requires --show")
     if args.observe_foreground and (not args.show or args.route_pages or args.curtain_handoff):
         parser.error("--observe-foreground requires --show without --route-pages or --curtain-handoff")
+    if args.share_chrome and not args.observe_foreground:
+        parser.error("--share-chrome requires --observe-foreground")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -1210,7 +1260,8 @@ def main() -> int:
                 theme_from_acp=args.theme_from_acp,
                 presentation_from_acp=args.presentation_from_acp,
                 animate_drawer=args.animate_drawer,
-                observe_foreground=args.observe_foreground)
+                observe_foreground=args.observe_foreground,
+                share_chrome=args.share_chrome)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
