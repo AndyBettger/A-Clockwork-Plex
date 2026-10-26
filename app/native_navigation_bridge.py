@@ -111,6 +111,51 @@ class NavigationMailbox:
             return current["phase"]
 
 
+CHROME_OWNER_TTL_SECONDS = 4.0
+
+
+class ChromeOwnerLease:
+    """Ephemeral B4.2 owner, never a browser preference or persistent switch.
+
+    An exact native GTK process token renews while the ACP page is foreground
+    and the GTK indicator is mapped. Another process cannot displace it while
+    live. A missing heartbeat, crash or app-server restart always restores
+    Chromium's default controls without a recovery command.
+    """
+    def __init__(self, clock=monotonic):
+        self._clock = clock
+        self._guard = Lock()
+        self._owner = None
+        self._renewed = None
+
+    def publish(self, payload):
+        if (type(payload) is not dict
+                or set(payload) != {"owner", "foreground", "visible"}
+                or type(payload["owner"]) is not str
+                or not re.fullmatch(r"[0-9a-f]{32}", payload["owner"])
+                or payload["foreground"] != "acp"
+                or payload["visible"] is not True):
+            raise NavigationError("Invalid B4.2 GTK owner heartbeat")
+        with self._guard:
+            now = self._clock()
+            alive = (self._renewed is not None
+                     and 0 <= now - self._renewed < CHROME_OWNER_TTL_SECONDS)
+            if alive and self._owner != payload["owner"]:
+                raise NavigationError("Another GTK navigation owner is active")
+            self._owner = payload["owner"]
+            self._renewed = now
+
+    def active(self):
+        with self._guard:
+            if self._renewed is None:
+                return False
+            age = self._clock() - self._renewed
+            return self._owner is not None and 0 <= age < CHROME_OWNER_TTL_SECONDS
+
+
+chrome_owner_lease = ChromeOwnerLease()
+
+
 class PaletteSnapshot:
     """Ephemeral exact Chromium-computed colours; never stores preferences."""
     def __init__(self, clock=monotonic):
