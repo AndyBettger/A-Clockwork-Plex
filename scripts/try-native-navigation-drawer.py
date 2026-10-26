@@ -685,6 +685,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     motion = {"fraction": 0.0, "epoch": 0}
     workspace_buttons = []
     utility_buttons = []
+    utility_button_labels = []
     utility_images = []
     workspace_labels = []
     from gi.repository import GdkPixbuf, Pango
@@ -1013,9 +1014,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         button.add(glyph)
         utility_images.append((label, glyph))
         button.connect("clicked", select_destination, label)
-        utility_buttons.append((label, button))
         utilities.pack_start(button, False, False, 0)
         utility_buttons.append(button)
+        utility_button_labels.append(label)
 
     # B3 still lacks actual ACP page selection; keep a small explicit escape.
     escape = Gtk.Button(label="ACP")
@@ -1096,7 +1097,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                         context.add_class("acp-b3-active")
                     else:
                         context.remove_class("acp-b3-active")
-                for item, button in utility_buttons:
+                for item, button in zip(utility_button_labels, utility_buttons):
                     context = button.get_style_context()
                     if observed is not None and item == observed[1]:
                         context.add_class("acp-b3-active")
