@@ -75,6 +75,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/settings-theme-closure.css', v='20260820-settings-theme-closure-v1') }}">
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/touch-keyboard.css', v='20261012-native-osk-session-trial-v1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shared-native-nav-owner.css', v='20261026-b4-lease-v1') }}">
 </head>
 <body class="mode-{{ state.mode }} acp-page-booting{% if active_page | default(state.mode) == 'airplay' %} airplay-session-unresolved{% endif %}"
   data-active-page="{{ active_page | default(state.mode) }}"
@@ -108,6 +109,7 @@
   <script src="{{ url_for('static', filename='js/segment-readouts.js') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer.js', v='20261007-nav-shell-v8') }}"></script>
   <script src="{{ url_for('static', filename='js/nav-drawer-lifecycle.js', v='20261005-shell-nav-lifecycle-v2') }}"></script>
+  <script src="{{ url_for('static', filename='js/shared-native-nav-owner.js', v='20261026-b4-lease-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-eq.js', v='20261005-shell-nav-lifecycle-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-eq-drawer-layout.js', v='20261005-shell-nav-lifecycle-v2') }}"></script>
   <script src="{{ url_for('static', filename='js/audio-state-isolation.js') }}"></script>
