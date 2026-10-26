@@ -489,6 +489,22 @@ def api_c3_theme_sync():
         return jsonify({"ok": False, "error": "C3 trial sync refused; inspect private stage"}), 409
 
 
+@app.route("/api/native-navigation/chrome-owner", methods=["GET", "POST"])
+def api_native_navigation_chrome_owner():
+    """B4.2 opt-in GTK chrome ownership, four-second automatic browser fallback."""
+    if request.method == "POST":
+        if not b3_nav_bridge.native_submit_allowed(request):
+            return jsonify({"ok": False, "error": "Native GTK loopback required"}), 403
+        try:
+            b3_nav_bridge.chrome_owner_lease.publish(request.get_json(silent=True))
+        except b3_nav_bridge.NavigationError as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 409
+        return jsonify({"ok": True})
+    if not b3_nav_bridge.local_browser_request(request):
+        return jsonify({"ok": False, "error": "Local ACP browser required"}), 403
+    return jsonify({"ok": True, "active": b3_nav_bridge.chrome_owner_lease.active()})
+
+
 @app.route("/api/native-navigation/request", methods=["POST"])
 def api_native_navigation_request():
     """Development-only local native GTK -> existing Chromium destination."""
