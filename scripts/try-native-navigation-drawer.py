@@ -271,6 +271,8 @@ PRESENTATION_NUMBERS = {
     "workspace_gap": (0, 40), "utility_gap": (0, 40),
     "button_height": (24, 140), "utility_size": (24, 140),
     "font_size": (8, 40), "night_brightness": (0.05, 1.0),
+    "navigation_transition_duration_ms": (0, 1000),
+    "navigation_inactivity_seconds": (0, 30),
 }
 
 
@@ -282,7 +284,21 @@ def valid_presentation(value) -> bool:
                     for key, (low, high) in PRESENTATION_NUMBERS.items())
             and value["drawer_width"] <= value["viewport_width"]
             and value["drawer_height"] <= value["viewport_height"]
+            and all(type(value[key]) is int for key in (
+                "navigation_transition_duration_ms", "navigation_inactivity_seconds"))
             and (value["astronomy_night"] or value["night_brightness"] == 1.0))
+
+
+def shared_navigation_timing(presentation: dict | None) -> tuple[int, int]:
+    """Use ACP's normalised nav duration / inactivity, with B3 defaults.
+
+    A zero inactivity value means 'remain open' (as in Chromium);
+    a zero duration means an intentional instant open/close.
+    """
+    if not valid_presentation(presentation):
+        return DRAWER_MOTION_MS, 6
+    return (presentation["navigation_transition_duration_ms"],
+            presentation["navigation_inactivity_seconds"])
 
 
 def fetch_acp_presentation() -> dict | None:
@@ -722,7 +738,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     last_palette = {"value": None}
     last_presentation = {"value": None}
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
-    motion = {"fraction": 0.0, "epoch": 0}
+    motion = {"fraction": 0.0, "epoch": 0, "duration_ms": DRAWER_MOTION_MS}
+    drawer_idle = {"seconds": 6, "epoch": 0}
     workspace_buttons = []
     utility_buttons = []
     utility_button_labels = []
@@ -783,6 +800,15 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             return True
         last_presentation["value"] = snapshot
         scale = presentation_scale(snapshot, width, height) if snapshot else None
+        if navigate_shared:
+            duration, inactivity = shared_navigation_timing(
+                snapshot if scale is not None else None)
+            motion["duration_ms"] = duration
+            drawer_idle["seconds"] = inactivity
+            print(f"ACP B4.3: navigation timing {duration}ms; "
+                  f"inactivity {inactivity}s (0 = keep open)", flush=True)
+            if state["drawer"]:
+                restart_drawer_idle()
         if scale is None:
             layout.update(height=DRAWER_HEIGHT, bottom=DRAWER_BOTTOM_MARGIN)
             drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
@@ -832,11 +858,38 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             Gtk.main_quit()
         return False
 
+    def restart_drawer_idle():
+        # One local, cancellable GTK timer; no additional polling process.
+        # Keep ACP's zero-second 'never hide' convention.
+        drawer_idle["epoch"] += 1
+        if not navigate_shared or not state["drawer"] or state["handoff_pending"]:
+            return
+        seconds = drawer_idle["seconds"]
+        if seconds <= 0:
+            return
+        epoch = drawer_idle["epoch"]
+
+        def idle_expired():
+            if (state["stopping"] or epoch != drawer_idle["epoch"]
+                    or not state["drawer"]):
+                return False
+            if state["handoff_pending"]:
+                return False  # completion/error rearms the timer
+            print(f"ACP B4.3: navigation inactivity {seconds}s; hiding",
+                  flush=True)
+            set_drawer_open(False)
+            return False
+
+        GLib.timeout_add_seconds(seconds, idle_expired)
+
     def set_drawer_open(opened: bool, *, immediate: bool = False):
         # Each new request invalidates older ticks, including on OSK/focus.
         state["drawer"] = opened
         motion["epoch"] += 1
-        if not animate_drawer or immediate:
+        restart_drawer_idle()
+        duration_ms = (motion["duration_ms"] if navigate_shared
+                       else DRAWER_MOTION_MS)
+        if not animate_drawer or immediate or duration_ms <= 0:
             motion["fraction"] = float(opened)
             if animate_drawer:
                 place_drawer_motion(motion["fraction"])
@@ -847,7 +900,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 revealer.set_reveal_child(opened)
                 if not opened:
                     drawer.hide()
-                revealer.set_transition_duration(DRAWER_MOTION_MS)
+                revealer.set_transition_duration(duration_ms)
             else:
                 LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM,
                     (layout["height"] + layout["bottom"] + OPEN_INDICATOR_EXTRA_GAP)
@@ -862,7 +915,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         # Gtk.Revealer owns the actual panel slide. The indicator alone
         # changes positive layer-shell margins, matching its bottom position.
         revealer.set_transition_duration(max(1, round(
-            DRAWER_MOTION_MS * abs(target - start))))
+            duration_ms * abs(target - start))))
         if opened:
             place_drawer_motion(start)
             drawer.show_all()
@@ -873,8 +926,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 drawer.hide()
             return
         began = time.monotonic()
-        # Reversals take a proportionate part of the 180ms full travel.
-        duration = DRAWER_MOTION_MS / 1000.0 * abs(target - start)
+        # Reversals take a proportionate part of ACP's configured full travel.
+        duration = duration_ms / 1000.0 * abs(target - start)
 
         def motion_tick():
             if state["stopping"] or motion["epoch"] != epoch:
@@ -1016,6 +1069,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 return
             if name not in {"Home", "Weather", "News", "AirPlay", "Settings"}:
                 return
+            # Interaction resets the same inactivity timer as the Chromium
+            # drawer; don't automatically close GTK after an ACP page change.
+            restart_drawer_idle()
             print(f"ACP B4.3: {name} requested from {foreground[0]}", flush=True)
             sequence = request_page_handoff(name)
             if sequence is None:
@@ -1029,6 +1085,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 if not overlay_allowed(state["keyboard"]):
                     if time.monotonic() >= deadline:
                         state["handoff_pending"] = False
+                        restart_drawer_idle()
                         print("ACP B4.3: keyboard active; route cancelled", flush=True)
                         return False
                     return True
@@ -1036,7 +1093,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 if shared_route_prepared(phase, foreground[0]):
                     if foreground[0] == "acp":
                         state["handoff_pending"] = False
-                        set_drawer_open(False)
+                        restart_drawer_idle()
                         print(f"ACP B4.3: {name} confirmed in ACP ({phase}); GTK retained",
                               flush=True)
                     else:
@@ -1046,6 +1103,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     return False
                 if phase == "expired" or time.monotonic() >= deadline:
                     state["handoff_pending"] = False
+                    restart_drawer_idle()
                     print(f"ACP B4.3: {name} not ready ({phase}); current app retained",
                           flush=True)
                     return False
@@ -1228,10 +1286,14 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     if renewed else "GTK lease not renewed; Chromium fallback remains"),
                     flush=True)
             if observed != state["foreground"]:
+                prior = state["foreground"]
                 state["foreground"] = observed
-                # Close any previously opened GTK drawer rather than dragging
-                # its open state into a different application.
-                set_drawer_open(False, immediate=True)
+                # ACP route changes update the highlighted tab, but are NOT a
+                # foreground app switch: preserve the shared GTK drawer and
+                # its configured inactivity animation across local pages.
+                if (not navigate_shared or observed is None or prior is None
+                        or observed[0] != prior[0]):
+                    set_drawer_open(False, immediate=True)
                 for item, button in zip(WORKSPACE_ITEMS, workspace_buttons):
                     context = button.get_style_context()
                     if observed is not None and item == observed[1]:
