@@ -1132,7 +1132,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     escape.get_style_context().add_class("acp-b3-nav")
     escape.get_style_context().add_class("acp-b3-developer")
     escape.connect("clicked", select_destination, "ACP")
-    utilities.pack_start(escape, False, False, 0)
+    if not navigate_shared:
+        # B4.3 is one unified nav; do not show the obsolete B3 dev escape.
+        utilities.pack_start(escape, False, False, 0)
 
     # Initialise icons even if no ACP palette has arrived.
     update_styles()

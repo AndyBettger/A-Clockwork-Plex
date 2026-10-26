@@ -52,6 +52,7 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("start_curtained_focus(name, sequence)", source)
         self.assertIn("if curtain_handoff or navigate_shared:", source)
         self.assertIn("complete_handoff(reason)", source)
+        self.assertIn('if not navigate_shared:\n        # B4.3', source)
         self.assertIn('if not navigate_shared:\n            stop_once(reason)', source)
         self.assertIn('state["handoff_pending"] = False', source)
         self.assertIn("audio mixer lives in chromium", source.lower())
