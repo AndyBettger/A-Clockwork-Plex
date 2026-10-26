@@ -683,7 +683,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     # Map it BEFORE compositor focus changes, then release after an ACP paint
     # acknowledgment; the accepted B3 drawer remains unchanged by default.
     curtain = None
-    if curtain_handoff:
+    if curtain_handoff or navigate_shared:
+        # B4.3 must keep B3's proved compositor curtain for native→ACP,
+        # even though its CLI deliberately disallows B3 --route-pages mode.
         curtain = make_layer_window(
             Gtk, LayerShell, width, height,
             namespace="acp-b3-handoff-curtain-test", bottom=0)

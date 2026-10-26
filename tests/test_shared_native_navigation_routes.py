@@ -50,6 +50,7 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("sequence = request_page_handoff(name)", source)
         self.assertIn('if foreground[0] == "acp":', source)
         self.assertIn("start_curtained_focus(name, sequence)", source)
+        self.assertIn("if curtain_handoff or navigate_shared:", source)
         self.assertIn("complete_handoff(reason)", source)
         self.assertIn('if not navigate_shared:\n            stop_once(reason)', source)
         self.assertIn('state["handoff_pending"] = False', source)
