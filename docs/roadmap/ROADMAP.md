@@ -1,9 +1,23 @@
 # A Clockwork Plex Roadmap
 
-**Updated:** 25 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
+**Updated:** 26 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
 **Working feature branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
+
+## 26 October 2026 — B3 theme curtain accepted; B4 single native navigation owner next
+
+**Physical Pi acceptance at `3e165b43` (two submitted WayVNC screenshots, three route traces):** Python syntax compile PASS; native bridge **20/20 PASS**, GTK drawer **22/22 PASS**. The operator tested **Green Phosphor** and **Crimson Glow** and confirms the full-screen GTK curtain now uses a matching restrained dark green/burgundy cover, followed by Weather content fading in. No panel-reserved strip was visible. **Three consecutive reported native Plexamp→Weather attempts** completed `ready → focus (Weather) → painted → fade` with no `taken` timeout. Accept **B3 theme-matched full-output curtain for the two visually tested themes**, matching-ACP computed palette implementation, existing 180 ms drawer glide, hover/pressed parity and previously accepted C3 suppression. Other curated themes and Astronomy Red have code+unit coverage but *the new curtain visual* was not individually verified on the Pi. The uniformly tinted interim cover remains visible; it is intentional and not a true cross-process compositor animation. Prior intermittent cold-route failures are historically recorded; do not infer mathematical reliability from three successes.
+
+**Next workstream: B4 single shared GTK navigation owner, not another B3 polish loop.** Today B3 is a bounded test-only GTK drawer shown over native Plexamp and it **exits on successful ACP handoff**; ACP Chromium has its own HTML nav/indicator. A single persistent GTK drawer should be responsible for navigation chrome **in both foreground apps**, with one active tab (Home/Weather/News/AirPlay/Plexamp/Settings), one theme/presentation snapshot, one OSK suppression policy and a single focus-aware route dispatcher. Leave Clock/Weather/News/Settings/AirPlay rendered inside Chromium and preserve their proven configurable intra-browser transitions. Retain the existing `ACPScreenProjection.openSurface()` manual lease / ACP surface host and B3 localhost mailbox, not a new competing screen authority.
+
+**Safe implementation order (developer actions, no operator test yet):**
+1. **B4.1 opt-in focus/ownership vertical slice:** build a read-only Wayland foreground owner using the existing exact-identity B1 window helper (`chromium` ACP title versus `Plexamp` Flatpak). Keep the GTK indicator/drawer alive and correctly highlight the selected ACP workspace even when Chromium is focused. Prove keyboard-open hide/restore. No takeover of ACP HTML navigation yet; avoid a permanent launcher/autostart.
+2. **B4.2 reversible single-chrome ownership:** suppress ACP's duplicate browser nav/indicator *only when a healthy, opt-in GTK owner is definitely present*, with a short bounded fallback to the working browser controls on owner exit/failure. Preserve browser Audio overlay and settings access. Explicitly test compositor focus and GTK overlay stacking on labwc; no assumed focus detection from server mode alone.
+3. **B4.3 unified actions/transitions:** from Chromium, use its already accepted page/lease owner for intra-ACP routes with configurable transitions; from native Plexamp, retain B3 prepare/ready/painted/theme curtain. Selecting native Plexamp from ACP must focus the real Flatpak rather than navigating to the old Plexamp iframe. Audio uses the existing ACP mixer mechanism, not a duplicated GTK DSP owner. Fail closed on an alarm/OSK/unknown focused window.
+4. **B4.4 startup integration only after Pi physical acceptance:** replace the development-only bounded GTK runner with one supervised instance and rollback, keeping C3 and audio unchanged.
+
+**No new Pi commands yet** for this documentation checkpoint. Next implementation should target a focused B4.1 vertical slice before requesting physical tests, not repeat accepted ACP navigation/curtain or all-theme checks.
 
 ## 25 October 2026 — B3 full-screen curtain now follows ACP theme (Pi check pending)
 
