@@ -120,6 +120,17 @@ def observe_and_renew_chrome(b1, env: dict[str, str],
         return observed, False
 
 
+def shared_route_prepared(phase: str, origin: str) -> bool:
+    """Interpret the existing monotonic mailbox phases by app of origin.
+
+    ACP is already foregrounded and may advance ready→painted faster than
+    GTK's 180ms polling cadence. Painted *includes* confirmed readiness.
+    Native Plexamp is still foregrounded during preparation, so it must
+    hand off only at ready, then wait for painted AFTER compositor focus.
+    """
+    return phase == "ready" or (origin == "acp" and phase == "painted")
+
+
 def request_page_handoff(label: str) -> int | None:
     """Issue only an allowlisted local command; return its server sequence."""
     routes = {
@@ -1022,11 +1033,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                         return False
                     return True
                 phase = handoff_status(sequence)
-                if phase == "ready":
+                if shared_route_prepared(phase, foreground[0]):
                     if foreground[0] == "acp":
                         state["handoff_pending"] = False
                         set_drawer_open(False)
-                        print(f"ACP B4.3: {name} ready within ACP; GTK retained",
+                        print(f"ACP B4.3: {name} confirmed in ACP ({phase}); GTK retained",
                               flush=True)
                     else:
                         print(f"ACP B4.3: {name} ready; focusing ACP behind curtain",

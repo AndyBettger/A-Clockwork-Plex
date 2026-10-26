@@ -38,6 +38,26 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("--navigate-shared requires --show", result.stderr)
 
+    def test_local_acp_fast_painted_phase_does_not_stall_for_timeout(self):
+        # In a focused Chromium window ready -> painted can occur in less
+        # than the GTK poll cadence. 'painted' is stronger evidence than
+        # 'ready', not a failure. Native Plexamp must still wait to focus
+        # until 'ready' and must not skip the post-focus painted guard.
+        for phase in ("queued", "taken", "expired", "missing", None):
+            with self.subTest(phase=phase):
+                self.assertFalse(nav.shared_route_prepared(phase, "acp"))
+                self.assertFalse(nav.shared_route_prepared(phase, "plexamp"))
+        for phase in ("ready", "painted"):
+            with self.subTest(phase=phase):
+                self.assertTrue(nav.shared_route_prepared(phase, "acp"))
+        self.assertTrue(nav.shared_route_prepared("ready", "plexamp"))
+        self.assertFalse(nav.shared_route_prepared("painted", "plexamp"))
+        source = GTK.read_text(encoding="utf-8")
+        self.assertIn("if shared_route_prepared(phase, foreground[0]):", source)
+        self.assertIn("if foreground[0] == \"acp\":", source)
+        self.assertIn("start_curtained_focus(name, sequence)", source)
+        self.assertIn("confirmed in ACP ({phase})", source)
+
     def test_shared_button_dispatch_remains_foreground_aware_and_inert_by_default(self):
         source = GTK.read_text(encoding="utf-8")
         self.assertIn("if observe_foreground and not navigate_shared:", source)
