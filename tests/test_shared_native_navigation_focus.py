@@ -62,8 +62,8 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
             calls.append(args)
             if args == ("list",):
                 return subprocess.CompletedProcess(args, 0,
-                    "Plexamp: Plexamp\\n"
-                    "chromium: BBC News - A Clockwork Plex - Chromium\\n", "")
+                    "Plexamp: Plexamp\n"
+                    "chromium: BBC News - A Clockwork Plex - Chromium\n", "")
             return subprocess.CompletedProcess(args, 0 if (
                 args[0] == "find" and
                 "title:BBC News - A Clockwork Plex - Chromium" in args
