@@ -38,6 +38,61 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("--navigate-shared requires --show", result.stderr)
 
+    def test_configured_navigation_time_and_zero_semantics_are_used(self):
+        values = {
+            "viewport_width": 1280, "viewport_height": 720,
+            "drawer_width": 940, "drawer_height": 76,
+            "drawer_bottom": 8, "drawer_padding": 8,
+            "workspace_gap": 8, "utility_gap": 6,
+            "button_height": 62, "utility_size": 62,
+            "font_size": 21.8,
+            "navigation_transition_duration_ms": 620,
+            "navigation_inactivity_seconds": 12,
+            "night_brightness": 1.0, "astronomy_night": False,
+        }
+        self.assertTrue(nav.valid_presentation(values))
+        self.assertEqual(nav.shared_navigation_timing(values), (620, 12))
+        self.assertEqual(nav.shared_navigation_timing({
+            **values, "navigation_transition_duration_ms": 0,
+            "navigation_inactivity_seconds": 0}), (0, 0))
+        self.assertEqual(nav.shared_navigation_timing(None),
+                         (nav.DRAWER_MOTION_MS, 6))
+        self.assertFalse(nav.valid_presentation({
+            **values, "navigation_transition_duration_ms": True}))
+        self.assertFalse(nav.valid_presentation({
+            **values, "navigation_inactivity_seconds": 40}))
+        source = GTK.read_text(encoding="utf-8")
+        self.assertIn("motion[\"duration_ms\"] = duration", source)
+        self.assertIn("drawer_idle[\"seconds\"] = inactivity", source)
+        self.assertIn("GLib.timeout_add_seconds(seconds, idle_expired)", source)
+        self.assertIn("if seconds <= 0:", source)
+        self.assertIn("if not animate_drawer or immediate or duration_ms <= 0:", source)
+        self.assertIn("duration_ms / 1000.0 * abs(target - start)", source)
+        self.assertIn("prior = state[\"foreground\"]", source)
+        self.assertIn("observed[0] != prior[0]", source)
+        self.assertIn("restart_drawer_idle()", source)
+        self.assertNotIn(
+            'state["handoff_pending"] = False\\n                        set_drawer_open(False)',
+            source,
+        )
+
+    def test_spatial_row_direction_uses_existing_acp_topology(self):
+        script = BROWSER.read_text(encoding="utf-8")
+        host = (ROOT / "app/static/js/acp-surface-host.js").read_text()
+        pages = (ROOT / "app/static/js/acp-application-surfaces.js").read_text()
+        self.assertIn("function sharedSpatialDirection(destination)", script)
+        self.assertIn("style !== 'spatial-row'", script)
+        self.assertIn("window.ACPWorkspaceTopology", script)
+        self.assertIn("window.ACPSurfaceHost?.activeRoute?.()", script)
+        self.assertIn("path.every((entry) => entry.renderer === 'acp')", script)
+        self.assertIn("topology.direction(from, to)", script)
+        self.assertIn("const spatialCommitDirection = sharedSpatialDirection", script)
+        self.assertIn("...(spatialCommitDirection ? { spatialCommitDirection } : {})", script)
+        self.assertIn("typeof prepared.spatialCommit === 'function'", host)
+        self.assertIn("await spatialLiveCommit(direction, from, surface, commit)", pages)
+        self.assertIn("const duration = applicationTransitionDurationMs();", pages)
+        self.assertIn("const distance = path.length - 1;", pages)
+
     def test_local_acp_fast_painted_phase_does_not_stall_for_timeout(self):
         # In a focused Chromium window ready -> painted can occur in less
         # than the GTK poll cadence. 'painted' is stronger evidence than
@@ -111,7 +166,7 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("function readyForHandoff(command)", script)
         self.assertIn("projection?.lease?.manual_surface !== destination", script)
         self.assertIn("function weatherContentReady()", script)
-        self.assertIn("20261026-b43-shared-local-transition-v1",
+        self.assertIn("20261026-b43-navigation-preferences-v1",
                       BASE.read_text(encoding="utf-8"))
 
     def test_focus_destination_remains_exact_b1_identity_and_b3_preview_independent(self):

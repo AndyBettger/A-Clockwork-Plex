@@ -298,6 +298,10 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             **values, "navigation_transition_duration_ms": True}))
         self.assertFalse(drawer.valid_presentation({
             **values, "navigation_inactivity_seconds": 31}))
+        self.assertEqual(drawer.shared_navigation_timing(values), (180, 6))
+        self.assertEqual(drawer.shared_navigation_timing({
+            **values, "navigation_transition_duration_ms": 880,
+            "navigation_inactivity_seconds": 0}), (880, 0))
         self.assertFalse(drawer.valid_presentation({**values, "astronomy_night": False}))
         self.assertIn(b"font-size: 22px", drawer.presentation_css(values, 1.0))
 
