@@ -52,6 +52,31 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
             ("find", "app_id:Plexamp", "title:Plexamp", "state:active"),
         ])
 
+    def test_actual_news_title_is_strictly_recognised_as_acp_news(self):
+        # End-to-end B1 title whitelist: news.html says 'BBC News', not
+        # the short GTK button label 'News'. A rejected title used to hide
+        # both GTK indicator and B4 owner lease during every News route.
+        b1 = self.b1
+        calls = []
+        def compositor(_env, *args):
+            calls.append(args)
+            if args == ("list",):
+                return subprocess.CompletedProcess(args, 0,
+                    "Plexamp: Plexamp\\n"
+                    "chromium: BBC News - A Clockwork Plex - Chromium\\n", "")
+            return subprocess.CompletedProcess(args, 0 if (
+                args[0] == "find" and
+                "title:BBC News - A Clockwork Plex - Chromium" in args
+                and "state:active" in args
+            ) else 1, "", "")
+        with mock.patch.object(b1, "call_wlrctl", side_effect=compositor):
+            self.assertEqual(
+                drawer.observed_foreground(b1, {}),
+                ("acp", "News"))
+        self.assertIn(("find", "app_id:chromium",
+                       "title:BBC News - A Clockwork Plex - Chromium",
+                       "state:active"), calls)
+
     def test_native_plexamp_and_supported_acp_page_titles(self):
         b1 = mock.Mock(BROWSER_ID="chromium", APP_ID="Plexamp",
                        BROWSER_SUFFIX=" - A Clockwork Plex - Chromium",
