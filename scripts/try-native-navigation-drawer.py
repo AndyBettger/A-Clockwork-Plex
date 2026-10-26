@@ -555,7 +555,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             theme_from_acp: bool = False, presentation_from_acp: bool = False,
             animate_drawer: bool = False,
             observe_foreground: bool = False,
-            share_chrome: bool = False):
+            share_chrome: bool = False,
+            navigate_shared: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -875,17 +876,30 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         GLib.timeout_add(DRAWER_MOTION_TICK_MS, motion_tick)
 
     def toggle_drawer(_widget, _event):
-        if not overlay_allowed(state["keyboard"]):
+        if (not overlay_allowed(state["keyboard"])
+                or (observe_foreground and state["foreground"] is None)):
             return True
         set_drawer_open(not state["drawer"])
         print("ACP B3: preview drawer " +
               ("opened" if state["drawer"] else "closed"), flush=True)
         return True
 
+    def complete_handoff(reason):
+        # B3's accepted bounded preview still exits; the shared B4.3
+        # navigator must keep its single GTK process alive in ACP.
+        if not navigate_shared:
+            stop_once(reason)
+            return
+        state["curtain_active"] = False
+        state["handoff_pending"] = False
+        if overlay_allowed(state["keyboard"]):
+            indicator.show_all()
+        print("ACP B4.3: " + reason + "; shared GTK navigation retained", flush=True)
+
     def fade_and_finish(reason):
         """Release a temporary Wayland cover, never leave a locked overlay."""
         if curtain is None:
-            stop_once(reason)
+            complete_handoff(reason)
             return
         steps = {"remaining": CURTAIN_FADE_STEPS}
 
@@ -896,7 +910,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             cover.set_opacity(max(0.0, steps["remaining"] / CURTAIN_FADE_STEPS))
             if steps["remaining"] <= 0:
                 curtain.hide()
-                stop_once(reason)
+                complete_handoff(reason)
                 return False
             return True
 
@@ -907,7 +921,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         if curtain is None:
             return False
         # Never composite two navigation drawers over each other during fade.
-        # ACP will own its drawer once the Chromium destination is focused.
+        # The B4.3 single GTK owner resumes on completion; B3 still exits.
         set_drawer_open(False, immediate=True)
         indicator.hide()
         state["curtain_active"] = True
@@ -955,8 +969,74 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     def select_destination(_button, name):
         if not overlay_allowed(state["keyboard"]) or state["handoff_pending"]:
             return
-        if observe_foreground:
+        if observe_foreground and not navigate_shared:
             print(f"ACP B4.1: {name} observed only; no navigation action", flush=True)
+            return
+        if navigate_shared:
+            foreground = state["foreground"]
+            if foreground is None:
+                print("ACP B4.3: unknown foreground; refusing navigation", flush=True)
+                return
+            if name == "ACP":
+                print("ACP B4.3: development escape disabled; use workspace buttons",
+                      flush=True)
+                return
+            if name == "Plexamp":
+                set_drawer_open(False)
+                if foreground[0] == "plexamp":
+                    print("ACP B4.3: Plexamp already focused", flush=True)
+                    return
+                try:
+                    b1.focus(focus_env, "plexamp")
+                    print("ACP B4.3: native Plexamp focused; GTK owner retained", flush=True)
+                except b1.WindowError as exc:
+                    print(f"ACP B4.3: Plexamp focus refused ({exc})", flush=True)
+                    set_drawer_open(True)
+                return
+            if name == "Audio":
+                # The audio mixer lives in Chromium and must not be recreated
+                # in GTK. The B3 route and handoff to existing ACP audio UI
+                # remain available later; do not pretend native mixer exists.
+                print("ACP B4.3: Audio remains browser-owned; action deferred",
+                      flush=True)
+                return
+            if name not in {"Home", "Weather", "News", "AirPlay", "Settings"}:
+                return
+            print(f"ACP B4.3: {name} requested from {foreground[0]}", flush=True)
+            sequence = request_page_handoff(name)
+            if sequence is None:
+                print("ACP B4.3: page request rejected; GTK drawer retained", flush=True)
+                return
+            state["handoff_pending"] = True
+            deadline = time.monotonic() + PREPARE_TIMEOUT_SECONDS
+            def await_shared_route():
+                if state["stopping"]:
+                    return False
+                if not overlay_allowed(state["keyboard"]):
+                    if time.monotonic() >= deadline:
+                        state["handoff_pending"] = False
+                        print("ACP B4.3: keyboard active; route cancelled", flush=True)
+                        return False
+                    return True
+                phase = handoff_status(sequence)
+                if phase == "ready":
+                    if foreground[0] == "acp":
+                        state["handoff_pending"] = False
+                        set_drawer_open(False)
+                        print(f"ACP B4.3: {name} ready within ACP; GTK retained",
+                              flush=True)
+                    else:
+                        print(f"ACP B4.3: {name} ready; focusing ACP behind curtain",
+                              flush=True)
+                        start_curtained_focus(name, sequence)
+                    return False
+                if phase == "expired" or time.monotonic() >= deadline:
+                    state["handoff_pending"] = False
+                    print(f"ACP B4.3: {name} not ready ({phase}); current app retained",
+                          flush=True)
+                    return False
+                return True
+            GLib.timeout_add(HANDOFF_POLL_MS, await_shared_route)
             return
         if name == "Plexamp":
             set_drawer_open(False)
@@ -1184,6 +1264,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
           + ("; native drawer glide ENABLED" if animate_drawer else "; instant drawer")
           + ("; B4.1 read-only foreground observer ENABLED" if observe_foreground else "")
           + ("; B4.2 expiring Chromium chrome takeover ENABLED" if share_chrome else "")
+          + ("; B4.3 shared page/native dispatcher ENABLED" if navigate_shared else "")
           + "; hides when Squeekboard opens.", flush=True)
     try:
         Gtk.main()
@@ -1219,6 +1300,8 @@ def main() -> int:
                         help="B4.1 read-only shared GTK drawer foreground/active-tab preview")
     parser.add_argument("--share-chrome", action="store_true",
                         help="B4.2 dev-only expiring lease to hide Chromium duplicate navigation")
+    parser.add_argument("--navigate-shared", action="store_true",
+                        help="B4.3 dev-only shared GTK page/native Plexamp dispatcher")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -1236,6 +1319,10 @@ def main() -> int:
         parser.error("--observe-foreground requires --show without --route-pages or --curtain-handoff")
     if args.share_chrome and not args.observe_foreground:
         parser.error("--share-chrome requires --observe-foreground")
+    if args.navigate_shared and not (
+            args.show and args.observe_foreground and args.share_chrome
+            and args.theme_from_acp and args.presentation_from_acp):
+        parser.error("--navigate-shared requires --show --observe-foreground --share-chrome --theme-from-acp --presentation-from-acp")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -1261,7 +1348,8 @@ def main() -> int:
                 presentation_from_acp=args.presentation_from_acp,
                 animate_drawer=args.animate_drawer,
                 observe_foreground=args.observe_foreground,
-                share_chrome=args.share_chrome)
+                share_chrome=args.share_chrome,
+                navigate_shared=args.navigate_shared)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)

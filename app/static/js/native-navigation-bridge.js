@@ -110,9 +110,15 @@
     if (acknowledging) return;
     const command = pendingHandoff();
     if (!command || !readyForHandoff(command)) return;
-    // Open ACP's existing drawer before the native window releases focus.
-    window.ACPNavDrawer?.show?.();
-    if (!document.body.classList.contains('nav-open')) return;
+    // B3 native Plexamp continues to prepare ACP's original browser drawer
+    // behind the cover. B4.3 already has one live GTK drawer when ACP is
+    // foreground; do not reopen duplicate HTML navigation there.
+    const sharedACP = document.body.classList.contains('acp-b4-gtk-owned')
+      && document.hasFocus();
+    if (!sharedACP) {
+      window.ACPNavDrawer?.show?.();
+      if (!document.body.classList.contains('nav-open')) return;
+    }
     acknowledging = true;
     try {
       const response = await fetch('/api/native-navigation/ready', {
@@ -268,14 +274,24 @@
     staging.attempts++;
     staging.lastAttemptAt = Date.now();
     staging.inFlight = true;
-    window.ACPNavDrawer?.show?.();
+    if (!document.body.classList.contains('acp-b4-gtk-owned')) {
+      window.ACPNavDrawer?.show?.();
+    }
     void (async () => {
       try {
         if (command.destination === 'audio') {
           window.ACPNavDrawer?.ensureAudioPanel?.();
           const button = document.getElementById('nav-audio-button');
           if (button && !document.body.classList.contains('nav-audio-open')) button.click();
+        } else if (document.body.classList.contains('acp-b4-gtk-owned')
+            && document.hasFocus()) {
+          // Local ACP→ACP selection: retain the user's configured page
+          // transition; there is no independent Flatpak window to uncover.
+          await window.ACPNavigate('/' + command.destination, {
+            source: 'native-gtk-b4-shared', animate: true,
+          });
         } else {
+          // Existing B3: background staging MUST remain non-animated.
           await window.ACPNavigate('/' + command.destination, {
             source: 'native-plexamp-b3', animate: false,
           });
