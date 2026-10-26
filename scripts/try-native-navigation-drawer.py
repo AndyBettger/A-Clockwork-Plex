@@ -11,6 +11,7 @@ No startup, desktop configuration, app state or audio changes.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import os
 from pathlib import Path
@@ -27,6 +28,7 @@ OSK_SERVICE = "sm.puri.OSK0"
 OSK_PATH = "/sm/puri/OSK0"
 OSK_INTERFACE = "sm.puri.OSK0"
 POLL_MS = 300
+B4_FOCUS_POLL_MS = 750
 DBUS_TIMEOUT_MS = 250
 DRAWER_BOTTOM_MARGIN = 8
 DRAWER_HEIGHT = 70
@@ -50,6 +52,47 @@ CURTAIN_FADE_STEPS = 5
 # Explicitly opt-in; ACP's navigation reveal duration is 180ms.
 DRAWER_MOTION_MS = 180
 DRAWER_MOTION_TICK_MS = 20
+
+
+# B4.1 reads only the existing B1 exact-title compositor contract.
+# Never focus a window from an observer or trust generic Chromium metadata.
+FOREGROUND_PAGE_LABELS = {
+    "Home": "Home", "Clock": "Home", "Weather": "Weather",
+    "News": "News", "AirPlay": "AirPlay", "Airplay": "AirPlay",
+    "AirPlay Ready": "AirPlay", "Settings": "Settings",
+    "Plexamp": "Plexamp",
+}
+
+
+def load_window_helper():
+    path = HERE / "switch-native-plexamp-window.py"
+    spec = importlib.util.spec_from_file_location("acp_b4_window_identity", path)
+    if not spec or not spec.loader:
+        raise RuntimeError("B1 Wayland window helper is not available")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def observed_foreground(b1, env: dict[str, str]) -> tuple[str, str] | None:
+    """Return exact observed owner/selected tab; unknown or race fails closed.
+
+    This calls only B1 list/find, never B1 focus or any compositor mutation.
+    Run it away from GTK's event loop to avoid blocking drawer animation.
+    """
+    try:
+        acp, plexamp = b1.windows(env)
+        acp_active = bool(acp and b1.matches(env, b1.BROWSER_ID, acp, "active"))
+        native_active = bool(plexamp and b1.matches(env, b1.APP_ID, plexamp, "active"))
+        if acp_active == native_active:
+            return None
+        if native_active:
+            return ("plexamp", "Plexamp")
+        page = acp.removesuffix(b1.BROWSER_SUFFIX)
+        selected = FOREGROUND_PAGE_LABELS.get(page)
+        return ("acp", selected) if selected else None
+    except (b1.WindowError, OSError, ValueError):
+        return None
 
 
 def request_page_handoff(label: str) -> int | None:
@@ -486,7 +529,8 @@ def make_layer_window(Gtk, LayerShell, width: int, height: int,
 def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             route_pages: bool = False, curtain_handoff: bool = False,
             theme_from_acp: bool = False, presentation_from_acp: bool = False,
-            animate_drawer: bool = False):
+            animate_drawer: bool = False,
+            observe_foreground: bool = False):
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -633,7 +677,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         curtain.add(cover)
 
     state = {"drawer": False, "keyboard": None, "stopping": False,
-             "handoff_pending": False, "curtain_active": False}
+             "handoff_pending": False, "curtain_active": False,
+             "foreground": None}
     last_palette = {"value": None}
     last_presentation = {"value": None}
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
@@ -884,6 +929,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     def select_destination(_button, name):
         if not overlay_allowed(state["keyboard"]) or state["handoff_pending"]:
             return
+        if observe_foreground:
+            print(f"ACP B4.1: {name} observed only; no navigation action", flush=True)
+            return
         if name == "Plexamp":
             set_drawer_open(False)
             print("ACP B3: returned to Plexamp (drawer closed)", flush=True)
@@ -941,7 +989,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         workspace_labels.append(label)
         button.set_size_request(76, 56)
         button.get_style_context().add_class("acp-b3-nav")
-        if item == "Plexamp":
+        if item == "Plexamp" and not observe_foreground:
             button.get_style_context().add_class("acp-b3-active")
         button.connect("clicked", select_destination, item)
         # ACP's CSS flex row keeps each button at its content/natural width,
@@ -965,6 +1013,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         button.add(glyph)
         utility_images.append((label, glyph))
         button.connect("clicked", select_destination, label)
+        utility_buttons.append((label, button))
         utilities.pack_start(button, False, False, 0)
         utility_buttons.append(button)
 
@@ -1008,10 +1057,60 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             indicator.hide()
             print("ACP B3: keyboard visible/unavailable: hiding ALL native navigation", flush=True)
         else:
-            if not state["curtain_active"]:
+            if not state["curtain_active"] and (
+                    not observe_foreground or state["foreground"] is not None):
                 indicator.show_all()
                 print("ACP B3: keyboard hidden: indicator restored", flush=True)
         return True
+
+    focus_executor = None
+    if observe_foreground:
+        b1 = load_window_helper()
+        focus_env = b1.runtime_env()
+        focus_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="acp-b4-focus")
+        focus_task = {"future": None}
+
+        def refresh_foreground():
+            future = focus_task["future"]
+            if future is None:
+                focus_task["future"] = focus_executor.submit(
+                    observed_foreground, b1, focus_env)
+                return True
+            if not future.done():
+                return True
+            focus_task["future"] = None
+            try:
+                observed = future.result()
+            except Exception as exc:
+                print(f"ACP B4.1: foreground query failed ({type(exc).__name__}); hidden",
+                      flush=True)
+                observed = None
+            if observed != state["foreground"]:
+                state["foreground"] = observed
+                # Close any previously opened GTK drawer rather than dragging
+                # its open state into a different application.
+                set_drawer_open(False, immediate=True)
+                for item, button in zip(WORKSPACE_ITEMS, workspace_buttons):
+                    context = button.get_style_context()
+                    if observed is not None and item == observed[1]:
+                        context.add_class("acp-b3-active")
+                    else:
+                        context.remove_class("acp-b3-active")
+                for item, button in utility_buttons:
+                    context = button.get_style_context()
+                    if observed is not None and item == observed[1]:
+                        context.add_class("acp-b3-active")
+                    else:
+                        context.remove_class("acp-b3-active")
+                print("ACP B4.1: foreground " +
+                      (f"{observed[0]} / {observed[1]}" if observed else
+                       "unknown; native navigation hidden"), flush=True)
+            if observed is None or not overlay_allowed(state["keyboard"]):
+                set_drawer_open(False, immediate=True)
+                indicator.hide()
+            elif not state["curtain_active"]:
+                indicator.show_all()
+            return True
 
     # The panel layer surface stays at its normal positive inset. Only
     # its GTK child is initially concealed, and the indicator starts low.
@@ -1023,6 +1122,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         raise RuntimeError("Cannot start preview while Squeekboard is visible or its state is unavailable")
     refresh_keyboard()
     GLib.timeout_add(POLL_MS, refresh_keyboard)
+    if observe_foreground:
+        refresh_foreground()
+        GLib.timeout_add(B4_FOCUS_POLL_MS, refresh_foreground)
     if theme_from_acp:
         refresh_palette()
         GLib.timeout_add(PALETTE_REFRESH_MS, refresh_palette)
@@ -1034,12 +1136,15 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
           " tap opens drawer; "
           + ("ACP page handoff ENABLED" if route_pages else "routes preview-only except Plexamp/ACP")
           + ("; native drawer glide ENABLED" if animate_drawer else "; instant drawer")
+          + ("; B4.1 read-only foreground observer ENABLED" if observe_foreground else "")
           + "; hides when Squeekboard opens.", flush=True)
     try:
         Gtk.main()
     except KeyboardInterrupt:
         print("ACP B3: Ctrl+C received", flush=True)
     finally:
+        if focus_executor is not None:
+            focus_executor.shutdown(wait=False, cancel_futures=True)
         if curtain is not None:
             curtain.destroy()
         drawer.destroy()
@@ -1063,6 +1168,8 @@ def main() -> int:
                         help="experimental geometry/night brightness from ACP, requires --theme-from-acp")
     parser.add_argument("--animate-drawer", action="store_true",
                         help="opt-in 180ms GTK child slide + indicator glide; default unchanged")
+    parser.add_argument("--observe-foreground", action="store_true",
+                        help="B4.1 read-only shared GTK drawer foreground/active-tab preview")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -1076,6 +1183,8 @@ def main() -> int:
         parser.error("--presentation-from-acp requires --show and --theme-from-acp")
     if args.animate_drawer and not args.show:
         parser.error("--animate-drawer requires --show")
+    if args.observe_foreground and (not args.show or args.route_pages or args.curtain_handoff):
+        parser.error("--observe-foreground requires --show without --route-pages or --curtain-handoff")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -1099,7 +1208,8 @@ def main() -> int:
                 route_pages=args.route_pages, curtain_handoff=args.curtain_handoff,
                 theme_from_acp=args.theme_from_acp,
                 presentation_from_acp=args.presentation_from_acp,
-                animate_drawer=args.animate_drawer)
+                animate_drawer=args.animate_drawer,
+                observe_foreground=args.observe_foreground)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
