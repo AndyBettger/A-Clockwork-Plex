@@ -83,16 +83,24 @@ class SharedNativeNavigationFocusTests(unittest.TestCase):
         self.assertIsNone(drawer.observed_foreground(b1, {}))
 
     def test_option_is_deliberately_separate_from_b3_routing(self):
-        for args in (
-            ["--observe-foreground"],
-            ["--show", "--observe-foreground", "--route-pages"],
-            ["--show", "--observe-foreground", "--curtain-handoff", "--route-pages"],
+        # argparse's required --show/--check-osk group runs before our
+        # additional B4.1 combination check. Assert the correct rejection
+        # at each layer, without coupling a missing action to our later error.
+        for args, error in (
+            (["--observe-foreground"],
+             "one of the arguments --check-osk --show is required"),
+            (["--show", "--observe-foreground", "--route-pages"],
+             "--observe-foreground requires --show without --route-pages or --curtain-handoff"),
+            (["--show", "--observe-foreground", "--curtain-handoff", "--route-pages"],
+             "--observe-foreground requires --show without --route-pages or --curtain-handoff"),
+            (["--check-osk", "--observe-foreground"],
+             "--observe-foreground requires --show without --route-pages or --curtain-handoff"),
         ):
             with self.subTest(args=args):
                 result = subprocess.run([sys.executable, str(SRC), *args],
                                         capture_output=True, text=True)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("--observe-foreground requires --show", result.stderr)
+                self.assertIn(error, result.stderr)
         help_result = subprocess.run([sys.executable, str(SRC), "--help"],
                                      capture_output=True, text=True)
         self.assertEqual(help_result.returncode, 0)
