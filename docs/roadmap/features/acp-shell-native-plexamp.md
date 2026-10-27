@@ -1,7 +1,9 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** Phase A complete; Phase B active. **C3 native Squeekboard functionally accepted on the development Pi; current priority: native Plexamp navigation.**  
-**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 26 October 2026
+**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 27 October 2026
+
+**27 Oct B4.3 targeted regression GREEN, presentation awaiting Pi:** At `96db7a15`, operator reran corrected GTK tests **23/23 PASS** (0.812s). Already-run focus **6/6** and shared routes **8/8** at identical runtime bring affected tests to **37/37 PASS**. Fixture failure was test-only. Visual acceptance still pending for Settings slider theme focus, News→Home active-tab/GTK handle continuity, and 1000ms Revealer/pill gap plus 10s inactivity fade. No further code or broad regression tests needed now; run one opt-in B4.3 preview after focusing ACP and hard-refreshing Chromium only if the new CSS has not loaded. See latest roadmap.
 
 **27 Oct B4.3 one-line regression test fix (Pi retest pending):** Operator ran `39f50182`; Python compiled, focus **6/6** and shared routes **8/8** PASS. Native GTK suite **22/23** with only new visual-motion fixture `NameError: SCRIPT not defined`; that module's path constant is `SRC`. Changed `SCRIPT.read_text`→`SRC.read_text` in **test only**, no runtime modification. Rerun only `test_native_navigation_drawer.py` (23 expected); if green proceed to visual News/slider/pill check. No claim of GTK animation acceptance until observed.
 

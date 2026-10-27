@@ -1,9 +1,15 @@
 # A Clockwork Plex Roadmap
 
-**Updated:** 26 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
+**Updated:** 27 October 2026 · **Release:** v0.4.0 (published 23 August 2026)  
 **Working feature branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > **Development / test appliance, not yet a bedside production deployment.** Prefer useful physical end-to-end acceptance and fast iteration over long chains of staging gates. Keep a straightforward return to stock Squeekboard and avoid changing the accepted audio path, but ordinary display/keyboard settings can be changed and reset during testing.
+
+## 27 October 2026 — B4.3 focused Pi regression suite GREEN; visual acceptance next
+
+**Operator confirmed on Pi at `96db7a15`:** after `git pull --ff-only`, the corrected `test_native_navigation_drawer.py` suite ran **23/23 PASS** in 0.812 seconds. This resolves the preceding test-only `SCRIPT` vs `SRC` fixture error. Together with the **6/6** foreground and **8/8** shared-route tests already supplied for the same runtime revision, the **37/37 directly affected regression tests are now green**. No new runtime code was pulled in the correction commit. This is acceptance of the focused tests, **not** of the visual changes yet.
+
+**Next single opt-in physical gate (operational order):** (1) Python-only test commit requires **no new pull, repeat tests or ACP service restart**. To see the changed themed Settings CSS, focus Chromium via `python3 scripts/switch-native-plexamp-window.py --to-acp`, then hard-refresh with Ctrl+Shift+R if this new stylesheet version was not already loaded. (2) In ACP Settings → Display, check whether focused navigation sliders use the current red/pink accent instead of blue; return to Home. (3) Run one bounded B4.3 GTK preview using `--show --seconds 180 --observe-foreground --share-chrome --navigate-shared --theme-from-acp --presentation-from-acp --animate-drawer`. (4) In the GTK drawer choose **News, then Home**, confirming the active tab changes correctly and GTK handle is never hidden by `foreground unknown`; allow drawer to auto-hide at configured 10s and observe whether pill maintains a constant gap as GTK Revealer slides over configured 1000ms. (5) On Ctrl+C confirm Chromium original nav returns as already accepted. Collect one terminal log and any relevant screenshot. Do not retest old B3 curtains, theme collection, Plexamp route or C3; only those targeted visuals are pending.
 
 ## 27 October 2026 — B4.3 rendered-pill regression fixture correction (Pi rerun pending)
 
