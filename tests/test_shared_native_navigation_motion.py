@@ -44,6 +44,9 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
             ["--show", "--joined-motion"],
             ["--show", "--observe-foreground", "--joined-motion"],
             ["--show", "--navigate-shared", "--joined-motion"],
+            ["--show", "--observe-foreground", "--share-chrome",
+             "--navigate-shared", "--theme-from-acp",
+             "--presentation-from-acp", "--joined-motion"],
         ):
             with self.subTest(args=args):
                 p = subprocess.run([sys.executable, str(SRC), *args],
@@ -60,6 +63,7 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn("joined_stack.pack_start(hitbox, False, False, 0)", src)
         self.assertIn("joined_stack.pack_start(revealer, False, False, 0)", src)
         self.assertIn("joined_stack.set_valign(Gtk.Align.END)", src)
+        self.assertIn("Gtk.RevealerTransitionType.SLIDE_DOWN", src)
         self.assertIn("joined_reveal_content.pack_start(gap, False, False, 0)", src)
         self.assertIn("joined_reveal_content.pack_start(shell, False, False, 0)", src)
         self.assertIn("joined_reveal_content.pack_start(joined_bottom_padding", src)
