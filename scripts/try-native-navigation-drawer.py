@@ -567,6 +567,31 @@ def gtk_revealed_fraction(revealed_height: int, full_height: int) -> float:
     return max(0.0, min(1.0, float(revealed_height) / full_height))
 
 
+def load_joined_cairo_region():
+    """Register PyGObject's cairo.Region converter before mapping any GTK UI.
+
+    On Debian, python3-cairo alone is insufficient: the distinct
+    python3-gi-cairo package supplies the GI foreign marshaler needed by
+    Gdk.Window.input_shape_combine_region(cairo.Region, ...).
+    """
+    try:
+        import cairo
+        import gi
+        gi.require_foreign("cairo", "Region")
+        # Exercise Region construction without opening a desktop window.
+        region = cairo.Region([cairo.RectangleInt(0, 0, 1, 1)])
+        if not isinstance(region, cairo.Region):
+            raise TypeError("Unexpected Cairo region type")
+        return cairo
+    except (ImportError, KeyError, TypeError, AttributeError, ValueError) as exc:
+        raise RuntimeError(
+            "Joined GTK motion needs the Cairo GI foreign Region converter "
+            "(Debian package python3-gi-cairo). "
+            "Install it with: sudo apt install python3-gi-cairo; "
+            f"details: {exc}"
+        ) from exc
+
+
 def joined_motion_input_rects(window_width: int, window_height: int,
                               handle_width: int, handle_height: int,
                               revealed_height: int) -> list[tuple[int, int, int, int]]:
@@ -619,15 +644,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             joined_motion: bool = False):
     if joined_motion and not (navigate_shared and animate_drawer):
         raise RuntimeError("Joined navigation requires opt-in B4.3 animated mode")
-    if joined_motion:
-        # The input region is essential: the transparent part of the larger
-        # joined layer surface must not steal touch events from ACP/Flatpak.
-        try:
-            import cairo as cairo_module
-        except ImportError as exc:
-            raise RuntimeError("Joined navigation requires python3-cairo") from exc
-    else:
-        cairo_module = None
+    # This must run BEFORE the first joined Wayland window is created:
+    # otherwise an unavailable Cairo GI bridge raises KeyError repeatedly
+    # from GTK callbacks, leaves navigation unresponsive and intercepts taps.
+    cairo_module = load_joined_cairo_region() if joined_motion else None
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -879,8 +899,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             region = cairo_module.Region(
                 [cairo_module.RectangleInt(*rect) for rect in rectangles])
             indicator.get_window().input_shape_combine_region(region, 0, 0)
-        except (RuntimeError, TypeError, ValueError) as exc:
-            # Fail closed: don't leave a large invisible touch blocker behind.
+        except (RuntimeError, TypeError, ValueError, KeyError, AttributeError) as exc:
+            # Unexpected converter regressions must also terminate once,
+            # never print an uncaught traceback on every GTK frame.
             stop_once(f"joined input mask unavailable ({exc}); restoring ACP navigation")
         return False
 
