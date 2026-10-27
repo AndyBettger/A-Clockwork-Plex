@@ -77,7 +77,7 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn("GLib.idle_add(refresh_joined_input_region)", src)
         self.assertIn("stop_once(f\"joined input mask unavailable", src)
         self.assertIn("if joined_motion:\n            refresh_joined_input_region()", src)
-        self.assertIn("if joined_motion:\n                    GLib.idle_add", src)
+        self.assertIn("GLib.idle_add(refresh_joined_input_region)", src)
         self.assertIn("if joined_motion and not (navigate_shared and animate_drawer)", src)
         self.assertIn('parser.add_argument("--joined-motion"', src)
         self.assertIn("parser.error(\"--joined-motion requires --navigate-shared", src)
