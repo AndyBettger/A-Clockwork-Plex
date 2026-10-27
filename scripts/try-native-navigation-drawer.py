@@ -567,6 +567,25 @@ def gtk_revealed_fraction(revealed_height: int, full_height: int) -> float:
     return max(0.0, min(1.0, float(revealed_height) / full_height))
 
 
+def joined_motion_input_rects(window_width: int, window_height: int,
+                              handle_width: int, handle_height: int,
+                              revealed_height: int) -> list[tuple[int, int, int, int]]:
+    """One Wayland surface: clickable handle + actually revealed drawer only.
+
+    Keep the transparent space above and to the sides pass-through to ACP.
+    Children move together *inside* GTK, so no compositor margin race exists.
+    """
+    w, h = max(1, int(window_width)), max(1, int(window_height))
+    hw = max(1, min(w, int(handle_width)))
+    hh = max(1, min(h, int(handle_height)))
+    rh = max(0, min(h - hh, int(revealed_height)))
+    handle_y = h - hh - rh
+    rectangles = [((w - hw) // 2, handle_y, hw, hh)]
+    if rh:
+        rectangles.append((0, h - rh, w, rh))
+    return rectangles
+
+
 def make_layer_window(Gtk, LayerShell, width: int, height: int,
                       *, namespace: str, bottom: int):
     win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
@@ -596,7 +615,19 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             animate_drawer: bool = False,
             observe_foreground: bool = False,
             share_chrome: bool = False,
-            navigate_shared: bool = False):
+            navigate_shared: bool = False,
+            joined_motion: bool = False):
+    if joined_motion and not (navigate_shared and animate_drawer):
+        raise RuntimeError("Joined navigation requires opt-in B4.3 animated mode")
+    if joined_motion:
+        # The input region is essential: the transparent part of the larger
+        # joined layer surface must not steal touch events from ACP/Flatpak.
+        try:
+            import cairo as cairo_module
+        except ImportError as exc:
+            raise RuntimeError("Joined navigation requires python3-cairo") from exc
+    else:
+        cairo_module = None
     if not LayerShell.is_supported():
         raise RuntimeError("The current compositor does not support GTK layer shell")
     display = Gdk.Display.get_default()
@@ -667,9 +698,16 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     Gtk.StyleContext.add_provider_for_screen(
         screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+    # B4.3 optional joint surface uses *one* compositor commit for handle
+    # and sliding drawer. Other accepted B3/B4 previews keep two windows.
+    joint_height = (b2.PROBE_HEIGHT + OPEN_INDICATOR_EXTRA_GAP
+                    + DRAWER_HEIGHT + DRAWER_BOTTOM_MARGIN)
     indicator = make_layer_window(
-        Gtk, LayerShell, b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
-        namespace="acp-b3-indicator-test", bottom=0)
+        Gtk, LayerShell,
+        drawer_width if joined_motion else b2.PROBE_WIDTH,
+        joint_height if joined_motion else b2.PROBE_HEIGHT,
+        namespace=("acp-b43-joined-navigation-test" if joined_motion
+                   else "acp-b3-indicator-test"), bottom=0)
     hitbox = Gtk.EventBox()
     hitbox.set_visible_window(False)
     hitbox.set_size_request(b2.PROBE_WIDTH, b2.PROBE_HEIGHT)
@@ -685,11 +723,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     handle.get_style_context().add_class("acp-b3-handle")
     layout.pack_end(handle, False, False, 0)
     hitbox.add(layout)
-    indicator.add(hitbox)
+    if not joined_motion:
+        indicator.add(hitbox)
 
-    drawer = make_layer_window(
+    drawer = (indicator if joined_motion else make_layer_window(
         Gtk, LayerShell, drawer_width, DRAWER_HEIGHT,
-        namespace="acp-b3-drawer-test", bottom=DRAWER_BOTTOM_MARGIN)
+        namespace="acp-b3-drawer-test", bottom=DRAWER_BOTTOM_MARGIN))
     body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
     body.set_border_width(6)
     # Visible-window GTK paint surface owns rounded frame and dark panel.
@@ -714,8 +753,29 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         revealer.set_halign(Gtk.Align.FILL)
         revealer.set_valign(Gtk.Align.END)
         revealer.set_reveal_child(False)
-        revealer.add(shell)
-        drawer.add(revealer)
+        if joined_motion:
+            # Bottom-aligned vertical stack, one animation: as Revealer grows
+            # from below, GTK itself pushes the handle upward by that exact
+            # height, maintaining the defined gap in every rendered frame.
+            joined_stack = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            joined_stack.set_valign(Gtk.Align.END)
+            joined_stack.set_halign(Gtk.Align.FILL)
+            hitbox.set_halign(Gtk.Align.CENTER)
+            gap = Gtk.Box()
+            gap.set_size_request(-1, OPEN_INDICATOR_EXTRA_GAP)
+            joined_bottom_padding = Gtk.Box()
+            joined_bottom_padding.set_size_request(-1, DRAWER_BOTTOM_MARGIN)
+            joined_reveal_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            joined_reveal_content.pack_start(gap, False, False, 0)
+            joined_reveal_content.pack_start(shell, False, False, 0)
+            joined_reveal_content.pack_start(joined_bottom_padding, False, False, 0)
+            revealer.add(joined_reveal_content)
+            joined_stack.pack_start(hitbox, False, False, 0)
+            joined_stack.pack_start(revealer, False, False, 0)
+            indicator.add(joined_stack)
+        else:
+            revealer.add(shell)
+            drawer.add(revealer)
     else:
         drawer.add(shell)
 
@@ -798,11 +858,35 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
               flush=True)
         return True
 
+    def refresh_joined_input_region():
+        if not joined_motion or not indicator.get_window():
+            return False
+        # Cairo input mask prevents a larger transparent layer-shell surface
+        # from intercepting taps on underlying page buttons. This is updated
+        # on each Revealer frame and when a mapped window first appears.
+        revealed = revealer.get_preferred_height()[1]
+        allocation_width = max(1, indicator.get_allocated_width())
+        allocation_height = max(1, indicator.get_allocated_height())
+        rectangles = joined_motion_input_rects(
+            allocation_width, allocation_height,
+            b2.PROBE_WIDTH, b2.PROBE_HEIGHT, revealed)
+        try:
+            region = cairo_module.Region(
+                [cairo_module.RectangleInt(*rect) for rect in rectangles])
+            indicator.get_window().input_shape_combine_region(region, 0, 0)
+        except (RuntimeError, TypeError, ValueError) as exc:
+            # Fail closed: don't leave a large invisible touch blocker behind.
+            stop_once(f"joined input mask unavailable ({exc}); restoring ACP navigation")
+        return False
+
     def place_drawer_motion(fraction):
         motion["fraction"] = max(0.0, min(1.0, fraction))
+        if joined_motion:
+            refresh_joined_input_region()
+            return
         panel_bottom, handle_bottom = drawer_motion_margins(
             motion["fraction"], layout["height"], layout["bottom"])
-        # All panel motion belongs to Gtk.Revealer, never the Wayland surface.
+        # B3: two independent layer surfaces, preserved for rollback.
         LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)
         LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM, handle_bottom)
 
@@ -823,8 +907,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 restart_drawer_idle()
         if scale is None:
             layout.update(height=DRAWER_HEIGHT, bottom=DRAWER_BOTTOM_MARGIN)
-            drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
-            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
+            if joined_motion:
+                indicator.set_size_request(drawer_width, joint_height)
+                joined_bottom_padding.set_size_request(-1, DRAWER_BOTTOM_MARGIN)
+            else:
+                drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
+                LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
             if animate_drawer:
                 shell.set_size_request(drawer_width, DRAWER_HEIGHT)
             body.set_border_width(6)
@@ -838,8 +926,15 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         else:
             px = lambda name: round(snapshot[name] * scale)
             layout.update(height=px("drawer_height"), bottom=px("drawer_bottom"))
-            drawer.set_size_request(px("drawer_width"), layout["height"])
-            LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
+            if joined_motion:
+                indicator.set_size_request(
+                    px("drawer_width"),
+                    b2.PROBE_HEIGHT + OPEN_INDICATOR_EXTRA_GAP
+                    + layout["height"] + layout["bottom"])
+                joined_bottom_padding.set_size_request(-1, layout["bottom"])
+            else:
+                drawer.set_size_request(px("drawer_width"), layout["height"])
+                LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
             if animate_drawer:
                 shell.set_size_request(px("drawer_width"), layout["height"])
             body.set_border_width(px("drawer_padding"))
@@ -907,10 +1002,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 place_drawer_motion(motion["fraction"])
                 # OSK and focus handoff must always win immediately.
                 revealer.set_transition_duration(0)
-                if opened:
+                if opened and not joined_motion:
                     drawer.show_all()
                 revealer.set_reveal_child(opened)
-                if not opened:
+                if not opened and not joined_motion:
                     drawer.hide()
                 revealer.set_transition_duration(duration_ms)
             else:
@@ -930,11 +1025,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             duration_ms * abs(target - start))))
         if opened:
             place_drawer_motion(start)
-            drawer.show_all()
+            if not joined_motion:
+                drawer.show_all()
         revealer.set_reveal_child(opened)
         if abs(start - target) < 0.001:
             place_drawer_motion(target)
-            if not opened:
+            if not opened and not joined_motion:
                 drawer.hide()
             return
         began = time.monotonic()
@@ -954,7 +1050,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             elapsed = time.monotonic() - began
             if (settled and elapsed >= duration * 0.5) or elapsed >= duration + 0.15:
                 place_drawer_motion(target)
-                if not opened:
+                if not opened and not joined_motion:
                     drawer.hide()
                 return False
             return True
@@ -1249,6 +1345,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     hitbox.connect("enter-notify-event", on_enter)
     hitbox.connect("leave-notify-event", on_leave)
     indicator.connect("destroy", lambda *_: stop_once("window closed"))
+    if joined_motion:
+        indicator.connect("map-event", lambda *_: (
+            GLib.idle_add(refresh_joined_input_region), False)[1])
 
     def refresh_keyboard():
         current = keyboard_visible(bus, Gio, GLib)
@@ -1368,6 +1467,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
           + ("; B4.1 read-only foreground observer ENABLED" if observe_foreground else "")
           + ("; B4.2 expiring Chromium chrome takeover ENABLED" if share_chrome else "")
           + ("; B4.3 shared page/native dispatcher ENABLED" if navigate_shared else "")
+          + ("; B4.3 JOINED handle/drawer surface ENABLED" if joined_motion else "")
           + "; hides when Squeekboard opens.", flush=True)
     try:
         Gtk.main()
@@ -1378,7 +1478,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             focus_executor.shutdown(wait=False, cancel_futures=True)
         if curtain is not None:
             curtain.destroy()
-        drawer.destroy()
+        if drawer is not indicator:
+            drawer.destroy()
         indicator.destroy()
 
 
@@ -1405,6 +1506,8 @@ def main() -> int:
                         help="B4.2 dev-only expiring lease to hide Chromium duplicate navigation")
     parser.add_argument("--navigate-shared", action="store_true",
                         help="B4.3 dev-only shared GTK page/native Plexamp dispatcher")
+    parser.add_argument("--joined-motion", action="store_true",
+                        help="B4.3 isolated one-surface pill/drawer motion trial (requires --navigate-shared --animate-drawer)")
     parser.add_argument("--seconds", type=int, default=90,
                         help="auto-close after 1-300 seconds (default 90)")
     args = parser.parse_args()
@@ -1426,6 +1529,8 @@ def main() -> int:
             args.show and args.observe_foreground and args.share_chrome
             and args.theme_from_acp and args.presentation_from_acp):
         parser.error("--navigate-shared requires --show --observe-foreground --share-chrome --theme-from-acp --presentation-from-acp")
+    if args.joined_motion and not (args.navigate_shared and args.animate_drawer):
+        parser.error("--joined-motion requires --navigate-shared and --animate-drawer")
     try:
         b2 = load_indicator()
         env = b2.desktop_environment(os.environ, os.getuid(), root=os.geteuid() == 0)
@@ -1452,7 +1557,8 @@ def main() -> int:
                 animate_drawer=args.animate_drawer,
                 observe_foreground=args.observe_foreground,
                 share_chrome=args.share_chrome,
-                navigate_shared=args.navigate_shared)
+                navigate_shared=args.navigate_shared,
+                joined_motion=args.joined_motion)
         return 0
     except (RuntimeError, OSError, b2.ProbeError) as exc:
         print("ACP B3: " + str(exc), file=sys.stderr)
