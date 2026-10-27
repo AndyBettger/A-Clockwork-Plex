@@ -583,7 +583,7 @@ def load_joined_cairo_region():
         if not isinstance(region, cairo.Region):
             raise TypeError("Unexpected Cairo region type")
         return cairo
-    except (ImportError, KeyError, TypeError, AttributeError, ValueError) as exc:
+    except Exception as exc:
         raise RuntimeError(
             "Joined GTK motion needs the Cairo GI foreign Region converter "
             "(Debian package python3-gi-cairo). "
@@ -884,7 +884,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         return True
 
     def refresh_joined_input_region():
-        if not joined_motion or not indicator.get_window():
+        if not joined_motion or state["stopping"] or not indicator.get_window():
             return False
         # Cairo input mask prevents a larger transparent layer-shell surface
         # from intercepting taps on underlying page buttons. This is updated
@@ -899,7 +899,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             region = cairo_module.Region(
                 [cairo_module.RectangleInt(*rect) for rect in rectangles])
             indicator.get_window().input_shape_combine_region(region, 0, 0)
-        except (RuntimeError, TypeError, ValueError, KeyError, AttributeError) as exc:
+        except Exception as exc:
             # Unexpected converter regressions must also terminate once,
             # never print an uncaught traceback on every GTK frame.
             stop_once(f"joined input mask unavailable ({exc}); restoring ACP navigation")
