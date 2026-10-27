@@ -95,7 +95,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         self.assertEqual(drawer.gtk_revealed_fraction(90, 69), 1.0)
         self.assertEqual(drawer.gtk_revealed_fraction(-5, 69), 0.0)
         self.assertEqual(drawer.gtk_revealed_fraction(10, 0), 0.0)
-        script = SCRIPT.read_text(encoding="utf-8")
+        script = SRC.read_text(encoding="utf-8")
         self.assertIn("revealer.get_preferred_height()[1]", script)
         self.assertIn('gtk_revealed_fraction(natural_height, layout["height"])', script)
         self.assertNotIn(
