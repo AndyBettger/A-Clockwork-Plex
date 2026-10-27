@@ -749,6 +749,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         shell.set_size_request(drawer_width, DRAWER_HEIGHT)
         revealer = Gtk.Revealer()
         revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
+        if joined_motion:
+            # The joined child's first pixels are the spacer above the
+            # panel. Revealing from its TOP displays the spacer first, so
+            # the coloured drawer never runs into the moving handle.
+            revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
         revealer.set_transition_duration(DRAWER_MOTION_MS)
         revealer.set_halign(Gtk.Align.FILL)
         revealer.set_valign(Gtk.Align.END)
