@@ -1005,6 +1005,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 if opened and not joined_motion:
                     drawer.show_all()
                 revealer.set_reveal_child(opened)
+                if joined_motion:
+                    # Redraw/input-shape updates follow GTK's zero-duration
+                    # allocation, not the previous revealed state.
+                    GLib.idle_add(refresh_joined_input_region)
                 if not opened and not joined_motion:
                     drawer.hide()
                 revealer.set_transition_duration(duration_ms)
@@ -1028,6 +1032,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             if not joined_motion:
                 drawer.show_all()
         revealer.set_reveal_child(opened)
+        if joined_motion:
+            GLib.idle_add(refresh_joined_input_region)
         if abs(start - target) < 0.001:
             place_drawer_motion(target)
             if not opened and not joined_motion:
