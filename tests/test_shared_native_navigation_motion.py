@@ -55,8 +55,7 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
 
     def test_joined_visuals_share_a_single_gtk_layer_window(self):
         src = SRC.read_text(encoding="utf-8")
-        self.assertIn('namespace="acp-b43-joined-navigation-test"', src.replace(
-            '"acp-b43-joined-navigation-test" if joined_motion', '"acp-b43-joined-navigation-test"'))
+        self.assertIn('namespace=("acp-b43-joined-navigation-test" if joined_motion', src)
         self.assertIn("drawer = (indicator if joined_motion else make_layer_window(", src)
         self.assertIn("joined_stack.pack_start(hitbox, False, False, 0)", src)
         self.assertIn("joined_stack.pack_start(revealer, False, False, 0)", src)
@@ -67,7 +66,7 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn("if drawer is not indicator:", src)
         # Existing separate Wayland surfaces remain for accepted B3/B4.1/B4.2.
         self.assertIn('namespace="acp-b3-drawer-test"', src)
-        self.assertIn('namespace="acp-b3-indicator-test"', src)
+        self.assertIn('else "acp-b3-indicator-test"), bottom=0)', src)
 
     def test_transparent_input_is_restricted_and_fail_closed(self):
         src = SRC.read_text(encoding="utf-8")
