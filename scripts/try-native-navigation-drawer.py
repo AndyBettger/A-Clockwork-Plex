@@ -1354,6 +1354,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     if joined_motion:
         indicator.connect("map-event", lambda *_: (
             GLib.idle_add(refresh_joined_input_region), False)[1])
+        # The GTK layout and input mask follow the same frame allocation.
+        revealer.connect("size-allocate", lambda *_:
+                         GLib.idle_add(refresh_joined_input_region))
 
     def refresh_keyboard():
         current = keyboard_visible(bus, Gio, GLib)
