@@ -573,9 +573,9 @@ def overlay_allowed(visible: bool | None) -> bool:
 
 
 def drawer_width_for_screen(width: int, height: int) -> int:
-    """Match nav.css compact drawer width (viewport minus 14px)."""
+    """Match ACP nav.css: near-full-screen drawer with small edge insets."""
     compact = width <= 860 or height <= 680
-    return min(1000 if compact else 940, max(320, width - (14 if compact else 20)))
+    return max(320, width - (14 if compact else 20))
 
 
 def indicator_margin(drawer_open: bool) -> int:
@@ -647,6 +647,15 @@ def load_joined_cairo_region():
             "Please install the python3-gi-cairo package with your package manager; "
             f"details: {exc}"
         ) from exc
+
+
+def joined_clip_allocation_visible(visible: bool, mapped: bool) -> bool:
+    """Only a *mapped* joined layer needs the strict compositor height guard.
+
+    Gtk.Window.hide() may shrink its allocation to 1px for Audio, OSK or
+    curtain handoff. The next map/size-allocate checks the real live surface.
+    """
+    return bool(visible and mapped)
 
 
 def joined_motion_positions(window_width: int, window_height: int,
@@ -954,6 +963,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     motion = {"fraction": 0.0, "epoch": 0, "duration_ms": DRAWER_MOTION_MS}
     drawer_idle = {"seconds": 6, "epoch": 0}
     joined_size_reported = {"value": False}
+    presentation_absent_noted = {"value": False}
     workspace_buttons = []
     utility_buttons = []
     utility_button_labels = []
@@ -1002,6 +1012,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
 
     def refresh_joined_input_region():
         if not joined_motion or state["stopping"] or not indicator.get_window():
+            return False
+        # Audio/OSK/curtain can intentionally unmap the joined window. GTK
+        # then reports a temporary 1px allocation; it is not a live clip.
+        # The map-event and size-allocate hooks revalidate after remapping.
+        if not joined_clip_allocation_visible(
+                indicator.get_visible(), indicator.get_mapped()):
             return False
         # Never grant GTK ownership if the layer-shell compositor gave the
         # window the off-screen panel's extra natural height. A bad allocation
@@ -1136,6 +1152,15 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
 
     def refresh_presentation():
         snapshot = fetch_acp_presentation()
+        if snapshot is None and last_presentation["value"] is None:
+            if not presentation_absent_noted["value"]:
+                presentation_absent_noted["value"] = True
+                print("ACP B3: presentation snapshot unavailable; using fallback "
+                      "geometry/timing (hard-refresh Chromium after service restart)",
+                      flush=True)
+            return True
+        if snapshot is not None:
+            presentation_absent_noted["value"] = False
         if snapshot == last_presentation["value"]:
             return True
         last_presentation["value"] = snapshot
