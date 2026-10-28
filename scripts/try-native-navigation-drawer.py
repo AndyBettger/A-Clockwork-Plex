@@ -790,19 +790,20 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     revealer = None
     joined_canvas = None
     if joined_motion:
-        # Gtk.Viewport ALONE is not a size cap. Its child Gtk.Fixed
-        # includes the off-screen panel in its minimum requisition; GTK may
-        # enlarge the entire bottom-anchored layer window so that the supposedly
-        # hidden panel is visible even when our motion fraction is zero.
-        # Gtk.ScrolledWindow establishes a true clipped viewport with bounded
-        # content dimensions, but shows NO scrollbars or user scrolling.
+        # The offscreen Gtk.Fixed panel contributes to its content height.
+        # Gtk.PolicyType.NEVER hides scrollbars but explicitly makes that
+        # content dictate the ScrolledWindow's requisition, which made labwc
+        # allocate 170px rather than 97px. GTK_POLICY_EXTERNAL ALSO hides
+        # scrollbars, but permits the viewport to stay smaller than its
+        # content; the only intended visible window is the 97px clip.
+        # Never loosen the post-map actual-height fail-closed check.
         # One Fixed child still drives both whole widgets in lockstep.
         joined_canvas = Gtk.Fixed()
         joined_canvas.get_style_context().add_class("acp-b43-motion-canvas")
         joined_clip = Gtk.ScrolledWindow()
         joined_clip.get_style_context().add_class("acp-b43-motion-clip")
         joined_clip.set_shadow_type(Gtk.ShadowType.NONE)
-        joined_clip.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+        joined_clip.set_policy(Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.EXTERNAL)
         joined_clip.set_overlay_scrolling(False)
         joined_clip.set_kinetic_scrolling(False)
         joined_clip.set_propagate_natural_height(False)

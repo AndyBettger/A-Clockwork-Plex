@@ -126,7 +126,12 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn("drawer = (indicator if joined_motion else make_layer_window(", src)
         self.assertIn("joined_canvas = Gtk.Fixed()", src)
         self.assertIn("joined_clip = Gtk.ScrolledWindow()", src)
-        self.assertIn("joined_clip.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)", src)
+        self.assertIn("joined_clip.set_policy(Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.EXTERNAL)", src)
+        # NEVER is *not* a no-scrollbar clip: its contents determine the
+        # size (the Pi actually allocated 170px for a 97px preview).
+        self.assertNotIn(
+            "joined_clip.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)",
+            src)
         self.assertIn("joined_clip.set_propagate_natural_height(False)", src)
         self.assertIn("joined_clip.set_min_content_height(joint_height)", src)
         self.assertIn("joined_clip.set_max_content_height(joint_height)", src)
@@ -153,6 +158,7 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         # rendered a permanently open drawer and moved only a few pixels.
         src = SRC.read_text(encoding="utf-8")
         self.assertNotIn("joined_clip = Gtk.Viewport()", src)
+        self.assertIn("Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.EXTERNAL", src)
         for part in (
             "joined_clip.set_min_content_height(joined_size[\"height\"])",
             "joined_clip.set_max_content_height(joined_size[\"height\"])",
