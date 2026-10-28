@@ -131,7 +131,8 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn('if not navigate_shared:\n        # B4.3', source)
         self.assertIn('if not navigate_shared:\n            stop_once(reason)', source)
         self.assertIn('state["handoff_pending"] = False', source)
-        self.assertIn("audio mixer lives in chromium", source.lower())
+        self.assertIn('if name not in {"Home", "Weather", "News", "AirPlay", "Settings", "Audio"}:', source)
+        self.assertIn("arm_audio_request(sequence)", source)
         self.assertIn("ThreadPoolExecutor(max_workers=1", source)
         self.assertIn("overlay_allowed(state[\"keyboard\"])", source)
         self.assertNotIn("flatpak kill", source)
@@ -168,7 +169,7 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("function readyForHandoff(command)", script)
         self.assertIn("projection?.lease?.manual_surface !== destination", script)
         self.assertIn("function weatherContentReady()", script)
-        self.assertIn("20261026-b43-navigation-preferences-v1",
+        self.assertIn("20261028-b43-shared-audio-v1",
                       BASE.read_text(encoding="utf-8"))
 
     def test_focus_destination_remains_exact_b1_identity_and_b3_preview_independent(self):

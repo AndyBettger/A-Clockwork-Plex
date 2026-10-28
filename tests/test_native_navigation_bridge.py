@@ -331,7 +331,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             "font_size": 21.8,
             "navigation_transition_duration_ms": 180,
             "navigation_inactivity_seconds": 6, "night_brightness": 0.18,
-            "astronomy_night": True,
+            "astronomy_night": True, "audio_open": False,
         }
         self.assertIsNone(store.read())
         store.publish(metrics)
@@ -349,6 +349,8 @@ class NativeNavigationBridgeTests(unittest.TestCase):
             {**metrics, "navigation_inactivity_seconds": -1},
             {**metrics, "navigation_inactivity_seconds": True},
             {**metrics, "astronomy_night": False},
+            {**metrics, "audio_open": 1},
+            {**metrics, "audio_open": "true"},
             {**metrics, "astronomy_night": False, "night_brightness": .18},
             {**metrics, "extra_css": "window { color: red; }"},
         ]
@@ -369,6 +371,7 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         self.assertIn("document.body.dataset.activePage !== 'alarm'", source)
         self.assertIn("navigation_transition_duration_ms: navDuration", source)
         self.assertIn("navigation_inactivity_seconds: navInactivity", source)
+        self.assertIn("audio_open: document.body.classList.contains('nav-audio-open')", source)
         self.assertIn("Number.isInteger(navDuration)", source)
         self.assertIn("Number.isInteger(navInactivity)", source)
         self.assertIn('/api/native-navigation/presentation', source)

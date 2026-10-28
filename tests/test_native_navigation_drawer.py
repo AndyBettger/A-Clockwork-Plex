@@ -312,7 +312,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "font_size": 21.8,
             "navigation_transition_duration_ms": 180,
             "navigation_inactivity_seconds": 6, "night_brightness": 0.18,
-            "astronomy_night": True,
+            "astronomy_night": True, "audio_open": False,
         }
         self.assertTrue(drawer.valid_presentation(values))
         self.assertEqual(drawer.presentation_scale(values, 1280, 720), 1.0)
@@ -329,6 +329,8 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             **values, "navigation_transition_duration_ms": 880,
             "navigation_inactivity_seconds": 0}), (880, 0))
         self.assertFalse(drawer.valid_presentation({**values, "astronomy_night": False}))
+        self.assertFalse(drawer.valid_presentation({**values, "audio_open": 1}))
+        self.assertTrue(drawer.valid_presentation({**values, "audio_open": True}))
         self.assertIn(b"font-size: 22px", drawer.presentation_css(values, 1.0))
 
     def test_astronomy_night_brightness_preblends_rgb_not_alpha(self):
@@ -350,7 +352,7 @@ class NativeNavigationDrawerTests(unittest.TestCase):
             "font_size": 21.8,
             "navigation_transition_duration_ms": 180,
             "navigation_inactivity_seconds": 6, "night_brightness": 0.2,
-            "astronomy_night": True,
+            "astronomy_night": True, "audio_open": False,
         }
         shaded = drawer.presentation_palette(colors, metrics)
         self.assertEqual(shaded["handle_color"], "rgba(51, 0, 0, 0.88)")
