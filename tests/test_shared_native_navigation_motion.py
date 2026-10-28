@@ -125,7 +125,12 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn('namespace=("acp-b43-joined-navigation-test" if joined_motion', src)
         self.assertIn("drawer = (indicator if joined_motion else make_layer_window(", src)
         self.assertIn("joined_canvas = Gtk.Fixed()", src)
-        self.assertIn("joined_clip = Gtk.Viewport()", src)
+        self.assertIn("joined_clip = Gtk.ScrolledWindow()", src)
+        self.assertIn("joined_clip.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)", src)
+        self.assertIn("joined_clip.set_propagate_natural_height(False)", src)
+        self.assertIn("joined_clip.set_min_content_height(joint_height)", src)
+        self.assertIn("joined_clip.set_max_content_height(joint_height)", src)
+        self.assertIn("joined_clip.set_kinetic_scrolling(False)", src)
         self.assertIn("joined_clip.add(joined_canvas)", src)
         self.assertIn("joined_canvas.put(hitbox, closed_handle[0], closed_handle[1])", src)
         self.assertIn("joined_canvas.put(shell, closed_panel[0], closed_panel[1])", src)
@@ -141,6 +146,24 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn("drawer.add(revealer)", src)
         self.assertIn('namespace="acp-b3-drawer-test"', src)
         self.assertIn('else "acp-b3-indicator-test"), bottom=0)', src)
+
+    def test_closed_panel_must_not_expand_joined_layer_window(self):
+        # The previous Gtk.Viewport had no maximum content height. Its
+        # Gtk.Fixed child requested room for the offscreen panel, so GTK
+        # rendered a permanently open drawer and moved only a few pixels.
+        src = SRC.read_text(encoding="utf-8")
+        self.assertNotIn("joined_clip = Gtk.Viewport()", src)
+        for part in (
+            "joined_clip.set_min_content_height(joined_size[\"height\"])",
+            "joined_clip.set_max_content_height(joined_size[\"height\"])",
+            "joined_clip.set_max_content_width(joined_size[\"width\"])",
+            "joined_clip.get_vadjustment().set_value(0)",
+            "actual_height = indicator.get_allocated_height()",
+            'if abs(actual_height - expected_height) > 2:',
+            "joined clipping geometry mismatch",
+        ):
+            with self.subTest(part=part):
+                self.assertIn(part, src)
 
     def test_transparent_input_is_restricted_and_fail_closed(self):
         src = SRC.read_text(encoding="utf-8")
