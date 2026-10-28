@@ -680,7 +680,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     css = b"""
       window { background-color: transparent; }
       .acp-b3-hitbox { background-color: transparent; }
-      .acp-b43-motion-clip, .acp-b43-motion-canvas {
+      .acp-b43-motion-clip, .acp-b43-motion-clip viewport,
+      .acp-b43-motion-canvas {
         background-color: transparent; background-image: none;
       }
       .acp-b3-handle {
@@ -866,6 +867,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
     motion = {"fraction": 0.0, "epoch": 0, "duration_ms": DRAWER_MOTION_MS}
     drawer_idle = {"seconds": 6, "epoch": 0}
+    joined_size_reported = {"value": False}
     workspace_buttons = []
     utility_buttons = []
     utility_button_labels = []
@@ -925,6 +927,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 f"joined clipping geometry mismatch ({actual_height}px rendered, "
                 f"{expected_height}px expected); restoring ACP navigation")
             return False
+        if not joined_size_reported["value"]:
+            joined_size_reported["value"] = True
+            print(f"ACP B4.3: joined clipped window height {actual_height}px "
+                  f"(expected {expected_height}px); off-screen panel excluded",
+                  flush=True)
         # Keep the scroll offset at zero: GTK must NOT auto-scroll to reveal
         # offscreen buttons when they receive focus. Only our Fixed moves them.
         joined_clip.get_hadjustment().set_value(0)
