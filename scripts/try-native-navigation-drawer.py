@@ -680,6 +680,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     css = b"""
       window { background-color: transparent; }
       .acp-b3-hitbox { background-color: transparent; }
+      .acp-b43-motion-clip, .acp-b43-motion-canvas {
+        background-color: transparent; background-image: none;
+      }
       .acp-b3-handle {
         background-color: rgba(247,249,255,0.74);
         border-radius: 999px;
@@ -743,6 +746,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     # and sliding drawer. Other accepted B3/B4 previews keep two windows.
     joint_height = (b2.PROBE_HEIGHT + OPEN_INDICATOR_EXTRA_GAP
                     + DRAWER_HEIGHT + DRAWER_BOTTOM_MARGIN)
+    joined_size = {"width": drawer_width, "height": joint_height}
     indicator = make_layer_window(
         Gtk, LayerShell,
         drawer_width if joined_motion else b2.PROBE_WIDTH,
@@ -785,18 +789,23 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     revealer = None
     joined_canvas = None
     if joined_motion:
-        # Gtk.Fixed clips both full widgets against one bottom-anchored
-        # Wayland surface. The panel really translates into view from below;
-        # it is NOT uncovered by a Revealer while the handle keeps moving.
-        # One GTK tick moves the handle and panel in the same allocation.
+        # GTK Fixed performs one rigid translation for BOTH visible widgets.
+        # A Viewport clips the off-screen child at the layer-shell boundary;
+        # without it the Fixed's natural height includes the hidden panel and
+        # can grow the Wayland surface beyond its intended 97px footprint.
         joined_canvas = Gtk.Fixed()
-        joined_canvas.set_size_request(drawer_width, joint_height)
+        joined_canvas.get_style_context().add_class("acp-b43-motion-canvas")
+        joined_clip = Gtk.Viewport()
+        joined_clip.set_shadow_type(Gtk.ShadowType.NONE)
+        joined_clip.get_style_context().add_class("acp-b43-motion-clip")
+        joined_clip.set_size_request(drawer_width, joint_height)
+        joined_clip.add(joined_canvas)
         closed_handle, closed_panel = joined_motion_positions(
             drawer_width, joint_height, b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
             DRAWER_HEIGHT, DRAWER_BOTTOM_MARGIN, OPEN_INDICATOR_EXTRA_GAP, 0)
         joined_canvas.put(hitbox, closed_handle[0], closed_handle[1])
         joined_canvas.put(shell, closed_panel[0], closed_panel[1])
-        indicator.add(joined_canvas)
+        indicator.add(joined_clip)
     elif animate_drawer:
         # Unchanged accepted B3/old B4.3 two-surface Revealer.
         shell.set_size_request(drawer_width, DRAWER_HEIGHT)
@@ -897,7 +906,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         # from intercepting taps on underlying page buttons. This is updated
         # on each Revealer frame and when a mapped window first appears.
         rectangles = joined_motion_input_rects(
-            drawer_width, joint_height,
+            joined_size["width"], joined_size["height"],
             b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
             layout["height"], layout["bottom"],
             OPEN_INDICATOR_EXTRA_GAP, motion["fraction"])
@@ -915,7 +924,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         motion["fraction"] = max(0.0, min(1.0, fraction))
         if joined_motion:
             moving_handle, moving_panel = joined_motion_positions(
-                drawer_width, joint_height, b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
+                joined_size["width"], joined_size["height"],
+                b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
                 layout["height"], layout["bottom"],
                 OPEN_INDICATOR_EXTRA_GAP, motion["fraction"])
             joined_canvas.move(hitbox, moving_handle[0], moving_handle[1])
@@ -946,8 +956,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         if scale is None:
             layout.update(height=DRAWER_HEIGHT, bottom=DRAWER_BOTTOM_MARGIN)
             if joined_motion:
+                joined_size.update(width=drawer_width, height=joint_height)
                 indicator.set_size_request(drawer_width, joint_height)
-                joined_canvas.set_size_request(drawer_width, joint_height)
+                joined_clip.set_size_request(drawer_width, joint_height)
             else:
                 drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
                 LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
@@ -967,9 +978,12 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             if joined_motion:
                 # Keep the joint layer's capacity large enough for updated
                 # dimensions; the clip is still bounded to the screen.
-                joint_height = b2.PROBE_HEIGHT + OPEN_INDICATOR_EXTRA_GAP + layout["height"] + layout["bottom"]
-                indicator.set_size_request(px("drawer_width"), joint_height)
-                joined_canvas.set_size_request(px("drawer_width"), joint_height)
+                joined_size.update(
+                    width=px("drawer_width"),
+                    height=b2.PROBE_HEIGHT + OPEN_INDICATOR_EXTRA_GAP
+                    + layout["height"] + layout["bottom"])
+                indicator.set_size_request(joined_size["width"], joined_size["height"])
+                joined_clip.set_size_request(joined_size["width"], joined_size["height"])
             else:
                 drawer.set_size_request(px("drawer_width"), layout["height"])
                 LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
@@ -1034,6 +1048,27 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         restart_drawer_idle()
         duration_ms = (motion["duration_ms"] if navigate_shared
                        else DRAWER_MOTION_MS)
+        if joined_motion:
+            # Unlike the old two-surface Revealer, move the entire GTK panel
+            # and handle by one equal displacement: constant gap, no
+            # transparent spacer being 'revealed' after the buttons stop.
+            target, start, epoch = float(opened), motion["fraction"], motion["epoch"]
+            if immediate or duration_ms <= 0 or abs(start - target) < 0.001:
+                place_drawer_motion(target)
+                return
+            begun = time.monotonic()
+            duration = duration_ms / 1000.0 * abs(target - start)
+
+            def joined_tick():
+                if state["stopping"] or motion["epoch"] != epoch:
+                    return False
+                phase = min(1.0, (time.monotonic() - begun) / duration)
+                fraction = start + (target - start) * drawer_motion_ease(phase)
+                place_drawer_motion(fraction)
+                return phase < 1.0
+
+            GLib.timeout_add(DRAWER_MOTION_TICK_MS, joined_tick)
+            return
         if not animate_drawer or immediate or duration_ms <= 0:
             motion["fraction"] = float(opened)
             if animate_drawer:
@@ -1392,9 +1427,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     if joined_motion:
         indicator.connect("map-event", lambda *_: (
             GLib.idle_add(refresh_joined_input_region), False)[1])
-        # The GTK layout and input mask follow the same frame allocation.
-        revealer.connect("size-allocate", lambda *_:
-                         GLib.idle_add(refresh_joined_input_region))
+        # Fixed keeps the handle/panel translation in the same GTK allocation.
+        joined_clip.connect("size-allocate", lambda *_:
+                            GLib.idle_add(refresh_joined_input_region))
 
     def refresh_keyboard():
         current = keyboard_visible(bus, Gio, GLib)
