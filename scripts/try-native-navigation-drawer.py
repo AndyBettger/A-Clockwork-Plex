@@ -587,7 +587,7 @@ def load_joined_cairo_region():
         raise RuntimeError(
             "Joined GTK motion needs the Cairo GI foreign Region converter "
             "(Debian package python3-gi-cairo). "
-            "Install it with: sudo apt install python3-gi-cairo; "
+            "Please install the python3-gi-cairo package with your package manager; "
             f"details: {exc}"
         ) from exc
 
