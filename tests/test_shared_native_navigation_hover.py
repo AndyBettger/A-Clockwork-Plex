@@ -41,7 +41,8 @@ class SharedNativeNavigationHoverTests(unittest.TestCase):
         self.assertIn('clear_joined_button_hover()', source)
         self.assertIn("reset_joined_hover_state(Gtk, (*workspace_buttons, *utility_buttons))",
                       source)
-        self.assertIn('context.add_class("acp-b43-hover")', source)
+        self.assertIn('button.get_style_context().add_class("acp-b43-hover")',
+                      source)
         self.assertIn('button.get_style_context().add_class("acp-b43-pressed")',
                       source)
         self.assertIn('button.connect("enter-notify-event", on_joined_button_enter)',
