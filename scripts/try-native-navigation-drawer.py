@@ -946,7 +946,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     state = {"drawer": False, "keyboard": None, "stopping": False,
              "handoff_pending": False, "curtain_active": False,
              "foreground": None, "audio_open": False,
-             "audio_requested": False, "audio_seen": False}
+             "audio_requested": False, "audio_seen": False,
+             "audio_request_sequence": None}
     last_palette = {"value": None}
     last_presentation = {"value": None}
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
@@ -1083,6 +1084,23 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)
         LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM, handle_bottom)
 
+    def arm_audio_request(sequence: int):
+        state["audio_requested"] = True
+        state["audio_seen"] = state["audio_open"]
+        state["audio_request_sequence"] = sequence
+
+        def abort_if_unconfirmed():
+            if (state["stopping"] or not state["audio_requested"]
+                    or state["audio_request_sequence"] != sequence
+                    or state["audio_seen"]):
+                return False
+            # If the browser never confirms a mixer, leave no invisible GTK
+            # owner behind. Normal Chromium controls return on lease expiry.
+            stop_once("Audio visibility not confirmed; restoring ACP navigation")
+            return False
+
+        GLib.timeout_add_seconds(12, abort_if_unconfirmed)
+
     def audio_chrome_yields():
         return navigate_shared and shared_audio_chrome_yields(
             state["foreground"], state["audio_open"], state["audio_requested"])
@@ -1109,6 +1127,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         elif state["audio_requested"] and state["audio_seen"]:
             state["audio_requested"] = False
             state["audio_seen"] = False
+            state["audio_request_sequence"] = None
         if (not state["audio_requested"] and not audio_chrome_yields()
                 and not state["curtain_active"] and state["foreground"] is not None
                 and overlay_allowed(state["keyboard"])):
@@ -1386,6 +1405,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 state["curtain_active"] = False
                 state["handoff_pending"] = False
                 state["audio_requested"] = False
+                state["audio_request_sequence"] = None
                 if overlay_allowed(state["keyboard"]):
                     indicator.show_all()
                     set_drawer_open(True)
@@ -1459,8 +1479,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 # Chromium's existing Audio button must be accessible so
                 # users can dismiss the mixer. Yield GTK immediately rather
                 # than cover its controls during the mailbox round-trip.
-                state["audio_requested"] = True
-                state["audio_seen"] = False
+                arm_audio_request(sequence)
                 set_drawer_open(False, immediate=True)
                 indicator.hide()
             state["handoff_pending"] = True
@@ -1485,8 +1504,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                               flush=True)
                     else:
                         if name == "Audio":
-                            state["audio_requested"] = True
-                            state["audio_seen"] = state["audio_open"]
+                            arm_audio_request(sequence)
                         print(f"ACP B4.3: {name} ready; focusing ACP behind curtain",
                               flush=True)
                         start_curtained_focus(name, sequence)
@@ -1496,6 +1514,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     if name == "Audio":
                         state["audio_requested"] = False
                         state["audio_seen"] = False
+                        state["audio_request_sequence"] = None
                         if (not state["audio_open"] and foreground[0] == "acp"
                                 and overlay_allowed(state["keyboard"])):
                             indicator.show_all()
