@@ -1433,7 +1433,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         if state["audio_return_native"]:
             restore_native_after_audio()
         if (overlay_allowed(state["keyboard"])
-                and not state["audio_requested"] and not audio_chrome_yields()):
+                and not state["audio_requested"] and not audio_chrome_yields()
+                and not state["audio_return_native"]):
             indicator.show_all()
         print("ACP B4.3: " + reason + "; shared GTK navigation retained", flush=True)
 
