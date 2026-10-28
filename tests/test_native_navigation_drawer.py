@@ -151,7 +151,9 @@ class NativeNavigationDrawerTests(unittest.TestCase):
 
     def test_acp_drawer_geometry_and_groups(self):
         self.assertEqual(drawer.drawer_width_for_screen(800, 480), 786)
-        self.assertEqual(drawer.drawer_width_for_screen(1280, 720), 940)
+        self.assertEqual(drawer.drawer_width_for_screen(853, 480), 839)
+        self.assertEqual(drawer.drawer_width_for_screen(1280, 720), 1260)
+        self.assertEqual(drawer.drawer_width_for_screen(1600, 900), 1580)
         self.assertEqual(drawer.DRAWER_HEIGHT, 70)
         self.assertEqual(drawer.DRAWER_BOTTOM_MARGIN, 8)
         self.assertEqual(drawer.indicator_margin(False), 0)
