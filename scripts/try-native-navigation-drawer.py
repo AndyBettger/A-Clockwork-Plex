@@ -314,8 +314,9 @@ PRESENTATION_NUMBERS = {
 
 def valid_presentation(value) -> bool:
     return (type(value) is dict
-            and set(value) == set(PRESENTATION_NUMBERS) | {"astronomy_night"}
+            and set(value) == set(PRESENTATION_NUMBERS) | {"astronomy_night", "audio_open"}
             and type(value["astronomy_night"]) is bool
+            and type(value["audio_open"]) is bool
             and all(type(value[key]) in (int, float) and low <= value[key] <= high
                     for key, (low, high) in PRESENTATION_NUMBERS.items())
             and value["drawer_width"] <= value["viewport_width"]
@@ -323,6 +324,13 @@ def valid_presentation(value) -> bool:
             and all(type(value[key]) is int for key in (
                 "navigation_transition_duration_ms", "navigation_inactivity_seconds"))
             and (value["astronomy_night"] or value["night_brightness"] == 1.0))
+
+
+def shared_audio_chrome_yields(foreground, audio_open: bool,
+                               audio_requested: bool) -> bool:
+    """Chromium's existing mixer owns its display, never the GTK overlay."""
+    return bool(foreground and foreground[0] == "acp"
+                and (audio_open or audio_requested))
 
 
 def shared_navigation_timing(presentation: dict | None) -> tuple[int, int]:
@@ -937,7 +945,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
 
     state = {"drawer": False, "keyboard": None, "stopping": False,
              "handoff_pending": False, "curtain_active": False,
-             "foreground": None}
+             "foreground": None, "audio_open": False,
+             "audio_requested": False, "audio_seen": False}
     last_palette = {"value": None}
     last_presentation = {"value": None}
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
@@ -1073,6 +1082,38 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         # B3: two independent layer surfaces, preserved for rollback.
         LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)
         LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM, handle_bottom)
+
+    def audio_chrome_yields():
+        return navigate_shared and shared_audio_chrome_yields(
+            state["foreground"], state["audio_open"], state["audio_requested"])
+
+    def refresh_audio_visibility():
+        if state["stopping"]:
+            return False
+        snapshot = fetch_acp_presentation()
+        if snapshot is None:
+            # Do not guess that an open mixer has closed after an HTTP error.
+            return True
+        opened = snapshot["audio_open"]
+        if opened != state["audio_open"]:
+            state["audio_open"] = opened
+            print("ACP B4.3: Chromium Audio mixer " +
+                  ("open; GTK yielding" if opened else "closed; GTK may return"),
+                  flush=True)
+        if opened:
+            if state["audio_requested"]:
+                state["audio_seen"] = True
+            if state["foreground"] and state["foreground"][0] == "acp":
+                set_drawer_open(False, immediate=True)
+                indicator.hide()
+        elif state["audio_requested"] and state["audio_seen"]:
+            state["audio_requested"] = False
+            state["audio_seen"] = False
+        if (not state["audio_requested"] and not audio_chrome_yields()
+                and not state["curtain_active"] and state["foreground"] is not None
+                and overlay_allowed(state["keyboard"])):
+            indicator.show_all()
+        return True
 
     def refresh_presentation():
         snapshot = fetch_acp_presentation()
@@ -1283,7 +1324,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         GLib.timeout_add(DRAWER_MOTION_TICK_MS, motion_tick)
 
     def toggle_drawer(_widget, _event):
-        if (not overlay_allowed(state["keyboard"])
+        if (audio_chrome_yields() or not overlay_allowed(state["keyboard"])
                 or (observe_foreground and state["foreground"] is None)):
             return True
         set_drawer_open(not state["drawer"])
@@ -1299,7 +1340,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             return
         state["curtain_active"] = False
         state["handoff_pending"] = False
-        if overlay_allowed(state["keyboard"]):
+        if (overlay_allowed(state["keyboard"])
+                and not state["audio_requested"] and not audio_chrome_yields()):
             indicator.show_all()
         print("ACP B4.3: " + reason + "; shared GTK navigation retained", flush=True)
 
@@ -1343,6 +1385,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 curtain.hide()
                 state["curtain_active"] = False
                 state["handoff_pending"] = False
+                state["audio_requested"] = False
                 if overlay_allowed(state["keyboard"]):
                     indicator.show_all()
                     set_drawer_open(True)
@@ -1402,14 +1445,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     print(f"ACP B4.3: Plexamp focus refused ({exc})", flush=True)
                     set_drawer_open(True)
                 return
-            if name == "Audio":
-                # The audio mixer lives in Chromium and must not be recreated
-                # in GTK. The B3 route and handoff to existing ACP audio UI
-                # remain available later; do not pretend native mixer exists.
-                print("ACP B4.3: Audio remains browser-owned; action deferred",
-                      flush=True)
-                return
-            if name not in {"Home", "Weather", "News", "AirPlay", "Settings"}:
+            if name not in {"Home", "Weather", "News", "AirPlay", "Settings", "Audio"}:
                 return
             # Interaction resets the same inactivity timer as the Chromium
             # drawer; don't automatically close GTK after an ACP page change.
@@ -1419,6 +1455,14 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             if sequence is None:
                 print("ACP B4.3: page request rejected; GTK drawer retained", flush=True)
                 return
+            if name == "Audio" and foreground[0] == "acp":
+                # Chromium's existing Audio button must be accessible so
+                # users can dismiss the mixer. Yield GTK immediately rather
+                # than cover its controls during the mailbox round-trip.
+                state["audio_requested"] = True
+                state["audio_seen"] = False
+                set_drawer_open(False, immediate=True)
+                indicator.hide()
             state["handoff_pending"] = True
             deadline = time.monotonic() + PREPARE_TIMEOUT_SECONDS
             def await_shared_route():
@@ -1435,16 +1479,26 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 if shared_route_prepared(phase, foreground[0]):
                     if foreground[0] == "acp":
                         state["handoff_pending"] = False
-                        restart_drawer_idle()
+                        if name != "Audio":
+                            restart_drawer_idle()
                         print(f"ACP B4.3: {name} confirmed in ACP ({phase}); GTK retained",
                               flush=True)
                     else:
+                        if name == "Audio":
+                            state["audio_requested"] = True
+                            state["audio_seen"] = state["audio_open"]
                         print(f"ACP B4.3: {name} ready; focusing ACP behind curtain",
                               flush=True)
                         start_curtained_focus(name, sequence)
                     return False
                 if phase == "expired" or time.monotonic() >= deadline:
                     state["handoff_pending"] = False
+                    if name == "Audio":
+                        state["audio_requested"] = False
+                        state["audio_seen"] = False
+                        if (not state["audio_open"] and foreground[0] == "acp"
+                                and overlay_allowed(state["keyboard"])):
+                            indicator.show_all()
                     restart_drawer_idle()
                     print(f"ACP B4.3: {name} not ready ({phase}); current app retained",
                           flush=True)
@@ -1599,7 +1653,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             indicator.hide()
             print("ACP B3: keyboard visible/unavailable: hiding ALL native navigation", flush=True)
         else:
-            if not state["curtain_active"] and (
+            if not state["curtain_active"] and not audio_chrome_yields() and (
                     not observe_foreground or state["foreground"] is not None):
                 indicator.show_all()
                 print("ACP B3: keyboard hidden: indicator restored", flush=True)
@@ -1675,6 +1729,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             if observed is None or not overlay_allowed(state["keyboard"]):
                 set_drawer_open(False, immediate=True)
                 indicator.hide()
+            elif audio_chrome_yields() or state["audio_requested"]:
+                set_drawer_open(False, immediate=True)
+                indicator.hide()
             elif not state["curtain_active"]:
                 indicator.show_all()
             return True
@@ -1698,6 +1755,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     if presentation_from_acp:
         refresh_presentation()
         GLib.timeout_add(PALETTE_REFRESH_MS, refresh_presentation)
+    if navigate_shared:
+        # The browser pushes the existing snapshot when the mixer toggles.
+        # Read its transient state promptly; no additional mixer/audio API.
+        GLib.timeout_add(900, refresh_audio_visibility)
     GLib.timeout_add_seconds(seconds, lambda: stop_once("time limit reached; closing preview"))
     print(f"ACP B3: preview for at most {seconds}s, indicator {bar_width}x{bar_height}px;"
           " tap opens drawer; "
