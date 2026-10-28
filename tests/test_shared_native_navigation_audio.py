@@ -63,7 +63,7 @@ class SharedNativeNavigationAudioTests(unittest.TestCase):
         self.assertIn("GLib.timeout_add(900, refresh_audio_visibility)", src)
         self.assertIn("indicator.hide()", src)
         self.assertIn("indicator.show_all()", src)
-        self.assertIn('if audio_chrome_yields() or not overlay_allowed', src)
+        self.assertIn('if (audio_chrome_yields() or not overlay_allowed', src)
         self.assertIn('elif audio_chrome_yields() or state["audio_requested"]:', src)
 
     def test_strict_transient_snapshot_flags_audio_without_audio_api(self):
