@@ -789,17 +789,30 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     revealer = None
     joined_canvas = None
     if joined_motion:
-        # GTK Fixed performs one rigid translation for BOTH visible widgets.
-        # A Viewport clips the off-screen child at the layer-shell boundary;
-        # without it the Fixed's natural height includes the hidden panel and
-        # can grow the Wayland surface beyond its intended 97px footprint.
+        # Gtk.Viewport ALONE is not a size cap. Its child Gtk.Fixed
+        # includes the off-screen panel in its minimum requisition; GTK may
+        # enlarge the entire bottom-anchored layer window so that the supposedly
+        # hidden panel is visible even when our motion fraction is zero.
+        # Gtk.ScrolledWindow establishes a true clipped viewport with bounded
+        # content dimensions, but shows NO scrollbars or user scrolling.
+        # One Fixed child still drives both whole widgets in lockstep.
         joined_canvas = Gtk.Fixed()
         joined_canvas.get_style_context().add_class("acp-b43-motion-canvas")
-        joined_clip = Gtk.Viewport()
-        joined_clip.set_shadow_type(Gtk.ShadowType.NONE)
+        joined_clip = Gtk.ScrolledWindow()
         joined_clip.get_style_context().add_class("acp-b43-motion-clip")
+        joined_clip.set_shadow_type(Gtk.ShadowType.NONE)
+        joined_clip.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+        joined_clip.set_overlay_scrolling(False)
+        joined_clip.set_kinetic_scrolling(False)
+        joined_clip.set_propagate_natural_height(False)
+        joined_clip.set_propagate_natural_width(False)
+        joined_clip.set_min_content_width(drawer_width)
+        joined_clip.set_min_content_height(joint_height)
+        joined_clip.set_max_content_width(drawer_width)
+        joined_clip.set_max_content_height(joint_height)
         joined_clip.set_size_request(drawer_width, joint_height)
         joined_clip.add(joined_canvas)
+        joined_clip.connect("scroll-event", lambda *_: True)
         closed_handle, closed_panel = joined_motion_positions(
             drawer_width, joint_height, b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
             DRAWER_HEIGHT, DRAWER_BOTTOM_MARGIN, OPEN_INDICATOR_EXTRA_GAP, 0)
@@ -902,9 +915,22 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     def refresh_joined_input_region():
         if not joined_motion or state["stopping"] or not indicator.get_window():
             return False
-        # Cairo input mask prevents a larger transparent layer-shell surface
-        # from intercepting taps on underlying page buttons. This is updated
-        # on each Revealer frame and when a mapped window first appears.
+        # Never grant GTK ownership if the layer-shell compositor gave the
+        # window the off-screen panel's extra natural height. A bad allocation
+        # would expose a fully open drawer while state["drawer"] is False.
+        actual_height = indicator.get_allocated_height()
+        expected_height = joined_size["height"]
+        if abs(actual_height - expected_height) > 2:
+            stop_once(
+                f"joined clipping geometry mismatch ({actual_height}px rendered, "
+                f"{expected_height}px expected); restoring ACP navigation")
+            return False
+        # Keep the scroll offset at zero: GTK must NOT auto-scroll to reveal
+        # offscreen buttons when they receive focus. Only our Fixed moves them.
+        joined_clip.get_hadjustment().set_value(0)
+        joined_clip.get_vadjustment().set_value(0)
+        # Input mask follows the full moving handle and the actually visible
+        # part of the panel; all other page content remains touch-accessible.
         rectangles = joined_motion_input_rects(
             joined_size["width"], joined_size["height"],
             b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
@@ -959,6 +985,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 joined_size.update(width=drawer_width, height=joint_height)
                 indicator.set_size_request(drawer_width, joint_height)
                 joined_clip.set_size_request(drawer_width, joint_height)
+                joined_clip.set_min_content_width(drawer_width)
+                joined_clip.set_max_content_width(drawer_width)
+                joined_clip.set_min_content_height(joint_height)
+                joined_clip.set_max_content_height(joint_height)
             else:
                 drawer.set_size_request(drawer_width, DRAWER_HEIGHT)
                 LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, DRAWER_BOTTOM_MARGIN)
@@ -984,6 +1014,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     + layout["height"] + layout["bottom"])
                 indicator.set_size_request(joined_size["width"], joined_size["height"])
                 joined_clip.set_size_request(joined_size["width"], joined_size["height"])
+                joined_clip.set_min_content_width(joined_size["width"])
+                joined_clip.set_max_content_width(joined_size["width"])
+                joined_clip.set_min_content_height(joined_size["height"])
+                joined_clip.set_max_content_height(joined_size["height"])
             else:
                 drawer.set_size_request(px("drawer_width"), layout["height"])
                 LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, layout["bottom"])
