@@ -64,7 +64,8 @@ class SharedNativeNavigationAudioTests(unittest.TestCase):
         self.assertIn("indicator.hide()", src)
         self.assertIn("indicator.show_all()", src)
         self.assertIn('if (audio_chrome_yields() or not overlay_allowed', src)
-        self.assertIn('elif audio_chrome_yields() or state["audio_requested"]:', src)
+        self.assertIn('elif audio_chrome_yields() and state["audio_open"]:', src)
+        self.assertIn('elif state["audio_return_native"]:', src)
 
     def test_strict_transient_snapshot_flags_audio_without_audio_api(self):
         # The palette+presentation snapshot is already short-lived and
@@ -110,7 +111,8 @@ class SharedNativeNavigationAudioTests(unittest.TestCase):
     def test_audio_uses_ready_painted_curtain_and_bounds_unconfirmed_mixer(self):
         source = GTK.read_text(encoding="utf-8")
         self.assertIn('if name not in {"Home", "Weather", "News", "AirPlay", "Settings", "Audio"}:', source)
-        self.assertIn("arm_audio_request(sequence)", source)
+        self.assertIn('arm_audio_request(sequence, "acp")', source)
+        self.assertIn('arm_audio_request(sequence, "plexamp")', source)
         self.assertIn("state[\"audio_request_sequence\"] = sequence", source)
         self.assertIn("GLib.timeout_add_seconds(12, abort_if_unconfirmed)", source)
         self.assertIn("Audio visibility not confirmed; restoring ACP navigation", source)
@@ -121,6 +123,47 @@ class SharedNativeNavigationAudioTests(unittest.TestCase):
         self.assertIn('if (overlay_allowed(state["keyboard"])', source)
         self.assertIn('and not state["audio_requested"] and not audio_chrome_yields()', source)
         self.assertNotIn("flatpak kill", source)
+
+    def test_origin_return_target_never_steals_focus_from_another_app(self):
+        select = gtk.shared_audio_return_action
+        self.assertEqual(select("acp", ("acp", "Weather")), "reopen-gtk")
+        self.assertEqual(select("acp", ("acp", "Settings")), "reopen-gtk")
+        self.assertEqual(select("plexamp", ("acp", "Home")), "focus-plexamp")
+        self.assertIsNone(select("plexamp", ("plexamp", "Plexamp")))
+        self.assertIsNone(select("plexamp", None))
+        self.assertIsNone(select(None, ("acp", "Home")))
+        self.assertIsNone(select("not-an-origin", ("acp", "Home")))
+
+    def test_audio_handoff_keeps_joined_gtk_mapped_until_browser_confirms_mixer(self):
+        source = GTK.read_text(encoding="utf-8")
+        start = source.index('            if name == "Audio" and foreground[0] == "acp":')
+        end = source.index('            state["handoff_pending"] = True', start)
+        request = source[start:end]
+        self.assertIn('arm_audio_request(sequence, "acp")', request)
+        self.assertNotIn("indicator.hide()", request)
+        self.assertNotIn("set_drawer_open(False", request)
+        self.assertIn('if opened:', source)
+        self.assertIn('if state["foreground"] and state["foreground"][0] == "acp":', source)
+        self.assertIn('set_drawer_open(False, immediate=True)\n                indicator.hide()', source)
+        self.assertIn('elif audio_chrome_yields() and state["audio_open"]:', source)
+
+    def test_mixer_dismissal_returns_to_origin_with_fresh_configured_idle(self):
+        source = GTK.read_text(encoding="utf-8")
+        self.assertIn('action = shared_audio_return_action(', source)
+        self.assertIn('if action == "focus-plexamp":', source)
+        self.assertIn('restore_native_after_audio()', source)
+        self.assertIn('b1.focus(focus_env, "plexamp")', source)
+        self.assertIn('state["audio_return_native"] and observed is not None', source)
+        self.assertIn('observed[0] == "plexamp"', source)
+        self.assertIn('if action == "reopen-gtk":', source)
+        self.assertIn('state["audio_restore_drawer"] and renewed', source)
+        self.assertIn('set_drawer_open(True, immediate=True)', source)
+        self.assertIn('restart_drawer_idle()', source)
+        self.assertIn('and not state["audio_return_native"]):', source)
+        # Fail-closed Audio deadlines, C3 keyboard and curtain still win.
+        self.assertIn('GLib.timeout_add_seconds(12, abort_if_unconfirmed)', source)
+        self.assertIn('if not overlay_allowed(state["keyboard"]):', source)
+        self.assertIn('if state["audio_return_native"]:', source)
 
     def test_browser_asset_refresh_is_scoped(self):
         self.assertIn("20261028-b43-shared-audio-v1",
