@@ -98,8 +98,15 @@ class NativeNavigationDrawerTests(unittest.TestCase):
         script = SRC.read_text(encoding="utf-8")
         self.assertIn("revealer.get_preferred_height()[1]", script)
         self.assertIn('gtk_revealed_fraction(natural_height, layout["height"])', script)
+        # B3 uses GTK's own Revealer frame height. B4.3 joined mode
+        # intentionally uses a single easing clock for BOTH whole widgets.
         self.assertNotIn(
-            "start + (target - start) * drawer_motion_ease(phase)", script)
+            "place_drawer_motion(start + (target - start) * drawer_motion_ease(phase))",
+            script)
+        self.assertIn("joined_canvas.move(hitbox, moving_handle[0], moving_handle[1])",
+                      script)
+        self.assertIn("joined_canvas.move(shell, moving_panel[0], moving_panel[1])",
+                      script)
         # Keep GTK child clipping; never animate negative Wayland margins.
         self.assertIn("Gtk.RevealerTransitionType.SLIDE_UP", script)
         self.assertIn("LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)", script)
