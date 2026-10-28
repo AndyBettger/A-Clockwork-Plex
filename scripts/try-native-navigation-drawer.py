@@ -591,6 +591,19 @@ def drawer_motion_ease(fraction: float) -> float:
     return 1.0 - (1.0 - t) ** 3
 
 
+def reset_joined_hover_state(Gtk, buttons) -> None:
+    """Discard stale pointer/press paint when a GTK Fixed child moves.
+
+    Widgets can change coordinates without GDK producing leave-notify; the
+    selected-page class is deliberately untouched by this operation.
+    """
+    for button in buttons:
+        context = button.get_style_context()
+        context.remove_class("acp-b43-hover")
+        context.remove_class("acp-b43-pressed")
+        button.unset_state_flags(Gtk.StateFlags.PRELIGHT | Gtk.StateFlags.ACTIVE)
+
+
 def gtk_revealed_fraction(revealed_height: int, full_height: int) -> float:
     """Read Gtk.Revealer's own sliding size, not a second animation clock.
 
@@ -1017,16 +1030,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         return False
 
     def clear_joined_button_hover():
-        if not joined_motion:
-            return
-        for nav_button in (*workspace_buttons, *utility_buttons):
-            context = nav_button.get_style_context()
-            context.remove_class("acp-b43-hover")
-            context.remove_class("acp-b43-pressed")
-            # Moving Gtk.Fixed children does not reliably emit mouse-leave;
-            # remove both explicit and stale GTK PRELIGHT/ACTIVE flags.
-            nav_button.unset_state_flags(
-                Gtk.StateFlags.PRELIGHT | Gtk.StateFlags.ACTIVE)
+        if joined_motion:
+            reset_joined_hover_state(Gtk, (*workspace_buttons, *utility_buttons))
 
     def on_joined_button_enter(button, _event):
         if joined_motion and state["drawer"] and not state["curtain_active"]:
