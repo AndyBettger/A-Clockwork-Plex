@@ -56,7 +56,9 @@ html[data-navigation-presentation="lift"] body.nav-mode .persistent-plexamp.is-o
   view-transition-name: acp-nav-drawer;
   left: 50%;
   bottom: max(8px, env(safe-area-inset-bottom));
-  width: min(calc(100vw - 20px), 940px);
+  /* Keep the shell chrome across the usable display width. GTK B4.3 reads
+     this computed width rather than imposing the old 940px ceiling. */
+  width: calc(100vw - 20px);
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--acp-radius-card);
@@ -677,7 +679,7 @@ body.nav-open .nav-handle span {
 
 @media (max-height: 680px), (max-width: 860px) {
   .nav-drawer {
-    width: min(calc(100vw - 14px), 1000px);
+    width: calc(100vw - 14px);
     padding: 6px;
   }
 
