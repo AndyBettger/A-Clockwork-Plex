@@ -49,6 +49,7 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
             "navigation_transition_duration_ms": 620,
             "navigation_inactivity_seconds": 12,
             "night_brightness": 1.0, "astronomy_night": False,
+            "audio_open": False,
         }
         self.assertTrue(nav.valid_presentation(values))
         self.assertEqual(nav.shared_navigation_timing(values), (620, 12))
@@ -57,6 +58,9 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
             "navigation_inactivity_seconds": 0}), (0, 0))
         self.assertEqual(nav.shared_navigation_timing(None),
                          (nav.DRAWER_MOTION_MS, 6))
+        self.assertFalse(nav.valid_presentation({
+            k: v for k, v in values.items() if k != "audio_open"}))
+        self.assertFalse(nav.valid_presentation({**values, "audio_open": 1}))
         self.assertFalse(nav.valid_presentation({
             **values, "navigation_transition_duration_ms": True}))
         self.assertFalse(nav.valid_presentation({
@@ -162,7 +166,9 @@ class SharedNativeNavigationRoutesTests(unittest.TestCase):
         self.assertIn("source: 'native-gtk-b4-shared', animate: true", script)
         self.assertIn("source: 'native-plexamp-b3', animate: false", script)
         self.assertIn("const sharedACP", script)
-        self.assertIn("if (!sharedACP) {", script)
+        # Audio must keep Chromium navigation visible to dismiss its mixer.
+        self.assertIn("if (!sharedACP || command.destination === 'audio') {", script)
+        self.assertIn("if (!document.body.classList.contains('nav-open')) return;", script)
         self.assertIn("window.ACPNavDrawer?.show?.()", script)
         self.assertIn("/api/native-navigation/ready", script)
         self.assertIn("/api/native-navigation/painted", script)
