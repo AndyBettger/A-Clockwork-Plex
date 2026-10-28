@@ -1,3 +1,9 @@
+## 28 October 2026 — B4.3 focused Pi gate fully green; physical mixer verification outstanding
+
+**Operator Pi at `d807ffc9`:** `git pull --ff-only` PASS, `py_compile tests/test_shared_native_navigation_motion.py` PASS, motion **11/11 PASS in 0.470s**, including the AST-scoped assertion, unmapped Audio guard, clipping geometry, responsive nav widths and whole-widget input-region motion. Previous latest drawer suite **23/23 PASS**; earlier unchanged Audio **6/6**, bridge **20/20**, routes **8/8**: aggregate **68/68 PASS across sequential Pi runs**. No unexecuted extra regressions or new code needed in response to these outputs.
+
+**Next gate is physical, not another unit sweep:** restart ACP service and hard-refresh its Chromium UI, then run one bounded `--joined-motion` 180s preview using all previous shared-nav opt-ins. Confirm presentation snapshot is published and shows ACP navigation timing rather than 6s fallback; observe near-full-width visual layout, valid clipping, ACP→Audio opens *existing Chromium mixer* and GTK yields without terminating; close mixer and check GTK returns, then repeat via Plexamp→Audio with curtained focus and painted acknowledgement. If snapshot unavailable, stop and record response from `/api/native-navigation/presentation` and logs. Mixer path, full-width layout and B4.4 boot behaviour remain **unverified physically**.
+
 ## 28 October 2026 — B4.3 test-only correction: joined motion source assertion
 
 **Pi result on `a9408280`:** `py_compile` PASS, joined motion **10/11** with one source-contract FAIL in `test_transparent_input_is_restricted_and_fail_closed`, and native GTK drawer **23/23 PASS**. The failed assertion expected `if joined_motion:\n            moving_handle, moving_panel` as adjacent text; current implementation intentionally inserts `clear_joined_button_hover()` before the moving widgets inside that same branch, retaining clipped input-shape refresh and safety checks.
