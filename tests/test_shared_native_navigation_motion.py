@@ -1,6 +1,7 @@
 """B4.3 opt-in single-surface handle + drawer motion (no display required)."""
 from __future__ import annotations
 
+import ast
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -209,7 +210,24 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
         self.assertIn('joined_clip.connect("size-allocate"', src)
         self.assertIn("GLib.idle_add(refresh_joined_input_region)", src)
         self.assertIn("stop_once(f\"joined input mask unavailable", src)
-        self.assertIn("if joined_motion:\n            moving_handle, moving_panel", src)
+        # Inspect the actual joined branch rather than requiring adjacent
+        # source lines: clearing stale hover state is intentionally performed
+        # before translating the two widgets in the same guarded branch.
+        motion = next(
+            node for node in ast.walk(ast.parse(src))
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "place_drawer_motion"
+        )
+        joined = next(
+            node for node in motion.body
+            if isinstance(node, ast.If) and isinstance(node.test, ast.Name)
+            and node.test.id == "joined_motion"
+        )
+        joined_source = ast.get_source_segment(src, joined)
+        self.assertIn("moving_handle, moving_panel = joined_motion_positions(", joined_source)
+        self.assertIn("joined_canvas.move(hitbox, moving_handle[0], moving_handle[1])", joined_source)
+        self.assertIn("joined_canvas.move(shell, moving_panel[0], moving_panel[1])", joined_source)
+        self.assertIn("refresh_joined_input_region()", joined_source)
         self.assertIn("GLib.idle_add(refresh_joined_input_region)", src)
         self.assertIn("if joined_motion and not (navigate_shared and animate_drawer)", src)
         self.assertIn('parser.add_argument("--joined-motion"', src)
