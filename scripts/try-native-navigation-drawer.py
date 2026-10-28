@@ -333,6 +333,17 @@ def shared_audio_chrome_yields(foreground, audio_open: bool,
                 and (audio_open or audio_requested))
 
 
+def shared_audio_return_action(origin: str | None, foreground) -> str | None:
+    """Only return to the original owner when ACP is still foreground."""
+    if not foreground or foreground[0] != "acp":
+        return None
+    if origin == "plexamp":
+        return "focus-plexamp"
+    if origin == "acp":
+        return "reopen-gtk"
+    return None
+
+
 def shared_navigation_timing(presentation: dict | None) -> tuple[int, int]:
     """Use ACP's normalised nav duration / inactivity, with B3 defaults.
 
@@ -956,7 +967,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
              "handoff_pending": False, "curtain_active": False,
              "foreground": None, "audio_open": False,
              "audio_requested": False, "audio_seen": False,
-             "audio_request_sequence": None}
+             "audio_request_sequence": None, "audio_origin": None,
+             "audio_return_native": False, "audio_restore_drawer": False}
     last_palette = {"value": None}
     last_presentation = {"value": None}
     layout = {"height": DRAWER_HEIGHT, "bottom": DRAWER_BOTTOM_MARGIN}
@@ -1100,10 +1112,13 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         LayerShell.set_margin(drawer, LayerShell.Edge.BOTTOM, panel_bottom)
         LayerShell.set_margin(indicator, LayerShell.Edge.BOTTOM, handle_bottom)
 
-    def arm_audio_request(sequence: int):
+    def arm_audio_request(sequence: int, origin: str):
         state["audio_requested"] = True
         state["audio_seen"] = state["audio_open"]
         state["audio_request_sequence"] = sequence
+        state["audio_origin"] = origin
+        state["audio_restore_drawer"] = False
+        state["audio_return_native"] = False
 
         def abort_if_unconfirmed():
             if (state["stopping"] or not state["audio_requested"]
@@ -1120,6 +1135,25 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
     def audio_chrome_yields():
         return navigate_shared and shared_audio_chrome_yields(
             state["foreground"], state["audio_open"], state["audio_requested"])
+
+    def restore_native_after_audio():
+        if not state["audio_return_native"] or state["curtain_active"]:
+            return
+        if not (state["foreground"] and state["foreground"][0] == "acp"):
+            state["audio_return_native"] = False
+            return
+        try:
+            b1.focus(focus_env, "plexamp")
+            print("ACP B4.3: Audio dismissed; restoring native Plexamp focus",
+                  flush=True)
+            # The foreground observer reopens GTK for the full configured
+            # inactivity interval only after Plexamp is actually focused.
+        except b1.WindowError as exc:
+            print(f"ACP B4.3: Audio return to Plexamp refused ({exc}); "
+                  "keeping ACP navigation", flush=True)
+            state["audio_return_native"] = False
+            state["audio_restore_drawer"] = True
+            indicator.show_all()
 
     def refresh_audio_visibility():
         if state["stopping"]:
@@ -1141,10 +1175,22 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 set_drawer_open(False, immediate=True)
                 indicator.hide()
         elif state["audio_requested"] and state["audio_seen"]:
+            action = shared_audio_return_action(
+                state["audio_origin"], state["foreground"])
             state["audio_requested"] = False
             state["audio_seen"] = False
             state["audio_request_sequence"] = None
+            state["audio_origin"] = None
+            if action == "focus-plexamp":
+                state["audio_return_native"] = True
+                indicator.hide()
+                restore_native_after_audio()
+            elif action == "reopen-gtk":
+                state["audio_restore_drawer"] = True
+                print("ACP B4.3: Audio dismissed; GTK drawer restoration pending",
+                      flush=True)
         if (not state["audio_requested"] and not audio_chrome_yields()
+                and not state["audio_return_native"]
                 and not state["curtain_active"] and state["foreground"] is not None
                 and overlay_allowed(state["keyboard"])):
             indicator.show_all()
@@ -1384,6 +1430,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             return
         state["curtain_active"] = False
         state["handoff_pending"] = False
+        if state["audio_return_native"]:
+            restore_native_after_audio()
         if (overlay_allowed(state["keyboard"])
                 and not state["audio_requested"] and not audio_chrome_yields()):
             indicator.show_all()
@@ -1431,6 +1479,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 state["handoff_pending"] = False
                 state["audio_requested"] = False
                 state["audio_request_sequence"] = None
+                state["audio_origin"] = None
+                state["audio_return_native"] = False
                 if overlay_allowed(state["keyboard"]):
                     indicator.show_all()
                     set_drawer_open(True)
@@ -1504,9 +1554,10 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 # Chromium's existing Audio button must be accessible so
                 # users can dismiss the mixer. Yield GTK immediately rather
                 # than cover its controls during the mailbox round-trip.
-                arm_audio_request(sequence)
-                set_drawer_open(False, immediate=True)
-                indicator.hide()
+                # Keep the already visible GTK navigation until Chromium
+                # confirms the mixer is displayed. The browser then takes
+                # control of the same Audio button without a blank interval.
+                arm_audio_request(sequence, "acp")
             state["handoff_pending"] = True
             deadline = time.monotonic() + PREPARE_TIMEOUT_SECONDS
             def await_shared_route():
@@ -1529,7 +1580,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                               flush=True)
                     else:
                         if name == "Audio":
-                            arm_audio_request(sequence)
+                            arm_audio_request(sequence, "plexamp")
                         print(f"ACP B4.3: {name} ready; focusing ACP behind curtain",
                               flush=True)
                         start_curtained_focus(name, sequence)
@@ -1540,6 +1591,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                         state["audio_requested"] = False
                         state["audio_seen"] = False
                         state["audio_request_sequence"] = None
+                        state["audio_origin"] = None
+                        state["audio_return_native"] = False
+                        state["audio_restore_drawer"] = False
                         if (not state["audio_open"] and foreground[0] == "acp"
                                 and overlay_allowed(state["keyboard"])):
                             indicator.show_all()
@@ -1697,8 +1751,9 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             indicator.hide()
             print("ACP B3: keyboard visible/unavailable: hiding ALL native navigation", flush=True)
         else:
-            if not state["curtain_active"] and not audio_chrome_yields() and (
-                    not observe_foreground or state["foreground"] is not None):
+            if (not state["curtain_active"] and not state["audio_return_native"]
+                    and not (audio_chrome_yields() and state["audio_open"])
+                    and (not observe_foreground or state["foreground"] is not None)):
                 indicator.show_all()
                 print("ACP B3: keyboard hidden: indicator restored", flush=True)
         return True
@@ -1770,10 +1825,30 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                 print("ACP B4.1: foreground " +
                       (f"{observed[0]} / {observed[1]}" if observed else
                        "unknown; native navigation hidden"), flush=True)
+            if (state["audio_return_native"] and observed is not None
+                    and observed[0] == "plexamp" and
+                    overlay_allowed(state["keyboard"])):
+                state["audio_return_native"] = False
+                indicator.show_all()
+                set_drawer_open(True, immediate=True)
+                print("ACP B4.3: native Plexamp restored; GTK drawer idle reset",
+                      flush=True)
+            if (state["audio_restore_drawer"] and renewed
+                    and observed is not None and observed[0] == "acp"
+                    and not state["audio_open"] and
+                    overlay_allowed(state["keyboard"])):
+                state["audio_restore_drawer"] = False
+                indicator.show_all()
+                set_drawer_open(True, immediate=True)
+                print("ACP B4.3: GTK drawer restored; inactivity timer restarted",
+                      flush=True)
             if observed is None or not overlay_allowed(state["keyboard"]):
                 set_drawer_open(False, immediate=True)
                 indicator.hide()
-            elif audio_chrome_yields() or state["audio_requested"]:
+            elif state["audio_return_native"]:
+                set_drawer_open(False, immediate=True)
+                indicator.hide()
+            elif audio_chrome_yields() and state["audio_open"]:
                 set_drawer_open(False, immediate=True)
                 indicator.hide()
             elif not state["curtain_active"]:
