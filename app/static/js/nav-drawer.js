@@ -342,7 +342,12 @@
     }
   }
 
+  function publishAudioOverlayVisibility() {
+    window.dispatchEvent(new Event('acp:navigation-audio-visibility'));
+  }
+
   function closeMixerWithoutScheduling() {
+    const wasOpen = mixerOpen();
     const panel = document.getElementById('nav-live-mixer');
     const button = document.getElementById('nav-audio-button');
     document.body.classList.remove('nav-audio-open');
@@ -353,6 +358,7 @@
     }
     window.clearInterval(liveRefreshTimer);
     liveRefreshTimer = null;
+    if (wasOpen) publishAudioOverlayVisibility();
   }
 
   function setMixerOpen(open) {
@@ -366,6 +372,7 @@
     }
     window.clearInterval(liveRefreshTimer);
     liveRefreshTimer = open ? window.setInterval(refreshLiveMixer, 2000) : null;
+    publishAudioOverlayVisibility();
     scheduleHide();
   }
 

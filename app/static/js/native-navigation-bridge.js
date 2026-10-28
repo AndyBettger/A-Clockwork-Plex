@@ -115,7 +115,7 @@
     // foreground; do not reopen duplicate HTML navigation there.
     const sharedACP = document.body.classList.contains('acp-b4-gtk-owned')
       && document.hasFocus();
-    if (!sharedACP) {
+    if (!sharedACP || command.destination === 'audio') {
       window.ACPNavDrawer?.show?.();
       if (!document.body.classList.contains('nav-open')) return;
     }
@@ -241,6 +241,9 @@
       night_brightness: astronomyNight
         ? Math.min(1, Math.max(0.05, rawBrightness || 0.18)) : 1,
       astronomy_night: astronomyNight,
+      // A read-only marker for the existing Chromium audio overlay, not
+      // an alternative audio controller or a new persistent preference.
+      audio_open: document.body.classList.contains('nav-audio-open'),
     };
     // Fail closed on missing nodes or nonsensical dimensions.
     const validMeasurements = Number.isFinite(presentation.drawer_width)
@@ -303,7 +306,10 @@
     staging.attempts++;
     staging.lastAttemptAt = Date.now();
     staging.inFlight = true;
-    if (!document.body.classList.contains('acp-b4-gtk-owned')) {
+    if (command.destination === 'audio'
+        || !document.body.classList.contains('acp-b4-gtk-owned')) {
+      // Audio needs the *browser* nav visible to dismiss the mixer. The
+      // browser owner script releases GTK suppression while audio is open.
       window.ACPNavDrawer?.show?.();
     }
     void (async () => {
@@ -356,6 +362,14 @@
       polling = false;
     }
   }
+
+  // Publish immediate changes in the *existing* presentation snapshot so
+  // GTK yields to Chromium's mixer and returns when the mixer is dismissed.
+  // No extra audio-setting endpoint or duplicate volume implementation.
+  window.addEventListener('acp:navigation-audio-visibility', () => {
+    lastPaletteAttemptAt = 0;
+    void publishPalette();
+  });
 
   const pollTimer = window.setInterval(poll, 600);
   const readyTimer = window.setInterval(() => {

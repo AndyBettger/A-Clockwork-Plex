@@ -193,7 +193,7 @@ PRESENTATION_KEYS = frozenset((
     "drawer_bottom", "drawer_padding", "workspace_gap", "utility_gap",
     "button_height", "utility_size", "font_size",
     "navigation_transition_duration_ms", "navigation_inactivity_seconds",
-    "night_brightness", "astronomy_night",
+    "night_brightness", "astronomy_night", "audio_open",
 ))
 PRESENTATION_LIMITS = {
     "viewport_width": (320, 5000), "viewport_height": (240, 3000),
@@ -210,7 +210,7 @@ PRESENTATION_LIMITS = {
 def valid_presentation(data):
     if type(data) is not dict or set(data) != PRESENTATION_KEYS:
         return False
-    if type(data["astronomy_night"]) is not bool:
+    if type(data["astronomy_night"]) is not bool or type(data["audio_open"]) is not bool:
         return False
     if any(type(data[k]) is not int for k in (
             "navigation_transition_duration_ms", "navigation_inactivity_seconds")):
