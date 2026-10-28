@@ -120,6 +120,34 @@ class SharedNativeNavigationMotionTests(unittest.TestCase):
                 # importing GTK or opening an overlay window.
                 self.assertIn("error:", p.stderr)
 
+    def test_hidden_audio_window_may_allocate_one_pixel_without_losing_guard(self):
+        # The Pi's Audio action deliberately hides the joined GTK surface;
+        # GTK may report a 1px allocation while it is unmapped. The 98px
+        # compositor clipping requirement still applies when mapped again.
+        self.assertFalse(nav.joined_clip_allocation_visible(False, False))
+        self.assertFalse(nav.joined_clip_allocation_visible(False, True))
+        self.assertFalse(nav.joined_clip_allocation_visible(True, False))
+        self.assertTrue(nav.joined_clip_allocation_visible(True, True))
+        src = SRC.read_text(encoding="utf-8")
+        self.assertIn("if not joined_clip_allocation_visible(", src)
+        self.assertIn("indicator.get_visible(), indicator.get_mapped()", src)
+        self.assertIn("if abs(actual_height - expected_height) > 2:", src)
+        self.assertIn("joined clipping geometry mismatch", src)
+        self.assertIn('indicator.connect("map-event"', src)
+        self.assertIn('joined_clip.connect("size-allocate"', src)
+
+    def test_full_width_gtk_and_chromium_nav_share_responsive_edge_insets(self):
+        css = (ROOT / "app/static/css/nav.css").read_text(encoding="utf-8")
+        base = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+        self.assertIn("width: calc(100vw - 20px);", css)
+        self.assertIn("width: calc(100vw - 14px);", css)
+        self.assertIn("20261028-b43-full-width-v1", base)
+        self.assertEqual(nav.drawer_width_for_screen(853, 480), 839)
+        self.assertEqual(nav.drawer_width_for_screen(1280, 720), 1260)
+        self.assertEqual(nav.drawer_width_for_screen(1600, 900), 1580)
+        # The original compact 853px screen is unchanged; only the
+        # artificial wide-screen 940/1000px maximums are removed.
+
     def test_joined_visuals_use_a_clipped_fixed_surface_not_a_revealer(self):
         src = SRC.read_text(encoding="utf-8")
         self.assertIn('namespace=("acp-b43-joined-navigation-test" if joined_motion', src)
