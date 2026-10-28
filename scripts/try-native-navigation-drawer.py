@@ -258,6 +258,42 @@ def palette_css(value: dict[str, str]) -> bytes:
         border-color: {value['active_background']};
         color: {value['active_text']};
       }}
+      /* B4.3 Gtk.Fixed moves buttons while GTK's old PRELIGHT may remain.
+         Joined mode paints hover only through explicit transient classes. */
+      .acp-b43-joined .acp-b3-nav,
+      .acp-b43-joined .acp-b3-nav:hover,
+      .acp-b43-joined .acp-b3-nav:focus,
+      .acp-b43-joined .acp-b3-nav:active,
+      .acp-b43-joined .acp-b3-nav:checked,
+      .acp-b43-joined .acp-b3-nav:hover:active {{
+        background-image: none;
+        background-color: {value['button_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+        box-shadow: none;
+      }}
+      .acp-b43-joined .acp-b3-nav.acp-b43-hover {{
+        background-image: none;
+        background-color: {value['button_hover_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+      }}
+      .acp-b43-joined .acp-b3-nav.acp-b43-pressed {{
+        background-image: none;
+        background-color: {value['button_pressed_background']};
+        border-color: {value['button_border']};
+        color: {value['button_text']};
+      }}
+      .acp-b43-joined .acp-b3-nav.acp-b3-active,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active:hover,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active:active,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active.acp-b43-hover,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active.acp-b43-pressed {{
+        background-image: none;
+        background-color: {value['active_background']};
+        border-color: {value['active_background']};
+        color: {value['active_text']};
+      }}
       .acp-b3-handle {{ background-color: {value['handle_color']}; }}
       .acp-b3-handle.hover {{ background-color: {value['handle_color']}; }}
       .acp-b3-utility-group {{ border-left-color: {value['utility_border']}; }}
@@ -730,6 +766,30 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         border-color: #f7f9ff;
         box-shadow: 0 0 18px rgba(247,249,255,0.22);
       }
+      /* Joined GTK buttons reject cached :hover while Gtk.Fixed slides. */
+      .acp-b43-joined .acp-b3-nav,
+      .acp-b43-joined .acp-b3-nav:hover,
+      .acp-b43-joined .acp-b3-nav:active,
+      .acp-b43-joined .acp-b3-nav:hover:active {
+        background-color: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.15);
+        color: #f7f9ff;
+        background-image: none;
+      }
+      .acp-b43-joined .acp-b3-nav.acp-b43-hover {
+        background-color: rgba(247,249,255,0.18);
+      }
+      .acp-b43-joined .acp-b3-nav.acp-b43-pressed {
+        background-color: rgba(255,255,255,0.30);
+      }
+      .acp-b43-joined .acp-b3-nav.acp-b3-active,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active:hover,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active.acp-b43-hover,
+      .acp-b43-joined .acp-b3-nav.acp-b3-active.acp-b43-pressed {
+        background-color: #f7f9ff;
+        border-color: #f7f9ff;
+        color: #07101d;
+      }
       .acp-b3-utility { border-radius: 999px; font-size: 24px; padding: 0; }
       .acp-b3-utility-group {
         border-left: 1px solid rgba(247,249,255,0.22);
@@ -754,6 +814,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         joint_height if joined_motion else b2.PROBE_HEIGHT,
         namespace=("acp-b43-joined-navigation-test" if joined_motion
                    else "acp-b3-indicator-test"), bottom=0)
+    if joined_motion:
+        indicator.get_style_context().add_class("acp-b43-joined")
     hitbox = Gtk.EventBox()
     hitbox.set_visible_window(False)
     hitbox.set_size_request(b2.PROBE_WIDTH, b2.PROBE_HEIGHT)
@@ -954,9 +1016,44 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
             stop_once(f"joined input mask unavailable ({exc}); restoring ACP navigation")
         return False
 
+    def clear_joined_button_hover():
+        if not joined_motion:
+            return
+        for nav_button in (*workspace_buttons, *utility_buttons):
+            context = nav_button.get_style_context()
+            context.remove_class("acp-b43-hover")
+            context.remove_class("acp-b43-pressed")
+            # Moving Gtk.Fixed children does not reliably emit mouse-leave;
+            # remove both explicit and stale GTK PRELIGHT/ACTIVE flags.
+            nav_button.unset_state_flags(
+                Gtk.StateFlags.PRELIGHT | Gtk.StateFlags.ACTIVE)
+
+    def on_joined_button_enter(button, _event):
+        if joined_motion and state["drawer"] and not state["curtain_active"]:
+            button.get_style_context().add_class("acp-b43-hover")
+        return False
+
+    def on_joined_button_leave(button, _event):
+        if joined_motion:
+            context = button.get_style_context()
+            context.remove_class("acp-b43-hover")
+            context.remove_class("acp-b43-pressed")
+        return False
+
+    def on_joined_button_press(button, _event):
+        if joined_motion:
+            button.get_style_context().add_class("acp-b43-pressed")
+        return False
+
+    def on_joined_button_release(button, _event):
+        if joined_motion:
+            button.get_style_context().remove_class("acp-b43-pressed")
+        return False
+
     def place_drawer_motion(fraction):
         motion["fraction"] = max(0.0, min(1.0, fraction))
         if joined_motion:
+            clear_joined_button_hover()
             moving_handle, moving_panel = joined_motion_positions(
                 joined_size["width"], joined_size["height"],
                 b2.PROBE_WIDTH, b2.PROBE_HEIGHT,
@@ -1084,6 +1181,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         GLib.timeout_add_seconds(seconds, idle_expired)
 
     def set_drawer_open(opened: bool, *, immediate: bool = False):
+        if joined_motion and not opened:
+            clear_joined_button_hover()
         # Each new request invalidates older ticks, including on OSK/focus.
         state["drawer"] = opened
         motion["epoch"] += 1
@@ -1270,6 +1369,8 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         return True
 
     def select_destination(_button, name):
+        if joined_motion:
+            clear_joined_button_hover()
         if not overlay_allowed(state["keyboard"]) or state["handoff_pending"]:
             return
         if observe_foreground and not navigate_shared:
@@ -1406,6 +1507,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         # Mouse/touch clicks must not leave GTK keyboard-focus paint stuck
         # on the last button after the actual ACP page changes.
         button.set_focus_on_click(False)
+        if joined_motion:
+            button.connect("enter-notify-event", on_joined_button_enter)
+            button.connect("leave-notify-event", on_joined_button_leave)
+            button.connect("button-press-event", on_joined_button_press)
+            button.connect("button-release-event", on_joined_button_release)
         if item == "Plexamp" and not observe_foreground:
             button.get_style_context().add_class("acp-b3-active")
         button.connect("clicked", select_destination, item)
@@ -1424,6 +1530,11 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
         button.get_style_context().add_class("acp-b3-nav")
         button.get_style_context().add_class("acp-b3-utility")
         button.set_focus_on_click(False)
+        if joined_motion:
+            button.connect("enter-notify-event", on_joined_button_enter)
+            button.connect("leave-notify-event", on_joined_button_leave)
+            button.connect("button-press-event", on_joined_button_press)
+            button.connect("button-release-event", on_joined_button_release)
         glyph = Gtk.Image()
         glyph.set_size_request(24, 24)
         glyph.set_halign(Gtk.Align.CENTER)
@@ -1532,6 +1643,7 @@ def present(Gtk, Gdk, GLib, Gio, LayerShell, bus, b2, *, seconds: int,
                     if renewed else "GTK lease not renewed; Chromium fallback remains"),
                     flush=True)
             if observed != state["foreground"]:
+                clear_joined_button_hover()
                 prior = state["foreground"]
                 state["foreground"] = observed
                 # ACP route changes update the highlighted tab, but are NOT a
