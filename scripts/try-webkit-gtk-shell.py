@@ -104,10 +104,14 @@ def make_proxy_handler(upstream_port: int = ACP_PORT):
                 self.end_headers()
                 if self.command == "GET" and payload:
                     self.wfile.write(payload)
+            except (BrokenPipeError, ConnectionResetError):
+                # Browsers may abandon an in-flight GET when F1–F5 navigates.
+                # This is an ordinary cancelled consumer, not a Flask failure.
+                return
             except (OSError, http.client.HTTPException) as exc:
                 try:
                     self.send_error(502, "ACP service unavailable")
-                except (BrokenPipeError, OSError):
+                except OSError:
                     pass
                 print(f"ACP WebKit probe: upstream error ({type(exc).__name__})",
                       flush=True)
@@ -228,7 +232,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
 
     server, worker = start_proxy()
     url_root = f"http://127.0.0.1:{server.server_port}"
-    start = time.monotonic()
+    # Each WebKit top-level navigation has its own clock; the elapsed time
+    # since window creation is NOT an individual page loading measurement.
+    navigation = {"started": time.monotonic()}
     window = Gtk.Window(title="A Clockwork Plex — WebKitGTK dev probe")
     window.set_default_size(args.width, args.height)
     webview = WebKit2.WebView.new_with_context(WebKit2.WebContext.new_ephemeral())
@@ -246,10 +252,13 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     window.connect("destroy", lambda *_: quit_if_running())
 
     def on_load(view, event):
-        if event == WebKit2.LoadEvent.FINISHED:
-            print(f"ACP WebKit probe: page rendered in "
-                  f"{time.monotonic() - start:.2f}s, title={view.get_title()!r}",
-                  flush=True)
+        if event == WebKit2.LoadEvent.STARTED:
+            navigation["started"] = time.monotonic()
+        elif event == WebKit2.LoadEvent.FINISHED:
+            # FINISHED is the WebKit load event, not a first-paint/FPS metric.
+            elapsed = time.monotonic() - navigation["started"]
+            print(f"ACP WebKit probe: document load finished in {elapsed:.2f}s, "
+                  f"title={view.get_title()!r}", flush=True)
 
     def on_failure(_view, _event, uri, error):
         print(f"ACP WebKit probe: LOAD FAILED {uri}: {error}", flush=True)
@@ -296,6 +305,10 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
+    print("ACP WebKit probe: DMA-BUF renderer " +
+          ("DISABLED (per-process diagnostic)" if
+           os.environ.get("WEBKIT_DISABLE_DMABUF_RENDERER") == "1"
+           else "default"), flush=True)
     webview.load_uri(url_root + "/" + args.page)
     GLib.timeout_add_seconds(args.seconds, quit_if_running)
     try:
