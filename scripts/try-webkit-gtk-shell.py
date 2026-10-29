@@ -259,6 +259,10 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
             elapsed = time.monotonic() - navigation["started"]
             print(f"ACP WebKit probe: document load finished in {elapsed:.2f}s, "
                   f"title={view.get_title()!r}", flush=True)
+            actual_window = window.get_size()
+            print(f"ACP WebKit probe: GTK window {actual_window[0]}x{actual_window[1]}, "
+                  f"WebView {view.get_allocated_width()}x{view.get_allocated_height()} "
+                  f"(requested {args.width}x{args.height})", flush=True)
 
     def on_failure(_view, _event, uri, error):
         print(f"ACP WebKit probe: LOAD FAILED {uri}: {error}", flush=True)
