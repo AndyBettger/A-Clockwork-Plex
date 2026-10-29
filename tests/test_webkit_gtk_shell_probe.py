@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import http.client
+from contextlib import redirect_stdout
+from io import StringIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 from pathlib import Path
@@ -87,6 +89,18 @@ class WebKitProbeTests(unittest.TestCase):
             self.assertEqual(status, 405, method)
         self.assertEqual(Upstream.writes, start)
 
+    def test_repeated_write_denials_emit_one_diagnostic_per_endpoint(self):
+        output = StringIO()
+        with redirect_stdout(output):
+            for _ in range(3):
+                self.assertEqual(self.request("POST", "/api/osk/c3/theme-sync")[0], 405)
+            for _ in range(2):
+                self.assertEqual(self.request("POST", "/api/native-navigation/palette")[0], 405)
+        logs = output.getvalue()
+        self.assertEqual(logs.count("blocked POST /api/osk/c3/theme-sync"), 1)
+        self.assertEqual(logs.count("blocked POST /api/native-navigation/palette"), 1)
+        self.assertIn("further repeats suppressed", logs)
+
     def test_only_relative_origin_paths_allowed(self):
         for value in ("https://example.com/", "//example.com/x",
                       "relative", "/hello\\world", "/x\x00y"):
@@ -116,6 +130,13 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("Gtk.main_quit()", src)
         self.assertIn("GLib.timeout_add_seconds(args.seconds", src)
         self.assertIn('url_root + "/" + args.page', src)
+
+    def test_sigint_cleanup_is_idempotent_when_gtk_loop_already_stopped(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("if Gtk.main_level() > 0:", src)
+        self.assertIn("except KeyboardInterrupt:", src)
+        self.assertIn("GLib.timeout_add_seconds(args.seconds, quit_if_running)", src)
+        self.assertIn('window.connect("destroy", lambda *_: quit_if_running())', src)
 
     def test_preserve_existing_chromium_and_native_player(self):
         src = SCRIPT.read_text(encoding="utf-8")
