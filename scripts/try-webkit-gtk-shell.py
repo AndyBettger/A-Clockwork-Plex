@@ -41,14 +41,34 @@ RAIN_WIDTH_TRIAL_CSS = """
 body.mode-weather .rain-overview-scroll > .rain-subpanel {
   flex: 0 0 auto !important;
   inline-size: max-content !important;
+  min-inline-size: max-content !important;
   max-inline-size: none !important;
 }
 body.mode-weather .rain-overview-scroll > .rain-subpanel > .rain-gauge-row {
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: clamp(150px, 21vw, 190px) !important;
+  grid-template-columns: none !important;
   flex: 0 0 auto !important;
   inline-size: max-content !important;
+  min-inline-size: max-content !important;
 }
 body.mode-weather .rain-overview-scroll .rain-gauge-card {
   flex-shrink: 0 !important;
+}
+"""
+
+# EXPERIMENT ONLY. The original proximity scroll-snap snaps short touch
+# drags back to the first subpanel when the first snap point is still closest.
+# Keep horizontal touch panning but remove snap only in this WebKit view.
+RAIN_TOUCH_TRIAL_CSS = """
+body.mode-weather .rain-overview-scroll {
+  scroll-snap-type: none !important;
+  touch-action: pan-x !important;
+  overscroll-behavior-inline: contain !important;
+}
+body.mode-weather .rain-overview-scroll > .rain-subpanel {
+  scroll-snap-align: none !important;
 }
 """
 
@@ -73,7 +93,11 @@ RAIN_LAYOUT_METRICS_SCRIPT = r"""
  return JSON.stringify({
    status: 'ok', viewport: window.innerWidth,
    railWidth: Math.round(root.getBoundingClientRect().width),
-   railScrollWidth: root.scrollWidth, sections
+   railScrollWidth: root.scrollWidth,
+   railScrollLeft: Math.round(root.scrollLeft),
+   snapType: getComputedStyle(root).scrollSnapType,
+   touchAction: getComputedStyle(root).touchAction,
+   sections
  });
 })()
 """
@@ -183,6 +207,9 @@ def parse_args(argv=None):
     parser.add_argument("--rain-width-trial", action="store_true",
                         help="Apply experimental WebKit-only Rain panel sizing; "
                              "production CSS stays unchanged.")
+    parser.add_argument("--rain-touch-trial", action="store_true",
+                        help="Disable Rain scroll-snap and enable horizontal touch "
+                             "panning in this temporary WebKit view only.")
     args = parser.parse_args(argv)
     if not 10 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 10 and 300")
@@ -299,13 +326,17 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     window = Gtk.Window(title="A Clockwork Plex — WebKitGTK dev probe")
     window.set_default_size(args.width, args.height)
     webview = WebKit2.WebView.new_with_context(WebKit2.WebContext.new_ephemeral())
-    if args.rain_width_trial:
-        sheet = WebKit2.UserStyleSheet.new(
-            RAIN_WIDTH_TRIAL_CSS, WebKit2.UserContentInjectedFrames.TOP_FRAME,
-            WebKit2.UserStyleLevel.USER, None, None)
-        webview.get_user_content_manager().add_style_sheet(sheet)
-        print("ACP WebKit probe: trial Rain width stylesheet injected "
-              "(this WebView only; server CSS unchanged)", flush=True)
+    for active, css, label in (
+        (args.rain_width_trial, RAIN_WIDTH_TRIAL_CSS, "Rain width"),
+        (args.rain_touch_trial, RAIN_TOUCH_TRIAL_CSS, "Rain touch/no-snap"),
+    ):
+        if active:
+            sheet = WebKit2.UserStyleSheet.new(
+                css, WebKit2.UserContentInjectedFrames.TOP_FRAME,
+                WebKit2.UserStyleLevel.USER, None, None)
+            webview.get_user_content_manager().add_style_sheet(sheet)
+            print(f"ACP WebKit probe: trial {label} stylesheet injected "
+                  "(this WebView only; server CSS unchanged)", flush=True)
     rgba = Gdk.RGBA()
     rgba.parse("#02040a")
     webview.set_background_color(rgba)
@@ -357,6 +388,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                       "to compare at the actual panel resolution.", flush=True)
             if view.get_uri() and urlsplit(view.get_uri()).path == "/weather":
                 GLib.timeout_add(700, report_rain_layout, view)
+                # Record the scroll position once more after the operator has
+                # had time to drag; read-only and never forces scrollLeft.
+                GLib.timeout_add_seconds(12, report_rain_layout, view)
 
     def on_failure(_view, _event, uri, error):
         print(f"ACP WebKit probe: LOAD FAILED {uri}: {error}", flush=True)
@@ -406,6 +440,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     print("ACP WebKit probe: renderer " + renderer_diagnostic(), flush=True)
     print("ACP WebKit probe: Rain width trial " +
           ("ON (ephemeral WebKit only)" if args.rain_width_trial else "OFF"),
+          flush=True)
+    print("ACP WebKit probe: Rain touch/no-snap trial " +
+          ("ON (ephemeral WebKit only)" if args.rain_touch_trial else "OFF"),
           flush=True)
     if os.environ.get("WEBKIT_SHOW_FPS") == "1":
         print("ACP WebKit probe: WebKit FPS indicator requested "
