@@ -238,6 +238,49 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertNotIn("root.scrollLeft =", src)
         self.assertNotIn("window.scrollTo(", src)
 
+    def test_flick_trial_is_independent_and_default_off(self):
+        normal = probe.parse_args(["--show", "--page", "weather"])
+        self.assertFalse(normal.weather_flick_trial)
+        self.assertTrue(probe.parse_args(
+            ["--show", "--weather-flick-trial"]).weather_flick_trial)
+        css = probe.WEATHER_FLICK_TRIAL_CSS
+        self.assertIn(".rain-overview-scroll, .weather-forecast-strip", css)
+        self.assertIn("scroll-snap-type: none !important;", css)
+        self.assertIn("touch-action: pan-y !important;", css)
+        self.assertIn("scroll-snap-align: none !important;", css)
+        self.assertNotIn("body.mode-clock", css)
+
+    def test_flick_trial_handles_only_horizontal_touch_and_keeps_vertical_native(self):
+        js = probe.WEATHER_FLICK_TRIAL_SCRIPT
+        self.assertIn("if (event.touches.length !== 1", js)
+        self.assertIn("event.target.closest(selector)", js)
+        self.assertIn("event.target instanceof Element", js)
+        self.assertIn("event.target.closest(selector)", js)
+        self.assertIn("gesture.axis = Math.abs(dx) >= Math.abs(dy) * 1.2", js)
+        self.assertIn("if (gesture.axis !== 'horizontal') return;", js)
+        self.assertIn("if (event.cancelable) event.preventDefault();", js)
+        self.assertIn("gesture.strip.scrollLeft = Math.min(maxScroll,", js)
+        self.assertIn("Math.max(0, gesture.startScroll - dx)", js)
+        self.assertIn("status.finishes += 1;", js)
+        self.assertIn("status.cancels += 1;", js)
+        self.assertNotIn("requestAnimationFrame(", js)
+        self.assertNotIn("setInterval(", js)
+        self.assertNotIn("fetch(", js)
+
+    def test_flick_script_is_webkit_only_and_metrics_are_read_only(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("if args.weather_flick_trial:", src)
+        self.assertIn("WebKit2.UserScript.new(", src)
+        self.assertIn("WebKit2.UserScriptInjectionTime.END", src)
+        self.assertIn("add_script(injected)", src)
+        self.assertIn("WEATHER_FLICK_TRIAL_SCRIPT", src)
+        self.assertIn("WEATHER_FLICK_TRIAL_CSS", src)
+        script = probe.RAIN_LAYOUT_METRICS_SCRIPT
+        self.assertIn("flick: window.__acpWebkitFlickMetrics || null", script)
+        self.assertIn("document.querySelectorAll('.weather-forecast-strip')", script)
+        self.assertIn("scrollLeft: Math.round(strip.scrollLeft)", script)
+        self.assertNotIn("strip.scrollLeft =", script)
+
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("prior_sigint = signal.getsignal(signal.SIGINT)", src)
