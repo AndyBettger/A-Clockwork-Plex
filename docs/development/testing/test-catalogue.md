@@ -1,3 +1,9 @@
+## 29 October 2026 — GTK/WebKitGTK dependency preflight: 7/7 tests PASS, GI namespace missing
+
+Operator on `plexamp-bedroom` pulled `6382b390`, compiled probe/tests successfully, and ran `test_webkit_gtk_shell_probe.py`: **7/7 PASS in 0.511 seconds**. Repeated argparse usage diagnostics are intentional invalid-argument checks; the log of each blocked HTTP verb is expected for the write-rejection test. `--check`: ACP `HEAD /clock` HTTP 200, then `GTK/WebKit GI unavailable: Namespace WebKit2 not available` and `readiness BLOCKED`; `--show` stops before opening a GUI, as designed. **No rendering test attempted or passed.**
+
+**Next targeted test:** Check actual APT candidate/simulation for Debian Trixie ARM64 `gir1.2-webkit2-4.1` and its distribution dependencies. With safe package transaction, install via system APT and rerun only `/usr/bin/python3 scripts/try-webkit-gtk-shell.py --check`; once READY, one bounded read-only `--show` trial. No previous Python tests or ACP service restart necessary. If still missing despite package, gather GI typelib path and Python interpreter details rather than patching rendering logic on speculation.
+
 ## 29 October 2026 — GTK3/WebKitGTK read-only rendering trial staged (Pi not run)
 
 **Files:** `scripts/try-webkit-gtk-shell.py` and `tests/test_webkit_gtk_shell_probe.py` (**7 tests expected**). The probe checks ACP :8088 and Gtk 3.0 + WebKit2 4.1, without altering packages. Explicit `--show` produces a bounded 853×480 temporary GTK window with ephemeral WebKit context, GET/HEAD-only loopback proxy refusing POST/PUT/PATCH/DELETE, external-navigation refusal, Esc exit and F1–F5 static-render page change. No layer-shell, Audio writes, native focus, service installs, persistence or automatic boot. A 405 from ACP JavaScript attempting controller/saves through this temporary origin is an expected limitation, not a failure of the accepted Chromium runtime.
