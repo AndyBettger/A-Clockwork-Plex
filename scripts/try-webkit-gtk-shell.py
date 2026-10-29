@@ -222,7 +222,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     window = Gtk.Window(title="A Clockwork Plex — WebKitGTK dev probe")
     window.set_default_size(args.width, args.height)
     webview = WebKit2.WebView.new_with_context(WebKit2.WebContext.new_ephemeral())
-    webview.set_background_color(Gdk.RGBA(0.01, 0.02, 0.04, 1.0))
+    rgba = Gdk.RGBA()
+    rgba.parse("#02040a")
+    webview.set_background_color(rgba)
     window.add(webview)
     window.connect("destroy", lambda *_: Gtk.main_quit())
 
