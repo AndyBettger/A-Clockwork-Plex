@@ -4,6 +4,12 @@
 **Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 29 October 2026  
 **Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
 
+## 29 October 2026 — First WebKitGTK Pi preflight: 7/7 PASS, renderer dependency BLOCKED
+
+**Actual operator Pi output:** pulled to `6382b390` with fast-forward; `/usr/bin/python3 -m py_compile` of both new files PASS. `test_webkit_gtk_shell_probe.py` **7/7 PASS (0.511s)** including GET/HEAD, write rejection, ephemeral context and opt-in guards; argparse usage text and duplicate rejected-method log lines are benign expected test output. `--check` returned **ACP HEAD /clock HTTP 200**, followed by `Namespace WebKit2 not available` and `readiness BLOCKED`. Explicit `--show` refused to launch (same missing namespace). **There was no GUI session and no failed WebKit render**; do not describe ACP page rendering or transition compatibility as tested.
+
+**Dependency next gate, no runtime-code change:** On Debian Trixie ARM64 the correct GTK3 introspection runtime is `gir1.2-webkit2-4.1` (depends on `gir1.2-gtk-3.0`, JSCore 4.1 and `libwebkit2gtk-4.1-0`). Have operator inspect `dpkg-query -W`, `apt-cache policy gir1.2-webkit2-4.1` and `apt-get -s install gir1.2-webkit2-4.1` on the actual Pi. Only if the candidate is appropriate and the simulation proposes no unrelated removals, install through normal distro APT; no PIP packages, downloaded .debs or alternative GTK4 namespace. Then run only `/usr/bin/python3 scripts/try-webkit-gtk-shell.py --check`; once ready, run one bounded `--show --seconds 180 --width 853 --height 480` rendering trial. Preserve Chromium and native Plexamp throughout; no service restart, no previous seven tests repeated unless code changes. If package appears installed but GI still cannot import WebKit2, inspect package files and `/usr/bin/python3` GI search paths before changing the app.
+
 ## 29 October 2026 — First opt-in GTK3/WebKitGTK renderer probe staged (Pi verification pending)
 
 **Purpose:** Test whether the existing ACP Clock, Weather, News, AirPlay and Settings pages render acceptably inside a GTK3 WebKit2GTK 4.1 window on the Pi. This is a **renderer/typography/layout feasibility slice only**, not the new main shell, navigation owner, Audio overlay or a test of real same-document Spatial Row transitions. Keep the existing Chromium kiosk, native Plexamp, Squeekboard, Flask and CamillaDSP/ALSA running unchanged.
@@ -23,7 +29,7 @@
 | Native GTK navigation | One joined drawer/pill with theme, hover, motion, page switching and native Plexamp focus handoff physically accepted in bounded previews; **not appliance autostart** |
 | Existing Chromium Audio mixer | **Functionally passes:** opens from ACP and native Plexamp, and closes back to origin; 9/9 Audio and 8/8 route tests passed at `b8edf029` |
 | Audio presentation | **Visual FAIL:** browser and GTK navigation bars overlap/animate independently; native Plexamp currently requires focus to ACP to show browser mixer |
-| GTK/WebKit unified ACP shell | **Architecture selected; developer-only read-only renderer probe staged but Pi-untested.** Full shell, shared native navigation integration and Audio overlay remain unimplemented |
+| GTK/WebKit unified ACP shell | **Architecture selected; renderer probe 7/7 tests PASS, graphical trial BLOCKED by missing WebKit2 4.1 GI namespace.** Full shell, shared native navigation integration and Audio overlay remain unimplemented |
 | Plexamp transitions | Exact compositor focus/curtain/painted handoff accepted; matching seamless Spatial Row visuals **not yet demonstrated**; native Wayland Plexamp cannot simply be embedded as a GTK3 widget |
 | B4.4 startup / installer / recovery | **Deferred** until WebKit prototype, visual Audio and end-to-end navigation acceptance |
 
