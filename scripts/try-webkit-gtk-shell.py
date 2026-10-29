@@ -209,6 +209,18 @@ def socket_is_socket(mode: int):
     return stat.S_ISSOCK(mode)
 
 
+def renderer_diagnostic(environment=None):
+    """Describe process-local WebKit rendering switches, without setting any."""
+    values = os.environ if environment is None else environment
+    if values.get("WEBKIT_DISABLE_DMABUF_RENDERER") == "1":
+        return ("DMA-BUF renderer disabled (compatibility fallback; "
+                "may reduce animation performance)")
+    if values.get("WEBKIT_DMABUF_RENDERER_FORCE_SHM") == "1":
+        return ("DMA-BUF renderer enabled, shared-memory buffer transport "
+                "(experimental performance comparison)")
+    return "default DMA-BUF buffer transport"
+
+
 def start_proxy():
     server = ThreadingHTTPServer((ACP_HOST, 0), make_proxy_handler())
     server.daemon_threads = True
@@ -260,9 +272,14 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
             print(f"ACP WebKit probe: document load finished in {elapsed:.2f}s, "
                   f"title={view.get_title()!r}", flush=True)
             actual_window = window.get_size()
+            actual_view = (view.get_allocated_width(), view.get_allocated_height())
             print(f"ACP WebKit probe: GTK window {actual_window[0]}x{actual_window[1]}, "
-                  f"WebView {view.get_allocated_width()}x{view.get_allocated_height()} "
+                  f"WebView {actual_view[0]}x{actual_view[1]} "
                   f"(requested {args.width}x{args.height})", flush=True)
+            if actual_view[1] < args.height - 2 or actual_view[0] < args.width - 2:
+                print("ACP WebKit probe: content viewport is smaller than requested "
+                      "(window decorations or compositor size); use --fullscreen "
+                      "to compare at the actual panel resolution.", flush=True)
 
     def on_failure(_view, _event, uri, error):
         print(f"ACP WebKit probe: LOAD FAILED {uri}: {error}", flush=True)
@@ -309,10 +326,10 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
-    print("ACP WebKit probe: DMA-BUF renderer " +
-          ("DISABLED (per-process diagnostic)" if
-           os.environ.get("WEBKIT_DISABLE_DMABUF_RENDERER") == "1"
-           else "default"), flush=True)
+    print("ACP WebKit probe: renderer " + renderer_diagnostic(), flush=True)
+    if os.environ.get("WEBKIT_SHOW_FPS") == "1":
+        print("ACP WebKit probe: WebKit FPS indicator requested "
+              "(if supported by installed build)", flush=True)
     webview.load_uri(url_root + "/" + args.page)
     GLib.timeout_add_seconds(args.seconds, quit_if_running)
     try:
