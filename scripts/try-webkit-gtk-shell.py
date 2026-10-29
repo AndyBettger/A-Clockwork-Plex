@@ -44,14 +44,15 @@ def valid_proxy_path(raw: str) -> bool:
 
 
 def make_proxy_handler(upstream_port: int = ACP_PORT):
+    blocked_once: set[tuple[str, str]] = set()
+    blocked_lock = threading.Lock()
+
     class ReadOnlyACPProxy(BaseHTTPRequestHandler):
         server_version = "ACP-WebKit-ReadOnly/0.1"
 
         def log_message(self, fmt, *args):
-            # Avoid a flood of poll/asset logs; always report blocked writes.
-            if self.command not in ("GET", "HEAD"):
-                print("ACP WebKit probe: blocked " + self.command + " " +
-                      self.path.split("?", 1)[0], flush=True)
+            # send_error() also calls log_message(); never print a write twice.
+            return
 
         def do_GET(self):
             self._relay()
@@ -72,6 +73,15 @@ def make_proxy_handler(upstream_port: int = ACP_PORT):
             self._reject_write()
 
         def _reject_write(self):
+            route = self.path.split("?", 1)[0]
+            key = (self.command, route)
+            with blocked_lock:
+                first = key not in blocked_once
+                if first:
+                    blocked_once.add(key)
+            if first:
+                print(f"ACP WebKit probe: blocked {self.command} {route} "
+                      "(further repeats suppressed)", flush=True)
             self.send_error(405, "Read-only WebKit preview: writes disabled")
 
         def _relay(self):
@@ -226,7 +236,14 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     rgba.parse("#02040a")
     webview.set_background_color(rgba)
     window.add(webview)
-    window.connect("destroy", lambda *_: Gtk.main_quit())
+
+    def quit_if_running():
+        # GTK's SIGINT fallback may already have stopped the main loop.
+        if Gtk.main_level() > 0:
+            Gtk.main_quit()
+        return False
+
+    window.connect("destroy", lambda *_: quit_if_running())
 
     def on_load(view, event):
         if event == WebKit2.LoadEvent.FINISHED:
@@ -253,7 +270,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         key = Gdk.keyval_name(event.keyval)
         if key in ("Escape", "q", "Q") and (key == "Escape" or
                                             event.state & Gdk.ModifierType.CONTROL_MASK):
-            Gtk.main_quit()
+            quit_if_running()
             return True
         pages = {f"F{i+1}": page for i, page in enumerate(PAGES)}
         if key in pages:
@@ -280,9 +297,13 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
     webview.load_uri(url_root + "/" + args.page)
-    GLib.timeout_add_seconds(args.seconds, lambda: (Gtk.main_quit(), False)[1])
+    GLib.timeout_add_seconds(args.seconds, quit_if_running)
     try:
         Gtk.main()
+    except KeyboardInterrupt:
+        # PyGObject can surface Ctrl+C while unregistering its SIGINT
+        # fallback, even after the main loop was already told to quit.
+        print("ACP WebKit probe: interrupted by Ctrl+C", flush=True)
     finally:
         server.shutdown()
         server.server_close()
