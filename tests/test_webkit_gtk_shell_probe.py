@@ -138,6 +138,26 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("GLib.timeout_add_seconds(args.seconds, quit_if_running)", src)
         self.assertIn('window.connect("destroy", lambda *_: quit_if_running())', src)
 
+    def test_per_navigation_timing_and_live_viewport_logging(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if event == WebKit2.LoadEvent.STARTED:', src)
+        self.assertIn('navigation["started"] = time.monotonic()', src)
+        self.assertIn('elif event == WebKit2.LoadEvent.FINISHED:', src)
+        self.assertIn('elapsed = time.monotonic() - navigation["started"]', src)
+        self.assertIn('document load finished in {elapsed:.2f}s', src)
+        self.assertIn('window.get_size()', src)
+        self.assertIn('view.get_allocated_width()', src)
+        self.assertIn('view.get_allocated_height()', src)
+        self.assertNotIn('page rendered in ', src)
+
+    def test_cancelled_document_requests_are_not_backend_failures(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('except (BrokenPipeError, ConnectionResetError):', src)
+        self.assertIn('ordinary cancelled consumer', src)
+        self.assertIn('self.send_error(502, "ACP service unavailable")', src)
+        self.assertIn('WEBKIT_DISABLE_DMABUF_RENDERER', src)
+        self.assertNotIn('os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"]', src)
+
     def test_preserve_existing_chromium_and_native_player(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("systemctl", src)
