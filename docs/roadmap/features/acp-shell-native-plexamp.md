@@ -23,7 +23,7 @@
 | Native GTK navigation | One joined drawer/pill with theme, hover, motion, page switching and native Plexamp focus handoff physically accepted in bounded previews; **not appliance autostart** |
 | Existing Chromium Audio mixer | **Functionally passes:** opens from ACP and native Plexamp, and closes back to origin; 9/9 Audio and 8/8 route tests passed at `b8edf029` |
 | Audio presentation | **Visual FAIL:** browser and GTK navigation bars overlap/animate independently; native Plexamp currently requires focus to ACP to show browser mixer |
-| GTK/WebKit unified ACP shell | **Architecture selected, implementation unstarted.** All ACP web pages hosted in GTK/WebKitGTK, with shared native navigation and a separate Audio overlay above either foreground app |
+| GTK/WebKit unified ACP shell | **Architecture selected; developer-only read-only renderer probe staged but Pi-untested.** Full shell, shared native navigation integration and Audio overlay remain unimplemented |
 | Plexamp transitions | Exact compositor focus/curtain/painted handoff accepted; matching seamless Spatial Row visuals **not yet demonstrated**; native Wayland Plexamp cannot simply be embedded as a GTK3 widget |
 | B4.4 startup / installer / recovery | **Deferred** until WebKit prototype, visual Audio and end-to-end navigation acceptance |
 
