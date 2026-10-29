@@ -158,6 +158,31 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn('WEBKIT_DISABLE_DMABUF_RENDERER', src)
         self.assertNotIn('os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"]', src)
 
+    def test_renderer_comparison_switches_are_read_only_and_exclusive(self):
+        self.assertIn("default DMA-BUF", probe.renderer_diagnostic({}))
+        self.assertIn(
+            "compatibility fallback",
+            probe.renderer_diagnostic({"WEBKIT_DISABLE_DMABUF_RENDERER": "1"}))
+        self.assertIn(
+            "shared-memory buffer transport",
+            probe.renderer_diagnostic({"WEBKIT_DMABUF_RENDERER_FORCE_SHM": "1"}))
+        self.assertIn(
+            "compatibility fallback",
+            probe.renderer_diagnostic({"WEBKIT_DISABLE_DMABUF_RENDERER": "1",
+                                       "WEBKIT_DMABUF_RENDERER_FORCE_SHM": "1"}))
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('os.environ["WEBKIT_DMABUF_RENDERER_FORCE_SHM"]', src)
+        self.assertNotIn('os.environ["WEBKIT_DISABLE_DMABUF_RENDERER"]', src)
+        self.assertIn('os.environ.get("WEBKIT_SHOW_FPS") == "1"', src)
+
+    def test_viewport_diagnostic_recommends_fullscreen_without_mutating_css(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("if actual_view[1] < args.height - 2", src)
+        self.assertIn("window decorations or compositor size", src)
+        self.assertIn("use --fullscreen", src)
+        self.assertIn("actual_view = (view.get_allocated_width()", src)
+        self.assertIn('if args.fullscreen:', src)
+
     def test_preserve_existing_chromium_and_native_player(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("systemctl", src)
