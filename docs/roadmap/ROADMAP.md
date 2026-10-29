@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** a **non-destructive WebKitGTK feasibility prototype** on the Pi, followed by single-navigation and Audio-overlay acceptance. **B4.4 installer/autostart remains deferred.**
+- **Next milestone:** first **developer-only GTK3/WebKitGTK renderer probe is staged, not yet tested on the Pi**; verify existing ACP pages and resource use before integrating shared navigation or Audio. **B4.4 installer/autostart remains deferred.**
 
 ## Feature portfolio
 
@@ -34,7 +34,7 @@
 
 **Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
-1. Trial a temporary GTK3/WebKitGTK host of existing ACP pages without removing Chromium; verify transitions, themes, fonts, touch/Squeekboard, performance and rollback.
+1. Run the [#94 temporary GTK3/WebKitGTK GET-only renderer probe](features/acp-shell-native-plexamp.md) without removing Chromium; first verify page rendering, fonts/themes and performance. Same-document transitions and Squeekboard are later integration checks, not claimed by this probe.
 2. Connect the accepted GTK navigation to the WebKit host and native Plexamp, then build an independent Audio overlay using the existing backend and EQ controls. Recheck no duplicate navigation and no unintended focus change.
 3. Prototype a coordinated visual reveal for ACP ↔ native Plexamp. True live window embedding is **not** available through GTK3 on native Wayland; any snapshot-assisted Spatial Row is optional and must pass resource/focus tests.
 4. After physical acceptance, complete B4.4 supervised startup, recovery, installer integration and native Plexamp Backup/Restore/Reset. Retain the known-good fallback.
