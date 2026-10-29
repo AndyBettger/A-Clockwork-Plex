@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+"""Developer-only GTK3/WebKitGTK ACP rendering probe (issue #94).
+
+This is NOT the production shell or a replacement for Chromium. It uses a
+loopback-only GET/HEAD proxy to reject requests that would change the running
+ACP backend. Pages can be inspected using F1-F5; controller POSTs, Settings
+saves and same-document route transitions are intentionally not tested here.
+
+No app services, Flatpak, CamillaDSP/ALSA, Squeekboard or autostart touched.
+"""
+from __future__ import annotations
+
+import argparse
+import http.client
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import os
+from pathlib import Path
+import socket
+import subprocess
+import sys
+import threading
+import time
+from urllib.parse import urlsplit
+
+ACP_HOST = "127.0.0.1"
+ACP_PORT = 8088
+PAGES = ("clock", "weather", "news", "airplay", "settings")
+MAX_SECONDS = 300
+FORWARD_HEADERS = ("Accept", "Accept-Language", "Cookie", "If-Modified-Since",
+                   "If-None-Match", "Range", "User-Agent")
+RESPONSE_HEADERS = ("Content-Type", "Content-Length", "Content-Encoding",
+                    "Cache-Control", "ETag", "Last-Modified", "Set-Cookie",
+                    "Location", "Vary", "Content-Range", "Accept-Ranges")
+
+
+def valid_proxy_path(raw: str) -> bool:
+    """Accept relative origin paths only, never absolute or network URLs."""
+    if not raw.startswith("/") or raw.startswith("//") or "\\" in raw:
+        return False
+    if any(ch in raw for ch in ("\r", "\n", "\x00")):
+        return False
+    parsed = urlsplit(raw)
+    return parsed.scheme == "" and parsed.netloc == ""
+
+
+def make_proxy_handler(upstream_port: int = ACP_PORT):
+    class ReadOnlyACPProxy(BaseHTTPRequestHandler):
+        server_version = "ACP-WebKit-ReadOnly/0.1"
+
+        def log_message(self, fmt, *args):
+            # Avoid a flood of poll/asset logs; always report blocked writes.
+            if self.command not in ("GET", "HEAD"):
+                print("ACP WebKit probe: blocked " + self.command + " " +
+                      self.path.split("?", 1)[0], flush=True)
+
+        def do_GET(self):
+            self._relay()
+
+        def do_HEAD(self):
+            self._relay()
+
+        def do_POST(self):
+            self._reject_write()
+
+        def do_PUT(self):
+            self._reject_write()
+
+        def do_PATCH(self):
+            self._reject_write()
+
+        def do_DELETE(self):
+            self._reject_write()
+
+        def _reject_write(self):
+            self.send_error(405, "Read-only WebKit preview: writes disabled")
+
+        def _relay(self):
+            if not valid_proxy_path(self.path):
+                self.send_error(400, "Only local paths are permitted")
+                return
+            headers = {key: value for key in FORWARD_HEADERS
+                       if (value := self.headers.get(key)) is not None}
+            # Keep Flask URL generation on the preview's temporary origin.
+            headers["Host"] = self.headers.get("Host", ACP_HOST)
+            connection = http.client.HTTPConnection(ACP_HOST, upstream_port, timeout=5)
+            try:
+                connection.request(self.command, self.path, headers=headers)
+                response = connection.getresponse()
+                payload = response.read() if self.command == "GET" else b""
+                self.send_response(response.status)
+                for key in RESPONSE_HEADERS:
+                    for value in response.headers.get_all(key, []):
+                        self.send_header(key, value)
+                self.end_headers()
+                if self.command == "GET" and payload:
+                    self.wfile.write(payload)
+            except (OSError, http.client.HTTPException) as exc:
+                try:
+                    self.send_error(502, "ACP service unavailable")
+                except (BrokenPipeError, OSError):
+                    pass
+                print(f"ACP WebKit probe: upstream error ({type(exc).__name__})",
+                      flush=True)
+            finally:
+                connection.close()
+
+    return ReadOnlyACPProxy
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--check", action="store_true",
+                      help="Check packages and ACP availability without opening a window.")
+    mode.add_argument("--show", action="store_true",
+                      help="Open the temporary GTK3/WebKit rendering probe.")
+    parser.add_argument("--page", choices=PAGES, default="clock")
+    parser.add_argument("--seconds", type=int, default=120)
+    parser.add_argument("--width", type=int, default=853)
+    parser.add_argument("--height", type=int, default=480)
+    parser.add_argument("--fullscreen", action="store_true",
+                        help="Opt in to fullscreen; windowed by default.")
+    args = parser.parse_args(argv)
+    if not 10 <= args.seconds <= MAX_SECONDS:
+        parser.error("--seconds must be between 10 and 300")
+    if not 480 <= args.width <= 3840 or not 320 <= args.height <= 2160:
+        parser.error("window dimensions out of bounded probe range")
+    return args
+
+
+def probe_backend():
+    connection = http.client.HTTPConnection(ACP_HOST, ACP_PORT, timeout=3)
+    try:
+        connection.request("HEAD", "/clock")
+        response = connection.getresponse()
+        response.read()
+        print(f"ACP WebKit probe: local ACP HEAD /clock HTTP {response.status}",
+              flush=True)
+        return 200 <= response.status < 400
+    except OSError as exc:
+        print(f"ACP WebKit probe: backend unavailable ({exc})", flush=True)
+        return False
+    finally:
+        connection.close()
+
+
+def load_gtk_webkit():
+    try:
+        import gi
+        gi.require_version("Gtk", "3.0")
+        gi.require_version("WebKit2", "4.1")
+        from gi.repository import Gtk, Gdk, GLib, WebKit2
+        return Gtk, Gdk, GLib, WebKit2
+    except (ImportError, ValueError) as exc:
+        print(f"ACP WebKit probe: GTK/WebKit GI unavailable: {exc}", flush=True)
+        print("Check: dpkg-query -W python3-gi gir1.2-gtk-3.0 "
+              "gir1.2-webkit2-4.1 (do not install blindly).", flush=True)
+        return None
+
+
+def desktop_environment():
+    if os.geteuid() == 0:
+        print("ACP WebKit probe: run as your desktop user, not root.", flush=True)
+        return False
+    runtime = os.environ.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    candidates = []
+    if os.environ.get("WAYLAND_DISPLAY"):
+        candidates.append(os.environ["WAYLAND_DISPLAY"])
+    candidates.append("wayland-0")
+    try:
+        candidates.extend(p.name for p in sorted(Path(runtime).glob("wayland-*")))
+    except OSError:
+        pass
+    for name in dict.fromkeys(candidates):
+        candidate = name if os.path.isabs(name) else str(Path(runtime) / name)
+        if Path(candidate).exists():
+            try:
+                stat = Path(candidate).stat()
+                if not socket_is_socket(stat.st_mode):
+                    continue
+            except OSError:
+                continue
+            os.environ["WAYLAND_DISPLAY"] = name
+            os.environ.setdefault("GDK_BACKEND", "wayland")
+            bus = Path(runtime) / "bus"
+            if bus.exists():
+                os.environ.setdefault("DBUS_SESSION_BUS_ADDRESS", "unix:path=" + str(bus))
+            return True
+    print(f"ACP WebKit probe: no usable Wayland socket under {runtime}", flush=True)
+    return False
+
+
+def socket_is_socket(mode: int):
+    import stat
+    return stat.S_ISSOCK(mode)
+
+
+def start_proxy():
+    server = ThreadingHTTPServer((ACP_HOST, 0), make_proxy_handler())
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever,
+                              name="acp-webkit-probe-proxy", daemon=True)
+    thread.start()
+    return server, thread
+
+
+def show_window(args, Gtk, Gdk, GLib, WebKit2):
+    if not desktop_environment():
+        return 2
+    try:
+        initialised = Gtk.init_check()
+    except Exception as exc:
+        print(f"ACP WebKit probe: GTK cannot connect to labwc ({exc})", flush=True)
+        return 2
+    if initialised is False or (isinstance(initialised, tuple) and not initialised[0]):
+        print("ACP WebKit probe: GTK display initialization failed", flush=True)
+        return 2
+
+    server, worker = start_proxy()
+    url_root = f"http://127.0.0.1:{server.server_port}"
+    start = time.monotonic()
+    window = Gtk.Window(title="A Clockwork Plex — WebKitGTK dev probe")
+    window.set_default_size(args.width, args.height)
+    webview = WebKit2.WebView.new_with_context(WebKit2.WebContext.new_ephemeral())
+    webview.set_background_color(Gdk.RGBA(0.01, 0.02, 0.04, 1.0))
+    window.add(webview)
+    window.connect("destroy", lambda *_: Gtk.main_quit())
+
+    def on_load(view, event):
+        if event == WebKit2.LoadEvent.FINISHED:
+            print(f"ACP WebKit probe: page rendered in "
+                  f"{time.monotonic() - start:.2f}s, title={view.get_title()!r}",
+                  flush=True)
+
+    def on_failure(_view, _event, uri, error):
+        print(f"ACP WebKit probe: LOAD FAILED {uri}: {error}", flush=True)
+        return False
+
+    def on_navigation(_view, decision, decision_type):
+        if decision_type != WebKit2.PolicyDecisionType.NAVIGATION_ACTION:
+            return False
+        uri = decision.get_request().get_uri()
+        if uri.startswith(url_root + "/"):
+            return False
+        print(f"ACP WebKit probe: external navigation blocked: {uri}",
+              flush=True)
+        decision.ignore()
+        return True
+
+    def on_key(_widget, event):
+        key = Gdk.keyval_name(event.keyval)
+        if key in ("Escape", "q", "Q") and (key == "Escape" or
+                                            event.state & Gdk.ModifierType.CONTROL_MASK):
+            Gtk.main_quit()
+            return True
+        pages = {f"F{i+1}": page for i, page in enumerate(PAGES)}
+        if key in pages:
+            # A fresh GET of each existing ACP document: this stage tests
+            # rendering, not same-document navigation or transition state.
+            page = pages[key]
+            print(f"ACP WebKit probe: displaying /{page} (GET only)", flush=True)
+            webview.load_uri(url_root + "/" + page)
+            return True
+        return False
+
+    webview.connect("load-changed", on_load)
+    webview.connect("load-failed", on_failure)
+    webview.connect("decide-policy", on_navigation)
+    window.connect("key-press-event", on_key)
+    window.show_all()
+    if args.fullscreen:
+        window.fullscreen()
+    print("ACP WebKit probe: temporary, ephemeral WebKit window; "
+          "GET/HEAD-only localhost proxy, backend writes refused.", flush=True)
+    print("ACP WebKit probe: F1 Clock | F2 Weather | F3 News | "
+          "F4 AirPlay | F5 Settings | Esc exit", flush=True)
+    print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
+          f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
+          flush=True)
+    webview.load_uri(url_root + "/" + args.page)
+    GLib.timeout_add_seconds(args.seconds, lambda: (Gtk.main_quit(), False)[1])
+    try:
+        Gtk.main()
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=2)
+        window.destroy()
+        print("ACP WebKit probe: bounded session ended; no services changed.",
+              flush=True)
+    return 0
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    if os.geteuid() == 0:
+        print("ACP WebKit probe: do not run with sudo.", flush=True)
+        return 2
+    backend_ok = probe_backend()
+    libraries = load_gtk_webkit()
+    if args.check:
+        print("ACP WebKit probe: readiness " +
+              ("PASS" if backend_ok and libraries else "BLOCKED"), flush=True)
+        return 0 if backend_ok and libraries else 2
+    if not backend_ok or libraries is None:
+        print("ACP WebKit probe: display not started; preflight failed.",
+              flush=True)
+        return 2
+    return show_window(args, *libraries)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
