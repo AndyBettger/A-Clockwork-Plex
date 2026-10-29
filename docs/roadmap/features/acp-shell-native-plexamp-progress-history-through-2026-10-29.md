@@ -401,4 +401,4 @@ The follow-up Pi visual run passed **16/16 B3 bridge + 16/16 GTK tests**, but ru
 - Keep an easily recoverable stock `/usr/bin/squeekboard` and existing audio/Headless routes. Recover a failed keyboard handover promptly; no duplicate keyboards or changes to `/usr/bin`.
 - A display setting change is not a production incident. Record the baseline once, use and restore it as needed. Keep rigorous CI/static checks and short physical smoke tests.
 - `scripts/try-c3-night-boundary.py` is an **optional existing guarded rehearsal**, not a prerequisite for ordinary development. Its read-only `--plan` was physically accepted; `--arm` has **not** been run.
-- Keep detailed findings in [the feature roadmap](features/acp-shell-native-plexamp.md) and implementation/test catalogue, not repeated date-by-date paragraphs here.
+- Keep detailed findings in [the feature roadmap](acp-shell-native-plexamp.md) and implementation/test catalogue, not repeated date-by-date paragraphs here.
