@@ -14,6 +14,7 @@ import argparse
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
+import signal
 from pathlib import Path
 import socket
 import subprocess
@@ -31,6 +32,51 @@ FORWARD_HEADERS = ("Accept", "Accept-Language", "Cookie", "If-Modified-Since",
 RESPONSE_HEADERS = ("Content-Type", "Content-Length", "Content-Encoding",
                     "Cache-Control", "ETag", "Last-Modified", "Set-Cookie",
                     "Location", "Vary", "Content-Range", "Accept-Ranges")
+
+# EXPERIMENT ONLY. Force each Weather rain panel to include every contained
+# gauge in its intrinsic size, while preserving the existing horizontal rail.
+# Injected only into this ephemeral WebKit view when --rain-width-trial is set;
+# never change accepted production Chromium styles.
+RAIN_WIDTH_TRIAL_CSS = """
+body.mode-weather .rain-overview-scroll > .rain-subpanel {
+  flex: 0 0 auto !important;
+  inline-size: max-content !important;
+  max-inline-size: none !important;
+}
+body.mode-weather .rain-overview-scroll > .rain-subpanel > .rain-gauge-row {
+  flex: 0 0 auto !important;
+  inline-size: max-content !important;
+}
+body.mode-weather .rain-overview-scroll .rain-gauge-card {
+  flex-shrink: 0 !important;
+}
+"""
+
+# Read-only DOM geometry; reports CSS pixel positions, not VNC-scaled pixels.
+# Positive overflow means a gauge extends beyond its owning subpanel.
+RAIN_LAYOUT_METRICS_SCRIPT = r"""
+(() => {
+ const root = document.querySelector('.rain-overview-scroll');
+ if (!root) return JSON.stringify({status: 'no-rain-layout'});
+ const sections = [...root.querySelectorAll('.rain-subpanel')].map(panel => {
+   const r = panel.getBoundingClientRect();
+   const gauges = [...panel.querySelectorAll('.rain-gauge-card')];
+   const last = gauges[gauges.length - 1]?.getBoundingClientRect();
+   return {
+     name: panel.classList.contains('rain-current-subpanel') ? 'today' : 'history',
+     panelWidth: Math.round(r.width), gaugeCount: gauges.length,
+     lastGaugeRight: last ? Math.round(last.right) : null,
+     panelRight: Math.round(r.right),
+     overflow: last ? Math.round(Math.max(0, last.right - r.right)) : 0
+   };
+ });
+ return JSON.stringify({
+   status: 'ok', viewport: window.innerWidth,
+   railWidth: Math.round(root.getBoundingClientRect().width),
+   railScrollWidth: root.scrollWidth, sections
+ });
+})()
+"""
 
 
 def valid_proxy_path(raw: str) -> bool:
@@ -134,6 +180,9 @@ def parse_args(argv=None):
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--fullscreen", action="store_true",
                         help="Opt in to fullscreen; windowed by default.")
+    parser.add_argument("--rain-width-trial", action="store_true",
+                        help="Apply experimental WebKit-only Rain panel sizing; "
+                             "production CSS stays unchanged.")
     args = parser.parse_args(argv)
     if not 10 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 10 and 300")
@@ -250,6 +299,13 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     window = Gtk.Window(title="A Clockwork Plex — WebKitGTK dev probe")
     window.set_default_size(args.width, args.height)
     webview = WebKit2.WebView.new_with_context(WebKit2.WebContext.new_ephemeral())
+    if args.rain_width_trial:
+        sheet = WebKit2.UserStyleSheet.new(
+            RAIN_WIDTH_TRIAL_CSS, WebKit2.UserContentInjectedFrames.TOP_FRAME,
+            WebKit2.UserStyleLevel.USER, None, None)
+        webview.get_user_content_manager().add_style_sheet(sheet)
+        print("ACP WebKit probe: trial Rain width stylesheet injected "
+              "(this WebView only; server CSS unchanged)", flush=True)
     rgba = Gdk.RGBA()
     rgba.parse("#02040a")
     webview.set_background_color(rgba)
@@ -262,6 +318,25 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         return False
 
     window.connect("destroy", lambda *_: quit_if_running())
+
+    def report_rain_layout(view):
+        # WebKitGTK >=2.40 supports this read-only evaluation API. The probe
+        # runs against the same temporary origin and does not alter the DOM.
+        def finished(result_view, result, _data):
+            try:
+                value = result_view.evaluate_javascript_finish(result)
+                print("ACP WebKit probe: rain layout " + value.to_string(),
+                      flush=True)
+            except Exception as exc:
+                print(f"ACP WebKit probe: rain layout measurement unavailable "
+                      f"({type(exc).__name__}: {exc})", flush=True)
+        try:
+            view.evaluate_javascript(
+                RAIN_LAYOUT_METRICS_SCRIPT, -1, None, None, None, finished, None)
+        except Exception as exc:
+            print(f"ACP WebKit probe: rain layout evaluation unavailable "
+                  f"({type(exc).__name__}: {exc})", flush=True)
+        return False
 
     def on_load(view, event):
         if event == WebKit2.LoadEvent.STARTED:
@@ -280,6 +355,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                 print("ACP WebKit probe: content viewport is smaller than requested "
                       "(window decorations or compositor size); use --fullscreen "
                       "to compare at the actual panel resolution.", flush=True)
+            if view.get_uri() and urlsplit(view.get_uri()).path == "/weather":
+                GLib.timeout_add(700, report_rain_layout, view)
 
     def on_failure(_view, _event, uri, error):
         print(f"ACP WebKit probe: LOAD FAILED {uri}: {error}", flush=True)
@@ -327,6 +404,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
     print("ACP WebKit probe: renderer " + renderer_diagnostic(), flush=True)
+    print("ACP WebKit probe: Rain width trial " +
+          ("ON (ephemeral WebKit only)" if args.rain_width_trial else "OFF"),
+          flush=True)
     if os.environ.get("WEBKIT_SHOW_FPS") == "1":
         print("ACP WebKit probe: WebKit FPS indicator requested "
               "(if supported by installed build)", flush=True)
@@ -339,12 +419,19 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         # fallback, even after the main loop was already told to quit.
         print("ACP WebKit probe: interrupted by Ctrl+C", flush=True)
     finally:
-        server.shutdown()
-        server.server_close()
-        worker.join(timeout=2)
-        window.destroy()
-        print("ACP WebKit probe: bounded session ended; no services changed.",
-              flush=True)
+        # A second Ctrl+C while shutdown() waits on the proxy thread should
+        # not cause a traceback or leave the temporary loopback port open.
+        prior_sigint = signal.getsignal(signal.SIGINT)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=2)
+            window.destroy()
+            print("ACP WebKit probe: bounded session ended; no services changed.",
+                  flush=True)
+        finally:
+            signal.signal(signal.SIGINT, prior_sigint)
     return 0
 
 
