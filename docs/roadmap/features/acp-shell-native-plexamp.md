@@ -1,7 +1,34 @@
 # ACP shell / native Linux Plexamp — #94
 
-**Status:** Phase A complete; Phase B active. **C3 native Squeekboard functionally accepted on the development Pi; current priority: native Plexamp navigation.**  
-**Branch:** `feature/acp-shell-native-plexamp` · **Updated:** 28 October 2026
+**Status:** ACTIVE — Phase A complete; Phase B native navigation functionally accepted on development Pi, but visual Audio ownership remains unresolved. **Selected next direction:** GTK3-managed WebKitGTK shell with native Plexamp as a separate Wayland Flatpak. This is a design decision, **not an implemented migration or production release**.  
+**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 29 October 2026  
+**Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
+
+## Current checkpoint (read this before historical entries)
+
+| Area | Current state |
+| --- | --- |
+| Phase A / native Plexamp Flatpak | Present and tested; Headless/Chromium remain rollback during migration |
+| C3 native Squeekboard | Functionally accepted on test Pi, including UK/numeric layouts and night palette; installer packaging still outstanding |
+| Native GTK navigation | One joined drawer/pill with theme, hover, motion, page switching and native Plexamp focus handoff physically accepted in bounded previews; **not appliance autostart** |
+| Existing Chromium Audio mixer | **Functionally passes:** opens from ACP and native Plexamp, and closes back to origin; 9/9 Audio and 8/8 route tests passed at `b8edf029` |
+| Audio presentation | **Visual FAIL:** browser and GTK navigation bars overlap/animate independently; native Plexamp currently requires focus to ACP to show browser mixer |
+| GTK/WebKit unified ACP shell | **Architecture selected, implementation unstarted.** All ACP web pages hosted in GTK/WebKitGTK, with shared native navigation and a separate Audio overlay above either foreground app |
+| Plexamp transitions | Exact compositor focus/curtain/painted handoff accepted; matching seamless Spatial Row visuals **not yet demonstrated**; native Wayland Plexamp cannot simply be embedded as a GTK3 widget |
+| B4.4 startup / installer / recovery | **Deferred** until WebKit prototype, visual Audio and end-to-end navigation acceptance |
+
+## Next development gates
+
+1. **Non-destructive WebKitGTK feasibility trial:** check installed GTK3/WebKit 4.1 components on the development Pi; launch the existing ACP surface host as a temporary second window, leaving Chromium and native Plexamp intact. Validate Clock, Weather, News, AirPlay and Settings, theme/night palette, display fonts, touch/Squeekboard, 1000ms configured transitions, CPU/memory/GPU and renderer recovery.
+2. **One shared GTK navigation owner:** connect the prototype WebKit shell to the already accepted GTK drawer and native Plexamp without duplicate browser chrome; preserve strict focus identification and reversible fallback.
+3. **Standalone Audio overlay:** reuse the current mixer, EQ and live controls through their existing Flask endpoints, rendering above either app without focusing ACP. Retain the old Chromium mixer until functional and visual acceptance.
+4. **Plexamp transition visual parity:** first try a theme-matched cross-app reveal with current compositor focus/painted acknowledgment; optionally investigate compositor-authorized snapshots as a *temporary non-interactive* spatial proxy if latency, permissions and resource cost are acceptable. Don't attempt X11 `GtkSocket` embedding for native Wayland.
+5. **B4.4 supervised deployment:** only after physical sign-off, select startup/recovery, installer-owned C3/native Plexamp and portable Flatpak Backup/Restore/Reset, keeping Headless/Chromium fallback.
+6. **Future ACP surfaces:** [Astronomy](astronomy.md) and the [richer Weather interface](weather.md) use the same WebKit surface-host framework. Astronomy's future slot already exists in topology metadata between Weather and News, but is not yet routable; the Weather redesign must remain usable on 853×480 and retain forecast freshness/paint readiness. Shared Sun calculations will also support later sun-aware dimming.
+
+## Detailed progress record
+
+The dated notes below remain feature-specific implementation context. They include older candidate states and may be superseded by the **Current checkpoint** above; the original project-roadmap chronology, including full test narratives, is preserved in the [#94 progress history](acp-shell-native-plexamp-progress-history-through-2026-10-29.md). Keep future test-by-test changes in this feature area and the test catalogue, **not** in the main `ROADMAP.md`.
 
 **29 Oct user-selected architecture direction (design; no runtime yet):** GTK3 owns fullscreen WebKitGTK ACP pages (Clock, Weather, future Astronomy, News, AirPlay, Settings), persistent native GTK drawer/indicator and on-demand native mixer overlay, while the Plexamp Wayland Flatpak stays independently focused. Existing Flask/HTML/CSS/JS and live mounted ACP transitions are reused. Important limitation: `GtkSocket`/`GtkPlug` are X11/XEmbed-only; Wayland cannot just insert the Flatpak toplevel into a GTK stack. labwc does not animate app windows, so keep exact B1 focus + painted acknowledgment while designing a shell-owned visual reveal; investigate static live-window snapshot as a temporary non-interactive Spatial Row proxy only if permissions/latency/performance support it. No claim that GTK can animate actual foreign live Plexamp pixels as a child. WebKitGTK View Transitions should be verified in existing ACP rendering rather than assumed Chromium-equivalent. Repository `workspace-topology.js` already reserves future `clock→weather→astronomy→news→airplay→plexamp`, but only active five-page list is routed; Astronomy later needs full Flask/JS/native routing and its own distinct data lifecycle, separate from Astronomy Red theme. Planned deeper Weather screen should stay a WebKit-hosted page, organised in Settings-like scrollable, touch-friendly responsive detail groups, retaining async forecast readiness and C3 keyboard safety. Selected direction subject to opt-in Pi prototype and rollback; currently no GTK/WebKit migration, B4.4 still deferred.
 
