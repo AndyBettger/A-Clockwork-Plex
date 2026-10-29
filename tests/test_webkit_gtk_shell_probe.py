@@ -1,0 +1,132 @@
+"""B4 GTK/WebKit developer probe: no GTK/display or ACP service required."""
+from __future__ import annotations
+
+import http.client
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import importlib.util
+from pathlib import Path
+import threading
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "try-webkit-gtk-shell.py"
+SPEC = importlib.util.spec_from_file_location("acp_webkit_probe", SCRIPT)
+assert SPEC and SPEC.loader
+probe = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(probe)
+
+
+class Upstream(BaseHTTPRequestHandler):
+    writes = 0
+
+    def log_message(self, *_args):
+        pass
+
+    def do_GET(self):
+        data = b"<html><body>ACP probe test page</body></html>"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-Length", "8")
+        self.end_headers()
+
+    def do_POST(self):
+        type(self).writes += 1
+        self.send_response(204)
+        self.end_headers()
+
+
+class WebKitProbeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.origin = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+        cls.origin_thread = threading.Thread(target=cls.origin.serve_forever, daemon=True)
+        cls.origin_thread.start()
+        cls.proxy = ThreadingHTTPServer(
+            ("127.0.0.1", 0), probe.make_proxy_handler(cls.origin.server_port))
+        cls.proxy_thread = threading.Thread(target=cls.proxy.serve_forever, daemon=True)
+        cls.proxy_thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        for server, worker in ((cls.proxy, cls.proxy_thread),
+                               (cls.origin, cls.origin_thread)):
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=2)
+
+    def request(self, method, path, body=None):
+        client = http.client.HTTPConnection("127.0.0.1", self.proxy.server_port, timeout=2)
+        try:
+            client.request(method, path, body=body)
+            response = client.getresponse()
+            return response.status, response.read(), response.getheader("Content-Type")
+        finally:
+            client.close()
+
+    def test_read_only_proxy_get_preserves_html_and_type(self):
+        status, data, content_type = self.request("GET", "/clock")
+        self.assertEqual(status, 200)
+        self.assertIn(b"ACP probe test page", data)
+        self.assertEqual(content_type, "text/html")
+
+    def test_head_is_allowed(self):
+        status, body, _ = self.request("HEAD", "/weather")
+        self.assertEqual(status, 200)
+        self.assertEqual(body, b"")
+
+    def test_post_and_other_writes_do_not_reach_acp(self):
+        start = Upstream.writes
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            status, _, _ = self.request(method, "/api/mode/weather", "{}")
+            self.assertEqual(status, 405, method)
+        self.assertEqual(Upstream.writes, start)
+
+    def test_only_relative_origin_paths_allowed(self):
+        for value in ("https://example.com/", "//example.com/x",
+                      "relative", "/hello\\world", "/x\x00y"):
+            self.assertFalse(probe.valid_proxy_path(value))
+        for value in ("/", "/clock", "/api/surfaces/news?a=1", "/static/css/nav.css"):
+            self.assertTrue(probe.valid_proxy_path(value))
+
+    def test_explicit_opt_in_and_bounded_lifetime(self):
+        with self.assertRaises(SystemExit):
+            probe.parse_args([])
+        with self.assertRaises(SystemExit):
+            probe.parse_args(["--check", "--show"])
+        with self.assertRaises(SystemExit):
+            probe.parse_args(["--show", "--seconds", "3600"])
+        with self.assertRaises(SystemExit):
+            probe.parse_args(["--show", "--page", "plexamp"])
+        args = probe.parse_args(["--show", "--page", "weather",
+                                "--seconds", "180"])
+        self.assertFalse(args.fullscreen)
+        self.assertEqual(args.page, "weather")
+        self.assertEqual(args.seconds, 180)
+
+    def test_ephemeral_context_not_ordinary_persistent_browser(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("WebKit2.WebContext.new_ephemeral()", src)
+        self.assertIn("WebKit2.WebView.new_with_context(", src)
+        self.assertIn("Gtk.main_quit()", src)
+        self.assertIn("GLib.timeout_add_seconds(args.seconds", src)
+        self.assertIn('url_root + "/" + args.page', src)
+
+    def test_preserve_existing_chromium_and_native_player(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("systemctl", src)
+        self.assertNotIn("flatpak kill", src)
+        self.assertNotIn("wlrctl toplevel", src)
+        self.assertNotIn("CamillaDSP", src.split("def main")[1])
+        self.assertNotIn("sudo apt install", src)
+        self.assertEqual(probe.PAGES,
+                         ("clock", "weather", "news", "airplay", "settings"))
+
+
+if __name__ == "__main__":
+    unittest.main()
