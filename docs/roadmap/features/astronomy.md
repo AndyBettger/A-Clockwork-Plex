@@ -22,7 +22,7 @@ Build a touch-first astronomy surface using deterministic local/offline calculat
 
 ## Architecture dependency
 
-Build Astronomy as an application surface on the accepted post-#94 UI foundation rather than adding another legacy full-document page that immediately needs migration.
+Build Astronomy as an application surface on the accepted post-#94 UI foundation rather than adding another legacy full-document page that immediately needs migration. The selected direction is GTK3 hosting a persistent WebKitGTK ACP document (see [#94 current checkpoint](acp-shell-native-plexamp.md)); Astronomy will use its existing Flask/surface-host/HTML/CSS/JS pattern, not a separate native GTK page. Its position in the topology is **reserved metadata only** until its route, lifecycle, content readiness and navigation are implemented and accepted.
 
 The Phase-A shell dependency is satisfied and physically accepted:
 
