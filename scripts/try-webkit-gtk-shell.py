@@ -72,6 +72,95 @@ body.mode-weather .rain-overview-scroll > .rain-subpanel {
 }
 """
 
+
+# EXPERIMENT ONLY. Horizontal flicks sometimes return to the previous native
+# scroll position on WebKitGTK while gentle dragging works. For one bounded
+# trial, let the browser keep vertical panning and manage only horizontal touch
+# displacement for Rain and the two forecast strips. No kinetic momentum yet;
+# release must retain the exact position reached by the gesture.
+WEATHER_FLICK_TRIAL_CSS = """
+body.mode-weather :is(.rain-overview-scroll, .weather-forecast-strip) {
+  scroll-snap-type: none !important;
+  scroll-behavior: auto !important;
+  touch-action: pan-y !important;
+  overscroll-behavior-inline: contain !important;
+}
+body.mode-weather :is(.rain-subpanel, .weather-forecast-card) {
+  scroll-snap-align: none !important;
+}
+"""
+
+WEATHER_FLICK_TRIAL_SCRIPT = r"""
+(() => {
+  if (window.__acpWebkitFlickTrialLoaded) return;
+  window.__acpWebkitFlickTrialLoaded = true;
+  const selector = '.rain-overview-scroll, .weather-forecast-strip';
+  const status = {starts: 0, moves: 0, finishes: 0, cancels: 0,
+                  last: null};
+  window.__acpWebkitFlickMetrics = status;
+  let gesture = null;
+  function touchById(event, id) {
+    return [...event.changedTouches].find(touch => touch.identifier === id)
+      || [...event.touches].find(touch => touch.identifier === id);
+  }
+  document.addEventListener('touchstart', event => {
+    if (event.touches.length !== 1 || !(event.target instanceof Element)) {
+      gesture = null;
+      return;
+    }
+    const strip = event.target.closest(selector);
+    if (!strip || strip.scrollWidth <= strip.clientWidth + 1) return;
+    const touch = event.touches[0];
+    gesture = {strip, id: touch.identifier,
+               x: touch.clientX, y: touch.clientY,
+               startScroll: strip.scrollLeft, axis: null};
+    status.starts += 1;
+  }, {passive: true, capture: true});
+  document.addEventListener('touchmove', event => {
+    if (!gesture) return;
+    const touch = touchById(event, gesture.id);
+    if (!touch) return;
+    const dx = touch.clientX - gesture.x;
+    const dy = touch.clientY - gesture.y;
+    if (!gesture.axis) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return;
+      gesture.axis = Math.abs(dx) >= Math.abs(dy) * 1.2
+        ? 'horizontal' : 'vertical';
+    }
+    if (gesture.axis !== 'horizontal') return; // preserve native vertical scroll
+    if (event.cancelable) event.preventDefault();
+    const maxScroll = Math.max(0,
+      gesture.strip.scrollWidth - gesture.strip.clientWidth);
+    gesture.strip.scrollLeft = Math.min(maxScroll,
+      Math.max(0, gesture.startScroll - dx));
+    status.moves += 1;
+    status.last = {
+      row: gesture.strip.classList.contains('rain-overview-scroll')
+        ? 'rain' : gesture.strip.classList.contains('is-daily')
+          ? 'daily' : 'hourly',
+      axis: 'horizontal', dx: Math.round(dx),
+      scrollLeft: Math.round(gesture.strip.scrollLeft)
+    };
+  }, {passive: false, capture: true});
+  const finish = (event, cancelled) => {
+    if (!gesture) return;
+    const touch = [...event.changedTouches].find(t => t.identifier === gesture.id);
+    if (!touch) return;
+    if (cancelled) status.cancels += 1;
+    else status.finishes += 1;
+    if (gesture.axis === 'horizontal') {
+      status.last = {...status.last, finished: !cancelled,
+                     scrollLeft: Math.round(gesture.strip.scrollLeft)};
+    }
+    gesture = null;
+  };
+  document.addEventListener('touchend', event => finish(event, false),
+                            {passive: true, capture: true});
+  document.addEventListener('touchcancel', event => finish(event, true),
+                            {passive: true, capture: true});
+})()
+"""
+
 # Read-only DOM geometry; reports CSS pixel positions, not VNC-scaled pixels.
 # Positive overflow means a gauge extends beyond its owning subpanel.
 RAIN_LAYOUT_METRICS_SCRIPT = r"""
@@ -97,6 +186,14 @@ RAIN_LAYOUT_METRICS_SCRIPT = r"""
    railScrollLeft: Math.round(root.scrollLeft),
    snapType: getComputedStyle(root).scrollSnapType,
    touchAction: getComputedStyle(root).touchAction,
+   forecast: [...document.querySelectorAll('.weather-forecast-strip')]
+     .map(strip => ({
+       type: strip.classList.contains('is-daily') ? 'daily' : 'hourly',
+       scrollLeft: Math.round(strip.scrollLeft),
+       snapType: getComputedStyle(strip).scrollSnapType,
+       touchAction: getComputedStyle(strip).touchAction
+     })),
+   flick: window.__acpWebkitFlickMetrics || null,
    sections
  });
 })()
@@ -210,6 +307,9 @@ def parse_args(argv=None):
     parser.add_argument("--rain-touch-trial", action="store_true",
                         help="Disable Rain scroll-snap and enable horizontal touch "
                              "panning in this temporary WebKit view only.")
+    parser.add_argument("--weather-flick-trial", action="store_true",
+                        help="Prototype controlled horizontal touch gestures for "
+                             "Rain and hourly/daily forecast strips; no momentum.")
     args = parser.parse_args(argv)
     if not 10 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 10 and 300")
@@ -329,6 +429,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     for active, css, label in (
         (args.rain_width_trial, RAIN_WIDTH_TRIAL_CSS, "Rain width"),
         (args.rain_touch_trial, RAIN_TOUCH_TRIAL_CSS, "Rain touch/no-snap"),
+        (args.weather_flick_trial, WEATHER_FLICK_TRIAL_CSS,
+         "Weather flick/forecast touch"),
     ):
         if active:
             sheet = WebKit2.UserStyleSheet.new(
@@ -337,6 +439,15 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
             webview.get_user_content_manager().add_style_sheet(sheet)
             print(f"ACP WebKit probe: trial {label} stylesheet injected "
                   "(this WebView only; server CSS unchanged)", flush=True)
+    if args.weather_flick_trial:
+        # WebKit's document-end user script registers delegated listeners
+        # before asynchronously generated forecast cards appear.
+        injected = WebKit2.UserScript.new(
+            WEATHER_FLICK_TRIAL_SCRIPT, WebKit2.UserContentInjectedFrames.TOP_FRAME,
+            WebKit2.UserScriptInjectionTime.END, None, None)
+        webview.get_user_content_manager().add_script(injected)
+        print("ACP WebKit probe: touch-gesture JS enabled (prototype only, "
+              "no momentum; native vertical panning retained)", flush=True)
     rgba = Gdk.RGBA()
     rgba.parse("#02040a")
     webview.set_background_color(rgba)
@@ -443,6 +554,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
           flush=True)
     print("ACP WebKit probe: Rain touch/no-snap trial " +
           ("ON (ephemeral WebKit only)" if args.rain_touch_trial else "OFF"),
+          flush=True)
+    print("ACP WebKit probe: Weather flick trial " +
+          ("ON (ephemeral WebKit only)" if args.weather_flick_trial else "OFF"),
           flush=True)
     if os.environ.get("WEBKIT_SHOW_FPS") == "1":
         print("ACP WebKit probe: WebKit FPS indicator requested "
