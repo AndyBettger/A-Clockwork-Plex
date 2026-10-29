@@ -1,3 +1,12 @@
+
+## 29 October 2026 — Measured Rain overhang and touch snap-back; revised WebKit-only trial
+
+**Pi evidence at 6c88f0af:** py_compile PASS, **16/16 focused tests PASS**. Actual WebKit Rain JSON: railWidth 813, railScrollWidth 2095; Today panel 636px wide, last gauge extends **110px beyond panel**, history panel overflow 0. Confirmed visually by two screenshots despite earlier --rain-width-trial. Touch drags snap back left; horizontal mouse wheel can scroll.
+
+**Opt-in probe change (not run on Pi yet):** Strengthen --rain-width-trial with min-inline-size:max-content and grid-auto-flow:column gauge rows sized to the four/seven cards. Add independent **--rain-touch-trial** to remove the Rain-only proximity snap and permit pan-x. Geometry logger adds scrollLeft, snapType, touchAction and a 12-second follow-up sample. Developer WebKit injected styles and read-only measurements only; production Weather HTML/CSS/JS remains unchanged. Tests expand **16 to 18** and still need a Pi run.
+
+**Next:** Pull, compile, rerun only WebKit probe tests (18 expected); one 120s fullscreen forced-SHM Weather trial with both flags. Confirm non-overlapping cards, overflow≈0, and touch drag retaining scroll position. Readings from initial and 12s samples plus screenshot are the acceptance evidence; passing unit tests are not physical touch acceptance.
+
 ## 29 October 2026 — WebKit forced-SHM Pi screen and Rain overlap: WebKit-only width trial queued
 
 **Latest Pi run:** `d914fe94` pulled, py_compile PASS, **13/13 tests PASS**. Two 120s fullscreen `WEBKIT_DMABUF_RENDERER_FORCE_SHM=1` preview sessions with disabled-DMA-BUF mode explicitly unset; 853×480 GTK/WebView exactly, ACP AirPlay loads 0.78–0.88s, Weather 0.69–0.87s, later Clock 0.72s. User reports markedly improved AirPlay ring animation compared with renderer-disabled mode, but outer pulse rings look soft at enlarged scale. No actual FPS metric printed, despite `WEBKIT_SHOW_FPS=1`; no proof of stable 60fps. **Weather Rain visually fails despite correct viewport**: first current-rain subpanel and historical-rain subpanel overlap card borders, gauge fill and values. It is not merely the normal horizontal rail being cropped at viewport edge.
