@@ -191,7 +191,7 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("inline-size: max-content !important;", probe.RAIN_WIDTH_TRIAL_CSS)
         self.assertNotIn("body.mode-weather .screen", probe.RAIN_WIDTH_TRIAL_CSS)
         src = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("if args.rain_width_trial:", src)
+        self.assertIn("(args.rain_width_trial, RAIN_WIDTH_TRIAL_CSS, \"Rain width\")", src)
         self.assertIn("WebKit2.UserStyleSheet.new(", src)
         self.assertIn("WebKit2.UserContentInjectedFrames.TOP_FRAME", src)
         self.assertIn("WebKit2.UserStyleLevel.USER", src)
@@ -207,10 +207,36 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("querySelectorAll('.rain-gauge-card')", script)
         self.assertIn("last.right - r.right", script)
         self.assertIn("railScrollWidth: root.scrollWidth", script)
+        self.assertIn("railScrollLeft: Math.round(root.scrollLeft)", script)
+        self.assertIn("snapType: getComputedStyle(root).scrollSnapType", script)
+        self.assertIn("touchAction: getComputedStyle(root).touchAction", script)
         self.assertIn("view.evaluate_javascript(", src)
         self.assertIn("value.to_string()", src)
         self.assertIn('urlsplit(view.get_uri()).path == "/weather"', src)
         self.assertIn("GLib.timeout_add(700, report_rain_layout, view)", src)
+        self.assertIn("GLib.timeout_add_seconds(12, report_rain_layout, view)", src)
+
+    def test_rain_width_grid_content_sizes_entire_first_panel(self):
+        css = probe.RAIN_WIDTH_TRIAL_CSS
+        self.assertIn("min-inline-size: max-content !important;", css)
+        self.assertIn("grid-auto-flow: column !important;", css)
+        self.assertIn("grid-auto-columns: clamp(150px, 21vw, 190px) !important;", css)
+        self.assertIn("grid-template-columns: none !important;", css)
+        self.assertIn("body.mode-weather .rain-overview-scroll", css)
+        self.assertNotIn("body.mode-clock", css)
+
+    def test_rain_touch_trial_is_opt_in_and_removes_spring_back(self):
+        self.assertFalse(probe.parse_args(["--show"]).rain_touch_trial)
+        self.assertTrue(probe.parse_args(["--show", "--rain-touch-trial"]).rain_touch_trial)
+        css = probe.RAIN_TOUCH_TRIAL_CSS
+        self.assertIn("scroll-snap-type: none !important;", css)
+        self.assertIn("scroll-snap-align: none !important;", css)
+        self.assertIn("touch-action: pan-x !important;", css)
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("(args.rain_touch_trial, RAIN_TOUCH_TRIAL_CSS, \"Rain touch/no-snap\")", src)
+        self.assertIn("webview.get_user_content_manager().add_style_sheet(sheet)", src)
+        self.assertNotIn("root.scrollLeft =", src)
+        self.assertNotIn("window.scrollTo(", src)
 
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
