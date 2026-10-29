@@ -183,6 +183,44 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("actual_view = (view.get_allocated_width()", src)
         self.assertIn('if args.fullscreen:', src)
 
+    def test_rain_width_trial_is_explicit_and_scoped_to_ephemeral_webkit(self):
+        self.assertFalse(probe.parse_args(["--show"]).rain_width_trial)
+        self.assertTrue(probe.parse_args(
+            ["--show", "--page", "weather", "--rain-width-trial"]).rain_width_trial)
+        self.assertIn("body.mode-weather .rain-overview-scroll", probe.RAIN_WIDTH_TRIAL_CSS)
+        self.assertIn("inline-size: max-content !important;", probe.RAIN_WIDTH_TRIAL_CSS)
+        self.assertNotIn("body.mode-weather .screen", probe.RAIN_WIDTH_TRIAL_CSS)
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("if args.rain_width_trial:", src)
+        self.assertIn("WebKit2.UserStyleSheet.new(", src)
+        self.assertIn("WebKit2.UserContentInjectedFrames.TOP_FRAME", src)
+        self.assertIn("WebKit2.UserStyleLevel.USER", src)
+        self.assertIn("webview.get_user_content_manager().add_style_sheet(sheet)", src)
+        self.assertNotIn("write_text(", src)
+        self.assertNotIn("write_bytes(", src)
+
+    def test_read_only_weather_geometry_reports_panel_overflow(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        script = probe.RAIN_LAYOUT_METRICS_SCRIPT
+        self.assertIn("document.querySelector('.rain-overview-scroll')", script)
+        self.assertIn("querySelectorAll('.rain-subpanel')", script)
+        self.assertIn("querySelectorAll('.rain-gauge-card')", script)
+        self.assertIn("last.right - r.right", script)
+        self.assertIn("railScrollWidth: root.scrollWidth", script)
+        self.assertIn("view.evaluate_javascript(", src)
+        self.assertIn("value.to_string()", src)
+        self.assertIn('urlsplit(view.get_uri()).path == "/weather"', src)
+        self.assertIn("GLib.timeout_add(700, report_rain_layout, view)", src)
+
+    def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("prior_sigint = signal.getsignal(signal.SIGINT)", src)
+        self.assertIn("signal.signal(signal.SIGINT, signal.SIG_IGN)", src)
+        self.assertIn("signal.signal(signal.SIGINT, prior_sigint)", src)
+        self.assertIn("server.shutdown()", src)
+        self.assertIn("server.server_close()", src)
+        self.assertIn("window.destroy()", src)
+
     def test_preserve_existing_chromium_and_native_player(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("systemctl", src)
