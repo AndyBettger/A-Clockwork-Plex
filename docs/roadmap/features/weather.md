@@ -61,9 +61,9 @@ During #94 Clock ↔ Weather migration:
 - [x] preserve Weather's full palette while it is the **outgoing** live surface in Spatial-row navigation: forecast rails and active-page-scoped forecast layout consume the compositor's local Weather surface context rather than reverting to base cyan/geometry when global body state switches to Clock; physically confirmed under Crimson Glow and Green Phosphor during Weather→Clock;
 - keep routine Weather data changes separate from navigation motion: no View Transition merely because temperature, rain, pressure or station status changed.
 
-## Weather page revamp — queued after #94 Phase A
+## Weather page revamp — queued on the new #94 GTK/WebKit shell foundation
 
-The current Weather feature is functionally accepted, but its presentation should eventually be brought up to the standard planned for Astronomy rather than remaining a largely flat detail page.
+The current Weather feature is functionally accepted, but its presentation should eventually be brought up to the standard planned for Astronomy rather than remaining a largely flat detail page. The selected #94 direction hosts the existing ACP pages in GTK3/WebKitGTK while retaining the same Flask and surface-host APIs; a redesign should remain a Weather web surface, not a second native GTK page. Validate a Settings-like, scrollable layout at the original 853×480 touchscreen size, including forecast-settled paint readiness and Squeekboard field visibility. See the [#94 current checkpoint](acp-shell-native-plexamp.md) for the shell migration gate.
 
 - [ ] Rebuild Weather as an application surface on the post-#94 single-document/component foundation rather than adding more one-off page CSS.
 - [ ] Use a Settings-like section model so current conditions, rain, temperature/humidity, wind, pressure, solar/UV, station status and historical/records views are discoverable without overloading one screen.
