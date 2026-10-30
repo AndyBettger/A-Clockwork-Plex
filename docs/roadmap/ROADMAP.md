@@ -1,6 +1,6 @@
 # A Clockwork Plex — Project Roadmap
 
-**Updated:** 29 October 2026 · **Published release:** v0.4.0 (23 August 2026)  
+**Updated:** 30 October 2026 · **Published release:** v0.4.0 (23 August 2026)  
 **Active development branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > This is the **project-level overview**, not a test diary. A Clockwork Plex is currently running on a **development/test Raspberry Pi**, not yet a signed-off bedside appliance. Feature-specific requirements, acceptance results, defects and next checks belong in the linked [feature roadmaps](features/README.md) and [testing catalogue](../development/testing/test-catalogue.md).
@@ -10,13 +10,13 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** Last Rain Event now renders correctly in Chromium and WebKit (**13/13 Weather tests PASS**); the forced-SHM WebKit Rain grid still has inconsistent **vertical gauge heights**, despite 0px horizontal overflow and improved touch. A WebKit-only stretch/height-measurement trial is staged before real page-transition work. **B4.4 startup remains deferred**.
+- **Next milestone:** WebKit Rain gauge heights now match (**23/23 Pi tests PASS**, equal 133px cards / 115px gauges, no overflow and working touch); this is a **developer-only styling trial**, not a migrated shell. The next opt-in prototype tests ACP's **existing same-document Spatial Row** transitions inside one WebKit window (**27 targeted source tests staged; Pi trial pending**). **B4.4 startup remains deferred**.
 
 ## Feature portfolio
 
 | Feature | Overall status | Summary / next decision |
 | --- | --- | --- |
-| [Weather (#86–#87)](features/weather.md) | **Core complete; Rain presentation improvement staged** | Forecast/observations accepted; conditional last-event gauge awaiting Pi test; more detailed Settings-style Weather redesign planned after the shell foundation |
+| [Weather (#86–#87)](features/weather.md) | **Core complete; Last Rain Event accepted** | Real last-event gauge visually and functionally verified; WebKit-only Rain layout/touch trial accepted pending native-shell integration; expanded Weather design follows shell |
 | [Settings and appliance ownership (#88–#90, #93)](features/settings-appliance-ownership.md) | **Complete for accepted ACP scope** | Portable configuration, Backup/Restore/Reset and rollback; native Plexamp-specific settings packaging remains #94 work |
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
@@ -34,7 +34,7 @@
 
 **Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
-1. Run the [#94 temporary GTK3/WebKitGTK GET-only renderer probe](features/acp-shell-native-plexamp.md) without removing Chromium; first verify page rendering, fonts/themes and performance. Same-document transitions and Squeekboard are later integration checks, not claimed by this probe.
+1. Complete the [#94 GTK3/WebKitGTK developer prototype](features/acp-shell-native-plexamp.md): layout and touch baseline accepted; now verify same-document Spatial Row/Cover Reveal transitions in the existing mounted ACP surface host. Retain Chromium rollback; Squeekboard is a later integration gate.
 2. Connect the accepted GTK navigation to the WebKit host and native Plexamp, then build an independent Audio overlay using the existing backend and EQ controls. Recheck no duplicate navigation and no unintended focus change.
 3. Prototype a coordinated visual reveal for ACP ↔ native Plexamp. True live window embedding is **not** available through GTK3 on native Wayland; any snapshot-assisted Spatial Row is optional and must pass resource/focus tests.
 4. After physical acceptance, complete B4.4 supervised startup, recovery, installer integration and native Plexamp Backup/Restore/Reset. Retain the known-good fallback.
