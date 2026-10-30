@@ -225,6 +225,35 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("body.mode-weather .rain-overview-scroll", css)
         self.assertNotIn("body.mode-clock", css)
 
+    def test_rain_intrinsic_width_grid_flexes_to_match_tallest_history_panel(self):
+        css = probe.RAIN_WIDTH_TRIAL_CSS
+        # The panel width experiment must not leave Today at its minimum
+        # content height while History's taller gauge row stretches.
+        row_selector = ("body.mode-weather .rain-overview-scroll > "
+                        ".rain-subpanel > .rain-gauge-row")
+        row = css.split(row_selector, 1)[1].split("}", 1)[0]
+        self.assertIn("grid-auto-flow: column !important;", row)
+        self.assertIn("grid-auto-columns: clamp(150px, 21vw, 190px) !important;", row)
+        self.assertIn("inline-size: max-content !important;", row)
+        self.assertIn("flex: 1 1 auto !important;", row)
+        self.assertIn("align-items: stretch !important;", row)
+        self.assertNotIn("flex: 0 0 auto !important;", row)
+        self.assertIn("flex-shrink: 0 !important;", css)
+
+    def test_rain_metrics_compare_actual_panel_row_card_and_gauge_heights(self):
+        script = probe.RAIN_LAYOUT_METRICS_SCRIPT
+        for token in ("panelHeight: Math.round(r.height)",
+                      "rowHeight: rowBox ? Math.round(rowBox.height) : 0",
+                      "minCardHeight: Math.min(...cardHeights)",
+                      "maxCardHeight: Math.max(...cardHeights)",
+                      "minGaugeHeight: Math.min(...fillHeights)",
+                      "maxGaugeHeight: Math.max(...fillHeights)",
+                      "last.right - r.right"):
+            with self.subTest(token=token):
+                self.assertIn(token, script)
+        self.assertNotIn("style.height =", script)
+        self.assertNotIn("style.minHeight =", script)
+
     def test_rain_touch_trial_is_opt_in_and_removes_spring_back(self):
         self.assertFalse(probe.parse_args(["--show"]).rain_touch_trial)
         self.assertTrue(probe.parse_args(["--show", "--rain-touch-trial"]).rain_touch_trial)
