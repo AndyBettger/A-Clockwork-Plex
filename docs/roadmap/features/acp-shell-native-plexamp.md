@@ -1,7 +1,7 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** ACTIVE — Phase A complete; Phase B native navigation functionally accepted on development Pi, but visual Audio ownership remains unresolved. **Selected next direction:** GTK3-managed WebKitGTK shell with native Plexamp as a separate Wayland Flatpak. This is a design decision, **not an implemented migration or production release**.  
-**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 29 October 2026  
+**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 30 October 2026  
 **Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
 
 
