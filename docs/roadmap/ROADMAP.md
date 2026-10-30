@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B** | GTK navigation and native focus accepted; **Audio visual UX unresolved**; GTK/WebKit shell prototype next, installer/startup later |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | GTK navigation and native focus accepted; WebKit Rain layout/gestures validated in dev preview; now testing true same-document motion. Audio overlay and installer/startup remain later gates |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
