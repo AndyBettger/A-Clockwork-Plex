@@ -672,19 +672,47 @@ def rain_overview_data(
     weather: dict[str, Any],
     state: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], dict[str, str] | None]:
-    """Present a derived active event once, without discarding source data.
+    """Use one event gauge, showing the last event when current rain is zero.
 
-    Normal Event Rain and the derived active-event total can represent the
-    same amount. If they match at displayed precision, keep just the normal
-    gauge. If they differ, display the derived total as a normal gauge WITHIN
-    the current-rain group rather than a freestanding duplicate-looking card.
-    Historic last-event information remains as a compact note.
+    An active derived event is only added if distinct from the station's
+    Event Rain reading. A completed Weather Underground event replaces the
+    zero Event Rain gauge (or fills that slot when absent); its time appears
+    inside the card, never as a separate footer that changes panel height.
+    Do not replace nonzero current rainfall with stale history.
     """
     gauges = rain_gauges(
         ["rain_rate", "hourly_rain", "daily_rain", "event_rain"],
         config, weather,
     )
     summary = rain_event_summary(config, state)
+    if summary and summary["kind"] == "last":
+        event_amount = rain_amount_mm("event_rain", weather)
+        current_rate = rain_amount_mm("rain_rate", weather)
+        if (event_amount is None or event_amount <= 0) and (
+            current_rate is None or current_rate <= 0
+        ):
+            derived = state.get("weather_rain_derived")
+            if isinstance(derived, dict):
+                total_in = parse_float(derived.get("last_event_total_in"))
+                if total_in is not None and total_in > 0:
+                    amount_mm = inches_to_mm(total_in)
+                    maximum_mm = dynamic_rain_max_mm(amount_mm)
+                    last_gauge = {
+                        "label": summary["label"],
+                        "value": summary["value"],
+                        "max_label": format_rain_mm(maximum_mm, config),
+                        "percent": round(min(100, amount_mm / maximum_mm * 100), 1),
+                        "note": summary["detail"],
+                    }
+                    for index, gauge in enumerate(gauges):
+                        if str(gauge.get("label", "")).casefold() == "event rain":
+                            gauges[index] = last_gauge
+                            break
+                    else:
+                        gauges.append(last_gauge)
+        # No separate last-event note: the four main gauges stay aligned.
+        return gauges, None
+
     if summary and summary["kind"] == "active":
         source_gauge = rain_gauge("event_rain", config, weather)
         if not source_gauge or source_gauge["value"] != summary["value"]:
@@ -702,8 +730,7 @@ def rain_overview_data(
                         if maximum_mm > 0 else 0,
                         "note": summary["detail"],
                     })
-        summary = None
-    return gauges, summary
+    return gauges, None
 
 
 def rain_event_summary(config: dict[str, Any], state: dict[str, Any]) -> dict[str, str] | None:
@@ -726,7 +753,10 @@ def rain_event_summary(config: dict[str, Any], state: dict[str, Any]) -> dict[st
         end = parse_datetime(end_value)
         if start and end:
             if start.date() == end.date():
-                return f"{start:%H:%M}–{end:%H:%M}"
+                # A one-minute event must not read "22:33–22:33".
+                if start.strftime("%H:%M") == end.strftime("%H:%M"):
+                    return f"{end:%d/%m %H:%M}"
+                return f"{end:%d/%m} {start:%H:%M}–{end:%H:%M}"
             return f"{start:%d/%m %H:%M}–{end:%d/%m %H:%M}"
         if end:
             return f"Ended {end:%d/%m %H:%M}"
