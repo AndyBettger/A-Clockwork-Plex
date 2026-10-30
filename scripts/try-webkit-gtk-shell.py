@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import http.client
+import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
 import signal
@@ -212,6 +213,101 @@ RAIN_LAYOUT_METRICS_SCRIPT = r"""
 """
 
 
+# ONE-DOCUMENT FEASIBILITY TRIAL. Existing ACP ACPSurfaceHost registration,
+# mounted HTML and spatial commits remain the implementation authority.
+# The injected JS is a probe-only keyboard bridge and diagnostics, not a
+# replacement router. It uses only GET /api/surfaces/* through the proxy;
+# POST mode sync is still denied by the existing fail-closed proxy.
+SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
+(() => {
+  if (window.__acpWebkitSurfaceTrial) return;
+  const allow = ['clock', 'weather', 'news', 'airplay', 'settings'];
+  const state = {requests: 0, changed: 0, settled: 0, failures: 0, last: null};
+  let busy = false;
+  document.addEventListener('acp:surface-changed', () => { state.changed += 1; });
+  document.addEventListener('acp:surface-settled', () => { state.settled += 1; });
+  window.__acpWebkitSurfaceTrial = {
+    state,
+    async navigate(target, kind) {
+      if (!allow.includes(target) || !['spatial', 'configured'].includes(kind)) {
+        state.failures += 1;
+        state.last = {reason: 'invalid-args', target, kind};
+        return;
+      }
+      if (busy) return;
+      const host = window.ACPSurfaceHost;
+      if (!host?.canNavigate?.(target)) {
+        state.failures += 1;
+        state.last = {reason: 'surface-host-not-ready', target};
+        return;
+      }
+      const from = host.activeSurface();
+      const order = window.ACPWorkspaceTopology?.acpSurfaceOrder?.() || [];
+      const a = order.indexOf(from);
+      const b = order.indexOf(target);
+      const direction = (a >= 0 && b >= 0 && a !== b)
+        ? (b > a ? 'forward' : 'reverse') : '';
+      const options = {
+        history: false,
+        source: 'webkit-read-only-surface-trial',
+      };
+      if (kind === 'spatial' && direction) {
+        options.spatialCommitDirection = direction;
+      }
+      const navigationEntry = performance.getEntriesByType('navigation')[0];
+      const documentStarted = navigationEntry?.startTime ?? 0;
+      const href = location.href;
+      const started = performance.now();
+      state.requests += 1;
+      busy = true;
+      try {
+        const result = await host.navigate(target, options);
+        const accepted = result?.handled === true && result?.accepted === true;
+        if (!accepted) state.failures += 1;
+        state.last = {
+          from, target, kind, direction: options.spatialCommitDirection || 'none',
+          configuredStyle: window.ACPDashboardPreferences?.read?.().transitionStyle
+            || document.documentElement.dataset.transitionStyle || 'unknown',
+          viewTransitionsSupported: host.supportsViewTransitions?.() === true,
+          accepted, reason: result?.reason || '',
+          elapsedMs: Math.round(performance.now() - started),
+          current: host.activeSurface(),
+          sameDocument: location.href === href
+            && (performance.getEntriesByType('navigation')[0]?.startTime ?? 0)
+              === documentStarted
+        };
+      } catch (error) {
+        state.failures += 1;
+        state.last = {from, target, kind, accepted: false,
+          reason: String(error?.message || error)};
+      } finally {
+        busy = false;
+      }
+    }
+  };
+})()
+"""
+
+SURFACE_TRANSITION_METRICS_SCRIPT = r"""
+(() => {
+ const trial = window.__acpWebkitSurfaceTrial;
+ const host = window.ACPSurfaceHost;
+ return JSON.stringify({
+   status: trial ? 'ready' : 'script-not-ready',
+   availableSurfaces: window.ACPWorkspaceTopology?.acpSurfaceOrder?.() || [],
+   active: host?.activeSurface?.() || null,
+   mounted: window.ACPApplicationSurfaces?.surfaces?.() || [],
+   transitionInFlight: host?.isTransitioning?.() || false,
+   changed: trial?.state.changed || 0,
+   settled: trial?.state.settled || 0,
+   requests: trial?.state.requests || 0,
+   failures: trial?.state.failures || 0,
+   last: trial?.state.last || null
+ });
+})()
+"""
+
+
 def valid_proxy_path(raw: str) -> bool:
     """Accept relative origin paths only, never absolute or network URLs."""
     if not raw.startswith("/") or raw.startswith("//") or "\\" in raw:
@@ -322,7 +418,16 @@ def parse_args(argv=None):
     parser.add_argument("--weather-flick-trial", action="store_true",
                         help="Prototype controlled horizontal touch gestures for "
                              "Rain and hourly/daily forecast strips; no momentum.")
+    parser.add_argument("--surface-transition-trial", action="store_true",
+                        help="F1-F5 navigate existing ACP same-document mounted surfaces, "
+                             "instead of reloading whole pages (read-only preview).")
+    parser.add_argument("--surface-transition-mode",
+                        choices=("spatial", "configured"), default="spatial",
+                        help="Spatial Row or configured ordinary transition; "
+                             "only with --surface-transition-trial.")
     args = parser.parse_args(argv)
+    if args.surface_transition_mode != "spatial" and not args.surface_transition_trial:
+        parser.error("--surface-transition-mode requires --surface-transition-trial")
     if not 10 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 10 and 300")
     if not 480 <= args.width <= 3840 or not 320 <= args.height <= 2160:
@@ -460,6 +565,14 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         webview.get_user_content_manager().add_script(injected)
         print("ACP WebKit probe: touch-gesture JS enabled (prototype only, "
               "no momentum; native vertical panning retained)", flush=True)
+    if args.surface_transition_trial:
+        injected = WebKit2.UserScript.new(
+            SURFACE_TRANSITION_TRIAL_SCRIPT,
+            WebKit2.UserContentInjectedFrames.TOP_FRAME,
+            WebKit2.UserScriptInjectionTime.END, None, None)
+        webview.get_user_content_manager().add_script(injected)
+        print("ACP WebKit probe: existing mounted-surface transition bridge "
+              "enabled (single document; no backend writes)", flush=True)
     rgba = Gdk.RGBA()
     rgba.parse("#02040a")
     webview.set_background_color(rgba)
@@ -492,6 +605,27 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                   f"({type(exc).__name__}: {exc})", flush=True)
         return False
 
+    def report_surface_layout(view):
+        # Read-only metrics are asynchronous: this is not a continuous FPS
+        # measurement. Include acceptance, which surfaces mounted, and proof
+        # no new top-level document navigation occurred.
+        def finished(result_view, result, _data):
+            try:
+                value = result_view.evaluate_javascript_finish(result)
+                print("ACP WebKit probe: surface transition " + value.to_string(),
+                      flush=True)
+            except Exception as exc:
+                print("ACP WebKit probe: surface transition metrics unavailable "
+                      f"({type(exc).__name__}: {exc})", flush=True)
+        try:
+            view.evaluate_javascript(
+                SURFACE_TRANSITION_METRICS_SCRIPT, -1, None, None, None,
+                finished, None)
+        except Exception as exc:
+            print("ACP WebKit probe: surface transition status unavailable "
+                  f"({type(exc).__name__}: {exc})", flush=True)
+        return False
+
     def on_load(view, event):
         if event == WebKit2.LoadEvent.STARTED:
             navigation["started"] = time.monotonic()
@@ -509,6 +643,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                 print("ACP WebKit probe: content viewport is smaller than requested "
                       "(window decorations or compositor size); use --fullscreen "
                       "to compare at the actual panel resolution.", flush=True)
+            if args.surface_transition_trial:
+                GLib.timeout_add(700, report_surface_layout, view)
             if view.get_uri() and urlsplit(view.get_uri()).path == "/weather":
                 GLib.timeout_add(700, report_rain_layout, view)
                 # Record the scroll position once more after the operator has
@@ -538,11 +674,28 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
             return True
         pages = {f"F{i+1}": page for i, page in enumerate(PAGES)}
         if key in pages:
-            # A fresh GET of each existing ACP document: this stage tests
-            # rendering, not same-document navigation or transition state.
             page = pages[key]
-            print(f"ACP WebKit probe: displaying /{page} (GET only)", flush=True)
-            webview.load_uri(url_root + "/" + page)
+            if args.surface_transition_trial:
+                print("ACP WebKit probe: F-key same-document request " +
+                      page + " (" + args.surface_transition_mode + ")", flush=True)
+                javascript = (
+                    "window.__acpWebkitSurfaceTrial?.navigate("
+                    + json.dumps(page) + ", "
+                    + json.dumps(args.surface_transition_mode) + ");"
+                )
+                try:
+                    # Safe: page is an allowlisted constant, both JS strings
+                    # JSON escaped, and the backend proxy denies POSTs.
+                    webview.evaluate_javascript(
+                        javascript, -1, None, None, None, None, None)
+                    GLib.timeout_add_seconds(3, report_surface_layout, webview)
+                except Exception as exc:
+                    print(f"ACP WebKit probe: transition invocation failed: {exc}",
+                          flush=True)
+            else:
+                # Default remains the accepted independent GET rendering test.
+                print(f"ACP WebKit probe: displaying /{page} (GET only)", flush=True)
+                webview.load_uri(url_root + "/" + page)
             return True
         return False
 
@@ -557,6 +710,10 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
           "GET/HEAD-only localhost proxy, backend writes refused.", flush=True)
     print("ACP WebKit probe: F1 Clock | F2 Weather | F3 News | "
           "F4 AirPlay | F5 Settings | Esc exit", flush=True)
+    if args.surface_transition_trial:
+        print("ACP WebKit probe: F1-F5 use the existing ACP mounted-surface "
+              "router, NOT a document reload; mode=" + args.surface_transition_mode,
+              flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
