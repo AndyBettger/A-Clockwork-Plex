@@ -469,9 +469,16 @@
         animations.map((animation) => animation.finished.catch(() => undefined)),
       );
     } finally {
+      // A fill:'both' animation holds its final painted frame until cancel().
+      // If cancelled while the outgoing clone is still attached, its starting
+      // transform/opacity can reappear for one compositor frame in WebKitGTK.
+      // Remove the clone first, and pin the incoming screen to its final
+      // keyframe before cancelling either animation.
+      outgoing.style.visibility = 'hidden';
+      outgoing.remove();
+      applyInitialFrame(screen, frames.incoming[frames.incoming.length - 1]);
       animations.forEach((animation) => animation.cancel());
       clearOrdinaryTransitionStyles(screen);
-      outgoing.remove();
       document.body.classList.remove('acp-spatial-live-commit');
     }
   }
@@ -549,9 +556,17 @@
         animations.map((animation) => animation.finished.catch(() => undefined)),
       );
     } finally {
+      // Keep the fully arrived destination at x=0 while retiring the spatial
+      // strip. Cancelling fill:'both' first would reset the first outgoing
+      // clone to its initial x=0 position while it is still in the document:
+      // WebKitGTK can paint that old page for a single frame before removal.
+      layers.forEach((layer) => {
+        layer.style.visibility = 'hidden';
+        layer.remove();
+      });
+      screen.style.transform = 'translateX(0)';
       animations.forEach((animation) => animation.cancel());
       screen.style.transform = '';
-      layers.forEach((layer) => layer.remove());
       document.body.classList.remove('acp-spatial-live-commit');
     }
   }
