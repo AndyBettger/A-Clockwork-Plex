@@ -34,6 +34,7 @@ def load_rain_helpers() -> ModuleType:
     # dependencies rather than silently loading Flask-heavy dashboard code.
     module.rain_gauges = lambda *_args, **_kwargs: []
     module.rain_gauge = lambda *_args, **_kwargs: None
+    module.rain_amount_mm = lambda *_args, **_kwargs: None
     # dashboard_core.py uses postponed type annotations; preserve that
     # compilation feature so symbols such as Any need not be runtime imports.
     future = ast.ImportFrom(module="__future__",
@@ -128,19 +129,116 @@ class WeatherRainEventSummaryTests(unittest.TestCase):
         self.assertEqual(gauges[1]["percent"], 84.0)
         self.assertEqual(gauges[1]["note"], "Since 19:00")
 
-    def test_last_event_keeps_history_as_inline_note(self):
+    def test_zero_event_rain_is_replaced_with_last_completed_event_gauge(self):
+        source = {"label": "Event rain", "value": "0.0 mm",
+                  "percent": 0.0, "max_label": "5.0 mm"}
         summary = {"kind": "last", "label": "Last rain event",
                    "value": "12.7 mm", "detail": "22/10 23:50–23/10 00:10"}
-        with patch.object(core, "rain_gauges", return_value=[]), \
+        state = {"weather_rain_derived": {"last_event_total_in": 0.5,
+                 "event_active": False}}
+        with patch.object(core, "rain_gauges", return_value=[source]), \\
+             patch.object(core, "rain_amount_mm", return_value=0), \\
+             patch.object(core, "rain_event_summary", return_value=summary):
+            gauges, note = core.rain_overview_data(self.config(), {}, state)
+        self.assertIsNone(note)
+        self.assertEqual(len(gauges), 1)
+        last = gauges[0]
+        self.assertEqual(last["label"], "Last rain event")
+        self.assertEqual(last["value"], "12.7 mm")
+        self.assertEqual(last["max_label"], "15.0 mm")
+        self.assertEqual(last["percent"], 84.7)
+        self.assertEqual(last["note"], "22/10 23:50–23/10 00:10")
+
+    def test_last_event_appended_when_source_event_field_is_unavailable(self):
+        summary = {"kind": "last", "label": "Last rain event",
+                   "value": "0.3 mm", "detail": "29/10 22:33"}
+        state = {"weather_rain_derived": {"last_event_total_in": 0.3 / 25.4}}
+        with patch.object(core, "rain_gauges", return_value=[]), \\
+             patch.object(core, "rain_amount_mm", return_value=None), \\
+             patch.object(core, "rain_event_summary", return_value=summary):
+            gauges, note = core.rain_overview_data(self.config(), {}, state)
+        self.assertIsNone(note)
+        self.assertEqual(len(gauges), 1)
+        self.assertEqual(gauges[0]["label"], "Last rain event")
+        self.assertEqual(gauges[0]["value"], "0.3 mm")
+        self.assertEqual(gauges[0]["max_label"], "5.0 mm")
+        self.assertEqual(gauges[0]["note"], "29/10 22:33")
+
+    def test_nonzero_event_rain_keeps_current_event_instead_of_stale_last(self):
+        source = {"label": "Event rain", "value": "3.0 mm",
+                  "percent": 60.0, "max_label": "5.0 mm"}
+        summary = {"kind": "last", "label": "Last rain event",
+                   "value": "12.7 mm", "detail": "28/10 14:00"}
+        state = {"weather_rain_derived": {"last_event_total_in": 0.5}}
+        with patch.object(core, "rain_gauges", return_value=[source]), \\
+             patch.object(core, "rain_amount_mm",
+                          side_effect=lambda field, *_: 3 if field == "event_rain" else 0), \\
+             patch.object(core, "rain_event_summary", return_value=summary):
+            gauges, note = core.rain_overview_data(self.config(), {}, state)
+        self.assertEqual(gauges, [source])
+        self.assertIsNone(note)
+
+    def test_rain_rate_positive_keeps_current_card_even_if_event_source_zero(self):
+        source = {"label": "Event rain", "value": "0.0 mm",
+                  "percent": 0.0, "max_label": "5.0 mm"}
+        summary = {"kind": "last", "label": "Last rain event",
+                   "value": "0.3 mm", "detail": "29/10 22:33"}
+        with patch.object(core, "rain_gauges", return_value=[source]), \\
+             patch.object(core, "rain_amount_mm",
+                          side_effect=lambda field, *_: 1 if field == "rain_rate" else 0), \\
+             patch.object(core, "rain_event_summary", return_value=summary):
+            gauges, note = core.rain_overview_data(
+                self.config(), {},
+                {"weather_rain_derived": {"last_event_total_in": 0.3 / 25.4}},
+            )
+        self.assertEqual(gauges, [source])
+        self.assertIsNone(note)
+
+    def test_last_event_without_a_positive_total_does_not_invent_a_gauge(self):
+        source = {"label": "Event rain", "value": "0.0 mm",
+                  "percent": 0.0, "max_label": "5.0 mm"}
+        summary = {"kind": "last", "label": "Last rain event",
+                   "value": "0.3 mm", "detail": "29/10 22:33"}
+        with patch.object(core, "rain_gauges", return_value=[source]), \\
+             patch.object(core, "rain_amount_mm", return_value=0), \\
              patch.object(core, "rain_event_summary", return_value=summary):
             gauges, note = core.rain_overview_data(self.config(), {}, {})
-        self.assertEqual(gauges, [])
-        self.assertEqual(note, summary)
+        self.assertEqual(gauges, [source])
+        self.assertIsNone(note)
+
+    def test_same_minute_last_event_collapses_to_one_dated_end_time(self):
+        summary = rain_event_summary(self.config(), {
+            "weather_rain_derived": {
+                "event_active": False,
+                "last_event_total_in": 0.3 / 25.4,
+                "last_event_started_at": "2026-10-29T22:33:05",
+                "last_event_ended_at": "2026-10-29T22:33:59",
+            }
+        })
+        self.assertEqual(summary["detail"], "29/10 22:33")
+
+    def test_same_day_different_minutes_shares_one_date(self):
+        summary = rain_event_summary(self.config(), {
+            "weather_rain_derived": {
+                "event_active": False,
+                "last_event_total_in": 0.3 / 25.4,
+                "last_event_started_at": "2026-10-29T22:30:00",
+                "last_event_ended_at": "2026-10-29T22:33:59",
+            }
+        })
+        self.assertEqual(summary["detail"], "29/10 22:30–22:33")
+
+    def test_last_event_time_is_inside_gauge_not_footer(self):
         html = (Path(__file__).resolve().parents[1]
-                / "app/templates/weather.html").read_text()
-        self.assertIn('class="rain-event-note"', html)
+                / "app/templates/weather.html").read_text(encoding="utf-8")
+        css = (Path(__file__).resolve().parents[1]
+               / "app/static/css/weather-rain-history.css").read_text(encoding="utf-8")
+        self.assertIn('class="rain-event-time"', html)
+        self.assertNotIn('class="rain-event-note"', html)
         self.assertNotIn('<section class="rain-event-summary', html)
-        self.assertIn('rain_today_gauges or weather_detail.rain_event_summary', html)
+        self.assertNotIn("or weather_detail.rain_event_summary", html)
+        self.assertIn(".rain-overview-scroll .rain-event-time", css)
+        self.assertNotIn(".rain-current-subpanel .rain-event-note", css)
 
     def test_native_provider_does_not_show_wu_derived_provenance(self):
         summary = rain_event_summary(
