@@ -11,6 +11,17 @@
 - Supplemental indoor readings expire when stale rather than remaining indefinitely.
 - Touch-first Weather presentation, forecast and rainfall views physically accepted.
 
+## 30 October 2026 — Conditional Last Rain Event gauge: code staged, physical acceptance pending
+
+**User-requested display change:** The horizontally scrolling `Mostly Moist Today` subpanel previously showed four rain gauges plus a separate `Last rain event` footer, making it a different height from `Rainy Day Fund`. This was reproduced on the experimental GTK/WebKit display after the Rain width and fast-drag fixes (the most recent `test_webkit_gtk_shell_probe.py` **21/21 PASS**). Implement the **real weather page and backend**, not a visual mock-up:
+
+- Preserve **Rain Rate**, **Hourly Rain**, **Rain Today** and the ordinary **Event Rain** gauge whenever live event rainfall is nonzero, current rain rate is positive, or completed-event history is unavailable.
+- For Weather Underground derived history, **only when current Event Rain and rain rate are both zero/missing and the last completed event has a known positive total**, replace the Event Rain gauge with **Last rain event** (or append if no source event gauge exists). Amount, vertical fill and scale use the existing rainfall units/conversion and gauge sizing. The event's start/end timing is a `note` inside the gauge, never an extra subpanel footer.
+- Event timing is inclusive of the date: **29/10 22:33** for start/end in the same minute, **29/10 22:30–22:33** for different minutes on the same day, and **28/10 23:50–29/10 00:10** across midnight; a missing endpoint remains explicitly labelled `Since` or `Ended`. Never invent rainfall or times.
+- Keep the existing active-derived-event deduplication path, historical Rainy Day Fund values, scroll geometry and renderer experiment unaffected.
+
+**Implementation:** `app/dashboard_core.py` supplies the selected gauge; `app/templates/weather.html` renders optional timing inside it and removes the footnote; `app/static/css/weather-rain-history.css` styles the timestamp. `tests/test_weather_rain_event_summary.py` covers the decision and formatting branches (**13 focused tests expected**, **Pi execution pending**). This is a shared Weather production change, so check in the normal Chromium ACP page as well as the temporary WebKit preview, rather than assuming the WebKit screenshot guarantees Chromium parity. No change to audio, source ingestion, derived-event totals or C3 keyboard.
+
 ## Current maintenance — rainfall event semantics
 
 The live WU path derives Hourly Rain and Event Rain when the provider does not supply native values.
