@@ -310,6 +310,68 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("scrollLeft: Math.round(strip.scrollLeft)", script)
         self.assertNotIn("strip.scrollLeft =", script)
 
+    def test_surface_transition_trial_is_explicit_opt_in(self):
+        normal = probe.parse_args(["--show"])
+        self.assertFalse(normal.surface_transition_trial)
+        self.assertEqual(normal.surface_transition_mode, "spatial")
+        sample = probe.parse_args([
+            "--show", "--surface-transition-trial",
+            "--surface-transition-mode", "configured",
+        ])
+        self.assertTrue(sample.surface_transition_trial)
+        self.assertEqual(sample.surface_transition_mode, "configured")
+        with self.assertRaises(SystemExit):
+            probe.parse_args([
+                "--show", "--surface-transition-mode", "configured",
+            ])
+        with self.assertRaises(SystemExit):
+            probe.parse_args([
+                "--show", "--surface-transition-trial",
+                "--surface-transition-mode", "invalid",
+            ])
+
+    def test_surface_transition_bridge_uses_production_mounted_host(self):
+        js = probe.SURFACE_TRANSITION_TRIAL_SCRIPT
+        self.assertIn("window.ACPSurfaceHost", js)
+        self.assertIn("host.canNavigate", js)
+        self.assertIn("await host.navigate(target, options)", js)
+        self.assertIn("window.ACPWorkspaceTopology?.acpSurfaceOrder?.()", js)
+        self.assertIn("options.spatialCommitDirection = direction", js)
+        self.assertIn("history: false", js)
+        self.assertIn("source: 'webkit-read-only-surface-trial'", js)
+        self.assertIn("['clock', 'weather', 'news', 'airplay', 'settings']", js)
+        self.assertNotIn("location.assign", js)
+        self.assertNotIn("location.reload", js)
+        self.assertNotIn("fetch(", js)
+        self.assertNotIn("POST", js)
+
+    def test_surface_transition_status_includes_outcome_and_same_document(self):
+        js = probe.SURFACE_TRANSITION_TRIAL_SCRIPT
+        metrics = probe.SURFACE_TRANSITION_METRICS_SCRIPT
+        self.assertIn("document.addEventListener('acp:surface-changed'", js)
+        self.assertIn("document.addEventListener('acp:surface-settled'", js)
+        self.assertIn("performance.now() - started", js)
+        self.assertIn("sameDocument: location.href === href", js)
+        self.assertIn("host.supportsViewTransitions?.()", js)
+        self.assertIn("state.failures += 1", js)
+        self.assertIn("window.ACPApplicationSurfaces?.surfaces?.()", metrics)
+        self.assertIn("transitionInFlight: host?.isTransitioning?.()", metrics)
+        self.assertIn("requests: trial?.state.requests", metrics)
+        self.assertIn("failures: trial?.state.failures", metrics)
+
+    def test_surface_transition_keyboard_switch_does_not_replace_original_get_path(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("if args.surface_transition_trial:", src)
+        self.assertIn("WebKit2.UserScriptInjectionTime.END", src)
+        self.assertIn("SURFACE_TRANSITION_TRIAL_SCRIPT", src)
+        self.assertIn('json.dumps(page)', src)
+        self.assertIn("GLib.timeout_add_seconds(3, report_surface_layout, webview)", src)
+        self.assertIn("SURFACE_TRANSITION_METRICS_SCRIPT", src)
+        self.assertIn('webview.load_uri(url_root + "/" + page)', src)
+        self.assertIn('self.send_error(405, "Read-only WebKit preview: writes disabled")',
+                      src)
+        self.assertNotIn("systemctl restart", src)
+
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("prior_sigint = signal.getsignal(signal.SIGINT)", src)
