@@ -11,6 +11,10 @@
 - Supplemental indoor readings expire when stale rather than remaining indefinitely.
 - Touch-first Weather presentation, forecast and rainfall views physically accepted.
 
+## 30 October 2026 — Last Rain Event functionality verified; WebKit styling parity outstanding
+
+**Real Pi acceptance at `b90ec7fc`:** Python compile PASS, **13/13** focused rainfall event tests PASS, ACP service restarted. Chromium ACP and temporary forced-SHM GTK/WebKit display the same legitimate historical **Last Rain Event 0.3 mm, 27/10 22:33** inside the fourth Rain gauge, rather than leaving a separate footer. Active event handling and date formatting are covered by tests; they are **not physically exercised with live rain**. In WebKit screenshot, Today cards/gauges still have a different vertical height from History/Chromium, traced to the separately injected WebKit Rain width trial making `.rain-gauge-row` `flex:0 0 auto` instead of production `flex:1 1 auto`. A WebKit-only row stretch experiment and measured per-group heights are staged; *not* a change to shared Weather CSS until actual Pi parity is demonstrated. Track that implementation gate under [ACP shell #94](acp-shell-native-plexamp.md).
+
 ## 30 October 2026 — Conditional Last Rain Event gauge: code staged, physical acceptance pending
 
 **User-requested display change:** The horizontally scrolling `Mostly Moist Today` subpanel previously showed four rain gauges plus a separate `Last rain event` footer, making it a different height from `Rainy Day Fund`. This was reproduced on the experimental GTK/WebKit display after the Rain width and fast-drag fixes (the most recent `test_webkit_gtk_shell_probe.py` **21/21 PASS**). Implement the **real weather page and backend**, not a visual mock-up:
