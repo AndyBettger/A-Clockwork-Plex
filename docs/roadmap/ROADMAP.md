@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKit Rain gauge heights now match (**23/23 Pi tests PASS**, equal 133px cards / 115px gauges, no overflow and working touch); this is a **developer-only styling trial**, not a migrated shell. The next opt-in prototype tests ACP's **existing same-document Spatial Row** transitions inside one WebKit window (**27 targeted source tests staged; Pi trial pending**). **B4.4 startup remains deferred**.
+- **Next milestone:** WebKitGTK now navigates mounted ACP pages in **one document** (27/27 probe tests and 11/11 physical routes PASS), but the previous page briefly flashes at the end of Spatial Row. A focused clone-cleanup fix is staged for Pi verification before Cover Reveal and GTK shell ownership integration. **B4.4 startup remains deferred.**
 
 ## Feature portfolio
 
@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | GTK navigation and native focus accepted; WebKit Rain layout/gestures validated in dev preview; now testing true same-document motion. Audio overlay and installer/startup remain later gates |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Live WebKit same-document Spatial Row routing works; brief end-frame flash pending retest. Native shell ownership, Audio overlay, installer/startup remain later gates |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
@@ -30,7 +30,7 @@
 
 **Accepted on the development Pi:** native Plexamp Flatpak and exact focus identification; C3 Squeekboard layouts and night/day integration; single joined GTK drawer/indicator, theme parity, page routing, configured motion and inactivity, and bounded native Plexamp handoffs. Functional Audio open/close and return-to-origin also pass, including **9/9 Audio + 8/8 route tests** at the latest reported revision. Those are targeted test results, not a full release acceptance.
 
-**Still open:** the current Chromium mixer competes visually with GTK navigation (two bars/animations); opening it from Plexamp requires a compositor handoff to ACP. The planned standalone overlay and GTK/WebKit shell have **not yet been built or tested**. No production B4.4 promotion, fresh-Pi installer acceptance, or complete backup/restore for the native Flatpak.
+**Still open:** the current Chromium mixer competes visually with GTK navigation (two bars/animations); opening it from Plexamp requires a compositor handoff to ACP. A temporary GTK/WebKit renderer and same-document navigation prototype have been tested, but **neither the complete GTK-owned shell nor standalone Audio overlay has yet been integrated or accepted**. No production B4.4 promotion, fresh-Pi installer acceptance, or complete backup/restore for the native Flatpak.
 
 **Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
