@@ -30,10 +30,10 @@ body.mode-settings .acp-settings-select-trigger {
   min-width: 0;
   min-height: 42px;
   padding: clamp(8px, 1.45vmin, 12px) clamp(9px, 1.6vmin, 13px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid var(--acp-field-border-neutral);
+  border-radius: var(--acp-radius-field);
+  color: var(--acp-color-text);
+  background: var(--acp-field-fill-neutral);
   font: inherit;
   font-size: clamp(0.92rem, 2.5vmin, 1.12rem);
   text-align: left;
@@ -41,7 +41,7 @@ body.mode-settings .acp-settings-select-trigger {
 
 body.mode-settings .acp-settings-select-trigger:focus-visible,
 body.mode-settings .acp-settings-select-trigger.is-open {
-  outline: 2px solid rgba(143, 211, 255, 0.65);
+  outline: 2px solid var(--acp-field-focus-neutral);
   outline-offset: 2px;
 }
 

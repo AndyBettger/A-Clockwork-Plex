@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "app" / "templates" / "base.html"
 AIRPLAY_TEMPLATE = ROOT / "app" / "templates" / "airplay.html"
 CLOCK_TEMPLATE = ROOT / "app" / "templates" / "clock.html"
+CLOCK_DASHBOARD_CSS = ROOT / "app" / "static" / "css" / "clock-dashboard.css"
+NEWS_CSS = ROOT / "app" / "static" / "css" / "news.css"
 COMPONENTS = ROOT / "app" / "static" / "css" / "daytime-theme-components.css"
 FOLLOWUP = ROOT / "app" / "static" / "css" / "daytime-theme-followup.css"
 MARQUEE_CSS = ROOT / "app" / "static" / "css" / "airplay-title-marquee.css"
@@ -37,6 +39,20 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn('body:not([data-active-page="plexamp"])', followup)
         self.assertIn("semantic", followup.lower())
 
+    def test_news_status_pill_borders_follow_active_theme(self) -> None:
+        css = NEWS_CSS.read_text(encoding="utf-8")
+        status_start = css.index(".news-status-pill {")
+        source_start = css.index(".news-source-pill {")
+        status_block = css[status_start:css.index("}", status_start) + 1]
+        source_block = css[source_start:css.index("}", source_start) + 1]
+
+        self.assertIn("var(--accent) 52%", status_block)
+        self.assertIn("var(--panel-border)", status_block)
+        self.assertNotIn("var(--acp-color-accent)", status_block)
+        self.assertIn("var(--accent) 38%", source_block)
+        self.assertIn("var(--panel-border)", source_block)
+        self.assertNotIn("var(--acp-color-accent)", source_block)
+
     def test_weather_legacy_accents_follow_theme_variables(self) -> None:
         css = COMPONENTS.read_text(encoding="utf-8")
         for selector in (
@@ -50,6 +66,18 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
             self.assertIn(selector, css)
         self.assertIn("linear-gradient(90deg, var(--accent), var(--accent-strong))", css)
         self.assertIn("linear-gradient(180deg, var(--accent-strong), var(--accent))", css)
+        self.assertIn(".weather-forecast-status:not(.is-stale)", css)
+        self.assertIn("color: var(--accent-strong);", css)
+        self.assertIn('[data-acp-surface-context="airplay"] .airplay-pulse', css)
+        self.assertIn('[data-acp-surface-context="airplay"] .airplay-screen', css)
+
+        followup = FOLLOWUP.read_text(encoding="utf-8")
+        self.assertIn('[data-acp-surface-context="airplay"] .airplay-glyph .airplay-pulse', followup)
+        self.assertIn('.acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]', css)
+        self.assertNotIn(
+            'html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])\nbody[data-active-page="weather"]',
+            css,
+        )
 
     def test_airplay_ready_pulse_beats_pinned_cyan_rule(self) -> None:
         css = FOLLOWUP.read_text(encoding="utf-8")
@@ -160,17 +188,18 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         colon = CLOCK_COLON.read_text(encoding="utf-8")
         base = BASE.read_text(encoding="utf-8")
         clock = CLOCK_TEMPLATE.read_text(encoding="utf-8")
+        clock_css = CLOCK_DASHBOARD_CSS.read_text(encoding="utf-8")
 
         self.assertIn("function schedulePreviewExpiry()", dimming)
         self.assertIn("Math.min(previewUntil, requestedUntil)", dimming)
         self.assertIn("if (previewing()) return;", dimming)
-        self.assertIn("20260820-preview-timing-v1", base)
+        self.assertIn("20261010-b7-live-screen-v6", base)
         self.assertIn("function displayedSecond()", colon)
         self.assertIn("MutationObserver", colon)
         self.assertIn("attributeName === 'aria-label'", colon)
         self.assertIn("second % 2 === 1", colon)
         self.assertNotIn("setTimeout", colon)
-        self.assertIn("var(--acp-theme-display, var(--segment-on))", clock)
+        self.assertIn("var(--acp-theme-display, var(--segment-on))", clock_css)
         self.assertIn("20260820-clock-colon-sync-v2", clock)
 
     def test_title_marquee_reuses_physically_proven_source_scroll_pattern(self) -> None:
@@ -183,7 +212,8 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("estimatedOverflow", marquee)
         self.assertIn("airplay-source-scroll", css)
         self.assertIn("translateX", css) if False else None
-        self.assertIn("20260819-longform-title-v3", template)
+        self.assertIn("20261010-b6-preview-v2", template)
+        self.assertIn("measureForSpatialPreview", marquee)
         self.assertNotIn("text-indent", css)
 
     def test_changed_javascript_has_valid_syntax(self) -> None:

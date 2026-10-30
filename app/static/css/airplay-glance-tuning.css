@@ -1,6 +1,7 @@
 /* AirPlay Ready/Now Playing lower glance row and idle copy. */
 
-body.airplay-session-idle .airplay-copy .airplay-detail {
+body.airplay-session-idle .airplay-copy .airplay-detail ,
+body.airplay-session-unresolved .airplay-copy .airplay-detail {
   max-width: 46rem;
   font-size: clamp(1rem, 2.35vmin, 1.18rem);
   line-height: 1.36;
@@ -96,7 +97,8 @@ body.airplay-session-idle .airplay-copy .airplay-detail {
 }
 
 @media (max-height: 520px), (max-width: 860px) {
-  body.airplay-session-idle .airplay-copy .airplay-detail {
+  body.airplay-session-idle .airplay-copy .airplay-detail ,
+body.airplay-session-unresolved .airplay-copy .airplay-detail {
     font-size: clamp(0.82rem, 2.2vw, 0.98rem);
   }
 

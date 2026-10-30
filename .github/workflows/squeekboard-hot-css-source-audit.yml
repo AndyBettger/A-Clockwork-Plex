@@ -1,0 +1,49 @@
+name: C3 Squeekboard Hot CSS Source Audit (no build)
+
+# Source-verification only. It cannot compile/install/start Squeekboard.
+# The narrowly scoped push event bootstraps this branch-local workflow once
+# when this workflow file is introduced; workflow_dispatch is for later
+# manual reruns if GitHub recognises it on the default branch.
+on:
+  push:
+    branches:
+      - feature/acp-shell-native-plexamp
+    paths:
+      - .github/workflows/squeekboard-hot-css-source-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-pinned-debian-squeekboard-source:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Prepare disposable container checkout tools
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git bash
+
+      - name: Check out the exact triggering feature commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Audit verified vendor C source with in-memory patch only
+        run: bash scripts/ci/run-squeekboard-hot-css-source-audit.sh
+
+      - name: Upload source-only audit report (no .deb or executable)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: squeekboard-c3-hot-css-source-audit
+          path: artifacts/squeekboard-hot-css-source-audit/
+          if-no-files-found: warn
+          retention-days: 14

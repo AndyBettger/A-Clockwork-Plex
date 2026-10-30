@@ -14,6 +14,8 @@
   };
 
   const CLOCK_FORMAT_STORAGE_KEY = 'a-clockwork-plex.clock-format';
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
+  let timer = null;
 
   function normaliseClockFormat(value) {
     return String(value || '').toLowerCase() === '12h' ? '12h' : '24h';
@@ -77,6 +79,30 @@
     }
   });
 
-  updateClock();
-  window.setInterval(updateClock, 1000);
+  function stopClock() {
+    window.clearTimeout(timer);
+    timer = null;
+  }
+
+  function scheduleClock() {
+    stopClock();
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    timer = window.setTimeout(() => {
+      updateClock();
+      scheduleClock();
+    }, 1000);
+  }
+
+  function activateClock() {
+    updateClock();
+    scheduleClock();
+  }
+
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activateClock();
+    else stopClock();
+  });
+
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activateClock();
+  window.addEventListener('pagehide', stopClock, { once: true });
 })();

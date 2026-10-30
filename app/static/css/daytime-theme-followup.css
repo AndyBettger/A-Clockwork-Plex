@@ -51,7 +51,9 @@ body:not([data-active-page="plexamp"]) :is(.kiosk-link-modal-close, .kiosk-link-
    specificity here so geometry stays fixed while colour belongs to the theme.
    ------------------------------------------------------------------------- */
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
-body[data-active-page="airplay"] .airplay-glyph .airplay-pulse {
+body[data-active-page="airplay"] .airplay-glyph .airplay-pulse,
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+[data-acp-surface-context="airplay"] .airplay-glyph .airplay-pulse {
   border-color: var(--accent-strong) !important;
   box-shadow: 0 0 28px var(--acp-theme-glow) !important;
 }
@@ -84,6 +86,17 @@ body:not([data-active-page="plexamp"]) .nav-drawer .nav-button.is-active {
 html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
 body:not([data-active-page="plexamp"]) .nav-drawer .nav-button.is-active:is(:hover, :active) {
   background: var(--accent-strong) !important;
+}
+
+/* Theme-aware feedback, never override the selected workspace. On hybrid
+   touchscreens :active must win even when :hover is also true. */
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button:not(.is-active):hover {
+  background: var(--acp-nav-hover-fill) !important;
+}
+html[data-daytime-theme]:not([data-daytime-theme="classic_dark"])
+body:not([data-active-page="plexamp"]) .nav-drawer .nav-button:not(.is-active):active {
+  background: var(--acp-nav-pressed-fill) !important;
 }
 
 /* The compact EQ drawer no longer needs to restate which music sources feed it;

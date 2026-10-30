@@ -13,6 +13,9 @@
  */
 
 html[data-daytime-theme="midnight_blue"] body:not([data-active-page="plexamp"]) {
+  --acp-b3-curtain-fill: #10253d;
+  --acp-nav-hover-fill: rgba(31, 76, 118, 0.94);
+  --acp-nav-pressed-fill: rgba(47, 99, 147, 0.96);
   --bg: #06101f;
   --panel: rgba(116, 180, 235, 0.09);
   --panel-border: rgba(126, 191, 247, 0.24);
@@ -38,6 +41,9 @@ html[data-daytime-theme="midnight_blue"] body:not([data-active-page="plexamp"]) 
 }
 
 html[data-daytime-theme="amber_terminal"] body:not([data-active-page="plexamp"]) {
+  --acp-b3-curtain-fill: #2a1a08;
+  --acp-nav-hover-fill: rgba(99, 65, 19, 0.96);
+  --acp-nav-pressed-fill: rgba(135, 89, 27, 0.98);
   --bg: #140d04;
   --panel: rgba(255, 187, 73, 0.085);
   --panel-border: rgba(255, 190, 82, 0.24);
@@ -63,6 +69,9 @@ html[data-daytime-theme="amber_terminal"] body:not([data-active-page="plexamp"])
 }
 
 html[data-daytime-theme="green_phosphor"] body:not([data-active-page="plexamp"]) {
+  --acp-b3-curtain-fill: #102a1a;
+  --acp-nav-hover-fill: rgba(28, 85, 45, 0.95);
+  --acp-nav-pressed-fill: rgba(42, 115, 61, 0.97);
   --bg: #06130b;
   --panel: rgba(104, 235, 145, 0.08);
   --panel-border: rgba(112, 237, 154, 0.23);
@@ -88,6 +97,9 @@ html[data-daytime-theme="green_phosphor"] body:not([data-active-page="plexamp"])
 }
 
 html[data-daytime-theme="aubergine"] body:not([data-active-page="plexamp"]) {
+  --acp-b3-curtain-fill: #2b1437;
+  --acp-nav-hover-fill: rgba(92, 42, 116, 0.95);
+  --acp-nav-pressed-fill: rgba(127, 59, 155, 0.97);
   --bg: #16091c;
   --panel: rgba(199, 146, 255, 0.085);
   --panel-border: rgba(203, 151, 255, 0.24);
@@ -113,6 +125,9 @@ html[data-daytime-theme="aubergine"] body:not([data-active-page="plexamp"]) {
 }
 
 html[data-daytime-theme="steel_cyan"] body:not([data-active-page="plexamp"]) {
+  --acp-b3-curtain-fill: #1b3035;
+  --acp-nav-hover-fill: rgba(30, 77, 84, 0.95);
+  --acp-nav-pressed-fill: rgba(42, 104, 112, 0.97);
   --bg: #081214;
   --panel: rgba(113, 226, 232, 0.08);
   --panel-border: rgba(113, 226, 232, 0.23);
@@ -140,6 +155,9 @@ html[data-daytime-theme="steel_cyan"] body:not([data-active-page="plexamp"]) {
 /* A warm long-wavelength daytime palette, deliberately distinct from the
    monochrome Astronomy night override. */
 html[data-daytime-theme="crimson_glow"] body:not([data-active-page="plexamp"]) {
+  --acp-b3-curtain-fill: #32141c;
+  --acp-nav-hover-fill: rgba(99, 34, 45, 0.95);
+  --acp-nav-pressed-fill: rgba(132, 48, 62, 0.97);
   --bg: #160708;
   --panel: rgba(242, 91, 106, 0.085);
   --panel-border: rgba(247, 103, 117, 0.24);

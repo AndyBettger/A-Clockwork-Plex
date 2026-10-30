@@ -2,32 +2,89 @@
   if (window.__aClockworkPlexAirPlayHydrationLoaded) return;
   window.__aClockworkPlexAirPlayHydrationLoaded = true;
 
-  let signalled = false;
-  function ready() {
-    if (signalled) return;
-    signalled = true;
-    window.dispatchEvent(new CustomEvent('acp:page-hydrated'));
-  }
+  let cycle = 0;
+  let observer = null;
+  let fallbackTimer = null;
 
   function rendered() {
-    return document.body.classList.contains('airplay-session-idle')
-      || document.body.classList.contains('airplay-session-active')
-      || document.body.classList.contains('airplay-metadata-active');
+    return !document.body.classList.contains('airplay-session-unresolved')
+      && (
+        document.body.classList.contains('airplay-session-idle')
+        || document.body.classList.contains('airplay-session-active')
+        || document.body.classList.contains('airplay-metadata-active')
+      );
   }
 
-  if (rendered()) {
-    window.requestAnimationFrame(() => window.requestAnimationFrame(ready));
-    return;
+  function stopWatching() {
+    observer?.disconnect();
+    observer = null;
+    window.clearTimeout(fallbackTimer);
+    fallbackTimer = null;
   }
 
-  const observer = new MutationObserver(() => {
-    if (!rendered()) return;
-    observer.disconnect();
-    window.requestAnimationFrame(() => window.requestAnimationFrame(ready));
+  function signalReady(id) {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      if (id !== cycle) return;
+      window.dispatchEvent(new CustomEvent('acp:page-hydrated', {
+        detail: { surface: 'airplay' },
+      }));
+    }));
+  }
+
+  function settleCycle(timeoutMs = 1100) {
+    const id = ++cycle;
+    stopWatching();
+
+    if (rendered()) {
+      signalReady(id);
+      return;
+    }
+
+    observer = new MutationObserver(() => {
+      if (!rendered() || id !== cycle) return;
+      stopWatching();
+      signalReady(id);
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    fallbackTimer = window.setTimeout(() => {
+      if (id !== cycle) return;
+      stopWatching();
+      signalReady(id);
+    }, timeoutMs);
+  }
+
+  function waitForReady(timeoutMs = 1400) {
+    return new Promise((resolve) => {
+      let resolved = false;
+      let timer = null;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        window.clearTimeout(timer);
+        window.removeEventListener('acp:page-hydrated', onHydrated);
+        resolve();
+      };
+      const onHydrated = (event) => {
+        if (String(event?.detail?.surface || '').toLowerCase() !== 'airplay') return;
+        done();
+      };
+
+      window.addEventListener('acp:page-hydrated', onHydrated);
+      timer = window.setTimeout(done, Math.max(200, Number(timeoutMs) || 1400));
+      settleCycle(Math.max(200, Number(timeoutMs) || 1400));
+    });
+  }
+
+  window.ACPAirPlayHydration = Object.freeze({
+    waitForReady,
+    settle: settleCycle,
   });
-  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-  window.setTimeout(() => {
-    observer.disconnect();
-    ready();
-  }, 1100);
+
+  if (String(document.body?.dataset?.activePage || '').toLowerCase() === 'airplay') {
+    settleCycle();
+  }
 })();

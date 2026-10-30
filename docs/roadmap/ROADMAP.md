@@ -1,134 +1,62 @@
-# A Clockwork Plex Roadmap
+# A Clockwork Plex — Project Roadmap
 
-**Last updated:** 4 October 2026  
-**Active integration branch:** `develop`  
-**Active maintenance branch:** `fix/weather-rain-events`  
-**Stable branch:** `main`  
-**Current release:** **v0.4.0 — Unified Bedside Appliance — published 23 August 2026**
+**Updated:** 30 October 2026 · **Published release:** v0.4.0 (23 August 2026)  
+**Active development branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
-> This is the project dashboard: what is complete, what is active, what comes next, and where the detailed feature roadmaps live. Engineering chronology belongs in the feature/development documents, not here. 😁
+> This is the **project-level overview**, not a test diary. A Clockwork Plex is currently running on a **development/test Raspberry Pi**, not yet a signed-off bedside appliance. Feature-specific requirements, acceptance results, defects and next checks belong in the linked [feature roadmaps](features/README.md) and [testing catalogue](../development/testing/test-catalogue.md).
 
-## Agreed implementation order
+## Project status at a glance
 
-This is the authoritative product order.
+- **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
+- **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
+- **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
+- **Next milestone:** WebKitGTK now navigates mounted ACP pages in **one document** (27/27 probe tests and 11/11 physical routes PASS), but the previous page briefly flashes at the end of Spatial Row. A focused clone-cleanup fix is staged for Pi verification before Cover Reveal and GTK shell ownership integration. **B4.4 startup remains deferred.**
 
-| Order | Feature / track | Status | Next boundary | Feature roadmap |
-| ---: | --- | --- | --- | --- |
-| 1 | Weather (#86–#87) | **CORE COMPLETE / MAINTENANCE READY FOR MERGE** | Merge accepted rain-event fix; larger page revamp after #94 Phase A | [Weather](features/weather.md) |
-| 2 | Settings & appliance ownership (#88–#90, #93) | **COMPLETE** | Maintenance only | [Settings / ownership](features/settings-appliance-ownership.md) |
-| 3 | Touchscreen text entry (#91) | **COMPLETE** | Native-app text entry moves to #94 | [Touchscreen text entry](features/touchscreen-text-entry.md) |
-| 4 | BBC News (#92) | **COMPLETE** | Maintenance only | [BBC News](features/bbc-news.md) |
-| 5 | High-resolution Plexamp audio / mixer-EQ (#85) | **COMPLETE / MERGED** | Maintenance only; source-rate-native Direct remains deferred until post-#94 | [High-resolution audio](features/high-resolution-audio.md) |
-| 6 | ACP shell / native Plexamp modernisation (#94) | **NEXT** | Phase A: single-document ACP surface, design system, shell/navigation prototype | [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md) |
-| 7 | Astronomy | **QUEUED** | First new product surface on the accepted #94 UI foundation | [Astronomy](features/astronomy.md) |
-| 8 | Native Plexamp completion / appliance resilience | **QUEUED** | Finish #94 native-player gates, then harden the resulting runtime | [#94](features/acp-shell-native-plexamp.md) · [Resilience](features/appliance-resilience.md) |
-| 9 | Events calendar | **QUEUED** | Source/credential ownership first | [Events calendar](features/events-calendar.md) |
+## Feature portfolio
 
-### Why #94 now precedes Astronomy
+| Feature | Overall status | Summary / next decision |
+| --- | --- | --- |
+| [Weather (#86–#87)](features/weather.md) | **Core complete; Last Rain Event accepted** | Real last-event gauge visually and functionally verified; WebKit-only Rain layout/touch trial accepted pending native-shell integration; expanded Weather design follows shell |
+| [Settings and appliance ownership (#88–#90, #93)](features/settings-appliance-ownership.md) | **Complete for accepted ACP scope** | Portable configuration, Backup/Restore/Reset and rollback; native Plexamp-specific settings packaging remains #94 work |
+| [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
+| [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
+| [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Live WebKit same-document Spatial Row routing works; brief end-frame flash pending retest. Native shell ownership, Audio overlay, installer/startup remain later gates |
+| [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
+| [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
+| [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
 
-The #94 work is no longer merely “add a Plexamp visualiser”. It includes the ACP application-shell and navigation foundation.
+## Current development milestone — #94
 
-Astronomy would otherwise be built as another full-document page and then immediately migrated. The efficient boundary is:
+**Accepted on the development Pi:** native Plexamp Flatpak and exact focus identification; C3 Squeekboard layouts and night/day integration; single joined GTK drawer/indicator, theme parity, page routing, configured motion and inactivity, and bounded native Plexamp handoffs. Functional Audio open/close and return-to-origin also pass, including **9/9 Audio + 8/8 route tests** at the latest reported revision. Those are targeted test results, not a full release acceptance.
 
-1. close and merge #85 — **complete**;
-2. complete the bounded Weather rain-event maintenance branch;
-3. complete **#94 Phase A** — single long-lived ACP web surface, component/design system, View Transition/navigation-shell prototype;
-4. build Astronomy as the first new surface on that foundation;
-5. complete the native Plexamp/player migration and then the full resilience track.
+**Still open:** the current Chromium mixer competes visually with GTK navigation (two bars/animations); opening it from Plexamp requires a compositor handoff to ACP. A temporary GTK/WebKit renderer and same-document navigation prototype have been tested, but **neither the complete GTK-owned shell nor standalone Audio overlay has yet been integrated or accepted**. No production B4.4 promotion, fresh-Pi installer acceptance, or complete backup/restore for the native Flatpak.
 
-If native Plexamp discovery becomes a long side quest, Astronomy need not wait for every Phase B player/resilience gate once the Phase A application-surface contract is accepted.
+**Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
-## Maintenance queue
+1. Complete the [#94 GTK3/WebKitGTK developer prototype](features/acp-shell-native-plexamp.md): layout and touch baseline accepted; now verify same-document Spatial Row/Cover Reveal transitions in the existing mounted ACP surface host. Retain Chromium rollback; Squeekboard is a later integration gate.
+2. Connect the accepted GTK navigation to the WebKit host and native Plexamp, then build an independent Audio overlay using the existing backend and EQ controls. Recheck no duplicate navigation and no unintended focus change.
+3. Prototype a coordinated visual reveal for ACP ↔ native Plexamp. True live window embedding is **not** available through GTK3 on native Wayland; any snapshot-assisted Spatial Row is optional and must pass resource/focus tests.
+4. After physical acceptance, complete B4.4 supervised startup, recovery, installer integration and native Plexamp Backup/Restore/Reset. Retain the known-good fallback.
 
-These are bounded corrections/improvements to accepted features; they do not change the main feature order.
+## Planned follow-on work
 
-- **Weather rain events — ACCEPTED:** `fix/weather-rain-events` implements station-observation chronology, the **2-hour inter-event dry gap**, completed-event provenance and guarded rollover/out-of-order regression coverage. Code-head CI, commissioned-Pi backend/state migration and dry-weather touchscreen presentation are accepted.
-- **Weather page revamp:** after #94 Phase A, rebuild Weather as a sectioned application surface with useful graphs and investigate bounded local observation history/retention without creating avoidable SD-card writes.
-- **Branch cleanup:** the merged News feature branches are safe to delete when branch housekeeping is explicitly performed.
+- **Astronomy:** build on the unified page host, with shared coordinates, IANA timezone, twilight/rise/set and observing information; then provide the common Sun-event calculation authority for sun-aware display dimming.
+- **Expanded Weather:** responsive, touch-friendly detailed/scrollable panels, historical trends and forecast/data-freshness status; preserve the current weather APIs and asynchronous ready/paint checks.
+- **Sun-aware night mode:** sunrise/sunset-relative timing with offset controls, winter evening minimum and retained manual schedule.
+- **Resilience and events:** develop against the settled UI/runtime, rather than hardening interfaces likely to be retired. Continue SD read-only/storage diagnosis and evaluate SSD where appropriate.
+- **Audio maintenance:** leave source-rate-native Direct work deferred unless #94 acceptance or operational evidence changes the priority.
 
-## Current focus — Weather rain-event maintenance
+## Working rules and release gate
 
-The #85 audio branch is merged into `develop`. The active bounded maintenance branch is `fix/weather-rain-events`.
+The Pi is a **test rig**: prefer focused tests plus one real, bounded acceptance trial per meaningful change; don't rerun already accepted suites without a regression. Protect the current CamillaDSP/ALSA alarm/music paths, avoid unexpected audio changes, and keep a straightforward return to stock Squeekboard and the existing Chromium/Headless display route.
 
-Current branch scope:
+For the next release: visually accepted unified UI and Audio overlay, functional native Plexamp, Squeekboard, alarm/AirPlay/NFC parity, restart/recovery and installer/upgrade/restore acceptance, plus CI coverage. **These release criteria are not all met.**
 
-- [x] Use WU station observation time rather than ACP receipt time for rain-counter chronology.
-- [x] Prevent stale/out-of-order observations from regressing derived rain counters.
-- [x] Replace the old 24-hour / 1 mm derived-event reset with a **2-hour continuously dry gap**.
-- [x] Persist active/completed rain-event provenance.
-- [x] Project Active/Last rain-event context on the existing Weather rain panel.
-- [x] Add deterministic midnight-lag, true-rollover, dry-gap and separate-shower regression tests.
-- [x] Code-head PR CI green at `cd967a174ba749d264ef1f1858040ae76104bfa3`.
-- [x] Commissioned Pi updated; ACP service restarted cleanly, WU status `ready`, and schema-v2 derived rain state/live chronology accepted.
-- [x] Existing Weather Rain panel checked on the commissioned touchscreen; dry-weather gauges correctly show zero with no stale derived event.
-- [ ] Merge after explicit user approval.
+## Documentation and history
 
-Real rainfall is useful follow-up evidence when available, but deterministic tests own the midnight bug and dry-gap boundary; this fix does not need to wait indefinitely for the weather to cooperate.
-
-Detailed status: [features/weather.md](features/weather.md).
-
-## Branch housekeeping
-
-Current visible branches after the 4 October cleanup:
-
-- `main` — supported stable release branch.
-- `develop` — accepted integration branch, now including merged #85.
-- `fix/weather-rain-events` — active bounded Weather maintenance branch / PR #14.
-
-The former #85 and two merged News feature branches have been deleted after their work was confirmed present in `develop`.
-
-## Feature roadmaps
-
-Feature-level progress lives under [`features/`](features/README.md):
-
-- [Weather](features/weather.md)
-- [Settings and appliance ownership](features/settings-appliance-ownership.md)
-- [Touchscreen text entry](features/touchscreen-text-entry.md)
-- [BBC News](features/bbc-news.md)
-- [High-resolution audio](features/high-resolution-audio.md)
-- [ACP shell / native Plexamp](features/acp-shell-native-plexamp.md)
-- [Astronomy](features/astronomy.md)
-- [Appliance resilience](features/appliance-resilience.md)
-- [Events calendar](features/events-calendar.md)
-
-Detailed architecture, test plans and physical evidence remain under `docs/development/`. Historical roadmap snapshots remain in this directory.
-
-## Specialist authorities
-
-- [High-resolution audio architecture](../development/architecture/high-resolution-audio.md)
-- [AirPlay / hi-res physical investigation](../development/testing/airplay-hi-res-buffer-investigation.md)
-- [Native Plexamp / ACP shell architecture](../development/architecture/native-plexamp-desktop.md)
-- [BBC News architecture](../development/architecture/bbc-news.md)
-- [Configuration backup ownership](../development/architecture/configuration-backup-ownership.md)
-- [Reset-to-defaults architecture](../development/architecture/reset-to-defaults.md)
-- [Appliance resilience architecture](../development/architecture/appliance-resilience.md)
-- [Fresh appliance acceptance runbook](../development/testing/fresh-appliance-acceptance-runbook.md)
-
-Normal appliance owners should start with [`../INSTALL.md`](../INSTALL.md), not the development roadmaps.
-
-## Branch and release model
-
-- `main` is the supported stable appliance and normal installation/update channel.
-- `develop` is the integration branch for the next release cycle.
-- substantial isolated work uses short-lived `feature/<name>` branches from `develop`.
-- published `vX.Y.Z` tags/releases are immutable accepted snapshots.
-- feature branches do not merge merely because CI is green: relevant Raspberry Pi/touchscreen behaviour must pass its physical acceptance gate first.
-- the next release version is intentionally not assigned until its real scope is clear.
-
-## Release gate for the next version
-
-Before promoting the next development cycle to `main`:
-
-- all included feature branches must be merged into `develop` only after automated and relevant physical acceptance;
-- the clean-room installer/runbook must still pass on supported hardware;
-- repeat `bash setup.sh` must remain safe/idempotent;
-- repository/docs catalogues and these roadmaps must describe the actual shipped state;
-- materially risky audio/storage experiments must remain isolated to feature branches with a known-good rollback/rebuild path through `develop` or `main`;
-- release version/tag/name is assigned only after final scope and acceptance are known.
-
-## History
-
-- [history-through-phase7-checkpoint6.md](history-through-phase7-checkpoint6.md) — early Phase 7 chronology.
-- [history-through-checkpoint64.md](history-through-checkpoint64.md) — pre-consolidation roadmap snapshot.
-
-Those files are historical records, not current instructions.
+- [Feature roadmap index](features/README.md) — feature owners, scope and status.
+- [#94 current feature roadmap](features/acp-shell-native-plexamp.md) — implementation detail, active decisions and gate results.
+- [#94 detailed progress preserved through 29 October 2026](features/acp-shell-native-plexamp-progress-history-through-2026-10-29.md) — dated test history formerly in this overview; **historic entries are not current instructions**.
+- [Development and testing catalogue](../development/testing/test-catalogue.md) — detailed evidence and test procedures.
+- Historical snapshots: [19 October 2026 full project roadmap](../archive/acp-roadmap-full-history-2026-10-19.md), [Phase 7 checkpoint 6](history-through-phase7-checkpoint6.md), [checkpoint 64](history-through-checkpoint64.md).

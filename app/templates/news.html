@@ -2,7 +2,7 @@
 {% set active_page = 'news' %}
 {% block title %}BBC News - A Clockwork Plex{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20260910-news-v4') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/news.css', v='20261007-news-theme-pill-v5') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/news-custom-feeds.css', v='20260913-news-feed-layout-v3') }}">
 {% endblock %}
 {% block content %}
@@ -73,9 +73,8 @@
   </article>
 </div>
 
-{% include "_nav.html" %}
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/news.js', v='20260910-news-v4') }}"></script>
+<script src="{{ url_for('static', filename='js/news.js', v='20261007-news-status-v5') }}"></script>
 <script src="{{ url_for('static', filename='js/news-category-scrollbar.js', v='20260913-news-category-scrollbar-v1') }}"></script>
 {% endblock %}

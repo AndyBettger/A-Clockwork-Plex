@@ -36,4 +36,5 @@
   }
 
   installDrawerMotion();
+  document.addEventListener('acp:surface-settled', installDrawerMotion);
 })();

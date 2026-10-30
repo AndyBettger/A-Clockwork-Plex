@@ -15,6 +15,7 @@
 
   const endpoint = '/api/audio/state';
   const detail = document.getElementById('airplay-detail');
+  const surfaceLifecycle = window.ACPAirPlaySurfaceLifecycle;
   let dragging = false;
   let sendInFlight = false;
   let getInFlight = false;
@@ -69,6 +70,7 @@
   }
 
   async function refresh() {
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
     if (getInFlight || sendInFlight || dragging) return;
     getInFlight = true;
     try {
@@ -122,11 +124,35 @@
     refresh();
   });
 
-  refreshTimer = window.setInterval(refresh, 1000);
-  window.setTimeout(refresh, 100);
+  function stopPolling() {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+
+  function schedulePolling() {
+    stopPolling();
+    if (surfaceLifecycle && !surfaceLifecycle.isVisible()) return;
+    refreshTimer = window.setTimeout(async () => {
+      await refresh();
+      schedulePolling();
+    }, 1000);
+  }
+
+  function activate() {
+    window.setTimeout(() => {
+      void refresh().finally(schedulePolling);
+    }, 100);
+  }
+
+  surfaceLifecycle?.subscribe?.((visible) => {
+    if (visible) activate();
+    else stopPolling();
+  });
+
+  if (!surfaceLifecycle || surfaceLifecycle.isVisible()) activate();
 
   window.addEventListener('pagehide', () => {
-    window.clearInterval(refreshTimer);
+    stopPolling();
     window.clearTimeout(sendTimer);
-  });
+  }, { once: true });
 })();

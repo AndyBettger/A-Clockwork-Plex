@@ -471,7 +471,8 @@
   async function refreshAudioPathSummary() {
     const summary = document.querySelector('[data-audio-path-summary]');
     const subpage = summary?.closest?.('[data-settings-subpage]');
-    if (!summary || subpage?.hidden || document.hidden) return;
+    const settingsActive = String(document.body?.dataset?.activePage || '').toLowerCase() === 'settings';
+    if (!settingsActive || !summary || subpage?.hidden || document.hidden) return;
     try {
       const response = await fetch(AUDIO_MIXER_API, { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
@@ -571,6 +572,9 @@
       window.addEventListener('pagehide', () => window.clearInterval(audioPathTimer), { once: true });
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) refreshAudioPathSummary();
+      });
+      document.addEventListener('acp:surface-activated', (event) => {
+        if (String(event.detail?.surface || '').toLowerCase() === 'settings') refreshAudioPathSummary();
       });
     }
   }
