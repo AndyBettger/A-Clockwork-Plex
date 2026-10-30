@@ -333,7 +333,7 @@ class WebKitProbeTests(unittest.TestCase):
     def test_surface_transition_bridge_uses_production_mounted_host(self):
         js = probe.SURFACE_TRANSITION_TRIAL_SCRIPT
         self.assertIn("window.ACPSurfaceHost", js)
-        self.assertIn("host.canNavigate", js)
+        self.assertIn("host?.canNavigate?.(target)", js)
         self.assertIn("await host.navigate(target, options)", js)
         self.assertIn("window.ACPWorkspaceTopology?.acpSurfaceOrder?.()", js)
         self.assertIn("options.spatialCommitDirection = direction", js)
