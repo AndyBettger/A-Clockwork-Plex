@@ -68,19 +68,15 @@
   text-transform: none;
 }
 
-/* The distinct LAST event is a footnote within today's gauge group, never
-   a tall standalone tile between current and historical rainfall. */
-.rain-current-subpanel .rain-event-note {
-  margin: 8px 0 0;
-  font-size: clamp(0.72rem, 1.7vmin, 0.9rem);
-  color: var(--muted);
-  line-height: 1.3;
-}
-.rain-current-subpanel .rain-event-note strong {
-  color: var(--text);
-}
-.rain-current-subpanel .rain-event-note span {
-  margin-inline-start: 0.5rem;
+/* Completed rain-event times sit inside the ordinary gauge card.
+   Do not enlarge Mostly Moist Today with a separate summary footer. */
+.rain-overview-scroll .rain-event-time {
+  margin: 2px 0 4px;
+  color: var(--accent);
+  font-size: clamp(0.68rem, 1.55vmin, 0.8rem);
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 720px) {
