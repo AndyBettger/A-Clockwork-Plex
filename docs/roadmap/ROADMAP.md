@@ -10,13 +10,13 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK's scoped Rain grid trial now **fixes the 110px overlap (0px measured)** and slow touch drag retains its position (**18/18 focused Pi tests PASS**). Quick flicks still rebound on Rain **and** forecast rows; a separate temporary touch-gesture comparison is staged before integrating the main GTK shell. **B4.4 installer/autostart remains deferred.**
+- **Next milestone:** WebKitGTK's Rain layout fits (0px overflow) and its scoped touch trial is noticeably improved (**21/21 focused Pi tests PASS**). A conditional **Last Rain Event gauge** replacing idle zero Event Rain is now staged in the real Weather app, pending targeted Pi acceptance. Then resume actual WebKit page-transition testing; **B4.4 startup remains deferred**.
 
 ## Feature portfolio
 
 | Feature | Overall status | Summary / next decision |
 | --- | --- | --- |
-| [Weather (#86–#87)](features/weather.md) | **Core complete** | Forecast/location, observations, indoor expiry and rainfall accepted; detailed, Settings-style Weather redesign planned after the new shell foundation |
+| [Weather (#86–#87)](features/weather.md) | **Core complete; Rain presentation improvement staged** | Forecast/observations accepted; conditional last-event gauge awaiting Pi test; more detailed Settings-style Weather redesign planned after the shell foundation |
 | [Settings and appliance ownership (#88–#90, #93)](features/settings-appliance-ownership.md) | **Complete for accepted ACP scope** | Portable configuration, Backup/Restore/Reset and rollback; native Plexamp-specific settings packaging remains #94 work |
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
