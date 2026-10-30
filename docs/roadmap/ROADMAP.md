@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK's Rain layout fits (0px overflow) and its scoped touch trial is noticeably improved (**21/21 focused Pi tests PASS**). A conditional **Last Rain Event gauge** replacing idle zero Event Rain is now staged in the real Weather app, pending targeted Pi acceptance. Then resume actual WebKit page-transition testing; **B4.4 startup remains deferred**.
+- **Next milestone:** Last Rain Event now renders correctly in Chromium and WebKit (**13/13 Weather tests PASS**); the forced-SHM WebKit Rain grid still has inconsistent **vertical gauge heights**, despite 0px horizontal overflow and improved touch. A WebKit-only stretch/height-measurement trial is staged before real page-transition work. **B4.4 startup remains deferred**.
 
 ## Feature portfolio
 
