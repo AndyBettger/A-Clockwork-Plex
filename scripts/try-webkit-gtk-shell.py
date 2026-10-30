@@ -49,9 +49,12 @@ body.mode-weather .rain-overview-scroll > .rain-subpanel > .rain-gauge-row {
   grid-auto-flow: column !important;
   grid-auto-columns: clamp(150px, 21vw, 190px) !important;
   grid-template-columns: none !important;
-  flex: 0 0 auto !important;
+  /* Retain the intrinsic width fix, but fill the stretched subpanel height.
+     Otherwise Today cards are short when History has a taller content row. */
+  flex: 1 1 auto !important;
   inline-size: max-content !important;
   min-inline-size: max-content !important;
+  align-items: stretch !important;
 }
 body.mode-weather .rain-overview-scroll .rain-gauge-card {
   flex-shrink: 0 !important;
@@ -171,9 +174,18 @@ RAIN_LAYOUT_METRICS_SCRIPT = r"""
    const r = panel.getBoundingClientRect();
    const gauges = [...panel.querySelectorAll('.rain-gauge-card')];
    const last = gauges[gauges.length - 1]?.getBoundingClientRect();
+   const row = panel.querySelector('.rain-gauge-row');
+   const rowBox = row?.getBoundingClientRect();
+   const cardHeights = gauges.map(gauge => Math.round(gauge.getBoundingClientRect().height));
+   const fillHeights = gauges.map(gauge =>
+     Math.round(gauge.querySelector('.rain-gauge')?.getBoundingClientRect().height || 0));
    return {
      name: panel.classList.contains('rain-current-subpanel') ? 'today' : 'history',
-     panelWidth: Math.round(r.width), gaugeCount: gauges.length,
+     panelWidth: Math.round(r.width), panelHeight: Math.round(r.height),
+     rowHeight: rowBox ? Math.round(rowBox.height) : 0,
+     minCardHeight: Math.min(...cardHeights), maxCardHeight: Math.max(...cardHeights),
+     minGaugeHeight: Math.min(...fillHeights), maxGaugeHeight: Math.max(...fillHeights),
+     gaugeCount: gauges.length,
      lastGaugeRight: last ? Math.round(last.right) : null,
      panelRight: Math.round(r.right),
      overflow: last ? Math.round(Math.max(0, last.right - r.right)) : 0
