@@ -136,8 +136,8 @@ class WeatherRainEventSummaryTests(unittest.TestCase):
                    "value": "12.7 mm", "detail": "22/10 23:50–23/10 00:10"}
         state = {"weather_rain_derived": {"last_event_total_in": 0.5,
                  "event_active": False}}
-        with patch.object(core, "rain_gauges", return_value=[source]), \\
-             patch.object(core, "rain_amount_mm", return_value=0), \\
+        with patch.object(core, "rain_gauges", return_value=[source]), \
+             patch.object(core, "rain_amount_mm", return_value=0), \
              patch.object(core, "rain_event_summary", return_value=summary):
             gauges, note = core.rain_overview_data(self.config(), {}, state)
         self.assertIsNone(note)
@@ -153,8 +153,8 @@ class WeatherRainEventSummaryTests(unittest.TestCase):
         summary = {"kind": "last", "label": "Last rain event",
                    "value": "0.3 mm", "detail": "29/10 22:33"}
         state = {"weather_rain_derived": {"last_event_total_in": 0.3 / 25.4}}
-        with patch.object(core, "rain_gauges", return_value=[]), \\
-             patch.object(core, "rain_amount_mm", return_value=None), \\
+        with patch.object(core, "rain_gauges", return_value=[]), \
+             patch.object(core, "rain_amount_mm", return_value=None), \
              patch.object(core, "rain_event_summary", return_value=summary):
             gauges, note = core.rain_overview_data(self.config(), {}, state)
         self.assertIsNone(note)
@@ -170,9 +170,9 @@ class WeatherRainEventSummaryTests(unittest.TestCase):
         summary = {"kind": "last", "label": "Last rain event",
                    "value": "12.7 mm", "detail": "28/10 14:00"}
         state = {"weather_rain_derived": {"last_event_total_in": 0.5}}
-        with patch.object(core, "rain_gauges", return_value=[source]), \\
+        with patch.object(core, "rain_gauges", return_value=[source]), \
              patch.object(core, "rain_amount_mm",
-                          side_effect=lambda field, *_: 3 if field == "event_rain" else 0), \\
+                          side_effect=lambda field, *_: 3 if field == "event_rain" else 0), \
              patch.object(core, "rain_event_summary", return_value=summary):
             gauges, note = core.rain_overview_data(self.config(), {}, state)
         self.assertEqual(gauges, [source])
@@ -183,9 +183,9 @@ class WeatherRainEventSummaryTests(unittest.TestCase):
                   "percent": 0.0, "max_label": "5.0 mm"}
         summary = {"kind": "last", "label": "Last rain event",
                    "value": "0.3 mm", "detail": "29/10 22:33"}
-        with patch.object(core, "rain_gauges", return_value=[source]), \\
+        with patch.object(core, "rain_gauges", return_value=[source]), \
              patch.object(core, "rain_amount_mm",
-                          side_effect=lambda field, *_: 1 if field == "rain_rate" else 0), \\
+                          side_effect=lambda field, *_: 1 if field == "rain_rate" else 0), \
              patch.object(core, "rain_event_summary", return_value=summary):
             gauges, note = core.rain_overview_data(
                 self.config(), {},
@@ -199,8 +199,8 @@ class WeatherRainEventSummaryTests(unittest.TestCase):
                   "percent": 0.0, "max_label": "5.0 mm"}
         summary = {"kind": "last", "label": "Last rain event",
                    "value": "0.3 mm", "detail": "29/10 22:33"}
-        with patch.object(core, "rain_gauges", return_value=[source]), \\
-             patch.object(core, "rain_amount_mm", return_value=0), \\
+        with patch.object(core, "rain_gauges", return_value=[source]), \
+             patch.object(core, "rain_amount_mm", return_value=0), \
              patch.object(core, "rain_event_summary", return_value=summary):
             gauges, note = core.rain_overview_data(self.config(), {}, {})
         self.assertEqual(gauges, [source])
