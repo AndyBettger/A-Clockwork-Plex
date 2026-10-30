@@ -449,6 +449,49 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("20261010-b6-long-v1", base)
 
 
+    def test_spatial_transition_retires_old_clones_before_cancelling_filled_animation(self):
+        source = APPLICATION_SURFACES.read_text(encoding="utf-8")
+        segment = source.split(
+            "async function spatialLiveCommit(direction, from, to, commit)", 1
+        )[1].split("  surfaces.forEach((surface) => {", 1)[0]
+        cleanup = segment.split("    } finally {", 1)[1]
+        # Cancelling the fill:'both' animation on an attached outgoing clone
+        # restores the starting transform at x=0; WebKit may paint it briefly.
+        self.assertIn("fill: 'both'", segment)
+        self.assertIn("layer.style.visibility = 'hidden'", cleanup)
+        self.assertIn("layer.remove()", cleanup)
+        self.assertIn("screen.style.transform = 'translateX(0)'", cleanup)
+        self.assertLess(cleanup.index("layer.remove()"),
+                        cleanup.index("animation.cancel()"))
+        self.assertLess(cleanup.index("screen.style.transform = 'translateX(0)'"),
+                        cleanup.index("animation.cancel()"))
+        self.assertLess(cleanup.index("animation.cancel()"),
+                        cleanup.index("screen.style.transform = ''"))
+        self.assertLess(cleanup.index("screen.style.transform = ''"),
+                        cleanup.index("document.body.classList.remove('acp-spatial-live-commit')"))
+
+    def test_ordinary_transition_protects_destination_before_cancelling_old_clone(self):
+        source = APPLICATION_SURFACES.read_text(encoding="utf-8")
+        segment = source.split(
+            "async function ordinaryLiveCommit(from, commit)", 1
+        )[1].split("  async function spatialLiveCommit", 1)[0]
+        cleanup = segment.split("    } finally {", 1)[1]
+        self.assertIn("outgoing.style.visibility = 'hidden'", cleanup)
+        self.assertIn("outgoing.remove()", cleanup)
+        self.assertIn("applyInitialFrame(screen, frames.incoming[frames.incoming.length - 1])",
+                      cleanup)
+        self.assertLess(cleanup.index("outgoing.remove()"),
+                        cleanup.index("animation.cancel()"))
+        self.assertLess(cleanup.index("applyInitialFrame(screen, frames.incoming[frames.incoming.length - 1])"),
+                        cleanup.index("animation.cancel()"))
+        self.assertLess(cleanup.index("animation.cancel()"),
+                        cleanup.index("clearOrdinaryTransitionStyles(screen)"))
+
+    def test_acp_surface_cache_busts_old_transition_cleanup(self):
+        base = BASE.read_text(encoding="utf-8")
+        self.assertIn("js/acp-application-surfaces.js', v='20261030-webkit-final-frame-v1'",
+                      base)
+
     def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
         plexamp = PLEXAMP_JS.read_text(encoding="utf-8")
