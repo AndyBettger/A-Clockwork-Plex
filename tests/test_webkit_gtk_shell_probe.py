@@ -372,6 +372,33 @@ class WebKitProbeTests(unittest.TestCase):
                       src)
         self.assertNotIn("systemctl restart", src)
 
+    def test_surface_probe_observes_on_screen_navigation_not_only_fkeys(self):
+        script = probe.SURFACE_TRANSITION_TRIAL_SCRIPT
+        metrics = probe.SURFACE_TRANSITION_METRICS_SCRIPT
+        self.assertIn("document.addEventListener('acp:surface-changed'", script)
+        self.assertIn("document.addEventListener('acp:surface-settled'", script)
+        self.assertIn("state.lastObserved =", script)
+        self.assertIn("source: detail.source || null", script)
+        self.assertIn("state.recentRoutes.push(state.lastObserved)", script)
+        self.assertIn("state.recentRoutes.length > 8", script)
+        self.assertIn("recentRoutes: trial?.state.recentRoutes || []", metrics)
+        self.assertIn("lastObserved: trial?.state.lastObserved || null", metrics)
+        self.assertIn("outgoingCloneCount:", metrics)
+        self.assertIn("navOpen:", metrics)
+        self.assertIn("bodyTransitionClass:", metrics)
+        self.assertIn("screenTransform:", metrics)
+        self.assertNotIn("fetch(", metrics)
+
+    def test_surface_probe_samples_changed_state_without_idle_log_spam(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('GLib.timeout_add_seconds(2, periodically_report_surface_layout, webview)', source)
+        self.assertIn('if args.surface_transition_trial:', source)
+        self.assertIn('state = json.loads(payload)', source)
+        self.assertIn('if signature != last_reported_surface["signature"]:', source)
+        self.assertIn('return True\n\n    def on_load(view, event):', source)
+        self.assertIn('last_reported_surface["signature"] = None', source)
+        self.assertNotIn("webview.reload()", source)
+
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("prior_sigint = signal.getsignal(signal.SIGINT)", src)
