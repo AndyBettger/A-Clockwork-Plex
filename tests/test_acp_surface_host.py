@@ -26,6 +26,15 @@ WORKSPACE_TOPOLOGY = ROOT / "app" / "static" / "js" / "workspace-topology.js"
 
 
 class AcpSurfaceHostTests(unittest.TestCase):
+    def assert_navigation_assets_versioned(self, template: str) -> None:
+        """Check active nav resources, not an obsolete asset-cache token."""
+        self.assertRegex(
+            template, r"filename='css/nav\\.css', v='[^']+'",
+        )
+        self.assertRegex(
+            template, r"filename='js/nav-drawer\\.js', v='[^']+'",
+        )
+
     def test_surface_host_loads_before_legacy_page_transition_owner(self):
         base = BASE.read_text(encoding="utf-8")
         host_index = base.index("js/acp-surface-host.js")
@@ -138,7 +147,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
 
         self.assertIn("mainNav.querySelector('.nav-utilities') || mainNav", drawer)
         self.assertIn("nav-utility-button nav-audio-button", drawer)
-        self.assertIn("20261009-b5-labels-v3", base)
+        self.assert_navigation_assets_versioned(base)
         self.assertIn("20261007-nav-shell-v8", base)
 
     def test_shell_navigation_interactions_survive_surface_dom_changes(self):
@@ -188,7 +197,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         # without becoming a full-width transparent interception layer.
         self.assertIn("z-index: 90", styles)
         self.assertIn("z-index: 30", plexamp)
-        self.assertIn("20261009-b5-labels-v3", base)
+        self.assert_navigation_assets_versioned(base)
 
     def test_navigation_mode_lifts_live_surface_under_shell_backdrop(self):
         navigation = NAV_TEMPLATE.read_text(encoding="utf-8")
@@ -270,7 +279,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("--plexamp-app-transition-in-duration: var(--acp-transition-in-duration)", plexamp)
         self.assertIn("opacity var(--plexamp-app-transition-in-duration)", plexamp)
         self.assertIn('html[data-transition-style="none"] .persistent-plexamp.is-closing', plexamp)
-        self.assertIn("20261009-b5-labels-v3", base)
+        self.assert_navigation_assets_versioned(base)
 
     def test_audio_is_overlay_above_live_surface_and_uses_page_transition_duration(self):
         drawer = NAV_DRAWER.read_text(encoding="utf-8")
@@ -322,7 +331,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("const restoreNavigationMode = consumeNavigationModeTransfer()", drawer)
         self.assertIn("setExpanded(restoreNavigationMode)", drawer)
 
-        self.assertIn("20261009-b5-labels-v3", base)
+        self.assert_navigation_assets_versioned(base)
 
     def test_surface_host_has_prepare_commit_and_view_transition_contract(self):
         source = HOST.read_text(encoding="utf-8")
@@ -426,7 +435,11 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("await commit()", surfaces)
         self.assertIn("animations.map((animation) => animation.finished.catch", surfaces)
         self.assertIn("screen.style.transform = ''", surfaces)
-        self.assertIn("layers.forEach((layer) => layer.remove())", surfaces)
+        # Spatial cleanup must detach and hide outgoing layers before
+        # cancellation; the original one-line removal became a guarded loop.
+        self.assertIn("layers.forEach((layer) => {", surfaces)
+        self.assertIn("layer.style.visibility = 'hidden'", surfaces)
+        self.assertIn("layer.remove()", surfaces)
         self.assertIn("const expectedDirection = spatialSurfaceDirection(from, surface)", surfaces)
         self.assertIn("direction !== expectedDirection", surfaces)
         self.assertIn("await spatialLiveCommit(direction, from, surface, commit)", surfaces)
