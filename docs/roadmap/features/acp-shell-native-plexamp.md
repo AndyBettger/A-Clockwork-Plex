@@ -1,9 +1,17 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** ACTIVE — Phase A complete; Phase B native navigation functionally accepted on development Pi, but visual Audio ownership remains unresolved. **Selected next direction:** GTK3-managed WebKitGTK shell with native Plexamp as a separate Wayland Flatpak. This is a design decision, **not an implemented migration or production release**.  
-**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 30 October 2026  
+**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 1 November 2026  
 **Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
 
+
+## 1 November 2026 — Pi suite 21/26: five obsolete assertions repaired, animation still awaits visual retest
+
+**Operator Pi run at `c694f207`:** `git pull --ff-only` PASS, `python3 -m py_compile tests/test_acp_surface_host.py` PASS, `test_acp_surface_host.py` **21/26 PASS; 5 FAIL**. Importantly, all **three new regression tests** for outgoing-clone cancellation order, destination final-frame pinning and mounted-surface asset cache-busting **PASSED**. Four unrelated older B5 navigation tests failed only because they asserted the removed literal cache token `20261009-b5-labels-v3` in `base.html`; current real nav CSS and JS are present with newer separate versions. One older B4 Spatial Row test expected `layers.forEach((layer) => layer.remove())`, the exact one-line teardown deliberately replaced with a guarded `visibility='hidden'` + `layer.remove()` loop. These source/string expectations are stale; they are *not evidence* that the WebKit page transition visually works or fails.
+
+**Test-only repair committed:** `tests/test_acp_surface_host.py` now uses a shared assertion requiring both `css/nav.css` and `js/nav-drawer.js` to be referenced with a non-empty version token, rather than requiring one obsolete B5 token. The older Spatial Row assertion now checks that the outgoing layer is hidden and removed in the guarded cleanup; the new dedicated tests continue verifying removal occurs **before** Web Animation cancellation. **No further production animation/GTK/Flask changes** for these five failures. Suite remains **26 tests** and is awaiting rerun on Pi.
+
+**Next gate:** Pull test-only fix, compile test file and rerun only `test_acp_surface_host.py` (**26 expected**). If green, run the same bounded fullscreen forced-SHM WebKit `--surface-transition-trial --surface-transition-mode spatial` to see whether the **outgoing-page flash at slide completion** is actually gone. Do **not** claim the visual defect resolved based on source/contract tests. If visual flash is still present, instrument end-of-animation painting and swap rather than changing unrelated CSS. Full #94 shell migration, native Plexamp overlay and B4.4 remain out of scope of this verification.
 
 ## 30 October 2026 — Mounted WebKit Spatial Row routing PASS, 1-frame previous-page flash at animation finish (cleanup fix staged)
 
