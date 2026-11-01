@@ -29,10 +29,10 @@ class AcpSurfaceHostTests(unittest.TestCase):
     def assert_navigation_assets_versioned(self, template: str) -> None:
         """Check active nav resources, not an obsolete asset-cache token."""
         self.assertRegex(
-            template, r"filename='css/nav\\.css', v='[^']+'",
+            template, r"filename='css/nav\.css', v='[^']+'",
         )
         self.assertRegex(
-            template, r"filename='js/nav-drawer\\.js', v='[^']+'",
+            template, r"filename='js/nav-drawer\.js', v='[^']+'",
         )
 
     def test_surface_host_loads_before_legacy_page_transition_owner(self):
