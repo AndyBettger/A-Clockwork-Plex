@@ -1,6 +1,6 @@
 # A Clockwork Plex — Project Roadmap
 
-**Updated:** 30 October 2026 · **Published release:** v0.4.0 (23 August 2026)  
+**Updated:** 1 November 2026 · **Published release:** v0.4.0 (23 August 2026)  
 **Active development branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > This is the **project-level overview**, not a test diary. A Clockwork Plex is currently running on a **development/test Raspberry Pi**, not yet a signed-off bedside appliance. Feature-specific requirements, acceptance results, defects and next checks belong in the linked [feature roadmaps](features/README.md) and [testing catalogue](../development/testing/test-catalogue.md).
