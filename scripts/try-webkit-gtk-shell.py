@@ -222,10 +222,35 @@ SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
 (() => {
   if (window.__acpWebkitSurfaceTrial) return;
   const allow = ['clock', 'weather', 'news', 'airplay', 'settings'];
-  const state = {requests: 0, changed: 0, settled: 0, failures: 0, last: null};
+  const state = {
+    requests: 0, changed: 0, settled: 0, failures: 0,
+    last: null, lastObserved: null, recentRoutes: [],
+  };
   let busy = false;
-  document.addEventListener('acp:surface-changed', () => { state.changed += 1; });
-  document.addEventListener('acp:surface-settled', () => { state.settled += 1; });
+  const started = new Map();
+  document.addEventListener('acp:surface-changed', (event) => {
+    state.changed += 1;
+    const detail = event.detail || {};
+    started.set(detail.surface, performance.now());
+    state.lastObserved = {
+      phase: 'changed', from: detail.from || null,
+      target: detail.surface || null, source: detail.source || null,
+    };
+  });
+  document.addEventListener('acp:surface-settled', (event) => {
+    state.settled += 1;
+    const detail = event.detail || {};
+    const openedAt = started.get(detail.surface);
+    started.delete(detail.surface);
+    state.lastObserved = {
+      phase: 'settled', from: detail.from || null,
+      target: detail.surface || null, source: detail.source || null,
+      elapsedMs: Number.isFinite(openedAt)
+        ? Math.round(performance.now() - openedAt) : null,
+    };
+    state.recentRoutes.push(state.lastObserved);
+    if (state.recentRoutes.length > 8) state.recentRoutes.shift();
+  });
   window.__acpWebkitSurfaceTrial = {
     state,
     async navigate(target, kind) {
@@ -302,7 +327,13 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    settled: trial?.state.settled || 0,
    requests: trial?.state.requests || 0,
    failures: trial?.state.failures || 0,
-   last: trial?.state.last || null
+   last: trial?.state.last || null,
+   lastObserved: trial?.state.lastObserved || null,
+   recentRoutes: trial?.state.recentRoutes || [],
+   navOpen: document.body.classList.contains('nav-open'),
+   outgoingCloneCount: document.querySelectorAll('.acp-spatial-outgoing-live-clone').length,
+   screenTransform: document.querySelector('main.screen')?.style.transform || '',
+   bodyTransitionClass: document.body.classList.contains('acp-spatial-live-commit')
  });
 })()
 """
@@ -605,15 +636,27 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                   f"({type(exc).__name__}: {exc})", flush=True)
         return False
 
+    last_reported_surface = {"signature": None}
+
     def report_surface_layout(view):
-        # Read-only metrics are asynchronous: this is not a continuous FPS
-        # measurement. Include acceptance, which surfaces mounted, and proof
-        # no new top-level document navigation occurred.
+        # Read-only, sampled event diagnostics; captures page/menu transitions
+        # even if F1-F5 were never pressed. Avoid a 120s flood of idle lines.
         def finished(result_view, result, _data):
             try:
                 value = result_view.evaluate_javascript_finish(result)
-                print("ACP WebKit probe: surface transition " + value.to_string(),
-                      flush=True)
+                payload = value.to_string()
+                state = json.loads(payload)
+                signature = (
+                    state.get("status"), state.get("active"),
+                    state.get("requests"), state.get("changed"),
+                    state.get("settled"), state.get("failures"),
+                    state.get("transitionInFlight"),
+                    state.get("outgoingCloneCount"),
+                )
+                if signature != last_reported_surface["signature"]:
+                    last_reported_surface["signature"] = signature
+                    print("ACP WebKit probe: surface transition " + payload,
+                          flush=True)
             except Exception as exc:
                 print("ACP WebKit probe: surface transition metrics unavailable "
                       f"({type(exc).__name__}: {exc})", flush=True)
@@ -625,6 +668,10 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
             print("ACP WebKit probe: surface transition status unavailable "
                   f"({type(exc).__name__}: {exc})", flush=True)
         return False
+
+    def periodically_report_surface_layout(view):
+        report_surface_layout(view)
+        return True
 
     def on_load(view, event):
         if event == WebKit2.LoadEvent.STARTED:
@@ -644,6 +691,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                       "(window decorations or compositor size); use --fullscreen "
                       "to compare at the actual panel resolution.", flush=True)
             if args.surface_transition_trial:
+                last_reported_surface["signature"] = None
                 GLib.timeout_add(700, report_surface_layout, view)
             if view.get_uri() and urlsplit(view.get_uri()).path == "/weather":
                 GLib.timeout_add(700, report_rain_layout, view)
@@ -731,6 +779,11 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         print("ACP WebKit probe: WebKit FPS indicator requested "
               "(if supported by installed build)", flush=True)
     webview.load_uri(url_root + "/" + args.page)
+    if args.surface_transition_trial:
+        # The normal on-screen ACP nav directly calls ACPSurfaceHost; only
+        # F-key requests go through our injected navigate() wrapper. Sample
+        # the real host events in either case, but stay idle when nothing moves.
+        GLib.timeout_add_seconds(2, periodically_report_surface_layout, webview)
     GLib.timeout_add_seconds(args.seconds, quit_if_running)
     try:
         Gtk.main()
