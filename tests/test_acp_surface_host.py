@@ -435,11 +435,9 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("await commit()", surfaces)
         self.assertIn("animations.map((animation) => animation.finished.catch", surfaces)
         self.assertIn("screen.style.transform = ''", surfaces)
-        # Spatial cleanup must detach and hide outgoing layers before
-        # cancellation; the original one-line removal became a guarded loop.
-        self.assertIn("layers.forEach((layer) => {", surfaces)
-        self.assertIn("layer.style.visibility = 'hidden'", surfaces)
-        self.assertIn("layer.remove()", surfaces)
+        # Previous sequence was visually smoother on the development Pi.
+        # Keep baseline teardown intact while diagnostic comparisons run.
+        self.assertIn("layers.forEach((layer) => layer.remove())", surfaces)
         self.assertIn("const expectedDirection = spatialSurfaceDirection(from, surface)", surfaces)
         self.assertIn("direction !== expectedDirection", surfaces)
         self.assertIn("await spatialLiveCommit(direction, from, surface, commit)", surfaces)
@@ -462,48 +460,44 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertIn("20261010-b6-long-v1", base)
 
 
-    def test_spatial_transition_retires_old_clones_before_cancelling_filled_animation(self):
+    def test_spatial_baseline_cleans_animations_and_removes_all_clones(self):
+        """Baseline rollback: the previous renderer sequence is under comparison."""
         source = APPLICATION_SURFACES.read_text(encoding="utf-8")
         segment = source.split(
             "async function spatialLiveCommit(direction, from, to, commit)", 1
         )[1].split("  surfaces.forEach((surface) => {", 1)[0]
         cleanup = segment.split("    } finally {", 1)[1]
-        # Cancelling the fill:'both' animation on an attached outgoing clone
-        # restores the starting transform at x=0; WebKit may paint it briefly.
         self.assertIn("fill: 'both'", segment)
-        self.assertIn("layer.style.visibility = 'hidden'", cleanup)
-        self.assertIn("layer.remove()", cleanup)
-        self.assertIn("screen.style.transform = 'translateX(0)'", cleanup)
-        self.assertLess(cleanup.index("layer.remove()"),
-                        cleanup.index("animation.cancel()"))
-        self.assertLess(cleanup.index("screen.style.transform = 'translateX(0)'"),
-                        cleanup.index("animation.cancel()"))
+        self.assertIn("animations.forEach((animation) => animation.cancel())", cleanup)
+        self.assertIn("screen.style.transform = ''", cleanup)
+        self.assertIn("layers.forEach((layer) => layer.remove())", cleanup)
         self.assertLess(cleanup.index("animation.cancel()"),
-                        cleanup.index("screen.style.transform = ''"))
-        self.assertLess(cleanup.index("screen.style.transform = ''"),
+                        cleanup.index("layers.forEach((layer) => layer.remove())"))
+        self.assertLess(cleanup.index("layers.forEach((layer) => layer.remove())"),
                         cleanup.index("document.body.classList.remove('acp-spatial-live-commit')"))
 
-    def test_ordinary_transition_protects_destination_before_cancelling_old_clone(self):
+    def test_ordinary_baseline_cleans_animations_and_outgoing_clone(self):
+        """Check baseline resource cleanup, not an unproven no-flash claim."""
         source = APPLICATION_SURFACES.read_text(encoding="utf-8")
         segment = source.split(
             "async function ordinaryLiveCommit(from, commit)", 1
         )[1].split("  async function spatialLiveCommit", 1)[0]
         cleanup = segment.split("    } finally {", 1)[1]
-        self.assertIn("outgoing.style.visibility = 'hidden'", cleanup)
-        self.assertIn("outgoing.remove()", cleanup)
-        self.assertIn("applyInitialFrame(screen, frames.incoming[frames.incoming.length - 1])",
+        self.assertIn("animations.forEach((animation) => animation.cancel())",
                       cleanup)
-        self.assertLess(cleanup.index("outgoing.remove()"),
-                        cleanup.index("animation.cancel()"))
-        self.assertLess(cleanup.index("applyInitialFrame(screen, frames.incoming[frames.incoming.length - 1])"),
-                        cleanup.index("animation.cancel()"))
+        self.assertIn("clearOrdinaryTransitionStyles(screen)", cleanup)
+        self.assertIn("outgoing.remove()", cleanup)
         self.assertLess(cleanup.index("animation.cancel()"),
                         cleanup.index("clearOrdinaryTransitionStyles(screen)"))
+        self.assertLess(cleanup.index("clearOrdinaryTransitionStyles(screen)"),
+                        cleanup.index("outgoing.remove()"))
 
-    def test_acp_surface_cache_busts_old_transition_cleanup(self):
+    def test_acp_surface_cache_refreshes_reverted_transition_baseline(self):
         base = BASE.read_text(encoding="utf-8")
-        self.assertIn("js/acp-application-surfaces.js', v='20261030-webkit-final-frame-v1'",
-                      base)
+        self.assertIn(
+            "js/acp-application-surfaces.js', v='20261101-webkit-rollback-baseline-v1'",
+            base,
+        )
 
     def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
