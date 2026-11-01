@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK now navigates mounted ACP pages in **one document** (27/27 probe tests and 11/11 physical routes PASS), but the previous page briefly flashes at the end of Spatial Row. A focused clone-cleanup fix is staged for Pi verification before Cover Reveal and GTK shell ownership integration. **B4.4 startup remains deferred.**
+- **Next milestone:** WebKitGTK's single-document Spatial Row routing works, but end-frame flashing remains. A speculative cleanup fix increased animation/nav jitter despite **26/26 Pi unit tests passing**; the renderer has been reverted to its previously smoother baseline, with improved passive navigation diagnostics awaiting Pi verification. Cover Reveal and **B4.4 startup remain deferred.**
 
 ## Feature portfolio
 
