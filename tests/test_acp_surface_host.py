@@ -517,7 +517,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
                         cleanup.index("layers.forEach((layer) => layer.remove())"))
         # The failed remove-before-cancel variant must not return.
         self.assertNotIn("layer.style.visibility = 'hidden'", cleanup)
-        self.assertNotIn("layer.remove()", cleanup)
+        self.assertNotIn("        layer.remove();", cleanup)
 
     def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
