@@ -399,6 +399,26 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn('last_reported_surface["signature"] = None', source)
         self.assertNotIn("webview.reload()", source)
 
+    def test_spatial_pin_ab_mode_only_available_inside_opt_in_webkit_trial(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if key == "F6" and args.surface_transition_trial:', source)
+        self.assertIn('window.__acpWebkitSpatialPinTrial !== true', source)
+        self.assertIn("window.ACPSurfaceHost?.isTransitioning?.()", source)
+        self.assertIn("'busy'", source)
+        self.assertIn("'pinned'", source)
+        self.assertIn("'baseline'", source)
+        self.assertIn("after_toggle", source)
+        self.assertIn("F6 toggles Spatial Row cleanup", source)
+        self.assertIn("F1-F5 use the existing ACP mounted-surface", source)
+        self.assertIn("webview.load_uri(url_root + \"/\" + page)", source)
+
+    def test_surface_status_reports_pin_mode_and_count_without_backend_calls(self):
+        js = probe.SURFACE_TRANSITION_METRICS_SCRIPT
+        self.assertIn("spatialPinTrial: window.__acpWebkitSpatialPinTrial === true", js)
+        self.assertIn("spatialPinApplied: window.__acpWebkitSpatialPinTrialApplied || 0", js)
+        self.assertNotIn("fetch(", js)
+        self.assertNotIn("location.assign", js)
+
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("prior_sigint = signal.getsignal(signal.SIGINT)", src)
