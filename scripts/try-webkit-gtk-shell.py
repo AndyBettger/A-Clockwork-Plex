@@ -654,6 +654,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("settled"), state.get("failures"),
                     state.get("transitionInFlight"),
                     state.get("outgoingCloneCount"),
+                    state.get("spatialPinTrial"), state.get("spatialPinApplied"),
                 )
                 if signature != last_reported_surface["signature"]:
                     last_reported_surface["signature"] = signature
