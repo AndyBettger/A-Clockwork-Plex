@@ -549,6 +549,20 @@
         animations.map((animation) => animation.finished.catch(() => undefined)),
       );
     } finally {
+      // WebKit-only, developer opt-in A/B trial. Pin the spatial strip at its
+      // *finished* transforms before cancelling fill:'both' animations.
+      // Unlike the reverted trial, this does NOT detach animated layers first
+      // (which caused widespread compositor/nav jitter). The ordinary cleanup
+      // order below remains unchanged when the flag is absent/false.
+      if (window.__acpWebkitSpatialPinTrial === true && animations.length) {
+        layers.forEach((layer, index) => {
+          const end = directionSign * (index - distance) * 100;
+          layer.style.transform = `translateX(${end}vw)`;
+        });
+        screen.style.transform = 'translateX(0)';
+        window.__acpWebkitSpatialPinTrialApplied =
+          (window.__acpWebkitSpatialPinTrialApplied || 0) + 1;
+      }
       animations.forEach((animation) => animation.cancel());
       screen.style.transform = '';
       layers.forEach((layer) => layer.remove());
