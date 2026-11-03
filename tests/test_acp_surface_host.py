@@ -492,12 +492,32 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertLess(cleanup.index("clearOrdinaryTransitionStyles(screen)"),
                         cleanup.index("outgoing.remove()"))
 
-    def test_acp_surface_cache_refreshes_reverted_transition_baseline(self):
+    def test_acp_surface_cache_refreshes_spatial_ab_trial(self):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn(
-            "js/acp-application-surfaces.js', v='20261101-webkit-rollback-baseline-v1'",
+            "js/acp-application-surfaces.js', v='20261103-webkit-spatial-pin-ab-v1'",
             base,
         )
+
+    def test_spatial_pin_experiment_is_opt_in_and_retains_baseline_cleanup_order(self):
+        source = APPLICATION_SURFACES.read_text(encoding="utf-8")
+        segment = source.split(
+            "async function spatialLiveCommit(direction, from, to, commit)", 1
+        )[1].split("  surfaces.forEach((surface) => {", 1)[0]
+        cleanup = segment.split("    } finally {", 1)[1]
+        self.assertIn("if (window.__acpWebkitSpatialPinTrial === true && animations.length)", cleanup)
+        self.assertIn("directionSign * (index - distance) * 100", cleanup)
+        self.assertIn("layer.style.transform = `translateX(${end}vw)`", cleanup)
+        self.assertIn("screen.style.transform = 'translateX(0)'", cleanup)
+        self.assertIn("window.__acpWebkitSpatialPinTrialApplied =", cleanup)
+        # The default path stays as the physically smoother baseline.
+        self.assertLess(cleanup.index("animations.forEach((animation) => animation.cancel())"),
+                        cleanup.index("layers.forEach((layer) => layer.remove())"))
+        self.assertLess(cleanup.index("screen.style.transform = ''"),
+                        cleanup.index("layers.forEach((layer) => layer.remove())"))
+        # The failed remove-before-cancel variant must not return.
+        self.assertNotIn("layer.style.visibility = 'hidden'", cleanup)
+        self.assertNotIn("layer.remove()", cleanup)
 
     def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")
