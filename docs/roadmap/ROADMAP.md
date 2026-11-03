@@ -1,6 +1,6 @@
 # A Clockwork Plex — Project Roadmap
 
-**Updated:** 1 November 2026 · **Published release:** v0.4.0 (23 August 2026)  
+**Updated:** 3 November 2026 · **Published release:** v0.4.0 (23 August 2026)  
 **Active development branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > This is the **project-level overview**, not a test diary. A Clockwork Plex is currently running on a **development/test Raspberry Pi**, not yet a signed-off bedside appliance. Feature-specific requirements, acceptance results, defects and next checks belong in the linked [feature roadmaps](features/README.md) and [testing catalogue](../development/testing/test-catalogue.md).
@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK's single-document Spatial Row routing works, but end-frame flashing remains. A speculative cleanup fix increased animation/nav jitter despite **26/26 Pi unit tests passing**; the renderer has been reverted to its previously smoother baseline, with improved passive navigation diagnostics awaiting Pi verification. Cover Reveal and **B4.4 startup remain deferred.**
+- **Next milestone:** WebKitGTK same-document Spatial Row routing and Rain layout work; a reverted end-frame fix removed broad animation jitter but **the outgoing-page flash and some nav flicker remain** (26/26 host + 29/29 WebKit Pi tests pass). A reversible F6 baseline/pinned-frame comparison is staged in the WebKit developer preview; visual acceptance, Cover Reveal and **B4.4 startup remain deferred.**
 
 ## Feature portfolio
 
