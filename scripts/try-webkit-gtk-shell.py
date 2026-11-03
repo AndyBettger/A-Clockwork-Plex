@@ -331,6 +331,8 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    lastObserved: trial?.state.lastObserved || null,
    recentRoutes: trial?.state.recentRoutes || [],
    navOpen: document.body.classList.contains('nav-open'),
+   spatialPinTrial: window.__acpWebkitSpatialPinTrial === true,
+   spatialPinApplied: window.__acpWebkitSpatialPinTrialApplied || 0,
    outgoingCloneCount: document.querySelectorAll('.acp-spatial-outgoing-live-clone').length,
    screenTransform: document.querySelector('main.screen')?.style.transform || '',
    bodyTransitionClass: document.body.classList.contains('acp-spatial-live-commit')
@@ -720,6 +722,32 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                                             event.state & Gdk.ModifierType.CONTROL_MASK):
             quit_if_running()
             return True
+        if key == "F6" and args.surface_transition_trial:
+            # Reversible same-process A/B test: don't switch variants while
+            # an animation is in flight. Never touches backend/service state.
+            javascript = (
+                "(() => {"
+                "if (window.ACPSurfaceHost?.isTransitioning?.()) return 'busy';"
+                "window.__acpWebkitSpatialPinTrial = "
+                "window.__acpWebkitSpatialPinTrial !== true;"
+                "return window.__acpWebkitSpatialPinTrial ? 'pinned' : 'baseline';"
+                "})()"
+            )
+            def after_toggle(result_view, result, _data):
+                try:
+                    outcome = result_view.evaluate_javascript_finish(result).to_string()
+                    print("ACP WebKit probe: Spatial Row A/B mode " + outcome,
+                          flush=True)
+                    report_surface_layout(result_view)
+                except Exception as exc:
+                    print("ACP WebKit probe: Spatial Row A/B toggle failed "
+                          f"({type(exc).__name__}: {exc})", flush=True)
+            try:
+                webview.evaluate_javascript(
+                    javascript, -1, None, None, None, after_toggle, None)
+            except Exception as exc:
+                print(f"ACP WebKit probe: F6 invocation failed: {exc}", flush=True)
+            return True
         pages = {f"F{i+1}": page for i, page in enumerate(PAGES)}
         if key in pages:
             page = pages[key]
@@ -761,6 +789,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
     if args.surface_transition_trial:
         print("ACP WebKit probe: F1-F5 use the existing ACP mounted-surface "
               "router, NOT a document reload; mode=" + args.surface_transition_mode,
+              flush=True)
+        print("ACP WebKit probe: F6 toggles Spatial Row cleanup: "
+              "BASELINE (default) / PINNED (experiment); not during animation",
               flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
