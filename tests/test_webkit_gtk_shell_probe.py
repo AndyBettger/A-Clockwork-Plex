@@ -399,25 +399,49 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn('last_reported_surface["signature"] = None', source)
         self.assertNotIn("webview.reload()", source)
 
-    def test_spatial_pin_ab_mode_only_available_inside_opt_in_webkit_trial(self):
+    def test_isolation_css_is_scoped_to_webkit_and_keeps_nav_structure(self):
+        css = probe.SURFACE_COMPOSITOR_ISOLATION_CSS
+        self.assertIn(
+            "html.acp-webkit-hide-outgoing-trial .acp-spatial-outgoing-live-clone",
+            css)
+        self.assertIn("visibility: hidden !important;", css)
+        self.assertIn("html.acp-webkit-flat-nav-trial .nav-drawer", css)
+        self.assertIn("html.acp-webkit-flat-nav-trial .nav-backdrop", css)
+        self.assertIn("backdrop-filter: none !important;", css)
+        self.assertNotIn("display: none", css)
+        self.assertNotIn("pointer-events", css)
+        self.assertNotIn("main.screen", css)
+        self.assertNotIn("body.mode-", css)
+        self.assertNotIn(".rain-gauge", css)
+
+    def test_isolation_hotkeys_require_optin_and_wait_for_idle(self):
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('if key == "F6" and args.surface_transition_trial:', source)
-        self.assertIn('window.__acpWebkitSpatialPinTrial !== true', source)
+        self.assertIn(
+            'if key in ("F6", "F7") and args.surface_transition_trial:',
+            source)
         self.assertIn("window.ACPSurfaceHost?.isTransitioning?.()", source)
         self.assertIn("'busy'", source)
-        self.assertIn("'pinned'", source)
-        self.assertIn("'baseline'", source)
-        self.assertIn("after_toggle", source)
-        self.assertIn("F6 toggles Spatial Row cleanup", source)
-        self.assertIn("F1-F5 use the existing ACP mounted-surface", source)
-        self.assertIn("webview.load_uri(url_root + \"/\" + page)", source)
+        self.assertIn("window.__acpWebkitSurfaceTrial", source)
+        self.assertIn("acp-webkit-hide-outgoing-trial", source)
+        self.assertIn("acp-webkit-flat-nav-trial", source)
+        self.assertIn("root.classList.toggle(cls)", source)
+        self.assertIn("WebKit2.UserStyleLevel.USER", source)
+        self.assertIn("(args.surface_transition_trial, SURFACE_COMPOSITOR_ISOLATION_CSS,",
+                      source)
+        self.assertIn("F6 suppresses outgoing clone paint", source)
+        self.assertNotIn("__acpWebkitSpatialPinTrial", source)
 
-    def test_surface_status_reports_pin_mode_and_count_without_backend_calls(self):
+    def test_surface_status_reports_both_visual_isolation_modes_read_only(self):
         js = probe.SURFACE_TRANSITION_METRICS_SCRIPT
-        self.assertIn("spatialPinTrial: window.__acpWebkitSpatialPinTrial === true", js)
-        self.assertIn("spatialPinApplied: window.__acpWebkitSpatialPinTrialApplied || 0", js)
+        self.assertIn("clonePaintSuppressed:", js)
+        self.assertIn("navBlurDisabled:", js)
+        self.assertIn("navDrawerFilter:", js)
+        self.assertIn("outgoingCloneCount:", js)
         self.assertNotIn("fetch(", js)
         self.assertNotIn("location.assign", js)
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('state.get("clonePaintSuppressed"), state.get("navBlurDisabled")',
+                      source)
 
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
