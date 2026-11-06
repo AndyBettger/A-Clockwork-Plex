@@ -417,7 +417,7 @@ class WebKitProbeTests(unittest.TestCase):
     def test_isolation_hotkeys_require_optin_and_wait_for_idle(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn(
-            'if key in ("F6", "F7") and args.surface_transition_trial:',
+            'if key in ("F6", "F7", "F11") and args.surface_transition_trial:',
             source)
         self.assertIn("window.ACPSurfaceHost?.isTransitioning?.()", source)
         self.assertIn("'busy'", source)
@@ -436,6 +436,9 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("clonePaintSuppressed:", js)
         self.assertIn("navBlurDisabled:", js)
         self.assertIn("navDrawerFilter:", js)
+        self.assertIn("navLayoutTrial:", js)
+        self.assertIn("recentNavigation:", js)
+        self.assertIn("navChrome:", js)
         self.assertIn("outgoingCloneCount:", js)
         self.assertNotIn("fetch(", js)
         self.assertNotIn("location.assign", js)

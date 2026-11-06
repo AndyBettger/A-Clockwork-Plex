@@ -223,7 +223,8 @@ RAIN_LAYOUT_METRICS_SCRIPT = r"""
 # page remains the only renderer of page content; this leaves an expected
 # dark gap during slides and is NOT a candidate animation design. F7 removes
 # blurred navigation backdrops while preserving navigation and click targets.
-# Both begin OFF and never affect production CSS or persistent preferences.
+# F11 compares layout-positioned drawer/handle movement instead of animated
+# translate/opacity. All begin OFF in this WebView only.
 SURFACE_COMPOSITOR_ISOLATION_CSS = """
 html.acp-webkit-hide-outgoing-trial .acp-spatial-outgoing-live-clone {
   visibility: hidden !important;
@@ -232,6 +233,37 @@ html.acp-webkit-flat-nav-trial .nav-drawer,
 html.acp-webkit-flat-nav-trial .nav-backdrop {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+}
+/* Keep bottom unchanged: nav-drawer.js reads its computed value when measuring
+   reveal height. Animating bottom itself would feed that measurement back into
+   the moving geometry. Margins move fixed boxes without changing that input. */
+html.acp-webkit-layout-nav-trial .nav-drawer {
+  translate: -50% 0 !important;
+  margin-bottom: calc(0px - var(--acp-navigation-reveal-height, 74px)) !important;
+  transition:
+    margin-bottom var(--acp-navigation-transition-duration) cubic-bezier(.16, .84, .24, 1),
+    visibility 0s linear var(--acp-navigation-transition-duration) !important;
+}
+html.acp-webkit-layout-nav-trial body.nav-open .nav-drawer {
+  margin-bottom: 0px !important;
+  transition-delay: 0s !important;
+}
+html.acp-webkit-layout-nav-trial .nav-handle {
+  translate: -50% 0 !important;
+  margin-bottom: 0px !important;
+  opacity: 1 !important;
+  transition: margin-bottom var(--acp-navigation-transition-duration)
+    cubic-bezier(.16, .84, .24, 1) !important;
+}
+html.acp-webkit-layout-nav-trial body.nav-open .nav-handle {
+  margin-bottom: var(--acp-navigation-reveal-height, 74px) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.acp-webkit-layout-nav-trial .nav-drawer,
+  html.acp-webkit-layout-nav-trial .nav-handle {
+    transition-duration: 1ms !important;
+    transition-delay: 0s !important;
+  }
 }
 """
 
@@ -242,7 +274,29 @@ SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
   const state = {
     requests: 0, changed: 0, settled: 0, failures: 0,
     last: null, lastObserved: null, recentRoutes: [],
+    navChanges: 0, recentNavigation: [],
   };
+  // No animation-frame polling: record logical chrome changes independently
+  // of routing. The old log signature omitted even nav-only open/close events.
+  let previousNavigation = null;
+  const observeNavigation = () => {
+    const classes = document.body.classList;
+    const snapshot = {
+      open: classes.contains('nav-open'), mode: classes.contains('nav-mode'),
+      audio: classes.contains('nav-audio-open'), gtkOwned: classes.contains('acp-b4-gtk-owned'),
+    };
+    const signature = JSON.stringify(snapshot);
+    if (signature === previousNavigation) return;
+    const initial = previousNavigation === null;
+    previousNavigation = signature;
+    if (!initial) state.navChanges += 1;
+    state.recentNavigation.push({ atMs: Math.round(performance.now()), initial, ...snapshot });
+    if (state.recentNavigation.length > 16) state.recentNavigation.shift();
+  };
+  observeNavigation();
+  new MutationObserver(observeNavigation).observe(document.body, {
+    attributes: true, attributeFilter: ['class'],
+  });
   let busy = false;
   const started = new Map();
   document.addEventListener('acp:surface-changed', (event) => {
@@ -348,6 +402,22 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    lastObserved: trial?.state.lastObserved || null,
    recentRoutes: trial?.state.recentRoutes || [],
    navOpen: document.body.classList.contains('nav-open'),
+   navMode: document.body.classList.contains('nav-mode'),
+   navChanges: trial?.state.navChanges || 0,
+   recentNavigation: trial?.state.recentNavigation || [],
+   navigationPresentation: document.documentElement.dataset.navigationPresentation || 'overlay',
+   navLayoutTrial: document.documentElement.classList.contains('acp-webkit-layout-nav-trial'),
+   navChrome: (() => {
+     const snapshot = (id) => {
+       const node = document.getElementById(id);
+       if (!node) return null;
+       const style = getComputedStyle(node);
+       return { top: Math.round(node.getBoundingClientRect().top),
+         translate: style.translate, marginBottom: style.marginBottom,
+         opacity: style.opacity, visibility: style.visibility };
+     };
+     return { drawer: snapshot('nav-drawer'), handle: snapshot('nav-handle') };
+   })(),
    clonePaintSuppressed: document.documentElement.classList.contains('acp-webkit-hide-outgoing-trial'),
    navBlurDisabled: document.documentElement.classList.contains('acp-webkit-flat-nav-trial'),
    frameStripTrial: window.__acpWebkitFrameStripTrial === true,
@@ -682,6 +752,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("requests"), state.get("changed"),
                     state.get("settled"), state.get("failures"),
                     state.get("transitionInFlight"),
+                    state.get("navOpen"), state.get("navMode"), state.get("navChanges"),
+                    state.get("navLayoutTrial"),
                     state.get("outgoingCloneCount"),
                     state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
                     state.get("frameStripTrial"), state.get("frameStripApplied"),
@@ -783,22 +855,30 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                 print(f"ACP WebKit probe: F10 invocation failed: {exc}",
                       flush=True)
             return True
-        if key in ("F6", "F7") and args.surface_transition_trial:
-            # No JS/DOM teardown or additional animation. The two switches
-            # only activate pre-injected WebKit-specific CSS for diagnosis.
+        if key in ("F6", "F7", "F11") and args.surface_transition_trial:
+            # No JS/DOM teardown: activate only pre-injected WebView-local CSS.
             # Ignore toggles mid-animation to keep each comparison bounded.
-            css_class = ("acp-webkit-hide-outgoing-trial" if key == "F6"
-                         else "acp-webkit-flat-nav-trial")
-            purpose = ("outgoing-clone paint" if key == "F6"
-                       else "navigation backdrop blur")
+            css_class, purpose = {
+                "F6": ("acp-webkit-hide-outgoing-trial", "outgoing-clone paint"),
+                "F7": ("acp-webkit-flat-nav-trial", "navigation backdrop blur"),
+                "F11": ("acp-webkit-layout-nav-trial", "layout-positioned navigation"),
+            }[key]
+            active_result, inactive_result = ("on", "off") if key == "F11" else ("off", "on")
             javascript = (
                 "(() => {"
                 "if (!window.__acpWebkitSurfaceTrial) return 'not-ready';"
                 "if (window.ACPSurfaceHost?.isTransitioning?.()) return 'busy';"
                 "const root = document.documentElement;"
                 "const cls = " + json.dumps(css_class) + ";"
+                "if (cls === 'acp-webkit-layout-nav-trial' && "
+                "document.body.classList.contains('nav-open')) return 'close-nav-first';"
+                "if (cls === 'acp-webkit-layout-nav-trial' && "
+                "['nav-drawer','nav-handle'].some(id => "
+                "(document.getElementById(id)?.getAnimations?.() || [])"
+                ".some(animation => animation.playState === 'running'))) return 'nav-busy';"
                 "root.classList.toggle(cls);"
-                "return root.classList.contains(cls) ? 'off' : 'on';"
+                "return root.classList.contains(cls) ? " + json.dumps(active_result)
+                + " : " + json.dumps(inactive_result) + ";"
                 "})()"
             )
             def after_toggle(result_view, result, _data):
@@ -861,7 +941,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
               flush=True)
         print("ACP WebKit probe: F6 hides outgoing clone paint (dark gap); "
               "F7 removes nav blur; F10 moves one frame-driven spatial strip "
-              "without Web Animations. All OFF by default. F9 retired.",
+              "without Web Animations; F11 uses layout-positioned drawer/pill "
+              "motion. All OFF by default. F9 retired.",
               flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",

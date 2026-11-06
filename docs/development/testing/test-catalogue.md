@@ -1,4 +1,14 @@
 
+## 6 November 2026 — Pi F10 page-flash PASS; F11 navigation/pill comparison staged
+
+**Pi at `9007161d`:** host 29 collected / 28 PASS + 1 Node SKIP; probe **34/34 PASS**, compile PASS. Nine changed/settled routes, zero F-key failures; six F10 comparison routes including open-drawer and reverse/long paths. F10 applied counter 1→6 and no retained row. Operator/video confirm no old-page return in the F10 portion. **Bounded flash check PASS; overall motion, drawer/pill flicker and production acceptance remain open.** F10 callbacks: 18–27 over 2002–2087ms for 2000ms configured; max gaps 146–207ms. Nominal 120fps VNC recording is not rendered FPS.
+
+**F11 launcher-only candidate:** injected, default-OFF CSS uses layout `margin-bottom` for drawer/handle travel, static horizontal centring translate and steady handle opacity, retaining existing duration/easing and endpoints. Computed `bottom` stays unchanged for the controller's reveal-height calculation. Blur/theme/ARIA/input/production CSS stay under current owners. Reduced motion honored. Toggle only with explicit surface trial, closed drawer, no active page or drawer/handle animation. F10 page code unchanged.
+
+**Diagnostics and validation:** passive class observer caps logical nav history at 16 entries; status now reports nav-only changes, `navLayoutTrial`, `navChanges`, `recentNavigation` and drawer/handle computed geometry/styles. Source wiring suite **34 PASS** locally; actual injected JS and extracted key-handler code executed against state/clock doubles to verify history limits, irrelevant-class deduplication, opt-in/busy/closed guards and reversibility. No CSS render pass claimed. These metrics do not equate computed visibility to actual compositor paint.
+
+**Single next Pi session:** pull; compile launcher/test; run only the 34 probe tests, then existing 180s forced-SHM fullscreen spatial/Rain preview. No service restart or old host-suite repetition. F10 ON throughout; first F11 OFF open Weather→News→Home and close/watch pill for 2–3s. With drawer closed/idle, F11 ON and repeat; observe flash, flicker, endpoints/spacing and stutter. Leave F6/F7 OFF. Close/idle, F11 OFF, F10 OFF, Escape. Capture output/video. Next work stays on nav quality/performance before Cover Reveal or full GTK migration.
+
 ## 6 November 2026 — F9 rejected on Pi; F10 layout-positioned joined-row comparison
 
 **Evidence at `68d576aa`:** Pi compile PASS, **29/29 host + 34/34 WebKit probe PASS**. Latest attached output records nine completed mounted routes, zero F-key failures, six transitions with F9 actually enabled and incoming copies removed after each. Latest 78.27s/60fps recording shows old Clock returning after Weather arrives at **~26.84–26.93s**, and Weather returning beside News at **~30.95s**. Reject F9 despite green source tests. Nav stability is still an open visual gate.
