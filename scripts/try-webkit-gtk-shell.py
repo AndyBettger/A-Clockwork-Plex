@@ -218,6 +218,23 @@ RAIN_LAYOUT_METRICS_SCRIPT = r"""
 # The injected JS is a probe-only keyboard bridge and diagnostics, not a
 # replacement router. It uses only GET /api/surfaces/* through the proxy;
 # POST mode sync is still denied by the existing fail-closed proxy.
+# Deliberately destructive VISUAL ISOLATION trials, scoped to the ephemeral
+# WebKit instance. F6 hides outgoing/intermediate clones so the live incoming
+# page remains the only renderer of page content; this leaves an expected
+# dark gap during slides and is NOT a candidate animation design. F7 removes
+# blurred navigation backdrops while preserving navigation and click targets.
+# Both begin OFF and never affect production CSS or persistent preferences.
+SURFACE_COMPOSITOR_ISOLATION_CSS = """
+html.acp-webkit-hide-outgoing-trial .acp-spatial-outgoing-live-clone {
+  visibility: hidden !important;
+}
+html.acp-webkit-flat-nav-trial .nav-drawer,
+html.acp-webkit-flat-nav-trial .nav-backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+"""
+
 SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
 (() => {
   if (window.__acpWebkitSurfaceTrial) return;
@@ -331,8 +348,14 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    lastObserved: trial?.state.lastObserved || null,
    recentRoutes: trial?.state.recentRoutes || [],
    navOpen: document.body.classList.contains('nav-open'),
-   spatialPinTrial: window.__acpWebkitSpatialPinTrial === true,
-   spatialPinApplied: window.__acpWebkitSpatialPinTrialApplied || 0,
+   clonePaintSuppressed: document.documentElement.classList.contains('acp-webkit-hide-outgoing-trial'),
+   navBlurDisabled: document.documentElement.classList.contains('acp-webkit-flat-nav-trial'),
+   navDrawerFilter: (() => {
+     const drawer = document.querySelector('.nav-drawer');
+     if (!drawer) return null;
+     const computed = getComputedStyle(drawer);
+     return computed.backdropFilter || computed.webkitBackdropFilter || 'none';
+   })(),
    outgoingCloneCount: document.querySelectorAll('.acp-spatial-outgoing-live-clone').length,
    screenTransform: document.querySelector('main.screen')?.style.transform || '',
    bodyTransitionClass: document.body.classList.contains('acp-spatial-live-commit')
@@ -581,6 +604,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         (args.rain_touch_trial, RAIN_TOUCH_TRIAL_CSS, "Rain touch/no-snap"),
         (args.weather_flick_trial, WEATHER_FLICK_TRIAL_CSS,
          "Weather flick/forecast touch"),
+        (args.surface_transition_trial, SURFACE_COMPOSITOR_ISOLATION_CSS,
+         "Spatial/nav compositor isolation (both toggles OFF)"),
     ):
         if active:
             sheet = WebKit2.UserStyleSheet.new(
@@ -654,7 +679,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("settled"), state.get("failures"),
                     state.get("transitionInFlight"),
                     state.get("outgoingCloneCount"),
-                    state.get("spatialPinTrial"), state.get("spatialPinApplied"),
+                    state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
                 )
                 if signature != last_reported_surface["signature"]:
                     last_reported_surface["signature"] = signature
@@ -723,31 +748,39 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                                             event.state & Gdk.ModifierType.CONTROL_MASK):
             quit_if_running()
             return True
-        if key == "F6" and args.surface_transition_trial:
-            # Reversible same-process A/B test: don't switch variants while
-            # an animation is in flight. Never touches backend/service state.
+        if key in ("F6", "F7") and args.surface_transition_trial:
+            # No JS/DOM teardown or additional animation. The two switches
+            # only activate pre-injected WebKit-specific CSS for diagnosis.
+            # Ignore toggles mid-animation to keep each comparison bounded.
+            css_class = ("acp-webkit-hide-outgoing-trial" if key == "F6"
+                         else "acp-webkit-flat-nav-trial")
+            purpose = ("outgoing-clone paint" if key == "F6"
+                       else "navigation backdrop blur")
             javascript = (
                 "(() => {"
+                "if (!window.__acpWebkitSurfaceTrial) return 'not-ready';"
                 "if (window.ACPSurfaceHost?.isTransitioning?.()) return 'busy';"
-                "window.__acpWebkitSpatialPinTrial = "
-                "window.__acpWebkitSpatialPinTrial !== true;"
-                "return window.__acpWebkitSpatialPinTrial ? 'pinned' : 'baseline';"
+                "const root = document.documentElement;"
+                "const cls = " + json.dumps(css_class) + ";"
+                "root.classList.toggle(cls);"
+                "return root.classList.contains(cls) ? 'off' : 'on';"
                 "})()"
             )
             def after_toggle(result_view, result, _data):
                 try:
                     outcome = result_view.evaluate_javascript_finish(result).to_string()
-                    print("ACP WebKit probe: Spatial Row A/B mode " + outcome,
-                          flush=True)
+                    print("ACP WebKit probe: " + key + " " + purpose +
+                          " " + outcome, flush=True)
                     report_surface_layout(result_view)
                 except Exception as exc:
-                    print("ACP WebKit probe: Spatial Row A/B toggle failed "
+                    print("ACP WebKit probe: visual isolation toggle failed "
                           f"({type(exc).__name__}: {exc})", flush=True)
             try:
                 webview.evaluate_javascript(
                     javascript, -1, None, None, None, after_toggle, None)
             except Exception as exc:
-                print(f"ACP WebKit probe: F6 invocation failed: {exc}", flush=True)
+                print(f"ACP WebKit probe: {key} invocation failed: {exc}",
+                      flush=True)
             return True
         pages = {f"F{i+1}": page for i, page in enumerate(PAGES)}
         if key in pages:
@@ -791,9 +824,9 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         print("ACP WebKit probe: F1-F5 use the existing ACP mounted-surface "
               "router, NOT a document reload; mode=" + args.surface_transition_mode,
               flush=True)
-        print("ACP WebKit probe: F6 toggles Spatial Row cleanup: "
-              "BASELINE (default) / PINNED (experiment); not during animation",
-              flush=True)
+        print("ACP WebKit probe: F6 suppresses outgoing clone paint "
+              "(dark slide gap expected); F7 removes nav backdrop blur; "
+              "both default OFF, avoid mid-transition", flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
