@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -492,10 +494,10 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertLess(cleanup.index("clearOrdinaryTransitionStyles(screen)"),
                         cleanup.index("outgoing.remove()"))
 
-    def test_acp_surface_cache_refreshes_destination_copy_ab_trial(self):
+    def test_acp_surface_cache_refreshes_frame_strip_ab_trial(self):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn(
-            "js/acp-application-surfaces.js', v='20261106-webkit-destination-copy-ab-v1'",
+            "js/acp-application-surfaces.js', v='20261106-webkit-frame-strip-ab-v1'",
             base,
         )
 
@@ -511,61 +513,31 @@ class AcpSurfaceHostTests(unittest.TestCase):
                         cleanup.index("layers.forEach((layer) => layer.remove())"))
         self.assertNotIn("layer.style.visibility = 'hidden'", cleanup)
 
-    def test_webkit_destination_copy_keeps_real_screen_stationary_and_hidden(self):
+    def test_frame_strip_is_opt_in_and_has_no_web_animation_effect(self):
         source = APPLICATION_SURFACES.read_text(encoding="utf-8")
-        spatial = source.split(
-            "async function spatialLiveCommit(direction, from, to, commit)", 1
-        )[1].split("  surfaces.forEach((surface) => {", 1)[0]
-        self.assertIn("const cloneIncoming = window.__acpWebkitCloneIncomingTrial === true",
-                      spatial)
-        self.assertIn("let incomingClone = null", spatial)
-        self.assertIn("if (cloneIncoming) {", spatial)
-        self.assertIn("screen.style.transform = 'translateX(0)'", spatial)
-        self.assertIn("screen.style.visibility = 'hidden'", spatial)
-        self.assertIn("incomingClone = prepareSpatialLayer(screen.cloneNode(true), to)",
-                      spatial)
-        self.assertIn("incomingClone.classList.add('acp-spatial-incoming-trial-clone')",
-                      spatial)
-        self.assertIn("incomingClone.style.visibility = 'visible'", spatial)
-        self.assertIn("document.body.appendChild(incomingClone)", spatial)
-        self.assertIn("animations.push((incomingClone || screen).animate(", spatial)
-        self.assertNotIn("__acpWebkitUnderlyingEndTrial", spatial)
-        self.assertLess(
-            spatial.index("      await commit();", spatial.index("const cloneIncoming =")),
-            spatial.index("incomingClone = prepareSpatialLayer("),
-        )
-        # Ordinary view transitions and default spatial mode still use their
-        # existing real-screen animation. This is an opt-in WebKit experiment.
-        ordinary = source.split("async function ordinaryLiveCommit(from, commit)", 1)[1].split(
-            "  async function spatialLiveCommit", 1)[0]
-        self.assertNotIn("__acpWebkitCloneIncomingTrial", ordinary)
+        helper = source.split("async function frameStripLiveCommit", 1)[1].split(
+            "async function spatialLiveCommit", 1)[0]
+        spatial = source.split("async function spatialLiveCommit", 1)[1].split(
+            "  surfaces.forEach((surface) => {", 1)[0]
+        self.assertIn("if (window.__acpWebkitFrameStripTrial === true)", spatial)
+        self.assertIn("await frameStripLiveCommit(direction, from, to, layers, commit)", spatial)
+        self.assertNotIn(".animate(", helper)
+        self.assertNotIn(".cancel(", helper)
+        self.assertNotIn("screen.style.transform", helper)
+        self.assertNotIn("__acpWebkitCloneIncoming", source)
+        self.assertIn("strip.style.left =", helper)
+        self.assertIn("viewport.remove()", helper)
 
-    def test_webkit_destination_copy_handover_stays_covered_until_repaint(self):
-        source = APPLICATION_SURFACES.read_text(encoding="utf-8")
-        spatial = source.split(
-            "async function spatialLiveCommit(direction, from, to, commit)", 1
-        )[1].split("  surfaces.forEach((surface) => {", 1)[0]
-        cleanup = spatial.split("    } finally {", 1)[1]
-        self.assertIn("if (incomingClone) {", cleanup)
-        self.assertIn("incomingClone.style.transform = 'translateX(0)'", cleanup)
-        self.assertIn("screen.style.visibility = ''", cleanup)
-        self.assertIn("screen.style.transform = ''", cleanup)
-        self.assertIn("await nextFrame();\n        await nextFrame();", cleanup)
-        self.assertIn("incomingClone.remove()", cleanup)
-        self.assertIn("window.__acpWebkitCloneIncomingApplied =", cleanup)
-        self.assertLess(cleanup.index("screen.style.visibility = ''"),
-                        cleanup.index("incomingClone.remove()"))
-        self.assertLess(cleanup.index("layers.forEach((layer) => layer.remove())"),
-                        cleanup.index("incomingClone.remove()"))
-        self.assertLess(cleanup.index("await nextFrame();"),
-                        cleanup.index("incomingClone.remove()"))
-        # Keep original fallback code unchanged for every non-F9 session.
-        baseline = cleanup.split("      } else {", 1)[1]
-        self.assertLess(baseline.index("animation.cancel()"),
-                        baseline.index("screen.style.transform = ''"))
-        self.assertLess(baseline.index("screen.style.transform = ''"),
-                        baseline.index("layers.forEach((layer) => layer.remove())"))
-        self.assertNotIn("incomingClone.remove()", baseline)
+    def test_frame_strip_behavior(self):
+        """Execute the real helper with a clock/DOM double; not visual acceptance."""
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js unavailable for frame-strip behavior tests")
+        result = subprocess.run(
+            [node, "--test", str(ROOT / "tests/js/webkit-spatial-strip.test.cjs")],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_b6_adjacent_airplay_plexamp_uses_cross_renderer_spatial_adapter(self):
         transitions = TRANSITIONS.read_text(encoding="utf-8")

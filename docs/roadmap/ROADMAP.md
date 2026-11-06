@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK single-document Spatial Row and Rain layout work. A second VNC recording confirms the end-transition flash persists even with the F8 underlying-transform experiment enabled (**28/28 host + 34/34 WebKit Pi tests PASS**); nav flicker also recurred. A reversible **F9 incoming-copy / stationary-live-screen** comparison is staged to isolate the compositor handover. Cover Reveal and **B4.4 startup remain deferred.**
+- **Next milestone:** WebKitGTK single-document Spatial Row. The latest Pi/VNC comparison rejects F9 destination-copy handover: the old-page flash persists despite **29/29 host + 34/34 probe tests PASS**, nine completed routes and verified F9 activation. A default-OFF **F10 single frame-driven row** now tests layout-position movement without Web Animations; local contract/behavior checks pass, **Pi visual/performance acceptance pending**. Navigation flicker remains open; Cover Reveal and **B4.4 startup remain deferred.**
 
 ## Feature portfolio
 
@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Live WebKit same-document Spatial Row routing works; brief end-frame flash pending retest. Native shell ownership, Audio overlay, installer/startup remain later gates |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | Live WebKit same-document Spatial Row routing works; F9 failed visual acceptance, F10 row comparison awaits Pi. Native shell ownership, Audio overlay, installer/startup remain later gates |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |

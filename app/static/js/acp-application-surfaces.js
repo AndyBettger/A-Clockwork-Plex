@@ -476,6 +476,102 @@
     }
   }
 
+  function frameStripProgress(fraction) {
+    if (fraction <= 0) return 0;
+    if (fraction >= 1) return 1;
+    // The same cubic-bezier(.16, .84, .24, 1) as the baseline. Solve x(t)
+    // before evaluating y(t); using the clock fraction as t changes the easing.
+    const cubic = (t, a, b) => 3 * (1 - t) ** 2 * t * a
+      + 3 * (1 - t) * t ** 2 * b + t ** 3;
+    let low = 0;
+    let high = 1;
+    for (let step = 0; step < 18; step += 1) {
+      const mid = (low + high) / 2;
+      if (cubic(mid, .16, .24) < fraction) low = mid;
+      else high = mid;
+    }
+    return cubic((low + high) / 2, .84, 1);
+  }
+
+  async function frameStripLiveCommit(direction, from, to, layers, commit) {
+    // Developer-only F10 comparison. One layout-positioned row replaces ALL
+    // per-page WAAPI effects: no transform animation, fill mode or cancellation
+    // can expose a starting position when the moving presentation is retired.
+    const viewport = document.createElement('div');
+    viewport.className = 'acp-webkit-frame-strip-viewport';
+    viewport.setAttribute('aria-hidden', 'true');
+    viewport.inert = true;
+    Object.assign(viewport.style, {
+      position: 'fixed', inset: '0', zIndex: '40', overflow: 'hidden',
+      pointerEvents: 'none',
+    });
+    copyBodyBackground(viewport);
+    const strip = document.createElement('div');
+    strip.className = 'acp-webkit-frame-strip';
+    Object.assign(strip.style, {
+      position: 'absolute', top: '0', left: '0px', width: '100%', height: '100%',
+    });
+    viewport.appendChild(strip);
+
+    const savedVisibility = screen.style.visibility;
+    const sign = direction === 'reverse' ? -1 : 1;
+    const width = document.documentElement.clientWidth;
+    const distance = layers.length;
+    const duration = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      ? 0 : applicationTransitionDurationMs();
+    const metrics = { from, to, distance, durationMs: duration,
+      elapsedMs: 0, frames: 0, maxFrameGapMs: 0 };
+    const addPanel = (layer, index) => {
+      // Existing .screen styling preserves Lift's vertical translate, theme,
+      // and frozen surface geometry. Only the containing row moves sideways.
+      layer.style.setProperty('position', 'absolute', 'important');
+      layer.style.setProperty('will-change', 'auto', 'important');
+      layer.style.setProperty('transform', 'none', 'important');
+      layer.style.left = `${sign * index * width}px`;
+      layer.style.right = 'auto';
+      layer.style.visibility = 'visible';
+      strip.appendChild(layer);
+    };
+
+    try {
+      layers.forEach(addPanel);
+      document.body.classList.add('acp-spatial-live-commit');
+      document.body.appendChild(viewport);
+      // The actual main.screen never moves and is never reparented. In
+      // particular, preserve mounted input/listener state and shell chrome.
+      screen.style.visibility = 'hidden';
+      await commit();
+      addPanel(prepareSpatialLayer(screen.cloneNode(true), to), distance);
+      viewport.getBoundingClientRect();
+      const started = await nextFrame();
+      let previous = started;
+      let now = started;
+      while (true) {
+        const elapsed = now - started;
+        const fraction = duration > 0 ? Math.min(1, elapsed / duration) : 1;
+        strip.style.left = `${-sign * distance * width * frameStripProgress(fraction)}px`;
+        metrics.frames += 1;
+        metrics.maxFrameGapMs = Math.max(metrics.maxFrameGapMs, now - previous);
+        if (fraction >= 1) break;
+        previous = now;
+        now = await nextFrame();
+      }
+      metrics.elapsedMs = Math.round(now - started);
+      // Keep the final row position intact as the live destination paints
+      // underneath it. Removing this row never resets its position to zero.
+      screen.style.visibility = savedVisibility;
+      await nextFrame();
+      await nextFrame();
+      window.__acpWebkitFrameStripLast = metrics;
+      window.__acpWebkitFrameStripApplied =
+        (window.__acpWebkitFrameStripApplied || 0) + 1;
+    } finally {
+      screen.style.visibility = savedVisibility;
+      viewport.remove();
+      document.body.classList.remove('acp-spatial-live-commit');
+    }
+  }
+
   async function spatialLiveCommit(direction, from, to, commit) {
     const path = spatialSurfacePath(from, to);
     if (path.length < 2) {
@@ -493,6 +589,11 @@
       layers.push(await cloneMountedSpatialLayer(surface, from));
     }
 
+    if (window.__acpWebkitFrameStripTrial === true) {
+      await frameStripLiveCommit(direction, from, to, layers, commit);
+      return;
+    }
+
     document.body.classList.add('acp-spatial-live-commit');
     layers.forEach((layer) => document.body.appendChild(layer));
 
@@ -500,11 +601,6 @@
     const distance = path.length - 1;
     const directionSign = direction === 'reverse' ? -1 : 1;
     const animations = [];
-    // WebKit developer-only alternative: animate an incoming presentation clone
-    // while the actual mounted page remains stationary at the destination.
-    // Default always retains the accepted live-screen animation.
-    const cloneIncoming = window.__acpWebkitCloneIncomingTrial === true;
-    let incomingClone = null;
 
     try {
       // The row is spatially literal: each intermediate page occupies its own
@@ -514,32 +610,12 @@
       layers.forEach((layer, index) => {
         layer.style.transform = `translateX(${directionSign * index * 100}vw)`;
       });
-      if (cloneIncoming) {
-        // Outgoing clone is already on top. Keep the real destination invisible
-        // but at its natural origin for the entire animation; it never acquires
-        // an offscreen transform or a WAAPI compositor effect.
-        screen.style.transform = 'translateX(0)';
-        screen.style.visibility = 'hidden';
-      } else {
-        screen.style.transform = `translateX(${directionSign * distance * 100}vw)`;
-      }
+      screen.style.transform = `translateX(${directionSign * distance * 100}vw)`;
 
       await commit();
 
-      if (cloneIncoming) {
-        // Capture the *committed* destination with the correct body-mode CSS.
-        // cloneNode copies visibility:hidden, so explicitly restore visibility
-        // on the presentation-only copy before adding it above the real page.
-        incomingClone = prepareSpatialLayer(screen.cloneNode(true), to);
-        incomingClone.classList.add('acp-spatial-incoming-trial-clone');
-        incomingClone.style.visibility = 'visible';
-        incomingClone.style.transform = `translateX(${directionSign * distance * 100}vw)`;
-        document.body.appendChild(incomingClone);
-      }
-
       screen.getBoundingClientRect();
       layers.forEach((layer) => layer.getBoundingClientRect());
-      incomingClone?.getBoundingClientRect();
       await nextFrame();
 
       if (duration <= 0) return;
@@ -562,7 +638,7 @@
         ));
       });
 
-      animations.push((incomingClone || screen).animate(
+      animations.push(screen.animate(
         [
           { transform: `translateX(${directionSign * distance * 100}vw)` },
           { transform: 'translateX(0)' },
@@ -574,34 +650,10 @@
         animations.map((animation) => animation.finished.catch(() => undefined)),
       );
     } finally {
-      if (incomingClone) {
-        // Stationary live destination is already at x=0. Keep its identical
-        // presentation clone covering it while releasing compositor layers.
-        // Unlike the earlier failed workaround, never detach still-animated
-        // clones and never animate main.screen in this experimental path.
-        incomingClone.style.transform = 'translateX(0)';
-        screen.style.visibility = '';
-        screen.style.transform = '';
-        animations.forEach((animation) => animation.cancel());
-        layers.forEach((layer) => layer.remove());
-        document.body.classList.remove('acp-spatial-live-commit');
-        // Let WebKit paint the stationary live page behind the final clone
-        // before retiring the copy. This is a visual A/B experiment only.
-        await nextFrame();
-        await nextFrame();
-        incomingClone.remove();
-        window.__acpWebkitCloneIncomingApplied =
-          (window.__acpWebkitCloneIncomingApplied || 0) + 1;
-      } else {
-        // Original physically smoother baseline, byte-for-byte teardown order.
-        animations.forEach((animation) => animation.cancel());
-        screen.style.transform = '';
-        layers.forEach((layer) => layer.remove());
-        document.body.classList.remove('acp-spatial-live-commit');
-      }
-      // Only the opt-in clone path ever hides the real destination. Do not
-      // touch visibility on the normal Chromium or baseline WebKit path.
-      if (cloneIncoming) screen.style.visibility = '';
+      animations.forEach((animation) => animation.cancel());
+      screen.style.transform = '';
+      layers.forEach((layer) => layer.remove());
+      document.body.classList.remove('acp-spatial-live-commit');
     }
   }
 

@@ -443,32 +443,33 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn('state.get("clonePaintSuppressed"), state.get("navBlurDisabled")',
                       source)
 
-    def test_f9_destination_copy_requires_surface_trial_and_idle_route(self):
+    def test_f10_frame_strip_requires_surface_trial_and_idle_route(self):
         src = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('if key == "F9" and args.surface_transition_trial:', src)
-        self.assertIn("window.__acpWebkitCloneIncomingTrial !== true", src)
+        self.assertIn('if key == "F10" and args.surface_transition_trial:', src)
+        self.assertIn("window.__acpWebkitFrameStripTrial !== true", src)
         self.assertIn("window.ACPSurfaceHost?.isTransitioning?.()", src)
         self.assertIn("if (!window.__acpWebkitSurfaceTrial) return 'not-ready'", src)
         self.assertIn("return 'busy'", src)
-        self.assertIn("F9 destination-copy animation", src)
-        self.assertIn("F9 animates a destination copy", src)
+        self.assertIn("F10 frame-driven spatial strip", src)
+        self.assertIn("F10 moves one frame-driven spatial strip", src)
         self.assertNotIn("window.__acpWebkitUnderlyingEndTrial", src)
         self.assertNotIn("systemctl restart", src)
 
-    def test_destination_clone_metrics_report_active_and_retired_layers(self):
+    def test_frame_strip_metrics_report_active_and_retired_layers(self):
         js = probe.SURFACE_TRANSITION_METRICS_SCRIPT
-        self.assertIn("cloneIncomingTrial: window.__acpWebkitCloneIncomingTrial === true",
+        self.assertIn("frameStripTrial: window.__acpWebkitFrameStripTrial === true",
                       js)
-        self.assertIn("cloneIncomingApplied: window.__acpWebkitCloneIncomingApplied || 0",
+        self.assertIn("frameStripApplied: window.__acpWebkitFrameStripApplied || 0",
                       js)
-        self.assertIn("incomingCloneCount:", js)
-        self.assertIn("acp-spatial-incoming-trial-clone", js)
+        self.assertIn("frameStripCount:", js)
+        self.assertIn("frameStripLast: window.__acpWebkitFrameStripLast || null", js)
+        self.assertIn("acp-webkit-frame-strip-viewport", js)
         self.assertNotIn("fetch(", js)
         self.assertNotIn("location.assign", js)
         src = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('state.get("cloneIncomingTrial"), state.get("cloneIncomingApplied")',
+        self.assertIn('state.get("frameStripTrial"), state.get("frameStripApplied")',
                       src)
-        self.assertIn('state.get("incomingCloneCount")', src)
+        self.assertIn('state.get("frameStripCount")', src)
 
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
