@@ -350,8 +350,9 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    navOpen: document.body.classList.contains('nav-open'),
    clonePaintSuppressed: document.documentElement.classList.contains('acp-webkit-hide-outgoing-trial'),
    navBlurDisabled: document.documentElement.classList.contains('acp-webkit-flat-nav-trial'),
-   underlyingEndTrial: window.__acpWebkitUnderlyingEndTrial === true,
-   underlyingEndApplied: window.__acpWebkitUnderlyingEndApplied || 0,
+   cloneIncomingTrial: window.__acpWebkitCloneIncomingTrial === true,
+   cloneIncomingApplied: window.__acpWebkitCloneIncomingApplied || 0,
+   incomingCloneCount: document.querySelectorAll('.acp-spatial-incoming-trial-clone').length,
    navDrawerFilter: (() => {
      const drawer = document.querySelector('.nav-drawer');
      if (!drawer) return null;
@@ -682,7 +683,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("transitionInFlight"),
                     state.get("outgoingCloneCount"),
                     state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
-                    state.get("underlyingEndTrial"), state.get("underlyingEndApplied"),
+                    state.get("cloneIncomingTrial"), state.get("cloneIncomingApplied"),
+                    state.get("incomingCloneCount"),
                 )
                 if signature != last_reported_surface["signature"]:
                     last_reported_surface["signature"] = signature
@@ -751,34 +753,33 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                                             event.state & Gdk.ModifierType.CONTROL_MASK):
             quit_if_running()
             return True
-        if key == "F8" and args.surface_transition_trial:
-            # Unlike F6/F7's CSS isolation, F8 changes only the underlying
-            # transform at the *start* of the WAAPI screen animation.
-            # Not allowed during an active route; defaults OFF.
+        if key == "F9" and args.surface_transition_trial:
+            # A distinct compositor isolation: the real destination stays
+            # stationary, while a presentation-only destination copy moves.
+            # Avoid changing while a route is in flight; default OFF.
             javascript = (
                 "(() => {"
                 "if (!window.__acpWebkitSurfaceTrial) return 'not-ready';"
                 "if (window.ACPSurfaceHost?.isTransitioning?.()) return 'busy';"
-                "window.__acpWebkitUnderlyingEndTrial = "
-                "window.__acpWebkitUnderlyingEndTrial !== true;"
-                "return window.__acpWebkitUnderlyingEndTrial ? 'on' : 'off';"
+                "window.__acpWebkitCloneIncomingTrial = "
+                "window.__acpWebkitCloneIncomingTrial !== true;"
+                "return window.__acpWebkitCloneIncomingTrial ? 'on' : 'off';"
                 "})()"
             )
-            def after_underlying_toggle(result_view, result, _data):
+            def after_clone_toggle(result_view, result, _data):
                 try:
                     state = result_view.evaluate_javascript_finish(result).to_string()
-                    print("ACP WebKit probe: F8 end-style-at-start " + state,
-                          flush=True)
+                    print("ACP WebKit probe: F9 destination-copy animation "
+                          + state, flush=True)
                     report_surface_layout(result_view)
                 except Exception as exc:
-                    print("ACP WebKit probe: F8 toggle failed "
+                    print("ACP WebKit probe: F9 toggle failed "
                           f"({type(exc).__name__}: {exc})", flush=True)
             try:
                 webview.evaluate_javascript(
-                    javascript, -1, None, None, None,
-                    after_underlying_toggle, None)
+                    javascript, -1, None, None, None, after_clone_toggle, None)
             except Exception as exc:
-                print(f"ACP WebKit probe: F8 invocation failed: {exc}",
+                print(f"ACP WebKit probe: F9 invocation failed: {exc}",
                       flush=True)
             return True
         if key in ("F6", "F7") and args.surface_transition_trial:
@@ -858,8 +859,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
               "router, NOT a document reload; mode=" + args.surface_transition_mode,
               flush=True)
         print("ACP WebKit probe: F6 hides outgoing clone paint (dark gap); "
-              "F7 removes nav blur; F8 prepositions underlying live screen "
-              "at animation START. All OFF by default; avoid mid-transition.",
+              "F7 removes nav blur; F9 animates a destination copy while the "
+              "real page stays stationary. All OFF by default.",
               flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
