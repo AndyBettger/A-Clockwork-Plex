@@ -599,7 +599,9 @@
         layers.forEach((layer) => layer.remove());
         document.body.classList.remove('acp-spatial-live-commit');
       }
-      screen.style.visibility = '';
+      // Only the opt-in clone path ever hides the real destination. Do not
+      // touch visibility on the normal Chromium or baseline WebKit path.
+      if (cloneIncoming) screen.style.visibility = '';
     }
   }
 
