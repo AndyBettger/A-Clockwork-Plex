@@ -36,7 +36,7 @@ class SettingsCompletionTests(unittest.TestCase):
         text = BASE.read_text(encoding="utf-8")
         self.assertIn("settings-completion.css", text)
         self.assertIn("settings-completion.js", text)
-        self.assertIn("20260823-about-release-metadata-v1", text)
+        self.assertIn("20261010-b7-live-screen-v6", text)
         self.assertIn("active_page | default(state.mode) == 'settings'", text)
         self.assertTrue(STYLE.exists())
 

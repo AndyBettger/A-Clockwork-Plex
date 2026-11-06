@@ -1,6 +1,6 @@
 # Weather
 
-**Status:** CORE COMPLETE; rain-event maintenance ACCEPTED / READY FOR MERGE on `fix/weather-rain-events`; post-#94 presentation revamp queued  
+**Status:** CORE COMPLETE; rain-event maintenance MERGED; #94 live-surface integration ACTIVE; post-#94 presentation revamp queued  
 **Primary implementation:** #86 Friendly forecast-location entry, #87 WU supplemental indoor expiry
 
 ## Accepted scope
@@ -11,13 +11,32 @@
 - Supplemental indoor readings expire when stale rather than remaining indefinitely.
 - Touch-first Weather presentation, forecast and rainfall views physically accepted.
 
+## 30 October 2026 — WebKit Rain heights match physically; Weather layout gate PASS
+
+At revision `0969c96b`, user Pi run **23/23 focused WebKit tests PASS**. The fullscreen read-only WebKit Weather trial with `--rain-width-trial --weather-flick-trial` measured **exactly matching** Today/History cards (133px each), internal gauges (115px), containing rows (133px) and subpanels (178px), with **0px overflow**. Screenshot shows Last Rain Event 0.3mm / 27/10 22:33 inside the fourth gauge and aligned subpanel cards; touch retained scrollLeft=124px. The initial WebKit-height bug is resolved **in the temporary injected Rain CSS trial**. Treat **physical rendering acceptance of the developer experiment** as PASS, not the production migration; the WebKit-only CSS/input overrides still require proper incorporation and cross-engine regression before native-shell release. The next ACP milestone is same-document navigation transitions, tracked in [#94](acp-shell-native-plexamp.md).
+
+## 30 October 2026 — Last Rain Event functionality verified; WebKit styling parity outstanding
+
+**Real Pi acceptance at `b90ec7fc`:** Python compile PASS, **13/13** focused rainfall event tests PASS, ACP service restarted. Chromium ACP and temporary forced-SHM GTK/WebKit display the same legitimate historical **Last Rain Event 0.3 mm, 27/10 22:33** inside the fourth Rain gauge, rather than leaving a separate footer. Active event handling and date formatting are covered by tests; they are **not physically exercised with live rain**. In WebKit screenshot, Today cards/gauges still have a different vertical height from History/Chromium, traced to the separately injected WebKit Rain width trial making `.rain-gauge-row` `flex:0 0 auto` instead of production `flex:1 1 auto`. A WebKit-only row stretch experiment and measured per-group heights are staged; *not* a change to shared Weather CSS until actual Pi parity is demonstrated. Track that implementation gate under [ACP shell #94](acp-shell-native-plexamp.md).
+
+## 30 October 2026 — Conditional Last Rain Event gauge: code staged, physical acceptance pending
+
+**User-requested display change:** The horizontally scrolling `Mostly Moist Today` subpanel previously showed four rain gauges plus a separate `Last rain event` footer, making it a different height from `Rainy Day Fund`. This was reproduced on the experimental GTK/WebKit display after the Rain width and fast-drag fixes (the most recent `test_webkit_gtk_shell_probe.py` **21/21 PASS**). Implement the **real weather page and backend**, not a visual mock-up:
+
+- Preserve **Rain Rate**, **Hourly Rain**, **Rain Today** and the ordinary **Event Rain** gauge whenever live event rainfall is nonzero, current rain rate is positive, or completed-event history is unavailable.
+- For Weather Underground derived history, **only when current Event Rain and rain rate are both zero/missing and the last completed event has a known positive total**, replace the Event Rain gauge with **Last rain event** (or append if no source event gauge exists). Amount, vertical fill and scale use the existing rainfall units/conversion and gauge sizing. The event's start/end timing is a `note` inside the gauge, never an extra subpanel footer.
+- Event timing is inclusive of the date: **29/10 22:33** for start/end in the same minute, **29/10 22:30–22:33** for different minutes on the same day, and **28/10 23:50–29/10 00:10** across midnight; a missing endpoint remains explicitly labelled `Since` or `Ended`. Never invent rainfall or times.
+- Keep the existing active-derived-event deduplication path, historical Rainy Day Fund values, scroll geometry and renderer experiment unaffected.
+
+**Implementation:** `app/dashboard_core.py` supplies the selected gauge; `app/templates/weather.html` renders optional timing inside it and removes the footnote; `app/static/css/weather-rain-history.css` styles the timestamp. `tests/test_weather_rain_event_summary.py` covers the decision and formatting branches (**13 focused tests expected**, **Pi execution pending**). This is a shared Weather production change, so check in the normal Chromium ACP page as well as the temporary WebKit preview, rather than assuming the WebKit screenshot guarantees Chromium parity. No change to audio, source ingestion, derived-event totals or C3 keyboard.
+
 ## Current maintenance — rainfall event semantics
 
 The live WU path derives Hourly Rain and Event Rain when the provider does not supply native values.
 
 ### Maintenance implementation — 4 October 2026
 
-The focused rain-event correction is implemented and physically accepted on `fix/weather-rain-events`. The commissioned Pi passed the live backend/state migration check and the existing Rain-panel dry-weather presentation check.
+The focused rain-event correction is implemented, physically accepted and merged into `develop`. The commissioned Pi passed the live backend/state migration check and the existing Rain-panel dry-weather presentation check.
 
 - Rain today is the station's live calendar-day total.
 - Rain this week is Monday through today: cached WU daily totals for completed days plus today's live total.
@@ -46,14 +65,31 @@ This two-hour model deliberately separates the observed example pattern into dis
 
 The derivation now uses the station observation timestamp (`dateutc` converted to local appliance time) as its rainfall chronology, while retaining ACP receipt time separately for diagnostics. Stale/out-of-order station observations cannot move the derived rain counters backwards. Regression coverage includes the observed midnight-lag failure shape, true midnight rollover, two-hour closure, distinct showers after a dry gap, and out-of-order observations.
 
-## Weather page revamp — queued after #94 Phase A
+## #94 live-surface integration
 
-The current Weather feature is functionally accepted, but its presentation should eventually be brought up to the standard planned for Astronomy rather than remaining a largely flat detail page.
+The current multi-document Weather page periodically calls `window.location.reload()` while Weather owns the visible surface. This refreshes the values but also resets the user's scroll position and interaction context.
+
+During #94 Clock ↔ Weather migration:
+
+- [x] replace whole-document reload with a Weather surface controller that obtains a current ACP-local rendered snapshot and refreshes the Weather data grid in place;
+- [x] preserve vertical scroll position and Rain/history horizontal scroll across routine updates;
+- [x] fetch current state immediately when Weather becomes active after being hidden, so a long-lived document does not show stale values on return;
+- [ ] further reduce DOM replacement so individual readings can be patched without rebuilding the whole Weather grid once the reusable component model is established;
+- keep the existing server-side WU observation worker authoritative for remote polling; the browser should consume ACP's local current state rather than independently polling Weather Underground;
+- [x] keep the forecast availability pill theme-owned: non-stale **Forecast Ready** text follows the selected daytime accent instead of retaining Classic cyan, while stale state remains a semantic warning colour;
+- [x] preserve Weather's full palette while it is the **outgoing** live surface in Spatial-row navigation: forecast rails and active-page-scoped forecast layout consume the compositor's local Weather surface context rather than reverting to base cyan/geometry when global body state switches to Clock; physically confirmed under Crimson Glow and Green Phosphor during Weather→Clock;
+- keep routine Weather data changes separate from navigation motion: no View Transition merely because temperature, rain, pressure or station status changed.
+
+## Weather page revamp — queued on the new #94 GTK/WebKit shell foundation
+
+The current Weather feature is functionally accepted, but its presentation should eventually be brought up to the standard planned for Astronomy rather than remaining a largely flat detail page. The selected #94 direction hosts the existing ACP pages in GTK3/WebKitGTK while retaining the same Flask and surface-host APIs; a redesign should remain a Weather web surface, not a second native GTK page. Validate a Settings-like, scrollable layout at the original 853×480 touchscreen size, including forecast-settled paint readiness and Squeekboard field visibility. See the [#94 current checkpoint](acp-shell-native-plexamp.md) for the shell migration gate.
 
 - [ ] Rebuild Weather as an application surface on the post-#94 single-document/component foundation rather than adding more one-off page CSS.
 - [ ] Use a Settings-like section model so current conditions, rain, temperature/humidity, wind, pressure, solar/UV, station status and historical/records views are discoverable without overloading one screen.
 - [ ] Keep a concise at-a-glance Weather overview, with deeper touch sections rather than forcing every datum onto the first screen.
 - [ ] Add useful graphs rather than decorative charts. Initial candidates: pressure/trend, rainfall rate + accumulation, temperature/humidity, and wind speed/gust/direction.
+- [ ] In the Pressure / Barometer panel, use the currently empty space beside the Relative Pressure card for a compact **12/24-hour pressure-history graph** (simple line or bar trace, visually similar to a small instrument history strip). It should complement rather than replace the textual barometer forecast/trend.
+- [ ] Extend the bounded pressure-history source beyond the current short window only as needed for that graph; prefer 12 h or 24 h selectable/appropriate retention and coordinate the write/downsampling policy with Appliance Resilience.
 - [ ] Investigate a bounded local observation-history store to support graphs and records. Define retention/downsampling, restart/recovery, export and storage-write behaviour before committing to long-term logging.
 - [ ] Coordinate any local history design with Appliance Resilience so useful graphs do not create unnecessary SD-card write amplification.
 - [ ] Reuse the global ACP design system/tokens and graph components so Astronomy and Weather do not invent two unrelated data-visualisation languages.
@@ -80,3 +116,17 @@ The current Weather feature is functionally accepted, but its presentation shoul
 - [x] Live v2 state migration checked: `chronology_source=dateutc`, 7200-second dry gap, empty increments, zero active event, no legacy event carried forward, and the WU `dateutc` observation projected to appliance-local chronology correctly.
 - [x] Existing Weather Rain panel visually checked on the commissioned touchscreen after the update: the four current rain gauges correctly showed zero and no stale derived event was presented.
 - [ ] Real-rain behaviour observed when nature eventually cooperates; useful follow-up evidence only and **not a merge blocker**.
+
+## #94 Clock ↔ Weather physical checkpoint — 4 October 2026
+
+- Same-document Clock → Weather → Clock navigation is materially snappier than the prior full-document route.
+- No black flash, page boot or obvious browser reload was observed.
+- Active navigation state and footer Mode tracking are correct.
+- Clock continues updating normally after returning from Weather.
+- Weather forecast, wind direction and Rain controls remain functional.
+- Routine Weather refresh now updates data **without moving the page back to the top**, which is physically accepted.
+- [x] The former user-facing **Dashboard observation refresh** interval is retired and physically checked absent on the commissioned Pi: observation acquisition keeps its provider-owned cadence, while Clock/Weather presentation refresh is a fixed shell-owned 60-second visible-surface cadence with immediate activation/settings refresh; Clock ↔ Weather remains healthy after the cleanup.
+- Two presentation defects were identified for immediate follow-up:
+  1. same-document motion used Chromium's default dissolve/crossfade regardless of the configured ACP transition style;
+  2. Forecast Outlook strips remained horizontally scrollable but their custom rails were hidden, while the Rain rail remained correct.
+- Both defects are bounded to the new same-document presentation lifecycle and are not regressions in Weather data ownership.

@@ -26,6 +26,14 @@ class AirPlayVolumeAuthorityTests(unittest.TestCase):
         self.assertNotIn("SetVolume", text)
         self.assertNotIn("SetAirplayVolume", text)
 
+    def test_visible_slider_polling_suspends_with_hidden_airplay_surface(self):
+        text = VOLUME_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("window.ACPAirPlaySurfaceLifecycle", text)
+        self.assertIn("surfaceLifecycle.isVisible()", text)
+        self.assertIn("surfaceLifecycle?.subscribe?.", text)
+        self.assertIn("function stopPolling()", text)
+        self.assertNotIn("setInterval(refresh", text)
+
     def test_audio_polish_no_longer_remaps_local_percent_to_sender_scale(self):
         text = AUDIO_POLISH.read_text(encoding="utf-8")
         self.assertNotIn("ACPAirPlayVolumeScale", text)

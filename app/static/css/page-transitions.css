@@ -12,6 +12,24 @@ html.acp-document-booting {
   background: #02040a;
 }
 
+/* Chromium renders View Transitions in a top layer above the document. Give
+   that layer an explicit dark canvas so a transient snapshot gap can never
+   reveal the browser's default white page, especially in a dark room. */
+html::view-transition {
+  background: #02040a;
+}
+
+html.acp-night-document-active::view-transition {
+  background: #000;
+}
+
+/* Keep the safety colour stationary. Backgrounds on old/new snapshot pseudos
+   move with their transition animations and can appear as travelling dark
+   rectangles when snapshot transparency is exposed. */
+html.acp-night-document-active body {
+  background-color: #000 !important;
+}
+
 /* The root marker is installed synchronously in <head>, before body content can
    paint. This closes the tiny first-paint gap that a body-only class can leave. */
 html.acp-document-booting body {
@@ -87,6 +105,61 @@ html[data-transition-style="blur-dissolve"] body.acp-page-ready .screen {
 }
 html[data-transition-style="blur-dissolve"] body.acp-page-leaving .screen {
   animation-name: acp-out-blur-dissolve;
+}
+
+/* #94 same-document surfaces use the browser View Transition API. Map the
+   existing ACP transition setting onto the root snapshots instead of accepting
+   Chromium's default crossfade. */
+:root[data-transition-style="grow-fade"] {
+  --acp-view-transition-old: acp-out-grow-fade;
+  --acp-view-transition-new: acp-in-grow-fade;
+}
+:root[data-transition-style="crossfade"] {
+  --acp-view-transition-old: acp-out-crossfade;
+  --acp-view-transition-new: acp-in-crossfade;
+}
+:root[data-transition-style="horizontal-slide"] {
+  --acp-view-transition-old: acp-out-horizontal-slide;
+  --acp-view-transition-new: acp-in-horizontal-slide;
+}
+:root[data-transition-style="vertical-lift"] {
+  --acp-view-transition-old: acp-out-vertical-lift;
+  --acp-view-transition-new: acp-in-vertical-lift;
+}
+:root[data-transition-style="cover-reveal"] {
+  --acp-view-transition-old: acp-out-cover-reveal;
+  --acp-view-transition-new: acp-in-cover-reveal;
+}
+:root[data-transition-style="zoom"] {
+  --acp-view-transition-old: acp-out-zoom;
+  --acp-view-transition-new: acp-in-zoom;
+}
+:root[data-transition-style="blur-dissolve"] {
+  --acp-view-transition-old: acp-out-blur-dissolve;
+  --acp-view-transition-new: acp-in-blur-dissolve;
+}
+
+/* While Level-B is still bounded to Clock -> Weather, unsupported spatial-row
+   relations fall back to the accepted Horizontal slide presentation. */
+:root[data-transition-style="spatial-row"] {
+  --acp-view-transition-old: acp-out-horizontal-slide;
+  --acp-view-transition-new: acp-in-horizontal-slide;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--acp-transition-duration);
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(.16, .84, .24, 1);
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  animation-name: var(--acp-view-transition-old, acp-out-grow-fade);
+}
+
+::view-transition-new(root) {
+  animation-name: var(--acp-view-transition-new, acp-in-grow-fade);
 }
 
 @keyframes acp-in-grow-fade {

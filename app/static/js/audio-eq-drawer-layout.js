@@ -51,6 +51,8 @@
     retry();
   }
 
+  document.addEventListener('acp:surface-settled', retry);
+
   window.addEventListener('pagehide', () => {
     observer?.disconnect();
     window.clearTimeout(retryTimer);

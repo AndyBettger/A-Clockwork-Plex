@@ -369,10 +369,10 @@ p {
   min-height: 0;
   margin: 0 auto;
   padding: clamp(8px, 1.25vmin, 14px);
-  border-radius: clamp(18px, 3vmin, 28px);
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.25);
+  border-radius: var(--acp-radius-panel);
+  background: var(--acp-color-surface);
+  border: 1px solid var(--acp-color-border);
+  box-shadow: var(--acp-shadow-panel);
   overflow: hidden;
 }
 
@@ -401,8 +401,8 @@ p {
 .weather-card {
   min-width: 0;
   padding: clamp(8px, 1.45vmin, 12px);
-  border-radius: clamp(14px, 2.4vmin, 18px);
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--acp-radius-card);
+  background: var(--acp-fill-card-neutral);
 }
 
 .weather-label {
@@ -442,10 +442,10 @@ p {
 .button {
   display: inline-block;
   padding: clamp(8px, 1.55vmin, 13px) clamp(15px, 2.7vmin, 23px);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  color: var(--text);
+  border-radius: var(--acp-radius-pill);
+  background: var(--acp-fill-control-neutral);
+  border: 1px solid var(--acp-border-control-neutral);
+  color: var(--acp-color-text);
   text-decoration: none;
   font-size: clamp(0.88rem, 2.05vmin, 1.05rem);
   font-weight: 700;
@@ -453,7 +453,7 @@ p {
 
 .button:active,
 .button:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--acp-fill-control-hover-neutral);
 }
 
 .status-bar {

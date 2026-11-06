@@ -1,0 +1,48 @@
+name: C3 Squeekboard Hot CSS ARM64 (test-only build)
+
+# Strictly isolated from the accepted C2 build, default/main branch,
+# and the commissioned Pi. One-time feature-branch push bootstrap because
+# GitHub's workflow_dispatch registration depends on default-branch setup.
+on:
+  push:
+    branches:
+      - feature/acp-shell-native-plexamp
+    paths:
+      - .github/workflows/squeekboard-hot-css-arm64.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-c3-hot-css-test-candidate:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 75
+    container:
+      image: debian:trixie
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Prepare disposable ARM64 container tools
+        run: |
+          set -euo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git bash
+
+      - name: Check out the exact feature branch commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build strictly SHA-locked C3 source and inspect ELF (no installation)
+        run: bash scripts/ci/build-squeekboard-hot-css-arm64.sh
+
+      - name: Upload distinct experimental C3 binary, package and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: squeekboard-c3-hot-css-arm64-test-only
+          path: artifacts/squeekboard-c3-hot-css/
+          if-no-files-found: warn
+          retention-days: 14

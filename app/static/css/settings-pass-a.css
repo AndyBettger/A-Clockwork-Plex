@@ -246,7 +246,13 @@ body.keyboard-open .settings-detail {
   scroll-padding-bottom: calc(var(--settings-keyboard-height, 300px) + 28px);
 }
 
-body.keyboard-open .settings-detail-panel,
+/* Put the clearance INSIDE the panel's scroll content. Padding only on
+   .settings-detail (the scrolling viewport) leaves bottom inputs with too
+   little actual scroll range when the custom keyboard overlays them. */
+body.mode-settings.keyboard-open .settings-detail-panel:not([hidden]) {
+  padding-bottom: calc(var(--settings-keyboard-height, 300px) + 24px);
+}
+
 body.keyboard-open .settings-subpage {
   padding-bottom: 24px;
 }

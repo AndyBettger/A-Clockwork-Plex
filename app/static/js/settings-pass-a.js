@@ -102,7 +102,31 @@
   function keyboardHeight() {
     const keyboard = document.getElementById('touch-keyboard');
     if (!keyboard || !document.body.classList.contains('keyboard-open')) return 0;
-    const height = Math.ceil(keyboard.getBoundingClientRect().height);
+    const bounds = keyboard.getBoundingClientRect();
+    // The Pi's real keyboard-open geometry shows that the outer element can
+    // report a 53px box while its visible keys extend far above that box.
+    // Measure the rendered keyboard contents, not merely the wrapper height.
+    const tops = Number.isFinite(bounds.top) ? [bounds.top] : [];
+    const selectors = [
+      '.touch-keyboard-header',
+      '.touch-keyboard-quick:not([hidden])',
+      '.touch-keyboard-keys',
+      '.touch-key-row',
+    ];
+    selectors.forEach((selector) => {
+      keyboard.querySelectorAll?.(selector).forEach((element) => {
+        const part = element.getBoundingClientRect();
+        if (Number.isFinite(part.top) && part.height > 0) tops.push(part.top);
+      });
+    });
+    const viewportHeight = window.innerHeight;
+    const upperEdge = tops.length ? Math.min(...tops) : viewportHeight;
+    const measuredHeight = Math.max(
+      bounds.height || 0,
+      keyboard.scrollHeight || 0,
+      viewportHeight - upperEdge,
+    );
+    const height = Math.ceil(Math.min(viewportHeight, Math.max(0, measuredHeight)));
     document.documentElement.style.setProperty('--settings-keyboard-height', `${height}px`);
     return height;
   }
@@ -114,6 +138,8 @@
 
     window.clearTimeout(revealTimer);
     revealTimer = window.setTimeout(() => {
+      // A delayed reveal from a previous field must not scroll the next one.
+      if (target !== activeKeyboardTarget || !document.body.classList.contains('keyboard-open')) return;
       const height = keyboardHeight();
       const detailRect = detail.getBoundingClientRect();
       const targetRect = (target.closest('.setting-field, .setting-toggle, label') || target).getBoundingClientRect();
@@ -123,12 +149,12 @@
       if (targetRect.bottom > visibleBottom) {
         detail.scrollBy({
           top: targetRect.bottom - visibleBottom + 18,
-          behavior: 'smooth',
+          behavior: 'auto',
         });
       } else if (targetRect.top < visibleTop) {
         detail.scrollBy({
           top: targetRect.top - visibleTop - 10,
-          behavior: 'smooth',
+          behavior: 'auto',
         });
       }
     }, 90);
@@ -143,6 +169,11 @@
       if (!target) return;
       activeKeyboardTarget = target;
       revealKeyboardTarget(target);
+      // A newly unhidden field can gain focus while the keyboard is still
+      // animating. Recheck after its 170ms entrance without resizing Settings.
+      window.setTimeout(() => {
+        if (activeKeyboardTarget === target) revealKeyboardTarget(target);
+      }, 210);
     }, true);
 
     document.addEventListener('pointerdown', (event) => {

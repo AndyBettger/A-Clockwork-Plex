@@ -1,4 +1,7 @@
-body[data-active-page="weather"] .weather-forecast-console {
+:is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-console {
   width: min(100%, 1120px);
   margin: 0 auto clamp(8px, 1.4vmin, 14px);
   padding: 0;
@@ -71,8 +74,8 @@ body[data-active-page="weather"] .weather-forecast-console {
   flex: 0 0 auto;
   padding: 6px 10px 5px;
   border: 1px solid rgba(143, 211, 255, 0.26);
-  border-radius: 999px;
-  color: var(--accent);
+  border-radius: var(--acp-radius-pill);
+  color: var(--acp-color-accent);
   background: rgba(5, 13, 24, 0.55);
   font-family: var(--display-font);
   font-size: clamp(0.64rem, 1.45vmin, 0.76rem);
@@ -125,10 +128,10 @@ body[data-active-page="weather"] .weather-forecast-console {
 .weather-forecast-scrollbar {
   position: relative;
   width: 100%;
-  height: 8px;
+  height: var(--acp-scrollbar-track-size);
   box-sizing: border-box;
   border: 1px solid rgba(143, 211, 255, 0.07);
-  border-radius: 999px;
+  border-radius: var(--acp-radius-pill);
   outline: none;
   background: rgba(5, 13, 24, 0.46);
   box-shadow:
@@ -152,10 +155,10 @@ body[data-active-page="weather"] .weather-forecast-console {
   position: absolute;
   top: 1px;
   left: 1px;
-  min-width: 42px;
-  height: 4px;
+  min-width: var(--acp-scrollbar-thumb-min);
+  height: var(--acp-scrollbar-thumb-size);
   border: 1px solid rgba(143, 211, 255, 0.16);
-  border-radius: 999px;
+  border-radius: var(--acp-radius-pill);
   background: linear-gradient(
     90deg,
     rgba(143, 211, 255, 0.42),
@@ -268,7 +271,10 @@ body[data-active-page="weather"] .weather-forecast-console {
 }
 
 @media (max-height: 620px), (max-width: 860px) {
-  body[data-active-page="weather"] .weather-forecast-console {
+  :is(
+  body[data-active-page="weather"],
+  .acp-spatial-outgoing-live-clone[data-acp-surface-context="weather"]
+) .weather-forecast-console {
     margin-bottom: 8px;
   }
 
