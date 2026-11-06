@@ -500,6 +500,11 @@
     const distance = path.length - 1;
     const directionSign = direction === 'reverse' ? -1 : 1;
     const animations = [];
+    // WebKit developer-only alternative: animate an incoming presentation clone
+    // while the actual mounted page remains stationary at the destination.
+    // Default always retains the accepted live-screen animation.
+    const cloneIncoming = window.__acpWebkitCloneIncomingTrial === true;
+    let incomingClone = null;
 
     try {
       // The row is spatially literal: each intermediate page occupies its own
@@ -509,12 +514,32 @@
       layers.forEach((layer, index) => {
         layer.style.transform = `translateX(${directionSign * index * 100}vw)`;
       });
-      screen.style.transform = `translateX(${directionSign * distance * 100}vw)`;
+      if (cloneIncoming) {
+        // Outgoing clone is already on top. Keep the real destination invisible
+        // but at its natural origin for the entire animation; it never acquires
+        // an offscreen transform or a WAAPI compositor effect.
+        screen.style.transform = 'translateX(0)';
+        screen.style.visibility = 'hidden';
+      } else {
+        screen.style.transform = `translateX(${directionSign * distance * 100}vw)`;
+      }
 
       await commit();
 
+      if (cloneIncoming) {
+        // Capture the *committed* destination with the correct body-mode CSS.
+        // cloneNode copies visibility:hidden, so explicitly restore visibility
+        // on the presentation-only copy before adding it above the real page.
+        incomingClone = prepareSpatialLayer(screen.cloneNode(true), to);
+        incomingClone.classList.add('acp-spatial-incoming-trial-clone');
+        incomingClone.style.visibility = 'visible';
+        incomingClone.style.transform = `translateX(${directionSign * distance * 100}vw)`;
+        document.body.appendChild(incomingClone);
+      }
+
       screen.getBoundingClientRect();
       layers.forEach((layer) => layer.getBoundingClientRect());
+      incomingClone?.getBoundingClientRect();
       await nextFrame();
 
       if (duration <= 0) return;
@@ -537,7 +562,7 @@
         ));
       });
 
-      animations.push(screen.animate(
+      animations.push((incomingClone || screen).animate(
         [
           { transform: `translateX(${directionSign * distance * 100}vw)` },
           { transform: 'translateX(0)' },
@@ -545,26 +570,36 @@
         timing,
       ));
 
-      // WebKit-only opt-in diagnostic: the active WAAPI effect still supplies
-      // the visible movement, but the underlying inline style is changed to
-      // the final zero offset immediately after starting the animation.
-      // The old offscreen inline transform should then never be exposed when
-      // fill:'both' is cancelled at the end. Unlike the rejected pin trial,
-      // this happens at animation START rather than immediately before cancel.
-      if (window.__acpWebkitUnderlyingEndTrial === true) {
-        screen.style.transform = 'translateX(0)';
-        window.__acpWebkitUnderlyingEndApplied =
-          (window.__acpWebkitUnderlyingEndApplied || 0) + 1;
-      }
-
       await Promise.all(
         animations.map((animation) => animation.finished.catch(() => undefined)),
       );
     } finally {
-      animations.forEach((animation) => animation.cancel());
-      screen.style.transform = '';
-      layers.forEach((layer) => layer.remove());
-      document.body.classList.remove('acp-spatial-live-commit');
+      if (incomingClone) {
+        // Stationary live destination is already at x=0. Keep its identical
+        // presentation clone covering it while releasing compositor layers.
+        // Unlike the earlier failed workaround, never detach still-animated
+        // clones and never animate main.screen in this experimental path.
+        incomingClone.style.transform = 'translateX(0)';
+        screen.style.visibility = '';
+        screen.style.transform = '';
+        animations.forEach((animation) => animation.cancel());
+        layers.forEach((layer) => layer.remove());
+        document.body.classList.remove('acp-spatial-live-commit');
+        // Let WebKit paint the stationary live page behind the final clone
+        // before retiring the copy. This is a visual A/B experiment only.
+        await nextFrame();
+        await nextFrame();
+        incomingClone.remove();
+        window.__acpWebkitCloneIncomingApplied =
+          (window.__acpWebkitCloneIncomingApplied || 0) + 1;
+      } else {
+        // Original physically smoother baseline, byte-for-byte teardown order.
+        animations.forEach((animation) => animation.cancel());
+        screen.style.transform = '';
+        layers.forEach((layer) => layer.remove());
+        document.body.classList.remove('acp-spatial-live-commit');
+      }
+      screen.style.visibility = '';
     }
   }
 
