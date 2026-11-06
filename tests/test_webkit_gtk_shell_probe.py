@@ -443,29 +443,32 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn('state.get("clonePaintSuppressed"), state.get("navBlurDisabled")',
                       source)
 
-    def test_f8_underlying_end_toggle_is_safe_and_opt_in(self):
+    def test_f9_destination_copy_requires_surface_trial_and_idle_route(self):
         src = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('if key == "F8" and args.surface_transition_trial:', src)
-        self.assertIn("window.__acpWebkitUnderlyingEndTrial !== true", src)
+        self.assertIn('if key == "F9" and args.surface_transition_trial:', src)
+        self.assertIn("window.__acpWebkitCloneIncomingTrial !== true", src)
         self.assertIn("window.ACPSurfaceHost?.isTransitioning?.()", src)
         self.assertIn("if (!window.__acpWebkitSurfaceTrial) return 'not-ready'", src)
         self.assertIn("return 'busy'", src)
-        self.assertIn("F8 end-style-at-start", src)
-        self.assertIn("F8 prepositions underlying live screen", src)
-        self.assertNotIn("window.__acpWebkitSpatialPinTrial", src)
+        self.assertIn("F9 destination-copy animation", src)
+        self.assertIn("F9 animates a destination copy", src)
+        self.assertNotIn("window.__acpWebkitUnderlyingEndTrial", src)
         self.assertNotIn("systemctl restart", src)
 
-    def test_underlying_end_metrics_report_real_execution_count(self):
-        script = probe.SURFACE_TRANSITION_METRICS_SCRIPT
-        self.assertIn("underlyingEndTrial: window.__acpWebkitUnderlyingEndTrial === true",
-                      script)
-        self.assertIn("underlyingEndApplied: window.__acpWebkitUnderlyingEndApplied || 0",
-                      script)
-        self.assertNotIn("fetch(", script)
-        self.assertNotIn("location.assign", script)
+    def test_destination_clone_metrics_report_active_and_retired_layers(self):
+        js = probe.SURFACE_TRANSITION_METRICS_SCRIPT
+        self.assertIn("cloneIncomingTrial: window.__acpWebkitCloneIncomingTrial === true",
+                      js)
+        self.assertIn("cloneIncomingApplied: window.__acpWebkitCloneIncomingApplied || 0",
+                      js)
+        self.assertIn("incomingCloneCount:", js)
+        self.assertIn("acp-spatial-incoming-trial-clone", js)
+        self.assertNotIn("fetch(", js)
+        self.assertNotIn("location.assign", js)
         src = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('state.get("underlyingEndTrial"), state.get("underlyingEndApplied")',
+        self.assertIn('state.get("cloneIncomingTrial"), state.get("cloneIncomingApplied")',
                       src)
+        self.assertIn('state.get("incomingCloneCount")', src)
 
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
