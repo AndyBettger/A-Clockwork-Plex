@@ -136,7 +136,7 @@ class SettingsNumericControlTests(unittest.TestCase):
 
     def test_assets_load_in_the_intended_final_order(self) -> None:
         base = BASE.read_text(encoding="utf-8")
-        self.assertIn("20260820-settings-theme-closure-v1", base)
+        self.assertRegex(base, r"filename='css/settings\-theme\-closure\.css', v='[^']+'")
         self.assertIn("20260820-numeric-controls-v3", base)
         self.assertLess(
             base.index("daytime-theme-followup.css"),

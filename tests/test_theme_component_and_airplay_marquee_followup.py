@@ -26,7 +26,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn("daytime-theme-components.css", base)
         self.assertIn("daytime-theme-followup.css", base)
-        self.assertIn("20260820-theme-followup-v7", base)
+        self.assertRegex(base, r"filename='css/daytime\-theme\-followup\.css', v='[^']+'")
         self.assertLess(base.index("daytime-themes.css"), base.index("daytime-theme-components.css"))
         self.assertLess(base.index("daytime-theme-components.css"), base.index("daytime-theme-followup.css"))
 
@@ -153,7 +153,7 @@ class ThemeComponentAndAirPlayMarqueeFollowupTests(unittest.TestCase):
         self.assertIn("color: var(--acp-theme-contrast) !important;", css)
         self.assertIn("border-bottom-color: var(--acp-theme-control-border) !important;", css)
         self.assertIn("display: none;", css)
-        self.assertIn("20260820-theme-followup-v7", BASE.read_text(encoding="utf-8"))
+        self.assertRegex(BASE.read_text(encoding="utf-8"), r"filename='css/daytime\-theme\-followup\.css', v='[^']+'")
 
     def test_alarm_basics_and_time_menu_follow_selected_theme(self) -> None:
         css = FOLLOWUP.read_text(encoding="utf-8")

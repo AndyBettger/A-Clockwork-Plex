@@ -80,6 +80,7 @@ ROADMAP_FEATURE_FILES = {
     "bbc-news.md",
     "high-resolution-audio.md",
     "acp-shell-native-plexamp.md",
+    "acp-shell-native-plexamp-progress-history-through-2026-10-29.md",
     "astronomy.md",
     "appliance-resilience.md",
     "events-calendar.md",
@@ -129,14 +130,18 @@ class DocsCatalogTests(unittest.TestCase):
             {path.name for path in features.iterdir() if path.is_file()},
         )
         roadmap = (ROADMAP_DIR / "ROADMAP.md").read_text(encoding="utf-8")
-        self.assertIn("# A Clockwork Plex Roadmap", roadmap)
-        self.assertIn("## Agreed implementation order", roadmap)
-        self.assertIn("## Current focus — #94 Phase B native Linux Plexamp", roadmap)
-        self.assertIn("High-resolution Plexamp audio / mixer-EQ (#85)", roadmap)
-        self.assertIn("**COMPLETE / MERGED**", roadmap)
-        self.assertIn("ACP shell / native Plexamp modernisation", roadmap)
-        self.assertIn("Astronomy", roadmap)
-        self.assertIn("## Branch housekeeping", roadmap)
+        self.assertIn("# A Clockwork Plex — Project Roadmap", roadmap)
+        self.assertIn("## Feature portfolio", roadmap)
+        self.assertIn("## Current development milestone — #94", roadmap)
+        self.assertIn("## Working rules and release gate", roadmap)
+        self.assertIn("**These release criteria are not all met.**", roadmap)
+        # The overview links to live feature authorities and retained history;
+        # do not require obsolete headings or claim unapproved merges complete.
+        for name in ROADMAP_FEATURE_FILES - {"README.md"}:
+            with self.subTest(feature=name):
+                self.assertIn(f"features/{name}", roadmap)
+        history = features / "acp-shell-native-plexamp-progress-history-through-2026-10-29.md"
+        self.assertGreater(history.stat().st_size, 0)
         self.assertNotIn("# EQ-capable Audio + Full Appliance Installer Roadmap", roadmap)
 
     def test_archive_preserves_the_pre_reorganisation_engineering_tree(self):

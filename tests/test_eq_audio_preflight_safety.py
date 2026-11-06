@@ -167,7 +167,9 @@ class EqAudioPreflightSafetyTests(unittest.TestCase):
     def test_hi_res_architecture_keeps_preflight_historical_and_tracks_installed_stack_gate(self) -> None:
         roadmap = ROADMAP.read_text(encoding="utf-8")
         architecture = HI_RES_ARCHITECTURE.read_text(encoding="utf-8")
-        self.assertIn("High-resolution Plexamp audio / mixer-EQ", roadmap)
+        self.assertIn("features/high-resolution-audio.md", roadmap)
+        feature = (ROADMAP.parent / "features/high-resolution-audio.md").read_text(encoding="utf-8")
+        self.assertIn("High-resolution Plexamp audio / mixer-EQ", feature)
         self.assertIn("scripts/audio/preflight-eq.sh", architecture)
         self.assertIn("old pre-EQ-install gate", architecture)
         self.assertIn("scripts/audio/verify-audio.sh", architecture)
