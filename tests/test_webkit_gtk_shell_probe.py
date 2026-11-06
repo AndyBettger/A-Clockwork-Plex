@@ -428,7 +428,7 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertIn("WebKit2.UserStyleLevel.USER", source)
         self.assertIn("(args.surface_transition_trial, SURFACE_COMPOSITOR_ISOLATION_CSS,",
                       source)
-        self.assertIn("F6 suppresses outgoing clone paint", source)
+        self.assertIn("F6 hides outgoing clone paint", source)
         self.assertNotIn("__acpWebkitSpatialPinTrial", source)
 
     def test_surface_status_reports_both_visual_isolation_modes_read_only(self):
@@ -442,6 +442,30 @@ class WebKitProbeTests(unittest.TestCase):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('state.get("clonePaintSuppressed"), state.get("navBlurDisabled")',
                       source)
+
+    def test_f8_underlying_end_toggle_is_safe_and_opt_in(self):
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if key == "F8" and args.surface_transition_trial:', src)
+        self.assertIn("window.__acpWebkitUnderlyingEndTrial !== true", src)
+        self.assertIn("window.ACPSurfaceHost?.isTransitioning?.()", src)
+        self.assertIn("if (!window.__acpWebkitSurfaceTrial) return 'not-ready'", src)
+        self.assertIn("return 'busy'", src)
+        self.assertIn("F8 end-style-at-start", src)
+        self.assertIn("F8 prepositions underlying live screen", src)
+        self.assertNotIn("window.__acpWebkitSpatialPinTrial", src)
+        self.assertNotIn("systemctl restart", src)
+
+    def test_underlying_end_metrics_report_real_execution_count(self):
+        script = probe.SURFACE_TRANSITION_METRICS_SCRIPT
+        self.assertIn("underlyingEndTrial: window.__acpWebkitUnderlyingEndTrial === true",
+                      script)
+        self.assertIn("underlyingEndApplied: window.__acpWebkitUnderlyingEndApplied || 0",
+                      script)
+        self.assertNotIn("fetch(", script)
+        self.assertNotIn("location.assign", script)
+        src = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('state.get("underlyingEndTrial"), state.get("underlyingEndApplied")',
+                      src)
 
     def test_repeated_ctrl_c_cannot_interrupt_proxy_cleanup(self):
         src = SCRIPT.read_text(encoding="utf-8")
