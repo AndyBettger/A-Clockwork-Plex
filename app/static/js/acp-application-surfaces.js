@@ -545,6 +545,18 @@
         timing,
       ));
 
+      // WebKit-only opt-in diagnostic: the active WAAPI effect still supplies
+      // the visible movement, but the underlying inline style is changed to
+      // the final zero offset immediately after starting the animation.
+      // The old offscreen inline transform should then never be exposed when
+      // fill:'both' is cancelled at the end. Unlike the rejected pin trial,
+      // this happens at animation START rather than immediately before cancel.
+      if (window.__acpWebkitUnderlyingEndTrial === true) {
+        screen.style.transform = 'translateX(0)';
+        window.__acpWebkitUnderlyingEndApplied =
+          (window.__acpWebkitUnderlyingEndApplied || 0) + 1;
+      }
+
       await Promise.all(
         animations.map((animation) => animation.finished.catch(() => undefined)),
       );
