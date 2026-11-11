@@ -7,6 +7,8 @@ from io import StringIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 from pathlib import Path
+import shutil
+import subprocess
 import threading
 import unittest
 
@@ -320,6 +322,21 @@ class WebKitProbeTests(unittest.TestCase):
         ])
         self.assertTrue(sample.surface_transition_trial)
         self.assertEqual(sample.surface_transition_mode, "configured")
+        cover = probe.parse_args([
+            "--show", "--surface-transition-trial",
+            "--surface-transition-mode", "cover-reveal",
+        ])
+        self.assertEqual(cover.surface_transition_mode, "cover-reveal")
+        with self.assertRaises(SystemExit):
+            probe.parse_args(["--show", "--surface-transition-mode", "cover-reveal"])
+        self.assertNotIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
+                         probe.surface_transition_script("spatial"))
+        self.assertNotIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
+                         probe.surface_transition_script("configured"))
+        self.assertIn(probe.COVER_REVEAL_TRIAL_SCRIPT,
+                      probe.surface_transition_script("cover-reveal"))
+        with self.assertRaises(ValueError):
+            probe.surface_transition_script("unsupported")
         with self.assertRaises(SystemExit):
             probe.parse_args([
                 "--show", "--surface-transition-mode", "configured",
@@ -344,6 +361,17 @@ class WebKitProbeTests(unittest.TestCase):
         self.assertNotIn("location.reload", js)
         self.assertNotIn("fetch(", js)
         self.assertNotIn("POST", js)
+
+    def test_cover_profile_behavior(self):
+        """Execute preview configuration/API observation; not rendered acceptance."""
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js unavailable for Cover Reveal behavior tests")
+        result = subprocess.run(
+            [node, "--test", str(ROOT / "tests/js/webkit-cover-reveal.test.cjs")],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_surface_transition_status_includes_outcome_and_same_document(self):
         js = probe.SURFACE_TRANSITION_TRIAL_SCRIPT

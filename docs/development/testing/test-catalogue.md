@@ -1,4 +1,12 @@
 
+## 11 November 2026 — Cover Reveal profile wiring PASS; Pi visual gate pending
+
+**Implementation:** `try-webkit-gtk-shell.py --surface-transition-trial --surface-transition-mode cover-reveal` sets a document-local Cover style and enables F11 navigation. Existing default spatial/configured modes are unchanged; no server/production asset mutation. The ordinary ACP router handles F-keys and drawer navigation directly, with no Spatial Row intermediates. A transparent native View Transition observer reports API availability, started/ready/finished counts, promise failures and elapsed time. Effective style/duration and Astronomy-night state make fallback interpretation explicit.
+
+**Local gate:** Python compile and **35/35 probe checks PASS**. New `tests/js/webkit-cover-reveal.test.cjs` executes 7 cases through the existing Python probe suite: local presentation only, opt-in guard, native argument/object/promise preservation, caller-visible rejections, absent API, idempotency, and direct non-spatial routing. The Node behavior case explicitly skips if unavailable on Pi; no Node installation needed for this focused check. This is behavior/wiring coverage, not a render pass.
+
+**Physical procedure:** pull/compile launcher and test; run 35 probe checks only. Existing ACP service stays running. One bounded 180s forced-SHM fullscreen Cover profile with Rain width/flick flags, Clock start. F11 starts ON; run F2→F3→F1, then drawer Weather→News→Home and close/watch pill. Confirm direct News→Clock, effective Cover style, retained configured duration, native counters if that API is selected, normal same-document changed/settled events, stable nav geometry and absence of flashes or page reload. Observe actual motion before accepting the engine. Escape closes the preview. Host/Spatial Row, native Plexamp/Audio, OSK and startup gates are not repeated here.
+
 ## 11 November 2026 — Correct F11 video reviewed; bounded drawer/pill comparison accepted
 
 **Replacement evidence:** `WayVNC - TigerVNC 2026-11-11 22-41-49.mp4` (86.00s) plus `Pasted text(20261111-224347).txt`, using the unchanged `8ded25f1` prototype. F10 ON across six completed on-screen routes; F11 OFF for three and ON for three; no retained row, matching navigation geometry, both switches restored OFF before exit. Twelve alternating logical nav changes; the earlier 16ms bounce is not reproduced. No new unit suite is claimed from this runtime-only output; prior Pi probe evidence remains 34/34 PASS.
@@ -833,7 +841,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 - `tests/test_shared_native_navigation_motion.py` — Joined handle/drawer geometry, input masks, Cairo foreign-region prerequisites, configured motion and failure cleanup.
 - `tests/test_shared_native_navigation_audio.py` — Mixer open/dismiss from ACP/native Plexamp, retained shared navigation ownership, return-to-origin and inactivity restoration.
 - `tests/test_shared_native_navigation_hover.py` — Shared navigation theme hover/pressed feedback and selected-state parity across exact foreground routes.
-- `tests/test_webkit_gtk_shell_probe.py` — Ephemeral bounded GTK/WebKit launcher, GET/HEAD-only proxy, renderer/layout/touch diagnostics, same-document routes, opt-in idle-only F10 comparison and passive status telemetry.
+- `tests/test_webkit_gtk_shell_probe.py` — Ephemeral bounded GTK/WebKit launcher, GET/HEAD-only proxy, renderer/layout/touch diagnostics, same-document routes, opt-in idle-only F10 comparison and passive status telemetry. Includes the optional Node-executed Cover profile/API behavior cases in `tests/js/webkit-cover-reveal.test.cjs`.
 
 - `tests/test_prepare_squeekboard_overlay.py` — Protects non-installing vendor Squeekboard source staging, strict SHA-256 descriptor requirements, one-shot TOP→OVERLAY patching and refusal of overwrite/root execution.
 - `tests/test_nfc_listener_installer.py` — Exercises NFC listener installation, service wiring and expected PN532 integration ownership.

@@ -3,8 +3,9 @@
 
 This is NOT the production shell or a replacement for Chromium. It uses a
 loopback-only GET/HEAD proxy to reject requests that would change the running
-ACP backend. Pages can be inspected using F1-F5; controller POSTs, Settings
-saves and same-document route transitions are intentionally not tested here.
+ACP backend. Pages can be inspected using F1-F5, with same-document routing
+available through an explicit trial. Controller POSTs and Settings saves are
+intentionally not tested here.
 
 No app services, Flatpak, CamillaDSP/ALSA, Squeekboard or autostart touched.
 """
@@ -325,7 +326,7 @@ SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
   window.__acpWebkitSurfaceTrial = {
     state,
     async navigate(target, kind) {
-      if (!allow.includes(target) || !['spatial', 'configured'].includes(kind)) {
+      if (!allow.includes(target) || !['spatial', 'configured', 'cover-reveal'].includes(kind)) {
         state.failures += 1;
         state.last = {reason: 'invalid-args', target, kind};
         return;
@@ -384,6 +385,70 @@ SURFACE_TRANSITION_TRIAL_SCRIPT = r"""
 })()
 """
 
+COVER_REVEAL_TRIAL_SCRIPT = r"""
+(() => {
+  if (!window.__acpWebkitSurfaceTrial || window.__acpWebkitCoverRevealTrial) return;
+  // The ordinary ACP router and CSS already implement Cover Reveal. Change
+  // only this ephemeral document's presentation, not the server dataset or
+  // saved preferences. The existing duration and theme remain authoritative.
+  const root = document.documentElement;
+  const keepPreviewStyle = () => {
+    if (root.dataset.transitionStyle !== 'cover-reveal') root.dataset.transitionStyle = 'cover-reveal';
+  };
+  keepPreviewStyle();
+  // A later Settings mount may publish the server's style. Keep this explicit
+  // profile local and consistent for F-keys AND on-screen navigation.
+  new MutationObserver(keepPreviewStyle).observe(root, {
+    attributes: true, attributeFilter: ['data-transition-style'],
+  });
+  root.classList.add('acp-webkit-layout-nav-trial');
+  const state = {
+    apiAvailable: typeof document.startViewTransition === 'function',
+    started: 0, ready: 0, finished: 0, readyFailures: 0, finishFailures: 0,
+    lastElapsedMs: null, lastError: null,
+  };
+  window.__acpWebkitCoverRevealTrial = state;
+  if (!state.apiAvailable) return; // Observe the host's existing fallback.
+
+  const original = document.startViewTransition;
+  document.startViewTransition = function (...args) {
+    const started = performance.now();
+    // Preserve native this/arguments, transition identity and promise results.
+    // Observers do not replace ready/finished or consume callers' rejections.
+    const transition = Reflect.apply(original, this, args);
+    state.started += 1;
+    transition.ready.then(
+      () => { state.ready += 1; },
+      (error) => {
+        state.readyFailures += 1;
+        state.lastError = String(error?.message || error);
+      },
+    );
+    transition.finished.then(
+      () => {
+        state.finished += 1;
+        state.lastElapsedMs = Math.round(performance.now() - started);
+      },
+      (error) => {
+        state.finishFailures += 1;
+        state.lastError = String(error?.message || error);
+      },
+    );
+    return transition;
+  };
+})()
+"""
+
+
+def surface_transition_script(mode: str) -> str:
+    """Build only allowlisted, ephemeral document-end probe scripts."""
+    if mode not in ("spatial", "configured", "cover-reveal"):
+        raise ValueError("unsupported surface transition mode")
+    if mode == "cover-reveal":
+        return SURFACE_TRANSITION_TRIAL_SCRIPT + ";\n" + COVER_REVEAL_TRIAL_SCRIPT
+    return SURFACE_TRANSITION_TRIAL_SCRIPT
+
+
 SURFACE_TRANSITION_METRICS_SCRIPT = r"""
 (() => {
  const trial = window.__acpWebkitSurfaceTrial;
@@ -398,6 +463,13 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    settled: trial?.state.settled || 0,
    requests: trial?.state.requests || 0,
    failures: trial?.state.failures || 0,
+   effectiveStyle: window.ACPDashboardPreferences?.read?.().transitionStyle
+     || document.documentElement.dataset.transitionStyle || null,
+   configuredDurationMs: window.ACPDashboardPreferences?.read?.().transitionDurationMs
+     ?? Number(document.documentElement.dataset.transitionDurationMs || 300),
+   coverReveal: window.__acpWebkitCoverRevealTrial || null,
+   astronomyNightActive: document.documentElement.classList.contains('acp-night-document-active')
+     && document.documentElement.classList.contains('acp-night-style-astronomy'),
    last: trial?.state.last || null,
    lastObserved: trial?.state.lastObserved || null,
    recentRoutes: trial?.state.recentRoutes || [],
@@ -552,8 +624,9 @@ def parse_args(argv=None):
                         help="F1-F5 navigate existing ACP same-document mounted surfaces, "
                              "instead of reloading whole pages (read-only preview).")
     parser.add_argument("--surface-transition-mode",
-                        choices=("spatial", "configured"), default="spatial",
-                        help="Spatial Row or configured ordinary transition; "
+                        choices=("spatial", "configured", "cover-reveal"), default="spatial",
+                        help="Spatial Row, configured ordinary transition, or an "
+                             "ephemeral Cover Reveal profile with F11 navigation; "
                              "only with --surface-transition-trial.")
     args = parser.parse_args(argv)
     if args.surface_transition_mode != "spatial" and not args.surface_transition_trial:
@@ -699,7 +772,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
               "no momentum; native vertical panning retained)", flush=True)
     if args.surface_transition_trial:
         injected = WebKit2.UserScript.new(
-            SURFACE_TRANSITION_TRIAL_SCRIPT,
+            surface_transition_script(args.surface_transition_mode),
             WebKit2.UserContentInjectedFrames.TOP_FRAME,
             WebKit2.UserScriptInjectionTime.END, None, None)
         webview.get_user_content_manager().add_script(injected)
@@ -754,6 +827,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("transitionInFlight"),
                     state.get("navOpen"), state.get("navMode"), state.get("navChanges"),
                     state.get("navLayoutTrial"),
+                    state.get("effectiveStyle"),
+                    json.dumps(state.get("coverReveal"), sort_keys=True),
                     state.get("outgoingCloneCount"),
                     state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
                     state.get("frameStripTrial"), state.get("frameStripApplied"),
@@ -942,8 +1017,15 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
         print("ACP WebKit probe: F6 hides outgoing clone paint (dark gap); "
               "F7 removes nav blur; F10 moves one frame-driven spatial strip "
               "without Web Animations; F11 uses layout-positioned drawer/pill "
-              "motion. All OFF by default. F9 retired.",
+              "motion. OFF by default except F11 in the cover-reveal profile. "
+              "F9 retired.",
               flush=True)
+        if args.surface_transition_mode == "cover-reveal":
+            print("ACP WebKit probe: Cover Reveal profile: preview-only style, "
+                  "existing configured duration, F11 navigation ON. F1-F5 and "
+                  "the drawer use the ordinary ACP renderer; no spatial "
+                  "intermediates. coverReveal counters observe native View "
+                  "Transitions when the host selects that path.", flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)
