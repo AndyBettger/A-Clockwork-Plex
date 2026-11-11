@@ -1,13 +1,25 @@
 # ACP shell / native Linux Plexamp — #94
 
 **Status:** ACTIVE — Phase A complete; Phase B native navigation functionally accepted on development Pi, but visual Audio ownership remains unresolved. **Selected next direction:** GTK3-managed WebKitGTK shell with native Plexamp as a separate Wayland Flatpak. This is a design decision, **not an implemented migration or production release**.  
-**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 6 November 2026  
+**Working branch:** `feature/acp-shell-native-plexamp` · **Updated:** 11 November 2026\
 **Project overview:** [ROADMAP.md](../ROADMAP.md) · **Preserved #94 detailed chronology:** [progress history through 29 October](acp-shell-native-plexamp-progress-history-through-2026-10-29.md) · **Test evidence:** [test catalogue](../../development/testing/test-catalogue.md).
 
 
+## 11 November 2026 — F11 exercised with reported improvement; matching recording pending
+
+**Current checkpoint:** operator pulled `9007161d..8ded25f1`; Python compilation PASS and WebKit probe **34/34 PASS in 1.019s**. New command output: `Pasted text(20261111-223530).txt`. The operator reports that F11 improved the drawer/pill flash and looked smoother. Record this as **operator-reported improvement, not a complete visual/performance pass**.
+
+**Runtime evidence:** F10 remained ON across all six completed on-screen routes (six changed / six settled notifications, applied counter 1→6, row count 0 at rest). F11 was OFF for the first Weather→News→Home sequence and genuinely ON for the second three-route sequence, then switched OFF before F10 OFF and a clean exit. The F-key request counter is 0 because these were on-screen routes; the wrapper's zero failure count is not a separate count of every on-screen request. Blur remained enabled. Settled endpoints match: drawer top **402px** and handle top **382px** while open; **480px / 460px** when closed. F11 uses static horizontal translate, drawer margin **−78px** closed, handle margin **+78px** open and steady opacity 1. No retained row or reported geometry regression.
+
+**Attachment mismatch:** `WayVNC - TigerVNC 2026-11-06 03-30-56(1).mp4` is byte-for-byte identical to the previous `WayVNC - TigerVNC 2026-11-06 03-30-56.mp4`: both **44,830,551 bytes**, SHA-256 `84dad5bcb1dcb2e854c76c1309a520df7c21b898e8c5c5d83327adf1cd65e71a`. It is the earlier 82.29s F10 comparison, not visual evidence of this new F11 run. Do not claim to have visually verified F11 from that attachment. The new log and operator's observation remain valid evidence.
+
+**Limits/watch items:** the trace caught one real close→reopen **16ms apart** (23339→23355ms) in the F11-OFF baseline; its cause is unknown and may involve input/timing. Do not label it a compositor-only flicker. Page-row callback counts were **20–26** before F11 and **18–23** with F11 for 2000ms configured movement; those metrics describe F10 page scheduling, not the F11 drawer's CSS animation or visible FPS. They neither establish nor contradict the reported improvement in navigation feel. Overall resource/smoothness acceptance remains open.
+
+**Next focused gate:** review the correct recording from the already completed F11 test. No source/runtime change, service restart, repeat compilation or repeat unit suite is needed for an attachment correction. If that footage was not captured, repeat only the existing bounded visual comparison with F10 ON throughout and F11 OFF→ON while closed/idle, including drawer routes and post-close pill observation. Keep both comparisons opt-in pending visual confirmation; Cover Reveal, full GTK ownership/Audio integration and B4.4 remain deferred. This checkpoint updates documentation only.
+
 ## 6 November 2026 — F10 page-flash check PASS; drawer/pill flicker remains; F11 layout motion staged
 
-**Current checkpoint; the earlier dated investigations below are retained history, not extra tests to repeat.** Operator pulled `68d576aa..9007161d`; compilation PASS, host suite **29 collected: 28 PASS + 1 explicit Node-unavailable SKIP** (0.006s), WebKit probe **34/34 PASS** (1.017s). Recording: `WayVNC - TigerVNC 2026-11-06 03-30-56.mp4` (82.29s, 1600×900, nominal 120fps capture); output: `Pasted text(20261106-033257).txt`. The capture rate does not establish rendered FPS.
+**Historical checkpoint before the F11 operator result.** Operator pulled `68d576aa..9007161d`; compilation PASS, host suite **29 collected: 28 PASS + 1 explicit Node-unavailable SKIP** (0.006s), WebKit probe **34/34 PASS** (1.017s). Recording: `WayVNC - TigerVNC 2026-11-06 03-30-56.mp4` (82.29s, 1600×900, nominal 120fps capture); output: `Pasted text(20261106-033257).txt`. The capture rate does not establish rendered FPS.
 
 **Physical F10 result:** nine completed same-document routes, six F-key requests, zero F-key failures. Three initial baseline routes preceded F10 ON; then **six F10 routes completed**, including three open-drawer routes, forward/reverse and the two-position News→Clock path. `frameStripApplied:1→6`, `frameStripCount:0` at rest, no outgoing copies retained. Operator reports the old-page flash is gone after F10, consistent with frame inspection of the comparison routes. **PASS for the bounded old-page-flash check only.** Keep the candidate opt-in; this is not whole-shell or production acceptance.
 

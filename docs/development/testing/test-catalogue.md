@@ -1,4 +1,12 @@
 
+## 11 November 2026 — F11 functional comparison completed; visual evidence correction needed
+
+**Operator at `8ded25f1`:** compile PASS; probe **34/34 PASS (1.019s)**. Six completed on-screen routes with F10 ON, applied 1→6 and no retained row. F11 OFF for three routes, ON for three, then restored OFF before clean exit. Logged open/closed drawer and handle endpoints match the baseline (402/382px open, 480/460px closed); F11 margins and steady handle opacity are active. The operator reports improved pill flash and smoother navigation. **Provisional improvement, not full visual/performance acceptance.**
+
+**Recording mismatch:** uploaded `WayVNC - TigerVNC 2026-11-06 03-30-56(1).mp4` has the same SHA-256 and byte count as the earlier F10 recording; it cannot validate this F11 run. Exact identity is recorded in the feature roadmap. Keep the current command output and operator report as evidence; request the matching F11 recording without asking for another test/compile cycle if it already exists.
+
+**Trace interpretation:** one 16ms close/reopen occurs in the F11-OFF baseline; source is unknown. Page-row callback counts are not drawer-animation FPS, so subjective navigation improvement must be assessed from the correct recording. No runtime or test changes at this checkpoint. Next gate is the attachment correction, then F11 visual review; all broader integration/performance gates remain open.
+
 ## 6 November 2026 — Pi F10 page-flash PASS; F11 navigation/pill comparison staged
 
 **Pi at `9007161d`:** host 29 collected / 28 PASS + 1 Node SKIP; probe **34/34 PASS**, compile PASS. Nine changed/settled routes, zero F-key failures; six F10 comparison routes including open-drawer and reverse/long paths. F10 applied counter 1→6 and no retained row. Operator/video confirm no old-page return in the F10 portion. **Bounded flash check PASS; overall motion, drawer/pill flicker and production acceptance remain open.** F10 callbacks: 18–27 over 2002–2087ms for 2000ms configured; max gaps 146–207ms. Nominal 120fps VNC recording is not rendered FPS.

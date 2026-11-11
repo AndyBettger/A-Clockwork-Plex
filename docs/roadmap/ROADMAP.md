@@ -1,6 +1,6 @@
 # A Clockwork Plex — Project Roadmap
 
-**Updated:** 6 November 2026 · **Published release:** v0.4.0 (23 August 2026)  
+**Updated:** 11 November 2026 · **Published release:** v0.4.0 (23 August 2026)\
 **Active development branch:** `feature/acp-shell-native-plexamp` · **Integration:** `develop` · **Stable:** `main`
 
 > This is the **project-level overview**, not a test diary. A Clockwork Plex is currently running on a **development/test Raspberry Pi**, not yet a signed-off bedside appliance. Feature-specific requirements, acceptance results, defects and next checks belong in the linked [feature roadmaps](features/README.md) and [testing catalogue](../development/testing/test-catalogue.md).
@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK Spatial Row navigation quality. The Pi/VNC run at `9007161d` passes the **F10 old-page-flash check across six comparison transitions**; drawer flicker and a post-close pill flash remain. Callback cadence is still low, so overall motion/performance is not accepted. A default-OFF **F11 layout-positioned drawer/pill** comparison and passive navigation-state trace are staged; F10 remains unchanged. **Cover Reveal and B4.4 startup remain deferred.**
+- **Next milestone:** WebKitGTK Spatial Row navigation quality. F10 has passed the bounded old-page-flash check. The latest F11 run functionally exercised three comparison routes; the operator reports less pill flash and smoother navigation. **Matching video confirmation remains pending** because the attached recording duplicates the earlier F10 run. Overall performance and complete visual acceptance remain open; both experiments stay opt-in. **Cover Reveal and B4.4 startup remain deferred.**
 
 ## Feature portfolio
 
@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | F10 passes bounded page-flash check; drawer/pill flicker and overall performance remain open. F11 comparison staged. Native shell ownership, Audio overlay, installer/startup remain later gates |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | F10 bounded page-flash check passed; F11 exercised with operator-reported improvement, awaiting matching video. Overall performance remains open. Native shell ownership, Audio overlay, installer/startup remain later gates |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
