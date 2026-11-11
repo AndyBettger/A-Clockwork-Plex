@@ -1,4 +1,12 @@
 
+## 11 November 2026 — Correct F11 video reviewed; bounded drawer/pill comparison accepted
+
+**Replacement evidence:** `WayVNC - TigerVNC 2026-11-11 22-41-49.mp4` (86.00s) plus `Pasted text(20261111-224347).txt`, using the unchanged `8ded25f1` prototype. F10 ON across six completed on-screen routes; F11 OFF for three and ON for three; no retained row, matching navigation geometry, both switches restored OFF before exit. Twelve alternating logical nav changes; the earlier 16ms bounce is not reproduced. No new unit suite is claimed from this runtime-only output; prior Pi probe evidence remains 34/34 PASS.
+
+**Physical acceptance:** operator and matching video support smoother drawer/pill motion with F11 and no return of the old-page flash. Inspecting the three F11 closes shows the pill settling at the bottom until the next real opening. Accept F10+F11 as the preferred bounded preview reference. Overall page-row cadence/resource, Cover Reveal, complete GTK integration and release gates remain open; runtime defaults unchanged.
+
+**Plexamp tint:** the brief softer fill around 51.7–51.9s occurs while Home retains its bright selected marker. Logged routes remain Clock/Weather/News. This matches hover/press styling rather than observed active-page reassignment; exact pointer trigger is inferred because hover state is not in telemetry. Keep intended mouse feedback; investigate only if the actual selected marker or route becomes incorrect. Documentation-only checkpoint; no repeat of this same A/B is needed. Next visual work is Cover Reveal and separate page-row cadence assessment.
+
 ## 11 November 2026 — F11 functional comparison completed; visual evidence correction needed
 
 **Operator at `8ded25f1`:** compile PASS; probe **34/34 PASS (1.019s)**. Six completed on-screen routes with F10 ON, applied 1→6 and no retained row. F11 OFF for three routes, ON for three, then restored OFF before clean exit. Logged open/closed drawer and handle endpoints match the baseline (402/382px open, 480/460px closed); F11 margins and steady handle opacity are active. The operator reports improved pill flash and smoother navigation. **Provisional improvement, not full visual/performance acceptance.**

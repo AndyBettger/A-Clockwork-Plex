@@ -10,7 +10,7 @@
 - **Core ACP features:** Clock, Weather, BBC News, AirPlay, Settings and the accepted high-resolution audio/mixer-EQ path are established. Current feature scope and any outstanding integration/merge gates are recorded individually below.
 - **In active development — #94:** a unified native GTK shell for ACP pages and native Plexamp. C3 system Squeekboard and joined GTK navigation have passed bounded physical tests; the current Chromium-owned Audio mixer works but still causes **duplicate GTK/Chromium navigation during transitions**.
 - **Selected architecture, not yet implemented:** host existing ACP HTML/CSS/JS pages in GTK3 + WebKitGTK; keep the native Plexamp Wayland Flatpak separate; use one GTK navigation owner and an Audio overlay that works over either app without switching focus. Preserve Chromium/Headless as rollback during migration.
-- **Next milestone:** WebKitGTK Spatial Row navigation quality. F10 has passed the bounded old-page-flash check. The latest F11 run functionally exercised three comparison routes; the operator reports less pill flash and smoother navigation. **Matching video confirmation remains pending** because the attached recording duplicates the earlier F10 run. Overall performance and complete visual acceptance remain open; both experiments stay opt-in. **Cover Reveal and B4.4 startup remain deferred.**
+- **Next milestone:** WebKitGTK transition quality. The matching 11 November recording confirms **F10 + F11 as the preferred bounded Spatial Row/navigation preview**: old-page flash remains absent and F11 improves drawer/pill continuity. The briefly tinted Plexamp button is consistent with hover/press feedback while the actual page remains selected. Both experiments stay opt-in; page-row cadence/resource acceptance is still open. **Next visual gate: Cover Reveal; B4.4 startup remains deferred.**
 
 ## Feature portfolio
 
@@ -21,7 +21,7 @@
 | [Touchscreen text entry (#91)](features/touchscreen-text-entry.md) | **Complete for original ACP scope** | Native C3 Squeekboard extension is tracked under #94 |
 | [BBC News (#92)](features/bbc-news.md) | **Complete** | Feed/cache/QR/refresh and theme/status semantics accepted |
 | [High-resolution audio and mixer-EQ (#85)](features/high-resolution-audio.md) | **Physically accepted** | S32_LE / 192 kHz processing, CamillaDSP mixer/EQ, AirPlay and alarms preserved; feature file remains authority for outstanding merge gate and Direct source-rate-native work |
-| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | F10 bounded page-flash check passed; F11 exercised with operator-reported improvement, awaiting matching video. Overall performance remains open. Native shell ownership, Audio overlay, installer/startup remain later gates |
+| [ACP shell / native Plexamp (#94)](features/acp-shell-native-plexamp.md) | **Active — Phase B / WebKit prototype** | F10 page-flash and F11 bounded drawer/pill checks accepted from matching video. Page-row performance remains open; Cover Reveal is next. Native shell ownership, Audio overlay, installer/startup remain later gates |
 | [Astronomy](features/astronomy.md) | **Planned** | Touch-first Sun/Moon/planet/observing surface with shared location/time; reserved between Weather and News in future Spatial Row |
 | [Appliance resilience](features/appliance-resilience.md) | **Planned, with investigations underway** | Storage/SD reliability, system time, offline recovery and future SSD/installer hardening |
 | [Events calendar](features/events-calendar.md) | **Planned** | Touch-friendly, cache-first events with defined source and stale/offline behaviour |
@@ -34,7 +34,7 @@
 
 **Next development steps** (detailed scope/checks live in [#94](features/acp-shell-native-plexamp.md)):
 
-1. Complete the [#94 GTK3/WebKitGTK developer prototype](features/acp-shell-native-plexamp.md): layout and touch baseline accepted; now verify same-document Spatial Row/Cover Reveal transitions in the existing mounted ACP surface host. Retain Chromium rollback; Squeekboard is a later integration gate.
+1. Complete the [#94 GTK3/WebKitGTK developer prototype](features/acp-shell-native-plexamp.md): layout/touch and the bounded F10+F11 Spatial Row/navigation comparison accepted; next verify Cover Reveal in the existing mounted ACP surface host and address page-row cadence. Retain Chromium rollback; Squeekboard is a later integration gate.
 2. Connect the accepted GTK navigation to the WebKit host and native Plexamp, then build an independent Audio overlay using the existing backend and EQ controls. Recheck no duplicate navigation and no unintended focus change.
 3. Prototype a coordinated visual reveal for ACP ↔ native Plexamp. True live window embedding is **not** available through GTK3 on native Wayland; any snapshot-assisted Spatial Row is optional and must pass resource/focus tests.
 4. After physical acceptance, complete B4.4 supervised startup, recovery, installer integration and native Plexamp Backup/Restore/Reset. Retain the known-good fallback.
