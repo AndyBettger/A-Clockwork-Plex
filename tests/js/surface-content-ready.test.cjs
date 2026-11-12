@@ -179,6 +179,9 @@ test('Weather activation and snapshot waiter join the same refresh and allow ret
   assert.equal(f.requests.length, 2);
   f.requests[1].reject(new Error('offline'));
   assert.equal(await retry, false);
+  f.context.document.hidden = true;
+  assert.equal(await f.window.ACPWeatherSurface.refresh(), false);
+  assert.equal(f.requests.length, 2, 'a hidden page starts no further request');
 });
 
 test('News script load, activation and snapshot waiter share one request then permit refresh', async () => {
@@ -195,6 +198,9 @@ test('News script load, activation and snapshot waiter share one request then pe
   assert.equal(f.requests.length, 2);
   f.requests[1].reject(new Error('offline'));
   assert.equal(await retry, false);
+  f.context.document.hidden = true;
+  assert.equal(await f.window.ACPNewsSurface.refresh(), false);
+  assert.equal(f.requests.length, 2, 'a hidden page starts no further request');
 });
 
 test('forecast readiness resolves only after the provider result is handled, including disabled mode', async () => {

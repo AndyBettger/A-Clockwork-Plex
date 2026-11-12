@@ -84,7 +84,7 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
 
     def test_news_mounted_surface_pauses_hidden_refresh_and_remeasures_on_settle(self):
         self.assertIn("function newsIsVisible()", self.news_client)
-        self.assertIn("if (!newsIsVisible()) return;", self.news_client)
+        self.assertIn("if (!newsIsVisible())", self.news_client)
         self.assertIn("acp:surface-activated", self.news_client)
         self.assertIn("acp:surface-settled", self.news_client)
         self.assertIn("captureScrollState", self.news_client)
