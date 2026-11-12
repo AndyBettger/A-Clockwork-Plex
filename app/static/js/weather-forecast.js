@@ -430,7 +430,7 @@
 
   document.addEventListener('acp:weather-grid-refreshed', refreshForecastScrollbars);
 
-  fetch('/api/weather/forecast', { cache: 'no-store' })
+  const ready = fetch('/api/weather/forecast', { cache: 'no-store' })
     .then((response) => {
       if (!response.ok) {
         throw new Error(`Forecast returned HTTP ${response.status}`);
@@ -448,4 +448,5 @@
       // The station console remains fully usable without the optional provider.
       anchor.dataset.acpForecastSettled = 'true';
     });
+  window.ACPWeatherForecast = { ready };
 })();

@@ -120,12 +120,12 @@
   <script src="{{ url_for('static', filename='js/acp-surface-host.js', v='20261010-b7-live-screen-v6') }}"></script>
   <script src="{{ url_for('static', filename='js/page-transitions.js', v='20261010-b6-long-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/native-navigation-bridge.js', v='20261028-b43-shared-audio-v1') }}"></script>
-  <script src="{{ url_for('static', filename='js/acp-application-surfaces.js', v='20261106-webkit-frame-strip-ab-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/acp-application-surfaces.js', v='20261111-snapshot-content-ready-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/screen-projection.js', v='20260831-news-route-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/mode-watch.js', v='20260729-service-recovery-only') }}"></script>
   {% if active_page | default(state.mode) == 'weather' %}
-  <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20261022-b3-forecast-settled-v2') }}"></script>
-  <script src="{{ url_for('static', filename='js/weather-forecast-completion.js', v='20260823-hide-unknown-days-v1') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather-forecast.js', v='20261111-forecast-ready-v3') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather-forecast-completion.js', v='20261111-forecast-completion-ready-v2') }}"></script>
   {% endif %}
   {% if active_page | default(state.mode) == 'settings' %}
   <script src="{{ url_for('static', filename='js/settings-transaction-guard.js', v='20260802-single-transaction') }}"></script>

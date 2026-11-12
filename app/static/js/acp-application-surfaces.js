@@ -657,6 +657,55 @@
     }
   }
 
+  async function settleContentBeforeSnapshot(surface, wrapper) {
+    // Bounded WebKit experiment: wait for actual content work, not an
+    // arbitrary delay or rAF while the native transition suppresses rendering.
+    const started = performance.now();
+    const status = { surface, state: 'waiting', elapsedMs: 0, limitMs: 1800 };
+    window.__acpWebkitContentReadyLast = status;
+    let timer;
+    const work = async () => {
+      if (surface === 'weather') {
+        if (!window.ACPWeatherForecast?.ready || !window.ACPWeatherForecastCompletion?.ready) {
+          throw new Error('Weather readiness modules unavailable');
+        }
+        const [updated] = await Promise.all([
+          window.ACPWeatherSurface.refresh(),
+          window.ACPWeatherForecast.ready,
+          window.ACPWeatherForecastCompletion.ready,
+        ]);
+        return {
+          refreshUpdated: updated === true,
+          forecastSettled: wrapper.querySelector('.weather-detail-page')?.dataset.acpForecastSettled === 'true',
+        };
+      }
+      const updated = await window.ACPNewsSurface.refresh();
+      const logo = wrapper.querySelector('[data-news-logo]');
+      let logoDecoded = null;
+      if (logo && !logo.hidden && typeof logo.decode === 'function') {
+        logoDecoded = await logo.decode().then(() => true, () => false);
+      }
+      return { refreshUpdated: updated === true, logoDecoded };
+    };
+    try {
+      const result = await Promise.race([
+        work().then(
+          (detail) => ({ state: 'settled', ...detail }),
+          (error) => ({ state: 'failed', error: String(error?.message || error) }),
+        ),
+        new Promise((resolve) => {
+          timer = window.setTimeout(() => resolve({ state: 'timed-out' }), status.limitMs);
+        }),
+      ]);
+      Object.assign(status, result, { elapsedMs: Math.round(performance.now() - started) });
+      // Native View Transitions will take their incoming snapshot after this
+      // update callback returns. Resolve layout without awaiting a paint tick.
+      screen.getBoundingClientRect();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
   surfaces.forEach((surface) => {
     surfaceHost.register(surface, {
       async prepare({ from } = {}) {
@@ -689,6 +738,13 @@
             await ordinaryLiveCommit(from, commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
+            if (window.__acpWebkitContentReadyTrial === true && ['weather', 'news'].includes(surface)) {
+              await ensureScripts(record.scripts);
+              publishActivation(options);
+              activatedBeforeSnapshot = true;
+              await settleContentBeforeSnapshot(surface, record.wrapper);
+              return;
+            }
             if (surface !== 'airplay') return;
 
             // AirPlay's segmented glance row and measured hero geometry are

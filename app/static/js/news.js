@@ -35,6 +35,7 @@
   let snapshot = null;
   let activeCategory = null;
   let refreshTimer = null;
+  let refreshInFlight = null;
   let logoSource = '';
   let detailStoryId = '';
   let updateStoryScrollbar = () => {};
@@ -468,28 +469,36 @@
     });
   }
 
-  async function loadNews() {
-    if (!newsIsVisible()) return;
-    try {
-      const response = await fetch(API, { cache: 'no-store' });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.ok === false) {
-        throw new Error(payload.error || `BBC News returned HTTP ${response.status}.`);
+  function loadNews() {
+    // Script load, activation and a pre-snapshot waiter can request the same
+    // refresh. Share its completion so a slower duplicate cannot repaint later.
+    if (refreshInFlight) return refreshInFlight;
+    if (!newsIsVisible()) return Promise.resolve(false);
+    refreshInFlight = (async () => {
+      try {
+        const response = await fetch(API, { cache: 'no-store' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.error || `BBC News returned HTTP ${response.status}.`);
+        }
+        const position = captureScrollState();
+        snapshot = payload;
+        render();
+        restoreScrollState(position);
+        return true;
+      } catch (error) {
+        if (statusPill) {
+          statusPill.textContent = 'News unavailable';
+          statusPill.classList.add('is-warning');
+        }
+        if (message) {
+          message.hidden = false;
+          message.textContent = error.message || 'Could not read the local BBC News cache.';
+        }
+        return false;
       }
-      const position = captureScrollState();
-      snapshot = payload;
-      render();
-      restoreScrollState(position);
-    } catch (error) {
-      if (statusPill) {
-        statusPill.textContent = 'News unavailable';
-        statusPill.classList.add('is-warning');
-      }
-      if (message) {
-        message.hidden = false;
-        message.textContent = error.message || 'Could not read the local BBC News cache.';
-      }
-    }
+    })().finally(() => { refreshInFlight = null; });
+    return refreshInFlight;
   }
 
   bindStoryScrollbar();

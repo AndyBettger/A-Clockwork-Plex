@@ -1,4 +1,14 @@
 
+## 11 November 2026 — Cover Reveal routes PASS; visuals FAIL; readiness comparison pending
+
+**Pi evidence at `26ee402f`:** matching 23:47:54 video (71.34s) and 23:50:41 command output: compile PASS, **35 probe tests: 34 PASS + 1 expected Node skip**. Six routes (3 keyboard, 3 drawer), six changed/settled events and six native View Transitions started/ready/finished, no promise failure or document reload; F11 ON. Operator/frame review rejects visual acceptance: jerky Weather/News reveals, first Weather forecast inserting during motion and News branding completing mid-reveal. Repeated routes also show roughness; hydration is one concrete sequencing issue, not a proven explanation of all artifacts. Native elapsed 2492–2935ms around configured 2000ms is not FPS. Implementation CI: **1664 tests, 3 skips, PASS**.
+
+**Staged:** opt-in `--cover-content-ready-trial` with the existing Cover profile. Weather/News hydrate and join actual refresh/forecast/completion/logo work inside `beforeSnapshot`; deadline 1800ms after script loading, one activation, explicit `contentReady` settled/failed/timed-out diagnostics. Default routing/animation stays the same; F11 stays ON. Shared refresh promises avoid duplicate in-flight loads. Optional forecast completion stops when a no-console result has settled. Asset versions updated.
+
+**Local checks:** syntax PASS; **30 host + 35 probe PASS**, including 10 new executed Node behavior cases in `tests/js/surface-content-ready.test.cjs`. These cover order, readiness signals, deadline/failure cleanup, default/AirPlay paths, refresh sharing/retry and absent optional forecast; no render claim.
+
+**Next Pi check:** only the 30 host + 35 probe suites (3 optional Node wrapper skips expected on this Pi), one ACP restart for cached template/asset changes, then one 180s forced-SHM Cover launch with the new flag. F2→F3→F1 then drawer Weather→News→Home; close and watch pill. Record pre-animation latency, first/repeated content pops and clipping/motion quality, `contentReadyTrial:true`, settlement outcome and native API counters. No F10/F11 toggle sequence or unrelated Audio/OSK/startup retest. Visual quality remains open.
+
 ## 11 November 2026 — Cover Reveal profile wiring PASS; Pi visual gate pending
 
 **Implementation:** `try-webkit-gtk-shell.py --surface-transition-trial --surface-transition-mode cover-reveal` sets a document-local Cover style and enables F11 navigation. Existing default spatial/configured modes are unchanged; no server/production asset mutation. The ordinary ACP router handles F-keys and drawer navigation directly, with no Spatial Row intermediates. A transparent native View Transition observer reports API availability, started/ready/finished counts, promise failures and elapsed time. Effective style/duration and Astronomy-night state make fallback interpretation explicit.
@@ -792,7 +802,7 @@ These automated modules use fakes, temporary roots, mocked runners and source-co
 ### ACP shell / navigation
 
 - `tests/test_acp_design_tokens.py` — Protects the #94 Phase A semantic design-token boundary, load order, palette derivation and first migrated shared/application-surface consumers.
-- `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces. Includes the optional Node-executed F10 row geometry/lifecycle cases in `tests/js/webkit-spatial-strip.test.cjs`; absence of Node is an explicit skip, not visual acceptance.
+- `tests/test_acp_surface_host.py` — Protects the #94 Phase A fail-safe same-document surface-host seam: load order, prepare/commit lifecycle, View Transition ownership and the unchanged full-route fallback for unmigrated surfaces. Includes the optional Node-executed F10 row geometry/lifecycle cases in `tests/js/webkit-spatial-strip.test.cjs`; absence of Node is an explicit skip, not visual acceptance. Includes optional Node-executed snapshot-content readiness cases in `tests/js/surface-content-ready.test.cjs`.
 
 - `tests/test_os_keyboard_choice.py` — Protects the five-minute browser-session native OSK trial switch, original input hint restoration, Advanced UI wiring and non-regression of the accepted ACP HTML keyboard.
 

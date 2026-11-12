@@ -440,12 +440,17 @@ COVER_REVEAL_TRIAL_SCRIPT = r"""
 """
 
 
-def surface_transition_script(mode: str) -> str:
+def surface_transition_script(mode: str, content_ready: bool = False) -> str:
     """Build only allowlisted, ephemeral document-end probe scripts."""
     if mode not in ("spatial", "configured", "cover-reveal"):
         raise ValueError("unsupported surface transition mode")
+    if content_ready and mode != "cover-reveal":
+        raise ValueError("content readiness trial requires cover-reveal mode")
     if mode == "cover-reveal":
-        return SURFACE_TRANSITION_TRIAL_SCRIPT + ";\n" + COVER_REVEAL_TRIAL_SCRIPT
+        script = SURFACE_TRANSITION_TRIAL_SCRIPT + ";\n" + COVER_REVEAL_TRIAL_SCRIPT
+        if content_ready:
+            script += ";\nwindow.__acpWebkitContentReadyTrial = true;"
+        return script
     return SURFACE_TRANSITION_TRIAL_SCRIPT
 
 
@@ -468,6 +473,8 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    configuredDurationMs: window.ACPDashboardPreferences?.read?.().transitionDurationMs
      ?? Number(document.documentElement.dataset.transitionDurationMs || 300),
    coverReveal: window.__acpWebkitCoverRevealTrial || null,
+   contentReadyTrial: window.__acpWebkitContentReadyTrial === true,
+   contentReady: window.__acpWebkitContentReadyLast || null,
    astronomyNightActive: document.documentElement.classList.contains('acp-night-document-active')
      && document.documentElement.classList.contains('acp-night-style-astronomy'),
    last: trial?.state.last || null,
@@ -628,9 +635,17 @@ def parse_args(argv=None):
                         help="Spatial Row, configured ordinary transition, or an "
                              "ephemeral Cover Reveal profile with F11 navigation; "
                              "only with --surface-transition-trial.")
+    parser.add_argument("--cover-content-ready-trial", action="store_true",
+                        help="Wait for Weather/News content before native snapshots; "
+                             "only with the explicit Cover Reveal surface trial.")
     args = parser.parse_args(argv)
     if args.surface_transition_mode != "spatial" and not args.surface_transition_trial:
         parser.error("--surface-transition-mode requires --surface-transition-trial")
+    if args.cover_content_ready_trial and (
+        not args.surface_transition_trial or args.surface_transition_mode != "cover-reveal"
+    ):
+        parser.error("--cover-content-ready-trial requires --surface-transition-trial "
+                     "and --surface-transition-mode cover-reveal")
     if not 10 <= args.seconds <= MAX_SECONDS:
         parser.error("--seconds must be between 10 and 300")
     if not 480 <= args.width <= 3840 or not 320 <= args.height <= 2160:
@@ -772,7 +787,7 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
               "no momentum; native vertical panning retained)", flush=True)
     if args.surface_transition_trial:
         injected = WebKit2.UserScript.new(
-            surface_transition_script(args.surface_transition_mode),
+            surface_transition_script(args.surface_transition_mode, args.cover_content_ready_trial),
             WebKit2.UserContentInjectedFrames.TOP_FRAME,
             WebKit2.UserScriptInjectionTime.END, None, None)
         webview.get_user_content_manager().add_script(injected)
@@ -829,6 +844,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     state.get("navLayoutTrial"),
                     state.get("effectiveStyle"),
                     json.dumps(state.get("coverReveal"), sort_keys=True),
+                    state.get("contentReadyTrial"),
+                    json.dumps(state.get("contentReady"), sort_keys=True),
                     state.get("outgoingCloneCount"),
                     state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
                     state.get("frameStripTrial"), state.get("frameStripApplied"),
@@ -1026,6 +1043,12 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                   "the drawer use the ordinary ACP renderer; no spatial "
                   "intermediates. coverReveal counters observe native View "
                   "Transitions when the host selects that path.", flush=True)
+            print("ACP WebKit probe: Cover content readiness trial "
+                  + ("ON: Weather/News hydrate before snapshots; content wait "
+                     "limited to 1800ms after script load. contentReady reports "
+                     "settled/failed/timed-out; not visual acceptance."
+                     if args.cover_content_ready_trial else "OFF (baseline)."),
+                  flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "
           f"limit={args.seconds}s; existing Chromium/Flatpak untouched.",
           flush=True)

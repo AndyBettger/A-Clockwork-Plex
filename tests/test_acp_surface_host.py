@@ -494,12 +494,23 @@ class AcpSurfaceHostTests(unittest.TestCase):
         self.assertLess(cleanup.index("clearOrdinaryTransitionStyles(screen)"),
                         cleanup.index("outgoing.remove()"))
 
-    def test_acp_surface_cache_refreshes_frame_strip_ab_trial(self):
+    def test_acp_surface_cache_refreshes_content_readiness_trial(self):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn(
-            "js/acp-application-surfaces.js', v='20261106-webkit-frame-strip-ab-v1'",
+            "js/acp-application-surfaces.js', v='20261111-snapshot-content-ready-v1'",
             base,
         )
+
+    def test_snapshot_content_readiness_behavior(self):
+        """Execute readiness order/deadlines; pixel acceptance stays on Pi."""
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js unavailable for content-readiness behavior tests")
+        result = subprocess.run(
+            [node, "--test", str(ROOT / "tests/js/surface-content-ready.test.cjs")],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_unsuccessful_webkit_pin_workaround_is_absent(self):
         source = APPLICATION_SURFACES.read_text(encoding="utf-8")

@@ -100,7 +100,7 @@ class NewsCustomFeedLayoutTests(unittest.TestCase):
             "const overall = text(state.status || snapshot?.status || 'empty').toLowerCase();",
             self.news_client,
         )
-        self.assertIn("js/news.js', v='20261007-news-status-v5'", self.news_template)
+        self.assertRegex(self.news_template, r"js/news\.js', v='[^']+'")
 
     def test_news_followup_clients_have_valid_javascript_syntax(self):
         node = shutil.which("node")

@@ -327,6 +327,21 @@ class WebKitProbeTests(unittest.TestCase):
             "--surface-transition-mode", "cover-reveal",
         ])
         self.assertEqual(cover.surface_transition_mode, "cover-reveal")
+        self.assertFalse(cover.cover_content_ready_trial)
+        ready = probe.parse_args([
+            "--show", "--surface-transition-trial",
+            "--surface-transition-mode", "cover-reveal", "--cover-content-ready-trial",
+        ])
+        self.assertTrue(ready.cover_content_ready_trial)
+        for args in (["--show", "--cover-content-ready-trial"],
+                     ["--show", "--surface-transition-trial", "--cover-content-ready-trial"]):
+            with self.assertRaises(SystemExit):
+                probe.parse_args(args)
+        flag = "window.__acpWebkitContentReadyTrial = true;"
+        self.assertNotIn(flag, probe.surface_transition_script("cover-reveal"))
+        self.assertIn(flag, probe.surface_transition_script("cover-reveal", True))
+        with self.assertRaises(ValueError):
+            probe.surface_transition_script("spatial", True)
         with self.assertRaises(SystemExit):
             probe.parse_args(["--show", "--surface-transition-mode", "cover-reveal"])
         self.assertNotIn(probe.COVER_REVEAL_TRIAL_SCRIPT,

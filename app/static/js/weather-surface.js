@@ -5,6 +5,7 @@
   const PRESENTATION_REFRESH_MS = 60_000;
   let refreshTimer = null;
   let refreshInFlight = false;
+  let refreshCompletion = Promise.resolve(false);
   let settingsRefreshPending = false;
 
   function weatherIsVisible() {
@@ -109,19 +110,25 @@
     return true;
   }
 
-  async function refresh() {
-    if (refreshInFlight || !weatherIsVisible()) return false;
+  function refresh() {
+    // A caller preparing a snapshot must be able to join the activation's
+    // existing refresh, rather than mistaking an in-flight request for ready.
+    if (refreshInFlight) return refreshCompletion;
+    if (!weatherIsVisible()) return Promise.resolve(false);
     refreshInFlight = true;
-    try {
-      const parsed = await fetchWeatherDocument();
-      const updated = updateFromDocument(parsed);
-      if (updated) settingsRefreshPending = false;
-      return updated;
-    } catch (error) {
-      return false;
-    } finally {
-      refreshInFlight = false;
-    }
+    refreshCompletion = (async () => {
+      try {
+        const parsed = await fetchWeatherDocument();
+        const updated = updateFromDocument(parsed);
+        if (updated) settingsRefreshPending = false;
+        return updated;
+      } catch (error) {
+        return false;
+      } finally {
+        refreshInFlight = false;
+      }
+    })();
+    return refreshCompletion;
   }
 
   function schedule() {
