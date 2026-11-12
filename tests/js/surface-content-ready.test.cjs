@@ -269,6 +269,18 @@ test('the real host commits and hydrates behind the guard BEFORE native capture,
   assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'released');
 });
 
+test('background animate:false navigation bypasses native capture and staging even with the trial enabled', async () => {
+  const f = fixture();
+  const native = installRealHost(f);
+  const navigation = f.window.ACPSurfaceHost.navigate('weather', { history: false, animate: false });
+  f.refresh.resolve(true); f.forecast.resolve(); f.completion.resolve();
+  assert.equal((await navigation).accepted, true);
+  assert.equal(native.nativeUpdate(), null);
+  assert.equal(f.guards.length, 0);
+  assert.equal(f.window.__acpWebkitCoverStageApplied, undefined);
+  assert.equal(f.calls.filter((x) => x === 'commit').length, 1);
+});
+
 for (const failure of ['throw', 'reject-update']) {
   test(`the real host releases its prepared cover when native transition fails: ${failure}`, async () => {
     const f = fixture();

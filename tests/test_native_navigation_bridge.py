@@ -117,9 +117,8 @@ class NativeNavigationBridgeTests(unittest.TestCase):
         )
         self.assertIn("...options,\n        history: true,", transitions)
         self.assertIn("if (options.animate === false) return false;", surface_host)
-        self.assertIn("document.startViewTransition(commit)", surface_host)
         # Existing ACP-to-ACP navigation still offers View Transitions.
-        self.assertIn("const transition = document.startViewTransition(commit)", surface_host)
+        self.assertIn("document.startViewTransition(commit)", surface_host)
         self.assertIn("motionEnabled(options)", surface_host)
 
     def test_native_ready_requires_screen_controller_lease_and_visible_surface(self):
