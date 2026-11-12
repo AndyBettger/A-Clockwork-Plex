@@ -475,6 +475,9 @@ SURFACE_TRANSITION_METRICS_SCRIPT = r"""
    coverReveal: window.__acpWebkitCoverRevealTrial || null,
    contentReadyTrial: window.__acpWebkitContentReadyTrial === true,
    contentReady: window.__acpWebkitContentReadyLast || null,
+   coverStageApplied: window.__acpWebkitCoverStageApplied || 0,
+   coverStage: window.__acpWebkitCoverStageLast || null,
+   coverGuardCount: document.querySelectorAll('.acp-webkit-cover-staging-guard').length,
    astronomyNightActive: document.documentElement.classList.contains('acp-night-document-active')
      && document.documentElement.classList.contains('acp-night-style-astronomy'),
    last: trial?.state.last || null,
@@ -636,7 +639,7 @@ def parse_args(argv=None):
                              "ephemeral Cover Reveal profile with F11 navigation; "
                              "only with --surface-transition-trial.")
     parser.add_argument("--cover-content-ready-trial", action="store_true",
-                        help="Wait for Weather/News content before native snapshots; "
+                        help="Prepare content behind the outgoing page before native snapshots; "
                              "only with the explicit Cover Reveal surface trial.")
     args = parser.parse_args(argv)
     if args.surface_transition_mode != "spatial" and not args.surface_transition_trial:
@@ -846,6 +849,8 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                     json.dumps(state.get("coverReveal"), sort_keys=True),
                     state.get("contentReadyTrial"),
                     json.dumps(state.get("contentReady"), sort_keys=True),
+                    state.get("coverStageApplied"), state.get("coverGuardCount"),
+                    json.dumps(state.get("coverStage"), sort_keys=True),
                     state.get("outgoingCloneCount"),
                     state.get("clonePaintSuppressed"), state.get("navBlurDisabled"),
                     state.get("frameStripTrial"), state.get("frameStripApplied"),
@@ -1044,9 +1049,11 @@ def show_window(args, Gtk, Gdk, GLib, WebKit2):
                   "intermediates. coverReveal counters observe native View "
                   "Transitions when the host selects that path.", flush=True)
             print("ACP WebKit probe: Cover content readiness trial "
-                  + ("ON: Weather/News hydrate before snapshots; content wait "
+                  + ("ON: source guard covers content preparation BEFORE native "
+                     "snapshots; native callback only removes guard. Content wait "
                      "limited to 1800ms after script load. contentReady reports "
-                     "settled/failed/timed-out; not visual acceptance."
+                     "settled/failed/timed-out; coverStage reports preparation/"
+                     "handoff. Neither proves visual acceptance."
                      if args.cover_content_ready_trial else "OFF (baseline)."),
                   flush=True)
     print(f"ACP WebKit probe: windowed={not args.fullscreen}, "

@@ -7,14 +7,14 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 const read = (name) => fs.readFileSync(path.join(__dirname, '../../app/static/js', name), 'utf8');
 const source = read('acp-application-surfaces.js');
-const preparation = source.slice(source.indexOf('  async function settleContentBeforeSnapshot('),
+const preparation = source.slice(source.indexOf('  async function stagePreparedViewTransition('),
   source.indexOf('  initialMount();'));
 const deferred = () => {
   let resolve, reject;
   const promise = new Promise((a, b) => { resolve = a; reject = b; });
   return { promise, resolve, reject };
 };
-const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
 
 function fixture({ enabled = true } = {}) {
   const calls = [], registry = new Map(), timers = new Map();
@@ -23,6 +23,10 @@ function fixture({ enabled = true } = {}) {
   const logo = { hidden: false, decode: () => { calls.push('decode'); return image.promise; } };
   const page = { dataset: { acpForecastSettled: 'true' } };
   const wrapper = { querySelector: (selector) => selector === '[data-news-logo]' ? logo : page };
+  const guards = [];
+  const body = { children: [], appendChild(node) { this.children.push(node); } };
+  const screen = { style: { visibility: '' },
+    getBoundingClientRect: () => { calls.push('layout'); return {}; } };
   const window = {
     __acpWebkitContentReadyTrial: enabled,
     ACPWeatherSurface: { refresh: () => { calls.push('weather-refresh'); return refresh.promise; } },
@@ -35,11 +39,22 @@ function fixture({ enabled = true } = {}) {
   };
   const context = {
     window, performance: { now: () => now },
-    document: { dispatchEvent: (event) => calls.push(event.type) },
+    document: { body, dispatchEvent: (event) => calls.push(event.type) },
     CustomEvent: class { constructor(type, { detail }) { this.type = type; this.detail = detail; } },
     surfaces: new Set(['clock', 'weather', 'news', 'settings', 'airplay']),
     surfaceHost: { register: (surface, lifecycle) => registry.set(surface, lifecycle) },
-    screen: { getBoundingClientRect: () => { calls.push('layout'); return {}; } },
+    screen,
+    cloneCurrentSpatialLayer: () => {
+      const node = { style: { setProperty() {} }, classList: { add() {} },
+        remove() {
+          const index = body.children.indexOf(node);
+          if (index >= 0) body.children.splice(index, 1);
+        } };
+      guards.push(node);
+      return node;
+    },
+    nextFrame: async () => { calls.push('paint-frame'); },
+    commitSurface: () => { calls.push('commit'); },
     ensureMounted: async () => ({ wrapper, title: 'Page', scripts: ['page.js'] }),
     ensureScripts: async () => { calls.push('scripts'); },
     syncLogicalMode: async () => { calls.push('logical-mode'); },
@@ -47,6 +62,7 @@ function fixture({ enabled = true } = {}) {
   vm.createContext(context);
   vm.runInContext(preparation, context);
   return { window, registry, calls, timers, refresh, forecast, completion, image,
+    context, guards, body, screen,
     tick: (value) => { now = value; } };
 }
 
@@ -145,6 +161,129 @@ test('the opt-in leaves Clock and the existing AirPlay hydration path alone', as
   assert.equal(f.calls.filter((x) => x === 'acp:surface-activated').length, 1);
   assert.equal(f.window.__acpWebkitContentReadyLast, undefined);
 });
+
+test('staging keeps the source cover through async work and two paint ticks; native swap is synchronous', async () => {
+  const f = fixture();
+  const content = deferred();
+  const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+  let commits = 0;
+  const pending = prepared.stageViewTransition({ commit: async () => {
+    commits++;
+    assert.equal(f.body.children.length, 1, 'source covered before commit');
+    assert.equal(f.screen.style.visibility, 'hidden');
+    await content.promise;
+  } });
+  await flush();
+  assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'preparing');
+  assert.equal(f.calls.includes('paint-frame'), false);
+  content.resolve();
+  const stage = await pending;
+  assert.equal(f.body.children.length, 1, 'guard remains for native old-state capture');
+  assert.equal(f.screen.style.visibility, '');
+  assert.equal(f.calls.filter((x) => x === 'paint-frame').length, 2);
+  assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'prepared');
+  assert.equal(stage.update(), undefined, 'no async content work in native callback');
+  assert.equal(commits, 1);
+  assert.equal(f.body.children.length, 0);
+  stage.dispose();
+  assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'released');
+  assert.equal(f.window.__acpWebkitCoverStageApplied, 1);
+});
+
+test('a failed staging commit removes its guard and restores prior visibility', async () => {
+  const f = fixture();
+  f.screen.style.visibility = 'hidden';
+  const prepared = await f.registry.get('weather').prepare({ from: 'clock' });
+  await assert.rejects(prepared.stageViewTransition({ commit: async () => {
+    throw new Error('content failed');
+  } }), /content failed/);
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.screen.style.visibility, 'hidden');
+  assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'failed');
+});
+
+test('an interrupted staging paint tick also frees the source cover', async () => {
+  const f = fixture();
+  f.context.nextFrame = async () => { throw new Error('paint interrupted'); };
+  const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+  await assert.rejects(prepared.stageViewTransition({ commit: async () => {} }), /paint interrupted/);
+  assert.equal(f.body.children.length, 0);
+  assert.equal(f.screen.style.visibility, '');
+});
+
+test('default preparation adds no staging guard or extra commit without explicit opt-in', async () => {
+  const f = fixture({ enabled: false });
+  const prepared = await f.registry.get('news').prepare({ from: 'weather' });
+  assert.equal(await prepared.stageViewTransition({ commit: () => assert.fail('unexpected commit') }), null);
+  assert.equal(f.guards.length, 0);
+  assert.equal(f.window.__acpWebkitCoverStageApplied, undefined);
+});
+
+function installRealHost(f, { throwNative = false } = {}) {
+  const classes = new Set(['mode-clock']);
+  f.body.dataset = { activePage: 'clock' };
+  f.body.classList = { add: (name) => classes.add(name), remove: (name) => classes.delete(name),
+    contains: (name) => classes.has(name), [Symbol.iterator]: () => classes.values() };
+  f.context.document.documentElement = { dataset: { transitionStyle: 'cover-reveal' },
+    classList: { contains: () => false } };
+  f.context.document.querySelector = (selector) => selector === 'main.screen' ? f.screen : null;
+  f.context.document.querySelectorAll = () => [];
+  f.window.location = { pathname: '/clock' };
+  const updated = deferred(), finished = deferred();
+  let nativeUpdate = null;
+  f.context.document.startViewTransition = (update) => {
+    f.calls.push('native-start');
+    if (throwNative) throw new Error('native start failed');
+    nativeUpdate = update;
+    return { updateCallbackDone: updated.promise, finished: finished.promise };
+  };
+  vm.runInContext(read('acp-surface-host.js'), f.context);
+  f.context.surfaceHost = f.window.ACPSurfaceHost;
+  vm.runInContext(preparation, f.context);
+  return { updated, finished, nativeUpdate: () => nativeUpdate };
+}
+
+test('the real host commits and hydrates behind the guard BEFORE native capture, exactly once', async () => {
+  const f = fixture();
+  const native = installRealHost(f);
+  const navigation = f.window.ACPSurfaceHost.navigate('weather', { history: false });
+  await flush();
+  assert.equal(f.body.dataset.activePage, 'weather');
+  assert.equal(f.screen.style.visibility, 'hidden');
+  assert.equal(f.body.children.length, 1);
+  assert.equal(native.nativeUpdate(), null, 'native capture waits for content');
+  f.refresh.resolve(true); f.forecast.resolve(); f.completion.resolve();
+  await flush();
+  assert.equal(typeof native.nativeUpdate(), 'function');
+  assert.equal(f.calls.filter((x) => x === 'commit').length, 1);
+  assert.equal(f.calls.filter((x) => x === 'acp:surface-activated').length, 1);
+  assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'prepared');
+  assert.equal(native.nativeUpdate()(), undefined);
+  assert.equal(f.body.children.length, 0);
+  native.updated.resolve();
+  await flush();
+  assert.equal(f.window.ACPSurfaceHost.isTransitioning(), true);
+  native.finished.resolve();
+  assert.equal((await navigation).accepted, true);
+  assert.equal(f.calls.filter((x) => x === 'commit').length, 1);
+  assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'released');
+});
+
+for (const failure of ['throw', 'reject-update']) {
+  test(`the real host releases its prepared cover when native transition fails: ${failure}`, async () => {
+    const f = fixture();
+    const native = installRealHost(f, { throwNative: failure === 'throw' });
+    const navigation = f.window.ACPSurfaceHost.navigate('weather', { history: false });
+    f.refresh.resolve(true); f.forecast.resolve(); f.completion.resolve();
+    await flush();
+    if (failure === 'reject-update') native.updated.reject(new Error('native update failed'));
+    assert.equal((await navigation).accepted, false);
+    assert.equal(f.body.children.length, 0);
+    assert.equal(f.screen.style.visibility, '');
+    assert.equal(f.window.__acpWebkitCoverStageLast.phase, 'aborted');
+    assert.equal(f.window.ACPSurfaceHost.isTransitioning(), false);
+  });
+}
 
 function moduleFixture(surface) {
   const requests = [], listeners = new Map();

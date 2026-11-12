@@ -657,9 +657,54 @@
     }
   }
 
+  async function stagePreparedViewTransition(from, commit) {
+    // Keep async page work OUTSIDE the native update callback. The Pi can
+    // expose the new live page during that work, before its snapshot animates.
+    // Capture the source once and keep it covering the destination until the
+    // native old-state capture has completed and invokes our synchronous swap.
+    const guard = cloneCurrentSpatialLayer(from);
+    guard.classList.add('acp-webkit-cover-staging-guard');
+    guard.style.setProperty('will-change', 'auto');
+    guard.style.setProperty('animation', 'none', 'important');
+    const previousVisibility = screen.style.visibility;
+    const started = performance.now();
+    const state = { from, phase: 'preparing', preparationMs: null };
+    window.__acpWebkitCoverStageLast = state;
+    window.__acpWebkitCoverStageApplied = (window.__acpWebkitCoverStageApplied || 0) + 1;
+    let released = false;
+    const release = (phase) => {
+      if (released) return;
+      released = true;
+      screen.style.visibility = previousVisibility;
+      guard.remove();
+      state.phase = phase;
+    };
+    try {
+      document.body.appendChild(guard);
+      screen.style.visibility = 'hidden';
+      await commit();
+      // Lay out and paint the hydrated real destination underneath the opaque
+      // guard before asking WebKit to capture either transition state. These
+      // frame ticks run before startViewTransition, so rendering is not paused.
+      screen.style.visibility = previousVisibility;
+      screen.getBoundingClientRect();
+      await nextFrame();
+      await nextFrame();
+      state.phase = 'prepared';
+      state.preparationMs = Math.round(performance.now() - started);
+      return {
+        update() { release('released'); },
+        dispose() { release('aborted'); },
+      };
+    } catch (error) {
+      release('failed');
+      throw error;
+    }
+  }
+
   async function settleContentBeforeSnapshot(surface, wrapper) {
-    // Bounded WebKit experiment: wait for actual content work, not an
-    // arbitrary delay or rAF while the native transition suppresses rendering.
+    // Bounded WebKit experiment: wait for actual content work, with an explicit
+    // deadline. The staging caller owns the native capture boundary.
     const started = performance.now();
     const status = { surface, state: 'waiting', elapsedMs: 0, limitMs: 1800 };
     window.__acpWebkitContentReadyLast = status;
@@ -698,8 +743,8 @@
         }),
       ]);
       Object.assign(status, result, { elapsedMs: Math.round(performance.now() - started) });
-      // Native View Transitions will take their incoming snapshot after this
-      // update callback returns. Resolve layout without awaiting a paint tick.
+      // Resolve layout under the preparation cover. The caller permits paint
+      // ticks before starting native capture, outside its update callback.
       screen.getBoundingClientRect();
     } finally {
       window.clearTimeout(timer);
@@ -736,6 +781,10 @@
           },
           async liveCommit({ commit } = {}) {
             await ordinaryLiveCommit(from, commit);
+          },
+          async stageViewTransition({ commit } = {}) {
+            if (window.__acpWebkitContentReadyTrial !== true) return null;
+            return stagePreparedViewTransition(from, commit);
           },
           async beforeSnapshot({ options = {} } = {}) {
             if (window.__acpWebkitContentReadyTrial === true && ['weather', 'news'].includes(surface)) {

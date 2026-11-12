@@ -1,4 +1,14 @@
 
+## 12 November 2026 — Readiness settles but pre-reveal paint regresses; covered staging pending
+
+**Pi at `51e38fc8`:** compile PASS; **30 host: 28 PASS + 2 optional Node skips; 35 probe: 34 PASS + 1 Node skip**. Six keyboard/drawer routes and native transitions complete without promise failures/reload. Weather/News content waits all settle in **62–98ms**; Weather forecast and News logo flags true. Previous implementation full CI passed **1665 tests, 3 skips**.
+
+**Visual FAIL:** matching 00:16:04 recording (63.49s) shows the target before animation. News briefly renders around 15.06–15.44s / 38.94s, outgoing Weather returns, then News reveals. Operator reports smoother movement but a worse overall presentation. Readiness counters therefore do not validate painting; longer waits are not indicated.
+
+**Revision staged:** same readiness flag now holds a fixed outgoing-screen copy over preparation, restores/paints the ready destination under it, and starts native capture afterwards. A synchronous native update removes only that copy. One real commit/activation; same native Cover animation, duration and F11. Default/no-flag path remains unchanged. Guard/visibility cleanup covers preparation failure, interrupted frame, native start throw and rejected update; metrics expose stage count/phase/time and retained guards. Host/application asset tokens updated.
+
+**Behavior coverage:** `tests/js/surface-content-ready.test.cjs` now executes **17 cases**, including the actual host's staging integration and failure cleanup. **30 host + 35 probe PASS locally**, alongside changed syntax and 14 documentation checks. New Pi check is runtime only: pull/restart once, same Cover readiness launch, six keyboard/drawer routes and pill close. Expect outgoing page→one reveal, stage applied=6, released, zero retained guards and successful native counters. Actual frames and smoothness decide acceptance.
+
 ## 11 November 2026 — Cover Reveal routes PASS; visuals FAIL; readiness comparison pending
 
 **Pi evidence at `26ee402f`:** matching 23:47:54 video (71.34s) and 23:50:41 command output: compile PASS, **35 probe tests: 34 PASS + 1 expected Node skip**. Six routes (3 keyboard, 3 drawer), six changed/settled events and six native View Transitions started/ready/finished, no promise failure or document reload; F11 ON. Operator/frame review rejects visual acceptance: jerky Weather/News reveals, first Weather forecast inserting during motion and News branding completing mid-reveal. Repeated routes also show roughness; hydration is one concrete sequencing issue, not a proven explanation of all artifacts. Native elapsed 2492–2935ms around configured 2000ms is not FPS. Implementation CI: **1664 tests, 3 skips, PASS**.

@@ -497,7 +497,7 @@ class AcpSurfaceHostTests(unittest.TestCase):
     def test_acp_surface_cache_refreshes_content_readiness_trial(self):
         base = BASE.read_text(encoding="utf-8")
         self.assertIn(
-            "js/acp-application-surfaces.js', v='20261111-snapshot-content-ready-v1'",
+            "js/acp-application-surfaces.js', v='20261112-covered-content-stage-v2'",
             base,
         )
 

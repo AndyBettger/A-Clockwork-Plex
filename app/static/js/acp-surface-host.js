@@ -149,9 +149,20 @@
         // genuinely live at night and animate only the ACP screen underneath.
         await prepared.liveCommit({ host, surface, from, options, commit });
       } else if (transitionEnabled(options)) {
-        const transition = document.startViewTransition(commit);
-        await transition.updateCallbackDone;
-        transitionFinished = transition.finished.catch(() => undefined);
+        const stage = typeof prepared.stageViewTransition === 'function'
+          ? await prepared.stageViewTransition({ host, surface, from, options, commit })
+          : null;
+        try {
+          const transition = stage
+            ? document.startViewTransition(stage.update)
+            : document.startViewTransition(commit);
+          await transition.updateCallbackDone;
+          transitionFinished = transition.finished.catch(() => undefined);
+        } finally {
+          // The normal staged callback already released its guard. Also free
+          // it if the native API throws or rejects before invoking the swap.
+          stage?.dispose();
+        }
       } else {
         await commit();
       }
