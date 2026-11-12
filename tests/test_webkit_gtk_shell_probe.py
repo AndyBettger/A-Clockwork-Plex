@@ -333,6 +333,20 @@ class WebKitProbeTests(unittest.TestCase):
             "--surface-transition-mode", "cover-reveal", "--cover-content-ready-trial",
         ])
         self.assertTrue(ready.cover_content_ready_trial)
+        self.assertFalse(ready.news_layer_trial)
+        news_layer = probe.parse_args([
+            "--show", "--surface-transition-trial", "--surface-transition-mode", "cover-reveal",
+            "--cover-content-ready-trial", "--news-layer-trial",
+        ])
+        self.assertTrue(news_layer.news_layer_trial)
+        with self.assertRaises(SystemExit):
+            probe.parse_args(["--show", "--surface-transition-trial",
+                              "--surface-transition-mode", "cover-reveal", "--news-layer-trial"])
+        layer_flag = "classList.add('acp-webkit-news-layer-trial')"
+        self.assertNotIn(layer_flag, probe.surface_transition_script("cover-reveal", True))
+        self.assertIn(layer_flag, probe.surface_transition_script("cover-reveal", True, True))
+        with self.assertRaises(ValueError):
+            probe.surface_transition_script("cover-reveal", False, True)
         for args in (["--show", "--cover-content-ready-trial"],
                      ["--show", "--surface-transition-trial", "--cover-content-ready-trial"]):
             with self.assertRaises(SystemExit):

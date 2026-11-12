@@ -14,6 +14,7 @@ function script(name) {
 }
 const profile = script('COVER_REVEAL_TRIAL_SCRIPT');
 const bridge = script('SURFACE_TRANSITION_TRIAL_SCRIPT');
+const metrics = script('SURFACE_TRANSITION_METRICS_SCRIPT');
 function deferred() {
   let resolve, reject;
   const promise = new Promise((a, b) => { resolve = a; reject = b; });
@@ -167,4 +168,46 @@ test('Cover F-key navigation delegates directly, without a spatial direction or 
   assert.equal(outcome.direction, 'none');
   assert.equal(outcome.configuredStyle, 'cover-reveal');
   assert.equal(outcome.sameDocument, true);
+});
+
+test('News geometry sampling is passive, excludes the source copy and caps card measurements', () => {
+  const f = fixture();
+  const before = { ...f.root.dataset };
+  const measured = [];
+  const node = (name, x, y, width, height) => ({
+    getBoundingClientRect: () => { measured.push(name); return { x, y, width, height }; },
+  });
+  const cards = Array.from({ length: 4 }, (_, i) => {
+    const card = node('card-' + i, 10, i * 100, 123.456, 90);
+    const heading = node('heading-' + i, 15, i * 100 + 10, 110, 20);
+    const summary = node('summary-' + i, 15, i * 100 + 35, 110, 35);
+    card.querySelector = (selector) => selector === 'h2' ? heading : summary;
+    return card;
+  });
+  const news = node('page', 4, 4, 845, 472);
+  const rail = node('rail', 4, 4, 155, 420);
+  const port = node('port', 170, 60, 670, 360);
+  news.querySelector = (selector) => selector === '.news-rail' ? rail : port;
+  news.querySelectorAll = () => cards;
+  f.document.querySelector = (selector) => {
+    if (selector.includes('.acp-mounted-surface-news')) {
+      assert.ok(selector.includes('main.screen:not(.acp-spatial-outgoing-live-clone)'));
+      assert.ok(selector.includes(':not([hidden])'));
+      return news;
+    }
+    return null;
+  };
+  f.document.querySelectorAll = () => [];
+  f.document.getElementById = () => null;
+  f.context.getComputedStyle = () => ({ transform: 'matrix(1, 0, 0, 1, 0, 0)' });
+  f.flags.add('acp-webkit-news-layer-trial');
+  const actual = JSON.parse(vm.runInContext(metrics, f.context));
+  assert.equal(actual.newsLayerTrial, true);
+  assert.equal(actual.newsLayout.transform, 'matrix(1, 0, 0, 1, 0, 0)');
+  assert.equal(actual.newsLayout.cards.length, 3);
+  assert.equal(actual.newsLayout.cards[0].box.width, 123.5);
+  assert.equal(actual.newsLayout.cards[0].summary.height, 35);
+  assert.equal(measured.includes('card-3'), false);
+  assert.deepEqual(f.root.dataset, before, 'no preference or DOM changes from telemetry');
+  assert.equal(f.calls.length, 0, 'sampling does not start native transitions');
 });

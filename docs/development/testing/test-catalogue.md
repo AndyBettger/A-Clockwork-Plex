@@ -1,4 +1,12 @@
 
+## 12 November 2026 — Covered handoff bounded PASS; News rendering comparison staged
+
+**Runtime evidence at `cb15f0f5`:** matching 00:54:07 video (55.78s) and 00:55:16 output. Six routes/native transitions complete, guards applied six times and all released, no reload or native rejection; content waits 83–146ms and preparation 189–591ms. No repeated unit suites in this evidence; exact implementation CI **1665 tests, 3 skips PASS**. Operator/frame review accepts the corrected single page handoff within this preview. News still shows shortened card fills/borders, overflowing-looking summaries and duplicate outlines during first/repeated reveal; overall News visual acceptance remains open.
+
+**Staged launcher-only comparison:** `--news-layer-trial` requires the existing Cover readiness flag and adds identity `translateZ(0)` only to the real active News page, excluding source copies. No app asset, template, renderer algorithm or service change. Passive `newsLayout` samples the first three cards, headings/summaries, rail/scrollport and computed transform on the existing cadence; distinguish actual box geometry from mispainted backgrounds. Computed transform is not proof of GPU allocation or visual success.
+
+**Local gate:** **35/35 probe checks PASS**; optional Node wrapper executes **8 cases**, including passive geometry sampling, active-page/source-copy selection and capped measurements. Python/injected-JS syntax and 14 documentation checks PASS. WebKitGTK build version is logged at launch. Pi gate is runtime only: pull, same six-route Cover launch plus new flag. No ACP restart or repeated Python suites. Compare both News reveals, verify `newsLayerTrial:true`, transform applied, normal stage/native counters and no retained guards. Record the remaining artifact even if all counters pass.
+
 ## 12 November 2026 — Readiness settles but pre-reveal paint regresses; covered staging pending
 
 **Pi at `51e38fc8`:** compile PASS; **30 host: 28 PASS + 2 optional Node skips; 35 probe: 34 PASS + 1 Node skip**. Six keyboard/drawer routes and native transitions complete without promise failures/reload. Weather/News content waits all settle in **62–98ms**; Weather forecast and News logo flags true. Previous implementation full CI passed **1665 tests, 3 skips**.
